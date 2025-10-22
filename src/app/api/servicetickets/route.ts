@@ -1,22 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type EmporixApiInvoker from '@/platform/integrations/emporix/common/impl/EmporixApiInvoker';
 import type { EmporixCustomerApi } from '@/platform/integrations/emporix/customer/EmporixCustomerApi';
+import server from '@/platform/server';
 import type { CustomerService } from '@/platform/services/customer/CustomerService';
 
 export async function GET(_request: NextRequest): Promise<NextResponse> {
   try {
-    const customerService = globalThis.EMP.platform.server.get<CustomerService>('CustomerService');
+    const customerService = server.get<CustomerService>('CustomerService');
     const currentCustomer = await customerService.getCustomer();
 
     if (!currentCustomer) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const api = globalThis.EMP.platform.server.get<EmporixApiInvoker>('EmporixApiInvoker');
-    const config = globalThis.EMP.platform.server.get('EmporixConfig') as { tenant: string };
+    const api = server.get<EmporixApiInvoker>('EmporixApiInvoker');
+    const config = server.get('EmporixConfig') as { tenant: string };
 
     // Fetch raw Emporix customer profile to read customerNumber
-    const customerApi = globalThis.EMP.platform.server.get<EmporixCustomerApi>('EmporixCustomerApi');
+    const customerApi = server.get<EmporixCustomerApi>('EmporixCustomerApi');
     const profile = await customerApi.getCustomerProfile();
     const customerNumber = profile?.customerNumber || '';
     const customerIdentifier = customerNumber || currentCustomer.id;
@@ -87,9 +88,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Get DI services
-    const api = globalThis.EMP.platform.server.get<EmporixApiInvoker>('EmporixApiInvoker');
-    const config = globalThis.EMP.platform.server.get('EmporixConfig') as { tenant: string };
-    const customerApi = globalThis.EMP.platform.server.get<EmporixCustomerApi>('EmporixCustomerApi');
+    const api = server.get<EmporixApiInvoker>('EmporixApiInvoker');
+    const config = server.get('EmporixConfig') as { tenant: string };
+    const customerApi = server.get<EmporixCustomerApi>('EmporixCustomerApi');
 
     // Determine customer number for ticketcustomer
     const profile = await customerApi.getCustomerProfile();
