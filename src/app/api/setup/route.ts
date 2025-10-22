@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import type { SetupResult, SetupService } from '@/platform/services/model/setup/setup';
 
 /**
@@ -57,7 +58,7 @@ async function executeSetupSteps(): Promise<Record<string, SetupResult>> {
   // Execute each setup step
   for (const serviceName of setupStepServices) {
     try {
-      const service = globalThis.EMP.platform.server.get<SetupService>(serviceName);
+      const service = server.get<SetupService>(serviceName);
 
       if (!service) {
         console.warn(`Setup step service '${serviceName}' not found in container`);
@@ -103,7 +104,7 @@ async function executeSetupStep(stepId: string): Promise<SetupResult> {
   // Find the service that implements the step with the given ID
   for (const serviceName of setupStepServices) {
     try {
-      const service = globalThis.EMP.platform.server.get<SetupService>(serviceName);
+      const service = server.get<SetupService>(serviceName);
 
       if (!service) {
         continue;
@@ -163,7 +164,7 @@ export async function GET(request: NextRequest) {
 async function executeFileBasedSetup(): Promise<SetupResult> {
   try {
     // Get the FileBasedSetupService from the container
-    const service = globalThis.EMP.platform.server.get<SetupService>('FileBasedSetupService');
+    const service = server.get<SetupService>('FileBasedSetupService');
 
     if (!service) {
       return {

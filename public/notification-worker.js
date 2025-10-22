@@ -104,7 +104,7 @@ self.addEventListener('notificationclick', function (event) {
 });
 
 // Service worker installation
-self.addEventListener('install', (event) => {
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 

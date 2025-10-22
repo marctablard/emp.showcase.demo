@@ -360,9 +360,6 @@ describe('EmporixIamApi', () => {
         expect(scopes).toBeDefined();
         expect(userId).toBeDefined();
 
-        // Log scopes for debugging
-        console.log(`Forrest Gump scopes: ${JSON.stringify(scopes)}`);
-
         // Forrest Gump should have approver scopes
         expect(typeof scopes === 'string').toBe(true);
         expect(scopes.includes('customer')).toBe(true);
@@ -395,9 +392,6 @@ describe('EmporixIamApi', () => {
         expect(userGroups).toBeDefined();
         expect(userGroups.items).toBeDefined();
         expect(Array.isArray(userGroups.items)).toBe(true);
-
-        // Log groups for debugging
-        console.log(`Benjamin Blue groups: ${JSON.stringify(userGroups.items)}`);
 
         // Check if any groups exist
         if (userGroups.items.length > 0) {
@@ -432,19 +426,12 @@ describe('EmporixIamApi', () => {
         expect(userGroups.items).toBeDefined();
         expect(Array.isArray(userGroups.items)).toBe(true);
 
-        // Log groups for debugging
-        console.log(`Forrest Gump groups: ${JSON.stringify(userGroups.items)}`);
-
         // Check if any groups exist
         if (userGroups.items.length > 0) {
           // Verify group structure
           const firstGroup = userGroups.items[0];
           expect(firstGroup.id).toBeDefined();
           expect(firstGroup.name).toBeDefined();
-
-          // Compare with benjamin.blue's groups to see if there are approver-specific groups
-          // This is informational and not a strict test requirement
-          console.log('Checking for approver-specific groups...');
         }
       } catch (error) {
         console.error('Failed to retrieve forrest.gump groups:', error);
@@ -573,7 +560,6 @@ describe('EmporixIamApi', () => {
 
       try {
         await iamApi.deleteGroup(testGroupId);
-        console.log(`Deleted test group with ID: ${testGroupId}`);
 
         // Verify deletion by trying to retrieve it (should throw an error)
         try {

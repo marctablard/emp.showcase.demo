@@ -2,8 +2,10 @@ import NextAuth from 'next-auth';
 import { User } from 'next-auth';
 import 'next-auth/jwt';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import server from '@/platform/server';
 import { CustomerNamingService } from '@/platform/services/customer/CustomerNamingService';
 import { CustomerService } from '@/platform/services/customer/CustomerService';
+import ssr from '@/platform/ssr';
 import { AuthService } from '../platform/services/auth/AuthService';
 import AuthConfig from './auth.config';
 
@@ -23,7 +25,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         try {
           // Get the AuthService from the container
-          const authService = globalThis.EMP.platform.server.get<AuthService>('AuthService');
+          const authService = server.get<AuthService>('AuthService');
 
           // Call the login method with the provided credentials
           const session = await authService.login({
@@ -31,15 +33,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             password: credentials.password as string,
           });
 
-          const customerService = globalThis.EMP.platform.server.get<CustomerService>('CustomerService');
+          const customerService = server.get<CustomerService>('CustomerService');
           const customer = await customerService.getCustomer();
           if (!session || !session.customerId || !customer) {
             return null;
           }
 
           // Return a session object that NextAuth can use
-          const customerNamingService =
-            globalThis.EMP.platform.server.get<CustomerNamingService>('CustomerNamingService');
+          const customerNamingService = server.get<CustomerNamingService>('CustomerNamingService');
           return {
             id: session.customerId,
             name: customerNamingService.getFullName(customer),
@@ -56,7 +57,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   events: {
     async signOut(_message) {
-      const authService = globalThis.EMP.platform.server.get<AuthService>('AuthService');
+      const authService = server.get<AuthService>('AuthService');
       await authService.logout();
     },
   },
@@ -64,7 +65,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (!user) {
         // Must fail silently when no CustomerSession is present, using SSR-Scope
-        const authService = globalThis.EMP.platform.ssr.get<AuthService>('AuthService');
+        const authService = ssr.get<AuthService>('AuthService');
         const session = await authService.getCurrentSession();
         if (!session || session.customerId != token.user?.id) {
           return null;

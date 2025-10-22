@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { SiteService } from '@/platform/services/site/SiteService';
 
 /**
@@ -7,7 +8,7 @@ import { SiteService } from '@/platform/services/site/SiteService';
  */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const siteService = EMP.platform.server.get<SiteService>('SiteService');
+    const siteService = server.get<SiteService>('SiteService');
     const { id } = await params;
     const site = await siteService.getSite(id);
 

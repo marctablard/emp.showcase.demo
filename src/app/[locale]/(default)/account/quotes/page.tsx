@@ -6,6 +6,8 @@ import AccountLayout from '@/components/account/account-layout';
 import { QuotesTable } from '@/components/account/quotes/quotes-table';
 import { useQuotes } from '@/hooks/quotes/useQuotes';
 
+export const dynamic = 'force-dynamic';
+
 export default function QuotesPage() {
   const t = useTranslations('account.quotesList');
   // Pagination state

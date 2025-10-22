@@ -2,7 +2,6 @@ import { NextAuthRequest } from 'next-auth';
 import NextAuth from 'next-auth';
 import createIntlMiddleware from 'next-intl/middleware';
 import { NextRequest, NextResponse } from 'next/server';
-import { RateLimiterMemory, RateLimiterRes } from 'rate-limiter-flexible';
 import authConfig from './auth/auth.config';
 
 const locales = ['en', 'de'];
@@ -11,13 +10,7 @@ const securedPages = ['/account'];
 const securedPathnameRegex = RegExp(`^(/(${locales.join('|')}))?(${securedPages.join('|')})(/.*)?/?$`, 'i');
 const securedApiPrefixes = securedPages.filter((p) => p.startsWith('/api/shipping'));
 
-// Rate limiting configuration (configurable via env)
-const rateLimit = parseInt(process.env.RATE_LIMIT ?? '', 10) || 60;
-const rateWindow = parseInt(process.env.RATE_WINDOW ?? '', 10) || 60;
-
-const rateLimitedPaths = ['/api/auth/callback/credentials', '/api/auth/register', '/api/password-reset'];
-const apiBypassPrefixes = ['/api/auth', '/api/csrf', '/api/notifications', '/api/reload-di'];
-const rateLimiters = new Map<string, RateLimiterMemory>();
+const apiBypassPrefixes = ['/api/auth', '/api/csrf', '/api/notifications'];
 
 const startsWithAny = (path: string, prefixes: string[]) => prefixes.some((p) => path.startsWith(p));
 
@@ -49,41 +42,6 @@ function validateCsrf(req: NextRequest): Response | NextResponse | undefined {
 }
 
 /**
- * Checks if the request exceeds rate limits
- * @param req NextRequest object
- * @returns Response if rate limit exceeded, undefined otherwise
- */
-async function checkRateLimit(req: NextRequest, rateLimiterKey: string): Promise<Response | NextResponse | undefined> {
-  if (!rateLimiters.has(rateLimiterKey)) {
-    rateLimiters.set(
-      rateLimiterKey,
-      new RateLimiterMemory({
-        points: rateLimit,
-        duration: rateWindow,
-        blockDuration: 60,
-      }),
-    );
-  }
-
-  const rateLimiter = rateLimiters.get(rateLimiterKey)!;
-  const clientIp = req.headers.get('x-forwarded-for') || 'unknown';
-
-  try {
-    await rateLimiter.consume(clientIp);
-    return undefined;
-  } catch (error) {
-    const rateLimiterRes = error as RateLimiterRes;
-    const response = NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
-
-    if (rateLimiterRes.msBeforeNext) {
-      response.headers.set('Retry-After', Math.ceil(rateLimiterRes.msBeforeNext / 1000).toString());
-    }
-
-    return response;
-  }
-}
-
-/**
  * Apply security headers to the response
  * @param response The response to apply headers to
  * @returns Response with security headers
@@ -107,24 +65,17 @@ export default auth(async (req: NextAuthRequest) => {
   const { pathname } = req.nextUrl;
 
   if (pathname.startsWith('/api/')) {
-    // 1) Enforce rate limiting for selected API paths first
-    const limitedMatch = rateLimitedPaths.find((p) => pathname.startsWith(p));
-    if (limitedMatch) {
-      const rateLimitResult = await checkRateLimit(req, limitedMatch);
-      if (rateLimitResult) return applySecurityHeaders(rateLimitResult);
-    }
-
-    // 2) Bypass certain API prefixes (e.g., NextAuth and CSRF endpoint) after rate limit check
+    // 1) Bypass certain API prefixes (e.g., NextAuth and CSRF endpoint)
     if (startsWithAny(pathname, apiBypassPrefixes)) {
       return applySecurityHeaders(NextResponse.next());
     }
 
-    // 3) Require auth for secured API prefixes (return 401 for unauthenticated)
+    // 2) Require auth for secured API prefixes (return 401 for unauthenticated)
     if (!req.auth?.user && startsWithAny(pathname, securedApiPrefixes)) {
       return applySecurityHeaders(NextResponse.redirect(new URL('/login', req.url)));
     }
 
-    // 4) Apply CSRF validation for remaining API requests
+    // 3) Apply CSRF validation for remaining API requests
     const csrfResult = validateCsrf(req);
     if (csrfResult) return applySecurityHeaders(csrfResult);
   }

@@ -122,7 +122,7 @@ export async function generateProductJsonLd(product: Product, locale: string): P
   let productPrice;
   let productCurrency;
   if (product?.price?.tiers && product.price.tiers.length > 0) {
-    productPrice = product.price.tiers[0].amount;
+    productPrice = product.price.tiers[0].price;
     productCurrency = product.price.currency;
   } else {
     productPrice = product.price?.amount || null;

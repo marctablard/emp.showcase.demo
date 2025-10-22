@@ -316,19 +316,16 @@ function watchForChanges() {
     watcher.on('change', async (filePath) => {
       console.log(`File changed: ${filePath}`);
       await generateContainerFiles(layer);
-      await reloadContainers();
     });
     
     watcher.on('add', async (filePath) => {
       console.log(`File added: ${filePath}`);
       await generateContainerFiles(layer);
-      await reloadContainers();
     });
     
     watcher.on('unlink', async (filePath) => {
       console.log(`File deleted: ${filePath}`);
       await generateContainerFiles(layer);
-      await reloadContainers();
     });
   });
 }
@@ -351,14 +348,4 @@ const watchMode = args.includes('--watch');
   process.exit(1);
 });
 
-async function reloadContainers() {
-  if (process.env.NODE_ENV === "development") {
-    try {
-      await fetch(`${baseUrl}/api/reload-di`, { method: 'POST' });
-      if (DEBUG) console.debug('Sent reload-di POST');
-    } catch (err) {
-      if (DEBUG) console.debug('Could not reach reload-di API:', err);
-    }
-  }
-}
 

@@ -5,7 +5,6 @@ import {
   ApprovalPermittedRequest,
   ApprovalPermittedResponse,
   ApprovalStatus,
-  ApprovalUpdateRequest,
   ApprovalUser,
 } from '../model/approval';
 

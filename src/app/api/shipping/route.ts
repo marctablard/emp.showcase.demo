@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { ShippingService } from '@/platform/services/shipping/ShippingService';
 
 /**
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required parameters: countryCode and postalCode' }, { status: 400 });
     }
 
-    const shippingService = EMP.platform.server.get<ShippingService>('ShippingService');
+    const shippingService = server.get<ShippingService>('ShippingService');
     let orderValue = undefined;
     if (amount && currency) {
       orderValue = { amount: Number(amount), currency };
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required parameters: methodId and zoneId' }, { status: 400 });
     }
 
-    const shippingService = EMP.platform.server.get<ShippingService>('ShippingService');
+    const shippingService = server.get<ShippingService>('ShippingService');
 
     const method = await shippingService.getShippingMethod(methodId, zoneId);
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { OrderService } from '@/platform/services/order/OrderService';
 
 /**
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Quote ID is required' }, { status: 400 });
     }
 
-    const orderService = EMP.platform.server.get<OrderService>('OrderService');
+    const orderService = server.get<OrderService>('OrderService');
     const orderId = await orderService.createOrderFromQuote(quoteId, customerNote);
 
     return NextResponse.json({ orderId }, { status: 201 });

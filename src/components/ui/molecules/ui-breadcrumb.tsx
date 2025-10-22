@@ -23,9 +23,10 @@ import { cn } from '@/lib/utils';
 interface UiBreadcrumbProps extends React.ComponentProps<'nav'> {
   items: BreadcrumbContent[];
   maxItems?: number;
+  disabledCategories?: boolean;
 }
 
-export function UiBreadcrumb({ items, maxItems = 2, className, ...props }: UiBreadcrumbProps) {
+export function UiBreadcrumb({ items, maxItems = 2, className, disabledCategories, ...props }: UiBreadcrumbProps) {
   const t = useTranslations('common.Breadcrumb');
 
   // If items array is empty, don't render anything
@@ -75,7 +76,14 @@ export function UiBreadcrumb({ items, maxItems = 2, className, ...props }: UiBre
         {hiddenItems.map((item, index) => {
           return (
             <BreadcrumbItem key={index} className="hidden sm:block">
-              <BreadcrumbLink href={item.href}>{item.label}</BreadcrumbLink>
+              {disabledCategories ? (
+                <BreadcrumbPage className="inline-flex items-center whitespace-nowrap text-primary [&>svg]:size-4 lg:[&>svg]:size-6 font-bold underline px-0 lg:px-0">
+                  {item.label}
+                  <ChevronRight className="size-4" />
+                </BreadcrumbPage>
+              ) : (
+                <BreadcrumbLink href={item.href}>{item.label}</BreadcrumbLink>
+              )}
             </BreadcrumbItem>
           );
         })}

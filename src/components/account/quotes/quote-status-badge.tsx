@@ -2,17 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
-
-// Define QuoteStatus enum directly here to avoid import issues
-export enum QuoteStatus {
-  REQUESTED = 'REQUESTED',
-  AVAILABLE = 'AVAILABLE',
-  CHANGE_REQUESTED = 'CHANGE_REQUESTED',
-  REJECTED = 'REJECTED',
-  ACCEPTED = 'ACCEPTED',
-  ORDER_CREATED = 'ORDER_CREATED',
-  CLOSED = 'CLOSED',
-}
+import type { QuoteStatus } from '@/platform/services/model/quote';
 
 interface QuoteStatusBadgeProps {
   status: QuoteStatus;
@@ -27,19 +17,19 @@ export function QuoteStatusBadge({ status }: QuoteStatusBadgeProps) {
   // Get the appropriate status badge variant similar to order badges
   const getStatusVariant = (status: QuoteStatus) => {
     switch (status) {
-      case QuoteStatus.REQUESTED:
+      case 'CREATING':
         return { variant: 'outline' as const };
-      case QuoteStatus.AVAILABLE:
-        return { variant: 'secondary' as const };
-      case QuoteStatus.CHANGE_REQUESTED:
+      case 'OPEN':
+        return { variant: 'info' as const };
+      case 'IN_PROGRESS':
         return { variant: 'warning' as const };
-      case QuoteStatus.REJECTED:
+      case 'DECLINED':
         return { variant: 'destructive' as const };
-      case QuoteStatus.ACCEPTED:
+      case 'ACCEPTED':
         return { variant: 'success' as const };
-      case QuoteStatus.ORDER_CREATED:
+      case 'ORDER_CREATED':
         return { variant: 'success' as const };
-      case QuoteStatus.CLOSED:
+      case 'CLOSED':
         return { variant: 'outline' as const };
       default:
         return { variant: 'outline' as const };

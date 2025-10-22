@@ -27,6 +27,14 @@ export interface SuggestionsMapper {
   mapProductSuggestions(item: any): Product[];
 
   /**
+   * Filters API response items by siteCode for document items
+   * @param apiResponse - The complete API response array
+   * @param siteCode - The site code to filter by
+   * @returns Filtered API response array
+   */
+  filterBySite(apiResponse: any[], siteCode?: string): any[];
+
+  /**
    * Maps the complete API response to a search suggestions object
    * @param apiResponse - The complete API response array
    * @returns Search suggestions object containing query completions, products, and categories

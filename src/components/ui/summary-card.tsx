@@ -6,17 +6,26 @@ import { Card, CardContent, CardHeader, CardTitle } from './card';
 
 interface SummaryCardProps extends React.ComponentProps<typeof Card> {
   heading: React.ReactNode;
+  hasHeadline?: boolean;
   icon?: React.ReactNode;
   contentClassName?: string;
 }
 
-export function SummaryCard({ heading, icon, className, contentClassName, children, ...props }: SummaryCardProps) {
+export function SummaryCard({
+  heading,
+  icon,
+  className,
+  contentClassName,
+  children,
+  hasHeadline,
+  ...props
+}: SummaryCardProps) {
   return (
     <Card className={cn('border-none shadow-sm', className)} {...props}>
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
           {icon}
-          <CardTitle className="text-lg">{heading}</CardTitle>
+          <CardTitle className={cn(hasHeadline ? 'text-4xl font-bold' : 'text-lg')}>{heading}</CardTitle>
         </div>
       </CardHeader>
       <CardContent className={cn('space-y-2', contentClassName)}>{children}</CardContent>

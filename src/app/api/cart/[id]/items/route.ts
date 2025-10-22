@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { CartService } from '@/platform/services/cart';
 
 /**
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const cartId = resolvedParams.id;
 
   try {
-    const cartService = globalThis.EMP.platform.server.get<CartService>('CartService');
+    const cartService = server.get<CartService>('CartService');
     const cart = await cartService.getCartById(cartId);
 
     if (!cart) {
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const resolvedParams = await params;
   const cartId = resolvedParams.id;
   try {
-    const cartService = globalThis.EMP.platform.server.get<CartService>('CartService');
+    const cartService = server.get<CartService>('CartService');
 
     // Get request body
     const body = await request.json();

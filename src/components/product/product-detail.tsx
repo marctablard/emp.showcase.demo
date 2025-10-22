@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
@@ -13,30 +13,31 @@ import { useProduct } from '@/hooks/product/useProduct';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 // import { useRecommendations } from '@/hooks/recommendations/useRecommendations';
 import { useL10n } from '@/hooks/useL10n';
+import { fetchProductPrice } from '@/lib/client/prices';
 import { cn } from '@/lib/utils';
 import { ProductPrice } from '@/platform/services/model/price';
 import { GroupedSpecification, Product, ProductVariantAttribute } from '@/platform/services/model/product';
 import { StockAvailability } from '@/platform/services/stock/StockService';
 import Recommendations from '../cms/recommendations';
 import { Button } from '../ui/button';
-import { H1, H2 } from '../ui/h';
+import { H1, H2, Overline } from '../ui/h';
 import UiLink from '../ui/link';
 import { RatingStarRow } from '../ui/rating';
 import ProductAddToCart from './product-add-to-cart';
 import ProductAddToCartBar from './product-add-to-cart-bar';
-import { ProductPriceComponent } from './product-price';
+import { ProductPriceComponent, ProductPriceSkeleton } from './product-price';
 import { ProductShippingInfo } from './product-shipping-info';
 import ProductVariantSelector from './product-variant-selector';
 
 export interface ProductDetailProps {
   product?: Product;
-  price?: ProductPrice | null;
   availability?: StockAvailability | null;
   className?: string;
 }
 
-export default function ProductDetail({ product: initialProduct, price, availability, className }: ProductDetailProps) {
+export default function ProductDetail({ product: initialProduct, availability, className }: ProductDetailProps) {
   const { product, loading, setAsCurrent } = useProduct(initialProduct);
+  const [price, setPrice] = useState<ProductPrice | null | undefined>(product?.price);
   const locale = useLocale();
   const { l10n } = useL10n(locale);
   const t = useTranslations('product');
@@ -55,6 +56,14 @@ export default function ProductDetail({ product: initialProduct, price, availabi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product]);
 
+  // asynchronous price fetching if not provided in SSR
+  useEffect(() => {
+    if (product && price === undefined) {
+      fetchProductPrice(product.id).then((price) => {
+        setPrice(price);
+      });
+    }
+  }, [product, price]);
   useEffect(() => {
     if (addToCartButton.current !== null && isDesktopScreen) {
       const observer = new IntersectionObserver(
@@ -93,10 +102,20 @@ export default function ProductDetail({ product: initialProduct, price, availabi
         <>
           <Card variant="gray" className="row-start-3 lg:col-start-1 lg:row-start-1 lg:row-end-4 p-6 lg:p-8 mb-6">
             <CardContent className="px-0">
-              {/* Product Image Carousel */}
               <div className="overflow-hidden">
                 {product.images && product.images.length > 0 ? (
-                  <ProductCarousel images={product.images} />
+                  product.images.length === 1 ? (
+                    <div className="relative aspect-square">
+                      <Image
+                        src={product.images[0].url}
+                        alt={product.images[0].altText ? l10n(product.images[0].altText) : l10n(product.name)}
+                        fill
+                        className="object-contain object-center"
+                      />
+                    </div>
+                  ) : (
+                    <ProductCarousel images={product.images} />
+                  )
                 ) : (
                   <div className="bg-neutral-200 flex items-center justify-center">
                     <Image src={'/images/no_image_alt.png'} alt={l10n(product.name)} width={90} height={90} />
@@ -188,16 +207,19 @@ export default function ProductDetail({ product: initialProduct, price, availabi
           </div>
         </div>
         <div className="row-start-2 lg:col-start-2 lg:row-start-2">
-          {/* <div>
-                {product.brand && (
-                  <Overline className="flex items-center gap-2">
-                    {product.brand.logo && (
-                      <Image src={product.brand.logo?.url} alt={l10n(product.brand.name)} height={70} width={70} />
-                    )}
-                    <span>{l10n(product.brand.name)}</span>
-                  </Overline>
-                )}
-              </div> */}
+          {product.brand && (
+            <Overline className="flex items-center gap-2">
+              {product.brand.logo?.url && (
+                <Image
+                  src={product.brand.logo?.url}
+                  alt={product.brand.name ? l10n(product.brand.name) : ''}
+                  height={70}
+                  width={70}
+                />
+              )}
+              <span>{product.brand.name ? l10n(product.brand.name) : ''}</span>
+            </Overline>
+          )}
           <p className="mb-2 mt-4 lg:mt-0 text-primary-500 font-bold font-headlines">Bluetti</p>
           <H1>{l10n(product.name)}</H1>
           <div className="mb-6 lg:md-0 flex gap-2 items-center">
@@ -212,7 +234,7 @@ export default function ProductDetail({ product: initialProduct, price, availabi
             ref={addToCartButton}
           >
             <div className="col-start-1 md:row-start-1 lg:col-end-4 xl-col-end-5">
-              {price && <ProductPriceComponent price={price} />}
+              {price === undefined ? <ProductPriceSkeleton /> : <ProductPriceComponent price={price} />}
             </div>
           </div>
           <ProductAddToCart product={product} price={price} className="mt-6" />
@@ -300,12 +322,10 @@ export default function ProductDetail({ product: initialProduct, price, availabi
       ) : null}
 
       <Recommendations
-        blok={{
-          productId: product.id,
-          locale,
-          overline: t('productRecommendations.overline'),
-          headline: t('productRecommendations.headline'),
-        }}
+        productId={product.id}
+        locale={locale}
+        overline={t('productRecommendations.overline')}
+        headline={t('productRecommendations.headline')}
       />
     </>
   );

@@ -60,6 +60,22 @@
   "cartEmptyTextLoggedIn": "Fügen Sie Produkte zu Ihrem Warenkorb hinzu.",
   "cartEmptyLogin": "Anmelden",
   "cartEmptyLinkText": "Jetzt Einkaufen",
+    "quote": {
+      "title": "Adresseneingabe für die Angebotsberechnung",
+      "subtitle": "Um Ihnen ein Angebot erstellen zu k nnen, m ssen wir Ihre Lieferadresse und Ihre bevorzugte Versandmethode kennen.",
+      "billingAddress": "Rechnungsadresse",
+      "sameAsShipping": "Rechnungsadresse ist die gleiche wie die Lieferadresse",
+      "referenceLabel": "Angebotsreferenz",
+      "referencePlaceholder": "z.B. Solar-Projekt Hamburg #1",
+      "commentLabel": "Ihrer Kommentar",
+      "commentPlaceholder": "Platzhalter",
+      "cancel": "Abbrechen",
+      "sendQuote": "Angebotsanfrage senden",
+      "submittedTitle": "Anfrage erfolgreich gesendet",
+      "submittedDescription": "Unser Team wird ein Angebot erstellen und sich bei Ihnen so schnell wie m glich in Ihrem Kundenkonto melden. Sie k nnen alle Ihre Angebote jederzeit in Ihrem Kundenkonto einsehen.",
+      "failedTitle": "Fehler bei der Anfrage",
+      "failedDescription": "Bitte versuchen Sie es erneut"
+    },
   "selectShippingAddress": "Lieferadresse auswählen",
   "quote": {
     "title": "Adresseingabe für Angebotskalkulation",

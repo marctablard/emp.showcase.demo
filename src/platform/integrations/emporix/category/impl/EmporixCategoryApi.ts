@@ -3,6 +3,8 @@ import { omit } from 'lodash';
 import { injectable } from '@/platform/core/di/injectable';
 import {
   EmporixCategory,
+  EmporixCategoryAssignment,
+  EmporixCategoryAssignmentQuery,
   EmporixCategoryParent,
   EmporixPaginatedResponse,
   EmporixSearchParams,
@@ -247,6 +249,45 @@ class EmporixCategoryApi implements IEmporixCategoryApi {
     } catch (error: any) {
       if (error.status === 404) {
         return undefined;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves resources (such as products) assigned to a specified category.
+   * @param categoryId The category ID to get assignments for
+   * @param query Query parameters for filtering and pagination
+   * @returns A paginated response containing category assignment data
+   */
+  async getCategoryAssignments(
+    categoryId: string,
+    params?: EmporixSearchParams<EmporixCategoryAssignmentQuery>,
+  ): Promise<EmporixPaginatedResponse<EmporixCategoryAssignment>> {
+    if (!params) {
+      params = {};
+    }
+    // Build the query string with all the filters
+    const { body: _body, query: baseQuery } = buildSearchQuery(params, true);
+
+    const url = `/category/${this.config.tenant}/categories/${categoryId}/assignments?${baseQuery}`;
+
+    try {
+      const response = await this.apiInvoker.authenticatedFetch(
+        url,
+        {
+          method: 'GET',
+          headers: {
+            'X-Total-Count': 'true',
+            'X-Version': 'v2', // Required for this endpoint as per API docs
+          },
+        },
+        'public',
+      );
+      return buildPaginatedResponse(params, response);
+    } catch (error: any) {
+      if (error.status === 404) {
+        return { items: [], page: 0, size: 0, total: 0 };
       }
       throw error;
     }

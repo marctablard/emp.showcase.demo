@@ -3,11 +3,12 @@
 import { cache } from 'react';
 import type { CustomerService } from '@/platform/services/customer/CustomerService';
 import type { Customer } from '@/platform/services/model/customer/customer';
+import ssr from '@/platform/ssr';
 
 /**
  * Get the customer service instance from the platform container
  */
-const getCustomerService = () => globalThis.EMP.platform.ssr.get<CustomerService>('CustomerService');
+const getCustomerService = () => ssr.get<CustomerService>('CustomerService');
 
 /**
  * Get the current customer

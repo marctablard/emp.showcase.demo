@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { CartService } from '@/platform/services/cart';
 import type { Cart } from '@/platform/services/model/cart';
 import { SessionService } from '@/platform/services/session';
@@ -16,8 +17,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const create = searchParams.get('create') === 'true'; // Default to false if not specified
 
-    const cartService = globalThis.EMP.platform.server.get<CartService>('CartService');
-    const sessionService = globalThis.EMP.platform.server.get<SessionService>('SessionService');
+    const cartService = server.get<CartService>('CartService');
+    const sessionService = server.get<SessionService>('SessionService');
     const session = await sessionService.getCurrent();
     if (!session) {
       return new Response(null, {
@@ -64,8 +65,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const cartService = globalThis.EMP.platform.server.get<CartService>('CartService');
-    const sessionService = globalThis.EMP.platform.server.get<SessionService>('SessionService');
+    const cartService = server.get<CartService>('CartService');
+    const sessionService = server.get<SessionService>('SessionService');
     const session = await sessionService.getCurrent();
     if (!session) {
       return NextResponse.json({ error: 'Failed to get session context' }, { status: 500 });

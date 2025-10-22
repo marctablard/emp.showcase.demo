@@ -9,9 +9,14 @@ import Logo from '@/components/cms/logo';
 import MediaText from '@/components/cms/media-text';
 import Navigation from '@/components/cms/navigation';
 import Page from '@/components/cms/page';
-import Recommendations from '@/components/cms/recommendations';
 import Segment from '@/components/cms/segment';
-import { StoryblokButton, StoryblokHero, StoryblokQuickEntry } from '@/components/cms/storyblok/storyblok-component';
+import {
+  StoryblokButton,
+  StoryblokColumnTeaser,
+  StoryblokHero,
+  StoryblokQuickEntry,
+  StoryblokRecommendations,
+} from '@/components/cms/storyblok/storyblok-component';
 import Teaser from '@/components/cms/teaser';
 import TopBannerAnnouncement from '@/components/cms/top-banner-announcement';
 import Video from '@/components/cms/video';
@@ -42,7 +47,8 @@ export const getStoryblokApi = storyblokInit({
     hero: StoryblokHero,
     quick_entry: StoryblokQuickEntry,
     media_text: MediaText,
-    recommendations: Recommendations,
+    recommendations: StoryblokRecommendations,
+    column_teaser: StoryblokColumnTeaser,
     video: Video,
     top_banner_announcement: TopBannerAnnouncement,
   },

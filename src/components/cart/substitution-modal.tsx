@@ -41,7 +41,7 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
   const originalProductId = cartItem.product?.id || '';
 
   // Get original product price
-  const originalPrice = priceMap[originalProductId]?.effectiveValue || 0;
+  const originalPrice = priceMap[originalProductId]?.originalAmount || 0;
   const originalCurrency = priceMap[originalProductId]?.currency || 'EUR';
 
   // Calculate price difference between original and substitution
@@ -353,17 +353,17 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
                             <div className="text-xs text-muted-foreground whitespace-nowrap">{t('pricePerUnit')}</div>
                             <div className="font-bold">
                               {formatCurrency(
-                                priceMap[sub.productId]?.effectiveValue || 0,
+                                priceMap[sub.productId]?.amount || 0,
                                 priceMap[sub.productId]?.currency || originalCurrency,
                               )}
                             </div>
                             {priceMap[sub.productId] &&
                               priceMap[originalProductId] &&
-                              priceMap[sub.productId].effectiveValue !== priceMap[originalProductId].effectiveValue && (
+                              priceMap[sub.productId].amount !== priceMap[originalProductId].amount && (
                                 <div
-                                  className={`text-xs font-medium ${priceMap[sub.productId].effectiveValue > priceMap[originalProductId].effectiveValue ? 'text-error-500' : 'text-success-500'}`}
+                                  className={`text-xs font-medium ${priceMap[sub.productId].amount > priceMap[originalProductId].amount ? 'text-error-500' : 'text-success-500'}`}
                                 >
-                                  {calculatePriceDifference(priceMap[sub.productId].effectiveValue).formattedDifference}
+                                  {calculatePriceDifference(priceMap[sub.productId].amount).formattedDifference}
                                 </div>
                               )}
                           </>

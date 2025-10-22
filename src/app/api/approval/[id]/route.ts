@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { ApprovalService } from '@/platform/services/approval/ApprovalService';
 import { ApprovalStatus } from '@/platform/services/model/approval';
 
@@ -17,7 +18,7 @@ interface RouteParams {
 export async function GET(_request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
   try {
-    const approvalService = globalThis.EMP.platform.server.get<ApprovalService>('ApprovalService');
+    const approvalService = server.get<ApprovalService>('ApprovalService');
     const approval = await approvalService.getApproval(id);
 
     if (!approval) {
@@ -38,7 +39,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
   try {
-    const approvalService = globalThis.EMP.platform.server.get<ApprovalService>('ApprovalService');
+    const approvalService = server.get<ApprovalService>('ApprovalService');
     const body = await request.json();
 
     // Check which update operation is requested
@@ -71,7 +72,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(_request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
   try {
-    const approvalService = globalThis.EMP.platform.server.get<ApprovalService>('ApprovalService');
+    const approvalService = server.get<ApprovalService>('ApprovalService');
     await approvalService.deleteApproval(id);
 
     return new Response(null, { status: 204 });

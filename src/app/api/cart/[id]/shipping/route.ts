@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { CartService } from '@/platform/services/cart/CartService';
 
 /**
@@ -10,7 +11,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const { id: cartId } = await params;
 
     // Get the cart service
-    const cartService = globalThis.EMP.platform.server.get<CartService>('CartService');
+    const cartService = server.get<CartService>('CartService');
 
     // Parse the request body
     const { countryCode, zipCode } = await request.json();

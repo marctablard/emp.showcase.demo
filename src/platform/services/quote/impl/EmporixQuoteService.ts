@@ -1,16 +1,18 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
 import { EmporixPaginatedResponse } from '@/platform/integrations/emporix/model';
-import type { EmporixQuote } from '@/platform/integrations/emporix/model/quote';
+import type { EmporixQuote, EmporixQuoteHistory } from '@/platform/integrations/emporix/model/quote';
 import type { EmporixQuoteApi } from '@/platform/integrations/emporix/quote/EmporixQuoteApi';
 import type { CustomerService } from '@/platform/services/customer/CustomerService';
 import type {
   CreateQuoteInput,
-  CreateQuoteReasonRequest,
   Quote,
+  QuoteHistory,
   QuoteReason,
-  QuoteReasonCreationResponse,
+  QuoteScope,
+  QuoteUpdateRequest,
 } from '@/platform/services/model/quote';
+import type { QuoteHistoryMapper } from '@/platform/services/model/quote/mapper/QuoteHistoryMapper';
 import type { QuoteMapper } from '@/platform/services/model/quote/mapper/QuoteMapper';
 import type { QuoteService } from '@/platform/services/quote/QuoteService';
 import { SearchParams, SearchResult } from '../../model/common';
@@ -21,6 +23,7 @@ class EmporixQuoteService implements QuoteService {
     @inject('EmporixQuoteApi') private quoteApi: EmporixQuoteApi,
     @inject('CustomerService') private customerService: CustomerService,
     @inject('QuoteMapper') private quoteMapper: QuoteMapper<EmporixQuote>,
+    @inject('QuoteHistoryMapper') private quoteHistoryMapper: QuoteHistoryMapper<EmporixQuoteHistory>,
   ) {}
 
   async createQuote(input: CreateQuoteInput): Promise<{ quoteId: string }> {
@@ -64,23 +67,8 @@ class EmporixQuoteService implements QuoteService {
     return Promise.resolve(this.quoteMapper.mapToService(quote));
   }
 
-  async updateQuoteStatus(quoteId: string, status: string, comment?: string, locale: string = 'en'): Promise<void> {
-    let quoteReasonId = undefined;
-    if (status === 'DECLINED') {
-      const quoteId_current = `${quoteId}_${Date.now()}`;
-      const code = `${(comment || quoteId_current).toUpperCase().replace(/\s+/g, '_')}`;
-
-      const message: Record<string, string> = {};
-      message[locale] = comment || 'Price too high';
-
-      const response = await this.createQuoteReason({
-        code: code,
-        type: 'DECLINE',
-        message: message,
-      });
-      quoteReasonId = response.id;
-    }
-    return this.quoteApi.updateQuoteStatus(quoteId, status, comment, quoteReasonId);
+  async updateQuote(quoteId: string, operations: QuoteUpdateRequest[], scope: QuoteScope = 'public'): Promise<void> {
+    await this.quoteApi.patchQuote(quoteId, operations, scope);
   }
 
   async getQuoteReason(quoteReasonId: string): Promise<QuoteReason> {
@@ -88,9 +76,25 @@ class EmporixQuoteService implements QuoteService {
     return emporixQuoteReason as QuoteReason;
   }
 
-  async createQuoteReason(createQuoteReasonRequest: CreateQuoteReasonRequest): Promise<QuoteReasonCreationResponse> {
-    const response = await this.quoteApi.createQuoteReason(createQuoteReasonRequest);
-    return { id: response.id };
+  async createQuoteReason(quoteId: string, comment: string, locale: string, reasonType: string) {
+    const quoteId_current = `${quoteId}_${Date.now()}`;
+    const code = `${(comment || quoteId_current).toUpperCase().replace(/\s+/g, '_')}`;
+
+    const message: Record<string, string> = {};
+    message[locale] = comment || 'Price too high';
+
+    const response = await this.quoteApi.createQuoteReason({
+      code: code,
+      type: reasonType,
+      message: message,
+    });
+    return response.id;
+  }
+
+  async getQuoteHistory(quoteId: string): Promise<QuoteHistory> {
+    const emporixHistory = await this.quoteApi.getQuoteHistory(quoteId);
+    const mappedHistory = this.quoteHistoryMapper.mapToService(emporixHistory);
+    return Promise.resolve(mappedHistory);
   }
 }
 

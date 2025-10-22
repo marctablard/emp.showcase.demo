@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { CustomerService } from '@/platform/services/customer/CustomerService';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: customerId } = await params;
 
-    const customerService = globalThis.EMP.platform.server.get<CustomerService>('CustomerService');
+    const customerService = server.get<CustomerService>('CustomerService');
     const addresses = await customerService.getAddresses(customerId === 'current' ? undefined : customerId);
 
     return NextResponse.json(addresses);
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const data = await request.json();
     // Get the current customer ID from the CustomerService
-    const customerService = globalThis.EMP.platform.server.get<CustomerService>('CustomerService');
+    const customerService = server.get<CustomerService>('CustomerService');
 
     // Create address using the CustomerService
     // This handles the mapping internally

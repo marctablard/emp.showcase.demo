@@ -169,7 +169,9 @@
     "billingAddress": "Billing address",
     "other": "Other",
     "note": "Note",
-    "notProvided": "Not provided"
+    "notProvided": "Not provided",
+    "requestorCommentUpdated": "Requestor comment updated",
+    "approverCommentUpdated": "Approver comment updated"
   },
   "ApprovalAction": {
     "CHECKOUT": "Order"

@@ -144,7 +144,7 @@ export default function ProductVariantSelectorSimple({
               {variantPrices ? (
                 <p className="text-xs text-neutral-600">
                   {getPrice(variant) ? (
-                    formatCurrency(getPrice(variant)?.effectiveValue || 0, getPrice(variant)?.currency || 'EUR')
+                    formatCurrency(getPrice(variant)?.amount || 0, getPrice(variant)?.currency || 'EUR')
                   ) : (
                     <span className="h-4 w-20">N/A</span>
                   )}

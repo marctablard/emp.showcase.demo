@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { WeatherForecast } from '@/platform/services/model/weather';
 import { WeatherService } from '@/platform/services/weather/WeatherService';
 
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // Get weather service from platform
-    const weatherService = globalThis.EMP.platform.server.get<WeatherService>('WeatherService');
+    const weatherService = server.get<WeatherService>('WeatherService');
 
     // Get weather forecast
     const forecast: WeatherForecast = await weatherService.getWeatherForecast(latitude, longitude);

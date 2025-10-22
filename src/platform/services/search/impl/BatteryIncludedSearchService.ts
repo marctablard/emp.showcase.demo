@@ -8,6 +8,7 @@ import type { Product } from '@/platform/services/model/product';
 import type { SearchService } from '@/platform/services/search/SearchService';
 import type { ProductMapper } from '../../model/product/ProductMapper';
 import type { SearchSuggestions, SuggestionsMapper } from '../../model/search';
+import type { SessionService } from '../../session';
 
 /**
  * Implementation of SearchService for BatteryIncluded product data.
@@ -18,18 +19,22 @@ class BatteryIncludedSearchService implements SearchService {
   private shopApi: BatteryIncludedShopApi;
   private productMapper: ProductMapper<BatteryIncludedProduct>;
   private suggestionsMapper: SuggestionsMapper;
+  private sessionService: SessionService;
 
   constructor(
     @inject('BatteryIncludedShopApi') shopApi: BatteryIncludedShopApi,
     @inject('BatteryIncludedProductMapper') productMapper: ProductMapper<BatteryIncludedProduct>,
+    @inject('SessionService') sessionService: SessionService,
   ) {
     this.shopApi = shopApi;
     this.productMapper = productMapper;
     // Since our BatteryIncludedProductMapper also implements SuggestionsMapper, we can use it directly
     this.suggestionsMapper = productMapper as unknown as SuggestionsMapper;
+    this.sessionService = sessionService;
   }
 
   async searchProducts(params: SearchParams<Product>): Promise<SearchResult<Product>> {
+    const session = await this.sessionService.getCurrent();
     const searchResult: BatteryIncludedSearchResponse<BatteryIncludedProduct> = await this.shopApi.browse({
       page: (params.page || 0) + 1, // normalize page
       size: params.size,
@@ -53,7 +58,9 @@ class BatteryIncludedSearchService implements SearchService {
       return filter;
     });
     return {
-      items: searchResult.hits.map((hit) => this.productMapper.mapToService(hit.document)),
+      items: searchResult.hits
+        .filter((hit) => hit.document.siteCode === session?.siteCode)
+        .map((hit) => this.productMapper.mapToService(hit.document)),
       page: searchResult.page - 1,
       pageSize: params.size || 10, // default
       total: searchResult.found,
@@ -64,8 +71,9 @@ class BatteryIncludedSearchService implements SearchService {
   async getSuggestions(query: string, locale?: string): Promise<SearchSuggestions> {
     try {
       const apiResponse = await this.shopApi.suggest(query, locale);
-
-      return this.suggestionsMapper.mapSearchSuggestions(apiResponse);
+      const session = await this.sessionService.getCurrent();
+      const filteredResponse = this.suggestionsMapper.filterBySite(apiResponse, session?.siteCode);
+      return this.suggestionsMapper.mapSearchSuggestions(filteredResponse);
     } catch (error) {
       console.error('[SearchService] Error getting suggestions:', error);
       return {

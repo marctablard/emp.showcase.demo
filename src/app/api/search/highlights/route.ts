@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { SearchService } from '@/platform/services/search/SearchService';
 
 /**
@@ -8,7 +9,7 @@ import { SearchService } from '@/platform/services/search/SearchService';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function GET(request: NextRequest) {
   try {
-    const searchService = globalThis.EMP.platform.server.get<SearchService>('SearchService');
+    const searchService = server.get<SearchService>('SearchService');
 
     const highlights = await searchService.getHighlights();
 

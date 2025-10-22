@@ -59,11 +59,13 @@ export interface TaxType {
 export interface Price {
   amount: number;
   originalAmount?: number;
-  tiers?: {
-    amount: number;
-    quantity: number;
-  }[];
   currency: string;
+  tiers?: {
+    id: string;
+    minQuantity: number;
+    unit?: string;
+    price: number;
+  }[];
   tax?: Tax & TaxType;
 }
 

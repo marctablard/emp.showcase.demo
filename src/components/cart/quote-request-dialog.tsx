@@ -96,7 +96,7 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
         : undefined,
       items,
       reference: reference || undefined,
-      comment: comment || undefined,
+      userComment: comment || undefined,
     } as const;
   };
 

@@ -3,11 +3,12 @@
 import { cache } from 'react';
 import { ApprovalService } from '@/platform/services/approval/ApprovalService';
 import { Approval } from '@/platform/services/model/approval';
+import ssr from '@/platform/ssr';
 
 /**
  * Get the approval service instance from the platform container
  */
-const getApprovalService = () => globalThis.EMP.platform.ssr.get<ApprovalService>('ApprovalService');
+const getApprovalService = () => ssr.get<ApprovalService>('ApprovalService');
 
 /**
  * Get a specific approval by ID

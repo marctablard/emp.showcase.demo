@@ -1,11 +1,12 @@
 import { cache } from 'react';
 import { CartService } from '@/platform/services/cart';
 import { Cart } from '@/platform/services/model/cart/cart';
+import ssr from '@/platform/ssr';
 
 /**
  * Get the cart service instance from the platform container
  */
-const getCartService = () => globalThis.EMP.platform.ssr.get<CartService>('CartService');
+const getCartService = () => ssr.get<CartService>('CartService');
 
 const getCart = cache(async (): Promise<Cart | null | undefined> => {
   try {

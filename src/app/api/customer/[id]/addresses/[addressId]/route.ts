@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { CustomerService } from '@/platform/services/customer/CustomerService';
 
 /**
@@ -16,7 +17,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const data = await request.json();
 
     // Get the CustomerService
-    const customerService = globalThis.EMP.platform.server.get<CustomerService>('CustomerService');
+    const customerService = server.get<CustomerService>('CustomerService');
 
     // Update address using the CustomerService
     // This handles the mapping internally
@@ -46,7 +47,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     // Get the CustomerService
-    const customerService = globalThis.EMP.platform.server.get<CustomerService>('CustomerService');
+    const customerService = server.get<CustomerService>('CustomerService');
 
     // Delete address using the CustomerService
     await customerService.deleteAddress(addressId);

@@ -1,6 +1,6 @@
 import { SearchParams, SearchResult } from '../model/common';
-import { CreateQuoteInput, CreateQuoteReasonRequest, QuoteReason, QuoteReasonCreationResponse } from '../model/quote';
-import { Quote } from '../model/quote/quote-list';
+import { CreateQuoteInput, QuoteHistory, QuoteReason, QuoteReasonCreationResponse, QuoteScope } from '../model/quote';
+import { Quote } from '../model/quote';
 
 export interface QuoteService {
   /**
@@ -19,19 +19,16 @@ export interface QuoteService {
   getQuote(quoteId: string): Promise<Quote>;
 
   /**
-   * Updates the status of a quote
+   * Updates a quote with single or multiple operations
    * @param quoteId - The ID of the quote to update
-   * @param status - The new status value
-   * @param comment - Optional comment to include with the status update
-   * @param locale - The user's locale (language code) to use for messages, defaults to 'en'
-   * @param quoteReasonId - Optional quote reason ID to include with the status update
+   * @param operations - Single operation or array of patch operations to apply
+   * @param scope - The scope to update the quote in, defaults to 'public'
+   * @returns Promise that resolves when the update is complete
    */
-  updateQuoteStatus(
+  updateQuote(
     quoteId: string,
-    status: string,
-    comment?: string,
-    locale?: string,
-    quoteReasonId?: string,
+    operations: QuoteUpdateOperation | QuoteUpdateOperation[],
+    scope?: QuoteScope,
   ): Promise<void>;
 
   /**
@@ -43,8 +40,18 @@ export interface QuoteService {
 
   /**
    * Create a new quote reason
-   * @param createQuoteReasonRequest - The data to create a new quote reason
+   * @param quoteId - The ID of the quote
+   * @param comment - The comment for the quote reason
+   * @param locale - The locale for the message
+   * @param reasonType - The type of reason ('DECLINE' or 'CHANGE')
    * @returns Promise with the ID of the created quote reason
    */
-  createQuoteReason(createQuoteReasonRequest: CreateQuoteReasonRequest): Promise<QuoteReasonCreationResponse>;
+  createQuoteReason(quoteId: string, comment: string, locale: string, reasonType: string): Promise<string>;
+
+  /**
+   * Get quote history for a specific quote
+   * @param quoteId - The ID of the quote to get history for
+   * @returns Promise with the quote history
+   */
+  getQuoteHistory(quoteId: string): Promise<QuoteHistory>;
 }

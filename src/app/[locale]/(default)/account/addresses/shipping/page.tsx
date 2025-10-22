@@ -3,6 +3,8 @@ import AccountLayout from '@/components/account/account-layout';
 import { AddressesList } from '@/components/account/addresses/address-card';
 import { getPageTitle } from '@/lib/ssr/seo';
 
+export const dynamic = 'force-dynamic';
+
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'account' });

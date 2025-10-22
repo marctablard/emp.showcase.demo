@@ -134,6 +134,28 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
   }
 
   /**
+   * Filters API response items by siteCode for document items
+   * @param apiResponse - The complete API response array
+   * @param siteCode - The site code to filter by
+   * @returns Filtered API response array
+   */
+  filterBySite(apiResponse: any[], siteCode?: string): any[] {
+    if (!siteCode || !Array.isArray(apiResponse)) {
+      return apiResponse;
+    }
+
+    return apiResponse.map((item) => {
+      if (item.kind === 'document' && Array.isArray(item.hits)) {
+        return {
+          ...item,
+          hits: item.hits.filter((hit: any) => hit && hit.highlighted && hit.highlighted.siteCode === siteCode),
+        };
+      }
+      return item;
+    });
+  }
+
+  /**
    * Maps the complete API response to a search suggestions object
    * @param apiResponse - The complete API response array
    * @returns Search suggestions object containing query completions, products, and categories

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { ApprovalService } from '@/platform/services/approval/ApprovalService';
 
 export const revalidate = 0;
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Cart ID is required' }, { status: 400 });
     }
 
-    const approvalService = globalThis.EMP.platform.server.get<ApprovalService>('ApprovalService');
+    const approvalService = server.get<ApprovalService>('ApprovalService');
     const requiresApproval = await approvalService.requiresApproval(cartId);
 
     return NextResponse.json(requiresApproval);

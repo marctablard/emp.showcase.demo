@@ -1,4 +1,11 @@
-import { EmporixCategory, EmporixCategoryParent, EmporixCategorySubcategory, EmporixPaginatedResponse } from '../model';
+import {
+  EmporixCategory,
+  EmporixCategoryAssignment,
+  EmporixCategoryAssignmentQuery,
+  EmporixCategoryParent,
+  EmporixCategorySubcategory,
+  EmporixPaginatedResponse,
+} from '../model';
 
 export interface EmporixCategoryQuery {
   /**
@@ -140,4 +147,15 @@ export interface EmporixCategoryApi {
    * @returns The category tree data or undefined if not found
    */
   getCategoryTree(categoryId: string, showUnpublished?: boolean): Promise<EmporixCategory | undefined>;
+
+  /**
+   * Retrieves resources (such as products) assigned to a specified category.
+   * @param categoryId The category ID to get assignments for
+   * @param query Query parameters for filtering and pagination
+   * @returns A paginated response containing category assignment data
+   */
+  getCategoryAssignments(
+    categoryId: string,
+    params?: EmporixSearchParams<EmporixCategoryAssignmentQuery>,
+  ): Promise<EmporixPaginatedResponse<EmporixCategoryAssignment>>;
 }

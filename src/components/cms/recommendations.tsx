@@ -1,6 +1,5 @@
 'use client';
 
-import { storyblokEditable } from '@storyblok/react/rsc';
 import { LucideChevronLeft, LucideChevronRight } from 'lucide-react';
 import { useProducts } from '@/hooks/product/useProducts';
 import { useRecommendations } from '@/hooks/recommendations/useRecommendations';
@@ -11,24 +10,22 @@ import { Carousel, CarouselContent, CarouselDots, CarouselItem, CarouselNext, Ca
 import { Heading } from '../ui/h';
 
 interface RecommendationsProps {
-  blok: {
-    overline?: string;
-    headline?: string;
-    productId?: Product['id'];
-    products?: string;
-    locale?: string;
-  };
+  overline?: string;
+  headline?: string;
+  productId?: Product['id'];
+  products?: string;
+  locale?: string;
 }
 
-const Recommendations = ({ blok }: RecommendationsProps) => {
-  const hasProductId = !!blok.productId;
+const Recommendations = ({ overline, headline, productId, products, locale }: RecommendationsProps) => {
+  const hasProductId = !!productId;
   // get product ids as string because of storyblok and transform it to array
-  const transformProducts = blok.products?.split(', ');
+  const transformProducts = products?.split(', ');
   const hasProducts = Array.isArray(transformProducts) && transformProducts.length > 0;
 
   // Fetch recommendations or products
-  const { recommendations, loading: recLoading, error } = useRecommendations(blok.productId);
-  const { products: productList, loading: productsLoading } = useProducts(transformProducts);
+  const { recommendations, loading: recLoading, error } = useRecommendations(productId);
+  const { products: productList, loading: productsLoading } = useProducts(transformProducts, { prices: true });
 
   const recommendationsToShow = hasProductId ? (recommendations?.products ?? []) : (productList ?? []);
 
@@ -42,18 +39,18 @@ const Recommendations = ({ blok }: RecommendationsProps) => {
   }
 
   return (
-    <div {...storyblokEditable(blok)} className="py-8 max-w-6xl mx-auto px-4 lg:px-9">
-      {blok.overline && (
+    <div className="py-8 max-w-6xl mx-auto px-4 lg:px-9">
+      {overline && (
         <Heading variant="overline" as="div" className="mb-3">
-          {blok.overline}
+          {overline}
         </Heading>
       )}
 
       <div className="w-full relative">
         <Carousel className="w-full " orientation="horizontal">
-          {blok.headline && (
+          {headline && (
             <Heading variant="h2" as="div" className="md:pr-36">
-              {blok.headline}
+              {headline}
             </Heading>
           )}
 
@@ -74,7 +71,7 @@ const Recommendations = ({ blok }: RecommendationsProps) => {
                   recommendationsToShow.map((product, index) => (
                     <CarouselItem key={index} size="basis-1/5.5">
                       <div className="relative w-[322px] h-full">
-                        <ProductTile product={product} />
+                        <ProductTile product={product} locale={locale} />
                       </div>
                     </CarouselItem>
                   ))}

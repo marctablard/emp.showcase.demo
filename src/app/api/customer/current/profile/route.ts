@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { CustomerService, CustomerUpdateDto } from '@/platform/services/customer/CustomerService';
+import server from '@/platform/server';
+import { CustomerService, CustomerUpdateDto } from '@/platform/services/customer/CustomerService';
 
 /**
  * PATCH /api/customer/current/profile
@@ -7,7 +8,7 @@ import type { CustomerService, CustomerUpdateDto } from '@/platform/services/cus
  */
 export async function PATCH(request: NextRequest) {
   try {
-    const customerService = globalThis.EMP.platform.server.get<CustomerService>('CustomerService');
+    const customerService = server.get<CustomerService>('CustomerService');
 
     // Get the current customer to check if logged in
     const currentCustomer = await customerService.getCustomer();

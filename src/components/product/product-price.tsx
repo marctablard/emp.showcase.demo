@@ -3,17 +3,23 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn, formatCurrency, formatCurrencyToParts } from '@/lib/utils';
 import { ProductPrice } from '@/platform/services/model/price';
 
 interface ProductPriceProps {
-  price: ProductPrice;
+  price: ProductPrice | null;
   isAddToCartBar?: boolean;
 }
 
 export function ProductPriceComponent({ price, isAddToCartBar }: ProductPriceProps) {
   const t = useTranslations('product.price');
-  const parts = formatCurrencyToParts(price.effectiveValue, price.currency);
+
+  if (price === null) {
+    return null;
+  }
+
+  const parts = formatCurrencyToParts(price.amount, price.currency);
   let priceFragment: React.ReactNode[];
   if (parts.length === 0) {
     priceFragment = [<>{t('notAvailable')}</>];
@@ -103,12 +109,12 @@ export function ProductPriceComponent({ price, isAddToCartBar }: ProductPricePro
         )}
       </div>
       <div>
-        {price.originalValue && price.originalValue > price.effectiveValue && (
+        {price.originalAmount && price.originalAmount > price.amount && (
           <div className="flex flex-col gap-1">
             <span className="text-sm font-medium">{t('listPrice')}</span>
             <div>
               <div className={cn('line-through', isAddToCartBar ? 'text-white text-xl' : 'text-neutral-600')}>
-                {formatCurrency(price.originalValue, price.currency)}
+                {formatCurrency(price.originalAmount, price.currency)}
               </div>
             </div>
           </div>
@@ -127,6 +133,16 @@ export function ProductPriceComponent({ price, isAddToCartBar }: ProductPricePro
         </div>
       )}
       */}
+    </div>
+  );
+}
+
+export function ProductPriceSkeleton() {
+  return (
+    <div className="space-y-2 mb-2">
+      <Skeleton className="h-4 w-24" />
+      <Skeleton className="h-8 w-32" />
+      <Skeleton className="h-4 w-40" />
     </div>
   );
 }

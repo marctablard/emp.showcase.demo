@@ -174,7 +174,7 @@ export class EmporixCategoryService implements CategoryService {
         result.forEach((category) => {
           this.assignParents(category, mappedParents);
           // build hierarchies
-          mappedParents.values().forEach((parent) => {
+          Array.from(mappedParents.values()).forEach((parent) => {
             this.assignParents(parent, mappedParents);
           });
         });

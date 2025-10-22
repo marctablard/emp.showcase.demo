@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { StorefrontNotification } from '@/platform/services/model/notification/notification';
+import server from '@/platform/server';
+import { StorefrontNotification } from '@/platform/services/model/notification/notification';
 import { NotificationService } from '@/platform/services/notification/NotificationService';
 
 /**
@@ -10,7 +11,7 @@ import { NotificationService } from '@/platform/services/notification/Notificati
 export async function GET(_request: NextRequest): Promise<NextResponse> {
   try {
     // Get the notification service from the container
-    const notificationService = globalThis.EMP.platform.server.get<NotificationService>('NotificationService');
+    const notificationService = server.get<NotificationService>('NotificationService');
 
     if (!notificationService) {
       return NextResponse.json({ error: 'Notification service not available' }, { status: 500 });
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Get the notification service from the container
-    const notificationService = globalThis.EMP.platform.server.get<NotificationService>('NotificationService');
+    const notificationService = server.get<NotificationService>('NotificationService');
 
     if (!notificationService) {
       return NextResponse.json({ error: 'Notification service not available' }, { status: 500 });
@@ -76,7 +77,7 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
     }
 
     // Get the notification service from the container
-    const notificationService = globalThis.EMP.platform.server.get<NotificationService>('NotificationService');
+    const notificationService = server.get<NotificationService>('NotificationService');
 
     if (!notificationService) {
       return NextResponse.json({ error: 'Notification service not available' }, { status: 500 });

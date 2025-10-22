@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { BreadcrumbContent } from '@/lib/breadcrumb';
 import { CMSService } from '@/platform/services/cms/CMSService';
 import { CMSNoResult, CMSPage } from '@/platform/services/model/cms';
+import ssr from '@/platform/ssr';
 import { UiBreadcrumb } from '../../ui/molecules/ui-breadcrumb';
 import CMSComponentRenderer from '../cms-component-renderer';
 
@@ -17,7 +18,7 @@ interface CMSPageParams {
  */
 async function fetchData(locale: string, slug: string, site?: string): Promise<CMSPage | CMSNoResult> {
   // Create instance of LocalCmsService directly for server component
-  const cmsService = globalThis.EMP.platform.ssr.get<CMSService>('CMSService');
+  const cmsService = ssr.get<CMSService>('CMSService');
   return cmsService.getPage(slug, locale, site || '');
 }
 
@@ -75,7 +76,7 @@ export default async function CMSPageComponent({ slug, locale, site, emptyOnNoRe
         {breadcrumb.length > 0 && (
           <UiBreadcrumb items={breadcrumb} className="max-w-6xl mx-auto px-4 lg:px-9 md:gap-x-6" />
         )}
-        <CMSComponentRenderer components={page.components} />
+        <CMSComponentRenderer components={page.components} locale={locale} />
       </div>
     </>
   );

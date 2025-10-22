@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { QuoteService } from '@/platform/services/quote/QuoteService';
+import server from '@/platform/server';
+import { QuoteService } from '@/platform/services/quote/QuoteService';
 
 /**
  * GET /api/quotes/[id] - Returns details of a specific quote
@@ -7,7 +8,7 @@ import type { QuoteService } from '@/platform/services/quote/QuoteService';
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: quoteId } = await params;
   try {
-    const quoteService = EMP.platform.server.get<QuoteService>('QuoteService');
+    const quoteService = server.get<QuoteService>('QuoteService');
 
     const quote = await quoteService.getQuote(quoteId);
 

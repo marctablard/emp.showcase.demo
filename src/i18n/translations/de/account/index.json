@@ -177,7 +177,7 @@
   "quoteStatus": {
     "requested": "Angefordert",
     "available": "Verfügbar",
-    "change_requested": "Änderung angefordert",
+    "in_progress": "In Bearbeitung",
     "declined": "Abgelehnt",
     "accepted": "Akzeptiert",
     "order_created": "Bestellung erstellt",
@@ -190,6 +190,10 @@
     "status": "Status",
     "quotationDate": "Angebotsdatum",
     "totalAmount": "Gesamtbetrag",
+    "editor": "Bearbeiter",
+    "action": "Aktion",
+    "comment": "Kommentar",
+    "date": "Datum",
     "numberOfProducts": "Anzahl der Produkte",
     "loading": "Angebotsdetails werden geladen...",
     "backToQuotes": "Zurück zu Angeboten",
@@ -225,9 +229,16 @@
     "rejectConfirmationDescription": "Wenn Sie möchten, können Sie einen Kommentar hinterlassen, um uns mitzuteilen, warum Sie dieses Angebot ablehnen. Ihr Feedback hilft uns, unsere Angebote zu verbessern.",
     "rejectCommentPlaceholder": "Bitte geben Sie Gründe für die Ablehnung dieses Angebots an...",
     "rejectQuote": "ANGEBOT ABLEHNEN",
-    "rejecting": "WIRD ABGELEHNT..."
+    "rejecting": "WIRD ABGELEHNT...",
+    "requestChangeConfirmationTitle": "Möchten Sie eine Änderung des Angebots anfordern?",
+    "requestChangeConfirmationDescription": "Bitte teilen Sie uns mit, was wir besser machen können.",
+    "requestChangeCommentPlaceholder": "Platzhalter",
+    "requestingChange": "ÄNDERUNG WIRD ANGEFORDERT...",
+    "commentAdded": "Kommentar hinzugefügt",
+    "initialQuoteRequest": "Angebotsanfrage",
+    "statusChanged": "Status geändert {currentStatus}",
+    "loadingHistory": "Verlauf wird geladen..."
   },
-  
   "quotesList": {
     "title": "Angebote",
     "sortBy": "Sortieren nach",

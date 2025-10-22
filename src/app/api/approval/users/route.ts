@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { ApprovalService } from '@/platform/services/approval/ApprovalService';
 
 export const revalidate = 0;
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
     }
 
-    const approvalService = globalThis.EMP.platform.server.get<ApprovalService>('ApprovalService');
+    const approvalService = server.get<ApprovalService>('ApprovalService');
     const users = await approvalService.searchApprovalUsers(resourceType, resourceId, action);
 
     return NextResponse.json(users);
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const approvalService = globalThis.EMP.platform.server.get<ApprovalService>('ApprovalService');
+    const approvalService = server.get<ApprovalService>('ApprovalService');
 
     // Get request body
     const body = await request.json();

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { SessionService } from '@/platform/services/session/SessionService';
 
 /**
@@ -7,7 +8,7 @@ import { SessionService } from '@/platform/services/session/SessionService';
  */
 export async function GET() {
   try {
-    const sessionService = EMP.platform.server.get<SessionService>('SessionService');
+    const sessionService = server.get<SessionService>('SessionService');
     const session = await sessionService.getCurrent();
     return NextResponse.json(session);
   } catch (error) {
@@ -22,7 +23,7 @@ export async function GET() {
  */
 export async function PATCH(request: NextRequest) {
   try {
-    const sessionService = EMP.platform.server.get<SessionService>('SessionService');
+    const sessionService = server.get<SessionService>('SessionService');
     const data = await request.json();
 
     // Handle each possible update field

@@ -8,6 +8,7 @@ import {
   EmporixCreateQuoteReasonRequest,
   EmporixCreateQuoteRequest,
   EmporixQuoteCreationResponse,
+  EmporixQuoteHistory,
   EmporixQuoteReason,
   EmporixQuoteReasonCreationResponse,
 } from '../../model/quote';
@@ -20,6 +21,33 @@ class EmporixQuoteApi implements IEmporixQuoteApi {
     @inject('EmporixApiInvoker') private apiClient: EmporixApiClient,
     @inject('EmporixConfig') private config: EmporixConfig,
   ) {}
+
+  /**
+   * Common method to handle PATCH operations on quotes
+   */
+  async patchQuote(
+    quoteId: string,
+    body: any,
+    scope: 'public' | 'session' | 'customer-saas' | 'service' = 'public',
+  ): Promise<void> {
+    const response = await this.apiClient.authenticatedFetch(
+      `/quote/${this.config.tenant}/quotes/${quoteId}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(body),
+      },
+      scope,
+    );
+
+    if (!response.ok) {
+      const errorDetails = await response.text();
+      throw new Error(`Failed to update quote ${body.path} : ${response.statusText} ${errorDetails}`);
+    }
+  }
 
   async createQuote(createQuoteRequest: EmporixCreateQuoteRequest): Promise<EmporixQuoteCreationResponse> {
     const response = await this.apiClient.authenticatedFetch(
@@ -43,7 +71,7 @@ class EmporixQuoteApi implements IEmporixQuoteApi {
     }
 
     const json = await response.json();
-    return { quoteId: json.quoteId };
+    return { quoteId: json.id };
   }
 
   async getQuotes(params: EmporixSearchParams<EmporixQuote>): Promise<EmporixPaginatedResponse<EmporixQuote>> {
@@ -64,7 +92,7 @@ class EmporixQuoteApi implements IEmporixQuoteApi {
       throw new Error(`Failed to fetch quotes: ${response.statusText} ${errorDetails}`);
     }
 
-    const paginatedResponse = await buildPaginatedResponse(params, response);
+    const paginatedResponse = await buildPaginatedResponse<EmporixQuote>(params, response);
     return paginatedResponse;
   }
 
@@ -86,36 +114,6 @@ class EmporixQuoteApi implements IEmporixQuoteApi {
     }
 
     return await response.json();
-  }
-
-  async updateQuoteStatus(quoteId: string, status: string, comment?: string, quoteReasonId?: string): Promise<void> {
-    const updateRequest = {
-      op: 'replace',
-      path: '/status',
-      value: {
-        value: status,
-        comment: comment || '',
-        quoteReasonId: quoteReasonId || '',
-      },
-    };
-
-    const response = await this.apiClient.authenticatedFetch(
-      `/quote/${this.config.tenant}/quotes/${quoteId}`,
-      {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify(updateRequest),
-      },
-      'session',
-    );
-
-    if (!response.ok) {
-      const errorDetails = await response.text();
-      throw new Error(`Failed to update quote status: ${response.statusText} ${errorDetails}`);
-    }
   }
 
   async getQuoteReason(quoteReasonId: string): Promise<EmporixQuoteReason> {
@@ -158,6 +156,26 @@ class EmporixQuoteApi implements IEmporixQuoteApi {
     if (!response.ok) {
       const errorDetails = await response.text();
       throw new Error(`Failed to create quote reason: ${response.statusText} ${errorDetails}`);
+    }
+
+    return await response.json();
+  }
+
+  async getQuoteHistory(quoteId: string): Promise<EmporixQuoteHistory> {
+    const response = await this.apiClient.authenticatedFetch(
+      `/quote/${this.config.tenant}/quotes/${quoteId}/history`,
+      {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+        },
+      },
+      'service',
+    );
+
+    if (!response.ok) {
+      const errorDetails = await response.text();
+      throw new Error(`Failed to fetch quote history: ${response.statusText} ${errorDetails}`);
     }
 
     return await response.json();

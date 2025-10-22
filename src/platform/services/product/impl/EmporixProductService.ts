@@ -7,10 +7,12 @@ import type { EmporixLabelApi } from '@/platform/integrations/emporix/product/Em
 import type { EmporixProductApi } from '@/platform/integrations/emporix/product/EmporixProductApi';
 import type { Paginated } from '@/platform/services/model/common';
 import type { Product, ProductLabel } from '@/platform/services/model/product';
-import type { ProductService } from '@/platform/services/product/ProductService';
+import type { ProductFetchOptions, ProductService } from '@/platform/services/product/ProductService';
 import type { CategoryService } from '../../category/CategoryService';
 import type { Category } from '../../model/category';
+import { ProductPrice } from '../../model/price';
 import type { ProductMapper } from '../../model/product/ProductMapper';
+import type { PriceService } from '../../price';
 
 /**
  * Implementation of ProductService for Emporix product data.
@@ -19,6 +21,7 @@ import type { ProductMapper } from '../../model/product/ProductMapper';
 @injectable('ProductService', 'Singleton')
 class EmporixProductService implements ProductService {
   constructor(
+    @inject('PriceService') private priceService: PriceService,
     @inject('EmporixProductMapper') private productMapper: ProductMapper<EmporixProduct>,
     @inject('EmporixProductApi') private productApi: EmporixProductApi,
     @inject('EmporixBrandApi') private brandApi: EmporixBrandApi,
@@ -26,75 +29,71 @@ class EmporixProductService implements ProductService {
     @inject('CategoryService') private categoryService: CategoryService,
   ) {}
 
-  async getProductById(id: string): Promise<Product | undefined> {
+  async getProductById(id: string, options?: ProductFetchOptions): Promise<Product | undefined> {
     const product = await this.productApi.getProduct(id);
     if (!product) return undefined;
 
     // Map the base product
     const mappedProduct = this.productMapper.mapToService(product);
 
-    // Get additional data (brands, labels, and categories)
-    const { brandMap, labelMap, productCategoriesMap } = await this.getAdditionalData([product]);
+    // Add additional data
+    const [enhancedProduct] = await this.addAdditionalData([mappedProduct], options);
 
-    // Add brand information if available
-    if (product.brandId) {
-      const brand = brandMap.get(product.brandId);
-      if (brand) {
-        mappedProduct.brand = {
-          name: brand.name,
-          logo: {
-            url: brand.image,
-            altText: brand.name,
-          },
-        };
-      }
-    }
-
-    // Add label information if available
-    if (product.labelIds && product.labelIds.length > 0) {
-      mappedProduct.labels = product.labelIds
-        .map((labelId: string) => labelMap.get(labelId))
-        .filter((label?: EmporixLabel) => label)
-        .map((label: EmporixLabel) => this.mapLabel(label));
-    }
-
-    // Add categories if available
-    const categories = productCategoriesMap.get(product.id);
-    if (categories && categories.length > 0) {
-      mappedProduct.categories = categories;
-    }
-
-    return mappedProduct;
+    return enhancedProduct;
   }
 
-  async getVariantProducts(parentId: string): Promise<Product[]> {
+  async getVariantProducts(parentId: string, options?: ProductFetchOptions): Promise<Product[]> {
     const paginated = await this.productApi.searchProducts({
       expand: ['parentVariant', 'template'],
       criteria: { parentVariantId: parentId },
       page: 0,
       size: 100,
     });
-    return paginated.items.map((product: EmporixProduct) => this.productMapper.mapToService(product));
+
+    // Map all variant products first
+    const mappedProducts = paginated.items.map((product: EmporixProduct) => this.productMapper.mapToService(product));
+
+    return await this.addAdditionalData(mappedProducts, options);
   }
 
-  async getProducts(page?: number, pageSize?: number): Promise<Paginated<Product>> {
+  async getProducts(page?: number, pageSize?: number, options?: ProductFetchOptions): Promise<Paginated<Product>> {
     const paginated = await this.productApi.getProducts(page, pageSize);
 
     // Map all products first
     const mappedProducts = paginated.items.map((product: EmporixProduct) => this.productMapper.mapToService(product));
 
+    // Add additional data to all products
+    const enhancedProducts = await this.addAdditionalData(mappedProducts, options);
+
+    return {
+      items: enhancedProducts,
+      page: paginated.page,
+      pageSize: paginated.size,
+      total: paginated.total,
+    };
+  }
+
+  /**
+   * Adds additional data (brands, labels, categories, prices, variants) to mapped products
+   * @param products The products to enhance
+   * @param options Optional fetch options for including additional data
+   * @returns Enhanced products with additional data
+   */
+  public async addAdditionalData(products: Product[], options?: ProductFetchOptions): Promise<Product[]> {
     // Get additional data (brands, labels, and categories)
-    const { brandMap, labelMap, productCategoriesMap } = await this.getAdditionalData(paginated.items);
+    const { brandMap, labelMap, productCategoriesMap, priceMap, variantMap } = await this.getAdditionalData(
+      products,
+      options,
+    );
 
     // Enhance each product with brand, label, and category information
-    mappedProducts.forEach((mappedProduct: Product, index: number) => {
-      const originalProduct = paginated.items[index];
-
+    products.forEach((product: Product) => {
       // Add brand information
-      if (originalProduct.brandId) {
-        const brand = brandMap.get(originalProduct.brandId);
+      if (product.brand) {
+        const brand = brandMap.get(product.brand.id);
         if (brand) {
-          mappedProduct.brand = {
+          product.brand = {
+            id: brand.id,
             name: brand.name,
             logo: {
               url: brand.image,
@@ -105,30 +104,43 @@ class EmporixProductService implements ProductService {
       }
 
       // Add label information
-      if (originalProduct.labelIds && originalProduct.labelIds.length > 0) {
-        mappedProduct.labels = originalProduct.labelIds
-          .map((labelId: string) => labelMap.get(labelId))
-          .filter((label?: EmporixLabel) => label)
+      if (product.labels && product.labels.length > 0) {
+        product.labels = product.labels
+          .map((label: ProductLabel) => labelMap.get(label.id))
+          .filter((label?: EmporixLabel): label is EmporixLabel => Boolean(label))
           .map((label: EmporixLabel) => this.mapLabel(label));
       }
 
       // Add categories if available
-      const categories = productCategoriesMap.get(originalProduct.id);
-      if (categories && categories.length > 0) {
-        // currently theres no way to determine the primary Category, so we use the first
-        // this is important for SEO so canonical URLs don't change when the product is
-        // being browsed to from different Categories
-        mappedProduct.primaryCategory = categories[0];
-        mappedProduct.categories = categories;
+      if (product.id) {
+        const categories = productCategoriesMap.get(product.id);
+        if (categories && categories.length > 0) {
+          // currently theres no way to determine the primary Category, so we use the first
+          // this is important for SEO so canonical URLs don't change when the product is
+          // being browsed to from different Categories
+          product.primaryCategory = categories[0];
+          product.categories = categories;
+        }
+      }
+
+      // Add price information if available
+      if (product.id) {
+        const price = priceMap.get(product.id);
+        if (price) {
+          product.price = price;
+        }
+      }
+
+      // Add variant information if available
+      if (product.id) {
+        const variants = variantMap.get(product.id);
+        if (variants) {
+          product.variants = variants;
+        }
       }
     });
 
-    return {
-      items: mappedProducts,
-      page: paginated.page,
-      pageSize: paginated.size,
-      total: paginated.total,
-    };
+    return products;
   }
 
   /**
@@ -149,27 +161,38 @@ class EmporixProductService implements ProductService {
    * @param products The products to fetch additional data for
    * @returns Maps of brands, labels, and product categories
    */
-  private async getAdditionalData(products: EmporixProduct[]): Promise<{
+  private async getAdditionalData(
+    products: Product[],
+    options?: ProductFetchOptions,
+  ): Promise<{
     brandMap: Map<string, any>;
     labelMap: Map<string, EmporixLabel>;
     productCategoriesMap: Map<string, Category[]>;
+    priceMap: Map<string, ProductPrice>;
+    variantMap: Map<string, Product[]>;
   }> {
     // Collect all brand IDs and label IDs from products
     const brandIds = new Set<string>();
     const labelIds = new Set<string>();
     const productIds = new Set<string>();
 
-    products.forEach((product: EmporixProduct) => {
-      if (product.brandId) brandIds.add(product.brandId);
-      if (product.labelIds) product.labelIds.forEach((labelId: string) => labelIds.add(labelId));
+    products.forEach((product: Product) => {
+      if (product.brand) brandIds.add(product.brand.id);
+      if (product.labels) product.labels.forEach((label: ProductLabel) => labelIds.add(label.id));
       if (product.id) productIds.add(product.id);
     });
 
     // Fetch all brands, labels, and categories in parallel
-    const [brands, labels, productCategoriesArray] = await Promise.all([
+    const [brands, labels, productCategoriesArray, priceArray, variantArray] = await Promise.all([
       Promise.all([...brandIds].map((id) => this.brandApi.getBrand(id))),
       Promise.all([...labelIds].map((id) => this.labelApi.getLabel(id))),
-      Promise.all([...productIds].map((id) => this.categoryService.getCategoriesForProduct(id, true))),
+      Promise.all(
+        [...productIds].map((id) =>
+          options?.categories ? this.categoryService.getCategoriesForProduct(id, true) : undefined,
+        ),
+      ),
+      Promise.all([...productIds].map((id) => (options?.prices ? this.priceService.getProductPrice(id) : undefined))),
+      Promise.all([...productIds].map((id) => (options?.variants ? this.getVariantProducts(id) : undefined))),
     ]);
 
     // Create lookup maps for brands and labels
@@ -181,11 +204,28 @@ class EmporixProductService implements ProductService {
 
     // Create lookup map for product categories
     const productCategoriesMap = new Map<string, Category[]>();
-    [...productIds].forEach((productId, index) => {
-      productCategoriesMap.set(productId, productCategoriesArray[index] || []);
-    });
+    if (options?.categories) {
+      [...productIds].forEach((productId, index) => {
+        productCategoriesMap.set(productId, productCategoriesArray[index] || []);
+      });
+    } else {
+      [...productIds].forEach((productId) => {
+        productCategoriesMap.set(productId, []);
+      });
+    }
 
-    return { brandMap, labelMap, productCategoriesMap };
+    const priceMap = new Map<string, ProductPrice>();
+    priceArray.filter(Boolean).forEach((price: ProductPrice) => price && priceMap.set(price.productId, price));
+
+    const variantMap = new Map<string, Product[]>();
+    variantArray
+      .filter(Boolean)
+      .forEach(
+        (variants: Product[]) =>
+          variants?.length > 0 && variants[0].parentVariantId && variantMap.set(variants[0].parentVariantId, variants),
+      );
+
+    return { brandMap, labelMap, productCategoriesMap, priceMap, variantMap };
   }
 }
 

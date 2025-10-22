@@ -8,6 +8,8 @@ export interface PriceService {
   /**
    * Match prices for products based on the given criteria
    * @param productId The product ID to match prices for
+   * @param quantity Optional quantity for price matching
+   * @param unitCode Optional unit code for price matching
    * @param params Optional parameters for price matching
    * @returns Array of matched prices or null if no prices found
    */

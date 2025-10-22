@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { CustomerService } from '@/platform/services/customer/CustomerService';
 
 /**
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the customer service
-    const customerService = globalThis.EMP.platform.server.get<CustomerService>('CustomerService');
+    const customerService = server.get<CustomerService>('CustomerService');
 
     // Update password with token
     await customerService.passwordResetUpdate(token, password);

@@ -3,8 +3,10 @@
 import React from 'react';
 import { storyblokEditable } from '@storyblok/react/rsc';
 import Button from '../button';
+import ColumnTeaser from '../column-teaser';
 import Hero from '../hero';
 import QuickEntry from '../quick-entry';
+import Recommendations from '../recommendations';
 
 interface StoryblokComponentProps {
   blok: any;
@@ -32,6 +34,14 @@ export const StoryblokButton = ({ blok }: any) => {
 
 export const StoryblokQuickEntry = ({ blok }: any) => {
   return <StoryblokComponent blok={blok} child={<QuickEntry {...blok} />} />;
+};
+
+export const StoryblokColumnTeaser = ({ blok }: any) => {
+  return <StoryblokComponent blok={blok} child={<ColumnTeaser {...blok} />} />;
+};
+
+export const StoryblokRecommendations = ({ blok }: any) => {
+  return <StoryblokComponent blok={blok} child={<Recommendations {...blok} />} />;
 };
 
 export default StoryblokComponent;

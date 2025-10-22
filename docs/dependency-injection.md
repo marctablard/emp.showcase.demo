@@ -284,7 +284,7 @@ Understanding when to use each container type is crucial for proper application 
 
 ### SSR Container Usage
 
-The SSR container is used in server components that render pages. It's accessed through the global `EMP.platform.ssr` object. This is ideal for Next.js Server Components that need to fetch data during rendering.
+The SSR container is used in server components that render pages. It's accessed through direct imports from `@/platform/ssr`. This is ideal for Next.js Server Components that need to fetch data during rendering.
 
 **Example from `src/lib/ssr/products.ts`:**
 
@@ -292,9 +292,10 @@ The SSR container is used in server components that render pages. It's accessed 
 import { cache } from 'react';
 import { Product } from '@/platform/services/model/product';
 import { ProductService } from '@/platform/services/product';
+import ssr from '@/platform/ssr';
 
 // Access the ProductService from the SSR container
-const getProductService = () => globalThis.EMP.platform.ssr.get<ProductService>('ProductService');
+const getProductService = () => ssr.get<ProductService>('ProductService');
 
 // Use React's cache to memoize product fetching
 const _getProduct = cache(async (id: string): Promise<Product | null> => {
@@ -321,20 +322,21 @@ try {
 
 ### Server Container Usage
 
-The Server container is used in API routes and other server-only code that doesn't participate in rendering. It's accessed through the global `EMP.platform.server` object.
+The Server container is used in API routes and other server-only code that doesn't participate in rendering. It's accessed through direct imports from `@/platform/server`.
 
 **Example from `src/app/api/products/[id]/route.ts`:**
 
 ```typescript
 import { NextRequest, NextResponse } from 'next/server';
 import { ProductService } from '@/platform/services/product/ProductService';
+import server from '@/platform/server';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: productId } = await params;
 
     // Access the ProductService directly from the server container
-    const productService = EMP.platform.server.get<ProductService>('ProductService');
+    const productService = server.get<ProductService>('ProductService');
     const product = await productService.getProductById(productId);
 
     if (!product) {
@@ -353,9 +355,37 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 | Container  | Use Case                                 | Access Pattern                           | Example Scenarios                                         |
 | ---------- | ---------------------------------------- | ---------------------------------------- | --------------------------------------------------------- |
-| **SSR**    | Server Components, RSC data fetching     | `globalThis.EMP.platform.ssr.get<T>(id)` | Product pages, category listings, server-rendered content |
-| **Server** | API routes, middleware, server utilities | `EMP.platform.server.get<T>(id)`         | REST endpoints, authentication, server-only operations    |
+| **SSR**    | Server Components, RSC data fetching     | `import ssr from '@/platform/ssr'`<br/>`ssr.get<T>(id)` | Product pages, category listings, server-rendered content |
+| **Server** | API routes, middleware, server utilities | `import server from '@/platform/server'`<br/>`server.get<T>(id)` | REST endpoints, authentication, server-only operations    |
 | **Client** | Client Components, browser-only code     | Injected via context providers           | Interactive UI elements, client-side state management     |
+
+## Migration from Global EMP Pattern
+
+Previously, the application used a global `EMP.platform` object to access containers. This pattern has been migrated to direct imports for better type safety and cleaner code organization.
+
+### Old Pattern (Deprecated)
+```typescript
+// ❌ Old way - no longer supported
+const productService = globalThis.EMP.platform.ssr.get<ProductService>('ProductService');
+const orderService = EMP.platform.server.get<OrderService>('OrderService');
+```
+
+### New Pattern (Current)
+```typescript
+// ✅ New way - direct imports
+import ssr from '@/platform/ssr';
+import server from '@/platform/server';
+
+const productService = ssr.get<ProductService>('ProductService');
+const orderService = server.get<OrderService>('OrderService');
+```
+
+### Benefits of the New Pattern
+- **Better Type Safety**: Direct imports provide better TypeScript intellisense and error checking
+- **Cleaner Dependencies**: Explicit imports make dependencies clear and trackable
+- **No Global State**: Eliminates reliance on global objects, making code more predictable
+- **Tree Shaking**: Bundlers can better optimize unused imports
+- **Easier Testing**: Direct imports are easier to mock and test
 
 ## Conclusion
 

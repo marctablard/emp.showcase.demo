@@ -4,6 +4,8 @@ import { OrderDetail } from '@/components/account/orders/order-detail';
 import { getOrderById } from '@/lib/ssr/orders';
 import { getPageTitle } from '@/lib/ssr/seo';
 
+export const dynamic = 'force-dynamic';
+
 export async function generateMetadata({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
   const t = await getTranslations({ locale, namespace: 'orders' });
@@ -17,9 +19,6 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     },
   };
 }
-
-// Force dynamic rendering for personalized content
-export const dynamic = 'force-dynamic';
 
 export default async function OrderDetailPage({ params }: { params: Promise<{ id: string; locale: string }> }) {
   // Fetch order data during SSR

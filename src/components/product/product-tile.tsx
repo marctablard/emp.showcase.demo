@@ -3,12 +3,14 @@ import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Circle, DropletOff, Globe, LucideIcon, MapPin, Pin, Shield, ShoppingCart, Trees, Truck } from 'lucide-react';
 import { ProductCharacteristic } from '@/components/product/product-characteristic';
+import { ProductColorTile } from '@/components/product/product-color-tile';
 import { ProductTag } from '@/components/product/product-tag';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Heading } from '@/components/ui/h';
 import { useCart } from '@/hooks/cart/useCart';
+import { useAvailableVariantValues } from '@/hooks/useAvailableVariantValues';
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll';
 import { useL10n } from '@/hooks/useL10n';
 import { Link } from '@/i18n/navigation';
@@ -26,6 +28,10 @@ export function ProductTile({ product, locale = 'en' }: ProductTileProps) {
   const { l10n } = useL10n(locale);
   const { addItem, loading: cartLoading } = useCart();
   const horizontalScrollRef = useHorizontalScroll();
+
+  // Get available variant values for the first variant attribute
+  const firstAttributeKey = product.variantAttributes?.[0]?.key;
+  const { values: availableValues, loading: variantLoading } = useAvailableVariantValues(product, firstAttributeKey);
 
   const handleAddToCart = async (e: any) => {
     try {
@@ -111,22 +117,43 @@ export function ProductTile({ product, locale = 'en' }: ProductTileProps) {
             </div>
 
             <div className="absolute right-4 bottom-4 flex flex-row gap-2 justify-end">
-              {/* Todo: read characteristics from product */}
-              <ProductCharacteristic value={200} unit={'W'} />
-              <ProductCharacteristic value={250} unit={'W'} />
-              <ProductCharacteristic value={300} unit={'W'} />
+              {!variantLoading && availableValues.length > 0 && (
+                <>
+                  {availableValues.slice(0, 3).map((value) => {
+                    const firstAttribute = product.variantAttributes![0];
+                    const isColorAttribute = firstAttribute.key === 'color' || firstAttribute.key === 'farbe';
+
+                    return isColorAttribute ? (
+                      <ProductColorTile
+                        key={value.key}
+                        attributeKey={value.key}
+                        attributeName={value.name ? l10n(value.name) : value.key}
+                        size="sm"
+                        showCheckmark={false}
+                      />
+                    ) : (
+                      <ProductCharacteristic
+                        key={value.key}
+                        value={value.name ? l10n(value.name) : value.key}
+                        unit={firstAttribute.name ? l10n(firstAttribute.name) : firstAttribute.key}
+                      />
+                    );
+                  })}
+                  {availableValues.length > 3 && (
+                    <div className="flex items-center justify-center w-8 h-8 bg-neutral-200 text-neutral-600 text-xs font-medium rounded">
+                      +{availableValues.length - 3}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
             <div className="flex flex-col gap-2 absolute top-4 -left-6">
-              {/* Todo: read labels from product */}
-              {/*{product.labels?.map((label) => (*/}
-              {/* Mock labels - only show on reduced items */}
-              {product.price?.originalAmount !== product.price?.amount && (
-                <Badge key="memberdeal" variant="info" rounded="rounded_right">
-                  Member Deal
+              {product.labels?.map((label) => (
+                <Badge key={label.id} variant="info" rounded="rounded_right">
+                  {label.name}
                 </Badge>
-              )}
-              {/*))}*/}
+              ))}
             </div>
           </div>
 

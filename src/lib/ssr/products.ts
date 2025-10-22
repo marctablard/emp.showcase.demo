@@ -1,17 +1,19 @@
 import { cache } from 'react';
 import { Product } from '@/platform/services/model/product';
-import { ProductService } from '@/platform/services/product';
+import { ProductFetchOptions, ProductService } from '@/platform/services/product';
 import { StockService } from '@/platform/services/stock/StockService';
 import { StockAvailability } from '@/platform/services/stock/StockService';
+import ssr from '@/platform/ssr';
 
-const getProductService = () => globalThis.EMP.platform.ssr.get<ProductService>('ProductService');
-const getStockService = () => globalThis.EMP.platform.ssr.get<StockService>('StockService');
+const getProductService = () => ssr.get<ProductService>('ProductService');
+const getStockService = () => ssr.get<StockService>('StockService');
 
-const _getProduct = cache(async (id: string): Promise<Product | null | undefined> => {
+const _getProduct = cache(async (id: string, options?: ProductFetchOptions): Promise<Product | null | undefined> => {
   try {
-    const product = await getProductService().getProductById(id);
+    const product = await getProductService().getProductById(id, options);
     return product || null;
   } catch (_error) {
+    // fail silently
     return undefined;
   }
 });
@@ -29,6 +31,6 @@ export function getAvailability(site: string, id: string): Promise<StockAvailabi
   return _getAvailability(site, id);
 }
 
-export function getProductById(id: string): Promise<Product | null | undefined> {
-  return _getProduct(id);
+export function getProductById(id: string, options?: ProductFetchOptions): Promise<Product | null | undefined> {
+  return _getProduct(id, options);
 }

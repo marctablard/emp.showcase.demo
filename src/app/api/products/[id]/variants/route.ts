@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { ProductService } from '@/platform/services/product/ProductService';
 
 /**
@@ -8,7 +9,7 @@ import { ProductService } from '@/platform/services/product/ProductService';
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: productId } = await params;
-    const productService = EMP.platform.server.get<ProductService>('ProductService');
+    const productService = server.get<ProductService>('ProductService');
 
     const variants = await productService.getVariantProducts(productId);
 

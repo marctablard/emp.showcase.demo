@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { PriceService } from '@/platform/services/price/PriceService';
 import { SessionService } from '@/platform/services/session/SessionService';
 
@@ -20,14 +21,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const unitCode = searchParams.get('unitCode') || undefined;
 
     // Get session
-    const sessionService = EMP.platform.server.get<SessionService>('SessionService');
+    const sessionService = server.get<SessionService>('SessionService');
     const session = await sessionService.getCurrent();
     if (!session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
     // Get price service and fetch price
-    const priceService = EMP.platform.server.get<PriceService>('PriceService');
+    const priceService = server.get<PriceService>('PriceService');
     const price = await priceService.getProductPrice(productId, quantity, unitCode);
 
     if (!price) {

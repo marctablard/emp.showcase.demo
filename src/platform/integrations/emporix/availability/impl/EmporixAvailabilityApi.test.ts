@@ -112,9 +112,6 @@ describe('EmporixAvailabilityApi', () => {
         expect(result.id).toBeDefined();
         expect(typeof result.available).toBe('boolean');
         expect(typeof result.stockLevel).toBe('number');
-      } else {
-        // If no availability exists for this product, this test should be skipped
-        console.log('No availability found for test product. Test skipped.');
       }
     });
 

@@ -47,47 +47,75 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-      <SummaryCard heading={t('orderOverview')} icon={<ReceiptText className="h-5 w-5 text-primary" />}>
-        <SummaryRow label={t('valueOfGoods')} mutedLabel>
-          {fmt(valueOfGoods)}
-        </SummaryRow>
-        <SummaryRow label={t('shippingCosts')} mutedLabel>
-          {fmt(shippingCost)}
-        </SummaryRow>
-        <SummaryRow label={t('vat')} mutedLabel>
-          {fmt(vat)}
-        </SummaryRow>
-        <SummaryRow label={t('totalValue')} strong>
-          {fmt(total)}
-        </SummaryRow>
-      </SummaryCard>
+      <div className="p-6 rounded-lg bg-primary-50 shadow-sm">
+        <SummaryCard
+          heading={t('orderOverview')}
+          className="shadow-none rounded-md py-4 h-full gap-2"
+          icon={<ReceiptText className="h-5 w-5 text-primary" />}
+          hasHeadline
+        >
+          <SummaryRow label={t('valueOfGoods')} mutedLabel>
+            {fmt(valueOfGoods)}
+          </SummaryRow>
+          <SummaryRow label={t('shippingCosts')} mutedLabel>
+            {fmt(shippingCost)}
+          </SummaryRow>
+          <SummaryRow label={t('vat')} mutedLabel>
+            {fmt(vat)}
+          </SummaryRow>
+          <SummaryRow label={t('totalValue')} strong>
+            {fmt(total)}
+          </SummaryRow>
+        </SummaryCard>
+      </div>
 
-      <SummaryCard heading={t('transport')} icon={<Truck className="h-5 w-5 text-primary" />}>
-        <SummaryRow label={<span className="font-semibold">{t('transportCondition')}</span>}>
-          {details?.shipping?.methodName || details?.shipping?.methodId || t('notProvided')}
-        </SummaryRow>
-        <div>
-          <div className="text-sm font-semibold">{t('deliveryAddress')}</div>
-          {renderAddress(shippingAddress)}
-        </div>
-      </SummaryCard>
+      <div className="p-6 rounded-lg bg-primary-50 shadow-sm">
+        <SummaryCard
+          heading={t('transport')}
+          className="shadow-none rounded-md py-4 h-full gap-2"
+          icon={<Truck className="h-5 w-5 text-primary" />}
+          hasHeadline
+        >
+          <SummaryRow label={<span className="font-semibold">{t('transportCondition')}</span>}>
+            {details?.shipping?.methodName || details?.shipping?.methodId || t('notProvided')}
+          </SummaryRow>
+          <div>
+            <div className="text-sm font-semibold">{t('deliveryAddress')}</div>
+            {renderAddress(shippingAddress)}
+          </div>
+        </SummaryCard>
+      </div>
 
-      <SummaryCard heading={t('payment')} icon={<CreditCard className="h-5 w-5 text-primary" />}>
-        <SummaryRow label={<span className="font-semibold">{t('paymentMethod')}</span>}>
-          {payment?.name || payment?.type || t('notProvided')}
-        </SummaryRow>
-        <div>
-          <div className="text-sm font-semibold">{t('billingAddress')}</div>
-          {renderAddress(billingAddress)}
-        </div>
-      </SummaryCard>
+      <div className="p-6 rounded-lg bg-primary-50 shadow-sm">
+        <SummaryCard
+          heading={t('payment')}
+          className="shadow-none rounded-md py-4 h-full gap-2"
+          icon={<CreditCard className="h-5 w-5 text-primary" />}
+          hasHeadline
+        >
+          <SummaryRow label={<span className="font-semibold">{t('paymentMethod')}</span>}>
+            {payment?.name || payment?.type || t('notProvided')}
+          </SummaryRow>
+          <div>
+            <div className="text-sm font-semibold">{t('billingAddress')}</div>
+            {renderAddress(billingAddress)}
+          </div>
+        </SummaryCard>
+      </div>
 
-      <SummaryCard heading={t('other')} icon={<NotebookPen className="h-5 w-5 text-primary" />}>
-        <div>
-          <div className="text-sm font-semibold">{t('note')}</div>
-          <div className="text-sm text-muted-foreground">{approval.comment || t('noRequestorComment')}</div>
-        </div>
-      </SummaryCard>
+      <div className="p-6 rounded-lg bg-primary-50 shadow-sm">
+        <SummaryCard
+          heading={t('other')}
+          className="shadow-none rounded-md py-4 h-full gap-2"
+          icon={<NotebookPen className="h-5 w-5 text-primary" />}
+          hasHeadline
+        >
+          <div>
+            <div className="text-sm font-semibold">{t('note')}</div>
+            <div className="text-sm text-muted-foreground">{approval.comment || t('noRequestorComment')}</div>
+          </div>
+        </SummaryCard>
+      </div>
     </div>
   );
 };

@@ -47,7 +47,7 @@ export function buildSearchQuery<T>(
  * @returns PaginatedResponse object
  */
 export async function buildPaginatedResponse<T>(
-  params: EmporixSearchParams<T>,
+  params: EmporixSearchParams<any>,
   response: Response,
 ): Promise<EmporixPaginatedResponse<T>> {
   const total: number = Number(response.headers.get('x-total-count')) || -1;

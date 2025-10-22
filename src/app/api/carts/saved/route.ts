@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { CartService } from '@/platform/services/cart/CartService';
 
 /**
@@ -7,7 +8,7 @@ import { CartService } from '@/platform/services/cart/CartService';
  */
 export async function GET(request: NextRequest) {
   try {
-    const cartService = globalThis.EMP.platform.server.get<CartService>('CartService');
+    const cartService = server.get<CartService>('CartService');
 
     // Get query parameters for pagination
     const searchParams = request.nextUrl.searchParams;

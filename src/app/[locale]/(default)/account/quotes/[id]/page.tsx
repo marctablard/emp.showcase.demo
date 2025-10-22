@@ -6,6 +6,8 @@ import { QuoteDetails } from '@/components/account/quotes/quote-details';
 import { getQuoteById } from '@/lib/client/quote';
 import { getPageTitle } from '@/lib/ssr/seo';
 
+export const dynamic = 'force-dynamic';
+
 export async function generateMetadata({
   params,
 }: {

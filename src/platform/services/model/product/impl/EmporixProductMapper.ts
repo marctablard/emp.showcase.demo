@@ -79,6 +79,8 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
     return {
       id: source.id || source.code,
       parentVariantId: source.parentVariantId,
+      brand: source.brandId ? { id: source.brandId } : undefined,
+      labels: source.labelIds ? source.labelIds.map((id) => ({ id })) : undefined,
       name,
       description,
       primaryImage,

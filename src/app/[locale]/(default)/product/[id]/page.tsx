@@ -4,7 +4,6 @@ import ProductDetail from '@/components/product/product-detail';
 import { JsonLd } from '@/components/seo/json-ld';
 import { UiBreadcrumb } from '@/components/ui/molecules/ui-breadcrumb';
 import { generateBreadcrumbForProduct } from '@/lib/breadcrumb';
-import { getProductPrice } from '@/lib/ssr/price';
 import { getAvailability, getProductById } from '@/lib/ssr/products';
 import { generateProductJsonLd, generateProductMetadata } from '@/lib/ssr/seo';
 import { getSite } from '@/lib/ssr/site';
@@ -23,14 +22,14 @@ export async function generateMetadata(
   const { id, locale } = await params;
 
   // Fetch product data
-  const [product, price] = await Promise.all([getProductById(id), getProductPrice(id)]);
+  const product = await getProductById(id, { prices: true, variants: true, categories: true });
 
   // If product not found, return basic metadata
   if (!product) {
     return {};
   }
   // Use the extracted SEO utility function to generate metadata
-  return generateProductMetadata(locale, product, price);
+  return generateProductMetadata(locale, product, product.price);
 }
 
 export default async function ProductPage({ params }: { params: Promise<ProductPageProps> }) {
@@ -38,9 +37,8 @@ export default async function ProductPage({ params }: { params: Promise<ProductP
 
   const site = await getSite(locale);
   // Fetch translations, product data and price in parallel
-  const [product, price, availability] = await Promise.all([
-    getProductById(id),
-    getProductPrice(id),
+  const [product, availability] = await Promise.all([
+    getProductById(id, { prices: false, variants: true, categories: true }),
     getAvailability(site?.code || '', id),
   ]);
 
@@ -54,11 +52,14 @@ export default async function ProductPage({ params }: { params: Promise<ProductP
     <>
       <JsonLd jsonLd={jsonLd} />
       <div>
-        <UiBreadcrumb items={breadcrumbs} className="max-w-6xl mx-auto px-4 lg:px-9 md:gap-x-6" />
+        <UiBreadcrumb
+          items={breadcrumbs}
+          className="max-w-6xl mx-auto px-4 lg:px-9 md:gap-x-6"
+          disabledCategories={true}
+        />
         <ProductDetail
           className="max-w-6xl mx-auto px-4 lg:px-9 md:gap-x-6 2xl:pr-38"
           product={product}
-          price={price}
           availability={availability}
         />
       </div>

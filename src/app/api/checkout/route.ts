@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { CheckoutService } from '@/platform/services/checkout/CheckoutService';
 import type { CheckoutRequest } from '@/platform/services/model/checkout';
 
@@ -8,7 +9,7 @@ import type { CheckoutRequest } from '@/platform/services/model/checkout';
  */
 export async function POST(request: NextRequest) {
   try {
-    const checkoutService = globalThis.EMP.platform.server.get<CheckoutService>('CheckoutService');
+    const checkoutService = server.get<CheckoutService>('CheckoutService');
     // Parse the request body
     const checkoutData: CheckoutRequest = await request.json();
 

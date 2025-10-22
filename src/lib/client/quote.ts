@@ -1,3 +1,4 @@
+import server from '@/platform/server';
 import { Quote } from '@/platform/services/model/quote';
 import { QuoteService } from '@/platform/services/quote/QuoteService';
 
@@ -6,7 +7,7 @@ import { QuoteService } from '@/platform/services/quote/QuoteService';
  */
 export async function getQuoteById(id: string): Promise<Quote | null> {
   try {
-    const quoteService = EMP.platform.server.get<QuoteService>('QuoteService');
+    const quoteService = server.get<QuoteService>('QuoteService');
     return await quoteService.getQuote(id);
   } catch (error) {
     console.error(`Failed to get quote ${id}:`, error);

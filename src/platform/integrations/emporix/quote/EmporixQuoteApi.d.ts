@@ -3,6 +3,7 @@ import type {
   EmporixCreateQuoteReasonRequest,
   EmporixCreateQuoteRequest,
   EmporixQuoteCreationResponse,
+  EmporixQuoteHistory,
   EmporixQuoteReason,
   EmporixQuoteReasonCreationResponse,
 } from '../model/quote';
@@ -28,16 +29,6 @@ export interface EmporixQuoteApi {
   getQuote(quoteId: string): Promise<EmporixQuote>;
 
   /**
-   * Update quote status
-   * @param quoteId Quote ID to update
-   * @param status New status to set (e.g., 'ACCEPTED', 'DECLINED')
-   * @param comment Optional comment to include with the status update
-   * @param quoteReasonId Optional quote reason ID to include with the status update
-   * @returns Promise that resolves when the update is complete
-   */
-  updateQuoteStatus(quoteId: string, status: string, comment?: string, quoteReasonId?: string): Promise<void>;
-
-  /**
    * Get a specific quote reason by ID
    * @param quoteReasonId The ID of the quote reason to retrieve
    * @returns Promise with the retrieved quote reason
@@ -52,4 +43,16 @@ export interface EmporixQuoteApi {
   createQuoteReason(
     createQuoteReasonRequest: EmporixCreateQuoteReasonRequest,
   ): Promise<EmporixQuoteReasonCreationResponse>;
+
+  /**
+   * Get quote history for a specific quote
+   * @param quoteId The ID of the quote to get history for
+   * @returns Promise with the quote history array
+   */
+  getQuoteHistory(quoteId: string): Promise<EmporixQuoteHistory>;
+
+  /**
+   * Common method to handle PATCH operations on quotes
+   */
+  patchQuote(quoteId: string, body: any, scope: 'public' | 'session' | 'customer-saas' | 'service'): Promise<void>;
 }

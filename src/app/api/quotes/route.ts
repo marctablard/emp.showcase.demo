@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { QuoteService } from '@/platform/services/quote/QuoteService';
+import server from '@/platform/server';
+import { QuoteService } from '@/platform/services/quote/QuoteService';
 
 /**
  * GET /api/quotes - Returns a list of quotes
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
-    const quoteService = EMP.platform.server.get<QuoteService>('QuoteService');
+    const quoteService = server.get<QuoteService>('QuoteService');
 
     // Parse query parameters
     const searchParams = req.nextUrl.searchParams;

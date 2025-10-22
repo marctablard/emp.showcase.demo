@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchProductById } from '@/lib/client/products';
 import { Product } from '@/platform/services/model/product';
+import { ProductFetchOptions } from '@/platform/services/product/ProductService';
 import { useProductStore } from '@/providers/StoreProvider';
 
 interface UseProductsResult {
@@ -11,8 +12,20 @@ interface UseProductsResult {
   setAsCurrent: (index: number) => void;
 }
 
-export function useProducts(productIds: Product['id'][] = []): UseProductsResult {
+export function useProducts(productIds: Product['id'][] = [], fetchOptions?: ProductFetchOptions): UseProductsResult {
   const { getProduct, addProducts } = useProductStore();
+
+  // Stabilize fetchOptions to prevent unnecessary re-renders
+  const fetchOptionsRef = useRef<ProductFetchOptions | undefined>(fetchOptions);
+  const optionsChanged =
+    fetchOptionsRef.current?.variants !== fetchOptions?.variants ||
+    fetchOptionsRef.current?.prices !== fetchOptions?.prices ||
+    fetchOptionsRef.current?.categories !== fetchOptions?.categories;
+
+  if (optionsChanged) {
+    fetchOptionsRef.current = fetchOptions;
+  }
+
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -37,7 +50,7 @@ export function useProducts(productIds: Product['id'][] = []): UseProductsResult
           uniqueIdsToFetch.map(async (id) => {
             if (!id) return null;
             try {
-              const fetched = await fetchProductById(id);
+              const fetched = await fetchProductById(id, fetchOptionsRef.current);
               return fetched;
             } catch (_err) {
               // Optionally handle fetch errors per product

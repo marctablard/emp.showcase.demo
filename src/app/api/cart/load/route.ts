@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { CartService } from '@/platform/services/cart';
+import server from '@/platform/server';
+import { CartService } from '@/platform/services/cart/CartService';
 
 export const revalidate = 0;
 
@@ -9,7 +10,7 @@ export const revalidate = 0;
  */
 export async function POST(request: NextRequest) {
   try {
-    const cartService = globalThis.EMP.platform.server.get<CartService>('CartService');
+    const cartService = server.get<CartService>('CartService');
 
     // Get request body with the cart ID to load
     const body = await request.json();

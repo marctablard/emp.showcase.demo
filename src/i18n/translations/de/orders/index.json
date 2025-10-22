@@ -165,7 +165,9 @@
     "billingAddress": "Rechnungsadresse",
     "other": "Sonstiges",
     "note": "Notiz",
-    "notProvided": "Nicht angegeben"
+    "notProvided": "Nicht angegeben",
+    "requestorCommentUpdated": "Kommentar des Anforderers aktualisiert",
+    "approverCommentUpdated": "Kommentar des Genehmigers aktualisiert"
   },
   "ApprovalAction": {
     "CHECKOUT": "Bestellung"
