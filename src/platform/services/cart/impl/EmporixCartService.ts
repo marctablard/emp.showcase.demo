@@ -119,8 +119,8 @@ class EmporixCartService implements CartService {
       quantity,
       product: {
         id: productId,
-        name: l10n(product.name, session.language),
-        description: l10n(product.description, session.language),
+        name: l10n(product.name, session.language || 'en'),
+        description: l10n(product.description, session.language || 'en'),
         sku: product.sku,
         images: product.images?.map((img: Media) => ({
           id: img.url,

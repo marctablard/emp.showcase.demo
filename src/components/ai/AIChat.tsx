@@ -25,7 +25,7 @@ export function AIChat({ className }: AIChatProps) {
       const context: AIChatContext = {
         siteId: session.siteCode,
         currency: session.currency,
-        language: session.language,
+        language: session.language || 'en',
         sessionId: session.id,
       };
 

@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
         ...body.context,
         siteId: body.context.siteId || session.siteCode,
         currency: body.context.currency || session.currency,
-        language: body.context.language || session.language,
+        language: body.context.language || session.language || 'en',
         sessionId: session.id,
       };
 
