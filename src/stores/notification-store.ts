@@ -67,7 +67,10 @@ const defaultState: NotificationState = {
 export const createNotificationStore = (initState: NotificationState = defaultState) => {
   // Create memory-only variables outside the persisted store
   let listeners: NotificationSubscription[] = [];
-  const pollingInterval = 5000; // 30 seconds
+  // Read polling interval from environment variable (in seconds)
+  // The value is interpreted as seconds and converted to milliseconds for setInterval
+  const pollingIntervalEnv = process.env.NEXT_PUBLIC_NOTIFICATION_POLLING_INTERVAL_SECONDS;
+  const pollingInterval = pollingIntervalEnv ? Number(pollingIntervalEnv) * 1000 : 30000; // Default: 30 seconds
   let pollingIntervalId: ReturnType<typeof setInterval> | null = null;
 
   // Mutex flag to prevent duplicate fetchNotifications calls
@@ -337,10 +340,12 @@ export const createNotificationStore = (initState: NotificationState = defaultSt
           console.error('Error notifying server about unsubscription:', unsubscribeError);
           // Continue even if server notification fails
         }
-
-        // Start polling as fallback
-        get().startPolling();
-
+        // Start polling as fallback only if interval > 0
+        if (pollingInterval > 0) {
+          get().startPolling();
+        } else {
+          console.log('Polling not started after unsubscribe because interval is set to 0');
+        }
         set({
           subscription: 'UNSUBSCRIBED',
           error: null,
@@ -416,6 +421,11 @@ export const createNotificationStore = (initState: NotificationState = defaultSt
     },
     // Start polling for notifications
     startPolling: () => {
+      // Do not start polling if interval is 0
+      if (pollingInterval === 0) {
+        console.log('Polling is disabled because interval is set to 0');
+        return;
+      }
       // Don't start polling if already polling
       if (isPolling) {
         return;
