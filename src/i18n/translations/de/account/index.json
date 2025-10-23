@@ -327,7 +327,7 @@
     }
   },
   "AiHelper": {
-    "title": "KI-Dashboard-Assistent",
+    "title": "Emporix KI-Agent",
     "placeholder": "Stellen Sie Ihre Frage an den KI-Agenten",
     "buttonText": "LOS!",
     "suggestions": {

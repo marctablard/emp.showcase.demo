@@ -319,7 +319,7 @@
     }
   },
   "AiHelper": {
-    "title": "AI Dashboard Helper",
+    "title": "Emporix AI Agent",
     "placeholder": "Enter your question for the AI agent",
     "buttonText": "GO!",
     "suggestions": {
