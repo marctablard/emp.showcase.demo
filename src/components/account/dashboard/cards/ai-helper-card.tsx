@@ -975,12 +975,20 @@ function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, '
     setIsChatMode(true);
 
     try {
+      // Get or create AI-specific session ID
+      let aiSessionId = '';
+      if (typeof window !== 'undefined') {
+        aiSessionId = localStorage.getItem('ai-helper-session-id') || crypto.randomUUID();
+        localStorage.setItem('ai-helper-session-id', aiSessionId);
+        console.log('AI Helper Session ID:', aiSessionId);
+      }
+
       // Create AI context
       const context: AIChatContext = {
         siteId: session.siteCode,
         currency: session.currency,
         language: session.language,
-        sessionId: session.id,
+        sessionId: aiSessionId,
         cartId: cart?.id,
       };
 
@@ -993,7 +1001,15 @@ function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, '
       let responseType = 'text';
 
       try {
-        const parsedMessage = JSON.parse(aiResponse.message);
+        // Remove markdown code block wrappers if present
+        let messageToParse = aiResponse.message;
+        if (messageToParse.startsWith('```json\n') && messageToParse.endsWith('\n```')) {
+          messageToParse = messageToParse.slice(7, -4); // Remove ```json\n and \n```
+        } else if (messageToParse.startsWith('```\n') && messageToParse.endsWith('\n```')) {
+          messageToParse = messageToParse.slice(4, -4); // Remove ```\n and \n```
+        }
+
+        const parsedMessage = JSON.parse(messageToParse);
         if (parsedMessage.message) {
           responseContent = parsedMessage.message;
         }
@@ -1053,6 +1069,8 @@ function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, '
     if (typeof window !== 'undefined') {
       localStorage.removeItem('ai-helper-chat-messages');
       localStorage.removeItem('ai-helper-chat-mode');
+      // Generate a new session ID for the next conversation
+      localStorage.setItem('ai-helper-session-id', crypto.randomUUID());
     }
   };
 

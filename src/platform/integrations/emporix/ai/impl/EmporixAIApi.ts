@@ -22,6 +22,7 @@ class EmporixAIApi implements IEmporixAIApi {
 
     console.log('Emporix AI Service URL:', url);
     console.log('Emporix AI Service Request:', JSON.stringify(request, null, 2));
+    console.log('Emporix AI Service Session ID:', sessionId);
 
     try {
       const response = await this.apiClient.authenticatedFetch(
