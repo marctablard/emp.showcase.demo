@@ -987,7 +987,7 @@ function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, '
       const context: AIChatContext = {
         siteId: session.siteCode,
         currency: session.currency,
-        language: session.language,
+        language: session.language || 'en',
         sessionId: aiSessionId,
         cartId: cart?.id,
       };
