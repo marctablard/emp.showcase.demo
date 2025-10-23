@@ -14,7 +14,7 @@ import { useSession } from '@/hooks/session/useSession';
 import { useValidator } from '@/hooks/validation/useValidator';
 import { cn } from '@/lib/utils';
 import { AIChatContext } from '@/platform/integrations/ai/model';
-import { DashboardCard, DashboardCardProps } from './dashboard-card';
+import { DashboardCardProps } from './dashboard-card';
 
 type AiHelperFormData = {
   question: string;
