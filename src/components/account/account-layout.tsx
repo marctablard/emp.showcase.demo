@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslations } from 'next-intl';
 import {
   BookOpen,
+  Bot,
   Building2,
   CalendarDays,
   ClipboardCheck,
@@ -41,6 +42,11 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
       title: t('sidebar.dashboard'),
       icon: <LayoutDashboard className="h-6 w-6" />,
       active: true,
+    },
+    {
+      href: '/account/ai-agent',
+      title: 'Emporix AI Agent',
+      icon: <Bot className="h-6 w-6" />,
     },
   ];
 
