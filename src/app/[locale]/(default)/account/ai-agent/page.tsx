@@ -1,9 +1,9 @@
 import React from 'react';
 import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { redirect } from 'next/navigation';
 import AccountLayout from '@/components/account/account-layout';
 import { AiHelperCard } from '@/components/account/dashboard/cards/ai-helper-card';
+import { redirect } from '@/i18n/navigation';
 import { getCurrentCustomer } from '@/lib/ssr/customer';
 import { getPageTitle } from '@/lib/ssr/seo';
 
