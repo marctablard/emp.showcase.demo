@@ -1,0 +1,38 @@
+import { useCallback, useState } from 'react';
+import { sendAIChatMessageWithContext } from '@/lib/client/ai';
+import { AIChatContext, AIChatResponse } from '@/platform/integrations/ai/model';
+
+export interface UseAIResult {
+  sendMessageWithContext: (userMessage: string, context: AIChatContext) => Promise<AIChatResponse>;
+  loading: boolean;
+  error: Error | null;
+}
+
+export function useAI(): UseAIResult {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const sendMessageWithContext = useCallback(
+    async (userMessage: string, context: AIChatContext): Promise<AIChatResponse> => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        return await sendAIChatMessageWithContext(userMessage, context);
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error('Failed to send AI message with context');
+        setError(error);
+        throw error;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
+  return {
+    sendMessageWithContext,
+    loading,
+    error,
+  };
+}

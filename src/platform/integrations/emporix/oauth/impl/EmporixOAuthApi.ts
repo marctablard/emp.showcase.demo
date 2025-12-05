@@ -12,7 +12,7 @@ import { EmporixOAuthApi as IEmporixOAuthApi } from '../EmporixOAuthApi';
  */
 @injectable('EmporixOAuthApi', 'Singleton')
 class EmporixOAuthApi implements IEmporixOAuthApi {
-  protected readonly baseUrl: string = 'https://api.emporix.io';
+  protected readonly baseUrl: string = process.env.NEXT_PUBLIC_EMPORIX_BASE_URL || 'https://api.emporix.io';
 
   /**
    * Get an anonymous token

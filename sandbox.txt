@@ -1,0 +1,53 @@
+#### 3. Order List (`order_list`)
+
+```json
+{
+  "type": "order_list",
+  "data": {
+    "orders": [
+      {
+           "totalItems": 5,
+            "siteCode": "main",
+            "orderId": "123",
+            "orderNumber": "ORD-001",
+            "date": "2025-01-15T10:00:00Z",
+            "status": "delivered",
+            "statusColor": "#10B981",
+            "items": [
+            { /* Item Object */ }
+            ],
+            "total": { /* Price Object */ }, // take the values from calculatedPrice.finalPrice
+            "currency": "EUR"
+      }
+    ],
+    "pagination": { "page": 1, "totalPages": 5, "totalItems": 47 }
+  }
+}
+```
+
+
+{
+  "type": "order_summary",
+  "data": {
+    "totalItems": 5,
+    "siteCode": "main",
+    "orderId": "123",
+    "orderNumber": "ORD-001",
+    "date": "2025-01-15T10:00:00Z",
+    "status": "delivered",
+    "statusColor": "#10B981",
+    "items": [
+      { /* Item Object */ }
+    ],
+    "shippingAddress": { /* Address Object */ },
+    "billingAddress": { /* Address Object */ },
+    "shipping": { /* Price Object */ }, // take the values from calculatedPrice.totalShipping
+    "payment": {
+      "status": "PAID",
+      "method": "invoice"
+    },
+    "subtotal": { /* Price Object */ }, // take the values from calculatedPrice.price
+    "total": { /* Price Object */ }, // take the values from calculatedPrice.finalPrice
+    "currency": "EUR"
+  }
+}

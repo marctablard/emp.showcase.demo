@@ -1,4 +1,5 @@
 import { inject } from 'inversify';
+import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCatalogApi } from '@/platform/integrations/emporix/catalog/EmporixCatalogApi';
 import type { EmporixCategoryApi } from '@/platform/integrations/emporix/category/EmporixCategoryApi';
 import { EmporixPaginatedResponse, EmporixProduct } from '@/platform/integrations/emporix/model';
@@ -15,6 +16,7 @@ import type { SearchSuggestions } from '../../model/search';
  * Implementation of SearchService for BatteryIncluded product data.
  * Maps between BatteryIncluded API product format and internal Product model.
  */
+@injectable('SearchService', 'Singleton')
 class EmporixSearchService implements SearchService {
   private productApi: EmporixProductApi;
   private productMapper: ProductMapper<EmporixProduct>;
@@ -133,9 +135,12 @@ class EmporixSearchService implements SearchService {
         for (const categoryId of catalog.categoryIds) {
           allCategoryIdsForCatalog.add(categoryId);
           const subcategories = await this.categoryApi.getCategorySubcategories(categoryId);
-          subcategories.items.map((subcategory) => {
-            allCategoryIdsForCatalog.add(subcategory.id);
-          });
+
+          if (subcategories?.items && Array.isArray(subcategories.items)) {
+            subcategories.items.map((subcategory) => {
+              allCategoryIdsForCatalog.add(subcategory.id);
+            });
+          }
         }
 
         for (const categoryId of allCategoryIdsForCatalog) {
