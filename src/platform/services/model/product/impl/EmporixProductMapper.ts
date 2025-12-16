@@ -92,6 +92,7 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
       variantAttributes: this.mapVariantAttributes(source),
       purchasable: source.productType !== 'PARENT_VARIANT',
       variantAttributeValues: source.mixins?.productVariantAttributes,
+      relatedItems: source.relatedItems,
     };
   }
 

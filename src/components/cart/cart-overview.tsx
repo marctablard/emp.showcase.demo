@@ -14,6 +14,7 @@ import { CartDelivery } from './cart-delivery';
 import { CartEmpty } from './cart-empty';
 import { CartItemList } from './cart-itemlist';
 import { CartSummary } from './cart-summary';
+import { CartUpsells } from './cart-upsells';
 
 interface CartOverviewProps {
   initialCart?: Cart | null;
@@ -59,6 +60,7 @@ export function CartOverview({ initialCart }: CartOverviewProps) {
           <div className="col-span-1 lg:col-span-2" ref={leftContent}>
             {false && customer && <CartDelivery />}
             <CartItemList cart={cart} />
+            <CartUpsells />
           </div>
           <CartSummary cart={cart} boundingContent={leftContent} />
         </div>
