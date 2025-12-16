@@ -51,6 +51,11 @@ export interface ProductVariantAttribute {
   values: { key: string; name?: string | LocalizedString; selected: boolean }[];
 }
 
+export interface RelatedItem {
+  refId: string;
+  type: string;
+}
+
 export interface Product {
   id: string;
   name: string | LocalizedString;
@@ -82,6 +87,7 @@ export interface Product {
   templateAttributes?: Record<string, string>;
   variantAttributes?: ProductVariantAttribute[];
   variantAttributeValues?: Record<string, string>;
+  relatedItems?: RelatedItem[];
 }
 
 export interface ProductRecommendations {

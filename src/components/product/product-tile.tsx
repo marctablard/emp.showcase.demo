@@ -21,9 +21,10 @@ import { ToastType, notify } from '../ui/toast-notification';
 interface ProductTileProps {
   product: Product;
   locale?: string;
+  compact?: boolean;
 }
 
-export function ProductTile({ product, locale = 'en' }: ProductTileProps) {
+export function ProductTile({ product, locale = 'en', compact = false }: ProductTileProps) {
   const t = useTranslations('product');
   const { l10n } = useL10n(locale);
   const { addItem, loading: cartLoading } = useCart();
@@ -73,11 +74,13 @@ export function ProductTile({ product, locale = 'en' }: ProductTileProps) {
     <Link href={`/product/${product.id}`} className="h-full block">
       <Card shadow="default" rounded="md" className="border-0 gap-4 h-full flex flex-col hover:shadow-xl transition">
         <CardHeader className="flex-shrink-0 no-underline">
-          <CardDescription className="font-medium text-base text-text-body h-6">
-            {l10n(
-              product.brand?.name || product.specifications?.find((spec) => spec.key === 'manufacturer')?.value || '',
-            )}
-          </CardDescription>
+          {!compact && (
+            <CardDescription className="font-medium text-base text-text-body h-6">
+              {l10n(
+                product.brand?.name || product.specifications?.find((spec) => spec.key === 'manufacturer')?.value || '',
+              )}
+            </CardDescription>
+          )}
           <CardTitle className="flex gap-2 justify-between">
             <Heading variant="h5" as="div" className="md:hidden">
               <p className="line-clamp-3">{l10n(product.name)}</p>
@@ -85,14 +88,16 @@ export function ProductTile({ product, locale = 'en' }: ProductTileProps) {
             <Heading variant="h6" as="div" className="hidden md:block">
               <p className="line-clamp-2">{l10n(product.name)}</p>
             </Heading>
-            <Button
-              variant="secondary"
-              size="icon"
-              title={t('addToWishlist')}
-              className="h-[50px] w-[50px] flex-shrink-0"
-            >
-              <Pin width="24" height="24" />
-            </Button>
+            {!compact && (
+              <Button
+                variant="secondary"
+                size="icon"
+                title={t('addToWishlist')}
+                className="h-[50px] w-[50px] flex-shrink-0"
+              >
+                <Pin width="24" height="24" />
+              </Button>
+            )}
           </CardTitle>
         </CardHeader>
 
@@ -188,16 +193,20 @@ export function ProductTile({ product, locale = 'en' }: ProductTileProps) {
 
         <CardFooter>
           <div className="flex flex-col gap-1 w-full">
-            <div className="flex gap-2 text-text-success text-sm items-center">
-              {/* Todo: read availability from product */}
-              <Truck />
-              <p>{t('shipping.onlineAvailable')}</p>
-            </div>
-            <div className="flex gap-2 text-text-success text-sm items-center">
-              {/* Todo: read pickup availability from product */}
-              <MapPin />
-              <p>{t('shipping.canBeReservedExample')}</p>
-            </div>
+            {!compact && (
+              <>
+                <div className="flex gap-2 text-text-success text-sm items-center">
+                  {/* Todo: read availability from product */}
+                  <Truck />
+                  <p>{t('shipping.onlineAvailable')}</p>
+                </div>
+                <div className="flex gap-2 text-text-success text-sm items-center">
+                  {/* Todo: read pickup availability from product */}
+                  <MapPin />
+                  <p>{t('shipping.canBeReservedExample')}</p>
+                </div>
+              </>
+            )}
             <div className="flex justify-between items-end">
               <div className="flex flex-col gap-1">
                 {product.price ? (
