@@ -12,7 +12,16 @@
     "message": "Message",
     "send": "Send Ticket",
     "subjectPlaceholder": "Enter subject",
-    "messagePlaceholder": "Describe your issue here..."
+    "messagePlaceholder": "Describe your issue here...",
+    "titleView": "View Service Ticket",
+    "validation": {
+      "subjectRequired": "Please select a subject",
+      "descriptionRequired": "Please enter a description"
+    },
+    "errors": {
+      "submitFailed": "Failed to submit ticket"
+    },
+    "sending": "Sending..."
   },
   "Address": {
     "title": "Address Management",

@@ -188,21 +188,19 @@ function CarouselDots({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
       className={cn('mb-2 flex w-full items-center justify-center gap-4', className)}
       {...props}
     >
-      {api
-        ?.scrollSnapList()
-        .map((_, index) => (
-          <button
-            key={index}
-            title={t('pageTitle', { index: index + 1 })}
-            className={cn(
-              'cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-white transition',
-              index === selectedIndex
-                ? 'h-4 w-4 bg-linear-to-t from-gradient-secondary-end to-gradient-secondary-start hover:to-gradient-secondary-end'
-                : 'h-3 w-3 bg-surface-page border border-border-secondary hover:bg-surface-action-hover-2 hover:border-border-action-hover disabled:bg-none disabled:bg-surface-disabled disabled:border-border-disabled disabled:pointer-events-none ',
-            )}
-            onClick={() => scrollTo(index)}
-          ></button>
-        ))}
+      {api?.scrollSnapList().map((_, index) => (
+        <button
+          key={index}
+          title={t('pageTitle', { index: index + 1 })}
+          className={cn(
+            'cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-white transition',
+            index === selectedIndex
+              ? 'h-4 w-4 bg-linear-to-t from-gradient-secondary-end to-gradient-secondary-start hover:to-gradient-secondary-end'
+              : 'h-3 w-3 bg-surface-page border border-border-secondary hover:bg-surface-action-hover-2 hover:border-border-action-hover disabled:bg-none disabled:bg-surface-disabled disabled:border-border-disabled disabled:pointer-events-none ',
+          )}
+          onClick={() => scrollTo(index)}
+        ></button>
+      ))}
     </div>
   );
 }

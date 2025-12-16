@@ -12,7 +12,16 @@
     "message": "Nachricht",
     "send": "Ticket senden",
     "subjectPlaceholder": "Betreff eingeben",
-    "messagePlaceholder": "Beschreiben Sie Ihr Anliegen hier..."
+    "messagePlaceholder": "Beschreiben Sie Ihr Anliegen hier...",
+    "titleView": "Service-Ticket anzeigen",
+    "validation": {
+      "subjectRequired": "Bitte wählen Sie einen Betreff aus",
+      "descriptionRequired": "Bitte geben Sie eine Beschreibung ein"
+    },
+    "errors": {
+      "submitFailed": "Fehler beim Senden des Tickets"
+    },
+    "sending": "Wird gesendet..."
   },
   "profile": {
     "title": "Profileinstellungen",

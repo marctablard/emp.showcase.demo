@@ -22,7 +22,9 @@ const Segment = ({ blok }: SegmentProps) => {
       {blok.segment_name && <H2>{blok.segment_name}</H2>}
 
       <div className="space-y-6">
-        {blok.content_blocks?.map((block) => <StoryblokServerComponent blok={block} key={block._uid} />)}
+        {blok.content_blocks?.map((block) => (
+          <StoryblokServerComponent blok={block} key={block._uid} />
+        ))}
       </div>
     </section>
   );
