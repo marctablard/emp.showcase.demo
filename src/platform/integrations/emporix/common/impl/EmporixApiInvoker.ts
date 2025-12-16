@@ -98,7 +98,6 @@ class EmporixApiInvoker {
             throw new Error('No SaaS token available');
           }
           if (tokenType === 'ai') {
-            // Only set session-id if not already provided (allows AI to use its own session ID)
             const headersObj = headers as Record<string, string>;
             if (!headersObj['session-id']) {
               headers = {

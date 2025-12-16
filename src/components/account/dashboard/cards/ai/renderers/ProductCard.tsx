@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import Image from 'next/image';
 import { Product } from '../types';
 import { formatPrice, handleImageError } from '../utils';
 
@@ -36,11 +37,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
     <div className="p-4 bg-surface-primary rounded-xl border border-border-primary shadow-sm hover:shadow-md transition-all duration-200">
       <div className="flex items-start space-x-4">
         {product.image && (
-          <img
+          <Image
             src={product.image}
             alt={product.name}
+            width={80}
+            height={80}
             className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
             onError={handleImageError}
+            unoptimized
           />
         )}
         <div className="flex-1 min-w-0">

@@ -2,10 +2,10 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { AiHelperFormData, StructuredDataHandlers } from '../types';
+import { ErrorData, StructuredDataHandlers } from '../types';
 
 interface ErrorRendererProps {
-  data: any;
+  data: ErrorData;
   setQuestionValue: StructuredDataHandlers['setQuestionValue'];
   handleQuestionSubmit: StructuredDataHandlers['handleQuestionSubmit'];
 }
@@ -16,7 +16,6 @@ export const ErrorRenderer: React.FC<ErrorRendererProps> = ({ data, setQuestionV
   const handleRetry = () => {
     const retryMessage = t('pleaseTryAgain');
     setQuestionValue(retryMessage);
-    // Use requestAnimationFrame for better timing than setTimeout
     requestAnimationFrame(() => {
       handleQuestionSubmit({ question: retryMessage });
     });

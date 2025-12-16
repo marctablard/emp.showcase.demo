@@ -2,66 +2,25 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { formatPrice } from '../utils';
+import { CartSummaryData, ShopData } from '../types';
+import { extractPrice, formatPrice } from '../utils';
 import { ItemsListRenderer } from './ItemsListRenderer';
 
 interface CartSummaryRendererProps {
-  data: any;
-  currency: string;
+  data: CartSummaryData;
 }
 
-// Helper function to extract price values from different formats
-const extractPrice = (priceObj: any) => {
-  if (!priceObj) return { net: 0, gross: 0, tax: 0 };
-
-  let net = priceObj.net ?? priceObj.netValue ?? priceObj.finalNetValue;
-  let gross = priceObj.gross ?? priceObj.grossValue ?? priceObj.finalGrossValue;
-  let tax = priceObj.tax ?? priceObj.taxValue ?? priceObj.finalTaxValue;
-  const value = priceObj.value ?? 0;
-
-  // If we have gross and tax, calculate net
-  if (gross && tax && !net) {
-    net = gross - tax;
-  }
-  // If we have gross and net, calculate tax
-  else if (gross && net && !tax) {
-    tax = gross - net;
-  }
-  // If we have net and tax, calculate gross
-  else if (net && tax && !gross) {
-    gross = net + tax;
-  }
-  // If we only have value and no other fields, treat as gross
-  else if (value > 0 && !net && !gross && !tax) {
-    gross = value;
-  }
-  // Fallback: use value as gross if gross is missing
-  else if (!gross && value > 0) {
-    gross = value;
-  }
-
-  // Final fallbacks to 0
-  net = net ?? 0;
-  gross = gross ?? 0;
-  tax = tax ?? 0;
-
-  return { net, gross, tax };
-};
-
-export const CartSummaryRenderer: React.FC<CartSummaryRendererProps> = ({ data, currency }) => {
+export const CartSummaryRenderer: React.FC<CartSummaryRendererProps> = ({ data }) => {
   const t = useTranslations('account.AiHelper');
 
-  // Determine currency from data.currency, data.total.currency, or fallback to prop
-  const displayCurrency = data.currency || data.total?.currency || currency;
+  const displayCurrency = data.currency || data.total?.currency || 'USD';
 
-  // Extract totals from new structure
   const total = data.total || {};
   const totalPrice = extractPrice(total);
   const totalValue = totalPrice.gross;
   const totalNet = totalPrice.net;
   const totalTax = totalPrice.tax;
 
-  // Extract subtotal information
   const subtotal = data.subtotal || {};
   const subtotalPrice = extractPrice(subtotal);
   const subtotalNet = subtotalPrice.net;
@@ -70,7 +29,6 @@ export const CartSummaryRenderer: React.FC<CartSummaryRendererProps> = ({ data, 
 
   return (
     <div className="space-y-6">
-      {/* Cart Summary Box */}
       <div className="bg-gradient-to-t from-gradient-secondary-end to-gradient-secondary-start p-6 rounded-xl border border-border-primary shadow-lg">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-text-on-action">{t('cartSummary')}</h3>
@@ -81,7 +39,6 @@ export const CartSummaryRenderer: React.FC<CartSummaryRendererProps> = ({ data, 
           )}
         </div>
 
-        {/* Header with Net/VAT/Gross columns */}
         <div className="grid grid-cols-4 gap-4 mb-3 pb-2 border-b border-border-primary/30">
           <div className="text-sm font-semibold text-text-on-action/80"></div>
           <div className="text-sm font-semibold text-text-on-action text-center">{t('net')}</div>
@@ -90,7 +47,6 @@ export const CartSummaryRenderer: React.FC<CartSummaryRendererProps> = ({ data, 
         </div>
 
         <div className="space-y-3">
-          {/* Subtotal Row */}
           <div className="grid grid-cols-4 gap-4">
             <div className="text-sm text-text-on-action/90">{t('subtotal')}</div>
             <div className="text-sm font-medium text-text-on-action text-center">
@@ -104,7 +60,6 @@ export const CartSummaryRenderer: React.FC<CartSummaryRendererProps> = ({ data, 
             </div>
           </div>
 
-          {/* Total Row */}
           <div className="pt-3 mt-3 border-t-2 border-border-primary/50">
             <div className="grid grid-cols-4 gap-4 items-center">
               <div className="text-base font-semibold text-text-on-action">{t('total')}</div>
@@ -122,7 +77,6 @@ export const CartSummaryRenderer: React.FC<CartSummaryRendererProps> = ({ data, 
         </div>
       </div>
 
-      {/* Handle new format with flat items array */}
       {data.items && data.items.length > 0 && (
         <div className="space-y-4">
           <ItemsListRenderer
@@ -136,10 +90,9 @@ export const CartSummaryRenderer: React.FC<CartSummaryRendererProps> = ({ data, 
         </div>
       )}
 
-      {/* Handle legacy format with shops array (backward compatibility) */}
       {data.shops && data.shops.length > 0 && (
         <div className="space-y-4">
-          {data.shops.map((shop: any, shopIndex: number) => (
+          {data.shops.map((shop: ShopData, shopIndex: number) => (
             <div key={shopIndex} className="space-y-3">
               <div className="flex justify-between items-center p-3 bg-surface-image-background rounded-lg border">
                 <div className="font-semibold text-text-body text-base">{shop.shopName}</div>
@@ -151,7 +104,7 @@ export const CartSummaryRenderer: React.FC<CartSummaryRendererProps> = ({ data, 
               {shop.items && shop.items.length > 0 && (
                 <ItemsListRenderer
                   items={shop.items}
-                  currency={shop.currency}
+                  currency={shop.currency || displayCurrency}
                   extractPrice={extractPrice}
                   showImages={true}
                   showDescription={false}
@@ -163,7 +116,6 @@ export const CartSummaryRenderer: React.FC<CartSummaryRendererProps> = ({ data, 
         </div>
       )}
 
-      {/* Checkout Button */}
       <div className="mt-4 flex justify-center">
         <button
           onClick={() => (window.location.href = '/cart')}

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
+import Image from 'next/image';
 import { formatDate, formatPrice, getReturnStatusColor, handleImageError } from '../utils';
 
 interface ReturnCardProps {
@@ -13,10 +14,6 @@ const extractPriceValue = (priceObj: any): number => {
   return priceObj.value ?? 0;
 };
 
-/**
- * Shared component to render a single return card
- * Used by both ReturnListRenderer and ReturnDetailsRenderer
- */
 export const ReturnCard: React.FC<ReturnCardProps> = ({ returnItem }) => {
   const t = useTranslations('account.AiHelper');
 
@@ -27,7 +24,6 @@ export const ReturnCard: React.FC<ReturnCardProps> = ({ returnItem }) => {
   const returnCurrency = returnItem.currency || returnItem.total?.currency || 'EUR';
   const totalValue = extractPriceValue(returnItem.total);
 
-  // Collect all items from all orders
   const allItems: any[] = [];
   if (returnItem.orders && Array.isArray(returnItem.orders)) {
     returnItem.orders.forEach((order: any) => {
@@ -39,7 +35,6 @@ export const ReturnCard: React.FC<ReturnCardProps> = ({ returnItem }) => {
 
   return (
     <div className="bg-surface-primary rounded-xl border border-border-primary shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
-      {/* Return Header with Blue Gradient Background */}
       <div className="bg-gradient-to-t from-gradient-secondary-end to-gradient-secondary-start p-4 rounded-t-xl">
         <div className="flex justify-between items-center mb-3">
           <div className="flex-1 min-w-0">
@@ -98,13 +93,11 @@ export const ReturnCard: React.FC<ReturnCardProps> = ({ returnItem }) => {
         </div>
       </div>
 
-      {/* Return Items on White Background */}
       {allItems.length > 0 && (
         <div className="p-3 bg-surface-primary">
           <div className="text-sm font-semibold text-text-body mb-2">{t('previewItems')}</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 text-sm text-text-body">
             {allItems.map((item: any, itemIndex: number) => {
-              // Extract price value - returns have simple price structure
               const itemPriceValue = item.total
                 ? extractPriceValue(item.total)
                 : item.unitPrice && item.quantity
@@ -116,11 +109,14 @@ export const ReturnCard: React.FC<ReturnCardProps> = ({ returnItem }) => {
               return (
                 <div key={itemIndex} className="flex items-start space-x-2">
                   {item.image && (
-                    <img
+                    <Image
                       src={item.image}
                       alt={item.name}
+                      width={40}
+                      height={40}
                       className="w-10 h-10 object-cover rounded flex-shrink-0"
                       onError={handleImageError}
+                      unoptimized
                     />
                   )}
                   <div className="flex flex-col min-w-0 flex-1">
@@ -148,7 +144,6 @@ export const ReturnCard: React.FC<ReturnCardProps> = ({ returnItem }) => {
         </div>
       )}
 
-      {/* Order References */}
       {returnItem.orders && returnItem.orders.length > 0 && (
         <div className="p-3 bg-surface-image-background border-t border-border-primary">
           <div className="text-sm font-semibold text-text-body mb-2">{t('relatedOrders')}</div>

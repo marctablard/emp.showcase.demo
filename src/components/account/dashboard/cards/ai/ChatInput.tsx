@@ -1,8 +1,7 @@
 'use client';
 
-import React from 'react';
-import { FormProvider } from 'react-hook-form';
-import { UseFormReturn } from 'react-hook-form';
+import React, { useEffect, useRef } from 'react';
+import { FormProvider, UseFormReturn } from 'react-hook-form';
 import { useTranslations } from 'next-intl';
 import { FormControl, FormField, FormItem } from '@/components/ui/form';
 import { InputButton } from '@/components/ui/input';
@@ -17,9 +16,19 @@ interface ChatInputProps {
 
 export const ChatInput: React.FC<ChatInputProps> = ({ form, onSubmit, loading, isChatMode }) => {
   const t = useTranslations('account.AiHelper');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const prevLoadingRef = useRef(loading);
 
   const placeholder = isChatMode ? t('chatPlaceholder') : t('placeholder');
   const buttonText = loading ? t('sending') : isChatMode ? t('sendButton') : t('buttonText');
+
+  // Auto-focus input when loading completes
+  useEffect(() => {
+    if (prevLoadingRef.current && !loading && inputRef.current) {
+      inputRef.current.focus();
+    }
+    prevLoadingRef.current = loading;
+  }, [loading]);
 
   return (
     <div className="bg-white border-t border-gray-200 pt-4 pb-4">
@@ -28,10 +37,24 @@ export const ChatInput: React.FC<ChatInputProps> = ({ form, onSubmit, loading, i
           <FormField
             control={form.control}
             name="question"
-            render={({ field }) => (
+            render={({ field: { ref: fieldRef, ...field } }) => (
               <FormItem>
                 <FormControl>
-                  <InputButton placeholder={placeholder} buttonText={buttonText} disabled={loading} {...field} />
+                  <InputButton
+                    ref={(element) => {
+                      // Set internal ref for focus management
+                      inputRef.current = element;
+                      // Set react-hook-form ref for form tracking
+                      if (typeof fieldRef === 'function') {
+                        fieldRef(element);
+                      }
+                    }}
+                    placeholder={placeholder}
+                    buttonText={buttonText}
+                    disabled={loading}
+                    aria-label={placeholder}
+                    {...field}
+                  />
                 </FormControl>
               </FormItem>
             )}

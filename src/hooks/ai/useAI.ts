@@ -20,9 +20,8 @@ export function useAI(): UseAIResult {
       try {
         return await sendAIChatMessageWithContext(userMessage, context);
       } catch (err) {
-        const error = err instanceof Error ? err : new Error('Failed to send AI message with context');
-        setError(error);
-        throw error;
+        setError(err instanceof Error ? err : new Error(String(err)));
+        throw err;
       } finally {
         setLoading(false);
       }

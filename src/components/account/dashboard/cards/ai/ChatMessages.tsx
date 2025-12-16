@@ -11,18 +11,15 @@ interface ChatMessagesProps {
   messages: ChatMessageType[];
   loading: boolean;
   handlers: StructuredDataHandlers;
-  currency?: string;
 }
 
-export const ChatMessages: React.FC<ChatMessagesProps> = ({ messages, loading, handlers, currency = 'USD' }) => {
+export const ChatMessages: React.FC<ChatMessagesProps> = ({ messages, loading, handlers }) => {
   const t = useTranslations('account.AiHelper');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (container) {
-      // Use requestAnimationFrame for smoother scrolling
       requestAnimationFrame(() => {
         container.scrollTo({
           top: container.scrollHeight,
@@ -35,6 +32,10 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({ messages, loading, h
   return (
     <div
       ref={scrollContainerRef}
+      role="log"
+      aria-live="polite"
+      aria-label={t('chatHistory')}
+      aria-relevant="additions"
       className="flex-1 overflow-y-auto border rounded-lg p-3 bg-surface-image-background mb-3 scroll-smooth"
     >
       {messages.length === 0 ? (
@@ -42,7 +43,7 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({ messages, loading, h
       ) : (
         <div className="space-y-3">
           {messages.map((message) => (
-            <ChatMessage key={message.id} message={message} handlers={handlers} currency={currency} />
+            <ChatMessage key={message.id} message={message} handlers={handlers} />
           ))}
           {loading && <LoadingIndicator />}
         </div>

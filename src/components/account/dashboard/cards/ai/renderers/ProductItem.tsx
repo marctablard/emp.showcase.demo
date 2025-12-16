@@ -2,33 +2,25 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
+import Image from 'next/image';
 import { formatPrice, handleImageError } from '../utils';
 
-/**
- * Unified product/item interface for use across cart, quotes, orders, etc.
- */
 export interface UnifiedProductItem {
-  // Identifiers
   productId?: string;
   itemId?: string;
   id?: string;
 
-  // Basic info
   name: string;
   image?: string;
   description?: string;
   brand?: string;
 
-  // Quantity and unit
   quantity?: number;
   unitCode?: string;
 
-  // Pricing - unified structure
-  // Option 1: Simple price (for backward compatibility)
   price?: number;
   currency?: string;
 
-  // Option 2: Structured pricing (preferred)
   unitPrice?: {
     value: number;
     currency?: string;
@@ -44,7 +36,6 @@ export interface UnifiedProductItem {
     tax?: number;
   };
 
-  // Additional product info (for product listings)
   originalPrice?: number;
   rating?: number;
   reviewCount?: number;
@@ -110,11 +101,14 @@ export const ProductItem: React.FC<ProductItemProps> = ({
   return (
     <div className={`flex items-start space-x-4 ${className}`}>
       {item.image && (
-        <img
+        <Image
           src={item.image}
           alt={item.name}
+          width={80}
+          height={80}
           className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
           onError={handleImageError}
+          unoptimized
         />
       )}
       <div className="flex-1 min-w-0">

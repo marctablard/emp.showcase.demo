@@ -25,22 +25,6 @@ class EmporixAIApi implements IEmporixAIApi {
       ...(sessionId && { 'session-id': sessionId }),
     };
 
-    // Log request to Emporix backend
-    console.log(
-      'EmporixAIApi Request to Backend:',
-      JSON.stringify(
-        {
-          url,
-          method: 'POST',
-          headers,
-          body: request,
-          sessionId,
-        },
-        null,
-        2,
-      ),
-    );
-
     try {
       const response = await this.apiClient.authenticatedFetch(
         url,
@@ -53,27 +37,12 @@ class EmporixAIApi implements IEmporixAIApi {
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Emporix AI service response error:', {
-          status: response.status,
-          statusText: response.statusText,
-          body: errorText,
-        });
         throw new Error(`Emporix AI service request failed: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
       return data as EmporixAIChatResponse;
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error('AI service request timed out after 50 seconds');
-      }
-
-      console.error('Error calling Emporix AI service:', {
-        url,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-
       throw new Error(`Failed to send chat message: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

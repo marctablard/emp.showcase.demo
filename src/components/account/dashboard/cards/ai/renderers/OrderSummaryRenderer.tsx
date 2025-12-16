@@ -2,79 +2,34 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { formatDate, formatPrice, getOrderStatusColor } from '../utils';
+import { OrderItemData, OrderSummaryData } from '../types';
+import { extractPrice, formatDate, formatPrice, getOrderStatusColor } from '../utils';
 import { ItemsListRenderer } from './ItemsListRenderer';
 
 interface OrderSummaryRendererProps {
-  data: any;
-  fallbackCurrency?: string;
+  data: OrderSummaryData;
 }
 
-export const OrderSummaryRenderer: React.FC<OrderSummaryRendererProps> = ({ data, fallbackCurrency = 'USD' }) => {
+export const OrderSummaryRenderer: React.FC<OrderSummaryRendererProps> = ({ data }) => {
   const t = useTranslations('account.AiHelper');
 
-  // Determine currency from data.currency, data.total.currency, or fallback to prop
-  const displayCurrency = data.currency || data.total?.currency || fallbackCurrency;
+  const displayCurrency = data.currency || data.total?.currency || 'USD';
 
-  // Helper function to extract price values from different formats
-  const extractPrice = (priceObj: any) => {
-    if (!priceObj) return { net: 0, gross: 0, tax: 0 };
-
-    // Try Price Object format first (net, gross, tax), then Emporix API format (netValue, grossValue, taxValue)
-    let net = priceObj.net ?? priceObj.netValue ?? priceObj.finalNetValue;
-    let gross = priceObj.gross ?? priceObj.grossValue ?? priceObj.finalGrossValue;
-    let tax = priceObj.tax ?? priceObj.taxValue ?? priceObj.finalTaxValue;
-    const value = priceObj.value ?? 0;
-
-    // If we have gross and tax, calculate net
-    if (gross && tax && !net) {
-      net = gross - tax;
-    }
-    // If we have gross and net, calculate tax
-    else if (gross && net && !tax) {
-      tax = gross - net;
-    }
-    // If we have net and tax, calculate gross
-    else if (net && tax && !gross) {
-      gross = net + tax;
-    }
-    // If we only have value and no other fields, try to determine what it represents
-    else if (value > 0 && !net && !gross && !tax) {
-      // If we have gross elsewhere (like in total), value might be net
-      // Otherwise, treat value as gross (most common case)
-      gross = value;
-    }
-    // Fallback: use value as gross if gross is missing
-    else if (!gross && value > 0) {
-      gross = value;
-    }
-
-    // Final fallbacks to 0
-    net = net ?? 0;
-    gross = gross ?? 0;
-    tax = tax ?? 0;
-
-    return { net, gross, tax };
-  };
-
-  // Extract totals from new structure
   const total = data.total || {};
   const totalPrice = extractPrice(total);
   const totalValue = totalPrice.gross;
   const totalNet = totalPrice.net;
   const totalTax = totalPrice.tax;
 
-  // Extract subtotal information
   const subtotal = data.subtotal || {};
   let subtotalPrice = extractPrice(subtotal);
 
-  // If subtotal is incomplete, try to calculate from items
   if (subtotalPrice.net === 0 && subtotalPrice.gross === 0 && data.items && data.items.length > 0) {
     let itemsNet = 0;
     let itemsGross = 0;
     let itemsTax = 0;
 
-    data.items.forEach((item: any) => {
+    data.items.forEach((item: OrderItemData) => {
       if (item.totalPrice) {
         const itemPrice = extractPrice(item.totalPrice);
         itemsNet += itemPrice.net || 0;
@@ -89,7 +44,6 @@ export const OrderSummaryRenderer: React.FC<OrderSummaryRendererProps> = ({ data
       }
     });
 
-    // Use calculated values if we got something
     if (itemsGross > 0 || itemsNet > 0) {
       subtotalPrice = { net: itemsNet, gross: itemsGross, tax: itemsTax };
     }
@@ -99,7 +53,6 @@ export const OrderSummaryRenderer: React.FC<OrderSummaryRendererProps> = ({ data
   const subtotalTax = subtotalPrice.tax;
   const subtotalGross = subtotalPrice.gross;
 
-  // Extract shipping information
   const shipping = data.shipping || {};
   const shippingPrice = extractPrice(shipping);
   const shippingValue = shippingPrice.gross;
@@ -108,9 +61,7 @@ export const OrderSummaryRenderer: React.FC<OrderSummaryRendererProps> = ({ data
 
   return (
     <div className="space-y-6">
-      {/* Order Header & Summary */}
       <div className="bg-gradient-to-t from-gradient-secondary-end to-gradient-secondary-start p-6 rounded-xl border border-border-primary shadow-lg">
-        {/* Header Section */}
         <div className="flex items-center justify-between mb-6 pb-4 border-b border-border-primary/30">
           <div className="flex-1">
             <div className="flex items-center space-x-3 mb-3">
@@ -148,11 +99,9 @@ export const OrderSummaryRenderer: React.FC<OrderSummaryRendererProps> = ({ data
           )}
         </div>
 
-        {/* Summary Section */}
         <div>
           <h3 className="text-lg font-bold text-text-on-action mb-4">{t('orderSummary')}</h3>
 
-          {/* Header with Net/VAT/Gross columns */}
           <div className="grid grid-cols-4 gap-4 mb-3 pb-2 border-b border-border-primary/30">
             <div className="text-sm font-semibold text-text-on-action/80"></div>
             <div className="text-sm font-semibold text-text-on-action text-center">{t('net')}</div>
@@ -161,7 +110,6 @@ export const OrderSummaryRenderer: React.FC<OrderSummaryRendererProps> = ({ data
           </div>
 
           <div className="space-y-3">
-            {/* Subtotal Row */}
             <div className="grid grid-cols-4 gap-4">
               <div className="text-sm text-text-on-action/90">{t('subtotal')}</div>
               <div className="text-sm font-medium text-text-on-action text-center">
@@ -175,7 +123,6 @@ export const OrderSummaryRenderer: React.FC<OrderSummaryRendererProps> = ({ data
               </div>
             </div>
 
-            {/* Shipping Row */}
             {shippingValue > 0 && (
               <div className="grid grid-cols-4 gap-4">
                 <div className="text-sm text-text-on-action/90">{t('shipping')}</div>
@@ -191,7 +138,6 @@ export const OrderSummaryRenderer: React.FC<OrderSummaryRendererProps> = ({ data
               </div>
             )}
 
-            {/* Total Row */}
             <div className="pt-3 mt-3 border-t-2 border-border-primary/50">
               <div className="grid grid-cols-4 gap-4 items-center">
                 <div className="text-base font-semibold text-text-on-action">{t('total')}</div>
@@ -210,10 +156,8 @@ export const OrderSummaryRenderer: React.FC<OrderSummaryRendererProps> = ({ data
         </div>
       </div>
 
-      {/* Addresses & Payment */}
       {(data.shippingAddress || data.billingAddress || data.payment) && (
         <div className="bg-surface-primary rounded-lg border border-border-primary p-4">
-          {/* Addresses Section */}
           {(data.shippingAddress || data.billingAddress) && (
             <>
               <div className="text-sm font-semibold text-text-body mb-3">{t('addresses')}</div>
@@ -255,7 +199,6 @@ export const OrderSummaryRenderer: React.FC<OrderSummaryRendererProps> = ({ data
             </>
           )}
 
-          {/* Payment Information Section */}
           {data.payment && (
             <>
               {(data.shippingAddress || data.billingAddress) && (
@@ -287,7 +230,6 @@ export const OrderSummaryRenderer: React.FC<OrderSummaryRendererProps> = ({ data
         </div>
       )}
 
-      {/* Order Items */}
       {data.items && data.items.length > 0 && (
         <div className="space-y-4">
           <div className="text-sm font-semibold text-text-body mb-3">{t('orderItems')}</div>
@@ -302,7 +244,6 @@ export const OrderSummaryRenderer: React.FC<OrderSummaryRendererProps> = ({ data
         </div>
       )}
 
-      {/* View Order Button */}
       <div className="mt-4 flex justify-center">
         <a
           href={`/account/orders/${data.orderId}`}

@@ -1,5 +1,3 @@
-import { EmporixMetadata, EmporixMixins } from './common';
-
 export interface EmporixAIChatRequest {
   agentId: string;
   message: string; // JSON stringified AIUserMessage

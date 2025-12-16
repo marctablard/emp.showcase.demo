@@ -1,17 +1,22 @@
 'use client';
 
 import React from 'react';
+import { ReturnData, ReturnDetailsData } from '../types';
 import { ReturnCard } from './ReturnCard';
 
 interface ReturnDetailsRendererProps {
-  data: any;
+  data: ReturnDetailsData;
 }
 
 export const ReturnDetailsRenderer: React.FC<ReturnDetailsRendererProps> = ({ data }) => {
-  let returnItem = data.return || data;
+  let returnItem: ReturnData | undefined = data.return;
 
-  if (data.returns && Array.isArray(data.returns) && data.returns.length === 1) {
+  if (!returnItem && data.returns && Array.isArray(data.returns) && data.returns.length === 1) {
     returnItem = data.returns[0];
+  }
+
+  if (!returnItem) {
+    return null;
   }
 
   return (

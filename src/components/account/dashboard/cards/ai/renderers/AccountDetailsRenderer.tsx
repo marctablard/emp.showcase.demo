@@ -2,11 +2,12 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
+import { AccountDetailsData, AddressData } from '../types';
 import { formatDateTime } from '../utils';
 import { AddressCard } from './AddressCard';
 
 interface AccountDetailsRendererProps {
-  data: any;
+  data: AccountDetailsData;
 }
 
 export const AccountDetailsRenderer: React.FC<AccountDetailsRendererProps> = ({ data }) => {
@@ -107,7 +108,7 @@ export const AccountDetailsRenderer: React.FC<AccountDetailsRendererProps> = ({ 
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 items-stretch">
-            {data.addresses.map((address: any, index: number) => (
+            {data.addresses.map((address: AddressData, index: number) => (
               <AddressCard key={index} address={address} />
             ))}
           </div>

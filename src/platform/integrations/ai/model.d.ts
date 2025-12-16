@@ -1,4 +1,3 @@
-// Common AI model types used across the application
 export interface AIChatRequest {
   agentId: string;
   message: string;

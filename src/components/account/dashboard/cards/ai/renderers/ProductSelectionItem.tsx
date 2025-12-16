@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import Image from 'next/image';
 import { ProductSelectionItem as ProductSelectionItemType } from '../types';
 import { formatPrice, handleImageError } from '../utils';
 
@@ -49,11 +50,14 @@ export const ProductSelectionItem: React.FC<ProductSelectionItemProps> = ({ item
       <div className="flex-1 min-w-0">
         <div className="flex items-start space-x-3">
           {item.image && (
-            <img
+            <Image
               src={item.image}
               alt={item.name}
+              width={64}
+              height={64}
               className="w-16 h-16 object-cover rounded"
               onError={handleImageError}
+              unoptimized
             />
           )}
           <div className="flex-1 min-w-0">

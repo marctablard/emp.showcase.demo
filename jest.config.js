@@ -46,6 +46,22 @@ const customJestConfig = {
     },
     {
       preset: 'ts-jest',
+      displayName: 'Component Tests',
+      testEnvironment: 'node',
+      testMatch: ['**/components/**/?(*.)+(spec|test).ts?(x)'],
+      setupFilesAfterEnv: ['<rootDir>/jest.platform.setup.js'],
+      transform: {
+        '^.+\\.tsx?$': [
+          'ts-jest',
+          {
+            tsconfig: 'tsconfig.json',
+          },
+        ],
+      },
+      ...commonJestConfig,
+    },
+    {
+      preset: 'ts-jest',
       displayName: 'Platform Tests',
       testEnvironment: 'node',
       testMatch: ['**/platform/**/?(*.)+(spec|test).ts?(x)'],

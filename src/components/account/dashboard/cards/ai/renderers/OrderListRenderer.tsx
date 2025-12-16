@@ -2,49 +2,13 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { formatDate, formatPrice, getOrderStatusColor, handleImageError } from '../utils';
+import Image from 'next/image';
+import { OrderData, OrderItemData, OrderListData } from '../types';
+import { extractPrice, formatDate, formatPrice, getOrderStatusColor, handleImageError } from '../utils';
 
 interface OrderListRendererProps {
-  data: any;
+  data: OrderListData;
 }
-
-// Helper function to extract price values from different formats
-const extractPrice = (priceObj: any) => {
-  if (!priceObj) return { net: 0, gross: 0, tax: 0 };
-
-  let net = priceObj.net ?? priceObj.netValue ?? priceObj.finalNetValue;
-  let gross = priceObj.gross ?? priceObj.grossValue ?? priceObj.finalGrossValue;
-  let tax = priceObj.tax ?? priceObj.taxValue ?? priceObj.finalTaxValue;
-  const value = priceObj.value ?? 0;
-
-  // If we have gross and tax, calculate net
-  if (gross && tax && !net) {
-    net = gross - tax;
-  }
-  // If we have gross and net, calculate tax
-  else if (gross && net && !tax) {
-    tax = gross - net;
-  }
-  // If we have net and tax, calculate gross
-  else if (net && tax && !gross) {
-    gross = net + tax;
-  }
-  // If we only have value and no other fields, treat as gross
-  else if (value > 0 && !net && !gross && !tax) {
-    gross = value;
-  }
-  // Fallback: use value as gross if gross is missing
-  else if (!gross && value > 0) {
-    gross = value;
-  }
-
-  // Final fallbacks to 0
-  net = net ?? 0;
-  gross = gross ?? 0;
-  tax = tax ?? 0;
-
-  return { net, gross, tax };
-};
 
 export const OrderListRenderer: React.FC<OrderListRendererProps> = ({ data }) => {
   const t = useTranslations('account.AiHelper');
@@ -52,7 +16,7 @@ export const OrderListRenderer: React.FC<OrderListRendererProps> = ({ data }) =>
   return (
     <div className="space-y-3">
       {data.orders &&
-        data.orders.map((order: any, index: number) => {
+        data.orders.map((order: OrderData, index: number) => {
           const orderCurrency = order.currency || 'EUR';
           const totalPrice = extractPrice(order.total);
           const totalGross = totalPrice.gross || 0;
@@ -64,7 +28,6 @@ export const OrderListRenderer: React.FC<OrderListRendererProps> = ({ data }) =>
               key={index}
               className="bg-surface-primary rounded-xl border border-border-primary shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
             >
-              {/* Order Header with Blue Gradient Background */}
               <div className="bg-gradient-to-t from-gradient-secondary-end to-gradient-secondary-start p-4">
                 <div className="flex justify-between items-center mb-3">
                   <div className="flex-1 min-w-0">
@@ -124,13 +87,11 @@ export const OrderListRenderer: React.FC<OrderListRendererProps> = ({ data }) =>
                 </div>
               </div>
 
-              {/* Order Items on White Background */}
               {order.items && order.items.length > 0 && (
                 <div className="p-3 bg-surface-primary">
                   <div className="text-sm font-semibold text-text-body mb-2">{t('previewItems')}</div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 text-sm text-text-body">
-                    {order.items.map((item: any, itemIndex: number) => {
-                      // Extract price information
+                    {order.items.map((item: OrderItemData, itemIndex: number) => {
                       const itemPrice = item.totalPrice
                         ? extractPrice(item.totalPrice)
                         : item.unitPrice && item.quantity
@@ -146,11 +107,14 @@ export const OrderListRenderer: React.FC<OrderListRendererProps> = ({ data }) =>
                       return (
                         <div key={itemIndex} className="flex items-start space-x-2">
                           {item.image && (
-                            <img
+                            <Image
                               src={item.image}
                               alt={item.name}
+                              width={40}
+                              height={40}
                               className="w-10 h-10 object-cover rounded flex-shrink-0"
                               onError={handleImageError}
+                              unoptimized
                             />
                           )}
                           <div className="flex flex-col min-w-0 flex-1">

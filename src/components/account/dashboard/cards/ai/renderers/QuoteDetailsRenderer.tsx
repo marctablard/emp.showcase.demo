@@ -2,23 +2,23 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
+import { QuoteDetailsData } from '../types';
 import { formatDate, formatPrice, getQuoteStatusColor } from '../utils';
 import { ProductItem, UnifiedProductItem } from './ProductItem';
 
 interface QuoteDetailsRendererProps {
-  data: any;
-  fallbackCurrency?: string;
+  data: QuoteDetailsData;
 }
 
-export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data, fallbackCurrency = 'USD' }) => {
+export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data }) => {
   const t = useTranslations('account.AiHelper');
+  const fallbackCurrency = 'USD';
 
   return (
     <div className="space-y-4">
       {data.message && <div className="text-text-body mb-3 text-base">{data.message}</div>}
 
       <div className="bg-surface-primary rounded-xl border border-border-primary shadow-sm overflow-hidden">
-        {/* Quote Header with Blue Gradient Background */}
         <div className="bg-gradient-to-t from-gradient-secondary-end to-gradient-secondary-start p-4 rounded-t-xl">
           <div className="flex justify-between items-start">
             <div className="flex-1">
@@ -84,7 +84,6 @@ export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data
           </div>
         </div>
 
-        {/* Quote Items */}
         {data.items && data.items.length > 0 && (
           <div className="p-3 bg-surface-primary">
             <div className="text-sm font-semibold text-text-body mb-2">{t('quoteItems')}</div>
@@ -132,7 +131,9 @@ export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data
                         showNetGross={false}
                       />
                     </div>
-                    {itemIndex < data.items.length - 1 && <div className="border-t border-border-primary"></div>}
+                    {data.items && itemIndex < data.items.length - 1 && (
+                      <div className="border-t border-border-primary"></div>
+                    )}
                   </div>
                 );
               })}
@@ -140,7 +141,6 @@ export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data
           </div>
         )}
 
-        {/* Shipping Information */}
         {(data.shippingAddress || data.shippingCost || data.shippingMethod) && (
           <div className="p-4 border-t border-border-primary">
             <div className="text-sm font-semibold text-text-body mb-3">{t('shippingInformation')}</div>
@@ -171,7 +171,6 @@ export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data
           </div>
         )}
 
-        {/* Comments */}
         {(data.userComment || data.employeeComment) && (
           <div className="p-4 border-t border-border-primary bg-surface-image-background">
             <div className="text-sm font-semibold text-text-body mb-2">{t('comments')}</div>
@@ -188,7 +187,6 @@ export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data
           </div>
         )}
 
-        {/* View Quote Button */}
         <div className="p-4 border-t border-border-primary">
           <a
             href={`/account/quotes/${data.quoteId}`}

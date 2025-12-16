@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import AiStarsIcon from '@/components/icons/ai-stars';
 import { Button } from '@/components/ui/button';
 import { CardTitle } from '@/components/ui/card';
 import { useAI } from '@/hooks/ai/useAI';
+import { useChatMessages } from '@/hooks/ai/useChatMessages';
 import { useCart } from '@/hooks/cart/useCart';
+import { useRateLimit } from '@/hooks/common/useRateLimit';
 import { useSession } from '@/hooks/session/useSession';
 import { useValidator } from '@/hooks/validation/useValidator';
 import { prepareAIContext } from '@/lib/client/ai';
@@ -16,191 +18,103 @@ import { ChatInput } from './ai/ChatInput';
 import { ChatMessages } from './ai/ChatMessages';
 import { Suggestions } from './ai/Suggestions';
 import { AiHelperFormData, ChatMessage as ChatMessageType, StructuredDataHandlers } from './ai/types';
+import { parseAIResponse } from './ai/utils/response-parser';
+import { sanitizeUserInput } from './ai/utils/sanitize';
 import { DashboardCardProps } from './dashboard-card';
 
-/**
- * AI Helper Card component
- * Shows AI-assisted helper prompts for common questions
- */
 function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, 'children'>) {
   const t = useTranslations('account.AiHelper');
-  const { form } = useValidator('AiHelperValidationService', {
-    question: '',
-  });
+  const { form } = useValidator('AiHelperValidationService', { question: '' });
 
-  // AI and session hooks
   const { sendMessageWithContext, loading, error } = useAI();
   const { session } = useSession();
   const { refetch: refetchCart } = useCart();
   const cartStore = useCartStore();
+  const { checkRateLimit } = useRateLimit({ maxRequests: 10, windowMs: 60000 });
 
-  // Chat state with persistence
-  const [messages, setMessages] = useState<ChatMessageType[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('ai-helper-chat-messages');
-        if (saved) {
-          const parsedMessages = JSON.parse(saved);
-          // Ensure it's an array and convert timestamp strings back to Date objects
-          if (Array.isArray(parsedMessages)) {
-            return parsedMessages.map((msg: any) => ({
-              ...msg,
-              timestamp: new Date(msg.timestamp),
-            }));
-          }
-        }
-      } catch (error) {
-        console.error('Error loading chat messages from localStorage:', error);
-        // Clear corrupted data
-        localStorage.removeItem('ai-helper-chat-messages');
-      }
-      return [];
-    }
-    return [];
-  });
-  const [isChatMode, setIsChatMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('ai-helper-chat-mode');
-      return saved === 'true';
-    }
-    return false;
-  });
+  // Use the chat messages hook for persistence
+  const { messages, setMessages, isChatMode, setIsChatMode, clearChat } = useChatMessages();
 
-  // Persist messages to localStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('ai-helper-chat-messages', JSON.stringify(messages));
-    }
-  }, [messages]);
+  const handleQuestionSubmit = useCallback(
+    async (data: AiHelperFormData) => {
+      // Sanitize user input
+      const { sanitized, error: sanitizeError } = sanitizeUserInput(data.question);
+      if (sanitizeError || !sanitized || !session) return;
 
-  // Persist chat mode to localStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('ai-helper-chat-mode', isChatMode.toString());
-    }
-  }, [isChatMode]);
-
-  const handleQuestionSubmit = async (data: AiHelperFormData) => {
-    if (!data.question.trim() || !session) return;
-
-    // Add user message to chat
-    const userMessage: ChatMessageType = {
-      id: Date.now().toString(),
-      content: data.question,
-      isUser: true,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setIsChatMode(true);
-
-    try {
-      // Prepare AI context with fresh cart and session ID
-      const context = await prepareAIContext(session, cartStore);
-
-      // Log AI request with cart info
-      const currentCart = cartStore.getCurrentCart();
-      console.log(
-        'AI Helper Request:',
-        JSON.stringify(
-          {
-            userMessage: data.question,
-            context,
-            cartInfo: {
-              hasCart: !!currentCart,
-              cartId: context.cartId,
-              cartState: currentCart ? 'exists' : 'null/undefined',
-            },
-          },
-          null,
-          2,
-        ),
-      );
-
-      // Send message to AI
-      const aiResponse = await sendMessageWithContext(data.question, context);
-
-      // Parse the AI response
-      let responseContent = aiResponse.message;
-      let responseData = null;
-      let responseType = 'text';
-      let cartRefresh = aiResponse.cartRefresh || false;
-
-      try {
-        // Remove markdown code block wrappers if present
-        let messageToParse = aiResponse.message;
-        if (messageToParse.startsWith('```json\n') && messageToParse.endsWith('\n```')) {
-          messageToParse = messageToParse.slice(7, -4); // Remove ```json\n and \n```
-        } else if (messageToParse.startsWith('```\n') && messageToParse.endsWith('\n```')) {
-          messageToParse = messageToParse.slice(4, -4); // Remove ```\n and \n```
-        }
-
-        const parsedMessage = JSON.parse(messageToParse);
-        if (parsedMessage.message) {
-          responseContent = parsedMessage.message;
-        }
-        if (parsedMessage.data) {
-          responseData = parsedMessage.data;
-        }
-        if (parsedMessage.type) {
-          responseType = parsedMessage.type;
-        }
-        if (parsedMessage.cartRefresh !== undefined) {
-          cartRefresh = parsedMessage.cartRefresh;
-        }
-      } catch {
-        // If parsing fails, use the raw message
+      // Check rate limit
+      if (!checkRateLimit()) {
+        const rateLimitMessage: ChatMessageType = {
+          id: Date.now().toString(),
+          content: t('rateLimitExceeded'),
+          isUser: false,
+          timestamp: new Date(),
+          type: 'error',
+        };
+        setMessages((prev) => [...prev, rateLimitMessage]);
+        setIsChatMode(true);
+        return;
       }
 
-      // Add AI response to chat
-      const aiMessage: ChatMessageType = {
-        id: (Date.now() + 1).toString(),
-        content: responseContent,
-        isUser: false,
-        timestamp: new Date(),
-        data: responseData,
-        type: responseType,
-      };
-
-      setMessages((prev) => [...prev, aiMessage]);
-
-      // Refresh cart if cartRefresh is true
-      if (cartRefresh) {
-        await refetchCart();
-      }
-    } catch (err) {
-      // Add error message to chat
-      const errorMessage: ChatMessageType = {
-        id: (Date.now() + 1).toString(),
-        content: t('errorOccurred'),
-        isUser: false,
+      const userMessage: ChatMessageType = {
+        id: Date.now().toString(),
+        content: sanitized,
+        isUser: true,
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, errorMessage]);
-    }
 
-    form.reset();
-  };
+      setMessages((prev) => [...prev, userMessage]);
+      setIsChatMode(true);
 
-  const setQuestionValue = (question: string) => {
-    form.setValue('question', question);
-  };
+      try {
+        const context = await prepareAIContext(session, cartStore);
+        const aiResponse = await sendMessageWithContext(sanitized, context);
 
-  const handlers: StructuredDataHandlers = {
-    setQuestionValue,
-    handleQuestionSubmit,
-  };
+        const parsed = parseAIResponse(aiResponse.message);
+        const cartRefresh = parsed.cartRefresh || aiResponse.cartRefresh || false;
 
-  const clearChat = () => {
-    setMessages([]);
-    setIsChatMode(false);
-    // Clear localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('ai-helper-chat-messages');
-      localStorage.removeItem('ai-helper-chat-mode');
-      localStorage.setItem('ai-session-id', crypto.randomUUID());
-    }
-  };
+        const aiMessage: ChatMessageType = {
+          id: (Date.now() + 1).toString(),
+          content: parsed.message,
+          isUser: false,
+          timestamp: new Date(),
+          data: parsed.data,
+          type: parsed.type,
+        };
+
+        setMessages((prev) => [...prev, aiMessage]);
+
+        if (cartRefresh) {
+          await refetchCart();
+        }
+      } catch (_err) {
+        const errorMessage: ChatMessageType = {
+          id: (Date.now() + 1).toString(),
+          content: t('errorOccurred'),
+          isUser: false,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      }
+
+      form.reset();
+    },
+    [session, cartStore, sendMessageWithContext, refetchCart, checkRateLimit, t, form, setMessages, setIsChatMode],
+  );
+
+  const setQuestionValue = useCallback(
+    (question: string) => {
+      form.setValue('question', question);
+    },
+    [form],
+  );
+
+  const handlers: StructuredDataHandlers = useMemo(
+    () => ({
+      setQuestionValue,
+      handleQuestionSubmit,
+    }),
+    [setQuestionValue, handleQuestionSubmit],
+  );
 
   return (
     <div
@@ -211,17 +125,7 @@ function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, '
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <AiStarsIcon className="flex-shrink-0" />
-            <CardTitle
-              className="text-4xl font-bold"
-              style={{
-                background: 'linear-gradient(0deg, #094782 0%, #0F77D9 100%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
-            >
-              {title || t('title')}
-            </CardTitle>
+            <CardTitle className="text-4xl font-bold">{title || t('title')}</CardTitle>
           </div>
           {isChatMode && (
             <Button variant="secondary" size="small" onClick={clearChat} className="text-sm">
@@ -231,26 +135,13 @@ function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, '
         </div>
       </div>
 
-      {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-h-0 px-4">
-        {/* Chat Messages Area */}
-        {isChatMode && (
-          <ChatMessages
-            messages={messages}
-            loading={loading}
-            handlers={handlers}
-            currency={session?.currency || 'USD'}
-          />
-        )}
+        {isChatMode && <ChatMessages messages={messages} loading={loading} handlers={handlers} />}
 
-        {/* Suggestions (only in initial state) */}
         {!isChatMode && <Suggestions onSuggestionClick={setQuestionValue} />}
-
-        {/* Input Field - Always at bottom */}
         <ChatInput form={form} onSubmit={handleQuestionSubmit} loading={loading} isChatMode={isChatMode} />
       </div>
 
-      {/* Error Display */}
       {error && (
         <div className="px-4 pb-4">
           <div className="p-3 bg-red-50 border border-red-200 rounded-lg">

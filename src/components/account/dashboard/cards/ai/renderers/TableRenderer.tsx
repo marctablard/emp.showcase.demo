@@ -2,21 +2,16 @@
 
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
+import { TableData } from '../types';
 import { formatDate } from '../utils';
 
 interface TableRendererProps {
-  data: {
-    title?: string;
-    headers: string[];
-    rows: string[][];
-    columnTypes?: string[];
-  };
+  data: TableData;
 }
 
 export const TableRenderer: React.FC<TableRendererProps> = ({ data }) => {
   const { title, headers, rows, columnTypes = [] } = data;
 
-  // Filter and validate rows - ensure all are arrays
   const validRows = (rows || []).filter((row): row is string[] => Array.isArray(row));
 
   const getColumnType = (index: number): string => {

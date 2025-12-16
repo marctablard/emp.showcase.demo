@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { AiHelperFormData, StructuredDataHandlers } from '../types';
+import { StructuredDataHandlers } from '../types';
 import { ProductSelectionItem } from './ProductSelectionItem';
 
 interface ProductSelectionProps {
@@ -30,7 +30,6 @@ export const ProductSelection: React.FC<ProductSelectionProps> = ({ data, setQue
 
     if (selectedItems) {
       setQuestionValue(selectedItems);
-      // Use requestAnimationFrame for better timing than setTimeout
       requestAnimationFrame(() => {
         handleQuestionSubmit({ question: selectedItems });
       });

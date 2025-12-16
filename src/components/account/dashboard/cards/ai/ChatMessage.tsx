@@ -10,7 +10,6 @@ import { formatTimestamp } from './utils';
 interface ChatMessageProps {
   message: ChatMessageType;
   handlers: StructuredDataHandlers;
-  currency?: string;
 }
 
 const getMessageContainerClasses = (isUser: boolean, hasStructuredData: boolean): string => {
@@ -31,12 +30,16 @@ const getMessageContainerClasses = (isUser: boolean, hasStructuredData: boolean)
   return cn(baseClasses, aiBaseClasses, 'max-w-[80%]');
 };
 
-export const ChatMessage: React.FC<ChatMessageProps> = ({ message, handlers, currency = 'USD' }) => {
+export const ChatMessage: React.FC<ChatMessageProps> = ({ message, handlers }) => {
   const isUser = message.isUser;
   const hasStructuredData = Boolean(message.data && message.type && message.type !== 'text');
 
-  // Hide message content if it's the same as data.message to avoid duplication
-  const shouldShowContent = !hasStructuredData || message.content !== message.data?.message;
+  // Check if content duplicates the data message (to avoid showing twice)
+  const dataMessage =
+    message.data && typeof message.data === 'object' && 'message' in message.data
+      ? (message.data as { message?: string }).message
+      : undefined;
+  const shouldShowContent = !hasStructuredData || message.content !== dataMessage;
 
   return (
     <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
@@ -52,15 +55,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, handlers, cur
           </div>
         )}
 
-        {/* Display structured data if available (skip for text type) */}
         {hasStructuredData && (
           <div className={cn('w-full max-w-none', shouldShowContent && 'mt-2')}>
-            <StructuredDataRenderer
-              type={message.type!}
-              data={message.data}
-              handlers={handlers}
-              fallbackCurrency={currency}
-            />
+            <StructuredDataRenderer type={message.type!} data={message.data} handlers={handlers} />
           </div>
         )}
 
