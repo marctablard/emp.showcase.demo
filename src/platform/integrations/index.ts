@@ -40,6 +40,7 @@ const provider = {
         await import('./emporix/catalog/impl/EmporixCatalogApi'),
         await import('./emporix/oauth/impl/EmporixOAuthApi'),
         await import('./emporix/common/impl/EmporixApiInvoker'),
+        await import('./emporix/ai/impl/EmporixAIApi'),
       );
 
       // Register all modules
