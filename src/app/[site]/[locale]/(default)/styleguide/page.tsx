@@ -13,11 +13,11 @@ import NotificationStyleguide from './ui/notification';
 import PaginationStyleGuide from './ui/pagination';
 
 export default function StyleGuide() {
-  if (!process.env.NEXT_PUBLIC_STYLEGUIDE_PAGE) {
+  if (!process.env.NEXT_STYLEGUIDE_PAGE) {
     notFound();
   }
   return (
-    <main className="max-w-6xl mx-auto px-4 grid gap-x-4 md:px-9 sm:gap-x-6">
+    <main className="max-w-6xl mx-auto px-4 grid gap-x-4 lg:px-9 sm:gap-x-6">
       <H1 className="mt-12 mb-6">Hello Styleguide</H1>
       <p className="text-lg md:max-w-3/5">
         For the styling we are using tailwindcss. So the HTML-Tags get not styled at all, instead please use the utility

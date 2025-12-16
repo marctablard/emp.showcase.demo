@@ -14,84 +14,82 @@ export default function Footer({ reduced = false }: { reduced?: boolean }) {
   const { form } = useNewsletterForm();
 
   return (
-    <footer className="w-full">
-      <div className="text-sm grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 p-4 md:p-6">
-        {!reduced && (
-          <div>
-            <p className="font-bold mb-2">{t('newsletterTitle')}</p>
-            <div className="max-w-[560px]">
-              <Form {...form}>
-                <FormField
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <InputButton
-                          placeholder={t('newsletterInput')}
-                          {...field}
-                          iconButtonAfter={Mail}
-                          buttonLabel={t('newsletterButtonLabel')}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </Form>
-            </div>
-            <p className="mt-2">
-              {t('beforePrivacyPolicy')}
-              <UiLink type="Link" variant="text" href="/privacy-policy">
-                {t('privacyPolicyLink')}
-              </UiLink>
-              {t('beforeTermsAndConditions')}
-              <UiLink type="Link" variant="text" href="/terms-and-conditions">
-                {t('termsAndConditionsLink')}
-              </UiLink>
-              {t('afterTermsAndConditions')}
-            </p>
+    <div className="w-full text-sm grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 p-4 md:p-6">
+      {!reduced && (
+        <div>
+          <p className="font-bold mb-2">{t('newsletterTitle')}</p>
+          <div className="max-w-[560px]">
+            <Form {...form}>
+              <FormField
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <InputButton
+                        placeholder={t('newsletterInput')}
+                        {...field}
+                        iconButtonAfter={Mail}
+                        buttonLabel={t('newsletterButtonLabel')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </Form>
           </div>
-        )}
-        {!reduced && (
-          <div>
-            <p className="font-bold mb-2 sm:mb-6">{t('paymentMethodsTitle')}</p>
-            <div className="flex gap-2 justify-between items-center max-w-[400px]">
-              <Image src="/images/mastercard.svg" alt="Mastercard" width="88" height="20" />
-              <Image src="/images/paypal.svg" alt="Paypal" width="60" height="16" />
-              <Image src="/images/pci-dss-compliant.svg" alt="PCI DSS Compliant" width="50" height="20" />
-              <Image src="/images/gdpr.svg" alt="GDPR" width={19} height={24} />
-            </div>
-          </div>
-        )}
-        <div className="bg-surface-action-hover-2 rounded-ss-lg p-2 sm:p-4">
-          <div className="bg-[url('/images/map-pinned.svg')] bg-no-repeat bg-right-top">
-            <p className="font-bold">{t('companyName')}</p>
-            <p>{t('street')}</p>
-            <p>{t('city')}</p>
-            <p>{t('country')}</p>
+          <p className="mt-2">
+            {t('beforePrivacyPolicy')}
+            <UiLink type="Link" variant="text" href="/privacy-policy">
+              {t('privacyPolicyLink')}
+            </UiLink>
+            {t('beforeTermsAndConditions')}
+            <UiLink type="Link" variant="text" href="/terms-and-conditions">
+              {t('termsAndConditionsLink')}
+            </UiLink>
+            {t('afterTermsAndConditions')}
+          </p>
+        </div>
+      )}
+      {!reduced && (
+        <div>
+          <p className="font-bold mb-2 sm:mb-6">{t('paymentMethodsTitle')}</p>
+          <div className="flex gap-2 justify-between items-center max-w-[400px]">
+            <Image src="/images/mastercard.svg" alt="Mastercard" width="88" height="20" />
+            <Image src="/images/paypal.svg" alt="Paypal" width="60" height="16" />
+            <Image src="/images/pci-dss-compliant.svg" alt="PCI DSS Compliant" width="50" height="20" />
+            <Image src="/images/gdpr.svg" alt="GDPR" width={19} height={24} />
           </div>
         </div>
-        <div className="bg-surface-action-hover-2 rounded-ee-lg p-2 sm:p-4">
-          <div className="bg-[url('/images/headset.svg')] bg-no-repeat bg-right-top flex flex-col gap-2">
+      )}
+      <div className="bg-surface-action-hover-2 rounded-ss-lg p-2 sm:p-4">
+        <div className="bg-[url('/images/map-pinned.svg')] bg-no-repeat bg-right-top">
+          <p className="font-bold">{t('companyName')}</p>
+          <p>{t('street')}</p>
+          <p>{t('city')}</p>
+          <p>{t('country')}</p>
+        </div>
+      </div>
+      <div className="bg-surface-action-hover-2 rounded-ee-lg p-2 sm:p-4">
+        <div className="bg-[url('/images/headset.svg')] bg-no-repeat bg-right-top flex flex-col gap-2">
+          <div>
+            <p className="font-bold">{t('ourServiceHours')}</p>
+            <p>{t('mondayToThursday')}</p>
+            <p>{t('friday')}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
             <div>
-              <p className="font-bold">{t('ourServiceHours')}</p>
-              <p>{t('mondayToThursday')}</p>
-              <p>{t('friday')}</p>
+              <p className="font-bold">{t('serviceTechnology')}</p>
+              <p>0123 987654-32</p>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <p className="font-bold">{t('serviceTechnology')}</p>
-                <p>0123 987654-32</p>
-              </div>
-              <div>
-                <p className="font-bold">{t('sales')}</p>
-                <p>0123 987654-31</p>
-              </div>
+            <div>
+              <p className="font-bold">{t('sales')}</p>
+              <p>0123 987654-31</p>
             </div>
           </div>
         </div>
       </div>
-    </footer>
+    </div>
   );
 }
 
@@ -171,7 +169,7 @@ export function FooterWrapper({ className, ...props }: React.ComponentProps<'div
         <div
           data-slot="footer"
           className={cn(
-            'sm:ml-4 sm:mr-4 md:ml-9 md:mr-9 shadow-xl rounded-ss-lg rounded-se-lg  bg-[url("/images/footer-bg.svg")] bg-no-repeat bg-right-bottom',
+            'pb-1 sm:mx-4 lg:mx-9 shadow-xl rounded-ss-lg rounded-se-lg  bg-[url("/images/footer-bg.svg")] bg-no-repeat bg-right-bottom',
             className,
           )}
           {...props}
@@ -188,10 +186,10 @@ export function LegalFooter() {
 
   return (
     <div className="flex-grow">
-      <div className="max-w-6xl mx-auto sm:mb-4">
+      <div className="max-w-6xl mx-auto sm:mb-4 sm:px-4 lg:px-9">
         <div
           data-slot="legal-footer"
-          className="px-4 pb-16 pt-2 sm:mx-2 sm:px-7 sm:py-0 sm:h-8 bg-surface-action sm:rounded-full"
+          className="px-4 pb-16 pt-2 sm:-mx-2 lg:-mx-4 sm:-mt-1 sm:px-8 sm:py-0 lg:px-10 relative z-10 bg-surface-action sm:rounded-full"
         >
           <div className="flex flex-col sm:flex-row gap-2 md:gap-6 flex-wrap text-sm/8 text-text-on-action">
             <p className="flex-grow text-center sm:text-left">{t('copyright')}</p>

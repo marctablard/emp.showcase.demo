@@ -13,12 +13,12 @@
   --color-text-success: var(--color-success-500);
   --color-text-warning: var(--color-warning-500);
   --color-text-error: var(--color-error-500);
-  --color-text-on-action: var(--color-white);
+  --color-text-on-action: var(--color-neutral-white);
   --color-text-on-disabled: var(--color-neutral-600);
   --color-text-placeholders: var(--color-neutral-600);
 
-  --color-surface-page: var(--color-white);
-  --color-surface-primary: var(--color-white);
+  --color-surface-page: var(--color-neutral-white);
+  --color-surface-primary: var(--color-neutral-white);
   --color-surface-secondary: var(--color-secondary-500);
   --color-surface-action: var(--color-primary-500);
   --color-surface-action-hover: var(--color-primary-700);
@@ -37,7 +37,7 @@
   --color-icon-action: var(--color-primary-500);
   --color-icon-primary-dark: var(--color-primary-600);
   --color-icon-action-hover: var(--color-primary-700);
-  --color-icon-on-action: var(--color-white);
+  --color-icon-on-action: var(--color-neutral-white);
   --color-icon-on-disabled: var(--color-grey-600);
   --color-icon-neutral: var(--color-grey-900);
   --color-icon-secondary: var(--color-neutral-500);
@@ -57,8 +57,8 @@
   --color-border-action: var(--color-primary-500);
   --color-border-action-hover: var(--color-primary-700);
   --color-border-focus: var(--color-primary-500);
-  --color-border-black: var(--color-neutral-900);
-  --color-border-white: var(--color-white);
+  --color-border-neutral-black: var(--color-neutral-900);
+  --color-border-neutral-white: var(--color-neutral-white);
 
   --color-gradient-primary-start: var(--color-primary-500);
   --color-gradient-primary-end: var(--color-teal-500);
@@ -67,17 +67,6 @@
 
   --colors-shadow-strong: var(--color-transparent-primary-10);
   --colors-shadow-light: var(--color-transparent-primary-5);
-
-  --border-width-sm: var(--spacing-4xs);
-  --border-width-md: var(--spacing-2xs);
-  --border-width-lg: var(--spacing-xs);
-
-  --radius-none: var(--spacing-none);
-  --radius-sm: var(--spacing-2xs);
-  --radius-md: var(--spacing-xs);
-  --radius-lg: var(--spacing-md);
-  --radius-xl: var(--spacing-lg);
-  --radius-2xl: var(--spacing-xl);
 
   --desktop-font-size-body-sm: var(--scale-300-12);
   --desktop-font-size-body-md: var(--scale-400-16);
@@ -101,6 +90,14 @@
   --desktop-line-height-heading-h6: var(--scale-500-20);
   --desktop-line-height-heading-overline: var(--scale-600-24);
   --desktop-line-height-action-button: var(--scale-600-24);
+  --desktop-font-weight-heading-h1: var(--font-weight-bold);
+  --desktop-font-weight-heading-h2: var(--font-weight-bold);
+  --desktop-font-weight-heading-h3: var(--font-weight-bold);
+  --desktop-font-weight-heading-h4: var(--font-weight-bold);
+  --desktop-font-weight-heading-h5: var(--font-weight-bold);
+  --desktop-font-weight-heading-h6: var(--font-weight-bold);
+  --desktop-font-weight-heading-overline: var(--font-weight-bold);
+  --desktop-font-weight-action-button: var(--font-weight-bold);
   --desktop-paragraph-spacing-body-sm: var(--scale-300-12);
   --desktop-paragraph-spacing-body-md: var(--scale-400-16);
   --desktop-paragraph-spacing-body-lg: var(--scale-500-20);
@@ -137,6 +134,14 @@
   --mobile-line-height-heading-h6: var(--scale-300-12);
   --mobile-line-height-heading-overline: var(--scale-300-12);
   --mobile-line-height-action-button: var(--scale-600-24);
+  --mobile-font-weight-heading-h1: var(--font-weight-bold);
+  --mobile-font-weight-heading-h2: var(--font-weight-bold);
+  --mobile-font-weight-heading-h3: var(--font-weight-bold);
+  --mobile-font-weight-heading-h4: var(--font-weight-bold);
+  --mobile-font-weight-heading-h5: var(--font-weight-bold);
+  --mobile-font-weight-heading-h6: var(--font-weight-bold);
+  --mobile-font-weight-heading-overline: var(--font-weight-bold);
+  --mobile-font-weight-action-button: var(--font-weight-bold);
   --mobile-paragraph-spacing-body-sm: var(--scale-300-12);
   --mobile-paragraph-spacing-body-md: var(--scale-400-16);
   --mobile-paragraph-spacing-body-lg: var(--scale-500-20);
@@ -150,4 +155,15 @@
   --mobile-paragraph-spacing-action-button: var(--scale-400-16);
   --mobile-spacing-heading-overline: var(--scale-50-2);
   --mobile-spacing-action-overline: var(--scale-50-2);
+
+  --border-width-button: var(--border-width-sm);
+  --border-width-form-field: var(--border-width-sm);
+  --border-width-pills: var(--border-width-sm);
+  --border-width-notification: var(--border-width-sm);
+  --border-width-focus: var(--border-width-md);
+
+  --border-radius-button: var(--border-radius-sm);
+  --border-radius-form-field: var(--border-radius-sm);
+  --border-radius-pills: var(--border-radius-sm);
+  --border-radius-notification: var(--border-radius-md);
 }

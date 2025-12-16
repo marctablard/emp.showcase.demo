@@ -42,13 +42,13 @@ export function ProductPriceComponent({ price, isAddToCartBar }: ProductPricePro
           return (
             <span id="price" key={index} className="text-4xl">
               {Math.floor(Number(part.value))}
+              {decimal}
             </span>
           );
         }
         if (part.type === 'fraction') {
           return (
             <span key={index} className="text-base align-top">
-              {decimal}
               {part.value}
             </span>
           );

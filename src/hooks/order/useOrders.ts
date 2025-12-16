@@ -70,10 +70,13 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
   });
   const queryKey = query.query + query.body;
 
-  // Initialize with initialOrders if provided and not already in store
-  if (initialOrders && !getStoreOrders(queryKey) && !getStoreLoading(queryKey)) {
-    setStoreOrders(queryKey, initialOrders);
-  }
+  useEffect(() => {
+    // Initialize with initialOrders if provided and not already in store
+    if (initialOrders && !getStoreOrders(queryKey) && !getStoreLoading(queryKey)) {
+      setStoreOrders(queryKey, initialOrders);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialOrders, queryKey]);
 
   // Get current state from store
   const orders = getStoreOrders(queryKey) || initialOrders;

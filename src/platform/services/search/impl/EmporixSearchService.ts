@@ -1,4 +1,5 @@
 import { inject } from 'inversify';
+import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCatalogApi } from '@/platform/integrations/emporix/catalog/EmporixCatalogApi';
 import type { EmporixCategoryApi } from '@/platform/integrations/emporix/category/EmporixCategoryApi';
 import { EmporixPaginatedResponse, EmporixProduct } from '@/platform/integrations/emporix/model';
@@ -10,11 +11,13 @@ import type { SearchService } from '@/platform/services/search/SearchService';
 import type { SessionService } from '@/platform/services/session/SessionService';
 import type { ProductMapper } from '../../model/product/ProductMapper';
 import type { SearchSuggestions } from '../../model/search';
+import type SegmentFilterService from './SegmentFilterService';
 
 /**
- * Implementation of SearchService for BatteryIncluded product data.
- * Maps between BatteryIncluded API product format and internal Product model.
+ * Implementation of SearchService for Emporix product data.
+ * Maps between Emporix API product format and internal Product model.
  */
+@injectable('SearchService', 'Singleton')
 class EmporixSearchService implements SearchService {
   private productApi: EmporixProductApi;
   private productMapper: ProductMapper<EmporixProduct>;
@@ -22,6 +25,7 @@ class EmporixSearchService implements SearchService {
   private sessionService: SessionService;
   private categoryApi: EmporixCategoryApi;
   private productService: ProductService;
+  private segmentFilterService: SegmentFilterService;
 
   constructor(
     @inject('SessionService') sessionService: SessionService,
@@ -30,6 +34,7 @@ class EmporixSearchService implements SearchService {
     @inject('EmporixCatalogApi') catalogApi: EmporixCatalogApi,
     @inject('EmporixCategoryApi') categoryApi: EmporixCategoryApi,
     @inject('ProductService') productService: ProductService,
+    @inject('SegmentFilterService') segmentFilterService: SegmentFilterService,
   ) {
     this.productApi = productApi;
     this.productMapper = productMapper;
@@ -37,6 +42,7 @@ class EmporixSearchService implements SearchService {
     this.categoryApi = categoryApi;
     this.productService = productService;
     this.sessionService = sessionService;
+    this.segmentFilterService = segmentFilterService;
   }
 
   async searchProducts(params: SearchParams<Product>): Promise<SearchResult<Product>> {
@@ -53,7 +59,11 @@ class EmporixSearchService implements SearchService {
       filters: undefined,
     });
 
-    const products = searchResult.items.map((hit) => this.productMapper.mapToService(hit));
+    const filteredItems = (await this.segmentFilterService.filterByCustomerSegments(
+      searchResult.items.filter((item) => !!item.id),
+    )) as EmporixProduct[];
+
+    const products = filteredItems.map((item) => this.productMapper.mapToService(item));
     const enrichedProducts = await this.productService.addAdditionalData(products, {
       prices: true,
       variants: true,
@@ -80,7 +90,11 @@ class EmporixSearchService implements SearchService {
       sort: undefined,
       filters: undefined,
     });
-    const products = searchResult.items.map((hit) => this.productMapper.mapToService(hit));
+    const filteredItems = (await this.segmentFilterService.filterByCustomerSegments(
+      searchResult.items.filter((item) => !!item.id),
+    )) as EmporixProduct[];
+
+    const products = filteredItems.map((item) => this.productMapper.mapToService(item));
     const enrichedProducts = await this.productService.addAdditionalData(products, {
       prices: true,
       variants: true,
@@ -133,9 +147,12 @@ class EmporixSearchService implements SearchService {
         for (const categoryId of catalog.categoryIds) {
           allCategoryIdsForCatalog.add(categoryId);
           const subcategories = await this.categoryApi.getCategorySubcategories(categoryId);
-          subcategories.items.map((subcategory) => {
-            allCategoryIdsForCatalog.add(subcategory.id);
-          });
+
+          if (subcategories?.items && Array.isArray(subcategories.items)) {
+            subcategories.items.map((subcategory) => {
+              allCategoryIdsForCatalog.add(subcategory.id);
+            });
+          }
         }
 
         for (const categoryId of allCategoryIdsForCatalog) {

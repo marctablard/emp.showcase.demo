@@ -32,12 +32,10 @@ export default function TopBarSwitcher({
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger
         aria-label={label}
-        className="flex items-center gap-2 h-auto normal-case p-1 focus-none hover:cursor-pointer"
+        className="flex items-baseline gap-1.5 h-auto normal-case focus-none hover:cursor-pointer"
       >
-        <>
-          {icon}
-          <span className="text-sm pt-0.5">{options.find((option) => option.code == current)?.name}</span>
-        </>
+        <span className="flex self-center">{icon}</span>
+        <span className="text-sm">{options.find((option) => option.code == current)?.name}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         {options.map((option) => (

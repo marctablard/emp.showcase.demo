@@ -57,7 +57,7 @@ class EmporixApiInvoker {
   async authenticatedFetch(
     url: string,
     options: RequestInit = {},
-    tokenType: 'public' | 'session' | 'customer-saas' | 'service' = 'public',
+    tokenType: 'public' | 'session' | 'customer-saas' | 'ai' | 'service' = 'public',
     authOptions?: {
       credentials?: { username: string; password: string };
       scopes?: string[];
@@ -81,13 +81,14 @@ class EmporixApiInvoker {
         break;
       case 'customer-saas':
       case 'session':
+      case 'ai':
         const sessionToken = await this.tokenManager.getSessionToken(
           this.config.tenant,
           this.config.clientId,
           authOptions?.credentials,
         );
         token = sessionToken.accessToken;
-        if (tokenType === 'customer-saas') {
+        if (tokenType === 'customer-saas' || tokenType === 'ai') {
           if (sessionToken.saasToken) {
             headers = {
               ...headers,
@@ -95,6 +96,15 @@ class EmporixApiInvoker {
             };
           } else {
             throw new Error('No SaaS token available');
+          }
+          if (tokenType === 'ai') {
+            const headersObj = headers as Record<string, string>;
+            if (!headersObj['session-id']) {
+              headers = {
+                ...headers,
+                'session-id': `${sessionToken.sessionId}`,
+              };
+            }
           }
         } else {
           headers = {

@@ -8,12 +8,11 @@
   --font-secondary: Open sans, sans-serif;
 
   --font-weight-*: initial;
-  --font-weight-light: light;
-  --font-weight-regular: regular;
-  --font-weight-italic: italic;
-  --font-weight-medium: medium;
-  --font-weight-semibold: semibold;
-  --font-weight-bold: bold;
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
 }
 
 :root {
@@ -98,7 +97,7 @@
   --color-transparent-secondary-75: oklch(0.6698 0.0931 248.44 / 75%);
 
   --scale-0: 0;
-  --scale-25-1: 0.063rem;
+  --scale-25-1: 0.0625rem;
   --scale-50-2: 0.125rem;
   --scale-100-4: 0.25rem;
   --scale-150-6: 0.375rem;

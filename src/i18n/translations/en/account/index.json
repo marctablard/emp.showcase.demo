@@ -171,6 +171,7 @@
     }
   },
   "accountDashboardDescription": "Manage your account, orders, and company information",
+  "accountLoginDescription": "Login or Register to manage your orders and view your company information.",
   "accountDetails": "Account Details",
   "company": "Company",
   "ordersAndReturns": "Orders & Returns",
@@ -318,13 +319,85 @@
     "seeAll": "See all"
   },
   "AiHelper": {
-    "title": "AI Dashboard Helper",
+    "title": "Emporix AI Agent",
     "placeholder": "Enter your question for the AI agent",
+    "chatPlaceholder": "Type your message...",
     "buttonText": "GO!",
+    "sendButton": "Send",
+    "sending": "Sending...",
+    "thinking": "AI is thinking...",
+    "aiProcessing": "AI assistant is processing your message",
+    "chatHistory": "Chat conversation history",
+    "emptyState": "Start a conversation with the AI assistant",
+    "addToCartMessage": "Add product: {productId} with quantity {quantity} to the cart",
+    "addSelectedToCart": "Add Selected to Cart ({count} items)",
+    "productSelection": "Product Selection:",
+    "addToCart": "Add to Cart",
+    "priceOnRequest": "Price on request",
+    "reviews": "{count} reviews",
+    "accountInformation": "Account Information",
+    "savedAddresses": "Saved Addresses",
+    "name": "Name",
+    "email": "Email",
+    "company": "Company",
+    "customerNumber": "Customer Number",
+    "businessModel": "Business Model",
+    "preferredLanguage": "Preferred Language",
+    "preferredCurrency": "Preferred Currency",
+    "preferredSite": "Preferred Site",
+    "lastLogin": "Last Login",
+    "default": "Default",
+    "orderItems": "Order Items:",
+    "quantity": "Quantity:",
+    "unit": "Unit:",
+    "gross": "Gross:",
+    "net": "Net:",
+    "total": "Total:",
+    "items": "items",
+    "moreItems": "more",
+    "quoteItems": "Quote Items:",
+    "submitted": "Submitted:",
+    "validUntil": "Valid until:",
+    "customer": "Customer:",
+    "approver": "Approver:",
+    "shippingInformation": "Shipping Information:",
+    "shippingAddress": "Shipping Address:",
+    "billingAddress": "Billing Address:",
+    "addresses": "Addresses",
+    "paymentInformation": "Payment Information",
+    "method": "Method:",
+    "shipping": "Shipping:",
+    "orderSummary": "Order Summary",
+    "viewFullOrderDetails": "View Full Order Details",
+    "comments": "Comments:",
+    "yourComment": "Your comment:",
+    "employeeComment": "Employee comment:",
+    "viewFullQuoteDetails": "View Full Quote Details",
+    "previewItems": "Preview Items:",
+    "page": "Page {page} of {totalPages} ({totalItems} total)",
+    "cartSummary": "Cart Summary",
+    "totalItems": "Total Items:",
+    "netTotal": "Net Total:",
+    "tax": "Tax:",
+    "vat": "VAT",
+    "grandTotal": "Grand Total:",
+    "subtotal": "Subtotal:",
+    "goToCheckout": "Go to Checkout",
+    "error": "Error",
+    "retry": "Retry",
+    "pleaseTryAgain": "Please try again",
+    "clearChat": "Clear Chat",
+    "errorOccurred": "Sorry, I encountered an error. Please try again.",
+    "rateLimitExceeded": "You're sending messages too quickly. Please wait a moment before trying again.",
+    "received": "Received",
+    "notReceived": "Not Received",
+    "expiresOn": "Expires on",
+    "reason": "Reason",
+    "relatedOrders": "Related Orders",
     "suggestions": {
-      "openInvoices": "How many invoices are open?",
-      "availableOffers": "What offers are currently available?",
-      "recentPurchases": "What products were purchased recently?"
+      "openQuotes": "Do I have any open quotes?",
+      "showProfile": "Show my profile",
+      "pendingOrders": "Show all pending orders"
     }
   },
   "Tickets": {
@@ -399,5 +472,41 @@
     "title": "Placeholder Page",
     "description": "This page is a placeholder included in the Emporix reference storefront.",
     "details": "It demonstrates where additional features, apps or custom integrations can be added. The content and functionality of this page will vary depending on requirements and project scope."
+  },
+  "landing": {
+    "title": "Welcome to Your Service Portal",
+    "subtitle": "Manage your business efficiently with our comprehensive account features",
+    "benefits": {
+      "title": "Why Create an Account?",
+      "trackOrders": {
+        "title": "Track Your Orders",
+        "description": "Monitor all your orders in real-time, view order history, and manage returns effortlessly."
+      },
+      "aiAssistant": {
+        "title": "AI-Powered Assistant",
+        "description": "Get instant answers to your questions with our intelligent AI helper available 24/7."
+      },
+      "supportTickets": {
+        "title": "Support Tickets",
+        "description": "Create and manage support tickets directly from your dashboard for quick resolution."
+      },
+      "quotes": {
+        "title": "Request & Manage Quotes",
+        "description": "Request custom quotes and track their status all in one place."
+      },
+      "approvals": {
+        "title": "Approval Workflows",
+        "description": "Streamline your business processes with built-in approval management."
+      },
+      "insights": {
+        "title": "Business Insights",
+        "description": "Access detailed analytics and insights about your orders and spending patterns."
+      }
+    },
+    "cta": {
+      "login": "Sign In to Your Account",
+      "register": "Create a Free Account",
+      "registerSubtext": "Join thousands of businesses already using our platform"
+    }
   }
 }

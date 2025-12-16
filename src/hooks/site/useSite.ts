@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { getSite as apiGetSite } from '@/lib/client/site';
+import { getSites as apiGetSites } from '@/lib/client/site';
 import { Country, Currency, Region } from '@/platform/services/model/common';
 import { PaymentMode } from '@/platform/services/model/payment';
 import { useSiteStore } from '@/providers/StoreProvider';
@@ -26,7 +26,7 @@ export function useSite(id?: string) {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiGetSite();
+      const data = await apiGetSites();
       setSite(data.current);
       setAvailableSites(data.available);
     } catch (error) {

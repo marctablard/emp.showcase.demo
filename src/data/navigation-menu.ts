@@ -71,3 +71,26 @@ export const navigationMenuItems: MenuItem[] = [
     href: '/about-us',
   },
 ];
+
+export const serviceMenuItems: MenuItem[] = [
+  {
+    id: 'blog',
+    labelKey: 'blog',
+    href: '/blog',
+  },
+  {
+    id: 'newsletter',
+    labelKey: 'newsletter',
+    href: '/newsletter',
+  },
+  {
+    id: 'offerRequest',
+    labelKey: 'offerRequest',
+    href: '/offer-request',
+  },
+  {
+    id: 'contact',
+    labelKey: 'contact',
+    href: '/contact',
+  },
+];

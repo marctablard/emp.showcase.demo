@@ -95,7 +95,7 @@ const Hero = ({ headline, text, main_button, image, video }: HeroProps) => {
         </div>
       </div>
       <div className="w-full max-w-6xl mx-auto">
-        <div className="ml-auto absolute bottom-0 sm:-bottom-10 md:bottom-20 px-4 md:px-9">
+        <div className="ml-auto absolute bottom-0 sm:-bottom-10 md:bottom-20 px-4 lg:px-9">
           {video && !isAboveSmallScreen && (
             <div
               className="flex rounded-full shadow-sm backdrop-blur-default w-12 h-12 bg-surface-page/85 cursor-pointer ml-auto mb-4 p-3 text-icon-action transition hover:text-icon-action-hover"

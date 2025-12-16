@@ -51,10 +51,13 @@ export const useCart = (initialCart?: Cart | null): UseCart => {
     validateCart,
   } = useCartStore();
 
-  // Initialize with initialCart if provided and cart is undefined
-  if (cart === undefined && initialCart !== undefined) {
-    setCurrentCart(initialCart);
-  }
+  useEffect(() => {
+    // Initialize with initialCart if provided and cart is undefined
+    if (initialCart !== undefined) {
+      setCurrentCart(initialCart);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCart]);
 
   const { status: sessionStatus } = useSession();
   useEffect(() => {

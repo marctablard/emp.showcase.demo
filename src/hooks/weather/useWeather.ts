@@ -71,7 +71,8 @@ export function useWeather() {
     return () => {
       isCancelled = true;
     };
-  }, [loading, resolvedLocation?.geoLocation, setError, setLoading, setWeather, weather]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const changeLocation = async (location: LocationData): Promise<void> => {
     setWeather(null);

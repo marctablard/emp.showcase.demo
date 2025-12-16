@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { H4 } from '@/components/ui/h';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from './card';
 
@@ -25,7 +26,7 @@ export function SummaryCard({
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
           {icon}
-          <CardTitle className={cn(hasHeadline ? 'text-4xl font-bold' : 'text-lg')}>{heading}</CardTitle>
+          <CardTitle>{hasHeadline ? <H4>{heading}</H4> : <span className="text-lg">{heading}</span>}</CardTitle>
         </div>
       </CardHeader>
       <CardContent className={cn('space-y-2', contentClassName)}>{children}</CardContent>

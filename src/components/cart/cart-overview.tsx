@@ -3,7 +3,7 @@
 import { useRef } from 'react';
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { H3 } from '@/components/ui/h';
 import { Spinner } from '@/components/ui/spinner';
 import { useCart } from '@/hooks/cart/useCart';
@@ -32,7 +32,7 @@ export function CartOverview({ initialCart }: CartOverviewProps) {
       <div className="max-w-6xl mx-auto mt-8">
         <Card className="mx-4 lg:mx-9">
           <CardHeader>
-            <CardTitle className="text-center text-2xl">{t('yourCart')}</CardTitle>
+            <H3>{t('yourCart')}</H3>
           </CardHeader>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Spinner variant="lg" />

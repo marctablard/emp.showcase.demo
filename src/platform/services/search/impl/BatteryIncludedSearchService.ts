@@ -1,62 +1,85 @@
 import { inject } from 'inversify';
-import { injectable } from '@/platform/core/di/injectable';
 import type { BatteryIncludedSearchResponse } from '@/platform/integrations/batteryincluded/model';
 import { BatteryIncludedProduct } from '@/platform/integrations/batteryincluded/model/product';
 import type { BatteryIncludedShopApi } from '@/platform/integrations/batteryincluded/shop/BatteryIncludedShopApi';
 import type { Filter, SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
 import type { SearchService } from '@/platform/services/search/SearchService';
+import type { CustomerService } from '../../customer/CustomerService';
 import type { ProductMapper } from '../../model/product/ProductMapper';
 import type { SearchSuggestions, SuggestionsMapper } from '../../model/search';
 import type { SessionService } from '../../session';
+import type SegmentFilterService from './SegmentFilterService';
 
 /**
  * Implementation of SearchService for BatteryIncluded product data.
  * Maps between BatteryIncluded API product format and internal Product model.
  */
-@injectable('SearchService', 'Singleton')
+
 class BatteryIncludedSearchService implements SearchService {
   private shopApi: BatteryIncludedShopApi;
   private productMapper: ProductMapper<BatteryIncludedProduct>;
   private suggestionsMapper: SuggestionsMapper;
   private sessionService: SessionService;
+  private segmentFilterService: SegmentFilterService;
+  private customerService: CustomerService;
 
   constructor(
     @inject('BatteryIncludedShopApi') shopApi: BatteryIncludedShopApi,
     @inject('BatteryIncludedProductMapper') productMapper: ProductMapper<BatteryIncludedProduct>,
     @inject('SessionService') sessionService: SessionService,
+    @inject('SegmentFilterService') segmentFilterService: SegmentFilterService,
+    @inject('CustomerService') customerService: CustomerService,
   ) {
     this.shopApi = shopApi;
     this.productMapper = productMapper;
     // Since our BatteryIncludedProductMapper also implements SuggestionsMapper, we can use it directly
     this.suggestionsMapper = productMapper as unknown as SuggestionsMapper;
     this.sessionService = sessionService;
+    this.segmentFilterService = segmentFilterService;
+    this.customerService = customerService;
   }
 
   async searchProducts(params: SearchParams<Product>): Promise<SearchResult<Product>> {
     const session = await this.sessionService.getCurrent();
+    const currentCustomer = await this.customerService.getCustomer();
+
+    // Add filter with segmentIds if customer is logged in and has segments assigned.
+    let filters = params.filters;
+    if (currentCustomer) {
+      const segmentIds = await this.segmentFilterService.getSegmentIds();
+      if (segmentIds.length > 0) {
+        filters = {
+          ...filters,
+          segmentIds: segmentIds.join(','),
+        };
+      }
+    }
+
     const searchResult: BatteryIncludedSearchResponse<BatteryIncludedProduct> = await this.shopApi.browse({
       page: (params.page || 0) + 1, // normalize page
       size: params.size,
       query: params.query,
       sort: params.sort,
-      filters: params.filters,
+      filters: filters,
     });
-    const availableFilters = searchResult.facet_counts.map((facet) => {
-      const filter: Filter = {
-        id: facet.field_name,
-        name: facet.field_name, // TODO handle l10n when we have a representative Dataset
-        values: facet.counts
-          ? facet.counts.map((value) => ({
-              id: value.value,
-              name: value.value, // TODO l10n...
-              count: value.count,
-              active: params.filters ? params.filters[facet.field_name] == value.value : false,
-            }))
-          : [],
-      };
-      return filter;
-    });
+    const availableFilters = searchResult.facet_counts
+      .filter((facet) => facet.field_name !== 'segmentIds')
+      .map((facet) => {
+        const filter: Filter = {
+          id: facet.field_name,
+          name: facet.field_name, // TODO handle l10n when we have a representative Dataset
+          values: facet.counts
+            ? facet.counts.map((value) => ({
+                id: value.value,
+                name: value.value, // TODO l10n...
+                count: value.count,
+                active: params.filters ? params.filters[facet.field_name] == value.value : false,
+              }))
+            : [],
+        };
+        return filter;
+      });
     return {
       items: searchResult.hits
         .filter((hit) => hit.document.siteCode === session?.siteCode)
@@ -70,7 +93,12 @@ class BatteryIncludedSearchService implements SearchService {
 
   async getSuggestions(query: string, locale?: string): Promise<SearchSuggestions> {
     try {
-      const apiResponse = await this.shopApi.suggest(query, locale);
+      const currentCustomer = await this.customerService.getCustomer();
+      let segmentIds;
+      if (currentCustomer) {
+        segmentIds = await this.segmentFilterService.getSegmentIds();
+      }
+      const apiResponse = await this.shopApi.suggest(query, locale, segmentIds?.join(','));
       const session = await this.sessionService.getCurrent();
       const filteredResponse = this.suggestionsMapper.filterBySite(apiResponse, session?.siteCode);
       return this.suggestionsMapper.mapSearchSuggestions(filteredResponse);

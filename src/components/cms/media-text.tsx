@@ -64,8 +64,8 @@ const MediaText = ({ blok }: MediaTextProps) => {
         <div
           className={cn(
             'row-start-2 sm:row-span-2',
-            blok.image_position === ImagePosition.Left && 'sm:col-start-1 mr-4 sm:mr-0 ml-4 md:ml-8',
-            blok.image_position === ImagePosition.Right && 'sm:col-start-2 ml-4 sm:ml-0 mr-4 md:mr-8',
+            blok.image_position === ImagePosition.Left && 'sm:col-start-1 mr-4 sm:mr-0 ml-4 lg:ml-9',
+            blok.image_position === ImagePosition.Right && 'sm:col-start-2 ml-4 sm:ml-0 mr-4 lg:mr-9',
             'content-center rounded-ss-2xl rounded-ee-2xl',
           )}
         >
@@ -76,8 +76,8 @@ const MediaText = ({ blok }: MediaTextProps) => {
                   src={blok.image.filename}
                   alt={blok.image?.alt || ''}
                   className="w-full h-auto rounded-[inherit]"
-                  width={1000}
-                  height={1000}
+                  width={920}
+                  height={518}
                 />
               )}
               {video && (
@@ -100,8 +100,8 @@ const MediaText = ({ blok }: MediaTextProps) => {
         <div
           className={cn(
             'col-start-1 row-start-1 content-end',
-            blok.image_position === ImagePosition.Left && 'sm:col-start-2 ml-4 sm:ml-0 mr-4 md:mr-8',
-            blok.image_position === ImagePosition.Right && 'sm:col-start-1 mr-4 sm:mr-0 ml-4 md:ml-8',
+            blok.image_position === ImagePosition.Left && 'sm:col-start-2 ml-4 sm:ml-0 mr-4 lg:mr-9',
+            blok.image_position === ImagePosition.Right && 'sm:col-start-1 mr-4 sm:mr-0 ml-4 lg:ml-9',
           )}
         >
           {blok.overline && (
@@ -118,8 +118,8 @@ const MediaText = ({ blok }: MediaTextProps) => {
         <div
           className={cn(
             'col-start-1',
-            blok.image_position === ImagePosition.Left && 'sm:col-start-2 ml-4 sm:ml-0 mr-4 md:mr-8',
-            blok.image_position === ImagePosition.Right && 'sm:col-start-1 mr-4 sm:mr-0 ml-4 md:ml-8',
+            blok.image_position === ImagePosition.Left && 'sm:col-start-2 ml-4 sm:ml-0 mr-4 lg:mr-9',
+            blok.image_position === ImagePosition.Right && 'sm:col-start-1 mr-4 sm:mr-0 ml-4 lg:ml-9',
           )}
         >
           <p className=" text-base md:text-lg text-text-body pb-4">{text}</p>

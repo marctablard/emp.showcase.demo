@@ -1,10 +1,12 @@
 'use client';
 
 import { ReactNode, useEffect, useState } from 'react';
+import { signIn } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-import { Eye, EyeOff, LockKeyhole, User } from 'lucide-react';
+import { Eye, EyeOff, Loader2, LockKeyhole, User } from 'lucide-react';
+import { providerOptions } from '@/auth/auth.config';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -20,7 +22,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Heading } from '@/components/ui/h';
 import { Input } from '@/components/ui/input';
 import UiLink from '@/components/ui/link';
-import { ToastType, notify } from '@/components/ui/toast-notification';
 import useAuthDialog from '@/hooks/authentication/useAuthDialog';
 import useAuthentication from '@/hooks/authentication/useAuthentication';
 import { useValidator } from '@/hooks/validation/useValidator';
@@ -46,7 +47,6 @@ type LoginProps = {
 export default function LoginDialog({
   trigger,
   callbackUrl,
-  redirectAfterLogin = true,
   email,
   open = false,
   onCloseAction,
@@ -54,7 +54,7 @@ export default function LoginDialog({
   guestCheckout = false,
 }: LoginProps) {
   const t = useTranslations('auth.login');
-  const { login, loading, error: errorAuthentication } = useAuthentication();
+  const { login, loading } = useAuthentication();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -74,7 +74,7 @@ export default function LoginDialog({
   useEffect(() => {
     // Reset form fields and errors when dialog changes
     if (form) {
-      form.reset({ username: email || '' });
+      form.reset({ username: email || '', password: '' });
       setError(null);
       setShowPassword(false);
     }
@@ -86,23 +86,12 @@ export default function LoginDialog({
     setSubmitting(true);
 
     try {
-      await login(values.username, values.password, redirectAfterLogin, callbackUrl);
+      const success = await login(values.username, values.password, callbackUrl);
 
-      if (errorAuthentication) {
-        setError(t('loginError'));
+      if (!success) {
+        setError(t('invalidCredentials'));
         form.resetField('password', { defaultValue: '' });
       } else {
-        const titleMessage = t('welcomeMessage', { username: form.getValues('username') });
-        notify({
-          title: titleMessage,
-          duration: 3000,
-          type: ToastType.Success,
-          button: {
-            label: t('close'),
-            onClick: () => {},
-          },
-        });
-
         onCloseAction?.();
 
         form.resetField('username', { defaultValue: '' });
@@ -132,6 +121,15 @@ export default function LoginDialog({
       <DialogContent className="sm:max-w-[639px]">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6 w-full">
+            {/* Loading Overlay */}
+            {(loading || submitting) && (
+              <div className="absolute inset-0 z-1000 bg-surface/50 backdrop-blur-default flex items-center justify-center">
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="text-sm font-medium text-text-secondary">{t('loggingIn')}</p>
+                </div>
+              </div>
+            )}
             <DialogHeader>
               <VisuallyHidden>
                 <DialogTitle />
@@ -145,7 +143,7 @@ export default function LoginDialog({
             {error && (
               <div className="flex flex-col gap-2">
                 <Heading variant="h5" as="div" className="text-text-error">
-                  {t('error')}
+                  {t('loginFailed')}
                 </Heading>
                 <span className="text-text-error">{error}</span>
               </div>
@@ -209,32 +207,51 @@ export default function LoginDialog({
               </UiLink>
             </div>
 
-            <DialogFooter className="flex flex-col sm:flex sm:flex-col gap-6 w-full">
-              <Button type="submit" disabled={loading || submitting || !form.formState.isValid}>
-                {loading || submitting ? t('loggingIn') : t('logIn')}
-              </Button>
-
-              {guestCheckout && (
-                <DialogClose asChild>
-                  <Link href="/checkout">
-                    <Button variant="secondary" className="w-full">
-                      {t('guestCheckout')}
-                    </Button>
-                  </Link>
-                </DialogClose>
-              )}
-
-              <div className="flex flex-col gap-2 mx-auto items-center">
-                <p>{t('noAccountYet')}</p>
-                <DialogClose asChild>
-                  <UiLink type="Link" href="/register">
-                    {t('createAccount')}
-                  </UiLink>
-                </DialogClose>
-              </div>
-            </DialogFooter>
+            <Button type="submit" disabled={loading || submitting || !form.formState.isValid}>
+              {loading || submitting ? t('loggingIn') : t('logIn')}
+            </Button>
           </form>
         </Form>
+
+        {Object.values(providerOptions).map((provider) => (
+          <form
+            className="flex flex-col gap-6 w-full"
+            key={provider.id}
+            action={async () => {
+              try {
+                await signIn(provider.id, {
+                  redirectTo: callbackUrl ?? '',
+                });
+              } catch (error) {
+                throw error;
+              }
+            }}
+          >
+            <Button type="submit" disabled={loading} className={`transition-all`}>
+              <span>{t('signInWith', { provider: provider.name })}</span>
+            </Button>
+          </form>
+        ))}
+        <DialogFooter className="flex flex-col sm:flex sm:flex-col gap-6 w-full">
+          {guestCheckout && (
+            <DialogClose asChild>
+              <Link href="/checkout">
+                <Button variant="secondary" className="w-full">
+                  {t('guestCheckout')}
+                </Button>
+              </Link>
+            </DialogClose>
+          )}
+
+          <div className="flex flex-col gap-2 mx-auto items-center">
+            <p>{t('noAccountYet')}</p>
+            <DialogClose asChild>
+              <UiLink type="Link" href="/register">
+                {t('createAccount')}
+              </UiLink>
+            </DialogClose>
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

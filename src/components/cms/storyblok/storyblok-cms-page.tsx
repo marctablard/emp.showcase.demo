@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { notFound } from 'next/navigation';
 import { ISbStoriesParams, StoryblokClient, StoryblokStory } from '@storyblok/react/rsc';
 import { BreadcrumbContent } from '@/lib/breadcrumb';
@@ -10,11 +11,7 @@ interface CMSPageParams {
   site?: string;
   emptyOnNoResult?: boolean;
 }
-
-/**
- * Fetch data from Storyblok
- */
-async function fetchData(locale: string, slug: string, site?: string) {
+const fetchData = cache(async (locale: string, slug: string, site?: string) => {
   const sbParams: ISbStoriesParams = {
     version: process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW === 'true' ? 'draft' : 'published',
     language: locale,
@@ -28,7 +25,7 @@ async function fetchData(locale: string, slug: string, site?: string) {
   } catch {
     return null;
   }
-}
+});
 
 const buildBreadcrumb = async (slug: string, locale: string): Promise<BreadcrumbContent[]> => {
   let subSlug = slug;
@@ -56,7 +53,6 @@ const buildBreadcrumb = async (slug: string, locale: string): Promise<Breadcrumb
  */
 export default async function CMSPageComponent({ slug, locale, site, emptyOnNoResult }: CMSPageParams) {
   const subData = await fetchData(locale, slug, site);
-  console.log('subData', subData);
   if (!subData?.data?.story) {
     if (emptyOnNoResult) {
       return (
@@ -76,7 +72,7 @@ export default async function CMSPageComponent({ slug, locale, site, emptyOnNoRe
     <>
       <div className={subData?.data?.story.content.no_margin ? '' : 'flex-grow mt-17 sm:mt-36 md:mt-52'}>
         {breadcrumb.length > 0 && (
-          <UiBreadcrumb items={breadcrumb} className="max-w-6xl mx-auto px-4 md:px-9 sm:gap-x-6" />
+          <UiBreadcrumb items={breadcrumb} className="max-w-6xl mx-auto px-4 lg:px-9 sm:gap-x-6" />
         )}
         <StoryblokStory story={subData?.data?.story} />
       </div>

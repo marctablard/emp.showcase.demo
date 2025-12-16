@@ -18,7 +18,6 @@ export default function AuthDialogManager() {
         onCloseAction={closeDialog}
         onResetPasswordAction={(email) => openDialog('reset', { email })}
         callbackUrl={dialogOptions.callbackUrl}
-        redirectAfterLogin={dialogOptions.redirectAfterLogin}
         email={dialogOptions.email}
         guestCheckout={dialogOptions.guestCheckout}
       />

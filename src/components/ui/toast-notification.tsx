@@ -86,7 +86,7 @@ function Toast(props: ToastProps) {
     <div
       className={cn(
         'rounded border shadow-lg w-full items-center p-4',
-        'top-right',
+        'top-right border-width-notification rounded-notification',
         'bg-surface-' + className[type] + ' border-border-' + className[type],
       )}
     >
@@ -144,7 +144,7 @@ function Notification(props: NotificationProps) {
     <div
       className={cn(
         'flex rounded border shadow-lg w-full items-center sm:p-3 p-1',
-        'top-right',
+        'top-right border-width-notification rounded-notification',
         'bg-surface-' + className[type] + ' border-border-' + className[type],
       )}
     >

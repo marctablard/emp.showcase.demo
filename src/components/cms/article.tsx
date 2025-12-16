@@ -28,7 +28,7 @@ interface ArticleProps {
 
 const Article = ({ blok }: ArticleProps) => {
   return (
-    <article {...storyblokEditable(blok)} className="article max-w-6xl mx-auto px-4 md:px-9 sm:gap-x-6">
+    <article {...storyblokEditable(blok)} className="article max-w-6xl mx-auto px-4 lg:px-9 sm:gap-x-6">
       {/* Article header */}
       {blok.title ||
         (blok.introduction && (

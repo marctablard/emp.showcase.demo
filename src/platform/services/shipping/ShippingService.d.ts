@@ -1,4 +1,4 @@
-import { EmporixShippingMethod } from '../model/shipping';
+import { ShippingMethod } from '../model/shipping';
 
 /**
  * Service for shipping operations
@@ -20,5 +20,5 @@ export interface ShippingService {
    * @param methodId The method ID
    * @param zoneId The zone ID
    */
-  getShippingMethod(methodId: string, zoneId: string): Promise<EmporixShippingMethod | null>;
+  getShippingMethod(methodId: string, zoneId: string): Promise<ShippingMethod | null>;
 }

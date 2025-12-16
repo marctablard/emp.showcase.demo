@@ -52,7 +52,7 @@ export default async function BrowsePage({
   const initialResults = await searchProducts(initialSearch);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 md:px-9 pb-32">
+    <div className="max-w-6xl mx-auto px-4 lg:px-9 pb-32">
       <Heading variant="h2" className="mb-6">
         {q ? t('resultsFor', { query: q }) : t('allProducts')}
       </Heading>

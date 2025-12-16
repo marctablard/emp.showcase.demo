@@ -91,3 +91,15 @@ next-env.d.ts
 
 # Generated translation files
 /src/i18n/translations/*.json
+
+# Cursor IDE configuration (local only)
+# These files contain personal MCP configs, agents, and prompts
+.cursor/
+!.cursor/.gitkeep
+
+# Specifications directory (local development artifacts)
+/specifications/
+
+# GitHub agents and prompts (local only, mirrored in .cursor/)
+.github/workflows/agents/
+.github/workflows/prompts/

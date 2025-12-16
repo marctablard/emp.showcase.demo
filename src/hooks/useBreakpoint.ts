@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
  * These match the min-width values defined in Tailwind's default configuration
  * @see https://tailwindcss.com/docs/responsive-design
  */
-const breakpoints = {
+export const breakpoints = {
   sm: 768, // Small screens, like mobile phones in landscape
   md: 1024, // Medium screens, like tablets
   lg: 1280, // Large screens, like laptops

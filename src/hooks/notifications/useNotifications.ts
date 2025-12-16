@@ -33,22 +33,23 @@ export function useNotifications(): UseNotificationsReturn {
 
   // Listen for messages from the service worker
   useEffect(() => {
-    const handleServiceWorkerMessage = (event: MessageEvent) => {
-      console.log('Received message from service worker:', event.data);
-      // Check if the message is a notification update
-      if (event.data && event.data.type === 'NEW_NOTIFICATION') {
-        // Trigger a refetch of notifications
-        fetchNotifications();
-      }
-    };
-
     // Add the event listener
-    navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+    if (navigator.serviceWorker) {
+      const handleServiceWorkerMessage = (event: MessageEvent) => {
+        // Check if the message is a notification update
+        if (event.data && event.data.type === 'NEW_NOTIFICATION') {
+          // Trigger a refetch of notifications
+          fetchNotifications();
+        }
+      };
 
-    // Clean up the event listener when the component unmounts
-    return () => {
-      navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
-    };
+      navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+
+      // Clean up the event listener when the component unmounts
+      return () => {
+        navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
+      };
+    }
   }, [fetchNotifications]);
 
   return {

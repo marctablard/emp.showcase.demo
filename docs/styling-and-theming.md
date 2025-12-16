@@ -35,7 +35,7 @@ The design tokens flow from foundational values to context-specific tokens. Ever
 ### `src/app/styles/alias.css`
 
 - **Purpose**: Map brand primitives to semantic aliases (primary, success, warning, neutral, spacing sizes, etc.).
-- **Content**: Aliases such as `--color-primary-500` or `--spacing-md` wrap the values from `brand.css` to describe intent rather than a hexadecimal value.
+- **Content**: Aliases such as `--color-primary-500` or `--spacing-4` wrap the values from `brand.css` to describe intent rather than a hexadecimal value.
 - **Usage**: Allows designers to rename color families or adjust scales while keeping downstream references stable.
 
 ### `src/app/styles/mapped.css`
@@ -57,7 +57,7 @@ The design tokens flow from foundational values to context-specific tokens. Ever
 - **Key Responsibilities**:
   - Imports `brand.css`, `alias.css`, and `mapped.css`.
   - Defines responsive typography tokens (`--token-text-sm`, etc.) that Tailwind consumes through `@theme inline`.
-  - Sets global utilities such as `.border-sm` and base selectors to apply font stacks and default text/background context tokens.
+  - Sets global utilities such as `.border-width-*` and base selectors to apply font stacks and default text/background context tokens.
 
 ## Tailwind Integration
 
@@ -83,7 +83,7 @@ Our Tailwind configuration reads the variables exposed in `globals.css`. When yo
     Confirm
   </button>
   ```
-- **Custom Utilities** can be defined via `@layer utilities` in `globals.css` if they express reusable patterns (e.g., `.border-md`). Ensure they reference existing tokens.
+- **Custom Utilities** can be defined via `@layer utilities` in `globals.css` if they express reusable patterns (e.g., `.border-width-*`). Ensure they reference existing tokens.
 - **Layout Containers** can use custom container variables (`--container-6xl`, `--container-7xl`) through Tailwind utilities if configured.
 
 ## Extending the Theme

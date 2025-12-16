@@ -78,15 +78,27 @@
   --color-neutral-black: var(--color-black);
 
   --spacing-none: var(--scale-0);
-  --spacing-4xs: var(--scale-25-1);
-  --spacing-3xs: var(--scale-50-2);
-  --spacing-2xs: var(--scale-100-4);
-  --spacing-xs: var(--scale-200-8);
-  --spacing-sm: var(--scale-300-12);
-  --spacing-md: var(--scale-400-16);
-  --spacing-lg: var(--scale-600-24);
-  --spacing-xl: var(--scale-800-32);
-  --spacing-2xl: var(--scale-1200-48);
-  --spacing-3xl: var(--scale-1400-56);
-  --spacing-4xl: var(--scale-1600-64);
+  --spacing-0-25: var(--scale-25-1);
+  --spacing-0-5: var(--scale-50-2);
+  --spacing-1: var(--scale-100-4);
+  --spacing-2: var(--scale-200-8);
+  --spacing-3: var(--scale-300-12);
+  --spacing-4: var(--scale-400-16);
+  --spacing-6: var(--scale-600-24);
+  --spacing-8: var(--scale-800-32);
+  --spacing-12: var(--scale-1200-48);
+  --spacing-14: var(--scale-1400-56);
+  --spacing-16: var(--scale-1600-64);
+
+  --border-width-none: var(--scale-0);
+  --border-width-sm: var(--scale-25-1);
+  --border-width-md: var(--scale-50-2);
+  --border-width-lg: var(--scale-100-4);
+
+  --border-radius-none: var(--scale-0);
+  --border-radius-sm: var(--scale-100-4);
+  --border-radius-md: var(--scale-200-8);
+  --border-radius-lg: var(--scale-400-16);
+  --border-radius-xl: var(--scale-600-24);
+  --border-radius-2xl: var(--scale-800-32);
 }

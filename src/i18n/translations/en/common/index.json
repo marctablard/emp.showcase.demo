@@ -1,4 +1,8 @@
 {
+    "NotFound": {
+        "title": "404",
+        "home": "Return Home"
+    },
     "Languages": {
         "label": "Languages",
         "en": "English",
@@ -39,5 +43,5 @@
             }
         }
     },
-  "optional": "(optional)"
+    "optional": "(optional)"
 }

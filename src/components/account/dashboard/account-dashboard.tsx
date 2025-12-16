@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { ClientOnly } from '@/components/common/client-only';
 import { H3 } from '@/components/ui/h';
 import { useCustomer } from '@/hooks/customer/useCustomer';
 import { useConfigStore } from '@/lib/client/dashboard';
@@ -45,7 +46,9 @@ export default function AccountDashboard({ customer }: AccountDashboardProps) {
             />
           </div>
         </div>
-        <Dashboard isCustomizable={isCustomizable} layouts={getLayouts()} layoutChanged={setLayouts} />
+        <ClientOnly>
+          <Dashboard isCustomizable={isCustomizable} layouts={getLayouts()} layoutChanged={setLayouts} />
+        </ClientOnly>
       </div>
     </AccountLayout>
   );

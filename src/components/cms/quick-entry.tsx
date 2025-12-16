@@ -50,7 +50,7 @@ const QuickEntryElement = ({ title, link, link_name, icon }: QuickEntryElementPr
 const QuickEntry = ({ elements }: QuickEntryProps) => {
   return (
     <div className="mb-10 w-full bg-surface-action-hover-2">
-      <div className="grid grid-cols-[1fr] sm:grid-cols-[1fr_1fr] lg:grid-cols-[1fr_1fr_1fr_1fr] lg:max-w-[1672px] mx-auto justify-items-center gap-3 sm:gap-4 md:gap-6 px-4 py-4 md:py-6 md:px-9">
+      <div className="grid grid-cols-[1fr] sm:grid-cols-[1fr_1fr] lg:grid-cols-[1fr_1fr_1fr_1fr] lg:max-w-[1672px] mx-auto justify-items-center gap-3 sm:gap-4 md:gap-6 px-4 py-4 md:py-6 lg:px-9">
         {elements &&
           elements.map((element, index) => {
             return <QuickEntryElement key={index} {...element} />;

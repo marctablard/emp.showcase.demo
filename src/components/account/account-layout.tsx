@@ -205,7 +205,7 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
             <div className="fixed inset-0 z-40 bg-black/20" onClick={toggleSidebarOffcanvas} aria-hidden="true" />
 
             {/* Off-canvas Panel */}
-            <div className="fixed left-0 top-0 h-full max-w-[320px] w-full bg-surface-page z-50 overflow-y-auto shadow-lg">
+            <div className="fixed left-0 top-0 h-[calc(100vh-58px)] max-w-[320px] w-full bg-surface-page z-50 overflow-y-auto shadow-lg">
               <div className="flex justify-end p-4">
                 <Button variant="link" size="icon" onClick={toggleSidebarOffcanvas} className="text-black">
                   <X />

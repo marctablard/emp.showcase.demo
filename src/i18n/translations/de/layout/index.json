@@ -24,6 +24,12 @@
     "onlinePlaner": "Online Planer",
     "aboutUs": "Über uns",
     "menu": "Menü",
+    "serviceAndContact": "Service & Kontakt",
+    "locationSettings": "Standorteinstellungen",
+    "settings": "Einstellungen",
+    "site": "Standort",
+    "language": "Sprache",
+    "currency": "Währung",
     "close": "Schließen",
     "viewCart": "Warenkorb anzeigen",
     "goToHomepage": "Zur Startseite",
@@ -31,7 +37,10 @@
     "noResults": "Es tut uns leid – es gibt keine Produktübereinstimmungen für Ihre Suche.",
     "doubleCheck": "Prüfen Sie Ihre Suche auf Rechtschreibung oder Tippfehler, oder versuchen Sie es mit einem anderen Suchbegriff.",
     "commonSearch": "Hier sind häufige Suchbegriffe von anderen Kunden:",
-    "clearHistory": "Suchverlauf löschen"
+    "clearHistory": "Suchverlauf löschen",
+    "navigation": {
+      "meta": "Meta"
+    }
   },
   "footer": {
     "newsletterTitle": "Abonnieren Sie unseren Newsletter für exklusive Updates und mehr!",
@@ -54,7 +63,7 @@
     "sales": "Sales"
   },
   "footerLegal": {
-    "copyright": " 2025 Emporix. Alle Rechte vorbehalten.",
+    "copyright": "© 2025 Emporix. Alle Rechte vorbehalten.",
     "termsAndConditions": "Geschäftsbedingungen",
     "imprint": "Impressum",
     "privacyPolicy": "Datenschutz"

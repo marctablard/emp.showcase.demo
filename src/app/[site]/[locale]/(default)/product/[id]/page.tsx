@@ -13,6 +13,12 @@ interface ProductPageProps {
   locale: string;
 }
 
+const PRODUCT_FETCH_OPTIONS = {
+  prices: true,
+  variants: true,
+  categories: true,
+};
+
 // Generate metadata for the product page
 export async function generateMetadata(
   { params }: { params: Promise<ProductPageProps> },
@@ -22,7 +28,7 @@ export async function generateMetadata(
   const { id, locale } = await params;
 
   // Fetch product data
-  const product = await getProductById(id, { prices: true, variants: true, categories: true });
+  const product = await getProductById(id, PRODUCT_FETCH_OPTIONS);
 
   // If product not found, return basic metadata
   if (!product) {
@@ -38,7 +44,7 @@ export default async function ProductPage({ params }: { params: Promise<ProductP
   const site = await getSite(locale);
   // Fetch translations, product data and price in parallel
   const [product, availability] = await Promise.all([
-    getProductById(id, { prices: false, variants: true, categories: true }),
+    getProductById(id, PRODUCT_FETCH_OPTIONS),
     getAvailability(site?.code || '', id),
   ]);
 
@@ -54,11 +60,11 @@ export default async function ProductPage({ params }: { params: Promise<ProductP
       <div>
         <UiBreadcrumb
           items={breadcrumbs}
-          className="max-w-6xl mx-auto px-4 md:px-9 sm:gap-x-6"
+          className="max-w-6xl mx-auto px-4 lg:px-9 sm:gap-x-6"
           disabledCategories={true}
         />
         <ProductDetail
-          className="max-w-6xl mx-auto px-4 md:px-9 sm:gap-x-6 lg:pr-38"
+          className="max-w-6xl mx-auto px-4 lg:px-9 sm:gap-x-6 lg:pr-38"
           product={product}
           availability={availability}
         />

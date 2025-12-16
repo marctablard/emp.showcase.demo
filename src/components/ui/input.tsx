@@ -18,7 +18,7 @@ export interface InputProps extends React.ComponentProps<'input'> {
 
 const inputVariants = cva(
   [
-    'text-text-body flex w-full min-w-0 px-3 border border-border-primary',
+    'text-text-body flex w-full min-w-0 px-3 border-width-form-field border-border-primary rounded-form-field',
     'placeholder:text-text-placeholders py-3 text-base sm:text-base',
     'transition duration-150 ease-in-out hover:text-text-action-hover hover:border-border-action-hover hover:bg-surface-primary',
     'disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-surface-disabled disabled:text-text-on-disabled',
@@ -29,8 +29,8 @@ const inputVariants = cva(
   {
     variants: {
       isButton: {
-        true: 'rounded-l-sm',
-        false: 'rounded-sm',
+        true: 'rounded-e-none',
+        false: '',
       },
       startIcon: {
         true: 'pl-10',

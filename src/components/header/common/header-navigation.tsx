@@ -34,7 +34,7 @@ export function HeaderNavigation({ className }: HeaderNavigationProps) {
                 </NavigationMenuContent>
               </>
             ) : (
-              <NavigationMenuLink href={item.href} className={navigationMenuTriggerStyle()}>
+              <NavigationMenuLink href={item.href || '#'} className={navigationMenuTriggerStyle()}>
                 {t(item.labelKey as any)}
               </NavigationMenuLink>
             )}

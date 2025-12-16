@@ -5,23 +5,23 @@ import { ChevronsUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  'cursor-pointer uppercase inline-flex items-center justify-center gap-3 whitespace-nowrap px-4 py-3 text-base/6 tracking-widest font-bold transition-all disabled:pointer-events-none disabled:bg-surface-disabled disabled:text-text-on-disabled [&_svg]:pointer-events-none shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+  'cursor-pointer uppercase inline-flex items-center justify-center gap-3 whitespace-nowrap px-4 py-3 text-action-button tracking-widest font-bold transition-all disabled:pointer-events-none disabled:bg-surface-disabled disabled:text-text-on-disabled [&_svg]:pointer-events-none shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-white',
   {
     variants: {
       variant: {
         primary:
-          'bg-surface-action text-text-on-action border border-transparent hover:bg-surface-action-hover rounded-sm',
+          'bg-surface-action text-text-on-action border-width-button border-transparent hover:bg-surface-action-hover rounded-button',
         secondary:
-          'border border-border-secondary bg-transparent text-text-action disabled:border-border-disabled hover:border-border-action-hover hover:bg-surface-action-hover-2 hover:text-text-action-hover rounded-sm',
+          'border-width-button border-border-secondary bg-transparent text-text-action disabled:border-border-disabled hover:border-border-action-hover hover:bg-surface-action-hover-2 hover:text-text-action-hover rounded-button',
         neutral:
-          'border border-border-black px-2 py-1 disabled:border-transparent hover:bg-surface-neutral hover:text-text-on-action rounded-sm',
+          'border-width-button border-border-black px-2 py-1 disabled:border-transparent hover:bg-surface-neutral hover:text-text-on-action rounded-button',
         // Todo: red button needs to be designed in figma
-        red: 'bg-surface-error text-text-error border border-transparent hover:bg-surface-error/80 rounded-sm normal-case',
-        link: 'text-text-action disabled:bg-transparent hover:text-text-action-hover rounded-sm',
+        red: 'bg-surface-error text-text-error border-width-button border-transparent hover:bg-surface-error/80 rounded-button normal-case',
+        link: 'text-text-action disabled:bg-transparent hover:text-text-action-hover rounded-button',
         input:
-          'bg-surface-action text-text-on-action border border-transparent hover:bg-surface-action-hover rounded-r-sm',
+          'bg-surface-action text-text-on-action border-width-button border-transparent hover:bg-surface-action-hover rounded-r-sm',
         carouselControl:
-          'absolute size-8 rounded-full border border-border-secondary bg-transparent text-text-action hover:border-border-action-hover hover:bg-surface-action-hover-2 hover:text-text-action-hover disabled:border-transparent',
+          'absolute size-8 rounded-full border-width-button border-border-secondary bg-transparent text-text-action hover:border-border-action-hover hover:bg-surface-action-hover-2 hover:text-text-action-hover disabled:border-transparent',
       },
       size: {
         small: 'px-2 py-1',

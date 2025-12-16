@@ -1,5 +1,5 @@
 import { type ClassValue, clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { extendTailwindMerge } from 'tailwind-merge';
 import { LocalizedString, SearchParams } from '@/platform/services/model/common';
 
 function buildBaseUrl() {
@@ -14,8 +14,17 @@ export const baseUrl = buildBaseUrl();
 
 const defaultEmptyLocale = 'en';
 
+const customTwMerge = extendTailwindMerge({
+  extend: {
+    classGroups: {
+      // Allow all options from custom utility border-width-* defined in src/app/globals.css
+      'border-w': [{ 'border-width': [() => true] }],
+    },
+  },
+});
+
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
+  return customTwMerge(clsx(inputs));
 }
 
 /**

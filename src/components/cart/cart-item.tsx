@@ -61,7 +61,6 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
       } else if (notification.code === 'ITEM_PRICE_CHANGE') {
         const priceChange = notification.data_json as CartItemPriceChange;
         if (priceChange.productId === item.product?.id) {
-          console.log('ITEM: Price change detected:', priceChange);
           setPriceChange(priceChange);
           setPriceChangeNotificationId(notification.id);
         }

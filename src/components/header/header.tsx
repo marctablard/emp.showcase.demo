@@ -1,59 +1,26 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { HeaderExpanded } from '@/components/header/expanded/header-expanded';
-import { HeaderCompact } from '@/components/header/header-compact';
-import { HeaderMobile } from '@/components/header/header-mobile';
-import { useSearchInput } from '@/hooks/search/useSearchInput';
-import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { HeaderActionBar } from '@/components/header/common/header-action-bar';
+import { HeaderMobile } from '@/components/header/common/header-mobile';
+import { HeaderTopBanner } from '@/components/header/common/header-top-banner';
+import { HeaderSearchProvider } from '@/components/header/search/search-context';
 import { useHeaderScroll } from '@/hooks/useHeaderScroll';
 
 export function Header() {
-  const isAboveMediumScreen = useBreakpoint('md');
-  const { scrolled, getHeaderHeight } = useHeaderScroll();
-  const [isMounted, setIsMounted] = useState(false);
-  const [showCompactMenu, setShowCompactMenu] = useState(false);
-  const searchInput = useSearchInput();
-
-  // This code is also mentioned in the React docs: https://react.dev/reference/react/useEffect#displaying-different-content-on-the-server-and-the-client
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsMounted(true);
-  }, []);
-
+  const { scrolled } = useHeaderScroll();
   return (
-    <div className="has-[.search]:fixed has-[.search]:backdrop-blur-default has-[.search]:z-60 h-full w-full relative">
-      {!isMounted || isAboveMediumScreen ? (
-        /* Desktop & Tablet */
-        <div className="fixed top-0 left-0 right-0 pt-4 z-50 max-w-6xl mx-auto">
-          <header
-            className={`bg-surface-page/95 backdrop-blur-default shadow-sm rounded-lg relative transition-[height] duration-200 ease-in-out mx-4 md:mx-9 ${scrolled ? (showCompactMenu ? 'h-auto' : 'h-16') : getHeaderHeight()}`}
-          >
-            {/* Render only one header component based on scroll state */}
-            {!scrolled ? (
-              <div className="transition-[height] duration-200 ease-in-out absolute top-0 left-0 right-0 w-full opacity-100 z-2">
-                <HeaderExpanded {...searchInput} />
-              </div>
-            ) : (
-              <div
-                className={`transition-[height] duration-200 ease-in-out ${showCompactMenu ? 'relative' : 'absolute'} top-0 left-0 right-0 opacity-100 transform translate-y-0 z-2`}
-              >
-                <HeaderCompact
-                  {...searchInput}
-                  isCollapsedHeader={true}
-                  showMenu={showCompactMenu}
-                  onToggleMenu={() => setShowCompactMenu(!showCompactMenu)}
-                />
-              </div>
-            )}
-          </header>
+    <HeaderSearchProvider>
+      <header className="has-[.search]:fixed has-[.search]:w-full has-[.search]:h-full has-[.search]:backdrop-blur-default has-[.search]:z-60">
+        {/* Mobile & Tablet & Desktop */}
+        <div className="fixed top-0 left-0 right-0 z-50 sm:pt-4 sm:px-4 md:pt-3 lg:px-9 w-full max-w-6xl mx-auto">
+          <HeaderTopBanner scrolled={scrolled} />
+          <HeaderActionBar scrolled={scrolled} />
         </div>
-      ) : (
-        /* Mobile */
-        <div className="w-full">
-          <HeaderMobile {...searchInput} />
+        {/* Mobile */}
+        <div className="sm:hidden">
+          <HeaderMobile />
         </div>
-      )}
-    </div>
+      </header>
+    </HeaderSearchProvider>
   );
 }

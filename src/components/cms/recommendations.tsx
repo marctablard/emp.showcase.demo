@@ -39,7 +39,7 @@ const Recommendations = ({ overline, headline, productId, products, locale }: Re
   }
 
   return (
-    <div className="py-8 max-w-6xl mx-auto px-4 md:px-9">
+    <div className="py-8 max-w-6xl mx-auto px-4 lg:px-9">
       {overline && (
         <Heading variant="overline" as="div" className="mb-3">
           {overline}

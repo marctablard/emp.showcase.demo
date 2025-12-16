@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/dashboard-badge';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
+import { H4 } from '@/components/ui/h';
 import { Input } from '@/components/ui/input';
 import UiLink from '@/components/ui/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -201,7 +202,9 @@ export function MyInvoicesCard({ className, title, ...props }: MyInvoicesCardPro
   return (
     <DashboardCard variant="default" className={cn('py-4 pb-0', className)} {...props}>
       <div className="flex justify-between items-center mb-4">
-        <CardTitle className="text-4xl font-bold">{title || t('title')}</CardTitle>
+        <CardTitle>
+          <H4>{title || t('title')}</H4>
+        </CardTitle>
         <UiLink href="/account/invoices" type="Button" className="text-base flex items-center">
           {t('showAllInvoices')} <ArrowRight className="w-4 h-4 ml-1" />
         </UiLink>

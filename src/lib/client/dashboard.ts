@@ -23,13 +23,13 @@ type ConfigStore = ConfigState & ConfigActions;
 const defaultLayouts: Layouts = {
   // Large screens (≥1280px) - 4 columns
   lg: [
-    { i: 'ai-helper', x: 0, y: 0, w: 2, h: 12 },
-    { i: 'weather', x: 2, y: 0, w: 1, h: 12 },
-    { i: 'notification', x: 0, y: 1, w: 1, h: 16 },
-    { i: 'ticket', x: 2, y: 1, w: 2, h: 16 },
-    { i: 'orders', x: 0, y: 2, w: 2, h: 19 },
-    { i: 'invoices', x: 0, y: 3, w: 2, h: 19 },
-    { i: 'documents', x: 0, y: 4, w: 3, h: 6 },
+    { i: 'ai-helper', x: 0, y: 0, w: 3, h: 25 },
+    { i: 'weather', x: 2, y: 25, w: 1, h: 12 },
+    { i: 'notification', x: 1, y: 25, w: 1, h: 12 },
+    { i: 'ticket', x: 0, y: 25, w: 1, h: 12 },
+    { i: 'orders', x: 0, y: 37, w: 3, h: 18 },
+    { i: 'invoices', x: 0, y: 55, w: 3, h: 18 },
+    { i: 'documents', x: 0, y: 73, w: 3, h: 8 },
   ],
   /*
   TODO: Add missing layouts

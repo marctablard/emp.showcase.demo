@@ -4,10 +4,10 @@ import { useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Globe } from 'lucide-react';
 import TopBarSwitcher from '@/components/ui/molecules/ui-topbar-switcher';
+import { Spinner } from '@/components/ui/spinner';
 import { useSession } from '@/hooks/session/useSession';
 import { useSite } from '@/hooks/site/useSite';
 import { l10n } from '@/lib/utils';
-import { Spinner } from '../../ui/spinner';
 
 export function RegionSwitcher() {
   const { session, loading: sessionLoading, setRegion } = useSession();
@@ -34,7 +34,7 @@ export function RegionSwitcher() {
   };
 
   if (siteLoading || sessionLoading) {
-    return <Spinner color="white" variant="sm" />;
+    return <Spinner color="default" variant="sm" />;
   }
 
   if (!regions || regions.length <= 1 || !currentRegion) {

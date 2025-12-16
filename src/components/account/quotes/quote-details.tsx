@@ -9,7 +9,7 @@ import { QuoteSummary } from '@/components/account/quotes/quote-summary';
 import { ProductListResolver } from '@/components/product/product-list-resolver';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { H3 } from '@/components/ui/h';
+import { H2, H3, H4 } from '@/components/ui/h';
 import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
@@ -173,10 +173,10 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col px-4 gap-6">
             <div className="flex items-center gap-6 mb-1">
-              <div className="text-6xl font-bold">{quote.reference || `#${quoteId}`}</div>
+              <H2>{quote.reference || `#${quoteId}`}</H2>
               <QuoteStatusBadge status={quote.status} />
             </div>
-            <div className="text-4xl font-bold">{t('title')}</div>
+            <H4>{t('title')}</H4>
           </div>
           {/* Only show action buttons when confirmation dialogs are not visible and quote status is not ACCEPTED or DECLINED */}
           {!showAcceptConfirmation &&

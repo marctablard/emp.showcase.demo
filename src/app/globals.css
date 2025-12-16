@@ -17,45 +17,52 @@
 
   --token-text-h1: var(--mobile-font-size-heading-h1);
   --token-text-h1--line-height: var(--mobile-line-height-heading-h1);
+  --token-text-h1--font-weight: var(--mobile-font-weight-heading-h1);
   --token-text-h2: var(--mobile-font-size-heading-h2);
   --token-text-h2--line-height: var(--mobile-line-height-heading-h2);
+  --token-text-h2--font-weight: var(--mobile-font-weight-heading-h2);
   --token-text-h3: var(--mobile-font-size-heading-h3);
   --token-text-h3--line-height: var(--mobile-line-height-heading-h3);
+  --token-text-h3--font-weight: var(--mobile-font-weight-heading-h3);
   --token-text-h4: var(--mobile-font-size-heading-h4);
   --token-text-h4--line-height: var(--mobile-line-height-heading-h4);
+  --token-text-h4--font-weight: var(--mobile-font-weight-heading-h4);
   --token-text-h5: var(--mobile-font-size-heading-h5);
   --token-text-h5--line-height: var(--mobile-line-height-heading-h5);
+  --token-text-h5--font-weight: var(--mobile-font-weight-heading-h5);
   --token-text-h6: var(--mobile-font-size-heading-h6);
   --token-text-h6--line-height: var(--mobile-line-height-heading-h6);
+  --token-text-h6--font-weight: var(--mobile-font-weight-heading-h6);
 
   --token-text-overline: var(--mobile-font-size-heading-overline);
   --token-text-overline--line-height: var(--mobile-line-height-heading-overline);
 
   --token-text-action-button: var(--mobile-font-size-action-button);
   --token-text-action-button--line-height: var(--mobile-line-height-action-button);
+  --token-text-action-button--font-weight: var(--mobile-font-weight-action-button);
 
   /* Theme variables - container */
   --theme-container-6xl: 120rem; /* max for content */
   --theme-container-7xl: 160rem; /* max for full-width elements */
 
   /* Theme variables - shadow */
-  --theme-shadow-xs: var(--spacing-none) var(--spacing-4xs) var(--spacing-sm) var(--spacing-4xs)
+  --theme-shadow-xs: var(--spacing-none) var(--spacing-0-25) var(--spacing-3) var(--spacing-0-25)
     var(--colors-shadow-light); /* shadow-default (1dp) */
   --theme-shadow-sm:
-    var(--spacing-none) var(--spacing-4xs) var(--spacing-sm) var(--spacing-4xs) var(--colors-shadow-light),
-    var(--spacing-none,) var(--spacing-3xs) var(--spacing-xs,) var(--spacing-3xs) var(--colors-shadow-strong);
+    var(--spacing-none) var(--spacing-0-25) var(--spacing-3) var(--spacing-0-25) var(--colors-shadow-light),
+    var(--spacing-none,) var(--spacing-0-5) var(--spacing-2,) var(--spacing-0-5) var(--colors-shadow-strong);
   --theme-shadow-md:
-    var(--spacing-none) var(--spacing-4xs) var(--spacing-sm) var(--spacing-none) var(--colors-shadow-light),
-    var(--spacing-none) var(--spacing-2xs) var(--spacing-xs) var(--spacing-2xs) var(--colors-shadow-strong);
+    var(--spacing-none) var(--spacing-0-25) var(--spacing-3) var(--spacing-none) var(--colors-shadow-light),
+    var(--spacing-none) var(--spacing-1) var(--spacing-2) var(--spacing-1) var(--colors-shadow-strong);
   --theme-shadow-lg:
-    var(--spacing-none) var(--spacing-4xs) var(--spacing-sm) var(--spacing-none) var(--colors-shadow-strong),
-    var(--spacing-none) var(--spacing-xs) var(--spacing-sm) var(--spacing-xs) var(--colors-shadow-strong);
+    var(--spacing-none) var(--spacing-0-25) var(--spacing-3) var(--spacing-none) var(--colors-shadow-strong),
+    var(--spacing-none) var(--spacing-2) var(--spacing-3) var(--spacing-2) var(--colors-shadow-strong);
   --theme-shadow-xl:
-    var(--spacing-none) var(--spacing-4xs) var(--spacing-sm) var(--spacing-none) var(--colors-shadow-light),
-    var(--spacing-none) var(--spacing-md) var(--spacing-md) var(--spacing-xs) var(--colors-shadow-strong);
+    var(--spacing-none) var(--spacing-0-25) var(--spacing-3) var(--spacing-none) var(--colors-shadow-light),
+    var(--spacing-none) var(--spacing-4) var(--spacing-4) var(--spacing-2) var(--colors-shadow-strong);
   --theme-shadow-2xl:
-    var(--spacing-none) var(--spacing-4xs) var(--spacing-sm) var(--spacing-none) var(--colors-shadow-light),
-    var(--spacing-none) var(--spacing-lg) var(--spacing-lg) var(--spacing-xs) var(--colors-shadow-strong);
+    var(--spacing-none) var(--spacing-0-25) var(--spacing-3) var(--spacing-none) var(--colors-shadow-light),
+    var(--spacing-none) var(--spacing-6) var(--spacing-6) var(--spacing-2) var(--colors-shadow-strong);
 
   /* Default theme values */
   --tw-ring-offset-width: 0.125rem;
@@ -80,22 +87,29 @@
 
     --token-text-h1: var(--desktop-font-size-heading-h1);
     --token-text-h1--line-height: var(--desktop-line-height-heading-h1);
+    --token-text-h1--font-weight: var(--desktop-font-weight-heading-h1);
     --token-text-h2: var(--desktop-font-size-heading-h2);
     --token-text-h2--line-height: var(--desktop-line-height-heading-h2);
+    --token-text-h2--font-weight: var(--desktop-font-weight-heading-h2);
     --token-text-h3: var(--desktop-font-size-heading-h3);
     --token-text-h3--line-height: var(--desktop-line-height-heading-h3);
+    --token-text-h3--font-weight: var(--desktop-font-weight-heading-h3);
     --token-text-h4: var(--desktop-font-size-heading-h4);
     --token-text-h4--line-height: var(--desktop-line-height-heading-h4);
+    --token-text-h4--font-weight: var(--desktop-font-weight-heading-h4);
     --token-text-h5: var(--desktop-font-size-heading-h5);
     --token-text-h5--line-height: var(--desktop-line-height-heading-h5);
+    --token-text-h5--font-weight: var(--desktop-font-weight-heading-h5);
     --token-text-h6: var(--desktop-font-size-heading-h6);
     --token-text-h6--line-height: var(--desktop-line-height-heading-h6);
+    --token-text-h6--font-weight: var(--desktop-font-weight-heading-h6);
 
     --token-text-overline: var(--desktop-font-size-heading-overline);
     --token-text-overline--line-height: var(--desktop-line-height-heading-overline);
 
     --token-text-action-button: var(--desktop-font-size-action-button);
     --token-text-action-button--line-height: var(--desktop-line-height-action-button);
+    --token-text-action-button--font-weight: var(--desktop-font-weight-action-button);
   }
 }
 
@@ -126,16 +140,26 @@
   --text-xl--line-height: var(--token-text-overline--line-height);
   --text-2xl: var(--token-text-h6);
   --text-2xl--line-height: var(--token-text-h6--line-height);
+  --text-2xl--font-weight: var(--token-text-h6--font-weight);
   --text-3xl: var(--token-text-h5);
   --text-3xl--line-height: var(--token-text-h5--line-height);
+  --text-3xl--font-weight: var(--token-text-h5--font-weight);
   --text-4xl: var(--token-text-h4);
   --text-4xl--line-height: var(--token-text-h4--line-height);
+  --text-4xl--font-weight: var(--token-text-h4--font-weight);
   --text-5xl: var(--token-text-h3);
   --text-5xl--line-height: var(--token-text-h3--line-height);
+  --text-5xl--font-weight: var(--token-text-h3--font-weight);
   --text-6xl: var(--token-text-h2);
   --text-6xl--line-height: var(--token-text-h2--line-height);
+  --text-6xl--font-weight: var(--token-text-h2--font-weight);
   --text-7xl: var(--token-text-h1);
   --text-7xl--line-height: var(--token-text-h1--line-height);
+  --text-7xl--font-weight: var(--token-text-h1--font-weight);
+
+  --text-action-button: var(--token-text-action-button);
+  --text-action-button--line-height: var(--token-text-action-button--line-height);
+  --text-action-button--font-weight: var(--token-text-action-button--font-weight);
 
   /* Figma foreground colors */
   /* `Initial` overrides all colors provided by tailwind */
@@ -195,8 +219,8 @@
   --color-border-action: var(--color-border-action);
   --color-border-action-hover: var(--color-border-action-hover);
   --color-border-focus: var(--color-border-focus);
-  --color-border-black: var(--color-border-black);
-  --color-border-white: var(--color-border-white);
+  --color-border-black: var(--color-border-neutral-black);
+  --color-border-white: var(--color-border-neutral-white);
 
   /* Gradients */
   --color-gradient-primary-start: var(--color-gradient-primary-start);
@@ -206,16 +230,20 @@
 
   /* Radius */
   --radius-*: initial;
-  --radius: var(--radius-md);
-  --radius-none: var(--radius-none);
-  --radius-sm: var(--radius-sm);
-  --radius-md: var(--radius-md);
-  --radius-lg: var(--radius-lg);
-  --radius-xl: var(--radius-xl);
-  --radius-2xl: var(--radius-2xl);
+  --radius: var(--border-radius-md);
+  --radius-none: var(--border-radius-none);
+  --radius-sm: var(--border-radius-sm);
+  --radius-md: var(--border-radius-md);
+  --radius-lg: var(--border-radius-lg);
+  --radius-xl: var(--border-radius-xl);
+  --radius-2xl: var(--border-radius-2xl);
+  --radius-button: var(--border-radius-button);
+  --radius-form-field: var(--border-radius-form-field);
+  --radius-pills: var(--border-radius-pills);
+  --radius-notification: var(--border-radius-notification);
 
   /* Spacing */
-  --spacing: var(--spacing-2xs);
+  --spacing: var(--spacing-1);
 
   /* Container */
   --container-6xl: var(--theme-container-6xl);
@@ -232,7 +260,7 @@
 
   /* Blur */
   --blur-*: initial;
-  --blur-default: calc(var(--spacing-md) / 2);
+  --blur-default: calc(var(--spacing-4) / 2);
 
   /* Breakpoints */
   /* mobile default */
@@ -252,18 +280,20 @@
   --color-chart-1: var(--chart-1);
 }
 
-@layer utilities {
-  .border-sm {
-    border-width: var(--border-width-sm);
-  }
-
-  .border-md {
-    border-width: var(--border-width-md);
-  }
-
-  .border-lg {
-    border-width: var(--border-width-lg);
-  }
+/* Border Width, assigned to border-w classGroups in src/lib/utils.ts */
+@theme {
+  --border-width-sm: var(--border-width-sm);
+  --border-width-md: var(--border-width-md);
+  --border-width-lg: var(--border-width-lg);
+  --border-width-button: var(--border-width-button);
+  --border-width-form-field: var(--border-width-form-field);
+  --border-width-pills: var(--border-width-pills);
+  --border-width-notification: var(--border-width-notification);
+  --border-width-focus: var(--border-width-focus);
+}
+@utility border-width-* {
+  @apply border-solid;
+  border-width: --value(--border-width-*);
 }
 
 @layer base {

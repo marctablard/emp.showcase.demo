@@ -19,7 +19,7 @@ export default function NotificationStyleguide() {
           <div className="flex flex-wrap gap-4">
             <Button
               variant="secondary"
-              className="text-text-success border-border-success bg-surface-success"
+              className="text-text-success border-border-success bg-surface-success border-width-notification rounded-notification"
               onClick={() =>
                 toast({
                   title: title,
@@ -33,7 +33,7 @@ export default function NotificationStyleguide() {
             </Button>
             <Button
               variant="secondary"
-              className="text-text-warning border-border-warning bg-surface-warning"
+              className="text-text-warning border-border-warning bg-surface-warning border-width-notification rounded-notification"
               onClick={() =>
                 toast({
                   title: title,
@@ -47,7 +47,7 @@ export default function NotificationStyleguide() {
             </Button>
             <Button
               variant="secondary"
-              className="text-text-error border-border-error bg-surface-error"
+              className="text-text-error border-border-error bg-surface-error border-width-notification rounded-notification"
               onClick={() =>
                 toast({
                   title: title,
@@ -61,7 +61,7 @@ export default function NotificationStyleguide() {
             </Button>
             <Button
               variant="secondary"
-              className="text-text-information border-border-information bg-surface-information"
+              className="text-text-information border-border-information bg-surface-information border-width-notification rounded-notification"
               onClick={() =>
                 toast({
                   title: title,
@@ -80,7 +80,7 @@ export default function NotificationStyleguide() {
           <div className="flex flex-wrap gap-4">
             <Button
               variant="secondary"
-              className="text-text-success border-border-success bg-surface-success"
+              className="text-text-success border-border-success bg-surface-success border-width-notification rounded-notification"
               onClick={() =>
                 notify({
                   title: message,
@@ -93,7 +93,7 @@ export default function NotificationStyleguide() {
             </Button>
             <Button
               variant="secondary"
-              className="text-text-warning border-border-warning bg-surface-warning"
+              className="text-text-warning border-border-warning bg-surface-warning border-width-notification rounded-notification"
               onClick={() =>
                 notify({
                   title: message,
@@ -106,7 +106,7 @@ export default function NotificationStyleguide() {
             </Button>
             <Button
               variant="secondary"
-              className="text-text-error border-border-error bg-surface-error"
+              className="text-text-error border-border-error bg-surface-error border-width-notification rounded-notification"
               onClick={() =>
                 notify({
                   title: message,
@@ -119,7 +119,7 @@ export default function NotificationStyleguide() {
             </Button>
             <Button
               variant="secondary"
-              className="text-text-information border-border-information bg-surface-information"
+              className="text-text-information border-border-information bg-surface-information border-width-notification rounded-notification"
               onClick={() =>
                 notify({
                   title: message,

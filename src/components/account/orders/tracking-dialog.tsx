@@ -28,10 +28,11 @@ export function TrackingDialog({ orderId, open, onOpenChange }: TrackingDialogPr
 
   // Fetch data when dialog opens
   useEffect(() => {
-    if (orderId && !loading && open && !trackingInfo) {
+    if (orderId && open) {
       refetch();
     }
-  }, [loading, open, refetch, trackingInfo, orderId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, orderId]);
 
   // Status icon mapping
   const getStatusIcon = (status: TrackingInfo['status']) => {

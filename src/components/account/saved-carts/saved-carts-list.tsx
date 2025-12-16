@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowRight, Search } from 'lucide-react';
 import { SavedCartsTable } from '@/components/account/saved-carts/saved-carts-table';
 import { CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
+import { H4 } from '@/components/ui/h';
 import { Input } from '@/components/ui/input';
 import UiLink from '@/components/ui/link';
 import { useCart } from '@/hooks/cart/useCart';
@@ -111,7 +112,9 @@ export function SavedCartsList({ className, title, isModal = false, onClose, ...
   return (
     <DashboardCard variant="default" className={cn('py-4', className)} {...props}>
       <div className="flex items-center justify-between mb-4">
-        <CardTitle className="text-4xl font-bold">{title || t('mySavedCarts')}</CardTitle>
+        <CardTitle>
+          <H4>{title || t('mySavedCarts')}</H4>
+        </CardTitle>
         {!isModal && (
           <UiLink type="Link" href="/account/saved-carts" variant="primary" size="m" iconAfter={<ArrowRight />}>
             {t('showAllSavedCarts')}

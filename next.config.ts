@@ -47,17 +47,56 @@ let nextConfig: NextConfig = {
   },
   headers: async () => {
     const headers = [];
-    if (process.env.NEXT_PUBLIC_ROBOTS_NOINDEX === 'true') {
+    // Security headers for all routes
+    const securityHeaders = [
+      {
+        key: 'X-Content-Type-Options',
+        value: process.env.X_CONTENT_TYPE_OPTIONS || 'nosniff',
+      },
+      {
+        key: 'Cross-Origin-Resource-Policy',
+        value: process.env.CROSS_ORIGIN_RESOURCE_POLICY || 'same-site',
+      },
+      {
+        key: 'Cross-Origin-Opener-Policy',
+        value: process.env.CROSS_ORIGIN_OPENER_POLICY || 'same-origin',
+      },
+      {
+        key: 'Referrer-Policy',
+        value: process.env.REFERRER_POLICY || 'no-referrer',
+      },
+      {
+        key: 'X-XSS-Protection',
+        value: process.env.X_XSS_PROTECTION || '1; mode=block',
+      },
+    ];
+
+    // Add HSTS header in production
+    if (process.env.NODE_ENV === 'production') {
+      securityHeaders.push({
+        key: 'Strict-Transport-Security',
+        value: process.env.STRICT_TRANSPORT_SECURITY || 'max-age=31536000; includeSubDomains; preload',
+      });
+    }
+
+    headers.push({
+      source: '/:path*',
+      headers: securityHeaders,
+    });
+
+    // Robots meta tag for noindex
+    if (process.env.NEXT_ROBOTS_NOINDEX === 'true') {
       headers.push({
+        source: '/:path*',
         headers: [
           {
             key: 'X-Robots-Tag',
             value: 'noindex',
           },
         ],
-        source: '/:path*',
       });
     }
+
     return headers;
   },
   output: outputMode,

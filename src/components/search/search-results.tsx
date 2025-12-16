@@ -182,8 +182,7 @@ export function SearchResultsComponent({ initialSearch, initialResults, locale }
                       e.preventDefault();
                       if (currentPage > 0) changePage(currentPage - 1);
                     }}
-                    aria-disabled={currentPage === 0}
-                    className={currentPage === 0 ? 'pointer-events-none text-text-disabled' : ''}
+                    disabled={currentPage === 0}
                   />
                 </PaginationItem>
 
@@ -192,7 +191,6 @@ export function SearchResultsComponent({ initialSearch, initialResults, locale }
                     <PaginationLink
                       href="#"
                       isActive={currentPage === pageNumber}
-                      className={currentPage === pageNumber ? 'bg-surface-action text-text-on-action' : ' '}
                       onClick={(e) => {
                         e.preventDefault();
                         changePage(pageNumber);
@@ -213,10 +211,7 @@ export function SearchResultsComponent({ initialSearch, initialResults, locale }
                         changePage(currentPage + 1);
                       }
                     }}
-                    aria-disabled={currentPage === Math.ceil(total / pageSize) - 1}
-                    className={
-                      currentPage === Math.ceil(total / pageSize) - 1 ? 'pointer-events-none text-text-disabled' : ''
-                    }
+                    disabled={currentPage === Math.ceil(total / pageSize) - 1}
                   />
                 </PaginationItem>
               </PaginationContent>

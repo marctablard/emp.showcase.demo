@@ -123,6 +123,7 @@
     }
   },
   "accountDashboardDescription": "Verwalten Sie Ihr Konto, Bestellungen und Unternehmensinformationen",
+  "accountLoginDescription": "Melden Sie sich an, um Ihre Bestellungen verwalten und Ihre Unternehmensinformationen anzeigen.",
   "accountDetails": "Kontodaten",
   "profileSettings": "Profileinstellungen",
   "company": "Unternehmen",
@@ -326,13 +327,82 @@
     "seeAll": "Alle anzeigen"
   },
   "AiHelper": {
-    "title": "KI-Dashboard-Assistent",
+    "title": "Emporix KI-Agent",
     "placeholder": "Stellen Sie Ihre Frage an den KI-Agenten",
+    "chatPlaceholder": "Nachricht eingeben...",
     "buttonText": "LOS!",
+    "sendButton": "Senden",
+    "sending": "Wird gesendet...",
+    "thinking": "KI denkt nach...",
+    "emptyState": "Beginnen Sie ein Gespräch mit dem KI-Assistenten",
+    "addToCartMessage": "Produkt hinzufügen: {productId} mit Menge {quantity} zum Warenkorb",
+    "addSelectedToCart": "Ausgewählte zum Warenkorb hinzufügen ({count} Artikel)",
+    "productSelection": "Produktauswahl:",
+    "addToCart": "In den Warenkorb",
+    "priceOnRequest": "Preis auf Anfrage",
+    "reviews": "{count} Bewertungen",
+    "accountInformation": "Kontoinformationen",
+    "savedAddresses": "Gespeicherte Adressen",
+    "name": "Name",
+    "email": "E-Mail",
+    "company": "Unternehmen",
+    "customerNumber": "Kundennummer",
+    "businessModel": "Geschäftsmodell",
+    "preferredLanguage": "Bevorzugte Sprache",
+    "preferredCurrency": "Bevorzugte Währung",
+    "preferredSite": "Bevorzugte Seite",
+    "lastLogin": "Letzter Login",
+    "default": "Standard",
+    "orderItems": "Bestellpositionen:",
+    "quantity": "Menge:",
+    "unit": "Einheit:",
+    "gross": "Brutto:",
+    "net": "Netto:",
+    "total": "Gesamt:",
+    "items": "Artikel",
+    "moreItems": "weitere",
+    "quoteItems": "Angebotspositionen:",
+    "submitted": "Eingereicht:",
+    "validUntil": "Gültig bis:",
+    "customer": "Kunde:",
+    "approver": "Genehmiger:",
+    "shippingInformation": "Versandinformationen:",
+    "shippingAddress": "Lieferadresse:",
+    "billingAddress": "Rechnungsadresse:",
+    "addresses": "Adressen",
+    "paymentInformation": "Zahlungsinformationen",
+    "method": "Methode:",
+    "shipping": "Versand:",
+    "orderSummary": "Bestellübersicht",
+    "viewFullOrderDetails": "Vollständige Bestelldetails anzeigen",
+    "comments": "Kommentare:",
+    "yourComment": "Ihr Kommentar:",
+    "employeeComment": "Mitarbeiterkommentar:",
+    "viewFullQuoteDetails": "Vollständige Angebotsdetails anzeigen",
+    "previewItems": "Vorschauartikel:",
+    "page": "Seite {page} von {totalPages} ({totalItems} insgesamt)",
+    "cartSummary": "Warenkorbübersicht",
+    "totalItems": "Gesamtanzahl Artikel:",
+    "netTotal": "Nettosumme:",
+    "tax": "Steuer:",
+    "vat": "MwSt.",
+    "grandTotal": "Gesamtsumme:",
+    "subtotal": "Zwischensumme:",
+    "goToCheckout": "Zur Kasse",
+    "error": "Fehler",
+    "retry": "Wiederholen",
+    "pleaseTryAgain": "Bitte versuchen Sie es erneut",
+    "clearChat": "Chat löschen",
+    "errorOccurred": "Entschuldigung, es ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.",
+    "received": "Erhalten",
+    "notReceived": "Nicht erhalten",
+    "expiresOn": "Läuft ab am",
+    "reason": "Grund",
+    "relatedOrders": "Zugehörige Bestellungen",
     "suggestions": {
-      "openInvoices": "Wie viele Rechnungen sind offen?",
-      "availableOffers": "Welche Angebote sind aktuell verfügbar?",
-      "recentPurchases": "Welche Produkte wurden kürzlich gekauft?"
+      "openQuotes": "Habe ich offene Angebote?",
+      "showProfile": "Mein Profil anzeigen",
+      "pendingOrders": "Alle ausstehenden Bestellungen anzeigen"
     }
   },
   "Tickets": {
@@ -407,5 +477,41 @@
     "title": "Platzhalterseite",
     "description": "Diese Seite ist ein Platzhalter in der Emporix-Referenz-Storefront.",
     "details": "Sie zeigt, wo zusätzliche Funktionen, Apps oder benutzerdefinierte Integrationen hinzugefügt werden können. Der Inhalt und die Funktionalität dieser Seite variieren je nach Anforderungen und Projektumfang."
+  },
+  "landing": {
+    "title": "Willkommen in Ihrem Service-Portal",
+    "subtitle": "Verwalten Sie Ihr Geschäft effizient mit unseren umfassenden Konto-Funktionen",
+    "benefits": {
+      "title": "Warum ein Konto erstellen?",
+      "trackOrders": {
+        "title": "Bestellungen verfolgen",
+        "description": "Überwachen Sie alle Ihre Bestellungen in Echtzeit, sehen Sie die Bestellhistorie ein und verwalten Sie Retouren mühelos."
+      },
+      "aiAssistant": {
+        "title": "KI-gestützter Assistent",
+        "description": "Erhalten Sie sofortige Antworten auf Ihre Fragen mit unserem intelligenten KI-Helfer, der rund um die Uhr verfügbar ist."
+      },
+      "supportTickets": {
+        "title": "Support-Tickets",
+        "description": "Erstellen und verwalten Sie Support-Tickets direkt von Ihrem Dashboard aus für eine schnelle Lösung."
+      },
+      "quotes": {
+        "title": "Angebote anfordern & verwalten",
+        "description": "Fordern Sie individuelle Angebote an und verfolgen Sie deren Status an einem Ort."
+      },
+      "approvals": {
+        "title": "Freigabe-Workflows",
+        "description": "Optimieren Sie Ihre Geschäftsprozesse mit integriertem Freigabe-Management."
+      },
+      "insights": {
+        "title": "Geschäftseinblicke",
+        "description": "Greifen Sie auf detaillierte Analysen und Einblicke zu Ihren Bestellungen und Ausgabenmustern zu."
+      }
+    },
+    "cta": {
+      "login": "Bei Ihrem Konto anmelden",
+      "register": "Kostenloses Konto erstellen",
+      "registerSubtext": "Schließen Sie sich Tausenden von Unternehmen an, die bereits unsere Plattform nutzen"
+    }
   }
 }

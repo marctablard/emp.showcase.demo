@@ -1,5 +1,3 @@
-'use client';
-
 import { StoryblokServerComponent, storyblokEditable } from '@storyblok/react/rsc';
 import { H1 } from '@/components/ui/h';
 
@@ -24,7 +22,9 @@ const Page = ({ blok }: PageProps) => {
       {blok.title && <H1 className="mb-6">{blok.title}</H1>}
 
       <div className="space-y-8">
-        {blok.body?.map((nestedBlok) => <StoryblokServerComponent blok={nestedBlok} key={nestedBlok._uid} />)}
+        {blok.body?.map((nestedBlok) => (
+          <StoryblokServerComponent blok={nestedBlok} key={nestedBlok._uid} />
+        ))}
       </div>
     </div>
   );

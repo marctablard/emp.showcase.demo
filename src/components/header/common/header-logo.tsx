@@ -1,35 +1,38 @@
 import { useTranslations } from 'next-intl';
-import Image from 'next/image';
 import Link from 'next/link';
+import { useHeaderSearch } from '@/components/header/search/search-context';
+import { breakpoints } from '@/hooks/useBreakpoint';
+import { cn } from '@/lib/utils';
 
 interface HeaderLogoProps {
-  small?: boolean;
-  width?: number;
-  height?: number;
+  scrolled: boolean;
   className?: string;
   title?: string;
+  largeImageBreakpoint?: keyof typeof breakpoints;
 }
 
-export const HeaderLogo = ({ small = false, width, height, className, title }: HeaderLogoProps) => {
-  const t = useTranslations('common');
-
-  // Default dimensions based on logo variant
-  const defaultDimensions = small
-    ? { width: 25, height: 22, className: 'min-w-[25px] min-h-[22px]' }
-    : { width: 108, height: 16, className: 'min-w-[108px] min-h-[16px]' };
-
-  // Use provided values or defaults
-  const imageWidth = width !== undefined ? width : defaultDimensions.width;
-  const imageHeight = height !== undefined ? height : defaultDimensions.height;
-  const imageClassName = className || defaultDimensions.className;
+export const HeaderLogo = ({ scrolled, className, title, largeImageBreakpoint }: HeaderLogoProps) => {
+  const { showSearch } = useHeaderSearch();
+  const t = useTranslations('layout.header');
   const linkTitle = title || t('home');
-
-  // Logo source based on variant
-  const logoSrc = small ? '/images/logo_small.svg' : '/images/logo.svg';
+  const mobileLogo = '/images/logo_small.svg';
+  const desktopLogo = '/images/logo.svg';
+  largeImageBreakpoint = largeImageBreakpoint || 'md';
 
   return (
-    <Link href="/" title={linkTitle}>
-      <Image src={logoSrc} alt="Logo" width={imageWidth} height={imageHeight} className={imageClassName} />
+    <Link href="/" title={linkTitle} className={cn('shrink-0', showSearch ? 'sm:hidden' : '', className)}>
+      <picture>
+        {!scrolled && <source media={`(min-width: ${breakpoints[largeImageBreakpoint]}px)`} srcSet={desktopLogo} />}
+        <img
+          src={mobileLogo}
+          alt="Emporix Shop"
+          className={cn(
+            'w-[18px] h-[16px] aspect-18/16 md:w-[148px] md:h-[22px] md:aspect-148/22',
+            largeImageBreakpoint === 'sm' && 'sm:w-[148px] sm:h-[22px] sm:aspect-148/22',
+            scrolled && 'md:w-[25px] md:aspect-25/22',
+          )}
+        />
+      </picture>
     </Link>
   );
 };

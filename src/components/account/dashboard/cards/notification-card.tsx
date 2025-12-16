@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, ArrowRight, CircleAlert, CircleCheck, MoveRight } from 'lucide-react';
 import { CardTitle } from '@/components/ui/card';
+import { H4 } from '@/components/ui/h';
 import UiLink from '@/components/ui/link';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
@@ -93,7 +94,9 @@ export function NotificationCard({ className, title, items: customItems, ...prop
   return (
     <DashboardCard variant="default" className={cn('py-4', className)} {...props}>
       <div className="flex items-center justify-between flex-wrap mb-4">
-        <CardTitle className="text-4xl font-bold me-2">{title || t('title')}</CardTitle>
+        <CardTitle className="me-2">
+          <H4>{title || t('title')}</H4>
+        </CardTitle>
         <UiLink type="Link" href="/account/notifications" variant="primary" size="m" iconAfter={<ArrowRight />}>
           {t('viewAll')}
         </UiLink>

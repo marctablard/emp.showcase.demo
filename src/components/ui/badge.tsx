@@ -23,8 +23,8 @@ const badgeVariants = cva(
       },
       rounded: {
         none: 'rounded-none',
-        roundedRight: 'rounded-r-sm',
-        default: 'rounded-sm',
+        roundedRight: 'rounded-r-pill',
+        default: 'rounded-pill',
         full: 'rounded-full',
       },
       fontWeight: {
