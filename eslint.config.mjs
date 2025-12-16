@@ -1,29 +1,37 @@
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { FlatCompat } from '@eslint/eslintrc';
+import nextVitals from 'eslint-config-next/core-web-vitals';
+import nextTs from 'eslint-config-next/typescript';
+import prettier from 'eslint-config-prettier/flat';
 import { defineConfig, globalIgnores } from 'eslint/config';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
-
-export default defineConfig({
-  extends: [
-    ...compat.extends('next/core-web-vitals', 'next/typescript'),
-    globalIgnores(['**/*.test.ts', '**/*.test.tsx', '**/jest.config.js', '**/jest.setup.js', '**/*.d.ts']),
-    {
-      rules: {
-        '@typescript-eslint/no-explicit-any': 'off', // we are more lax about any-types, especially in regards to Mixins
-        '@typescript-eslint/no-empty-object-type': 'off', //  Empty Object Types are necessary for specific Mapper<T,K> declarations
-        '@typescript-eslint/no-unused-vars': [
-          'error',
-          { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }, // excluding unused variables which are prefixed with _ is common practice
-        ],
-        '@typescript-eslint/no-unsafe-function-type': 'off',
-      },
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  prettier,
+  {
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off', // we are more lax about any-types, especially in regards to Mixins
+      '@typescript-eslint/no-empty-object-type': 'off', //  Empty Object Types are necessary for specific Mapper<T,K> declarations
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }, // excluding unused variables which are prefixed with _ is common practice
+      ],
+      '@typescript-eslint/no-unsafe-function-type': 'off',
     },
-  ],
-});
+  },
+  globalIgnores([
+    // Default ignores of eslint-config-next:
+    'node_modules/**',
+    '.next/**',
+    'out/**',
+    'build/**',
+    'next-env.d.ts',
+    'scripts/**',
+    '**/*.test.ts',
+    '**/*.test.tsx',
+    '**/*.config.*s',
+    '**/*.setup.js',
+    '**/*.d.ts',
+  ]),
+]);
+
+export default eslintConfig;

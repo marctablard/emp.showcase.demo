@@ -67,7 +67,7 @@ export function AccountSidebar({ className, items, groups = [], ...props }: Side
   return (
     <nav
       className={cn(
-        'flex flex-col min-w-[288px] items-start border rounded-2xl h-full overflow-y-auto py-4',
+        'flex flex-col min-w-[288px] items-start rounded-md h-full overflow-y-auto py-4 shadow-sm',
         className,
       )}
       {...props}

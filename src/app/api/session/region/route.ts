@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { SessionService } from '@/platform/services/session/SessionService';
 
 export const dynamic = 'force-dynamic';
@@ -9,7 +10,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function PUT(request: NextRequest) {
   try {
-    const sessionService = EMP.platform.server.get<SessionService>('SessionService');
+    const sessionService = server.get<SessionService>('SessionService');
     const data = await request.json();
 
     if (!data.region) {

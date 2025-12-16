@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { ShippingService } from '@/platform/services/shipping/ShippingService';
 
 /**
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required parameters: countryCode and postalCode' }, { status: 400 });
     }
 
-    const shippingService = EMP.platform.server.get<ShippingService>('ShippingService');
+    const shippingService = server.get<ShippingService>('ShippingService');
     let orderValue = undefined;
     if (amount && currency) {
       orderValue = { amount: Number(amount), currency };
@@ -32,21 +33,18 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * GET /api/shipping/[methodId]
- * Get a specific shipping method by ID
+ * POST /api/shipping
+ * Get a specific shipping method by ID and zone (expects JSON body: { methodId, zoneId })
  */
-export async function POST(
-  _request: NextRequest,
-  { params }: { params: Promise<{ methodId: string; zoneId: string }> },
-) {
+export async function POST(request: NextRequest) {
   try {
-    const { methodId, zoneId } = await params;
+    const { methodId, zoneId } = await request.json();
 
     if (!methodId || !zoneId) {
       return NextResponse.json({ error: 'Missing required parameters: methodId and zoneId' }, { status: 400 });
     }
 
-    const shippingService = EMP.platform.server.get<ShippingService>('ShippingService');
+    const shippingService = server.get<ShippingService>('ShippingService');
 
     const method = await shippingService.getShippingMethod(methodId, zoneId);
 

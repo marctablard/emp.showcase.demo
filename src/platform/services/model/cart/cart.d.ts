@@ -7,13 +7,14 @@ export interface Cart {
   site: string;
   legalEntity?: string;
   channel?: string;
+  customerId?: string;
+  sessionId?: string;
   items: CartItem[];
   shippingCosts?: Price;
   fees?: Price;
   totalPrice: Price;
   subTotalPrice: Price;
   tax: Tax;
-  processUpdate?: CartUpdate;
 }
 
 export interface CartItem {
@@ -24,8 +25,15 @@ export interface CartItem {
   tax?: Tax;
 }
 
-export interface CartUpdate {
+export interface CartItemPriceChange {
   itemId: string;
   productId: string;
+  oldPrice: number;
+  newPrice: number;
   updatedAt: Date;
+}
+
+export interface CartItemSubstitution {
+  productId: string;
+  substitutions: { productId: string; name: string; availableQuantity: number }[];
 }

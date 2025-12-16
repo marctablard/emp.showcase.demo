@@ -23,9 +23,10 @@ import { cn } from '@/lib/utils';
 interface UiBreadcrumbProps extends React.ComponentProps<'nav'> {
   items: BreadcrumbContent[];
   maxItems?: number;
+  disabledCategories?: boolean;
 }
 
-export function UiBreadcrumb({ items, maxItems = 2, className, ...props }: UiBreadcrumbProps) {
+export function UiBreadcrumb({ items, maxItems = 2, className, disabledCategories, ...props }: UiBreadcrumbProps) {
   const t = useTranslations('common.Breadcrumb');
 
   // If items array is empty, don't render anything
@@ -52,7 +53,10 @@ export function UiBreadcrumb({ items, maxItems = 2, className, ...props }: UiBre
           <BreadcrumbItem key="dropdown" className="flex items-center sm:hidden">
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-1">
-                <MoreHorizontal className="h-4 w-4 font-bold text-primary hover:text-primary-700" aria-hidden="true" />
+                <MoreHorizontal
+                  className="h-4 w-4 font-bold text-text-action hover:text-text-action-hover"
+                  aria-hidden="true"
+                />
                 <span className="sr-only">Toggle menu</span>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
@@ -60,7 +64,7 @@ export function UiBreadcrumb({ items, maxItems = 2, className, ...props }: UiBre
                   <DropdownMenuItem key={index} asChild>
                     <a
                       href={hiddenItem.href}
-                      className="cursor-pointer w-full font-bold underline text-primary hover:text-primary-700"
+                      className="cursor-pointer w-full font-bold underline text-text-action hover:text-text-action-hover"
                     >
                       {hiddenItem.label}
                     </a>
@@ -68,14 +72,21 @@ export function UiBreadcrumb({ items, maxItems = 2, className, ...props }: UiBre
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            <ChevronRight className="h-4 w-4 text-text-placeholders" aria-hidden="true" />
           </BreadcrumbItem>
         )}
         {/* Breadcrumb items */}
         {hiddenItems.map((item, index) => {
           return (
             <BreadcrumbItem key={index} className="hidden sm:block">
-              <BreadcrumbLink href={item.href}>{item.label}</BreadcrumbLink>
+              {disabledCategories ? (
+                <BreadcrumbPage className="inline-flex items-center whitespace-nowrap text-text-action [&>svg]:size-4 md:[&>svg]:size-6 font-bold underline px-0 md:px-0">
+                  {item.label}
+                  <ChevronRight className="size-4" />
+                </BreadcrumbPage>
+              ) : (
+                <BreadcrumbLink href={item.href}>{item.label}</BreadcrumbLink>
+              )}
             </BreadcrumbItem>
           );
         })}

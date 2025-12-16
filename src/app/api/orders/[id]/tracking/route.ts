@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { TrackingService } from '@/platform/services/tracking/TrackingService';
 
 /**
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const orderId = resolvedParams.id;
 
   try {
-    const trackingService = globalThis.EMP.platform.server.get<TrackingService>('TrackingService');
+    const trackingService = server.get<TrackingService>('TrackingService');
 
     const trackingInfo = await trackingService.getOrderTrackingInfo(orderId);
 

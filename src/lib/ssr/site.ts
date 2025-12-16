@@ -1,8 +1,9 @@
 import { cache } from 'react';
 import { Site } from '@/platform/services/model/common/site';
 import { SiteService } from '@/platform/services/site/SiteService';
+import ssr from '@/platform/ssr';
 
-const getSiteService = () => globalThis.EMP.platform.ssr.get<SiteService>('SiteService');
+const getSiteService = () => ssr.get<SiteService>('SiteService');
 
 const _getSite = cache(async (code: string): Promise<Site | null> => {
   try {

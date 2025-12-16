@@ -16,11 +16,11 @@ interface FeatureProps {
 
 const Feature = ({ blok }: FeatureProps) => {
   return (
-    <div {...storyblokEditable(blok)} className="p-6 border rounded-lg shadow-sm">
+    <div {...storyblokEditable(blok)} className="p-6 border rounded-md shadow-sm">
       <Heading variant="h3" as="div">
         {blok.name}
       </Heading>
-      <p className="text-neutral-600">{blok.description}</p>
+      <p className="text-text-on-disabled">{blok.description}</p>
     </div>
   );
 };

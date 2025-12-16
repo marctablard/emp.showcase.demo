@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { ApprovalService } from '@/platform/services/approval/ApprovalService';
 import { ApprovalPermittedRequest } from '@/platform/services/model/approval';
 
@@ -10,7 +11,7 @@ export const revalidate = 0;
  */
 export async function POST(request: NextRequest) {
   try {
-    const approvalService = globalThis.EMP.platform.server.get<ApprovalService>('ApprovalService');
+    const approvalService = server.get<ApprovalService>('ApprovalService');
 
     // Get request body
     const body: ApprovalPermittedRequest = await request.json();

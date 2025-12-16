@@ -32,7 +32,7 @@ export function EmailSignupSection({ control, number }: EmailSignupSectionProps)
               <FormControl>
                 <Checkbox id="newsletter" checked={field.value} onCheckedChange={field.onChange} />
               </FormControl>
-              <FormLabel className="font-normal" htmlFor="newsletter">
+              <FormLabel className="font-medium" htmlFor="newsletter">
                 {t('newsletter')}
               </FormLabel>
               <FormMessage />
@@ -47,7 +47,7 @@ export function EmailSignupSection({ control, number }: EmailSignupSectionProps)
               <FormControl>
                 <Checkbox id="dealsAlerts" checked={field.value} onCheckedChange={field.onChange} />
               </FormControl>
-              <FormLabel className="font-normal" htmlFor="dealsAlerts">
+              <FormLabel className="font-medium" htmlFor="dealsAlerts">
                 {t('dealsAlerts')}
               </FormLabel>
               <FormMessage />

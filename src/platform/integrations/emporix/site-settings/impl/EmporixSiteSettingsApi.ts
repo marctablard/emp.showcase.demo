@@ -10,8 +10,8 @@ import { EmporixSiteSettingsApi as IEmporixSiteSettingsApi } from '../EmporixSit
 @injectable('EmporixSiteSettingsApi', 'Singleton')
 class EmporixSiteSettingsApi implements IEmporixSiteSettingsApi {
   constructor(
-    @inject('EmporixApiInvoker') private apiClient: EmporixApiClient,
-    @inject('EmporixConfig') private config: EmporixConfig,
+    @inject('EmporixApiInvoker') protected apiClient: EmporixApiClient,
+    @inject('EmporixConfig') protected config: EmporixConfig,
   ) {
     this.apiClient = apiClient;
     this.config = config;

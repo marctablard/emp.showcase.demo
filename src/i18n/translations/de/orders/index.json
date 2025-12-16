@@ -150,7 +150,24 @@
     "saveComment": "Kommentar speichern",
     "commentUpdated": "Kommentar aktualisiert",
     "success": "Erfolg",
-    "error": "Fehler"
+    "error": "Fehler",
+    "submitOrder": "Bestellung aufgeben",
+    "orderOverview": "Bestellübersicht",
+    "valueOfGoods": "Warenwert",
+    "shippingCosts": "Versandkosten",
+    "vat": "MwSt.",
+    "totalValue": "Gesamtbetrag",
+    "transport": "Transport",
+    "transportCondition": "Transportbedingung",
+    "deliveryAddress": "Lieferadresse",
+    "payment": "Zahlung",
+    "paymentMethod": "Zahlungsmethode",
+    "billingAddress": "Rechnungsadresse",
+    "other": "Sonstiges",
+    "note": "Notiz",
+    "notProvided": "Nicht angegeben",
+    "requestorCommentUpdated": "Kommentar des Anforderers aktualisiert",
+    "approverCommentUpdated": "Kommentar des Genehmigers aktualisiert"
   },
   "ApprovalAction": {
     "CHECKOUT": "Bestellung"

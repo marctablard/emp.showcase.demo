@@ -155,7 +155,7 @@ export interface EmporixOrder {
 }
 
 /**
- * Request to create a new order
+ * Request to create a new order from a cart
  */
 export interface EmporixCreateOrderRequest {
   cartId: string;
@@ -164,6 +164,14 @@ export interface EmporixCreateOrderRequest {
   customerEmail?: string;
   customerNote?: string;
   payments?: EmporixPayment[];
+}
+
+/**
+ * Request to create a new order from a quote
+ */
+export interface EmporixCreateOrderFromQuoteRequest {
+  quoteId: string;
+  customerNote?: string;
 }
 
 /**

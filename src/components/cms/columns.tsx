@@ -14,7 +14,7 @@ interface ColumnsProps {
 
 const Columns = ({ blok }: ColumnsProps) => {
   return (
-    <div {...storyblokEditable(blok)} className="flex flex-col md:flex-row gap-4">
+    <div {...storyblokEditable(blok)} className="flex flex-col sm:flex-row gap-4">
       {blok.columns?.map((nestedBlok) => (
         <div key={nestedBlok._uid} className="flex-1">
           <StoryblokServerComponent blok={nestedBlok} />

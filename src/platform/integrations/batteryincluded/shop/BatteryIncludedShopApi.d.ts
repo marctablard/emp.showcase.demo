@@ -17,8 +17,9 @@ export interface BatteryIncludedShopApi {
    * Get product suggestions based on a search query
    * @param query Search query
    * @param locale Locale for localized content
+   * @param segmentIds
    */
-  suggest(query: string, locale?: string): Promise<Suggestion[]>;
+  suggest(query: string, locale?: string, segmentIds?: string): Promise<Suggestion[]>;
 
   /**
    * Get highlighted products

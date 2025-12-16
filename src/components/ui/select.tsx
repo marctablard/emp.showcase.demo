@@ -19,7 +19,7 @@ function SelectGroup({ ...props }: React.ComponentProps<typeof SelectPrimitive.G
 }
 
 function SelectValue({ ...props }: React.ComponentProps<typeof SelectPrimitive.Value>) {
-  return <SelectPrimitive.Value data-slot="select-value" className="text-neutral-800 " {...props} />;
+  return <SelectPrimitive.Value data-slot="select-value" className="text-text-body" {...props} />;
 }
 
 function SelectTrigger({ className, children, disabled, startIcon, ...props }: SelectProps) {
@@ -31,14 +31,14 @@ function SelectTrigger({ className, children, disabled, startIcon, ...props }: S
     <div
       className={cn(
         'w-full relative ',
-        'transition-all hover:text-primary-700 hover:bg-white',
-        dataDirtySuccess && 'text-success-500 border-success-500',
-        props['aria-invalid'] && 'border-danger-500 text-danger-500',
-        disabled && 'hover:text-neutral-600',
+        'transition-all hover:text-text-action-hover hover:bg-surface-page',
+        dataDirtySuccess && 'text-text-success border-border-success',
+        props['aria-invalid'] && 'border-border-error text-text-error',
+        disabled && 'hover:text-text-on-disabled',
       )}
     >
       {StartIcon && (
-        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 border-none text-icon-neutral">
           <StartIcon size={20} />
         </div>
       )}
@@ -46,16 +46,17 @@ function SelectTrigger({ className, children, disabled, startIcon, ...props }: S
       <SelectPrimitive.Trigger
         data-slot="select-trigger"
         className={cn(
-          'text-neutral-900 group flex justify-between items-center w-full min-w-0 px-3 border border-neutral-200 rounded-sm',
-          'transition duration-150 ease-in-out hover:border-primary-700 hover:text-primary-700 hover:bg-white',
+          'text-text-body group flex justify-between items-center w-full min-w-0 px-3 border border-border-primary rounded-sm',
+          'transition duration-150 ease-in-out hover:border-border-action-hover hover:text-text-action-hover hover:bg-surface-page',
           startIcon && 'pl-10',
           disabled &&
-            'bg-neutral-100 text-neutral-600 border-neutral-300 hover:text-neutral-600 hover:bg-neutral-100 hover:border-neutral-300 pointer-events-none',
-          'data-[state=open]:outline-2 data-[state=open]:outline-offset-2 data-[state=open]:outline-primary-500',
-          'aria-invalid:text-danger-500 aria-invalid:border-danger-500 hover:aria-invalid:border-primary-500 hover:aria-invalid:text-primary-700',
-          "data-[placeholder]:text-neutral-300 flex w-full rounded-md text-base py-3 [&_svg:not([class*='size-'])]:size-5",
-          dataDirtySuccess && 'bg-success-100 border-success-500 hover:border-primary-500 hover:text-primary-700',
-          dataDirtyError && 'bg-danger-100 hover:border-primary-500 hover:text-primary-700',
+            'bg-surface-disabled text-text-on-disabled border-border-disabled hover:text-text-on-disabled hover:bg-surface-disabled hover:border-border-disabled pointer-events-none',
+          'data-[state=open]:outline-2 data-[state=open]:outline-offset-2 data-[state=open]:outline-border-focus',
+          'aria-invalid:text-text-error aria-invalid:border-border-error hover:aria-invalid:border-border-action-hover hover:aria-invalid:text-text-action-hover',
+          "data-[placeholder]:text-text-placeholders flex w-full text-base py-3 [&_svg:not([class*='size-'])]:size-5",
+          dataDirtySuccess &&
+            'bg-surface-success border-border-success hover:border-border-action-hover hover:text-text-action-hover',
+          dataDirtyError && 'bg-surface-error hover:border-border-action-hover hover:text-text-action-hover',
           className,
         )}
         {...props}
@@ -64,7 +65,7 @@ function SelectTrigger({ className, children, disabled, startIcon, ...props }: S
         <SelectPrimitive.Icon asChild>
           <ChevronDownIcon
             className={cn(
-              'size-4 text-neutral-900 transition-transform duration-200 group-data-[state=open]:rotate-180',
+              'size-4 text-icon-neutral transition-transform duration-200 group-data-[state=open]:rotate-180',
             )}
           />
         </SelectPrimitive.Icon>
@@ -84,7 +85,7 @@ function SelectContent({
       <SelectPrimitive.Content
         data-slot="select-content"
         className={cn(
-          'mt-1 bg-popover data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 relative z-50 max-h-(--radix-select-content-available-height) min-w-[8rem] origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border shadow-md',
+          'mt-1 bg-surface-page data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 relative z-50 max-h-(--radix-select-content-available-height) min-w-[8rem] origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-sm border',
           position === 'popper' &&
             'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
           className,
@@ -95,7 +96,7 @@ function SelectContent({
         <SelectPrimitive.Viewport
           className={cn(
             position === 'popper' &&
-              'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)] scroll-my-1',
+              'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)] scroll-my-1 divide-y',
           )}
         >
           {children}
@@ -106,13 +107,7 @@ function SelectContent({
 }
 
 function SelectLabel({ className, ...props }: React.ComponentProps<typeof SelectPrimitive.Label>) {
-  return (
-    <SelectPrimitive.Label
-      data-slot="select-label"
-      className={cn('text-muted-foreground px-2 py-1.5 text-xs', className)}
-      {...props}
-    />
-  );
+  return <SelectPrimitive.Label data-slot="select-label" className={cn('text-text-headings', className)} {...props} />;
 }
 
 function SelectItem({
@@ -130,38 +125,28 @@ function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        'w-full relative divide-y',
-        disabled && 'bg-neutral-100 border-neutral-300 text-neutral-600 pointer-events-none',
-        'transition-all hover:text-primary-700 hover:bg-primary-50 hover:border-primary-500',
-        disabled && 'hover:bg-neutral-400 hover:text-white',
-        'data-[state=checked]:bg-primary-500 data-[state=checked]:text-white hover:data-[state=checked]:bg-primary-700',
+        'flex items-center w-full p-3 gap-3 outline-hidden ',
+        disabled && 'bg-surface-disabled border-border-disabled text-text-on-disabled pointer-events-none',
+        'transition-all hover:text-text-action-hover hover:bg-surface-action-hover-2 focus:text-text-action-hover focus:bg-surface-action-hover-2',
+        disabled && 'hover:bg-surface-disabled hover:text-text-on-disabled',
+        'data-[state=checked]:bg-surface-action data-[state=checked]:text-text-on-action hover:data-[state=checked]:bg-surface-action-hover',
         className,
       )}
       {...props}
     >
-      {StartIcon && (
-        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-          <StartIcon size={20} />
-        </div>
-      )}
+      {StartIcon && <StartIcon size={20} />}
 
       <div
         className={cn(
-          'relative flex w-full cursor-default items-center gap-2 rounded-sm py-3 pr-8 text-base outline-hidden select-none data-[disabled]:pointer-events-none',
-          "hover:text-neutral-900'",
-          startIcon && 'pl-10',
-          endIcon && 'pr-10',
+          'w-full cursor-default select-none data-[disabled]:pointer-events-none',
+          "hover:text-text-action-hover'",
           className,
         )}
       >
         <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
       </div>
 
-      {EndIcon && (
-        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-          <EndIcon size={20} />
-        </div>
-      )}
+      {EndIcon && <EndIcon size={20} />}
     </SelectPrimitive.Item>
   );
 }
@@ -170,7 +155,7 @@ function SelectSeparator({ className, ...props }: React.ComponentProps<typeof Se
   return (
     <SelectPrimitive.Separator
       data-slot="select-separator"
-      className={cn('bg-border pointer-events-none h-px', className)}
+      className={cn('bg-border-primary pointer-events-none -mx-1 my-1 h-px', className)}
       {...props}
     />
   );

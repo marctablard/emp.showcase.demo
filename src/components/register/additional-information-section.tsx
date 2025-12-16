@@ -28,7 +28,7 @@ export default function AdditionalInformationSection({ control, number }: Additi
           <FormItem className="space-y-4">
             <FormLabel className="flex flex-nowrap">
               {t('additionalInformationDescription')}
-              <span className="text-neutral-300 text-xs"> {t('optional')}</span>
+              <span className="text-text-placeholders text-sm"> {t('optional')}</span>
             </FormLabel>
             <FormControl>
               <Textarea maxLength={500} className="min-h-[120px]" {...field} />

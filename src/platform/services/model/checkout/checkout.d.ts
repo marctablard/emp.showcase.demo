@@ -30,6 +30,7 @@ export interface CheckoutAddress extends Omit<Address, 'types'> {
  * Customer information for checkout
  */
 export interface ContactData {
+  userId: string;
   firstName: string;
   lastName: string;
   email: string;

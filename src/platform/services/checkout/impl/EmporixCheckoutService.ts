@@ -28,55 +28,20 @@ class EmporixCheckoutService implements CheckoutService {
   ) {}
 
   async checkout(request: CheckoutRequest): Promise<CheckoutResponse> {
-    const customer = await this.customerService.getCustomer();
+    const { emporixCustomer, guest } = await this.buildEmporixCustomer(request);
+    const checkoutRequest = await this.buildCheckoutRequest(request, emporixCustomer);
+    return this.performCheckout(checkoutRequest, guest);
+  }
 
-    // First do the basic validation
-    let emporixCustomer: EmporixCheckoutCustomer;
-    if (!customer) {
-      const result = this.checkoutValidator.validateGuestCheckoutRequest(request);
-      if (!result.success) {
-        throw new Error('Checkout Validation Failed!', {
-          cause: result.errors,
-        });
-      }
-      if (!request.customer) {
-        throw new Error('Contact Data is required for guest checkout');
-      }
-      emporixCustomer = {
-        email: request.customer.email,
-        firstName: request.customer.firstName,
-        lastName: request.customer.lastName,
-        company: request.customer.company,
-        guest: true,
-      };
-    } else {
-      const result = this.checkoutValidator.validateCheckoutRequest(request);
-      if (!result.success) {
-        throw new Error('Checkout Validation Failed!', {
-          cause: result.errors,
-        });
-      }
-      emporixCustomer = {
-        id: customer.id,
-        email: customer.email,
-        firstName: customer.firstName,
-        lastName: customer.lastName,
-        company: customer.company,
-        guest: false,
-      };
+  async checkoutApproval(request: CheckoutRequest): Promise<CheckoutResponse> {
+    const forcedContact = request.customer;
+    if (!forcedContact) {
+      throw new Error('Customer data is required for checkout approval');
     }
-    const paymentMethods = [await this.getCheckoutPaymentMethod(request.paymentMethod)];
-    const checkoutRequest: EmporixCartCheckoutRequest = this.checkoutMapper.mapCartCheckoutToSource(
-      request,
-      emporixCustomer,
-      paymentMethods,
-    );
-
-    if (emporixCustomer.guest) {
-      return this.checkoutApi.guestCheckout(checkoutRequest);
-    } else {
-      return this.checkoutApi.checkout(checkoutRequest);
-    }
+    const { emporixCustomer } = await this.buildEmporixCustomer(request, forcedContact);
+    const checkoutRequest = await this.buildCheckoutRequest(request, emporixCustomer);
+    // Approval checkout is always non-guest
+    return this.performCheckout(checkoutRequest, false);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -92,6 +57,87 @@ class EmporixCheckoutService implements CheckoutService {
     // Map API response to service model
     return this.mapper.mapToService(apiResponse);
     */
+  }
+
+  private async buildEmporixCustomer(
+    request: CheckoutRequest,
+    checkoutCustomer?: CheckoutRequest['customer'],
+  ): Promise<{ emporixCustomer: EmporixCheckoutCustomer; guest: boolean }> {
+    // If approval flow provides explicit customer, treat as non-guest
+    if (checkoutCustomer) {
+      const { userId, email, firstName, lastName, company } = checkoutCustomer;
+      return {
+        emporixCustomer: {
+          id: userId,
+          email,
+          firstName,
+          lastName,
+          company,
+          guest: false,
+        },
+        guest: false,
+      };
+    }
+
+    const customer = await this.customerService.getCustomer();
+    if (!customer) {
+      const result = this.checkoutValidator.validateGuestCheckoutRequest(request);
+      if (!result.success) {
+        throw new Error('Checkout Validation Failed!', {
+          cause: result.errors,
+        });
+      }
+      if (!request.customer) {
+        throw new Error('Contact Data is required for guest checkout');
+      }
+      const { email, firstName, lastName, company } = request.customer;
+      return {
+        emporixCustomer: {
+          email,
+          firstName,
+          lastName,
+          company,
+          guest: true,
+        },
+        guest: true,
+      };
+    }
+
+    const result = this.checkoutValidator.validateCheckoutRequest(request);
+    if (!result.success) {
+      throw new Error('Checkout Validation Failed!', {
+        cause: result.errors,
+      });
+    }
+    return {
+      emporixCustomer: {
+        id: customer.id,
+        email: customer.email,
+        firstName: customer.firstName,
+        lastName: customer.lastName,
+        company: customer.company,
+        guest: false,
+      },
+      guest: false,
+    };
+  }
+
+  private async buildCheckoutRequest(
+    request: CheckoutRequest,
+    emporixCustomer: EmporixCheckoutCustomer,
+  ): Promise<EmporixCartCheckoutRequest> {
+    const paymentMethods = [await this.getCheckoutPaymentMethod(request.paymentMethod)];
+    return this.checkoutMapper.mapCartCheckoutToSource(request, emporixCustomer, paymentMethods);
+  }
+
+  private async performCheckout(
+    checkoutRequest: EmporixCartCheckoutRequest,
+    guest: boolean,
+  ): Promise<CheckoutResponse> {
+    if (guest) {
+      return this.checkoutApi.guestCheckout(checkoutRequest);
+    }
+    return this.checkoutApi.checkout(checkoutRequest);
   }
 
   private async getCheckoutPaymentMethod(paymentMethod: CheckoutPaymentMethod): Promise<EmporixCheckoutPaymentMethod> {

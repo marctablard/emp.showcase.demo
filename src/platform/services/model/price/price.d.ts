@@ -1,9 +1,8 @@
-export interface ProductPrice {
+import { Price } from '../common';
+
+export interface ProductPrice extends Price {
   id: string;
   productId: string;
-  currency: Currency;
-  originalValue: number;
-  effectiveValue: number;
   discountValue: number;
   discountPercentage: number;
   totalValue: number;
@@ -12,13 +11,6 @@ export interface ProductPrice {
     unitCode?: string;
   };
   includesTax: boolean;
-  tax?: {
-    taxClass: string;
-    taxRate: number;
-    netValue: number;
-    grossValue: number;
-    taxValue: number;
-  };
 
   tierValues: {
     id: string;

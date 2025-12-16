@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronDown, FileText } from 'lucide-react';
 import useAuthentication from '@/hooks/authentication/useAuthentication';
@@ -5,13 +6,15 @@ import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
+import QuoteRequestDialog from './quote-request-dialog';
 
 export function CartRequest() {
   const t = useTranslations('cart');
   const { isAuthenticated } = useAuthentication();
+  const [isQuoteOpen, setIsQuoteOpen] = useState(false);
 
   return (
-    <Card className="bg-primary-50 p-6 border-none gap-4 shadow-sm text-neutral-900">
+    <Card className="bg-surface-action-hover-2 p-6 border-none gap-4 shadow-sm text-text-heading">
       <Collapsible>
         <CollapsibleTrigger className="w-full group flex items-center justify-between gap-2">
           <div className="flex gap-2">
@@ -37,7 +40,7 @@ export function CartRequest() {
             </div>
             <div className="flex gap-2">
               <p className={cn(!isAuthenticated && 'font-bold font-headlines')}>2.</p>
-              {!isAuthenticated ? <p>{t('requestQuotestep2')}</p> : <p className="">{t('requestQuotestep3')}</p>}
+              {!isAuthenticated ? <p>{t('requestQuotestep2')}</p> : <p>{t('requestQuotestep3')}</p>}
             </div>
             {!isAuthenticated && (
               <div className="flex gap-2">
@@ -46,9 +49,15 @@ export function CartRequest() {
               </div>
             )}
           </div>
-          <Button className="w-full mt-4" variant="secondary" disabled={!isAuthenticated}>
+          <Button
+            className="w-full mt-4"
+            variant="secondary"
+            disabled={!isAuthenticated}
+            onClick={() => setIsQuoteOpen(true)}
+          >
             {t('requestQuoteButton')}
           </Button>
+          <QuoteRequestDialog open={isQuoteOpen} onOpenChange={setIsQuoteOpen} />
         </CollapsibleContent>
       </Collapsible>
     </Card>

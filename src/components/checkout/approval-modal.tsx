@@ -84,12 +84,14 @@ export function ApprovalModal({ isOpen, onClose, cartId, approvalSubmit }: Appro
               <div
                 key={approver.userId}
                 className={`flex items-center p-2 rounded-md cursor-pointer ${
-                  selectedApprover?.userId === approver.userId ? 'bg-primary/10' : 'hover:bg-muted'
+                  selectedApprover?.userId === approver.userId
+                    ? 'bg-surface-action-hover-2'
+                    : 'hover:bg-surface-disabled'
                 }`}
                 onClick={() => handleSelectApprover(approver)}
               >
                 <Avatar className="h-8 w-8 mr-2">
-                  <div className="bg-primary text-primary-foreground rounded-full h-full w-full flex items-center justify-center">
+                  <div className="bg-surface-action text-text-on-action rounded-full h-full w-full flex items-center justify-center">
                     {approver.firstName?.charAt(0) || approver.lastName?.charAt(0) || 'U'}
                   </div>
                 </Avatar>
@@ -97,7 +99,7 @@ export function ApprovalModal({ isOpen, onClose, cartId, approvalSubmit }: Appro
                   <p className="font-medium">
                     {approver.firstName} {approver.lastName}
                   </p>
-                  <p className="text-sm text-muted-foreground">{approver.fullName}</p>
+                  <p className="text-sm text-text-placeholders">{approver.fullName}</p>
                 </div>
               </div>
             ))}
@@ -111,7 +113,7 @@ export function ApprovalModal({ isOpen, onClose, cartId, approvalSubmit }: Appro
         )}
 
         {!loading && approvers?.length === 0 && (
-          <div className="text-center text-muted-foreground py-2">{t('noApproversFound')}</div>
+          <div className="text-center text-text-placeholders py-2">{t('noApproversFound')}</div>
         )}
 
         <div className="space-y-2">

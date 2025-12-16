@@ -16,6 +16,23 @@ export interface EmporixLabel {
   metadata?: EmporixMetadata;
 }
 
+export interface EmporixProductTemplate {
+  id: string;
+  name: EmporixLocalizedString;
+  attributes: [
+    {
+      key: string;
+      name: EmporixLocalizedString;
+      metadata: {
+        mandatory: true;
+        variantAttribute: true;
+      };
+      values: [{ key: string }];
+    },
+  ];
+  metadata: EmporixMetadata;
+}
+
 export interface EmporixProduct {
   id?: string;
   yrn?: string;
@@ -23,7 +40,9 @@ export interface EmporixProduct {
   name: string | EmporixLocalizedString;
   description?: string | EmporixLocalizedString;
   media?: EmporixMedia[];
-  productType?: string;
+  productType?: 'BASIC' | 'VARIANT' | 'PARENT_VARIANT';
+  parentVariantId?: string;
+  parentVariant?: EmporixProduct;
   brandId?: string;
   labelIds?: string[];
   taxClasses?: {
@@ -33,4 +52,8 @@ export interface EmporixProduct {
   published?: boolean;
   metadata?: EmporixMetadata;
   prices?: EmporixPrice[];
+  template?: EmporixProductTemplate;
+  variantAttributes?: {
+    [key: string]: [{ key: string }];
+  };
 }

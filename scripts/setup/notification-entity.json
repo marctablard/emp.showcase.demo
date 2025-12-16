@@ -1,0 +1,170 @@
+[
+  {
+    "system": "Emporix",
+    "endpoint": "POST:/schema/[tenant]/custom-entities",
+    "headers": {
+      "Content-Language": "en"
+    },
+    "payload": {
+      "id": "STOREFRONT_NOTIFICATION",
+      "name": {
+        "en": "Storefront Notification"
+      }
+    },
+    "description": "Create the STOREFRONT_NOTIFICATION custom schema type",
+    "condition": {
+      "endpoint": "GET:/schema/[tenant]/custom-entities/STOREFRONT_NOTIFICATION",
+      "evaluate": "return !response.ok;"
+    }
+  },
+  {
+    "system": "Emporix",
+    "endpoint": "POST:/schema/[tenant]/schemas",
+    "headers": {
+      "Content-Language": "en"
+    },
+    "payload": {
+      "id": "STOREFRONT_NOTIFICATION_DATA",
+      "name": {
+        "en": "Notification Data"
+      },
+      "attributes": [
+        {
+          "key": "type",
+          "name": {
+            "en": "Type"
+          },
+          "description": {
+            "en": "Notification type (INFO, SUCCESS, WARN)"
+          },
+          "type": "ENUM",
+          "metadata": {
+            "required": true
+          },
+          "values": [
+            { "value": "INFO", "name": { "en": "Info", "de": "Info" } },
+            { "value": "SUCCESS", "name": { "en": "Success", "de": "Erfolg" } },
+            { "value": "WARN", "name": { "en": "Warning", "de": "Warnung" } },
+            { "value": "ERROR", "name": { "en": "Error", "de": "Fehler" } }
+          ]
+        },
+        {
+          "key": "notification_code",
+          "name": {
+            "en": "Notification Code"
+          },
+          "description": {
+            "en": "Notification code (e.g. SUBSTITUTION_FOUND, PRICE_CHANGED)"
+          },
+          "type": "TEXT",
+          "metadata": {
+            "required": false,
+            "nullable": true
+          }
+        },
+        {
+          "key": "reference_type",
+          "name": {
+            "en": "Reference Type"
+          },
+          "description": {
+            "en": "Type of entity this notification refers to"
+          },
+          "type": "ENUM",
+          "metadata": {
+            "required": false,
+            "nullable": true
+          },
+          "values": [
+            { "value": "CART", "name": { "en": "Cart", "de": "Warenkorb" } },
+            { "value": "CART_ITEM", "name": { "en": "Cart Item", "de": "Warenkorb-Artikel" } },
+            { "value": "CUSTOMER", "name": { "en": "Customer", "de": "Kunde" } },
+            { "value": "COMPANY", "name": { "en": "Company", "de": "Unternehmen" } }
+          ]
+        },
+        {
+          "key": "reference_id",
+          "name": {
+            "en": "Reference ID"
+          },
+          "description": {
+            "en": "ID of the referenced entity"
+          },
+          "type": "TEXT",
+          "metadata": {
+            "required": false,
+            "nullable": true
+          }
+        },
+        {
+          "key": "recipient_id",
+          "name": {
+            "en": "Recipient ID"
+          },
+          "description": {
+            "en": "ID of the recipient"
+          },
+          "type": "TEXT",
+          "metadata": {
+            "required": false,
+            "nullable": true
+          }
+        },
+        {
+          "key": "recipient_type",
+          "name": {
+            "en": "Recipient Type"
+          },
+          "description": {
+            "en": "Type of the recipient"
+          },
+          "type": "ENUM",
+          "metadata": {
+            "required": true,
+            "nullable": false
+          },
+          "values": [
+            { "value": "SESSION", "name": { "en": "Session", "de": "Sitzung" } },
+            { "value": "CART_OWNER", "name": { "en": "Cart Owner", "de": "Warenkorb-Eigner" } },
+            { "value": "CUSTOMER", "name": { "en": "Customer", "de": "Kunde" } },
+            { "value": "COMPANY", "name": { "en": "Company", "de": "Unternehmen" } }
+          ]
+        },
+        {
+          "key": "message",
+          "name": {
+            "en": "Message"
+          },
+          "type": "TEXT",
+          "description": {
+            "en": "Notification message"
+          },
+          "metadata": {
+            "required": false,
+            "nullable": true,
+            "localized": true
+          }
+        },
+        {
+          "key": "data_json",
+          "name": {
+            "en": "Data"
+          },
+          "description": {
+            "en": "Additional data for the notification"
+          },
+          "type": "TEXT",
+          "metadata": {
+            "required": false
+          }
+        }
+      ],
+      "types": ["STOREFRONT_NOTIFICATION"]
+    },
+    "description": "Create the STOREFRONT_NOTIFICATION schema with attributes",
+    "condition": {
+      "endpoint": "GET:/schema/[tenant]/schemas",
+      "evaluate": "return !response.some(schema => schema.id === 'STOREFRONT_NOTIFICATION');"
+    }
+  }
+]

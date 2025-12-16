@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import {
   createCustomerAddress,
   deleteCustomerAddress,
@@ -28,6 +29,7 @@ interface CustomerAddressesHook {
 export const useAddresses = (initialAddresses?: CustomerAddress[] | undefined): CustomerAddressesHook => {
   const { addresses, loading, getAddressLoading, setAddressLoading, setAddresses, getAddresses } = useCustomerStore();
   const { customer } = useCustomer();
+  const { status } = useSession();
   if (initialAddresses && getAddresses() === undefined) {
     setAddresses(initialAddresses);
   }
@@ -140,6 +142,13 @@ export const useAddresses = (initialAddresses?: CustomerAddress[] | undefined): 
 
   // Initialize customer on first render if not already initialized
   useEffect(() => {
+    if (status !== 'authenticated') {
+      if (getAddressLoading()) {
+        setAddressLoading(false);
+      }
+      return;
+    }
+
     if (customer && addresses === undefined && !getAddressLoading()) {
       setAddressLoading(true);
       // first try to grab the customer from the store
@@ -151,7 +160,7 @@ export const useAddresses = (initialAddresses?: CustomerAddress[] | undefined): 
         fetchAddresses();
       }
     }
-  }, [customer, addresses, getAddresses, getAddressLoading, setAddressLoading, fetchAddresses, setAddresses]);
+  }, [customer, addresses, getAddresses, getAddressLoading, setAddressLoading, fetchAddresses, setAddresses, status]);
 
   return {
     addresses,

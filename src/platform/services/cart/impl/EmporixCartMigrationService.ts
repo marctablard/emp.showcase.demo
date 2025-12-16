@@ -2,7 +2,6 @@ import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCartApi } from '@/platform/integrations/emporix/cart/EmporixCartApi';
 import type { CartMigrationService } from '@/platform/services/cart/CartMigrationService';
-import { Cart } from '../../model/cart';
 
 /**
  * Implementation of CartService for Emporix cart data.
@@ -28,9 +27,8 @@ class EmporixCartMigrationService implements CartMigrationService {
     }
   }
 
-  async mergeCarts(_sourceCartId: string, _targetCartId: string): Promise<Cart> {
-    // TODO Cart-Merging
-    throw new Error('Method not implemented.');
+  async mergeCarts(anonymousCartId: string, customerCartId: string): Promise<void> {
+    await this.cartApi.mergeCarts(anonymousCartId, customerCartId);
   }
 }
 

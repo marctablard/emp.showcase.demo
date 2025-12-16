@@ -3,11 +3,12 @@
 import { cache } from 'react';
 import { Order } from '@/platform/services/model/order/order';
 import { OrderService } from '@/platform/services/order/OrderService';
+import ssr from '@/platform/ssr';
 
 /**
  * Get the order service instance from the platform container
  */
-const getOrderService = () => globalThis.EMP.platform.ssr.get<OrderService>('OrderService');
+const getOrderService = () => ssr.get<OrderService>('OrderService');
 
 /**
  * Get a specific order by ID

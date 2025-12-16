@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { AuthService } from '@/platform/services/auth/AuthService';
-import { Registration } from '@/platform/services/model/auth/auth';
+import { Registration } from '@/platform/services/model/auth';
 
 /**
  * POST /api/auth/register
@@ -9,7 +10,7 @@ import { Registration } from '@/platform/services/model/auth/auth';
 export async function POST(request: NextRequest) {
   try {
     // Get the auth service from the global registry
-    const authService = globalThis.EMP.platform.server.get<AuthService>('AuthService');
+    const authService = server.get<AuthService>('AuthService');
 
     // Get registration data from request body
     const registrationData: Registration = await request.json();

@@ -6,7 +6,7 @@ import { Credentials, Registration, Session } from '../model/auth';
 export interface AuthService {
   /**
    * Login a customer with credentials
-   * @param credentials User credentials containing username and password
+   * @param credentials User credentials containing username and password (optional for SSO)
    * @returns Promise with the authentication session
    */
   login(credentials: Credentials): Promise<Session>;

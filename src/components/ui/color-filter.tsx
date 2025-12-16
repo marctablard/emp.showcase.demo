@@ -12,9 +12,9 @@ function ColorFilter({ className, color, ...props }: ColorFilterProps) {
       <CheckboxPrimitive.Root
         className={cn(
           className,
-          'group peer h-6 w-6 shrink-0 rounded-sm border hover:opacity-80 data-[state=checked]:text-white',
-          'focus:outline-2 focus:outline-offset-2 focus:outline-primary-500',
-          'disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-neutral-300 disabled:bg-neutral-300 aria-invalid:disabled:border-neutral-300',
+          'group peer h-6 w-6 shrink-0 rounded-sm border hover:opacity-80 data-[state=checked]:text-text-on-action',
+          'focus:outline-2 focus:outline-offset-2 focus:outline-border-focus',
+          'disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-border-disabled disabled:bg-surface-disabled disabled:!text-text-on-disabled aria-invalid:disabled:border-border-disabled',
           '[state=checked]:' + className,
         )}
         {...props}

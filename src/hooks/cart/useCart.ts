@@ -1,5 +1,8 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { ModifyCartItemResult } from '@/platform/services/cart/CartService';
 import { Cart } from '@/platform/services/model/cart/cart';
 import { useCartStore } from '@/providers/StoreProvider';
 
@@ -14,11 +17,12 @@ interface UseCart {
   error: Error | null;
 
   // Operations
-  addItem: (productId: string, quantity: number) => Promise<void>;
+  addItem: (productId: string, quantity: number) => Promise<ModifyCartItemResult>;
   updateItemQuantity: (itemId: string, quantity: number) => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
   updateShippingInfo: (countryCode?: string, zipCode?: string) => Promise<void>;
   clearCart: () => void;
+  loadCart: (cartId: string, type?: string) => Promise<Cart | null | undefined>;
 
   // Utility
   refetch: () => Promise<void>;
@@ -43,12 +47,22 @@ export const useCart = (initialCart?: Cart | null): UseCart => {
     clearCart,
     fetchCart,
     setCurrentCart,
+    loadCart,
+    validateCart,
   } = useCartStore();
 
-  // Initialize with initialCart if provided and cart is undefined
-  if (cart === undefined && initialCart !== undefined) {
-    setCurrentCart(initialCart);
-  }
+  useEffect(() => {
+    // Initialize with initialCart if provided and cart is undefined
+    if (initialCart !== undefined) {
+      setCurrentCart(initialCart);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCart]);
+
+  const { status: sessionStatus } = useSession();
+  useEffect(() => {
+    validateCart(sessionStatus);
+  }, [sessionStatus, validateCart]);
 
   return {
     cart,
@@ -65,5 +79,6 @@ export const useCart = (initialCart?: Cart | null): UseCart => {
     refetch: async () => {
       await fetchCart(false);
     },
+    loadCart,
   };
 };

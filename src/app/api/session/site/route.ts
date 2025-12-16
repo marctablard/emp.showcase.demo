@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { SessionService } from '@/platform/services/session/SessionService';
 import { SiteService } from '@/platform/services/site/SiteService';
 
@@ -10,8 +11,8 @@ export const dynamic = 'force-dynamic';
  */
 export async function PUT(request: NextRequest) {
   try {
-    const sessionService = EMP.platform.server.get<SessionService>('SessionService');
-    const siteService = EMP.platform.server.get<SiteService>('SiteService');
+    const sessionService = server.get<SessionService>('SessionService');
+    const siteService = server.get<SiteService>('SiteService');
     const data = await request.json();
 
     if (!data.site) {

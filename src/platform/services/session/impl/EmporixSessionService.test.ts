@@ -92,7 +92,7 @@ describe('EmporixSessionService', () => {
 
       const result = await sessionService.getCurrent();
 
-      expect(mockSessionContextApi.getOwnSessionContext).toHaveBeenCalledTimes(1);
+      expect(mockSessionContextApi.getOwnSessionContext).toHaveBeenCalledTimes(2);
       expect(mockSessionMapper.mapToService).toHaveBeenCalledWith(mockSessionContext);
       expect(result).toEqual(mockSession);
     });

@@ -38,12 +38,12 @@ const Navigation = ({ blok }: NavigationProps) => {
                   href={href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-primary transition-colors"
+                  className="hover:text-text-action-hover transition-colors"
                 >
                   {item.title}
                 </a>
               ) : (
-                <Link href={href} className="hover:text-primary transition-colors">
+                <Link href={href} className="hover:text-text-action-hover transition-colors">
                   {item.title}
                 </Link>
               )}

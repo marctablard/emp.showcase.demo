@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { ProductPrice } from '@/platform/services/model/price';
 import { Product } from '@/platform/services/model/product';
 import { Button } from '../ui/button';
-import ProductAddToCart from './product-add-to-cart';
+import ProductAddToCartButton from './product-add-to-cart-button';
 import { ProductPriceComponent } from './product-price';
 
 export default function ProductAddToCartBar({
@@ -24,12 +24,12 @@ export default function ProductAddToCartBar({
   const t = useTranslations('product');
   const { l10n } = useL10n(locale);
   return (
-    <div className={cn('fixed top-0 left-0 right-0 mt-20 pt-4 z-50 max-w-6xl mx-auto hidden lg:block', className)}>
-      <div className="bg-primary shadow-xl rounded-2xl overflow-hidden relative flex justify-between mx-4 lg:mx-9 h-16">
+    <div className={cn('fixed top-0 left-0 right-0 mt-20 pt-4 z-50 max-w-6xl mx-auto hidden md:block', className)}>
+      <div className="bg-surface-action shadow-lg rounded-lg overflow-hidden relative flex justify-between mx-4 md:mx-9 h-16">
         {product && (
           <div className="flex items-center gap-6">
             {product.images && product.images.length > 0 && (
-              <div className="w-30 h-16 bg-white p-2">
+              <div className="w-30 h-16 bg-surface-image-background p-2">
                 <Image
                   src={product.images[0].url}
                   alt={product.images[0].altText ? l10n(product.images[0].altText) : `Product image`}
@@ -39,16 +39,22 @@ export default function ProductAddToCartBar({
                 />
               </div>
             )}
-            <div className="text-white font-headlines font-bold">{l10n(product.name)}</div>
+            <div className="text-text-on-action font-headlines font-bold">{l10n(product.name)}</div>
           </div>
         )}
         <div className="flex p-1 pr-6">
           <div className="flex">
             <div className="flex gap-10">
-              <div className="text-white">{price && <ProductPriceComponent price={price} isAddToCartBar />}</div>
+              <div className="text-text-on-action">
+                {price && <ProductPriceComponent price={price} isAddToCartBar />}
+              </div>
               {product && (
                 <div className="px-6">
-                  <ProductAddToCart product={product} price={price} isAddToCartBar className="mt-6" />
+                  <ProductAddToCartButton
+                    product={product}
+                    price={price}
+                    className="h-14 bg-surface-page text-text-action hover:bg-surface-page hover:text-text-action-hover"
+                  />
                 </div>
               )}
             </div>

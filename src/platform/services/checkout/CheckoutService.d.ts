@@ -13,6 +13,13 @@ export interface CheckoutService {
   checkout(request: CheckoutRequest): Promise<CheckoutResponse>;
 
   /**
+   * Process a checkout approval
+   * @param request Checkout request with cart details
+   * @returns Promise with the checkout response containing order ID
+   */
+  checkoutApproval(request: CheckoutRequest): Promise<CheckoutResponse>;
+
+  /**
    * Process a checkout from a quote
    * @param request Quote checkout request
    * @returns Promise with the checkout response containing order ID

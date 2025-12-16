@@ -20,28 +20,28 @@ export function ProductTabsComponent({ product }: ProductTabsComponentProps) {
           <TabsTrigger value="downloads">{tabsT('downloads')}</TabsTrigger>
           <TabsTrigger value="reviews">{tabsT('reviews')}</TabsTrigger>
         </TabsList>
-        <TabsContent value="description" className="text-neutral-700">
+        <TabsContent value="description" className="text-text-body">
           {product.description ? (
             <div className="mb-4" dangerouslySetInnerHTML={{ __html: product.description }} />
           ) : (
             <p className="mb-4">{t('noDescription')}</p>
           )}
         </TabsContent>
-        <TabsContent value="specs" className="text-neutral-700">
+        <TabsContent value="specs" className="text-text-body">
           <p>
             Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et
             dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex
             ea commodo consequat.
           </p>
         </TabsContent>
-        <TabsContent value="downloads" className="text-neutral-700">
+        <TabsContent value="downloads" className="text-text-body">
           <p>
             Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et
             dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex
             ea commodo consequat.
           </p>
         </TabsContent>
-        <TabsContent value="reviews" className="text-neutral-700">
+        <TabsContent value="reviews" className="text-text-body">
           <p>
             Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et
             dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex

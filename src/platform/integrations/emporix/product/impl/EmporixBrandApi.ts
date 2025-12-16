@@ -11,7 +11,7 @@ import { EmporixBrandApi as IEmporixBrandApi } from '../EmporixBrandApi';
  */
 @injectable('EmporixBrandApi', 'Singleton')
 class EmporixBrandApi implements IEmporixBrandApi {
-  constructor(@inject('EmporixApiInvoker') private apiInvoker: EmporixApiInvoker) {}
+  constructor(@inject('EmporixApiInvoker') protected apiInvoker: EmporixApiInvoker) {}
 
   /**
    * Retrieves a list of all brands with pagination support.

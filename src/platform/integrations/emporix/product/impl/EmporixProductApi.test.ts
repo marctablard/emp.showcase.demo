@@ -1,5 +1,5 @@
 import { Container } from 'inversify';
-import { TokenManager } from '../../common/TokenManager';
+import { EmporixTokenManager } from '../../common/EmporixTokenManager';
 import EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
 import { EmporixTestTokenManager } from '../../common/impl/EmporixTokenManager.test';
 import { EmporixConfig } from '../../config';
@@ -48,7 +48,7 @@ describe('EmporixProductApi', () => {
     const test = new TestEmporixConfig();
     container.bind<EmporixConfig>('EmporixConfig').to(TestEmporixConfig);
     container.bind<EmporixOAuthApi>('EmporixOAuthApi').to(EmporixOAuthApi);
-    container.bind<TokenManager>('EmporixTokenManager').to(EmporixTestTokenManager);
+    container.bind<EmporixTokenManager>('EmporixTokenManager').to(EmporixTestTokenManager);
     container.bind<EmporixApiInvoker>('EmporixApiInvoker').to(EmporixApiInvoker);
     container.bind<EmporixProductApi>('EmporixProductApi').to(EmporixProductApi);
 

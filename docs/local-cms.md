@@ -24,7 +24,7 @@ data/cms/[site]/[language]/[slug].json
 ```
 
 Where:
-- `[site]`: The site identifier (e.g., "vaillant", "main")
+- `[site]`: The site identifier (e.g., "us-branch", "main")
 - `[language]`: The language code (e.g., "en", "de")
 - `[slug]`: The page identifier (e.g., "home", "about", "products")
 

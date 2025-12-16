@@ -4,6 +4,9 @@ import useHistory from '@/hooks/history/useHistory';
 import { SearchParams as BaseSearchParams, Filter, SearchResult } from '@/platform/services/model/common';
 import { SearchSuggestions } from '@/platform/services/model/search/SearchSuggestions';
 
+const DEFAULT_PAGE_INDEX = 0;
+const DEFAULT_PAGE_SIZE = 12;
+
 // Extend the SearchParams type to support nested objects in filters
 export type FilterValue = string | string[] | Record<string, string>;
 
@@ -21,8 +24,8 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   const [error, setError] = useState<string | null>(null);
   const [facets, setFacets] = useState<Filter[]>([]);
   const [total, setTotal] = useState(initialResult?.total || 0);
-  const [currentPage, setCurrentPage] = useState(initialResult?.page || 0);
-  const [pageSize, setPageSize] = useState(initialResult?.pageSize || 20);
+  const [currentPage, setCurrentPage] = useState(initialResult?.page || DEFAULT_PAGE_INDEX);
+  const [pageSize, setPageSize] = useState(initialResult?.pageSize || DEFAULT_PAGE_SIZE);
   const [activeFilters, setActiveFilters] = useState<Record<string, FilterValue>>(initialSearch?.filters || {});
   const [currentQuery, setCurrentQuery] = useState<string | undefined>(initialSearch?.query);
   const [currentSort, setCurrentSort] = useState<string | undefined>(initialSearch?.sort);
@@ -35,31 +38,54 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
 
   // Keep track of the last search params for pagination
   const lastSearchParams = useRef<SearchParams<T>>({
-    page: 0,
-    size: 12,
+    page: DEFAULT_PAGE_INDEX,
+    size: DEFAULT_PAGE_SIZE,
   });
 
   /**
-   * Update the browser URL with search parameters without causing a page reload
-   * Uses the already built URL parameters but adapts them for the browser URL
+   * Updates the browser URL to reflect current search parameters without reloading.
+   * Normalizes parameters for the browser:
+   * - maps 'query' to 'q'
+   * - omits empty search terms ('q' or 'query') so /browse?q= is treated as /browse
+   * - omits default page/size values
+   * Skips navigation if the current URL is already equivalent.
    */
   const updateBrowserUrl = useCallback(
     (apiSearchParams: URLSearchParams) => {
+      const isDefault = (k: string, v: string) =>
+        (k === 'page' && v === String(DEFAULT_PAGE_INDEX)) || (k === 'size' && v === String(DEFAULT_PAGE_SIZE));
+
+      const normalize = (src: URLSearchParams, mapQuery: boolean) => {
+        const out = new URLSearchParams();
+        src.forEach((value, key) => {
+          // Replace 'query' with 'q' in the browser URL for consistency
+          const k = mapQuery && key === 'query' ? 'q' : key;
+          // Omit empty search terms so /browse?q= is treated as /browse
+          if ((k === 'q' || key === 'query') && value.trim() === '') {
+            return;
+          }
+          // This prevents /browse from redirecting to /browse?page=0&size=12
+          if (!isDefault(k, value)) {
+            // Copy all other parameters as is
+            out.append(k, value);
+          }
+        });
+        return out;
+      };
+
       // Create a new URLSearchParams for the browser URL
-      const browserSearchParams = new URLSearchParams();
+      const newParams = normalize(apiSearchParams, true);
+      const newUrl = newParams.toString() ? `${pathname}?${newParams}` : pathname;
 
-      apiSearchParams.forEach((value, key) => {
-        // Replace 'query' with 'q' in the browser URL for consistency
-        if (key === 'query') {
-          browserSearchParams.set('q', value);
-        }
-        // Copy all other parameters as is
-        else {
-          browserSearchParams.append(key, value);
-        }
-      });
+      const currentParams = new URLSearchParams(window.location.search);
+      const normalizedCurrent = normalize(currentParams, false);
+      const normalizedCurrentUrl = normalizedCurrent.toString() ? `${pathname}?${normalizedCurrent}` : pathname;
 
-      const newUrl = `${pathname}?${browserSearchParams.toString()}`;
+      const currentUrl = `${window.location.pathname}${window.location.search}`;
+      if (currentUrl === newUrl || normalizedCurrentUrl === newUrl) {
+        return;
+      }
+
       router.push(newUrl, { scroll: false });
     },
     [pathname, router],

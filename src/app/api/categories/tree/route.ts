@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { CategoryService } from '@/platform/services/category/CategoryService';
 
 /**
@@ -7,7 +8,7 @@ import { CategoryService } from '@/platform/services/category/CategoryService';
  */
 export async function GET(request: NextRequest) {
   try {
-    const categoryService = await globalThis.EMP.platform.server.get<CategoryService>('CategoryService');
+    const categoryService = server.get<CategoryService>('CategoryService');
 
     const url = new URL(request.url);
     const categoryId = url.searchParams.get('categoryId') || 'root';

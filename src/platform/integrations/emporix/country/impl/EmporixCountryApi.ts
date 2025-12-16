@@ -8,8 +8,8 @@ import { EmporixCountryApi as IEmporixCountryApi } from '../EmporixCountryApi';
 @injectable('EmporixCountryApi', 'Singleton')
 class EmporixCountryApi implements IEmporixCountryApi {
   constructor(
-    @inject('EmporixApiInvoker') private apiClient: EmporixApiClient,
-    @inject('EmporixConfig') private config: EmporixConfig,
+    @inject('EmporixApiInvoker') protected apiClient: EmporixApiClient,
+    @inject('EmporixConfig') protected config: EmporixConfig,
   ) {
     this.apiClient = apiClient;
     this.config = config;

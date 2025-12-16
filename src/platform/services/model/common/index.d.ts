@@ -59,11 +59,13 @@ export interface TaxType {
 export interface Price {
   amount: number;
   originalAmount?: number;
-  tiers?: {
-    amount: number;
-    quantity: number;
-  }[];
   currency: string;
+  tiers?: {
+    id: string;
+    minQuantity: number;
+    unit?: string;
+    price: number;
+  }[];
   tax?: Tax & TaxType;
 }
 
@@ -91,10 +93,13 @@ export interface SearchResult<T> extends Paginated<T> {
   availableFilters: Filter[];
 }
 
-export interface SearchParams<T> {
-  query?: string;
+export interface PaginationQuery {
   page?: number;
   size?: number;
+}
+
+export interface SearchParams<T> extends PaginationQuery {
+  query?: string;
   sort?: string;
   criteria?: Partial<T>;
   filters?: Record<string, string | string[]>;

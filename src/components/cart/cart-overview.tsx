@@ -3,7 +3,8 @@
 import { useRef } from 'react';
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { H3 } from '@/components/ui/h';
 import { Spinner } from '@/components/ui/spinner';
 import { useCart } from '@/hooks/cart/useCart';
 import useCustomer from '@/hooks/customer/useCustomer';
@@ -28,9 +29,9 @@ export function CartOverview({ initialCart }: CartOverviewProps) {
   if (loading && !cart) {
     return (
       <div className="max-w-6xl mx-auto mt-8">
-        <Card className="mx-4 xl:mx-9">
+        <Card className="mx-4 lg:mx-9">
           <CardHeader>
-            <CardTitle className="text-center text-2xl">{t('yourCart')}</CardTitle>
+            <H3>{t('yourCart')}</H3>
           </CardHeader>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Spinner variant="lg" />
@@ -46,16 +47,16 @@ export function CartOverview({ initialCart }: CartOverviewProps) {
 
   return (
     <div className="max-w-6xl mx-auto mt-8">
-      <div className="mx-4 xl:mx-9">
+      <div className="mx-4 lg:mx-9">
         <div className="flex gap-3 align-end mb-8">
-          <h3 className="text-5xl font-bold font-headlines">{t('title')}</h3>
-          <div className="text-neutral-300 text-xl m-0 leading-[2]">
+          <H3>{t('title')}</H3>
+          <div className="text-text-on-disabled text-lg m-0 leading-[2]">
             {cart.items.length > 1 ? cart.items.length + t('products') : cart.items.length + t('product')}
           </div>
         </div>
         <CartAction />
-        <div className="grid grid-cols-1 xl:grid-cols-3 2xl:grid-cols-4 gap-4 lg:gap-8 mb-11">
-          <div className="col-span-1 xl:col-span-2 2xl:col-span-3" ref={leftContent}>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8 mb-11">
+          <div className="col-span-1 lg:col-span-2" ref={leftContent}>
             {false && customer && <CartDelivery />}
             <CartItemList cart={cart} />
           </div>

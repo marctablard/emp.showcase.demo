@@ -16,9 +16,11 @@ import { SessionService } from '../SessionService';
 @injectable('SessionService', 'Singleton')
 class EmporixSessionService implements SessionService {
   // Static default values from environment variables with fallbacks
+  private defaultSite = process.env.NEXT_PUBLIC_DEFAULT_SITE || 'main';
   private defaultLanguage = process.env.NEXT_PUBLIC_DEFAULT_LANGUAGE || 'en';
   private defaultCountry = process.env.NEXT_PUBLIC_DEFAULT_COUNTRY || 'DE';
   private defaultRegion = process.env.NEXT_PUBLIC_DEFAULT_REGION || 'Europe';
+  private availableSites = process.env.NEXT_PUBLIC_AVAILABLE_SITES?.split(',') || ['main'];
 
   constructor(
     @inject('EmporixSessionContextApi') private sessionContextApi: EmporixSessionContextApi,
@@ -81,11 +83,43 @@ class EmporixSessionService implements SessionService {
     });
   }
 
+  async setCart(cartId: string): Promise<void> {
+    const session = await this.sessionContextApi.getOwnSessionContext();
+    if (!session) {
+      return;
+    }
+    this.sessionContextApi.addOwnSessionContextAttribute({
+      key: 'currentCart',
+      value: cartId,
+    });
+    /*
+    // Needs to be done with Service Authorization!
+    await this.sessionContextApi.updateSessionContext(session.sessionId, {
+      cartId: cartId,
+      metadata: {
+        version: session.metadata?.version || 1,
+      },
+    });
+    */
+  }
+
+  async getById(id: string): Promise<Session | undefined> {
+    const sessionContext = await this.sessionContextApi.getSessionContext(id);
+    const result = sessionContext ? this.mapper.mapToService(sessionContext) : undefined;
+    return result;
+  }
+
   /**
    * Get the current session context
    */
   async getCurrent(): Promise<Session | undefined> {
     const sessionContext = await this.sessionContextApi.getOwnSessionContext();
+    if (sessionContext?.siteCode) {
+      if (!this.availableSites.includes(sessionContext.siteCode)) {
+        await this.setSite(this.defaultSite);
+        sessionContext.siteCode = this.defaultSite;
+      }
+    }
     const result = sessionContext ? this.mapper.mapToService(sessionContext) : undefined;
     if (!result) {
       // TODO, can this even be?
@@ -110,7 +144,6 @@ class EmporixSessionService implements SessionService {
       this.setRegion(this.defaultRegion);
       result.region = this.defaultRegion;
     }
-    result.cartId = sessionContext?.cartId;
     return result;
   }
 }

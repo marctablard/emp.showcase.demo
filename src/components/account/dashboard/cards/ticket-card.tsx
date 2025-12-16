@@ -1,13 +1,13 @@
 'use client';
 
 import React from 'react';
-import { FormProvider } from 'react-hook-form';
 import { useLocale, useTranslations } from 'next-intl';
 import { ArrowRight, CheckCheck, CircleAlert, Clock, MoveRight } from 'lucide-react';
 import { Search } from 'lucide-react';
 import { CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/dashboard-badge';
-import { FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
+import { H4 } from '@/components/ui/h';
 import { Input } from '@/components/ui/input';
 import UiLink from '@/components/ui/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -156,14 +156,16 @@ export function TicketCard({ className, title, items: customItems, ...props }: T
   return (
     <DashboardCard variant="default" className={cn('py-4 pb-0', className)} {...props}>
       <div className="flex items-center justify-between mb-4">
-        <CardTitle className="text-4xl font-bold">{title || t('title')}</CardTitle>
+        <CardTitle>
+          <H4>{title || t('title')}</H4>
+        </CardTitle>
         <UiLink type="Link" href="/account/tickets" variant="primary" size="m" iconAfter={<ArrowRight />}>
           {t('viewAll')}
         </UiLink>
       </div>
       {/* search */}
       <div className="mb-4 w-[60%]">
-        <FormProvider {...form}>
+        <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSearch)} className="w-full">
             <FormField
               control={form.control}
@@ -178,7 +180,7 @@ export function TicketCard({ className, title, items: customItems, ...props }: T
               )}
             />
           </form>
-        </FormProvider>
+        </Form>
       </div>
       <div className="flex flex-col">
         {error && <div className="text-sm text-red-600 px-2 py-1">{error}</div>}
@@ -197,12 +199,12 @@ export function TicketCard({ className, title, items: customItems, ...props }: T
               <TableRow
                 key={item.id}
                 className={cn(
-                  'hover:bg-neutral-50 cursor-pointer text-base',
-                  index % 2 === 0 ? 'bg-white' : 'bg-neutral-50',
+                  'hover:bg-surface-image-background cursor-pointer text-base',
+                  index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
                 )}
                 onClick={() => {
-                  const t = rawTickets.find((rt) => rt.TicketID === item.id) || null;
-                  setSelectedTicket(t);
+                  const ticket = rawTickets.find((rt) => rt.TicketID === item.id) || null;
+                  setSelectedTicket(ticket);
                   setDialogOpen(true);
                 }}
               >
@@ -218,8 +220,8 @@ export function TicketCard({ className, title, items: customItems, ...props }: T
                     variant="primary"
                     size="m"
                     onClick={() => {
-                      const t = rawTickets.find((rt) => rt.TicketID === item.id) || null;
-                      setSelectedTicket(t);
+                      const ticket = rawTickets.find((rt) => rt.TicketID === item.id) || null;
+                      setSelectedTicket(ticket);
                       setDialogOpen(true);
                     }}
                   >

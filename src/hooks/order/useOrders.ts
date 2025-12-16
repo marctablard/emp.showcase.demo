@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { fetchOrders as apiFetchOrders } from '@/lib/client/orders';
 import { buildSearchQuery } from '@/platform/integrations/emporix/common/util/common';
 import { Order } from '@/platform/services/model/order/order';
 import { useOrderStore } from '@/providers/StoreProvider';
@@ -37,6 +36,7 @@ interface UseOrdersResult {
 
 /**
  * Hook for managing collections of orders with pagination, filtering, and searching
+ * This is now a simple pass-through to the order store
  *
  * @param options Configuration options for the hook
  * @returns Orders data and operations
@@ -53,79 +53,52 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
     getOrders: getStoreOrders,
     setOrders: setStoreOrders,
     getLoading: getStoreLoading,
-    setLoading: setStoreLoading,
-    updated,
+    getError: getStoreError,
+    fetchOrders: storeFetchOrders,
   } = useOrderStore();
 
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<Error | null>(null);
-  const query = buildSearchQuery({
-    page: initialPageNumber,
-    size: initialPageSize,
-    criteria: initialFilters,
-  });
-  const queryKey = query.query + query.body;
-  if (initialOrders && !getStoreLoading(queryKey)) {
-    setStoreOrders(queryKey, initialOrders);
-    setStoreLoading(queryKey, false);
-  }
-  const [orders, setOrders] = useState<Order[] | undefined>(initialOrders || getStoreOrders(queryKey));
+  // Local state for pagination and filters
   const [pageSize, setPageSize] = useState<number>(initialPageSize);
   const [pageNumber, setPageNumber] = useState<number>(initialPageNumber);
   const [filters, setFilters] = useState<Record<string, any>>(initialFilters);
 
-  const fetchOrders = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  // Generate query key for current parameters
+  const query = buildSearchQuery({
+    page: pageNumber,
+    size: pageSize,
+    criteria: filters,
+  });
+  const queryKey = query.query + query.body;
 
-      // In a real implementation, you would pass filters to the API
-      // For now, we're just using the existing API function
-      const ordersData = await apiFetchOrders(pageSize, pageNumber);
-      setStoreOrders(queryKey, ordersData);
-      setOrders(ordersData);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to fetch orders'));
-      console.error('Error fetching orders:', err);
-    } finally {
-      setStoreLoading(queryKey, false);
-      setLoading(false);
-    }
-  }, [pageSize, pageNumber, queryKey, setStoreOrders, setStoreLoading]);
-
-  // Initialize on first render or when pagination/filters change
   useEffect(() => {
-    if (orders === undefined || updated > 0) {
-      // this feels so messy
-      if (orders) {
-        return;
-      }
-      const storeOrders = getStoreOrders(queryKey);
-      const storeLoading = getStoreLoading(queryKey);
-      if (storeOrders) {
-        setOrders(storeOrders);
-        setLoading(false);
-      } else if (storeLoading) {
-        setLoading(true);
-      } else {
-        setStoreLoading(queryKey, true);
-        fetchOrders();
-      }
+    // Initialize with initialOrders if provided and not already in store
+    if (initialOrders && !getStoreOrders(queryKey) && !getStoreLoading(queryKey)) {
+      setStoreOrders(queryKey, initialOrders);
     }
-  }, [
-    updated,
-    loading,
-    pageSize,
-    pageNumber,
-    filters,
-    orders,
-    fetchOrders,
-    setOrders,
-    queryKey,
-    getStoreLoading,
-    getStoreOrders,
-    setStoreLoading,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialOrders, queryKey]);
+
+  // Get current state from store
+  const orders = getStoreOrders(queryKey) || initialOrders;
+  const loading = getStoreLoading(queryKey);
+  const error = getStoreError(queryKey);
+
+  // Fetch orders when parameters change
+  const refetchOrders = useCallback(async () => {
+    try {
+      await storeFetchOrders(pageSize, pageNumber, filters);
+    } catch (err) {
+      // Error is already handled in the store
+      console.error('Error in refetchOrders:', err);
+    }
+  }, [pageSize, pageNumber, filters, storeFetchOrders]);
+
+  // Auto-fetch when parameters change and we don't have data
+  useEffect(() => {
+    if (!orders && !loading) {
+      refetchOrders();
+    }
+  }, [pageSize, pageNumber, filters, orders, loading, refetchOrders]);
 
   return {
     orders,
@@ -137,6 +110,6 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
     setPageNumber,
     filters,
     setFilters,
-    refetchOrders: fetchOrders,
+    refetchOrders,
   };
 };

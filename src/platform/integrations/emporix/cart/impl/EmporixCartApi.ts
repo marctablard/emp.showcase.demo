@@ -1,6 +1,7 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
+import { buildSearchQuery } from '../../common/util/common';
 import type { EmporixConfig } from '../../config';
 import {
   EmporixAddCartItemRequest,
@@ -9,14 +10,16 @@ import {
   EmporixCreateCartRequest,
   EmporixCreatedCart,
   EmporixCreatedCartItem,
+  EmporixPaginatedResponse,
+  EmporixSearchParams,
   EmporixUpdateCartItemRequest,
 } from '../../model';
 import type { EmporixCartApi as IEmporixCartApi } from '../EmporixCartApi';
 
 @injectable('EmporixCartApi', 'Singleton')
 class EmporixCartApi implements IEmporixCartApi {
-  private apiClient: EmporixApiClient;
-  private config: EmporixConfig;
+  protected apiClient: EmporixApiClient;
+  protected config: EmporixConfig;
 
   constructor(
     @inject('EmporixApiInvoker') apiClient: EmporixApiClient,
@@ -47,27 +50,15 @@ class EmporixCartApi implements IEmporixCartApi {
     }
 
     const createdCart: EmporixCreatedCart = await response.json();
-    if (this.config.tenant === 'showcase') {
-      // TODO needs to be removed when Mixin Bug is done
-      await this.updateCart(createdCart.cartId, {
-        mixins: {
-          processupdate: {},
-        },
-        metadata: {
-          mixins: {
-            processupdate: 'https://res.cloudinary.com/saas-ag/raw/upload/schemata2/showcase/processupdate_v1.json',
-          },
-        },
-      });
-    }
+
     return createdCart.cartId;
   }
 
-  async getCart(cartId: string): Promise<EmporixCart | null> {
+  async getCart(cartId: string, checkSession = true): Promise<EmporixCart | null> {
     const response = await this.apiClient.authenticatedFetch(
       `/cart/${this.config.tenant}/carts/${cartId}`,
       { method: 'GET' },
-      'session',
+      checkSession ? 'session' : 'service',
     );
 
     if (!response.ok) {
@@ -116,13 +107,22 @@ class EmporixCartApi implements IEmporixCartApi {
       const errorDetails = await response.text();
       throw new Error(`Failed to get cart by criteria: ${response.statusText} ${errorDetails}`);
     }
-    const cart: EmporixCart = await response.json();
-    if (cart.sessionId !== sessionId || cart.customerId !== customerId) {
-      // TODO needs resolution of DCPS-16828, known error, so this is a workaround
-      console.warn('Cart does not belong to this session, intercepted by workaround');
-      return null;
+    return await response.json();
+  }
+
+  async searchCarts(searchParams: EmporixSearchParams<EmporixCart>): Promise<EmporixPaginatedResponse<EmporixCart>> {
+    const { query, body } = buildSearchQuery(searchParams);
+    const response = await this.apiClient.authenticatedFetch(
+      `/cart/${this.config.tenant}/carts/search?${query}`,
+      { method: 'POST', body: JSON.stringify(body) },
+      'session',
+    );
+
+    if (!response.ok) {
+      const errorDetails = await response.text();
+      throw new Error(`Failed to search carts: ${response.statusText} ${errorDetails}`);
     }
-    return cart;
+    return await response.json();
   }
 
   async addItemToCart(cartId: string, item: EmporixAddCartItemRequest): Promise<string> {
@@ -295,6 +295,26 @@ class EmporixCartApi implements IEmporixCartApi {
     if (!response.ok) {
       const errorDetails = await response.text();
       throw new Error(`Failed to refresh cart: ${response.statusText} ${errorDetails}`);
+    }
+  }
+
+  async mergeCarts(sourceCartId: string, targetCartId: string): Promise<void> {
+    const response = await this.apiClient.authenticatedFetch(
+      `/cart/${this.config.tenant}/carts/${targetCartId}/merge`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ carts: [sourceCartId] }),
+      },
+      'session',
+    );
+
+    if (!response.ok) {
+      const errorDetails = await response.text();
+      throw new Error(`Failed to merge carts: ${response.statusText} ${errorDetails}`);
     }
   }
 }

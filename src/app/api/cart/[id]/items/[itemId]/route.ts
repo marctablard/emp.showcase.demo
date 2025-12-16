@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { CartService } from '@/platform/services/cart';
 
 /**
@@ -7,7 +8,7 @@ import { CartService } from '@/platform/services/cart';
  */
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string; itemId: string }> }) {
   try {
-    const cartService = globalThis.EMP.platform.server.get<CartService>('CartService');
+    const cartService = server.get<CartService>('CartService');
     const resolvedParams = await params;
     const { id: cartId, itemId } = resolvedParams;
 
@@ -39,7 +40,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
  */
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string; itemId: string }> }) {
   try {
-    const cartService = globalThis.EMP.platform.server.get<CartService>('CartService');
+    const cartService = server.get<CartService>('CartService');
     const resolvedParams = await params;
     const { id: cartId, itemId } = resolvedParams;
 

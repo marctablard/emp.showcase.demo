@@ -1,5 +1,5 @@
-import { injectable } from '@platform/core/di/injectable';
 import { z } from 'zod';
+import { injectable } from '@/platform/core/di/injectable';
 import ZodSchemaValidationService from './ZodSchemaValidationService';
 
 const AddressFormSchema = z.object({

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CMSService } from '@/platform/services/cms/CMSService';
+import ssr from '@/platform/ssr';
 
 /**
  * GET /api/cms
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
     const site = searchParams.get('site') || '';
 
     // Create CMS service instance
-    const cmsService = globalThis.EMP.platform.ssr.get<CMSService>('CMSService');
+    const cmsService = ssr.get<CMSService>('CMSService');
 
     // Get page data
     const pageData = await cmsService.getPage(slug, locale, site);

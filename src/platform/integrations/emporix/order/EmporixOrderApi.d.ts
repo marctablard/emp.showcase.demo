@@ -16,7 +16,9 @@ export interface EmporixOrderApi {
    * @param createOrderRequest Order creation request
    * @returns Promise with the created order ID
    */
-  createOrder(createOrderRequest: EmporixCreateOrderRequest): Promise<EmporixOrderCreationResponse>;
+  createOrder(
+    createOrderRequest: EmporixCreateOrderRequest | EmporixCreateOrderFromQuoteRequest,
+  ): Promise<EmporixOrderCreationResponse>;
 
   /**
    * Get order by ID (tenant-managed endpoint)

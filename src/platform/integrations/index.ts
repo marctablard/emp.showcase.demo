@@ -37,6 +37,7 @@ const provider = {
       // Add common modules for both client and server
       modules.push(
         await import('./emporix/product/impl/EmporixProductApi'),
+        await import('./emporix/catalog/impl/EmporixCatalogApi'),
         await import('./emporix/oauth/impl/EmporixOAuthApi'),
         await import('./emporix/common/impl/EmporixApiInvoker'),
       );

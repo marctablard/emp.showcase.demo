@@ -33,7 +33,7 @@ export default function TopBannerAnnouncement() {
       type="Link"
       href={content.link.url}
       target={content.link.target}
-      className="text-white hover:text-white"
+      className="text-text-on-action hover:text-text-on-action"
       iconAfter={<ArrowUpRight className="w-4 h-4" />}
     >
       {content.title}

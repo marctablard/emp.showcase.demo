@@ -50,7 +50,7 @@ function toast(toast: Omit<ToastProps, 'id'>) {
     {
       duration: 4000,
       position: 'bottom-center',
-      className: 'w-full pb-[60px] md:pb-2 md:px-4 md:flex md:justify-end md:[&>div]:max-w-[300px]',
+      className: 'w-full pb-15 sm:pb-2 sm:px-4 sm:flex sm:justify-end sm:[&>div]:max-w-[300px]',
     },
   );
 }
@@ -61,7 +61,7 @@ function notify(toast: Omit<NotificationProps, 'id'>) {
     {
       position: 'top-center',
       duration: toast.duration || 5000,
-      className: 'w-full mt-17 md:mt-30 lg:mt-44 md:[&>div]:mx-4 lg:[&>div]:mx-9',
+      className: 'w-full mt-17 sm:mt-30 md:mt-44 sm:[&>div]:mx-4 md:[&>div]:mx-9',
     },
   );
 }
@@ -78,23 +78,23 @@ function Toast(props: ToastProps) {
 
   const className = {
     success: 'success',
-    info: 'tertiary',
+    info: 'information',
     warning: 'warning',
-    error: 'danger',
+    error: 'error',
   };
   return (
     <div
       className={cn(
-        'rounded border shadow-2xl w-full items-center p-4',
-        'top-right',
-        'bg-' + className[type] + '-100 border-' + className[type] + '-500 ',
+        'rounded border shadow-lg w-full items-center p-4',
+        'top-right border-width-notification rounded-notification',
+        'bg-surface-' + className[type] + ' border-border-' + className[type],
       )}
     >
       <div className="flex flex-col gap-2 w-full">
         <div className="flex justify-between items-center">
-          <div className={cn('flex items-center gap-2', 'text-' + className[type] + '-500')}>
+          <div className={cn('flex items-center gap-2', 'text-text-' + className[type])}>
             {icon[type]}
-            <p className="text-base font-bold text-neutral-900 m-0">{title}</p>
+            <p className="text-base font-bold text-text-headings m-0">{title}</p>
           </div>
           <div
             onClick={() => {
@@ -106,11 +106,11 @@ function Toast(props: ToastProps) {
           </div>
         </div>
         <div className="">
-          <p className="text-base text-neutral-900">{description}</p>
+          <p className="text-base text-text-headings">{description}</p>
         </div>
         <div className="flex">
           <div
-            className="rounded border border-black bg-transparent px-2 py-1 text-black font-bold"
+            className="rounded-sm border border-border-black bg-transparent px-2 py-1 text-text-headings font-bold"
             onClick={() => {
               button.onClick();
               sonnerToast.dismiss(id);
@@ -120,7 +120,6 @@ function Toast(props: ToastProps) {
           </div>
         </div>
       </div>
-      <div className="ml-5 shrink-0 rounded-md text-sm font-medium text-indigo-600 hover:text-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-hidden"></div>
     </div>
   );
 }
@@ -137,23 +136,23 @@ function Notification(props: NotificationProps) {
 
   const className = {
     success: 'success',
-    info: 'tertiary',
+    info: 'information',
     warning: 'warning',
-    error: 'danger',
+    error: 'error',
   };
   return (
     <div
       className={cn(
-        'flex rounded border shadow-2xl w-full items-center md:p-3 p-1',
-        'top-right',
-        'bg-' + className[type] + '-100 border-' + className[type] + '-500 ',
+        'flex rounded border shadow-lg w-full items-center sm:p-3 p-1',
+        'top-right border-width-notification rounded-notification',
+        'bg-surface-' + className[type] + ' border-border-' + className[type],
       )}
     >
       <div className="flex gap-2 w-full">
         <div className="flex w-full justify-center items-center">
-          <div className={cn('flex items-center gap-2', 'text-' + className[type] + '-500')}>
+          <div className={cn('flex items-center gap-2', 'text-text-' + className[type])}>
             {icon[type]}
-            <p className="text-base font-bold text-neutral-900 m-0">{title}</p>
+            <p className="text-base font-bold text-text-headings m-0">{title}</p>
           </div>
         </div>
         <div

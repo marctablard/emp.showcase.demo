@@ -10,11 +10,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useValidator } from '@/hooks/validation/useValidator';
 import { changeCustomerPassword } from '@/lib/client/customer';
+import { cn } from '@/lib/utils';
 import { PasswordChangeDto } from '@/platform/services/customer/CustomerService';
 import { Customer } from '@/platform/services/model/customer/customer';
 
 interface PasswordChangeFormProps {
   customer: Customer | null;
+  className?: string;
 }
 
 type PasswordFormData = {
@@ -23,7 +25,7 @@ type PasswordFormData = {
   confirmPassword: string;
 };
 
-export default function PasswordChangeForm({ customer }: PasswordChangeFormProps) {
+export default function PasswordChangeForm({ customer, className }: PasswordChangeFormProps) {
   const t = useTranslations('account');
   const router = useRouter();
 
@@ -94,11 +96,11 @@ export default function PasswordChangeForm({ customer }: PasswordChangeFormProps
   }
 
   return (
-    <Card>
+    <Card className={cn('', className)}>
       <CardContent className="py-6">
         {success ? (
-          <Alert className="bg-green-50 border-green-200">
-            <AlertDescription className="text-green-800">
+          <Alert className="bg-surface-success border-border-success">
+            <AlertDescription className="text-text-body">
               {t('passwordChangeSuccess') ||
                 'Ihr Passwort wurde erfolgreich geändert. Sie werden zur Kontoübersicht weitergeleitet...'}
             </AlertDescription>
@@ -117,10 +119,10 @@ export default function PasswordChangeForm({ customer }: PasswordChangeFormProps
                 id="currentPassword"
                 type="password"
                 {...form.register('currentPassword')}
-                className={form.formState.errors.currentPassword ? 'border-red-500' : ''}
+                className={form.formState.errors.currentPassword ? 'border-border-error' : ''}
               />
               {form.formState.errors.currentPassword && (
-                <p className="text-sm text-red-500 mt-1">
+                <p className="text-sm text-text-error mt-1">
                   {t('Password.form.currentPassword.required') || 'Bitte geben Sie Ihr aktuelles Passwort ein.'}
                 </p>
               )}
@@ -132,10 +134,10 @@ export default function PasswordChangeForm({ customer }: PasswordChangeFormProps
                 id="newPassword"
                 type="password"
                 {...form.register('newPassword')}
-                className={form.formState.errors.newPassword ? 'border-red-500' : ''}
+                className={form.formState.errors.newPassword ? 'border-border-error' : ''}
               />
               {form.formState.errors.newPassword && (
-                <p className="text-sm text-red-500 mt-1">
+                <p className="text-sm text-text-error mt-1">
                   {form.formState.errors.newPassword.message === 'password.newPassword.minLength'
                     ? t('Password.form.newPassword.minLength') || 'Das Passwort muss mindestens 8 Zeichen lang sein.'
                     : form.formState.errors.newPassword.message === 'password.newPassword.lowercase'
@@ -160,10 +162,10 @@ export default function PasswordChangeForm({ customer }: PasswordChangeFormProps
                 id="confirmPassword"
                 type="password"
                 {...form.register('confirmPassword')}
-                className={form.formState.errors.confirmPassword ? 'border-red-500' : ''}
+                className={form.formState.errors.confirmPassword ? 'border-border-error' : ''}
               />
               {form.formState.errors.confirmPassword && (
-                <p className="text-sm text-red-500 mt-1">
+                <p className="text-sm text-text-error mt-1">
                   {form.formState.errors.confirmPassword.message === 'Password.form.confirmPassword.mismatch'
                     ? t('Password.form.confirmPassword.mismatch') || 'The passwords do not match.'
                     : t('Password.form.confirmPassword.required') || 'Please confirm your password.'}

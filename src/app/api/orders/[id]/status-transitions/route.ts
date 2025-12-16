@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { OrderService } from '@/platform/services/order/OrderService';
 
 /**
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const orderId = resolvedParams.id;
 
   try {
-    const orderService = globalThis.EMP.platform.server.get<OrderService>('OrderService');
+    const orderService = server.get<OrderService>('OrderService');
 
     const statusTransitions = await orderService.getCustomerOrderStatusTransitions(orderId);
 

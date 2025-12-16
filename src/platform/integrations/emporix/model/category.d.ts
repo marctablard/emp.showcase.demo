@@ -23,3 +23,24 @@ export interface EmporixCategory {
 export interface EmporixCategoryParent extends EmporixCategory {
   level?: number;
 }
+
+export const EmporixCategoryAssignmentType = 'PRODUCT';
+
+export interface EmporixCategoryAssignment {
+  id: string;
+  categoryId: string;
+  ref: {
+    id: string;
+    type: EmporixCategoryAssignmentType;
+    localizedName?: EmporixLocalizedString;
+  };
+  metadata?: EmporixMetadata;
+}
+
+export interface EmporixCategoryAssignmentQuery {
+  assignmentType?: EmporixCategoryAssignmentType;
+  showUnpublished?: boolean;
+  withSubcategories?: boolean;
+  segmentsIds?: string;
+  hideUnpublishedProducts?: boolean;
+}

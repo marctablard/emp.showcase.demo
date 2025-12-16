@@ -7,7 +7,9 @@ import {
   removeCartItem as apiRemoveCartItem,
   updateCartItemQuantity as apiUpdateCartItemQuantity,
   updateShippingInfo as apiUpdateShippingInfo,
+  loadSavedCart,
 } from '@/lib/client/carts';
+import { ModifyCartItemResult } from '@/platform/services/cart/CartService';
 import { Cart } from '@/platform/services/model/cart/cart';
 
 export interface CartState {
@@ -15,8 +17,13 @@ export interface CartState {
   currentCart: Cart | null | undefined;
   loading: boolean;
   error: Error | null;
-  lastModification: Date | null;
-  pollingActive: boolean;
+  // Track last shipping update to prevent duplicates
+  lastShippingUpdate: {
+    countryCode?: string;
+    zipCode?: string;
+    timestamp: number;
+  } | null;
+  sessionStatus: string | null;
 }
 
 interface CartActions {
@@ -26,12 +33,13 @@ interface CartActions {
   setLoading: (loading: boolean) => void;
   getLoading: () => boolean;
   setError: (error: Error | null) => void;
-  setLastModification: (date: Date | null) => void;
-  setPollingActive: (active: boolean) => void;
+  loadCart: (cartId: string, type?: string) => Promise<Cart | null | undefined>;
+
+  validateCart: (sessionStatus: string) => Promise<void>;
 
   // Cart API operations
   fetchCart: (createCurrent?: boolean) => Promise<Cart | null | undefined>;
-  addToCart: (productId: string, quantity: number) => Promise<void>;
+  addToCart: (productId: string, quantity: number) => Promise<ModifyCartItemResult>;
   updateItemQuantity: (itemId: string, quantity: number) => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
   updateShippingInfo: (countryCode?: string, zipCode?: string) => Promise<void>;
@@ -44,13 +52,20 @@ const defaultState: CartState = {
   currentCart: undefined,
   loading: false,
   error: null,
-  lastModification: null,
-  pollingActive: false,
+  lastShippingUpdate: null,
+  sessionStatus: null,
 };
 
 export const createCartStore = (initState: CartState = defaultState) => {
   return create<CartStore>()((set, get) => ({
     ...initState,
+    validateCart: async (newSessionStatus: string) => {
+      const { sessionStatus } = get();
+      if (sessionStatus !== newSessionStatus) {
+        set({ sessionStatus: newSessionStatus });
+        await get().fetchCart(false);
+      }
+    },
     // State setters
     setCurrentCart: (cart: Cart | null | undefined) => {
       if (cart === get().currentCart) {
@@ -62,8 +77,6 @@ export const createCartStore = (initState: CartState = defaultState) => {
     setLoading: (loading: boolean) => set({ loading }),
     getLoading: () => get().loading,
     setError: (error: Error | null) => set({ error }),
-    setLastModification: (date: Date | null) => set({ lastModification: date }),
-    setPollingActive: (active: boolean) => set({ pollingActive: active }),
 
     // Cart API operations
     fetchCart: async (createCurrent: boolean = false) => {
@@ -73,6 +86,28 @@ export const createCartStore = (initState: CartState = defaultState) => {
         // Try to fetch existing cart
         try {
           const cartData = await apiFetchCurrentCart(createCurrent);
+          set({ currentCart: cartData, loading: false });
+          return cartData;
+        } catch (_err) {
+          // Silent error when cart is gone
+          set({ currentCart: null, loading: false });
+          return null;
+        }
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error('Failed to fetch cart');
+        set({ error, loading: false });
+        console.error('Error fetching cart:', err);
+        return undefined;
+      }
+    },
+
+    loadCart: async (cartId: string, type: string = 'shopping') => {
+      try {
+        set({ loading: true, error: null });
+
+        // Try to fetch existing cart
+        try {
+          const cartData = await loadSavedCart(cartId, type);
           set({ currentCart: cartData, loading: false });
           return cartData;
         } catch (_err) {
@@ -106,11 +141,17 @@ export const createCartStore = (initState: CartState = defaultState) => {
         }
 
         // Call API to add item
-        await apiAddItemToCart(cartId, productId, quantity);
-        set({ lastModification: new Date(), pollingActive: true });
+        const result = await apiAddItemToCart(cartId, productId, quantity);
 
-        // Refetch cart to get updated state
-        await get().fetchCart();
+        // Update cart state with the result
+        if (result.cart) {
+          set({ currentCart: result.cart, loading: false });
+        } else {
+          // Refetch cart to get updated state if result doesn't include cart
+          await get().fetchCart();
+        }
+
+        return result;
       } catch (err) {
         const error = err instanceof Error ? err : new Error('Failed to add item to cart');
         set({ error, loading: false });
@@ -134,7 +175,6 @@ export const createCartStore = (initState: CartState = defaultState) => {
 
         // Call API to update item
         await apiUpdateCartItemQuantity(cart.id, itemId, quantity);
-        set({ lastModification: new Date(), pollingActive: true });
 
         // Refetch cart to get updated state
         await get().fetchCart();
@@ -160,7 +200,6 @@ export const createCartStore = (initState: CartState = defaultState) => {
 
         // Call API to remove item
         await apiRemoveCartItem(cart.id, itemId);
-        set({ lastModification: new Date(), pollingActive: true });
 
         // Refetch cart to get updated state
         await get().fetchCart();
@@ -173,7 +212,30 @@ export const createCartStore = (initState: CartState = defaultState) => {
 
     updateShippingInfo: async (countryCode?: string, zipCode?: string) => {
       try {
-        set({ loading: true, error: null });
+        // Check if we've recently updated with the same values to prevent duplicate calls to avoid conflict error
+        const { lastShippingUpdate } = get();
+        const now = Date.now();
+        const DEBOUNCE_TIME = 2000;
+
+        if (
+          lastShippingUpdate &&
+          lastShippingUpdate.countryCode === countryCode &&
+          lastShippingUpdate.zipCode === zipCode &&
+          now - lastShippingUpdate.timestamp < DEBOUNCE_TIME
+        ) {
+          return;
+        }
+
+        set({
+          loading: true,
+          error: null,
+          lastShippingUpdate: {
+            countryCode,
+            zipCode,
+            timestamp: now,
+          },
+        });
+
         const { currentCart } = get();
         if (!currentCart) {
           await get().fetchCart();
@@ -197,7 +259,13 @@ export const createCartStore = (initState: CartState = defaultState) => {
     },
 
     clearCart: () => {
-      set({ currentCart: undefined });
+      // Reset all cart-related state to ensure proper cleanup
+      set({
+        currentCart: null,
+        loading: false,
+        error: null,
+        lastShippingUpdate: null,
+      });
     },
   }));
 };

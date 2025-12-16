@@ -1,14 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
-import { FormProvider } from 'react-hook-form';
+import React from 'react';
 import { useTranslations } from 'next-intl';
 import { ReceiptText } from 'lucide-react';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
 import { useSite } from '@/hooks/site/useSite';
 import { useValidator } from '@/hooks/validation/useValidator';
 import { cn } from '@/lib/utils';
-import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { Input } from '../ui/input';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { Spinner } from '../ui/spinner';
@@ -22,6 +21,7 @@ interface PaymentMethodProps {
  */
 const PaymentMethodComponent: React.FC<PaymentMethodProps> = ({ isReadOnly = false }) => {
   const { paymentMethod, submitPaymentMethod } = useCheckout();
+  const { paymentModes, loading, error } = useSite();
   const { form } = useValidator('PaymentValidationService', paymentMethod, 'onChange', (value) => {
     const mode = paymentModes?.find((mode) => mode.id === value.id);
     if (mode) {
@@ -33,27 +33,18 @@ const PaymentMethodComponent: React.FC<PaymentMethodProps> = ({ isReadOnly = fal
     }
   });
 
-  const { paymentModes, loading, error } = useSite();
-
-  const [cardDetails] = useState({
-    cardNumber: '',
-    cardHolder: '',
-    expiryDate: '',
-    cvv: '',
-  });
-
   const t = useTranslations('checkout.payment');
   const tPayment = useTranslations('checkout.PaymentModes');
 
   return (
-    <FormProvider {...form}>
-      <div className="space-y-6 bg-white">
+    <Form {...form}>
+      <div className="space-y-6 bg-surface-page">
         {loading && <Spinner variant="md" loadingText={t('loading')} />}
 
-        {error && <div className="py-4 text-center text-red-500">{t('errorLoadingPaymentMethods')}</div>}
+        {error && <div className="py-4 text-center text-text-error">{t('errorLoadingPaymentMethods')}</div>}
 
         {!loading && !error && paymentModes?.length === 0 && (
-          <div className="py-4 text-center text-neutral-600">{t('noPaymentMethodsAvailable')}</div>
+          <div className="py-4 text-center text-text-on-disabled">{t('noPaymentMethodsAvailable')}</div>
         )}
 
         {!loading && !error && !isReadOnly ? (
@@ -68,24 +59,22 @@ const PaymentMethodComponent: React.FC<PaymentMethodProps> = ({ isReadOnly = fal
                     onValueChange={field.onChange}
                     className={cn('flex flex-col space-y-1')}
                   >
-                    <div className="">
+                    <div>
                       <div>
                         {paymentModes?.map((option) => (
                           <div key={option.id}>
                             <FormItem
                               className={cn(
                                 'flex items-center border rounded-md p-4',
-                                paymentMethod?.code === option.code && 'border-primary-500 bg-primary-50',
+                                paymentMethod?.code === option.code &&
+                                  'border-border-secondary bg-surface-action-hover-2',
                               )}
                             >
                               <FormControl>
                                 <RadioGroupItem value={option.id} id={option.code} />
                               </FormControl>
-                              <FormLabel
-                                htmlFor={option.code}
-                                className="w-full ml-3 block text-sm font-medium text-neutral-700"
-                              >
-                                <div className=" flex justify-between">
+                              <FormLabel htmlFor={option.code} className="font-medium w-full ml-3 block">
+                                <div className="flex items-center justify-between">
                                   {tPayment(option.code)}
                                   {option.code === 'invoice' ? <ReceiptText /> : null}
                                 </div>
@@ -97,63 +86,63 @@ const PaymentMethodComponent: React.FC<PaymentMethodProps> = ({ isReadOnly = fal
 
                       {/* Credit Card Form */}
                       {paymentMethod?.code === 'credit-card' && (
-                        <div className="mt-6 space-y-4 border-t pt-4">
-                          <div>
-                            <label htmlFor="cardNumber" className="block text-sm font-medium text-neutral-700 mb-1">
-                              {t('cardNumber')}
-                            </label>
-                            <input
-                              type="text"
-                              id="cardNumber"
-                              name="cardNumber"
-                              value={cardDetails.cardNumber}
-                              className="w-full px-4 py-2 border border-neutral-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                              placeholder="1234 5678 9012 3456"
+                        <div className="mt-6 space-y-4 border-t border-border-primary pt-4">
+                          <FormField
+                            control={form.control}
+                            name="cardNumber"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel htmlFor="cardNumber">{t('cardNumber')}</FormLabel>
+                                <FormControl>
+                                  <Input id="cardNumber" type="text" placeholder="1234 5678 9012 3456" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="cardHolder"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel htmlFor="cardHolder">{t('cardHolder')}</FormLabel>
+                                <FormControl>
+                                  <Input id="cardHolder" type="text" placeholder="John Doe" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <FormField
+                              control={form.control}
+                              name="expiryDate"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel htmlFor="expiryDate">{t('expiryDate')}</FormLabel>
+                                  <FormControl>
+                                    <Input id="expiryDate" type="text" placeholder="MM/YY" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
                             />
-                          </div>
 
-                          <div>
-                            <label htmlFor="cardHolder" className="block text-sm font-medium text-neutral-700 mb-1">
-                              {t('cardHolder')}
-                            </label>
-                            <input
-                              type="text"
-                              id="cardHolder"
-                              name="cardHolder"
-                              value={cardDetails.cardHolder}
-                              className="w-full px-4 py-2 border border-neutral-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                              placeholder="John Doe"
+                            <FormField
+                              control={form.control}
+                              name="cvv"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel htmlFor="cvv">{t('cvv')}</FormLabel>
+                                  <FormControl>
+                                    <Input id="cvv" type="text" placeholder="123" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
                             />
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label htmlFor="expiryDate" className="block text-sm font-medium text-neutral-700 mb-1">
-                                {t('expiryDate')}
-                              </label>
-                              <input
-                                type="text"
-                                id="expiryDate"
-                                name="expiryDate"
-                                value={cardDetails.expiryDate}
-                                className="w-full px-4 py-2 border border-neutral-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                                placeholder="MM/YY"
-                              />
-                            </div>
-
-                            <div>
-                              <label htmlFor="cvv" className="block text-sm font-medium text-neutral-700 mb-1">
-                                {t('cvv')}
-                              </label>
-                              <input
-                                type="text"
-                                id="cvv"
-                                name="cvv"
-                                value={cardDetails.cvv}
-                                className="w-full px-4 py-2 border border-neutral-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                                placeholder="123"
-                              />
-                            </div>
                           </div>
                         </div>
                       )}
@@ -161,7 +150,7 @@ const PaymentMethodComponent: React.FC<PaymentMethodProps> = ({ isReadOnly = fal
                       {/* PayPal Form */}
                       {paymentMethod?.code === 'paypal' && (
                         <div className="border-t p-4">
-                          <p className="text-sm text-neutral-600">{t('paypalRedirect')}</p>
+                          <p className="text-sm text-text-on-disabled">{t('paypalRedirect')}</p>
                         </div>
                       )}
                     </div>
@@ -173,11 +162,11 @@ const PaymentMethodComponent: React.FC<PaymentMethodProps> = ({ isReadOnly = fal
           />
         ) : (
           // Read-only view
-          <div className="text-neutral-700">
+          <div className="text-text-on-disabled">
             <p className="font-medium">{tPayment(paymentMethod?.code ?? 'none')}</p>
 
             {paymentMethod?.code === 'credit-card' && paymentMethod?.customAttributes?.cardNumber && (
-              <p className="text-sm text-neutral-600 mt-1">
+              <p className="text-sm text-text-on-disabled mt-1">
                 {t('cardEndingIn')} {paymentMethod.customAttributes.cardNumber.slice(-4)}
               </p>
             )}
@@ -187,10 +176,10 @@ const PaymentMethodComponent: React.FC<PaymentMethodProps> = ({ isReadOnly = fal
       <div className="pt-4">
         <FormField
           control={form.control}
-          name="companyName"
+          name="additionalInvoice"
           render={({ field }) => (
             <FormItem>
-              <FormLabel htmlFor="companyName">{t('additionalInvoice')}</FormLabel>
+              <FormLabel htmlFor="additionalInvoice">{t('additionalInvoice')}</FormLabel>
               <FormControl>
                 <Input id="additionalInvoice" type="text" placeholder="Email" {...field} disabled={isReadOnly} />
               </FormControl>
@@ -199,7 +188,7 @@ const PaymentMethodComponent: React.FC<PaymentMethodProps> = ({ isReadOnly = fal
           )}
         />
       </div>
-    </FormProvider>
+    </Form>
   );
 };
 

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { SiteService } from '@/platform/services/site/SiteService';
 
 /**
@@ -7,7 +8,7 @@ import { SiteService } from '@/platform/services/site/SiteService';
  */
 export async function GET() {
   try {
-    const siteService = EMP.platform.server.get<SiteService>('SiteService');
+    const siteService = server.get<SiteService>('SiteService');
     const site = await siteService.getSite();
     const availableSites = await siteService.getAvailableSites();
     return NextResponse.json({ current: site, available: availableSites });

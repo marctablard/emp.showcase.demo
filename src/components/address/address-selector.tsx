@@ -1,11 +1,12 @@
 'use client';
 
-import React, { ReactNode, useEffect, useState } from 'react';
+import React, { ReactNode, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAddresses } from '@/hooks/customer/useAddresses';
+import { cn } from '@/lib/utils';
 import { Address, AddressType } from '@/platform/services/model/common';
 
 interface AddressSelectorProps {
@@ -38,18 +39,15 @@ export function AddressSelector({
 }: AddressSelectorProps) {
   const t = useTranslations('account.AddressForm');
   const [open, setOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | undefined>(selectedAddressId);
+  const [internalSelectedId, setInternalSelectedId] = useState<string | undefined>(selectedAddressId);
   const { addresses, loading } = useAddresses();
 
-  // Update selected ID nonly when Props change
-  useEffect(() => {
-    if (selectedAddressId !== undefined) {
-      setSelectedId(selectedAddressId);
-    }
-  }, [selectedAddressId]);
+  const resolvedSelectedId = selectedAddressId ?? internalSelectedId;
 
   const handleAddressSelect = (address: Address) => {
-    setSelectedId(address.id);
+    if (selectedAddressId === undefined) {
+      setInternalSelectedId(address.id);
+    }
     onSelect(address);
     setOpen(false);
   };
@@ -68,7 +66,7 @@ export function AddressSelector({
   };
 
   // Get the selected address object based on the ID
-  const selectedAddress = selectedId ? addresses?.find((addr) => addr.id === selectedId) : undefined;
+  const selectedAddress = resolvedSelectedId ? addresses?.find((addr) => addr.id === resolvedSelectedId) : undefined;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -100,8 +98,10 @@ export function AddressSelector({
                 .map((address) => (
                   <div
                     key={address.id}
-                    className={`p-4 my-2 border rounded-md cursor-pointer transition-colors hover:bg-gray-100 
-                    ${selectedId === address.id ? 'border-primary bg-primary/10' : 'border-gray-200'}`}
+                    className={cn(
+                      `p-4 my-2 border rounded-md cursor-pointer transition-colors hover:bg-surface-action-hover-2`,
+                      `${resolvedSelectedId === address.id ? 'bg-surface-action text-text-on-action hover:bg-surface-action-hover hover:text-text-ho' : ''}`,
+                    )}
                     onClick={() => handleAddressSelect(address)}
                   >
                     <div className="flex justify-between items-start mb-1">
@@ -112,8 +112,8 @@ export function AddressSelector({
                           {address.types.map((type) => (
                             <span
                               key={type}
-                              className={`text-xs px-2 py-1 rounded-sm 
-                              ${type === 'SHIPPING' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'}`}
+                              className={`text-sm px-2 py-1 rounded-sm 
+                              ${type === 'SHIPPING' ? 'bg-surface-information text-text-action-hover' : 'bg-surface-warning text-text-warning'}`}
                             >
                               {type === 'SHIPPING' ? t('shipping') : type === 'BILLING' ? t('billing') : type}
                             </span>
@@ -122,14 +122,18 @@ export function AddressSelector({
                       )}
                     </div>
 
-                    <p className="text-sm text-gray-700">{formatAddress(address)}</p>
+                    <p className="text-sm">{formatAddress(address)}</p>
 
-                    {address.isDefault && <div className="text-xs text-green-600 mt-1">{t('default')}</div>}
+                    {address.isDefault && (
+                      <div className="w-fit text-sm px-2 py-1 rounded-sm bg-surface-success text-text-body mt-1">
+                        {t('default')}
+                      </div>
+                    )}
                   </div>
                 ))}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">{t('noAddresses')}</div>
+            <div className="text-center py-8">{t('noAddresses')}</div>
           )}
         </div>
       </DialogContent>

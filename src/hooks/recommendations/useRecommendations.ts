@@ -9,18 +9,44 @@ export function useRecommendations(productId?: string) {
 
   useEffect(() => {
     if (!productId) {
-      setRecommendations(undefined);
-      setLoading(false);
       return;
     }
-    setLoading(true);
-    setError(null);
 
-    fetchRecommendations(productId)
-      .then(setRecommendations)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+    let isCancelled = false;
+
+    const fetchData = async () => {
+      if (isCancelled) {
+        return;
+      }
+
+      setRecommendations(undefined);
+      setLoading(true);
+      setError(null);
+
+      fetchRecommendations(productId)
+        .then((result) => {
+          if (!isCancelled) setRecommendations(result);
+        })
+        .catch((err) => {
+          if (!isCancelled) setError((err as Error).message);
+        })
+        .finally(() => {
+          if (!isCancelled) setLoading(false);
+        });
+    };
+
+    void fetchData();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [productId]);
 
-  return { recommendations, loading, error };
+  const hasProduct = Boolean(productId);
+
+  return {
+    recommendations: hasProduct ? recommendations : undefined,
+    loading: hasProduct ? loading : false,
+    error: hasProduct ? error : null,
+  };
 }

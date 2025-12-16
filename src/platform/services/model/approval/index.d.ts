@@ -11,6 +11,10 @@ export interface ApprovalUser {
   fullName?: string;
 }
 
+export interface ApprovalRequestor extends ApprovalUser {
+  email: string;
+}
+
 export interface ApprovalPrice {
   currency: string;
   amount: number;
@@ -39,7 +43,7 @@ export interface ApprovalResourceItem {
   itemPrice: ApprovalPrice;
   itemYrn: string;
   productId?: string;
-  productName?: string;
+  productName?: string | LocalizedString;
 }
 
 export interface ApprovalResource {
@@ -95,7 +99,7 @@ export interface Approval extends ApprovalBase {
   id: string;
   approverComment?: string;
   resource: ApprovalResource;
-  requestor: ApprovalUser;
+  requestor: ApprovalRequestor;
   approver: ApprovalUser;
   createdAt: string;
   updatedAt?: string;

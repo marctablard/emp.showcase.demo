@@ -1,17 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-import { Minus, Package, Plus, ShoppingCart, Trash2 } from 'lucide-react';
+import { Coins, Minus, Package, Plus, ShoppingCart, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import UiLink from '@/components/ui/link';
+import { UINotification } from '@/components/ui/molecules/ui-notification';
 import { useCart } from '@/hooks/cart/useCart';
+import { useNotifications } from '@/hooks/notifications/useNotifications';
+import { useAvailability } from '@/hooks/product/useAvailability';
 import { useL10n } from '@/hooks/useL10n';
 import { cn, formatCurrency } from '@/lib/utils';
-import { Cart, CartItem } from '@/platform/services/model/cart/cart.d';
+import { Cart, CartItem, CartItemPriceChange, CartItemSubstitution } from '@/platform/services/model/cart/cart.d';
+import { StorefrontNotification } from '@/platform/services/model/notification/notification';
 import { Input } from '../ui/input';
 import { Spinner } from '../ui/spinner';
+import { ItemPriceChangeModal } from './item-price-change-modal';
+import { SubstitutionModal } from './substitution-modal';
 
 interface CartItemProps {
   cart: Cart;
@@ -24,9 +30,60 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
   const t = useTranslations('cart');
   const { updateItemQuantity, removeItem, loading } = useCart(cart);
   const [isProcessing, setIsProcessing] = useState(false);
-  const router = useRouter();
   const [quantity, setQuantity] = useState(item.quantity);
   const isStrike = false;
+  const { registerNotificationListener, unregisterNotificationListener, markNotificationAsRead } = useNotifications();
+  const [substitution, setSubstitution] = useState<CartItemSubstitution | null>(null);
+  const [substitutionNotificationId, setSubstitutionNotificationId] = useState<string | null>(null);
+  const [showSubstitutionModal, setShowSubstitutionModal] = useState(false);
+  const [priceChange, setPriceChange] = useState<CartItemPriceChange | null>(null);
+  const [priceChangeNotificationId, setPriceChangeNotificationId] = useState<string | null>(null);
+  const [showPriceChangeModal, setShowPriceChangeModal] = useState(false);
+  const { availability } = useAvailability(item.product?.id);
+
+  // Handler for cart notifications
+  const handleCartNotification = useCallback(
+    (notification: StorefrontNotification | string) => {
+      if (typeof notification === 'string') {
+        if (notification === substitutionNotificationId) {
+          setShowSubstitutionModal(false);
+          setSubstitutionNotificationId(null);
+          setSubstitution(null);
+        }
+        return;
+      }
+      if (notification.code === 'SUBSTITUTION_AVAILABLE') {
+        const substitution = notification.data_json as CartItemSubstitution;
+        if (substitution.productId === item.product?.id) {
+          setSubstitution(substitution);
+          setSubstitutionNotificationId(notification.id);
+        }
+      } else if (notification.code === 'ITEM_PRICE_CHANGE') {
+        const priceChange = notification.data_json as CartItemPriceChange;
+        if (priceChange.productId === item.product?.id) {
+          setPriceChange(priceChange);
+          setPriceChangeNotificationId(notification.id);
+        }
+      }
+      return false;
+    },
+    [item.product?.id, substitutionNotificationId],
+  );
+
+  // Register for cart notifications on mount
+  useEffect(() => {
+    const subscriptionId = registerNotificationListener('CART', handleCartNotification);
+    return () => {
+      unregisterNotificationListener(subscriptionId);
+    };
+  }, [handleCartNotification, registerNotificationListener, unregisterNotificationListener, item.product?.id, cart.id]);
+
+  useEffect(() => {
+    if (item.quantity != quantity) {
+      setQuantity(item.quantity);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.quantity]);
 
   // Handle quantity update
   const handleUpdateQuantity = async (newQuantity: number) => {
@@ -59,60 +116,128 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
     }, 500);
   };
 
+  const onSubstitutionDone = () => {
+    if (substitutionNotificationId) {
+      markNotificationAsRead(substitutionNotificationId);
+      setSubstitutionNotificationId(null);
+      setSubstitution(null);
+    }
+    setShowSubstitutionModal(false);
+  };
+
+  const onItemPriceChangeDone = () => {
+    if (priceChangeNotificationId) {
+      markNotificationAsRead(priceChangeNotificationId);
+      setPriceChangeNotificationId(null);
+      setPriceChange(null);
+    }
+    setShowPriceChangeModal(false);
+  };
+
   return (
-    <div className="py-6 first:border-none border-t border-neutral-200 md:first:border-solid">
-      <div className="grid grid-cols-[1fr_2fr] sm:grid-cols-[120px_3fr] md:grid-cols-[120px_3fr_1fr_1fr] lg:grid-cols-[120px_2fr_2fr_1fr] xl:grid-cols-[120px_3fr_1.5fr_2fr] 2xl:grid-cols-[120px_4fr_1fr_1fr]">
-        <div className="col-start-1 row-start-2  md:row-start-1 row-end-3">
-          <div className="rounded-ss-xl rounded-ee-xl w-[100px] h-[65px] sm:w-[120px] sm:h-[78px] object-fit overflow-hidden">
+    <div className="py-6 first:border-none border-t border-border-primary sm:first:border-solid">
+      <div className="grid grid-cols-[1fr_2fr] sm:grid-cols-[120px_2fr_1fr_1fr] md:grid-cols-[120px_3fr_1fr_1fr]">
+        <div className="col-start-1 row-start-2 sm:row-start-1 row-end-3">
+          <div className="rounded-ss-md rounded-ee-md w-[100px] h-[65px] sm:w-[120px] sm:h-[78px] object-fit overflow-hidden">
             {item.product && item.product.images?.length ? (
               <Image
                 width={100}
                 height={65}
                 src={String(item.product.images[0].url)}
                 alt={String(item.product.name || 'Product')}
-                className="rounded-ss-xl-[inherit] rounded-ee-xl-[inherit] w-[100px] h-[65px] sm:w-[120px] sm:h-[78px]"
+                className="rounded-ss-[inherit] rounded-ee-[inherit] w-[100px] h-[65px] sm:w-[120px] sm:h-[78px]"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+              <div className="w-full h-full flex items-center justify-center text-icon-secondary">
                 <ShoppingCart className="h-8 w-8 opacity-30" />
               </div>
             )}
           </div>
         </div>
-        <div className="col-start-1 col-end-3 row-start-1 md:col-start-2 flex flex-col gap-1 mb-4 md:mb-0 md:mx-4">
-          <p className="text-sm md:text-base">Allen Key Type</p>
-          <p
-            className="font-bold text-base font-headlines cursor-pointer"
-            onClick={() => router.push(`/product/${item.product?.id}`)}
+        <div className="col-start-1 col-end-3 row-start-1 sm:col-start-2 flex flex-col gap-1 mb-4 sm:mb-0 sm:mx-4">
+          <p className="text-sm sm:text-base">{l10n(item.product?.brand?.name || '')}</p>
+          <UiLink
+            type="Link"
+            variant="textNoUnderline"
+            className="font-bold text-base font-headlines cursor-pointer text-text-headings"
+            href={`/product/${item.product?.id}`}
           >
             {l10n(item.product?.name || 'Product')}
-          </p>
+          </UiLink>
         </div>
         <div
           className={cn(
-            'row-start-3 col-start-2 md:col-end-2 flex flex-col gap-2 md:row-start-2 mx-4 pt-2',
-            !isStrike && showQty && '-mt-4 sm:-mt-6 md:-mt-0',
+            'row-start-3 col-start-2 sm:col-end-2 flex flex-col gap-2 sm:row-start-2 mx-4 pt-2',
+            !isStrike && showQty && '-mt-4 sm:-mt-0',
           )}
         >
           {!showQty ? (
-            <div className="flex flex-col gap-1 md:flex-row md:items-center">
-              <p className="text-xs md:border-r border-neutral-200 md:pr-4">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
+              <p className="text-sm sm:border-r border-border-primary sm:pr-4">
                 {t('itemNumber')}: {item.product?.id}
               </p>
-              <p className="text-xs md:pl-4">
+              <p className="text-sm sm:pl-4">
                 {t('qty')}: {item.quantity}
               </p>
             </div>
           ) : (
-            <p className="text-xs">
+            <p className="text-sm">
               {t('itemNumber')}: {item.product?.id}
             </p>
           )}
           <div className="flex items-center gap-1">
-            <div className="text-success-500">
-              <Package className="h-4 w-4" />
-            </div>
-            <p className="text-sm text-success-500">{t('available')}</p>
+            {availability ? (
+              availability.availableQuantity >= item.quantity ? (
+                // Fully available
+                <>
+                  <div className="text-icon-success">
+                    <Package className="h-4 w-4" />
+                  </div>
+                  <p className="text-sm text-text-success">{t('available')}</p>
+                </>
+              ) : availability.availableQuantity > 0 ? (
+                // Partially available
+                <>
+                  <div className="text-icon-warning">
+                    <Package className="h-4 w-4" />
+                  </div>
+                  <p className="text-sm text-text-warning">
+                    {t('substitution.availableDescription', {
+                      available: availability.availableQuantity,
+                      total: item.quantity,
+                    })}
+                  </p>
+                </>
+              ) : availability.availableInDays ? (
+                // Available in X days
+                <>
+                  <div className="text-icon-warning">
+                    <Package className="h-4 w-4" />
+                  </div>
+                  <p className="text-sm text-text-warning">
+                    {t('substitution.availableInDays', { days: availability.availableInDays })}
+                  </p>
+                </>
+              ) : (
+                // Not available
+                <>
+                  <div className="text-icon-error">
+                    <Package className="h-4 w-4" />
+                  </div>
+                  <p className="text-sm text-text-error">
+                    {t('substitution.availableDescription', { available: 0, total: item.quantity })}
+                  </p>
+                </>
+              )
+            ) : (
+              // Loading or no availability data
+              <>
+                <div className="text-icon-success">
+                  <Package className="h-4 w-4" />
+                </div>
+                <p className="text-sm text-text-success">{t('available')}</p>
+              </>
+            )}
           </div>
           {showQty && (
             <Button variant="link" size="small" className="normal-case text-sm tracking-normal p-0 justify-start">
@@ -121,13 +246,13 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
           )}
         </div>
         {showQty && (
-          <div className="col-start-2 row-start-4 md:col-start-3 md:col-end-3 md:row-start-1 lg:col-start-3 flex gap-4 ms-4 mt-4 md:ms-0 md:mt-0">
+          <div className="col-start-2 row-start-4 sm:col-start-3 sm:col-end-3 sm:row-start-1 md:col-start-3 flex gap-4 ml-4 mt-4 sm:ml-0 sm:mt-0">
             <div className="w-full flex">
               {quantity <= 1 ? (
                 <Button
                   variant="secondary"
                   size="icon"
-                  className="p-3 h-13 border-neutral-300 rounded-none rounded-ss-sm rounded-es-sm"
+                  className="p-3 h-13 border-border-primary rounded-none rounded-ss-sm rounded-es-sm"
                   disabled={loading}
                   onClick={handleRemoveItem}
                 >
@@ -137,26 +262,33 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
                 <Button
                   variant="secondary"
                   size="icon"
-                  className="p-3 h-13 border-neutral-300 rounded-none rounded-ss-sm rounded-es-sm"
+                  className="p-3 h-13 border-border-primary rounded-none rounded-ss-sm rounded-es-sm"
                   disabled={loading}
                   onClick={() => handleUpdateQuantity(quantity - 1)}
                 >
                   <Minus className="h-6 w-6" />
                 </Button>
               )}
-              <div className="w-15 h-13 border-y border-neutral-300">
+              <div className="w-15 h-13 border-y border-border-primary">
                 {loading ? (
                   <div className="w-full h-full flex items-center justify-center">
                     <Spinner color="primary" variant="sm" />
                   </div>
                 ) : (
-                  <Input value={quantity} className="py-3 text-center border-none" onChange={(e) => onChangeQty(e)} />
+                  <div className="relative">
+                    <Input value={quantity} className="py-3 text-center border-none" onChange={(e) => onChangeQty(e)} />
+                    {substitution && (
+                      <div className="cursor-pointer" onClick={() => setShowSubstitutionModal(true)}>
+                        <UINotification icon={Package} iconSize={24} animate="pulse" className="absolute" />
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
               <Button
                 variant="secondary"
                 size="icon"
-                className="p-3 h-13 border-neutral-300 rounded-none rounded-ee-sm rounded-se-sm"
+                className="p-3 h-13 border-border-primary rounded-none rounded-ee-sm rounded-se-sm"
                 disabled={loading}
                 onClick={() => handleUpdateQuantity(quantity + 1)}
               >
@@ -165,23 +297,53 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
             </div>
           </div>
         )}
-        <div className="col-start-2 row-start-2 md:col-start-4 md:row-start-1 md:row-end-3 lg:col-start-4 flex flex-col gap-1 ps-4 md:ps-0">
+        <div className="col-start-2 row-start-2 sm:col-start-4 sm:row-start-1 sm:row-end-3 md:col-start-4 flex flex-col gap-1 ps-4 sm:ps-0">
           {item.price.originalAmount && item.price.originalAmount !== item.price.amount && (
-            <p className="line-through md:text-end text-danger-500">
+            <p className="line-through sm:text-end text-text-error">
               {formatCurrency(item.price.originalAmount, item.price.currency)}
             </p>
           )}
-          <div className="font-bold md:text-end">
+          <div className="font-bold sm:text-end relative">
             {formatCurrency(item.tax?.netValue || item.price.amount, item.price.currency)}
+            {priceChange && (
+              <div className="cursor-pointer" onClick={() => setShowPriceChangeModal(true)}>
+                <UINotification
+                  icon={Coins}
+                  iconSize={18}
+                  className="bottom-[-58px] right-[52px] absolute"
+                  animate="pulse"
+                />
+              </div>
+            )}
           </div>
           {item.tax?.netValue && (
-            <span className="text-xs text-neutral-300 md:text-end">
+            <span className="text-sm text-text-on-disabled sm:text-end">
               {t('gross')}
               {formatCurrency(item.tax?.grossValue, item.price.currency)}
             </span>
           )}
         </div>
       </div>
+
+      {/* Modals */}
+      {substitution && (
+        <SubstitutionModal
+          isOpen={showSubstitutionModal}
+          onClose={() => setShowSubstitutionModal(false)}
+          cartItem={item}
+          substitution={substitution}
+          onDone={onSubstitutionDone}
+        />
+      )}
+      {priceChange && (
+        <ItemPriceChangeModal
+          isOpen={showPriceChangeModal}
+          onClose={() => setShowPriceChangeModal(false)}
+          cartItem={item}
+          priceChange={priceChange}
+          onDone={onItemPriceChangeDone}
+        />
+      )}
     </div>
   );
 }

@@ -11,6 +11,7 @@ export interface SessionAttribute {
  */
 export interface Session {
   id: string;
+  customerId?: string;
   currency: string;
   siteCode: string;
   language?: string;

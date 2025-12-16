@@ -30,8 +30,8 @@
       "titleLabel": "Anrede",
       "firstNameLabel": "Vorname",
       "lastNameLabel": "Nachname",
-      "emailLabel": "E-Mail",
-      "phoneLabel": "Telefon",
+      "emailLabel": "E-Mail (nur Kontakt)",
+      "phoneLabel": "Telefon (nur Kontakt)",
       "preferredLanguage": "Bevorzugte Sprache",
       "preferredCurrency": "Bevorzugte Währung",
       "selectTitle": "Anrede auswählen",
@@ -59,6 +59,11 @@
       "language": {
         "de": "Deutsch",
         "en": "English"
+      },
+      "titles": {
+        "MR": "Herr",
+        "MRS": "Frau",
+        "MS": "Fräulein"
       }
     }
   },
@@ -97,6 +102,7 @@
   "dashboard": "Dashboard",
   "sidebar": {
     "dashboard": "Dashboard",
+    "menu": "Menü",
     "groups": {
       "selfService": "Self Service",
       "orderManagement": "Bestellverwaltung",
@@ -121,10 +127,12 @@
       "contractsAgreements": "Verträge & Vereinbarungen",
       "personalData": "Persönliche Daten",
       "accountSettings": "Kontoeinstellungen",
-      "approvals": "Freigaben"
+      "approvals": "Freigaben",
+      "tasks": "Aufgaben"
     }
   },
   "accountDashboardDescription": "Verwalten Sie Ihr Konto, Bestellungen und Unternehmensinformationen",
+  "accountLoginDescription": "Melden Sie sich an, um Ihre Bestellungen verwalten und Ihre Unternehmensinformationen anzeigen.",
   "accountDetails": "Kontodaten",
   "profileSettings": "Profileinstellungen",
   "company": "Unternehmen",
@@ -174,6 +182,90 @@
   "ordersPagePlaceholder": "Bestellungen und Retouren werden hier angezeigt",
   "quotesPageDescription": "Angebote anzeigen und verwalten",
   "quotesPagePlaceholder": "Angebote werden hier angezeigt",
+  "quoteStatus": {
+    "requested": "Angefordert",
+    "available": "Verfügbar",
+    "in_progress": "In Bearbeitung",
+    "declined": "Abgelehnt",
+    "accepted": "Akzeptiert",
+    "order_created": "Bestellung erstellt",
+    "creating": "Wird erstellt",
+    "closed": "Geschlossen",
+    "open": "Offen"
+  },
+  "quoteDetails": {
+    "title": "Angebotsdetails",
+    "status": "Status",
+    "quotationDate": "Angebotsdatum",
+    "totalAmount": "Gesamtbetrag",
+    "editor": "Bearbeiter",
+    "action": "Aktion",
+    "comment": "Kommentar",
+    "date": "Datum",
+    "numberOfProducts": "Anzahl der Produkte",
+    "loading": "Angebotsdetails werden geladen...",
+    "backToQuotes": "Zurück zu Angeboten",
+    "requestedBy": "Angefordert von",
+    "details": "Details",
+    "basePrice": "Grundpreis",
+    "quotedPrice": "Angebotspreis",
+    "transport": "Transport",
+    "transportCondition": "Transportbedingung",
+    "deliveryAddress": "Lieferadresse",
+    "netValue": "Nettowert der Waren",
+    "vat": "MwSt.",
+    "deliveryCosts": "Lieferkosten",
+    "baseTotal": "Gesamtgrundpreis",
+    "quotedTotal": "Angebotssumme",
+    "transportCost": "Transport",
+    "quoteReference": "Angebotsnummer",
+    "approver": "Genehmiger",
+    "accept": "ANNEHMEN",
+    "reject": "ABLEHNEN",
+    "requestChange": "ÄNDERUNG ANFORDERN",
+    "confirmationTitle": "Möchten Sie das Angebot annehmen und eine Bestellung erstellen?",
+    "confirmationDescription": "Bitte überprüfen Sie Ihre Angebotsdetails. Sie können auch einen optionalen Kommentar für unser Team hinzufügen, bevor Sie Ihre Bestellung erstellen. Dies hilft uns, Ihre Anfrage reibungsloser zu bearbeiten.",
+    "yourComment": "Ihr Kommentar",
+    "commentPlaceholder": "Platzhalter",
+    "termsAgreement": "Durch Klicken auf \"Bestellung erstellen\" stimmen Sie unseren",
+    "privacyPolicy": "Datenschutzrichtlinien",
+    "termsOfUse": "Nutzungsbedingungen",
+    "cancel": "ABBRECHEN",
+    "createOrder": "BESTELLUNG ERSTELLEN",
+    "creating": "WIRD ERSTELLT...",
+    "rejectConfirmationTitle": "Möchten Sie das Angebot ablehnen?",
+    "rejectConfirmationDescription": "Wenn Sie möchten, können Sie einen Kommentar hinterlassen, um uns mitzuteilen, warum Sie dieses Angebot ablehnen. Ihr Feedback hilft uns, unsere Angebote zu verbessern.",
+    "rejectCommentPlaceholder": "Bitte geben Sie Gründe für die Ablehnung dieses Angebots an...",
+    "rejectQuote": "ANGEBOT ABLEHNEN",
+    "rejecting": "WIRD ABGELEHNT...",
+    "requestChangeConfirmationTitle": "Möchten Sie eine Änderung des Angebots anfordern?",
+    "requestChangeConfirmationDescription": "Bitte teilen Sie uns mit, was wir besser machen können.",
+    "requestChangeCommentPlaceholder": "Platzhalter",
+    "requestingChange": "ÄNDERUNG WIRD ANGEFORDERT...",
+    "commentAdded": "Kommentar hinzugefügt",
+    "initialQuoteRequest": "Angebotsanfrage",
+    "statusChanged": "Status geändert {currentStatus}",
+    "loadingHistory": "Verlauf wird geladen..."
+  },
+  "quotesList": {
+    "title": "Angebote",
+    "sortBy": "Sortieren nach",
+    "latest": "Neueste",
+    "oldest": "Altste",
+    "filter": "Filter",
+    "quoteReference": "Angebotsreferenz",
+    "status": "Status",
+    "quotationDate": "Angebotsdatum",
+    "requestedBy": "Angefordert von",
+    "authorization": "Autorisierung",
+    "totalAmount": "Gesamtbetrag",
+    "numberOfProducts": "Anzahl der Produkte",
+    "products": "Produkte",
+    "noQuotes": "Sie haben noch keine Angebote",
+    "viewQuote": "Angebotsansicht",
+    "next": "Weiter",
+    "previous": "Zurück"
+  },
   "shoppingListsPageDescription": "Einkaufslisten anzeigen und verwalten",
   "shoppingListsPagePlaceholder": "Einkaufslisten werden hier angezeigt",
   "Address": {
@@ -228,7 +320,7 @@
     "viewAll": "Alle anzeigen",
     "newInvoices": "neue Rechnungen",
     "overdueInvoices": "überfällige Rechnungen",
-    "pendingOffers": "Angebote warten auf Ihre Genehmigung",
+    "pendingQuotes": "Angebote warten auf Ihre Genehmigung",
     "tasksToComplete": "Aufgaben zu erledigen",
     "openReturns": "offene Rückgaben",
     "unreadDocuments": "ungelesene Dokumente"
@@ -240,7 +332,8 @@
       "company": "Meine Firmendokumente",
       "manuals": "Produkthandbücher & technische Datenblätter",
       "warranty": "Garantieunterlagen"
-    }
+    },
+    "seeAll": "Alle anzeigen"
   },
   "AiHelper": {
     "title": "KI-Dashboard-Assistent",
@@ -319,5 +412,46 @@
     "thunderstormWithSlightHail": "Gewitter mit leichtem Hagel",
     "thunderstormWithHeavyHail": "Gewitter mit starkem Hagel",
     "unknown": "Unbekannte Wetterbedingung"
+  },
+  "placeholder": {
+    "title": "Platzhalterseite",
+    "description": "Diese Seite ist ein Platzhalter in der Emporix-Referenz-Storefront.",
+    "details": "Sie zeigt, wo zusätzliche Funktionen, Apps oder benutzerdefinierte Integrationen hinzugefügt werden können. Der Inhalt und die Funktionalität dieser Seite variieren je nach Anforderungen und Projektumfang."
+  },
+  "landing": {
+    "title": "Willkommen in Ihrem Service-Portal",
+    "subtitle": "Verwalten Sie Ihr Geschäft effizient mit unseren umfassenden Konto-Funktionen",
+    "benefits": {
+      "title": "Warum ein Konto erstellen?",
+      "trackOrders": {
+        "title": "Bestellungen verfolgen",
+        "description": "Überwachen Sie alle Ihre Bestellungen in Echtzeit, sehen Sie die Bestellhistorie ein und verwalten Sie Retouren mühelos."
+      },
+      "aiAssistant": {
+        "title": "KI-gestützter Assistent",
+        "description": "Erhalten Sie sofortige Antworten auf Ihre Fragen mit unserem intelligenten KI-Helfer, der rund um die Uhr verfügbar ist."
+      },
+      "supportTickets": {
+        "title": "Support-Tickets",
+        "description": "Erstellen und verwalten Sie Support-Tickets direkt von Ihrem Dashboard aus für eine schnelle Lösung."
+      },
+      "quotes": {
+        "title": "Angebote anfordern & verwalten",
+        "description": "Fordern Sie individuelle Angebote an und verfolgen Sie deren Status an einem Ort."
+      },
+      "approvals": {
+        "title": "Freigabe-Workflows",
+        "description": "Optimieren Sie Ihre Geschäftsprozesse mit integriertem Freigabe-Management."
+      },
+      "insights": {
+        "title": "Geschäftseinblicke",
+        "description": "Greifen Sie auf detaillierte Analysen und Einblicke zu Ihren Bestellungen und Ausgabenmustern zu."
+      }
+    },
+    "cta": {
+      "login": "Bei Ihrem Konto anmelden",
+      "register": "Kostenloses Konto erstellen",
+      "registerSubtext": "Schließen Sie sich Tausenden von Unternehmen an, die bereits unsere Plattform nutzen"
+    }
   }
 }

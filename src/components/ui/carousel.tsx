@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import useEmblaCarousel, { type UseEmblaCarouselType } from 'embla-carousel-react';
-import { LucideChevronLeft, LucideChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -188,73 +188,59 @@ function CarouselDots({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
       className={cn('mb-2 flex w-full items-center justify-center gap-4', className)}
       {...props}
     >
-      {api
-        ?.scrollSnapList()
-        .map((_, index) => (
-          <button
-            key={index}
-            title={t('pageTitle', { index: index + 1 })}
-            className={cn(
-              'cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white',
-              index === selectedIndex
-                ? 'h-4 w-4 bg-linear-to-t from-primary-700 to-primary-500 hover:to-primary-700 hover:border hover:border-primary-500'
-                : 'h-3 w-3 bg-white border border-primary-500 hover:bg-primary-50 hover:border-primary-700 disabled:bg-none disabled:bg-neutral-400 disabled:pointer-events-none ',
-            )}
-            onClick={() => scrollTo(index)}
-          ></button>
-        ))}
+      {api?.scrollSnapList().map((_, index) => (
+        <button
+          key={index}
+          title={t('pageTitle', { index: index + 1 })}
+          className={cn(
+            'cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-white transition',
+            index === selectedIndex
+              ? 'h-4 w-4 bg-linear-to-t from-gradient-secondary-end to-gradient-secondary-start hover:to-gradient-secondary-end'
+              : 'h-3 w-3 bg-surface-page border border-border-secondary hover:bg-surface-action-hover-2 hover:border-border-action-hover disabled:bg-none disabled:bg-surface-disabled disabled:border-border-disabled disabled:pointer-events-none ',
+          )}
+          onClick={() => scrollTo(index)}
+        ></button>
+      ))}
     </div>
   );
 }
 
-function CarouselPrevious({
-  className,
-  variant = 'secondary',
-  size = 'icon',
-  ...props
-}: React.ComponentProps<typeof Button>) {
+function CarouselPrevious({ className, ...props }: React.ComponentProps<typeof Button>) {
   const { scrollPrev, canScrollPrev } = useCarousel();
   const t = useTranslations('common.UI.Carousel');
-  const classes = cn('absolute size-8 rounded-full', className);
 
   return (
     <Button
       data-slot="carousel-previous"
-      variant={variant}
-      size={size}
-      className={classes}
+      variant="carouselControl"
+      size="icon"
+      className={className}
       disabled={!canScrollPrev}
       onClick={scrollPrev}
       title={t('prev')}
       {...props}
     >
-      <LucideChevronLeft aria-label="Previous slide" />
+      <ChevronLeft aria-label="Previous slide" />
     </Button>
   );
 }
 
-function CarouselNext({
-  className,
-  variant = 'secondary',
-  size = 'icon',
-  ...props
-}: React.ComponentProps<typeof Button>) {
+function CarouselNext({ className, ...props }: React.ComponentProps<typeof Button>) {
   const { scrollNext, canScrollNext } = useCarousel();
   const t = useTranslations('common.UI.Carousel');
-  const classes = cn('absolute size-8 rounded-full', className);
 
   return (
     <Button
       data-slot="carousel-next"
-      variant={variant}
-      size={size}
-      className={classes}
+      variant="carouselControl"
+      size="icon"
+      className={className}
       disabled={!canScrollNext}
       onClick={scrollNext}
       title={t('next')}
       {...props}
     >
-      <LucideChevronRight aria-label="Next slide" />
+      <ChevronRight aria-label="Next slide" />
     </Button>
   );
 }

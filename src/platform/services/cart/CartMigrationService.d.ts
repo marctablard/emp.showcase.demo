@@ -13,9 +13,8 @@ export interface CartMigrationService {
 
   /**
    * Merges two carts into one
-   * @param sourceCartId The ID of the source cart
-   * @param targetCartId The ID of the target cart
-   * @returns Promise that resolves when the carts are merged
+   * @param anonymousCartId The ID of the anonymous cart
+   * @param customerCartId The ID of the logged in customer cart
    */
-  mergeCarts(sourceCartId: string, targetCartId: string): Promise<Cart>;
+  mergeCarts(anonymousCartId: string, customerCartId: string): Promise<void>;
 }

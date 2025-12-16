@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useHistory } from '@/hooks/history/useHistory';
 import { fetchProductById } from '@/lib/client/products';
 import { Product } from '@/platform/services/model/product';
+import { ProductFetchOptions } from '@/platform/services/product/ProductService';
 import { useProductStore } from '@/providers/StoreProvider';
 
 interface UseProductResult {
@@ -15,8 +16,20 @@ interface UseProductResult {
   setAsCurrent: (isCurrent?: boolean) => void;
 }
 
-export const useProduct = (productOrId?: string | Product): UseProductResult => {
+export const useProduct = (productOrId?: string | Product, options?: ProductFetchOptions): UseProductResult => {
   const { getProduct, setCurrentProduct, addProduct, currentProductId } = useProductStore();
+
+  // Stabilize options to prevent unnecessary re-renders
+  const optionsRef = useRef<ProductFetchOptions | undefined>(options);
+  const optionsChanged =
+    optionsRef.current?.variants !== options?.variants ||
+    optionsRef.current?.prices !== options?.prices ||
+    optionsRef.current?.categories !== options?.categories;
+
+  if (optionsChanged) {
+    optionsRef.current = options;
+  }
+
   let id: string | undefined;
   if (!productOrId) {
     id = currentProductId || undefined;
@@ -51,7 +64,7 @@ export const useProduct = (productOrId?: string | Product): UseProductResult => 
         }
 
         // Fetch from API if not in store using our shared API layer
-        const data = await fetchProductById(id);
+        const data = await fetchProductById(id, optionsRef.current);
 
         // Add to store
         addProduct(data);

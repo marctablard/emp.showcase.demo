@@ -1,7 +1,12 @@
 import { injectable } from '@/platform/core/di/injectable';
 import { EmporixProduct } from '@/platform/integrations/emporix/model/product';
 import { LocalizedString } from '@/platform/services/model/common';
-import { GroupedSpecification, Product, ProductSpecification } from '@/platform/services/model/product';
+import {
+  GroupedSpecification,
+  Product,
+  ProductSpecification,
+  ProductVariantAttribute,
+} from '@/platform/services/model/product';
 import { ProductMapper } from '../ProductMapper';
 
 /**
@@ -33,7 +38,6 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
     const name = source.name || ''; // Add null/empty check
     const description = source.description || '';
     const templateAttributes = source.mixins?.productTemplateAttributes;
-    const variantAttributes = source.mixins?.productVariantAttributes;
     const highlights = source.mixins?.highlights?.highlights?.map((highlight: any) => highlight.value);
     const mappedSpecs = !source.mixins?.specifications?.specifications
       ? []
@@ -74,6 +78,9 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
 
     return {
       id: source.id || source.code,
+      parentVariantId: source.parentVariantId,
+      brand: source.brandId ? { id: source.brandId } : undefined,
+      labels: source.labelIds ? source.labelIds.map((id) => ({ id })) : undefined,
       name,
       description,
       primaryImage,
@@ -82,7 +89,9 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
       groupedSpecifications: groupedSpecifications,
       highlights,
       templateAttributes,
-      variantAttributes,
+      variantAttributes: this.mapVariantAttributes(source),
+      purchasable: source.productType !== 'PARENT_VARIANT',
+      variantAttributeValues: source.mixins?.productVariantAttributes,
     };
   }
 
@@ -147,6 +156,29 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
       media: media,
       published: true,
     };
+  }
+
+  mapVariantAttributes(source: EmporixProduct): ProductVariantAttribute[] {
+    const variantAttributes =
+      source.productType === 'PARENT_VARIANT' ? source.variantAttributes : source.parentVariant?.variantAttributes;
+    if (!variantAttributes) {
+      return [];
+    }
+    return Object.keys(variantAttributes).map((key) => {
+      const values = variantAttributes[key].map((value) => {
+        return {
+          key: value.key,
+          selected:
+            source.productType === 'VARIANT' ? source.mixins?.productVariantAttributes[key] === value.key : false,
+        };
+      });
+      const name = source.template?.attributes?.find((attr) => attr.key === key)?.name || key;
+      return {
+        key: key,
+        name: name,
+        values: values,
+      };
+    });
   }
 }
 

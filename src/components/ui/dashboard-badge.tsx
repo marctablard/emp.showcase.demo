@@ -4,18 +4,18 @@ import { type VariantProps, cva } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const badgeVariants = cva(
-  'flex items-center justify-center border p-1 text-xs font-bold uppercase w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive text-black transition-[color,box-shadow] overflow-hidden',
+  'flex items-center justify-center border px-2 py-0.5 text-text-headings text-sm font-bold w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-border-focus focus-visible:ring-border-focus focus-visible:ring-[3px] aria-invalid:ring-text-error/20 dark:aria-invalid:ring-text-error/40 aria-invalid:border-border-error transition-[color,box-shadow] overflow-hidden',
   {
     variants: {
       variant: {
-        primary: 'border-primary-500 bg-primary-50 ',
-        default: 'border-neutral-200 bg-neutral-100',
-        success: 'border-success-500 bg-success-100',
-        warning: 'border-warning-500 bg-warning-100',
+        primary: 'border-border-secondary bg-surface-primary',
+        default: 'border-border-primary bg-surface-primary',
+        success: 'border-border-success bg-surface-success',
+        warning: 'border-border-warning bg-surface-warning',
       },
       rounded: {
         none: 'rounded-none',
-        rounded_right: 'rounded-r-md',
+        roundedRight: 'rounded-r-md',
         default: 'rounded-md',
         lg: 'rounded-lg',
         sm: 'rounded-sm',

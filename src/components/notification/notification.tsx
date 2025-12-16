@@ -1,59 +1,106 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
-import useCompany from '@/hooks/company/useCompany';
-import { usePolling } from '@/hooks/util/usePolling';
-import { useNotificationStore } from '@/stores/notification-store';
+import { useLocale } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
+import { useNotifications } from '@/hooks/notifications/useNotifications';
+import { usePathname, useRouter } from '@/i18n/navigation';
+import { l10n } from '@/lib/utils';
+import type { CompanyOnboardingStatus } from '@/platform/services/model/company/company';
+import type { StorefrontNotification } from '@/platform/services/model/notification/notification';
 import { ToastType, notify } from '../ui/toast-notification';
 
 export function Notification() {
+  const { registerNotificationListener, unregisterNotificationListener, markNotificationAsRead } = useNotifications();
   const t = useTranslations('common.Notification');
-  const { addNotification, hasNotification } = useNotificationStore();
-  const { company, refresh: refreshCompany } = useCompany();
-  const { start: startCompany, stop: stopCompany } = usePolling(() => {
-    refreshCompany();
-  }, 10000);
+  const tLogin = useTranslations('auth.login');
+  const locale = useLocale();
 
   useEffect(() => {
-    if (company) {
-      const status: 'approved' | 'pending' | 'rejected' = company.onboarding?.status || 'pending';
-      const notificationKey = 'onboarding-' + company.id + '-' + status;
-      if (status !== 'pending') {
-        stopCompany();
-      } else {
-        startCompany();
-      }
-      if (!hasNotification(notificationKey)) {
-        addNotification(notificationKey);
-        const message = t('company.onboarding.' + status);
-        let type = ToastType.Success;
-        switch (status) {
-          case 'rejected':
-            type = ToastType.Error;
-            break;
-          case 'pending':
-            type = ToastType.Warning;
-            break;
-          default:
-          case 'approved':
-            type = ToastType.Success;
-            break;
+    const notificationSubscription = registerNotificationListener(
+      'COMPANY',
+      (notification: string | StorefrontNotification<CompanyOnboardingStatus>) => {
+        if (typeof notification !== 'string') {
+          if (notification.code !== 'COMPANY_ONBOARDING') {
+            return;
+          }
+          const status = notification.data_json?.status;
+          const message = l10n(notification.message, locale) || t('company.onboarding.' + status);
+          let type = ToastType.Success;
+          switch (status) {
+            case 'rejected':
+              type = ToastType.Error;
+              break;
+            case 'pending':
+              type = ToastType.Warning;
+              break;
+            default:
+            case 'approved':
+              type = ToastType.Success;
+              break;
+          }
+
+          markNotificationAsRead(notification.id);
+          notify({
+            title: message,
+            type: type,
+            button: {
+              label: t('close'),
+              onClick: () => {},
+            },
+          });
         }
-        notify({
-          title: message,
-          type: type,
-          button: {
-            label: t('close'),
-            onClick: () => {},
-          },
-        });
-      }
-      return () => {
-        stopCompany();
-      };
+      },
+    );
+    return () => {
+      unregisterNotificationListener(notificationSubscription);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const { data: session } = useSession();
+  const hasShownWelcome = useRef(false);
+
+  useEffect(() => {
+    // Only show welcome message once per mount
+    if (hasShownWelcome.current) {
+      return;
     }
-  }, [company, startCompany, stopCompany, addNotification, hasNotification, t]);
+
+    // Check if login parameter is present
+    const loginParam = searchParams.get('login');
+    if (!loginParam) {
+      return;
+    }
+
+    // Check if user is authenticated
+    if (!session?.user) {
+      return;
+    }
+
+    // Show welcome notification
+    const username = session.user.name || session.user.email || '';
+    const titleMessage = tLogin('welcomeMessage', { username });
+
+    notify({
+      title: titleMessage,
+      duration: 3000,
+      type: ToastType.Success,
+      button: {
+        label: t('close'),
+        onClick: () => {},
+      },
+    });
+
+    // Mark as shown
+    hasShownWelcome.current = true;
+    router.push(pathname);
+  }, [searchParams, session, t, pathname, router, tLogin]);
 
   return <></>;
 }

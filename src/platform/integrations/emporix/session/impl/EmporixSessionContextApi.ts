@@ -8,8 +8,8 @@ import { EmporixSessionContextApi as IEmporixSessionContextApi } from '../Empori
 @injectable('EmporixSessionContextApi', 'Singleton')
 class EmporixSessionContextApi implements IEmporixSessionContextApi {
   constructor(
-    @inject('EmporixApiInvoker') private apiClient: EmporixApiClient,
-    @inject('EmporixConfig') private config: EmporixConfig,
+    @inject('EmporixApiInvoker') protected apiClient: EmporixApiClient,
+    @inject('EmporixConfig') protected config: EmporixConfig,
   ) {
     this.apiClient = apiClient;
     this.config = config;
@@ -47,6 +47,7 @@ class EmporixSessionContextApi implements IEmporixSessionContextApi {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sessionContext),
       },
+      'service',
     );
 
     if (!response.ok) {
@@ -64,6 +65,7 @@ class EmporixSessionContextApi implements IEmporixSessionContextApi {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(attribute),
       },
+      'service',
     );
 
     if (!response.ok) {
@@ -76,6 +78,7 @@ class EmporixSessionContextApi implements IEmporixSessionContextApi {
     const response = await this.apiClient.authenticatedFetch(
       `/session-context/${this.config.tenant}/context/${sessionId}/attributes/${attributeName}`,
       { method: 'DELETE' },
+      'service',
     );
 
     if (!response.ok) {

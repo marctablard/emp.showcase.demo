@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import { Ban, RotateCcw, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { H2 } from '@/components/ui/h';
+import { H2, H3 } from '@/components/ui/h';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useOrder } from '@/hooks/order/useOrder';
@@ -68,7 +68,7 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
       <Card>
         <CardContent className="pt-6">
           <div className="text-center">
-            <p className="text-red-500">{tOrder('errorFetchingOrder')}</p>
+            <p className="text-text-error">{tOrder('errorFetchingOrder')}</p>
           </div>
         </CardContent>
       </Card>
@@ -81,7 +81,9 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
         <CardHeader>
           <div className="flex justify-between items-start">
             <div>
-              <CardTitle>{tOrder('orderDetails')}</CardTitle>
+              <CardTitle>
+                <H2 variant="h4">{tOrder('orderDetails')}</H2>
+              </CardTitle>
               <CardDescription>
                 {tOrder('orderNumber')} #{order.id}
               </CardDescription>
@@ -92,21 +94,27 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
-              <h3 className="font-medium mb-2">{tOrder('orderDate')}</h3>
+              <H3 variant="h5" className="mb-2">
+                {tOrder('orderDate')}
+              </H3>
               <p>{order.createdAt ? format(new Date(order.createdAt), 'PPP') : '-'}</p>
 
               {order.customerEmail && (
                 <>
-                  <h3 className="font-medium mb-2 mt-4">{tOrder('email')}</h3>
+                  <H3 variant="h5" className="mb-2 mt-4">
+                    {tOrder('email')}
+                  </H3>
                   <p>{order.customerEmail}</p>
                 </>
               )}
 
               {order.payments && order.payments.length > 0 && (
                 <>
-                  <h3 className="font-medium mb-2 mt-4">{tOrder('paymentMethod')}</h3>
+                  <H3 variant="h5" className="mb-2 mt-4">
+                    {tOrder('paymentMethod')}
+                  </H3>
                   <p>{tPaymentModes(order.payments[0].method.toLowerCase())}</p>
                 </>
               )}
@@ -114,7 +122,9 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
 
             {order.shippingAddress && (
               <div>
-                <h3 className="font-medium mb-2">{tOrder('shippingAddress')}</h3>
+                <H3 variant="h5" className="mb-2">
+                  {tOrder('shippingAddress')}
+                </H3>
                 <p>
                   {order.shippingAddress.contactName}
                   <br />
@@ -129,7 +139,9 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
           </div>
 
           <div className="mt-8">
-            <h3 className="font-medium mb-4">{tOrder('orderItems')}</h3>
+            <H3 variant="h5" className="mb-4">
+              {tOrder('orderItems')}
+            </H3>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -141,13 +153,13 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
               <TableBody>
                 {order.items.map((item) => (
                   <TableRow
-                    className="cursor-pointer hover:bg-primary-50"
+                    className="cursor-pointer hover:bg-surface-action-hover-2"
                     key={item.id}
                     onClick={() => router.push(`/product/${item.productId}`)}
                   >
                     <TableCell>
                       <div className="font-medium">{item.name || item.productId}</div>
-                      {item.sku && <div className="text-xs text-muted-foreground">SKU: {item.sku}</div>}
+                      {item.sku && <div className="text-sm text-text-placeholders">SKU: {item.sku}</div>}
                     </TableCell>
                     <TableCell className="text-right">{item.quantity}</TableCell>
                     <TableCell className="text-right">

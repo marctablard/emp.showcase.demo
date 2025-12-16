@@ -10,6 +10,11 @@ export interface EmporixApprovalUser {
   userId: string;
   firstName: string;
   lastName: string;
+  email?: string;
+}
+
+export interface EmporixApprovalRequestor extends EmporixApprovalUser {
+  email: string;
 }
 
 export interface EmporixApprovalPrice {
@@ -83,7 +88,7 @@ export interface EmporixApprovalResponse extends EmporixApprovalBase {
   id: string;
   approverComment?: string;
   resource: EmporixApprovalResource;
-  requestor: EmporixApprovalUser;
+  requestor: EmporixApprovalRequestor;
   approver: EmporixApprovalUser;
   status: EmporixApprovalStatus;
   expiryDate?: string;

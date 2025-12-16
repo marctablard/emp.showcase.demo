@@ -7,6 +7,7 @@ import { Address } from '../common';
 export interface Customer {
   id: string;
   email: string;
+  title?: string;
   firstName?: string;
   lastName?: string;
   company?: string;

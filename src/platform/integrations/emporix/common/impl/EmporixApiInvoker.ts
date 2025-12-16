@@ -1,6 +1,6 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
-import { buildCurl } from '@/platform/core/utils/curl';
+import { buildAndLogCurl, logResponse } from '@/platform/core/utils/debug-utils';
 import type { EmporixConfig } from '../../config';
 import type { EmporixTokenManager } from '../EmporixTokenManager';
 
@@ -10,9 +10,8 @@ import type { EmporixTokenManager } from '../EmporixTokenManager';
  */
 @injectable('EmporixApiInvoker', 'Singleton')
 class EmporixApiInvoker {
-  private config: EmporixConfig;
-  private tokenManager: EmporixTokenManager;
-  private debugCurl: boolean = false;
+  protected config: EmporixConfig;
+  protected tokenManager: EmporixTokenManager;
 
   constructor(
     @inject('EmporixConfig') config: EmporixConfig,
@@ -32,7 +31,7 @@ class EmporixApiInvoker {
 
   /**
    * Get a service access token for administrative operations
-   * @param clientSecret Optional client secret (uses config value if not provided)
+   * @param scopes Optional cscopes (uses config value if not provided)
    * @returns Promise with the token string
    */
   async getServiceAccessToken(scopes?: string[]): Promise<string> {
@@ -52,7 +51,7 @@ class EmporixApiInvoker {
    * @param url API endpoint URL
    * @param options Fetch options
    * @param tokenType Type of token to use for authentication
-   * @param credentials Optional credentials for customer token (username/password)
+   * @param authOptions Optional authOptions for customer (username/password)
    * @returns Promise with the fetch response
    */
   async authenticatedFetch(
@@ -75,6 +74,10 @@ class EmporixApiInvoker {
       case 'public':
         const anonymousToken = await this.tokenManager.getAnonymousToken(this.config.tenant, this.config.clientId);
         token = anonymousToken.accessToken;
+        headers = {
+          ...headers,
+          ...this.addPublicHeaders(anonymousToken),
+        };
         break;
       case 'customer-saas':
       case 'session':
@@ -88,7 +91,7 @@ class EmporixApiInvoker {
           if (sessionToken.saasToken) {
             headers = {
               ...headers,
-              'saas-token': `${sessionToken.saasToken}`,
+              ...this.addCustomerHeaders(sessionToken),
             };
           } else {
             throw new Error('No SaaS token available');
@@ -96,7 +99,7 @@ class EmporixApiInvoker {
         } else {
           headers = {
             ...headers,
-            'session-id': `${sessionToken.sessionId}`,
+            ...this.addSessionHeaders(sessionToken),
           };
         }
         break;
@@ -120,17 +123,20 @@ class EmporixApiInvoker {
       Authorization: `Bearer ${token}`,
     };
 
+    if (url.startsWith('/')) {
+      url = url.substring(1);
+    }
+
     return this.fetch(url, { ...options, headers });
   }
 
   async fetch(url: string, options: RequestInit = {}): Promise<Response> {
     url = `${this.config.baseUrl}/${url}`;
-
-    if (this.debugCurl) {
-      console.debug(buildCurl(url, options));
-    }
-    // no recursion, this is the globals fetch!
-    return fetch(url, options);
+    const prefix = buildAndLogCurl(url, options);
+    const responsePromise = fetch(url, options);
+    responsePromise.catch((err) => console.error(`${prefix} [FETCH ERROR] ${url}`, err));
+    responsePromise.then((response) => logResponse(response, url, options, prefix));
+    return responsePromise;
   }
 
   /**
@@ -138,6 +144,47 @@ class EmporixApiInvoker {
    */
   async clearTokens(): Promise<void> {
     this.tokenManager.clearTokens(this.config.tenant);
+  }
+
+  /**
+   * Returns additional headers for the customer-saas token case.
+   * @param sessionToken The session token object, possibly containing a saasToken.
+   * @returns An object with the 'saas-token' header if available, otherwise an empty object.
+   */
+  protected addCustomerHeaders(sessionToken: {
+    accessToken: string;
+    saasToken?: string;
+    sessionId: string;
+  }): Record<string, string> {
+    if (sessionToken.saasToken) {
+      return { 'saas-token': `${sessionToken.saasToken}` };
+    }
+    return {};
+  }
+
+  /**
+   * Returns additional headers for the session token case.
+   * @param sessionToken The session token object, possibly containing a sessionId.
+   * @returns An object with the 'session-id' header if available, otherwise an empty object.
+   */
+  protected addSessionHeaders(sessionToken: {
+    accessToken: string;
+    saasToken?: string;
+    sessionId: string;
+  }): Record<string, string> {
+    if (sessionToken.sessionId) {
+      return { 'session-id': `${sessionToken.sessionId}` };
+    }
+    return {};
+  }
+
+  /**
+   * Returns additional headers for the public token case.
+   * @param _anonymousToken The anonymous token object (unused in base implementation, available for subclasses).
+   * @returns An empty object (no additional headers for public tokens).
+   */
+  protected addPublicHeaders(_anonymousToken: { accessToken: string; sessionId: string }): Record<string, string> {
+    return {};
   }
 }
 export default EmporixApiInvoker;

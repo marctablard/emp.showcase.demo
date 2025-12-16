@@ -10,7 +10,7 @@ import { EmporixTokenManagerAbstract, TokenStore } from './EmporixTokenManagerAb
 
 @injectable('EmporixTokenManager', 'Singleton')
 class EmporixTokenManagerServer extends EmporixTokenManagerAbstract {
-  private serviceToken: StoredToken<EmporixAccessTokenResponse> | undefined;
+  protected serviceToken: StoredToken<EmporixAccessTokenResponse> | undefined;
 
   constructor(@inject('EmporixOAuthApi') oauthApi: EmporixOAuthApi) {
     super(oauthApi);

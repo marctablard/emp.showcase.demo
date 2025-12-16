@@ -1,5 +1,5 @@
 import { injectable } from '@/platform/core/di/injectable';
-import { buildCurl } from '@/platform/core/utils/curl';
+import { buildAndLogCurl, logResponse } from '@/platform/core/utils/debug-utils';
 import {
   EmporixAccessTokenResponse,
   EmporixAnonymousTokenResponse,
@@ -12,8 +12,7 @@ import { EmporixOAuthApi as IEmporixOAuthApi } from '../EmporixOAuthApi';
  */
 @injectable('EmporixOAuthApi', 'Singleton')
 class EmporixOAuthApi implements IEmporixOAuthApi {
-  private readonly baseUrl: string = 'https://api.emporix.io';
-  private debugCurl: boolean = false;
+  protected readonly baseUrl: string = 'https://api.emporix.io';
 
   /**
    * Get an anonymous token
@@ -168,12 +167,11 @@ class EmporixOAuthApi implements IEmporixOAuthApi {
    */
   async fetch(url: string, options: RequestInit = {}): Promise<Response> {
     url = `${this.baseUrl}${url.startsWith('/') ? url : '/' + url}`;
-
-    if (this.debugCurl) {
-      console.debug(buildCurl(url, options));
-    }
-    // no recursion, this is the globals fetch!
-    return fetch(url, options);
+    const prefix = buildAndLogCurl(url, options);
+    const responsePromise = fetch(url, options);
+    responsePromise.catch((err) => console.error(`${prefix} [FETCH ERROR] ${url}`, err));
+    responsePromise.then((response) => logResponse(response, url, options, prefix));
+    return responsePromise;
   }
 }
 

@@ -8,17 +8,17 @@ function Textarea({ className, maxLength, ...props }: React.ComponentProps<'text
       <textarea
         data-slot="textarea"
         className={cn(
-          'text-neutral-900 flex w-full min-w-0 px-3 border border-neutral-200 rounded-sm text-base',
-          'placeholder:text-base placeholder:text-neutral-300 p-3',
-          'transition-all hover:border-primary-700 hover:bg-white',
-          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
-          'disabled:cursor-not-allowed',
+          'text-text-body flex w-full min-w-0 px-3 border border-border-primary rounded-sm text-base',
+          'placeholder:text-base placeholder:text-text-placeholders p-3',
+          'transition-all hover:border-border-action-hover hover:bg-surface-page',
+          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
+          'disabled:cursor-not-allowed disabled:bg-surface-disabled disabled:text-text-on-disabled disabled:border-border-disabled',
           className,
         )}
         maxLength={maxLength}
         {...props}
       />
-      <div className="text-xs text-neutral-300">
+      <div className="text-sm text-text-placeholders">
         {textValue.length || 0}/{maxLength}
       </div>
     </div>

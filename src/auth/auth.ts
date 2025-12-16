@@ -2,44 +2,42 @@ import NextAuth from 'next-auth';
 import { User } from 'next-auth';
 import 'next-auth/jwt';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import server from '@/platform/server';
 import { CustomerNamingService } from '@/platform/services/customer/CustomerNamingService';
 import { CustomerService } from '@/platform/services/customer/CustomerService';
+import ssr from '@/platform/ssr';
 import { AuthService } from '../platform/services/auth/AuthService';
-import AuthConfig from './auth.config';
+import { config } from './auth.config';
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  ...AuthConfig,
-  providers: [
-    CredentialsProvider({
-      name: 'Credentials',
-      credentials: {
-        username: { label: 'Username', type: 'text' },
-        password: { label: 'Password', type: 'password' },
-      },
-      async authorize(credentials) {
+const enrichedProviders = config.providers.map((provider) => {
+  if (provider.name === 'Credentials') {
+    return CredentialsProvider({
+      ...provider.options,
+      authorize: async (credentials) => {
         if (!credentials?.username || !credentials?.password) {
+          return null;
+        }
+        // Get the AuthService from the container
+        const authService = server.get<AuthService>('AuthService');
+
+        // Call the login method with the provided credentials
+        const session = await authService.login({
+          username: credentials.username as string,
+          password: credentials.password as string,
+        });
+        if (!session) {
           return null;
         }
 
         try {
-          // Get the AuthService from the container
-          const authService = globalThis.EMP.platform.server.get<AuthService>('AuthService');
-
-          // Call the login method with the provided credentials
-          const session = await authService.login({
-            username: credentials.username as string,
-            password: credentials.password as string,
-          });
-
-          const customerService = globalThis.EMP.platform.server.get<CustomerService>('CustomerService');
+          const customerService = server.get<CustomerService>('CustomerService');
           const customer = await customerService.getCustomer();
           if (!session || !session.customerId || !customer) {
             return null;
           }
 
           // Return a session object that NextAuth can use
-          const customerNamingService =
-            globalThis.EMP.platform.server.get<CustomerNamingService>('CustomerNamingService');
+          const customerNamingService = server.get<CustomerNamingService>('CustomerNamingService');
           return {
             id: session.customerId,
             name: customerNamingService.getFullName(customer),
@@ -47,23 +45,48 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             businessModel: customer.businessModel,
             roles: [],
           };
-        } catch (error) {
-          console.error('NextAuth authorize error:', error);
-          return null;
+        } catch (_error) {
+          throw new Error('Failed to authorize using Credentials');
         }
       },
-    }),
-  ],
+    });
+  } else {
+    return provider;
+  }
+});
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...config,
+  providers: enrichedProviders,
   events: {
     async signOut(_message) {
-      const authService = globalThis.EMP.platform.server.get<AuthService>('AuthService');
+      const authService = server.get<AuthService>('AuthService');
       await authService.logout();
     },
   },
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider == 'credentials') {
+        return true;
+      }
+      if (user.email) {
+        try {
+          const authService = server.get<AuthService>('AuthService');
+          const session = await authService.login({ username: user.email });
+          if (!session) {
+            return false;
+          }
+          return !!session.customerId;
+        } catch (error) {
+          console.error('signIn error', error);
+          return false;
+        }
+      }
+      return false;
+    },
     async jwt({ token, user }) {
       if (!user) {
-        const authService = globalThis.EMP.platform.server.get<AuthService>('AuthService');
+        // Must fail silently when no CustomerSession is present, using SSR-Scope
+        const authService = ssr.get<AuthService>('AuthService');
         const session = await authService.getCurrentSession();
         if (!session || session.customerId != token.user?.id) {
           return null;

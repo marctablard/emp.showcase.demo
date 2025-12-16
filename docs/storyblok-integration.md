@@ -215,7 +215,7 @@ export default async function StoryblokPage() {
 
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-6">Storyblok Demo</h1>
+      <h1 className="mb-6">Storyblok Demo</h1>
 
       {data?.story ? (
         <div>

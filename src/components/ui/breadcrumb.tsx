@@ -20,7 +20,7 @@ function BreadcrumbList({ className, ...props }: React.ComponentProps<'ol'>) {
     <ol
       data-slot="breadcrumb-list"
       className={cn(
-        'text-sm lg:text-base text-foreground flex items-center gap-1 p-1 overflow-x-auto overflow-y-scroll max-w-[calc(100vw-2rem)] scroll-smooth hide-scrollbar',
+        'text-sm md:text-base text-text-body flex items-center gap-1 p-1 overflow-x-auto overflow-y-scroll max-w-[calc(100vw-2rem)] scroll-smooth hide-scrollbar',
         className,
       )}
       {...props}
@@ -38,7 +38,7 @@ function BreadcrumbLink({ className, children, href, ...props }: React.Component
       href={href as string}
       data-slot="breadcrumb-link"
       className={cn(
-        'inline-flex items-center gap-1 whitespace-nowrap text-primary [&>svg]:size-4 lg:[&>svg]:size-6 font-bold underline hover:text-primary-700 outline-none focus-visible:rounded-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+        'inline-flex items-center gap-1 whitespace-nowrap text-text-action [&>svg]:size-4 md:[&>svg]:size-6 font-bold underline hover:text-text-action-hover outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-white',
         className,
       )}
       {...props}
@@ -70,7 +70,7 @@ function BreadcrumbBackLink({ className, href, ...props }: React.ComponentProps<
       data-slot="breadcrumb-back-link"
       aria-label={t('backLinkAriaLabel')}
       className={cn(
-        'flex font-bold items-center justify-center gap-1 pr-4 underline cursor-pointer [&>svg]:size-4 lg:[&>svg]:size-6 hover:text-primary-700 outline-none focus-visible:rounded-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+        'flex font-bold items-center justify-center gap-1 pr-4 underline cursor-pointer [&>svg]:size-4 md:[&>svg]:size-6 hover:text-text-action-hover outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-white',
         className,
       )}
       {...props}

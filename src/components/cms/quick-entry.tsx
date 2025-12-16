@@ -31,14 +31,14 @@ const QuickEntryElement = ({ title, link, link_name, icon }: QuickEntryElementPr
   return (
     <Link
       href={link}
-      className="flex gap-6 align-center group w-full xl:max-w-[400px] bg-white shadow-lg first:rounded-ss-xl last:rounded-ee-xl md:first:rounded-ss-3xl md:last:rounded-ee-3xl"
+      className="flex gap-6 align-center group w-full lg:max-w-[400px] bg-surface-page shadow-sm first:rounded-ss-xl last:rounded-ee-xl sm:first:rounded-ss-xl sm:last:rounded-ee-xl"
     >
-      <div className="bg-primary-500 transition group-hover:bg-primary-700 text-white p-4 lg:p-5 rounded-ss-[inherit]">
-        {Icon && <Icon className="w-8 h-8 lg:w-10 lg:h-10" />}
+      <div className="flex items-center justify-center bg-surface-action transition group-hover:bg-surface-action-hover text-icon-on-action p-4 md:p-5 rounded-ss-[inherit]">
+        {Icon && <Icon className="w-8 h-8 md:w-10 md:h-10" />}
       </div>
-      <div className="flex flex-col justify-center bg-white ">
-        <p className="md:text-xl font-bold font-headlines">{title}</p>
-        <p className="text-base inline-flex items-center gap-1 text-primary font-bold underline transition group-hover:text-primary-700 outline-none focus-visible:rounded-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white">
+      <div className="flex flex-col justify-center bg-surface-page ">
+        <p className="sm:text-lg font-bold font-headlines">{title}</p>
+        <p className="text-base inline-flex items-center gap-1 text-text-action font-bold underline transition group-hover:text-text-action-hover outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-white">
           {link_name}
           <ArrowRight />
         </p>
@@ -49,8 +49,8 @@ const QuickEntryElement = ({ title, link, link_name, icon }: QuickEntryElementPr
 
 const QuickEntry = ({ elements }: QuickEntryProps) => {
   return (
-    <div className="mb-10 w-full bg-primary-50">
-      <div className="grid grid-cols-[1fr] md:grid-cols-[1fr_1fr] xl:grid-cols-[1fr_1fr_1fr_1fr] xl:max-w-[1672px] mx-auto justify-items-center gap-3 md:gap-4 lg:gap-6 px-4 py-4 lg:py-6 lg:px-9">
+    <div className="mb-10 w-full bg-surface-action-hover-2">
+      <div className="grid grid-cols-[1fr] sm:grid-cols-[1fr_1fr] lg:grid-cols-[1fr_1fr_1fr_1fr] lg:max-w-[1672px] mx-auto justify-items-center gap-3 sm:gap-4 md:gap-6 px-4 py-4 md:py-6 lg:px-9">
         {elements &&
           elements.map((element, index) => {
             return <QuickEntryElement key={index} {...element} />;

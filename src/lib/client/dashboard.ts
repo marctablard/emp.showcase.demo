@@ -21,10 +21,10 @@ type ConfigStore = ConfigState & ConfigActions;
 
 // Default layout configuration for the dashboard
 const defaultLayouts: Layouts = {
-  // Large screens (≥1200px) - 4 columns
-  xl: [
+  // Large screens (≥1280px) - 4 columns
+  lg: [
     { i: 'ai-helper', x: 0, y: 0, w: 2, h: 12 },
-    { i: 'weather', x: 3, y: 0, w: 1, h: 12 },
+    { i: 'weather', x: 2, y: 0, w: 1, h: 12 },
     { i: 'notification', x: 0, y: 1, w: 1, h: 16 },
     { i: 'ticket', x: 2, y: 1, w: 2, h: 16 },
     { i: 'orders', x: 0, y: 2, w: 2, h: 19 },
@@ -32,8 +32,7 @@ const defaultLayouts: Layouts = {
     { i: 'documents', x: 0, y: 4, w: 3, h: 6 },
   ],
   /*
-
-TODO: Add missing layouts
+  TODO: Add missing layouts
   // Medium screens (≥996px) - 3 columns
   lg: [
     // Top row - small stat cards

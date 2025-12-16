@@ -8,6 +8,7 @@ import {
   EmporixApprovalDetails,
   EmporixApprovalPayment,
   EmporixApprovalPrice,
+  EmporixApprovalRequestor,
   EmporixApprovalResource,
   EmporixApprovalResourceItem,
   EmporixApprovalResponse,
@@ -22,6 +23,7 @@ import {
   ApprovalDetails,
   ApprovalPayment,
   ApprovalPrice,
+  ApprovalRequestor,
   ApprovalResource,
   ApprovalResourceItem,
   ApprovalTaxablePrice,
@@ -57,7 +59,7 @@ export class EmporixApprovalMapper implements ApprovalMapper<EmporixApprovalResp
       action: source.action,
       status: source.status,
       resource: this.mapResource(source.resource),
-      requestor: this.mapUser(source.requestor),
+      requestor: this.mapRequestor(source.requestor),
       approver: this.mapUser(source.approver),
       comment: source.comment,
       approverComment: source.approverComment,
@@ -83,7 +85,7 @@ export class EmporixApprovalMapper implements ApprovalMapper<EmporixApprovalResp
       action: service.action,
       status: service.status,
       resource: this.mapResourceToSource(service.resource),
-      requestor: this.mapUserToSource(service.requestor),
+      requestor: this.mapRequestorToSource(service.requestor),
       approver: this.mapUserToSource(service.approver),
       comment: service.comment,
       approverComment: service.approverComment,
@@ -127,11 +129,30 @@ export class EmporixApprovalMapper implements ApprovalMapper<EmporixApprovalResp
     };
   }
 
+  private mapRequestor(source: EmporixApprovalRequestor): ApprovalRequestor {
+    return {
+      userId: source.userId,
+      firstName: source.firstName,
+      lastName: source.lastName,
+      fullName: `${source.firstName} ${source.lastName}`,
+      email: source.email,
+    };
+  }
+
   private mapUserToSource(service: ApprovalUser): EmporixApprovalUser {
     return {
       userId: service.userId,
       firstName: service.firstName,
       lastName: service.lastName,
+    };
+  }
+
+  private mapRequestorToSource(service: ApprovalRequestor): EmporixApprovalRequestor {
+    return {
+      userId: service.userId,
+      firstName: service.firstName,
+      lastName: service.lastName,
+      email: service.email,
     };
   }
 

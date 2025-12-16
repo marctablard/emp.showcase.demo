@@ -15,20 +15,22 @@ const Slider = React.forwardRef<
   >
     <SliderPrimitive.Track
       className={cn(
-        'relative h-2.5 w-full grow overflow-hidden rounded-full bg-primary-50 border border-neutral-200',
-        'data-[disabled]:pointer-events-none data-[disabled]:cursor-not-allowed data-[disabled]:bg-neutral-100',
+        'relative h-2.5 w-full grow overflow-hidden rounded-full bg-surface-information border border-border-primary',
+        'data-[disabled]:pointer-events-none data-[disabled]:cursor-not-allowed data-[disabled]:bg-surface-disabled',
       )}
     >
-      <SliderPrimitive.Range className={cn('absolute h-full bg-primary-500 data-[disabled]:bg-neutral-400')} />
+      <SliderPrimitive.Range
+        className={cn('absolute h-full bg-surface-action data-[disabled]:bg-surface-disabled-selected')}
+      />
     </SliderPrimitive.Track>
     {(props.value ?? props.defaultValue)?.map((_, index) => (
       <SliderPrimitive.Thumb
         key={index}
         className={cn(
-          'block h-6 w-6 rounded-full border-2 border-white bg-primary-500 shadow transition-colors ',
-          'hover:bg-primary-700',
-          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
-          'data-[disabled]:pointer-events-none data-[disabled]:cursor-not-allowed data-[disabled]:bg-neutral-100 data-[disabled]:border-neutral-300',
+          'block h-6 w-6 rounded-full border-2 border-border-white bg-surface-action shadow transition-colors',
+          'hover:bg-surface-action-hover',
+          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
+          'data-[disabled]:pointer-events-none data-[disabled]:cursor-not-allowed data-[disabled]:bg-surface-disabled data-[disabled]:border-border-disabled',
         )}
       />
     ))}

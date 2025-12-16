@@ -21,6 +21,7 @@ const mockProduct = {
     currency: 'USD',
   },
   images: [{ url: 'https://example.com/image.jpg' }],
+  purchasable: true,
 };
 
 // Wrapper component to provide the store context
@@ -56,8 +57,8 @@ describe('useProduct hook', () => {
     expect(result.current.loading).toBe(false);
     expect(result.current.error).toBe(null);
 
-    // Verify that the API was called with the correct ID
-    expect(fetchProductById).toHaveBeenCalledWith('test-product-123');
+    // Verify that the API was called with the correct ID and options
+    expect(fetchProductById).toHaveBeenCalledWith('test-product-123', undefined);
   });
 
   /**
@@ -92,8 +93,8 @@ describe('useProduct hook', () => {
       expect(result.current.product).toBe(null);
       expect(result.current.error).toBe(mockError);
 
-      // Verify that the API was called with the correct ID
-      expect(fetchProductById).toHaveBeenCalledWith('test-product-123');
+      // Verify that the API was called with the correct ID and options
+      expect(fetchProductById).toHaveBeenCalledWith('test-product-123', undefined);
     } finally {
       // Restore the original console.error
       console.error = originalConsoleError;

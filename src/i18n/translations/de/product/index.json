@@ -1,80 +1,97 @@
 {
-  "addToCart": "In den Warenkorb",
-  "addToWishlist": "Produkt Merken",
-  "share": "Teilen",
-  "compare": "Vergleichen",
-  "noImage": "Kein Bild verfügbar",
-  "noDescription": "Keine Beschreibung verfügbar.",
-  "productId": "Produkt-ID",
-  "quantity": "Menge",
-  "increment": "Menge erhöhen",
-  "decrement": "Menge verringern",
-  "buyNow": "Jetzt kaufen",
-  "addedToCart": "In den Warenkorb gelegt",
-  "addedToCartDescription": "wurde Ihrem Warenkorb hinzugefügt",
-  "errorAddingToCart": "Fehler beim Hinzufügen zum Warenkorb",
-  "itemNumber": "Artikelnummer",
-  "copy": "Kopieren",
-  "sku": "Artikelnummer",
-  "productHighlights": "Produkt-Highlights",
-  "keySpecs": "Schlüssel-Spezifikationen",
-  "more": "Mehr Produktfunktionen",
-  "technicalInformation": "Technische Informationen",
-  "otherVariants": "Andere Varianten",
-  "shipping": {
-      "deliveryDetails": "Lieferdetails",
-      "deliverable": "Lieferbar in {min} - {max} Tagen",
-      "shipping": "Versand",
-      "freeShipping": "Kostenloser Versand",
-      "canBeReserved": "Kann reserviert werden in {location}, {postalCode}",
-      "canBeReservedExample": "Kann reserviert werden in London, NW1 6XE",
-      "yourUsps": "Ihre Emporix Vorteile",
-      "warranty": "{years} Jahre Garantie",
-      "returnRight": "{days} Tage Rückgaberecht",
-      "onlineAvailable": "Online Verfügbar"
-  },
-  "price": {
-      "yourPrice": "Ihr Preis",
-      "listPrice": "Listenpreis",
-      "including": "inkl",
-      "notAvailable": "N/V",
-      "priceNotAvailable": "Preis nicht verfügbar",
-      "includingTax": "inkl. {taxRate}% MwSt",
-      "excludingTax": "exkl. {taxRate}% MwSt",
-      "net": "netto",
-      "gross": "brutto"
-  },
-  "filters": {
-      "mixins": {
-          "productVariantAttributes": {
-              "capacity": "Kapazität",
-              "nominal-power": "Nennleistung"
-          },
-          "productTemplateAttributes": {
-              "length": "Produktlänge",
-              "width": "Produktbreite",
-              "height": "Produkthöhe",
-              "cell-type": "Zellenart"
-          }
-      },
-      "prices": {
-          "effectiveAmount": "Effektiver Betrag"
-      },
-      "categoryAssignments": {
-          "name": "Kategorie Name"
-      },
-      "filterButton": "Filter",
-      "clearFilter": "Filter löschen",
-      "applyFilters": "Filter anwenden"
-  },
-  "tabs": {
-      "description": "Beschreibung",
-      "specs": "Spezifikationen",
-      "downloads": "Downloads",
-      "reviews": "Bewertungen"
-  },
-  "productRecommendations": {
-      "overline": "mehr zu entdecken",
-      "headline": "Diese Produkte könnten auch interessant sein"
-  }
+    "addToCart": "In den Warenkorb",
+    "addToCartResult": {
+        "successTitle": "Zum Warenkorb hinzugefügt",
+        "pendingTitle": "Wir verarbeiten Ihre Anfrage",
+        "addedMessage": "{quantity} {productName} wurde Ihrem Warenkorb hinzugefügt",
+        "insufficientStockMessage": "Die angeforderte Menge übersteigt den Bestand. Wir suchen im Hintergrund nach einer Lösung. Sie erhalten eine Benachrichtigung.",
+        "continueShopping": "Weiter einkaufen",
+        "viewCart": "Zum Warenkorb",
+        "saveCart": "Warenkorb speichern",
+        "productAdded": "Ihr gewähltes Produkt",
+        "quantityAdded": "Hinzugefügte Menge"
+    },
+    "addToWishlist": "Produkt Merken",
+    "share": "Teilen",
+    "compare": "Vergleichen",
+    "noImage": "Kein Bild verfügbar",
+    "noDescription": "Keine Beschreibung verfügbar.",
+    "productId": "Produkt-ID",
+    "quantity": "Menge",
+    "increment": "Menge erhöhen",
+    "decrement": "Menge verringern",
+    "buyNow": "Jetzt kaufen",
+    "addedToCart": "Zum Warenkorb hinzugefügt",
+    "addedToCartDescription": "wurde Ihrem Warenkorb hinzugefügt",
+    "errorAddingToCart": "Fehler beim Hinzufügen zum Warenkorb",
+    "itemNumber": "Artikelnummer",
+    "copy": "Kopieren",
+    "sku": "Artikelnummer",
+    "productHighlights": "Produkt-Highlights",
+    "keySpecs": "Schlüssel-Spezifikationen",
+    "more": "Mehr Produktfunktionen",
+    "technicalInformation": "Technische Informationen",
+    "otherVariants": "Andere Varianten",
+    "shipping": {
+        "deliveryDetails": "Lieferdetails",
+        "immediatelyDeliverable": "Sofort Lieferbar",
+        "deliverable": "Lieferbar in {min} - {max} Tagen",
+        "shipping": "Versand",
+        "freeShipping": "Kostenloser Versand",
+        "canBeReserved": "Kann reserviert werden in {location}, {postalCode}",
+        "canBeReservedExample": "Kann reserviert werden in London, NW1 6XE",
+        "yourUsps": "Ihre Emporix Vorteile",
+        "warranty": "{years} Jahre Garantie",
+        "returnRight": "{days} Tage Rückgaberecht",
+        "onlineAvailable": "Online Verfügbar"
+    },
+    "price": {
+        "yourPrice": "Ihr Preis",
+        "listPrice": "Listenpreis",
+        "including": "inkl",
+        "notAvailable": "N/V",
+        "priceNotAvailable": "Preis nicht verfügbar",
+        "includingTax": "inkl. {taxRate}% MwSt",
+        "excludingTax": "exkl. {taxRate}% MwSt",
+        "net": "netto",
+        "gross": "brutto"
+    },
+    "filters": {
+        "mixins": {
+            "productVariantAttributes": {
+                "capacity": "Kapazität",
+                "nominal-power": "Nennleistung",
+                "color": "Farbe",
+                "ampere": "Ampere",
+                "length": "Länge"
+            },
+            "productTemplateAttributes": {
+                "length": "Produktlänge",
+                "width": "Produktbreite",
+                "height": "Produkthöhe",
+                "cell-type": "Zellenart"
+            }
+        },
+        "prices": {
+            "effectiveAmount": "Effektiver Betrag"
+        },
+        "categoryAssignments": {
+            "name": "Kategorie Name"
+        },
+        "filterButton": "Filter",
+        "clearFilter": "Filter löschen",
+        "applyFilters": "Filter anwenden"
+    },
+    "tabs": {
+        "description": "Beschreibung",
+        "specs": "Spezifikationen",
+        "downloads": "Downloads",
+        "reviews": "Bewertungen"
+    },
+    "productRecommendations": {
+        "overline": "mehr zu entdecken",
+        "headline": "Diese Produkte könnten auch interessant sein"
+    },
+    "loadingVariants": "Varianten werden geladen...",
+    "variantSelectPlaceholder": "Variante auswählen"
 }

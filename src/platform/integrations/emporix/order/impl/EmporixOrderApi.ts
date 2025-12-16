@@ -3,6 +3,7 @@ import { injectable } from '@/platform/core/di/injectable';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../../config';
 import {
+  EmporixCreateOrderFromQuoteRequest,
   EmporixCreateOrderRequest,
   EmporixOrder,
   EmporixOrderCreationResponse,
@@ -15,8 +16,8 @@ import { EmporixOrderApi as IEmporixOrderApi } from '../EmporixOrderApi';
 @injectable('EmporixOrderApi', 'Singleton')
 class EmporixOrderApi implements IEmporixOrderApi {
   constructor(
-    @inject('EmporixApiInvoker') private apiClient: EmporixApiClient,
-    @inject('EmporixConfig') private config: EmporixConfig,
+    @inject('EmporixApiInvoker') protected apiClient: EmporixApiClient,
+    @inject('EmporixConfig') protected config: EmporixConfig,
   ) {}
 
   // No helper methods needed - using direct endpoint URLs
@@ -26,7 +27,9 @@ class EmporixOrderApi implements IEmporixOrderApi {
    * @param createOrderRequest Order creation request
    * @returns Promise with the created order ID
    */
-  async createOrder(createOrderRequest: EmporixCreateOrderRequest): Promise<EmporixOrderCreationResponse> {
+  async createOrder(
+    createOrderRequest: EmporixCreateOrderRequest | EmporixCreateOrderFromQuoteRequest,
+  ): Promise<EmporixOrderCreationResponse> {
     const response = await this.apiClient.authenticatedFetch(
       `/order-v2/${this.config.tenant}/salesorders`,
       {

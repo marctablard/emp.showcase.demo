@@ -11,14 +11,14 @@ const bulletPointVariants = cva('flex items-center gap-2', {
       lg: 'text-base',
     },
     variant: {
-      default: 'text-foreground',
-      primary: 'text-primary',
-      white: 'text-white',
+      default: 'text-text-body',
+      primary: 'text-text-action',
+      white: 'text-text-on-action',
     },
     iconColor: {
-      default: 'text-foreground',
-      primary: 'text-primary',
-      white: 'text-white',
+      default: 'text-text-body',
+      primary: 'text-text-action',
+      white: 'text-text-on-action',
     },
     iconSize: {
       sm: 'h-4 w-4',
@@ -56,7 +56,11 @@ export function BulletPoint({
       <Icon
         className={cn(
           'flex-shrink-0',
-          iconColor === 'default' ? 'text-foreground' : iconColor === 'primary' ? 'text-primary' : 'text-white',
+          iconColor === 'default'
+            ? 'text-text-body'
+            : iconColor === 'primary'
+              ? 'text-icon-action'
+              : 'text-text-on-action',
           iconSize === 'sm' ? 'h-4 w-4' : iconSize === 'md' ? 'h-5 w-5' : iconSize === 'lg' ? 'h-6 w-6' : 'h-8 w-8',
         )}
       />

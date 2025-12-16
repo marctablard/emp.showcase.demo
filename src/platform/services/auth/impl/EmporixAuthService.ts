@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
 import EmporixCustomerApi from '@/platform/integrations/emporix/customer/impl/EmporixCustomerApi';
@@ -6,6 +7,7 @@ import { EmporixCustomer } from '@/platform/integrations/emporix/model/customer'
 import EmporixSessionContextApi from '@/platform/integrations/emporix/session/impl/EmporixSessionContextApi';
 import { Credentials, Registration, Session } from '@/platform/services/model/auth/auth';
 import type { CartMigrationService } from '../../cart/CartMigrationService';
+import type { CartService } from '../../cart/CartService';
 import EmporixAddressMapper from '../../model/common/impl/EmporixAddressMapper';
 import type { SessionService } from '../../session';
 import { AuthService } from '../AuthService';
@@ -32,31 +34,51 @@ export class EmporixAuthService implements AuthService {
     private readonly cartMigrationService: CartMigrationService,
     @inject('SessionService')
     private readonly sessionService: SessionService,
+    @inject('CartService')
+    private readonly cartService: CartService,
   ) {}
 
   async login(credentials: Credentials): Promise<Session> {
-    try {
-      const oldSession = await this.sessionService.getCurrent();
-      const session = await this.emporixCustomerApi.login(credentials.username, credentials.password);
-      if (!session) {
-        throw new Error('Failed to get session context');
-      }
-      const cartId = oldSession?.cartId;
-      if (cartId && session.customerId) {
-        await this.cartMigrationService.migrateCartToCustomer(cartId, session.customerId);
-      }
-      return {
-        sessionId: session.sessionId,
-        customerId: session.customerId,
-        siteCode: session.siteCode,
-        currency: session.currency,
-        cartId: cartId || undefined,
-        country: session.targetLocation,
-      };
-    } catch (error) {
-      console.error('Login failed:', error);
-      throw error;
+    const oldSession = await this.sessionService.getCurrent();
+    if (!oldSession) {
+      throw new Error('Failed to get session context');
     }
+    const siteCode = oldSession.siteCode || 'main';
+    const oldSessionId = oldSession.id || '';
+    const oldCart = await this.cartService.getCartByCriteria(siteCode, oldSessionId, undefined);
+    const password = credentials.password || this.generateSsoPassword(credentials.username);
+    const session = await this.emporixCustomerApi.login(credentials.username, password);
+    if (!session) {
+      throw new Error('Failed to get session context');
+    }
+    let customerCartId: string | undefined;
+    // only merge carts if the old cart is anonymous
+    if (oldCart && !oldCart.customerId) {
+      // Capture the resulting customer cart id for the return value
+      if (session.customerId) {
+        const customerCart = await this.cartService.getCart();
+        let customerCartId: string;
+        if (!customerCart) {
+          customerCartId = await this.cartService.createCart(siteCode, session.customerId);
+        } else {
+          customerCartId = customerCart.id;
+        }
+        try {
+          await this.cartMigrationService.mergeCarts(oldCart.id, customerCartId);
+        } catch (error) {
+          console.error('Failed to merge carts:', error);
+        }
+      }
+    }
+
+    return {
+      sessionId: session.sessionId,
+      customerId: session.customerId,
+      siteCode: session.siteCode,
+      currency: session.currency,
+      cartId: customerCartId,
+      country: session.targetLocation,
+    };
   }
 
   async logout(): Promise<void> {
@@ -64,6 +86,9 @@ export class EmporixAuthService implements AuthService {
   }
 
   async register(registration: Registration): Promise<Session> {
+    if (!registration.credentials.password) {
+      throw new Error('Missing Password');
+    }
     const customer: Omit<EmporixCustomer, 'id' | 'customerNumber'> = {
       contactEmail: registration.credentials.username,
       firstName: registration.customer?.firstName,
@@ -120,6 +145,19 @@ export class EmporixAuthService implements AuthService {
       cartId: session.cartId,
       country: session.targetLocation,
     };
+  }
+
+  private generateSsoPassword(username: string): string {
+    const secret = process.env.NEXT_SSO_PASSWORD_SECRET;
+
+    if (!secret) {
+      throw new Error('NEXT_SSO_PASSWORD_SECRET environment variable is not configured');
+    }
+
+    const combined = secret + username;
+    const hash = crypto.createHash('sha256').update(combined).digest('hex');
+
+    return hash;
   }
 }
 

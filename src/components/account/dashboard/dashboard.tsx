@@ -78,8 +78,8 @@ export default function Dashboard({ isCustomizable, layouts, layoutChanged }: Da
         measureBeforeMount={false}
         onBreakpointChange={onBreakpointChange}
         onLayoutChange={onLayoutChange}
-        breakpoints={{ xl: 1200, lg: 1024, md: 640, sm: 320 }}
-        cols={{ xl: 3, lg: 3, md: 2, sm: 1 }}
+        breakpoints={{ lg: 1280, md: 1024, sm: 768 }}
+        cols={{ lg: 3, md: 3, sm: 1 }}
         rowHeight={20}
         isDraggable={isCustomizable}
         isResizable={isCustomizable}

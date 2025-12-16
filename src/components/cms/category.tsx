@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { storyblokEditable } from '@storyblok/react/rsc';
+import { H3 } from '@/components/ui/h';
 import { Link } from '@/i18n/navigation';
 
 /**
@@ -29,7 +30,7 @@ const Category = ({ blok }: CategoryProps) => {
   return (
     <div
       {...storyblokEditable(blok)}
-      className={`category-card rounded-lg overflow-hidden shadow-md ${blok.highlight ? 'border-2 border-primary' : ''}`}
+      className={`rounded-md overflow-hidden shadow-md ${blok.highlight ? 'border-2 border-border-primary' : ''}`}
     >
       {/* Banner image */}
       {blok.banner?.filename && (
@@ -45,11 +46,15 @@ const Category = ({ blok }: CategoryProps) => {
 
       {/* Content */}
       <div className="p-4">
-        {blok.title && <h3 className="text-xl font-bold mb-2">{blok.title}</h3>}
+        {blok.title && (
+          <H3 variant="h5" className="mb-2">
+            {blok.title}
+          </H3>
+        )}
 
-        {blok.description && <p className="text-neutral-600 mb-4 line-clamp-2">{blok.description}</p>}
+        {blok.description && <p className="text-text-placeholders mb-4 line-clamp-2">{blok.description}</p>}
 
-        <Link href={categoryUrl} className="text-primary hover:underline font-medium">
+        <Link href={categoryUrl} className="text-text-action hover:underline font-medium">
           View Products
         </Link>
       </div>

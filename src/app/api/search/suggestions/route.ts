@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { SearchService } from '@/platform/services/search/SearchService';
 
 /**
@@ -7,7 +8,7 @@ import { SearchService } from '@/platform/services/search/SearchService';
  */
 export async function GET(request: NextRequest) {
   try {
-    const searchService = await globalThis.EMP.platform.server.get<SearchService>('SearchService');
+    const searchService = server.get<SearchService>('SearchService');
 
     const url = new URL(request.url);
 

@@ -57,6 +57,7 @@ Here's an example of the Article component:
 'use client';
 
 import { Link } from '@/i18n/navigation';
+import { H1, H2, H3 } from '@/components/ui/h';
 import { renderRichText, storyblokEditable } from '@storyblok/react/rsc';
 
 interface ArticleProps {
@@ -81,8 +82,13 @@ const Article = ({ blok }: ArticleProps) => {
     <article {...storyblokEditable(blok)} className="article max-w-4xl mx-auto py-8">
       {/* Article header */}
       <header className="mb-8">
-        {blok.title && <h1 className="text-3xl font-bold mb-4">{blok.title}</h1>}
-        {blok.introduction && <div className="text-xl text-neutral-600 mb-6">{blok.introduction}</div>}
+        {blok.title && (
+          <H1 variant="h5" className="mb-4">
+            {blok.title}
+          </H1>
+        )}
+
+        {blok.introduction && <div className="text-lg text-text-on-disabled mb-6">{blok.introduction}</div>}
       </header>
 
       {/* Video */}
@@ -103,13 +109,17 @@ const Article = ({ blok }: ArticleProps) => {
       {/* Linked products */}
       {blok.linked_products && blok.linked_products.length > 0 && (
         <div className="mt-12">
-          <h2 className="text-2xl font-bold mb-4">Related Products</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <H2 variant="h6" className="mb-4">
+            Related Products
+          </H2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
             {blok.linked_products.map((product) => (
               <div key={product._uid} className="border rounded-lg p-4">
-                <h3 className="font-medium mb-2">{product.name}</h3>
+                <H3 variant="h6" className="mb-2">
+                  {product.name}
+                </H3>
                 {product.product_id && (
-                  <Link href={`/product/${product.product_id}`} className="text-primary hover:underline">
+                  <Link href={`/product/${product.product_id}`} className="text-text-action hover:underline">
                     View Product
                   </Link>
                 )}

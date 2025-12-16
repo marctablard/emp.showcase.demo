@@ -9,6 +9,7 @@ import { OrdersTable } from '@/components/account/orders/orders-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { H3 } from '@/components/ui/h';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -74,27 +75,27 @@ function RecentOrdersCard({ className, title, ...props }: Omit<DashboardCardProp
       </div>
       <div className="space-y-4">
         {loading ? (
-          <p className="text-sm text-muted-foreground">{t('loading')}</p>
+          <p className="text-sm text-text-placeholders">{t('loading')}</p>
         ) : recentOrders.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t('noOrders')}</p>
+          <p className="text-sm text-text-placeholders">{t('noOrders')}</p>
         ) : (
           recentOrders.map((order) => (
             <div key={order.id} className="border-b pb-3 last:border-0 last:pb-0">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <h4 className="text-sm font-medium">
+                  <p className="text-sm font-medium">
                     {tOrder('orderNumber')}{' '}
                     <Link href={`/account/orders/${order.id}`} className="hover:underline">
                       #{order.id}
                     </Link>
-                  </h4>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  </p>
+                  <p className="text-sm text-text-placeholders mt-1">
                     {order.items.length} {tOrder('quantity')} · {order.price?.total.gross} {order.currency}
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <OrderStatusBadge status={order.status} />
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  <span className="text-sm text-text-placeholders whitespace-nowrap">
                     {order.createdAt && formatDistanceToNow(new Date(order.createdAt), { addSuffix: true })}
                   </span>
                 </div>
@@ -103,7 +104,7 @@ function RecentOrdersCard({ className, title, ...props }: Omit<DashboardCardProp
           ))
         )}
         <div className="text-center">
-          <Link href="/account/orders" className="text-xs text-primary hover:underline">
+          <Link href="/account/orders" className="text-sm text-text-action hover:underline">
             {t('viewAllOrders')}
           </Link>
         </div>
@@ -143,7 +144,7 @@ function OrdersList() {
       <Card>
         <CardContent className="pt-6">
           <div className="text-center">
-            <p className="text-red-500">{tOrder('errorFetchingOrder')}</p>
+            <p className="text-text-error">{tOrder('errorFetchingOrder')}</p>
           </div>
         </CardContent>
       </Card>
@@ -155,7 +156,7 @@ function OrdersList() {
       <Card>
         <CardContent className="pt-6">
           <div className="text-center">
-            <p className="text-muted-foreground">{t('noOrders')}</p>
+            <p className="text-text-placeholders">{t('noOrders')}</p>
           </div>
         </CardContent>
       </Card>
@@ -210,7 +211,7 @@ function OrderDetail({ orderId }: { orderId: string }) {
       <Card>
         <CardContent className="pt-6">
           <div className="text-center">
-            <p className="text-red-500">{tOrder('errorFetchingOrder')}</p>
+            <p className="text-text-error">{tOrder('errorFetchingOrder')}</p>
             <Button variant="secondary" className="mt-4" asChild>
               <Link href="/account/orders">
                 <ArrowLeft className="h-4 w-4 mr-2" />
@@ -245,21 +246,21 @@ function OrderDetail({ orderId }: { orderId: string }) {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
-              <h3 className="font-medium mb-2">{tOrder('orderDate')}</h3>
+              <H3 className="mb-2">{tOrder('orderDate')}</H3>
               <p>{order.createdAt ? format(new Date(order.createdAt), 'PPP') : '-'}</p>
 
               {order.customerEmail && (
                 <>
-                  <h3 className="font-medium mb-2 mt-4">{tOrder('email')}</h3>
+                  <H3 className="mb-2 mt-4">{tOrder('email')}</H3>
                   <p>{order.customerEmail}</p>
                 </>
               )}
 
               {order.payments && order.payments.length > 0 && (
                 <>
-                  <h3 className="font-medium mb-2 mt-4">{tOrder('paymentMethod')}</h3>
+                  <H3 className="mb-2 mt-4">{tOrder('paymentMethod')}</H3>
                   <p>{tPaymentModes(order.payments[0].method.toLowerCase())}</p>
                 </>
               )}
@@ -267,7 +268,7 @@ function OrderDetail({ orderId }: { orderId: string }) {
 
             {order.shippingAddress && (
               <div>
-                <h3 className="font-medium mb-2">{tOrder('shippingAddress')}</h3>
+                <H3 className="mb-2">{tOrder('shippingAddress')}</H3>
                 <p>
                   {order.shippingAddress.contactName}
                   <br />
@@ -282,7 +283,7 @@ function OrderDetail({ orderId }: { orderId: string }) {
           </div>
 
           <div className="mt-8">
-            <h3 className="font-medium mb-4">{tOrder('orderItems')}</h3>
+            <H3 className="mb-4">{tOrder('orderItems')}</H3>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -296,7 +297,7 @@ function OrderDetail({ orderId }: { orderId: string }) {
                   <TableRow key={item.id}>
                     <TableCell>
                       <div className="font-medium">{item.name || item.productId}</div>
-                      {item.sku && <div className="text-xs text-muted-foreground">SKU: {item.sku}</div>}
+                      {item.sku && <div className="text-sm text-text-placeholders">SKU: {item.sku}</div>}
                     </TableCell>
                     <TableCell className="text-right">{item.quantity}</TableCell>
                     <TableCell className="text-right">

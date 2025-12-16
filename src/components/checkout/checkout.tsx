@@ -80,13 +80,9 @@ const Checkout: React.FC<CheckoutProps> = ({ onComplete }) => {
   }, [orderResponse, onComplete, router]);
 
   if (customer === undefined || loading || orderResponse) {
+    console.log(customer, loading, orderResponse);
     return (
-      <div className="mx-4 xl:mx-9">
-        <div className="flex gap-3 align-end mb-8">
-          <H1 variant="h3" className="text-5xl font-bold">
-            {t('title')}
-          </H1>
-        </div>
+      <div className="mx-4 lg:mx-9">
         <div className="flex flex-col items-center justify-center py-12">
           <Spinner variant="lg" />
         </div>
@@ -98,8 +94,10 @@ const Checkout: React.FC<CheckoutProps> = ({ onComplete }) => {
     return (
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-neutral-900 mb-4">{t('title')}</h1>
-          <p className="text-neutral-600">{t('emptyCart')}</p>
+          <H1 variant="h6" className="text-text-heading mb-4">
+            {t('title')}
+          </H1>
+          <p className="text-text-on-disabled">{t('emptyCart')}</p>
         </div>
       </div>
     );
@@ -108,18 +106,16 @@ const Checkout: React.FC<CheckoutProps> = ({ onComplete }) => {
   return (
     <div className="max-w-6xl mx-auto">
       {error && (
-        <div className="mb-6 p-4 bg-danger-50 border border-danger-200 rounded-md">
-          <p className="text-danger-700">{error.message}</p>
+        <div className="mb-6 p-4 bg-surface-error border border-border-error rounded-md">
+          <p className="text-text-error">{error.message}</p>
         </div>
       )}
-      <div className="mx-4 xl:mx-9">
+      <div className="mx-4 lg:mx-9">
         <div className="flex gap-3 align-end mb-8">
-          <H1 variant="h3" className="text-5xl font-bold">
-            {t('title')}
-          </H1>
+          <H1 variant="h3">{t('title')}</H1>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 2xl:grid-cols-4 gap-8">
-          <div className="col-span-1 lg:col-span-2 2xl:col-span-3" ref={leftContent}>
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8">
+          <div className="col-span-1 md:col-span-2 lg:col-span-3" ref={leftContent}>
             {!customer && <ContactData />}
             <CheckoutShipping initialEdit={false} />
             <CheckoutPayment initialEdit={false} />
@@ -128,9 +124,9 @@ const Checkout: React.FC<CheckoutProps> = ({ onComplete }) => {
 
             {/* Form Errors */}
             {Object.keys(formErrors).length > 0 && (
-              <div className="p-4 bg-danger-50 border border-danger-200 rounded-md">
-                <h3 className="text-sm font-medium text-danger-800 mb-2">{t('formErrors')}</h3>
-                <ul className="list-disc pl-5 text-sm text-danger-700 space-y-1">
+              <div className="p-4 bg-surface-error border border-border-error rounded-md">
+                <p className="text-sm font-medium text-text-error mb-2">{t('formErrors')}</p>
+                <ul className="list-disc pl-5 text-sm text-text-error space-y-1">
                   {Object.entries(formErrors).map(([key, value]) => (
                     <li key={key}>{value}</li>
                   ))}

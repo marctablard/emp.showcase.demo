@@ -299,6 +299,15 @@ describe('EmporixCheckoutApi', () => {
       expect(response.orderId).toBeDefined();
       expect(typeof response.orderId).toBe('string');
     }, 20000);
+
+    afterEach(async () => {
+      const carts = await cartApi.getCartByCriteria('main', undefined, '32667917', 'shopping');
+      if (carts) {
+        for (const cart of carts.items ?? []) {
+          await cartApi.deleteCart(cart.id);
+        }
+      }
+    }, 15000);
   });
 
   describe('Customer Checkout with Approval Required', () => {

@@ -13,11 +13,11 @@ interface UseHeaderScrollOptions {
  * Returns scroll state and header height classes based on scroll position
  */
 export function useHeaderScroll(options?: UseHeaderScrollOptions) {
-  const isLargeScreen = useBreakpoint('lg');
+  const isAboveMediumScreen = useBreakpoint('md');
   const [scrolled, setScrolled] = useState(false);
 
   // Use custom threshold if provided, otherwise calculate based on screen size
-  const scrollThreshold = options?.customThreshold ?? (isLargeScreen ? 100 : 60);
+  const scrollThreshold = options?.customThreshold ?? (isAboveMediumScreen ? 100 : 60);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -42,7 +42,7 @@ export function useHeaderScroll(options?: UseHeaderScrollOptions) {
    */
   const getHeaderHeight = () => {
     if (!scrolled) {
-      if (isLargeScreen) return 'h-[169px]';
+      if (isAboveMediumScreen) return 'h-[169px]';
       return 'h-[116px]';
     }
 
@@ -52,6 +52,6 @@ export function useHeaderScroll(options?: UseHeaderScrollOptions) {
   return {
     scrolled,
     getHeaderHeight,
-    isLargeScreen,
+    isLargeScreen: isAboveMediumScreen,
   };
 }

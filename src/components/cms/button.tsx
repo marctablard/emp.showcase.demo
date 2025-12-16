@@ -26,7 +26,7 @@ const Button = ({ title, link, iconLeft, iconRight }: ButtonProps) => {
 
   return (
     <div>
-      <UiLink type="Link" variant="button_primary" href={link}>
+      <UiLink type="Link" variant="buttonPrimary" href={link}>
         {IconLeft && <IconLeft />}
         {title}
         {IconRight && <IconRight />}

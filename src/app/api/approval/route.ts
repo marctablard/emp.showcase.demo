@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import server from '@/platform/server';
 import { ApprovalService } from '@/platform/services/approval/ApprovalService';
 import { ApprovalCreateRequest } from '@/platform/services/model/approval';
 
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
     const sort = searchParams.get('sort') || undefined;
     const query = searchParams.get('query') || undefined;
 
-    const approvalService = globalThis.EMP.platform.server.get<ApprovalService>('ApprovalService');
+    const approvalService = server.get<ApprovalService>('ApprovalService');
     const approvals = await approvalService.getApprovals(pageNumber, pageSize, sort, query);
 
     return NextResponse.json(approvals);
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const approvalService = globalThis.EMP.platform.server.get<ApprovalService>('ApprovalService');
+    const approvalService = server.get<ApprovalService>('ApprovalService');
 
     // Get request body
     const body: ApprovalCreateRequest = await request.json();

@@ -62,7 +62,7 @@ export function AccountSettingsSection({ control, number }: AccountSettingsAccor
                   type={showPasswordConfirmation ? 'text' : 'password'}
                   endIcon={showPasswordConfirmation ? Eye : EyeOff}
                   onEndIconClick={() => setShowPasswordConfirmation(!showPasswordConfirmation)}
-                  aria-label={showPasswordConfirmation ? t('hidePassword') : t('showPassword')}
+                  endIconLabel={showPasswordConfirmation ? t('hidePassword') : t('showPassword')}
                   required
                   {...field}
                 />

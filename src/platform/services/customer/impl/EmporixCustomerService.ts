@@ -59,6 +59,7 @@ export class EmporixCustomerService implements CustomerService {
       return {
         id: response.id,
         email: response.contactEmail || '',
+        title: response.title,
         firstName: response.firstName,
         lastName: response.lastName,
         company: response.company,

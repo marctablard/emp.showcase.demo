@@ -1,7 +1,7 @@
 import { FC } from 'react';
 import { useTranslations } from 'next-intl';
-import { BookText, Building, FileText, ShieldCheck } from 'lucide-react';
-import { CardTitle } from '@/components/ui/card';
+import { ArrowRight, BookText, Building, FileText, ShieldCheck } from 'lucide-react';
+import { H4 } from '@/components/ui/h';
 import UiLink from '@/components/ui/link';
 import { cn } from '@/lib/utils';
 import { DashboardCard } from './dashboard-card';
@@ -51,25 +51,37 @@ export const DocumentsCard: FC<DocumentsCardProps> = ({ className, title, ...pro
   ];
 
   return (
-    <DashboardCard variant="default" className={cn('py-4', className)} {...props}>
+    <DashboardCard
+      variant="default"
+      className={cn('py-4 bg-surface-action-hover-2 rounded-none shadow-none', className)}
+      {...props}
+    >
       <div className="flex justify-between items-center mb-4">
-        <CardTitle className="text-4xl font-bold">{title || t('title')}</CardTitle>
+        <H4>{title || t('title')}</H4>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        {documentCategories.map((category) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-3">
+        {documentCategories.map((category, index) => (
           <UiLink
             key={category.id}
-            type="Button"
+            type="A"
+            variant="clean"
             href={category.href}
             className={cn(
-              'flex items-center gap-4 p-4 border-1 border-neutral-200 hover:border-primary-500 rounded-md hover:text-black hover:bg-primary-50 transition-colors text-black no-underline',
+              'flex bg-surface-page no-underline gap-4 shadow-sm overflow-hidden',
+              index === 0 && 'rounded-ss-xl',
+              index === documentCategories.length - 1 && 'rounded-ee-xl',
             )}
           >
-            <div>
-              <category.icon className={cn('h-8 w-8')} />
+            <div className="flex items-center p-4 bg-surface-action text-text-on-action h-full">
+              <category.icon className="h-8 w-8" />
             </div>
-            <span className="text-base font-bold text-start">{t(category.titleKey)}</span>
+            <div className="flex flex-col justify-center py-2 pe-4">
+              <div className="text-text-headings font-bold">{t(category.titleKey)}</div>
+              <div className="flex items-center gap-1 text-text-action font-bold underline">
+                {t('seeAll')} <ArrowRight className="h-6 w-6" />
+              </div>
+            </div>
           </UiLink>
         ))}
       </div>

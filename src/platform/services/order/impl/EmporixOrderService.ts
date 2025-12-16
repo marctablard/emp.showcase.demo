@@ -130,6 +130,28 @@ class EmporixOrderService implements OrderService {
       throw error;
     }
   }
+
+  async createOrderFromQuote(quoteId: string, customerNote?: string): Promise<string> {
+    const session = await this.sessionService.getCurrent();
+    if (!session) {
+      throw new Error('Failed to get session context');
+    }
+
+    const createOrderRequest = {
+      quoteId,
+      customerNote,
+    };
+
+    try {
+      const response = await this.orderApi.createOrder(createOrderRequest);
+      return response.orderId;
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Failed to create order from quote: ${error.message}`);
+      }
+      throw error;
+    }
+  }
 }
 
 export default EmporixOrderService;

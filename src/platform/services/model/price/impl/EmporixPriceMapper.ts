@@ -19,8 +19,8 @@ export class EmporixPriceMapper implements PriceMapper {
       id: source.priceId,
       productId: source.itemId.id,
       currency: source.currency,
-      originalValue: source.originalValue,
-      effectiveValue: source.effectiveValue,
+      originalAmount: source.originalValue,
+      amount: source.effectiveValue,
       discountValue,
       discountPercentage,
       totalValue: source.totalValue,
@@ -31,11 +31,12 @@ export class EmporixPriceMapper implements PriceMapper {
       includesTax: source.includesTax,
       tax: source.tax
         ? {
-            taxClass: source.tax.taxClass,
+            taxCode: source.tax.taxClass,
             taxRate: source.tax.taxRate,
             netValue: source.tax.prices.effectiveValue.netValue,
             grossValue: source.tax.prices.effectiveValue.grossValue,
-            taxValue: source.tax.prices.effectiveValue.taxValue,
+            amount: source.tax.prices.effectiveValue.taxValue,
+            currency: source.currency,
           }
         : undefined,
       tierValues: source.tierValues.map((tier) => ({

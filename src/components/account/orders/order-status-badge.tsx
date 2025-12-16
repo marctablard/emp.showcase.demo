@@ -9,7 +9,7 @@ import { Order } from '@/platform/services/model/order/order';
  * Displays a badge with appropriate color based on order status
  */
 export function OrderStatusBadge({ status }: { status: Order['status'] }) {
-  const tOrderStatus = useTranslations('order.OrderStatus');
+  const tOrderStatus = useTranslations('orders.OrderStatus');
 
   const getVariant = () => {
     switch (status) {

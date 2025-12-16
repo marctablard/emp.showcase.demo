@@ -12,9 +12,9 @@ const sidebarNavLinkVariants = cva(
     variants: {
       variant: {
         default: '',
-        active: 'bg-primary-50 border-l-4 border-primary-700',
-        primary: 'hover:bg-primary/10 text-primary',
-        destructive: 'text-destructive hover:bg-destructive/10',
+        active: 'bg-surface-action-hover-2 border-l-4 border-border-action-hover',
+        primary: 'hover:bg-surface-action text-text-action',
+        destructive: 'text-text-error hover:bg-surface-error',
       },
     },
     defaultVariants: {
@@ -68,8 +68,8 @@ export function SidebarNavLink({
         <span className="group-hover:underline">{text}</span>
         {typeof counter === 'number' && (
           <Badge
-            variant="outline"
-            className={`rounded-full text-[10px] font-bold w-[18px] h-[18px] flex justify-center items-center p-0 ${badgeVariant === 'success' ? 'bg-success-100 border-success-600' : 'bg-primary-50 border-primary'}`}
+            variant={badgeVariant === 'success' ? 'success' : 'information'}
+            className={`rounded-full  font-bold w-[20px] h-[20px] flex justify-center items-center p-0`}
           >
             {counter}
           </Badge>

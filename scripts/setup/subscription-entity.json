@@ -1,0 +1,134 @@
+[
+  {
+    "system": "Emporix",
+    "endpoint": "POST:/schema/[tenant]/custom-entities",
+    "headers": {
+      "Content-Language": "en"
+    },
+    "payload": {
+      "id": "STOREFRONT_PUSH_SUBSCRIPTION",
+      "name": {
+        "en": "Storefront Push Subscription"
+      }
+    },
+    "description": "Create the STOREFRONT_PUSH_SUBSCRIPTION custom schema type",
+    "condition": {
+      "endpoint": "GET:/schema/[tenant]/custom-entities/STOREFRONT_PUSH_SUBSCRIPTION",
+      "evaluate": "return !response.ok;"
+    }
+  },
+  {
+    "system": "Emporix",
+    "endpoint": "POST:/schema/[tenant]/schemas",
+    "headers": {
+      "Content-Language": "en"
+    },
+    "payload": {
+      "id": "PUSH_SUBSCRIPTION_DATA",
+      "name": {
+        "en": "Storefront Push Subscription"
+      },
+      "attributes": [
+        {
+          "key": "origin",
+          "name": {
+            "en": "Origin"
+          },
+          "description": {
+            "en": "Origin of the push subscription e.g. https://emporix-showcase.com/demo"
+          },
+          "type": "TEXT",
+          "metadata": {
+            "required": true
+          }
+        },
+        {
+          "key": "endpoint",
+          "name": {
+            "en": "Endpoint"
+          },
+          "description": {
+            "en": "Push subscription endpoint URL"
+          },
+          "type": "TEXT",
+          "metadata": {
+            "required": true
+          }
+        },
+        {
+          "key": "expiration_time",
+          "name": {
+            "en": "Expiration Time"
+          },
+          "description": {
+            "en": "Timestamp when the subscription expires (if applicable)"
+          },
+          "type": "NUMBER",
+          "metadata": {
+            "required": false,
+            "nullable": true
+          }
+        },
+        {
+          "key": "p256dh_key",
+          "name": {
+            "en": "P256DH Key"
+          },
+          "description": {
+            "en": "Public key for encryption"
+          },
+          "type": "TEXT",
+          "metadata": {
+            "required": true
+          }
+        },
+        {
+          "key": "auth_key",
+          "name": {
+            "en": "Auth Key"
+          },
+          "description": {
+            "en": "Authentication secret"
+          },
+          "type": "TEXT",
+          "metadata": {
+            "required": true
+          }
+        },
+        {
+          "key": "recipient_session_id",
+          "name": {
+            "en": "Recipient Session ID"
+          },
+          "description": {
+            "en": "ID of the session this subscription belongs to"
+          },
+          "type": "TEXT",
+          "metadata": {
+            "required": true
+          }
+        },
+        {
+          "key": "recipient_customer_id",
+          "name": {
+            "en": "Recipient Customer ID"
+          },
+          "description": {
+            "en": "ID of the customer this subscription belongs to (if authenticated)"
+          },
+          "type": "TEXT",
+          "metadata": {
+            "required": false,
+            "nullable": true
+          }
+        }
+      ],
+      "types": ["STOREFRONT_PUSH_SUBSCRIPTION"]
+    },
+    "description": "Create the PUSH_SUBSCRIPTION_DATA schema with attributes",
+    "condition": {
+      "endpoint": "GET:/schema/[tenant]/schemas",
+      "evaluate": "return !response.some(schema => schema.id === 'PUSH_SUBSCRIPTION_DATA');"
+    }
+  }
+]

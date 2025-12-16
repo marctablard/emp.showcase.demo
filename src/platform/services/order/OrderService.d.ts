@@ -73,4 +73,13 @@ export interface OrderService {
    * @returns A promise that resolves to an array of available status transitions
    */
   getCustomerOrderStatusTransitions(orderId: string): Promise<string[]>;
+
+  /**
+   * Creates a new order from a quote.
+   *
+   * @param quoteId - The ID of the quote to create an order from
+   * @param customerNote - Optional customer note to include with the order
+   * @returns A promise that resolves to the ID of the newly created order
+   */
+  createOrderFromQuote(quoteId: string, customerNote?: string): Promise<string>;
 }

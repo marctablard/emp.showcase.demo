@@ -4,7 +4,7 @@ import { Availability, LocalizedString, Media, Price, TaxType } from '../common'
 
 export interface ProductLabel {
   id: string;
-  name: string;
+  name?: string;
   image?: string;
   description?: string | LocalizedString;
   overlay?: {
@@ -45,19 +45,27 @@ export interface ProductUSP {
   description: LocalizedString;
 }
 
+export interface ProductVariantAttribute {
+  key: string;
+  name?: string | LocalizedString;
+  values: { key: string; name?: string | LocalizedString; selected: boolean }[];
+}
+
 export interface Product {
   id: string;
   name: string | LocalizedString;
   description: string | LocalizedString;
   sku?: string;
   brand?: {
-    name: string | LocalizedString;
+    id: string;
+    name?: string | LocalizedString;
     logo?: Media;
   };
+  parentVariantId?: string;
   primaryCategory?: Category;
   categories?: Category[];
   labels?: ProductLabel[];
-  price?: Price;
+  price?: ProductPrice;
   availability?: Availability;
   primaryImage?: Media;
   images?: Media[];
@@ -69,8 +77,11 @@ export interface Product {
   specifications?: ProductSpecification[];
   groupedSpecifications?: GroupedSpecification[];
   usps?: ProductUSP[];
+  purchasable: boolean;
+  variants?: Product[];
   templateAttributes?: Record<string, string>;
-  variantAttributes?: Record<string, string>;
+  variantAttributes?: ProductVariantAttribute[];
+  variantAttributeValues?: Record<string, string>;
 }
 
 export interface ProductRecommendations {

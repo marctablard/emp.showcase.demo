@@ -2,6 +2,8 @@ import {
   EmporixAddCartItemRequest,
   EmporixCart,
   EmporixCreateCartRequest,
+  EmporixPaginatedResponse,
+  EmporixSearchParams,
   EmporixUpdateCartItemRequest,
 } from '../model';
 
@@ -19,9 +21,10 @@ export interface EmporixCartApi {
   /**
    * Get cart by ID
    * @param cartId Cart ID
+   * @param checkSession Whether to check the Session-Ownership of the Cart
    * @returns Promise with the cart details
    */
-  getCart(cartId: string): Promise<EmporixCart | null>;
+  getCart(cartId: string, checkSession?: boolean): Promise<EmporixCart | null>;
 
   /**
    * Get cart by criteria (sessionId, customerId, siteCode)
@@ -37,6 +40,13 @@ export interface EmporixCartApi {
     customerId?: string,
     type?: string,
   ): Promise<EmporixCart | null>;
+
+  /**
+   * Search for carts by criteria (sessionId, customerId, siteCode)
+   * @param searchParams Search parameters
+   * @returns Promise with the cart details
+   */
+  searchCarts(searchParams: EmporixSearchParams<EmporixCart>): Promise<EmporixPaginatedResponse<EmporixCart>>;
 
   /**
    * Add item to cart
@@ -107,4 +117,12 @@ export interface EmporixCartApi {
    * @returns Promise resolving when refresh is complete
    */
   refreshCart(cartId: string): Promise<void>;
+
+  /**
+   * Merge two carts into one
+   * @param sourceCartId The ID of the source cart
+   * @param targetCartId The ID of the target cart
+   * @returns Promise resolving when the carts are merged
+   */
+  mergeCarts(sourceCartId: string, targetCartId: string): Promise<void>;
 }

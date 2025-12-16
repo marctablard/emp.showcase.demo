@@ -1,3 +1,4 @@
+import { ModifyCartItemResult } from '@/platform/services/cart/CartService';
 import { Cart } from '@/platform/services/model/cart/cart';
 
 /**
@@ -57,7 +58,11 @@ export async function createCart(): Promise<Cart> {
 /**
  * Add an item to the cart
  */
-export async function addItemToCart(cartId: string, productId: string, quantity: number): Promise<string> {
+export async function addItemToCart(
+  cartId: string,
+  productId: string,
+  quantity: number,
+): Promise<ModifyCartItemResult & { cart: Cart }> {
   const response = await fetch(`/api/cart/${cartId}/items`, {
     method: 'POST',
     headers: {
@@ -74,7 +79,7 @@ export async function addItemToCart(cartId: string, productId: string, quantity:
   }
 
   const data = await response.json();
-  return data.itemId;
+  return data as ModifyCartItemResult & { cart: Cart };
 }
 
 /**
@@ -140,4 +145,29 @@ export async function updateShippingInfo(cartId: string, countryCode?: string, z
   if (!response.ok) {
     throw new Error(`Failed to update shipping info: ${response.statusText}`);
   }
+}
+
+/**
+ * Load a saved cart
+ * @param {string} cartId - The ID of the saved cart to load
+ * @param {string} type - The type of the cart to load
+ * @returns {Promise<Cart>} The loaded cart
+ */
+export async function loadSavedCart(cartId: string, type: string = 'shopping'): Promise<Cart> {
+  const response = await fetch(`/api/cart/load`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      cartId,
+      type,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to load saved cart: ${response.statusText}`);
+  }
+
+  return await response.json();
 }

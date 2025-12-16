@@ -218,7 +218,16 @@ describe('EmporixApprovalApi', () => {
       await setupCustomerToken();
 
       // Create a cart
-      customerCartId = await cartApi.createCart(sampleCreateCartRequest);
+      try {
+        customerCartId = await cartApi.createCart(sampleCreateCartRequest);
+      } catch (error: any) {
+        if (error.message && error.message.includes('409')) {
+          console.log('Cart already exists, skipping creation');
+          return;
+        }
+        console.error('Error creating cart for approval flow:', error);
+        throw error;
+      }
       expect(customerCartId).toBeDefined();
 
       // Add an item to the cart
@@ -234,9 +243,7 @@ describe('EmporixApprovalApi', () => {
           try {
             await approvalApi.deleteApproval(approvalId);
           } catch (deleteError: any) {
-            if (deleteError.message && deleteError.message.includes('404')) {
-              console.log(`Approval ${approvalId} not found`);
-            } else {
+            if (!(deleteError.message && deleteError.message.includes('404'))) {
               throw deleteError;
             }
           }
@@ -250,9 +257,7 @@ describe('EmporixApprovalApi', () => {
           try {
             await cartApi.deleteCart(customerCartId);
           } catch (deleteError: any) {
-            if (deleteError.message && deleteError.message.includes('404')) {
-              console.log(`Cart ${customerCartId} not found`);
-            } else {
+            if (!(deleteError.message && deleteError.message.includes('404'))) {
               throw deleteError;
             }
           }
@@ -300,7 +305,7 @@ describe('EmporixApprovalApi', () => {
 
         await approvalApi.updateApproval(approval.id, [
           {
-            op: 'REPLACE',
+            op: 'replace',
             path: '/status',
             value: 'APPROVED',
           },
@@ -367,12 +372,12 @@ describe('EmporixApprovalApi', () => {
       // Update the approval to approve it
       const updateOperations: EmporixApprovalUpdateRequest[] = [
         {
-          op: 'REPLACE',
+          op: 'replace',
           path: '/status',
           value: 'APPROVED',
         },
         {
-          op: 'ADD',
+          op: 'add',
           path: '/approverComment',
           value: 'Order approved',
         },
@@ -466,12 +471,12 @@ describe('EmporixApprovalApi', () => {
       // Update the approval to decline it
       const updateOperations: EmporixApprovalUpdateRequest[] = [
         {
-          op: 'REPLACE',
+          op: 'replace',
           path: '/status',
           value: 'DECLINED',
         },
         {
-          op: 'ADD',
+          op: 'add',
           path: '/approverComment',
           value: 'Order declined due to budget constraints',
         },

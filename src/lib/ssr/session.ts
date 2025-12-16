@@ -1,8 +1,9 @@
 import { cache } from 'react';
 import { Session } from '@/platform/services/model/session';
 import { SessionService } from '@/platform/services/session';
+import ssr from '@/platform/ssr';
 
-const getSessionService = () => globalThis.EMP.platform.ssr.get<SessionService>('SessionService');
+const getSessionService = () => ssr.get<SessionService>('SessionService');
 
 const _getSession = cache(async (): Promise<Session | null | undefined> => {
   try {
