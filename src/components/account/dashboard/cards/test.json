@@ -1,0 +1,16 @@
+[
+  {
+    "MaterialID": 44170832,
+    "__IMTLENGTH__": 2,
+    "SubstituteMaterialID": 66848532,
+    "InventoryClassification": "Active Stock",
+    "SubstitutionMaterialName": "Heavy Duty Outdoor Extension Cable"
+  },
+  {
+    "MaterialID": 44170832,
+    "__IMTLENGTH__": 2,
+    "SubstituteMaterialID": 24181184,
+    "InventoryClassification": "Excess Stock",
+    "SubstitutionMaterialName": "Extra Durable Outdoor Power Extension Cable"
+  }
+]

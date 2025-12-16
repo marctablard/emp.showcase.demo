@@ -1,8 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 import { ArrowRight, CheckCheck, CircleAlert, Clock, MoveRight } from 'lucide-react';
 import { Search } from 'lucide-react';
 import { CardTitle } from '@/components/ui/card';
@@ -13,13 +12,16 @@ import { Input } from '@/components/ui/input';
 import UiLink from '@/components/ui/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useValidator } from '@/hooks/validation/useValidator';
+import { RawServiceTicket, fetchServiceTickets } from '@/lib/client/servicetickets';
 import { cn } from '@/lib/utils';
 import { DashboardCard, DashboardCardProps } from './dashboard-card';
+import { SupportTicketDialog } from './support-ticket-dialog';
 
 // Define the ticket item structure
 interface TicketItem {
   id: string;
   ticketNumber: string;
+  ticketName: string;
   subject: string;
   status: 'open' | 'pending' | 'closed';
   date: string;
@@ -36,7 +38,7 @@ interface TicketCardProps extends Omit<DashboardCardProps, 'children'> {
 
 export function TicketCard({ className, title, items: customItems, ...props }: TicketCardProps) {
   const t = useTranslations('account.Tickets');
-  const router = useRouter();
+  const locale = useLocale();
 
   const { form } = useValidator('TicketSearchValidationService', {
     searchQuery: '',
@@ -47,43 +49,85 @@ export function TicketCard({ className, title, items: customItems, ...props }: T
     // Implement search functionality here
   };
 
-  // Default ticket items if none provided
-  const defaultItems: TicketItem[] = [
-    {
-      id: '1',
-      ticketNumber: 'EPX-1',
-      subject: t('sampleTicketSubjects.delivery'),
-      status: 'open',
-      date: '2025-06-20',
-      priority: 'high',
-    },
-    {
-      id: '2',
-      ticketNumber: 'EPX-2',
-      subject: t('sampleTicketSubjects.invoice'),
-      status: 'pending',
-      date: '2025-06-18',
-      priority: 'medium',
-    },
-    {
-      id: '3',
-      ticketNumber: 'EPX-3',
-      subject: t('sampleTicketSubjects.product'),
-      status: 'closed',
-      date: '2025-06-15',
-      priority: 'low',
-    },
-    {
-      id: '4',
-      ticketNumber: 'EPX-4',
-      subject: t('sampleTicketSubjects.return'),
-      status: 'open',
-      date: '2025-06-22',
-      priority: 'high',
-    },
-  ];
+  const [items, setItems] = React.useState<TicketItem[]>(customItems || []);
+  const [isLoading, setIsLoading] = React.useState<boolean>(!customItems);
+  const [error, setError] = React.useState<string | null>(null);
+  const [rawTickets, setRawTickets] = React.useState<RawServiceTicket[]>([]);
+  const [dialogOpen, setDialogOpen] = React.useState<boolean>(false);
+  const [selectedTicket, setSelectedTicket] = React.useState<RawServiceTicket | null>(null);
 
-  const items = customItems || defaultItems;
+  const mapTickets = React.useCallback(
+    (raw: RawServiceTicket[]): TicketItem[] => {
+      const useGerman = locale.startsWith('de');
+      const mapped = raw.map((ticket) => {
+        const normalizedStatus = (ticket.Status || 'open').trim().toLowerCase();
+        const status: TicketItem['status'] =
+          normalizedStatus === 'open'
+            ? 'open'
+            : normalizedStatus === 'in progress' || normalizedStatus === 'pending'
+              ? 'pending'
+              : normalizedStatus === 'closed' || normalizedStatus === 'resolved'
+                ? 'closed'
+                : 'open';
+        const subject = useGerman
+          ? ticket.SubjectName.de || ticket.Description.de || ticket.SubjectName.en || ticket.Description.en || '—'
+          : ticket.SubjectName.en || ticket.Description.en || ticket.SubjectName.de || ticket.Description.de || '—';
+        const preferredName = ticket.TicketName || ticket.TicketID;
+        const priority: TicketItem['priority'] = status === 'open' ? 'high' : status === 'pending' ? 'medium' : 'low';
+        const date = ticket.CreatedAt || new Date().toISOString();
+        return {
+          id: ticket.TicketID,
+          ticketNumber: ticket.TicketID,
+          ticketName: preferredName,
+          subject,
+          status,
+          date,
+          priority,
+        };
+      });
+      mapped.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      return mapped;
+    },
+    [locale],
+  );
+
+  React.useEffect(() => {
+    if (customItems && customItems.length > 0) return;
+    let cancelled = false;
+    setIsLoading(true);
+    fetchServiceTickets()
+      .then((data) => {
+        if (cancelled) return;
+        setRawTickets(data);
+        setItems(mapTickets(data));
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setError(e?.message || 'Failed to load tickets');
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const refreshTickets = React.useCallback(async () => {
+    if (customItems && customItems.length > 0) return;
+    try {
+      setIsLoading(true);
+      const data = await fetchServiceTickets();
+      setRawTickets(data);
+      setItems(mapTickets(data));
+    } catch (e: any) {
+      setError(e?.message || 'Failed to load tickets');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [customItems, mapTickets]);
 
   // Get the appropriate status badge variant
   const getStatusBadge = (status: string) => {
@@ -139,6 +183,7 @@ export function TicketCard({ className, title, items: customItems, ...props }: T
         </Form>
       </div>
       <div className="flex flex-col">
+        {error && <div className="text-sm text-red-600 px-2 py-1">{error}</div>}
         <Table>
           <TableHeader>
             <TableRow className="text-base ">
@@ -150,14 +195,18 @@ export function TicketCard({ className, title, items: customItems, ...props }: T
             </TableRow>
           </TableHeader>
           <TableBody>
-            {items.map((item, index) => (
+            {(isLoading ? [] : items).map((item, index) => (
               <TableRow
                 key={item.id}
                 className={cn(
                   'hover:bg-surface-image-background cursor-pointer text-base',
                   index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
                 )}
-                onClick={() => router.push(`/account/tickets/${item.id}`)}
+                onClick={() => {
+                  const ticket = rawTickets.find((rt) => rt.TicketID === item.id) || null;
+                  setSelectedTicket(ticket);
+                  setDialogOpen(true);
+                }}
               >
                 <TableCell className="px-2 py-4">
                   <Badge variant={getStatusBadge(item.status).variant} className="flex items-center gap-1">
@@ -165,8 +214,18 @@ export function TicketCard({ className, title, items: customItems, ...props }: T
                   </Badge>
                 </TableCell>
                 <TableCell className="px-2 py-4 font-medium">
-                  <UiLink type="Link" href={`/account/tickets/${item.id}`} variant="primary" size="m">
-                    {item.ticketNumber}
+                  <UiLink
+                    type="Button"
+                    href="#"
+                    variant="primary"
+                    size="m"
+                    onClick={() => {
+                      const ticket = rawTickets.find((rt) => rt.TicketID === item.id) || null;
+                      setSelectedTicket(ticket);
+                      setDialogOpen(true);
+                    }}
+                  >
+                    {item.ticketName || item.ticketNumber}
                   </UiLink>
                 </TableCell>
                 <TableCell className="px-2 py-4">{formatDate(item.date)}</TableCell>
@@ -181,8 +240,23 @@ export function TicketCard({ className, title, items: customItems, ...props }: T
       </div>
       <div className="flex items-center justify-end  p-2">
         <div className="flex items-center gap-1 text-sm font-medium">
-          {items.length} / {items.length} Tickets
+          {isLoading ? 0 : items.length} / {isLoading ? 0 : items.length} Tickets
         </div>
+      </div>
+      <SupportTicketDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        ticket={selectedTicket}
+        showTriggerButton={false}
+      />
+      {/* Always show a separate "New Service Ticket" button below the list */}
+      <div className="mt-2 flex justify-end">
+        <SupportTicketDialog
+          ticket={null}
+          onSubmit={() => {
+            void refreshTickets();
+          }}
+        />
       </div>
     </DashboardCard>
   );
