@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { Product } from '@/platform/services/model/product';
 import { useProducts } from '../product/useProducts';
 import { useCart } from './useCart';
 
