@@ -6,7 +6,7 @@ import { SiteService } from '@/platform/services/site/SiteService';
  * GET /api/site/{id}
  * Get site data (countries, regions, currencies)
  */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const siteService = server.get<SiteService>('SiteService');
     const { id } = await params;

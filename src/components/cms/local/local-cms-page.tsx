@@ -1,7 +1,8 @@
+import { cache } from 'react';
 import { notFound } from 'next/navigation';
 import { BreadcrumbContent } from '@/lib/breadcrumb';
 import { CMSService } from '@/platform/services/cms/CMSService';
-import { CMSNoResult, CMSPage } from '@/platform/services/model/cms';
+import { CMSPage } from '@/platform/services/model/cms';
 import ssr from '@/platform/ssr';
 import { UiBreadcrumb } from '../../ui/molecules/ui-breadcrumb';
 import CMSComponentRenderer from '../cms-component-renderer';
@@ -13,14 +14,11 @@ interface CMSPageParams {
   emptyOnNoResult?: boolean;
 }
 
-/**
- * Fetch data from local CMS API
- */
-async function fetchData(locale: string, slug: string, site?: string): Promise<CMSPage | CMSNoResult> {
+const fetchData = cache(async (slug: string, locale: string, site?: string) => {
   // Create instance of LocalCmsService directly for server component
   const cmsService = ssr.get<CMSService>('CMSService');
   return cmsService.getPage(slug, locale, site || '');
-}
+});
 
 const buildBreadcrumb = async (slug: string, locale: string): Promise<BreadcrumbContent[]> => {
   let subSlug = slug;
@@ -54,11 +52,11 @@ export default async function CMSPageComponent({ slug, locale, site, emptyOnNoRe
     if (emptyOnNoResult) {
       return (
         <>
-          <div className="flex-grow mt-17 md:mt-36 lg:mt-52"></div>
+          <div className="flex-grow mt-17 sm:mt-36 md:mt-52"></div>
         </>
       );
     }
-    notFound();
+    return notFound();
   }
 
   // Cast to CMSPage since we've checked it's not a CMSNoResult
@@ -72,9 +70,9 @@ export default async function CMSPageComponent({ slug, locale, site, emptyOnNoRe
 
   return (
     <>
-      <div className="flex-grow mt-17 md:mt-36 lg:mt-52">
+      <div className="flex-grow mt-17 sm:mt-36 md:mt-52">
         {breadcrumb.length > 0 && (
-          <UiBreadcrumb items={breadcrumb} className="max-w-6xl mx-auto px-4 lg:px-9 md:gap-x-6" />
+          <UiBreadcrumb items={breadcrumb} className="max-w-6xl mx-auto px-4 lg:px-9 sm:gap-x-6" />
         )}
         <CMSComponentRenderer components={page.components} locale={locale} />
       </div>

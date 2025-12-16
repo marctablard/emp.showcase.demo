@@ -19,7 +19,7 @@ export interface TokenStore {
 }
 
 export abstract class EmporixTokenManagerAbstract implements IEmporixTokenManager {
-  constructor(@inject('EmporixOAuthApi') private oauthApi: EmporixOAuthApi) {}
+  constructor(@inject('EmporixOAuthApi') protected oauthApi: EmporixOAuthApi) {}
   abstract clearTokens(tenant: string): void;
   async getAnonymousToken(tenant: string, clientId: string): Promise<{ accessToken: string; sessionId: string }> {
     let anonymousToken = await this.readToken<

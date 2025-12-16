@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { LucideShoppingCart } from 'lucide-react';
+import { ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/hooks/cart/useCart';
 import { cn } from '@/lib/utils';
@@ -77,7 +77,7 @@ export default function ProductAddToCartButton({
         disabled={cart === undefined || product.purchasable === false || adding || !price}
       >
         {t('addToCart')}
-        <LucideShoppingCart className="hidden md:inline" />
+        <ShoppingCart className="hidden sm:inline" />
       </Button>
 
       {/* Add to Cart Modal */}

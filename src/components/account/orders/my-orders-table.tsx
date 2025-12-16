@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,7 @@ export function MyOrdersTable({
   getStatusBadge,
 }: MyOrdersTableProps) {
   const t = useTranslations('orders');
+  const router = useRouter();
 
   // Format date in the current locale
   const formatDate = (dateString: string | undefined) => {
@@ -95,10 +97,10 @@ export function MyOrdersTable({
               <TableRow
                 key={order.id}
                 className={cn(
-                  'hover:bg-neutral-50 cursor-pointer text-base',
-                  index % 2 === 0 ? 'bg-white' : 'bg-neutral-50',
+                  'hover:bg-surface-image-background cursor-pointer text-base',
+                  index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
                 )}
-                onClick={() => (window.location.href = `/account/orders/${order.id}`)}
+                onClick={() => router.push(`/account/orders/${order.id}`)}
               >
                 <TableCell className="px-2 py-4 font-medium">
                   <UiLink type="Link" href={`/account/orders/${order.id}`} variant="primary" size="m">

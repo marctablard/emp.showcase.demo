@@ -102,7 +102,7 @@ function FormLabel({ className, isOptional, hasTooltip, ...props }: LabelProps) 
     <Label
       data-slot="form-label"
       data-error={!!error}
-      className={cn('text-neutral-900 font-bold', className)}
+      className={cn('text-text-body font-bold', className)}
       htmlFor={formItemId}
       isOptional={isOptional}
       hasTooltip={hasTooltip}
@@ -136,7 +136,7 @@ function FormDescription({ className, ...props }: React.ComponentProps<'p'>) {
     <p
       data-slot="form-description"
       id={formDescriptionId}
-      className={cn('text-xs text-neutral-300', className)}
+      className={cn('text-sm text-text-placeholders', className)}
       {...props}
     />
   );
@@ -152,7 +152,7 @@ function FormMessage({ className, ...props }: React.ComponentProps<'p'>) {
   }
 
   return (
-    <p data-slot="form-message" id={formMessageId} className={cn('text-sm text-danger-500', className)} {...props}>
+    <p data-slot="form-message" id={formMessageId} className={cn('text-sm text-text-error', className)} {...props}>
       {body}
     </p>
   );

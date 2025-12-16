@@ -1,6 +1,6 @@
 'use client';
 
-import React, { startTransition, useCallback, useEffect, useState } from 'react';
+import React, { startTransition, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { CheckCircle2 } from 'lucide-react';
@@ -33,25 +33,52 @@ export default function ProductVariantSelectorSimple({
   const t = useTranslations('product');
   const { l10n } = useL10n();
 
-  const getVariants = useCallback(async () => {
-    const variants = await fetchProductVariants(product.parentVariantId || product.id);
-    setVariants(variants);
-  }, [product]);
-
-  const getPrices = useCallback(async () => {
-    const prices = await Promise.all(variants.map((variant) => fetchProductPrice(variant.id)));
-    setVariantPrices(prices.filter((price) => price !== null) as ProductPrice[]);
-  }, [variants]);
-
   useEffect(() => {
-    getVariants();
-  }, [product, getVariants]);
+    let isCancelled = false;
 
-  useEffect(() => {
-    if (variants.length > 0 && soloVariant) {
-      getPrices();
-    }
-  }, [variants, getPrices, soloVariant]);
+    const loadVariantsAndPrices = async () => {
+      if (isCancelled) {
+        return;
+      }
+
+      try {
+        setVariantPrices(undefined);
+
+        const fetchedVariants = await fetchProductVariants(product.parentVariantId || product.id);
+
+        if (isCancelled) {
+          return;
+        }
+
+        setVariants(fetchedVariants);
+
+        if (!soloVariant || fetchedVariants.length === 0) {
+          return;
+        }
+
+        const fetchedPrices = await Promise.all(fetchedVariants.map((variant) => fetchProductPrice(variant.id)));
+
+        if (isCancelled) {
+          return;
+        }
+
+        setVariantPrices(fetchedPrices.filter((price): price is ProductPrice => price !== null));
+      } catch {
+        if (isCancelled) {
+          return;
+        }
+
+        setVariants([]);
+        setVariantPrices(undefined);
+      }
+    };
+
+    void loadVariantsAndPrices();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [product.id, product.parentVariantId, soloVariant]);
 
   // Handle variant selection via tiles
   const handleVariantTileClick = (variant: Product) => {
@@ -68,12 +95,12 @@ export default function ProductVariantSelectorSimple({
   // Show loading skeleton cards while variants are being fetched
   if (variants.length === 0) {
     return (
-      <div className={cn('grid grid-cols-1 lg:grid-cols-2 gap-6', className)}>
+      <div className={cn('grid grid-cols-1 md:grid-cols-2 gap-6', className)}>
         {Array.from({ length: soloVariant.values?.length || 0 }, (_, index) => (
           <Card
             key={`skeleton-${index}`}
             variant="gray"
-            className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-2 2xl:grid-cols-3 rounded-sm border-2 border-neutral-50"
+            className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-2 lg:grid-cols-3 border border-border-primary"
           >
             <div className="col-start-1 p-4">
               <div className="w-[108px] h-[68px]">
@@ -81,7 +108,7 @@ export default function ProductVariantSelectorSimple({
               </div>
             </div>
             <div className="col-start-2 p-6 flex flex-col justify-center gap-2">
-              <div className="flex gap-2 items-center text-muted-foreground">
+              <div className="flex gap-2 items-center text-text-placeholders">
                 <Skeleton className="h-4 w-16" />
               </div>
               <div className="flex gap-2 items-center font-bold">
@@ -96,7 +123,7 @@ export default function ProductVariantSelectorSimple({
   }
 
   return (
-    <div className={cn('grid grid-cols-1 lg:grid-cols-2 gap-6', className)}>
+    <div className={cn('grid grid-cols-1 md:grid-cols-2 gap-6', className)}>
       {variants.map((variant) => {
         const isSelected = variant.id === selectedVariant;
         const variantValue = variant.variantAttributes?.[0].values?.find((value) => value.selected)?.key || variant.id;
@@ -105,13 +132,13 @@ export default function ProductVariantSelectorSimple({
             key={variant.id}
             variant={isSelected ? 'primary' : 'gray'}
             className={cn(
-              'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-2 2xl:grid-cols-3 rounded-sm',
-              isSelected ? 'border-2 border-primary-500' : 'border-2 border-neutral-50',
+              'grid grid-cols-3 sm:grid-cols-5 md:grid-cols-2 lg:grid-cols-3',
+              isSelected ? 'border border-border-action' : 'border border-border-primary',
             )}
             onClick={() => handleVariantTileClick(variant)}
           >
             <div className="col-start-1 p-4">
-              <div className="w-[108px] h-[68px]">
+              <div className="w-[108px] h-[68px] bg-surface-image-background">
                 {variant.images && variant.images.length > 0 ? (
                   <Image
                     src={variant.images[0].url}
@@ -122,13 +149,13 @@ export default function ProductVariantSelectorSimple({
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
-                    <span className="text-xs text-neutral-600">No image</span>
+                    <span className="text-sm text-text-on-disabled">No image</span>
                   </div>
                 )}
               </div>
             </div>
             <div className="col-start-2 p-6 flex flex-col justify-center">
-              <div className="flex gap-2 items-center text-muted-foreground">
+              <div className="flex gap-2 items-center text-text-placeholders">
                 <p>
                   {soloVariant.name
                     ? l10n(soloVariant.name)
@@ -139,10 +166,10 @@ export default function ProductVariantSelectorSimple({
               </div>
               <div className="flex gap-2 items-center font-bold">
                 <p>{variantValue ? l10n(variantValue) : variantValue}</p>
-                {isSelected && <CheckCircle2 className="text-success-500 w-4 h-4" />}
+                {isSelected && <CheckCircle2 className="text-text-success w-4 h-4" />}
               </div>
               {variantPrices ? (
-                <p className="text-xs text-neutral-600">
+                <p className="text-sm text-text-on-disabled">
                   {getPrice(variant) ? (
                     formatCurrency(getPrice(variant)?.amount || 0, getPrice(variant)?.currency || 'EUR')
                   ) : (

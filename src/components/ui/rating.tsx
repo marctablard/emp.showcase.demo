@@ -68,10 +68,10 @@ function RatingStarRow({
       onMouseLeave={() => setIsHovered(false)}
       className={cn(
         'flex items-center gap-3 cursor-pointer',
-        'text-neutral-500',
-        combinedHoverState && !disabled && 'text-primary-700',
-        checked && !disabled && 'text-primary-700',
-        disabled && 'cursor-not-allowed text-neutral-400 disabled:pointer-events-none hover:text-neutral-400',
+        'text-icon-secondary',
+        combinedHoverState && !disabled && 'text-picon-action-hover',
+        checked && !disabled && 'text-icon-action-hover',
+        disabled && 'cursor-not-allowed text-text-disabled disabled:pointer-events-none hover:text-text-disabled',
         className,
       )}
       {...props}
@@ -81,8 +81,8 @@ function RatingStarRow({
           checked={checked}
           disabled={disabled}
           className={cn(
-            combinedHoverState && !disabled && 'text-primary-700',
-            checked && !disabled && 'text-primary-700',
+            combinedHoverState && !disabled && 'text-icon-action-hover',
+            checked && !disabled && 'text-icon-action-hover',
           )}
           onCheckedChange={() => setChecked(!checked)}
         />
@@ -92,8 +92,8 @@ function RatingStarRow({
         className={cn(
           'flex items-center gap-1',
           'transition duration-150 ease-in-out',
-          'focus:outline-2 focus:outline-offset-2 focus:outline-primary-500 focus:rounded focus:text-primary-500',
-          (combinedHoverState || checked) && !disabled && 'text-primary-700',
+          'focus:outline-2 focus:outline-offset-2 focus:outline-border-focus focus:rounded focus:text-text-action',
+          (combinedHoverState || checked) && !disabled && 'text-text-action-hover',
         )}
         onMouseEnter={() => setIsStarsHovered(true)}
         onMouseLeave={() => setIsStarsHovered(false)}

@@ -9,6 +9,9 @@ import { QuoteSummary } from '@/components/account/quotes/quote-summary';
 import { ProductListResolver } from '@/components/product/product-list-resolver';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { H2, H3, H4 } from '@/components/ui/h';
+import UiLink from '@/components/ui/link';
+import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { useQuoteHistory } from '@/hooks/quotes/useQuoteHistory';
 import { useQuote } from '@/hooks/quotes/useQuotes';
@@ -138,7 +141,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         </CardHeader>
         <CardContent className="flex justify-center py-8">
           <div className="flex flex-col items-center space-y-2">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+            <Spinner color="primary" variant="md" />
             <div>{t('loading')}</div>
           </div>
         </CardContent>
@@ -155,7 +158,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
           <CardDescription>{t('title')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="bg-destructive/10 p-4 rounded-md text-destructive">{error?.message || 'Quote not found'}</div>
+          <div className="bg-surface-error p-4 rounded-md text-text-error">{error?.message || 'Quote not found'}</div>
         </CardContent>
         <CardFooter>
           <Button onClick={() => router.back()}>{t('backToQuotes')}</Button>
@@ -170,10 +173,10 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col px-4 gap-6">
             <div className="flex items-center gap-6 mb-1">
-              <div className="text-6xl font-bold">{quote.reference || `#${quoteId}`}</div>
+              <H2>{quote.reference || `#${quoteId}`}</H2>
               <QuoteStatusBadge status={quote.status} />
             </div>
-            <div className="text-4xl font-bold">{t('title')}</div>
+            <H4>{t('title')}</H4>
           </div>
           {/* Only show action buttons when confirmation dialogs are not visible and quote status is not ACCEPTED or DECLINED */}
           {!showAcceptConfirmation &&
@@ -213,7 +216,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                   onClick={() => {
                     setShowAcceptConfirmation(true);
                   }}
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-surface-success hover:bg-surface-action-hover-2"
                 >
                   {t('accept')}
                 </Button>
@@ -226,10 +229,12 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         {/* Quote acceptance confirmation dialog */}
         {showAcceptConfirmation && (
           <div className="grid grid-cols-1 mb-6 gap-6">
-            <div className="p-6 rounded-lg bg-primary-50 shadow-sm">
-              <div className="shadow-none rounded-md py-4 h-full gap-2 bg-white p-6 rounded-lg">
-                <h3 className="text-lg font-medium mb-2">{t('confirmationTitle')}</h3>
-                <p className="text-sm text-gray-600 mb-4">{t('confirmationDescription')}</p>
+            <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
+              <div className="shadow-none rounded-md py-4 h-full gap-2 bg-surface-page p-6">
+                <H3 variant="h5" className="mb-2">
+                  {t('confirmationTitle')}
+                </H3>
+                <p className="text-sm text-text-on-disabled mb-4">{t('confirmationDescription')}</p>
 
                 <div className="mb-4">
                   <label htmlFor="accept-comment" className="block text-sm font-medium mb-1">
@@ -243,20 +248,17 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                     onChange={(e) => setComment(e.target.value)}
                     maxLength={maxCommentLength}
                   />
-                  <div className="text-xs text-right mt-1 text-gray-500">
-                    {comment.length}/{maxCommentLength}
-                  </div>
                 </div>
 
-                <div className="text-sm text-gray-600 mb-4">
+                <div className="mb-4">
                   {t('termsAgreement')}{' '}
-                  <a href="#" className="text-blue-600 hover:underline">
+                  <UiLink type="Link" variant="text" href="/privacy-policy">
                     {t('privacyPolicy')}
-                  </a>{' '}
+                  </UiLink>
                   and{' '}
-                  <a href="#" className="text-blue-600 hover:underline">
+                  <UiLink type="Link" variant="text" href="/terms-and-conditions">
                     {t('termsOfUse')}
-                  </a>
+                  </UiLink>
                 </div>
 
                 <div className="flex space-x-3">
@@ -300,12 +302,12 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         {/* Quote rejection confirmation dialog */}
         {showRejectConfirmation && (
           <div className="grid grid-cols-1 mb-6 gap-6">
-            <div className="p-6 rounded-lg bg-primary-50 shadow-sm">
-              <div className="shadow-none rounded-md py-4 h-full gap-2 bg-white p-6 rounded-lg">
-                <h3 className="text-lg font-medium mb-2">
+            <div className="p-6 rounded-lg bg-surface-action-hover-2 shadow-sm">
+              <div className="shadow-none rounded-md py-4 h-full gap-2 bg-surface-page p-6">
+                <H3 variant="h5" className="mb-2">
                   {t('rejectConfirmationTitle') || 'Do you want to reject the quote?'}
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
+                </H3>
+                <p className="text-sm text-text-placeholders mb-4">
                   {t('rejectConfirmationDescription') ||
                     'If you wish, you can leave a comment to let us know why you are declining this quote. Your feedback helps us improve our offers.'}
                 </p>
@@ -322,9 +324,6 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                     onChange={(e) => setComment(e.target.value)}
                     maxLength={maxCommentLength}
                   />
-                  <div className="text-xs text-right mt-1 text-gray-500">
-                    {comment.length}/{maxCommentLength}
-                  </div>
                 </div>
 
                 <div className="flex space-x-3">
@@ -368,12 +367,12 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         {/* Quote request change confirmation dialog */}
         {showRequestChangeConfirmation && (
           <div className="grid grid-cols-1 mb-6 gap-6">
-            <div className="p-6 rounded-lg bg-primary-50 shadow-sm">
-              <div className="shadow-none rounded-md py-4 h-full gap-2 bg-white p-6 rounded-lg">
-                <h3 className="text-lg font-medium mb-2">
+            <div className="p-6 rounded-lg bg-surface-action-hover-2 shadow-sm">
+              <div className="shadow-none rounded-md py-4 h-full gap-2 bg-surface-page p-6">
+                <H3 variant="h5" className="mb-2">
                   {t('requestChangeConfirmationTitle') || 'Do you want to request a change of the quote?'}
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
+                </H3>
+                <p className="text-sm text-text-placeholders mb-4">
                   {t('requestChangeConfirmationDescription') || 'Please let us know how what we can do better.'}
                 </p>
 
@@ -389,9 +388,6 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                     onChange={(e) => setComment(e.target.value)}
                     maxLength={maxCommentLength}
                   />
-                  <div className="text-xs text-right mt-1 text-gray-500">
-                    {comment.length}/{maxCommentLength}
-                  </div>
                 </div>
 
                 <div className="flex space-x-3">
@@ -435,22 +431,22 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         )}
 
         {/* Quote details grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <h3 className="text-sm font-medium text-muted-foreground">{t('quotationDate')}</h3>
-            <p className="mt-2 text-neutral-900">{formatDate(quote.submittedDate)}</p>
+            <p className="text-sm font-medium text-text-placeholders">{t('quotationDate')}</p>
+            <p className="mt-2 text-text-heading">{formatDate(quote.submittedDate)}</p>
           </div>
 
           {quote.customerId && (
             <div>
-              <h3 className="text-sm font-medium text-muted-foreground">{t('requestedBy')}</h3>
-              <p className="mt-2 text-neutral-900">{quote.customerName || quote.customerId}</p>
+              <p className="text-sm font-medium text-text-placeholders">{t('requestedBy')}</p>
+              <p className="mt-2 text-text-heading">{quote.customerName || quote.customerId}</p>
             </div>
           )}
 
           <div>
-            <h3 className="text-sm font-medium text-muted-foreground">{t('totalAmount')}</h3>
-            <p className="mt-2 text-neutral-900 font-semibold">{formatPrice(quote.totalGross, quote.currency)}</p>
+            <p className="text-sm font-medium text-text-placeholders">{t('totalAmount')}</p>
+            <p className="mt-2 text-text-heading font-semibold">{formatPrice(quote.totalGross, quote.currency)}</p>
           </div>
         </div>
 
@@ -464,7 +460,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
           </div>
 
           {/* Always show initial quote request as first entry */}
-          <div className="grid grid-cols-[1fr_1fr_1fr_1fr] py-4 border-t border-neutral-200">
+          <div className="grid grid-cols-[1fr_1fr_1fr_1fr] py-4 border-t border-border-primary">
             <p className="col-start-1">{quote.customerName || 'Unknown User'}</p>
             <p className="col-start-2">{t('initialQuoteRequest')}</p>
             <p className="col-start-3">{'-'}</p>
@@ -472,12 +468,15 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
           </div>
 
           {historyLoading ? (
-            <div className="grid grid-cols-[1fr_1fr_1fr_1fr] py-4 border-t border-neutral-200">
+            <div className="grid grid-cols-[1fr_1fr_1fr_1fr] py-4 border-t border-border-primary">
               <p className="col-start-1">{t('loadingHistory')}</p>
             </div>
           ) : (
             quoteHistory.map((historyItem) => (
-              <div key={historyItem.id} className="grid grid-cols-[1fr_1fr_1fr_1fr] py-4 border-t border-neutral-200">
+              <div
+                key={historyItem.id}
+                className="grid grid-cols-[1fr_1fr_1fr_1fr] py-4 border-t border-border-primary"
+              >
                 <p className="col-start-1">{getHistoryUserName(historyItem)}</p>
                 <p className="col-start-2">{getHistoryAction(historyItem.fieldChanged)}</p>
                 <p className="col-start-3">{historyItem.comment}</p>

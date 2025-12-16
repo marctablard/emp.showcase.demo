@@ -24,10 +24,10 @@ export const Spinner: React.FC<SpinnerProps> = ({ loadingText, variant = 'md', c
   };
 
   const colors = {
-    default: 'border-muted-foreground/20 border-t-muted-foreground',
-    primary: 'border-primary/20 border-t-primary',
-    secondary: 'border-secondary/20 border-t-secondary',
-    white: 'border-white/20 border-t-white',
+    default: 'border-border-primary/20 border-t-border-primary',
+    primary: 'border-border-action/20 border-t-border-action',
+    secondary: 'border-border-secondary/20 border-t-border-secondary',
+    white: 'border-border-white/20 border-t-border-white',
   };
 
   return (

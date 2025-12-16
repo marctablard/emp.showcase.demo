@@ -11,10 +11,12 @@ export default async function LocaleLayout({ children }: Props) {
     <>
       <HeaderCheckout />
       <main className="flex-grow mt-28">{children}</main>
-      <FooterWrapper>
-        <Footer reduced />
-      </FooterWrapper>
-      <LegalFooter />
+      <footer>
+        <FooterWrapper>
+          <Footer reduced />
+        </FooterWrapper>
+        <LegalFooter />
+      </footer>
     </>
   );
 }

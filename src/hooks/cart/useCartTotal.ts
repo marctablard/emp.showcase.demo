@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useCheckout } from '../checkout/useCheckout';
 import { useCart } from './useCart';
 
@@ -13,22 +12,14 @@ interface UseCartTotal {
 export const useCartTotal = (): UseCartTotal => {
   const { shippingMethod } = useCheckout();
   const { cart } = useCart();
-  const [cartTotal, setCartTotal] = useState(() => cart?.totalPrice?.amount || 0.0);
 
-  useEffect(() => {
-    let totalSum = 0.0;
-    if (cart && cart.subTotalPrice.amount > 0.0) {
-      totalSum += cart.subTotalPrice.amount;
-      if (shippingMethod) {
-        totalSum += shippingMethod.amount;
-      }
-    }
-    setCartTotal(totalSum);
-  }, [cart, shippingMethod]);
+  const subtotalAmount = cart?.subTotalPrice?.amount ?? 0;
+  const shippingAmount = shippingMethod?.amount ?? 0;
+  const cartTotal = subtotalAmount > 0 ? subtotalAmount + shippingAmount : 0;
 
   return {
     cartTotal,
     shippingCosts: shippingMethod?.amount,
-    currency: cart?.totalPrice.currency || 'EUR',
+    currency: cart?.totalPrice?.currency ?? 'EUR',
   };
 };

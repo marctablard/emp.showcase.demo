@@ -14,7 +14,7 @@ export function CartRequest() {
   const [isQuoteOpen, setIsQuoteOpen] = useState(false);
 
   return (
-    <Card className="bg-primary-50 p-6 border-none gap-4 shadow-sm text-neutral-900">
+    <Card className="bg-surface-action-hover-2 p-6 border-none gap-4 shadow-sm text-text-heading">
       <Collapsible>
         <CollapsibleTrigger className="w-full group flex items-center justify-between gap-2">
           <div className="flex gap-2">
@@ -40,7 +40,7 @@ export function CartRequest() {
             </div>
             <div className="flex gap-2">
               <p className={cn(!isAuthenticated && 'font-bold font-headlines')}>2.</p>
-              {!isAuthenticated ? <p>{t('requestQuotestep2')}</p> : <p className="">{t('requestQuotestep3')}</p>}
+              {!isAuthenticated ? <p>{t('requestQuotestep2')}</p> : <p>{t('requestQuotestep3')}</p>}
             </div>
             {!isAuthenticated && (
               <div className="flex gap-2">

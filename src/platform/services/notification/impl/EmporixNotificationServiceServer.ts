@@ -77,7 +77,6 @@ export class EmporixNotificationServiceServer implements INotificationService {
         const customer = await this.customerService.getCustomer();
         // If customer belongs to a company, get company notifications
         if (customer?.legalEntityId) {
-          console.log(customer.legalEntityId);
           const companyNotifications = await this.getNotificationsByRecipient('COMPANY', customer.legalEntityId);
           notifications = [...notifications, ...companyNotifications];
         }

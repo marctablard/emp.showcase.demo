@@ -17,8 +17,8 @@ import { EmporixApprovalApi as IEmporixApprovalApi } from '../EmporixApprovalApi
 @injectable('EmporixApprovalApi', 'Singleton')
 class EmporixApprovalApi implements IEmporixApprovalApi {
   constructor(
-    @inject('EmporixApiInvoker') private apiClient: EmporixApiClient,
-    @inject('EmporixConfig') private config: EmporixConfig,
+    @inject('EmporixApiInvoker') protected apiClient: EmporixApiClient,
+    @inject('EmporixConfig') protected config: EmporixConfig,
   ) {
     this.apiClient = apiClient;
     this.config = config;

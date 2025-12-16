@@ -9,10 +9,12 @@ import type { Paginated } from '@/platform/services/model/common';
 import type { Product, ProductLabel } from '@/platform/services/model/product';
 import type { ProductFetchOptions, ProductService } from '@/platform/services/product/ProductService';
 import type { CategoryService } from '../../category/CategoryService';
+import type { CustomerService } from '../../customer/CustomerService';
 import type { Category } from '../../model/category';
 import { ProductPrice } from '../../model/price';
 import type { ProductMapper } from '../../model/product/ProductMapper';
 import type { PriceService } from '../../price';
+import type SegmentFilterService from '../../search/impl/SegmentFilterService';
 
 /**
  * Implementation of ProductService for Emporix product data.
@@ -27,11 +29,17 @@ class EmporixProductService implements ProductService {
     @inject('EmporixBrandApi') private brandApi: EmporixBrandApi,
     @inject('EmporixLabelApi') private labelApi: EmporixLabelApi,
     @inject('CategoryService') private categoryService: CategoryService,
+    @inject('SegmentFilterService') private segmentFilterService: SegmentFilterService,
+    @inject('CustomerService') private customerService: CustomerService,
   ) {}
 
   async getProductById(id: string, options?: ProductFetchOptions): Promise<Product | undefined> {
     const product = await this.productApi.getProduct(id);
-    if (!product) return undefined;
+    if (!product || !product.id) return undefined;
+
+    // Filter by customer segments
+    const [filteredProduct] = await this.segmentFilterService.filterByCustomerSegments([product]);
+    if (!filteredProduct) return undefined;
 
     // Map the base product
     const mappedProduct = this.productMapper.mapToService(product);
@@ -50,17 +58,31 @@ class EmporixProductService implements ProductService {
       size: 100,
     });
 
-    // Map all variant products first
-    const mappedProducts = paginated.items.map((product: EmporixProduct) => this.productMapper.mapToService(product));
+    // Filter by customer segments before mapping
+    const filteredItems = (await this.segmentFilterService.filterByCustomerSegments(
+      paginated.items.filter((item: EmporixProduct) => !!item.id),
+    )) as EmporixProduct[];
 
-    return await this.addAdditionalData(mappedProducts, options);
+    // Map all variant products first
+    const mappedProducts = filteredItems.map((product: EmporixProduct) => this.productMapper.mapToService(product));
+    if (mappedProducts.length > 0) {
+      return await this.addAdditionalData(mappedProducts, options);
+    } else {
+      return [];
+    }
   }
 
   async getProducts(page?: number, pageSize?: number, options?: ProductFetchOptions): Promise<Paginated<Product>> {
     const paginated = await this.productApi.getProducts(page, pageSize);
 
-    // Map all products first
-    const mappedProducts = paginated.items.map((product: EmporixProduct) => this.productMapper.mapToService(product));
+    // Filter by customer segments before mapping
+    const filteredItems = (await this.segmentFilterService.filterByCustomerSegments(
+      paginated.items.filter((item: EmporixProduct) => !!item.id),
+    )) as EmporixProduct[];
+
+    const mappedProducts: Product[] = filteredItems.map((product: EmporixProduct) =>
+      this.productMapper.mapToService(product),
+    );
 
     // Add additional data to all products
     const enhancedProducts = await this.addAdditionalData(mappedProducts, options);

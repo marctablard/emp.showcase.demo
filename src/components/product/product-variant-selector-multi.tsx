@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState, useTransition } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { CheckCircle2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -16,101 +16,139 @@ export interface ProductVariantSelectorMultiProps {
   className?: string;
 }
 
+function buildAvailableAttributeValues(variants: Product[]): Record<string, Set<string>> {
+  const availableValues: Record<string, Set<string>> = {};
+
+  variants.forEach((variant) => {
+    variant.variantAttributes?.forEach((variantAttribute) => {
+      if (!availableValues[variantAttribute.key]) {
+        availableValues[variantAttribute.key] = new Set();
+      }
+
+      variantAttribute.values?.forEach((value) => {
+        if (value.selected) {
+          availableValues[variantAttribute.key].add(value.key);
+        }
+      });
+    });
+  });
+
+  return availableValues;
+}
+
+// Filter available values based on current selection to show only valid combinations
+function buildFilteredAttributeValues(
+  variants: Product[],
+  selectedAttributes: Record<string, string>,
+  availableValues: Record<string, Set<string>>,
+): Record<string, Set<string>> {
+  const filteredValues: Record<string, Set<string>> = {};
+
+  // Initialize with all available values
+  Object.keys(availableValues).forEach((attributeKey) => {
+    filteredValues[attributeKey] = new Set(availableValues[attributeKey]);
+  });
+
+  // If no attributes are selected, return all available values
+  if (Object.keys(selectedAttributes).length === 0) {
+    return filteredValues;
+  }
+
+  // Filter variants that match the current selection (excluding the attribute we're filtering for)
+  Object.keys(availableValues).forEach((targetAttributeKey) => {
+    const validValues = new Set<string>();
+
+    variants.forEach((variant) => {
+      // Check if this variant matches all selected attributes except the target one
+      const variantAttributes: Record<string, string> = {};
+      variant.variantAttributes?.forEach((attr) => {
+        const selectedValue = attr.values?.find((v) => v.selected);
+        if (selectedValue) {
+          variantAttributes[attr.key] = selectedValue.key;
+        }
+      });
+
+      // Check if variant matches all selected attributes except the target attribute
+      const matchesSelection = Object.entries(selectedAttributes).every(([key, value]) => {
+        if (key === targetAttributeKey) return true; // Skip the target attribute
+        return variantAttributes[key] === value;
+      });
+
+      if (matchesSelection && variantAttributes[targetAttributeKey]) {
+        validValues.add(variantAttributes[targetAttributeKey]);
+      }
+    });
+
+    filteredValues[targetAttributeKey] = validValues;
+  });
+
+  return filteredValues;
+}
+
 export default function ProductVariantSelectorMulti({ product, className }: ProductVariantSelectorMultiProps) {
-  const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
   const [variants, setVariants] = useState<Product[]>([]);
-  const [availableAttributeValues, setAvailableAttributeValues] = useState<Record<string, Set<string>>>({});
-  const [filteredAttributeValues, setFilteredAttributeValues] = useState<Record<string, Set<string>>>({});
+  const [selectionByProduct, setSelectionByProduct] = useState<Record<string, Record<string, string>>>({});
   const [_isPending, startTransition] = useTransition();
 
   const router = useRouter();
   const t = useTranslations('product');
   const { l10n } = useL10n();
 
-  // Collect all available values per variant attribute from all variants
-  const collectAvailableAttributeValues = useCallback((variants: Product[]) => {
-    const availableValues: Record<string, Set<string>> = {};
+  // Preselect UI controls with current product's selected attributes
+  const defaultSelectedAttributes = useMemo<Record<string, string>>(() => {
+    if (!product.variantAttributes) {
+      return {};
+    }
 
-    variants.forEach((variant) => {
-      variant.variantAttributes?.forEach((variantAttribute) => {
-        if (!availableValues[variantAttribute.key]) {
-          availableValues[variantAttribute.key] = new Set();
-        }
-
-        variantAttribute.values?.forEach((value) => {
-          if (value.selected) {
-            availableValues[variantAttribute.key].add(value.key);
-          }
-        });
-      });
-    });
-
-    return availableValues;
-  }, []);
-
-  // Filter available values based on current selection to show only valid combinations
-  const getFilteredAttributeValues = useCallback(
-    (variants: Product[], selectedAttributes: Record<string, string>, availableValues: Record<string, Set<string>>) => {
-      const filteredValues: Record<string, Set<string>> = {};
-
-      // Initialize with all available values
-      Object.keys(availableValues).forEach((attributeKey) => {
-        filteredValues[attributeKey] = new Set(availableValues[attributeKey]);
-      });
-
-      // If no attributes are selected, return all available values
-      if (Object.keys(selectedAttributes).length === 0) {
-        return filteredValues;
+    return product.variantAttributes.reduce<Record<string, string>>((acc, variantAttribute) => {
+      const selectedValue = variantAttribute.values?.find((value) => value.selected);
+      if (selectedValue) {
+        acc[variantAttribute.key] = selectedValue.key;
       }
+      return acc;
+    }, {});
+  }, [product.variantAttributes]);
 
-      // Filter variants that match the current selection (excluding the attribute we're filtering for)
-      Object.keys(availableValues).forEach((targetAttributeKey) => {
-        const validValues = new Set<string>();
-
-        variants.forEach((variant) => {
-          // Check if this variant matches all selected attributes except the target one
-          const variantAttributes: Record<string, string> = {};
-          variant.variantAttributes?.forEach((attr) => {
-            const selectedValue = attr.values?.find((v) => v.selected);
-            if (selectedValue) {
-              variantAttributes[attr.key] = selectedValue.key;
-            }
-          });
-
-          // Check if variant matches all selected attributes except the target attribute
-          const matchesSelection = Object.entries(selectedAttributes).every(([key, value]) => {
-            if (key === targetAttributeKey) return true; // Skip the target attribute
-            return variantAttributes[key] === value;
-          });
-
-          if (matchesSelection && variantAttributes[targetAttributeKey]) {
-            validValues.add(variantAttributes[targetAttributeKey]);
-          }
-        });
-
-        filteredValues[targetAttributeKey] = validValues;
-      });
-
-      return filteredValues;
-    },
-    [],
+  const selectedAttributes = useMemo(
+    () => selectionByProduct[product.id] ?? defaultSelectedAttributes,
+    [selectionByProduct, product.id, defaultSelectedAttributes],
   );
 
-  const getVariants = useCallback(async () => {
-    try {
-      const variants = await fetchProductVariants(product.parentVariantId || product.id);
-      setVariants(variants);
+  const availableAttributeValues = useMemo(() => buildAvailableAttributeValues(variants), [variants]);
 
-      // Collect available attribute values from all variants
-      const availableValues = collectAvailableAttributeValues(variants);
-      setAvailableAttributeValues(availableValues);
+  const filteredAttributeValues = useMemo(
+    () => buildFilteredAttributeValues(variants, selectedAttributes, availableAttributeValues),
+    [variants, selectedAttributes, availableAttributeValues],
+  );
 
-      // Initially, all values are available
-      setFilteredAttributeValues(availableValues);
-    } catch (error) {
-      console.error('Failed to fetch variants:', error);
-    }
-  }, [product, collectAvailableAttributeValues]);
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadVariants = async () => {
+      if (isCancelled) {
+        return;
+      }
+
+      try {
+        const fetchedVariants = await fetchProductVariants(product.parentVariantId || product.id);
+
+        if (!isCancelled) {
+          setVariants(fetchedVariants);
+        }
+      } catch (error) {
+        console.error('Failed to fetch variants:', error);
+        if (!isCancelled) {
+          setVariants([]);
+        }
+      }
+    };
+
+    void loadVariants();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [product.id, product.parentVariantId]);
 
   // Find a variant that matches all selected attributes
   const findMatchingVariant = useCallback(
@@ -135,37 +173,6 @@ export default function ProductVariantSelectorMulti({ product, className }: Prod
     },
     [],
   );
-
-  useEffect(() => {
-    getVariants();
-  }, [getVariants]);
-
-  // Update filtered values when selection changes
-  useEffect(() => {
-    if (variants.length > 0 && Object.keys(availableAttributeValues).length > 0) {
-      const filtered = getFilteredAttributeValues(variants, selectedAttributes, availableAttributeValues);
-      setFilteredAttributeValues(filtered);
-    }
-  }, [selectedAttributes, variants, availableAttributeValues, getFilteredAttributeValues]);
-
-  // Preselect UI controls with current product's selected attributes
-  useEffect(() => {
-    if (!product.variantAttributes) return;
-
-    const currentSelectedAttributes: Record<string, string> = {};
-
-    product.variantAttributes.forEach((variantAttribute) => {
-      const selectedValue = variantAttribute.values?.find((value) => value.selected === true);
-      if (selectedValue) {
-        currentSelectedAttributes[variantAttribute.key] = selectedValue.key;
-      }
-    });
-
-    // Only update if we found selected attributes and they're different from current state
-    if (Object.keys(currentSelectedAttributes).length > 0) {
-      setSelectedAttributes(currentSelectedAttributes);
-    }
-  }, [product]);
 
   // React to changes in selectedAttributes and variants to find matching variant
   useEffect(() => {
@@ -195,11 +202,13 @@ export default function ProductVariantSelectorMulti({ product, className }: Prod
 
   // Handle attribute selection via dropdowns
   const handleAttributeChange = (attribute: string, value: string) => {
-    const newSelectedAttributes = {
-      ...selectedAttributes,
-      [attribute]: value,
-    };
-    setSelectedAttributes(newSelectedAttributes);
+    setSelectionByProduct((prev) => ({
+      ...prev,
+      [product.id]: {
+        ...selectedAttributes,
+        [attribute]: value,
+      },
+    }));
   };
 
   if (!product.variantAttributes) {
@@ -212,7 +221,7 @@ export default function ProductVariantSelectorMulti({ product, className }: Prod
         {product.variantAttributes.map((variantAttribute, index) => (
           <div key={variantAttribute.key}>
             <div className="flex flex-col gap-1">
-              <label className="text-md font-medium">{l10n(variantAttribute.name || variantAttribute.key)}</label>
+              <label className="text-base font-medium">{l10n(variantAttribute.name || variantAttribute.key)}</label>
               {variantAttribute.key === 'color' || variantAttribute.key === 'farbe' ? (
                 <div className="flex flex-wrap gap-2">
                   <style type="text/css">
@@ -228,14 +237,14 @@ export default function ProductVariantSelectorMulti({ product, className }: Prod
                         key={attributeValue.key}
                         onClick={() => handleAttributeChange(variantAttribute.key, attributeValue.key)}
                         className={cn(
-                          'tile w-8 h-8 border-2 border-neutral-500 transition-all duration-200 relative',
-                          isSelected ? 'border-primary scale-100' : 'border-neutral-500 hover:border-neutral-600',
+                          'tile w-8 h-8 border-2 transition-all duration-200 relative hover:border-border-action-hover',
+                          isSelected ? 'border-border-action scale-100' : 'border-border-primary',
                           `color-tile-${attributeValue.key}`,
                         )}
                         title={l10n(attributeValue.name || attributeValue.key)}
                       >
                         {isSelected && (
-                          <CheckCircle2 className="absolute -top-1 -right-1 w-4 h-4 text-primary bg-white rounded-full" />
+                          <CheckCircle2 className="absolute -top-1 -right-1 w-4 h-4 text-icon-action bg-surface-page rounded-full" />
                         )}
                       </button>
                     );
@@ -259,7 +268,7 @@ export default function ProductVariantSelectorMulti({ product, className }: Prod
                 </Select>
               )}
             </div>
-            {index < (product.variantAttributes?.length || 0) - 1 && <hr className="mt-6 border-gray-200" />}
+            {index < (product.variantAttributes?.length || 0) - 1 && <hr className="mt-6 border-border-primary" />}
           </div>
         ))}
       </div>

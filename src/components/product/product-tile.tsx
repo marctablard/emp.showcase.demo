@@ -71,18 +71,18 @@ export function ProductTile({ product, locale = 'en' }: ProductTileProps) {
 
   return (
     <Link href={`/product/${product.id}`} className="h-full block">
-      <Card shadow="default" className="border-0 gap-4 h-full flex flex-col hover:shadow-xl transition">
+      <Card shadow="default" rounded="md" className="border-0 gap-4 h-full flex flex-col hover:shadow-xl transition">
         <CardHeader className="flex-shrink-0 no-underline">
-          <CardDescription className="font-normal text-base text-neutral-800 h-6">
+          <CardDescription className="font-medium text-base text-text-body h-6">
             {l10n(
               product.brand?.name || product.specifications?.find((spec) => spec.key === 'manufacturer')?.value || '',
             )}
           </CardDescription>
           <CardTitle className="flex gap-2 justify-between">
-            <Heading variant="h5" as="div" className="lg:hidden">
+            <Heading variant="h5" as="div" className="md:hidden">
               <p className="line-clamp-3">{l10n(product.name)}</p>
             </Heading>
-            <Heading variant="h6" as="div" className="hidden lg:block">
+            <Heading variant="h6" as="div" className="hidden md:block">
               <p className="line-clamp-2">{l10n(product.name)}</p>
             </Heading>
             <Button
@@ -97,8 +97,8 @@ export function ProductTile({ product, locale = 'en' }: ProductTileProps) {
         </CardHeader>
 
         <CardContent className="flex flex-col gap-4 flex-grow">
-          <div className="relative bg-neutral-50 p-4">
-            <div className="relative aspect-square rounded-tl-lg rounded-br-lg p-4">
+          <div className="relative bg-surface-image-background p-4">
+            <div className="relative aspect-square rounded-ss-md rounded-ee-md p-4">
               {product.primaryImage ? (
                 <div className="relative w-full h-full">
                   <Image
@@ -140,7 +140,7 @@ export function ProductTile({ product, locale = 'en' }: ProductTileProps) {
                     );
                   })}
                   {availableValues.length > 3 && (
-                    <div className="flex items-center justify-center w-8 h-8 bg-neutral-200 text-neutral-600 text-xs font-medium rounded">
+                    <div className="flex items-center justify-center w-8 h-8 bg-surface-disabled text-text-on-disabled text-sm font-medium rounded">
                       +{availableValues.length - 3}
                     </div>
                   )}
@@ -150,7 +150,7 @@ export function ProductTile({ product, locale = 'en' }: ProductTileProps) {
 
             <div className="flex flex-col gap-2 absolute top-4 -left-6">
               {product.labels?.map((label) => (
-                <Badge key={label.id} variant="info" rounded="rounded_right">
+                <Badge key={label.id} variant="info" rounded="roundedRight">
                   {label.name}
                 </Badge>
               ))}
@@ -188,12 +188,12 @@ export function ProductTile({ product, locale = 'en' }: ProductTileProps) {
 
         <CardFooter>
           <div className="flex flex-col gap-1 w-full">
-            <div className="flex gap-2 text-success-600 text-sm items-center">
+            <div className="flex gap-2 text-text-success text-sm items-center">
               {/* Todo: read availability from product */}
               <Truck />
               <p>{t('shipping.onlineAvailable')}</p>
             </div>
-            <div className="flex gap-2 text-success-600 text-sm items-center">
+            <div className="flex gap-2 text-text-success text-sm items-center">
               {/* Todo: read pickup availability from product */}
               <MapPin />
               <p>{t('shipping.canBeReservedExample')}</p>
@@ -206,17 +206,15 @@ export function ProductTile({ product, locale = 'en' }: ProductTileProps) {
                       <p className="line-through">
                         {formatCurrency(product.price.originalAmount, product.price.currency)}
                       </p>
-                      <p className="text-xl/5 text-danger-500 font-bold">
+                      <p className="text-lg text-text-error font-bold">
                         {formatCurrency(product.price.amount, product.price.currency)}
                       </p>
                     </>
                   ) : (
-                    <p className="text-xl/5 font-bold">
-                      {formatCurrency(product.price.amount, product.price.currency)}
-                    </p>
+                    <p className="text-lg font-bold">{formatCurrency(product.price.amount, product.price.currency)}</p>
                   )
                 ) : (
-                  <p className="text-xl/5 font-bold">{t('price.priceNotAvailable')}</p>
+                  <p className="text-lg font-bold">{t('price.priceNotAvailable')}</p>
                 )}
               </div>
               <Button

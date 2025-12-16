@@ -120,7 +120,7 @@ export function ProductTileFlyOut({ product, locale = 'de', onProductClick, keyw
     <Link href={`/product/${clickable_id}`} onClick={onProductClick}>
       <div className="flex">
         {product.images && (
-          <div className="mr-3 bg-gray-100 w-[100px] h-[144px] rounded-tl-md rounded-br-md flex align-center justify-center flex-shrink-0">
+          <div className="mr-3 bg-surface-image-background w-[100px] h-[144px] rounded-tl-md rounded-br-md flex align-center justify-center flex-shrink-0">
             {image ? (
               <Image
                 className="object-contain"
@@ -141,7 +141,7 @@ export function ProductTileFlyOut({ product, locale = 'de', onProductClick, keyw
           </div>
         )}
         <div>
-          <p className="text-[10px] text-neutral-800 h-[15px]">
+          <p className="text-sm text-text-body h-[15px]">
             {markText(
               l10n(
                 product.brand?.name || product.specifications?.find((spec) => spec.key === 'manufacturer')?.value || '',
@@ -150,7 +150,7 @@ export function ProductTileFlyOut({ product, locale = 'de', onProductClick, keyw
               keyword,
             )}
           </p>
-          <p className="text-[14px] font-headlines text-neutral-800">{markText(l10n(product.name, locale), keyword)}</p>
+          <p className="text-md font-headlines text-text-body">{markText(l10n(product.name, locale), keyword)}</p>
           {(() => {
             // TODO make this more dynamic
             // Calculate how many attributes to show in total (max 3)
@@ -199,7 +199,7 @@ export function ProductTileFlyOut({ product, locale = 'de', onProductClick, keyw
               </>
             );
           })()}
-          <p className="text-[14px] mt-2 font-headlines font-bold">
+          <p className="text-md mt-2 font-headlines font-bold">
             {product.price && formatCurrency(product.price.amount, product.price.currency)}
           </p>
         </div>

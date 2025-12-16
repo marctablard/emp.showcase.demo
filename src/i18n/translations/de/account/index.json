@@ -21,8 +21,8 @@
       "titleLabel": "Anrede",
       "firstNameLabel": "Vorname",
       "lastNameLabel": "Nachname",
-      "emailLabel": "E-Mail",
-      "phoneLabel": "Telefon",
+      "emailLabel": "E-Mail (nur Kontakt)",
+      "phoneLabel": "Telefon (nur Kontakt)",
       "preferredLanguage": "Bevorzugte Sprache",
       "preferredCurrency": "Bevorzugte Währung",
       "selectTitle": "Anrede auswählen",
@@ -50,6 +50,11 @@
       "language": {
         "de": "Deutsch",
         "en": "English"
+      },
+      "titles": {
+        "MR": "Herr",
+        "MRS": "Frau",
+        "MS": "Fräulein"
       }
     }
   },
@@ -88,6 +93,7 @@
   "dashboard": "Dashboard",
   "sidebar": {
     "dashboard": "Dashboard",
+    "menu": "Menü",
     "groups": {
       "selfService": "Self Service",
       "orderManagement": "Bestellverwaltung",
@@ -112,10 +118,12 @@
       "contractsAgreements": "Verträge & Vereinbarungen",
       "personalData": "Persönliche Daten",
       "accountSettings": "Kontoeinstellungen",
-      "approvals": "Freigaben"
+      "approvals": "Freigaben",
+      "tasks": "Aufgaben"
     }
   },
   "accountDashboardDescription": "Verwalten Sie Ihr Konto, Bestellungen und Unternehmensinformationen",
+  "accountLoginDescription": "Melden Sie sich an, um Ihre Bestellungen verwalten und Ihre Unternehmensinformationen anzeigen.",
   "accountDetails": "Kontodaten",
   "profileSettings": "Profileinstellungen",
   "company": "Unternehmen",
@@ -303,7 +311,7 @@
     "viewAll": "Alle anzeigen",
     "newInvoices": "neue Rechnungen",
     "overdueInvoices": "überfällige Rechnungen",
-    "pendingOffers": "Angebote warten auf Ihre Genehmigung",
+    "pendingQuotes": "Angebote warten auf Ihre Genehmigung",
     "tasksToComplete": "Aufgaben zu erledigen",
     "openReturns": "offene Rückgaben",
     "unreadDocuments": "ungelesene Dokumente"
@@ -315,7 +323,8 @@
       "company": "Meine Firmendokumente",
       "manuals": "Produkthandbücher & technische Datenblätter",
       "warranty": "Garantieunterlagen"
-    }
+    },
+    "seeAll": "Alle anzeigen"
   },
   "AiHelper": {
     "title": "KI-Dashboard-Assistent",
@@ -394,5 +403,46 @@
     "thunderstormWithSlightHail": "Gewitter mit leichtem Hagel",
     "thunderstormWithHeavyHail": "Gewitter mit starkem Hagel",
     "unknown": "Unbekannte Wetterbedingung"
+  },
+  "placeholder": {
+    "title": "Platzhalterseite",
+    "description": "Diese Seite ist ein Platzhalter in der Emporix-Referenz-Storefront.",
+    "details": "Sie zeigt, wo zusätzliche Funktionen, Apps oder benutzerdefinierte Integrationen hinzugefügt werden können. Der Inhalt und die Funktionalität dieser Seite variieren je nach Anforderungen und Projektumfang."
+  },
+  "landing": {
+    "title": "Willkommen in Ihrem Service-Portal",
+    "subtitle": "Verwalten Sie Ihr Geschäft effizient mit unseren umfassenden Konto-Funktionen",
+    "benefits": {
+      "title": "Warum ein Konto erstellen?",
+      "trackOrders": {
+        "title": "Bestellungen verfolgen",
+        "description": "Überwachen Sie alle Ihre Bestellungen in Echtzeit, sehen Sie die Bestellhistorie ein und verwalten Sie Retouren mühelos."
+      },
+      "aiAssistant": {
+        "title": "KI-gestützter Assistent",
+        "description": "Erhalten Sie sofortige Antworten auf Ihre Fragen mit unserem intelligenten KI-Helfer, der rund um die Uhr verfügbar ist."
+      },
+      "supportTickets": {
+        "title": "Support-Tickets",
+        "description": "Erstellen und verwalten Sie Support-Tickets direkt von Ihrem Dashboard aus für eine schnelle Lösung."
+      },
+      "quotes": {
+        "title": "Angebote anfordern & verwalten",
+        "description": "Fordern Sie individuelle Angebote an und verfolgen Sie deren Status an einem Ort."
+      },
+      "approvals": {
+        "title": "Freigabe-Workflows",
+        "description": "Optimieren Sie Ihre Geschäftsprozesse mit integriertem Freigabe-Management."
+      },
+      "insights": {
+        "title": "Geschäftseinblicke",
+        "description": "Greifen Sie auf detaillierte Analysen und Einblicke zu Ihren Bestellungen und Ausgabenmustern zu."
+      }
+    },
+    "cta": {
+      "login": "Bei Ihrem Konto anmelden",
+      "register": "Kostenloses Konto erstellen",
+      "registerSubtext": "Schließen Sie sich Tausenden von Unternehmen an, die bereits unsere Plattform nutzen"
+    }
   }
 }

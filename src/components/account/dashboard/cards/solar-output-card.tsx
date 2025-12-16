@@ -115,7 +115,7 @@ export function SolarOutputCard({ className, title, ...props }: Omit<DashboardCa
         className={className}
         {...props}
       >
-        <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+        <div className="flex items-center justify-center h-[200px] text-text-placeholders">
           {t('weatherDataUnavailable', { defaultValue: 'Weather data unavailable' })}
         </div>
       </DashboardCard>
@@ -146,7 +146,7 @@ export function SolarOutputCard({ className, title, ...props }: Omit<DashboardCa
               <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.1} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+          <CartesianGrid strokeDasharray="3 3" className="stroke-surface-disabled" />
           <XAxis
             dataKey="time"
             tickLine={false}
@@ -169,23 +169,23 @@ export function SolarOutputCard({ className, title, ...props }: Omit<DashboardCa
             content={({ active, payload }) => {
               if (active && payload && payload.length) {
                 return (
-                  <div className="rounded-lg border bg-background p-2 shadow-sm">
+                  <div className="rounded-md border bg-surface-page p-2 shadow-sm">
                     <div className="grid grid-cols-2 gap-2">
                       <div className="flex flex-col">
-                        <span className="text-[0.70rem] uppercase text-muted-foreground">Time</span>
-                        <span className="font-bold text-foreground">{payload[0].payload.time}</span>
+                        <span className="text-sm uppercase text-text-placeholders">Time</span>
+                        <span className="font-bold text-text-body">{payload[0].payload.time}</span>
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[0.70rem] uppercase text-muted-foreground">Output</span>
-                        <span className="font-bold text-foreground">{payload[0].value} kW</span>
+                        <span className="text-sm uppercase text-text-placeholders">Output</span>
+                        <span className="font-bold text-text-body">{payload[0].value} kW</span>
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[0.70rem] uppercase text-muted-foreground">Weather</span>
-                        <span className="font-bold text-foreground">{payload[0].payload.weather}</span>
+                        <span className="text-sm uppercase text-text-placeholders">Weather</span>
+                        <span className="font-bold text-text-body">{payload[0].payload.weather}</span>
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[0.70rem] uppercase text-muted-foreground">Temperature</span>
-                        <span className="font-bold text-foreground">{payload[0].payload.temperature}°C</span>
+                        <span className="text-sm uppercase text-text-placeholders">Temperature</span>
+                        <span className="font-bold text-text-body">{payload[0].payload.temperature}°C</span>
                       </div>
                     </div>
                   </div>

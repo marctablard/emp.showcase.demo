@@ -7,7 +7,7 @@ import type { EmporixConfig } from '../../config';
  */
 @injectable('EmporixCommonUtil', 'Singleton')
 class EmporixCommonUtil {
-  private config: EmporixConfig;
+  protected config: EmporixConfig;
 
   constructor(@inject('EmporixConfig') config: EmporixConfig) {
     this.config = config;

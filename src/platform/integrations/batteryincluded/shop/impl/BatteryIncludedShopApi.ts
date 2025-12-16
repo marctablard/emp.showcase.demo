@@ -43,12 +43,16 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
   /**
    * Get product suggestions based on a search query
    */
-  async suggest(query: string, locale?: string): Promise<BatteryIncludedSuggestion[]> {
+  async suggest(query: string, locale?: string, segmentIds?: string): Promise<BatteryIncludedSuggestion[]> {
     const params = new URLSearchParams();
     params.append('q', query);
 
     if (locale) {
       params.append('v[locale]', locale);
+    }
+
+    if (segmentIds) {
+      params.append('f[segmentIds][]', segmentIds);
     }
 
     const url = `/api/v1/collections/${this.config.collection}/documents/suggest?${params.toString()}`;

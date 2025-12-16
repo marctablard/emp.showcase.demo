@@ -6,6 +6,8 @@ import Image from 'next/image';
 import { Leaf, Package, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { H3 } from '@/components/ui/h';
+import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
 import { useCart } from '@/hooks/cart/useCart';
 import { useAvailability } from '@/hooks/product/useAvailability';
@@ -218,9 +220,9 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
         <div className="flex flex-col space-y-4">
           {/* Original product */}
           <div className="border-b pb-4">
-            <h3 className="text-md font-medium mb-2">{t('substitution.originalProduct')}</h3>
+            <H3 className="text-base font-medium mb-2">{t('substitution.originalProduct')}</H3>
             <div className="flex items-center gap-4">
-              <div className="rounded-ss-xl rounded-ee-xl w-[100px] h-[65px] object-fit overflow-hidden">
+              <div className="rounded-ss-md rounded-ee-md w-[100px] h-[65px] object-fit overflow-hidden">
                 {cartItem.product && cartItem.product.images?.length ? (
                   <Image
                     width={100}
@@ -230,7 +232,7 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                  <div className="w-full h-full flex items-center justify-center text-icon-secondary">
                     <ShoppingCart className="h-6 w-6 opacity-30" />
                   </div>
                 )}
@@ -238,10 +240,10 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
               <div className="flex-grow">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs">{l10n(productMap[originalProductId]?.brand?.name || '')}</p>
-                    <p className="font-bold text-sm">{l10n(productMap[originalProductId]?.name || 'Product')}</p>
+                    <p className="text-sm">{l10n(productMap[originalProductId]?.brand?.name || '')}</p>
+                    <p className="font-bold">{l10n(productMap[originalProductId]?.name || 'Product')}</p>
 
-                    <p className="text-xs text-muted-foreground pr-4">
+                    <p className="text-sm text-text-placeholders pr-4">
                       {t('itemNumber')}: {cartItem.product?.id}
                     </p>
                   </div>
@@ -249,12 +251,12 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
                   <div className="text-right">
                     {isPriceLoading ? (
                       <>
-                        <div className="h-3 bg-gray-200 rounded w-20 mb-2 animate-pulse ml-auto"></div>
-                        <div className="h-5 bg-gray-200 rounded w-16 animate-pulse ml-auto"></div>
+                        <div className="h-3 bg-bg-surface-disabled rounded w-20 mb-2 animate-pulse ml-auto"></div>
+                        <div className="h-5 bg-bg-surface-disabled rounded w-16 animate-pulse ml-auto"></div>
                       </>
                     ) : (
                       <>
-                        <div className="text-xs text-muted-foreground">{t('pricePerUnit')}</div>
+                        <div className="text-sm text-text-placeholders">{t('pricePerUnit')}</div>
                         <div className="font-bold">{formatCurrency(originalPrice, originalCurrency)}</div>
                       </>
                     )}
@@ -264,7 +266,7 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
                 {availability && (
                   <div className="flex items-center justify-between">
                     {availability.availableQuantity && (
-                      <p className="text-xs font-bold pr-4">
+                      <p className="text-sm font-bold pr-4">
                         {t('substitution.availableDescription', {
                           available: availability.availableQuantity,
                           total: cartItem.quantity,
@@ -272,7 +274,7 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
                       </p>
                     )}
                     {availability.availableInDays && (
-                      <p className="text-xs font-bold text-warning-500 pr-4 justify-end">
+                      <p className="text-sm font-bold text-text-warning pr-4 justify-end">
                         {t('substitution.availableInDays', { days: availability.availableInDays })}
                       </p>
                     )}
@@ -284,8 +286,8 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
 
           {/* Substitution options */}
           <div>
-            <h3 className="text-md font-medium mb-2">{t('substitution.availableSubstitutions')}</h3>
-            <p className="text-sm text-muted-foreground mb-4">{t('substitution.selectAlternative')}</p>
+            <H3 className="text-base font-medium mb-2">{t('substitution.availableSubstitutions')}</H3>
+            <p className="text-sm text-text-placeholders mb-4">{t('substitution.selectAlternative')}</p>
 
             <div className="space-y-2">
               {substitution.substitutions.map((sub) => {
@@ -293,14 +295,14 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
                 return (
                   <div
                     key={sub.productId}
-                    className={`flex items-center space-x-4 rounded-ss-xl rounded-ee-xl p-4 mb-2 cursor-pointer transition-colors ${isSelected ? 'bg-gray-200' : ''}`}
+                    className={`flex items-center space-x-4 rounded-ss-md rounded-ee-md p-4 mb-2 cursor-pointer transition-colors ${isSelected ? 'bg-surface-action-hover-2' : ''}`}
                     onClick={() => handleSelectSubstitution(sub.productId)}
                   >
                     <div className="flex-grow flex items-center gap-4">
                       {/* Product image thumbnail */}
-                      <div className="rounded-ss-xl rounded-ee-xl w-[60px] h-[60px] object-fit overflow-hidden flex-shrink-0">
+                      <div className="rounded-ss-md rounded-ee-md w-[60px] h-[60px] object-fit overflow-hidden flex-shrink-0">
                         {isLoading ? (
-                          <div className="w-full h-full bg-gray-200 animate-pulse" />
+                          <div className="w-full h-full bg-surface-image-background animate-pulse" />
                         ) : productMap[sub.productId]?.images?.length ? (
                           <Image
                             width={60}
@@ -310,7 +312,7 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-gray-100">
+                          <div className="w-full h-full flex items-center justify-center text-icon-secondary bg-surface-image-background">
                             <ShoppingCart className="h-4 w-4 opacity-30" />
                           </div>
                         )}
@@ -318,10 +320,10 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
                       <div className="flex-grow">
                         {isLoading ? (
                           <>
-                            <div className="h-5 bg-gray-200 rounded w-3/4 mb-2 animate-pulse"></div>
-                            <div className="h-5 bg-gray-200 rounded w-3/4 mb-2 animate-pulse"></div>
-                            <div className="h-3 bg-gray-200 rounded w-1/2 mb-2 animate-pulse"></div>
-                            <div className="h-3 bg-gray-200 rounded w-1/3 animate-pulse"></div>
+                            <div className="h-5 bg-surface-disabled rounded w-3/4 mb-2 animate-pulse"></div>
+                            <div className="h-5 bg-surface-disabled rounded w-3/4 mb-2 animate-pulse"></div>
+                            <div className="h-3 bg-surface-disabled rounded w-1/2 mb-2 animate-pulse"></div>
+                            <div className="h-3 bg-surface-disabled rounded w-1/3 animate-pulse"></div>
                           </>
                         ) : (
                           <>
@@ -329,12 +331,12 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
                             <p className="font-bold text-sm line-clamp-1">
                               {l10n(productMap[sub.productId]?.name || sub.name)}
                             </p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-sm text-text-placeholders">
                               {t('itemNumber')}: {sub.productId}
                             </p>
-                            <p className="text-xs">
-                              <Package className="h-4 w-4 text-success-500 float-left mr-2" />
-                              <span className="text-success-500">
+                            <p className="text-sm">
+                              <Package className="h-4 w-4 text-text-success float-left mr-2" />
+                              <span className="text-text-success">
                                 {t('substitution.availableQty')}: {sub.availableQuantity}
                               </span>
                             </p>
@@ -344,13 +346,13 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
                       <div className="text-right ml-2">
                         {isLoading || isPriceLoading ? (
                           <>
-                            <div className="h-3 bg-gray-200 rounded w-20 mb-2 animate-pulse ml-auto"></div>
-                            <div className="h-5 bg-gray-200 rounded w-16 mb-2 animate-pulse ml-auto"></div>
-                            <div className="h-3 bg-gray-200 rounded w-12 animate-pulse ml-auto"></div>
+                            <div className="h-3 bg-surface-disabled rounded w-20 mb-2 animate-pulse ml-auto"></div>
+                            <div className="h-5 bg-surface-disabled rounded w-16 mb-2 animate-pulse ml-auto"></div>
+                            <div className="h-3 bg-surface-disabled rounded w-12 animate-pulse ml-auto"></div>
                           </>
                         ) : (
                           <>
-                            <div className="text-xs text-muted-foreground whitespace-nowrap">{t('pricePerUnit')}</div>
+                            <div className="text-sm text-text-placeholders whitespace-nowrap">{t('pricePerUnit')}</div>
                             <div className="font-bold">
                               {formatCurrency(
                                 priceMap[sub.productId]?.amount || 0,
@@ -361,7 +363,7 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
                               priceMap[originalProductId] &&
                               priceMap[sub.productId].amount !== priceMap[originalProductId].amount && (
                                 <div
-                                  className={`text-xs font-medium ${priceMap[sub.productId].amount > priceMap[originalProductId].amount ? 'text-error-500' : 'text-success-500'}`}
+                                  className={`text-sm font-medium ${priceMap[sub.productId].amount > priceMap[originalProductId].amount ? 'text-text-error' : 'text-text-success'}`}
                                 >
                                   {calculatePriceDifference(priceMap[sub.productId].amount).formattedDifference}
                                 </div>
@@ -372,7 +374,7 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
                     </div>
                     <div className="ml-2">
                       {isSelected ? (
-                        <div className="h-5 w-5 flex items-center justify-center text-primary">
+                        <div className="h-5 w-5 flex items-center justify-center text-text-action">
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
                             width="24"
@@ -398,19 +400,19 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
             </div>
             <div className="flex justify-between items-center mt-4">
               <Tooltip>
-                <TooltipTrigger tabIndex={-1} className="flex items-center gap-1  text-muted-foreground ">
+                <TooltipTrigger tabIndex={-1} className="flex items-center gap-1  text-text-placeholders">
                   <Leaf
-                    className="text-success-500 mr-2 float-left"
+                    className="text-text-success mr-2 float-left"
                     size={20}
                     aria-label={t('substitution.sustainabilityNote')}
                   />
-                  <span className="text-xs">{t('substitution.sustainabilityClaim')}</span>
+                  <span className="text-sm">{t('substitution.sustainabilityClaim')}</span>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>{t('substitution.sustainabilityNote')}</p>
                 </TooltipContent>
               </Tooltip>
-              <div className="text-xs text-muted-foreground flex items-center gap-1">
+              <div className="text-sm text-text-placeholders flex items-center gap-1">
                 <span>{t('substitution.poweredBy')}</span>
                 <Image src="/images/celonis.png" alt="Celonis" width={70} height={30} />
               </div>
@@ -435,9 +437,9 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
           <Button variant="secondary" className="w-full" onClick={handleReduceAmount}>
             {t('substitution.reduceAmount')}
           </Button>
-          <Button variant="warning" className="w-full" onClick={handleKeepBackorder}>
+          <UiLink type="Button" onClick={handleKeepBackorder} className="flex justify-center">
             {t('substitution.keepBackorder')}
-          </Button>
+          </UiLink>
         </DialogFooter>
       </DialogContent>
     </Dialog>

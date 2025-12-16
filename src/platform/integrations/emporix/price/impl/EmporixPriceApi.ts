@@ -15,7 +15,7 @@ import type { EmporixPriceApi as IEmporixPriceApi } from '../EmporixPriceApi';
 @injectable('EmporixPriceApi', 'Singleton')
 class EmporixPriceApi implements IEmporixPriceApi {
   readonly config: EmporixConfig;
-  private apiClient: EmporixApiInvoker;
+  protected apiClient: EmporixApiInvoker;
 
   constructor(
     @inject('EmporixConfig') config: EmporixConfig,

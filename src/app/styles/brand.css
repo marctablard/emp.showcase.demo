@@ -1,0 +1,121 @@
+@import 'tailwindcss';
+
+/* Brand base colors */
+
+@theme {
+  --font-*: initial;
+  --font-primary: Ubuntu, sans-serif;
+  --font-secondary: Open sans, sans-serif;
+
+  --font-weight-*: initial;
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+}
+
+:root {
+  --color-blue-50: oklch(0.9536 0.0172 248.01);
+  --color-blue-100: oklch(0.9092 0.0344 245.48);
+  --color-blue-200: oklch(0.8194 0.071 246.79);
+  --color-blue-300: oklch(0.7292 0.1076 248.34);
+  --color-blue-400: oklch(0.6459 0.1431 250.1);
+  --color-blue-500: oklch(0.5701 0.1725 253.49);
+  --color-blue-600: oklch(0.4856 0.1451 253.36);
+  --color-blue-700: oklch(0.3965 0.1149 252.87);
+  --color-blue-800: oklch(0.3055 0.0828 251.46);
+  --color-blue-900: oklch(0.2034 0.0473 247.65);
+
+  --color-light-blue-100: oklch(0.958 0.0213 245.85);
+  --color-light-blue-200: oklch(0.9138 0.044 247.26);
+  --color-light-blue-300: oklch(0.8729 0.0659 247.21);
+  --color-light-blue-400: oklch(0.8301 0.0891 247.96);
+  --color-light-blue-500: oklch(0.7912 0.111 248.26);
+  --color-light-blue-600: oklch(0.6698 0.0931 248.44);
+  --color-light-blue-700: oklch(0.5455 0.073 248.03);
+  --color-light-blue-800: oklch(0.4104 0.0528 248.27);
+  --color-light-blue-900: oklch(0.2665 0.0288 246.94);
+
+  --color-teal-100: oklch(0.9744 0.0287 159.96);
+  --color-teal-200: oklch(0.9502 0.0571 159.18);
+  --color-teal-300: oklch(0.9256 0.0825 159.32);
+  --color-teal-400: oklch(0.9045 0.1093 158.08);
+  --color-teal-500: oklch(0.8852 0.1348 156.84);
+  --color-teal-600: oklch(0.7488 0.1122 157.06);
+  --color-teal-700: oklch(0.6058 0.0883 157.43);
+  --color-teal-800: oklch(0.4562 0.0654 156.66);
+  --color-teal-900: oklch(0.2902 0.037 157.2);
+
+  --color-green-100: oklch(0.9038 0.0387 150);
+  --color-green-200: oklch(0.8097 0.0809 149.54);
+  --color-green-300: oklch(0.716 0.1203 148.22);
+  --color-green-400: oklch(0.629 0.1564 146.54);
+  --color-green-500: oklch(0.548 0.1741 144.13);
+  --color-green-600: oklch(0.4683 0.1474 144.33);
+  --color-green-700: oklch(0.3822 0.118 144.64);
+  --color-green-800: oklch(0.294 0.0879 145.41);
+  --color-green-900: oklch(0.1953 0.0527 147.23);
+
+  --color-orange-100: oklch(0.9101 0.0334 54.16);
+  --color-orange-200: oklch(0.8203 0.0702 51.53);
+  --color-orange-300: oklch(0.7344 0.1066 50.61);
+  --color-orange-400: oklch(0.6533 0.1439 47.9);
+  --color-orange-500: oklch(0.5825 0.1717 42.53);
+  --color-orange-600: oklch(0.4959 0.1447 42.83);
+  --color-orange-700: oklch(0.4052 0.1143 44.22);
+  --color-orange-800: oklch(0.3094 0.0842 46.1);
+  --color-orange-900: oklch(0.206 0.049 54.11);
+
+  --color-red-100: oklch(0.8841 0.0394 17.92);
+  --color-red-200: oklch(0.7683 0.0852 19.2);
+  --color-red-300: oklch(0.6626 0.1345 21.36);
+  --color-red-400: oklch(0.5703 0.18 24.92);
+  --color-red-500: oklch(0.5093 0.2032 28.63);
+  --color-red-600: oklch(0.4331 0.1717 28.49);
+  --color-red-700: oklch(0.3539 0.138 28.16);
+  --color-red-800: oklch(0.2672 0.1017 27.7);
+  --color-red-900: oklch(0.1765 0.0615 26.24);
+
+  --color-grey-25: oklch(0.9824 0.0013 286.38);
+  --color-grey-50: oklch(0.9647 0.0027 286.35);
+  --color-grey-100: oklch(0.9288 0.004 286.32);
+  --color-grey-200: oklch(0.8586 0.0083 278.62);
+  --color-grey-300: oklch(0.7837 0.0129 276.05);
+  --color-grey-400: oklch(0.7104 0.0177 274.72);
+  --color-grey-500: oklch(0.6326 0.0227 276.74);
+  --color-grey-600: oklch(0.5394 0.0175 273.64);
+  --color-grey-700: oklch(0.44 0.0149 275.8);
+  --color-grey-800: oklch(0.3381 0.0105 278.28);
+  --color-grey-900: oklch(0.2234 0.0058 285.92);
+
+  --color-black: oklch(0 0 0);
+  --color-white: oklch(1 0 0);
+
+  --color-transparent-primary-10: oklch(0.2234 0.0058 285.92 / 10%);
+  --color-transparent-primary-5: oklch(0.2234 0.0058 285.92 / 5%);
+  --color-transparent-secondary-75: oklch(0.6698 0.0931 248.44 / 75%);
+
+  --scale-0: 0;
+  --scale-25-1: 0.0625rem;
+  --scale-50-2: 0.125rem;
+  --scale-100-4: 0.25rem;
+  --scale-150-6: 0.375rem;
+  --scale-200-8: 0.5rem;
+  --scale-300-12: 0.75rem;
+  --scale-350-14: 0.875rem;
+  --scale-400-16: 1rem;
+  --scale-500-20: 1.25rem;
+  --scale-600-24: 1.5rem;
+  --scale-700-28: 1.75rem;
+  --scale-800-32: 2rem;
+  --scale-850-34: 2.125rem;
+  --scale-900-36: 2.25rem;
+  --scale-1000-40: 2.5rem;
+  --scale-1100-44: 2.75rem;
+  --scale-1200-48: 3rem;
+  --scale-1300-52: 3.25rem;
+  --scale-1400-56: 3.5rem;
+  --scale-1500-60: 3.75rem;
+  --scale-1600-64: 4rem;
+}

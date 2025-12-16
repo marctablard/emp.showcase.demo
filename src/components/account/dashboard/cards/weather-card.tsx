@@ -1,11 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useTranslations } from 'next-intl';
 import { CloudDrizzle, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Cloudy, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWeather } from '@/hooks/weather/useWeather';
-import { findCardLayout, useLocalDashboardStore } from '@/lib/client/dashboard';
 import { LocationData } from '@/platform/services/model/common';
 import { DashboardCard, DashboardCardProps } from './dashboard-card';
 
@@ -80,15 +79,11 @@ const WeatherIcon: React.FC<WeatherIconProps> = ({ description, className = 'h-1
 
 export function WeatherCard({ className, title, subtitle, ...props }: WeatherCardProps) {
   const t = useTranslations('account.Weather');
-  const state = useLocalDashboardStore();
-  const [grid, setGrid] = useState({ cols: 1, rows: 1 });
+  // TODO this breaks rendering and causes infinite loops
+  //const state = useLocalDashboardStore();
+  //const grid = state.renderedLayout ? findCardLayout('weather', state.renderedLayout) : { cols: 1, rows: 1 };
   const { weather, loading, changeLocation } = useWeather();
 
-  useEffect(() => {
-    if (state.renderedLayout) {
-      setGrid(findCardLayout('weather', state.renderedLayout));
-    }
-  }, [state.renderedLayout]);
   if (loading || !weather) {
     return (
       <DashboardCard className={className} variant="primary" {...props}>
@@ -119,19 +114,12 @@ export function WeatherCard({ className, title, subtitle, ...props }: WeatherCar
               <WeatherIcon description={weather.current.description} />
             </div>
             <div>
-              <div className="text-3xl font-bold flex items-start">
-                {weather.current.temperature.toFixed(1)}
-                <span className="text-lg mt-1">°</span>
-              </div>
+              <div className="text-3xl font-bold flex items-start">{weather.current.temperature.toFixed(1)}°</div>
               <div className="text-sm">{weather.current.location}</div>
             </div>
           </div>
           <div
-            className={`text-sm ${
-              grid?.cols > grid?.rows
-                ? 'border-l border-primary-600 pl-4 flex-shrink-0 flex flex-col justify-center'
-                : 'mt-2'
-            }`}
+            className={`text-sm ${'border-l border-border-primary pl-4 flex-shrink-0 flex flex-col justify-center'}`}
           >
             <div className="flex justify-between py-1">
               <span>{t('precipitation')}:</span>
@@ -150,7 +138,7 @@ export function WeatherCard({ className, title, subtitle, ...props }: WeatherCar
         <div className="mt-4">
           <Button
             variant="link"
-            className="text-white hover:text-white hover:bg-primary-600 w-full"
+            className="text-text-on-action hover:text-text-on-action hover:bg-surface-action-hover w-full"
             onClick={() => {
               const berlinLocation: LocationData = {
                 city: 'Berlin',

@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { PasswordUpdateForm } from '@/components/password/password-update-form';
+import { H1 } from '@/components/ui/h';
 import { getPageTitle } from '@/lib/ssr/seo';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
@@ -27,7 +28,9 @@ export default async function PasswordUpdatePage({ params }: { params: Promise<P
 
   return (
     <div className="container max-w-4xl py-10 mx-auto">
-      <h1 className="text-2xl font-bold text-center mb-6">{t('createNewPassword')}</h1>
+      <H1 variant="h6" className="text-center mb-6">
+        {t('createNewPassword')}
+      </H1>
       <PasswordUpdateForm />
     </div>
   );

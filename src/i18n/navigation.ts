@@ -1,6 +1,7 @@
-import { createNavigation } from 'next-intl/navigation';
+import { routing as siteRouting } from '@/site/routing'
 import { routing } from './routing';
+import { createNavigation as createIntlNavigation } from 'next-intl/navigation';
+import createNavigation from '@/site/navigation/createNavigation';
 
-// Lightweight wrappers around Next.js' navigation
-// APIs that consider the routing configuration
-export const { Link, redirect, usePathname, useRouter, getPathname } = createNavigation(routing);
+export const { getPathname: getI18nPathname } = createIntlNavigation(routing);
+export const { Link, redirect, usePathname, useRouter, getPathname } = createNavigation(siteRouting, routing);

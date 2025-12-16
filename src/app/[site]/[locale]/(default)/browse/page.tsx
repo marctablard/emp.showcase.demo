@@ -53,7 +53,7 @@ export default async function BrowsePage({
 
   return (
     <div className="max-w-6xl mx-auto px-4 lg:px-9 pb-32">
-      <Heading variant="h2" className="text-3xl font-bold mb-6">
+      <Heading variant="h2" className="mb-6">
         {q ? t('resultsFor', { query: q }) : t('allProducts')}
       </Heading>
 

@@ -36,7 +36,7 @@ export function SavedCartsTable({
   if (loading) {
     return (
       <div className="flex justify-center items-center py-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-text-action" />
         <span className="ml-2">{t('loadingMessage')}</span>
       </div>
     );

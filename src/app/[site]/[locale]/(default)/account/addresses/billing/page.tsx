@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import AccountLayout from '@/components/account/account-layout';
 import { AddressesList } from '@/components/account/addresses/address-card';
+import { H1 } from '@/components/ui/h';
 import { getPageTitle } from '@/lib/ssr/seo';
 
 export const dynamic = 'force-dynamic';
@@ -39,8 +40,10 @@ export default async function BillingAddressesPage({ params }: { params: Promise
   return (
     <AccountLayout breadcrumbs={breadcrumbs}>
       <div className="container mx-auto py-6">
-        <h1 className="text-2xl font-bold mb-6">{tAccount('billingAddresses')}</h1>
-        <p className="text-muted-foreground mb-8">{tAccount('manageBillingAddresses')}</p>
+        <H1 variant="h6" className="mb-6">
+          {tAccount('billingAddresses')}
+        </H1>
+        <p className="text-text-placeholders mb-8">{tAccount('manageBillingAddresses')}</p>
 
         {/* Client-side component for displaying and managing addresses */}
         <AddressesList type="BILLING" />

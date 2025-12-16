@@ -1,3 +1,4 @@
+import { H4 } from '@/components/ui/h';
 import {
   Pagination,
   PaginationContent,
@@ -11,8 +12,8 @@ import {
 export default function PaginationStyleGuide() {
   return (
     <div className="py-12">
-      <h4 className="text-3xl/5 md:text-4xl font-bold text-headlines font-headlines mb-3">Pagination</h4>
-      <div className="p-4 grid grid-cols-[1fr] lg:grid-cols-[1fr_1fr] gap-6 mb-2">
+      <H4 className="mb-3">Pagination</H4>
+      <div className="p-4 grid grid-cols-[1fr] md:grid-cols-[1fr_1fr] gap-6 mb-2">
         <Pagination>
           <PaginationContent>
             <PaginationItem>

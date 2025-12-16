@@ -4,14 +4,15 @@ import React from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Check, ClockAlert, Package, ReceiptText } from 'lucide-react';
+import UiLink from '@/components/ui/link';
+import { Spinner } from '@/components/ui/spinner';
 import useCustomer from '@/hooks/customer/useCustomer';
 import { useOrder } from '@/hooks/order/useOrder';
-import { Link } from '@/i18n/navigation';
 import { formatCurrency } from '@/lib/utils';
 import { Order } from '@/platform/services/model/order/order';
 import { AddressDisplay } from '../common/address-display';
 import { Card, CardContent, CardHeader } from '../ui/card';
-import { H2 } from '../ui/h';
+import { H1, H2, H3 } from '../ui/h';
 
 interface OrderConfirmationProps {
   orderId: string;
@@ -36,30 +37,34 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
       <div className="text-center mb-8">
         {orderId.startsWith('Approval') ? (
           <>
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-warning-100 rounded-full mb-4">
-              <ClockAlert className="h-8 w-8 text-warning-600" />
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-surface-warning rounded-full mb-4">
+              <ClockAlert className="h-8 w-8 text-icon-warning" />
             </div>
-            <h1 className="text-3xl font-bold text-neutral-900 mb-2">{t('waitingForApproval')}</h1>
+            <H1 variant="h5" className="text-text-heading mb-2">
+              {t('waitingForApproval')}
+            </H1>
           </>
         ) : (
           <>
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-success-100 rounded-full mb-4">
-              <Check className="h-8 w-8 text-success-600" />
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-surface-success rounded-full mb-4">
+              <Check className="h-8 w-8 text-icon-success" />
             </div>
-            <h1 className="text-3xl font-bold text-neutral-900 mb-2">{t('orderConfirmed')}</h1>
+            <H1 variant="h5" className="mb-2">
+              {t('orderConfirmed')}
+            </H1>
           </>
         )}
-        <p className="text-lg text-neutral-600">{t('thankYou')}</p>
+        <p className="text-lg text-text-on-disabled">{t('thankYou')}</p>
       </div>
 
       {loading && (
         <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+          <Spinner color="primary" variant="lg" />
         </div>
       )}
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+        <div className="bg-surface-error border border-border-error text-text-error px-4 py-3 rounded mb-6">
           <p>{tOrder('errorFetchingOrder')}</p>
           <p className="text-sm">{error.message}</p>
         </div>
@@ -71,14 +76,14 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
             <CardHeader>
               <H2 variant="h5">{tOrder('orderDetails')}</H2>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
-                <p className="text-md text-gray-600 mb-1">{tOrder('orderNumber')}</p>
+                <p className="text-base text-text-on-disabled mb-1">{tOrder('orderNumber')}</p>
                 <p className="font-medium">{order.id || orderId}</p>
               </div>
 
               <div>
-                <p className="text-md text-gray-600 mb-1">{tOrder('orderDate')}</p>
+                <p className="text-base text-text-on-disabled mb-1">{tOrder('orderDate')}</p>
                 <p className="font-medium">
                   {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : new Date().toLocaleDateString()}
                 </p>
@@ -86,13 +91,13 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
 
               {customerEmail && (
                 <div>
-                  <p className="text-md text-gray-600 mb-1">{tOrder('email')}</p>
+                  <p className="text-base text-text-on-disabled mb-1">{tOrder('email')}</p>
                   <p className="font-medium">{customerEmail}</p>
                 </div>
               )}
 
               <div>
-                <p className="text-md text-gray-600 mb-1">{tOrder('columns.status')}</p>
+                <p className="text-base text-text-on-disabled mb-1">{tOrder('columns.status')}</p>
                 <p className="font-medium capitalize">{tOrderStatus(order.status)}</p>
               </div>
             </CardContent>
@@ -106,21 +111,21 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
               </CardHeader>
               <CardContent>
                 {order.items.map((item) => (
-                  <div key={item.id} className="py-4 flex flex-wrap md:flex-nowrap">
-                    <div className="md:w-16 md:h-16 w-full h-24 bg-gray-100 rounded mb-4 md:mb-0 md:mr-4 flex-shrink-0">
+                  <div key={item.id} className="py-4 flex flex-wrap sm:flex-nowrap">
+                    <div className="sm:w-16 sm:h-16 w-full h-24 bg-surface-image-background rounded-ss-md rounded-ee-md mb-4 sm:mb-0 sm:mr-4 flex-shrink-0">
                       {item.images && item.images[0] && (
                         <Image
                           src={item.images[0]}
                           alt={item.name || ''}
                           width={150}
                           height={150}
-                          className="w-full h-full object-cover rounded"
+                          className="w-full h-full object-cover rounded-ss-md rounded-ee-md"
                         />
                       )}
                     </div>
                     <div className="flex-grow">
-                      <h3 className="font-medium">{item.name || `Product ${item.productId}`}</h3>
-                      <p className="text-sm text-gray-500">
+                      <H3>{item.name || `Product ${item.productId}`}</H3>
+                      <p className="text-sm text-text-on-disabled">
                         {tOrder('quantity')}: {item.quantity}
                       </p>
                       <p className="text-sm font-medium">
@@ -131,9 +136,9 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
                 ))}
 
                 {/* Order Summary */}
-                <div className="mt-6 border-t border-gray-200 pt-4">
+                <div className="mt-6 border-t border-border-primary pt-4">
                   <div className="flex justify-between mb-2">
-                    <span className="text-gray-600">{tOrder('subtotal')}</span>
+                    <span className="text-text-on-disabled">{tOrder('subtotal')}</span>
                     <span className="font-medium">
                       {order.price?.subtotal?.gross
                         ? formatCurrency(order.price.subtotal.gross, order.currency || 'EUR')
@@ -143,7 +148,7 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
 
                   {order.shipping && (
                     <div className="flex justify-between mb-2">
-                      <span className="text-gray-600">{tOrder('shipping')}</span>
+                      <span className="text-text-on-disabled">{tOrder('shipping')}</span>
                       <span className="font-medium">
                         {order.shipping.total?.value
                           ? formatCurrency(
@@ -157,14 +162,14 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
 
                   {order.discounts && order.discounts.length > 0 && (
                     <div className="flex justify-between mb-2">
-                      <span className="text-gray-600">{tOrder('discount')}</span>
-                      <span className="font-medium text-green-600">
+                      <span className="text-text-on-disabled">{tOrder('discount')}</span>
+                      <span className="font-medium text-text-success">
                         -{order.discounts.reduce((sum, discount) => sum + (discount.value || 0), 0)}
                       </span>
                     </div>
                   )}
 
-                  <div className="flex justify-between pt-2 border-t border-gray-200">
+                  <div className="flex justify-between pt-2 border-t border-border-primary">
                     <span className="font-medium">{tOrder('total')}</span>
                     <span className="font-bold">
                       {order.price?.total?.gross
@@ -183,7 +188,7 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
               <CardHeader>
                 <H2 variant="h5">{tOrder('shipping')}</H2>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col pb-4">
                   <p className="font-bold mb-1">{tOrder('shippingAddress')}</p>
                   <div className="flex align-center">
@@ -225,7 +230,7 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
             <CardHeader>
               <H2 variant="h5">{tOrder('payment')}</H2>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <p className="font-bold mb-1">{tOrder('billingAddress')}</p>
 
@@ -247,25 +252,19 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
       )}
 
       <div className="mt-8 text-center space-y-4">
-        <p className="text-neutral-600">
+        <p className="text-text-on-disabled">
           {t('emailConfirmation')} {customerEmail || 'your email address'}.
         </p>
 
         <div className="flex flex-col sm:flex-row justify-center gap-4 mt-6">
-          <Link
-            href="/"
-            className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-primary-700 bg-primary-100 hover:bg-primary-200"
-          >
+          <UiLink type="Link" href="/">
             {t('continueShopping')}
-          </Link>
+          </UiLink>
 
           {customer && (
-            <Link
-              href="/account/orders"
-              className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700"
-            >
+            <UiLink type="Link" href="/account/orders">
               {t('viewOrders')}
-            </Link>
+            </UiLink>
           )}
         </div>
       </div>

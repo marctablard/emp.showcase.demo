@@ -1,13 +1,14 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { H4, H5 } from '@/components/ui/h';
 
 export default function BadgeStyleGuide() {
   return (
     <div className="py-12">
-      <h4 className="text-3xl/5 lg:text-4xl font-bold text-headlines font-headlines mb-3">Badge</h4>
-      <h5 className="text-xl font-bold text-headlines font-headlines mb-3">Rounded</h5>
-      <div className="p-4 grid grid-cols-[1fr] md:grid-cols-[1fr_1fr] xl:grid-cols-[1fr_1fr_1fr_1fr] gap-6 mb-2">
+      <H4 className="mb-3">Badge</H4>
+      <H5 className="mb-3">Rounded</H5>
+      <div className="p-4 grid grid-cols-[1fr] sm:grid-cols-[1fr_1fr] lg:grid-cols-[1fr_1fr_1fr_1fr] gap-6 mb-2">
         <div className="flex flex-wrap gap-3 flex-col items-start">
           <Badge variant="default" rounded="default">
             <ArrowRight />
@@ -16,7 +17,7 @@ export default function BadgeStyleGuide() {
           </Badge>
         </div>
         <div className="flex flex-wrap gap-3 flex-col items-start">
-          <Badge variant="default" rounded="rounded_right">
+          <Badge variant="default" rounded="roundedRight">
             <ArrowRight />
             Rounded right
             <ArrowRight />
@@ -29,16 +30,9 @@ export default function BadgeStyleGuide() {
             <ArrowRight />
           </Badge>
         </div>
-        <div className="flex flex-wrap gap-3 flex-col items-start">
-          <Badge variant="default" rounded="lg">
-            <ArrowRight />
-            Rounded lg
-            <ArrowRight />
-          </Badge>
-        </div>
       </div>
-      <h5 className="text-xl font-bold text-headlines font-headlines mb-3">Variant</h5>
-      <div className="p-4 grid grid-cols-[1fr] md:grid-cols-[1fr_1fr] xl:grid-cols-[1fr_1fr_1fr_1fr] gap-6 mb-2">
+      <H5 className="mb-3">Variant</H5>
+      <div className="p-4 grid grid-cols-[1fr] sm:grid-cols-[1fr_1fr] lg:grid-cols-[1fr_1fr_1fr_1fr] gap-6 mb-2">
         <div className="flex flex-wrap gap-3 flex-col items-start">
           <Badge>
             <ArrowRight />
@@ -53,7 +47,7 @@ export default function BadgeStyleGuide() {
             <ArrowRight />
           </Badge>
         </div>
-        <div className="flex flex-wrap gap-3 flex-col items-start p-3 bg-neutral-700">
+        <div className="flex flex-wrap gap-3 flex-col items-start p-3 bg-surface-neutral">
           <Badge variant="white">
             <ArrowRight />
             White badge
@@ -96,6 +90,13 @@ export default function BadgeStyleGuide() {
           </Badge>
         </div>
         <div className="flex flex-wrap gap-3 flex-col items-start">
+          <Badge variant="information">
+            <ArrowRight />
+            Information badge
+            <ArrowRight />
+          </Badge>
+        </div>
+        <div className="flex flex-wrap gap-3 flex-col items-start">
           <Badge variant="info">
             <ArrowRight />
             Info badge
@@ -103,8 +104,8 @@ export default function BadgeStyleGuide() {
           </Badge>
         </div>
       </div>
-      <h5 className="text-xl font-bold text-headlines font-headlines mb-3">As Link</h5>
-      <div className="p-4 grid grid-cols-[1fr] md:grid-cols-[1fr_1fr] xl:grid-cols-[1fr_1fr_1fr_1fr] gap-6 mb-2">
+      <H5 className="mb-3">As Link</H5>
+      <div className="p-4 grid grid-cols-[1fr] sm:grid-cols-[1fr_1fr] lg:grid-cols-[1fr_1fr_1fr_1fr] gap-6 mb-2">
         <div className="flex flex-wrap gap-3 flex-col items-start">
           <Badge asChild>
             <Link href="/">
@@ -123,7 +124,7 @@ export default function BadgeStyleGuide() {
             </Link>
           </Badge>
         </div>
-        <div className="flex flex-wrap gap-3 flex-col items-start p-3 bg-neutral-700">
+        <div className="flex flex-wrap gap-3 flex-col items-start p-3 bg-surface-neutral">
           <Badge variant="white" asChild>
             <Link href="/">
               <ArrowRight />
@@ -173,6 +174,15 @@ export default function BadgeStyleGuide() {
             <Link href="/">
               <ArrowRight />
               Outline badge
+              <ArrowRight />
+            </Link>
+          </Badge>
+        </div>
+        <div className="flex flex-wrap gap-3 flex-col items-start">
+          <Badge variant="information" asChild>
+            <Link href="/">
+              <ArrowRight />
+              Information badge
               <ArrowRight />
             </Link>
           </Badge>

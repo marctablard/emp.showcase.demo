@@ -5,12 +5,10 @@ import { useEffect, useState } from 'react';
  * These match the min-width values defined in Tailwind's default configuration
  * @see https://tailwindcss.com/docs/responsive-design
  */
-const breakpoints = {
-  sm: 640, // Small screens, like mobile phones in landscape
-  md: 768, // Medium screens, like tablets
-  lg: 1024, // Large screens, like laptops
-  xl: 1280, // Extra large screens, like desktops
-  '2xl': 1536, // 2x extra large screens, like large desktops
+export const breakpoints = {
+  sm: 768, // Small screens, like mobile phones in landscape
+  md: 1024, // Medium screens, like tablets
+  lg: 1280, // Large screens, like laptops
 };
 
 /**
@@ -21,15 +19,15 @@ type Breakpoint = keyof typeof breakpoints;
 /**
  * React hook that detects if the current viewport width is at or above a specified Tailwind breakpoint
  *
- * @param breakpoint - The Tailwind breakpoint to check against ('sm', 'md', 'lg', 'xl', '2xl')
+ * @param breakpoint - The Tailwind breakpoint to check against ('sm', 'md', 'lg')
  * @returns boolean - True if the current viewport width is >= the specified breakpoint width, otherwise false
  *
  * @example
- * // Check if the screen is at least 'lg' (1024px) wide
+ * // Check if the screen is at least 'lg' (1280px) wide
  * const isLargeScreen = useBreakpoint('lg');
  *
  * // Use with negation to check if the screen is below a breakpoint
- * const isMobile = !useBreakpoint('md'); // True when screen width < 768px
+ * const isMobile = !useBreakpoint('md'); // True when screen width < 1024px
  */
 export function useBreakpoint(breakpoint: Breakpoint): boolean {
   // Track whether the current viewport width is at or above the specified breakpoint

@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, ArrowRight, CircleAlert, CircleCheck, MoveRight } from 'lucide-react';
 import { CardTitle } from '@/components/ui/card';
+import { H4 } from '@/components/ui/h';
 import UiLink from '@/components/ui/link';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
@@ -41,11 +42,11 @@ export function NotificationCard({ className, title, items: customItems, ...prop
       href: '/account/invoices?filter=overdue',
     },
     {
-      id: 'pending-offers',
+      id: 'pending-quotes',
       count: 4,
-      title: t('pendingOffers'),
+      title: t('pendingQuotes'),
       type: 'warning',
-      href: '/account/offers',
+      href: '/account/quotes',
     },
     {
       id: 'tasks',
@@ -76,24 +77,26 @@ export function NotificationCard({ className, title, items: customItems, ...prop
   const getIcon = (type: string, className: string = 'h-5 w-5') => {
     switch (type) {
       case 'info':
-        return <CircleAlert className={cn(className, 'text-blue-500')} />;
+        return <CircleAlert className={cn(className, 'text-icon-information')} />;
       case 'warning':
-        return <AlertTriangle className={cn(className, 'text-amber-500')} />;
+        return <AlertTriangle className={cn(className, 'text-icon-warning')} />;
       case 'danger':
-        return <AlertTriangle className={cn(className, 'text-red-500')} />;
+        return <AlertTriangle className={cn(className, 'text-icon-error')} />;
       case 'success':
-        return <CircleCheck className={cn(className, 'text-green-500')} />;
+        return <CircleCheck className={cn(className, 'text-icon-success')} />;
       case 'task':
-        return <CircleAlert className={cn(className, 'text-orange-500')} />;
+        return <CircleAlert className={cn(className, 'text-icon-warning')} />;
       default:
-        return <CircleAlert className={cn(className, 'text-blue-500')} />;
+        return <CircleAlert className={cn(className, 'text-icon-information')} />;
     }
   };
 
   return (
     <DashboardCard variant="default" className={cn('py-4', className)} {...props}>
-      <div className="flex items-center justify-between mb-4">
-        <CardTitle className="text-4xl font-bold">{title || t('title')}</CardTitle>
+      <div className="flex items-center justify-between flex-wrap mb-4">
+        <CardTitle className="me-2">
+          <H4>{title || t('title')}</H4>
+        </CardTitle>
         <UiLink type="Link" href="/account/notifications" variant="primary" size="m" iconAfter={<ArrowRight />}>
           {t('viewAll')}
         </UiLink>
@@ -104,7 +107,7 @@ export function NotificationCard({ className, title, items: customItems, ...prop
           <Link
             key={item.id}
             href={item.href}
-            className={cn('flex items-center justify-between py-4 px-2 transition-colors rounded px-1', {
+            className={cn('flex items-center justify-between py-4 transition-colors rounded px-1', {
               'border-b-1': item.id !== items[items.length - 1].id,
             })}
           >

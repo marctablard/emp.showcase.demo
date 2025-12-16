@@ -21,9 +21,15 @@ interface CustomerHook {
 export const useCustomer = (initialCustomer?: Customer | null): CustomerHook => {
   const { customer, loading, getLoading, setLoading, setCustomer, getCustomer, reset } = useCustomerStore();
   const { status } = useSession();
-  if (initialCustomer && getCustomer() === undefined) {
-    setCustomer(initialCustomer);
-  }
+
+  // only preload on initial load
+  useEffect(() => {
+    if (initialCustomer !== undefined) {
+      setCustomer(initialCustomer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCustomer]);
+
   const [error, setError] = useState<Error | null>(null);
 
   const fetchCustomer = useCallback(async () => {

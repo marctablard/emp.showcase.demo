@@ -6,7 +6,7 @@
     "forgotPassword": "Passwort vergessen?",
     "logIn": "Anmelden",
     "guestCheckout": "Als Gast bestellen",
-    "invalidCredentials": "Ungültige E-Mail oder Passwort",
+    "invalidCredentials": "Ungültige E-Mail oder Passwort, bitte prüfen Sie ihre Eingabe.",
     "loginError": "Bei der Anmeldung ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.",
     "loggingIn": "Anmeldung läuft...",
     "noAccountYet": "Noch kein Konto?",
@@ -16,7 +16,8 @@
     "error": "Fehler",
     "showPassword": "Passwort anzeigen",
     "hidePassword": "Passwort verbergen",
-    "loginFailed": "Anmeldung fehlgeschlagen"
+    "loginFailed": "Anmeldung fehlgeschlagen",
+    "signInWith": "Anmelden mit {provider}"
   },
   "register": {
     "title": "Registrierung",

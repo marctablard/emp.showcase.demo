@@ -1,94 +1,220 @@
+import { Star } from 'lucide-react';
+import { H4, H5 } from '@/components/ui/h';
+
 export default function ColorStyleGuide() {
   return (
     <div className="py-12">
-      <h4 className="text-3xl/5 lg:text-4xl font-bold text-headlines font-headlines mb-3">Colors</h4>
-      <div className="p-4 flex flex-wrap gap-4 mb-2">
-        <div className="p-4 bg-primary-900 text-white">primary-900</div>
-        <div className="p-4 bg-primary-800 text-white">primary-800</div>
-        <div className="p-4 bg-primary-700 text-white">primary-700</div>
-        <div className="p-4 bg-primary-600 text-white">primary-600</div>
-        <div className="p-4 bg-primary-500 text-white">primary-500</div>
-        <div className="p-4 bg-primary-400 text-white">primary-400</div>
-        <div className="p-4 bg-primary-300 text-white">primary-300</div>
-        <div className="p-4 bg-primary-200">primary-200</div>
-        <div className="p-4 bg-primary-100">primary-100</div>
-        <div className="p-4 bg-primary-50">primary-50</div>
-      </div>
-      <div className="p-4 flex flex-wrap gap-4 mb-2">
-        <div className="p-4 bg-secondary-900 text-white">secondary-900</div>
-        <div className="p-4 bg-secondary-800 text-white">secondary-800</div>
-        <div className="p-4 bg-secondary-700 text-white">secondary-700</div>
-        <div className="p-4 bg-secondary-600 text-white">secondary-600</div>
-        <div className="p-4 bg-secondary-500">secondary-500</div>
-        <div className="p-4 bg-secondary-400">secondary-400</div>
-        <div className="p-4 bg-secondary-300">secondary-300</div>
-        <div className="p-4 bg-secondary-200">secondary-200</div>
-        <div className="p-4 bg-secondary-100">secondary-100</div>
-      </div>
-      <div className="p-4 flex flex-wrap gap-4 mb-2">
-        <div className="p-4 bg-tertiary-900 text-white">tertiary-900</div>
-        <div className="p-4 bg-tertiary-800 text-white">tertiary-800</div>
-        <div className="p-4 bg-tertiary-700 text-white">tertiary-700</div>
-        <div className="p-4 bg-tertiary-600 text-white">tertiary-600</div>
-        <div className="p-4 bg-tertiary-500">tertiary-500</div>
-        <div className="p-4 bg-tertiary-400">tertiary-400</div>
-        <div className="p-4 bg-tertiary-300">tertiary-300</div>
-        <div className="p-4 bg-tertiary-200">tertiary-200</div>
-        <div className="p-4 bg-tertiary-100">tertiary-100</div>
-      </div>
-      <div className="p-4 flex flex-wrap gap-4 mb-2">
-        <div className="p-4 bg-success-900 text-white">success-900</div>
-        <div className="p-4 bg-success-800 text-white">success-800</div>
-        <div className="p-4 bg-success-700 text-white">success-700</div>
-        <div className="p-4 bg-success-600 text-white">success-600</div>
-        <div className="p-4 bg-success-500 text-white">success-500</div>
-        <div className="p-4 bg-success-400">success-400</div>
-        <div className="p-4 bg-success-300">success-300</div>
-        <div className="p-4 bg-success-200">success-200</div>
-        <div className="p-4 bg-success-100">success-100</div>
-      </div>
-      <div className="p-4 flex flex-wrap gap-4 mb-2">
-        <div className="p-4 bg-warning-900 text-white">warning-900</div>
-        <div className="p-4 bg-warning-800 text-white">warning-800</div>
-        <div className="p-4 bg-warning-700 text-white">warning-700</div>
-        <div className="p-4 bg-warning-600 text-white">warning-600</div>
-        <div className="p-4 bg-warning-500 text-white">warning-500</div>
-        <div className="p-4 bg-warning-400">warning-400</div>
-        <div className="p-4 bg-warning-300">warning-300</div>
-        <div className="p-4 bg-warning-200">warning-200</div>
-        <div className="p-4 bg-warning-100">warning-100</div>
-      </div>
-      <div className="p-4 flex flex-wrap gap-4 mb-2">
-        <div className="p-4 bg-danger-900 text-white">danger-900</div>
-        <div className="p-4 bg-danger-800 text-white">danger-800</div>
-        <div className="p-4 bg-danger-700 text-white">danger-700</div>
-        <div className="p-4 bg-danger-600 text-white">danger-600</div>
-        <div className="p-4 bg-danger-500 text-white">danger-500</div>
-        <div className="p-4 bg-danger-400">danger-400</div>
-        <div className="p-4 bg-danger-300">danger-300</div>
-        <div className="p-4 bg-danger-200">danger-200</div>
-        <div className="p-4 bg-danger-100">danger-100</div>
-      </div>
-      <div className="p-4 flex flex-wrap gap-4 mb-2">
-        <div className="p-4 bg-neutral-900 text-white">neutral-900</div>
-        <div className="p-4 bg-neutral-800 text-white">neutral-800</div>
-        <div className="p-4 bg-neutral-700 text-white">neutral-700</div>
-        <div className="p-4 bg-neutral-600 text-white">neutral-600</div>
-        <div className="p-4 bg-neutral-500 text-white">neutral-500</div>
-        <div className="p-4 bg-neutral-400 text-white">neutral-400</div>
-        <div className="p-4 bg-neutral-300 text-white">neutral-300</div>
-        <div className="p-4 bg-neutral-200">neutral-200</div>
-        <div className="p-4 bg-neutral-100">neutral-100</div>
-        <div className="p-4 bg-neutral-50">neutral-50</div>
-      </div>
-      <p className="font-bold">Gradient:</p>
-      <div className="p-4 flex flex-wrap gap-4 mb-2">
-        <div className="p-8 bg-gradient-to-t from-primary-700 to-primary-500 text-white">
-          primary-700 to primary-500
-        </div>
-        <div className="p-8 bg-gradient-to-t from-secondary-500 to-primary-500 font-bold">
-          secondary-500 to primary-500
-        </div>
+      <H4 className="mb-3">Colors</H4>
+
+      <div className="flex flex-col gap-8">
+        <section>
+          <H5>Text colors</H5>
+          <div className="p-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-primary px-4 text-text-headings">
+              <span>text-text-headings</span>
+              <span>Aa</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-primary px-4 text-text-body">
+              <span>text-text-body</span>
+              <span>Aa</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-primary px-4 text-text-action">
+              <span>text-text-action</span>
+              <span>Aa</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-primary px-4 text-text-action-hover">
+              <span>text-text-action-hover</span>
+              <span>Aa</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-primary px-4 text-text-disabled">
+              <span>text-text-disabled</span>
+              <span>Aa</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-primary px-4 text-text-information">
+              <span>text-text-information</span>
+              <span>Aa</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-primary px-4 text-text-success">
+              <span>text-text-success</span>
+              <span>Aa</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-primary px-4 text-text-warning">
+              <span>text-text-warning</span>
+              <span>Aa</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-primary px-4 text-text-error">
+              <span>text-text-error</span>
+              <span>Aa</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-action px-4 text-text-on-action">
+              <span>text-text-on-action</span>
+              <span>Aa</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-disabled px-4 text-text-on-disabled">
+              <span>text-text-on-disabled</span>
+              <span>Aa</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-primary px-4 text-text-placeholders">
+              <span>text-text-placeholders</span>
+              <span>Aa</span>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <H5>Surface colors</H5>
+          <div className="p-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-page px-4 text-text-body">
+              <span>bg-surface-page</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-primary px-4 text-text-body">
+              <span>bg-surface-primary</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-secondary px-4 text-text-body">
+              <span>bg-surface-secondary</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-action px-4 text-text-on-action">
+              <span>bg-surface-action</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-action-hover px-4 text-text-on-action">
+              <span>bg-surface-action-hover</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-action-hover-2 px-4 text-text-body">
+              <span>bg-surface-action-hover-2</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-error px-4 text-text-error">
+              <span>bg-surface-error</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-warning px-4 text-text-warning">
+              <span>bg-surface-warning</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-success px-4 text-text-success">
+              <span>bg-surface-success</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-information px-4 text-text-information">
+              <span>bg-surface-information</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-disabled px-4 text-text-body">
+              <span>bg-surface-disabled</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-hover-grey px-4 text-text-body">
+              <span>bg-surface-hover-grey</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-disabled-selected px-4 text-text-body">
+              <span>bg-surface-disabled-selected</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-neutral px-4 text-text-on-action">
+              <span>bg-surface-neutral</span>
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-image-background px-4 text-text-body">
+              <span>bg-surface-image-background</span>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <H5>Icon colors</H5>
+          <div className="p-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-primary px-4 text-icon-action">
+              <span>text-icon-action</span>
+              <Star width={24} height={24} aria-hidden="true" />
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-primary px-4 text-icon-primary-dark">
+              <span>text-icon-primary-dark</span>
+              <Star width={24} height={24} aria-hidden="true" />
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-primary px-4 text-icon-action-hover">
+              <span>text-icon-action-hover</span>
+              <Star width={24} height={24} aria-hidden="true" />
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-action px-4 text-icon-on-action">
+              <span>text-icon-on-action</span>
+              <Star width={24} height={24} aria-hidden="true" />
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-disabled px-4 text-icon-on-disabled">
+              <span>text-icon-on-disabled</span>
+              <Star width={24} height={24} aria-hidden="true" />
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-primary px-4 text-icon-neutral">
+              <span>text-icon-neutral</span>
+              <Star width={24} height={24} aria-hidden="true" />
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-primary px-4 text-icon-secondary">
+              <span>text-icon-secondary</span>
+              <Star width={24} height={24} aria-hidden="true" />
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-information px-4 text-icon-information">
+              <span>text-icon-information</span>
+              <Star width={24} height={24} aria-hidden="true" />
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-success px-4 text-icon-success">
+              <span>text-icon-success</span>
+              <Star width={24} height={24} aria-hidden="true" />
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-warning px-4 text-icon-warning">
+              <span>text-icon-warning</span>
+              <Star width={24} height={24} aria-hidden="true" />
+            </div>
+            <div className="flex h-20 items-center justify-between rounded-md border border-border-primary bg-surface-error px-4 text-icon-error">
+              <span>text-icon-error</span>
+              <Star width={24} height={24} aria-hidden="true" />
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <H5>Border colors</H5>
+          <div className="p-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex h-20 items-center justify-center rounded-md border-4 border-border-primary bg-surface-primary text-sm text-text-body">
+              border-border-primary
+            </div>
+            <div className="flex h-20 items-center justify-center rounded-md border-4 border-border-secondary bg-surface-primary text-sm text-text-body">
+              border-border-secondary
+            </div>
+            <div className="flex h-20 items-center justify-center rounded-md border-4 border-border-information bg-surface-primary text-sm text-text-body">
+              border-border-information
+            </div>
+            <div className="flex h-20 items-center justify-center rounded-md border-4 border-border-success bg-surface-primary text-sm text-text-body">
+              border-border-success
+            </div>
+            <div className="flex h-20 items-center justify-center rounded-md border-4 border-border-warning bg-surface-primary text-sm text-text-body">
+              border-border-warning
+            </div>
+            <div className="flex h-20 items-center justify-center rounded-md border-4 border-border-error bg-surface-primary text-sm text-text-body">
+              border-border-error
+            </div>
+            <div className="flex h-20 items-center justify-center rounded-md border-4 border-border-disabled bg-surface-primary text-sm text-text-body">
+              border-border-disabled
+            </div>
+            <div className="flex h-20 items-center justify-center rounded-md border-4 border-border-action bg-surface-primary text-sm text-text-body">
+              border-border-action
+            </div>
+            <div className="flex h-20 items-center justify-center rounded-md border-4 border-border-action-hover bg-surface-primary text-sm text-text-body">
+              border-border-action-hover
+            </div>
+            <div className="flex h-20 items-center justify-center rounded-md border-4 border-border-focus bg-surface-primary text-sm text-text-body">
+              border-border-focus
+            </div>
+            <div className="flex h-20 items-center justify-center rounded-md border-4 border-border-black bg-surface-primary text-sm text-text-body">
+              border-border-black
+            </div>
+            <div className="flex h-20 items-center justify-center rounded-md border-4 border-border-white bg-surface-primary text-sm text-text-body">
+              border-border-white
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <H5>Gradients</H5>
+          <div className="p-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex h-32 items-center justify-center rounded-md bg-gradient-to-t from-gradient-secondary-end to-gradient-secondary-start text-center text-sm text-text-on-action">
+              gradient-secondary-end → gradient-secondary-start
+            </div>
+            <div className="flex h-32 items-center justify-center rounded-md bg-gradient-to-t from-gradient-primary-end to-gradient-primary-start text-center text-sm text-text-body">
+              gradient-primary-end → gradient-primary-start
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );

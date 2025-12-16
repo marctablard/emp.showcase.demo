@@ -7,6 +7,7 @@ import { AddressDisplay } from '@/components/common/address-display';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { H1 } from '@/components/ui/h';
 import { Spinner } from '@/components/ui/spinner';
 import { useAddresses } from '@/hooks/customer/useAddresses';
 import { useToast } from '@/hooks/ui/useToast';
@@ -95,7 +96,7 @@ export function AddressesList({ type = 'SHIPPING' as AddressType }) {
   if (error) {
     return (
       <div className="text-center py-8">
-        <p className="text-red-500">{t('Address.errorLoadingAddresses')}</p>
+        <p className="text-text-error">{t('Address.errorLoadingAddresses')}</p>
         <Button variant="secondary" onClick={() => fetchAddresses()} className="mt-4">
           {t('tryAgain')}
         </Button>
@@ -106,7 +107,7 @@ export function AddressesList({ type = 'SHIPPING' as AddressType }) {
   if (!addresses || addresses.length === 0) {
     return (
       <div className="text-center py-8">
-        <p className="text-muted-foreground">{t('Address.noAddresses')}</p>
+        <p className="text-text-placeholders">{t('Address.noAddresses')}</p>
         <Button onClick={() => setIsDialogOpen(true)} className="mt-4">
           <Plus className="mr-2 h-4 w-4" />
           {t('Address.addNewAddress')}
@@ -118,9 +119,7 @@ export function AddressesList({ type = 'SHIPPING' as AddressType }) {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-xl font-semibold">
-          {type === 'SHIPPING' ? t('Address.shippingAddresses') : t('Address.billingAddresses')}
-        </h1>
+        <H1>{type === 'SHIPPING' ? t('Address.shippingAddresses') : t('Address.billingAddresses')}</H1>
         <Button onClick={() => setIsDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           {t('Address.addNewAddress')}
@@ -129,7 +128,7 @@ export function AddressesList({ type = 'SHIPPING' as AddressType }) {
 
       {addresses.filter((address) => address.types.includes(type)).length === 0 ? (
         <div className="text-center py-8">
-          <p className="text-muted-foreground">
+          <p className="text-text-placeholders">
             {type === 'SHIPPING' ? t('Address.noShippingAddresses') : t('Address.noBillingAddresses')}
           </p>
           <Button onClick={() => setIsDialogOpen(true)} className="mt-4">
@@ -138,7 +137,7 @@ export function AddressesList({ type = 'SHIPPING' as AddressType }) {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           {addresses
             .filter((address) => address.types.includes(type))
             .map((address: Address) => {

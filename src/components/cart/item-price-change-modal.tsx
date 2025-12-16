@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
 import { useCart } from '@/hooks/cart/useCart';
 import { useL10n } from '@/hooks/useL10n';
@@ -61,7 +62,7 @@ export function ItemPriceChangeModal({ isOpen, onClose, cartItem, priceChange, o
           {/* Product information */}
           <div className="border-b pb-4">
             <div className="flex items-center gap-4">
-              <div className="rounded-ss-xl rounded-ee-xl w-[100px] h-[65px] object-fit overflow-hidden">
+              <div className="rounded-ss-md rounded-ee-md w-[100px] h-[65px] object-fit overflow-hidden">
                 {cartItem.product && cartItem.product.images?.length ? (
                   <Image
                     width={100}
@@ -71,7 +72,7 @@ export function ItemPriceChangeModal({ isOpen, onClose, cartItem, priceChange, o
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                  <div className="w-full h-full flex items-center justify-center text-icon-secondary">
                     <ShoppingCart className="h-6 w-6 opacity-30" />
                   </div>
                 )}
@@ -79,9 +80,9 @@ export function ItemPriceChangeModal({ isOpen, onClose, cartItem, priceChange, o
               <div className="flex-grow">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs">{l10n(cartItem.product?.brand?.name || '')}</p>
-                    <p className="font-bold text-sm">{l10n(cartItem.product?.name || 'Product')}</p>
-                    <p className="text-xs text-muted-foreground pr-4">
+                    <p className="text-sm">{l10n(cartItem.product?.brand?.name || '')}</p>
+                    <p className="font-bold">{l10n(cartItem.product?.name || 'Product')}</p>
+                    <p className="text-sm text-text-placeholders pr-4">
                       {t('itemNumber')}: {cartItem.product?.id}
                     </p>
                   </div>
@@ -93,23 +94,23 @@ export function ItemPriceChangeModal({ isOpen, onClose, cartItem, priceChange, o
           {/* Price change information */}
           <div className="space-y-3">
             <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-2">{t('priceChange.description')}</p>
+              <p className="text-sm mb-2">{t('priceChange.description')}</p>
 
               <div className="flex items-center justify-center gap-4 mb-4">
                 <div className="text-center">
-                  <p className="text-xs text-muted-foreground">{t('priceChange.oldPrice')}</p>
-                  <p className="font-bold line-through text-muted-foreground">
+                  <p className="text-sm">{t('priceChange.oldPrice')}</p>
+                  <p className="font-bold line-through text-text-placeholders">
                     {formatCurrency(priceChange.oldPrice, cartItem.price.currency)}
                   </p>
                 </div>
-                <div className="text-2xl text-muted-foreground">→</div>
+                <div className="text-2xl">→</div>
                 <div className="text-center">
-                  <p className="text-xs text-muted-foreground">{t('priceChange.newPrice')}</p>
+                  <p className="text-sm">{t('priceChange.newPrice')}</p>
                   <p className="font-bold text-lg">{formatCurrency(priceChange.newPrice, cartItem.price.currency)}</p>
                 </div>
               </div>
 
-              <div className={`text-sm font-medium ${isIncrease ? 'text-error-500' : 'text-success-500'}`}>
+              <div className={`text-sm font-medium ${isIncrease ? 'text-text-error' : 'text-text-success'}`}>
                 {isIncrease ? t('priceChange.priceIncrease') : t('priceChange.priceDecrease')}: {formattedDifference}
               </div>
             </div>
@@ -120,9 +121,14 @@ export function ItemPriceChangeModal({ isOpen, onClose, cartItem, priceChange, o
           <Button className="w-full" onClick={handleConfirm} disabled={isProcessing || loading}>
             {t('priceChange.confirm')}
           </Button>
-          <Button variant="warning" className="w-full" onClick={handleRemoveItem} disabled={isProcessing || loading}>
+          <UiLink
+            type="Button"
+            onClick={handleRemoveItem}
+            disabled={isProcessing || loading}
+            className="flex justify-center"
+          >
             {isProcessing || loading ? <Spinner color="white" variant="xs" /> : t('priceChange.removeFromCart')}
-          </Button>
+          </UiLink>
         </DialogFooter>
       </DialogContent>
     </Dialog>

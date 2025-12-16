@@ -18,8 +18,8 @@ import type { EmporixCartApi as IEmporixCartApi } from '../EmporixCartApi';
 
 @injectable('EmporixCartApi', 'Singleton')
 class EmporixCartApi implements IEmporixCartApi {
-  private apiClient: EmporixApiClient;
-  private config: EmporixConfig;
+  protected apiClient: EmporixApiClient;
+  protected config: EmporixConfig;
 
   constructor(
     @inject('EmporixApiInvoker') apiClient: EmporixApiClient,

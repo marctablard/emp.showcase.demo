@@ -13,7 +13,7 @@ export default {
     prefix: 'as-needed' as SitePrefixMode,
     domains: [
       {
-        domain: 'showcase.emporix.io',
+        domain: 'showcase.emporix.la',
         defaultSite: defaultSite,
         availableSites: availableSites,
         prefix: 'as-needed' as SitePrefixMode,

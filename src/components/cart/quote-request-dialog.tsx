@@ -136,10 +136,10 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-screen-lg xl:max-w-[1220px] max-h-[90vh] flex flex-col">
+      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-screen-lg lg:max-w-[1220px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{t('title')}</DialogTitle>
-          <p className="text-sm text-neutral-600">{t('subtitle')}</p>
+          <p className="text-sm text-text-on-disabled">{t('subtitle')}</p>
         </DialogHeader>
 
         {/* Scrollable content area */}
@@ -151,7 +151,7 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
               selectedAddressId={shippingAddress?.id}
               onSelect={handleShippingChange}
               triggerElement={
-                <div className="flex gap-1 text-primary-500 font-bold mb-2 cursor-pointer">
+                <div className="flex gap-1 text-text-action font-bold mb-2 cursor-pointer">
                   <p>{tCheckout('fromAddressbook')}</p>
                 </div>
               }
@@ -170,7 +170,7 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
               selectedAddressId={billingAddress?.id}
               onSelect={handleBillingChange}
               triggerElement={
-                <div className="flex gap-1 text-primary-500 font-bold mb-2 cursor-pointer">
+                <div className="flex gap-1 text-text-action font-bold mb-2 cursor-pointer">
                   <p>{tCheckout('fromAddressbook')}</p>
                 </div>
               }
@@ -206,7 +206,7 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
                 onChange={(e) => setReference(e.target.value)}
                 maxLength={24}
               />
-              <div className="text-xs text-neutral-500">{reference.length}/24</div>
+              <div className="text-sm text-text-placeholders">{reference.length}/24</div>
             </div>
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium" htmlFor="quote-comment">
@@ -220,7 +220,6 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
                 rows={4}
                 maxLength={500}
               />
-              <div className="text-xs text-neutral-500">{comment.length}/500</div>
             </div>
           </div>
         </div>

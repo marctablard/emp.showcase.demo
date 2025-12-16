@@ -9,8 +9,8 @@ export function CartAction() {
   const t = useTranslations('cart');
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-10 xl:grid-cols-3 2xl:grid-cols-4">
-      <div className="col-span-1 lg:col-span-6 xl:col-span-2 2xl:col-span-3">
+    <div className="grid grid-cols-1 md:grid-cols-10 lg:grid-cols-3">
+      <div className="col-span-1 md:col-span-6 lg:col-span-2">
         <div className="flex flex-wrap justify-between mb-4 gap-4 sm:gap-1">
           <div className="flex flex-wrap gap-1 sm:gap-6">
             <Button

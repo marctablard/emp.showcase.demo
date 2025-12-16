@@ -10,6 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { useApproval } from '@/hooks/approval/useApproval';
 import useCustomer from '@/hooks/customer/useCustomer';
@@ -192,7 +193,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
         </CardHeader>
         <CardContent className="flex justify-center py-8">
           <div className="flex flex-col items-center space-y-2">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+            <Spinner color="primary" variant="md" />
             <div>{t('loading')}</div>
           </div>
         </CardContent>
@@ -208,7 +209,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
           <CardDescription>{t('approvalDetailsDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="bg-destructive/10 p-4 rounded-md text-destructive">
+          <div className="bg-surface-error p-4 rounded-md text-text-error">
             {t('errorLoadingApproval')}: {error?.message || t('approvalNotFound')}
           </div>
         </CardContent>
@@ -251,42 +252,42 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
           </Alert>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <h3 className="text-sm font-medium text-muted-foreground">{t('id')}</h3>
+            <p className="text-sm font-medium text-text-placeholders">{t('id')}</p>
             <p className="text-base">{approval.id}</p>
           </div>
           <div>
-            <h3 className="text-sm font-medium text-muted-foreground">{t('status')}</h3>
+            <p className="text-sm font-medium text-text-placeholders">{t('status')}</p>
             <p className="text-base">{tStatus(approval.status)}</p>
           </div>
           <div>
-            <h3 className="text-sm font-medium text-muted-foreground">{t('resourceType')}</h3>
+            <p className="text-sm font-medium text-text-placeholders">{t('resourceType')}</p>
             <p className="text-base">{approval.resourceType}</p>
           </div>
           <div>
-            <h3 className="text-sm font-medium text-muted-foreground">{t('resourceId')}</h3>
+            <p className="text-sm font-medium text-text-placeholders">{t('resourceId')}</p>
             <p className="text-base">{approval.resource.id}</p>
           </div>
           <div>
-            <h3 className="text-sm font-medium text-muted-foreground">{t('action')}</h3>
+            <p className="text-sm font-medium text-text-placeholders">{t('action')}</p>
             <p className="text-base">{approval.action}</p>
           </div>
           <div>
-            <h3 className="text-sm font-medium text-muted-foreground">{t('createdAt')}</h3>
+            <p className="text-sm font-medium text-text-placeholders">{t('createdAt')}</p>
             <p className="text-base">{formatDate(approval.createdAt)}</p>
           </div>
           <div>
-            <h3 className="text-sm font-medium text-muted-foreground">{t('requestorId')}</h3>
+            <p className="text-sm font-medium text-text-placeholders">{t('requestorId')}</p>
             <p className="text-base">{approval.requestor.userId}</p>
           </div>
           <div>
-            <h3 className="text-sm font-medium text-muted-foreground">{t('approverId')}</h3>
+            <p className="text-sm font-medium text-text-placeholders">{t('approverId')}</p>
             <p className="text-base">{approval.approver.userId}</p>
           </div>
           {approval.updatedAt && (
             <div>
-              <h3 className="text-sm font-medium text-muted-foreground">{t('updatedAt')}</h3>
+              <p className="text-sm font-medium text-text-placeholders">{t('updatedAt')}</p>
               <p className="text-base">{formatDate(approval.updatedAt)}</p>
             </div>
           )}
@@ -309,20 +310,20 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
         )}
 
         <div>
-          <h3 className="text-sm font-medium mb-2">{t('requestorComment')}</h3>
+          <p className="text-sm font-medium mb-2">{t('requestorComment')}</p>
           {approval.comment ? (
-            <div className="bg-muted p-3 rounded-md">{approval.comment}</div>
+            <div className="bg-surface-disabled p-3 rounded-md">{approval.comment}</div>
           ) : (
-            <p className="text-muted-foreground">{t('noRequestorComment')}</p>
+            <p className="text-text-placeholders">{t('noRequestorComment')}</p>
           )}
         </div>
 
         <div>
-          <h3 className="text-sm font-medium mb-2">{t('approverComment')}</h3>
+          <p className="text-sm font-medium mb-2">{t('approverComment')}</p>
           {approval.approverComment ? (
-            <div className="bg-muted p-3 rounded-md">{approval.approverComment}</div>
+            <div className="bg-surface-disabled p-3 rounded-md">{approval.approverComment}</div>
           ) : (
-            <p className="text-muted-foreground">{t('noApproverComment')}</p>
+            <p className="text-text-placeholders">{t('noApproverComment')}</p>
           )}
         </div>
 
@@ -331,9 +332,13 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
             <Separator />
 
             <div>
-              <h3 className="text-sm font-medium mb-2">{t('approvalActions')}</h3>
+              <p className="text-sm font-medium mb-2">{t('approvalActions')}</p>
               <div className="flex gap-2">
-                <Button onClick={handleApprove} disabled={isProcessing} className="bg-green-600 hover:bg-green-700">
+                <Button
+                  onClick={handleApprove}
+                  disabled={isProcessing}
+                  className="bg-surface-success hover:bg-surface-action-hover-2"
+                >
                   {t('approve')}
                 </Button>
                 <Button onClick={handleDecline} disabled={isProcessing} variant="secondary">
@@ -349,9 +354,9 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
             <Separator />
 
             <div>
-              <h3 className="text-sm font-medium mb-2">{t('approvalActions')}</h3>
+              <p className="text-sm font-medium mb-2">{t('approvalActions')}</p>
               <div className="flex gap-2">
-                <Button onClick={handleSubmitOrder} disabled={isSubmitting} className="bg-green-600 hover:bg-green-700">
+                <Button onClick={handleSubmitOrder} disabled={isSubmitting} className="bg-surface-success hover:bg-surface-action-hover-2">
                   {t('submitOrder')}
                 </Button>
               </div>
@@ -364,7 +369,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
             <Separator />
 
             <div>
-              <h3 className="text-sm font-medium mb-2">{t('addComment')}</h3>
+              <p className="text-sm font-medium mb-2">{t('addComment')}</p>
               <Textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}

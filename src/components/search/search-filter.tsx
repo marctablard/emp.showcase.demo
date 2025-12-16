@@ -57,7 +57,7 @@ function ActiveFilters({ activeFilters, resetFacet }: ActiveFiltersProps) {
           return (
             <Button
               onClick={() => resetFacet(id)}
-              className="bg-gray-300 text-black border-none normal-case"
+              className="bg-surface-disabled text-text-headings border-none normal-case"
               variant="secondary"
               key={id}
             >
@@ -297,7 +297,7 @@ function SearchFilter({
 
         <ActiveFilters activeFilters={activeFilters} resetFacet={resetFacet} resetAllFacets={resetAllFacets} />
         {hasActiveFilters && (
-          <Button variant="red" onClick={resetAllFacets}>
+          <Button variant="neutral" onClick={resetAllFacets} className="normal-case">
             <Trash2 className="mr-1" />
             {t('filters.clearFilter')}
           </Button>
@@ -311,7 +311,7 @@ function SearchFilter({
           <div className="fixed inset-0 z-40" onClick={toggleFilterOffcanvas} aria-hidden="true" />
 
           {/* Offcanvas Panel */}
-          <div className="fixed left-0 top-10 h-[calc(100%-40px)] max-w-[590px] w-full bg-white p-6 z-50 overflow-y-auto border rounded-sm shadow-sm">
+          <div className="fixed left-0 top-10 h-[calc(100%-40px)] max-w-[590px] w-full bg-surface-page p-6 z-50 overflow-y-auto border rounded-sm shadow-sm">
             <div className="flex justify-end mb-4 -mr-4 -mt-4">
               <Button variant="link" size="icon" onClick={toggleFilterOffcanvas} className="text-black">
                 <X />

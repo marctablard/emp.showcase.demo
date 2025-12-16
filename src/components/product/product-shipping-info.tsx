@@ -2,8 +2,9 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { LucideCheck, LucideMapPin, LucidePackage, LucideRefreshCw } from 'lucide-react';
+import { Check, MapPin, Package, RefreshCw } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { H2 } from '@/components/ui/h';
 import { cn } from '@/lib/utils';
 
 interface ProductShippingInfoProps {
@@ -30,13 +31,13 @@ export function ProductShippingInfo({
   const t = useTranslations('product.shipping');
 
   return (
-    <Card variant="gray" className={cn('mt-8 p-0', className)}>
-      <CardContent className="px-6 lg:px-8 pt-6 pb-6 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+    <Card variant="gray" rounded="lg" className={cn('mt-8 p-0', className)}>
+      <CardContent className="px-6 md:px-8 pt-6 pb-6 md:pb-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <h2 className="font-headlines font-bold text-neutral text-md mb-4">{t('deliveryDetails')}</h2>
+          <H2 className="text-base mb-4">{t('deliveryDetails')}</H2>
 
-          <div className="flex items-center gap-2 text-sm text-neutral mb-2">
-            <LucidePackage className={deliveryDays[0] === 0 ? 'text-success-500' : 'text-warning-500'} />
+          <div className="flex items-center gap-2 text-sm mb-2">
+            <Package className={deliveryDays[0] === 0 ? 'text-icon-success' : 'text-icon-warning'} />
             {deliveryDays[0] === 0 ? (
               <span>{t('immediatelyDeliverable')}</span>
             ) : (
@@ -44,7 +45,7 @@ export function ProductShippingInfo({
             )}
           </div>
 
-          <div className="flex items-center gap-2 text-sm text-neutral mb-2 ml-8">
+          <div className="flex items-center gap-2 text-sm mb-2 ml-8">
             {shippingCost > 0 ? (
               <span>
                 {t('shipping')}: {shippingCost.toFixed(2)}
@@ -54,22 +55,22 @@ export function ProductShippingInfo({
               <span className="ml-4">{t('freeShipping')}</span>
             )}
           </div>
-          <div className="flex items-center gap-2 text-sm text-neutral">
-            <LucideMapPin className="text-success-500" />
+          <div className="flex items-center gap-2 text-sm">
+            <MapPin className="text-icon-success" />
             <span>{t('canBeReserved', { location, postalCode })}</span>
           </div>
         </div>
 
         <div>
-          <h2 className="font-headlines font-bold text-neutral text-md mb-4">{t('yourUsps')}</h2>
+          <H2 className="text-base mb-4">{t('yourUsps')}</H2>
 
-          <div className="flex items-center gap-2 text-sm text-neutral mb-2">
-            <LucideCheck className="text-success-500" />
+          <div className="flex items-center gap-2 text-sm mb-2">
+            <Check className="text-icon-success" />
             <span>{t('warranty', { years: warrantyYears })}</span>
           </div>
 
-          <div className="flex items-center gap-2 text-sm text-neutral">
-            <LucideRefreshCw className="text-success-500" />
+          <div className="flex items-center gap-2 text-sm">
+            <RefreshCw className="text-icon-success" />
             <span>{t('returnRight', { days: returnDays })}</span>
           </div>
         </div>

@@ -53,7 +53,10 @@ export function UiBreadcrumb({ items, maxItems = 2, className, disabledCategorie
           <BreadcrumbItem key="dropdown" className="flex items-center sm:hidden">
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-1">
-                <MoreHorizontal className="h-4 w-4 font-bold text-primary hover:text-primary-700" aria-hidden="true" />
+                <MoreHorizontal
+                  className="h-4 w-4 font-bold text-text-action hover:text-text-action-hover"
+                  aria-hidden="true"
+                />
                 <span className="sr-only">Toggle menu</span>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
@@ -61,7 +64,7 @@ export function UiBreadcrumb({ items, maxItems = 2, className, disabledCategorie
                   <DropdownMenuItem key={index} asChild>
                     <a
                       href={hiddenItem.href}
-                      className="cursor-pointer w-full font-bold underline text-primary hover:text-primary-700"
+                      className="cursor-pointer w-full font-bold underline text-text-action hover:text-text-action-hover"
                     >
                       {hiddenItem.label}
                     </a>
@@ -69,7 +72,7 @@ export function UiBreadcrumb({ items, maxItems = 2, className, disabledCategorie
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            <ChevronRight className="h-4 w-4 text-text-placeholders" aria-hidden="true" />
           </BreadcrumbItem>
         )}
         {/* Breadcrumb items */}
@@ -77,7 +80,7 @@ export function UiBreadcrumb({ items, maxItems = 2, className, disabledCategorie
           return (
             <BreadcrumbItem key={index} className="hidden sm:block">
               {disabledCategories ? (
-                <BreadcrumbPage className="inline-flex items-center whitespace-nowrap text-primary [&>svg]:size-4 lg:[&>svg]:size-6 font-bold underline px-0 lg:px-0">
+                <BreadcrumbPage className="inline-flex items-center whitespace-nowrap text-text-action [&>svg]:size-4 md:[&>svg]:size-6 font-bold underline px-0 md:px-0">
                   {item.label}
                   <ChevronRight className="size-4" />
                 </BreadcrumbPage>

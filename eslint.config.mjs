@@ -1,27 +1,13 @@
-import { FlatCompat } from '@eslint/eslintrc';
+import nextVitals from 'eslint-config-next/core-web-vitals';
+import nextTs from 'eslint-config-next/typescript';
+import prettier from 'eslint-config-prettier/flat';
+import { defineConfig, globalIgnores } from 'eslint/config';
 
-const compat = new FlatCompat({
-  baseDirectory: import.meta.dirname,
-});
-
-const eslintConfig = [
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  prettier,
   {
-    ignores: [
-      'node_modules/**',
-      '.next/**',
-      'out/**',
-      'build/**',
-      'scripts/**',
-      'next-env.d.ts',
-      '**/*.test.ts',
-      '**/*.test.tsx',
-      '**/*.config.*s',
-      '**/*.setup.js',
-      '**/*.d.ts',
-    ],
-  },
-  ...compat.config({
-    extends: ['next/core-web-vitals', 'next/typescript', 'prettier'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off', // we are more lax about any-types, especially in regards to Mixins
       '@typescript-eslint/no-empty-object-type': 'off', //  Empty Object Types are necessary for specific Mapper<T,K> declarations
@@ -31,7 +17,21 @@ const eslintConfig = [
       ],
       '@typescript-eslint/no-unsafe-function-type': 'off',
     },
-  }),
-];
+  },
+  globalIgnores([
+    // Default ignores of eslint-config-next:
+    'node_modules/**',
+    '.next/**',
+    'out/**',
+    'build/**',
+    'next-env.d.ts',
+    'scripts/**',
+    '**/*.test.ts',
+    '**/*.test.tsx',
+    '**/*.config.*s',
+    '**/*.setup.js',
+    '**/*.d.ts',
+  ]),
+]);
 
 export default eslintConfig;

@@ -21,7 +21,7 @@ Based on modern technologies and best practices, the goal is to provide a solid,
 
 ### Business Key-Components
 
-Ideal starting point for a new storefront or e-commerce platform. The Platform is specifically designed to give you a head-start while not overloading you with features you don't need. 
+Ideal starting point for a new storefront or e-commerce platform. The Platform is specifically designed to give you a head-start while not overloading you with features you don't need.
 
 - Separated Business and Integration Layer, allowing for easy extension and replacement of all business logic (e.g. synchronous pricing, order processing, etc.)
 - Commerce Integration (prebuilt with Emporix Platform)
@@ -44,7 +44,14 @@ Here is a quick start guide to get you started with Journey Aware Storefront.
 ```bash
 # Install dependencies
 npm install
+
+# Copy the environment template (includes demo values)
+cp .env.template .env
 ```
+
+**Note:** The `.env.template` file includes **public demo credentials** from the Emporix showcase tenant, Battery Included, and Storyblok. The application will work out-of-the-box without any configuration changes.
+
+For **production use** or to enable **advanced features** (login, ordering, push notifications), you'll need to replace the placeholder values in `.env` with your own credentials. See [Environment Variables Documentation](docs/environment-variables.md) for details.
 
 ### Development
 
@@ -68,6 +75,7 @@ The dependency injection generator is configured to run in watch mode by default
 **BUT** due to the nature of the current implementation the changes made to the platform-layer are not hot-swappable. You will need to restart the development server to apply the changes. (We are aware of this and hope to change this with the upcoming release)
 
 ### Known Issues
+
 A list of known issues and their workarounds. (We are aware of these and will fix them in upcoming releases)
 
 - The above mentioned platform-layer changes are not hot-swappable. You will need to restart the development server to apply the changes.
@@ -75,12 +83,12 @@ A list of known issues and their workarounds. (We are aware of these and will fi
 - Dependency Injection currently loads all Containers with static imports, we are working on an approach where lazy loading is possible.
 - Cart Migration is not implemented yet
 - NextJS API-Endpoints are currently not additionally secured, since most security comes from the Emporix-Integration itself
-- CMS Components are currently  specific to Storyblok, we already have a concept for wrapping CMS-Components to make them more generic, which will be part of an upcoming release
+- CMS Components are currently specific to Storyblok, we already have a concept for wrapping CMS-Components to make them more generic, which will be part of an upcoming release
 - There's no Caching implemented for the Integration Layer, we plan to implement this in an upcoming release
 - The Unit Tests rely on specific Test-Data for API-Endpoint Testing, you need to include them yourself for now, but we plan to create an automation to create the Test-Data in your own tenants soon. You may need to skip these tests for now.
-- The Component-Library doesn't use the Variant/Theming approach consistently as of now.
 
 ### What to Expect
+
 To sharpen the understanding of how this Framework is intended to be used, here a few key concepts.
 
 - Not everything is pre-built, we want to give you a solid foundation, rather than a ready-to-use solution, because we know that every business has its own unique needs and requirements.
@@ -89,7 +97,6 @@ To sharpen the understanding of how this Framework is intended to be used, here 
 - Site- and Currency-Switcher is not fully implemented on purpose, especially the migration of Carts to other currencies and sites, since the business cases for this vary a lot and are not always needed.
 - Pricing is currently based on the Emporix-Integration, but concepts for implementing asynchronous Pricing or Pricing from other sources are easily implemented, since the components can react to data changes
 - Approval is not fully implemented, since the concepts for it vary from business to Business
-
 
 ### Building for Production
 

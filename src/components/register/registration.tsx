@@ -117,7 +117,7 @@ export default function Registration() {
 
   if (loading || loginLoading) {
     return (
-      <div className="mx-4 xl:mx-9">
+      <div className="mx-4 lg:mx-9">
         <div className="flex gap-3 align-end mb-8">
           <H1 variant="h4">{t('title')}</H1>
         </div>
@@ -128,7 +128,7 @@ export default function Registration() {
     );
   }
   return (
-    <div className="w-full max-w-228 px-6 pb-32 pt-6 md:pt-0 flex flex-col gap-8" ref={top}>
+    <div className="w-full max-w-228 px-6 pb-32 pt-6 sm:pt-0 flex flex-col gap-8" ref={top}>
       <div className="flex flex-col gap-2">
         <H1 variant="h4">{t('title')}</H1>
         <p>
@@ -143,10 +143,10 @@ export default function Registration() {
         <form id="register-form" onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-8">
           {(formError || error) && (
             <div className="flex flex-col gap-2">
-              <H2 variant="h5" className="text-danger-500">
+              <H2 variant="h5" className="text-text-error">
                 {t('error')}
               </H2>
-              <span className="text-danger-500">{formError || error}</span>
+              <span className="text-text-error">{formError || error}</span>
             </div>
           )}
 
@@ -166,12 +166,12 @@ export default function Registration() {
               <UiLink type="Link" href="/privacy-policy">
                 {chunks}
               </UiLink>
-            ), // Todo set correct link
+            ),
             termsOfUse: (chunks) => (
               <UiLink type="Link" href="/terms-and-conditions">
                 {chunks}
               </UiLink>
-            ), // Todo: set correct link
+            ),
           })}
         </p>
         <Button type="submit" form="register-form" className="w-full" disabled={loading || !form.formState.isValid}>

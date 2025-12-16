@@ -39,19 +39,19 @@ export default function AccountDashboard({ initialCustomer, breadcrumbs }: Accou
         <div className="mb-12 flex justify-between items-start">
           <H3>
             {t('hello')}{' '}
-            <span className="text-primary">{customer?.firstName + ' ' + customer?.lastName || 'Kunde'}</span>
+            <span className="text-text-action">{customer?.firstName + ' ' + customer?.lastName || 'Kunde'}</span>
           </H3>
 
           <SupportTicketDialog onSubmit={handleTicketSubmit} />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-          <AiHelperCard className="md:col-span-2" />
-          <WeatherCard className="md:col-span-1" />
-          <NotificationCard className="md:col-span-1" />
-          <TicketCard className="md:col-span-2" />
-          <MyOrdersCard className="md:col-span-2" />
-          <MyInvoicesCard className="md:col-span-2" />
-          <DocumentsCard className="md:col-span-3" />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-10">
+          <AiHelperCard className="sm:col-span-2" />
+          <WeatherCard className="sm:col-span-1" />
+          <NotificationCard className="sm:col-span-1" />
+          <TicketCard className="sm:col-span-2" />
+          <MyOrdersCard className="sm:col-span-2" />
+          <MyInvoicesCard className="sm:col-span-2" />
+          <DocumentsCard className="sm:col-span-3" />
         </div>
       </div>
     </AccountLayout>

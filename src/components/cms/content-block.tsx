@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { storyblokEditable } from '@storyblok/react/rsc';
+import { H2 } from '@/components/ui/h';
 import { Link } from '@/i18n/navigation';
 
 /**
@@ -33,8 +34,8 @@ const ContentBlock = ({ blok }: ContentBlockProps) => {
   // Define classes based on style
   const containerClasses = {
     'full-width': 'w-full',
-    vignette: 'max-w-4xl mx-auto rounded-lg shadow-lg overflow-hidden',
-    teaser: 'max-w-sm rounded-lg shadow-md overflow-hidden',
+    vignette: 'max-w-4xl mx-auto rounded-md shadow-lg overflow-hidden',
+    teaser: 'max-w-sm rounded-md shadow-md overflow-hidden',
   }[blok.style || 'full-width'];
 
   // Determine if button is external
@@ -54,19 +55,23 @@ const ContentBlock = ({ blok }: ContentBlockProps) => {
             fill
             className="object-cover"
           />
-          <div className="absolute inset-0 bg-black bg-opacity-40"></div>
+          <div className="absolute inset-0 bg-surface-neutral bg-opacity-40"></div>
         </div>
       )}
 
       {/* Content */}
-      <div className={`relative z-10 p-8 ${blok.background_image?.filename ? 'text-white' : ''}`}>
-        {blok.title && <h2 className="text-2xl font-bold mb-4">{blok.title}</h2>}
+      <div className={`relative z-10 p-8 ${blok.background_image?.filename ? 'text-text-on-action' : ''}`}>
+        {blok.title && (
+          <H2 variant="h6" className="mb-4">
+            {blok.title}
+          </H2>
+        )}
 
         {blok.description && <div className="mb-6">{blok.description}</div>}
 
         {/* Images */}
         {blok.images && blok.images.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
             {blok.images.map((image, index) => (
               <div key={index} className="relative h-48">
                 <Image src={image.filename} alt={image.alt || ''} fill className="object-cover rounded" />
@@ -82,14 +87,14 @@ const ContentBlock = ({ blok }: ContentBlockProps) => {
               href={buttonHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block px-6 py-2 bg-primary text-white rounded hover:bg-primary-dark transition-colors"
+              className="inline-block px-6 py-2 bg-surface-action text-text-on-action rounded hover:bg-surface-action-hover transition-colors"
             >
               {blok.button.name}
             </a>
           ) : (
             <Link
               href={buttonHref}
-              className="inline-block px-6 py-2 bg-primary text-white rounded hover:bg-primary-dark transition-colors"
+              className="inline-block px-6 py-2 bg-surface-action text-text-on-action rounded hover:bg-surface-action-hover transition-colors"
             >
               {blok.button.name}
             </Link>

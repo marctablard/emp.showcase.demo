@@ -16,8 +16,8 @@ import { EmporixOrderApi as IEmporixOrderApi } from '../EmporixOrderApi';
 @injectable('EmporixOrderApi', 'Singleton')
 class EmporixOrderApi implements IEmporixOrderApi {
   constructor(
-    @inject('EmporixApiInvoker') private apiClient: EmporixApiClient,
-    @inject('EmporixConfig') private config: EmporixConfig,
+    @inject('EmporixApiInvoker') protected apiClient: EmporixApiClient,
+    @inject('EmporixConfig') protected config: EmporixConfig,
   ) {}
 
   // No helper methods needed - using direct endpoint URLs

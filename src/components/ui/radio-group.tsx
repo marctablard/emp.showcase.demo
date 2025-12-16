@@ -14,12 +14,12 @@ function RadioGroupItem({ className, ...props }: React.ComponentProps<typeof Rad
     <RadioGroupPrimitive.Item
       data-slot="radio-group-item"
       className={cn(
-        'bg-white border border-neutral-200 data-[state=checked]bg-primary-500 size-6 shrink-0 rounded-full',
-        'transition-all hover:border-primary-700 hover:bg-primary-50',
-        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
-        'aria-invalid:text-danger-500 aria-invalid:border-danger-500 hover:aria-invalid:border-primary-500 hover:aria-invalid:text-primary-700 aria-invalid:data-[state=checked]:bg-danger-100',
-        'data-[state=checked]:bg-primary-500 hover:data-[state=checked]:bg-primary-700',
-        'disabled:pointer-events-none disabled:cursor-not-allowed disabled:text-neutral-600 disabled:bg-neutral-100 disabled:border-neutral-300 disabled:aria-invalid:border-neutral-300',
+        'bg-surface-page border border-border-primary data-[state=checked]bg-surface-action size-6 shrink-0 rounded-full',
+        'transition-all hover:border-border-action-hover hover:bg-surface-action-hover-2',
+        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
+        'aria-invalid:text-text-error aria-invalid:border-border-error hover:aria-invalid:border-border-action-hover hover:aria-invalid:text-text-action-hover aria-invalid:data-[state=checked]:bg-surface-error',
+        'data-[state=checked]:bg-surface-action hover:data-[state=checked]:bg-surface-action-hover',
+        'disabled:pointer-events-none disabled:cursor-not-allowed disabled:text-text-on-disabled disabled:bg-surface-disabled disabled:border-border-disabled disabled:aria-invalid:border-border-disabled',
         className,
       )}
       {...props}
@@ -30,8 +30,8 @@ function RadioGroupItem({ className, ...props }: React.ComponentProps<typeof Rad
       >
         <CircleIcon
           className={cn(
-            'fill-white stroke-none absolute top-1/2 left-1/2 size-3 -translate-x-1/2 -translate-y-1/2',
-            props['aria-invalid'] && props['checked'] && 'fill-danger-500',
+            'fill-surface-primary stroke-none absolute top-1/2 left-1/2 size-3 -translate-x-1/2 -translate-y-1/2',
+            props['aria-invalid'] && props['checked'] && 'fill-text-error',
           )}
         />
       </RadioGroupPrimitive.Indicator>

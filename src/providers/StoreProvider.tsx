@@ -1,6 +1,6 @@
 'use client';
 
-import { type ReactNode, createContext, useContext, useRef } from 'react';
+import { type ReactNode, createContext, useContext, useState } from 'react';
 import { useStore } from 'zustand/react';
 import { Site } from '@/platform/services/model/common/site';
 import { Session } from '@/platform/services/model/session';
@@ -50,54 +50,20 @@ export interface StoreProviderProps {
 }
 
 export const StoreProvider = ({ children, shopSession, site, availableSites }: StoreProviderProps) => {
-  const productStoreRef = useRef<ProductStoreApi | null>(null);
-  if (productStoreRef.current === null) {
-    productStoreRef.current = createProductStore();
-  }
-  const cartStoreRef = useRef<CartStoreApi | null>(null);
-  if (cartStoreRef.current === null) {
-    cartStoreRef.current = createCartStore();
-  }
-  const checkoutStoreRef = useRef<CheckoutStoreApi | null>(null);
-  if (checkoutStoreRef.current === null) {
-    checkoutStoreRef.current = createCheckoutStore();
-  }
-  const siteStoreRef = useRef<SiteStoreApi | null>(null);
-  if (siteStoreRef.current === null) {
-    siteStoreRef.current = createSiteStore({ site, availableSites, loading: false, error: null });
-  }
-  const shippingMethodsStoreRef = useRef<ShippingMethodsStoreApi | null>(null);
-  if (shippingMethodsStoreRef.current === null) {
-    shippingMethodsStoreRef.current = createShippingMethodsStore();
-  }
-  const customerStoreRef = useRef<CustomerStoreApi | null>(null);
-  if (customerStoreRef.current === null) {
-    customerStoreRef.current = createCustomerStore();
-  }
-  const historyStoreRef = useRef<HistoryStoreApi | null>(null);
-  if (historyStoreRef.current === null) {
-    historyStoreRef.current = createHistoryStore();
-  }
-  const dashboardStoreRef = useRef<DashboardStoreApi | null>(null);
-  if (dashboardStoreRef.current === null) {
-    dashboardStoreRef.current = createDashboardStore();
-  }
-  const orderStoreRef = useRef<OrderStoreApi | null>(null);
-  if (orderStoreRef.current === null) {
-    orderStoreRef.current = createOrderStore();
-  }
-  const sessionStoreRef = useRef<SessionStoreApi | null>(null);
-  if (sessionStoreRef.current === null) {
-    sessionStoreRef.current = createSessionStore({ session: shopSession, loading: false });
-  }
-  const notificationStoreRef = useRef<NotificationStoreApi | null>(null);
-  if (notificationStoreRef.current === null) {
-    notificationStoreRef.current = createNotificationStore();
-  }
-  const availabilityStoreRef = useRef<AvailabilityStoreApi | null>(null);
-  if (availabilityStoreRef.current === null) {
-    availabilityStoreRef.current = createAvailabilityStore();
-  }
+  const [productStore] = useState<ProductStoreApi>(() => createProductStore());
+  const [cartStore] = useState<CartStoreApi>(() => createCartStore());
+  const [checkoutStore] = useState<CheckoutStoreApi>(() => createCheckoutStore());
+  const [siteStore] = useState<SiteStoreApi>(() =>
+    createSiteStore({ site, availableSites, loading: false, error: null }),
+  );
+  const [shippingMethodsStore] = useState<ShippingMethodsStoreApi>(() => createShippingMethodsStore());
+  const [customerStore] = useState<CustomerStoreApi>(() => createCustomerStore());
+  const [historyStore] = useState<HistoryStoreApi>(() => createHistoryStore());
+  const [dashboardStore] = useState<DashboardStoreApi>(() => createDashboardStore());
+  const [orderStore] = useState<OrderStoreApi>(() => createOrderStore());
+  const [sessionStore] = useState<SessionStoreApi>(() => createSessionStore({ session: shopSession, loading: false }));
+  const [notificationStore] = useState<NotificationStoreApi>(() => createNotificationStore());
+  const [availabilityStore] = useState<AvailabilityStoreApi>(() => createAvailabilityStore());
   /**
    * The order is relevant, because store data can only depend on one another,
    * when nested properly.
@@ -111,18 +77,18 @@ export const StoreProvider = ({ children, shopSession, site, availableSites }: S
    * 8. History Data may depend on various aspects of customer's Browsing Behaviour
    */
   return (
-    <SiteStoreContext.Provider value={siteStoreRef.current}>
-      <ShippingMethodsStoreContext.Provider value={shippingMethodsStoreRef.current}>
-        <ProductStoreContext.Provider value={productStoreRef.current}>
-          <CustomerStoreContext.Provider value={customerStoreRef.current}>
-            <OrderStoreContext.Provider value={orderStoreRef.current}>
-              <CartStoreContext.Provider value={cartStoreRef.current}>
-                <CheckoutStoreContext.Provider value={checkoutStoreRef.current}>
-                  <HistoryStoreContext.Provider value={historyStoreRef.current}>
-                    <DashboardStoreContext.Provider value={dashboardStoreRef.current}>
-                      <SessionStoreContext.Provider value={sessionStoreRef.current}>
-                        <NotificationStoreContext.Provider value={notificationStoreRef.current}>
-                          <AvailabilityStoreContext.Provider value={availabilityStoreRef.current}>
+    <SiteStoreContext.Provider value={siteStore}>
+      <ShippingMethodsStoreContext.Provider value={shippingMethodsStore}>
+        <ProductStoreContext.Provider value={productStore}>
+          <CustomerStoreContext.Provider value={customerStore}>
+            <OrderStoreContext.Provider value={orderStore}>
+              <CartStoreContext.Provider value={cartStore}>
+                <CheckoutStoreContext.Provider value={checkoutStore}>
+                  <HistoryStoreContext.Provider value={historyStore}>
+                    <DashboardStoreContext.Provider value={dashboardStore}>
+                      <SessionStoreContext.Provider value={sessionStore}>
+                        <NotificationStoreContext.Provider value={notificationStore}>
+                          <AvailabilityStoreContext.Provider value={availabilityStore}>
                             {children}
                           </AvailabilityStoreContext.Provider>
                         </NotificationStoreContext.Provider>

@@ -8,9 +8,9 @@ import type { EmporixCheckoutApi as IEmporixCheckoutApi } from '../EmporixChecko
 
 @injectable('EmporixCheckoutApi', 'Singleton')
 class EmporixCheckoutApi implements IEmporixCheckoutApi {
-  private apiClient: EmporixApiClient;
-  private config: EmporixConfig;
-  private cartApi: EmporixCartApi;
+  protected apiClient: EmporixApiClient;
+  protected config: EmporixConfig;
+  protected cartApi: EmporixCartApi;
 
   constructor(
     @inject('EmporixApiInvoker') apiClient: EmporixApiClient,

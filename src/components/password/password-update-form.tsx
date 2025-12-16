@@ -100,7 +100,7 @@ export function PasswordUpdateForm() {
       </CardHeader>
       <CardContent>
         {isSuccess ? (
-          <Alert className="bg-green-50 border-green-200">
+          <Alert className="bg-surface-success border-border-success">
             <AlertDescription>{t('passwordUpdatedSuccess')}</AlertDescription>
           </Alert>
         ) : (

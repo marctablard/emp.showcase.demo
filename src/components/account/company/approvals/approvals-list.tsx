@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useApprovals } from '@/hooks/approval/useApprovals';
 import { Approval, ApprovalStatus } from '@/platform/services/model/approval';
@@ -66,7 +67,7 @@ export function ApprovalsList({ initialApprovals }: ApprovalsListProps) {
         </CardHeader>
         <CardContent className="flex justify-center py-8">
           <div className="flex flex-col items-center space-y-2">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+            <Spinner color="primary" variant="md" />
             <div>{t('loading')}</div>
           </div>
         </CardContent>
@@ -82,7 +83,7 @@ export function ApprovalsList({ initialApprovals }: ApprovalsListProps) {
           <CardDescription>{t('approvalsListDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="bg-destructive/10 p-4 rounded-md text-destructive">
+          <div className="bg-surface-error p-4 rounded-md text-text-error">
             {t('errorLoadingApprovals')}: {error.message}
           </div>
         </CardContent>
@@ -101,7 +102,7 @@ export function ApprovalsList({ initialApprovals }: ApprovalsListProps) {
           <CardDescription>{t('approvalsListDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="text-center py-8">
-          <p className="text-muted-foreground">{t('noApprovalsFound')}</p>
+          <p className="text-text-placeholders">{t('noApprovalsFound')}</p>
         </CardContent>
       </Card>
     );

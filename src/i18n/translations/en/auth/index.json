@@ -6,8 +6,8 @@
         "forgotPassword": "Forgot password?",
         "logIn": "Log in",
         "guestCheckout": "Order as a guest",
-        "invalidCredentials": "Invalid email or password",
-        "loginError": "An error occurred during login. Please try again.",
+        "invalidCredentials": "Invalid email or password, please check your input.",
+        "loginError": "Login failed, please check your Credentials and try again.",
         "loggingIn": "Logging in...",
         "noAccountYet": "Don't have an account yet?",
         "createAccount": "Create an account",
@@ -16,7 +16,8 @@
         "hidePassword": "Hide password",
         "loginFailed": "Login Failed",
         "close": "Close",
-        "error": "Error"
+        "error": "Error",
+        "signInWith": "Sign in with {provider}"
     },
     "register": {
         "title": "Registration",

@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import AccountLayout from '@/components/account/account-layout';
 import { AddressesList } from '@/components/account/addresses/address-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { H1 } from '@/components/ui/h';
 import { getPageTitle } from '@/lib/ssr/seo';
 
 export const dynamic = 'force-dynamic';
@@ -40,15 +41,17 @@ export default async function AddressesPage({ params }: { params: Promise<{ loca
   return (
     <AccountLayout breadcrumbs={breadcrumbs}>
       <div className="container mx-auto py-6">
-        <h1 className="text-2xl font-bold mb-6">{tAccount('Address.title')}</h1>
-        <p className="text-muted-foreground mb-8">{tAccount('Address.description')}</p>
+        <H1 variant="h6" className="mb-6">
+          {tAccount('Address.title')}
+        </H1>
+        <p className="text-text-placeholders mb-8">{tAccount('Address.description')}</p>
 
         <div className="grid gap-8">
           {/* Billing Addresses Section */}
           <Card>
             <CardHeader>
               <CardTitle>{tAccount('Address.billingAddresses')}</CardTitle>
-              <p className="text-muted-foreground">{tAccount('Address.manageBillingAddresses')}</p>
+              <p className="text-text-placeholders">{tAccount('Address.manageBillingAddresses')}</p>
             </CardHeader>
             <CardContent>
               <AddressesList type="BILLING" />
@@ -59,7 +62,7 @@ export default async function AddressesPage({ params }: { params: Promise<{ loca
           <Card>
             <CardHeader>
               <CardTitle>{tAccount('Address.shippingAddresses')}</CardTitle>
-              <p className="text-muted-foreground">{tAccount('Address.manageShippingAddresses')}</p>
+              <p className="text-text-placeholders">{tAccount('Address.manageShippingAddresses')}</p>
             </CardHeader>
             <CardContent>
               <AddressesList type="SHIPPING" />

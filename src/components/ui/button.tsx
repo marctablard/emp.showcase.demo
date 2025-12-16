@@ -5,21 +5,23 @@ import { ChevronsUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  'cursor-pointer uppercase inline-flex items-center justify-center gap-3 whitespace-nowrap px-4 py-3 text-base/6 tracking-widest font-bold transition-all disabled:pointer-events-none disabled:bg-neutral-100 disabled:text-neutral-600 [&_svg]:pointer-events-none shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+  'cursor-pointer uppercase inline-flex items-center justify-center gap-3 whitespace-nowrap px-4 py-3 text-action-button tracking-widest font-bold transition-all disabled:pointer-events-none disabled:bg-surface-disabled disabled:text-text-on-disabled [&_svg]:pointer-events-none shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-white',
   {
     variants: {
       variant: {
-        primary: 'bg-primary-500 text-white border border-transparent hover:bg-primary-700 rounded-sm',
+        primary:
+          'bg-surface-action text-text-on-action border-width-button border-transparent hover:bg-surface-action-hover rounded-button',
         secondary:
-          'border border-primary bg-transparent text-primary disabled:border-neutral-600 hover:border-primary-700 hover:bg-primary-50 hover:text-primary-700 rounded-sm ',
+          'border-width-button border-border-secondary bg-transparent text-text-action disabled:border-border-disabled hover:border-border-action-hover hover:bg-surface-action-hover-2 hover:text-text-action-hover rounded-button',
         neutral:
-          'border border-neutral-900 px-2 py-1 disabled:border-neutral-600 hover:bg-accent hover:text-accent-foreground hover:bg-neutral-900 hover:text-white rounded-sm ',
-        red: 'bg-danger-100 text-danger-500 border border-transparent hover:bg-danger-200 rounded-sm normal-case',
-        link: 'text-primary disabled:bg-transparent hover:text-primary-700 rounded-sm ',
-        link_foreground: 'text-primary-foreground disabled:bg-transparent hover:text-primary-foreground/80 rounded-sm ',
-        input: 'bg-primary-500 text-white border border-transparent hover:bg-primary-700 rounded-r-lg',
-        warning:
-          'border border-warning-500 bg-transparent text-warning-500 disabled:border-neutral-600 hover:border-warning-700 hover:bg-warning-100 hover:text-warning-700 rounded-sm ',
+          'border-width-button border-border-black px-2 py-1 disabled:border-transparent hover:bg-surface-neutral hover:text-text-on-action rounded-button',
+        // Todo: red button needs to be designed in figma
+        red: 'bg-surface-error text-text-error border-width-button border-transparent hover:bg-surface-error/80 rounded-button normal-case',
+        link: 'text-text-action disabled:bg-transparent hover:text-text-action-hover rounded-button',
+        input:
+          'bg-surface-action text-text-on-action border-width-button border-transparent hover:bg-surface-action-hover rounded-r-sm',
+        carouselControl:
+          'absolute size-8 rounded-full border-width-button border-border-secondary bg-transparent text-text-action hover:border-border-action-hover hover:bg-surface-action-hover-2 hover:text-text-action-hover disabled:border-transparent',
       },
       size: {
         small: 'px-2 py-1',
@@ -57,7 +59,7 @@ function BackToTopButton({
   return (
     <button
       className={cn(
-        'cursor-pointer text-white [&>svg]:size-8 p-2 rounded-full bg-linear-to-t from-primary-700 to-primary-500 hover:to-primary-700 transition-all disabled:bg-none disabled:bg-neutral-400 disabled:pointer-events-none shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+        'cursor-pointer text-icon-on-action [&>svg]:size-8 p-2 rounded-full bg-linear-to-t from-gradient-secondary-end to-gradient-secondary-start hover:to-surface-action-hover transition disabled:bg-none disabled:bg-surface-disabled-selected disabled:pointer-events-none shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-white',
         className,
       )}
       {...props}

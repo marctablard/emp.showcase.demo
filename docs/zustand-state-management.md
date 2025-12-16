@@ -174,7 +174,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   }
 
   return (
-    <div className="container mx-auto py-10 px-4 md:px-6">
+    <div className="container mx-auto py-10 px-4 sm:px-6">
       {/* Hydrator component to populate the store with prefetched data */}
       <ProductHydrator product={product} isCurrent />
 

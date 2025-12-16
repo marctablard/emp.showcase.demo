@@ -26,9 +26,9 @@ export function CheckoutShipping({ initialEdit }: { initialEdit: boolean }) {
   };
 
   return (
-    <Card className="p-0 shadow-footer border-none mb-6">
-      <CardHeader className="p-0 mt-6 mx-6 border-b border-neutral-200 [.border-b]:pb-0 flex justify-between">
-        <H2 variant="h5" className="col-start-1 font-bold text-xl">
+    <Card className="p-0 border-none mb-6">
+      <CardHeader className="p-0 mt-6 mx-6 border-b flex justify-between">
+        <H2 variant="h5" className="col-start-1">
           {t('title')}
         </H2>
 
@@ -49,7 +49,7 @@ export function CheckoutShipping({ initialEdit }: { initialEdit: boolean }) {
           )}
         </Button>
       </CardHeader>
-      <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         {!isShippingEdit ? (
           <>
             <div className="flex flex-col pb-4">
@@ -94,7 +94,7 @@ export function CheckoutShipping({ initialEdit }: { initialEdit: boolean }) {
                   selectedAddressId={shippingAddress?.id}
                   onSelect={handleShippingAddressChange}
                   triggerElement={
-                    <div className="flex gap-1 text-primary-500 font-bold mb-4 cursor-pointer">
+                    <div className="flex gap-1 text-text-action font-bold mb-4 cursor-pointer">
                       <p>{t('fromAddressbook')}</p>
                       <NotebookText />
                     </div>

@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { ProductTile } from '@/components/product/product-tile';
 import { ProductTileSkeleton } from '@/components/product/product-tile-skeleton';
 import { SearchFilter } from '@/components/search/search-filter';
+import { H2 } from '@/components/ui/h';
 import {
   Pagination,
   PaginationContent,
@@ -45,7 +46,21 @@ export function SearchResultsComponent({ initialSearch, initialResults, locale }
     activeFilters,
     changePage,
   } = useSearch<Product>(initialSearch, initialResults);
-  const [visiblePagination, setVisiblePagination] = useState<number[]>([]);
+  const visiblePagination = useMemo(() => {
+    if (pageSize <= 0) {
+      return [];
+    }
+
+    const totalPages = Math.ceil(total / pageSize);
+    if (totalPages === 0) {
+      return [];
+    }
+
+    const start = Math.max(0, currentPage - 2);
+    const end = Math.min(totalPages - 1, currentPage + 2);
+
+    return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+  }, [currentPage, total, pageSize]);
 
   useEffect(() => {
     // Parse URL parameters to restore search state
@@ -100,13 +115,6 @@ export function SearchResultsComponent({ initialSearch, initialResults, locale }
     });
   }, [searchParams, pageSize, search]);
 
-  useEffect(() => {
-    const totalPages = Math.ceil(total / pageSize);
-    const start = Math.max(0, currentPage - 2);
-    const end = Math.min(totalPages - 1, currentPage + 2);
-    setVisiblePagination(Array.from({ length: end - start + 1 }, (_, i) => start + i));
-  }, [currentPage, total, pageSize]);
-
   return (
     <>
       <SearchFilter
@@ -125,7 +133,7 @@ export function SearchResultsComponent({ initialSearch, initialResults, locale }
         {loading ? (
           <>
             <Skeleton className="h-5 w-[180px] mb-4" />
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6 auto-rows-fr">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 auto-rows-fr">
               {Array.from({ length: Math.min(pageSize, products.length) }).map((_, i) => (
                 <ProductTileSkeleton key={i} />
               ))}
@@ -135,13 +143,13 @@ export function SearchResultsComponent({ initialSearch, initialResults, locale }
           <>
             {products.length === 0 ? (
               <div className="text-center py-12">
-                <h2 className="text-xl font-medium mb-2">{t('searchResults.noProductsFound')}</h2>
-                <p className="text-neutral-500">{t('searchResults.tryAdjusting')}</p>
+                <H2 className="mb-2">{t('searchResults.noProductsFound')}</H2>
+                <p className="text-text-placeholders">{t('searchResults.tryAdjusting')}</p>
               </div>
             ) : (
               <>
                 <div className="mb-4">
-                  <p className="text-sm text-neutral-500">
+                  <p className="text-sm text-text-placeholders">
                     {t('searchResults.showing', {
                       start: currentPage * pageSize + 1,
                       end: currentPage * pageSize + products.length,
@@ -151,7 +159,7 @@ export function SearchResultsComponent({ initialSearch, initialResults, locale }
                 </div>
 
                 {/* Client-side rendered products - this will replace the server-rendered ones */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6 auto-rows-fr">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 auto-rows-fr">
                   {products.map((product) => (
                     <div key={product.id} className="h-full">
                       <ProductTile product={product} locale={locale} />
@@ -174,8 +182,7 @@ export function SearchResultsComponent({ initialSearch, initialResults, locale }
                       e.preventDefault();
                       if (currentPage > 0) changePage(currentPage - 1);
                     }}
-                    aria-disabled={currentPage === 0}
-                    className={currentPage === 0 ? 'pointer-events-none opacity-50' : ''}
+                    disabled={currentPage === 0}
                   />
                 </PaginationItem>
 
@@ -184,7 +191,6 @@ export function SearchResultsComponent({ initialSearch, initialResults, locale }
                     <PaginationLink
                       href="#"
                       isActive={currentPage === pageNumber}
-                      className={currentPage === pageNumber ? 'bg-primary text-white' : ' '}
                       onClick={(e) => {
                         e.preventDefault();
                         changePage(pageNumber);
@@ -205,8 +211,7 @@ export function SearchResultsComponent({ initialSearch, initialResults, locale }
                         changePage(currentPage + 1);
                       }
                     }}
-                    aria-disabled={currentPage === Math.ceil(total / pageSize) - 1}
-                    className={currentPage === Math.ceil(total / pageSize) - 1 ? 'pointer-events-none opacity-50' : ''}
+                    disabled={currentPage === Math.ceil(total / pageSize) - 1}
                   />
                 </PaginationItem>
               </PaginationContent>

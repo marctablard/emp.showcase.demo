@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { CogIcon, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { H3 } from '@/components/ui/h';
 import { l10n } from '@/lib/utils';
 import type { CartStatus, CartStatusDetailCode } from '@/platform/services/cart/CartService';
 import { Product } from '@/platform/services/model/product';
@@ -62,10 +63,10 @@ export function AddToCartModal({
 
         <div className="flex flex-col space-y-4 py-4">
           <div className="border-b pb-4">
-            <h3 className="text-md font-medium mb-2">{t('productAdded')}</h3>
+            <H3 className="text-base font-medium mb-2">{t('productAdded')}</H3>
             <div className="flex items-center gap-4">
               {/* Product image */}
-              <div className="rounded-ss-xl rounded-ee-xl w-[100px] h-[65px] object-fit overflow-hidden">
+              <div className="rounded-ss-md rounded-ee-md w-[100px] h-[65px] object-fit overflow-hidden">
                 {product.images?.[0] ? (
                   <Image
                     width={100}
@@ -75,7 +76,7 @@ export function AddToCartModal({
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-gray-100">
+                  <div className="w-full h-full flex items-center justify-center text-icon-secondary bg-surface-image-background">
                     <ShoppingCart className="h-6 w-6 opacity-30" />
                   </div>
                 )}
@@ -84,14 +85,14 @@ export function AddToCartModal({
               <div className="flex-grow">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs">{l10n(product?.brand?.name || '', locale)}</p>
+                    <p className="text-sm">{l10n(product?.brand?.name || '', locale)}</p>
                     <p className="font-bold text-sm">{l10n(product?.name || '', locale)}</p>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between mt-2">
                   {status === 'PENDING' && statusDetailCode === 'addToCart.insufficientStock' ? (
-                    <p className="text-xs font-bold pr-4  text-warning-500">
+                    <p className="text-sm font-bold pr-4 text-text-warning">
                       <span className="">
                         {tSubstitution('substitution.availableDescription', {
                           available: statusDetailPayload?.availableQuantity,
@@ -100,7 +101,7 @@ export function AddToCartModal({
                       </span>
                     </p>
                   ) : (
-                    <p className="text-xs font-bold pr-4 text-success-500">
+                    <p className="text-sm font-bold pr-4 text-text-success">
                       <span className="">
                         {t('quantityAdded')} {quantity}
                       </span>
@@ -113,7 +114,7 @@ export function AddToCartModal({
           {status === 'PENDING' && statusDetailCode === 'addToCart.insufficientStock' && (
             <div className="flex items-center justify-between">
               <UINotification icon={CogIcon} iconSize={20} animate="spin" className="mr-4" />
-              <p className="text-xs font-bold pr-4">
+              <p className="text-sm font-bold pr-4">
                 <span className="">{t('insufficientStockMessage')}</span>
               </p>
             </div>

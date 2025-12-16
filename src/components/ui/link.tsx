@@ -1,25 +1,31 @@
+'use client';
+
 import { VariantProps, cva } from 'class-variance-authority';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 
 const linkVariants = cva(
-  'outline-none focus-visible:rounded-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+  'outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-white',
   {
     variants: {
       variant: {
         primary:
-          'inline-flex items-center gap-1 text-primary font-bold underline hover:text-primary-700 disabled:text-neutral-300 disabled:[&_svg]:text-neutral-600',
+          'inline-flex items-center gap-1 text-text-action font-bold underline hover:text-text-action-hover disabled:text-text-disabled disabled:[&_svg]:text-text-disabled',
         secondary:
-          'inline-flex items-center gap-1 text-body hover:underline hover:text-primary-500 disabled:hover:no-underline disabled:text-neutral-300 disabled:[&_svg]:text-neutral-600',
-        text: 'text-primary underline hover:text-primary-700',
-        button_primary:
-          'cursor-pointer uppercase inline-flex items-center justify-center gap-3 whitespace-nowrap px-4 py-3 text-base/6 tracking-widest font-bold transition-all disabled:pointer-events-none disabled:bg-neutral-100 disabled:text-neutral-600 [&_svg]:pointer-events-none shrink-0 [&_svg]:shrink-0 bg-primary-500 text-white border border-transparent hover:bg-primary-700 rounded-sm',
-        buttonNoUnderline: 'inline-flex items-center gap-1 text-primary font-bold',
+          'inline-flex items-center gap-1 text-text-body hover:underline hover:text-text-action disabled:hover:no-underline disabled:text-text-disabled disabled:[&_svg]:text-text-disabled',
+        text: 'text-text-action underline hover:text-text-action-hover',
+        textNoUnderline: 'text-text-action no-underline hover:text-text-action-hover',
+        buttonPrimary:
+          'cursor-pointer uppercase inline-flex items-center justify-center gap-3 whitespace-nowrap px-4 py-3 text-base tracking-widest font-bold transition-all disabled:pointer-events-none disabled:bg-surface-disabled disabled:text-text-on-disabled [&_svg]:pointer-events-none shrink-0 [&_svg]:shrink-0 bg-surface-action text-text-on-action border border-transparent hover:bg-surface-action-hover rounded-button',
+        buttonSecondary:
+          'cursor-pointer uppercase inline-flex items-center justify-center gap-3 whitespace-nowrap px-4 py-3 text-action-button tracking-widest font-bold transition-all disabled:pointer-events-none disabled:bg-surface-disabled disabled:text-text-on-disabled [&_svg]:pointer-events-none shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-white border-width-button border-border-secondary bg-transparent text-text-action disabled:border-border-disabled hover:border-border-action-hover hover:bg-surface-action-hover-2 hover:text-text-action-hover rounded-button',
+        footerLegal: 'text-text-on-action hover:underline hover:text-text-on-action',
+        clean: '',
       },
       size: {
         s: 'text-sm [&_svg]:w-4 [&_svg]:h-4',
         m: 'text-base ',
-        l: 'text-xl',
+        l: 'text-lg',
       },
     },
     defaultVariants: {

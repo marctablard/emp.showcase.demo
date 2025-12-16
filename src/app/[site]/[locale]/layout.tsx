@@ -4,31 +4,33 @@ import { Locale, NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Open_Sans, Ubuntu } from 'next/font/google';
 import { notFound } from 'next/navigation';
-import { redirect } from 'next/navigation';
 import '@/app/globals.css';
 import { auth } from '@/auth/auth';
 import AuthDialogManager from '@/components/auth/auth-dialog-manager';
 import { CsrfProvider } from '@/components/csrf/CsrfProvider';
 import { Notification } from '@/components/notification/notification';
 import { Toaster } from '@/components/ui/sonner';
+import { redirect } from '@/i18n/edge/navigation';
 import { routing } from '@/i18n/routing';
 import { getSession, setSessionLanguage } from '@/lib/ssr/session';
-import { getAvailableSites, getSite, setRequestSite } from '@/lib/ssr/site';
+import { getAvailableSites, getSite } from '@/lib/ssr/site';
+import SiteProvider from '@/providers/SiteProvider';
 import { StoreProvider } from '@/providers/StoreProvider';
 import { StoryblokProvider } from '@/providers/StoryblokProvider';
+import { setRequestSite } from '@/site/server/';
 
 const defaultSiteCode = process.env.NEXT_PUBLIC_DEFAULT_SITE || 'main';
 
-const ubuntu = Ubuntu({
+const fontHeadlines = Ubuntu({
   subsets: ['latin'],
   weight: ['400', '500', '700'],
-  variable: '--font-ubuntu',
+  variable: '--font-headlines',
 });
 
-const openSans = Open_Sans({
+const fontBody = Open_Sans({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
-  variable: '--font-open-sans',
+  variable: '--font-body',
 });
 
 type Props = {
@@ -78,7 +80,8 @@ export default async function LocaleLayout({ children, params }: Props) {
     // ensure that languages are aligned
     const newLocale = site.languages[0];
     await setSessionLanguage(newLocale);
-    redirect(`/${newLocale}`);
+    // force prefix to ensure that the redirect is correctly adapting the cookie
+    redirect({ href: '/', locale: newLocale, site: siteCode, forcePrefix: true });
   }
   if (shopSession && shopSession.language != locale) {
     // ensure that languages are aligned
@@ -86,25 +89,32 @@ export default async function LocaleLayout({ children, params }: Props) {
     shopSession.language = locale;
   }
 
-  // Enable static rendering
+  // TODO: we need to figure out why getRequestSite
+  // doesn't return the correct value in child layouts
+  // (we need to duplicate this call there)
   setRequestSite(siteCode);
   setRequestLocale(locale);
 
   return (
-    <html lang={locale} className={`${ubuntu.variable} ${openSans.variable} ${ubuntu.className} ${openSans.className}`}>
+    <html
+      lang={locale}
+      className={`${fontHeadlines.variable} ${fontBody.variable} ${fontHeadlines.className} ${fontBody.className}`}
+    >
       <body className="flex h-full flex-col font-body has-[.search]:overflow-hidden">
         <AuthSessionProvider session={authSession}>
-          <NextIntlClientProvider locale={locale}>
-            <StoreProvider shopSession={shopSession} site={site} availableSites={availableSites}>
-              <StoryblokProvider>
-                <CsrfProvider />
-                <AuthDialogManager />
-                {children}
-                <Toaster />
-                <Notification />
-              </StoryblokProvider>
-            </StoreProvider>
-          </NextIntlClientProvider>
+          <SiteProvider siteCode={siteCode}>
+            <NextIntlClientProvider locale={locale}>
+              <StoreProvider shopSession={shopSession} site={site} availableSites={availableSites}>
+                <StoryblokProvider>
+                  <CsrfProvider />
+                  <AuthDialogManager />
+                  {children}
+                  <Toaster />
+                  <Notification />
+                </StoryblokProvider>
+              </StoreProvider>
+            </NextIntlClientProvider>
+          </SiteProvider>
         </AuthSessionProvider>
       </body>
     </html>

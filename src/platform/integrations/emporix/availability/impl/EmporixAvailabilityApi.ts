@@ -10,8 +10,8 @@ import { EmporixAvailabilityApi as IEmporixAvailabilityApi } from '../EmporixAva
 @injectable('EmporixAvailabilityApi', 'Singleton')
 class EmporixAvailabilityApi implements IEmporixAvailabilityApi {
   constructor(
-    @inject('EmporixApiInvoker') private apiClient: EmporixApiClient,
-    @inject('EmporixConfig') private config: EmporixConfig,
+    @inject('EmporixApiInvoker') protected apiClient: EmporixApiClient,
+    @inject('EmporixConfig') protected config: EmporixConfig,
   ) {}
 
   async getAvailabilitiesBySite(

@@ -40,16 +40,18 @@ export function UINotification({
   return (
     <div
       className={cn(
-        'transition-all duration-500 bg-primary-500 rounded-ss-xl rounded-es-xl rounded-ee-xl p-1 shadow-md',
+        'transition-all duration-500 bg-surface-action rounded-ss-md rounded-es-md rounded-ee-md p-2 shadow-xl',
         className,
       )}
     >
-      <div className={cn('border-3 border-white rounded-ss-xl rounded-es-xl rounded-ee-xl p-1')}>
-        <Icon
-          className={cn('text-white', animate === 'pulse' && 'animate-pulse', animate === 'spin' && 'animate-spin')}
-          size={iconSize}
-        />
-      </div>
+      <Icon
+        className={cn(
+          'text-icon-on-action',
+          animate === 'pulse' && 'animate-pulse',
+          animate === 'spin' && 'animate-spin',
+        )}
+        size={iconSize}
+      />
     </div>
   );
 }

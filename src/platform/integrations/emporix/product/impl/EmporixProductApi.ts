@@ -9,8 +9,8 @@ import { EmporixProductApi as IEmporixProductApi } from '../EmporixProductApi';
 @injectable('EmporixProductApi', 'Singleton')
 class EmporixProductApi implements IEmporixProductApi {
   constructor(
-    @inject('EmporixApiInvoker') private apiClient: EmporixApiClient,
-    @inject('EmporixConfig') private config: EmporixConfig,
+    @inject('EmporixApiInvoker') protected apiClient: EmporixApiClient,
+    @inject('EmporixConfig') protected config: EmporixConfig,
   ) {}
 
   async getProducts(page?: number, pageSize?: number): Promise<EmporixPaginatedResponse<EmporixProduct>> {

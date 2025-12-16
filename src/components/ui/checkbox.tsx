@@ -12,12 +12,12 @@ const Checkbox = React.forwardRef<
   <CheckboxPrimitive.Root
     ref={ref}
     className={cn(
-      'group peer h-6 w-6 shrink-0 rounded-sm border disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=indeterminate]:bg-primary data-[state=checked]:text-primary-foreground data-[state=indeterminate]:text-primary-foreground',
-      'transition-all hover:border-primary-700 hover:bg-primary-50',
-      'focus:outline-2 focus:outline-offset-2 focus:outline-primary-500',
-      'disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-neutral-300 disabled:bg-neutral-100 aria-invalid:disabled:border-neutral-300',
-      'aria-invalid:text-danger-500 aria-invalid:border-danger-500 hover:aria-invalid:border-primary-500 hover:aria-invalid:text-primary-700 aria-invalid:data-[state=indeterminate]:bg-danger-100 aria-invalid:data-[state=indeterminate]:text-danger-500 aria-invalid:data-[state=checked]:bg-danger-100 aria-invalid:data-[state=checked]:text-danger-500',
-      'hover:data-[state=checked]:bg-primary-700 hover:data-[state=checked]:border-primary-700 hover:data-[state=indeterminate]:bg-primary-700 hover:data-[state=indeterminate]:border-primary-700',
+      'group peer h-6 w-6 shrink-0 rounded-sm border data-[state=checked]:bg-surface-action data-[state=indeterminate]:bg-surface-action data-[state=checked]:text-text-on-action data-[state=indeterminate]:text-text-on-action',
+      'transition-all hover:border-border-action-hover hover:bg-surface-action-hover-2',
+      'focus:outline-2 focus:outline-offset-2 focus:outline-border-focus',
+      'disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-surface-disabled disabled:!text-text-on-disabled disabled:border-border-disabled aria-invalid:disabled:border-border-disabled',
+      'aria-invalid:text-text-error aria-invalid:border-border-error hover:aria-invalid:border-border-action hover:aria-invalid:text-text-action-hover aria-invalid:data-[state=indeterminate]:bg-surface-error aria-invalid:data-[state=indeterminate]:text-text-error aria-invalid:data-[state=checked]:bg-surface-error aria-invalid:data-[state=checked]:text-text-error',
+      'hover:data-[state=checked]:bg-surface-action-hover hover:data-[state=checked]:border-border-action-hover hover:data-[state=indeterminate]:bg-surface-action-hover hover:data-[state=indeterminate]:border-border-action-hover',
       className,
     )}
     {...props}

@@ -30,7 +30,7 @@ export function ProductPriceComponent({ price, isAddToCartBar }: ProductPricePro
       parts.map((part, index) => {
         if (part.type === 'currency') {
           return (
-            <span key={index} className="text-4xl">
+            <span id="currency" key={index} className="text-4xl">
               {part.value}
             </span>
           );
@@ -40,15 +40,15 @@ export function ProductPriceComponent({ price, isAddToCartBar }: ProductPricePro
         }
         if (part.type === 'integer') {
           return (
-            <span key={index} className="text-4xl">
+            <span id="price" key={index} className="text-4xl">
               {Math.floor(Number(part.value))}
+              {decimal}
             </span>
           );
         }
         if (part.type === 'fraction') {
           return (
-            <span key={index} className="text-md align-top">
-              {decimal}
+            <span key={index} className="text-base align-top">
               {part.value}
             </span>
           );
@@ -64,7 +64,7 @@ export function ProductPriceComponent({ price, isAddToCartBar }: ProductPricePro
           {price.discountPercentage > 0 && (
             <>
               <span className="text-sm font-medium ml-[-0.5em]">, {t('including')}</span>
-              <Badge variant="destructive" rounded="default">
+              <Badge variant="sale" rounded="default">
                 -{Math.round(price.discountPercentage)}%
               </Badge>
             </>
@@ -72,7 +72,7 @@ export function ProductPriceComponent({ price, isAddToCartBar }: ProductPricePro
         </div>
 
         <div className="flex items-baseline gap-4">
-          <div className={cn('font-bold font-headlines', isAddToCartBar ? 'text-white' : 'text-neutral-900')}>
+          <div className={cn('font-bold font-headlines', isAddToCartBar ? 'text-text-on-action' : 'text-text-heading')}>
             {priceFragment}
           </div>
           {price.tax && isAddToCartBar && (
@@ -93,7 +93,7 @@ export function ProductPriceComponent({ price, isAddToCartBar }: ProductPricePro
         </div>
 
         {price.tax && (
-          <div className={cn('text-sm mb-2', isAddToCartBar ? 'text-white' : 'text-neutral-600')}>
+          <div className={cn('text-sm mb-2', isAddToCartBar ? 'text-text-on-action' : 'text-text-on-disabled')}>
             {!isAddToCartBar && price.includesTax ? (
               <>
                 {t('includingTax', { taxRate: price.tax.taxRate })} /{' '}
@@ -113,7 +113,9 @@ export function ProductPriceComponent({ price, isAddToCartBar }: ProductPricePro
           <div className="flex flex-col gap-1">
             <span className="text-sm font-medium">{t('listPrice')}</span>
             <div>
-              <div className={cn('line-through', isAddToCartBar ? 'text-white text-xl' : 'text-neutral-600')}>
+              <div
+                className={cn('line-through', isAddToCartBar ? 'text-text-on-action text-lg' : 'text-text-on-disabled')}
+              >
                 {formatCurrency(price.originalAmount, price.currency)}
               </div>
             </div>
@@ -125,7 +127,7 @@ export function ProductPriceComponent({ price, isAddToCartBar }: ProductPricePro
       {price.tierValues?.length > 0 && (
         <div className="mt-2 space-y-2">
           {price.tierValues.map((tier, index) => (
-            <div key={index} className="flex items-center text-sm text-neutral-500">
+            <div key={index} className="flex items-center text-sm text-text-placeholders">
               <span className="font-medium mr-2">{tier.minQuantity}+</span>
               <span>${tier.price.toFixed(2)}</span>
             </div>

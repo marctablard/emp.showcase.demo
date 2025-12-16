@@ -1,12 +1,11 @@
 'use client';
 
 import { useEffect } from 'react';
-import { FormProvider } from 'react-hook-form';
 import { useTranslations } from 'next-intl';
 import { useSite } from '@/hooks/site/useSite';
 import { useValidator } from '@/hooks/validation/useValidator';
 import { Address } from '@/platform/services/model/common';
-import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Spinner } from '../ui/spinner';
@@ -51,7 +50,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ isReadOnly = false, initialDa
   const { countries, loading } = useSite();
 
   return (
-    <FormProvider {...form}>
+    <Form {...form}>
       <div className="space-y-6">
         <div>
           <FormField
@@ -88,8 +87,8 @@ const AddressForm: React.FC<AddressFormProps> = ({ isReadOnly = false, initialDa
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
-          <div className="md:col-span-6">
+        <div className="grid grid-cols-1 sm:grid-cols-7 gap-4">
+          <div className="sm:col-span-5">
             <FormField
               control={form.control}
               name="street"
@@ -107,29 +106,27 @@ const AddressForm: React.FC<AddressFormProps> = ({ isReadOnly = false, initialDa
             />
           </div>
 
-          <div>
-            <div className="md:col-span-2">
-              <FormField
-                control={form.control}
-                name="streetNumber"
-                render={({ field }) => (
-                  <FormItem className="relative">
-                    <FormLabel htmlFor="streetNumber">{t('streetNumber')}*</FormLabel>
-                    <FormControl>
-                      <Input id="streetNumber" type="text" {...field} disabled={isReadOnly} />
-                    </FormControl>
-                    <div className="absolute top-full left-0 mt-0.5">
-                      <FormMessage />
-                    </div>
-                  </FormItem>
-                )}
-              />
-            </div>
+          <div className="sm:col-span-2">
+            <FormField
+              control={form.control}
+              name="streetNumber"
+              render={({ field }) => (
+                <FormItem className="relative">
+                  <FormLabel htmlFor="streetNumber">{t('streetNumber')}*</FormLabel>
+                  <FormControl>
+                    <Input id="streetNumber" type="text" {...field} disabled={isReadOnly} />
+                  </FormControl>
+                  <div className="absolute top-full left-0 mt-0.5">
+                    <FormMessage />
+                  </div>
+                </FormItem>
+              )}
+            />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-4 space-y-4">
-          <div>
+        <div className="grid grid-cols-1 sm:grid-cols-7 gap-4 space-y-4">
+          <div className="sm:col-span-2">
             <FormField
               control={form.control}
               name="zipCode"
@@ -147,7 +144,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ isReadOnly = false, initialDa
             />
           </div>
 
-          <div className="md:col-span-6">
+          <div className="sm:col-span-5">
             <FormField
               control={form.control}
               name="city"
@@ -248,7 +245,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ isReadOnly = false, initialDa
           )}
         </div>
       </div>
-    </FormProvider>
+    </Form>
   );
 };
 

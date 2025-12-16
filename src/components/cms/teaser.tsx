@@ -1,6 +1,7 @@
 'use client';
 
 import { storyblokEditable } from '@storyblok/react/rsc';
+import { H2 } from '@/components/ui/h';
 
 /**
  * Teaser component for Storyblok
@@ -14,8 +15,10 @@ interface TeaserProps {
 
 const Teaser = ({ blok }: TeaserProps) => {
   return (
-    <div {...storyblokEditable(blok)} className="p-6 bg-neutral-100 rounded-lg shadow-sm text-center mb-6">
-      <h2 className="text-2xl font-bold mb-4">{blok.headline || 'Hello world!'}</h2>
+    <div {...storyblokEditable(blok)} className="p-6 bg-surface-disabled rounded-md shadow-sm text-center mb-6">
+      <H2 variant="h6" className="mb-4">
+        {blok.headline || 'Hello world!'}
+      </H2>
     </div>
   );
 };

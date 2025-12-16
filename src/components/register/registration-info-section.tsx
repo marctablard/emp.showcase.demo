@@ -97,7 +97,7 @@ export function RegistrationInfoSection({ control, number }: RegistrationInfoAcc
                     <FormControl>
                       <RadioGroupItem value="B2B" id="B2B" />
                     </FormControl>
-                    <FormLabel className="w-full font-normal" htmlFor="B2B">
+                    <FormLabel className="w-full font-medium" htmlFor="B2B">
                       {t('businessTypeB2B')}
                     </FormLabel>
                   </FormItem>
@@ -105,7 +105,7 @@ export function RegistrationInfoSection({ control, number }: RegistrationInfoAcc
                     <FormControl>
                       <RadioGroupItem value="B2C" id="B2C" />
                     </FormControl>
-                    <FormLabel className="w-full font-normal" htmlFor="B2C">
+                    <FormLabel className="w-full font-medium" htmlFor="B2C">
                       {t('businessTypeB2C')}
                     </FormLabel>
                   </FormItem>

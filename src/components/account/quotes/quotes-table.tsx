@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import UiLink from '@/components/ui/link';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatDate } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
@@ -88,7 +90,7 @@ export function QuotesTable({
               <TableRow>
                 <TableCell colSpan={7} className="h-24 text-center">
                   <div className="flex items-center justify-center">
-                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
+                    <Spinner color="primary" variant="md" />
                   </div>
                 </TableCell>
               </TableRow>
@@ -102,12 +104,20 @@ export function QuotesTable({
               visibleQuotes.map((quote, index) => (
                 <TableRow
                   key={quote.id}
-                  className={cn('hover:bg-neutral-50 text-base', index % 2 === 0 ? 'bg-white' : 'bg-neutral-50')}
+                  className={cn(
+                    'hover:surface-image-background text-base',
+                    index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
+                  )}
                 >
                   <TableCell className="font-medium px-2 py-4">
-                    <a href={`/account/quotes/${quote.id}`} className="text-primary-500 hover:underline">
+                    <UiLink
+                      type="Link"
+                      href={`/account/quotes/${quote.id}`}
+                      variant="text"
+                      className="no-underline hover:underline"
+                    >
                       {quote.reference || '#' + quote.id}
-                    </a>
+                    </UiLink>
                   </TableCell>
                   <TableCell className="px-2 py-4">
                     <QuoteStatusBadge status={quote.status} />

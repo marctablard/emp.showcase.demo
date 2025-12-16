@@ -50,7 +50,7 @@ export function ProductColorTile({
         className={cn(
           'tile border-2 transition-all duration-200 relative',
           sizeClasses[size],
-          isSelected ? 'border-primary scale-100' : 'border-neutral-500 hover:border-neutral-600',
+          isSelected ? 'border-border-action' : 'border-border-primary hover:border-border-action-hover',
           `color-tile-${attributeKey}`,
           className,
         )}
@@ -58,7 +58,10 @@ export function ProductColorTile({
       >
         {isSelected && showCheckmark && (
           <CheckCircle2
-            className={cn('absolute -top-1 -right-1 text-primary bg-white rounded-full', checkmarkSizes[size])}
+            className={cn(
+              'absolute -top-1 -right-1 text-text-action bg-surface-page rounded-full',
+              checkmarkSizes[size],
+            )}
           />
         )}
       </button>

@@ -1,12 +1,13 @@
 import { ArrowRight } from 'lucide-react';
 import { BackToTopButton, Button } from '@/components/ui/button';
+import { H4, H5 } from '@/components/ui/h';
 
 export default function ButtonStyleGuide() {
   return (
     <div className="py-12">
-      <h4 className="text-3xl/5 lg:text-4xl font-bold text-headlines font-headlines mb-3">Buttons</h4>
-      <h5 className="text-xl font-bold text-headlines font-headlines mb-3">Default</h5>
-      <div className="p-4 grid grid-cols-[1fr] md:grid-cols-[1fr_1fr] xl:grid-cols-[1fr_1fr_1fr_1fr] gap-6 mb-2">
+      <H4 className="mb-3">Buttons</H4>
+      <H5 className="mb-3">Default</H5>
+      <div className="p-4 grid grid-cols-[1fr] sm:grid-cols-[1fr_1fr] lg:grid-cols-[1fr_1fr_1fr_1fr] gap-6 mb-2">
         <div className="flex flex-wrap gap-3 flex-col items-start">
           <Button>
             <ArrowRight />
@@ -60,8 +61,8 @@ export default function ButtonStyleGuide() {
           </Button>
         </div>
       </div>
-      <h5 className="text-xl font-bold text-headlines font-headlines mb-3">Small</h5>
-      <div className="p-4 grid grid-cols-[1fr] md:grid-cols-[1fr_1fr] xl:grid-cols-[1fr_1fr_1fr_1fr] gap-6 mb-2">
+      <H5 className="mb-3">Small</H5>
+      <div className="p-4 grid grid-cols-[1fr] sm:grid-cols-[1fr_1fr] lg:grid-cols-[1fr_1fr_1fr_1fr] gap-6 mb-2">
         <div className="flex flex-wrap gap-3 flex-col items-start">
           <Button size="small">
             <ArrowRight />
@@ -115,8 +116,8 @@ export default function ButtonStyleGuide() {
           </Button>
         </div>
       </div>
-      <h5 className="text-xl font-bold text-headlines font-headlines mb-3">Icon</h5>
-      <div className="p-4 grid grid-cols-[1fr] md:grid-cols-[1fr_1fr] lg:grid-cols-[1fr_1fr_1fr_1fr] gap-6">
+      <H5 className="mb-3">Icon</H5>
+      <div className="p-4 grid grid-cols-[1fr] sm:grid-cols-[1fr_1fr] md:grid-cols-[1fr_1fr_1fr_1fr] gap-6">
         <div className="flex flex-wrap gap-3 flex-col items-start">
           <Button size="icon">
             <ArrowRight />
@@ -154,7 +155,7 @@ export default function ButtonStyleGuide() {
           </Button>
         </div>
       </div>
-      <h5 className="text-xl font-bold text-headlines font-headlines mt-8 mb-3">Back to top</h5>
+      <H5 className="mt-8 mb-3">Back to top</H5>
       <div className="p-4 flex flex-wrap items-center gap-6">
         <BackToTopButton />
         <div className="flex items-end gap-3">

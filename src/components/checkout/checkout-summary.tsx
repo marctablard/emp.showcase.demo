@@ -1,7 +1,6 @@
 'use client';
 
 import React, { RefObject, useEffect, useRef, useState } from 'react';
-import { FormProvider } from 'react-hook-form';
 import { useTranslations } from 'next-intl';
 import { LockKeyhole } from 'lucide-react';
 import { useApprovalCheckout } from '@/hooks/approval/useApprovalCheckout';
@@ -13,7 +12,7 @@ import { cn, formatCurrency } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { Checkbox } from '../ui/checkbox';
-import { FormControl, FormField, FormItem } from '../ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel } from '../ui/form';
 import { H2 } from '../ui/h';
 import { ApprovalModal } from './approval-modal';
 
@@ -65,8 +64,8 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
   const { cartTotal, shippingCosts } = useCartTotal();
   if (!cart) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow-sm">
-        <h2 className="text-xl font-semibold text-neutral-800 mb-4">{t('title')}</h2>
+      <div className="bg-surface-page p-6 rounded-md shadow-sm">
+        <H2 className="mb-4">{t('title')}</H2>
       </div>
     );
   }
@@ -76,29 +75,27 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
       <div
         className={cn(
           'flex flex-col gap-4',
-          isFixed ? 'fixed lg:me-9' : '',
+          isFixed ? 'fixed md:mr-9' : '',
           isFixedToTop ? 'top-[112px]' : 'bottom-[40px]',
         )}
         ref={fixedContainer}
       >
         <Card
-          className={cn('bg-primary-50 p-6 border-none gap-4 shadow-footer lg:max-w-[438px] w-full')}
+          className={cn('bg-surface-action-hover-2 p-6 border-none gap-4 md:max-w-[438px] w-full')}
           ref={fixedContainer}
         >
           <CardHeader className="p-0">
             <CardTitle>
-              <H2 variant="h5" className="text-3xl font-bold">
-                {t('title')}
-              </H2>
+              <H2 variant="h5">{t('title')}</H2>
             </CardTitle>
           </CardHeader>
-          <CardContent className="bg-white rounded-md p-4">
+          <CardContent className="bg-surface-page rounded-md p-4">
             <div className="space-y-4">
               <div className="flex justify-between">
                 <span className="">{t('valueOfGoods')}</span>
                 <span>{formatCurrency(cart?.subTotalPrice.amount, cart?.subTotalPrice.currency)}</span>
               </div>
-              <div className="flex justify-between font-medium text-base pt-4 border-t border-neutral-200">
+              <div className="flex justify-between font-medium text-base pt-4 border-t border-border-primary">
                 <span>{t('netValueOfGoods')}</span>
                 <span className="font-bold">{formatCurrency(cart.tax.netValue, cart.tax.currency)}</span>
               </div>
@@ -121,7 +118,7 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
                     <span>{formatCurrency(cart.fees.amount, cart.fees.currency)}</span>
                   </div>
                 )}
-                <div className="flex justify-between font-bold text-xl">
+                <div className="flex justify-between font-bold text-lg">
                   <span>{t('total')}</span>
                   <span>{formatCurrency(cartTotal, cart.currency)}</span>
                 </div>
@@ -129,21 +126,16 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
             </div>
           </CardContent>
           <CardFooter className="flex flex-col p-0">
-            <FormProvider {...form}>
+            <Form {...form}>
               <FormField
                 control={form.control}
                 name="termsAndConditions"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row gap-4">
+                  <FormItem className="flex flex-row gap-3 pb-4">
                     <FormControl>
-                      <Checkbox
-                        id="termsAndConditions"
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        className="bg-white"
-                      />
+                      <Checkbox checked={field.value} onCheckedChange={field.onChange} className="bg-surface-page" />
                     </FormControl>
-                    <p className="w-full pb-4">{t('termsAndConditions')}</p>
+                    <FormLabel className="font-medium leading-6">{t('termsAndConditions')}</FormLabel>
                   </FormItem>
                 )}
               />
@@ -167,12 +159,12 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
                     ? t('inquireForApproval')
                     : t('submitOrder')}
               </Button>
-            </FormProvider>
-            <div className="flex align-center gap-2 text-neutral-600 pt-4">
+            </Form>
+            <div className="flex align-center gap-2 text-text-on-disabled pt-4">
               <div>
                 <LockKeyhole width={12} />
               </div>
-              <div className="text-xs">{t('dataTransmittedSecure')}</div>
+              <div className="text-sm">{t('dataTransmittedSecure')}</div>
             </div>
 
             {/* Approval Modal */}

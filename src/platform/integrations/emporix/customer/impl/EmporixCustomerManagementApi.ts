@@ -8,8 +8,8 @@ import type { EmporixCustomerManagementApi as IEmporixCustomerManagementApi } fr
 @injectable('EmporixCustomerManagementApi', 'Singleton')
 class EmporixCustomerManagementApi implements IEmporixCustomerManagementApi {
   constructor(
-    @inject('EmporixApiInvoker') private readonly apiClient: EmporixApiClient,
-    @inject('EmporixConfig') private readonly config: EmporixConfig,
+    @inject('EmporixApiInvoker') protected readonly apiClient: EmporixApiClient,
+    @inject('EmporixConfig') protected readonly config: EmporixConfig,
   ) {}
 
   async getContactAssignmentsByCustomerId(customerId: string): Promise<EmporixContactAssignment[]> {

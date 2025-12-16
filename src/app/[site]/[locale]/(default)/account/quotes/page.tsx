@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import AccountLayout from '@/components/account/account-layout';
 import { QuotesTable } from '@/components/account/quotes/quotes-table';
+import { H1 } from '@/components/ui/h';
 import { useQuotes } from '@/hooks/quotes/useQuotes';
 
 export const dynamic = 'force-dynamic';
@@ -31,10 +32,12 @@ export default function QuotesPage() {
   return (
     <AccountLayout>
       <div className="space-y-6">
-        <h1 className="text-4xl font-bold">{t('title')}</h1>
+        <H1>{t('title')}</H1>
 
         {error ? (
-          <div className="bg-danger-50 border border-danger-200 text-danger-800 px-4 py-3 rounded">{error.message}</div>
+          <div className="bg-surface-error border border-border-error text-text-error px-4 py-3 rounded">
+            {error.message}
+          </div>
         ) : (
           <QuotesTable
             quotes={quotes}

@@ -23,12 +23,10 @@ import type { EmporixCategoryApi as IEmporixCategoryApi } from '../EmporixCatego
 @injectable('EmporixCategoryApi', 'Singleton')
 class EmporixCategoryApi implements IEmporixCategoryApi {
   constructor(
-    @inject('EmporixApiInvoker') private apiInvoker: EmporixApiInvoker,
-    @inject('EmporixConfig') private config: EmporixConfig,
-    @inject('EmporixCommonUtil') private commonUtil: EmporixCommonUtil,
-  ) {
-    this.apiInvoker = apiInvoker;
-  }
+    @inject('EmporixApiInvoker') protected apiInvoker: EmporixApiInvoker,
+    @inject('EmporixConfig') protected config: EmporixConfig,
+    @inject('EmporixCommonUtil') protected commonUtil: EmporixCommonUtil,
+  ) {}
 
   /**
    * Retrieves a list of all categories with pagination and filtering support.

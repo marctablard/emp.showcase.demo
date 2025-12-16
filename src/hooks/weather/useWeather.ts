@@ -8,72 +8,75 @@ import { useLocation } from '../location/useLocation';
 export function useWeather() {
   const { weather, loading, error, setWeather, setLoading, setError } = useWeatherStore();
   const { location: userLocation, loading: locationLoading, error: locationError } = useLocation();
-  const [weatherLocation, setWeatherLocation] = useState<LocationData | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<LocationData | null>(null);
+
+  const DEFAULT_LOCATION: LocationData = {
+    city: 'Berlin',
+    country: {
+      code: 'DE',
+      name: 'Germany',
+    },
+    geoLocation: {
+      latitude: 52.52,
+      longitude: 13.405,
+    },
+    state: 'Berlin',
+  };
+
+  const isLocationAvailable = !locationLoading && !locationError;
+  const resolvedLocation = selectedLocation ?? userLocation ?? (isLocationAvailable ? DEFAULT_LOCATION : null);
 
   useEffect(() => {
-    // Only fetch weather when we have location data
-    if (!weatherLocation || !weatherLocation.geoLocation) return;
+    let isCancelled = false;
 
-    if (weather) {
-      setLoading(false);
+    const geoLocation = resolvedLocation?.geoLocation;
+
+    // Only fetch weather when we have location data
+    if (!geoLocation) {
       return;
     }
+
+    if (weather) {
+      if (loading) {
+        setLoading(false);
+      }
+      return;
+    }
+
     if (loading) {
       return;
     }
+
     // Fetch real weather data using server action
     const fetchWeatherData = async () => {
+      if (isCancelled) {
+        return;
+      }
+
+      setLoading(true);
+
       try {
-        setLoading(true);
-
-        if (!weatherLocation || !weatherLocation.geoLocation) {
-          setError('noLocation');
-          return;
-        }
-
-        const forecast = await getWeatherData(
-          weatherLocation.geoLocation.latitude,
-          weatherLocation.geoLocation.longitude,
-        );
-
+        const forecast = await getWeatherData(geoLocation.latitude, geoLocation.longitude);
         setWeather(forecast);
-        setLoading(false);
       } catch (err) {
         console.error('Error fetching weather data:', err);
         setError('Failed to fetch weather data');
+      } finally {
         setLoading(false);
       }
     };
 
-    fetchWeatherData();
-  }, [weather, loading, weatherLocation, userLocation, locationLoading, setError, setWeather, setLoading]);
+    void fetchWeatherData();
 
-  useEffect(() => {
-    if (!weatherLocation && !locationLoading && !locationError && userLocation !== undefined) {
-      if (userLocation) {
-        setWeatherLocation(userLocation);
-      } else {
-        // Default coordinates for fallback (Berlin)
-        const defaultLocation: LocationData = {
-          city: 'Berlin',
-          country: {
-            code: 'DE',
-            name: 'Germany',
-          },
-          geoLocation: {
-            latitude: 52.52,
-            longitude: 13.405,
-          },
-          state: 'Berlin',
-        };
-        setWeatherLocation(defaultLocation);
-      }
-    }
-  }, [userLocation, locationLoading, locationError, weatherLocation]);
+    return () => {
+      isCancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const changeLocation = async (location: LocationData): Promise<void> => {
     setWeather(null);
-    setWeatherLocation(location);
+    setSelectedLocation(location);
   };
 
   return {

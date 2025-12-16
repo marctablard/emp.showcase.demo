@@ -1,6 +1,6 @@
 'use client';
 
-import { LucideChevronLeft, LucideChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useProducts } from '@/hooks/product/useProducts';
 import { useRecommendations } from '@/hooks/recommendations/useRecommendations';
 import { Product } from '@/platform/services/model/product';
@@ -49,7 +49,7 @@ const Recommendations = ({ overline, headline, productId, products, locale }: Re
       <div className="w-full relative">
         <Carousel className="w-full " orientation="horizontal">
           {headline && (
-            <Heading variant="h2" as="div" className="md:pr-36">
+            <Heading variant="h2" as="div" className="sm:pr-36">
               {headline}
             </Heading>
           )}
@@ -81,11 +81,11 @@ const Recommendations = ({ overline, headline, productId, products, locale }: Re
 
           <CarouselDots />
 
-          <CarouselPrevious className="hidden md:flex top-0 right-20 bottom-1 h-10 w-10 rounded-full bg-white border-primary">
-            <LucideChevronLeft className="h-6 w-6 text-primary" />
+          <CarouselPrevious className="hidden sm:flex top-0 right-20 bottom-1 h-10 w-10">
+            <ChevronLeft className="h-6 w-6 text-text-action" />
           </CarouselPrevious>
-          <CarouselNext className="hidden md:flex top-0 right-4 bottom-1 h-10 w-10 rounded-full bg-white border-primary">
-            <LucideChevronRight className="h-6 w-6 text-primary" />
+          <CarouselNext className="hidden sm:flex top-0 right-4 bottom-1 h-10 w-10">
+            <ChevronRight className="h-6 w-6 text-text-action" />
           </CarouselNext>
         </Carousel>
       </div>

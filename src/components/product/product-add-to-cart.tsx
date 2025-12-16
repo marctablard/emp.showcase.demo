@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { LucideMinus, LucidePlus } from 'lucide-react';
+import { Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
 import { useProduct } from '@/hooks/product/useProduct';
 import { cn } from '@/lib/utils';
 import { ProductPrice } from '@/platform/services/model/price';
@@ -28,15 +29,15 @@ export default function ProductAddToCart({
   if (productLoading) {
     return (
       <div className={cn('flex items-center justify-center p-6 space-x-2', className)}>
-        <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-primary"></div>
-        <span className="text-muted-foreground">Loading...</span>
+        <Spinner color="primary" variant="sm" />
+        <span className="text-text-placeholders">Loading...</span>
       </div>
     );
   }
 
   if (productError) {
     return (
-      <div className={cn('p-4 border border-destructive/20 rounded-md bg-destructive/10 text-destructive', className)}>
+      <div className={cn('p-4 border border-border-error rounded-md bg-surface-error text-text-error', className)}>
         <p className="text-sm font-medium">Error loading product: {productError.message}</p>
       </div>
     );
@@ -44,7 +45,7 @@ export default function ProductAddToCart({
 
   if (!product) {
     return (
-      <div className={cn('p-4 border rounded-md bg-muted/50 text-muted-foreground', className)}>
+      <div className={cn('p-4 border rounded-md bg-surface-disabled/50 text-text-placeholders', className)}>
         <p className="text-sm">Product not found</p>
       </div>
     );
@@ -66,17 +67,17 @@ export default function ProductAddToCart({
   };
 
   return (
-    <div className="flex flex-col md:flex-row md:items-center md:gap-2 w-full">
-      <div className="flex items-center md:w-auto md:flex-shrink-0">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 w-full">
+      <div className="flex items-center sm:w-auto sm:flex-shrink-0">
         <Button
           variant="secondary"
           size="icon"
-          className="p-3 h-13 border-neutral-300 rounded-none rounded-ss-sm rounded-es-sm disabled:border-neutral-300 transition duration-200 ease-in-out"
+          className="p-3 h-13 border-e-0 border-border-primary rounded-none rounded-ss-sm rounded-es-sm disabled:border-border-primary transition duration-200 ease-in-out"
           onClick={decrementQuantity}
           aria-label={t('decrement')}
           disabled={quantity <= 1}
         >
-          <LucideMinus />
+          <Minus />
         </Button>
         <Input
           id="quantity"
@@ -84,25 +85,25 @@ export default function ProductAddToCart({
           min="1"
           max="999"
           aria-label={t('quantity')}
-          className="text-center min-w-[14] w-full h-13 border-y border-neutral-300 rounded-none md:[appearance:textfield] md:[&::-webkit-outer-spin-button]:appearance-none md:[&::-webkit-inner-spin-button]:appearance-none"
+          className="text-center min-w-[14] w-full h-13 border border-border-primary rounded-none sm:[appearance:textfield] sm:[&::-webkit-outer-spin-button]:appearance-none sm:[&::-webkit-inner-spin-button]:appearance-none"
           value={quantity}
           onChange={handleQuantityChange}
         />
         <Button
           variant="secondary"
           size="icon"
-          className="p-3 h-13 border-neutral-300 rounded-none rounded-ee-sm rounded-se-sm disabled:border-neutral-300 transition duration-200 ease-in-out"
+          className="p-3 h-13 border-s-0 border-border-primary rounded-none rounded-ee-sm rounded-se-sm disabled:border-border-primary transition duration-200 ease-in-out"
           aria-label={t('increment')}
           onClick={incrementQuantity}
         >
-          <LucidePlus />
+          <Plus />
         </Button>
       </div>
       <ProductAddToCartButton
         product={product}
         price={price}
         quantity={quantity}
-        className="flex-1 w-full h-[52px] mt-4 md:mt-0 md:flex-grow"
+        className="flex-1 w-full h-[52px] mt-4 sm:mt-0 sm:flex-grow"
       />
     </div>
   );

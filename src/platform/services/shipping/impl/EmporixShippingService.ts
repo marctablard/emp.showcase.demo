@@ -2,6 +2,7 @@ import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
 import { EmporixMonetaryAmount } from '@/platform/integrations/emporix/model/common';
 import type { EmporixShippingApi } from '@/platform/integrations/emporix/shipping/EmporixShippingApi';
+import type { SessionService } from '@/platform/services/session/SessionService';
 import { ShippingMethod } from '../../model/shipping';
 import type { ShippingMapper } from '../../model/shipping/ShippingMapper';
 import { ShippingService } from '../ShippingService';
@@ -13,16 +14,16 @@ import { ShippingService } from '../ShippingService';
 class EmporixShippingService implements ShippingService {
   private shippingApi: EmporixShippingApi;
   private shippingMapper: ShippingMapper;
-
-  // Default site ID - in a real application, this might be configurable
-  private defaultSiteId = 'main';
+  private sessionService: SessionService;
 
   constructor(
     @inject('EmporixShippingApi') shippingApi: EmporixShippingApi,
     @inject('EmporixShippingMapper') shippingMapper: ShippingMapper,
+    @inject('SessionService') sessionService: SessionService,
   ) {
     this.shippingApi = shippingApi;
     this.shippingMapper = shippingMapper;
+    this.sessionService = sessionService;
   }
 
   async getShippingMethods(
@@ -30,7 +31,15 @@ class EmporixShippingService implements ShippingService {
     postalCode: string,
     orderValue?: { amount: number; currency: string },
   ): Promise<ShippingMethod[]> {
+    const session = await this.sessionService.getCurrent();
+    if (!session) {
+      throw new Error('No session found');
+    }
+    const siteCode = session.siteCode || process.env.NEXT_PUBLIC_DEFAULT_SITE;
     try {
+      if (!siteCode) {
+        return [];
+      }
       // Find site based on location
       const sites = await this.shippingApi.findSite({
         country,
@@ -42,9 +51,12 @@ class EmporixShippingService implements ShippingService {
       }
 
       // Get the first site
-      const site = sites[0];
+      const site = sites.find((site) => site.id === siteCode);
       const methods: ShippingMethod[] = [];
 
+      if (!site) {
+        return [];
+      }
       // Collect all shipping methods from all zones
       for (const zone of site.zones) {
         if (zone.methods && zone.methods.length > 0) {
@@ -72,8 +84,16 @@ class EmporixShippingService implements ShippingService {
   }
 
   async getShippingMethod(methodId: string, zoneId: string): Promise<ShippingMethod | null> {
+    const session = await this.sessionService.getCurrent();
+    if (!session) {
+      throw new Error('No session found');
+    }
+    const siteCode = session.siteCode || process.env.NEXT_PUBLIC_DEFAULT_SITE;
     try {
-      const emporixMethod = await this.shippingApi.getShippingMethod(this.defaultSiteId, zoneId, methodId);
+      if (!siteCode) {
+        return null;
+      }
+      const emporixMethod = await this.shippingApi.getShippingMethod(siteCode, zoneId, methodId);
 
       if (!emporixMethod) {
         return null;

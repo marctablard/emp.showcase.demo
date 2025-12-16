@@ -15,9 +15,9 @@ import type { EmporixCustomerApi as IEmporixCustomerApi } from '../EmporixCustom
 @injectable('EmporixCustomerApi', 'Singleton')
 class EmporixCustomerApi implements IEmporixCustomerApi {
   constructor(
-    @inject('EmporixTokenManager') private readonly tokenManager: EmporixTokenManager,
-    @inject('EmporixApiInvoker') private readonly apiInvoker: EmporixApiInvoker,
-    @inject('EmporixConfig') private readonly config: EmporixConfig,
+    @inject('EmporixTokenManager') protected readonly tokenManager: EmporixTokenManager,
+    @inject('EmporixApiInvoker') protected readonly apiInvoker: EmporixApiInvoker,
+    @inject('EmporixConfig') protected readonly config: EmporixConfig,
   ) {}
   async getCustomerProfile(expand?: string): Promise<EmporixCustomer> {
     const url = `customer/${this.config.tenant}/me${expand ? `?expand=${expand}` : ''}`;

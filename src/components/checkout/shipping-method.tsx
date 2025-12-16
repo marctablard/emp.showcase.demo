@@ -1,13 +1,13 @@
 'use client';
 
 import React from 'react';
-import { FormProvider } from 'react-hook-form';
 import { useTranslations } from 'next-intl';
 import { Info } from 'lucide-react';
+import { H2 } from '@/components/ui/h';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
 import { useValidator } from '@/hooks/validation/useValidator';
-import type { ShippingMethod } from '@/platform/services/model/shipping';
-import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
+import { formatCurrency } from '@/lib/utils';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { Spinner } from '../ui/spinner';
 
@@ -36,12 +36,14 @@ const ShippingMethod: React.FC<ShippingMethodProps> = ({ isReadOnly = false, var
   });
   const t = useTranslations('checkout.shipping');
   return (
-    <FormProvider {...form}>
-      <div className="bg-white">
-        <h2 className="font-bold text-neutral-900 mb-2">{t('shippingMethod')}</h2>
-        <div className="flex gap-2 items-center text-primary-500 mb-4">
+    <Form {...form}>
+      <div className="bg-surface-page">
+        <H2 variant="h5" className="mb-2">
+          {t('shippingMethod')}
+        </H2>
+        <div className="flex gap-2 items-center text-text-action mb-4">
           <Info className="w-4 h-4" />
-          <p className="text-xs">{t('multiplePackages')}</p>
+          <p className="text-sm">{t('multiplePackages')}</p>
         </div>
         {loading && (
           <div className="flex justify-center items-center py-8">
@@ -49,7 +51,7 @@ const ShippingMethod: React.FC<ShippingMethodProps> = ({ isReadOnly = false, var
           </div>
         )}
         {!loading && (!shippingMethods || shippingMethods.length === 0) && (
-          <div className="py-4 text-center text-neutral-600">{t('noShippingMethodsAvailable')}</div>
+          <div className="py-4 text-center text-text-on-disabled">{t('noShippingMethodsAvailable')}</div>
         )}
 
         <FormField
@@ -75,42 +77,32 @@ const ShippingMethod: React.FC<ShippingMethodProps> = ({ isReadOnly = false, var
                       <div
                         className={
                           variant === 'default'
-                            ? `flex items-center w-full border rounded-md p-4 cursor-pointer transition-colors ${
+                            ? `flex gap-4 items-center w-full border rounded-md p-4 cursor-pointer transition-colors ${
                                 shippingMethod?.methodId === method.id
-                                  ? 'border-primary-500 bg-primary-50'
-                                  : 'border-neutral-200 hover:border-primary-300'
-                              } ${isReadOnly ? 'opacity-75 pointer-events-none' : ''}`
+                                  ? 'border-border-secondary bg-surface-action-hover-2'
+                                  : 'border-border-primary hover:border-border-action-hover'
+                              } ${isReadOnly ? 'bg-surface-disabled text-text-on-disabled border-border-disabled pointer-events-none' : ''}`
                             : `flex items-center w-full cursor-pointer transition-colors ${
                                 shippingMethod?.methodId === method.id
-                                  ? 'border-primary-500'
-                                  : 'border-neutral-200 hover:border-primary-300'
-                              } ${isReadOnly ? 'opacity-75 pointer-events-none' : ''}`
+                                  ? 'border-border-secondary'
+                                  : 'border-border-primary hover:border-border-action-hover'
+                              } ${isReadOnly ? 'bg-surface-disabled text-text-on-disabled border-border-disabled pointer-events-none' : ''}`
                         }
                       >
                         <FormControl>
                           <RadioGroupItem value={method.id} id={method.id} />
                         </FormControl>
-                        <FormLabel className="w-full" htmlFor={method.id}>
+                        <FormLabel className="w-full font-medium" htmlFor={method.id}>
                           <div className="flex items-start justify-between w-full">
-                            <div className="flex items-center space-x-3">
-                              <div
-                                className={`flex items-center justify-center ${
-                                  shippingMethod?.methodId === method.id ? 'border-primary-600' : 'border-neutral-300'
-                                }`}
-                              ></div>
-                              <div>
-                                <h3 className="font-medium text-neutral-900">{method.name}</h3>
-                                <p className="text-sm text-neutral-500">{method.description}</p>
-                              </div>
+                            <div>
+                              <p>{method.name}</p>
+                              <p className="text-sm text-text-placeholders">{method.description}</p>
                             </div>
                             <div className="text-right">
                               <span className="font-medium">
                                 {!method.cost
                                   ? t('freeShipping')
-                                  : new Intl.NumberFormat('en-US', {
-                                      style: 'currency',
-                                      currency: method.cost.currency,
-                                    }).format(method.cost.amount)}
+                                  : formatCurrency(method.cost.amount, method.cost.currency)}
                               </span>
                             </div>
                           </div>
@@ -125,7 +117,7 @@ const ShippingMethod: React.FC<ShippingMethodProps> = ({ isReadOnly = false, var
           )}
         />
       </div>
-    </FormProvider>
+    </Form>
   );
 };
 

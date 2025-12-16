@@ -22,53 +22,53 @@ export const QuoteSummary: React.FC<QuoteSummaryProps> = ({ quote }) => {
   const fmt = (amount: number) => `${amount.toFixed(2)} ${currency}`;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
       {/* Details Card */}
-      <div className="p-6 rounded-lg bg-primary-50 shadow-sm">
+      <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
         <SummaryCard
           heading={t('details')}
           className="shadow-none rounded-md py-4 h-full gap-2"
-          icon={<NotebookPen className="h-8 w-8 text-primary" />}
+          icon={<NotebookPen className="h-8 w-8 text-text-action" />}
           hasHeadline
         >
           <div className="space-y-3">
             <div>
-              <div className="text-xl font-bold">{t('quotationDate')}</div>
-              <div className="text-md">{formatDate(quote.submittedDate)}</div>
+              <div className="text-lg font-bold">{t('quotationDate')}</div>
+              <div className="text-base">{formatDate(quote.submittedDate)}</div>
             </div>
 
             <div>
-              <div className="text-xl font-bold">{t('requestedBy')}</div>
-              <div className="text-md">{quote.customerName || quote.customerId}</div>
+              <div className="text-lg font-bold">{t('requestedBy')}</div>
+              <div className="text-base">{quote.customerName || quote.customerId}</div>
             </div>
 
             <div>
-              <div className="text-xl font-bold">{t('numberOfProducts')}</div>
-              <div className="text-md">{itemCount}</div>
+              <div className="text-lg font-bold">{t('numberOfProducts')}</div>
+              <div className="text-base">{itemCount}</div>
             </div>
           </div>
         </SummaryCard>
       </div>
 
       {/* Base Price Card */}
-      <div className="p-6 rounded-lg bg-primary-50 shadow-sm">
+      <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
         <SummaryCard
           heading={t('basePrice')}
           className="shadow-none rounded-md py-4 h-full gap-2"
-          icon={<List className="h-8 w-8 text-primary" />}
+          icon={<List className="h-8 w-8 text-text-action" />}
           hasHeadline
         >
           <div className="space-y-3">
-            <SummaryRow label={t('netValue')} className="text-md">
+            <SummaryRow label={t('netValue')} className="text-base">
               {fmt(quote.totalNet)}
             </SummaryRow>
-            <SummaryRow label={t('vat')} className="text-md">
+            <SummaryRow label={t('vat')} className="text-base">
               {fmt(quote.totalVat)}
             </SummaryRow>
-            <SummaryRow label={t('deliveryCosts')} className="text-md">
+            <SummaryRow label={t('deliveryCosts')} className="text-base">
               {fmt(quote.shippingCost)}
             </SummaryRow>
-            <SummaryRow label={t('baseTotal')} strong className="text-md">
+            <SummaryRow label={t('baseTotal')} strong className="text-base">
               {fmt(quote.totalNet + quote.totalVat + quote.shippingCost)}
             </SummaryRow>
           </div>
@@ -76,22 +76,22 @@ export const QuoteSummary: React.FC<QuoteSummaryProps> = ({ quote }) => {
       </div>
 
       {/* Transport Card */}
-      <div className="p-6 rounded-lg bg-primary-50 shadow-sm">
+      <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
         <SummaryCard
           heading={t('transport')}
           className="shadow-none rounded-md py-4 h-full gap-2"
-          icon={<Truck className="h-8 w-8 text-primary" />}
+          icon={<Truck className="h-8 w-8 text-text-action" />}
           hasHeadline
         >
           <div className="space-y-3">
             <div>
-              <div className="text-xl font-bold">{t('transportCondition')}</div>
-              <div className="text-md">{quote.shippingMethod}</div>
+              <div className="text-lg font-bold">{t('transportCondition')}</div>
+              <div className="text-base">{quote.shippingMethod}</div>
             </div>
 
             <div>
-              <div className="text-xl font-bold">{t('deliveryAddress')}</div>
-              <div className="text-md">
+              <div className="text-lg font-bold">{t('deliveryAddress')}</div>
+              <div className="text-base">
                 {quote.shippingAddress.contactName}
                 <br />
                 {quote.shippingAddress.street}
@@ -106,23 +106,23 @@ export const QuoteSummary: React.FC<QuoteSummaryProps> = ({ quote }) => {
       </div>
 
       {/* Quoted Price Card */}
-      <div className="p-6 rounded-lg bg-primary-50 shadow-sm gap-2">
+      <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm gap-2">
         <SummaryCard
           heading={t('quotedPrice')}
           className="shadow-none rounded-md py-4 h-full gap-2"
-          icon={<ReceiptText className="h-8 w-8 text-primary" />}
+          icon={<ReceiptText className="h-8 w-8 text-text-action" />}
           hasHeadline
         >
-          <SummaryRow label={t('netValue')} className="text-md">
+          <SummaryRow label={t('netValue')} className="text-base">
             {fmt(quote.totalNet)}
           </SummaryRow>
-          <SummaryRow label={t('vat')} className="text-md">
+          <SummaryRow label={t('vat')} className="text-base">
             {fmt(quote.totalVat)}
           </SummaryRow>
-          <SummaryRow label={t('transportCost')} className="text-md">
+          <SummaryRow label={t('transportCost')} className="text-base">
             {fmt(quote.shippingCost)}
           </SummaryRow>
-          <SummaryRow label={t('quotedTotal')} className="text-md" strong>
+          <SummaryRow label={t('quotedTotal')} className="text-base" strong>
             {fmt(quote.totalNet + quote.totalVat + quote.shippingCost)}
           </SummaryRow>
         </SummaryCard>

@@ -9,8 +9,8 @@ import { EmporixCatalogApi as IEmporixCatalogApi } from '../EmporixCatalogApi';
 @injectable('EmporixCatalogApi', 'Singleton')
 class EmporixCatalogApi implements IEmporixCatalogApi {
   constructor(
-    @inject('EmporixApiInvoker') private apiClient: EmporixApiClient,
-    @inject('EmporixConfig') private config: EmporixConfig,
+    @inject('EmporixApiInvoker') protected apiClient: EmporixApiClient,
+    @inject('EmporixConfig') protected config: EmporixConfig,
   ) {}
 
   async getCatalogs(params: EmporixSearchParams<any>): Promise<EmporixPaginatedResponse<EmporixCatalog>> {

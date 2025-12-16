@@ -3,22 +3,6 @@ import { Site } from '@/platform/services/model/common/site';
 import { SiteService } from '@/platform/services/site/SiteService';
 import ssr from '@/platform/ssr';
 
-type siteObjectType = {
-  site: string | undefined;
-};
-
-const siteObject = cache(() => {
-  return { site: undefined } as siteObjectType;
-});
-
-export const getRequestSite = () => {
-  return siteObject().site;
-};
-
-export const setRequestSite = (site: string) => {
-  siteObject().site = site;
-};
-
 const getSiteService = () => ssr.get<SiteService>('SiteService');
 
 const _getSite = cache(async (code: string): Promise<Site | null> => {

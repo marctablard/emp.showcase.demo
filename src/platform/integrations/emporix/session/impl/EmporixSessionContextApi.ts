@@ -8,8 +8,8 @@ import { EmporixSessionContextApi as IEmporixSessionContextApi } from '../Empori
 @injectable('EmporixSessionContextApi', 'Singleton')
 class EmporixSessionContextApi implements IEmporixSessionContextApi {
   constructor(
-    @inject('EmporixApiInvoker') private apiClient: EmporixApiClient,
-    @inject('EmporixConfig') private config: EmporixConfig,
+    @inject('EmporixApiInvoker') protected apiClient: EmporixApiClient,
+    @inject('EmporixConfig') protected config: EmporixConfig,
   ) {
     this.apiClient = apiClient;
     this.config = config;

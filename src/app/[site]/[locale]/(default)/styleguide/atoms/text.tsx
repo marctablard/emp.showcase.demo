@@ -4,12 +4,15 @@ import UiLink from '@/components/ui/link';
 export default function TextStyleGuide() {
   return (
     <div className="py-12">
-      <h4 className="text-3xl/5 lg:text-4xl font-bold text-headlines font-headlines mb-3">Typography</h4>
+      <Heading variant="h4" className="mb-3">
+        Typography
+      </Heading>
       <div className="p-4 grid grid-cols-[1fr] gap-6 mb-2">
         <Heading variant="h1">H1 - The quick brown fox jumps over...</Heading>
         <Heading variant="h1" as="h2">
           H2 looks like H1 - The quick brown fox jumps over...
         </Heading>
+        <Heading variant="h2">H2 - The quick brown fox jumps over...</Heading>
         <Heading variant="h3">H3 - The quick brown fox jumps over...</Heading>
         <Heading variant="h4">H4 - The quick brown fox jumps over...</Heading>
         <Heading variant="h5">H5 - The quick brown fox jumps over...</Heading>
@@ -19,7 +22,7 @@ export default function TextStyleGuide() {
         </Heading>
       </div>
       <div className="p-4 grid grid-cols-[1fr] gap-6 mb-2">
-        <p className="text-xl">
+        <p className="text-lg">
           Body L <br /> For the <b>text links</b> you can use the UiLink component with variant=&quot;text&quot;. You
           dont need to add a size, because the link will inherit the text size.
           <br />
@@ -27,7 +30,7 @@ export default function TextStyleGuide() {
             text link
           </UiLink>
         </p>
-        <p className="text-xl italic">
+        <p className="text-lg italic">
           Body L Italic
           <br /> Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut
           labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea
@@ -37,7 +40,7 @@ export default function TextStyleGuide() {
             text link
           </UiLink>
         </p>
-        <p className="text-xl font-bold">
+        <p className="text-lg font-bold">
           Body L Bold
           <br /> Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut
           labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea

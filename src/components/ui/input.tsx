@@ -18,19 +18,19 @@ export interface InputProps extends React.ComponentProps<'input'> {
 
 const inputVariants = cva(
   [
-    'text-neutral-900 flex w-full min-w-0 px-3 border border-neutral-200',
-    'placeholder:text-neutral-300 py-3 text-base md:text-base',
-    'transition duration-150 ease-in-out hover:text-primary-700 hover:border-primary-700 hover:bg-white',
-    'disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-600',
-    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
-    'aria-invalid:text-danger-500 aria-invalid:border-danger-500 hover:aria-invalid:border-primary-500 hover:aria-invalid:text-primary-700',
-    'data-[success=true]:border-success-500 hover:data-[success=true]:border-primary-500 hover:data-[success=true]:text-primary-700',
+    'text-text-body flex w-full min-w-0 px-3 border-width-form-field border-border-primary rounded-form-field',
+    'placeholder:text-text-placeholders py-3 text-base sm:text-base',
+    'transition duration-150 ease-in-out hover:text-text-action-hover hover:border-border-action-hover hover:bg-surface-primary',
+    'disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-surface-disabled disabled:text-text-on-disabled',
+    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
+    'aria-invalid:text-text-error aria-invalid:border-border-error hover:aria-invalid:border-border-action-hover hover:aria-invalid:text-text-action-hover',
+    'data-[success=true]:border-border-success hover:data-[success=true]:border-border-action-hover hover:data-[success=true]:text-text-action-hover',
   ],
   {
     variants: {
       isButton: {
-        true: 'rounded-l-lg',
-        false: 'rounded-sm',
+        true: 'rounded-e-none',
+        false: '',
       },
       startIcon: {
         true: 'pl-10',
@@ -41,11 +41,11 @@ const inputVariants = cva(
         false: '',
       },
       dataDirtySuccess: {
-        true: 'bg-success-100 hover:border-primary-500 hover:text-primary-700',
+        true: 'bg-surface-success hover:border-border-action-hover hover:text-text-action-hover',
         false: '',
       },
       dataDirtyError: {
-        true: 'bg-danger-100 hover:border-primary-500 hover:text-primary-700',
+        true: 'bg-surface-error hover:border-border-action-hover hover:text-text-action-hover',
         false: '',
       },
     },
@@ -71,14 +71,14 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       <div
         className={cn(
           'w-full h-full relative',
-          'transition hover:text-primary-700 hover:bg-white',
-          dataSuccess && 'text-success-500 border-success-500',
-          props.disabled && 'text-neutral-600 border-neutral-300 hover:text-neutral-600',
-          props['aria-invalid'] && 'border-danger-500 text-danger-500',
+          'transition hover:text-text-action-hover hover:bg-surface-primary',
+          dataSuccess && 'text-text-success border-border-success',
+          props.disabled && 'text-text-on-disabled border-border-disabled hover:text-text-on-disabled',
+          props['aria-invalid'] && 'border-border-error text-text-error',
         )}
       >
         {StartIcon && (
-          <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 border-none">
             <StartIcon size={24} />
           </div>
         )}
@@ -103,7 +103,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           <div
             className={cn(
               'absolute right-3 top-1/2 transform -translate-y-1/2',
-              'cursor-pointer hover:text-primary-700',
+              'cursor-pointer hover:text-text-action-hover',
             )}
             onClick={onEndIconClick}
             tabIndex={0}

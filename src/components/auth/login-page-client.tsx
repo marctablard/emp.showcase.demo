@@ -15,7 +15,6 @@ export default function LoginPageClient() {
     // Open login dialog with callbackUrl and redirectAfterLogin options
     openDialog('login', {
       callbackUrl: '/',
-      redirectAfterLogin: true,
     });
   }, [openDialog]);
 

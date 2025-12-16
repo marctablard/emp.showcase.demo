@@ -18,8 +18,8 @@ import type { EmporixQuoteApi as IEmporixQuoteApi } from '../EmporixQuoteApi';
 @injectable('EmporixQuoteApi', 'Singleton')
 class EmporixQuoteApi implements IEmporixQuoteApi {
   constructor(
-    @inject('EmporixApiInvoker') private apiClient: EmporixApiClient,
-    @inject('EmporixConfig') private config: EmporixConfig,
+    @inject('EmporixApiInvoker') protected apiClient: EmporixApiClient,
+    @inject('EmporixConfig') protected config: EmporixConfig,
   ) {}
 
   /**

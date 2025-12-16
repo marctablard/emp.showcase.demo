@@ -14,8 +14,8 @@ import type { EmporixIamApi as IEmporixIamApi } from '../EmporixIamApi';
 @injectable('EmporixIamApi', 'Singleton')
 class EmporixIamApi implements IEmporixIamApi {
   constructor(
-    @inject('EmporixApiInvoker') private readonly apiClient: EmporixApiClient,
-    @inject('EmporixConfig') private readonly config: EmporixConfig,
+    @inject('EmporixApiInvoker') protected readonly apiClient: EmporixApiClient,
+    @inject('EmporixConfig') protected readonly config: EmporixConfig,
   ) {}
 
   async getAccessControls(

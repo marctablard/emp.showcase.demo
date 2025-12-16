@@ -7,6 +7,7 @@ import { AlertCircle, CheckCircle, Clock, Package, Truck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { H3 } from '@/components/ui/h';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTracking } from '@/hooks/order/useTracking';
 import { TrackingInfo } from '@/platform/services/model/tracking';
@@ -27,24 +28,25 @@ export function TrackingDialog({ orderId, open, onOpenChange }: TrackingDialogPr
 
   // Fetch data when dialog opens
   useEffect(() => {
-    if (orderId && !loading && open && !trackingInfo) {
+    if (orderId && open) {
       refetch();
     }
-  }, [loading, open, refetch, trackingInfo, orderId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, orderId]);
 
   // Status icon mapping
   const getStatusIcon = (status: TrackingInfo['status']) => {
     switch (status) {
       case 'PENDING':
-        return <Clock className="h-6 w-6 text-gray-500" />;
+        return <Clock className="h-6 w-6 text-icon-secondary" />;
       case 'IN_TRANSIT':
-        return <Truck className="h-6 w-6 text-blue-500" />;
+        return <Truck className="h-6 w-6 text-icon-information" />;
       case 'OUT_FOR_DELIVERY':
-        return <Package className="h-6 w-6 text-purple-500" />;
+        return <Package className="h-6 w-6 text-icon-information" />;
       case 'DELIVERED':
-        return <CheckCircle className="h-6 w-6 text-green-500" />;
+        return <CheckCircle className="h-6 w-6 text-icon-success" />;
       case 'EXCEPTION':
-        return <AlertCircle className="h-6 w-6 text-red-500" />;
+        return <AlertCircle className="h-6 w-6 text-icon-error" />;
       default:
         return <Package className="h-6 w-6" />;
     }
@@ -56,11 +58,11 @@ export function TrackingDialog({ orderId, open, onOpenChange }: TrackingDialogPr
       case 'PENDING':
         return 'secondary';
       case 'IN_TRANSIT':
-        return 'blue';
+        return 'information';
       case 'OUT_FOR_DELIVERY':
-        return 'purple';
+        return 'information';
       case 'DELIVERED':
-        return 'green';
+        return 'success';
       case 'EXCEPTION':
         return 'destructive';
       default:
@@ -79,7 +81,7 @@ export function TrackingDialog({ orderId, open, onOpenChange }: TrackingDialogPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md md:max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{tTracking('trackingInformation')}</DialogTitle>
         </DialogHeader>
@@ -94,17 +96,17 @@ export function TrackingDialog({ orderId, open, onOpenChange }: TrackingDialogPr
 
         {error && (
           <div className="p-4 text-center">
-            <AlertCircle className="h-10 w-10 text-red-500 mx-auto mb-2" />
-            <p className="text-red-500">{tTracking('errorFetchingTracking')}</p>
+            <AlertCircle className="h-10 w-10 text-text-error mx-auto mb-2" />
+            <p className="text-text-error">{tTracking('errorFetchingTracking')}</p>
           </div>
         )}
 
         {!loading && !error && trackingInfo && (
           <div className="space-y-6">
             {/* Carrier and status information */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
-                <h3 className="font-medium text-sm text-muted-foreground">{tTracking('carrier')}</h3>
+                <p className="font-medium text-sm text-text-placeholders">{tTracking('carrier')}</p>
                 <p className="font-semibold">{trackingInfo.carrier.name}</p>
                 <p className="text-sm">
                   {tTracking('trackingNumber')}: {trackingInfo.carrier.trackingNumber}
@@ -120,8 +122,8 @@ export function TrackingDialog({ orderId, open, onOpenChange }: TrackingDialogPr
 
             {/* Estimated delivery */}
             {trackingInfo.estimatedDelivery && (
-              <div className="bg-muted/50 p-4 rounded-md">
-                <h3 className="font-medium mb-1">{tTracking('estimatedDelivery')}</h3>
+              <div className="bg-surface-disabled p-4 rounded-md">
+                <H3 className="mb-1">{tTracking('estimatedDelivery')}</H3>
                 <p>
                   {format(new Date(trackingInfo.estimatedDelivery.date), 'PPP')}
                   {trackingInfo.estimatedDelivery.timeWindow && (
@@ -136,25 +138,25 @@ export function TrackingDialog({ orderId, open, onOpenChange }: TrackingDialogPr
 
             {/* Tracking timeline */}
             <div>
-              <h3 className="font-medium mb-3">{tTracking('trackingHistory')}</h3>
+              <H3 className="font-medium mb-3">{tTracking('trackingHistory')}</H3>
               <div className="space-y-4">
                 {trackingInfo.events.map((event, index) => (
                   <div key={index} className="relative pl-6 pb-4">
                     {/* Timeline connector */}
                     {index < trackingInfo.events.length - 1 && (
-                      <div className="absolute left-[9px] top-3 h-full w-[2px] bg-muted-foreground/20"></div>
+                      <div className="absolute left-[9px] top-3 h-full w-[2px] bg-text-placeholders"></div>
                     )}
 
                     {/* Timeline dot */}
-                    <div className="absolute left-0 top-1.5 h-[18px] w-[18px] rounded-full border-2 border-primary bg-background"></div>
+                    <div className="absolute left-0 top-1.5 h-[18px] w-[18px] rounded-full border-2 border-border-action bg-surface-page"></div>
 
                     {/* Event content */}
                     <div>
                       <p className="font-medium">{tTracking(event.status)}</p>
-                      <p className="text-sm text-muted-foreground">{formatDate(event.timestamp)}</p>
+                      <p className="text-sm text-text-placeholders">{formatDate(event.timestamp)}</p>
                       <p className="text-sm">{event.location}</p>
                       {event.description && (
-                        <p className="text-sm text-muted-foreground mt-1">{tTracking(event.description)}</p>
+                        <p className="text-sm text-text-placeholders mt-1">{tTracking(event.description)}</p>
                       )}
                     </div>
                   </div>
@@ -172,7 +174,7 @@ export function TrackingDialog({ orderId, open, onOpenChange }: TrackingDialogPr
             )}
 
             {/* Last updated timestamp */}
-            <p className="text-xs text-center text-muted-foreground">
+            <p className="text-sm text-center text-text-placeholders">
               {tTracking('lastUpdated')}: {formatDate(trackingInfo.lastUpdated)}
             </p>
           </div>

@@ -20,11 +20,11 @@ export function ApprovalStatusBadge({ status }: ApprovalStatusBadgeProps) {
       case 'DECLINED':
         return 'destructive';
       case 'EXPIRED':
-        return 'neutral';
+        return 'outline';
       case 'CLOSED':
         return 'secondary';
       default:
-        return 'neutral';
+        return 'default';
     }
   };
 

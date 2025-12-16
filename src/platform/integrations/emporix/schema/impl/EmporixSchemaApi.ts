@@ -9,8 +9,8 @@ import type { EmporixSchemaApi as IEmporixSchemaApi } from '../EmporixSchemaApi'
 
 @injectable('EmporixSchemaApi', 'Singleton')
 class EmporixSchemaApi implements IEmporixSchemaApi {
-  private apiClient: EmporixApiClient;
-  private config: EmporixConfig;
+  protected apiClient: EmporixApiClient;
+  protected config: EmporixConfig;
 
   constructor(
     @inject('EmporixApiInvoker') apiClient: EmporixApiClient,

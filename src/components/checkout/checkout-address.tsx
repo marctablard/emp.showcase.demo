@@ -1,8 +1,12 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { CheckedState } from '@radix-ui/react-checkbox';
 import { isEqual, omit } from 'lodash';
 import AddressForm from '@/components/common/address-form';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { Address } from '@/platform/services/model/common';
 
 interface CheckoutAddressProps {
@@ -22,6 +26,7 @@ interface CheckoutAddressProps {
  * Manages both shipping and billing addresses with option to use same address for both
  */
 const CheckoutAddress: React.FC<CheckoutAddressProps> = ({ address, isReadOnly = false, sameAs, onAddressChange }) => {
+  const form = useForm();
   // Determine if billing is same as shipping based on actual address comparison
   const initialSameState = useMemo(() => {
     if (!sameAs) return false;
@@ -36,39 +41,39 @@ const CheckoutAddress: React.FC<CheckoutAddressProps> = ({ address, isReadOnly =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, sameAs]);
 
-  const handleSameAddressToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const isChecked = e.target.checked;
-    setIsSame(isChecked);
-    if (isChecked && sameAs && onAddressChange) {
+  const handleSameAddressToggle = (checked: CheckedState) => {
+    setIsSame(checked.valueOf() as boolean);
+    if (checked && sameAs && onAddressChange) {
       onAddressChange(sameAs.referenceAddress);
     }
   };
 
   return (
-    <div className="space-y-8 bg-white pb-6 border-b border-neutral-200">
-      {/* Same as ... checkbox */}
-      {sameAs && (
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            id={sameAs.id}
-            checked={isSame}
-            onChange={handleSameAddressToggle}
-            className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-neutral-300 rounded"
+    <Form {...form}>
+      <div className="space-y-8 bg-surface-page pb-6 border-b border-border-primary">
+        {/* Same as ... checkbox */}
+        {sameAs && (
+          <FormField
+            name="sameAs"
+            render={() => (
+              <FormItem className="flex flex-row items-center gap-2">
+                <FormControl>
+                  <Checkbox checked={isSame} onCheckedChange={handleSameAddressToggle} />
+                </FormControl>
+                <FormLabel className="font-medium">{sameAs.label}</FormLabel>
+              </FormItem>
+            )}
           />
-          <label htmlFor={sameAs.id} className="ml-2 block text-sm text-neutral-700">
-            {sameAs.label}
-          </label>
-        </div>
-      )}
+        )}
 
-      {/* Address Input (only shown if not same as referenceAddress) */}
-      {!isSame && (
-        <div>
-          <AddressForm initialData={address} onDataChange={onAddressChange} isReadOnly={isReadOnly} />
-        </div>
-      )}
-    </div>
+        {/* Address Input (only shown if not same as referenceAddress) */}
+        {!isSame && (
+          <div>
+            <AddressForm initialData={address} onDataChange={onAddressChange} isReadOnly={isReadOnly} />
+          </div>
+        )}
+      </div>
+    </Form>
   );
 };
 

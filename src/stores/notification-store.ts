@@ -67,7 +67,13 @@ const defaultState: NotificationState = {
 export const createNotificationStore = (initState: NotificationState = defaultState) => {
   // Create memory-only variables outside the persisted store
   let listeners: NotificationSubscription[] = [];
-  const pollingInterval = 5000; // 30 seconds
+  // Read polling interval from environment variable (in seconds)
+  // The value is interpreted as seconds and converted to milliseconds for setInterval
+  const pollingIntervalEnv = process.env.NEXT_PUBLIC_NOTIFICATION_POLLING_INTERVAL_SECONDS;
+  const pollingInterval = pollingIntervalEnv ? Number(pollingIntervalEnv) * 1000 : 30000; // Default: 30 seconds
+  const pushNotificationsDisabled = process.env.NEXT_PUBLIC_DISABLE_PUSH_NOTIFICATIONS === 'true';
+  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const notificationsFeatureEnabled = !pushNotificationsDisabled && !!vapidPublicKey;
   let pollingIntervalId: ReturnType<typeof setInterval> | null = null;
 
   // Mutex flag to prevent duplicate fetchNotifications calls
@@ -84,6 +90,15 @@ export const createNotificationStore = (initState: NotificationState = defaultSt
         return;
       }
       started = true;
+
+      if (!notificationsFeatureEnabled) {
+        set({
+          isPushSupported: false,
+          permissionState: null,
+        });
+        return;
+      }
+
       get()
         .checkSupport()
         .then((supported) => {
@@ -160,12 +175,20 @@ export const createNotificationStore = (initState: NotificationState = defaultSt
         return isPushSupported == true && permissionState === 'granted';
       }
       try {
+        if (!notificationsFeatureEnabled) {
+          set({
+            isPushSupported: false,
+            permissionState: null,
+          });
+          return false;
+        }
+
         // Check if push notifications are disabled via environment variable
-        const pushNotificationsDisabled = process.env.NEXT_PUBLIC_DISABLE_PUSH_NOTIFICATIONS === 'true';
+        const pushNotificationsDisabledRuntime = process.env.NEXT_PUBLIC_DISABLE_PUSH_NOTIFICATIONS === 'true';
 
         // Only consider push notifications supported if they're not disabled and browser supports them
         const browserSupport =
-          !pushNotificationsDisabled &&
+          !pushNotificationsDisabledRuntime &&
           typeof window !== 'undefined' &&
           'serviceWorker' in navigator &&
           'PushManager' in window &&
@@ -233,8 +256,8 @@ export const createNotificationStore = (initState: NotificationState = defaultSt
     // Subscribe to push notifications
     subscribe: async () => {
       // Check if push notifications are disabled via environment variable
-      if (!get().isPushSupported) {
-        console.log('Push notifications are disabled via environment variable');
+      if (!notificationsFeatureEnabled || !get().isPushSupported) {
+        console.log('Push notifications are disabled via configuration');
         set({
           error: 'Push notifications are currently disabled',
         });
@@ -337,10 +360,12 @@ export const createNotificationStore = (initState: NotificationState = defaultSt
           console.error('Error notifying server about unsubscription:', unsubscribeError);
           // Continue even if server notification fails
         }
-
-        // Start polling as fallback
-        get().startPolling();
-
+        // Start polling as fallback only if interval > 0
+        if (pollingInterval > 0) {
+          get().startPolling();
+        } else {
+          console.log('Polling not started after unsubscribe because interval is set to 0');
+        }
         set({
           subscription: 'UNSUBSCRIBED',
           error: null,
@@ -357,6 +382,9 @@ export const createNotificationStore = (initState: NotificationState = defaultSt
 
     // Fetch notifications from the API
     fetchNotifications: async () => {
+      if (!notificationsFeatureEnabled) {
+        return;
+      }
       // If already fetching, skip this request
       if (isFetching) {
         console.debug('Notification fetch already in progress, skipping duplicate request');
@@ -416,6 +444,11 @@ export const createNotificationStore = (initState: NotificationState = defaultSt
     },
     // Start polling for notifications
     startPolling: () => {
+      // Do not start polling if interval is 0
+      if (pollingInterval === 0) {
+        console.log('Polling is disabled because interval is set to 0');
+        return;
+      }
       // Don't start polling if already polling
       if (isPolling) {
         return;

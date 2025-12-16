@@ -6,9 +6,9 @@ export function CheckoutNotes() {
   const t = useTranslations('checkout');
 
   return (
-    <Card className="p-0 shadow-footer border-none mb-6">
-      <CardHeader className="p-0 mt-6 mx-6 border-b border-neutral-200 [.border-b]:pb-0 flex justify-between">
-        <p className="col-start-1 font-bold text-xl">3. {t('step3')}</p>
+    <Card className="p-0 border-none mb-6">
+      <CardHeader className="p-0 mt-6 mx-6 border-b flex justify-between">
+        <p className="col-start-1 font-bold text-lg">3. {t('step3')}</p>
         {/* <Button
           variant="link"
           size="default"
@@ -19,7 +19,7 @@ export function CheckoutNotes() {
           <Pencil />
         </Button> */}
       </CardHeader>
-      <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         {!false ? (
           <>
             <div className="pb-flex flex-col">

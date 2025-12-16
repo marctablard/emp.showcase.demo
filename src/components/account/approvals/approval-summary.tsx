@@ -42,16 +42,16 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
         {addr.country}
       </div>
     ) : (
-      <span className="text-sm text-muted-foreground">{t('notProvided')}</span>
+      <span className="text-sm text-text-placeholders">{t('notProvided')}</span>
     );
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-      <div className="p-6 rounded-lg bg-primary-50 shadow-sm">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
         <SummaryCard
           heading={t('orderOverview')}
           className="shadow-none rounded-md py-4 h-full gap-2"
-          icon={<ReceiptText className="h-5 w-5 text-primary" />}
+          icon={<ReceiptText className="h-5 w-5 text-text-action" />}
           hasHeadline
         >
           <SummaryRow label={t('valueOfGoods')} mutedLabel>
@@ -69,11 +69,11 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
         </SummaryCard>
       </div>
 
-      <div className="p-6 rounded-lg bg-primary-50 shadow-sm">
+      <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
         <SummaryCard
           heading={t('transport')}
           className="shadow-none rounded-md py-4 h-full gap-2"
-          icon={<Truck className="h-5 w-5 text-primary" />}
+          icon={<Truck className="h-5 w-5 text-text-action" />}
           hasHeadline
         >
           <SummaryRow label={<span className="font-semibold">{t('transportCondition')}</span>}>
@@ -86,11 +86,11 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
         </SummaryCard>
       </div>
 
-      <div className="p-6 rounded-lg bg-primary-50 shadow-sm">
+      <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
         <SummaryCard
           heading={t('payment')}
           className="shadow-none rounded-md py-4 h-full gap-2"
-          icon={<CreditCard className="h-5 w-5 text-primary" />}
+          icon={<CreditCard className="h-5 w-5 text-text-action" />}
           hasHeadline
         >
           <SummaryRow label={<span className="font-semibold">{t('paymentMethod')}</span>}>
@@ -103,16 +103,16 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
         </SummaryCard>
       </div>
 
-      <div className="p-6 rounded-lg bg-primary-50 shadow-sm">
+      <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
         <SummaryCard
           heading={t('other')}
           className="shadow-none rounded-md py-4 h-full gap-2"
-          icon={<NotebookPen className="h-5 w-5 text-primary" />}
+          icon={<NotebookPen className="h-5 w-5 text-text-action" />}
           hasHeadline
         >
           <div>
             <div className="text-sm font-semibold">{t('note')}</div>
-            <div className="text-sm text-muted-foreground">{approval.comment || t('noRequestorComment')}</div>
+            <div className="text-sm text-text-placeholders">{approval.comment || t('noRequestorComment')}</div>
           </div>
         </SummaryCard>
       </div>

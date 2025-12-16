@@ -1,5 +1,6 @@
 import { useTranslations } from 'next-intl';
 import { ArrowRight, User } from 'lucide-react';
+import { H1 } from '@/components/ui/h';
 import useAuthDialog from '@/hooks/authentication/useAuthDialog';
 import useAuthentication from '@/hooks/authentication/useAuthentication';
 import { Link } from '@/i18n/navigation';
@@ -12,10 +13,10 @@ export function CartEmpty() {
 
   return (
     <div className="max-w-6xl mx-auto mt-8 mb-16">
-      <div className="mx-4 xl:mx-9">
+      <div className="mx-4 lg:mx-9">
         <div className="flex flex-col sm:justify-center items-center gap-6">
-          <h1 className="text-5xl lg:text-8xl font-bold text-headlines font-headlines">{t('cartEmpty')}</h1>
-          <p className="text-xl">{isAuthenticated ? t('cartEmptyTextLoggedIn') : t('cartEmptyText')}</p>
+          <H1>{t('cartEmpty')}</H1>
+          <p className="text-lg">{isAuthenticated ? t('cartEmptyTextLoggedIn') : t('cartEmptyText')}</p>
           <div className="flex gap-2 sm:gap-6">
             {!isAuthenticated && (
               <Button onClick={() => openDialog('login')}>

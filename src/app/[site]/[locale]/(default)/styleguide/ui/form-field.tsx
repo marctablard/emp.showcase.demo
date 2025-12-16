@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ColorFilter } from '@/components/ui/color-filter';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { H4, H5, H6 } from '@/components/ui/h';
 import { Input, InputButton } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -30,6 +31,7 @@ const FormSchemaValidate = z.object({
   input: z.string().min(3, { message: 'Error' }),
   textarea: z.string().optional(),
   select: z.string({ message: 'Error' }).email(),
+  selectWithIcons: z.string({ message: 'Error' }).email(),
   selectDisabled: z.string().optional(),
   checkboxes: z.array(z.string()).refine((value) => value.some((item) => item), {
     message: 'You have to select at least one item.',
@@ -102,10 +104,10 @@ export default function FormFieldStyleguide() {
 
   return (
     <div className="py-12">
-      <h4 className="text-3xl/5 md:text-4xl font-bold text-headlines font-headlines mb-3">Form Elements</h4>
-      <div className="flex flex-col gap-10 mb-50">
+      <H4 className="mb-3">Form Elements</H4>
+      <div className="flex flex-col gap-10">
         <div className="flex flex-col gap-6">
-          <h4>Label</h4>
+          <H5>Label</H5>
           <div className="flex gap-10">
             <div className="flex flex-col gap-2">
               <Label hasTooltip tooltipText={tooltipText}>
@@ -121,11 +123,11 @@ export default function FormFieldStyleguide() {
         </div>
 
         <div className="flex flex-col gap-4">
-          <h4>Default Input Fields</h4>
+          <H5>Default Input Fields</H5>
           <Form {...form}>
             <div className="flex flex-wrap gap-10">
               <div className="flex flex-col gap-2">
-                <h5>No Icon</h5>
+                <H6>No Icon</H6>
                 <FormField
                   control={form.control}
                   name="noIcon"
@@ -140,7 +142,7 @@ export default function FormFieldStyleguide() {
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <h5>Icon right</h5>
+                <H6>Icon right</H6>
                 <FormField
                   control={form.control}
                   name="rightIcon"
@@ -155,7 +157,7 @@ export default function FormFieldStyleguide() {
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <h5>Icon left</h5>
+                <H6>Icon left</H6>
                 <FormField
                   control={form.control}
                   name="leftIcon"
@@ -170,7 +172,7 @@ export default function FormFieldStyleguide() {
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <h5>Icon left and right</h5>
+                <H6>Icon left and right</H6>
                 <FormField
                   control={form.control}
                   name="bothIcon"
@@ -185,7 +187,7 @@ export default function FormFieldStyleguide() {
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <h5>Disabled</h5>
+                <H6>Disabled</H6>
                 <FormField
                   control={form.control}
                   name="disabled"
@@ -200,7 +202,7 @@ export default function FormFieldStyleguide() {
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <h5>Input Button</h5>
+                <H6>Input Button</H6>
                 <FormField
                   control={form.control}
                   name="button"
@@ -227,11 +229,11 @@ export default function FormFieldStyleguide() {
         </div>
 
         <div className="flex flex-col gap-6 w-full">
-          <h4>Validatable Form Elements</h4>
-          <div className="flex flex-col gap-10 md:flex-row">
-            <div className="flex flex-col gap-10 w-full md:flex-row md:w-1/2">
+          <H5>Validatable Form Elements</H5>
+          <div className="flex flex-col gap-10 sm:flex-row">
+            <div className="flex flex-col gap-10 w-full sm:flex-row sm:w-1/2">
               <Form {...formVal}>
-                <form className="flex flex-col gap-10 w-full md:w-1/2">
+                <form className="flex flex-col gap-10 w-full sm:w-1/2">
                   <div className="flex flex-col gap-2">
                     <FormField
                       control={formVal.control}
@@ -270,7 +272,34 @@ export default function FormFieldStyleguide() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Select Field</FormLabel>
-                          <FormDescription>Username must be at least 3 characters.</FormDescription>
+                          <FormDescription>Hint Text</FormDescription>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Placeholder" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="abc@google.com">abc@email.com</SelectItem>
+                              <SelectItem value="def@google.com">def@email.com</SelectItem>
+                              <SelectItem value="ghi@google.com">ghi@email.com</SelectItem>
+                              <SelectItem value="jkl@support.com" disabled>
+                                jkl@email.com
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <FormField
+                      control={formVal.control}
+                      name="selectWithIcons"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Select Field with Icons</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
                               <SelectTrigger startIcon={User}>
@@ -351,7 +380,7 @@ export default function FormFieldStyleguide() {
                                         }}
                                       />
                                     </FormControl>
-                                    <FormLabel className="font-normal">{item.label}</FormLabel>
+                                    <FormLabel className="font-medium">{item.label}</FormLabel>
                                   </FormItem>
                                 );
                               }}
@@ -367,7 +396,7 @@ export default function FormFieldStyleguide() {
                                   <FormControl>
                                     <Checkbox checked={'indeterminate'} {...field} />
                                   </FormControl>
-                                  <FormLabel className="font-normal">Indeterminate</FormLabel>
+                                  <FormLabel className="font-medium">Indeterminate</FormLabel>
                                 </FormItem>
                               );
                             }}
@@ -382,7 +411,7 @@ export default function FormFieldStyleguide() {
                                   <FormControl>
                                     <Checkbox disabled {...field} />
                                   </FormControl>
-                                  <FormLabel className="font-normal">Disabled</FormLabel>
+                                  <FormLabel className="font-medium">Disabled</FormLabel>
                                 </FormItem>
                               );
                             }}
@@ -396,7 +425,7 @@ export default function FormFieldStyleguide() {
               </Form>
 
               <Form {...formRadio}>
-                <form className="flex flex-col gap-10 w-full md:w-1/2" onSubmit={formRadio.handleSubmit(onSubmit)}>
+                <form className="flex flex-col gap-10 w-full sm:w-1/2" onSubmit={formRadio.handleSubmit(onSubmit)}>
                   <div className="flex flex-col gap-2">
                     <FormField
                       control={formRadio.control}
@@ -413,31 +442,31 @@ export default function FormFieldStyleguide() {
                               <FormControl>
                                 <RadioGroupItem value="all" />
                               </FormControl>
-                              <FormLabel className="font-normal">All new messages</FormLabel>
+                              <FormLabel className="font-medium">All new messages</FormLabel>
                             </FormItem>
                             <FormItem className="flex items-center gap-3">
                               <FormControl>
                                 <RadioGroupItem value="mentions" />
                               </FormControl>
-                              <FormLabel className="font-normal">Direct messages and mentions</FormLabel>
+                              <FormLabel className="font-medium">Direct messages and mentions</FormLabel>
                             </FormItem>
                             <FormItem className="flex items-center gap-3">
                               <FormControl>
                                 <RadioGroupItem value="none" />
                               </FormControl>
-                              <FormLabel className="font-normal">Nothing</FormLabel>
+                              <FormLabel className="font-medium">Nothing</FormLabel>
                             </FormItem>
                             <FormItem className="flex items-center gap-3">
                               <FormControl>
                                 <RadioGroupItem value="wrong" checked />
                               </FormControl>
-                              <FormLabel className="font-normal">Wrong One</FormLabel>
+                              <FormLabel className="font-medium">Wrong One</FormLabel>
                             </FormItem>
                             <FormItem className="flex items-center gap-3">
                               <FormControl>
                                 <RadioGroupItem value="disabled" disabled />
                               </FormControl>
-                              <FormLabel className="font-normal">Disabled</FormLabel>
+                              <FormLabel className="font-medium">Disabled</FormLabel>
                             </FormItem>
                           </RadioGroup>
                           <FormMessage />
@@ -449,7 +478,7 @@ export default function FormFieldStyleguide() {
                 </form>
               </Form>
             </div>
-            <div className="flex flex-col gap-10 w-full md:flex-row md:w-1/2">
+            <div className="flex flex-col gap-10 w-full sm:flex-row sm:w-1/2">
               <div className="flex flex-col gap-10 w-1/2">
                 <div className="flex flex-col gap-5">
                   <div className="text-base font-bold">Slider</div>
@@ -479,13 +508,13 @@ export default function FormFieldStyleguide() {
               <div className="flex flex-col gap-10 w-1/2">
                 <div className="flex flex-col gap-2">
                   <div className="text-base font-bold">Color Filter</div>
-                  <ColorFilter className="bg-orange-700" color="Color 1" />
-                  <ColorFilter className="bg-green-900" color="Color 2" />
-                  <ColorFilter className="bg-red-400" color="Color 3" />
-                  <ColorFilter className="bg-purple-400" color="Color 4" />
-                  <ColorFilter className="bg-primary-500" color="Color 5" />
-                  <ColorFilter className="bg-primary-500" color="Disabled" disabled />
-                  <ColorFilter className="bg-primary-500" color="Disabled Checked" disabled checked />
+                  <ColorFilter className="bg-text-warning" color="Color 1" />
+                  <ColorFilter className="bg-text-success" color="Color 2" />
+                  <ColorFilter className="bg-text-error" color="Color 3" />
+                  <ColorFilter className="bg-text-information" color="Color 4" />
+                  <ColorFilter className="bg-text-action" color="Color 5" />
+                  <ColorFilter className="bg-text-action" color="Disabled" disabled />
+                  <ColorFilter className="bg-text-action" color="Disabled Checked" disabled checked />
                 </div>
               </div>
             </div>

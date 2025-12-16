@@ -4,9 +4,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export function ProductTileSkeleton() {
   return (
-    <Card shadow="default" className="border-0 gap-4 h-full flex flex-col">
+    <Card shadow="default" rounded="md" className="border-0 gap-4 h-full flex flex-col">
       <CardHeader className="flex-shrink-0 no-underline flex-grow">
-        <CardDescription className="font-normal text-base text-neutral-800">
+        <CardDescription className="font-medium text-base text-text-body">
           <Skeleton className="h-4 w-2/4" />
         </CardDescription>
         <CardTitle className="flex gap-2 justify-between">

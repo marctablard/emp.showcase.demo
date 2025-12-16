@@ -6,7 +6,6 @@ export type DialogType = 'login' | 'reset' | null;
 
 export interface DialogOptions {
   callbackUrl?: string;
-  redirectAfterLogin?: boolean;
   email?: string;
   guestCheckout?: boolean;
 }

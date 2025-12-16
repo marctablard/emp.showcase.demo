@@ -11,7 +11,7 @@ import { EmporixTokenManagerAbstract } from './EmporixTokenManagerAbstract';
 
 @injectable('EmporixTokenManager', 'Singleton')
 class EmporixTokenManagerSSR extends EmporixTokenManagerAbstract {
-  private ssrToken: Record<string, TokenStore> = {};
+  protected ssrToken: Record<string, TokenStore> = {};
 
   constructor(@inject('EmporixOAuthApi') oauthApi: EmporixOAuthApi) {
     super(oauthApi);

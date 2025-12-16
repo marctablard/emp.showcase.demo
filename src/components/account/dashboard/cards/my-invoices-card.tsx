@@ -1,14 +1,15 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { FormProvider } from 'react-hook-form';
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { ArrowRight, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/dashboard-badge';
-import { FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
+import { H4 } from '@/components/ui/h';
 import { Input } from '@/components/ui/input';
 import UiLink from '@/components/ui/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -41,6 +42,7 @@ interface MyInvoicesCardProps extends Omit<DashboardCardProps, 'children'> {
 
 export function MyInvoicesCard({ className, title, ...props }: MyInvoicesCardProps) {
   const t = useTranslations('orders.Invoices');
+  const router = useRouter();
 
   const { form } = useValidator('InvoiceSearchValidationService', {
     defaultValues: {
@@ -200,13 +202,15 @@ export function MyInvoicesCard({ className, title, ...props }: MyInvoicesCardPro
   return (
     <DashboardCard variant="default" className={cn('py-4 pb-0', className)} {...props}>
       <div className="flex justify-between items-center mb-4">
-        <CardTitle className="text-4xl font-bold">{title || t('title')}</CardTitle>
-        <UiLink href="/account/invoices" type="Button" className="text-base flex items-center hover:text-primary">
+        <CardTitle>
+          <H4>{title || t('title')}</H4>
+        </CardTitle>
+        <UiLink href="/account/invoices" type="Button" className="text-base flex items-center">
           {t('showAllInvoices')} <ArrowRight className="w-4 h-4 ml-1" />
         </UiLink>
       </div>
       <div className="w-[60%]">
-        <FormProvider {...form}>
+        <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="mb-4">
             <FormField
               control={form.control}
@@ -221,7 +225,7 @@ export function MyInvoicesCard({ className, title, ...props }: MyInvoicesCardPro
               )}
             />
           </form>
-        </FormProvider>
+        </Form>
       </div>
       <div className="overflow-x-auto">
         <Table>
@@ -247,10 +251,10 @@ export function MyInvoicesCard({ className, title, ...props }: MyInvoicesCardPro
                 <TableRow
                   key={invoice.id}
                   className={cn(
-                    'hover:bg-neutral-50 cursor-pointer text-base',
-                    index % 2 === 0 ? 'bg-white' : 'bg-neutral-50',
+                    'cursor-pointer text-base',
+                    index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
                   )}
-                  onClick={() => (window.location.href = `/account/invoices/${invoice.id}`)}
+                  onClick={() => router.push(`/account/invoices/${invoice.id}`)}
                 >
                   <TableCell className="font-medium px-2 py-4">
                     <UiLink href={`/account/invoice/${invoice.id}`} type="Button">

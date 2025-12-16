@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { ClientOnly } from '@/components/common/client-only';
 import { H3 } from '@/components/ui/h';
 import { useCustomer } from '@/hooks/customer/useCustomer';
 import { useConfigStore } from '@/lib/client/dashboard';
@@ -30,10 +31,10 @@ export default function AccountDashboard({ customer }: AccountDashboardProps) {
   return (
     <AccountLayout>
       <div className="space-y-6 mb-6">
-        <div className="relative flex justify-between items-center">
+        <div className="relative flex justify-between items-center px-4 gap-2 flex-wrap">
           <H3>
             {t('hello')}{' '}
-            <span className="text-primary">{customer?.firstName + ' ' + customer?.lastName || 'Kunde'}</span>
+            <span className="text-text-action">{customer?.firstName + ' ' + customer?.lastName || 'Kunde'}</span>
           </H3>
           <div className="flex gap-4">
             <SupportTicketDialog onSubmit={handleTicketSubmit} />
@@ -45,7 +46,9 @@ export default function AccountDashboard({ customer }: AccountDashboardProps) {
             />
           </div>
         </div>
-        <Dashboard isCustomizable={isCustomizable} layouts={getLayouts()} layoutChanged={setLayouts} />
+        <ClientOnly>
+          <Dashboard isCustomizable={isCustomizable} layouts={getLayouts()} layoutChanged={setLayouts} />
+        </ClientOnly>
       </div>
     </AccountLayout>
   );

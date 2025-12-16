@@ -1,4 +1,8 @@
 {
+    "NotFound": {
+        "title": "404",
+        "home": "Zurück zur Startseite"
+    },
     "Languages": {
         "label": "Sprachen",
         "en": "English",
@@ -38,5 +42,6 @@
                 "approved": "Congratulations! Your company has been approved. You can now start shopping."
             }
         }
-    }
+    },
+  "optional": "(optional)"
 }
