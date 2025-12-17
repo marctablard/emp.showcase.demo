@@ -34,7 +34,7 @@ export function CartUpsells() {
               <>
                 {Array.from({ length: 3 }, (_, i) => (
                   <CarouselItem key={i + 1} size="basis-1/4">
-                    <div className="relative w-[200px] h-full">
+                    <div className="relative w-full h-full">
                       <ProductTileSkeleton />
                     </div>
                   </CarouselItem>
@@ -44,7 +44,7 @@ export function CartUpsells() {
               <>
                 {upsellProducts.map((product, index) => (
                   <CarouselItem key={product.id || index} size="basis-1/4">
-                    <div className="relative w-[200px] h-full">
+                    <div className="relative w-full h-full">
                       <ProductTile product={product} compact={true} />
                     </div>
                   </CarouselItem>
