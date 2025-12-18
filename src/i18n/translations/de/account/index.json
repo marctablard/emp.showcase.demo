@@ -456,7 +456,14 @@
       "close": "Schließen",
       "pause": "Abonnement pausieren",
       "resume": "Abonnement fortsetzen",
-      "cancelSubscription": "Abonnement kündigen"
+      "cancelSubscription": "Abonnement kündigen",
+      "tabConfiguration": "Konfiguration",
+      "tabProducts": "Produkte",
+      "tabOrderHistory": "Bestellhistorie",
+      "variant": "Variante",
+      "searchProducts": "Produkte suchen...",
+      "loadingProducts": "Produkte werden geladen...",
+      "noProductsFound": "Keine Produkte gefunden"
     },
     "quickActions": {
       "edit": "Bearbeiten",

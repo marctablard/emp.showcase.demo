@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Ban, MoveRight, Pause, Play, Plus, Square } from 'lucide-react';
+import { Ban, MoveRight, Pause, Play, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/dashboard-badge';
 import { Spinner } from '@/components/ui/spinner';
@@ -218,24 +218,14 @@ export function SubscriptionsList({ className }: SubscriptionsListProps) {
                       )
                     )}
                     {!sub.configuration.endDate && (
-                      <>
-                        <Button
-                          variant="secondary"
-                          size="small"
-                          onClick={() => handleQuickAction(sub, 'cancel')}
-                          iconBefore={<Ban className="h-4 w-4" />}
-                        >
-                          {t('quickActions.cancel')}
-                        </Button>
-                        <Button
-                          variant="red"
-                          size="small"
-                          onClick={() => handleQuickAction(sub, 'cancel')}
-                          iconBefore={<Square className="h-4 w-4" />}
-                        >
-                          {t('quickActions.stop')}
-                        </Button>
-                      </>
+                      <Button
+                        variant="red"
+                        size="small"
+                        onClick={() => handleQuickAction(sub, 'cancel')}
+                        iconBefore={<Ban className="h-4 w-4" />}
+                      >
+                        {t('quickActions.cancel')}
+                      </Button>
                     )}
                   </TableCell>
                 </TableRow>

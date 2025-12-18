@@ -71,7 +71,10 @@ export class EmporixSubscriptionService implements SubscriptionService {
     };
   }
 
-  private buildCustomEntityPayload(request: SubscriptionUpsertRequest): EmporixCustomEntity {
+  private async buildCustomEntityPayload(
+    request: SubscriptionUpsertRequest,
+    originalEntity?: EmporixCustomEntity,
+  ): Promise<EmporixCustomEntity> {
     const nowIso = new Date().toISOString();
     const config = request.configuration;
 
@@ -90,7 +93,22 @@ export class EmporixSubscriptionService implements SubscriptionService {
       })),
     };
 
-    const configurationMixin = {
+    // Helper to format date for API (convert ISO to YYYY-MM-DD or keep as-is if already formatted)
+    const formatDateForApi = (dateValue: string | null | undefined): string | undefined => {
+      if (!dateValue) return undefined;
+      // If already in YYYY-MM-DD format, return as-is
+      if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        return dateValue;
+      }
+      // If ISO format, extract date part
+      if (dateValue.includes('T')) {
+        return dateValue.split('T')[0];
+      }
+      // Return as-is for other formats
+      return dateValue;
+    };
+
+    const configurationMixin: Record<string, any> = {
       active: config.active,
       company: {
         emporixReferenceType: 'COMPANY',
@@ -101,28 +119,67 @@ export class EmporixSubscriptionService implements SubscriptionService {
         id: config.customerId,
       },
       datecreated: config.dateCreated || nowIso,
-      enddate: config.endDate ?? null,
       frequency: config.frequency,
       interval: config.interval,
-      lastorderdate: config.lastOrderDate ?? null,
       nextorderdate: nextOrderDate,
       notificationdate: notificationDate,
       paymentmethod: config.paymentMethod || 'INVOICE',
-      shippingaddressid: config.shippingAddressId,
     };
 
-    return {
+    // Only include optional date fields if they have values (don't send null)
+    if (config.endDate) {
+      configurationMixin.enddate = formatDateForApi(config.endDate);
+    }
+    if (config.lastOrderDate) {
+      configurationMixin.lastorderdate = formatDateForApi(config.lastOrderDate);
+    }
+    if (config.shippingAddressId) {
+      configurationMixin.shippingaddressid = config.shippingAddressId;
+    }
+
+    // Preserve orders mixin from original entity if it exists
+    const ordersMixin = originalEntity?.mixins?.orders || { history: [] };
+
+    const payload: EmporixCustomEntity = {
       id: request.id,
       type: this.type,
-      name: request.name ? { en: request.name } : undefined,
+      name: request.name ? { en: request.name } : originalEntity?.name || { en: request.id || '' },
       mixins: {
         subscriptionitems: itemsMixin,
         configuration: configurationMixin,
-      },
-      metadata: {
-        mixins: {},
+        orders: ordersMixin,
       },
     };
+
+    // For updates: preserve metadata.mixins from original entity
+    if (originalEntity?.metadata?.mixins) {
+      payload.metadata = {
+        mixins: originalEntity.metadata.mixins,
+      };
+    } else {
+      // For creates: fetch schemas by type and populate metadata.mixins
+      try {
+        const schemas = await this.schemaApi.getSchemasByType(this.type);
+        const metadataMixins: Record<string, string> = {};
+
+        for (const schema of schemas) {
+          if (schema.metadata?.url) {
+            metadataMixins[schema.id] = schema.metadata.url;
+          }
+        }
+
+        if (Object.keys(metadataMixins).length > 0) {
+          payload.metadata = {
+            mixins: metadataMixins,
+          };
+        }
+      } catch (error) {
+        console.error('Error fetching schemas for metadata:', error);
+        // Continue without metadata - createCustomEntity will try to fetch it
+      }
+    }
+
+    return payload;
   }
 
   private async getCurrentCustomerId(): Promise<string> {
@@ -156,14 +213,16 @@ export class EmporixSubscriptionService implements SubscriptionService {
     });
 
     // Apply pagination to filtered results
-    const startIndex = pagination.page * (query.size ?? 10);
-    const endIndex = startIndex + (query.size ?? 10);
+    const pageSize = query.size ?? 10;
+    const page = pagination.page ?? 0;
+    const startIndex = page * pageSize;
+    const endIndex = startIndex + pageSize;
     const paginatedItems = filteredItems.slice(startIndex, endIndex);
 
     return {
       items: paginatedItems.map((e) => this.mapFromCustomEntity(e)),
-      page: pagination.page,
-      pageSize: query.size ?? 10,
+      page,
+      pageSize,
       total: filteredItems.length,
     };
   }
@@ -177,9 +236,20 @@ export class EmporixSubscriptionService implements SubscriptionService {
   }
 
   async upsertSubscription(request: SubscriptionUpsertRequest): Promise<Subscription> {
-    const payload = this.buildCustomEntityPayload(request);
-
     let id = request.id;
+    let originalEntity: EmporixCustomEntity | undefined;
+
+    // If updating, fetch the original entity to preserve metadata and orders
+    if (id) {
+      const fetched = await this.schemaApi.getCustomEntity(this.type, id);
+      if (!fetched) {
+        throw new Error(`Subscription with ID ${id} not found`);
+      }
+      originalEntity = fetched;
+    }
+
+    const payload = await this.buildCustomEntityPayload(request, originalEntity);
+
     if (!id) {
       id = await this.schemaApi.createCustomEntity(this.type, payload);
     } else {

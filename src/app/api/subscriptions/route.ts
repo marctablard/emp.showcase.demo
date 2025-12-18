@@ -26,7 +26,16 @@ export async function POST(request: NextRequest) {
     const saved = await subscriptionService.upsertSubscription(body);
     return NextResponse.json(saved);
   } catch (error) {
-    console.error('Error saving subscription:', error);
-    return NextResponse.json({ error: 'Failed to save subscription' }, { status: 500 });
+    console.error('Error creating subscription:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to create subscription';
+    const errorDetails = error instanceof Error ? error.stack : String(error);
+    console.error('Error details:', errorDetails);
+    return NextResponse.json(
+      {
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? errorDetails : undefined,
+      },
+      { status: 500 },
+    );
   }
 }

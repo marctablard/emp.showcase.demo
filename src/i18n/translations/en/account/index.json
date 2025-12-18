@@ -448,7 +448,14 @@
       "close": "Close",
       "pause": "Pause subscription",
       "resume": "Resume subscription",
-      "cancelSubscription": "Cancel subscription"
+      "cancelSubscription": "Cancel subscription",
+      "tabConfiguration": "Configuration",
+      "tabProducts": "Products",
+      "tabOrderHistory": "Order History",
+      "variant": "Variant",
+      "searchProducts": "Search products...",
+      "loadingProducts": "Loading products...",
+      "noProductsFound": "No products found"
     },
     "quickActions": {
       "edit": "Edit",

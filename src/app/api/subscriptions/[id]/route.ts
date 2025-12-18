@@ -28,7 +28,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json(saved);
   } catch (error) {
     console.error('Error updating subscription:', error);
-    return NextResponse.json({ error: 'Failed to update subscription' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Failed to update subscription';
+    const errorDetails = error instanceof Error ? error.stack : String(error);
+    console.error('Error details:', errorDetails);
+    return NextResponse.json(
+      {
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? errorDetails : undefined,
+      },
+      { status: 500 },
+    );
   }
 }
 
