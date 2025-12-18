@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { AccountLayout } from '@/components/account/account-layout';
 import { SubscriptionsList } from '@/components/account/subscriptions/subscriptions-list';
-import { redirect } from '@/i18n/navigation';
+import { redirect } from '@/i18n/edge/navigation';
 import { getCurrentCustomer } from '@/lib/ssr/customer';
 import { getPageTitle } from '@/lib/ssr/seo';
 
