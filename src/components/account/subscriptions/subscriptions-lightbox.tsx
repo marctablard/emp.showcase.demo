@@ -1,18 +1,10 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
 import { Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import UiLink from '@/components/ui/link';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -39,7 +31,6 @@ export function SubscriptionsLightbox({ subscription, open, onClose }: Subscript
   const t = useTranslations('account.Subscriptions.lightbox');
   const { customer } = useCustomer();
   const { addresses } = useAddresses();
-  const router = useRouter();
 
   const [saving, setSaving] = useState(false);
   const [items, setItems] = useState<SubscriptionItem[]>([]);
