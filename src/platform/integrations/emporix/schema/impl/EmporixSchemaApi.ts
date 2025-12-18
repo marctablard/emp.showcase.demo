@@ -273,6 +273,24 @@ class EmporixSchemaApi implements IEmporixSchemaApi {
 
     return await response.json();
   }
+
+  /**
+   * Get schemas by type
+   * @param type Schema type (e.g., SUBSCRIPTIONS)
+   * @returns Promise with array of schemas for the type
+   */
+  async getSchemasByType(type: string): Promise<EmporixSchema[]> {
+    const url = `/schema/${this.config.tenant}/schemas?type=${type}`;
+
+    const response = await this.apiClient.authenticatedFetch(url, { method: 'GET' }, 'service');
+
+    if (!response.ok) {
+      const errorDetails = await response.text();
+      throw new Error(`Failed to get schemas by type: ${response.statusText} ${errorDetails}`);
+    }
+
+    return await response.json();
+  }
 }
 
 export default EmporixSchemaApi;

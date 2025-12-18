@@ -100,4 +100,11 @@ export interface EmporixSchemaApi {
    * @returns Promise with the schema details
    */
   getSchema(schemaId: string, version?: number): Promise<EmporixSchema>;
+
+  /**
+   * Get schemas by type
+   * @param type Schema type (e.g., SUBSCRIPTIONS)
+   * @returns Promise with array of schemas for the type
+   */
+  getSchemasByType(type: string): Promise<EmporixSchema[]>;
 }

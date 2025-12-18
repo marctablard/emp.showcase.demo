@@ -19,6 +19,7 @@ import {
   Percent,
   Pin,
   Receipt,
+  Repeat,
   Settings,
   User,
   UserCog,
@@ -98,6 +99,11 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
           href: '/account/quotes',
           title: t('sidebar.items.quotes'),
           icon: <Percent className="h-6 w-6" />,
+        },
+        {
+          href: '/account/subscriptions',
+          title: t('sidebar.items.subscriptions'),
+          icon: <Repeat className="h-6 w-6" />,
         },
         {
           href: '/account/returns',

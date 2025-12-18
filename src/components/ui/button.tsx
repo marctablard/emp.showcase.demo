@@ -41,14 +41,25 @@ function Button({
   variant,
   size,
   asChild = false,
+  iconBefore,
+  iconAfter,
+  children,
   ...props
 }: React.ComponentProps<'button'> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean;
+    iconBefore?: React.ReactNode;
+    iconAfter?: React.ReactNode;
   }) {
   const Comp = asChild ? Slot : 'button';
 
-  return <Comp data-slot="button" className={cn(buttonVariants({ variant, size, className }))} {...props} />;
+  return (
+    <Comp data-slot="button" className={cn(buttonVariants({ variant, size, className }))} {...props}>
+      {iconBefore}
+      {children}
+      {iconAfter}
+    </Comp>
+  );
 }
 
 function BackToTopButton({
