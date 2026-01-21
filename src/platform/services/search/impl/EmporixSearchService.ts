@@ -17,7 +17,6 @@ import type SegmentFilterService from './SegmentFilterService';
  * Implementation of SearchService for Emporix product data.
  * Maps between Emporix API product format and internal Product model.
  */
-@injectable('SearchService', 'Singleton')
 class EmporixSearchService implements SearchService {
   private productApi: EmporixProductApi;
   private productMapper: ProductMapper<EmporixProduct>;

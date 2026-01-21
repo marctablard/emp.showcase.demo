@@ -1,4 +1,5 @@
 import { inject } from 'inversify';
+import { injectable } from '@/platform/core/di/injectable';
 import type { BatteryIncludedSearchResponse } from '@/platform/integrations/batteryincluded/model';
 import { BatteryIncludedProduct } from '@/platform/integrations/batteryincluded/model/product';
 import type { BatteryIncludedShopApi } from '@/platform/integrations/batteryincluded/shop/BatteryIncludedShopApi';
@@ -15,7 +16,7 @@ import type SegmentFilterService from './SegmentFilterService';
  * Implementation of SearchService for BatteryIncluded product data.
  * Maps between BatteryIncluded API product format and internal Product model.
  */
-
+@injectable('SearchService', 'Singleton')
 class BatteryIncludedSearchService implements SearchService {
   private shopApi: BatteryIncludedShopApi;
   private productMapper: ProductMapper<BatteryIncludedProduct>;
@@ -64,26 +65,30 @@ class BatteryIncludedSearchService implements SearchService {
       filters: filters,
     });
     const availableFilters = searchResult.facet_counts
-      .filter((facet) => facet.field_name !== 'segmentIds')
-      .map((facet) => {
-        const filter: Filter = {
-          id: facet.field_name,
-          name: facet.field_name, // TODO handle l10n when we have a representative Dataset
-          values: facet.counts
-            ? facet.counts.map((value) => ({
-                id: value.value,
-                name: value.value, // TODO l10n...
-                count: value.count,
-                active: params.filters ? params.filters[facet.field_name] == value.value : false,
-              }))
-            : [],
-        };
-        return filter;
-      });
+      ? searchResult.facet_counts
+          .filter((facet) => facet.field_name !== 'segmentIds')
+          .map((facet) => {
+            const filter: Filter = {
+              id: facet.field_name,
+              name: facet.field_name, // TODO handle l10n when we have a representative Dataset
+              values: facet.counts
+                ? facet.counts.map((value) => ({
+                    id: value.value,
+                    name: value.value, // TODO l10n...
+                    count: value.count,
+                    active: params.filters ? params.filters[facet.field_name] == value.value : false,
+                  }))
+                : [],
+            };
+            return filter;
+          })
+      : [];
     return {
       items: searchResult.hits
-        .filter((hit) => hit.document.siteCode === session?.siteCode)
-        .map((hit) => this.productMapper.mapToService(hit.document)),
+        ? searchResult.hits
+            .filter((hit) => hit.document.siteCode === session?.siteCode)
+            .map((hit) => this.productMapper.mapToService(hit.document))
+        : [],
       page: searchResult.page - 1,
       pageSize: params.size || 10, // default
       total: searchResult.found,
