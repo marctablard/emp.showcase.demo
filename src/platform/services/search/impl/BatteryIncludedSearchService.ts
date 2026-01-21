@@ -1,4 +1,5 @@
 import { inject } from 'inversify';
+import { injectable } from '@/platform/core/di/injectable';
 import type { BatteryIncludedSearchResponse } from '@/platform/integrations/batteryincluded/model';
 import { BatteryIncludedProduct } from '@/platform/integrations/batteryincluded/model/product';
 import type { BatteryIncludedShopApi } from '@/platform/integrations/batteryincluded/shop/BatteryIncludedShopApi';
@@ -13,6 +14,7 @@ import type { SessionService } from '../../session';
  * Implementation of SearchService for BatteryIncluded product data.
  * Maps between BatteryIncluded API product format and internal Product model.
  */
+@injectable('SearchService', 'Singleton')
 class BatteryIncludedSearchService implements SearchService {
   private shopApi: BatteryIncludedShopApi;
   private productMapper: ProductMapper<BatteryIncludedProduct>;

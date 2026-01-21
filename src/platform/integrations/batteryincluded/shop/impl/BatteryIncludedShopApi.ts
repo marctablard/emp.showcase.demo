@@ -52,6 +52,8 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
     }
 
     const url = `/api/v1/collections/${this.config.collection}/documents/suggest?${params.toString()}`;
+    const fullUrl = `${this.config.baseUrl}${url}`;
+    console.log(`[ShopApi] Calling suggest endpoint: ${fullUrl}`);
 
     try {
       const response = await this.apiClient.apiFetch(url, {
@@ -65,7 +67,35 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
         return [];
       }
 
-      return await response.json();
+      // Read response body once (can only be read once)
+      const text = await response.text();
+
+      // Check if response has content
+      if (!text || text.trim().length === 0) {
+        console.warn('[ShopApi] Empty response body from suggest API');
+        return [];
+      }
+
+      // Check content-type
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const fullUrl = `${this.config.baseUrl}${url}`;
+        console.error(
+          `[ShopApi] Unexpected content-type in suggest response: ${contentType}`,
+          `\nURL: ${fullUrl}`,
+          `\nStatus: ${response.status} ${response.statusText}`,
+          `\nResponse preview: ${text.substring(0, 500)}`,
+        );
+        return [];
+      }
+
+      // Parse JSON
+      try {
+        return JSON.parse(text);
+      } catch (parseError) {
+        console.error('[ShopApi] Failed to parse JSON from suggest response:', parseError, 'Response text:', text);
+        return [];
+      }
     } catch (error) {
       console.error('[ShopApi] Exception in suggest API call:', error);
       return [];
