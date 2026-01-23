@@ -37,7 +37,6 @@ import {
 
 interface StructuredDataRendererProps {
   type: StructuredDataType | string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any;
   handlers: StructuredDataHandlers;
 }
