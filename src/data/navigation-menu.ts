@@ -66,6 +66,11 @@ export const navigationMenuItems: MenuItem[] = [
     href: '/online-planer',
   },
   {
+    id: 'configurator',
+    labelKey: 'configurator',
+    href: '/configurator',
+  },
+  {
     id: 'about-us',
     labelKey: 'aboutUs',
     href: '/about-us',
