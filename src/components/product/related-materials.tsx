@@ -105,7 +105,7 @@ export function RelatedMaterials({ relatedItems, locale, className }: RelatedMat
               <SelectContent>
                 {RELATED_ITEM_TYPES.map((type) => (
                   <SelectItem key={type} value={type}>
-                    {t(`types.${type.toLowerCase()}`)}
+                    {t(`types.${type.toLowerCase()}` as Parameters<typeof t>[0])}
                   </SelectItem>
                 ))}
               </SelectContent>
