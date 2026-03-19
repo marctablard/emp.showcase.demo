@@ -102,7 +102,11 @@ export function RelatedMaterialItem({ product, locale, relationType }: RelatedMa
 
         {/* Relation Type */}
         <div className="w-32 flex-shrink-0 hidden sm:block">
-          {relationType && <p className="text-sm text-text-body">{tRelated(`types.${relationType.toLowerCase()}`)}</p>}
+          {relationType && (
+            <p className="text-sm text-text-body">
+              {tRelated(`types.${relationType.toLowerCase()}` as Parameters<typeof tRelated>[0])}
+            </p>
+          )}
         </div>
 
         {/* Price */}
