@@ -29,4 +29,12 @@ export interface Session {
   cartId?: string;
   country?: string;
   customer?: Customer;
+  cartMergeStatus?: 'MERGED' | 'FALLBACK' | 'NOT_APPLICABLE';
+  cartMergeReason?:
+    | 'ANONYMOUS_CART_NOT_ELIGIBLE'
+    | 'TARGET_CART_UNAVAILABLE'
+    | 'UNSUPPORTED_CURRENCY'
+    | 'CURRENCY_ALIGNMENT_FAILED'
+    | 'MERGE_FAILED'
+    | 'TRANSITION_FAILED';
 }

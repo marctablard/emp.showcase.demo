@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { useSearchParams } from 'next/navigation';
+import { isEqual } from 'lodash';
 import { checkout } from '@/lib/client/checkout';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { PaymentMode } from '@/platform/services/model';
@@ -42,7 +42,7 @@ interface UseCheckout {
   submitShippingAddress: (address: CheckoutAddress) => void;
   submitBillingAddress: (address: CheckoutAddress) => void;
   submitPaymentMethod: (method: CheckoutPaymentMethod) => void;
-  submitShippingMethod: (method: ShippingMethod) => void;
+  submitShippingMethod: (method: ShippingMethod | null) => void;
   // Operations
   createCheckoutData: () => CheckoutRequest | null;
   processCheckout: () => Promise<CheckoutResponse | null>;
@@ -72,7 +72,7 @@ export const useCheckout = (): UseCheckout => {
   } = useCheckoutStore();
 
   // Get cart from cart store
-  const { cart: checkoutCart, updateShippingInfo, clearCart } = useCart();
+  const { cart: checkoutCart, loading: cartLoading, updateShippingInfo, clearCart } = useCart();
   const { customer } = useCustomer();
   const { getDefaultAddress, loading: addressesLoading } = useAddresses();
   const [loading, setLoading] = useState<boolean>(false);
@@ -85,15 +85,8 @@ export const useCheckout = (): UseCheckout => {
     loading: shippingMethodsLoading,
   } = useShippingMethods();
   const { paymentModes } = useSite();
-  const searchParams = useSearchParams();
   const { status } = useSession();
-
-  // Check for logout query parameter and reset store if present
-  useEffect(() => {
-    if (searchParams.has('logout')) {
-      storeReset();
-    }
-  }, [searchParams, storeReset]);
+  const lastShippingMethodsFetchKeyRef = useRef<string | null>(null);
 
   const submitContactData = useCallback(
     (contactData: ContactData) => {
@@ -105,12 +98,26 @@ export const useCheckout = (): UseCheckout => {
 
   const submitShippingAddress = useCallback(
     (address: CheckoutAddress) => {
-      // TODO validation!
+      if (isEqual(shippingAddress, address)) {
+        return;
+      }
+
       if (
         checkoutCart?.id &&
         (address.country != shippingAddress?.country || address.zipCode != shippingAddress?.zipCode)
       ) {
-        updateShippingInfo(address.country, address.zipCode);
+        updateShippingInfo({
+          contactName: address.contactName,
+          companyName: address.companyName,
+          street: address.street,
+          streetNumber: address.streetNumber,
+          streetAppendix: address.streetAppendix,
+          zipCode: address.zipCode,
+          city: address.city,
+          country: address.country,
+          state: address.state,
+          contactPhone: address.contactPhone,
+        });
       }
       setShippingAddress(address);
     },
@@ -133,7 +140,11 @@ export const useCheckout = (): UseCheckout => {
   );
 
   const submitShippingMethod = useCallback(
-    (method: ShippingMethod) => {
+    (method: ShippingMethod | null) => {
+      if (!method) {
+        setShippingMethod(null);
+        return;
+      }
       setShippingMethod({
         methodId: method.id,
         zoneId: method.zoneId,
@@ -260,27 +271,60 @@ export const useCheckout = (): UseCheckout => {
   };
 
   useEffect(() => {
-    if (checkoutCart && shippingAddress) {
-      if (shippingAddress.country && shippingAddress.zipCode) {
-        fetchShippingMethods(shippingAddress.country, shippingAddress.zipCode, checkoutCart.totalPrice);
-      }
-    } else {
+    const countryCode = shippingAddress?.country;
+    const postalCode = shippingAddress?.zipCode;
+    const amount = checkoutCart?.totalPrice?.amount;
+    const currency = checkoutCart?.totalPrice?.currency;
+    const cartId = checkoutCart?.id;
+
+    if (!cartId || !countryCode || !postalCode || amount === undefined || !currency) {
+      lastShippingMethodsFetchKeyRef.current = null;
       clearShippingMethods();
+      return;
     }
-  }, [shippingAddress, checkoutCart, fetchShippingMethods, clearShippingMethods]);
+
+    const fetchKey = `${cartId}|${countryCode}|${postalCode}|${amount}|${currency}`;
+    if (lastShippingMethodsFetchKeyRef.current === fetchKey) {
+      return;
+    }
+    lastShippingMethodsFetchKeyRef.current = fetchKey;
+
+    fetchShippingMethods(countryCode, postalCode, {
+      amount,
+      currency,
+    });
+  }, [
+    shippingAddress?.country,
+    shippingAddress?.zipCode,
+    checkoutCart?.id,
+    checkoutCart?.totalPrice?.amount,
+    checkoutCart?.totalPrice?.currency,
+    fetchShippingMethods,
+    clearShippingMethods,
+  ]);
 
   useEffect(() => {
-    if (checkoutCart && availableShippingMethods.length > 0) {
-      let newShippingMethod: ShippingMethod | null = null;
-      if (shippingMethod) {
-        newShippingMethod = availableShippingMethods.find((method) => method.id === shippingMethod.methodId) || null;
-      }
-      if (!newShippingMethod) {
-        newShippingMethod = availableShippingMethods.sort((a, b) => (a.cost?.amount || 0) - (b.cost?.amount || 0))[0];
-      }
-      submitShippingMethod(newShippingMethod);
+    if (!checkoutCart) {
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    if (availableShippingMethods.length === 0) {
+      // Clear stale shipping method when no methods are available for this currency/zone
+      submitShippingMethod(null);
+      return;
+    }
+
+    let newShippingMethod: ShippingMethod | null = null;
+    if (shippingMethod) {
+      newShippingMethod = availableShippingMethods.find((method) => method.id === shippingMethod.methodId) || null;
+    }
+    if (!newShippingMethod) {
+      newShippingMethod = [...availableShippingMethods].sort(
+        (a, b) => (a.cost?.amount || 0) - (b.cost?.amount || 0),
+      )[0];
+    }
+    submitShippingMethod(newShippingMethod);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- shippingMethod excluded: this effect SETS it, including it would cause an infinite loop
   }, [availableShippingMethods, checkoutCart, submitShippingMethod]);
 
   useEffect(() => {
@@ -303,7 +347,8 @@ export const useCheckout = (): UseCheckout => {
   useEffect(() => {
     // Only load default addresses if we're not on the logout page
     // This prevents re-populating addresses after logout
-    if (!addressesLoading && status === 'authenticated') {
+    // Also wait for cart to finish loading to avoid using stale cart data after login
+    if (!addressesLoading && !cartLoading && status === 'authenticated') {
       if (!shippingAddress) {
         const defaultShippingAddress = getDefaultAddress('SHIPPING');
         if (defaultShippingAddress) {
@@ -326,6 +371,7 @@ export const useCheckout = (): UseCheckout => {
     }
   }, [
     addressesLoading,
+    cartLoading,
     shippingAddress,
     billingAddress,
     getDefaultAddress,

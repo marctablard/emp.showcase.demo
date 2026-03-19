@@ -1,6 +1,5 @@
 import type { NextAuthConfig } from 'next-auth';
 import { Provider } from 'next-auth/providers';
-import AzureADB2C from 'next-auth/providers/azure-ad-b2c';
 import CredentialsProvider from 'next-auth/providers/credentials';
 
 const providers: Provider[] = [

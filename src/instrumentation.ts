@@ -12,5 +12,9 @@ export async function register() {
     const logger =
       server.default.get<import('@/platform/services/logger/LoggerService').LoggerService>('LoggerService');
     logger.info('Server logger initialized');
+
+    // Tier 2: Runtime configuration healthcheck (sites, currencies, languages vs Emporix API)
+    const { runStartupHealthcheck } = await import('@/platform/healthcheck/startup-healthcheck');
+    await runStartupHealthcheck(server.default);
   }
 }

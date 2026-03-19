@@ -2,6 +2,7 @@ import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 import { Pill } from '@/components/ui/pill';
 import { FilterValue as SearchFilterValue } from '@/hooks/search/useSearch';
+import { type ProductFilterKey, dk } from '@/i18n/dynamic-key';
 
 interface SearchActiveFiltersProps {
   activeFilters: Record<string, SearchFilterValue>;
@@ -36,7 +37,7 @@ export function SearchActiveFilters({ activeFilters, resetFacet }: SearchActiveF
             <Pill
               trailingIcon={<X />}
               key={id}
-              label={t(`filters.${id}`)}
+              label={t(dk<ProductFilterKey>(`filters.${id}`))}
               value={formatFilterValue(value)}
               onClick={() => resetFacet(id)}
             />

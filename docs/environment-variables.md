@@ -114,32 +114,202 @@ NEXT_PUBLIC_LOG_ENABLED=false
 
 ### Debug Settings
 
+The application includes a comprehensive API debug system that provides real-time visibility into upstream API calls in both the **server terminal** (with colorized pretty-printing) and the **browser DevTools Console** (via an SSE stream with collapsible groups).
+
+#### `NEXT_PUBLIC_DEBUG_API_CURL`
+
+Log a `curl` command for every upstream API call. Useful for reproducing API calls manually:
+
+- `true` – Log curl commands (headers and query params are masked unless verbose mode is on)
+- `false` – Don't log curl commands (default)
+
+```env
+NEXT_PUBLIC_DEBUG_API_CURL=true
+```
+
 #### `NEXT_PUBLIC_DEBUG_API_RESPONSE`
 
-Controls the verbosity of API response logging. Useful for debugging API issues:
+Controls the verbosity of API response logging. This also enables the **Browser DevTools Debug Stream** — when set to any value other than `OFF`, upstream API calls appear as collapsible groups in the browser Console (via the `ApiDebugPanel` component).
 
-- `OFF` - No response logging (default, use in production)
-- `STATUS` - Log only HTTP status code
+- `OFF` - No response logging, no browser debug stream (default, use in production)
+- `STATUS` - Log only HTTP method + status code
 - `STATUS-HEADERS` - Log status code and response headers
-- `STATUS-BODY-200` - Log status and first 200 characters of response body
-- `STATUS-BODY` - Log status and full response body
+- `STATUS-BODY-{n}` - Log status and first N characters of response body (e.g. `STATUS-BODY-200`)
+- `STATUS-BODY` - Log status and full response body (pretty-printed with ANSI colors in terminal)
 - `FULL` - Log everything (status, headers, full body)
 
 **Example:**
 ```env
-NEXT_PUBLIC_DEBUG_API_RESPONSE=STATUS-BODY-500
+NEXT_PUBLIC_DEBUG_API_RESPONSE=STATUS-BODY
 ```
+
+**Terminal output** is formatted with `pino-pretty` and colorized JSON:
+- Keys in **cyan**, string values in **yellow**, numbers in **magenta**, booleans/null in **green**
+- Multi-line indented output for easy scanning
+
+**Browser Console output** uses styled `console.groupCollapsed`:
+- Color-coded by status (green 2xx, orange 4xx, red 5xx)
+- Response bodies displayed via `console.dir` for full object expansion
+- Response headers displayed via `console.table`
 
 #### `NEXT_PUBLIC_DEBUG_API_ENDPOINTS`
 
-Restrict debugging to specific endpoints to reduce noise:
+Restrict debugging to specific endpoints to reduce noise. The value is a comma-separated list of path substrings — only URLs containing at least one of these substrings will be logged. Case-insensitive.
 
 ```env
-# Debug only these endpoints
-NEXT_PUBLIC_DEBUG_API_ENDPOINTS=site,price,product
+# Debug only orders and returns
+NEXT_PUBLIC_DEBUG_API_ENDPOINTS=order,return
 
-# Debug all endpoints (leave empty)
+# Debug only cart calls
+NEXT_PUBLIC_DEBUG_API_ENDPOINTS=cart
+
+# Debug all endpoints (leave empty — this is the default)
 NEXT_PUBLIC_DEBUG_API_ENDPOINTS=
+```
+
+> **Tip:** This filter applies to both the terminal log and the browser debug stream. After changing, restart the dev server.
+
+#### `NEXT_PUBLIC_DEBUG_API_VERBOSE`
+
+Controls whether sensitive data (tokens, secrets, API keys) is shown in debug output:
+
+- `true` – Show raw values (use only in local development)
+- `false` – Mask sensitive values as `******` (default, always in production)
+
+```env
+NEXT_PUBLIC_DEBUG_API_VERBOSE=true
+```
+
+#### `NEXT_DEBUG_API_PAYLOAD`
+
+Log request body for outgoing POST/PUT/PATCH API calls. Useful for debugging what data is being sent to external APIs:
+
+- `true` – Log request bodies (truncated to 500 chars in masked mode)
+- `false` – Don't log request bodies (default)
+
+```env
+NEXT_DEBUG_API_PAYLOAD=true
+```
+
+**Note:** This is a server-side-only variable (no `NEXT_PUBLIC_` prefix) because request payload logging only makes sense on the server where API calls are made.
+
+#### `JEST_DEBUG_API` (Test Runs)
+
+Controls API debug verbosity specifically during Jest runs.
+
+- `false` (default) - Keep test output concise by forcing API debug logs off in Jest setup
+- `true` - Re-enable API debug output during tests for troubleshooting
+
+When `JEST_DEBUG_API` is not set to `true`, Jest setup forces:
+
+```env
+NEXT_PUBLIC_DEBUG_API_CURL=false
+NEXT_PUBLIC_DEBUG_API_RESPONSE=off
+NEXT_DEBUG_API_PAYLOAD=false
+```
+
+**Example:**
+```bash
+# Enable verbose API debug logs only for this Jest run
+JEST_DEBUG_API=true npm run jest
+```
+
+#### `NEXT_PUBLIC_DEBUG_API_OUTPUT`
+
+Controls **where** debug output is sent. Useful when you only want terminal output (e.g. CI) or only browser output (e.g. remote debugging):
+
+- `BOTH` – Log to both server terminal and browser DevTools Console (default)
+- `TERMINAL` – Log only to the server terminal (no SSE events emitted)
+- `BROWSER` – Log only to the browser DevTools Console (terminal is silent)
+
+```env
+NEXT_PUBLIC_DEBUG_API_OUTPUT=TERMINAL
+```
+
+#### `NEXT_PUBLIC_DEBUG_API_CALL_TYPE`
+
+Filter debug output by **call direction**. Helps isolate whether an issue is in your internal API routes or in external upstream APIs:
+
+- `ALL` – Log both internal and external calls (default)
+- `INTERNAL` – Log only internal API route calls (browser → `/api/*`)
+- `EXTERNAL` – Log only external upstream API calls (server → Emporix API)
+
+```env
+# Only show external Emporix API calls
+NEXT_PUBLIC_DEBUG_API_CALL_TYPE=EXTERNAL
+```
+
+> **Tip:** Internal calls are logged by API routes that use the `withApiRouteDebug()` wrapper. External calls are logged automatically by `EmporixApiInvoker`.
+
+#### `NEXT_PUBLIC_DEBUG_API_SOURCE`
+
+Filter debug output by **call origin**. Useful for isolating issues in client-triggered flows vs server-side rendering:
+
+- `ALL` – Log calls from all sources (default)
+- `CLIENT` – Log only calls originating from browser requests (via API routes)
+- `SSR` – Log only calls originating from server-side rendering / RSC
+
+```env
+NEXT_PUBLIC_DEBUG_API_SOURCE=CLIENT
+```
+
+#### `NEXT_PUBLIC_DEBUG_API_BROWSER_DETAILS`
+
+Controls which detail sections appear in the **browser DevTools Console** for each API call. Comma-separated list:
+
+- `PAYLOAD` – Show the request body (outgoing payload)
+- `HEADERS` – Show response headers
+- `BODY` – Show response body
+
+```env
+# Show everything (default)
+NEXT_PUBLIC_DEBUG_API_BROWSER_DETAILS=PAYLOAD,HEADERS,BODY
+
+# Only show payloads and response bodies (skip headers)
+NEXT_PUBLIC_DEBUG_API_BROWSER_DETAILS=PAYLOAD,BODY
+
+# Only show response body
+NEXT_PUBLIC_DEBUG_API_BROWSER_DETAILS=BODY
+```
+
+> **Note:** This only affects the browser Console output. Terminal output is still controlled by `NEXT_PUBLIC_DEBUG_API_RESPONSE`.
+
+#### `NEXT_PUBLIC_DEBUG_API_LEVEL`
+
+Filter debug log output by response severity. Only responses matching the minimum level are logged.
+
+| Value | What is logged |
+| --- | --- |
+| `ALL` (default) | Every request/response |
+| `WARN` | Responses with status ≥ 400 (client + server errors) |
+| `ERROR` | Responses with status ≥ 500 (server errors only) |
+
+```env
+# Show only server errors
+NEXT_PUBLIC_DEBUG_API_LEVEL=ERROR
+
+# Show 4xx and 5xx responses
+NEXT_PUBLIC_DEBUG_API_LEVEL=WARN
+```
+
+> **Note:** Pre-response logs (curl commands, request payloads) are always emitted because the status is not yet known. The filter is applied at response time.
+
+#### Full API Debugging Example
+
+```env
+# Recommended dev setup for debugging specific API calls
+NEXT_PUBLIC_DEBUG_API_CURL=true
+NEXT_PUBLIC_DEBUG_API_RESPONSE=STATUS-BODY
+NEXT_PUBLIC_DEBUG_API_ENDPOINTS=order,return
+NEXT_PUBLIC_DEBUG_API_VERBOSE=false
+NEXT_DEBUG_API_PAYLOAD=true
+
+# Advanced: filter by call type or source
+# NEXT_PUBLIC_DEBUG_API_OUTPUT=BOTH
+# NEXT_PUBLIC_DEBUG_API_CALL_TYPE=ALL
+# NEXT_PUBLIC_DEBUG_API_SOURCE=ALL
+# NEXT_PUBLIC_DEBUG_API_BROWSER_DETAILS=PAYLOAD,HEADERS,BODY
+# NEXT_PUBLIC_DEBUG_API_LEVEL=ALL
 ```
 
 ### Multi-Site Support
@@ -176,6 +346,13 @@ To completely disable push notifications in any environment, you can either:
 
 The Setup API (`NEXT_SETUP_API_*`) provides an endpoint for initial system configuration. **Disable in production** or secure with a strong secret.
 
+### Feature Flags
+
+| Variable | Values | Default | Description |
+|----------|--------|---------|-------------|
+| `NEXT_STARTUP_HEALTHCHECK_ENABLED` | `true` / `false` | `true` | Enable Tier 2 runtime startup healthcheck. When enabled, the server validates configured sites, currencies, and languages against the Emporix API at startup. See [Health Checks — Startup Configuration Validation](health-checks.md#startup-configuration-validation). |
+| `NEXT_PUBLIC_DISABLE_PUSH_NOTIFICATIONS` | `true` / `false` | `false` | Explicitly disable push notifications regardless of VAPID key configuration. |
+
 ## Quick Start Checklist
 
 Minimal configuration for local development:
@@ -197,10 +374,13 @@ NEXT_LOG_LEVEL=debug
 NEXT_PUBLIC_LOG_LEVEL=debug
 NEXT_PUBLIC_LOG_ENABLED=true
 
-# API Debugging
+# API Debugging — full visibility with colorized terminal output + browser Console stream
 NEXT_PUBLIC_DEBUG_API_CURL=true
 NEXT_PUBLIC_DEBUG_API_VERBOSE=true
-NEXT_PUBLIC_DEBUG_API_RESPONSE=STATUS-BODY-500
+NEXT_PUBLIC_DEBUG_API_RESPONSE=STATUS-BODY
+NEXT_DEBUG_API_PAYLOAD=true
+# Optional: filter to specific endpoints to reduce noise
+# NEXT_PUBLIC_DEBUG_API_ENDPOINTS=order,return
 ```
 
 ### Staging
@@ -224,9 +404,14 @@ NEXT_PUBLIC_LOG_ENABLED=false
 
 # General Settings
 NEXT_PUBLIC_ROBOTS_NOINDEX=false
-NEXT_PUBLIC_DEBUG_API_RESPONSE=OFF
 NEXT_SETUP_API_ENABLED=false
 NEXT_PUBLIC_DISABLE_PUSH_NOTIFICATIONS=false   # Set to true to fully disable web push notifications
+
+# API Debugging — OFF in production (no debug stream, no curl logging)
+NEXT_PUBLIC_DEBUG_API_CURL=false
+NEXT_PUBLIC_DEBUG_API_RESPONSE=OFF
+NEXT_PUBLIC_DEBUG_API_VERBOSE=false
+NEXT_DEBUG_API_PAYLOAD=false
 ```
 
 ## Security Best Practices

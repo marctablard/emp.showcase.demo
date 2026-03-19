@@ -32,7 +32,7 @@ const benefits = [
     icon: LineChart,
     key: 'insights',
   },
-];
+] as const;
 
 export function AccountLanding() {
   const t = useTranslations('account.landing');

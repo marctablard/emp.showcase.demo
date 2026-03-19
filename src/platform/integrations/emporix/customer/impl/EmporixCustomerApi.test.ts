@@ -141,7 +141,7 @@ describe('EmporixCustomerApi', () => {
         try {
           await customerApi.deleteCustomerAddress(addressId);
         } catch (error) {
-          console.log('Error deleting address:', error);
+          console.error('Error deleting address:', error);
           deleteError = error;
         }
         expect(deleteError).toBeNull();
@@ -205,7 +205,7 @@ describe('EmporixCustomerApi', () => {
         try {
           await customerApi.deleteCustomerAddress(addressId);
         } catch (error) {
-          console.log('Error deleting address:', error);
+          console.error('Error deleting address:', error);
           deleteError = error;
         }
         expect(deleteError).toBeNull();
@@ -240,7 +240,6 @@ describe('EmporixCustomerApi', () => {
 
         // Login with the original credentials
         await customerApi.login(originalUsername, originalPassword);
-        console.log('Successfully logged in with original credentials');
       } catch (error) {
         console.error('Error during test setup authentication:', error);
         throw error;
@@ -251,20 +250,15 @@ describe('EmporixCustomerApi', () => {
     afterAll(async () => {
       // Clear tokens before logging out
       await tokenManager.clearTokens(tenant);
-      console.log('Tokens cleared after tests');
     }, 10000);
 
-    // TODO needs rework, since it must use a temporary Customer for this to not interfere with other Tests
-    it.skip('should change password and then revert back to original', async () => {
+    it('should change password and then revert back to original', async () => {
       // Skip this test if we don't have valid credentials
       if (!originalUsername || !originalPassword) {
-        console.warn('Skipping password change test due to missing credentials');
         return;
       }
 
       try {
-        console.log('Starting password change test...');
-
         // Step 1: Change password from original to temp
         const firstChangeData: EmporixPasswordChangeRequest = {
           currentPassword: originalPassword,
@@ -367,9 +361,8 @@ describe('EmporixCustomerApi', () => {
       await tokenManager.clearTokens(tenant);
     }, 10000);
 
-    it.skip('should update customer profile and verify changes', async () => {
+    it('should update customer profile and verify changes', async () => {
       if (!isAuthenticated) {
-        console.warn('Skipping profile update test due to authentication failure');
         return;
       }
 

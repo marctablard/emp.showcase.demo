@@ -127,7 +127,7 @@ export function AddressesList({ type = 'SHIPPING' as AddressType }) {
         </Button>
       </div>
 
-      {addresses.filter((address) => address.types.includes(type)).length === 0 ? (
+      {addresses.filter((address) => address.tags.includes(type)).length === 0 ? (
         <div className="text-center py-8">
           <p className="text-text-placeholders">
             {type === 'SHIPPING' ? t('Address.noShippingAddresses') : t('Address.noBillingAddresses')}
@@ -140,7 +140,7 @@ export function AddressesList({ type = 'SHIPPING' as AddressType }) {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           {addresses
-            .filter((address) => address.types.includes(type))
+            .filter((address) => address.tags.includes(type))
             .map((address: Address) => {
               return (
                 <AddressCard

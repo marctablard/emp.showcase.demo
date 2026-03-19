@@ -1,28 +1,4 @@
-/**
- * Stock availability information for a product
- */
-export interface StockAvailability {
-  /**
-   * Product ID
-   */
-  productId: string;
-
-  /**
-   * Available quantity in stock
-   */
-  availableQuantity: number;
-
-  /**
-   * Number of days until the product is available if not in stock
-   * null if the product is in stock or unavailable
-   */
-  availableInDays: number | null;
-
-  /**
-   * Whether the product is available for order
-   */
-  isAvailable: boolean;
-}
+import { StockAvailability } from '../model/common';
 
 /**
  * Service for checking product stock availability

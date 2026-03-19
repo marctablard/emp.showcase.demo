@@ -59,7 +59,7 @@ const ContactDataComponent: React.FC<ContactDataProps> = ({ initialData = undefi
                       <FormItem className="relative">
                         <FormLabel htmlFor="firstName">{t('firstName')}*</FormLabel>
                         <FormControl>
-                          <Input id="firstName" type="text" {...field} />
+                          <Input id="firstName" type="text" {...field} data-testid="contact-firstName" />
                         </FormControl>
                         <div className="absolute top-full left-0 mt-0.5">
                           <FormMessage />
@@ -76,7 +76,7 @@ const ContactDataComponent: React.FC<ContactDataProps> = ({ initialData = undefi
                       <FormItem className="relative">
                         <FormLabel htmlFor="lastName">{t('lastName')}*</FormLabel>
                         <FormControl>
-                          <Input id="lastName" type="text" {...field} />
+                          <Input id="lastName" type="text" {...field} data-testid="contact-lastName" />
                         </FormControl>
                         <div className="absolute top-full left-0 mt-0.5">
                           <FormMessage />
@@ -97,7 +97,7 @@ const ContactDataComponent: React.FC<ContactDataProps> = ({ initialData = undefi
                       <FormItem className="relative">
                         <FormLabel htmlFor="email">{t('emailAddress')}*</FormLabel>
                         <FormControl>
-                          <Input id="email" type="text" {...field} />
+                          <Input id="email" type="text" {...field} data-testid="contact-email" />
                         </FormControl>
                         <div className="absolute top-full left-0 mt-0.5">
                           <FormMessage />
@@ -114,7 +114,12 @@ const ContactDataComponent: React.FC<ContactDataProps> = ({ initialData = undefi
                       <FormItem className="relative">
                         <FormLabel htmlFor="emailConfirmation">{t('confirmEmailAddress')}*</FormLabel>
                         <FormControl>
-                          <Input id="emailConfirmation" type="text" {...field} />
+                          <Input
+                            id="emailConfirmation"
+                            type="text"
+                            {...field}
+                            data-testid="contact-emailConfirmation"
+                          />
                         </FormControl>
                         <div className="absolute top-full left-0 mt-0.5">
                           <FormMessage />
@@ -131,7 +136,7 @@ const ContactDataComponent: React.FC<ContactDataProps> = ({ initialData = undefi
                       <FormItem className="relative">
                         <FormLabel htmlFor="email">{t('companyName')}</FormLabel>
                         <FormControl>
-                          <Input id="company" type="text" {...field} />
+                          <Input id="company" type="text" {...field} data-testid="contact-company" />
                         </FormControl>
                         <div className="absolute top-full left-0 mt-0.5">
                           <FormMessage />
@@ -148,7 +153,7 @@ const ContactDataComponent: React.FC<ContactDataProps> = ({ initialData = undefi
                       <FormItem className="relative">
                         <FormLabel htmlFor="phone">{t('phoneNumber')}</FormLabel>
                         <FormControl>
-                          <Input id="phone" type="text" {...field} />
+                          <Input id="phone" type="text" {...field} data-testid="contact-phone" />
                         </FormControl>
                         <div className="absolute top-full left-0 mt-0.5">
                           <FormMessage />

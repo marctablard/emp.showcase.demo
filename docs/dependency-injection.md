@@ -62,7 +62,7 @@ Implement the interface with one or more concrete classes:
 // src/platform/services/hello/impl/UserAgentServiceServer.ts
 import { headers } from 'next/headers';
 import type { UserAgentService } from '../UserAgentService';
-import { injectable } from '@/integration/common/di/injectable';
+import { injectable } from '@/platform/core/di/injectable';
 
 @injectable('UserAgentService', 'Singleton')
 class UserAgentServiceServer implements UserAgentService {
@@ -80,7 +80,7 @@ export default UserAgentServiceServer;
 ```typescript
 // src/platform/services/hello/impl/UserAgentServiceClient.ts
 import type { UserAgentService } from '../UserAgentService';
-import { injectable } from '@/integration/common/di/injectable';
+import { injectable } from '@/platform/core/di/injectable';
 
 @injectable('UserAgentService', 'Singleton')
 export class UserAgentServiceClient implements UserAgentService {
@@ -108,13 +108,17 @@ Services can be consumed by other services through constructor injection:
 ```typescript
 // src/platform/services/hello/impl/HelloAgentService.ts
 import type { HelloService } from '../HelloService';
-import { injectable } from '@/integration/common/di/injectable';
+import { injectable } from '@/platform/core/di/injectable';
 import type { UserAgentService } from '../UserAgentService';
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import { inject } from 'inversify';
 
 @injectable('HelloService', 'Singleton')
 class HelloAgentService implements HelloService {
-  constructor(@inject('UserAgentService') private userAgentService: UserAgentService) {}
+  constructor(
+    @inject('UserAgentService') private userAgentService: UserAgentService,
+    @inject('LoggerService') private logger: LoggerService,
+  ) {}
 
   async sayHello(): Promise<string> {
     try {
@@ -122,7 +126,7 @@ class HelloAgentService implements HelloService {
 
       return `Hello Agent! Your browser agent is: ${userAgent}`;
     } catch (error) {
-      console.error('Error reading server-only file:', error);
+      this.logger.error({ error }, 'Error reading server-only file');
       return 'Hello Server Error (file could not be read)';
     }
   }
@@ -338,7 +342,7 @@ export function getProductById(id: string): Promise<Product | null> {
 }
 ```
 
-This is then used in a Server Component like `src/app/[locale]/product/[id]/page.tsx`:
+This is then used in a Server Component like `src/app/[site]/[locale]/(default)/product/[id]/page.tsx`:
 
 ```typescript
 // Fetch product data server-side using the SSR container
@@ -360,6 +364,7 @@ The Server container is used in API routes and other server-only code that doesn
 import { NextRequest, NextResponse } from 'next/server';
 import { ProductService } from '@/platform/services/product/ProductService';
 import server from '@/platform/server';
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -375,7 +380,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     return NextResponse.json(product);
   } catch (error) {
-    console.error('Error fetching product:', error);
+    const logger = server.get<LoggerService>('LoggerService');
+    logger.error({ error }, 'Error fetching product');
     return NextResponse.json({ error: 'Failed to fetch product' }, { status: 500 });
   }
 }

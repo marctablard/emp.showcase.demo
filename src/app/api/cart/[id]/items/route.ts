@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import server from '@/platform/server';
 import { CartService } from '@/platform/services/cart';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
+import { CartErrorCode } from '@/platform/services/model/cart/error-codes';
 
 /**
  * GET /api/carts/[id]/items
@@ -66,9 +67,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     });
   } catch (error) {
     const logger = server.get<LoggerService>('LoggerService');
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
     logger.error(
       {
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage,
         stack: error instanceof Error ? error.stack : undefined,
         path: `/api/cart/${cartId}/items`,
         method: 'POST',
@@ -76,6 +79,46 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       },
       `Error adding item to cart ${cartId}`,
     );
+
+    // Detect Emporix price/tax validation error and return structured 400
+    if (errorMessage.includes('PriceIds') && errorMessage.includes('invalid')) {
+      return NextResponse.json(
+        {
+          error: 'Product price is not available for this site',
+          code: CartErrorCode.PRICE_SITE_INCOMPATIBLE,
+          details: errorMessage,
+        },
+        { status: 400 },
+      );
+    }
+
+    // Generic site-specific price unavailability
+    if (errorMessage.includes('price is not available') || errorMessage.includes('not available for this site')) {
+      return NextResponse.json(
+        {
+          error: "This product's price is not available for the current site.",
+          code: CartErrorCode.PRICE_NOT_AVAILABLE,
+          details: errorMessage,
+        },
+        { status: 400 },
+      );
+    }
+
+    // Cart-site mismatch from Emporix
+    if (
+      errorMessage.includes('siteCode') &&
+      (errorMessage.includes('mismatch') || errorMessage.includes('does not match'))
+    ) {
+      return NextResponse.json(
+        {
+          error: 'Your cart belongs to a different site. Please refresh the page.',
+          code: CartErrorCode.CART_SITE_MISMATCH,
+          details: errorMessage,
+        },
+        { status: 400 },
+      );
+    }
+
     return NextResponse.json({ error: 'Failed to add item to cart' }, { status: 500 });
   }
 }

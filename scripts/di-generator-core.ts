@@ -450,7 +450,7 @@ export async function generateContainerFile(layer: Layer): Promise<string> {
     for (const { alias, target } of dependencyAliases) {
       if (alias === target) continue;
       lines.push(`if (!container.isBound('${target}')) {`);
-      lines.push(`  console.warn('[DI] Alias target not bound: ${target} (for alias: ${alias})');`);
+      lines.push(`  diLogger.warn('[DI] Alias target not bound: ${target} (for alias: ${alias})');`);
       lines.push('} else {');
       lines.push(`  if (container.isBound('${alias}')) {`);
       lines.push(`    container.unbind('${alias}');`);

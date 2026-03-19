@@ -17,6 +17,7 @@ import { Rating } from '@/components/ui/rating';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
+import { useLogger } from '@/hooks/common/useLogger';
 
 const FormSchemaInput = z.object({
   noIcon: z.string().optional(),
@@ -97,9 +98,10 @@ export default function FormFieldStyleguide() {
 
   const [value, setValue] = React.useState([30, 80]);
   const [valueDis, setValueDis] = React.useState([10, 90]);
+  const logger = useLogger();
 
-  function onSubmit(data: z.infer<typeof FormSchemaRadio>) {
-    console.log(JSON.stringify(data, null, 2));
+  function onSubmit(data: z.infer<typeof FormSchemaRadio>): void {
+    logger.debug({ data }, 'Form submitted');
   }
 
   return (

@@ -9,10 +9,12 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useCart } from '@/hooks/cart/useCart';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
 import { useAddresses } from '@/hooks/customer/useAddresses';
 import useCustomer from '@/hooks/customer/useCustomer';
 import { useToast } from '@/hooks/ui/useToast';
+import { useRouter } from '@/i18n/navigation';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { Address } from '@/platform/services/model/common';
 
@@ -25,9 +27,11 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
   const t = useTranslations('cart.quote');
   const tCheckout = useTranslations('checkout.shipping');
   const { toast } = useToast();
+  const router = useRouter();
 
   const { addresses } = useAddresses();
   const { customer } = useCustomer();
+  const { clearCart } = useCart();
   const { checkoutCart, shippingAddress, billingAddress, shippingMethod, submitShippingAddress, submitBillingAddress } =
     useCheckout();
 
@@ -116,6 +120,12 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
         throw new Error(txt || 'Failed to create quote');
       }
 
+      const data = await res.json();
+
+      // Clear the cart after successful quote creation (also delete the cart entity
+      // since the manual quote payload does not include cartId, so Emporix won't auto-close it)
+      clearCart({ deleteCart: true });
+
       // Show success toast notification
       toast({
         title: t('submittedTitle'),
@@ -124,6 +134,9 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
       });
 
       onOpenChange(false);
+
+      // Navigate to the newly created quote detail page
+      router.push(`/account/quotes/${data.quoteId}`);
     } catch (err) {
       getLogger().error({ err }, 'Send quote failed');
       // Show error toast notification
@@ -137,14 +150,14 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-screen-lg lg:max-w-[1220px] max-h-[90vh] flex flex-col">
+      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-screen-lg lg:max-w-[1220px] flex min-h-0 flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>{t('title')}</DialogTitle>
           <p className="text-sm text-text-on-disabled">{t('subtitle')}</p>
         </DialogHeader>
 
         {/* Scrollable content area */}
-        <div className="grid grid-cols-1 gap-6 flex-1 overflow-y-auto px-1 overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="grid grid-cols-1 gap-6 flex-1 min-h-0 overflow-y-auto px-1 overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {/* Shipping address selector + form */}
           {addresses && addresses.length > 0 && (
             <AddressSelector
@@ -163,6 +176,7 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
             addressLabel={tCheckout('address')}
             isReadOnly={false}
             onAddressChange={handleShippingChange}
+            testIdPrefix="quoteShipping"
           />
 
           {addresses && addresses.length > 0 && (
@@ -191,6 +205,7 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
                 : undefined
             }
             onAddressChange={handleBillingChange}
+            testIdPrefix="quoteBilling"
           />
 
           <ShippingMethod />
@@ -206,6 +221,7 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
                 maxLength={24}
+                data-testid="quote-reference"
               />
               <div className="text-sm text-text-placeholders">{reference.length}/24</div>
             </div>
@@ -220,16 +236,19 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
                 onChange={(e) => setComment(e.target.value)}
                 rows={4}
                 maxLength={500}
+                data-testid="quote-comment"
               />
             </div>
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="secondary" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="shrink-0 border-t pt-4 bg-surface-page">
+          <Button variant="secondary" onClick={() => onOpenChange(false)} data-testid="quote-cancelButton">
             {t('cancel')}
           </Button>
-          <Button onClick={sendQuote}>{t('sendQuote')}</Button>
+          <Button onClick={sendQuote} data-testid="quote-sendButton">
+            {t('sendQuote')}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -1,5 +1,6 @@
 import { injectable } from '@/platform/core/di/injectable';
-import { StockAvailability, StockService } from '../StockService';
+import { StockAvailability } from '../../model/common';
+import { StockService } from '../StockService';
 
 /**
  * Mock implementation of StockService

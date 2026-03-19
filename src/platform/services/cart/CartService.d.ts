@@ -1,4 +1,12 @@
 import type { Cart, CartItem } from '../model/cart/cart';
+import type { Address } from '../model/common';
+import type { CartCurrencyUpdateErrorCode } from './errors';
+
+/**
+ * Address data for cart-level shipping/tax context.
+ * Subset of Address — only the fields relevant for cart address resolution.
+ */
+export type CartShippingAddress = Partial<Omit<Address, 'id' | 'isDefault' | 'geoLocation'>>;
 
 /**
  * Cart status enum for tracking cart item availability
@@ -33,6 +41,11 @@ export interface ModifyCartItemResult {
    * Additional payload for the status detail code (if applicable)
    */
   statusDetailPayload?: any;
+}
+
+export interface CartCurrencyUpdateFailure {
+  code: CartCurrencyUpdateErrorCode;
+  message: string;
 }
 
 /**
@@ -94,12 +107,18 @@ export interface CartService {
   deleteCart(cartId: string): Promise<void>;
 
   /**
-   * Updates the shipping information for a cart
+   * Updates the shipping address on the cart for tax/shipping cost calculation during checkout.
+   * Sets an address with type SHIPPING (and optionally BILLING) via the cart addresses array,
+   * then refreshes the cart to recalculate prices.
    * @param cartId The ID of the cart
-   * @param countryCode The country code for the shipping address
-   * @param zipCode The zip code for the shipping address
+   * @param shippingAddress The shipping address for tax/shipping determination
+   * @param billingAddress Optional billing address
    */
-  updateShippingInfo(cartId: string, countryCode?: string, zipCode?: string): Promise<void>;
+  updateShippingInfo(
+    cartId: string,
+    shippingAddress: CartShippingAddress,
+    billingAddress?: CartShippingAddress,
+  ): Promise<void>;
 
   /**
    * Updates the currency for a cart

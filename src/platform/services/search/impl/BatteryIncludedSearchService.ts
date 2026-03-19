@@ -45,19 +45,31 @@ class BatteryIncludedSearchService implements SearchService {
     this.logger = logger;
   }
 
-  async searchProducts(params: SearchParams<Product>): Promise<SearchResult<Product>> {
-    const currentCustomer = await this.customerService.getCustomer();
-
+  async searchProducts(params: SearchParams<Product>, locale?: string, site?: string): Promise<SearchResult<Product>> {
     // Add filter with segmentIds if customer is logged in and has segments assigned.
     let filters = params.filters;
-    if (currentCustomer) {
-      const segmentIds = await this.segmentFilterService.getSegmentIds();
-      if (segmentIds.length > 0) {
-        filters = {
-          ...filters,
-          segmentIds: segmentIds.join(','),
-        };
+    if (params.customerSegments) {
+      const currentCustomer = await this.customerService.getCustomer();
+      if (currentCustomer) {
+        const segmentIds = await this.segmentFilterService.getSegmentIds();
+        if (segmentIds.length > 0) {
+          filters = {
+            ...filters,
+            segmentIds: segmentIds.join(','),
+          };
+        }
       }
+    }
+
+    if (!site) {
+      const session = await this.sessionService.getCurrent();
+      site = session?.siteCode;
+    }
+    if (site) {
+      filters = {
+        ...filters,
+        siteCode: site,
+      };
     }
 
     const searchResult: BatteryIncludedSearchResponse<BatteryIncludedProduct> = await this.shopApi.browse({
@@ -67,6 +79,7 @@ class BatteryIncludedSearchService implements SearchService {
       sort: params.sort,
       filters: filters,
     });
+
     const availableFilters = searchResult.facet_counts
       .filter((facet) => facet.field_name !== 'segmentIds')
       .map((facet) => {
@@ -93,14 +106,20 @@ class BatteryIncludedSearchService implements SearchService {
     };
   }
 
-  async getSuggestions(query: string, locale?: string): Promise<SearchSuggestions> {
+  async getSuggestions(params: SearchParams<Product>): Promise<SearchSuggestions> {
     try {
-      const currentCustomer = await this.customerService.getCustomer();
       let segmentIds;
-      if (currentCustomer) {
-        segmentIds = await this.segmentFilterService.getSegmentIds();
+      if (params.customerSegments) {
+        const currentCustomer = await this.customerService.getCustomer();
+        if (currentCustomer) {
+          segmentIds = await this.segmentFilterService.getSegmentIds();
+        }
       }
-      const apiResponse = await this.shopApi.suggest(query, locale, segmentIds?.join(','));
+      const apiResponse = await this.shopApi.suggest(params.query || '', params.locale, segmentIds?.join(','));
+      if (!params.site) {
+        const session = await this.sessionService.getCurrent();
+        params.site = session?.siteCode;
+      }
       return this.suggestionsMapper.mapSearchSuggestions(apiResponse);
     } catch (error) {
       this.logger.error({ err: error }, '[SearchService] Error getting suggestions');

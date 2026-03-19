@@ -4,9 +4,6 @@ import { ApprovalsList } from '@/components/account/approvals/approvals-list';
 import { getApprovals } from '@/lib/ssr/approvals';
 import { getPageTitle } from '@/lib/ssr/seo';
 
-// Force dynamic rendering to ensure fresh data
-export const dynamic = 'force-dynamic';
-
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'orders.Approval' });

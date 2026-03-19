@@ -3,6 +3,7 @@ import { useTranslations } from 'next-intl';
 import { ArrowRight, BookText, Building, FileText, ShieldCheck } from 'lucide-react';
 import { H4 } from '@/components/ui/h';
 import UiLink from '@/components/ui/link';
+import { type DocumentKey, dk } from '@/i18n/dynamic-key';
 import { cn } from '@/lib/utils';
 import { DashboardCard } from './dashboard-card';
 
@@ -77,7 +78,7 @@ export const DocumentsCard: FC<DocumentsCardProps> = ({ className, title, ...pro
               <category.icon className="h-8 w-8" />
             </div>
             <div className="flex flex-col justify-center py-2 pe-4">
-              <div className="text-text-headings font-bold">{t(category.titleKey)}</div>
+              <div className="text-text-headings font-bold">{t(dk<DocumentKey>(category.titleKey))}</div>
               <div className="flex items-center gap-1 text-text-action font-bold underline">
                 {t('seeAll')} <ArrowRight className="h-6 w-6" />
               </div>

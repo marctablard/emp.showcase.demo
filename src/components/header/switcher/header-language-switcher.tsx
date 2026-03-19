@@ -6,6 +6,7 @@ import { Languages } from 'lucide-react';
 import TopBarSwitcher from '@/components/ui/molecules/ui-topbar-switcher';
 import { Spinner } from '@/components/ui/spinner';
 import { useSite } from '@/hooks/site/useSite';
+import { type LanguageKey, dk } from '@/i18n/dynamic-key';
 import { redirect, usePathname } from '@/i18n/navigation';
 import { routing } from '@/i18n/routing';
 
@@ -32,7 +33,7 @@ export function LanguageSwitcher() {
     }
     return availableLanguages.map((locale) => ({
       code: locale,
-      name: t(locale),
+      name: t(dk<LanguageKey>(locale)),
     }));
   }, [site, t]);
 

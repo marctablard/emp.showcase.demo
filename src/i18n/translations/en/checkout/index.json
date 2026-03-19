@@ -41,7 +41,9 @@
     "cvv": "CVV",
     "paypalRedirect": "You will be redirected to PayPal to complete your payment after reviewing your order.",
     "invoiceTerms": "You will receive an invoice for this order. Payment is due within 30 days.",
-    "additionalInvoice": "Additional invoice recipient via email"
+    "additionalInvoice": "Additional invoice recipient via email",
+    "cancel": "Cancel",
+    "saveChanges": "Save changes"
   },
   "shipping": {
     "title": "Delivery",
@@ -51,13 +53,17 @@
     "address": "Shipping Address",
     "shippingMethod": "Shipping Method",
     "loading": "Loading shipping methods...",
-    "noShippingMethodsAvailable": "No shipping methods available for your location",
+    "noShippingMethodsAvailable": "No shipping methods available for your currency or location",
     "enterShippingAddressFirst": "Please enter your shipping address first",
     "freeShipping": "Free Shipping",
     "estimatedDelivery": "Estimated delivery: 3-5 business days",
     "orderNotes": "Order Notes",
     "multiplePackages": "To get you your products as fast as possible, we may ship your order in multiple packages that arrive on different days.",
-    "billingAddressSameAsShipping": "Billing address same as shipping"
+    "billingAddressSameAsShipping": "Billing address same as shipping",
+    "cancel": "Cancel",
+    "saveChanges": "Save changes",
+    "freightShipping": "Freight Shipping",
+    "freightInfo": "After the order is completed, the contracted shipping company will contact you with further information."
   },
   "validation": {
     "emailRequired": "Email is required",
@@ -127,12 +133,17 @@
     "validationError": "Validation Error",
     "selectApproverRequired": "Please select an approver to continue.",
     "searchError": "Search Error",
-    "errorSearchingApprovers": "There was an error searching for approvers. Please try again."
+    "errorSearchingApprovers": "There was an error searching for approvers. Please try again.",
+    "errorFetchingApprovers": "Error Fetching Approvers",
+    "errorFetchingApproversDescription": "There was an error fetching the list of approvers. Please try again.",
+    "retry": "Retry"
   },
   "PaymentModes": {
     "creditCard": "Credit Card",
     "paypal": "PayPal",
     "invoice": "Invoice",
     "none": "None"
-  }
+  },
+  "step3": "Additional Information",
+  "orderNotes": "Order Notes"
 }

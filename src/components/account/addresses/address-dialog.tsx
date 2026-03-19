@@ -52,14 +52,14 @@ export function AddressDialog({
       if (addressId) {
         const updatedAddress = await updateAddress(addressId, {
           ...formData,
-          types: [addressType],
+          tags: [addressType],
         });
         if (onSave) onSave(updatedAddress);
       } else {
         // Otherwise create a new address
         const newAddress = await createAddress({
           ...formData,
-          types: [addressType],
+          tags: [addressType],
         });
         if (onSave) onSave(newAddress);
       }
@@ -82,14 +82,19 @@ export function AddressDialog({
         </DialogHeader>
 
         <div className="py-4">
-          <AddressForm initialData={initialData} onDataChange={setFormData} />
+          <AddressForm initialData={initialData} onDataChange={setFormData} testIdPrefix="accountAddress" />
         </div>
 
         <DialogFooter>
-          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={isSaving}>
+          <Button
+            variant="secondary"
+            onClick={() => onOpenChange(false)}
+            disabled={isSaving}
+            data-testid="accountAddress-cancelButton"
+          >
             {t('Address.cancel')}
           </Button>
-          <Button onClick={handleSave} disabled={isSaving}>
+          <Button onClick={handleSave} disabled={isSaving} data-testid="accountAddress-saveButton">
             {isSaving ? t('Address.saving') : t('Address.saveAddress')}
           </Button>
         </DialogFooter>

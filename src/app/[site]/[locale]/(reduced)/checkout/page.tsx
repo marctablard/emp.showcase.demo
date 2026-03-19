@@ -6,6 +6,8 @@ import Checkout from '@/components/checkout/checkout';
 import { getCurrentCart } from '@/lib/ssr/carts';
 import { getPageTitle } from '@/lib/ssr/seo';
 
+export const dynamic = 'force-dynamic';
+
 interface CheckoutPageProps {
   locale: string;
 }

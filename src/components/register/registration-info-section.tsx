@@ -32,7 +32,7 @@ export function RegistrationInfoSection({ control, number }: RegistrationInfoAcc
             <FormItem className="relative">
               <FormLabel htmlFor="firstName">{t('firstName')}</FormLabel>
               <FormControl>
-                <Input id="firstName" type="text" required {...field} />
+                <Input id="firstName" type="text" required {...field} data-testid="register-firstName" />
               </FormControl>
               <div className="absolute top-full left-0 mt-0.5">
                 <FormMessage />
@@ -47,7 +47,7 @@ export function RegistrationInfoSection({ control, number }: RegistrationInfoAcc
             <FormItem className="relative">
               <FormLabel htmlFor="lastName">{t('lastName')}</FormLabel>
               <FormControl>
-                <Input id="lastName" type="text" required {...field} />
+                <Input id="lastName" type="text" required {...field} data-testid="register-lastName" />
               </FormControl>
               <div className="absolute top-full left-0 mt-0.5">
                 <FormMessage />
@@ -62,7 +62,7 @@ export function RegistrationInfoSection({ control, number }: RegistrationInfoAcc
             <FormItem className="relative">
               <FormLabel htmlFor="email">{t('email')}</FormLabel>
               <FormControl>
-                <Input id="email" type="email" required {...field} />
+                <Input id="email" type="email" required {...field} data-testid="register-email" />
               </FormControl>
               <div className="absolute top-full left-0 mt-0.5">
                 <FormMessage />
@@ -77,7 +77,13 @@ export function RegistrationInfoSection({ control, number }: RegistrationInfoAcc
             <FormItem className="relative">
               <FormLabel htmlFor="emailConfirmation">{t('emailConfirmation')}</FormLabel>
               <FormControl>
-                <Input id="emailConfirmation" type="email" required {...field} />
+                <Input
+                  id="emailConfirmation"
+                  type="email"
+                  required
+                  {...field}
+                  data-testid="register-emailConfirmation"
+                />
               </FormControl>
               <div className="absolute top-full left-0 mt-0.5">
                 <FormMessage />
@@ -92,10 +98,16 @@ export function RegistrationInfoSection({ control, number }: RegistrationInfoAcc
             <FormItem className="relative">
               <FormLabel htmlFor="businessType">{t('businessType')}</FormLabel>
               <FormControl>
-                <RadioGroup id="businessType" className="flex mt-2" value={field.value} onValueChange={field.onChange}>
+                <RadioGroup
+                  id="businessType"
+                  className="flex mt-2"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  data-testid="register-businessType"
+                >
                   <FormItem className="flex">
                     <FormControl>
-                      <RadioGroupItem value="B2B" id="B2B" />
+                      <RadioGroupItem value="B2B" id="B2B" data-testid="register-businessType-B2B" />
                     </FormControl>
                     <FormLabel className="w-full font-medium" htmlFor="B2B">
                       {t('businessTypeB2B')}
@@ -103,7 +115,7 @@ export function RegistrationInfoSection({ control, number }: RegistrationInfoAcc
                   </FormItem>
                   <FormItem className="flex">
                     <FormControl>
-                      <RadioGroupItem value="B2C" id="B2C" />
+                      <RadioGroupItem value="B2C" id="B2C" data-testid="register-businessType-B2C" />
                     </FormControl>
                     <FormLabel className="w-full font-medium" htmlFor="B2C">
                       {t('businessTypeB2C')}

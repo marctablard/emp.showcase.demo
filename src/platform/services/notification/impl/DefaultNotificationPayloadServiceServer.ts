@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import { type NotificationCodeKey, dk } from '@/i18n/dynamic-key';
 import { injectable } from '@/platform/core/di/injectable';
 import { NotificationPayload, StorefrontNotification } from '@/platform/services/model/notification/notification';
 import { NotificationPayloadService } from '../NotificationPayloadService';
@@ -22,7 +23,10 @@ export class DefaultNotificationPayloadServiceServer implements NotificationPayl
     // Create base notification payload
     const payload: NotificationPayload = {
       id: notification.id,
-      title: notification.code && notification.code.trim() !== '' ? t(notification.code) : 'Notification',
+      title:
+        notification.code && notification.code.trim() !== ''
+          ? t(dk<NotificationCodeKey>(notification.code))
+          : 'Notification',
       body: notification.message && notification.message[locale] ? notification.message[locale] : '',
       data: notification.data_json,
       icon: '/images/logo_small.svg',

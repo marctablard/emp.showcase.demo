@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import { Cart, CartItem } from '@platform/services/model/cart';
 import { Coins, Package, ShoppingCart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useNotifications } from '@/hooks/notifications/useNotifications';
 import { useL10n } from '@/hooks/useL10n';
+import { useRouter } from '@/i18n/navigation';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency } from '@/lib/utils';
 import { StorefrontNotification } from '@/platform/services/model/notification/notification';

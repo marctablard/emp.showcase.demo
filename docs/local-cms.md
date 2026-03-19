@@ -81,7 +81,7 @@ The application is designed to easily switch between Storyblok and Local CMS.
 
 The simplest way to switch between Storyblok and Local CMS is by replacing the CMSPageComponent import in the page components:
 
-1. In `src/app/[locale]/(no-margin)/[...slug]/page.tsx`:
+1. In `src/app/[site]/[locale]/(no-margin)/[...slug]/page.tsx`:
 
 ```typescript
 // For Storyblok CMS (current configuration)
@@ -91,7 +91,7 @@ import CMSPageComponent from '@/components/cms/storyblok/storyblok-cms-page';
 import CMSPageComponent from '@/components/cms/local/local-cms-page';
 ```
 
-2. In `src/app/[locale]/(no-margin)/page.tsx`:
+2. In `src/app/[site]/[locale]/(no-margin)/page.tsx`:
 
 ```typescript
 // For Storyblok CMS (current configuration)

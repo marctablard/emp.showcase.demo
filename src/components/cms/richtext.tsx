@@ -57,28 +57,44 @@ function RichTextNode(node: StoryblokRichTextNode): React.ReactNode {
       return <RichTextHeading {...node} />;
     case BlockTypes.PARAGRAPH:
       return (
-        <p className="mb-4">{node.content?.map((item, itemIndex) => <RichTextNode key={itemIndex} {...item} />)}</p>
+        <p className="mb-4">
+          {node.content?.map((item, itemIndex) => (
+            <RichTextNode key={itemIndex} {...item} />
+          ))}
+        </p>
       );
     case BlockTypes.DOCUMENT:
-      return <>{node.content?.map((item, itemIndex) => <RichTextNode key={itemIndex} {...item} />)}</>;
+      return (
+        <>
+          {node.content?.map((item, itemIndex) => (
+            <RichTextNode key={itemIndex} {...item} />
+          ))}
+        </>
+      );
     case BlockTypes.HR:
       return <hr className="mb-4" />;
     case BlockTypes.OL_LIST:
       return (
         <ol className="mb-4 list-decimal">
-          {node.content?.map((item, itemIndex) => <RichTextNode key={itemIndex} {...item} />)}
+          {node.content?.map((item, itemIndex) => (
+            <RichTextNode key={itemIndex} {...item} />
+          ))}
         </ol>
       );
     case BlockTypes.UL_LIST:
       return (
         <ul className="mb-4 list-disc">
-          {node.content?.map((item, itemIndex) => <RichTextNode key={itemIndex} {...item} />)}
+          {node.content?.map((item, itemIndex) => (
+            <RichTextNode key={itemIndex} {...item} />
+          ))}
         </ul>
       );
     case BlockTypes.LIST_ITEM:
       return (
         <li className="mb-2 ml-4">
-          {node.content?.map((item, itemIndex) => <RichTextNode key={itemIndex} {...item} />)}
+          {node.content?.map((item, itemIndex) => (
+            <RichTextNode key={itemIndex} {...item} />
+          ))}
         </li>
       );
     case BlockTypes.BR:

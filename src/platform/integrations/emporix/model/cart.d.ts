@@ -53,6 +53,24 @@ export interface EmporixTaxInfo {
   taxCode: string;
 }
 
+export interface EmporixCartAddress {
+  contactName?: string;
+  companyName?: string;
+  street?: string;
+  streetNumber?: string;
+  streetAppendix?: string;
+  zipCode?: string;
+  city?: string;
+  country?: string;
+  state?: string;
+  contactPhone?: string;
+  type: 'BILLING' | 'SHIPPING';
+  origin?: string;
+  siteCode?: string;
+  metadata?: object;
+  mixins?: object;
+}
+
 export interface EmporixCart {
   id: string;
   yrn?: string;
@@ -65,8 +83,11 @@ export interface EmporixCart {
   };
   currency: string;
   siteCode: string;
+  /** @deprecated Use addresses[] instead. Kept for deserialization of existing carts. */
   countryCode?: string;
+  /** @deprecated Use addresses[] instead. Kept for deserialization of existing carts. */
   zipCode?: string;
+  addresses?: EmporixCartAddress[];
   type?: string;
   status?: string;
   items?: CartItem[];
@@ -86,10 +107,6 @@ export interface EmporixCart {
   totalUnitsCount?: number;
   metadata?: EmporixMetadata;
   mixins?: Mixins;
-  channel?: {
-    name: string;
-    source: string;
-  };
 }
 
 export interface EmporixCreateCartRequest {

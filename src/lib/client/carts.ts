@@ -1,5 +1,6 @@
-import { ModifyCartItemResult } from '@/platform/services/cart/CartService';
+import { CartShippingAddress, ModifyCartItemResult } from '@/platform/services/cart/CartService';
 import { Cart } from '@/platform/services/model/cart/cart';
+import { CartErrorCode } from '@/platform/services/model/cart/error-codes';
 
 /**
  * Fetch the current cart
@@ -75,6 +76,18 @@ export async function addItemToCart(
   });
 
   if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    if (errorData?.code === CartErrorCode.PRICE_SITE_INCOMPATIBLE) {
+      throw new Error(errorData.error || 'Product price is not available for this site');
+    }
+    if (errorData?.code === CartErrorCode.PRICE_NOT_AVAILABLE) {
+      throw new Error(errorData.error || "This product's price is not available for the current site.");
+    }
+    if (errorData?.code === CartErrorCode.CART_SITE_MISMATCH) {
+      const err = new Error(errorData.error || 'Your cart belongs to a different site. Please refresh the page.');
+      (err as Error & { code: string }).code = CartErrorCode.CART_SITE_MISMATCH;
+      throw err;
+    }
     throw new Error(`Failed to add item to cart: ${response.statusText}`);
   }
 
@@ -128,18 +141,19 @@ export async function deleteCart(cartId: string): Promise<void> {
 }
 
 /**
- * Update Shipping Info
+ * Update shipping address on the cart for tax/shipping cost recalculation.
  */
-export async function updateShippingInfo(cartId: string, countryCode?: string, zipCode?: string): Promise<void> {
+export async function updateShippingInfo(
+  cartId: string,
+  shippingAddress: CartShippingAddress,
+  billingAddress?: CartShippingAddress,
+): Promise<void> {
   const response = await fetch(`/api/cart/${cartId}/shipping`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      countryCode,
-      zipCode,
-    }),
+    body: JSON.stringify({ shippingAddress, billingAddress }),
   });
 
   if (!response.ok) {
@@ -166,6 +180,20 @@ export async function updateCartCurrency(cartId: string, currency: string): Prom
   }
 
   return await response.json();
+}
+
+/**
+ * Clear the cart from the server-side session context.
+ * Optionally also deletes the cart entity on the backend.
+ * @param deleteCart Whether to also delete the cart entity (default: false)
+ */
+export async function clearCartSession(deleteCart: boolean = false): Promise<void> {
+  const response = await fetch(`/api/cart/clear?delete=${deleteCart}`, {
+    method: 'POST',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to clear cart session: ${response.statusText}`);
+  }
 }
 
 /**

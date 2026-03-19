@@ -2,6 +2,7 @@
  * AI Response Parser Utility
  * Handles parsing and normalizing AI responses including markdown code blocks
  */
+import { getLogger } from '@/lib/logger/use-logger-client';
 
 const JSON_CODE_BLOCK_PREFIX = '```json\n';
 const CODE_BLOCK_PREFIX = '```\n';
@@ -38,9 +39,7 @@ export function parseAIResponse(rawMessage: string): ParsedAIResponse {
       cartRefresh: parsed.cartRefresh || false,
     };
   } catch (_error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.debug('[AI Response Parser] Raw message is not JSON:', messageToParse.substring(0, 100));
-    }
+    getLogger().debug({ rawMessage: messageToParse.substring(0, 100) }, 'AI Response Parser: Raw message is not JSON');
     return {
       message: rawMessage,
       data: null,

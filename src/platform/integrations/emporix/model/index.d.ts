@@ -15,5 +15,6 @@ export * from './order';
 export * from './payment';
 export * from './price';
 export * from './product';
+export * from './return';
 export * from './session-context';
 export * from './shipping';

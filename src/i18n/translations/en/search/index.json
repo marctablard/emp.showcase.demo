@@ -5,7 +5,9 @@
     "tryAdjusting": "Try adjusting your search or filters",
     "allProducts": "Alle Produkte",
     "resultsFor": "Results for \"{query}\"",
-    "resetFilter": "Clear filter"
+    "resetFilter": "Clear filter",
+    "loadMore": "Load more",
+    "loadingMore": "Loading…"
   },
   "layoutToggle": {
     "list": "List view",

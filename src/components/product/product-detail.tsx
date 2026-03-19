@@ -12,18 +12,21 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useProduct } from '@/hooks/product/useProduct';
 import { useSession } from '@/hooks/session/useSession';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
-// import { useRecommendations } from '@/hooks/recommendations/useRecommendations';
 import { useL10n } from '@/hooks/useL10n';
+import { type ProductTemplateAttributeKey, type ProductVariantAttributeKey, dk } from '@/i18n/dynamic-key';
+import { fetchProductAvailability } from '@/lib/client/availability';
 import { fetchProductPrice } from '@/lib/client/prices';
 import { cn } from '@/lib/utils';
+import { StockAvailability } from '@/platform/services/model/common';
 import { ProductPrice } from '@/platform/services/model/price';
 import { GroupedSpecification, Product, ProductVariantAttribute } from '@/platform/services/model/product';
-import { StockAvailability } from '@/platform/services/stock/StockService';
+import { ProductFetchOptions } from '@/platform/services/product';
 import Recommendations from '../cms/recommendations';
 import { Button } from '../ui/button';
 import { H1, H2, Overline } from '../ui/h';
 import UiLink from '../ui/link';
 import { RatingStarRow } from '../ui/rating';
+import { Spinner } from '../ui/spinner';
 import ProductAddToCart from './product-add-to-cart';
 import ProductAddToCartBar from './product-add-to-cart-bar';
 import { ProductPriceComponent, ProductPriceSkeleton } from './product-price';
@@ -32,15 +35,16 @@ import ProductVariantSelector from './product-variant-selector';
 import { RelatedMaterials } from './related-materials';
 
 export interface ProductDetailProps {
-  product?: Product;
-  availability?: StockAvailability | null;
+  product?: Product | string;
+  options: ProductFetchOptions;
   className?: string;
 }
 
-export default function ProductDetail({ product: initialProduct, availability, className }: ProductDetailProps) {
-  const { product, loading, setAsCurrent } = useProduct(initialProduct);
+export default function ProductDetail({ product: initialProduct, options, className }: ProductDetailProps) {
+  const { product, loading, setAsCurrent } = useProduct(initialProduct, options);
   const { session } = useSession();
   const [price, setPrice] = useState<ProductPrice | null | undefined>(product?.price);
+  const [availability, setAvailability] = useState<StockAvailability | undefined>(product?.availability);
   const locale = useLocale();
   const { l10n } = useL10n(locale);
   const t = useTranslations('product');
@@ -59,23 +63,26 @@ export default function ProductDetail({ product: initialProduct, availability, c
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product]);
 
-  // Reset price when currency changes to trigger re-fetch
-  useEffect(() => {
-    if (session?.currency && price !== undefined) {
-      // Only reset if currency changed (price exists and might be stale)
-      setPrice(undefined);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.currency]);
-
   // asynchronous price fetching if not provided in SSR
   useEffect(() => {
-    if (product && price === undefined) {
-      fetchProductPrice(product.id).then((price) => {
-        setPrice(price);
-      });
+    if (product) {
+      if (product.price === undefined || session?.currency != price?.currency) {
+        fetchProductPrice(product.id).then((price) => {
+          setPrice(price);
+        });
+      }
+      if (product.availability === undefined) {
+        fetchProductAvailability(product.id).then((availability) => {
+          setAvailability(availability);
+        });
+      }
+    } else {
+      setPrice(undefined);
+      setAvailability(undefined);
     }
-  }, [product, price]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product, session?.currency]);
+
   useEffect(() => {
     if (addToCartButton.current !== null && isAboveMediumScreen) {
       const observer = new IntersectionObserver(
@@ -101,10 +108,14 @@ export default function ProductDetail({ product: initialProduct, availability, c
   });
 
   if (loading) {
-    return <div>Loading</div>;
+    return (
+      <div className={cn('flex justify-center items-center min-h-[400px] mb-6', className)}>
+        <Spinner variant="lg" />
+      </div>
+    );
   }
 
-  if (!product) {
+  if (product === null) {
     return notFound();
   }
 
@@ -153,23 +164,28 @@ export default function ProductDetail({ product: initialProduct, availability, c
                         key={attribute.key}
                         className="font-bold"
                         label={l10n(
-                          attribute.name ??
-                            t(`filters.mixins.productVariantAttributes.${attribute.key}`, {
+                          t(
+                            dk<ProductVariantAttributeKey>(`filters.mixins.productVariantAttributes.${attribute.key}`),
+                            {
                               defaultValue: attribute.key,
-                            }),
+                            },
+                          ),
                         )}
                         variant="white"
                         iconColor="white"
-                        value={l10n(attribute.values?.find((value) => value.selected)?.name ?? '')}
+                        value={l10n(product.variantAttributeValues?.[attribute.key] ?? '')}
                       />
                     ))}
                     {Object.keys(product.templateAttributes || {}).map((attribute: string) => (
                       <BulletPoint
                         className="font-bold"
                         key={attribute}
-                        label={t(`filters.mixins.productTemplateAttributes.${attribute}`, {
-                          defaultValue: attribute,
-                        })}
+                        label={t(
+                          dk<ProductTemplateAttributeKey>(`filters.mixins.productTemplateAttributes.${attribute}`),
+                          {
+                            defaultValue: attribute,
+                          },
+                        )}
                         variant="white"
                         iconColor="white"
                         value={l10n(product.templateAttributes?.[attribute] ?? '')}

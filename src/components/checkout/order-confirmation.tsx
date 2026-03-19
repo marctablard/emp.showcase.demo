@@ -8,6 +8,7 @@ import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
 import useCustomer from '@/hooks/customer/useCustomer';
 import { useOrder } from '@/hooks/order/useOrder';
+import { type OrderStatusKey, type PaymentModeKey, dk } from '@/i18n/dynamic-key';
 import { formatCurrency } from '@/lib/utils';
 import { Order } from '@/platform/services/model/order/order';
 import { AddressDisplay } from '../common/address-display';
@@ -98,7 +99,7 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
 
               <div>
                 <p className="text-base text-text-on-disabled mb-1">{tOrder('columns.status')}</p>
-                <p className="font-medium capitalize">{tOrderStatus(order.status)}</p>
+                <p className="font-medium capitalize">{tOrderStatus(dk<OrderStatusKey>(order.status))}</p>
               </div>
             </CardContent>
           </Card>
@@ -243,7 +244,7 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
                   <ReceiptText className="h-4 w-4 mt-1.5 mr-1.5" />
                 </div>
                 <div>
-                  <p className="font-bold">{tPayment(order.payments?.[0]?.method || 'none')}</p>
+                  <p className="font-bold">{tPayment(dk<PaymentModeKey>(order.payments?.[0]?.method || 'none'))}</p>
                 </div>
               </div>
             </CardContent>

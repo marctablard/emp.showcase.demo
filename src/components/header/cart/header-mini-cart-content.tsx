@@ -1,11 +1,11 @@
 import { RefObject } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
 import { Cart } from '@platform/services/model/cart';
 import { HeaderMiniCartItemList } from '@/components/header/cart/header-mini-cart-item-list';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { useCartTotal } from '@/hooks/cart/useCartTotal';
+import { useRouter } from '@/i18n/navigation';
 import { cn, formatCurrency } from '@/lib/utils';
 
 interface HeaderMiniCartContentProps {

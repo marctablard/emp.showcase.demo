@@ -1,19 +1,18 @@
 import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
+import { auth } from '@/auth/auth';
 import { AccountLanding } from '@/components/account/account-landing';
 import AccountDashboard from '@/components/account/dashboard/account-dashboard';
-import { getCurrentCustomer } from '@/lib/ssr/customer';
 import { getPageTitle } from '@/lib/ssr/seo';
-
-export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ locale: string; site: string }>;
 }): Promise<Metadata> {
-  const [{ locale }, customer, t] = await Promise.all([params, getCurrentCustomer(), getTranslations('account')]);
-  if (!customer) {
+  const session = await auth();
+  const [{ locale }, t] = await Promise.all([params, getTranslations('account')]);
+  if (!session?.user) {
     return {
       title: await getPageTitle(t('landing.title'), locale),
       description: t('landing.subtitle'),
@@ -34,9 +33,9 @@ export async function generateMetadata({
 }
 
 export default async function AccountPage() {
-  const customer = await getCurrentCustomer();
+  const session = await auth();
 
-  if (!customer) {
+  if (!session || !session.user) {
     return (
       <div className="w-full max-w-6xl mx-auto px-4 lg:px-9">
         <AccountLanding />
@@ -44,5 +43,5 @@ export default async function AccountPage() {
     );
   }
 
-  return <AccountDashboard customer={customer} />;
+  return <AccountDashboard />;
 }

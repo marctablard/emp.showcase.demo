@@ -84,10 +84,10 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
   const loading = getStoreLoading(queryKey);
   const error = getStoreError(queryKey);
 
-  // Fetch orders when parameters change
+  // Fetch orders when parameters change (force-refresh to always get fresh data from API)
   const refetchOrders = useCallback(async () => {
     try {
-      await storeFetchOrders(pageSize, pageNumber, filters);
+      await storeFetchOrders(pageSize, pageNumber, filters, true);
     } catch (err) {
       // Error is already handled in the store
       getLogger().error({ err, pageSize, pageNumber }, 'Error in refetchOrders');

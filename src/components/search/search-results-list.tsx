@@ -37,8 +37,8 @@ export function SearchResultsList({ products, locale, currentPage, pageSize, tot
               <div className="mb-4">
                 <p className="text-text-placeholders text-sm">
                   {t('searchResults.showing', {
-                    start: currentPage * pageSize + 1,
-                    end: currentPage * pageSize + products.length,
+                    start: 1,
+                    end: products.length,
                     total: total,
                   })}
                 </p>

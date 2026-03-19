@@ -3,8 +3,6 @@ import server from '@/platform/server';
 import { CartService } from '@/platform/services/cart/CartService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 
-export const revalidate = 0;
-
 /**
  * POST /api/cart/load
  * Load a saved cart

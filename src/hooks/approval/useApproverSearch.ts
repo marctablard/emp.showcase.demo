@@ -47,6 +47,7 @@ export function useApproverSearch({
     } catch (err) {
       getLogger().error({ err }, 'Error fetching approvers');
       const errorObj = err instanceof Error ? err : new Error(String(err));
+      setApprovers([]);
       setError(errorObj);
 
       toast({

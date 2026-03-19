@@ -2,6 +2,7 @@
 
 import { cache } from 'react';
 import { ApprovalService } from '@/platform/services/approval/ApprovalService';
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import { Approval } from '@/platform/services/model/approval';
 import ssr from '@/platform/ssr';
 
@@ -9,6 +10,7 @@ import ssr from '@/platform/ssr';
  * Get the approval service instance from the platform container
  */
 const getApprovalService = () => ssr.get<ApprovalService>('ApprovalService');
+const getLogger = () => ssr.get<LoggerService>('LoggerService');
 
 /**
  * Get a specific approval by ID
@@ -18,7 +20,11 @@ export const getApprovalById = cache(async (approvalId: string): Promise<Approva
   try {
     const approvalService = getApprovalService();
     return await approvalService.getApproval(approvalId);
-  } catch (_error) {
+  } catch (error) {
+    getLogger().error(
+      { error: error instanceof Error ? error.message : String(error), approvalId },
+      'SSR getApprovalById failed',
+    );
     return undefined;
   }
 });
@@ -32,7 +38,11 @@ export const getApprovals = cache(async (pageSize?: number, pageNumber?: number)
     const approvalService = getApprovalService();
     const approvals = await approvalService.getApprovals(pageSize, pageNumber);
     return approvals;
-  } catch (_error) {
+  } catch (error) {
+    getLogger().error(
+      { error: error instanceof Error ? error.message : String(error), pageSize, pageNumber },
+      'SSR getApprovals failed',
+    );
     return undefined;
   }
 });

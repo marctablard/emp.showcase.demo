@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   BookOpen,
@@ -39,13 +39,29 @@ interface AccountLayoutProps {
 
 export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
   const t = useTranslations('account');
-  const isDesktop = useBreakpoint('lg');
   const [showSidebarOffcanvas, setShowSidebarOffcanvas] = useState(false);
+  const isDesktop = useBreakpoint('lg');
 
   // Toggle sidebar offcanvas visibility
   const toggleSidebarOffcanvas = () => {
     setShowSidebarOffcanvas(!showSidebarOffcanvas);
   };
+
+  useEffect(() => {
+    if (!showSidebarOffcanvas) {
+      return;
+    }
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, [showSidebarOffcanvas]);
 
   // Dashboard (standalone item)
   const sidebarItems = [
@@ -194,7 +210,7 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
       {/* Mobile Menu Button - only visible on mobile */}
       {!isDesktop && (
         <div className="px-4 py-4">
-          <Button variant="secondary" onClick={toggleSidebarOffcanvas}>
+          <Button variant="secondary" onClick={toggleSidebarOffcanvas} className="w-full justify-start">
             <LayoutDashboard className="h-6 w-6" /> {t('sidebar.menu')}
           </Button>
         </div>
@@ -205,7 +221,7 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
         {isDesktop && <AccountSidebar items={sidebarItems} groups={sidebarGroups} />}
 
         {/* Mobile Off-canvas Sidebar */}
-        {!isDesktop && showSidebarOffcanvas && (
+        {showSidebarOffcanvas && (
           <>
             {/* Backdrop - closes the sidebar when clicked */}
             <div className="fixed inset-0 z-40 bg-black/20" onClick={toggleSidebarOffcanvas} aria-hidden="true" />
@@ -218,12 +234,12 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
                 </Button>
               </div>
 
-              <AccountSidebar items={sidebarItems} groups={sidebarGroups} />
+              <AccountSidebar items={sidebarItems} groups={sidebarGroups} scrollable={false} />
             </div>
           </>
         )}
 
-        <main className={`w-full ${isDesktop ? 'ml-4' : ''}`}>{children}</main>
+        <main className={`w-full min-w-0 px-4 ${isDesktop ? 'px-0 ml-4' : ''}`}>{children}</main>
       </div>
     </div>
   );

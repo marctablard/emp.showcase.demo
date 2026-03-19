@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { isEqual } from 'lodash';
@@ -20,7 +20,12 @@ export function useValidator(
   mode: 'onBlur' | 'onChange' | 'onSubmit' | 'all' = 'onSubmit',
   onValidated?: (data: any) => void,
 ) {
-  const [values, setValues] = useState(initialData);
+  const valuesRef = useRef(initialData);
+  const onValidatedRef = useRef(onValidated);
+  useEffect(() => {
+    onValidatedRef.current = onValidated;
+  }, [onValidated]);
+
   const validator = getService<ValidationService>(validatorId);
   const schema = validator.getSchema();
   const form = useForm<z.infer<typeof schema>>({
@@ -31,22 +36,23 @@ export function useValidator(
 
   // Set up subscription once and clean it up properly
   useEffect(() => {
-    if (onValidated) {
-      const unsubscribe = form.subscribe({
-        formState: { isValid: true, isValidating: true },
-        callback: (formState) => {
-          if (formState.isValid && !formState.isValidating) {
-            if (isEqual(values, form.getValues())) return;
-            onValidated(form.getValues());
-            setValues(form.getValues());
-          }
-        },
-      });
+    const unsubscribe = form.subscribe({
+      formState: { isValid: true, isValidating: true },
+      callback: (formState) => {
+        if (formState.isValid && !formState.isValidating && onValidatedRef.current) {
+          const currentValues = form.getValues();
+          if (isEqual(valuesRef.current, currentValues)) return;
+          valuesRef.current = currentValues;
+          // Defer the callback to a macrotask to avoid triggering state updates during render
+          // (queueMicrotask is insufficient — microtasks still run within React's render batch)
+          setTimeout(() => onValidatedRef.current?.(currentValues), 0);
+        }
+      },
+    });
 
-      // Clean up subscription when component unmounts
-      return () => unsubscribe();
-    }
-  }, [form, onValidated, values]);
+    return () => unsubscribe();
+  }, [form]);
+
   return {
     form,
     validator,

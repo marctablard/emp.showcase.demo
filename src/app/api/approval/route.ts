@@ -4,8 +4,6 @@ import { ApprovalService } from '@/platform/services/approval/ApprovalService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import { ApprovalCreateRequest } from '@/platform/services/model/approval';
 
-export const revalidate = 0;
-
 /**
  * GET /api/approval
  * Get all approvals with optional pagination, sorting, and filtering

@@ -64,6 +64,7 @@ const ShippingMethod: React.FC<ShippingMethodProps> = ({ isReadOnly = false, var
                   onValueChange={field.onChange}
                   defaultValue={field.value}
                   className="flex flex-col space-y-1"
+                  data-testid="shipping-methodGroup"
                 >
                   {shippingMethods!.map((method) => (
                     <FormItem
@@ -90,7 +91,11 @@ const ShippingMethod: React.FC<ShippingMethodProps> = ({ isReadOnly = false, var
                         }
                       >
                         <FormControl>
-                          <RadioGroupItem value={method.id} id={method.id} />
+                          <RadioGroupItem
+                            value={method.id}
+                            id={method.id}
+                            data-testid={`shipping-method-${method.id}`}
+                          />
                         </FormControl>
                         <FormLabel className="w-full font-medium" htmlFor={method.id}>
                           <div className="flex items-start justify-between w-full">

@@ -28,8 +28,8 @@ type ProfileFormData = {
   preferredCurrency: string;
 };
 
-const TITLE_KEYS = ['MR', 'MRS', 'MS'];
-const LANGUAGES = ['de', 'en'];
+const TITLE_KEYS = ['MR', 'MRS', 'MS'] as const;
+const LANGUAGES = ['de', 'en'] as const;
 const CURRENCIES = ['EUR', 'USD', 'GBP'];
 
 export default function ProfileEditForm({ customer }: ProfileEditFormProps) {
@@ -130,7 +130,11 @@ export default function ProfileEditForm({ customer }: ProfileEditFormProps) {
             <div className="space-y-2">
               <Label htmlFor="title">{t('profile.form.titleLabel') || 'Anrede'}</Label>
               <Select defaultValue={initialData.title} onValueChange={(value) => form.setValue('title', value)}>
-                <SelectTrigger id="title" className={form.formState.errors.title ? 'border-border-error' : ''}>
+                <SelectTrigger
+                  id="title"
+                  className={form.formState.errors.title ? 'border-border-error' : ''}
+                  data-testid="profile-title"
+                >
                   <SelectValue placeholder={t('profile.form.selectTitle') || 'Anrede auswählen'} />
                 </SelectTrigger>
                 <SelectContent>
@@ -154,6 +158,7 @@ export default function ProfileEditForm({ customer }: ProfileEditFormProps) {
                 type="text"
                 {...form.register('firstName')}
                 className={form.formState.errors.firstName ? 'border-border-error' : ''}
+                data-testid="profile-firstName"
               />
               {form.formState.errors.firstName && (
                 <p className="text-sm text-text-error mt-1">
@@ -170,6 +175,7 @@ export default function ProfileEditForm({ customer }: ProfileEditFormProps) {
                 type="text"
                 {...form.register('lastName')}
                 className={form.formState.errors.lastName ? 'border-border-error' : ''}
+                data-testid="profile-lastName"
               />
               {form.formState.errors.lastName && (
                 <p className="text-sm text-text-error mt-1">
@@ -186,6 +192,7 @@ export default function ProfileEditForm({ customer }: ProfileEditFormProps) {
                 type="email"
                 {...form.register('email')}
                 className={form.formState.errors.email ? 'border-border-error' : ''}
+                data-testid="profile-email"
               />
               {form.formState.errors.email && (
                 <p className="text-sm text-text-error mt-1">
@@ -204,6 +211,7 @@ export default function ProfileEditForm({ customer }: ProfileEditFormProps) {
                 type="tel"
                 {...form.register('phone')}
                 className={form.formState.errors.phone ? 'border-border-error' : ''}
+                data-testid="profile-phone"
               />
               {form.formState.errors.phone && (
                 <p className="text-sm text-text-error mt-1">
@@ -222,6 +230,7 @@ export default function ProfileEditForm({ customer }: ProfileEditFormProps) {
                 <SelectTrigger
                   id="preferredLanguage"
                   className={form.formState.errors.preferredLanguage ? 'border-border-error' : ''}
+                  data-testid="profile-preferredLanguage"
                 >
                   <SelectValue placeholder={t('profile.form.selectLanguage') || 'Sprache auswählen'} />
                 </SelectTrigger>
@@ -245,6 +254,7 @@ export default function ProfileEditForm({ customer }: ProfileEditFormProps) {
                 <SelectTrigger
                   id="preferredCurrency"
                   className={form.formState.errors.preferredCurrency ? 'border-border-error' : ''}
+                  data-testid="profile-preferredCurrency"
                 >
                   <SelectValue placeholder={t('profile.form.selectCurrency') || 'Währung auswählen'} />
                 </SelectTrigger>
@@ -260,7 +270,11 @@ export default function ProfileEditForm({ customer }: ProfileEditFormProps) {
           </div>
 
           <div className="flex justify-end pt-4">
-            <Button type="submit" disabled={isLoading || Object.keys(form.formState.errors).length > 0}>
+            <Button
+              type="submit"
+              disabled={isLoading || Object.keys(form.formState.errors).length > 0}
+              data-testid="profile-saveButton"
+            >
               {isLoading
                 ? t('profile.form.saving') || 'Wird gespeichert...'
                 : t('profile.form.saveProfile') || 'Profil speichern'}

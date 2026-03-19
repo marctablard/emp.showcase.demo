@@ -71,7 +71,7 @@ export interface Product {
   categories?: Category[];
   labels?: ProductLabel[];
   price?: ProductPrice;
-  availability?: Availability;
+  availability?: StockAvailability;
   primaryImage?: Media;
   images?: Media[];
   taxType?: TaxType;

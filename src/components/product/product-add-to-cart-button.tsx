@@ -76,6 +76,7 @@ export default function ProductAddToCartButton({
         className={cn('flex-1 w-full', className)}
         onClick={handleAddToCart}
         disabled={cart === undefined || product.purchasable === false || adding || !price}
+        data-testid="product-addToCartButton"
       >
         {t('addToCart')}
         <ShoppingCart className="hidden sm:inline" />

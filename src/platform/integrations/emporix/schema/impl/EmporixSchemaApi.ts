@@ -1,5 +1,6 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import { buildPaginatedResponse, buildSearchQuery } from '../../common/util/common';
 import type { EmporixConfig } from '../../config';
@@ -11,13 +12,16 @@ import type { EmporixSchemaApi as IEmporixSchemaApi } from '../EmporixSchemaApi'
 class EmporixSchemaApi implements IEmporixSchemaApi {
   protected apiClient: EmporixApiClient;
   protected config: EmporixConfig;
+  private logger: LoggerService;
 
   constructor(
     @inject('EmporixApiInvoker') apiClient: EmporixApiClient,
     @inject('EmporixConfig') config: EmporixConfig,
+    @inject('LoggerService') logger: LoggerService,
   ) {
     this.apiClient = apiClient;
     this.config = config;
+    this.logger = logger;
   }
 
   async createCustomEntity(type: string, customEntity: EmporixCustomEntity): Promise<string> {
@@ -39,7 +43,10 @@ class EmporixSchemaApi implements IEmporixSchemaApi {
 
           // Schema validation could be added here if needed
         } catch (error) {
-          console.warn(`Schema for mixin ${mixinKey} not found:`, error);
+          this.logger.warn(
+            { mixinKey, error: error instanceof Error ? error.message : String(error) },
+            `Schema for mixin ${mixinKey} not found`,
+          );
           // Continue with other mixins even if one fails
         }
       }

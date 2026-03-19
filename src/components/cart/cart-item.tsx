@@ -91,7 +91,7 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
     setIsProcessing(true);
     try {
       setQuantity(newQuantity);
-      updateItemQuantity(item.id, newQuantity);
+      await updateItemQuantity(item.id, newQuantity);
     } finally {
       setIsProcessing(false);
     }
@@ -103,7 +103,7 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
     setIsProcessing(true);
     try {
       setQuantity(0);
-      removeItem(item.id);
+      await removeItem(item.id);
     } finally {
       setIsProcessing(false);
     }
@@ -255,6 +255,7 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
                   className="p-3 h-13 border-border-primary rounded-none rounded-ss-sm rounded-es-sm"
                   disabled={loading}
                   onClick={handleRemoveItem}
+                  data-testid={`cart-item-remove-${item.product?.id}`}
                 >
                   <Trash2 className="h-6 w-6" />
                 </Button>
@@ -265,6 +266,7 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
                   className="p-3 h-13 border-border-primary rounded-none rounded-ss-sm rounded-es-sm"
                   disabled={loading}
                   onClick={() => handleUpdateQuantity(quantity - 1)}
+                  data-testid={`cart-item-decrease-${item.product?.id}`}
                 >
                   <Minus className="h-6 w-6" />
                 </Button>
@@ -276,7 +278,12 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
                   </div>
                 ) : (
                   <div className="relative">
-                    <Input value={quantity} className="py-3 text-center border-none" onChange={(e) => onChangeQty(e)} />
+                    <Input
+                      value={quantity}
+                      className="py-3 text-center border-none"
+                      onChange={(e) => onChangeQty(e)}
+                      data-testid={`cart-item-quantity-${item.product?.id}`}
+                    />
                     {substitution && (
                       <div className="cursor-pointer" onClick={() => setShowSubstitutionModal(true)}>
                         <UINotification icon={Package} iconSize={24} animate="pulse" className="absolute" />
@@ -291,6 +298,7 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
                 className="p-3 h-13 border-border-primary rounded-none rounded-ee-sm rounded-se-sm"
                 disabled={loading}
                 onClick={() => handleUpdateQuantity(quantity + 1)}
+                data-testid={`cart-item-increase-${item.product?.id}`}
               >
                 <Plus className="h-6 w-6" />
               </Button>

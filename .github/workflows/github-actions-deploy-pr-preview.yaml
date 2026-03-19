@@ -24,7 +24,7 @@ concurrency:
 
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_SHOWCASEDEV_PROJECT_ID }}
 
 jobs:
   build_and_deploy_pr_preview:
@@ -57,6 +57,7 @@ jobs:
         run: npm run jest
         env:
           DOTENV_CONFIG_PATH: .env
+          NEXT_PUBLIC_EMPORIX_BASE_URL: https://api.emporix.io
           NEXT_EMPORIX_TEST_TENANT: ${{ vars.NEXT_EMPORIX_TEST_TENANT }}
           NEXT_EMPORIX_TEST_CLIENT_ID: ${{ vars.NEXT_EMPORIX_TEST_CLIENT_ID }}
           NEXT_EMPORIX_TEST_CLIENT_SECRET: ${{ secrets.NEXT_EMPORIX_TEST_CLIENT_SECRET }}

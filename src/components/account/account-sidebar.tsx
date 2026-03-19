@@ -24,9 +24,10 @@ interface SidebarGroup {
 interface SidebarNavProps extends React.HTMLAttributes<HTMLElement> {
   items: SidebarItem[];
   groups?: SidebarGroup[];
+  scrollable?: boolean;
 }
 
-export function AccountSidebar({ className, items, groups = [], ...props }: SidebarNavProps) {
+export function AccountSidebar({ className, items, groups = [], scrollable = true, ...props }: SidebarNavProps) {
   const pathname = usePathname();
   const { logout } = useAuthentication();
   const locale = useLocale();
@@ -67,7 +68,8 @@ export function AccountSidebar({ className, items, groups = [], ...props }: Side
   return (
     <nav
       className={cn(
-        'flex flex-col min-w-[288px] items-start rounded-md h-full overflow-y-auto py-4 shadow-sm',
+        'flex flex-col min-w-[180px] lg:min-w-[288px] items-start rounded-md h-full py-4 shadow-sm',
+        scrollable && 'overflow-y-auto',
         className,
       )}
       {...props}

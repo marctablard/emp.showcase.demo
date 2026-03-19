@@ -2,33 +2,25 @@
 
 import { useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useSession as useAppSession } from '@/hooks/session/useSession';
-import { ModifyCartItemResult } from '@/platform/services/cart/CartService';
+import { CartShippingAddress, ModifyCartItemResult } from '@/platform/services/cart/CartService';
 import { Cart } from '@/platform/services/model/cart/cart';
-import { useCartStore, useSessionStore } from '@/providers/StoreProvider';
-
-// Module-level lock to prevent duplicate currency updates across all useCart instances
-let globalCurrencyUpdateInProgress = false;
+import { useCartStore } from '@/providers/StoreProvider';
 
 interface UseCart {
-  // Cart data
   cart: Cart | null | undefined;
   cartId: string | null;
   totalItems: number;
 
-  // Status
   loading: boolean;
   error: Error | null;
 
-  // Operations
   addItem: (productId: string, quantity: number) => Promise<ModifyCartItemResult>;
   updateItemQuantity: (itemId: string, quantity: number) => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
-  updateShippingInfo: (countryCode?: string, zipCode?: string) => Promise<void>;
-  clearCart: () => void;
+  updateShippingInfo: (shippingAddress: CartShippingAddress, billingAddress?: CartShippingAddress) => Promise<void>;
+  clearCart: (options?: { deleteCart?: boolean; clearSession?: boolean }) => void;
   loadCart: (cartId: string, type?: string) => Promise<Cart | null | undefined>;
 
-  // Utility
   refetch: () => Promise<void>;
 }
 
@@ -48,61 +40,34 @@ export const useCart = (initialCart?: Cart | null): UseCart => {
     updateItemQuantity,
     removeItem,
     updateShippingInfo,
-    updateCurrency,
     clearCart,
     fetchCart,
     setCurrentCart,
     loadCart,
     validateCart,
-    validateSite,
   } = useCartStore();
 
-  const { session } = useSessionStore();
-
   useEffect(() => {
-    // Initialize with initialCart if provided and cart is undefined
-    if (initialCart !== undefined) {
-      setCurrentCart(initialCart);
+    if (cart === undefined) {
+      // Cart state is unknown — either hydrate from SSR prop or fetch
+      if (initialCart !== undefined) {
+        setCurrentCart(initialCart);
+      } else {
+        fetchCart(false);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialCart]);
+  }, [cart, initialCart]);
 
+  // Track authentication status changes to refresh cart
   const { status: sessionStatus } = useSession();
   useEffect(() => {
     validateCart(sessionStatus);
   }, [sessionStatus, validateCart]);
 
-  // Validate cart when site changes
-  useEffect(() => {
-    if (session?.siteCode) {
-      validateSite(session.siteCode);
-    }
-  }, [session?.siteCode, validateSite]);
-
-  const { session: appSession } = useAppSession();
-  useEffect(() => {
-    // Prevent duplicate calls while update is in progress (global lock across all useCart instances)
-    if (globalCurrencyUpdateInProgress) {
-      return;
-    }
-
-    if (!cart || !appSession?.currency || !appSession?.siteCode) {
-      return;
-    }
-
-    // Don't update currency if cart belongs to a different site (stale cart during site switch)
-    if (cart.site !== appSession.siteCode) {
-      return;
-    }
-
-    const cartCurrency = cart.currency || cart.totalPrice?.currency;
-    if (cartCurrency && cartCurrency !== appSession.currency) {
-      globalCurrencyUpdateInProgress = true;
-      updateCurrency(appSession.currency).finally(() => {
-        globalCurrencyUpdateInProgress = false;
-      });
-    }
-  }, [appSession?.currency, appSession?.siteCode, cart, updateCurrency]);
+  // NOTE: Currency sync and site validation effects have been moved to
+  // store-level subscriptions in src/stores/sync/store-synchronizer.ts
+  // This eliminates duplicate API calls when multiple components use useCart.
 
   return {
     cart,

@@ -116,7 +116,7 @@ Each layer has:
 
 Let's consider a get product feature:
 
-**Integration Layer** (`src/platform/integrations/product/impl/EmporixProductApi.ts`):
+**Integration Layer** (`src/platform/integrations/emporix/product/impl/EmporixProductApi.ts`):
 
 - Handles HTTP requests to Emporix API, calling https://api.emporix.io/product/{tenant}/products/{productId}
 - Formats the request and response according to the API contract
@@ -128,7 +128,7 @@ Let's consider a get product feature:
 - Applies business rules (e.g., visibility, availability)
 - Transforms raw data into domain models through Mappers
 
-**React Application Level** (`src/app/[locale]/hello/page.ts`):
+**React Application Level** (`src/app/[site]/[locale]/(default)/product/[id]/page.tsx`):
 
 - Invokes EmporixProductService from Service layer either directly or through Next-API
 - Renders the product data in the UI
@@ -141,7 +141,8 @@ Here's how our layered architecture is implemented in a Next.js API route:
 
 ```typescript
 import { NextRequest, NextResponse } from 'next/server';
-import services from '@/platform/services';
+import server from '@/platform/server';
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import { ProductService } from '@/platform/services/product/ProductService';
 
 /**
@@ -151,7 +152,7 @@ import { ProductService } from '@/platform/services/product/ProductService';
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const productId = params.id;
-    const productService = await services.get<ProductService>('ProductService');
+    const productService = server.get<ProductService>('ProductService');
 
     const product = await productService.getProductById(productId);
 
@@ -161,7 +162,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     return NextResponse.json(product);
   } catch (error) {
-    console.error('Error fetching product:', error);
+    const logger = server.get<LoggerService>('LoggerService');
+    logger.error({ error }, 'Error fetching product');
     return NextResponse.json({ error: 'Failed to fetch product' }, { status: 500 });
   }
 }

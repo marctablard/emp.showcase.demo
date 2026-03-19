@@ -1,5 +1,5 @@
 import { Container } from 'inversify';
-import { TokenManager } from '../../common/TokenManager';
+import { EmporixTokenManager as TokenManager } from '../../common/EmporixTokenManager';
 import EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
 import { EmporixTestTokenManager } from '../../common/impl/EmporixTokenManager.test';
 import { EmporixConfig } from '../../config';
@@ -46,7 +46,7 @@ describe('EmporixShippingApi', () => {
     jest.spyOn(apiInvoker, 'authenticatedFetch');
   });
 
-  describe.skip('getShippingMethod', () => {
+  describe('getShippingMethod', () => {
     it('should fetch a shipping method by ID', async () => {
       // Setup
       const siteId = 'main';
@@ -78,15 +78,15 @@ describe('EmporixShippingApi', () => {
       // Execute
       const result = await shippingApi.getShippingMethod(siteId, zoneId, methodId);
       // Assert
-      expect(result).toBeUndefined();
+      expect(result).toBeNull();
     });
   });
 
-  describe.skip('getShippingMethods', () => {
+  describe('getShippingMethods', () => {
     it('should fetch all shipping methods for a zone', async () => {
       // Setup
       const siteId = 'main';
-      const zoneId = 'de-default';
+      const zoneId = 'de-region';
 
       // Execute
       const result = await shippingApi.getShippingMethods(siteId, zoneId);

@@ -1,7 +1,9 @@
+'use client';
+
 import { useTranslations } from 'next-intl';
-import Link from 'next/link';
 import { useHeaderSearch } from '@/components/header/search/search-context';
 import { breakpoints } from '@/hooks/useBreakpoint';
+import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 
 interface HeaderLogoProps {

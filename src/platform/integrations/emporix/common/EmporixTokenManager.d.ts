@@ -4,6 +4,13 @@
  */
 export interface EmporixTokenManager {
   /**
+   * Get a valid anonymous token, that can be shared across users for public / non-session-bound requests
+   * @param tenant The tenant ID
+   * @returns Promise with the token
+   */
+  getPublicToken(tenant: string, clientId: string): Promise<{ accessToken: string }>;
+
+  /**
    * Get a valid anonymous token, refreshing if necessary
    * @param tenant The tenant ID
    * @returns Promise with the token

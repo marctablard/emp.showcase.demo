@@ -1,4 +1,3 @@
-import React from 'react';
 import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import AccountLayout from '@/components/account/account-layout';

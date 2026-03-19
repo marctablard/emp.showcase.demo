@@ -70,7 +70,9 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
         // Create a map of product ID to product data
         const newProductMap: Record<string, Product> = {};
         products.forEach((product, index) => {
-          newProductMap[productIds[index]] = product;
+          if (product) {
+            newProductMap[productIds[index]] = product;
+          }
         });
 
         setProductMap(newProductMap);

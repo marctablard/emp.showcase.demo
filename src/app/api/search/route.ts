@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
     const page = url.searchParams.get('page') ? parseInt(url.searchParams.get('page')!) : 0;
     const size = url.searchParams.get('size') ? parseInt(url.searchParams.get('size')!) : 20;
     const sort = url.searchParams.get('sort') || undefined;
+    const locale = url.searchParams.get('locale') || undefined;
+    const site = url.searchParams.get('site') || undefined;
 
     // Extract filters if present (format: filters[key]=value or filters[key][]=value1&filters[key][]=value2)
     const filters: Record<string, string | string[]> = {};
@@ -37,13 +39,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Perform the search
-    const searchResults = await searchService.searchProducts({
-      query,
-      page,
-      size,
-      sort,
-      filters: Object.keys(filters).length > 0 ? filters : undefined,
-    });
+    const searchResults = await searchService.searchProducts(
+      {
+        query,
+        page,
+        size,
+        sort,
+        filters: Object.keys(filters).length > 0 ? filters : undefined,
+      },
+      locale,
+      site,
+    );
 
     return NextResponse.json(searchResults);
   } catch (error) {

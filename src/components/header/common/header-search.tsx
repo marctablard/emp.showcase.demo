@@ -1,3 +1,5 @@
+'use client';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
@@ -161,6 +163,7 @@ export function HeaderSearch({ small, show, isCollapsedHeader, className }: Head
           id="search-input"
           onKeyDown={(e) => e.key === 'Enter' && redirectToBrowse(e)}
           className={`h-11 py-2 pl-6 pr-[62px] placeholder:text-text-placeholders text-text-headings bg-surface-search-input hover:bg-surface-search-input border border-transparent hover:border-border-action-hover ${hasInputFocus ? 'shadow-md' : ''}`}
+          data-testid="header-searchInput"
         />
 
         <Button
@@ -169,6 +172,7 @@ export function HeaderSearch({ small, show, isCollapsedHeader, className }: Head
           className={`absolute ${hasInputFocus ? 'right-13' : 'right-0'} top-1/2 -translate-y-1/2 bg-transparent pr-6 cursor-pointer`}
           variant={'link'}
           aria-label={t('searchProducts')}
+          data-testid="header-searchButton"
         >
           <Search className="text-icon-primary-dark" width="28" height="28" />
         </Button>
@@ -182,12 +186,13 @@ export function HeaderSearch({ small, show, isCollapsedHeader, className }: Head
               deactivateSearch();
             }}
             className="cursor-pointer z-30"
+            data-testid="header-searchClose"
           >
             <X className="text-icon-primary-dark" width="28" height="28" />
           </Button>
         )}
       </form>
-      {showSuggestions && hasInitialSearch && (
+      {show && showSuggestions && hasInitialSearch && (
         <SearchFlyOut
           ref={suggestionsRef}
           suggestions={suggestions}

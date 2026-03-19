@@ -1,5 +1,11 @@
 import { injectable } from '@/platform/core/di/injectable';
-import { buildAndLogCurl, logResponse } from '@/platform/core/utils/debug-utils';
+import {
+  type DebugContext,
+  buildAndLogCurl,
+  getDebugLogger,
+  logRequestPayload,
+  logResponse,
+} from '@/platform/core/utils/debug-utils';
 import {
   EmporixAccessTokenResponse,
   EmporixAnonymousTokenResponse,
@@ -13,6 +19,33 @@ import { EmporixOAuthApi as IEmporixOAuthApi } from '../EmporixOAuthApi';
 @injectable('EmporixOAuthApi', 'Singleton')
 class EmporixOAuthApi implements IEmporixOAuthApi {
   protected readonly baseUrl: string = process.env.NEXT_PUBLIC_EMPORIX_BASE_URL || 'https://api.emporix.io';
+
+  /**
+   * Gets an anonymous token that will be used for public (shared on ssr and server) requests
+   * @param tenant The tenant ID
+   * @param clientId Client ID for anonymous access
+   * @returns Promise with the anonymous token response
+   */
+  async getPublicToken(tenant: string, clientId: string): Promise<EmporixAnonymousTokenResponse> {
+    const url = `/customerlogin/auth/anonymous/login?tenant=${tenant}&client_id=${clientId}`;
+
+    const response = await this.fetch(url, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      next: {
+        revalidate: 3200,
+      },
+    });
+
+    if (!response.ok) {
+      const message = await response.text();
+      throw new Error(`Failed to get anonymous token: ${response.statusText} - ${message}`);
+    }
+
+    return (await response.json()) as EmporixAnonymousTokenResponse;
+  }
 
   /**
    * Get an anonymous token
@@ -153,6 +186,9 @@ class EmporixOAuthApi implements IEmporixOAuthApi {
         Accept: 'application/json',
       },
       body: formData,
+      next: {
+        revalidate: 3200,
+      },
     });
 
     if (!response.ok) {
@@ -167,10 +203,17 @@ class EmporixOAuthApi implements IEmporixOAuthApi {
    */
   async fetch(url: string, options: RequestInit = {}): Promise<Response> {
     url = `${this.baseUrl}${url.startsWith('/') ? url : '/' + url}`;
-    const prefix = buildAndLogCurl(url, options);
+    const ctx: DebugContext = { callType: 'external' };
+    const prefix = buildAndLogCurl(url, options, ctx);
+    logRequestPayload(url, options, prefix, ctx);
     const responsePromise = fetch(url, options);
-    responsePromise.catch((err) => console.error(`${prefix} [FETCH ERROR] ${url}`, err));
-    responsePromise.then((response) => logResponse(response, url, options, prefix));
+    responsePromise.catch((err) =>
+      getDebugLogger().error(
+        { url, error: err instanceof Error ? err.message : String(err) },
+        `${prefix} [FETCH ERROR]`,
+      ),
+    );
+    responsePromise.then((response) => logResponse(response, url, options, prefix, ctx));
     return responsePromise;
   }
 }

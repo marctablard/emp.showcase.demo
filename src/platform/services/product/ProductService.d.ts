@@ -1,4 +1,5 @@
 import type { Paginated, Product } from '../../types/data';
+import { PriceFetchOptions } from '../price/PriceService';
 
 /**
  * Options for fetching products with additional data
@@ -7,9 +8,13 @@ export interface ProductFetchOptions {
   /** Include product variants */
   variants?: boolean;
   /** Include product prices */
-  prices?: boolean;
+  prices?: boolean | PriceFetchOptions;
+  /** Include availability */
+  availability?: boolean;
   /** Include product categories */
   categories?: boolean;
+  /** Include customer segments filtering */
+  customerSegments?: boolean;
 }
 
 /**

@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { CloudDrizzle, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Cloudy, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWeather } from '@/hooks/weather/useWeather';
+import { type WeatherKey, dk } from '@/i18n/dynamic-key';
 import { LocationData } from '@/platform/services/model/common';
 import { DashboardCard, DashboardCardProps } from './dashboard-card';
 
@@ -93,7 +94,7 @@ export function WeatherCard({ className, title, subtitle, ...props }: WeatherCar
   }
   return (
     <DashboardCard
-      title={title || t(weather.current.description)}
+      title={title || t(dk<WeatherKey>(weather.current.description))}
       subtitle={
         subtitle ||
         weather.current.date.toLocaleDateString('en-US', {

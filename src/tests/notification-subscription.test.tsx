@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, render } from '@testing-library/react';
-import { usePushNotifications } from '@/hooks/usePushNotifications';
-import { ReferenceType } from '@/platform/services/model/notification/notification';
+import { useNotifications } from '@/hooks/notifications/useNotifications';
+import type { ReferenceType } from '@/platform/services/model/notification/notification';
 import { useNotificationStore } from '@/providers/StoreProvider';
 
 // Mock the store provider
@@ -13,11 +13,14 @@ describe('Notification Subscription System', () => {
   // Mock store implementation
   const mockStore = {
     pushNotifications: [],
+    start: jest.fn(),
+    error: null,
     registerNotificationListener: jest.fn().mockReturnValue('test-subscription-id'),
     unregisterNotificationListener: jest.fn(),
-    markNotificationAsConsumed: jest.fn(),
-    isNotificationConsumed: jest.fn().mockReturnValue(false),
-    notifySubscribers: jest.fn().mockReturnValue(false),
+    markNotificationAsRead: jest.fn(),
+    getNotifications: jest.fn().mockResolvedValue([]),
+    fetchNotifications: jest.fn().mockResolvedValue(undefined),
+    notifyListeners: jest.fn().mockReturnValue(false),
   };
 
   beforeEach(() => {
@@ -25,21 +28,16 @@ describe('Notification Subscription System', () => {
     (useNotificationStore as jest.Mock).mockReturnValue(mockStore);
   });
 
-  test('usePushNotifications hook exposes subscription methods', () => {
+  test('useNotifications hook exposes subscription methods', () => {
     // Test component that uses the hook
     const TestComponent = () => {
-      const {
-        registerNotificationListener,
-        unregisterNotificationListener,
-        markNotificationAsConsumed,
-        isNotificationConsumed,
-      } = usePushNotifications();
+      const { registerNotificationListener, unregisterNotificationListener, markNotificationAsRead } =
+        useNotifications();
 
       // Verify the hook exposes the methods
       expect(registerNotificationListener).toBeDefined();
       expect(unregisterNotificationListener).toBeDefined();
-      expect(markNotificationAsConsumed).toBeDefined();
-      expect(isNotificationConsumed).toBeDefined();
+      expect(markNotificationAsRead).toBeDefined();
 
       return <div>Test Component</div>;
     };
@@ -49,26 +47,26 @@ describe('Notification Subscription System', () => {
 
   test('registerNotificationListener registers a listener for a specific reference type', () => {
     const TestComponent = () => {
-      const { registerNotificationListener } = usePushNotifications();
+      const { registerNotificationListener } = useNotifications();
       const listener = jest.fn();
 
       React.useEffect(() => {
-        registerNotificationListener(ReferenceType.CART, listener);
+        registerNotificationListener('CART' as ReferenceType, listener);
       }, [registerNotificationListener]);
 
       return <div>Test Component</div>;
     };
 
     render(<TestComponent />);
-    expect(mockStore.registerNotificationListener).toHaveBeenCalledWith(ReferenceType.CART, expect.any(Function));
+    expect(mockStore.registerNotificationListener).toHaveBeenCalledWith('CART', expect.any(Function));
   });
 
   test('unregisterNotificationListener removes a listener by subscription id', () => {
     const TestComponent = () => {
-      const { registerNotificationListener, unregisterNotificationListener } = usePushNotifications();
+      const { registerNotificationListener, unregisterNotificationListener } = useNotifications();
 
       React.useEffect(() => {
-        const subscriptionId = registerNotificationListener(ReferenceType.CART, jest.fn());
+        const subscriptionId = registerNotificationListener('CART' as ReferenceType, jest.fn());
         unregisterNotificationListener(subscriptionId);
       }, [registerNotificationListener, unregisterNotificationListener]);
 
@@ -79,19 +77,19 @@ describe('Notification Subscription System', () => {
     expect(mockStore.unregisterNotificationListener).toHaveBeenCalledWith('test-subscription-id');
   });
 
-  test('markNotificationAsConsumed marks a notification as consumed', () => {
+  test('markNotificationAsRead marks a notification as read', () => {
     const TestComponent = () => {
-      const { markNotificationAsConsumed } = usePushNotifications();
+      const { markNotificationAsRead } = useNotifications();
 
       React.useEffect(() => {
-        markNotificationAsConsumed('test-notification-id');
-      }, [markNotificationAsConsumed]);
+        markNotificationAsRead('test-notification-id');
+      }, [markNotificationAsRead]);
 
       return <div>Test Component</div>;
     };
 
     render(<TestComponent />);
-    expect(mockStore.markNotificationAsConsumed).toHaveBeenCalledWith('test-notification-id');
+    expect(mockStore.markNotificationAsRead).toHaveBeenCalledWith('test-notification-id');
   });
 
   test('notifySubscribers calls registered listeners and collects consumption status', () => {
@@ -99,19 +97,21 @@ describe('Notification Subscription System', () => {
     const mockListener = jest.fn().mockReturnValue(true); // Listener that consumes the notification
     const mockNotification = {
       id: 'test-notification-id',
-      referenceType: ReferenceType.CART,
+      type: 'INFO' as const,
+      recipient_type: 'CUSTOMER' as const,
+      reference_type: 'CART' as ReferenceType,
     };
 
     // Mock implementation for testing notifySubscribers
     const testStore = {
       ...mockStore,
-      subscriptions: [{ id: 'test-sub-id', referenceType: ReferenceType.CART, listener: mockListener }],
-      notifySubscribers: jest.fn().mockImplementation((notification) => {
+      subscriptions: [{ id: 'test-sub-id', referenceType: 'CART' as ReferenceType, listener: mockListener }],
+      notifyListeners: jest.fn().mockImplementation((notification: typeof mockNotification) => {
         let isConsumed = false;
 
         // Find subscriptions matching the notification's reference type
         const matchingSubscriptions = testStore.subscriptions.filter(
-          (sub) => sub.referenceType === notification.referenceType,
+          (sub: { referenceType: string }) => sub.referenceType === notification.reference_type,
         );
 
         // Call each listener and collect consumption status
@@ -122,6 +122,7 @@ describe('Notification Subscription System', () => {
               isConsumed = true;
             }
           } catch (error) {
+            // eslint-disable-next-line no-console
             console.error(`Error in notification listener ${subscription.id}:`, error);
           }
         }
@@ -134,12 +135,12 @@ describe('Notification Subscription System', () => {
 
     // Test component that triggers notification
     const TestComponent = () => {
-      const { notifyListeners: notifySubscribers } = useNotificationStore();
+      const store = useNotificationStore();
 
       React.useEffect(() => {
-        const isConsumed = notifySubscribers(mockNotification);
+        const isConsumed = store.notifyListeners(mockNotification);
         expect(isConsumed).toBe(true);
-      }, [notifySubscribers]);
+      }, [store]);
 
       return <div>Test Component</div>;
     };

@@ -59,7 +59,7 @@ export function AddressInfoSection({ control, number }: AddressInfoAccordionProp
                 {isB2C && <span className="text-text-placeholders text-sm ml-1"> {t('optional')}</span>}
               </FormLabel>
               <FormControl>
-                <Input id="companyName" type="text" {...field} />
+                <Input id="companyName" type="text" {...field} data-testid="register-companyName" />
               </FormControl>
               <div className="absolute top-full left-0 mt-0.5">
                 <FormMessage />
@@ -92,7 +92,7 @@ export function AddressInfoSection({ control, number }: AddressInfoAccordionProp
                 {isB2C && <span className="text-text-placeholders text-sm ml-1"> {t('optional')}</span>}
               </FormLabel>
               <FormControl>
-                <Input id="vatNumber" type="text" {...field} />
+                <Input id="vatNumber" type="text" {...field} data-testid="register-vatNumber" />
               </FormControl>
               <div className="absolute top-full left-0 mt-0.5">
                 <FormMessage />
@@ -108,7 +108,7 @@ export function AddressInfoSection({ control, number }: AddressInfoAccordionProp
               <FormItem className="w-2/3 sm:w-3/4 relative">
                 <FormLabel htmlFor="street">{t('street')}</FormLabel>
                 <FormControl>
-                  <Input id="street" type="text" required {...field} />
+                  <Input id="street" type="text" required {...field} data-testid="register-street" />
                 </FormControl>
                 <div className="absolute top-full left-0 mt-0.5">
                   <FormMessage />
@@ -125,7 +125,7 @@ export function AddressInfoSection({ control, number }: AddressInfoAccordionProp
                   <p className="text-nowrap whitespace-nowrap overflow-ellipsis overflow-hidden">{t('houseNumber')}</p>
                 </FormLabel>
                 <FormControl>
-                  <Input id="houseNumber" type="text" required {...field} />
+                  <Input id="houseNumber" type="text" required {...field} data-testid="register-houseNumber" />
                 </FormControl>
                 <div className="absolute top-full left-0 mt-0.5">
                   <FormMessage className="text-nowrap overflow-hidden overflow-ellipsis" />
@@ -144,7 +144,7 @@ export function AddressInfoSection({ control, number }: AddressInfoAccordionProp
                   <p className="text-nowrap whitespace-nowrap overflow-ellipsis overflow-hidden">{t('postalCode')}</p>
                 </FormLabel>
                 <FormControl>
-                  <Input id="postalCode" type="text" required {...field} />
+                  <Input id="postalCode" type="text" required {...field} data-testid="register-postalCode" />
                 </FormControl>
                 <div className="absolute top-full left-0 mt-0.5">
                   <FormMessage className="text-nowrap overflow-hidden overflow-ellipsis" />
@@ -159,7 +159,7 @@ export function AddressInfoSection({ control, number }: AddressInfoAccordionProp
               <FormItem className="w-2/3 sm:w-3/4 relative">
                 <FormLabel htmlFor="city">{t('city')}</FormLabel>
                 <FormControl>
-                  <Input id="city" type="text" required {...field} />
+                  <Input id="city" type="text" required {...field} data-testid="register-city" />
                 </FormControl>
                 <div className="absolute top-full left-0 mt-0.5">
                   <FormMessage />
@@ -176,7 +176,7 @@ export function AddressInfoSection({ control, number }: AddressInfoAccordionProp
               <FormLabel htmlFor="country">{t('country')}</FormLabel>
               <FormControl>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <SelectTrigger>
+                  <SelectTrigger data-testid="register-country">
                     <SelectValue placeholder={t('country')} />
                   </SelectTrigger>
                   <SelectContent>
@@ -200,7 +200,12 @@ export function AddressInfoSection({ control, number }: AddressInfoAccordionProp
           render={({ field }) => (
             <FormItem className="flex flex-row items-center gap-2">
               <FormControl>
-                <Checkbox id="shippingSameAsBilling" checked={field.value} onCheckedChange={field.onChange} />
+                <Checkbox
+                  id="shippingSameAsBilling"
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  data-testid="register-shippingSameAsBilling"
+                />
               </FormControl>
               <FormLabel className="font-medium" htmlFor="shippingSameAsBilling">
                 {t('shippingSameAsBilling')}

@@ -30,6 +30,10 @@ export interface EmporixOrderEntry {
     name: string;
     description?: string;
     sku?: string;
+    vendor?: {
+      id?: string;
+      name?: string;
+    };
     images?: Array<{
       id: string;
       url: string;

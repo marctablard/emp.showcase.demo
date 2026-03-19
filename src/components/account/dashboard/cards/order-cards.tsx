@@ -15,6 +15,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useOrder } from '@/hooks/order/useOrder';
 import { useOrders } from '@/hooks/order/useOrders';
+import { type PaymentModeKey, dk } from '@/i18n/dynamic-key';
 import { Link } from '@/i18n/navigation';
 import { Order } from '@/platform/services/model/order/order';
 import { DashboardCard, DashboardCardProps } from './dashboard-card';
@@ -261,7 +262,7 @@ function OrderDetail({ orderId }: { orderId: string }) {
               {order.payments && order.payments.length > 0 && (
                 <>
                   <H3 className="mb-2 mt-4">{tOrder('paymentMethod')}</H3>
-                  <p>{tPaymentModes(order.payments[0].method.toLowerCase())}</p>
+                  <p>{tPaymentModes(dk<PaymentModeKey>(order.payments[0].method.toLowerCase()))}</p>
                 </>
               )}
             </div>

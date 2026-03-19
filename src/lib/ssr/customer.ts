@@ -2,6 +2,7 @@
 
 import { cache } from 'react';
 import type { CustomerService } from '@/platform/services/customer/CustomerService';
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Customer } from '@/platform/services/model/customer/customer';
 import ssr from '@/platform/ssr';
 
@@ -9,6 +10,7 @@ import ssr from '@/platform/ssr';
  * Get the customer service instance from the platform container
  */
 const getCustomerService = () => ssr.get<CustomerService>('CustomerService');
+const getLogger = () => ssr.get<LoggerService>('LoggerService');
 
 /**
  * Get the current customer
@@ -18,8 +20,11 @@ export const getCurrentCustomer = cache(async (): Promise<Customer | null | unde
   try {
     const customer = await getCustomerService().getCustomer();
     return customer;
-  } catch (_error) {
-    // on SSR we fail with undefined, so the Client can refetch if necessary
+  } catch (error) {
+    getLogger().error(
+      { error: error instanceof Error ? error.message : String(error) },
+      'SSR getCurrentCustomer failed',
+    );
     return undefined;
   }
 });

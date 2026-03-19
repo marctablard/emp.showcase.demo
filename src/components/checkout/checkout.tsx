@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
+import { useCart } from '@/hooks/cart/useCart';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
 import { useCustomer } from '@/hooks/customer/useCustomer';
 import { createApproval } from '@/lib/client/approval';
@@ -26,6 +27,7 @@ interface CheckoutProps {
 const Checkout: React.FC<CheckoutProps> = ({ onComplete }) => {
   const { loading, error, orderResponse, checkoutCart, createCheckoutData, processCheckout } = useCheckout();
   const { customer } = useCustomer();
+  const { clearCart } = useCart();
   const router = useRouter();
   const t = useTranslations('checkout');
   const leftContent = useRef<HTMLDivElement>(null);
@@ -59,6 +61,9 @@ const Checkout: React.FC<CheckoutProps> = ({ onComplete }) => {
           shipping: checkoutData.shipping,
         },
       });
+      // Clear the cart after successful approval creation (also delete the cart entity
+      // since Emporix does NOT auto-close the cart for approvals)
+      clearCart({ deleteCart: true });
       // Navigate to confirmation page
       router.push(`/confirmation/Approval%20Requested`);
     } else {

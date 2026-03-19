@@ -289,7 +289,7 @@ export const createNotificationStore = (initState: NotificationState = defaultSt
         if (!subscription) {
           subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: convertedVapidKey,
+            applicationServerKey: convertedVapidKey.buffer as ArrayBuffer,
           });
         }
         const p256dh = subscription.getKey('p256dh');

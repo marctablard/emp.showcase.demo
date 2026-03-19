@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import Link from 'next/link';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 import { HeaderPromo } from '@/components/header/common/header-promo';
 import { navigationMenuItems } from '@/data/navigation-menu';
+import { Link } from '@/i18n/navigation';
 
 export function TabletMenuFlyout() {
   const t = useTranslations('layout.header');

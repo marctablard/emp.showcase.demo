@@ -111,7 +111,7 @@ export function PasswordUpdateForm() {
                   <FormItem>
                     <FormLabel>{t('newPassword')}</FormLabel>
                     <FormControl>
-                      <Input type="password" {...field} />
+                      <Input type="password" {...field} data-testid="passwordUpdate-password" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -125,7 +125,7 @@ export function PasswordUpdateForm() {
                   <FormItem>
                     <FormLabel>{t('confirmPassword')}</FormLabel>
                     <FormControl>
-                      <Input type="password" {...field} />
+                      <Input type="password" {...field} data-testid="passwordUpdate-confirmPassword" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -138,7 +138,12 @@ export function PasswordUpdateForm() {
                 </Alert>
               )}
 
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isSubmitting}
+                data-testid="passwordUpdate-submitButton"
+              >
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

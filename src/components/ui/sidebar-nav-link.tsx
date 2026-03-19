@@ -52,7 +52,7 @@ export function SidebarNavLink({
   const linkClassName = cn(sidebarNavLinkVariants({ variant: activeVariant }), className);
   if (isLogout || onClick) {
     return (
-      <button type="button" className={linkClassName} onClick={onClick} {...props}>
+      <button type="button" className={cn(linkClassName, 'cursor-pointer')} onClick={onClick} {...props}>
         <div className="flex items-center gap-3">
           {icon && <div className="shrink-0">{icon}</div>}
           <span className="group-hover:underline">{text}</span>

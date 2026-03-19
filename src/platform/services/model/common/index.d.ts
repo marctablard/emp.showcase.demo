@@ -103,6 +103,9 @@ export interface SearchParams<T> extends PaginationQuery {
   sort?: string;
   criteria?: Partial<T>;
   filters?: Record<string, string | string[]>;
+  customerSegments?: boolean;
+  locale?: string;
+  site?: string;
 }
 
 export interface LocalizedString {
@@ -133,13 +136,28 @@ export interface Media {
   contentType?: string;
 }
 
-export interface Availability {
-  status: string;
-  reason?: string;
-  amount?: number;
-  futureAvailability: {
-    date: string;
-    status: string;
-    amount?: number;
-  }[];
+/**
+ * Stock availability information for a product
+ */
+export interface StockAvailability {
+  /**
+   * Product ID
+   */
+  productId: string;
+
+  /**
+   * Available quantity in stock
+   */
+  availableQuantity: number;
+
+  /**
+   * Number of days until the product is available if not in stock
+   * null if the product is in stock or unavailable
+   */
+  availableInDays: number | null;
+
+  /**
+   * Whether the product is available for order
+   */
+  isAvailable: boolean;
 }

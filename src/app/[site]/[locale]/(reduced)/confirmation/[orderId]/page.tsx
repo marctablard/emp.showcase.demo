@@ -1,4 +1,3 @@
-import React from 'react';
 import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { OrderConfirmation } from '@/components/checkout';
@@ -21,8 +20,6 @@ export async function generateMetadata({ params }: { params: Promise<Confirmatio
 }
 
 export default async function ConfirmationPage({ params }: { params: Promise<ConfirmationPageProps> }) {
-  // In a real application, we would fetch the order details from the API
-  // For now, we'll use a placeholder cart
   const { orderId } = await params;
   const order = await getOrderById(orderId);
 

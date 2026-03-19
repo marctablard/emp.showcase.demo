@@ -3,6 +3,7 @@ import { useTranslations } from 'next-intl';
 import { Check, NotebookText, Pencil, ReceiptText } from 'lucide-react';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
 import { useAddresses } from '@/hooks/customer/useAddresses';
+import { type PaymentModeKey, dk } from '@/i18n/dynamic-key';
 import { Address } from '@/platform/services/model/common';
 import { AddressSelector } from '../address/address-selector';
 import { AddressDisplay } from '../common/address-display';
@@ -39,6 +40,7 @@ export function CheckoutPayment({ initialEdit }: { initialEdit: boolean }) {
           size="default"
           className="normal-case text-base tracking-normal p-0 gap-1 underline"
           onClick={() => (isPaymentEdit ? setIsPaymentEdit(false) : setIsPaymentEdit(true))}
+          data-testid="payment-editButton"
         >
           {isPaymentEdit ? (
             <>
@@ -66,7 +68,7 @@ export function CheckoutPayment({ initialEdit }: { initialEdit: boolean }) {
                   <div>
                     <ReceiptText className="h-4 w-4 mt-1.5 mr-1.5" />
                   </div>
-                  <div>{paymentMethod && <p>{tPayment(paymentMethod.code)}</p>}</div>
+                  <div>{paymentMethod && <p>{tPayment(dk<PaymentModeKey>(paymentMethod.code))}</p>}</div>
                 </div>
               </div>
             </div>
@@ -102,6 +104,7 @@ export function CheckoutPayment({ initialEdit }: { initialEdit: boolean }) {
                 }
                 isReadOnly={false}
                 onAddressChange={handleBillingAddressChange}
+                testIdPrefix="billing"
               />
               {/* Payment Method */}
               <PaymentMethodComponent />

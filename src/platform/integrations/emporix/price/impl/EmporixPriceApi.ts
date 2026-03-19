@@ -41,7 +41,7 @@ class EmporixPriceApi implements IEmporixPriceApi {
         },
         body: JSON.stringify(request),
       },
-      'public',
+      'service',
     );
 
     if (!response.ok) {

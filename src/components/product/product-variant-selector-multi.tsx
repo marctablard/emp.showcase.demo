@@ -5,11 +5,13 @@ import { useTranslations } from 'next-intl';
 import { CheckCircle2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useL10n } from '@/hooks/useL10n';
+import { type ProductVariantAttributeKey, dk } from '@/i18n/dynamic-key';
 import { useRouter } from '@/i18n/navigation';
 import { fetchProductVariants } from '@/lib/client/products';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
 import type { Product } from '@/platform/services/model/product';
+import { useProductStore } from '@/providers/StoreProvider';
 import { getColorValue } from '@/utils/colors';
 
 export interface ProductVariantSelectorMultiProps {
@@ -94,6 +96,7 @@ export default function ProductVariantSelectorMulti({ product, className }: Prod
   const router = useRouter();
   const t = useTranslations('product');
   const { l10n } = useL10n();
+  const { getVariants, setVariants: storeSetVariants } = useProductStore();
 
   // Preselect UI controls with current product's selected attributes
   const defaultSelectedAttributes = useMemo<Record<string, string>>(() => {
@@ -126,15 +129,23 @@ export default function ProductVariantSelectorMulti({ product, className }: Prod
     let isCancelled = false;
 
     const loadVariants = async () => {
-      if (isCancelled) {
+      if (isCancelled) return;
+
+      const parentId = product.parentVariantId || product.id;
+
+      // Check store cache first
+      const cached = getVariants(parentId);
+      if (cached) {
+        if (!isCancelled) setVariants(cached);
         return;
       }
 
       try {
-        const fetchedVariants = await fetchProductVariants(product.parentVariantId || product.id);
+        const fetchedVariants = await fetchProductVariants(parentId);
 
         if (!isCancelled) {
           setVariants(fetchedVariants);
+          storeSetVariants(parentId, fetchedVariants);
         }
       } catch (error) {
         getLogger().error({ err: error }, 'Failed to fetch variants');
@@ -149,7 +160,7 @@ export default function ProductVariantSelectorMulti({ product, className }: Prod
     return () => {
       isCancelled = true;
     };
-  }, [product.id, product.parentVariantId]);
+  }, [product.id, product.parentVariantId, getVariants, storeSetVariants]);
 
   // Find a variant that matches all selected attributes
   const findMatchingVariant = useCallback(
@@ -175,20 +186,18 @@ export default function ProductVariantSelectorMulti({ product, className }: Prod
     [],
   );
 
-  // React to changes in selectedAttributes and variants to find matching variant
   useEffect(() => {
-    // Only proceed if we have selected attributes and variants are loaded
     if (Object.keys(selectedAttributes).length === 0 || variants.length === 0) {
       return;
     }
 
     const matchingVariant = findMatchingVariant(variants, selectedAttributes);
-    if (matchingVariant) {
+    if (matchingVariant && matchingVariant.id !== product.id) {
       startTransition(() => {
         router.push(`/product/${matchingVariant.id}`);
       });
     }
-  }, [selectedAttributes, variants, router, findMatchingVariant]);
+  }, [selectedAttributes, variants, router, findMatchingVariant, product.id]);
 
   // Get available attribute values for display (with names from original product)
   const getAvailableAttributeValues = useCallback(
@@ -222,7 +231,13 @@ export default function ProductVariantSelectorMulti({ product, className }: Prod
         {product.variantAttributes.map((variantAttribute, index) => (
           <div key={variantAttribute.key}>
             <div className="flex flex-col gap-1">
-              <label className="text-base font-medium">{l10n(variantAttribute.name || variantAttribute.key)}</label>
+              <label className="text-base font-medium">
+                {l10n(
+                  t(dk<ProductVariantAttributeKey>(`filters.mixins.productVariantAttributes.${variantAttribute.key}`), {
+                    defaultValue: variantAttribute.key,
+                  }),
+                )}
+              </label>
               {variantAttribute.key === 'color' || variantAttribute.key === 'farbe' ? (
                 <div className="flex flex-wrap gap-2">
                   <style type="text/css">

@@ -13,9 +13,11 @@ emporix-showcase/
 ├── scripts/                # Utility scripts
 ├── src/                    # Main source code
 │   ├── app/                # Next.js App Router
-│   │   ├── [locale]/       # Internationalized routes
+│   │   ├── [site]/[locale]/ # Multi-tenant routes
+│   │   │   ├── (default)/  # Full header/footer layout
+│   │   │   ├── (reduced)/  # Minimal layout (checkout)
+│   │   │   └── (no-margin)/ # Full-width CMS pages
 │   │   ├── api/            # API routes
-│   │   └── context/        # React context providers
 │   ├── components/         # React components
 │   │   ├── account/        # Account components
 │   │   ├── address/        # Address components
@@ -81,9 +83,6 @@ Project documentation including architecture, implementation details, and develo
 ### `/e2e`
 End-to-end tests using Playwright for testing the application from a user's perspective.
 
-### `/i18n`
-Internationalization files containing translations for different languages used throughout the application.
-
 ### `/public`
 Static assets that are served directly by the web server, including images, fonts, and other resources.
 
@@ -104,9 +103,8 @@ Contains test results from automated test runs.
 ### `/src/app`
 Next.js App Router structure containing page components and API routes.
 
-- `/[locale]`: Internationalized routes for different locales
+- `/[site]/[locale]`: Multi-tenant, locale-aware routes
 - `/api`: API routes for server-side functionality
-- `/context`: React context providers for the application
 
 ### `/src/components`
 Reusable React components organized by feature or domain.

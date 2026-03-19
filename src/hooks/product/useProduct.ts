@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useHistory } from '@/hooks/history/useHistory';
 import { fetchProductById } from '@/lib/client/products';
 import { getLogger } from '@/lib/logger/use-logger-client';
@@ -20,17 +20,6 @@ interface UseProductResult {
 export const useProduct = (productOrId?: string | Product, options?: ProductFetchOptions): UseProductResult => {
   const { getProduct, setCurrentProduct, addProduct, currentProductId } = useProductStore();
 
-  // Stabilize options to prevent unnecessary re-renders
-  const optionsRef = useRef<ProductFetchOptions | undefined>(options);
-  const optionsChanged =
-    optionsRef.current?.variants !== options?.variants ||
-    optionsRef.current?.prices !== options?.prices ||
-    optionsRef.current?.categories !== options?.categories;
-
-  if (optionsChanged) {
-    optionsRef.current = options;
-  }
-
   let id: string | undefined;
   if (!productOrId) {
     id = currentProductId || undefined;
@@ -42,7 +31,7 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
       id = productOrId as string;
     }
   }
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(typeof productOrId === 'string' ? true : false);
   const [error, setError] = useState<Error | null>(null);
   const [product, setProduct] = useState<Product | null>(id ? getProduct(id) : null);
 
@@ -65,10 +54,11 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
         }
 
         // Fetch from API if not in store using our shared API layer
-        const data = await fetchProductById(id, optionsRef.current);
-
-        // Add to store
-        addProduct(data);
+        const data = await fetchProductById(id, options);
+        if (data) {
+          // Add to store
+          addProduct(data);
+        }
         setProduct(data);
       } catch (err) {
         setError(err instanceof Error ? err : new Error('An unknown error occurred'));
@@ -77,7 +67,7 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
         setLoading(false);
       }
     },
-    [id, getProduct, addProduct],
+    [id, getProduct, addProduct, options],
   );
 
   const refetch = () => fetchProduct(true);

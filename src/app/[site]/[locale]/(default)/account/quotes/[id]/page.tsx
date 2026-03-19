@@ -3,10 +3,8 @@ import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import AccountLayout from '@/components/account/account-layout';
 import { QuoteDetails } from '@/components/account/quotes/quote-details';
-import { getQuoteById } from '@/lib/client/quote';
+import { getQuoteById } from '@/lib/ssr/quotes';
 import { getPageTitle } from '@/lib/ssr/seo';
-
-export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({
   params,

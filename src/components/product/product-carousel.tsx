@@ -69,6 +69,7 @@ export function ProductCarousel({ images }: ProductCarouselProps) {
                     fill
                     sizes={imageSizes}
                     priority={index === 0}
+                    fetchPriority={index === 0 ? 'high' : 'auto'}
                     className="object-cover object-center"
                   />
                   {image.contentType?.startsWith('video/') && (

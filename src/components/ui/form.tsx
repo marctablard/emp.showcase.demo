@@ -15,6 +15,7 @@ import * as LabelPrimitive from '@radix-ui/react-label';
 import { Slot } from '@radix-ui/react-slot';
 import { LucideIcon } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { type ValidationKey, dk } from '@/i18n/dynamic-key';
 import { cn } from '@/lib/utils';
 
 const Form = FormProvider;
@@ -145,7 +146,7 @@ function FormDescription({ className, ...props }: React.ComponentProps<'p'>) {
 function FormMessage({ className, ...props }: React.ComponentProps<'p'>) {
   const t = useTranslations('validation');
   const { error, formMessageId } = useFormField();
-  const body = error ? String(error?.message ? t(error.message) : '') : props.children;
+  const body = error ? String(error?.message ? t(dk<ValidationKey>(error.message)) : '') : props.children;
 
   if (!body) {
     return null;

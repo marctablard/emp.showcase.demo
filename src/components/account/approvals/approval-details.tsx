@@ -50,7 +50,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
   const isRequestor = approval?.requestor.userId === customer?.id;
 
   const handleApprove = async () => {
-    if (isRequestor || !customer?.roles?.find((role) => role === 'B2B_ADMIN')) {
+    if (isRequestor || approval?.approver.userId !== customer?.id) {
       return;
     }
     try {
@@ -74,7 +74,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
   };
 
   const handleDecline = async () => {
-    if (isRequestor || !customer?.roles?.find((role) => role === 'B2B_ADMIN')) {
+    if (isRequestor || approval?.approver.userId !== customer?.id) {
       return;
     }
     try {
@@ -220,7 +220,8 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
     );
   }
 
-  const canApprove = approval.status === 'PENDING' && customer?.roles?.includes('B2B_ADMIN');
+  const isDesignatedApprover = approval.approver.userId === customer?.id;
+  const canApprove = approval.status === 'PENDING' && isDesignatedApprover && !isRequestor;
   const canComment = approval.status === 'PENDING';
   const canDelete = approval.status === 'PENDING' && isRequestor;
 

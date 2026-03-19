@@ -25,7 +25,7 @@ export function ApprovalModal({ isOpen, onClose, cartId, approvalSubmit }: Appro
   const { toast } = useToast();
 
   // Use the new hook to fetch approvers
-  const { approvers, loading, refetch } = useApproverSearch({
+  const { approvers, loading, error, refetch } = useApproverSearch({
     resourceType: 'CART',
     resourceId: cartId,
     action: 'CHECKOUT',
@@ -67,10 +67,10 @@ export function ApprovalModal({ isOpen, onClose, cartId, approvalSubmit }: Appro
 
   // Fetch approvers when the component mounts or when cartId changes
   useEffect(() => {
-    if (isOpen && cartId && !loading && !approvers) {
+    if (isOpen && cartId && !loading && !approvers && !error) {
       refetch();
     }
-  }, [isOpen, cartId, refetch, loading, approvers]);
+  }, [isOpen, cartId, refetch, loading, approvers, error]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -90,6 +90,7 @@ export function ApprovalModal({ isOpen, onClose, cartId, approvalSubmit }: Appro
                     : 'hover:bg-surface-disabled'
                 }`}
                 onClick={() => handleSelectApprover(approver)}
+                data-testid={`approval-approver-${approver.userId}`}
               >
                 <Avatar className="h-8 w-8 mr-2">
                   <div className="bg-surface-action text-text-on-action rounded-full h-full w-full flex items-center justify-center">
@@ -113,8 +114,17 @@ export function ApprovalModal({ isOpen, onClose, cartId, approvalSubmit }: Appro
           </div>
         )}
 
-        {!loading && approvers?.length === 0 && (
+        {!loading && approvers?.length === 0 && !error && (
           <div className="text-center text-text-placeholders py-2">{t('noApproversFound')}</div>
+        )}
+
+        {!loading && error && (
+          <div className="text-center py-4 space-y-2">
+            <p className="text-sm text-text-error">{t('errorFetchingApproversDescription')}</p>
+            <Button variant="secondary" size="small" onClick={() => refetch()}>
+              {t('retry')}
+            </Button>
+          </div>
         )}
 
         <div className="space-y-2">
@@ -125,14 +135,19 @@ export function ApprovalModal({ isOpen, onClose, cartId, approvalSubmit }: Appro
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             rows={3}
+            data-testid="approval-comment"
           />
         </div>
 
         <DialogFooter>
-          <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
+          <Button variant="secondary" onClick={onClose} disabled={isSubmitting} data-testid="approval-cancelButton">
             {t('cancel')}
           </Button>
-          <Button onClick={handleSubmit} disabled={!selectedApprover || isSubmitting}>
+          <Button
+            onClick={handleSubmit}
+            disabled={!selectedApprover || isSubmitting}
+            data-testid="approval-submitButton"
+          >
             {isSubmitting ? (
               <>
                 <Spinner className="mr-2 h-4 w-4" />

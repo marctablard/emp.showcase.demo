@@ -2,39 +2,57 @@
 
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { Globe } from 'lucide-react';
 import TopBarSwitcher from '@/components/ui/molecules/ui-topbar-switcher';
 import { useSession } from '@/hooks/session/useSession';
 import { useSite } from '@/hooks/site/useSite';
-import { redirect } from '@/i18n/navigation';
+import { getPathname } from '@/i18n/navigation';
 import { getSite } from '@/lib/client/site';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { Spinner } from '../../ui/spinner';
+import { ToastType, notify } from '../../ui/toast-notification';
+import { switchSiteAndRedirect } from './site-switcher-utils';
 
 export function SiteSwitcher() {
   const t = useTranslations('common.Regions');
   const { site, availableSites, loading: siteLoading } = useSite();
   const { setSite: updateSessionSite } = useSession();
   const locale = useLocale();
-  const [currentSite] = useState(site);
+  const router = useRouter();
+  const [isSwitching, setIsSwitching] = useState(false);
 
-  const switchSite = async (site: string) => {
-    const siteObject = await getSite(site);
-    if (!siteObject) {
-      getLogger().error({ site }, 'Site not found');
+  const switchSite = async (targetSite: string) => {
+    if (isSwitching || siteLoading || !site || targetSite === site.code) {
       return;
     }
-    // Update backend session so API routes (e.g. shipping, cart) see the new site
-    await updateSessionSite(site);
-    const targetLocale = siteObject.languages?.includes(locale) ? locale : siteObject.languages?.[0] || locale;
-    redirect({ href: '/', locale: targetLocale, site, forcePrefix: true });
+
+    setIsSwitching(true);
+    try {
+      await switchSiteAndRedirect({
+        site: targetSite,
+        locale,
+        getSiteByCode: getSite,
+        updateSessionSite,
+        getRedirectPath: getPathname,
+        navigateTo: (path) => router.push(path),
+        logger: getLogger(),
+        notifySwitchFailure: () =>
+          notify({
+            title: t('switchFailed'),
+            type: ToastType.Error,
+          }),
+      });
+    } finally {
+      setIsSwitching(false);
+    }
   };
 
   if (siteLoading) {
     return <Spinner color="default" variant="sm" />;
   }
 
-  if (!availableSites || !currentSite) {
+  if (!availableSites || !site) {
     return <></>;
   }
 
@@ -43,7 +61,7 @@ export function SiteSwitcher() {
     return (
       <div className="flex items-baseline gap-1.5 h-auto normal-case focus-none hover:cursor-pointer">
         <Globe className="flex self-center w-4 h-4" />
-        <span className="flex self-baseline text-sm">{currentSite.name}</span>
+        <span className="flex self-baseline text-sm">{site.name}</span>
       </div>
     );
   }
@@ -54,10 +72,11 @@ export function SiteSwitcher() {
         code: site.code,
         name: site.name,
       }))}
-      current={currentSite.code}
+      current={site.code}
       label={t('label')}
       onSelected={switchSite}
       icon={<Globe className="w-4 h-4" />}
+      disabled={isSwitching || siteLoading}
     />
   );
 }

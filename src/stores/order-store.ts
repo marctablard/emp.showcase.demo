@@ -27,7 +27,12 @@ interface OrderActions {
   getError: (query: string) => Error | null;
 
   // Fetch operations
-  fetchOrders: (pageSize: number, pageNumber: number, filters?: Record<string, any>) => Promise<Order[]>;
+  fetchOrders: (
+    pageSize: number,
+    pageNumber: number,
+    filters?: Record<string, any>,
+    forceRefresh?: boolean,
+  ) => Promise<Order[]>;
 
   reset: () => void;
 }
@@ -77,7 +82,12 @@ export const createOrderStore = () =>
     setError: (query: string, error: Error | null) => set({ error: { ...get().error, [query]: error } }),
     getError: (query: string) => get().error[query] || null,
 
-    fetchOrders: async (pageSize: number, pageNumber: number, filters: Record<string, any> = {}) => {
+    fetchOrders: async (
+      pageSize: number,
+      pageNumber: number,
+      filters: Record<string, any> = {},
+      forceRefresh: boolean = false,
+    ) => {
       const query = buildSearchQuery({
         page: pageNumber,
         size: pageSize,
@@ -85,10 +95,12 @@ export const createOrderStore = () =>
       });
       const queryKey = query.query + query.body;
 
-      // Check if we already have this data and it's not stale
-      const existingOrders = get().getOrders(queryKey);
-      if (existingOrders && !get().getLoading(queryKey)) {
-        return existingOrders;
+      // Check if we already have this data and it's not stale (skip when forceRefresh is true)
+      if (!forceRefresh) {
+        const existingOrders = get().getOrders(queryKey);
+        if (existingOrders && !get().getLoading(queryKey)) {
+          return existingOrders;
+        }
       }
 
       // Check if there's already an ongoing fetch for this query

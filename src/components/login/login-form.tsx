@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Loader2, LockKeyhole, User } from 'lucide-react';
 import { providerOptions } from '@/auth/auth.config';
 import { Button } from '@/components/ui/button';
@@ -34,7 +35,6 @@ export function LoginForm({ callbackUrl, email, onSuccess, guestCheckout = false
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
   const { form } = useValidator(
     'LoginValidationService',
     {
@@ -43,6 +43,15 @@ export function LoginForm({ callbackUrl, email, onSuccess, guestCheckout = false
     },
     'onChange',
   );
+
+  const searchParams = useSearchParams();
+  if (email === undefined) {
+    email = searchParams.get('email') ?? undefined;
+  }
+  if (callbackUrl === undefined) {
+    callbackUrl = searchParams.get('callbackUrl') ?? '/account';
+  }
+  guestCheckout = guestCheckout || searchParams.get('guestCheckout') === 'true';
 
   // Reset form when email changes
   useEffect(() => {
@@ -121,6 +130,7 @@ export function LoginForm({ callbackUrl, email, onSuccess, guestCheckout = false
                     autoComplete="username"
                     id="username"
                     startIcon={User}
+                    data-testid="login-username"
                     {...field}
                   />
                 </FormControl>
@@ -148,6 +158,7 @@ export function LoginForm({ callbackUrl, email, onSuccess, guestCheckout = false
                       endIcon={showPassword ? Eye : EyeOff}
                       onEndIconClick={() => setShowPassword(!showPassword)}
                       endIconLabel={showPassword ? t('hidePassword') : t('showPassword')}
+                      data-testid="login-password"
                       {...field}
                     />
                   </FormControl>
@@ -167,7 +178,11 @@ export function LoginForm({ callbackUrl, email, onSuccess, guestCheckout = false
             </UiLink>
           </div>
 
-          <Button type="submit" disabled={loading || submitting || !form.formState.isValid}>
+          <Button
+            type="submit"
+            disabled={loading || submitting || !form.formState.isValid}
+            data-testid="login-submitButton"
+          >
             {loading || submitting ? t('loggingIn') : t('logIn')}
           </Button>
         </form>
@@ -187,7 +202,12 @@ export function LoginForm({ callbackUrl, email, onSuccess, guestCheckout = false
             }
           }}
         >
-          <Button type="submit" disabled={loading} className={`transition-all`}>
+          <Button
+            type="submit"
+            disabled={loading}
+            className={`transition-all`}
+            data-testid={`login-oauth-${provider.id}`}
+          >
             <span>{t('signInWith', { provider: provider.name })}</span>
           </Button>
         </form>
@@ -196,7 +216,7 @@ export function LoginForm({ callbackUrl, email, onSuccess, guestCheckout = false
       <div className="flex flex-col gap-6 w-full">
         {guestCheckout && (
           <Link href="/checkout">
-            <Button variant="secondary" className="w-full">
+            <Button variant="secondary" className="w-full" data-testid="login-guestCheckout">
               {t('guestCheckout')}
             </Button>
           </Link>

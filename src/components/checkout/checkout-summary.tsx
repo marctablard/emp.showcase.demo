@@ -27,12 +27,20 @@ interface OrderSummaryProps {
  * Displays cart items, subtotal, shipping, and total
  */
 const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, onSubmit }) => {
-  const { checkoutCart: cart, loading: checkoutLoading } = useCheckout();
+  const {
+    checkoutCart: cart,
+    loading: checkoutLoading,
+    shippingMethod,
+    availableShippingMethods,
+    shippingMethodsLoading,
+  } = useCheckout();
   const { requiresApproval, loading: approvalLoading, setCartId } = useApprovalCheckout(cart?.id?.toString());
   const loading = checkoutLoading || approvalLoading;
   const t = useTranslations('checkout.summary');
   const [isSubmitting] = useState(false);
   const [disabled, setDisabled] = useState(true);
+  const hasShippingMethods = availableShippingMethods.length > 0;
+  const isShippingSelectionValid = !!shippingMethod && hasShippingMethods;
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
 
   const onValidationSuccess = (data: any) => {
@@ -133,7 +141,12 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
                 render={({ field }) => (
                   <FormItem className="flex flex-row gap-3 pb-4">
                     <FormControl>
-                      <Checkbox checked={field.value} onCheckedChange={field.onChange} className="bg-surface-page" />
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        className="bg-surface-page"
+                        data-testid="checkout-termsAndConditions"
+                      />
                     </FormControl>
                     <FormLabel className="font-medium leading-6">{t('termsAndConditions')}</FormLabel>
                   </FormItem>
@@ -150,8 +163,16 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
                     onSubmit();
                   }
                 }}
-                disabled={disabled || isSubmitting || loading || approvalLoading}
+                disabled={
+                  disabled ||
+                  isSubmitting ||
+                  loading ||
+                  approvalLoading ||
+                  shippingMethodsLoading ||
+                  !isShippingSelectionValid
+                }
                 className="w-full"
+                data-testid="checkout-submitOrder"
               >
                 {isSubmitting || loading
                   ? t('processing')

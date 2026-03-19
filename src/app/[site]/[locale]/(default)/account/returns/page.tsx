@@ -1,8 +1,48 @@
-import { useTranslations } from 'next-intl';
-import PlaceholderPage from '@/components/account/placeholder-page';
+import { getTranslations } from 'next-intl/server';
+import AccountLayout from '@/components/account/account-layout';
+import { ReturnsList } from '@/components/account/returns/returns-list';
+import { getReturns } from '@/lib/ssr/returns';
+import { getPageTitle } from '@/lib/ssr/seo';
 
-export default function ReturnsPage() {
-  const t = useTranslations('account');
+// Force dynamic rendering to ensure fresh data
+export const dynamic = 'force-dynamic';
 
-  return <PlaceholderPage title={t('returns')} />;
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'account.returns' });
+
+  return {
+    title: await getPageTitle(t('title'), locale),
+    description: t('description'),
+    robots: {
+      index: false,
+      follow: false,
+    },
+  };
+}
+
+export default async function ReturnsPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const [tAccount, tReturns, returns] = await Promise.all([
+    getTranslations({ locale, namespace: 'account' }),
+    getTranslations({ locale, namespace: 'account.returns' }),
+    getReturns(),
+  ]);
+
+  const breadcrumbs = [
+    {
+      href: '/account',
+      label: tAccount('title'),
+    },
+    {
+      href: '/account/returns',
+      label: tReturns('title'),
+    },
+  ];
+
+  return (
+    <AccountLayout breadcrumbs={breadcrumbs}>
+      <ReturnsList initialReturns={returns} />
+    </AccountLayout>
+  );
 }

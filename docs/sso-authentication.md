@@ -280,7 +280,7 @@ async signIn({ user, account }) {
       const session = await authService.login({ username: user.email });
       return !!session.customerId;
     } catch (error) {
-      console.error('signIn error', error);
+      server.get<LoggerService>('LoggerService').error({ err: error }, 'signIn error');
       return false;
     }
   }

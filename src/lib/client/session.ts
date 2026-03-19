@@ -5,9 +5,11 @@ import { Session } from '@/platform/services/model/session/session';
  * Fetch the current session information
  * @returns {Promise<Session|null>} The session or null if not available
  */
-export async function fetchCurrentSession(): Promise<Session | null> {
+export async function fetchCurrentSession(throwOnError: boolean = false): Promise<Session | null> {
   try {
-    const response = await fetch('/api/session');
+    const response = await fetch('/api/session', {
+      cache: 'no-store',
+    });
 
     if (!response.ok) {
       throw new Error(`Failed to fetch session: ${response.statusText}`);
@@ -17,6 +19,9 @@ export async function fetchCurrentSession(): Promise<Session | null> {
     return session;
   } catch (error) {
     getLogger().error({ err: error }, 'Error fetching session');
+    if (throwOnError) {
+      throw error;
+    }
     return null;
   }
 }

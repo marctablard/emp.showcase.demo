@@ -42,51 +42,70 @@ The store maintains:
 
 ### Store Provider
 
-The `StoreProvider` in `src/providers/StoreProvider.tsx` creates and provides the Zustand store to the application:
+The `StoreProvider` in `src/providers/StoreProvider.tsx` creates and provides the Zustand stores to the application:
 
 ```typescript
-export const StoreProvider = ({
-  children
-}: StoreProviderProps) => {
-  const productStoreRef = useRef<ProductStoreApi | null>(null)
-  if (productStoreRef.current === null) {
-    const initState = initProductStore();
-    productStoreRef.current = createProductStore(initState);
-  }
+export const StoreProvider = ({ children, shopSession, site, availableSites }: StoreProviderProps) => {
+  const [productStore] = useState<ProductStoreApi>(() => createProductStore());
+  const [cartStore] = useState<CartStoreApi>(() => createCartStore());
+  const [siteStore] = useState<SiteStoreApi>(() =>
+    createSiteStore({ site, availableSites, loading: false, error: null }),
+  );
+  const [sessionStore] = useState<SessionStoreApi>(() => createSessionStore({ session: shopSession, loading: false }));
+
+  useEffect(() => {
+    const unsubscribers = setupStoreSynchronization({ sessionStore, cartStore, siteStore });
+    return () => {
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [sessionStore, cartStore, siteStore]);
 
   return (
-    <ProductStoreContext.Provider value={productStoreRef.current}>
-      {children}
-    </ProductStoreContext.Provider>
-  )
-}
+    <SiteStoreContext.Provider value={siteStore}>
+      <ProductStoreContext.Provider value={productStore}>
+        <CartStoreContext.Provider value={cartStore}>
+          <SessionStoreContext.Provider value={sessionStore}>
+            {children}
+          </SessionStoreContext.Provider>
+        </CartStoreContext.Provider>
+      </ProductStoreContext.Provider>
+    </SiteStoreContext.Provider>
+  );
+};
 ```
 
 This implementation:
 
-- Uses `useRef` to ensure the store is only created once
-- Provides the store through React Context
-- Exposes a `useProductStore` hook for components to access the store
+- Uses `useState` to create store instances once per provider
+- Provides stores through React Context
+- Sets up cross-store synchronization (session ↔ cart) via `setupStoreSynchronization`
+- Exposes store hooks (e.g., `useProductStore`) for components to access state
 
 ## API Layer
 
-The `src/lib/api/products.ts` file provides a shared API layer that can be used by both server and client components:
+The product data API is split by execution context:
+
+- `src/lib/client/products.ts` for client-side data fetching (via `/api/products/...`)
+- `src/lib/ssr/products.ts` for server components (SSR container)
 
 ```typescript
-export const fetchProductById = cache(async (id: string): Promise<Product> => {
+import { getLogger } from '@/lib/logger/use-logger-client';
+
+export const fetchProductById = cache(async (id: string, options?: ProductFetchOptions): Promise<Product | null> => {
   try {
-    const response = await fetch(`${baseUrl}/api/products/${id}`, {
+    const response = await fetch(`/api/products/${id}`, {
       cache: 'no-store',
       next: { tags: [`product-${id}`] },
     });
 
     if (!response.ok) {
+      if (response.status === 404) return null;
       throw new Error(`Failed to fetch product: ${response.statusText}`);
     }
 
     return await response.json();
   } catch (error) {
-    console.error(`Error fetching product ${id}:`, error);
+    getLogger().error({ err: error, productId: id }, 'Error fetching product');
     throw error;
   }
 });
@@ -101,26 +120,21 @@ Key features:
 
 ## Hydration Pattern
 
-### ProductHydrator Component
+### ProductDetail and useProduct Pattern
 
-The `src/providers/hydrator/ProductHydrator.tsx` component is responsible for hydrating server-fetched data into the client-side Zustand store:
+Server components fetch product data when SSR is enabled and pass it into the client component. The client component (`ProductDetail`) accepts either a full product or an ID; the `useProduct` hook then hydrates the store and manages fetches when needed.
 
 ```typescript
-export default function ProductHydrator({ product, isCurrent }: ProductHydratorProps) {
-  useProductHydrator({ product, isCurrent });
-
-  return null;
-}
+// Server component
+const product = await getProductById(id, options);
+return <ProductDetail product={product} options={options} />;
 ```
 
-The `useProductHydrator` hook:
+`useProduct` behavior:
 
-- Takes a product object and an optional `isCurrent` flag
-- Adds the product to the store
-- Optionally sets it as the current product
-- Runs only on the client side (marked with 'use client')
-
-This pattern allows server components to pass data to client components without prop drilling or redundant fetching.
+- If a product object is provided, it is added to the store immediately
+- If only an ID is provided, it fetches via `fetchProductById` and hydrates the store
+- The hook keeps `loading` and `error` state in sync for client components
 
 ## Custom Hooks
 
@@ -159,63 +173,41 @@ This hook:
 
 ### Server Component (Product Page)
 
-In `src/app/[locale]/product/[id]/page.tsx`, the server component:
+In `src/app/[site]/[locale]/(default)/product/[id]/page.tsx`, the server component:
 
 ```typescript
-export default async function ProductPage({ params }: { params: Promise<{ id: string, locale: string }> }) {
-  const productId = (await params).id;
+export default async function ProductPage({ params }: { params: Promise<{ id: string; locale: string; site: string }> }) {
+  const { id, locale, site } = await params;
+  const { ssr, options } = createProductOptions(PUBLIC_PRODUCT_OPTIONS, false, site);
 
-  // Fetch product data server-side using our shared API layer
-  const product = await fetchProductById(productId);
+  // Fetch product data server-side when SSR is enabled
+  const product = ssr ? await getProductById(id, options) : null;
 
-  // If product not found, show 404 page
-  if (!product) {
+  if (ssr && !product) {
     notFound();
   }
 
-  return (
-    <div className="container mx-auto py-10 px-4 sm:px-6">
-      {/* Hydrator component to populate the store with prefetched data */}
-      <ProductHydrator product={product} isCurrent />
-
-      {/* Rest of the component... */}
-
-      <CardFooter>
-        {/* Client component that consumes the product signal */}
-        <ProductActions id={productId} />
-      </CardFooter>
-    </div>
-  );
+  return <ProductDetail product={product ?? id} options={options} />;
 }
 ```
 
 This component:
 
-1. Fetches the product data on the server
-2. Uses `ProductHydrator` to hydrate the data into the client-side store
-3. Passes only the product ID to the client component (`ProductActions`)
+1. Optionally fetches the product server-side when SSR is enabled
+2. Passes either the full product or the product ID to the client component
+3. Lets `useProduct` handle client-side hydration and refetching as needed
 
-### Client Component (ProductActions)
+### Client Component (ProductDetail)
 
-In `src/components/product/ProductActions.tsx`, the client component:
+In `src/components/product/product-detail.tsx`, the client component:
 
 ```typescript
-export default function ProductActions({ id }: { id: string }) {
-  const t = useTranslations('product');
-  const { product, loading, error, setAsCurrent } = useProduct(id);
-  const [quantity, setQuantity] = useState(1);
+export default function ProductDetail({ product: initialProduct, options }: ProductDetailProps) {
+  const { product, loading, setAsCurrent } = useProduct(initialProduct, options);
 
-  // If product is not available yet, show loading
   if (loading) {
     return {
-      /* Product Loading Template... */
-    };
-  }
-
-  // If there's an error, show error message
-  if (error) {
-    return {
-      /* Product Error Template... */
+      /* Loading Template... */
     };
   }
 

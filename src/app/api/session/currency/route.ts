@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import server from '@/platform/server';
+import { CartService } from '@/platform/services/cart';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import { SessionService } from '@/platform/services/session/SessionService';
-
-export const dynamic = 'force-dynamic';
 
 /**
  * PUT /api/session/currency
@@ -11,16 +10,30 @@ export const dynamic = 'force-dynamic';
  */
 export async function PUT(request: NextRequest) {
   try {
+    const cartService = server.get<CartService>('CartService');
     const sessionService = server.get<SessionService>('SessionService');
-    const data = await request.json();
+    const session = await sessionService.getCurrent();
+    if (!session) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 401 });
+    }
 
-    if (!data.currency) {
+    const data = await request.json();
+    const currency = typeof data?.currency === 'string' ? data.currency.trim() : '';
+
+    if (!currency) {
       return NextResponse.json({ error: 'Currency is required' }, { status: 400 });
     }
 
-    await sessionService.setCurrency(data.currency);
+    let updatedCart = await cartService.getCart();
+    if (updatedCart && updatedCart.currency !== currency) {
+      await cartService.updateCurrency(updatedCart.id, currency);
+      updatedCart = (await cartService.getCartById(updatedCart.id)) ?? (await cartService.getCart());
+    }
 
-    return NextResponse.json({ success: true });
+    const finalCurrency = updatedCart?.currency || currency;
+    await sessionService.setCurrency(finalCurrency);
+
+    return NextResponse.json({ success: true, currency: finalCurrency, cart: updatedCart ?? null });
   } catch (error) {
     const logger = server.get<LoggerService>('LoggerService');
     logger.error(

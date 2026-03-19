@@ -57,7 +57,7 @@ import { routing } from './routing';
 import { loadI18nTranslations } from 'next-intl-split/load';
 
 export default getRequestConfig(async ({ requestLocale }) => {
-  // Typically corresponds to the `[locale]` segment
+  // Typically corresponds to the `[locale]` segment within `[site]/[locale]`
   const requested = await requestLocale;
   const locale = hasLocale(routing.locales, requested) ? requested : routing.defaultLocale;
 
@@ -121,20 +121,19 @@ Example translation file structure (e.g., `src/i18n/translations/en/account/inde
 
 ### Directory Structure
 
-We use Next.js App Router with a `[locale]` dynamic segment to handle different languages:
+We use Next.js App Router with `[site]/[locale]` dynamic segments to handle multi-tenant routing and languages:
 
 ```
 src/
   app/
-    [locale]/
-      layout.tsx       # Root layout with locale handling
-      page.tsx         # Home page
-      hello/           # Example feature directory
-        layout.tsx     # Feature-specific layout
-        page.tsx       # Feature-specific page
+    [site]/[locale]/
+      layout.tsx             # Root layout with site + locale handling
+      (default)/page.tsx     # Home page
+      (default)/hello/       # Example feature directory
+        page.tsx             # Feature-specific page
 ```
 
-### Root Layout (`src/app/[locale]/layout.tsx`)
+### Root Layout (`src/app/[site]/[locale]/layout.tsx`)
 
 The root layout handles locale validation and setup:
 
@@ -148,11 +147,11 @@ import '../globals.css';
 
 type Props = {
   children: ReactNode;
-  params: Promise<{ locale: Locale }>;
+  params: Promise<{ locale: Locale; site: string }>;
 };
 
 export function generateStaticParams() {
-  return routing.locales.map((locale) => ({ locale }));
+  return routing.locales.map((locale) => ({ locale, site: defaultSiteCode }));
 }
 
 export async function generateMetadata(props: Omit<Props, 'children'>) {
@@ -167,12 +166,13 @@ export async function generateMetadata(props: Omit<Props, 'children'>) {
 
 export default async function LocaleLayout({ children, params }: Props) {
   // Ensure that the incoming `locale` is valid
-  const { locale } = await params;
+  const { locale, site } = await params;
   if (!hasLocale(routing.locales, locale)) {
     notFound();
   }
 
   // Enable static rendering
+  setRequestSite(site);
   setRequestLocale(locale);
 
   return (
@@ -192,21 +192,16 @@ Key features:
 - `setRequestLocale()` enables static rendering with the correct locale
 - `NextIntlClientProvider` makes translations available to client components
 
-### Page Component (`src/app/[locale]/hello/page.tsx`)
+### Page Component (`src/app/[site]/[locale]/(default)/page.tsx`)
 
 ```tsx
 import { useTranslations } from 'next-intl';
-import { HelloWorldComponent } from '@/app/components/HelloWorldComponent';
 
 export default function Home() {
-  const t = useTranslations('hello');
+  const t = useTranslations('common');
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <h1>{t('friend')}</h1>
-
-        <HelloWorldComponent />
-      </main>
+    <div className="container mx-auto py-8">
+      <h1>{t('storeName')}</h1>
     </div>
   );
 }
@@ -284,22 +279,22 @@ export default function Navigation() {
 When working with our service layer, translations should be handled at the UI level, not in the services themselves. This keeps the service layer focused on business logic rather than presentation concerns:
 
 ```tsx
-// HelloWorldComponent.tsx
-import services from '@/integration/services';
-import { HelloService } from '@/integration/services/hello/HelloService';
+// ProductSummary.tsx
+import ssr from '@/platform/ssr';
+import { ProductService } from '@/platform/services/product/ProductService';
 
-export async function HelloWorldComponent() {
-  const helloService = await services.get<HelloService>('HelloService');
-  const message = await helloService.sayHello();
+export async function ProductSummary({ productId }: { productId: string }) {
+  const productService = ssr.get<ProductService>('ProductService');
+  const product = await productService.getProductById(productId);
   return (
     <div>
-      <p>{message}</p>
+      <p>{product?.name}</p>
     </div>
   );
 }
 ```
 
-The `HelloService` returns raw messages that can be translated or formatted at the UI layer if needed.
+The service layer returns raw data that can be translated or formatted at the UI layer if needed.
 
 ## Best Practices
 

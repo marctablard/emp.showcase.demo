@@ -1,6 +1,6 @@
 'use client';
 
-import { type ReactNode, createContext, useContext, useState } from 'react';
+import { type ReactNode, createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useStore } from 'zustand/react';
 import { Site } from '@/platform/services/model/common/site';
 import { Session } from '@/platform/services/model/session';
@@ -16,6 +16,7 @@ import { createProductStore } from '@/stores/products-store';
 import { createSessionStore } from '@/stores/session-store-context';
 import { createShippingMethodsStore } from '@/stores/shipping-methods-store';
 import { createSiteStore } from '@/stores/site-store';
+import { setupStoreSynchronization } from '@/stores/sync';
 
 export type ProductStoreApi = ReturnType<typeof createProductStore>;
 export const ProductStoreContext = createContext<ProductStoreApi | null>(null);
@@ -64,6 +65,24 @@ export const StoreProvider = ({ children, shopSession, site, availableSites }: S
   const [sessionStore] = useState<SessionStoreApi>(() => createSessionStore({ session: shopSession, loading: false }));
   const [notificationStore] = useState<NotificationStoreApi>(() => createNotificationStore());
   const [availabilityStore] = useState<AvailabilityStoreApi>(() => createAvailabilityStore());
+
+  // Store unsubscribe functions ref for cross-store subscriptions
+  const unsubscribersRef = useRef<(() => void)[]>([]);
+
+  // Set up cross-store subscriptions after stores are created
+  useEffect(() => {
+    unsubscribersRef.current = setupStoreSynchronization({
+      sessionStore,
+      cartStore,
+      siteStore,
+    });
+
+    // Cleanup subscriptions on unmount
+    return () => {
+      unsubscribersRef.current.forEach((unsubscribe) => unsubscribe());
+      unsubscribersRef.current = [];
+    };
+  }, [sessionStore, cartStore, siteStore]);
 
   /**
    * The order is relevant, because store data can only depend on one another,

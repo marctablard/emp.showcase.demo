@@ -62,6 +62,7 @@ class EmporixShippingService implements ShippingService {
         return [];
       }
       // Collect all shipping methods from all zones
+      // Only include methods that have a valid fee for the cart currency
       for (const zone of site.zones) {
         if (zone.methods && zone.methods.length > 0) {
           for (const method of zone.methods) {
@@ -76,7 +77,11 @@ class EmporixShippingService implements ShippingService {
                 cost = fee.cost;
               }
             }
-            methods.push(this.shippingMapper.mapToService(method, zone.id, cost));
+            // Only include methods with a valid cost for the cart currency
+            // Methods without matching fees are excluded to prevent checkout failures
+            if (cost !== undefined) {
+              methods.push(this.shippingMapper.mapToService(method, zone.id, cost));
+            }
           }
         }
       }

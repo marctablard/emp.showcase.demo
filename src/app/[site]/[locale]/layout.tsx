@@ -5,20 +5,21 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Open_Sans, Ubuntu } from 'next/font/google';
 import { notFound } from 'next/navigation';
 import '@/app/globals.css';
-import { auth } from '@/auth/auth';
 import { CsrfProvider } from '@/components/csrf/CsrfProvider';
+import { ApiDebugPanel } from '@/components/debug/ApiDebugPanel';
 import { Notification } from '@/components/notification/notification';
 import { Toaster } from '@/components/ui/sonner';
 import { redirect } from '@/i18n/edge/navigation';
 import { routing } from '@/i18n/routing';
-import { getSession, setSessionLanguage } from '@/lib/ssr/session';
+import { isBrowserDebugOutputEnabled, isDebugApiEnabled } from '@/lib/common/debug-env';
+import { setSessionLanguage } from '@/lib/ssr/session';
 import { getAvailableSites, getSite } from '@/lib/ssr/site';
 import SiteProvider from '@/providers/SiteProvider';
 import { StoreProvider } from '@/providers/StoreProvider';
 import { StoryblokProvider } from '@/providers/StoryblokProvider';
 import { setRequestSite } from '@/site/server/';
 
-const defaultSiteCode = process.env.NEXT_PUBLIC_DEFAULT_SITE || 'main';
+const defaultSiteCode = process.env.NEXT_PUBLIC_DEFAULT_SITE || undefined;
 
 const fontHeadlines = Ubuntu({
   subsets: ['latin'],
@@ -45,10 +46,6 @@ export const viewport = {
   initialScale: 1,
 };
 
-export function generateStaticParams() {
-  return routing.locales.map((locale) => ({ locale, site: defaultSiteCode }));
-}
-
 export async function generateMetadata(props: Omit<Props, 'children'>) {
   const { locale } = await props.params;
   const t = await getTranslations({ locale, namespace: 'seo' });
@@ -70,14 +67,13 @@ export default async function LocaleLayout({ children, dialog, params }: Props) 
   if (!hasLocale(routing.locales, locale)) {
     notFound();
   }
-  const [authSession, shopSession] = await Promise.all([auth(), getSession()]);
 
   const [site, availableSites] = await Promise.all([getSite(siteCode), getAvailableSites()]);
 
-  // Handle invalid site: redirect to valid site or show 404
+  // Handle invalid site: redirect to valid site (fallback ON) or show 404 (fallback OFF)
   if (!site) {
-    if (availableSites && availableSites.length > 0) {
-      // Redirect to first available site, preserving locale if possible
+    const fallbackEnabled = !!defaultSiteCode;
+    if (fallbackEnabled && availableSites && availableSites.length > 0) {
       const targetSite = availableSites[0];
       const targetLocale = targetSite.languages?.includes(locale) ? locale : targetSite.languages?.[0] || locale;
       redirect({ href: '/', locale: targetLocale, site: targetSite.code, forcePrefix: true });
@@ -89,18 +85,12 @@ export default async function LocaleLayout({ children, dialog, params }: Props) 
   }
 
   if (site && !hasLocale(site.languages, locale)) {
+    setSessionLanguage(locale);
     // ensure that languages are aligned
     const newLocale = site.languages[0];
-    await setSessionLanguage(newLocale);
     // force prefix to ensure that the redirect is correctly adapting the cookie
-    redirect({ href: '/', locale: newLocale, site: siteCode, forcePrefix: true });
+    return redirect({ href: '/', locale: newLocale, site: siteCode, forcePrefix: true });
   }
-  if (shopSession && shopSession.language != locale) {
-    // ensure that languages are aligned
-    await setSessionLanguage(locale);
-    shopSession.language = locale;
-  }
-
   // TODO: we need to figure out why getRequestSite
   // doesn't return the correct value in child layouts
   // (we need to duplicate this call there)
@@ -113,12 +103,13 @@ export default async function LocaleLayout({ children, dialog, params }: Props) 
       className={`${fontHeadlines.variable} ${fontBody.variable} ${fontHeadlines.className} ${fontBody.className}`}
     >
       <body className="flex h-full flex-col font-body has-[.search]:overflow-hidden">
-        <AuthSessionProvider session={authSession}>
+        <AuthSessionProvider>
           <SiteProvider siteCode={siteCode}>
             <NextIntlClientProvider locale={locale}>
-              <StoreProvider shopSession={shopSession} site={site} availableSites={availableSites}>
+              <StoreProvider site={site} availableSites={availableSites}>
                 <StoryblokProvider>
                   <CsrfProvider />
+                  {isDebugApiEnabled() && isBrowserDebugOutputEnabled() && <ApiDebugPanel />}
                   {children}
                   {dialog}
                   <Toaster />

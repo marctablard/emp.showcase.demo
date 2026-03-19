@@ -9,6 +9,7 @@ import { ChartContainer, ChartTooltip } from '@/components/ui/chart';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLocation } from '@/hooks/location/useLocation';
 import useWeather from '@/hooks/weather/useWeather';
+import { type WeatherKey, dk } from '@/i18n/dynamic-key';
 import { DashboardCard, DashboardCardProps } from './dashboard-card';
 
 /**
@@ -77,7 +78,7 @@ export function SolarOutputCard({ className, title, ...props }: Omit<DashboardCa
       return {
         time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         output: parseFloat(outputKw.toFixed(2)),
-        weather: tWeather(hour.description),
+        weather: tWeather(dk<WeatherKey>(hour.description)),
         temperature: hour.temperature.toFixed(1),
       };
     });

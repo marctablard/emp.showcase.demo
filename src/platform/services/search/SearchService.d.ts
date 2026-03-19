@@ -7,7 +7,7 @@ export interface SearchService {
   /**
    * Search for products based on the provided parameters
    */
-  searchProducts(params: SearchParams<Product>): Promise<SearchResult<Product>>;
+  searchProducts(params: SearchParams<Product>, locale?: string, site?: string): Promise<SearchResult<Product>>;
 
   /**
    * Get product suggestions based on a search query
@@ -15,7 +15,7 @@ export interface SearchService {
    * @param locale Optional locale for localized content
    * @returns SearchSuggestions object containing query completions, products, and categories
    */
-  getSuggestions(query: string, locale?: string): Promise<SearchSuggestions>;
+  getSuggestions(params: SearchParams<Product>): Promise<SearchSuggestions>;
 
   /**
    * Get highlighted products
@@ -25,5 +25,5 @@ export interface SearchService {
   /**
    * Get product recommendations based on a product ID
    */
-  getRecommendations(productId: string): Promise<Product[]>;
+  getRecommendations(productId: string, locale?: string, site?: string): Promise<Product[]>;
 }

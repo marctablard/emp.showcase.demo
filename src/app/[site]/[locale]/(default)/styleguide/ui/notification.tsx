@@ -3,8 +3,11 @@
 import { Button } from '@/components/ui/button';
 import { H4, H5 } from '@/components/ui/h';
 import { ToastType, notify, toast } from '@/components/ui/toast-notification';
+import { useLogger } from '@/hooks/common/useLogger';
 
 export default function NotificationStyleguide() {
+  const logger = useLogger();
+  const handleButtonClick = (): void => logger.debug('Button clicked');
   const description =
     'Message - Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua.';
   const title = 'Title';
@@ -24,7 +27,7 @@ export default function NotificationStyleguide() {
                 toast({
                   title: title,
                   description: description,
-                  button: { label: 'BUTTON', onClick: () => console.log('Button clicked') },
+                  button: { label: 'BUTTON', onClick: handleButtonClick },
                   type: ToastType.Success,
                 })
               }
@@ -38,7 +41,7 @@ export default function NotificationStyleguide() {
                 toast({
                   title: title,
                   description: description,
-                  button: { label: 'BUTTON', onClick: () => console.log('Button clicked') },
+                  button: { label: 'BUTTON', onClick: handleButtonClick },
                   type: ToastType.Warning,
                 })
               }
@@ -52,7 +55,7 @@ export default function NotificationStyleguide() {
                 toast({
                   title: title,
                   description: description,
-                  button: { label: 'BUTTON', onClick: () => console.log('Button clicked') },
+                  button: { label: 'BUTTON', onClick: handleButtonClick },
                   type: ToastType.Error,
                 })
               }
@@ -66,7 +69,7 @@ export default function NotificationStyleguide() {
                 toast({
                   title: title,
                   description: description,
-                  button: { label: 'BUTTON', onClick: () => console.log('Button clicked') },
+                  button: { label: 'BUTTON', onClick: handleButtonClick },
                   type: ToastType.Info,
                 })
               }
@@ -84,7 +87,7 @@ export default function NotificationStyleguide() {
               onClick={() =>
                 notify({
                   title: message,
-                  button: { label: 'Undo', onClick: () => console.log('Button clicked') },
+                  button: { label: 'Undo', onClick: handleButtonClick },
                   type: ToastType.Success,
                 })
               }
@@ -97,7 +100,7 @@ export default function NotificationStyleguide() {
               onClick={() =>
                 notify({
                   title: message,
-                  button: { label: 'Undo', onClick: () => console.log('Button clicked') },
+                  button: { label: 'Undo', onClick: handleButtonClick },
                   type: ToastType.Warning,
                 })
               }
@@ -110,7 +113,7 @@ export default function NotificationStyleguide() {
               onClick={() =>
                 notify({
                   title: message,
-                  button: { label: 'Undo', onClick: () => console.log('Button clicked') },
+                  button: { label: 'Undo', onClick: handleButtonClick },
                   type: ToastType.Error,
                 })
               }
@@ -123,7 +126,7 @@ export default function NotificationStyleguide() {
               onClick={() =>
                 notify({
                   title: message,
-                  button: { label: 'Undo', onClick: () => console.log('Button clicked') },
+                  button: { label: 'Undo', onClick: handleButtonClick },
                   type: ToastType.Info,
                 })
               }

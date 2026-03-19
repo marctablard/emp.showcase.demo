@@ -83,8 +83,8 @@ class EmporixSiteService implements SiteService {
   async getAvailableSites(): Promise<Site[]> {
     try {
       const config = process.env.NEXT_PUBLIC_AVAILABLE_SITES?.split(',') || [];
-      const defaultSite = process.env.NEXT_PUBLIC_DEFAULT_SITE || 'main';
-      if (config.length === 0 || config.findIndex((c) => c === defaultSite) === -1) {
+      const defaultSite = process.env.NEXT_PUBLIC_DEFAULT_SITE || undefined;
+      if (defaultSite && (config.length === 0 || !config.includes(defaultSite))) {
         config.push(defaultSite);
       }
       const sites = await Promise.all(config.map(async (code) => this.getSite(code)));
@@ -115,6 +115,9 @@ class EmporixSiteService implements SiteService {
     return {
       code: emporixSite.code,
       name: emporixSite.name || emporixSite.code,
+      // TODO Emporix should supply a separate field for the commercial default country,
+      // currently it is in the address
+      defaultCountry: address.country,
       defaultLanguage: emporixSite.defaultLanguage || 'en',
       defaultCurrency: currencies.find((c) => c.id === emporixSite.currency) || currencies[0],
       countries: countries,

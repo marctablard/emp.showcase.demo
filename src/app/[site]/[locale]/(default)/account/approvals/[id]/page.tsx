@@ -6,7 +6,6 @@ import { getApprovalById } from '@/lib/ssr/approvals';
 import { getPageTitle } from '@/lib/ssr/seo';
 
 // Force dynamic rendering for personalized content
-export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;

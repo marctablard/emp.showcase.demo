@@ -16,7 +16,6 @@ class EmporixSessionContextApi implements IEmporixSessionContextApi {
   }
 
   async getSessionContext(sessionId: string): Promise<EmporixSessionContext | undefined> {
-    // DCPS-16635 clarify proper Token Handling for managed Sessions
     const response = await this.apiClient.authenticatedFetch(
       `/session-context/${this.config.tenant}/context/${sessionId}`,
       { method: 'GET' },
@@ -38,7 +37,6 @@ class EmporixSessionContextApi implements IEmporixSessionContextApi {
     sessionContext: Partial<EmporixSessionContext>,
     upsert: boolean = false,
   ): Promise<void> {
-    // TODO clarify proper Token Handling for managed Sessions
     const queryParams = upsert ? '?upsert=true' : '';
     const response = await this.apiClient.authenticatedFetch(
       `/session-context/${this.config.tenant}/context/${sessionId}${queryParams}`,
@@ -48,6 +46,7 @@ class EmporixSessionContextApi implements IEmporixSessionContextApi {
         body: JSON.stringify(sessionContext),
       },
       'service',
+      { scopes: ['sessioncontext.context_manage'] },
     );
 
     if (!response.ok) {
@@ -57,7 +56,6 @@ class EmporixSessionContextApi implements IEmporixSessionContextApi {
   }
 
   async addSessionContextAttribute(sessionId: string, attribute: EmporixContextAttribute): Promise<void> {
-    // TODO clarify proper Token Handling for managed Sessions
     const response = await this.apiClient.authenticatedFetch(
       `/session-context/${this.config.tenant}/context/${sessionId}/attributes`,
       {
@@ -66,6 +64,7 @@ class EmporixSessionContextApi implements IEmporixSessionContextApi {
         body: JSON.stringify(attribute),
       },
       'service',
+      { scopes: ['sessioncontext.context_manage'] },
     );
 
     if (!response.ok) {
@@ -74,11 +73,11 @@ class EmporixSessionContextApi implements IEmporixSessionContextApi {
   }
 
   async removeSessionContextAttribute(sessionId: string, attributeName: string): Promise<void> {
-    // TODO clarify proper Token Handling for managed Sessions
     const response = await this.apiClient.authenticatedFetch(
       `/session-context/${this.config.tenant}/context/${sessionId}/attributes/${attributeName}`,
       { method: 'DELETE' },
       'service',
+      { scopes: ['sessioncontext.context_manage'] },
     );
 
     if (!response.ok) {

@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { PasswordUpdateForm } from '@/components/password/password-update-form';
 import { H1 } from '@/components/ui/h';
@@ -31,7 +32,9 @@ export default async function PasswordUpdatePage({ params }: { params: Promise<P
       <H1 variant="h6" className="text-center mb-6">
         {t('createNewPassword')}
       </H1>
-      <PasswordUpdateForm />
+      <Suspense fallback={<div></div>}>
+        <PasswordUpdateForm />
+      </Suspense>
     </div>
   );
 }

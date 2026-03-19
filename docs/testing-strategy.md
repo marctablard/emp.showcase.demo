@@ -83,19 +83,25 @@ The project includes a sample test for the `useProduct` hook that demonstrates:
 
 ```typescript
 // src/hooks/product/useProduct.test.tsx
-import { act, renderHook, waitFor } from '@testing-library/react';
-import { fetchProductById } from '@/lib/api/products';
-import { StoreProvider } from '@/providers/StoreProvider';
+import { renderHook, waitFor } from '@testing-library/react';
+import { fetchProductById } from '@/lib/client/products';
+import { createProductStore } from '@/stores/products-store';
+import { ProductStoreContext } from '@/providers/StoreProvider';
 import { useProduct } from './useProduct';
 
 // Mock the API module
-jest.mock('@/lib/api/products', () => ({
+jest.mock('@/lib/client/products', () => ({
   fetchProductById: jest.fn(),
 }));
 
 test('should fetch product and update store with loaded state', async () => {
   // Mock the API response
   (fetchProductById as jest.Mock).mockResolvedValue(mockProduct);
+
+  const sharedStore = createProductStore();
+  const wrapper = ({ children }) => (
+    <ProductStoreContext.Provider value={sharedStore}>{children}</ProductStoreContext.Provider>
+  );
 
   // Render the hook with the product ID
   const { result } = renderHook(() => useProduct('test-product-123'), { wrapper });
@@ -125,8 +131,8 @@ test('German homepage (/de) loads correctly', async ({ page }) => {
   // Navigate to the German homepage
   await page.goto('/de');
 
-  // Verify the page has loaded
-  await expect(page.locator('header')).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  await expect(page.locator('header > div').first()).toBeVisible();
 
   // Check that we're on the German version by looking for German Locale
   const htmlLang = await page.getAttribute('html', 'lang');

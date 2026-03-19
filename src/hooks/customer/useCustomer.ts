@@ -20,7 +20,7 @@ interface CustomerHook {
  * @returns Customer data and state
  */
 export const useCustomer = (initialCustomer?: Customer | null): CustomerHook => {
-  const { customer, loading, getLoading, setLoading, setCustomer, getCustomer, reset } = useCustomerStore();
+  const { customer, loading, getLoading, setLoading, setCustomer, reset } = useCustomerStore();
   const { status } = useSession();
 
   // only preload on initial load
@@ -65,16 +65,13 @@ export const useCustomer = (initialCustomer?: Customer | null): CustomerHook => 
       return;
     }
 
-    if (customer === undefined && !getLoading()) {
+    if (!customer && !getLoading()) {
       setLoading(true);
       // check without state-effect
-      if (getCustomer() !== undefined) {
-        setLoading(false);
-      } else {
-        fetchCustomer();
-      }
+      fetchCustomer();
     }
-  }, [customer, setCustomer, getCustomer, getLoading, setLoading, fetchCustomer, status]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
 
   return {
     customer,

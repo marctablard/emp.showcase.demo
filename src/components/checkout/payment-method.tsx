@@ -6,6 +6,7 @@ import { ReceiptText } from 'lucide-react';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
 import { useSite } from '@/hooks/site/useSite';
 import { useValidator } from '@/hooks/validation/useValidator';
+import { type PaymentModeKey, dk } from '@/i18n/dynamic-key';
 import { cn } from '@/lib/utils';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { Input } from '../ui/input';
@@ -58,6 +59,7 @@ const PaymentMethodComponent: React.FC<PaymentMethodProps> = ({ isReadOnly = fal
                     defaultValue={field.value}
                     onValueChange={field.onChange}
                     className={cn('flex flex-col space-y-1')}
+                    data-testid="payment-methodGroup"
                   >
                     <div>
                       <div>
@@ -71,11 +73,15 @@ const PaymentMethodComponent: React.FC<PaymentMethodProps> = ({ isReadOnly = fal
                               )}
                             >
                               <FormControl>
-                                <RadioGroupItem value={option.id} id={option.code} />
+                                <RadioGroupItem
+                                  value={option.id}
+                                  id={option.code}
+                                  data-testid={`payment-method-${option.code}`}
+                                />
                               </FormControl>
                               <FormLabel htmlFor={option.code} className="font-medium w-full ml-3 block">
                                 <div className="flex items-center justify-between">
-                                  {tPayment(option.code)}
+                                  {tPayment(dk<PaymentModeKey>(option.code))}
                                   {option.code === 'invoice' ? <ReceiptText /> : null}
                                 </div>
                               </FormLabel>
@@ -94,7 +100,13 @@ const PaymentMethodComponent: React.FC<PaymentMethodProps> = ({ isReadOnly = fal
                               <FormItem>
                                 <FormLabel htmlFor="cardNumber">{t('cardNumber')}</FormLabel>
                                 <FormControl>
-                                  <Input id="cardNumber" type="text" placeholder="1234 5678 9012 3456" {...field} />
+                                  <Input
+                                    id="cardNumber"
+                                    type="text"
+                                    placeholder="1234 5678 9012 3456"
+                                    {...field}
+                                    data-testid="payment-cardNumber"
+                                  />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -108,7 +120,13 @@ const PaymentMethodComponent: React.FC<PaymentMethodProps> = ({ isReadOnly = fal
                               <FormItem>
                                 <FormLabel htmlFor="cardHolder">{t('cardHolder')}</FormLabel>
                                 <FormControl>
-                                  <Input id="cardHolder" type="text" placeholder="John Doe" {...field} />
+                                  <Input
+                                    id="cardHolder"
+                                    type="text"
+                                    placeholder="John Doe"
+                                    {...field}
+                                    data-testid="payment-cardHolder"
+                                  />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -123,7 +141,13 @@ const PaymentMethodComponent: React.FC<PaymentMethodProps> = ({ isReadOnly = fal
                                 <FormItem>
                                   <FormLabel htmlFor="expiryDate">{t('expiryDate')}</FormLabel>
                                   <FormControl>
-                                    <Input id="expiryDate" type="text" placeholder="MM/YY" {...field} />
+                                    <Input
+                                      id="expiryDate"
+                                      type="text"
+                                      placeholder="MM/YY"
+                                      {...field}
+                                      data-testid="payment-expiryDate"
+                                    />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -137,7 +161,13 @@ const PaymentMethodComponent: React.FC<PaymentMethodProps> = ({ isReadOnly = fal
                                 <FormItem>
                                   <FormLabel htmlFor="cvv">{t('cvv')}</FormLabel>
                                   <FormControl>
-                                    <Input id="cvv" type="text" placeholder="123" {...field} />
+                                    <Input
+                                      id="cvv"
+                                      type="text"
+                                      placeholder="123"
+                                      {...field}
+                                      data-testid="payment-cvv"
+                                    />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -163,7 +193,7 @@ const PaymentMethodComponent: React.FC<PaymentMethodProps> = ({ isReadOnly = fal
         ) : (
           // Read-only view
           <div className="text-text-on-disabled">
-            <p className="font-medium">{tPayment(paymentMethod?.code ?? 'none')}</p>
+            <p className="font-medium">{tPayment(dk<PaymentModeKey>(paymentMethod?.code ?? 'none'))}</p>
 
             {paymentMethod?.code === 'credit-card' && paymentMethod?.customAttributes?.cardNumber && (
               <p className="text-sm text-text-on-disabled mt-1">
@@ -181,7 +211,14 @@ const PaymentMethodComponent: React.FC<PaymentMethodProps> = ({ isReadOnly = fal
             <FormItem>
               <FormLabel htmlFor="additionalInvoice">{t('additionalInvoice')}</FormLabel>
               <FormControl>
-                <Input id="additionalInvoice" type="text" placeholder="Email" {...field} disabled={isReadOnly} />
+                <Input
+                  id="additionalInvoice"
+                  type="text"
+                  placeholder="Email"
+                  {...field}
+                  disabled={isReadOnly}
+                  data-testid="payment-additionalInvoice"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

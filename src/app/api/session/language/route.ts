@@ -3,8 +3,6 @@ import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import { SessionService } from '@/platform/services/session/SessionService';
 
-export const dynamic = 'force-dynamic';
-
 /**
  * PUT /api/session/language
  * Update session language

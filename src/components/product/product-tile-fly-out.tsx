@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
+import { type ProductAttributeKey, dk } from '@/i18n/dynamic-key';
 import { Link } from '@/i18n/navigation';
 import { formatCurrency, l10n } from '@/lib/utils';
 import { Product } from '@/platform/services/model/product';
@@ -74,7 +75,7 @@ const markText = (text: string, keyword?: string): React.ReactNode => {
 // Helper function to render product attributes
 const renderAttributes = (
   attributes: Record<string, string>,
-  t: ReturnType<typeof useTranslations>,
+  t: (key: ProductAttributeKey, opts?: { defaultValue?: string }) => string,
   attributeType: 'productVariantAttributes' | 'productTemplateAttributes',
   maxItems?: number,
   isBold?: boolean,
@@ -85,7 +86,7 @@ const renderAttributes = (
 
   return limitedEntries.map(([key, value]) => (
     <p key={key} className={`text-sm ${isBold ? 'font-bold' : ''}`}>
-      {t(`filters.mixins.${attributeType}.${key}`, {
+      {t(dk<ProductAttributeKey>(`filters.mixins.${attributeType}.${key}`), {
         defaultValue: formatAttributeKey(key),
       })}
       : {markText(value, keyword)}
@@ -178,7 +179,7 @@ export function ProductTileFlyOut({ product, locale = 'de', onProductClick, keyw
                 {variantAttributes &&
                   renderAttributes(
                     variantAttributes,
-                    t,
+                    t as (key: ProductAttributeKey, opts?: { defaultValue?: string }) => string,
                     'productVariantAttributes',
                     Math.min(maxTotalAttributes, variantCount),
                     false,
@@ -190,7 +191,7 @@ export function ProductTileFlyOut({ product, locale = 'de', onProductClick, keyw
                   templateCount > 0 &&
                   renderAttributes(
                     filteredTemplateAttributes,
-                    t,
+                    t as (key: ProductAttributeKey, opts?: { defaultValue?: string }) => string,
                     'productTemplateAttributes',
                     templateCount,
                     false,

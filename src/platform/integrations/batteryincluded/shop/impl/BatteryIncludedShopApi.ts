@@ -1,5 +1,6 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type BatteryIncludedApiInvoker from '../../common/impl/BatteryIncludedApiInvoker';
 import { buildSearchParams } from '../../common/util/common';
 import type { BatteryIncludedConfig } from '../../config';
@@ -18,6 +19,7 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
   constructor(
     @inject('BatteryIncludedApiInvoker') private apiClient: BatteryIncludedApiInvoker,
     @inject('BatteryIncludedConfig') private config: BatteryIncludedConfig,
+    @inject('LoggerService') private logger: LoggerService,
   ) {}
 
   /**
@@ -65,13 +67,16 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`[ShopApi] Suggest API error: ${response.statusText}`, errorText);
+        this.logger.error({ statusText: response.statusText, errorText }, 'ShopApi suggest API error');
         return [];
       }
 
       return await response.json();
     } catch (error) {
-      console.error('[ShopApi] Exception in suggest API call:', error);
+      this.logger.error(
+        { error: error instanceof Error ? error.message : String(error) },
+        'ShopApi exception in suggest API call',
+      );
       return [];
     }
   }

@@ -28,9 +28,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    // Get price service and fetch price
+    // Get price service and fetch price using explicit session params
+    // to avoid race condition with Emporix session-context propagation
     const priceService = server.get<PriceService>('PriceService');
-    const price = await priceService.getProductPrice(productId, quantity, unitCode);
+    const price = await priceService.getProductPrice(productId, quantity, unitCode, {
+      siteCode: session.siteCode,
+      currency: session.currency,
+      country: session.country,
+    });
 
     if (!price) {
       return NextResponse.json({ error: `Price for product with ID ${productId} not found` }, { status: 404 });

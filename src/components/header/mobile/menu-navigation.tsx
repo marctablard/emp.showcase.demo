@@ -2,12 +2,12 @@
 
 import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import Link from 'next/link';
 import { ArrowLeft, ChevronDown, MapPin } from 'lucide-react';
 import { HeaderPromo } from '@/components/header/common/header-promo';
 import { LocationSettingsDialog } from '@/components/header/mobile/location-settings-dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { navigationMenuItems, serviceMenuItems } from '@/data/navigation-menu';
+import { Link } from '@/i18n/navigation';
 
 interface MobileMenuNavigationProps {
   onClose?: () => void;

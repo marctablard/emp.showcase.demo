@@ -8,6 +8,9 @@
   "payment": "Payment",
   "trackOrder": "Track Order",
   "returnOrder": "Return Order",
+  "returnLink": "Return",
+  "returnDisabledTooltip": "Returns can only be created for completed orders",
+  "noRemainingItems": "A return for all items in this order has already been requested.",
   "paymentMethod": "Payment Method",
   "shippingMethod": "Shipping Method",
   "orderItems": "Order Items",
@@ -38,12 +41,16 @@
   "columns": {
     "orderNumber": "Order #",
     "status": "Status",
+    "totalShippingCost": "Total Shipping Cost",
     "customer": "Customer",
     "orderDate": "Order Date",
+    "expectedDeliveryDate": "Expected Delivery Date",
     "deliveryDate": "Delivery Date",
     "deliveryAddress": "Delivery Address",
     "payment": "Payment",
-    "orderValue": "Order Value"
+    "orderValue": "Order Value",
+    "action": "Action",
+    "view": "View"
   },
   "status": {
     "in_checkout": "In Checkout",
@@ -102,7 +109,9 @@
     "thankYou": "Thank you for your purchase. Your order has been received.",
     "emailConfirmation": "A confirmation email has been sent to",
     "continueShopping": "Continue Shopping",
-    "viewOrders": "View Orders"
+    "viewOrders": "View Orders",
+    "freightShipping": "Freight Shipping",
+    "freightInfo": "After the order is completed, the contracted shipping company will contact you with further information."
   },
   "Approval": {
     "approvals": "Approvals",
@@ -171,7 +180,13 @@
     "note": "Note",
     "notProvided": "Not provided",
     "requestorCommentUpdated": "Requestor comment updated",
-    "approverCommentUpdated": "Approver comment updated"
+    "approverCommentUpdated": "Approver comment updated",
+    "addApproverComment": "Add Approver Comment",
+    "addRequestorComment": "Add Requestor Comment",
+    "enterApproverComment": "Enter approver comment...",
+    "enterRequestorComment": "Enter requestor comment...",
+    "saveApproverComment": "Save Approver Comment",
+    "saveRequestorComment": "Save Requestor Comment"
   },
   "ApprovalAction": {
     "CHECKOUT": "Order"
@@ -205,5 +220,7 @@
     "inTransitNextCarrier": "Transferred to next carrier",
     "inTransitCarrierFacility": "Arrived at carrier facility",
     "exceptionNoRecipient": "Delivery attempted - no recipient available"
-  }
+  },
+  "errorFetchingOrder": "Error fetching order details",
+  "viewOrders": "View Orders"
 }

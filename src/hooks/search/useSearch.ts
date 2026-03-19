@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocale } from 'next-intl';
 import { usePathname, useRouter } from 'next/navigation';
 import useHistory from '@/hooks/history/useHistory';
+import { useSiteCode } from '@/hooks/site/useSiteCode';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { SearchParams as BaseSearchParams, Filter, SearchResult } from '@/platform/services/model/common';
 import { SearchSuggestions } from '@/platform/services/model/search/SearchSuggestions';
+import { buildSearchPaginationUrl } from './build-search-pagination-url';
 
 const DEFAULT_PAGE_INDEX = 0;
-const DEFAULT_PAGE_SIZE = 12;
+const DEFAULT_PAGE_SIZE = 16;
 
 // Extend the SearchParams type to support nested objects in filters
 export type FilterValue = string | string[] | Record<string, string>;
@@ -21,6 +24,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   const pathname = usePathname();
   const [data, setData] = useState<T[]>(initialResult?.items || []);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [error, setError] = useState<string | null>(null);
   const [facets, setFacets] = useState<Filter[]>([]);
@@ -36,6 +40,8 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     products: [],
     categories: [],
   });
+  const siteCode = useSiteCode();
+  const locale = useLocale();
 
   // Keep track of the last search params for pagination
   const lastSearchParams = useRef<SearchParams<T>>({
@@ -124,6 +130,8 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
           url.searchParams.append('sort', params.sort);
           setCurrentSort(params.sort);
         }
+        url.searchParams.append('site', siteCode);
+        url.searchParams.append('locale', locale);
 
         // Add filters if present
         if (params.filters) {
@@ -174,7 +182,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         setLoading(false);
       }
     },
-    [updateBrowserUrl],
+    [updateBrowserUrl, locale, siteCode],
   );
 
   /**
@@ -294,9 +302,60 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     [search],
   );
 
+  const hasMore = useMemo(() => (currentPage + 1) * pageSize < total, [currentPage, pageSize, total]);
+
   /**
-   * Change the sort order
+   * Fetch the next page of results and append to the existing data
    */
+  const loadMore = useCallback(async () => {
+    if (!hasMore || loadingMore || loading) return;
+
+    const nextPage = currentPage + 1;
+    try {
+      setLoadingMore(true);
+      setError(null);
+
+      const url = buildSearchPaginationUrl({
+        origin: window.location.origin,
+        nextPage,
+        pageSize,
+        siteCode,
+        locale,
+        query: lastSearchParams.current.query,
+        sort: lastSearchParams.current.sort,
+      });
+
+      if (lastSearchParams.current.filters) {
+        Object.entries(lastSearchParams.current.filters).forEach(([key, value]) => {
+          if (Array.isArray(value)) {
+            value.forEach((val) => url.searchParams.append(`filters[${key}][]`, val));
+          } else if (typeof value === 'object' && value !== null) {
+            Object.entries(value).forEach(([nestedKey, nestedValue]) => {
+              url.searchParams.append(`filters[${key}][${nestedKey}]`, String(nestedValue));
+            });
+          } else {
+            url.searchParams.append(`filters[${key}]`, String(value));
+          }
+        });
+      }
+
+      const response = await fetch(url.toString());
+      if (!response.ok) throw new Error(`Search failed: ${response.statusText}`);
+
+      const result: SearchResult<T> = await response.json();
+
+      setData((prev) => [...prev, ...result.items]);
+      setCurrentPage(nextPage);
+      setTotal(result.total);
+
+      lastSearchParams.current = { ...lastSearchParams.current, page: nextPage };
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [hasMore, loadingMore, loading, currentPage, pageSize, siteCode, locale]);
+
   const getSuggestions = useCallback(async (query: string, locale?: string): Promise<void> => {
     setLoading(true);
     if (!query?.trim()) {
@@ -349,6 +408,8 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     // State
     data,
     loading,
+    loadingMore,
+    hasMore,
     facets,
     total,
     currentPage,
@@ -359,6 +420,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
 
     // Functions
     search,
+    loadMore,
     applyAllFacets,
     applyFacet,
     applyRangeFacet,

@@ -82,9 +82,7 @@ export const AccountDetailsRenderer: React.FC<AccountDetailsRendererProps> = ({ 
               <div className="w-4 h-4 text-text-body">📍</div>
               <div>
                 <div className="text-xs text-text-body">{t('preferredSite')}</div>
-                <div className="text-sm font-medium text-text-headings">
-                  {data.personalInfo.preferredSite || 'main'}
-                </div>
+                <div className="text-sm font-medium text-text-headings">{data.personalInfo.preferredSite || '-'}</div>
               </div>
             </div>
 

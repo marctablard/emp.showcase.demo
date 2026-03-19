@@ -1,6 +1,26 @@
 import { parseAIResponse } from './response-parser';
 
+jest.mock('@/lib/logger/use-logger-client', () => ({
+  getLogger: jest.fn(),
+}));
+
+const { getLogger: mockGetLogger } = require('@/lib/logger/use-logger-client');
+const mockLogger = {
+  error: jest.fn(),
+  warn: jest.fn(),
+  info: jest.fn(),
+  debug: jest.fn(),
+  trace: jest.fn(),
+  fatal: jest.fn(),
+};
+
 describe('parseAIResponse', () => {
+  beforeEach(() => {
+    Object.values(mockLogger).forEach((fn) => fn.mockClear());
+    mockGetLogger.mockReset();
+    mockGetLogger.mockReturnValue(mockLogger);
+  });
+
   it('should parse valid JSON response', () => {
     const input = JSON.stringify({ message: 'Hello', type: 'text', data: null });
     const result = parseAIResponse(input);
@@ -41,6 +61,10 @@ describe('parseAIResponse', () => {
     expect(result.message).toBe(input);
     expect(result.type).toBe('text');
     expect(result.data).toBeNull();
+    expect(mockLogger.debug).toHaveBeenCalledWith(
+      { rawMessage: 'This is not JSON' },
+      'AI Response Parser: Raw message is not JSON',
+    );
   });
 
   it('should extract cartRefresh flag when true', () => {
@@ -65,6 +89,7 @@ describe('parseAIResponse', () => {
     const result = parseAIResponse('');
     expect(result.message).toBe('');
     expect(result.type).toBe('text');
+    expect(mockLogger.debug).toHaveBeenCalledWith({ rawMessage: '' }, 'AI Response Parser: Raw message is not JSON');
   });
 
   it('should handle complex data structures', () => {

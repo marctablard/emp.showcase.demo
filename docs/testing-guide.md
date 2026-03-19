@@ -392,7 +392,7 @@ Create a testable store factory and use it consistently:
 ```tsx
 // ✅ GOOD: Create a test store with initial state
 const createTestStore = (initialState = {}) => {
-  return createStore({
+  return createProductStore({
     ...defaultState,
     ...initialState,
   });
@@ -401,7 +401,9 @@ const createTestStore = (initialState = {}) => {
 test('should update state', async () => {
   // Create store with test data
   const store = createTestStore({ user: { name: 'Test' } });
-  const wrapper = ({ children }) => <StoreProvider store={store}>{children}</StoreProvider>;
+  const wrapper = ({ children }) => (
+    <ProductStoreContext.Provider value={store}>{children}</ProductStoreContext.Provider>
+  );
 
   const { result } = renderHook(() => useUser(), { wrapper });
   expect(result.current.name).toBe('Test');
@@ -442,8 +444,8 @@ Mock dependencies at the module level:
 
 ```tsx
 // ✅ GOOD: Mock API module
-jest.mock('@/lib/api', () => ({
-  fetchProduct: jest.fn().mockResolvedValue({ id: '123', name: 'Test Product' }),
+jest.mock('@/lib/client/products', () => ({
+  fetchProductById: jest.fn().mockResolvedValue({ id: '123', name: 'Test Product' }),
 }));
 
 test('should fetch product', async () => {
@@ -479,13 +481,13 @@ The project includes a sample test for the `useProduct` hook that demonstrates:
 // src/hooks/product/useProduct.test.tsx
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useProduct } from './useProduct';
-import { fetchProductById } from '@/lib/api/products';
-import { StoreProvider, ProductStoreContext } from '@/providers/StoreProvider';
-import { createProductStore } from '@/stores/product/products-store';
+import { fetchProductById } from '@/lib/client/products';
+import { ProductStoreContext } from '@/providers/StoreProvider';
+import { createProductStore } from '@/stores/products-store';
 import { ReactNode } from 'react';
 
 // Mock the API module
-jest.mock('@/lib/api/products', () => ({
+jest.mock('@/lib/client/products', () => ({
   fetchProductById: jest.fn(),
 }));
 
@@ -540,8 +542,8 @@ test('German homepage (/de) loads correctly', async ({ page }) => {
   // Navigate to the German homepage
   await page.goto('/de');
 
-  // Verify the page has loaded
-  await expect(page.locator('header')).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  await expect(page.locator('header > div').first()).toBeVisible();
 
   // Check that we're on the German version by looking for German Locale
   const htmlLang = await page.getAttribute('html', 'lang');

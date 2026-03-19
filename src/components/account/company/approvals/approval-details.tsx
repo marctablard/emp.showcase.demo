@@ -113,6 +113,9 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
     }).format(date);
   };
 
+  // This view intentionally only updates approval status without triggering checkout.
+  // The main approval view at /account/approvals/[id] handles the full checkout + order
+  // submission flow. See SHOW-298 for context on this distinction.
   const canApprove = approval?.status === 'PENDING';
   const canComment = approval?.status !== 'CLOSED' && approval?.status !== 'EXPIRED';
 

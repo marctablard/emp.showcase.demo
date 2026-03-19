@@ -54,6 +54,7 @@ cypress/videos/**/*
 .DS_Store
 *.pem
 certificates
+.certificates
 .windsurf
 *.iml
 
@@ -100,11 +101,12 @@ next-env.d.ts
 
 # Specifications directory (local development artifacts)
 /specifications/
-
+.playwright-mcp
 # GitHub agents and prompts (local only, mirrored in .cursor/)
 .github/workflows/agents/
 .github/workflows/prompts/
 .github/newestprompts
+.github/copilot-instructions.md
 /docs/cursor/
 /docs/pr-analysis/
 /docs/testing-plans/

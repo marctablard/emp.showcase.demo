@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { SearchActiveFiltersWithReset } from '@/components/search/search-active-filters-with-reset';
@@ -8,14 +8,7 @@ import { SearchFilter } from '@/components/search/search-filter';
 import { SearchLayoutToggle } from '@/components/search/search-layout-toggle';
 import { SearchResultsGrid } from '@/components/search/search-results-grid';
 import { SearchResultsList } from '@/components/search/search-results-list';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination';
+import { Button } from '@/components/ui/button';
 import { useSearch } from '@/hooks/search/useSearch';
 import { SearchParams, SearchResult } from '@/platform/services/model/common';
 import { Product } from '@/platform/services/model/product';
@@ -29,23 +22,25 @@ interface SearchClientWrapperProps {
 export function SearchResultsComponent({ initialSearch, initialResults, locale }: SearchClientWrapperProps) {
   const t = useTranslations('search.searchResults');
   const searchParams = useSearchParams();
-  const [layout, setLayout] = useState<'list' | 'grid'>('list');
+  const [layout, setLayout] = useState<'list' | 'grid'>('grid');
   // Initialize the search hook with Product type and initial results
   const {
     data: products,
     loading,
+    loadingMore,
+    hasMore,
     total,
     facets: availableFilters,
     currentPage,
     pageSize,
     search,
+    loadMore,
     applyFacet,
     applyRangeFacet,
     applyAllFacets,
     resetFacet,
     resetAllFacets,
     activeFilters,
-    changePage,
   } = useSearch<Product>(initialSearch, initialResults);
 
   // Shared props for SearchFilter component (used in both mobile and desktop layouts)
@@ -66,21 +61,7 @@ export function SearchResultsComponent({ initialSearch, initialResults, locale }
     resetAllFacets,
     resetLabel: t('resetFilter'),
   };
-  const visiblePagination = useMemo(() => {
-    if (pageSize <= 0) {
-      return [];
-    }
-
-    const totalPages = Math.ceil(total / pageSize);
-    if (totalPages === 0) {
-      return [];
-    }
-
-    const start = Math.max(0, currentPage - 2);
-    const end = Math.min(totalPages - 1, currentPage + 2);
-
-    return Array.from({ length: end - start + 1 }, (_, index) => start + index);
-  }, [currentPage, total, pageSize]);
+  const initialLoadRef = useRef(true);
 
   useEffect(() => {
     // Whitelist of search-related parameters
@@ -94,6 +75,13 @@ export function SearchResultsComponent({ initialSearch, initialResults, locale }
     if (!hasSearchParams && searchParams.toString() !== '') {
       return;
     }
+
+    // On initial mount, skip the duplicate fetch when SSR already provided matching results
+    if (initialLoadRef.current && initialResults) {
+      initialLoadRef.current = false;
+      return;
+    }
+    initialLoadRef.current = false;
 
     // Parse URL parameters to restore search state
     const query = searchParams.get('q') ?? '';
@@ -145,6 +133,7 @@ export function SearchResultsComponent({ initialSearch, initialResults, locale }
       sort: sort,
       filters: Object.keys(filters).length > 0 ? filters : undefined,
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initialResults is an SSR prop that doesn't change
   }, [searchParams, pageSize, search]);
 
   return (
@@ -197,52 +186,11 @@ export function SearchResultsComponent({ initialSearch, initialResults, locale }
           />
         )}
 
-        {/* Simple Pagination */}
-        {total > pageSize && (
+        {layout === 'grid' && hasMore && (
           <div className="mt-8 flex justify-center">
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (currentPage > 0) changePage(currentPage - 1);
-                    }}
-                    disabled={currentPage === 0}
-                  />
-                </PaginationItem>
-
-                {visiblePagination.map((pageNumber) => (
-                  <PaginationItem key={pageNumber}>
-                    <PaginationLink
-                      href="#"
-                      isActive={currentPage === pageNumber}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        changePage(pageNumber);
-                      }}
-                    >
-                      {pageNumber + 1}
-                    </PaginationLink>
-                  </PaginationItem>
-                ))}
-                {/**/}
-
-                <PaginationItem>
-                  <PaginationNext
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (currentPage < Math.ceil(total / pageSize) - 1) {
-                        changePage(currentPage + 1);
-                      }
-                    }}
-                    disabled={currentPage === Math.ceil(total / pageSize) - 1}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
+            <Button variant="secondary" onClick={loadMore} disabled={loadingMore}>
+              {loadingMore ? t('loadingMore') : t('loadMore')}
+            </Button>
           </div>
         )}
       </div>

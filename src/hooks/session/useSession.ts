@@ -22,12 +22,51 @@ export function useSession() {
   const session = sessionStore.session;
   const loading = sessionStore.loading;
 
+  const fetchSessionWithStatus = useCallback(async (): Promise<{ session: Session | null; hasError: boolean }> => {
+    try {
+      const nextSession = await fetchCurrentSession(true);
+      return { session: nextSession, hasError: false };
+    } catch (_error) {
+      return { session: null, hasError: true };
+    }
+  }, []);
+
+  const runSessionMutation = useCallback(
+    async (mutation: () => Promise<boolean>): Promise<boolean> => {
+      if (!sessionStore.tryAcquireMutationLock()) {
+        return false;
+      }
+      sessionStore.setLoading(true);
+      try {
+        const success = await mutation();
+        if (success) {
+          const { session: updatedSession, hasError } = await fetchSessionWithStatus();
+          if (hasError) {
+            // Treat mutation as incomplete when we cannot confirm updated session state.
+            return false;
+          }
+          sessionStore.setSession(updatedSession);
+        }
+        return success;
+      } finally {
+        sessionStore.setLoading(false);
+        sessionStore.releaseMutationLock();
+      }
+    },
+    [fetchSessionWithStatus, sessionStore],
+  );
+
   const fetchSession = useCallback(async () => {
     sessionStore.setLoading(true);
-    const sessionData = await fetchCurrentSession();
-    sessionStore.setSession(sessionData);
+    const { session: sessionData, hasError } = await fetchSessionWithStatus();
+    if (!hasError) {
+      sessionStore.setSession(sessionData);
+    } else if (sessionStore.session === undefined) {
+      // Stop initial refetch loop when the first session request fails.
+      sessionStore.setSession(null);
+    }
     sessionStore.setLoading(false);
-  }, [sessionStore]);
+  }, [fetchSessionWithStatus, sessionStore]);
   // Fetch session data on initial load
   useEffect(() => {
     if (sessionStore.session !== undefined || sessionStore.loading) {
@@ -40,70 +79,35 @@ export function useSession() {
    * Update the session language
    */
   const setLanguage = async (language: string): Promise<boolean> => {
-    sessionStore.setLoading(true);
-    const success = await updateSessionLanguage(language);
-    if (success) {
-      const updatedSession = await fetchCurrentSession();
-      sessionStore.setSession(updatedSession);
-    }
-    sessionStore.setLoading(false);
-    return success;
+    return runSessionMutation(() => updateSessionLanguage(language));
   };
 
   /**
    * Update the session currency
    */
   const setCurrency = async (currency: string): Promise<boolean> => {
-    sessionStore.setLoading(true);
-    const success = await updateSessionCurrency(currency);
-    if (success) {
-      const updatedSession = await fetchCurrentSession();
-      sessionStore.setSession(updatedSession);
-    }
-    sessionStore.setLoading(false);
-    return success;
+    return runSessionMutation(() => updateSessionCurrency(currency));
   };
 
   /**
    * Update the session country
    */
   const setCountry = async (country: string): Promise<boolean> => {
-    sessionStore.setLoading(true);
-    const success = await updateSessionCountry(country);
-    if (success) {
-      const updatedSession = await fetchCurrentSession();
-      sessionStore.setSession(updatedSession);
-    }
-    sessionStore.setLoading(false);
-    return success;
+    return runSessionMutation(() => updateSessionCountry(country));
   };
 
   /**
    * Update the session site
    */
   const setSite = async (site: string): Promise<boolean> => {
-    sessionStore.setLoading(true);
-    const success = await updateSessionSite(site);
-    if (success) {
-      const updatedSession = await fetchCurrentSession();
-      sessionStore.setSession(updatedSession);
-    }
-    sessionStore.setLoading(false);
-    return success;
+    return runSessionMutation(() => updateSessionSite(site));
   };
 
   /**
    * Update the session region
    */
   const setRegion = async (region: string): Promise<boolean> => {
-    sessionStore.setLoading(true);
-    const success = await updateSessionRegion(region);
-    if (success) {
-      const updatedSession = await fetchCurrentSession();
-      sessionStore.setSession(updatedSession);
-    }
-    sessionStore.setLoading(false);
-    return success;
+    return runSessionMutation(() => updateSessionRegion(region));
   };
 
   /**
@@ -111,10 +115,15 @@ export function useSession() {
    */
   const refreshSession = async (): Promise<Session | null | undefined> => {
     sessionStore.setLoading(true);
-    const updatedSession = await fetchCurrentSession();
-    sessionStore.setSession(updatedSession);
+    const { session: updatedSession, hasError } = await fetchSessionWithStatus();
+    if (!hasError) {
+      sessionStore.setSession(updatedSession);
+    } else if (sessionStore.session === undefined) {
+      // Keep refresh behavior consistent with initial fetch fallback.
+      sessionStore.setSession(null);
+    }
     sessionStore.setLoading(false);
-    return updatedSession;
+    return hasError ? sessionStore.session : updatedSession;
   };
 
   return {

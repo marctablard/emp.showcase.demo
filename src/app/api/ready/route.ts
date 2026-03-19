@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { validateEnvVars } from '@/platform/healthcheck/env-validation';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -10,9 +11,8 @@ export const revalidate = 0;
  * otherwise probes can amplify outages into traffic spikes.
  */
 export async function GET(): Promise<NextResponse> {
-  const requiredEnv = ['NEXT_PUBLIC_EMPORIX_BASE_URL', 'NEXT_PUBLIC_EMPORIX_TENANT', 'NEXT_PUBLIC_EMPORIX_CLIENT_ID'];
-
-  const missing = requiredEnv.filter((key) => !process.env[key]);
+  const result = validateEnvVars();
+  const missing = result.items.filter((item) => !item.passed && item.severity === 'error').map((item) => item.name);
 
   if (missing.length > 0) {
     return NextResponse.json(

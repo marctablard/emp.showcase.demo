@@ -29,6 +29,11 @@ export interface EmporixMatchPricesRequest {
     countryCode: string;
   };
   items: EmporixPriceMatchItem[];
+  /**
+   * If no price found for the specified site, try to find the best price for the main site.
+   * Useful for branch sites where products may only be priced on the main site.
+   */
+  useFallback?: boolean;
 }
 
 export interface EmporixMatchPricesByContextRequest {

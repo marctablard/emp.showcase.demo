@@ -8,8 +8,11 @@
     "dev:open-browser": "ts-node --project scripts/tsconfig.json scripts/open-browser.ts",
     "dev:https": "npm-run-all --parallel generate:watch dev:next:https",
     "dev:next:https": "next dev --experimental-https",
-    "build": "npm run generate && next build && npm run lint",
+    "build": "npm run generate && next build && npm run check-translations && npm run lint",
     "build:next": "next build",
+    "check-translations": "ts-node --project scripts/tsconfig.json scripts/check-translations.ts",
+    "check-translations:all": "ts-node --project scripts/tsconfig.json scripts/check-translations.ts --locales allLanguages",
+    "check-translations:strict": "ts-node --project scripts/tsconfig.json scripts/check-translations.ts --locales allLanguages --strict",
     "generate": "ts-node --project scripts/tsconfig.json scripts/di-generator.ts",
     "generate:watch": "ts-node --project scripts/tsconfig.json scripts/di-generator.ts --watch",
     "start": "next start",
@@ -94,6 +97,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@builder.io/partytown": "^0.10.3",
     "@eslint/eslintrc": "^3",
     "@next/eslint-plugin-next": "^16.0.6",
     "@playwright/test": "^1.56.1",

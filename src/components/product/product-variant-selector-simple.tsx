@@ -7,6 +7,7 @@ import { CheckCircle2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useSession } from '@/hooks/session/useSession';
 import { useL10n } from '@/hooks/useL10n';
+import { type ProductVariantAttributeKey, dk } from '@/i18n/dynamic-key';
 import { useRouter } from '@/i18n/navigation';
 import { fetchProductPrice } from '@/lib/client/prices';
 import { fetchProductVariants } from '@/lib/client/products';
@@ -181,7 +182,7 @@ export default function ProductVariantSelectorSimple({
                 <p>
                   {soloVariant.name
                     ? l10n(soloVariant.name)
-                    : t(`filters.mixins.productVariantAttributes.${soloVariant?.key}`, {
+                    : t(dk<ProductVariantAttributeKey>(`filters.mixins.productVariantAttributes.${soloVariant?.key}`), {
                         defaultValue: soloVariant?.key,
                       })}
                 </p>

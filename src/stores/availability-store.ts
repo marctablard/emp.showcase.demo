@@ -1,5 +1,5 @@
 import { create } from 'zustand/react';
-import { StockAvailability } from '@/platform/services/stock/StockService';
+import { StockAvailability } from '@/platform/services/model/common';
 
 // re-export for convenience
 export { useAvailabilityStore } from '@/providers/StoreProvider';

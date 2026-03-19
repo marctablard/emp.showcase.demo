@@ -1,6 +1,12 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
-import { buildAndLogCurl, logResponse } from '@/platform/core/utils/debug-utils';
+import {
+  type DebugContext,
+  buildAndLogCurl,
+  getDebugLogger,
+  logRequestPayload,
+  logResponse,
+} from '@/platform/core/utils/debug-utils';
 import type { EmporixConfig } from '../../config';
 import type { EmporixTokenManager } from '../EmporixTokenManager';
 
@@ -72,11 +78,11 @@ class EmporixApiInvoker {
     // Get the appropriate token based on the token type
     switch (tokenType) {
       case 'public':
-        const anonymousToken = await this.tokenManager.getAnonymousToken(this.config.tenant, this.config.clientId);
-        token = anonymousToken.accessToken;
+        const publicToken = await this.tokenManager.getPublicToken(this.config.tenant, this.config.clientId);
+        token = publicToken.accessToken;
         headers = {
           ...headers,
-          ...this.addPublicHeaders(anonymousToken),
+          ...this.addPublicHeaders(publicToken),
         };
         break;
       case 'customer-saas':
@@ -121,10 +127,28 @@ class EmporixApiInvoker {
           this.config.tenant,
           this.config.serverClientId,
           this.config.serverClientSecret,
+          authOptions?.scopes,
         );
         break;
       default:
         throw new Error(`Unknown token type: ${tokenType}`);
+    }
+
+    // Unified cache defaults for public and service tokens
+    if (tokenType === 'public' || tokenType === 'service') {
+      const method = (options.method || 'GET').toUpperCase();
+      const isWriteMethod = method !== 'GET' && method !== 'HEAD';
+
+      if (isWriteMethod) {
+        // Write operations must never be cached
+        options['cache'] = 'no-store';
+        delete (options as Record<string, unknown>)['next'];
+      } else if (!options['cache'] && !options['next']) {
+        // Read operations: apply defaults only when caller set neither
+        options['cache'] = 'force-cache';
+        options['next'] = { revalidate: 3600 };
+      }
+      // If caller set either cache or next explicitly → respect both as-is
     }
 
     // Add authorization header to the request
@@ -142,10 +166,17 @@ class EmporixApiInvoker {
 
   async fetch(url: string, options: RequestInit = {}): Promise<Response> {
     url = `${this.config.baseUrl}/${url}`;
-    const prefix = buildAndLogCurl(url, options);
+    const ctx: DebugContext = { callType: 'external' };
+    const prefix = buildAndLogCurl(url, options, ctx);
+    logRequestPayload(url, options, prefix, ctx);
     const responsePromise = fetch(url, options);
-    responsePromise.catch((err) => console.error(`${prefix} [FETCH ERROR] ${url}`, err));
-    responsePromise.then((response) => logResponse(response, url, options, prefix));
+    responsePromise.catch((err) =>
+      getDebugLogger().error(
+        { url, error: err instanceof Error ? err.message : String(err) },
+        `${prefix} [FETCH ERROR]`,
+      ),
+    );
+    responsePromise.then((response) => logResponse(response, url, options, prefix, ctx));
     return responsePromise;
   }
 
@@ -190,10 +221,10 @@ class EmporixApiInvoker {
 
   /**
    * Returns additional headers for the public token case.
-   * @param _anonymousToken The anonymous token object (unused in base implementation, available for subclasses).
+   * @param _publicToken The anonymous token object (unused in base implementation, available for subclasses).
    * @returns An empty object (no additional headers for public tokens).
    */
-  protected addPublicHeaders(_anonymousToken: { accessToken: string; sessionId: string }): Record<string, string> {
+  protected addPublicHeaders(_publicToken: { accessToken: string }): Record<string, string> {
     return {};
   }
 }

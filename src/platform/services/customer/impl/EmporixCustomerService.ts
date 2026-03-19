@@ -1,4 +1,5 @@
 import { inject } from 'inversify';
+import { isAnonymousProfileCustomerId } from '@/lib/common/customer-identity';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCustomerApi } from '@/platform/integrations/emporix/customer/EmporixCustomerApi';
 import type { EmporixIamApi } from '@/platform/integrations/emporix/iam/EmporixIamApi';
@@ -8,10 +9,14 @@ import type { EmporixSessionContextApi } from '@/platform/integrations/emporix/s
 import type { LoggerService } from '../../logger/LoggerService';
 import EmporixAddressMapper from '../../model/common/impl/EmporixAddressMapper';
 import { Customer, CustomerAddress } from '../../model/customer/customer';
+import { CustomerRole } from '../../model/customer/roles';
 import { CustomerService, CustomerUpdateDto, PasswordChangeDto } from '../CustomerService';
 
-const ANONYMOUS_CUSTOMER_ID = '00000000';
-
+enum B2BRole {
+  ADMIN = 'Admin',
+  BUYER = 'Buyer',
+  REQUESTER = 'Requester',
+}
 /**
  * Emporix implementation of the CustomerService
  * Currently returns null for getCurrentCustomer as requested
@@ -37,7 +42,7 @@ export class EmporixCustomerService implements CustomerService {
     try {
       const response = await this.customerApi.getCustomerProfile();
       // return null for Anonymous for clear differentiation
-      if (!response || response.id == ANONYMOUS_CUSTOMER_ID) {
+      if (!response || isAnonymousProfileCustomerId(response.id)) {
         return null;
       }
       const iamResponse = await this.iamApi.getUserGroups(response.id);
@@ -45,17 +50,23 @@ export class EmporixCustomerService implements CustomerService {
       const roles = iamResponse.items
         .filter((group: EmporixGroup) => group.code)
         .map((group: EmporixGroup) => group.code);
-      roles.push('CUSTOMER');
-      roles.push(response.businessModel ? 'B2B' : 'B2C');
+      roles.push(CustomerRole.CUSTOMER);
+      roles.push(response.businessModel ? CustomerRole.B2B : CustomerRole.B2C);
 
-      // Check if the user is a B2B Admin
       if (response.businessModel === 'B2B') {
-        const isB2BAdmin = iamResponse.items.some((group: EmporixGroup) => {
-          return group.b2b && group.b2b.role === 'Admin';
-        });
-
-        if (isB2BAdmin) {
-          roles.push('B2B_ADMIN');
+        for (const group of iamResponse.items) {
+          if (!group.b2b?.role) continue;
+          switch (group.b2b.role) {
+            case B2BRole.ADMIN:
+              if (!roles.includes(CustomerRole.B2B_ADMIN)) roles.push(CustomerRole.B2B_ADMIN);
+              break;
+            case B2BRole.BUYER:
+              if (!roles.includes(CustomerRole.B2B_BUYER)) roles.push(CustomerRole.B2B_BUYER);
+              break;
+            case B2BRole.REQUESTER:
+              if (!roles.includes(CustomerRole.B2B_REQUESTER)) roles.push(CustomerRole.B2B_REQUESTER);
+              break;
+          }
         }
       }
       return {
@@ -232,16 +243,7 @@ export class EmporixCustomerService implements CustomerService {
 
   private mapFromCustomerAddress(source: CustomerAddress): EmporixAddress {
     const emporixAddress = this.addressMapper.mapToSource(source);
-    emporixAddress.tags =
-      source.types?.map((type) => {
-        switch (type) {
-          default:
-          case 'SHIPPING':
-            return 'shipping';
-          case 'BILLING':
-            return 'billing';
-        }
-      }) || [];
+    emporixAddress.tags = source.tags || [];
     return emporixAddress;
   }
 
@@ -249,16 +251,7 @@ export class EmporixCustomerService implements CustomerService {
     const address = this.addressMapper.mapToService(source);
     const customerAddress: CustomerAddress = {
       ...address,
-      types:
-        source?.tags?.map((tag) => {
-          switch (tag) {
-            default:
-            case 'shipping':
-              return 'SHIPPING';
-            case 'billing':
-              return 'BILLING';
-          }
-        }) || [],
+      tags: source?.tags || [],
     };
     return customerAddress;
   }

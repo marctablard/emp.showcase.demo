@@ -1,47 +1,48 @@
 {
-    "NotFound": {
-        "title": "404",
-        "home": "Return Home"
+  "NotFound": {
+    "title": "404",
+    "home": "Return Home"
+  },
+  "Languages": {
+    "label": "Languages",
+    "en": "English",
+    "de": "German"
+  },
+  "Currencies": {
+    "label": "Währungen"
+  },
+  "Regions": {
+    "label": "Site",
+    "switchFailed": "Unable to switch site. Please try again."
+  },
+  "hello": {
+    "world": "Hello World",
+    "friend": "Hey Friend"
+  },
+  "Breadcrumb": {
+    "backLink": "Back",
+    "homeLink": "Home",
+    "backLinkAriaLabel": "Go back to the previous page"
+  },
+  "UI": {
+    "spinner": {
+      "loading": "Loading..."
     },
-    "Languages": {
-        "label": "Languages",
-        "en": "English",
-        "de": "German"
-    },
-    "Currencies": {
-        "label": "Währungen"
-    },
-    "Regions": {
-        "label": "Site"
-    },
-    "hello": {
-        "world": "Hello World",
-        "friend": "Hey Friend"
-    },
-    "Breadcrumb": {
-        "backLink": "Back",
-        "homeLink": "Home",
-        "backLinkAriaLabel": "Go back to the previous page"
-    },
-    "UI": {
-        "spinner": {
-            "loading": "Loading..."
-        },
-        "Carousel": {
-            "pageTitle": "Page {index}",
-            "prev": "Previous",
-            "next": "Next"
-        }
-    },
-    "Notification": {
-        "close": "Close",
-        "company": {
-            "onboarding": {
-                "rejected": "Your company has not been approved. If you think this is an error, please contact us.",
-                "pending": "Your company is currently being reviewed. You will not be able to make purchases until it's complete.",
-                "approved": "Congratulations! Your company has been approved. You can now start shopping."
-            }
-        }
-    },
-    "optional": "(optional)"
+    "Carousel": {
+      "pageTitle": "Page {index}",
+      "prev": "Previous",
+      "next": "Next"
+    }
+  },
+  "Notification": {
+    "close": "Close",
+    "company": {
+      "onboarding": {
+        "rejected": "Your company has not been approved. If you think this is an error, please contact us.",
+        "pending": "Your company is currently being reviewed. You will not be able to make purchases until it's complete.",
+        "approved": "Congratulations! Your company has been approved. You can now start shopping."
+      }
+    }
+  },
+  "optional": "(optional)"
 }

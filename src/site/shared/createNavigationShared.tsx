@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import { createNavigation } from 'next-intl/navigation';
 import { permanentRedirect as nextPermanentRedirect, redirect as nextRedirect } from 'next/navigation';
 import { SiteRoutingConfig } from '@/site/types';
@@ -17,7 +18,8 @@ export function createSiteNavigationShared(siteRouting: SiteRoutingConfig, intlR
     args: Parameters<typeof getI18nPathname>[0] & { site?: string },
     ...rest: ParametersExceptFirst<typeof getI18nPathname>
   ): string {
-    const site = args.site || 'main';
+    const availableSites = process.env.NEXT_PUBLIC_AVAILABLE_SITES?.split(',') || [];
+    const site = args.site || process.env.NEXT_PUBLIC_DEFAULT_SITE || availableSites[0];
     const i18nArgs = args as Parameters<typeof getI18nPathname>[0];
     let i18nPathname = getI18nPathname(i18nArgs, ...rest);
     // Avoid trailing slashes
@@ -45,9 +47,11 @@ export function createSiteNavigationShared(siteRouting: SiteRoutingConfig, intlR
     site?: string;
   }
 
-  function Link(props: LinkProps) {
-    return <SiteLink {...props} I18nLink={I18nLink} getSite={getSite} siteRouting={siteRouting} />;
-  }
+  const Link = forwardRef<any, LinkProps>((props, ref) => (
+    <SiteLink {...props} ref={ref} I18nLink={I18nLink} getSite={getSite} siteRouting={siteRouting} />
+  ));
+
+  Link.displayName = 'Link';
 
   return {
     config,

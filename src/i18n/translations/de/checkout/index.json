@@ -37,7 +37,9 @@
     "cvv": "Prüfnummer",
     "paypalRedirect": "Sie werden zu PayPal weitergeleitet, um Ihre Zahlung abzuschließen, nachdem Sie Ihre Bestellung überprüft haben.",
     "invoiceTerms": "Sie erhalten eine Rechnung für diese Bestellung. Die Zahlung ist innerhalb von 30 Tagen fällig.",
-    "additionalInvoice": "Zusätzlicher Rechnungsempfänger per E-Mail"
+    "additionalInvoice": "Zusätzlicher Rechnungsempfänger per E-Mail",
+    "cancel": "Abbrechen",
+    "saveChanges": "Änderungen speichern"
   },
   "shipping": {
     "title": "Versand",
@@ -47,12 +49,16 @@
     "address": "Lieferadresse",
     "shippingMethod": "Versandart",
     "loading": "Versandarten werden geladen...",
-    "noShippingMethodsAvailable": "Keine Versandarten für Ihren Standort verfügbar",
+    "noShippingMethodsAvailable": "Keine Versandarten für Ihre Währung oder Ihren Standort verfügbar",
     "enterShippingAddressFirst": "Bitte geben Sie zuerst Ihre Lieferadresse ein",
     "freeShipping": "Kostenloser Versand",
     "estimatedDelivery": "Voraussichtliche Lieferung: 3-5 Werktage",
     "multiplePackages": "Um Ihnen Ihre Produkte so schnell wie möglich zu liefern, können wir Ihre Bestellung in mehreren Paketen versenden, die an verschiedenen Tagen ankommen.",
-    "billingAddressSameAsShipping": "Die Rechnungsadresse ist gleich der Lieferadresse"
+    "billingAddressSameAsShipping": "Die Rechnungsadresse ist gleich der Lieferadresse",
+    "cancel": "Abbrechen",
+    "saveChanges": "Änderungen speichern",
+    "freightShipping": "Frachtversand",
+    "freightInfo": "Nach der Bestellung kontaktiert Sie die beauftragte Spedition mit weiteren Informationen."
   },
   "validation": {
     "emailRequired": "Die E-Mail-Adresse ist erforderlich",
@@ -125,7 +131,10 @@
     "validationError": "Validierungsfehler",
     "selectApproverRequired": "Bitte wählen Sie einen Bestellprüfer aus.",
     "searchError": "Fehler beim Suchen",
-    "errorSearchingApprovers": "Es gab einen Fehler beim Suchen von Bestellprüfern"
+    "errorSearchingApprovers": "Es gab einen Fehler beim Suchen von Bestellprüfern",
+    "errorFetchingApprovers": "Fehler beim Laden der Bestellprüfer",
+    "errorFetchingApproversDescription": "Beim Laden der Bestellprüferliste ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.",
+    "retry": "Erneut versuchen"
   },
   "PaymentModes": {
     "creditCard": "Kreditkarte",

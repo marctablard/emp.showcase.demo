@@ -19,13 +19,21 @@ interface CheckoutAddressProps {
     id: string;
   };
   onAddressChange?: (address: Address) => void;
+  /** Prefix for data-testid attributes on the address form fields */
+  testIdPrefix?: string;
 }
 
 /**
  * Addresses component for checkout
  * Manages both shipping and billing addresses with option to use same address for both
  */
-const CheckoutAddress: React.FC<CheckoutAddressProps> = ({ address, isReadOnly = false, sameAs, onAddressChange }) => {
+const CheckoutAddress: React.FC<CheckoutAddressProps> = ({
+  address,
+  isReadOnly = false,
+  sameAs,
+  onAddressChange,
+  testIdPrefix = 'address',
+}) => {
   const form = useForm();
   // Determine if billing is same as shipping based on actual address comparison
   const initialSameState = useMemo(() => {
@@ -58,7 +66,11 @@ const CheckoutAddress: React.FC<CheckoutAddressProps> = ({ address, isReadOnly =
             render={() => (
               <FormItem className="flex flex-row items-center gap-2">
                 <FormControl>
-                  <Checkbox checked={isSame} onCheckedChange={handleSameAddressToggle} />
+                  <Checkbox
+                    checked={isSame}
+                    onCheckedChange={handleSameAddressToggle}
+                    data-testid={`${testIdPrefix}-sameAsCheckbox`}
+                  />
                 </FormControl>
                 <FormLabel className="font-medium">{sameAs.label}</FormLabel>
               </FormItem>
@@ -69,7 +81,12 @@ const CheckoutAddress: React.FC<CheckoutAddressProps> = ({ address, isReadOnly =
         {/* Address Input (only shown if not same as referenceAddress) */}
         {!isSame && (
           <div>
-            <AddressForm initialData={address} onDataChange={onAddressChange} isReadOnly={isReadOnly} />
+            <AddressForm
+              initialData={address}
+              onDataChange={onAddressChange}
+              isReadOnly={isReadOnly}
+              testIdPrefix={testIdPrefix}
+            />
           </div>
         )}
       </div>

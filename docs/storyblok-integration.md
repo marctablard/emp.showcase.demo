@@ -34,7 +34,8 @@ The Storyblok integration is set up with the following key files:
 
 - `src/lib/storyblok.ts` - Initializes the Storyblok client and registers components
 - `src/providers/StoryblokProvider.tsx` - Provider component for client-side initialization
-- `src/app/[locale]/storyblok/page.tsx` - Demo page that displays Storyblok content
+- `src/app/[site]/[locale]/(no-margin)/page.tsx` - Storyblok CMS root page
+- `src/app/[site]/[locale]/(no-margin)/[...slug]/page.tsx` - Storyblok CMS dynamic pages
 
 To use Storyblok in your application, you need to:
 

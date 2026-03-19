@@ -1,12 +1,45 @@
 import type { NextConfig } from 'next';
 import createNextIntlSplitPlugin from 'next-intl-split/plugin';
+import { validateEnvVars } from './src/platform/healthcheck/env-validation';
+
+// ── Tier 1: Build-time environment variable validation ──────────────────────
+// Runs during `next build`. Fails the build if required vars are missing.
+// console.* is acceptable here — this is build toolchain, not application runtime.
+const envResult = validateEnvVars();
+
+if (envResult.hasErrors) {
+  const missing = envResult.items
+    .filter((i) => !i.passed && i.severity === 'error')
+    .map((i) => `  ✗ ${i.message}`)
+    .join('\n');
+  // eslint-disable-next-line no-console -- build toolchain, LoggerService not available
+  console.error(`\n[healthcheck] Missing required environment variables:\n${missing}\n`);
+  throw new Error('Build aborted: missing required environment variables. See errors above.');
+}
+
+if (envResult.hasWarnings) {
+  const warnings = envResult.items
+    .filter((i) => !i.passed && i.severity === 'warning')
+    .map((i) => `  ⚠ ${i.message}`)
+    .join('\n');
+  // eslint-disable-next-line no-console -- build toolchain, LoggerService not available
+  console.warn(`\n[healthcheck] Missing optional environment variables:\n${warnings}\n`);
+}
+
+if (!envResult.hasErrors && !envResult.hasWarnings) {
+  // eslint-disable-next-line no-console -- build toolchain, LoggerService not available
+  console.info('[healthcheck] ✓ All required environment variables are present');
+}
 
 let outputMode = undefined;
 switch (process.env.NEXT_SERVER_OUTPUTMODE) {
   case 'standalone':
-  case 'export':
     outputMode = process.env.NEXT_SERVER_OUTPUTMODE;
     break;
+  case 'export':
+    throw new Error(
+      'NEXT_SERVER_OUTPUTMODE=export is not supported for this application. The storefront relies on App Router SSR, middleware, and route handlers that require the Next.js server runtime.',
+    );
 }
 
 let nextConfig: NextConfig = {

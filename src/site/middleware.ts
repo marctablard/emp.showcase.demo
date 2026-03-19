@@ -1,7 +1,15 @@
 import createIntlMiddleware from 'next-intl/middleware';
 import { NextRequest, NextResponse } from 'next/server';
 import { routing } from '@/i18n/routing';
-import { INTERNAL_SITE_HEADER, NEXT_REWRITE_HEADER, type SiteConfig, type SiteRoutingConfig } from '@/site/types';
+import {
+  INTERNAL_APP_PATH_HEADER,
+  INTERNAL_SITE_HEADER,
+  INTERNAL_SITE_INVALID_HEADER,
+  NEXT_REWRITE_HEADER,
+  type SiteConfig,
+  type SiteRoutingConfig,
+} from '@/site/types';
+import { isLikelyProbe } from './probe-detection';
 import { setCachedRequestSite } from './server/RequestSiteCache';
 import { resolveApplicableRouting, shouldPrefix } from './utils';
 
@@ -55,7 +63,7 @@ export function resolveSite(
   cookies: NextRequest['cookies'],
   headers: NextRequest['headers'],
   routing: SiteConfig,
-): { site: string; appPath: string } {
+): { site: string | undefined; appPath: string } {
   const segments = pathname.replace('/', '').split('/');
   let site: string | undefined;
   // first, try to resolve the site from the first path-segment
@@ -82,6 +90,37 @@ const INTL_MIDDLEWARE_HEADER = NEXT_MIDDLEWARE_PREFIX + INTL_LOCALE_HEADER;
 
 const intlMiddleware = createIntlMiddleware(routing);
 
+function handleMisroutedHealthCheck(req: NextRequest): NextResponse {
+  const ua = req.headers.get('user-agent') ?? '';
+  const xff = req.headers.get('x-forwarded-for') ?? '';
+  const rid = req.headers.get('x-request-id') ?? '';
+
+  // Structured log for easy filtering in Azure/App Insights
+  // eslint-disable-next-line no-console -- Edge middleware: Pino logger unavailable
+  console.warn(
+    JSON.stringify({
+      event: 'misrouted_healthcheck',
+      path: req.nextUrl.pathname,
+      method: req.method,
+      ua,
+      xff,
+      rid,
+      recommendation: 'Configure health checks to use /api/health or /api/ready',
+    }),
+  );
+
+  return new NextResponse('OK', {
+    status: 200,
+    headers: {
+      'content-type': 'text/plain; charset=utf-8',
+      'cache-control': 'no-store',
+      'x-misrouted-healthcheck': '1',
+      'x-recommended-endpoint': '/api/health',
+      'x-alternative-endpoint': '/api/ready',
+    },
+  });
+}
+
 const withCookies = function (
   from: NextResponse,
   to: NextResponse,
@@ -99,10 +138,51 @@ const withCookies = function (
 
 export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
   return (req: NextRequest) => {
+    const path = req.nextUrl.pathname;
+
+    // Only protect the expensive "main routes"
+    if (path === '/' || /^\/[^/]+\/[^/]+$/.test(path)) {
+      if (isLikelyProbe(req)) {
+        return handleMisroutedHealthCheck(req);
+      }
+    }
+
     // First look for the matching routing by Domain
     const routing = resolveApplicableRouting(req.nextUrl.hostname, routingConfig);
-    const { site, appPath } = resolveSite(req.nextUrl.pathname, req.cookies, req.headers, routing);
-    setCachedRequestSite(site);
+    const resolved = resolveSite(req.nextUrl.pathname, req.cookies, req.headers, routing);
+    let { site } = resolved;
+    const { appPath } = resolved;
+    const fallbackEnabled = !!routing.defaultSite;
+    let siteInvalid = false;
+
+    // Post-resolution validation: reject sites not in availableSites (from cookies/headers)
+    if (site && !routing.availableSites.includes(site)) {
+      if (fallbackEnabled) {
+        site = routing.defaultSite;
+      } else {
+        // eslint-disable-next-line no-console -- Edge middleware: Pino logger unavailable
+        console.warn(
+          JSON.stringify({
+            event: 'invalid_site_rejected',
+            site,
+            path: req.nextUrl.pathname,
+            availableSites: routing.availableSites,
+            recommendation: 'Check NEXT_PUBLIC_AVAILABLE_SITES configuration',
+          }),
+        );
+        siteInvalid = true;
+        site = routing.availableSites[0];
+      }
+    }
+
+    // No site resolved at all (no path/cookie/header match, no default)
+    if (!site) {
+      site = routing.availableSites[0];
+    }
+
+    if (!siteInvalid) {
+      setCachedRequestSite(site);
+    }
 
     const originalPathname = req.nextUrl.pathname;
     // fake a reduced path for the intlMiddleware
@@ -113,11 +193,11 @@ export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
     req.nextUrl.pathname = originalPathname;
     // if intl requires a redirect, let's
     const intlLocation = intlResponse.headers.get('location');
-    if (intlLocation) {
+    if (intlLocation && !siteInvalid) {
       // build URL from redirectLocation
       const newLocation = new URL(intlLocation);
       // prepend site if necessary
-      if (shouldPrefix(site, routingConfig)) {
+      if (shouldPrefix(site, routing)) {
         newLocation.pathname = `/${site}${newLocation.pathname == '/' ? '' : newLocation.pathname}`;
       }
       return withCookies(intlResponse, NextResponse.redirect(newLocation), req, routing, site);
@@ -126,15 +206,30 @@ export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
     const locale = intlResponse.headers.get(INTL_MIDDLEWARE_HEADER);
     const resolvedLocale = locale || 'en';
     const headers = new Headers(req.headers);
+    headers.set(INTERNAL_APP_PATH_HEADER, appPath);
     if (locale) {
       headers.set(INTL_LOCALE_HEADER, locale);
     }
     if (site) {
       headers.set(INTERNAL_SITE_HEADER, site);
     }
+    if (siteInvalid) {
+      headers.set(INTERNAL_SITE_INVALID_HEADER, 'true');
+    }
+
+    // When site is flagged invalid, rewrite to a valid route so the layout can render not-found
+    if (siteInvalid) {
+      const rewrite = new URL(req.nextUrl);
+      rewrite.pathname = `/${site}${appPath === '' || appPath === '/' ? '' : `/${appPath}`}`;
+      const response = NextResponse.rewrite(rewrite, { request: { headers } });
+      intlResponse.cookies.getAll().forEach((cookie) => {
+        response.cookies.set(cookie.name, cookie.value);
+      });
+      return response;
+    }
 
     // handle Site-Redirection
-    if (shouldPrefix(site, routingConfig)) {
+    if (shouldPrefix(site, routing)) {
       if (!req.nextUrl.pathname.startsWith(`/${site}`)) {
         const redirect = new URL(req.nextUrl);
         redirect.pathname = `/${site}${redirect.pathname == '/' ? '' : redirect.pathname}`;
@@ -142,7 +237,7 @@ export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
           intlResponse,
           NextResponse.redirect(redirect, { headers }),
           req,
-          routingConfig,
+          routing,
           site,
           resolvedLocale,
         );
@@ -150,8 +245,8 @@ export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
     } else {
       if (req.nextUrl.pathname.startsWith(`/${site}`)) {
         const redirect = new URL(req.nextUrl);
-        redirect.pathname = appPath;
-        return withCookies(intlResponse, NextResponse.redirect(redirect), req, routingConfig, site, resolvedLocale);
+        redirect.pathname = appPath ? `/${appPath}` : '/';
+        return withCookies(intlResponse, NextResponse.redirect(redirect), req, routing, site, resolvedLocale);
       }
     }
 
@@ -164,7 +259,7 @@ export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
         intlResponse,
         NextResponse.rewrite(newRewrite, { request: { headers } }),
         req,
-        routingConfig,
+        routing,
         site,
         resolvedLocale,
       );

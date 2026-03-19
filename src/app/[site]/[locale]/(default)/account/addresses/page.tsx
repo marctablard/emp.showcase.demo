@@ -5,8 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { H1 } from '@/components/ui/h';
 import { getPageTitle } from '@/lib/ssr/seo';
 
-export const dynamic = 'force-dynamic';
-
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'account' });

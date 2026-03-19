@@ -71,7 +71,10 @@
         "length": "Product Length",
         "width": "Product Width",
         "height": "Product Height",
-        "cell-type": "Cell Type"
+        "cell-type": "Cell Type",
+        "timeframe-months": "Timeframe (Months)",
+        "estimated-budget-month": "Estimated Budget / Month",
+        "not-to-exceed-amout": "Not to Exceed Amount"
       }
     },
     "prices": {

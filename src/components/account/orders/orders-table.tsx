@@ -19,7 +19,7 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
       <TableHeader>
         <TableRow>
           <TableHead>{tOrder('orderNumber')}</TableHead>
-          <TableHead>{tOrder('status')}</TableHead>
+          <TableHead>{tOrder('columns.status')}</TableHead>
           <TableHead>{tOrder('orderDate')}</TableHead>
           <TableHead>{tOrder('deliveryDate')}</TableHead>
           <TableHead>{tOrder('deliveryAddress')}</TableHead>

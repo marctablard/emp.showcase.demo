@@ -1,7 +1,7 @@
 {
-    "SUBSTITUTION_AVAILABLE": "Ersatzprodukt verfügbar",
-    "ITEM_PRICE_CHANGE": "Item price changed",
-    "actions": {
-        "goToCart": "Zum Warenkorb"
-    }
+  "SUBSTITUTION_AVAILABLE": "Ersatzprodukt verfügbar",
+  "ITEM_PRICE_CHANGE": "Item price changed",
+  "actions": {
+    "goToCart": "Zum Warenkorb"
+  }
 }

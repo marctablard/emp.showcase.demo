@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { mapCartCurrencyPutError } from '@/lib/common/cart-api-error-mapping';
 import server from '@/platform/server';
 import { CartService } from '@/platform/services/cart';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
@@ -28,15 +29,20 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     await cartService.updateCurrency(cartId, currency);
-    const updatedCart = await cartService.getCartById(cartId);
+    const updatedCart = (await cartService.getCartById(cartId)) ?? (await cartService.getCart());
 
     if (!updatedCart) {
       return NextResponse.json({ error: 'Cart not found' }, { status: 404 });
     }
 
+    if (session.currency !== updatedCart.currency) {
+      await sessionService.setCurrency(updatedCart.currency);
+    }
+
     return NextResponse.json(updatedCart);
   } catch (error) {
     const logger = server.get<LoggerService>('LoggerService');
+    const mappedError = mapCartCurrencyPutError(error);
     logger.error(
       {
         error: error instanceof Error ? error.message : String(error),
@@ -44,9 +50,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         path: `/api/cart/${cartId}/currency`,
         method: 'PUT',
         cartId,
+        ...mappedError.logContext,
       },
       `Error updating cart currency for ${cartId}`,
     );
-    return NextResponse.json({ error: 'Failed to update cart currency' }, { status: 500 });
+    return NextResponse.json(mappedError.response, { status: mappedError.status });
   }
 }

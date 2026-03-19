@@ -1,6 +1,7 @@
 import { type ClassValue, clsx } from 'clsx';
 import { extendTailwindMerge } from 'tailwind-merge';
 import { LocalizedString, SearchParams } from '@/platform/services/model/common';
+import type { Session } from '@/platform/services/model/session/session';
 
 function buildBaseUrl() {
   const envUrl = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_SERVER_URL || 'emporix-showcase.com';
@@ -63,8 +64,10 @@ export function buildSearchQuery<T>(params: SearchParams<T>): { body: string; qu
  * @param currencyCode The ISO currency code (e.g., 'USD', 'EUR')
  * @returns Formatted currency string
  */
-export function formatCurrency(amount: number, currencyCode: string = 'USD'): string {
-  return new Intl.NumberFormat('de', {
+const DEFAULT_CURRENCY_LOCALE = 'de';
+
+export function formatCurrency(amount: number, currencyCode: string = 'USD', locale?: Session['language']): string {
+  return new Intl.NumberFormat(locale || DEFAULT_CURRENCY_LOCALE, {
     style: 'currency',
     currency: currencyCode,
     minimumFractionDigits: 2,
@@ -72,8 +75,12 @@ export function formatCurrency(amount: number, currencyCode: string = 'USD'): st
   }).format(amount);
 }
 
-export function formatCurrencyToParts(amount: number, currencyCode: string = 'USD'): Intl.NumberFormatPart[] {
-  return new Intl.NumberFormat('de', {
+export function formatCurrencyToParts(
+  amount: number,
+  currencyCode: string = 'USD',
+  locale?: Session['language'],
+): Intl.NumberFormatPart[] {
+  return new Intl.NumberFormat(locale || DEFAULT_CURRENCY_LOCALE, {
     style: 'currency',
     currency: currencyCode,
     minimumFractionDigits: 2,

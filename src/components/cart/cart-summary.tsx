@@ -90,7 +90,13 @@ export function CartSummary({ cart, boundingContent }: CartSummaryProps) {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col p-0">
-              <UiLink variant="buttonPrimary" type="Link" href="/checkout" className="w-full">
+              <UiLink
+                variant="buttonPrimary"
+                type="Link"
+                href="/checkout"
+                className="w-full"
+                data-testid="cart-goToCheckout"
+              >
                 {t('goToCheckout')}
               </UiLink>
               <div className="flex align-center gap-2 text-text-on-disabled pt-4">

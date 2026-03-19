@@ -1,5 +1,7 @@
+import { inject } from 'inversify';
 import { fetchWeatherApi } from 'openmeteo';
 import { injectable } from '@/platform/core/di/injectable';
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { OpenMeteoWeatherData, OpenMeteoWeatherForecast } from '../../model/weather';
 import type { OpenMeteoWeatherApi as IOpenMeteoWeatherApi } from '../OpenMeteoWeatherApi';
 
@@ -11,7 +13,7 @@ import type { OpenMeteoWeatherApi as IOpenMeteoWeatherApi } from '../OpenMeteoWe
 class OpenMeteoWeatherApi implements IOpenMeteoWeatherApi {
   private readonly baseUrl = 'https://api.open-meteo.com/v1/forecast';
 
-  constructor() {}
+  constructor(@inject('LoggerService') private logger: LoggerService) {}
 
   /**
    * Get weather forecast for a specific location
@@ -98,7 +100,10 @@ class OpenMeteoWeatherApi implements IOpenMeteoWeatherApi {
         daily: dailyData,
       };
     } catch (error) {
-      console.error('Error fetching weather data:', error);
+      this.logger.error(
+        { error: error instanceof Error ? error.message : String(error) },
+        'Error fetching weather data',
+      );
       throw new Error(`Failed to fetch weather data: ${error instanceof Error ? error.message : String(error)}`);
     }
   }

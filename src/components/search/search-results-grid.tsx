@@ -16,7 +16,14 @@ interface SearchResultsGridProps {
   loading: boolean;
 }
 
-export function SearchResultsGrid({ products, locale, currentPage, pageSize, total, loading }: SearchResultsGridProps) {
+export function SearchResultsGrid({
+  products,
+  locale,
+  currentPage: _currentPage,
+  pageSize,
+  total,
+  loading,
+}: SearchResultsGridProps) {
   const t = useTranslations('search');
 
   return (
@@ -39,8 +46,8 @@ export function SearchResultsGrid({ products, locale, currentPage, pageSize, tot
               <div className="mb-4">
                 <p className="text-text-placeholders text-sm">
                   {t('searchResults.showing', {
-                    start: currentPage * pageSize + 1,
-                    end: currentPage * pageSize + products.length,
+                    start: 1,
+                    end: products.length,
                     total: total,
                   })}
                 </p>
@@ -50,7 +57,7 @@ export function SearchResultsGrid({ products, locale, currentPage, pageSize, tot
               <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 md:gap-6 lg:grid-cols-4">
                 {products.map((product) => (
                   <div key={product.id} className="h-full">
-                    <ProductTile product={product} locale={locale} />
+                    <ProductTile product={product} locale={locale} skipVariantFetch />
                   </div>
                 ))}
               </div>

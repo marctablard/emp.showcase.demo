@@ -120,6 +120,7 @@ export default function PasswordChangeForm({ customer, className }: PasswordChan
                 type="password"
                 {...form.register('currentPassword')}
                 className={form.formState.errors.currentPassword ? 'border-border-error' : ''}
+                data-testid="passwordChange-currentPassword"
               />
               {form.formState.errors.currentPassword && (
                 <p className="text-sm text-text-error mt-1">
@@ -135,6 +136,7 @@ export default function PasswordChangeForm({ customer, className }: PasswordChan
                 type="password"
                 {...form.register('newPassword')}
                 className={form.formState.errors.newPassword ? 'border-border-error' : ''}
+                data-testid="passwordChange-newPassword"
               />
               {form.formState.errors.newPassword && (
                 <p className="text-sm text-text-error mt-1">
@@ -163,6 +165,7 @@ export default function PasswordChangeForm({ customer, className }: PasswordChan
                 type="password"
                 {...form.register('confirmPassword')}
                 className={form.formState.errors.confirmPassword ? 'border-border-error' : ''}
+                data-testid="passwordChange-confirmPassword"
               />
               {form.formState.errors.confirmPassword && (
                 <p className="text-sm text-text-error mt-1">
@@ -174,7 +177,11 @@ export default function PasswordChangeForm({ customer, className }: PasswordChan
             </div>
 
             <div className="flex justify-end pt-4">
-              <Button type="submit" disabled={isLoading || Object.keys(form.formState.errors).length > 0}>
+              <Button
+                type="submit"
+                disabled={isLoading || Object.keys(form.formState.errors).length > 0}
+                data-testid="passwordChange-submitButton"
+              >
                 {isLoading
                   ? t('Password.form.saving') || 'Wird gespeichert...'
                   : t('Password.form.changePasswordLabel') || 'Passwort ändern'}

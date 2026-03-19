@@ -30,9 +30,12 @@ export interface SessionService {
   setCountry(country: string): Promise<void>;
 
   /**
-   * Set the site for the current session context
+   * Set the site for the current session context.
+   * When switching sites, optionally reset the session currency to the target site's default.
+   * @param site - Site code to set
+   * @param defaultCurrency - Optional default currency of the target site. When provided and site actually changes, the session currency is reset to this value.
    */
-  setSite(site: string): Promise<void>;
+  setSite(site: string, defaultCurrency?: string): Promise<void>;
 
   /**
    * Set the region for the current session context
@@ -43,4 +46,10 @@ export interface SessionService {
    * Set the cart for the current session context
    */
   setCart(cartId: string): Promise<void>;
+
+  /**
+   * Clear the cart reference from the current session context.
+   * Removes the 'currentCart' attribute from the Emporix session.
+   */
+  clearCart(): Promise<void>;
 }

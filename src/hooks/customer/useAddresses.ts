@@ -51,21 +51,21 @@ export const useAddresses = (initialAddresses?: CustomerAddress[] | undefined): 
   }, [setAddressLoading, setAddresses]);
 
   /**
-   * Get default address of specified type
-   * @param type Address type (SHIPPING or BILLING)
-   * @returns Default address of specified type or null if not found
+   * Get default address of specified tag
+   * @param tag Address tag (SHIPPING or BILLING)
+   * @returns Default address of specified tag or null if not found
    */
   const getDefaultAddress = useCallback(
-    (type: AddressType): CustomerAddress | null => {
+    (tag: AddressType): CustomerAddress | null => {
       if ((addresses || []).length === 0) {
         return null;
       }
 
-      // If no default address of the specified type is found, just return the first address of that type
-      const firstTypeAddress = (addresses || []).find((addr) => addr.types.includes(type));
+      // If no default address of the specified tag is found, just return the first address of that tag
+      const firstTagAddress = (addresses || []).find((addr) => addr.tags.includes(tag));
 
-      if (firstTypeAddress) {
-        return firstTypeAddress;
+      if (firstTagAddress) {
+        return firstTagAddress;
       }
 
       return null;

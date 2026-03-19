@@ -30,7 +30,12 @@ export function EmailSignupSection({ control, number }: EmailSignupSectionProps)
           render={({ field }) => (
             <FormItem className="flex flex-row items-center gap-2">
               <FormControl>
-                <Checkbox id="newsletter" checked={field.value} onCheckedChange={field.onChange} />
+                <Checkbox
+                  id="newsletter"
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  data-testid="register-newsletter"
+                />
               </FormControl>
               <FormLabel className="font-medium" htmlFor="newsletter">
                 {t('newsletter')}
@@ -45,7 +50,12 @@ export function EmailSignupSection({ control, number }: EmailSignupSectionProps)
           render={({ field }) => (
             <FormItem className="flex flex-row items-center gap-2">
               <FormControl>
-                <Checkbox id="dealsAlerts" checked={field.value} onCheckedChange={field.onChange} />
+                <Checkbox
+                  id="dealsAlerts"
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  data-testid="register-dealsAlerts"
+                />
               </FormControl>
               <FormLabel className="font-medium" htmlFor="dealsAlerts">
                 {t('dealsAlerts')}

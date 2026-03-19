@@ -12,6 +12,7 @@
     "noAccountYet": "Noch kein Konto?",
     "createAccount": "Konto erstellen",
     "welcomeMessage": "Willkommen zurück, {username}!",
+    "cartMergeFallback": "Artikel aus dem vorherigen Warenkorb konnten nicht zusammengeführt werden. Ihr Konto-Warenkorb ist jetzt aktiv.",
     "close": "Schließen",
     "error": "Fehler",
     "showPassword": "Passwort anzeigen",
@@ -61,7 +62,13 @@
     "additionalInformation": "Zusätzliche Informationen",
     "additionalInformationDescription": "Beschreiben Sie die Dienste oder Produkte, in die Ihr Unternehmen interessiert ist",
     "optional": "(optional)",
-    "error": "Fehler"
+    "error": "Fehler",
+    "validation": {
+      "emailExists": "Diese E-Mail-Adresse ist bereits registriert.",
+      "registrationFailed": "Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+      "serverError": "Ein Serverfehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
+      "usernameTaken": "Dieser Benutzername ist bereits vergeben."
+    }
   },
   "Password": {
     "resetPassword": "Passwort zurücksetzen",
@@ -78,7 +85,8 @@
     "updatePassword": "Passwort aktualisieren",
     "updatePasswordDescription": "Aktualisieren Sie Ihr Passwort, um Ihr Konto zu sichern.",
     "passwordUpdatedSuccess": "Ihr Passwort wurde erfolgreich aktualisiert. Sie werden zur Login-Seite weitergeleitet.",
-    "error": "Fehler"
+    "error": "Fehler",
+    "close": "Schließen"
   },
   "errors": {
     "AccessDenied": "Zugriff verweigert. Sie haben keine Berechtigung, auf diese Ressource zuzugreifen.",

@@ -1,7 +1,7 @@
 {
-    "SUBSTITUTION_AVAILABLE": "Cart Item Subsitition available",
-    "ITEM_PRICE_CHANGE": "Item price changed",
-    "actions": {
-        "goToCart": "Go To Cart"
-    }
+  "SUBSTITUTION_AVAILABLE": "Cart Item Subsitition available",
+  "ITEM_PRICE_CHANGE": "Item price changed",
+  "actions": {
+    "goToCart": "Go To Cart"
+  }
 }

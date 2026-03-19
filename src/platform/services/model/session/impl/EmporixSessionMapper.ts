@@ -13,7 +13,8 @@ import type { Session, SessionAttribute } from '../session';
 @injectable('EmporixSessionMapper', 'Singleton')
 export class EmporixSessionMapper implements SessionMapper<EmporixSessionContext, EmporixContextAttribute> {
   private defaultCurrency = process.env.NEXT_PUBLIC_DEFAULT_CURRENCY || 'EUR';
-  private defaultSite = process.env.NEXT_PUBLIC_DEFAULT_SITE || 'main';
+  private availableSites = process.env.NEXT_PUBLIC_AVAILABLE_SITES?.split(',') || [];
+  private defaultSite = process.env.NEXT_PUBLIC_DEFAULT_SITE || this.availableSites[0];
   /**
    * Maps from integration layer SessionContext to service layer Session
    */

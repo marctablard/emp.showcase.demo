@@ -14,11 +14,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     // Get the cart service
     const cartService = server.get<CartService>('CartService');
 
-    // Parse the request body
-    const { countryCode, zipCode } = await request.json();
+    const { shippingAddress, billingAddress } = await request.json();
 
-    // Update shipping info
-    await cartService.updateShippingInfo(cartId, countryCode, zipCode);
+    await cartService.updateShippingInfo(cartId, shippingAddress, billingAddress);
 
     // Return success response
     return NextResponse.json({ success: true });

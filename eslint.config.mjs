@@ -16,6 +16,7 @@ const eslintConfig = defineConfig([
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }, // excluding unused variables which are prefixed with _ is common practice
       ],
       '@typescript-eslint/no-unsafe-function-type': 'off',
+      'no-console': ['warn'], // Use Pino LoggerService instead of console.*. See docs/logging-guide.md
     },
   },
   globalIgnores([
@@ -26,6 +27,7 @@ const eslintConfig = defineConfig([
     'build/**',
     'next-env.d.ts',
     'scripts/**',
+    'public/**',
     '**/*.test.ts',
     '**/*.test.tsx',
     '**/*.config.*s',

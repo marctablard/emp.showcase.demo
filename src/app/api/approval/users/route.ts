@@ -3,8 +3,6 @@ import server from '@/platform/server';
 import { ApprovalService } from '@/platform/services/approval/ApprovalService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 
-export const revalidate = 0;
-
 /**
  * GET /api/approval/users
  * Search for users who can approve a specific resource

@@ -153,47 +153,18 @@ describe('EmporixCheckoutApi', () => {
     await apiInvoker.clearTokens();
   });
 
-  async function getOrCreateCustomerCartId(sessionContext?: EmporixSessionContext) {
+  async function createFreshCustomerCartId(sessionContext?: EmporixSessionContext) {
     const customerProfile = await customerApi.getCustomerProfile();
     const customerId = sessionContext?.customerId ?? customerProfile.id;
 
-    if (sessionContext?.cartId) {
-      return sessionContext.cartId;
+    if (!customerId) {
+      throw new Error('Customer ID is required to create a fresh customer cart');
     }
 
-    const queryParams = new URLSearchParams({
-      siteCode: sampleCreateCartRequest.siteCode,
-      create: 'true',
+    return await cartApi.createCart({
+      ...sampleCreateCartRequest,
+      customerId,
     });
-    if (customerId) {
-      queryParams.append('customerId', customerId);
-    }
-    if (sampleCreateCartRequest.type) {
-      queryParams.append('type', sampleCreateCartRequest.type);
-    }
-
-    const response = await apiInvoker.authenticatedFetch(
-      `/cart/${config.tenant}/carts?${queryParams.toString()}`,
-      {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-        },
-      },
-      'customer-saas',
-    );
-
-    if (!response.ok) {
-      const errorDetails = await response.text();
-      throw new Error(`Failed to get or create cart: ${response.statusText} ${errorDetails}`);
-    }
-
-    const cart = (await response.json()) as { id?: string; cartId?: string };
-    const cartId = cart.id ?? cart.cartId;
-    if (!cartId) {
-      throw new Error('Cart ID is missing in get/create response');
-    }
-    return cartId;
   }
 
   async function addItemToCustomerCart(cartId: string, item: EmporixAddCartItemRequest): Promise<string> {
@@ -305,7 +276,7 @@ describe('EmporixCheckoutApi', () => {
       const sessionContext = await setupCustomerToken();
 
       // Create a cart
-      customerCartId = await getOrCreateCustomerCartId(sessionContext);
+      customerCartId = await createFreshCustomerCartId(sessionContext);
       expect(customerCartId).toBeDefined();
 
       // Add an item to the cart
@@ -323,6 +294,16 @@ describe('EmporixCheckoutApi', () => {
       expect(response.orderId).toBeDefined();
       expect(typeof response.orderId).toBe('string');
     }, 20000);
+
+    afterEach(async () => {
+      try {
+        if (customerCartId) {
+          await cartApi.deleteCart(customerCartId);
+        }
+      } catch (_error) {
+        // Checkout can consume/delete the cart before teardown runs.
+      }
+    }, 15000);
   });
 
   describe('Customer B2C Checkout Operations', () => {
@@ -348,7 +329,7 @@ describe('EmporixCheckoutApi', () => {
       const sessionContext = await setupCustomerToken();
 
       // Create a cart
-      customerCartId = await getOrCreateCustomerCartId(sessionContext);
+      customerCartId = await createFreshCustomerCartId(sessionContext);
       expect(customerCartId).toBeDefined();
 
       // Add an item to the cart
@@ -372,11 +353,12 @@ describe('EmporixCheckoutApi', () => {
     }, 20000);
 
     afterEach(async () => {
-      const carts = await cartApi.getCartByCriteria('main', undefined, '32667917', 'shopping');
-      if (carts) {
-        for (const cart of carts.items ?? []) {
-          await cartApi.deleteCart(cart.id);
+      try {
+        if (customerCartId) {
+          await cartApi.deleteCart(customerCartId);
         }
+      } catch (_error) {
+        // Checkout can consume/delete the cart before teardown runs.
       }
     }, 15000);
   });
@@ -404,7 +386,7 @@ describe('EmporixCheckoutApi', () => {
       const sessionContext = await setupCustomerToken();
 
       // Create a cart
-      customerCartId = await getOrCreateCustomerCartId(sessionContext);
+      customerCartId = await createFreshCustomerCartId(sessionContext);
       expect(customerCartId).toBeDefined();
 
       // Add an item to the cart
@@ -413,9 +395,12 @@ describe('EmporixCheckoutApi', () => {
     }, 15000);
 
     afterEach(async () => {
-      // Delete the cart
-      if (customerCartId) {
-        await cartApi.deleteCart(customerCartId);
+      try {
+        if (customerCartId) {
+          await cartApi.deleteCart(customerCartId);
+        }
+      } catch (_error) {
+        // Checkout can consume/delete the cart before teardown runs.
       }
     }, 15000);
 

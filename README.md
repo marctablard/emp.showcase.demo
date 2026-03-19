@@ -12,6 +12,7 @@ Based on modern technologies and best practices, the goal is to provide a solid,
 
 - TypeScript Support
 - React/Next.js Architecture with App Router and SSR
+- Support for SSG
 - Loose Coupling and Dependency Injection with InversifyJS
 - L10n (Localization) with next-intl
 - Authentication with next-auth
@@ -21,7 +22,7 @@ Based on modern technologies and best practices, the goal is to provide a solid,
 
 ### Business Key-Components
 
-Ideal starting point for a new storefront or e-commerce platform. The Platform is specifically designed to give you a head-start while not overloading you with features you don't need.
+Ideal starting point for a new storefront or e-commerce platform. The Platform is specifically designed to give you a head-start while not overloading you with features you don't need. The main goal of this Storefront is to provide you with a set of best practices and prebuilt components, while allowing you to easily extend and replace the business logic to fit your specific needs.
 
 - Separated Business and Integration Layer, allowing for easy extension and replacement of all business logic (e.g. synchronous pricing, order processing, etc.)
 - Commerce Integration (prebuilt with Emporix Platform)
@@ -78,12 +79,10 @@ The dependency injection generator is configured to run in watch mode by default
 
 A list of known issues and their workarounds. (We are aware of these and will fix them in upcoming releases)
 
-- The above mentioned platform-layer changes are not hot-swappable. You will need to restart the development server to apply the changes.
 - Authorization can have issues, if Session Invalidation happens during a SSR-Moment, which causes the Client to not be aware of their lost session (then it's not possible to write cookies)
-- Dependency Injection currently loads all Containers with static imports, we are working on an approach where lazy loading is possible.
 - Cart Migration is not implemented yet
 - NextJS API-Endpoints are currently not additionally secured, since most security comes from the Emporix-Integration itself
-- CMS Components are currently specific to Storyblok, we already have a concept for wrapping CMS-Components to make them more generic, which will be part of an upcoming release
+- Not all CMS Components are currently following the pattern of hybrid CMS compatibility, we implemented a few to showcase the possibilities
 - There's no Caching implemented for the Integration Layer, we plan to implement this in an upcoming release
 - The Unit Tests rely on specific Test-Data for API-Endpoint Testing, you need to include them yourself for now, but we plan to create an automation to create the Test-Data in your own tenants soon. You may need to skip these tests for now.
 
@@ -116,12 +115,26 @@ The build process:
 ### Further Scripts of interest
 
 - `npm run dev` - Start development server with hot-reload
-- `npm run dev:https` - Start development server with hot-reload and HTTPS
-- `npm run build` - Build the application for production
+- `npm run dev:next` - Start Next.js dev server
+- `npm run dev:open-browser` - Open browser for local development
+- `npm run dev:https` - Start development server with HTTPS
+- `npm run build` - Build the application (includes DI generation and lint)
+- `npm run build:next` - Build Next.js only
 - `npm run start` - Start the production server
-- `npm run lint` - Run ESLint to check code quality
+- `npm run lint` - Run ESLint
+- `npm run format` - Format code with Prettier
 - `npm run generate` - Generate dependency injection files
 - `npm run generate:watch` - Generate dependency injection files in watch mode
+- `npm run test` - Run unit tests and E2E tests
+- `npm run jest` - Run unit tests
+- `npm run jest:watch` - Run unit tests in watch mode
+- `npm run jest:coverage` - Run unit tests with coverage
+- `npm run e2e` - Run Playwright E2E tests
+- `npm run e2e:ui` - Run Playwright in UI mode
+- `npm run e2e:debug` - Run Playwright in debug mode
+- `npm run e2e:report` - Show Playwright HTML report
+- `npm run setup` - Setup API (see scripts/setup-api.ts)
+- `npm run generate:sso-password` - Generate SSO password
 
 ## License
 

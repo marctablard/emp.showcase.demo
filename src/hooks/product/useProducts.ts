@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLogger } from '@/hooks/common/useLogger';
 import { fetchProductById } from '@/lib/client/products';
 import { Product } from '@/platform/services/model/product';
 import { ProductFetchOptions } from '@/platform/services/product/ProductService';
@@ -13,6 +14,7 @@ interface UseProductsResult {
 }
 
 export function useProducts(productIds: Product['id'][] = [], fetchOptions?: ProductFetchOptions): UseProductsResult {
+  const logger = useLogger();
   const { getProduct, addProducts } = useProductStore();
 
   // Stabilize fetchOptions to prevent unnecessary re-renders
@@ -53,7 +55,10 @@ export function useProducts(productIds: Product['id'][] = [], fetchOptions?: Pro
               const fetched = await fetchProductById(id, fetchOptionsRef.current);
               return fetched;
             } catch (_err) {
-              // Optionally handle fetch errors per product
+              logger.error(
+                { productId: id, error: _err instanceof Error ? _err.message : String(_err) },
+                `Failed to fetch product ${id}`,
+              );
               return null;
             }
           }),
@@ -77,7 +82,7 @@ export function useProducts(productIds: Product['id'][] = [], fetchOptions?: Pro
         setLoading(false);
       }
     },
-    [productIds, getProduct, addProducts],
+    [productIds, getProduct, addProducts, logger],
   );
 
   useEffect(() => {

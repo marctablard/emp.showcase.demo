@@ -14,6 +14,7 @@ export default function TopBarSwitcher({
   label,
   onSelected,
   icon,
+  disabled,
 }: React.ComponentProps<'button'> & {
   options: {
     code: string;
@@ -42,7 +43,11 @@ export default function TopBarSwitcher({
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger
         aria-label={label}
-        className="flex items-baseline gap-1.5 h-auto normal-case focus-none hover:cursor-pointer"
+        className={cn(
+          'flex items-baseline gap-1.5 h-auto normal-case focus-none hover:cursor-pointer',
+          disabled ? 'pointer-events-none opacity-60' : '',
+        )}
+        disabled={disabled}
       >
         <span className="flex self-center">{icon}</span>
         <span className="text-sm">{options.find((option) => option.code == current)?.name}</span>
@@ -51,7 +56,12 @@ export default function TopBarSwitcher({
         {options.map((option) => (
           <DropdownMenuItem
             key={option.code}
-            onClick={() => onSelected?.(option.code)}
+            onClick={() => {
+              if (disabled) {
+                return;
+              }
+              onSelected?.(option.code);
+            }}
             className={cn(
               'hover:cursor-pointer',
               option.code === current ? 'bg-surface-action-hover-2 text-text-action-hover' : '',

@@ -2,11 +2,11 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import { CogIcon, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { H3 } from '@/components/ui/h';
+import { useRouter } from '@/i18n/navigation';
 import { l10n } from '@/lib/utils';
 import type { CartStatus, CartStatusDetailCode } from '@/platform/services/cart/CartService';
 import { Product } from '@/platform/services/model/product';

@@ -4,12 +4,13 @@ This document provides guidance on how to properly secure API endpoints in the E
 
 ## Current Security Approach
 
-The application handles authentication and authorization at the middleware.ts file.
+The application handles authentication and authorization in the Edge middleware at `src/proxy.ts`.
 
 ### Security Considerations
 
 1. **Authentication**
-   - Checks if the user is authenticated or not specific routes and redirects to login if not authenticated.
+   - Uses NextAuth Edge middleware for secured routes (account pages and authenticated variants of product/browse/category routes).
+   - Redirects unauthenticated users away from protected account routes.
 
 2. **CSRF Protection**
    - CSRF tokens are checked for state-changing operations (POST, PUT, PATCH, DELETE).
@@ -30,7 +31,7 @@ CSRF protection is automatically applied to all fetch requests through the globa
 1. The global `fetch` function is overridden in `instrumentation.ts` to automatically add CSRF tokens to all state-changing requests (POST, PUT, PATCH, DELETE)
 2. The `withCsrf` utility fetches a CSRF token from `/api/csrf` endpoint if needed
 3. The token is added as an `x-csrf-token` header to the request
-4. The middleware validates this token against the `csrf-token` cookie for protected routes
+4. The middleware validates this token against the `csrf-token` cookie for protected API routes
 
 ## API Endpoint Security Considerations
 

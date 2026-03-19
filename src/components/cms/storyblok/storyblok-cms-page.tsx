@@ -11,7 +11,7 @@ interface CMSPageParams {
   site?: string;
   emptyOnNoResult?: boolean;
 }
-const fetchData = cache(async (locale: string, slug: string, site?: string) => {
+export const fetchData = cache(async (locale: string, slug: string, site?: string) => {
   const sbParams: ISbStoriesParams = {
     version: process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW === 'true' ? 'draft' : 'published',
     language: locale,
@@ -21,7 +21,7 @@ const fetchData = cache(async (locale: string, slug: string, site?: string) => {
   }
   try {
     const storyblokApi: StoryblokClient = getStoryblokApi();
-    return await storyblokApi.getStory(slug, sbParams);
+    return await storyblokApi.getStory(slug, sbParams, { next: { revalidate: 0 } });
   } catch {
     return null;
   }

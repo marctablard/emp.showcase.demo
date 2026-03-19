@@ -1,5 +1,5 @@
 import { inject } from 'inversify';
-import type { OAuthApi } from '../../oauth/OAuthApi';
+import type { EmporixOAuthApi as OAuthApi } from '../../oauth/EmporixOAuthApi';
 import { EmporixTokenManagerAbstract, TokenStore } from './EmporixTokenManagerAbstract';
 
 /**

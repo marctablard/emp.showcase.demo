@@ -4,8 +4,6 @@ import { OrderDetail } from '@/components/account/orders/order-detail';
 import { getOrderById } from '@/lib/ssr/orders';
 import { getPageTitle } from '@/lib/ssr/seo';
 
-export const dynamic = 'force-dynamic';
-
 export async function generateMetadata({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
   const t = await getTranslations({ locale, namespace: 'orders' });

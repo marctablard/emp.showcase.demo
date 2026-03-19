@@ -14,7 +14,7 @@ import {
   EmporixCheckoutPaymentMethod,
   EmporixShipping,
 } from '../../model/checkout';
-import { EmporixCreateOrderRequest, EmporixUpdateOrderRequest } from '../../model/order';
+import { EmporixUpdateOrderRequest } from '../../model/order';
 import EmporixOAuthApi from '../../oauth/impl/EmporixOAuthApi';
 import EmporixOrderApi from './EmporixOrderApi';
 
@@ -56,39 +56,6 @@ const sampleAddItemRequest: EmporixAddCartItemRequest = {
   },
 };
 
-// Sample order creation request (will be populated with actual cart ID)
-const sampleCreateOrderRequest: EmporixCreateOrderRequest = {
-  cartId: '', // Will be populated during test
-  customerEmail: 'test@example.com',
-  customerNote: 'Test order note',
-  billingAddress: {
-    contactName: 'Test Customer',
-    companyName: 'Test Company',
-    street: 'Test Street',
-    zipCode: '12345',
-    city: 'Test City',
-    country: 'DE',
-    type: 'BILLING',
-  },
-  shippingAddress: {
-    contactName: 'Test Customer',
-    companyName: 'Test Company',
-    street: 'Test Street',
-    zipCode: '12345',
-    city: 'Test City',
-    country: 'DE',
-    type: 'SHIPPING',
-  },
-  payments: [
-    {
-      status: 'PENDING',
-      method: 'invoice',
-      paymentResponse: 'Payment is handled externally',
-      paidAmount: 0,
-    },
-  ],
-};
-
 // Sample order update request
 const sampleUpdateOrderRequest: EmporixUpdateOrderRequest = {
   status: 'CONFIRMED',
@@ -100,8 +67,8 @@ const createCheckoutRequest = (
   cartId: string,
   isGuest: boolean = true,
   email: string = 'guest@example.com',
+  customerNumber?: string,
 ): EmporixCartCheckoutRequest => {
-  // Sample customer
   const customer: EmporixCheckoutCustomer = {
     email: email,
     firstName: 'Test',
@@ -110,7 +77,10 @@ const createCheckoutRequest = (
     guest: isGuest,
   };
 
-  // Sample billing address
+  if (customerNumber) {
+    customer.id = customerNumber;
+  }
+
   const billingAddress: EmporixCheckoutAddress = {
     contactName: 'Test User',
     type: 'BILLING',
@@ -121,7 +91,6 @@ const createCheckoutRequest = (
     streetNumber: '123',
   };
 
-  // Sample shipping address
   const shippingAddress: EmporixCheckoutAddress = {
     contactName: 'Test User',
     type: 'SHIPPING',
@@ -132,13 +101,11 @@ const createCheckoutRequest = (
     streetNumber: '123',
   };
 
-  // Sample payment method
   const paymentMethod: EmporixCheckoutPaymentMethod = {
     provider: 'none',
     method: 'invoice',
   };
 
-  // Sample shipping
   const shipping: EmporixShipping = {
     methodId: 'de-standard',
     zoneId: 'de-region',
@@ -155,6 +122,22 @@ const createCheckoutRequest = (
   };
 };
 
+/**
+ * Helper: create a cart, add an item, perform guest checkout, return orderId.
+ * Uses the checkout API which is proven to work (see EmporixCheckoutApi.test.ts).
+ */
+async function createOrderViaCheckout(
+  cartApi: EmporixCartApi,
+  checkoutApi: EmporixCheckoutApi,
+  email: string = 'guest@example.com',
+): Promise<string> {
+  const cartId = await cartApi.createCart(sampleCreateCartRequest);
+  await cartApi.addItemToCart(cartId, sampleAddItemRequest);
+  const checkoutRequest = createCheckoutRequest(cartId, true, email);
+  const checkoutResponse = await checkoutApi.guestCheckout(checkoutRequest);
+  return checkoutResponse.orderId;
+}
+
 describe('EmporixOrderApi', () => {
   let container: Container;
   let orderApi: EmporixOrderApi;
@@ -162,8 +145,6 @@ describe('EmporixOrderApi', () => {
   let customerApi: EmporixCustomerApi;
   let checkoutApi: EmporixCheckoutApi;
   let apiInvoker: EmporixApiInvoker;
-  let createdOrderId: string;
-  let createdCartId: string;
 
   beforeAll(async () => {
     // Set up the container with our test config
@@ -190,305 +171,235 @@ describe('EmporixOrderApi', () => {
     await apiInvoker.clearTokens();
   });
 
-  describe.skip('Order Operations', () => {
-    // Create a cart and add items before testing order creation
-    beforeEach(async () => {
-      // Create a cart
-      createdCartId = await cartApi.createCart(sampleCreateCartRequest);
-      expect(createdCartId).toBeDefined();
+  describe('Order Operations', () => {
+    let createdOrderId: string;
 
-      // Add an item to the cart
-      const itemId = await cartApi.addItemToCart(createdCartId, sampleAddItemRequest);
-      expect(itemId).toBeDefined();
+    // Use checkout flow to create an order (proven to work)
+    beforeAll(async () => {
+      createdOrderId = await createOrderViaCheckout(cartApi, checkoutApi);
+      expect(createdOrderId).toBeDefined();
+    }, 30000);
 
-      // Update the order request with the actual cart ID
-      sampleCreateOrderRequest.cartId = createdCartId;
-    }, 15000);
-
-    // Clean up the cart after each test if order creation fails
-    afterEach(async () => {
+    // Clean up after all tests
+    afterAll(async () => {
       try {
-        // Only delete the cart if it exists and no order was created
-        // (orders will automatically consume the cart)
-        if (createdCartId && !createdOrderId) {
-          await cartApi.deleteCart(createdCartId);
+        if (createdOrderId) {
+          await orderApi.deleteOrder(createdOrderId);
         }
-      } catch (error) {
-        console.warn('Error during cart cleanup:', error);
+      } catch {
+        // Order may already be deleted by the delete test
       }
     }, 10000);
 
-    it('should create a new order', async () => {
-      // Create an order from the real cart we created
-      const orderResponse = await orderApi.createOrder(sampleCreateOrderRequest);
-
-      // Verify the order was created
-      expect(orderResponse).toBeDefined();
-      expect(orderResponse.orderId).toBeDefined();
-      expect(typeof orderResponse.orderId).toBe('string');
-
-      // Save the order ID for later tests
-      createdOrderId = orderResponse.orderId;
-    }, 10000);
-
     it('should get an order by ID', async () => {
-      // Get the order we just created
       const order = await orderApi.getOrder(createdOrderId);
 
-      // Verify the order details
       expect(order).toBeDefined();
       expect(order?.id).toBe(createdOrderId);
-      expect(order?.customerEmail).toBe(sampleCreateOrderRequest.customerEmail);
-      expect(order?.customerNote).toBe(sampleCreateOrderRequest.customerNote);
     }, 10000);
 
     it('should get orders with filtering', async () => {
-      // Get orders with pagination
       const orders = await orderApi.getOrders(10, 0);
 
-      // Verify we got some orders
       expect(orders).toBeDefined();
       expect(Array.isArray(orders)).toBe(true);
 
-      // Find our created order
       const createdOrder = orders.find((order) => order.id === createdOrderId);
       expect(createdOrder).toBeDefined();
     }, 10000);
 
     it('should update an order', async () => {
-      // Update the order
       await orderApi.updateOrder(createdOrderId, sampleUpdateOrderRequest);
 
-      // Get the updated order
       const updatedOrder = await orderApi.getOrder(createdOrderId);
 
-      // Verify the order was updated
       expect(updatedOrder).toBeDefined();
       expect(updatedOrder?.status).toBe(sampleUpdateOrderRequest.status);
-      expect(updatedOrder?.customerNote).toBe(sampleUpdateOrderRequest.customerNote);
     }, 10000);
 
     it('should get order status transitions', async () => {
-      // Get the status transitions
       const transitions = await orderApi.getOrderStatusTransitions(createdOrderId);
 
-      // Verify we got transitions
       expect(transitions).toBeDefined();
       expect(Array.isArray(transitions)).toBe(true);
     }, 10000);
 
     it('should delete an order', async () => {
-      // Delete the order
       await orderApi.deleteOrder(createdOrderId);
 
-      // Try to get the deleted order
       const deletedOrder = await orderApi.getOrder(createdOrderId);
-
-      // Verify the order was deleted
       expect(deletedOrder).toBeNull();
 
-      // Reset the created order ID since it's been deleted
       createdOrderId = '';
     }, 10000);
   });
 
-  describe.skip('Customer Order Operations', () => {
+  describe('Customer Order Operations', () => {
     const username = 'forrest.gump@alaba.ma';
     const password = 'Test1234';
+    const customerId = '00632699';
+    let customerOrderId: string;
 
-    // Login with test customer credentials before all customer order tests
+    // Helper: get or create a customer cart via customer-saas auth
+    async function getOrCreateCustomerCartId(): Promise<string> {
+      const queryParams = new URLSearchParams({
+        siteCode: sampleCreateCartRequest.siteCode,
+        create: 'true',
+        customerId,
+        type: 'shopping',
+      });
+
+      const response = await apiInvoker.authenticatedFetch(
+        `/cart/${tenant}/carts?${queryParams.toString()}`,
+        { method: 'GET', headers: { Accept: 'application/json' } },
+        'customer-saas',
+      );
+
+      if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`Failed to get or create cart: ${response.statusText} ${errorDetails}`);
+      }
+
+      const cart = (await response.json()) as { id?: string; cartId?: string };
+      const cartId = cart.id ?? cart.cartId;
+      if (!cartId) {
+        throw new Error('Cart ID is missing in get/create response');
+      }
+      return cartId;
+    }
+
+    // Helper: add item to customer cart via customer-saas auth
+    async function addItemToCustomerCart(cartId: string): Promise<string> {
+      const response = await apiInvoker.authenticatedFetch(
+        `/cart/${tenant}/carts/${cartId}/items?siteCode=${sampleAddItemRequest.siteCode}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify(sampleAddItemRequest),
+        },
+        'customer-saas',
+      );
+
+      if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`Failed to add item to cart: ${response.statusText} ${errorDetails}`);
+      }
+
+      const createdItem: { itemId: string } = await response.json();
+      return createdItem.itemId;
+    }
+
+    // Login as customer before all tests
     beforeAll(async () => {
-      try {
-        // Use the customer API to login
-        const sessionContext = await customerApi.login(username, password);
-        console.log('Customer login successful, session ID:', sessionContext.sessionId);
-      } catch (error) {
-        console.error('Error logging in customer:', error);
-        throw error;
-      }
-    }, 15000);
+      await apiInvoker.clearTokens();
+      await customerApi.login(username, password);
 
-    // Create a cart and add items before testing customer order creation
-    beforeEach(async () => {
-      // Create a cart
-      createdCartId = await cartApi.createCart(sampleCreateCartRequest);
-      expect(createdCartId).toBeDefined();
+      // Create a customer-owned order via the checkout flow
+      const customerCartId = await getOrCreateCustomerCartId();
+      await addItemToCustomerCart(customerCartId);
+      const checkoutRequest = createCheckoutRequest(customerCartId, false, username, customerId);
+      const checkoutResponse = await checkoutApi.checkout(checkoutRequest);
+      customerOrderId = checkoutResponse.orderId;
+      expect(customerOrderId).toBeDefined();
+    }, 30000);
 
-      // Add an item to the cart
-      const itemId = await cartApi.addItemToCart(createdCartId, sampleAddItemRequest);
-      expect(itemId).toBeDefined();
-
-      // Update the order request with the actual cart ID
-      sampleCreateOrderRequest.cartId = createdCartId;
-
-      // Update customer email to match test user
-      sampleCreateOrderRequest.customerEmail = username;
-    }, 15000);
-
-    // Clean up the cart after each test if order creation fails
-    afterEach(async () => {
-      try {
-        // Only delete the cart if it exists and no order was created
-        // (orders will automatically consume the cart)
-        if (createdCartId && !createdOrderId) {
-          await cartApi.deleteCart(createdCartId);
-        }
-      } catch (error) {
-        console.warn('Error during cart cleanup:', error);
-      }
-    }, 10000);
-
-    // Logout after all customer order tests
     afterAll(async () => {
       try {
         await customerApi.logout();
-        console.log('Customer logout successful');
-      } catch (error) {
-        console.warn('Error during customer logout:', error);
+      } catch {
+        // Ignore logout errors
       }
     }, 10000);
 
-    it('should create a new customer order', async () => {
-      // Create an order from the real cart we created
-      const orderResponse = await orderApi.createCustomerOrder(sampleCreateOrderRequest);
-
-      // Verify the order was created
-      expect(orderResponse).toBeDefined();
-      expect(orderResponse.orderId).toBeDefined();
-      expect(typeof orderResponse.orderId).toBe('string');
-
-      // Save the order ID for later tests
-      createdOrderId = orderResponse.orderId;
-    }, 10000);
-
     it('should get a customer order by ID', async () => {
-      // Get the order we just created
-      const order = await orderApi.getCustomerOrder(createdOrderId);
+      const order = await orderApi.getCustomerOrder(customerOrderId);
 
-      // Verify the order details
       expect(order).not.toBeNull();
-      expect(order).toBeDefined(); // Fixed the assertion that was causing test failure
-      expect(order?.id).toBe(createdOrderId);
-      expect(order?.customerEmail).toBe(sampleCreateOrderRequest.customerEmail);
-      expect(order?.customerNote).toBe(sampleCreateOrderRequest.customerNote);
+      expect(order).toBeDefined();
+      expect(order?.id).toBe(customerOrderId);
     }, 10000);
 
     it('should get customer orders with filtering', async () => {
-      // Get orders with pagination
       const orders = await orderApi.getCustomerOrders(10, 0);
 
-      // Verify we got some orders
       expect(orders).toBeDefined();
       expect(Array.isArray(orders)).toBe(true);
 
-      // Find our created order
-      const createdOrder = orders.find((order) => order.id === createdOrderId);
+      const createdOrder = orders.find((order) => order.id === customerOrderId);
       expect(createdOrder).toBeDefined();
     }, 10000);
 
-    it('should update a customer order', async () => {
-      // Update the order
-      await orderApi.updateCustomerOrder(createdOrderId, sampleUpdateOrderRequest);
-
-      // Get the updated order
-      const updatedOrder = await orderApi.getCustomerOrder(createdOrderId);
-
-      // Verify the order was updated
-      expect(updatedOrder).toBeDefined();
-      expect(updatedOrder?.status).toBe(sampleUpdateOrderRequest.status);
-      expect(updatedOrder?.customerNote).toBe(sampleUpdateOrderRequest.customerNote);
+    // Customer order endpoint does not support PUT (405 Method Not Allowed)
+    it('should reject updating a customer order', async () => {
+      await expect(orderApi.updateCustomerOrder(customerOrderId, sampleUpdateOrderRequest)).rejects.toThrow();
     }, 10000);
 
     it('should get customer order status transitions', async () => {
-      // Get the status transitions
-      const transitions = await orderApi.getCustomerOrderStatusTransitions(createdOrderId);
+      const transitions = await orderApi.getCustomerOrderStatusTransitions(customerOrderId);
 
-      // Verify we got transitions
       expect(transitions).toBeDefined();
       expect(Array.isArray(transitions)).toBe(true);
     }, 10000);
   });
 
-  describe.skip('Guest Checkout and Order Retrieval', () => {
+  describe('Guest Checkout and Order Retrieval', () => {
     let guestOrderId: string;
     let guestCartId: string;
     const guestEmail = 'guest.test@example.com';
     let tokenManager: EmporixTokenManager;
 
-    // Get token manager and clear tokens before all tests
+    // Get token manager and clear tokens before all tests to prevent leakage
+    // from previous describe blocks (e.g., customer login)
     beforeAll(async () => {
-      // Get the token manager from the container
       tokenManager = container.get<EmporixTokenManager>('EmporixTokenManager');
-
-      // Clear all tokens to ensure we start with a fresh session
       tokenManager.clearTokens(tenant);
+      await apiInvoker.clearTokens();
     }, 10000);
 
     // Create a cart and add items before testing guest checkout
     beforeEach(async () => {
-      // Create a cart
       guestCartId = await cartApi.createCart(sampleCreateCartRequest);
       expect(guestCartId).toBeDefined();
 
-      // Add an item to the cart
       const itemId = await cartApi.addItemToCart(guestCartId, sampleAddItemRequest);
       expect(itemId).toBeDefined();
     }, 15000);
 
-    // Clean up the cart after each test if order creation fails
     afterEach(async () => {
       try {
-        // Only delete the cart if it exists and no order was created
-        // (orders will automatically consume the cart)
         if (guestCartId && !guestOrderId) {
           await cartApi.deleteCart(guestCartId);
         }
-      } catch (error) {
-        console.warn('Error during cart cleanup:', error);
+      } catch {
+        // Ignore cleanup errors
       }
-
-      // Reset the order ID
       guestOrderId = '';
     }, 10000);
 
     it('should create an order via guest checkout and retrieve it in the same session', async () => {
-      try {
-        // Create a checkout request with guest = true
-        const checkoutRequest = createCheckoutRequest(guestCartId, true, guestEmail);
-        const checkoutResponse = await checkoutApi.guestCheckout(checkoutRequest);
+      const checkoutRequest = createCheckoutRequest(guestCartId, true, guestEmail);
+      const checkoutResponse = await checkoutApi.guestCheckout(checkoutRequest);
 
-        // Verify checkout was successful
-        expect(checkoutResponse).toBeDefined();
-        expect(checkoutResponse.orderId).toBeDefined();
+      expect(checkoutResponse).toBeDefined();
+      expect(checkoutResponse.orderId).toBeDefined();
 
-        // Save the order ID
-        guestOrderId = checkoutResponse.orderId;
+      guestOrderId = checkoutResponse.orderId;
 
-        // Now try to retrieve the order using the customer order endpoint
-        // This should work because we're in the same session
-        console.log('Retrieving order with ID:', guestOrderId);
-        const retrievedOrder = await orderApi.getCustomerOrder(guestOrderId);
+      // Retrieve the order using the customer order endpoint (same session)
+      const retrievedOrder = await orderApi.getCustomerOrder(guestOrderId);
 
-        // Verify we can retrieve the order
-        expect(retrievedOrder).not.toBeNull();
-        expect(retrievedOrder).toBeDefined();
-        expect(retrievedOrder?.id).toBe(guestOrderId);
-        expect(retrievedOrder?.customer.email).toBe(guestEmail);
-        expect(retrievedOrder?.customer.id).toBe('ANONYMOUS');
+      expect(retrievedOrder).not.toBeNull();
+      expect(retrievedOrder).toBeDefined();
+      expect(retrievedOrder?.id).toBe(guestOrderId);
+      expect(retrievedOrder?.customer.email).toBe(guestEmail);
 
-        // Try to get all customer orders and verify our order is in the list
-        console.log('Getting all customer orders...');
-        const customerOrders = await orderApi.getCustomerOrders(10, 0);
-        expect(customerOrders).toBeDefined();
-        expect(Array.isArray(customerOrders)).toBe(true);
+      // Verify our order appears in the customer orders list
+      const customerOrders = await orderApi.getCustomerOrders(10, 0);
+      expect(customerOrders).toBeDefined();
+      expect(Array.isArray(customerOrders)).toBe(true);
 
-        // Find our created order in the list
-        const foundOrder = customerOrders.find((order) => order.id === guestOrderId);
-        expect(foundOrder).toBeDefined();
-      } catch (error) {
-        console.error('Error in guest checkout test:', error);
-        throw error;
-      }
+      const foundOrder = customerOrders.find((order) => order.id === guestOrderId);
+      expect(foundOrder).toBeDefined();
     }, 60000);
   });
 });

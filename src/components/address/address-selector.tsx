@@ -94,7 +94,7 @@ export function AddressSelector({
           ) : addresses && addresses.length > 0 ? (
             <div className="max-h-[400px] overflow-y-auto">
               {addresses
-                .filter((address) => !addressType || address.types.includes(addressType))
+                .filter((address) => !addressType || address.tags.includes(addressType))
                 .map((address) => (
                   <div
                     key={address.id}
@@ -103,13 +103,14 @@ export function AddressSelector({
                       `${resolvedSelectedId === address.id ? 'bg-surface-action text-text-on-action hover:bg-surface-action-hover hover:text-text-ho' : ''}`,
                     )}
                     onClick={() => handleAddressSelect(address)}
+                    data-testid={`addressSelector-item-${address.id}`}
                   >
                     <div className="flex justify-between items-start mb-1">
                       <p className="font-bold">{address.contactName}</p>
 
                       {showAddressTypes && (
                         <div className="flex gap-1">
-                          {address.types.map((type) => (
+                          {address.tags.map((type) => (
                             <span
                               key={type}
                               className={`text-sm px-2 py-1 rounded-sm 

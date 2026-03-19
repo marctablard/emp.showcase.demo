@@ -15,7 +15,8 @@ async function getSiteFromHeaderImpl(): Promise<string> {
     server.get<LoggerService>('LoggerService').error({ err: error }, 'Error getting headers');
   }
 
-  return site || 'main';
+  const availableSites = process.env.NEXT_PUBLIC_AVAILABLE_SITES?.split(',') || [];
+  return site || process.env.NEXT_PUBLIC_DEFAULT_SITE || availableSites[0];
 }
 const getSiteFromHeader = cache(getSiteFromHeaderImpl);
 

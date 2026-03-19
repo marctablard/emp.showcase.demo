@@ -3,6 +3,7 @@ import { fetchProductVariants } from '@/lib/client/products';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { LocalizedString } from '@/platform/services/model/common';
 import { Product } from '@/platform/services/model/product';
+import { useProductStore } from '@/providers/StoreProvider';
 
 interface VariantAttributeValue {
   key: string;
@@ -25,16 +26,15 @@ export function useAvailableVariantValues(product: Product, attributeKey?: strin
   const [values, setValues] = useState<VariantAttributeValue[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { getVariants, setVariants } = useProductStore();
 
   useEffect(() => {
     const fetchAvailableValues = async () => {
-      // If no variant attributes or no specific attribute key, return empty
       if (!product.variantAttributes || product.variantAttributes.length === 0) {
         setValues([]);
         return;
       }
 
-      // Use the first variant attribute if no specific key is provided
       const targetAttribute = attributeKey
         ? product.variantAttributes.find((attr) => attr.key === attributeKey)
         : product.variantAttributes[0];
@@ -44,7 +44,6 @@ export function useAvailableVariantValues(product: Product, attributeKey?: strin
         return;
       }
 
-      // If no parent variant ID, use current product's values
       const parentId = product.parentVariantId || product.id;
       if (!parentId) {
         setValues(targetAttribute.values || []);
@@ -55,10 +54,13 @@ export function useAvailableVariantValues(product: Product, attributeKey?: strin
       setError(null);
 
       try {
-        // Fetch all variants for this product family
-        const variants = await fetchProductVariants(parentId);
+        // Check store cache before making a network call
+        let variants = getVariants(parentId);
+        if (!variants) {
+          variants = await fetchProductVariants(parentId);
+          setVariants(parentId, variants);
+        }
 
-        // Collect all available values for the target attribute across all variants
         const availableValues = new Set<string>();
         const valueDetails = new Map<string, VariantAttributeValue>();
 
@@ -69,7 +71,6 @@ export function useAvailableVariantValues(product: Product, attributeKey?: strin
             variantAttribute.values.forEach((value) => {
               if (value.selected) {
                 availableValues.add(value.key);
-                // Store the most complete value details we find
                 if (!valueDetails.has(value.key) || value.name) {
                   valueDetails.set(value.key, value);
                 }
@@ -78,10 +79,8 @@ export function useAvailableVariantValues(product: Product, attributeKey?: strin
           }
         });
 
-        // Convert to array and maintain original order from the current product if possible
         const orderedValues: VariantAttributeValue[] = [];
 
-        // First, add values in the order they appear in the current product
         targetAttribute.values?.forEach((value) => {
           if (availableValues.has(value.key)) {
             const detailedValue = valueDetails.get(value.key) || value;
@@ -90,7 +89,6 @@ export function useAvailableVariantValues(product: Product, attributeKey?: strin
           }
         });
 
-        // Then add any remaining values that weren't in the current product
         availableValues.forEach((key) => {
           const value = valueDetails.get(key);
           if (value) {
@@ -102,7 +100,6 @@ export function useAvailableVariantValues(product: Product, attributeKey?: strin
       } catch (err) {
         getLogger().error({ err }, 'Error fetching available variant values');
         setError(err instanceof Error ? err.message : 'Failed to fetch variant values');
-        // Fallback to current product's values
         setValues(targetAttribute.values || []);
       } finally {
         setLoading(false);
@@ -110,7 +107,7 @@ export function useAvailableVariantValues(product: Product, attributeKey?: strin
     };
 
     fetchAvailableValues();
-  }, [product, attributeKey]);
+  }, [product, attributeKey, getVariants, setVariants]);
 
   return { values, loading, error };
 }

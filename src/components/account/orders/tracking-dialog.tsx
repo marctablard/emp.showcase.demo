@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { H3 } from '@/components/ui/h';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTracking } from '@/hooks/order/useTracking';
+import { type TrackingKey, dk } from '@/i18n/dynamic-key';
 import { TrackingInfo } from '@/platform/services/model/tracking';
 
 interface TrackingDialogProps {
@@ -115,7 +116,7 @@ export function TrackingDialog({ orderId, open, onOpenChange }: TrackingDialogPr
               <div className="flex items-center gap-2">
                 {getStatusIcon(trackingInfo.status)}
                 <Badge variant={getStatusBadgeVariant(trackingInfo.status) as any}>
-                  {tTracking(trackingInfo.status.toLowerCase())}
+                  {tTracking(dk<TrackingKey>(trackingInfo.status.toLowerCase()))}
                 </Badge>
               </div>
             </div>
@@ -152,11 +153,13 @@ export function TrackingDialog({ orderId, open, onOpenChange }: TrackingDialogPr
 
                     {/* Event content */}
                     <div>
-                      <p className="font-medium">{tTracking(event.status)}</p>
+                      <p className="font-medium">{tTracking(dk<TrackingKey>(event.status))}</p>
                       <p className="text-sm text-text-placeholders">{formatDate(event.timestamp)}</p>
                       <p className="text-sm">{event.location}</p>
                       {event.description && (
-                        <p className="text-sm text-text-placeholders mt-1">{tTracking(event.description)}</p>
+                        <p className="text-sm text-text-placeholders mt-1">
+                          {tTracking(dk<TrackingKey>(event.description))}
+                        </p>
                       )}
                     </div>
                   </div>

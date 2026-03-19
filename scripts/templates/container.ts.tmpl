@@ -11,6 +11,9 @@
 
 import { addInjectableModule } from '@/platform/core/di/registry';
 import { Container } from 'inversify';
+import pino from 'pino';
+
+const diLogger = pino({ level: process.env.NODE_ENV === 'development' ? 'debug' : 'info' });
 
 // Static imports
 {{imports}}

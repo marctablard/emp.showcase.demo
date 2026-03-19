@@ -35,6 +35,74 @@ npm run dev
 
 The app opens at `http://localhost:3000`.
 
+## Local HTTPS Development (optional)
+
+For testing with custom local domains (e.g., `vip-webshop.dev.local`) or features requiring HTTPS (like Storyblok Visual Editor), you can run the development server with HTTPS.
+
+### Quick HTTPS (self-signed)
+
+The simplest way to run with HTTPS:
+```
+npm run dev:https
+```
+
+This uses Next.js's built-in self-signed certificate. Your browser will show a security warning that you can bypass.
+
+### Trusted HTTPS with mkcert (recommended for custom domains)
+
+For a better experience with custom domains and no browser warnings:
+
+1) Install mkcert
+
+**macOS:**
+```bash
+brew install mkcert
+mkcert -install
+```
+
+**Linux (Ubuntu/Debian):**
+```bash
+sudo apt install libnss3-tools
+wget https://github.com/FiloSottile/mkcert/releases/download/v1.4.4/mkcert-v1.4.4-linux-amd64
+chmod +x mkcert-v1.4.4-linux-amd64
+sudo mv mkcert-v1.4.4-linux-amd64 /usr/local/bin/mkcert
+mkcert -install
+```
+
+**Windows (with Chocolatey):**
+```powershell
+choco install mkcert
+mkcert -install
+```
+
+2) Generate certificates for your domains
+```bash
+mkdir -p .certificates
+mkcert -key-file .certificates/localhost-key.pem \
+       -cert-file .certificates/localhost.pem \
+       localhost 127.0.0.1 ::1 \
+       "*.dev.local" \
+       vip-webshop.dev.local \
+       at-webshop.dev.local
+```
+
+3) Add domains to /etc/hosts (if not already done)
+```
+127.0.0.1 vip-webshop.dev.local
+127.0.0.1 at-webshop.dev.local
+```
+
+4) Run with custom certificates
+```bash
+npm run dev:https -- \
+  --experimental-https-key .certificates/localhost-key.pem \
+  --experimental-https-cert .certificates/localhost.pem
+```
+
+The app will be available at `https://vip-webshop.dev.local:3000` without browser warnings.
+
+> **Note:** The `.certificates/` directory is gitignored. Certificates are valid for ~2 years and are local to your machine.
+
 ## Standard local run (with your own credentials)
 1) Create `.env` from `.env.template`.
 2) Replace the Emporix and Auth values (see "Required envs" below).

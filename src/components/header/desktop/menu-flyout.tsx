@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { HeaderPromo } from '@/components/header/common/header-promo';
 import { MenuItem, SubMenuItem } from '@/data/navigation-menu';
+import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 
 interface DesktopMenuFlyoutProps {

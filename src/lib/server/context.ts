@@ -13,7 +13,8 @@ export function getContext(Request: NextRequest): { locale: string; site: string
     ? Request.cookies.get(process.env.NEXT_PUBLIC_SITE_COOKIE)?.value
     : undefined;
   if (!site) {
-    site = process.env.NEXT_PUBLIC_DEFAULT_SITE || 'main';
+    const availableSites = process.env.NEXT_PUBLIC_AVAILABLE_SITES?.split(',') || [];
+    site = process.env.NEXT_PUBLIC_DEFAULT_SITE || availableSites[0];
   }
   return { locale, site };
 }

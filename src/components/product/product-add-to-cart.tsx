@@ -76,6 +76,7 @@ export default function ProductAddToCart({
           onClick={decrementQuantity}
           aria-label={t('decrement')}
           disabled={quantity <= 1}
+          data-testid="product-quantity-decrement"
         >
           <Minus />
         </Button>
@@ -88,6 +89,7 @@ export default function ProductAddToCart({
           className="text-center min-w-[14] w-full h-13 border border-border-primary rounded-none sm:[appearance:textfield] sm:[&::-webkit-outer-spin-button]:appearance-none sm:[&::-webkit-inner-spin-button]:appearance-none"
           value={quantity}
           onChange={handleQuantityChange}
+          data-testid="product-quantity"
         />
         <Button
           variant="secondary"
@@ -95,6 +97,7 @@ export default function ProductAddToCart({
           className="p-3 h-13 border-s-0 border-border-primary rounded-none rounded-ee-sm rounded-se-sm disabled:border-border-primary transition duration-200 ease-in-out"
           aria-label={t('increment')}
           onClick={incrementQuantity}
+          data-testid="product-quantity-increment"
         >
           <Plus />
         </Button>

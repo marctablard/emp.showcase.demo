@@ -13,6 +13,7 @@ const mockProduct1 = {
     currency: 'USD',
   },
   images: [{ url: 'https://example.com/image1.jpg' }],
+  purchasable: true,
 };
 
 const mockProduct2 = {
@@ -24,6 +25,7 @@ const mockProduct2 = {
     currency: 'USD',
   },
   images: [{ url: 'https://example.com/image2.jpg' }],
+  purchasable: true,
 };
 
 const originalEnv = process.env;

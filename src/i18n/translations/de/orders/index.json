@@ -7,6 +7,9 @@
   "orderNumber": "Bestellnummer",
   "trackOrder": "Sendung verfolgen",
   "returnOrder": "Bestellung zurücksenden",
+  "returnLink": "Retoure",
+  "returnDisabledTooltip": "Retouren können nur für abgeschlossene Bestellungen erstellt werden",
+  "noRemainingItems": "Für alle Artikel dieser Bestellung liegt bereits eine Retouranfrage vor.",
   "orderDate": "Bestelldatum",
   "payment": "Zahlung",
   "paymentMethod": "Zahlungsmethode",
@@ -32,12 +35,16 @@
   "columns": {
     "orderNumber": "Bestell-Nr.",
     "status": "Status",
+    "totalShippingCost": "Gesamtversandkosten",
     "customer": "Kunde",
     "orderDate": "Bestelldatum",
+    "expectedDeliveryDate": "Vorauss. Lieferdatum",
     "deliveryDate": "Lieferdatum",
     "deliveryAddress": "Lieferadresse",
     "payment": "Zahlungsart",
-    "orderValue": "Bestellwert"
+    "orderValue": "Bestellwert",
+    "action": "Aktion",
+    "view": "Ansicht"
   },
   "status": {
     "in_checkout": "Im Warenkorb",
@@ -99,7 +106,9 @@
     "thankYou": "Vielen Dank für Ihren Einkauf. Ihre Bestellung wurde entgegengenommen.",
     "emailConfirmation": "Eine Bestätigungs-E-Mail wurde gesendet an",
     "continueShopping": "Weiter einkaufen",
-    "viewOrders": "Meine Bestellungen anzeigen"
+    "viewOrders": "Meine Bestellungen anzeigen",
+    "freightShipping": "Frachtversand",
+    "freightInfo": "Nach der Bestellung kontaktiert Sie die beauftragte Spedition mit weiteren Informationen."
   },
   "Approval": {
     "approvals": "Freigaben",
@@ -167,7 +176,14 @@
     "note": "Notiz",
     "notProvided": "Nicht angegeben",
     "requestorCommentUpdated": "Kommentar des Anforderers aktualisiert",
-    "approverCommentUpdated": "Kommentar des Genehmigers aktualisiert"
+    "approverCommentUpdated": "Kommentar des Genehmigers aktualisiert",
+    "addApproverComment": "Genehmiger-Kommentar hinzufügen",
+    "addRequestorComment": "Anforderer-Kommentar hinzufügen",
+    "enterApproverComment": "Genehmiger-Kommentar eingeben...",
+    "enterRequestorComment": "Anforderer-Kommentar eingeben...",
+    "saveApproverComment": "Genehmiger-Kommentar speichern",
+    "saveRequestorComment": "Anforderer-Kommentar speichern",
+    "orderSuccessfullySubmitted": "Bestellung erfolgreich aufgegeben"
   },
   "ApprovalAction": {
     "CHECKOUT": "Bestellung"
@@ -201,5 +217,10 @@
     "inTransitNextCarrier": "An nächsten Transporteur übergeben",
     "inTransitCarrierFacility": "Im Verteilzentrum eingetroffen",
     "exceptionNoRecipient": "Zustellung versucht - niemand angetroffen"
-  }
+  },
+  "errorFetchingOrder": "Fehler beim Laden der Bestelldetails",
+  "viewOrders": "Bestellungen anzeigen",
+  "deliveryDate": "Lieferdatum",
+  "deliveryAddress": "Lieferadresse",
+  "orderValue": "Bestellwert"
 }

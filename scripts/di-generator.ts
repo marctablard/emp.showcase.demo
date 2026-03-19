@@ -367,7 +367,7 @@ export default container;
       // Only bind alias if target exists, otherwise inversify will throw on `toService`.
       // In that case we just warn to keep dev experience smooth.
       lines.push(`if (!container.isBound('${target}')) {`);
-      lines.push(`  console.warn('[DI] Alias target not bound: ${target} (for alias: ${alias})');`);
+      lines.push(`  diLogger.warn('[DI] Alias target not bound: ${target} (for alias: ${alias})');`);
       lines.push('} else {');
       lines.push(`  if (container.isBound('${alias}')) {`);
       lines.push(`    container.unbind('${alias}');`);

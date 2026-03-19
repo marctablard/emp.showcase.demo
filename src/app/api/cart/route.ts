@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { mapCartGetError } from '@/lib/common/cart-api-error-mapping';
 import server from '@/platform/server';
 import { CartService } from '@/platform/services/cart';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Cart } from '@/platform/services/model/cart';
 import { SessionService } from '@/platform/services/session';
 
-export const revalidate = 0;
 /**
  * GET /api/carts
  * Get the current cart or create a new one if none exists
@@ -27,13 +27,7 @@ export async function GET(request: NextRequest) {
       });
     }
     // Check for cart ID in cookies
-    let cart: Cart | null | undefined;
-
-    try {
-      cart = await cartService.getCart();
-    } catch (_error) {
-      cart = undefined;
-    }
+    let cart: Cart | null = await cartService.getCart();
 
     // If we don't have a cart and shouldCreate is false, return 204 (intentionally empty)
     if (!cart && create) {
@@ -48,24 +42,21 @@ export async function GET(request: NextRequest) {
     if (cart === null) {
       return new Response(null, { status: 204 });
     }
-    // undefined, so it's an Error
-    if (cart === undefined) {
-      return NextResponse.json({ error: 'Failed to find Cart' }, { status: 404 });
-    }
-
     return NextResponse.json(cart);
   } catch (error) {
     const logger = server.get<LoggerService>('LoggerService');
+    const mappedError = mapCartGetError(error);
     logger.error(
       {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
         path: '/api/cart',
         method: 'GET',
+        ...mappedError.logContext,
       },
       'Error handling cart request',
     );
-    return NextResponse.json({ error: 'Failed to process cart request' }, { status: 500 });
+    return NextResponse.json(mappedError.response, { status: mappedError.status });
   }
 }
 

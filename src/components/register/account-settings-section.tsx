@@ -43,6 +43,7 @@ export function AccountSettingsSection({ control, number }: AccountSettingsAccor
                   onEndIconClick={() => setShowPassword(!showPassword)}
                   aria-label={showPassword ? t('hidePassword') : t('showPassword')}
                   required
+                  data-testid="register-password"
                   {...field}
                 />
               </FormControl>
@@ -64,6 +65,7 @@ export function AccountSettingsSection({ control, number }: AccountSettingsAccor
                   onEndIconClick={() => setShowPasswordConfirmation(!showPasswordConfirmation)}
                   endIconLabel={showPasswordConfirmation ? t('hidePassword') : t('showPassword')}
                   required
+                  data-testid="register-passwordConfirmation"
                   {...field}
                 />
               </FormControl>

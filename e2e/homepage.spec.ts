@@ -15,8 +15,8 @@ test.describe('Homepage Tests', () => {
     await page.waitForLoadState('networkidle');
 
     // Verify the page has loaded by checking for expected elements
-    // This assumes your homepage has a header element
-    await expect(page.locator('header')).toBeVisible();
+    // The header element contains fixed-positioned children, so we check for the first visible child div
+    await expect(page.locator('header > div').first()).toBeVisible();
 
     // Check that we're on the German version by looking for German Locale
     const htmlLang = await page.getAttribute('html', 'lang');
@@ -48,8 +48,8 @@ test.describe('Homepage Tests', () => {
     // Wait for the page to be fully loaded
     await page.waitForLoadState('networkidle');
 
-    // Verify the page has loaded
-    await expect(page.locator('header')).toBeVisible();
+    // Verify the page has loaded by checking for the fixed header container
+    await expect(page.locator('header > div').first()).toBeVisible();
 
     // Check the URL is correct
     expect(page.url()).toContain('/');

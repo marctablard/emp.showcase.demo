@@ -6,6 +6,7 @@ import { injectable } from '@/platform/core/di/injectable';
 import { StoredToken } from '@/platform/integrations/types/auth';
 import { EmporixCustomerTokenResponse } from '../../model/oauth';
 import type { EmporixOAuthApi } from '../../oauth/EmporixOAuthApi';
+import { EMPORIX_TOKEN_TYPE } from '../token-types';
 import { TokenStore } from './EmporixTokenManagerAbstract';
 import { EmporixTokenManagerAbstract } from './EmporixTokenManagerAbstract';
 
@@ -23,10 +24,10 @@ class EmporixTokenManagerSSR extends EmporixTokenManagerAbstract {
 
   public async getSessionToken(
     tenant: string,
-    clientId: string,
+    _clientId: string,
   ): Promise<{ accessToken: string; saasToken?: string; sessionId: string }> {
     const customerToken = await this.readToken<StoredToken<EmporixCustomerTokenResponse>, EmporixCustomerTokenResponse>(
-      'customer',
+      EMPORIX_TOKEN_TYPE.CUSTOMER,
       tenant,
     );
     // first check client's customer token
@@ -37,24 +38,11 @@ class EmporixTokenManagerSSR extends EmporixTokenManagerAbstract {
     const anonymousToken = await this.readToken<
       StoredToken<EmporixCustomerTokenResponse>,
       EmporixCustomerTokenResponse
-    >('anonymous', tenant);
+    >(EMPORIX_TOKEN_TYPE.ANONYMOUS, tenant);
     if (this.checkAccessToken(anonymousToken)) {
       return { accessToken: anonymousToken!.token.access_token, sessionId: anonymousToken!.token.session_id };
     }
-    // otherwise we use our own token
-    const ssrAnonymousToken = this.ssrToken[tenant]?.anonymousToken;
-    if (!this.checkAccessToken(ssrAnonymousToken)) {
-      const freshSsrAnonymousToken = await this.fetchAnonymousToken(ssrAnonymousToken, tenant, clientId);
-      // ...and store it globally, so it can be reused
-      if (!this.ssrToken[tenant]) {
-        this.ssrToken[tenant] = {};
-      }
-      this.ssrToken[tenant].anonymousToken = freshSsrAnonymousToken;
-    }
-    return {
-      accessToken: this.ssrToken[tenant].anonymousToken!.token.access_token,
-      sessionId: this.ssrToken[tenant].anonymousToken!.token.session_id,
-    };
+    throw new Error('No valid Session Token found in SSR context');
   }
 
   protected createCustomerToken(

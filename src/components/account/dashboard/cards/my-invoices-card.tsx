@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import UiLink from '@/components/ui/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useValidator } from '@/hooks/validation/useValidator';
+import { type InvoiceStatusKey, dk } from '@/i18n/dynamic-key';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
 import { DashboardCard, DashboardCardProps } from './dashboard-card';
@@ -264,7 +265,7 @@ export function MyInvoicesCard({ className, title, ...props }: MyInvoicesCardPro
                   </TableCell>
                   <TableCell className="px-2 py-4">
                     <Badge variant={getStatusBadge(invoice.status).variant}>
-                      {t(`status.${invoice.status.toLowerCase()}`)}
+                      {t(dk<InvoiceStatusKey>(`status.${invoice.status.toLowerCase()}`))}
                     </Badge>
                   </TableCell>
                   <TableCell className="px-2 py-4">{formatDate(invoice.invoiceDate)}</TableCell>

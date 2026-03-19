@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
+import { type OrderStatusKey, dk } from '@/i18n/dynamic-key';
 import { Order } from '@/platform/services/model/order/order';
 
 /**
@@ -33,5 +34,12 @@ export function OrderStatusBadge({ status }: { status: Order['status'] }) {
     }
   };
 
-  return <Badge variant={getVariant()}>{tOrderStatus(status)}</Badge>;
+  return (
+    <Badge
+      variant={getVariant()}
+      className="h-7 px-3 text-[12px] leading-[16px] font-bold uppercase tracking-wide rounded-[4px]"
+    >
+      {tOrderStatus(dk<OrderStatusKey>(status))}
+    </Badge>
+  );
 }

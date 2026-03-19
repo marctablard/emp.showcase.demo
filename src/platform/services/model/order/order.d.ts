@@ -24,11 +24,14 @@ export interface OrderItem {
   quantity: number;
   name?: string;
   description?: string;
+  vendorName?: string;
   sku?: string;
   images?: string[];
   price?: {
     value: number;
+    netValue?: number;
     originalValue?: number;
+    grossValue?: number;
     currency: string;
   };
 }

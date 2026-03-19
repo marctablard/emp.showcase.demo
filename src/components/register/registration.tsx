@@ -84,7 +84,7 @@ export default function Registration() {
           city: values.city,
           zipCode: values.postalCode,
           country: values.country,
-          types: ['SHIPPING', 'BILLING'],
+          tags: ['SHIPPING', 'BILLING'],
         },
       });
 
@@ -92,6 +92,7 @@ export default function Registration() {
         // Redirect to login page or show a success message
         await login(values.email, values.password);
       } else if (result.error) {
+        getLogger().warn({ error: result.error }, 'Registration error');
         // Handle specific error types
         // Todo: Check below cases if they exist
         switch (result.error) {
@@ -173,7 +174,13 @@ export default function Registration() {
             ),
           })}
         </p>
-        <Button type="submit" form="register-form" className="w-full" disabled={loading || !form.formState.isValid}>
+        <Button
+          type="submit"
+          form="register-form"
+          className="w-full"
+          disabled={loading || !form.formState.isValid}
+          data-testid="register-submitButton"
+        >
           {loading ? t('registering') : t('registerButton')}
         </Button>
         <p>

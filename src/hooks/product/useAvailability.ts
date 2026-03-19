@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchProductAvailability } from '@/lib/client/availability';
-import { StockAvailability } from '@/platform/services/stock/StockService';
+import { StockAvailability } from '@/platform/services/model/common';
 import { useAvailabilityStore } from '@/stores/availability-store';
 
 interface UseAvailabilityOptions {

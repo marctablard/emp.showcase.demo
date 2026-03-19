@@ -8,7 +8,6 @@ import server from '@/platform/server';
 import { CustomerNamingService } from '@/platform/services/customer/CustomerNamingService';
 import { CustomerService } from '@/platform/services/customer/CustomerService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import ssr from '@/platform/ssr';
 import { AuthService } from '../platform/services/auth/AuthService';
 import { config } from './auth.config';
 
@@ -46,7 +45,9 @@ const enrichedProviders = config.providers.map((provider) => {
             name: customerNamingService.getFullName(customer),
             email: customer.email,
             businessModel: customer.businessModel,
-            roles: [],
+            cartMergeStatus: session.cartMergeStatus,
+            cartMergeReason: session.cartMergeReason,
+            roles: [], // Add Roles here, if you like to customize the UX
           };
         } catch (_error) {
           throw new Error('Failed to authorize using Credentials');
@@ -68,9 +69,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async signIn({ user, account }) {
+      // If the user is signing in with credentials, return true, because the password is already validated
       if (account?.provider == 'credentials') {
         return true;
       }
+      // If the user is signing in with SSO we need the email to login
       if (user.email) {
         try {
           const authService = server.get<AuthService>('AuthService');
@@ -78,6 +81,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (!session) {
             return false;
           }
+          // This can be customized to include the customers SSO-User-Id in the Customer Backend and check against that
           return !!session.customerId;
         } catch (error) {
           server.get<LoggerService>('LoggerService').error({ err: error }, 'signIn error');
@@ -89,7 +93,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (!user) {
         // Must fail silently when no CustomerSession is present, using SSR-Scope
-        const authService = ssr.get<AuthService>('AuthService');
+        const authService = server.get<AuthService>('AuthService');
         const session = await authService.getCurrentSession();
         if (!session || session.customerId != token.user?.id) {
           return null;
@@ -121,5 +125,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 declare module 'next-auth/jwt' {
   interface JWT {
     user?: User;
+  }
+}
+
+declare module 'next-auth' {
+  interface User {
+    cartMergeStatus?: 'MERGED' | 'FALLBACK' | 'NOT_APPLICABLE';
+    cartMergeReason?:
+      | 'ANONYMOUS_CART_NOT_ELIGIBLE'
+      | 'TARGET_CART_UNAVAILABLE'
+      | 'UNSUPPORTED_CURRENCY'
+      | 'CURRENCY_ALIGNMENT_FAILED'
+      | 'MERGE_FAILED'
+      | 'TRANSITION_FAILED';
   }
 }

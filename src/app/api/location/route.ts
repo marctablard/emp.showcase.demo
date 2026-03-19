@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 
-export const dynamic = 'force-dynamic'; // No caching for this route
-
 export async function GET() {
   try {
     // In a real implementation, this would use a GeoIP service

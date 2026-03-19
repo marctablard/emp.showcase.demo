@@ -12,8 +12,19 @@ export interface EmporixOAuthApi {
   /**
    * Get an anonymous token
    * Used by the storefront to access public resources with a reading scope.
+   * It allows customers and bots to browse products, view prices or add products to cart.
+   * (Technically this is an anonymous token that is being reused.)
+   *
+   * @param tenant The tenant ID
+   * @param clientId Client ID for anonymous access
+   * @returns Promise with the anonymous token response
+   */
+  getPublicToken(tenant: string, clientId: string): Promise<EmporixAnonymousTokenResponse>;
+
+  /**
+   * Get an anonymous token that can be used in session context of a customer
+   * Used by the storefront to access public resources with a reading scope.
    * It allows customers to browse products, view prices or add products to cart.
-   * The anonymous token is not associated with any customer.
    *
    * @param tenant The tenant ID
    * @param clientId Client ID for anonymous access

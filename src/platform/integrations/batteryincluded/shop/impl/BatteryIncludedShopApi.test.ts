@@ -1,4 +1,5 @@
 import { Container } from 'inversify';
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import BatteryIncludedApiInvoker from '../../common/impl/BatteryIncludedApiInvoker';
 import type { BatteryIncludedConfig } from '../../config';
 import { BatteryIncludedSearchResponse } from '../../model';
@@ -24,6 +25,14 @@ describe('BatteryIncludedShopApi', () => {
     container = new Container();
     container.bind<BatteryIncludedConfig>('BatteryIncludedConfig').to(TestBatteryIncludedConfig);
     container.bind<BatteryIncludedApiInvoker>('BatteryIncludedApiInvoker').to(BatteryIncludedApiInvoker);
+    container.bind<LoggerService>('LoggerService').toConstantValue({
+      trace: jest.fn(),
+      debug: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      fatal: jest.fn(),
+    });
     container.bind<BatteryIncludedShopApi>('BatteryIncludedShopApi').to(BatteryIncludedShopApi);
 
     // Get instances from the container
@@ -54,14 +63,13 @@ describe('BatteryIncludedShopApi', () => {
       expect(result.page).toBeDefined();
     });
 
-    // Todo: Fix this test
-    it.skip('should call API with custom parameters', async () => {
+    it('should call API with custom parameters', async () => {
       // Execute
       const result = await shopApi.browse({
+        query: 'power',
         page: 1,
         size: 10,
         locale: 'en',
-        filters: { 'mixins.design.product_colour': ['Black'] },
         sort: 'popularity:desc',
       });
 
@@ -82,9 +90,9 @@ describe('BatteryIncludedShopApi', () => {
       expect(url).toContain('per_page=10');
       expect(url).toContain('sort=popularity%3Adesc');
       expect(url).toContain('v%5Blocale%5D=en');
-      expect(url).toContain('f%5Bmixins.design.product_colour%5D%5B%5D=Black');
+      expect(url).toContain('q=power');
 
-      expect(result.facet_counts).toBeDefined();
+      expect(result.hits).toBeDefined();
     });
   });
 

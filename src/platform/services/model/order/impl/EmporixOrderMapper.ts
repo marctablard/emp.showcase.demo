@@ -1,4 +1,5 @@
 import { inject } from 'inversify';
+import { CUSTOMER_ID } from '@/lib/common/customer-identity';
 import { injectable } from '@/platform/core/di/injectable';
 import {
   EmporixOrder,
@@ -93,7 +94,7 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
           : undefined,
       })),
       customer: {
-        id: 'ANONYMOUS',
+        id: CUSTOMER_ID.SESSION_ANONYMOUS,
         email: serviceModel.customerEmail,
       },
       billingAddress: serviceModel.billingAddress
@@ -125,12 +126,21 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
       quantity: entry.amount,
       name: entry.product?.name,
       description: entry.product?.description,
+      vendorName: entry.product?.vendor?.name,
       sku: entry.product?.sku,
       images: entry.product?.images?.map((img) => img.url),
       price: entry.price
         ? {
             value: entry.price.effectiveAmount,
+            netValue:
+              entry.calculatedPrice?.finalPrice?.netValue !== undefined && entry.amount > 0
+                ? entry.calculatedPrice.finalPrice.netValue / entry.amount
+                : undefined,
             originalValue: entry.price.originalAmount,
+            grossValue:
+              entry.calculatedPrice?.finalPrice?.grossValue !== undefined && entry.amount > 0
+                ? entry.calculatedPrice.finalPrice.grossValue / entry.amount
+                : undefined,
             currency: entry.price.currency,
           }
         : undefined,

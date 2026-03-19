@@ -108,7 +108,8 @@ useEffect(() => {
 ```tsx
 // ❌ BAD: This is a real bug
 useEffect(() => {
-  console.log(user.name); // Uses `user` but doesn't declare it
+  const logger = getLogger();
+  logger.info({ name: user.name }, 'User name'); // Uses `user` but doesn't declare it
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
 ```
@@ -119,7 +120,8 @@ useEffect(() => {
 ```tsx
 // ✅ GOOD
 useEffect(() => {
-  console.log(user.name);
+  const logger = getLogger();
+  logger.info({ name: user.name }, 'User name');
 }, [user.name]);
 ```
 
