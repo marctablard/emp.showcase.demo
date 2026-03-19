@@ -173,6 +173,7 @@
       "wishlists": "Wishlists",
       "productsMaintenance": "Products & Maintenance",
       "contractsAgreements": "Contracts & Agreements",
+      "devices": "Devices",
       "personalData": "Personal Data",
       "accountSettings": "Account Settings",
       "approvals": "Approvals",
@@ -516,6 +517,34 @@
       "login": "Sign In to Your Account",
       "register": "Create a Free Account",
       "registerSubtext": "Join thousands of businesses already using our platform"
+    }
+  },
+  "devices": {
+    "title": "Devices",
+    "description": "View and manage devices registered to your company",
+    "loading": "Loading devices...",
+    "errorLoading": "Error loading devices",
+    "tryAgain": "Try Again",
+    "noDevices": "No devices found for your company",
+    "searchPlaceholder": "Search by product, serial number...",
+    "viewHealthMonitor": "View Health Monitor",
+    "columnProductName": "Product Name",
+    "columnSerialNumber": "Serial Number",
+    "columnHealth": "Health",
+    "columnActions": "Actions",
+    "unknownProduct": "Unknown Product",
+    "viewRelatedProducts": "View Related Products",
+    "noRelatedProducts": "No related products",
+    "relatedProducts": {
+      "title": "Related Products",
+      "description": "Related products for device: {deviceName}",
+      "searchPlaceholder": "Search related products...",
+      "loading": "Loading related products...",
+      "noResults": "No related products found",
+      "columnProduct": "Product",
+      "columnType": "Type",
+      "columnPrice": "Price",
+      "columnQuantity": "Quantity"
     }
   }
 }
