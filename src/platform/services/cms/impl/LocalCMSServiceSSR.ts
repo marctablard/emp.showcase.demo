@@ -9,7 +9,7 @@ import { CMSService } from '../CMSService';
  * Implementation of CMSService that loads content from local JSON files
  * using a folder structure of cms/[site]/[language]/slug.json
  */
-@injectable('CMSService', 'Singleton')
+@injectable('LocalCMSService', 'Singleton')
 export class LocalCmsServiceSSR implements CMSService {
   private defaultSite: string;
   private sessionService: SessionService;

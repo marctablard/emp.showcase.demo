@@ -1,4 +1,5 @@
 import { setRequestLocale } from 'next-intl/server';
+import EmporixCMSPage from '@/components/cms/emporix/emporix-cms-page';
 import CMSPageComponent from '@/components/cms/storyblok/storyblok-cms-page';
 import { setRequestSite } from '@/site/server/';
 
@@ -6,5 +7,10 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
   const { locale, site } = await params;
   setRequestSite(site);
   setRequestLocale(locale);
-  return <CMSPageComponent slug="home" locale={locale} site={site} emptyOnNoResult={true} />;
+  return (
+    <>
+      <EmporixCMSPage slug="home" locale={locale} site={site} emptyOnNoResult={true} />
+      <CMSPageComponent slug="home" locale={locale} site={site} emptyOnNoResult={true} />
+    </>
+  );
 }
