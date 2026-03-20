@@ -1,0 +1,23 @@
+/* Target image containers with height classes and overflow-hidden */
+.contentItemHeroContainer :global(div[class*='h-100'][class*='overflow-hidden']) {
+  height: 520px !important;
+}
+
+@media (min-width: 640px) {
+  .contentItemHeroContainer :global(div[class*='h-145'][class*='overflow-hidden']) {
+    height: 754px !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .contentItemHeroContainer :global(div[class*='h-185'][class*='overflow-hidden']) {
+    height: 962px !important;
+  }
+}
+
+/* Ensure images maintain aspect ratio */
+.contentItemHeroContainer :global(div[class*='overflow-hidden'] img) {
+  object-fit: cover !important;
+  width: 100% !important;
+  height: 100% !important;
+}

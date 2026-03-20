@@ -79,7 +79,10 @@ class EmporixSchemaApi implements IEmporixSchemaApi {
   ): Promise<EmporixPaginatedResponse<EmporixCustomEntity>> {
     const { body, query } = buildSearchQuery(searchParams);
 
-    const urlQuery = query ? `?${query}&q=${body}` : `?q=${body}`;
+    // params.query is a raw Lucene query string; params.criteria builds one via buildSearchQuery.
+    // Prefer params.query when explicitly provided.
+    const searchBody = searchParams.query || body;
+    const urlQuery = query ? `?${query}&q=${searchBody}` : `?q=${searchBody}`;
     const url = `/schema/${this.config.tenant}/custom-entities/${type}/instances${urlQuery}`;
 
     const response = await this.apiClient.authenticatedFetch(url, { method: 'GET' }, 'service');
@@ -169,6 +172,8 @@ class EmporixSchemaApi implements IEmporixSchemaApi {
   ): Promise<EmporixPaginatedResponse<EmporixCustomEntity>> {
     const { body, query } = buildSearchQuery(searchParams);
 
+    // params.query is a raw Lucene query string; prefer it over criteria-derived body.
+    const searchBody = searchParams.query || body;
     const url = `/schema/${this.config.tenant}/custom-entities/${type}/instances/search${query ? `?${query}` : ''}`;
 
     const response = await this.apiClient.authenticatedFetch(
@@ -180,7 +185,7 @@ class EmporixSchemaApi implements IEmporixSchemaApi {
           Accept: 'application/json',
           'X-Total-Count': 'true',
         },
-        body: JSON.stringify({ q: body }),
+        body: JSON.stringify({ q: searchBody }),
       },
       'service',
     );
