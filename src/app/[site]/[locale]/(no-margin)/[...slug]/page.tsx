@@ -1,5 +1,6 @@
 import { setRequestLocale } from 'next-intl/server';
 import EmporixCMSPage from '@/components/cms/emporix/emporix-cms-page';
+import CMSPageComponent from '@/components/cms/storyblok/storyblok-cms-page';
 import { setRequestSite } from '@/site/server';
 
 interface DynamicPageParams {
@@ -14,8 +15,9 @@ export default async function DynamicPage({ params }: { params: Promise<DynamicP
   setRequestSite(site);
   setRequestLocale(locale);
   return (
-    <div>
-      <EmporixCMSPage slug={slug.join('/')} locale={locale} site={site} />
-    </div>
+    <>
+      <EmporixCMSPage slug={slug.join('/')} locale={locale} site={site} emptyOnNoResult={true} />
+      <CMSPageComponent slug={slug.join('/')} locale={locale} site={site} emptyOnNoResult={true} />
+    </>
   );
 }
