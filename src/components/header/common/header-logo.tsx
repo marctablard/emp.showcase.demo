@@ -27,11 +27,11 @@ export const HeaderLogo = ({ scrolled, className, title, largeImageBreakpoint }:
         {!scrolled && <source media={`(min-width: ${breakpoints[largeImageBreakpoint]}px)`} srcSet={desktopLogo} />}
         <img
           src={mobileLogo}
-          alt="Emporix Shop"
+          alt="Franke"
           className={cn(
-            'w-[18px] h-[16px] aspect-18/16 md:w-[148px] md:h-[22px] md:aspect-148/22',
-            largeImageBreakpoint === 'sm' && 'sm:w-[148px] sm:h-[22px] sm:aspect-148/22',
-            scrolled && 'md:w-[25px] md:aspect-25/22',
+            'w-[32px] h-[32px] aspect-square md:w-[130px] md:h-[42px] md:aspect-[130/42]',
+            largeImageBreakpoint === 'sm' && 'sm:w-[130px] sm:h-[42px] sm:aspect-[130/42]',
+            scrolled && 'md:w-[40px] md:h-[40px] md:aspect-square',
           )}
         />
       </picture>

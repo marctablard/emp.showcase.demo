@@ -79,6 +79,12 @@
   --color-red-800: oklch(0.26 0.115 26.5);
   --color-red-900: oklch(0.17 0.065 26.5);
 
+  /* Franke warm beige — matches Franke.com section backgrounds */
+  --color-beige-50: oklch(0.978 0.01 75);
+  --color-beige-100: oklch(0.955 0.02 75);
+  --color-beige-200: oklch(0.92 0.035 75);
+  --color-beige-300: oklch(0.88 0.05 75);
+
   --color-grey-25: oklch(0.9824 0.0013 286.38);
   --color-grey-50: oklch(0.9647 0.0027 286.35);
   --color-grey-100: oklch(0.9288 0.004 286.32);
