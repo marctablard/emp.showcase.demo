@@ -7,7 +7,8 @@
     "label": "Lingue",
     "en": "Inglese",
     "de": "Tedesco",
-    "it": "Italiano"
+    "it": "Italiano",
+    "fr": "Francese"
   },
   "Currencies": {
     "label": "Valute"

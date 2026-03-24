@@ -1,0 +1,123 @@
+{
+  "addToCart": "Ajouter au panier",
+  "addToWishlist": "Ajouter à la liste de souhaits",
+  "share": "Partager",
+  "compare": "Comparer",
+  "noImage": "Aucune image disponible",
+  "noDescription": "Aucune description disponible.",
+  "productId": "ID produit",
+  "quantity": "Quantité",
+  "increment": "Augmenter la quantité",
+  "decrement": "Diminuer la quantité",
+  "buyNow": "Acheter maintenant",
+  "addedToCart": "Ajouté au panier",
+  "addedToCartDescription": "a été ajouté à votre panier",
+  "errorAddingToCart": "Erreur lors de l'ajout au panier",
+  "itemNumber": "Numéro d'article",
+  "copy": "Copier",
+  "sku": "SKU",
+  "productHighlights": "Points forts du produit",
+  "keySpecs": "Caractéristiques clés",
+  "more": "Autres caractéristiques du produit",
+  "technicalInformation": "Informations techniques",
+  "otherVariants": "Autres variantes",
+  "addToCartResult": {
+    "successTitle": "Ajouté au panier",
+    "pendingTitle": "Traitement de la demande",
+    "addedMessage": "{quantity} {productName} a été ajouté à votre panier",
+    "insufficientStockMessage": "La quantité demandée dépasse notre stock actuel. Nous recherchons une solution en arrière-plan. Vous recevrez une notification.",
+    "continueShopping": "Continuer les achats",
+    "viewCart": "Voir le panier",
+    "saveCart": "Sauvegarder le panier",
+    "productAdded": "Le produit sélectionné",
+    "quantityAdded": "Quantité ajoutée"
+  },
+  "shipping": {
+    "deliveryDetails": "Détails de livraison",
+    "immediatelyDeliverable": "Disponible immédiatement",
+    "deliverable": "Livrable en {min} - {max} jours",
+    "shipping": "Livraison",
+    "freeShipping": "Livraison gratuite",
+    "canBeReserved": "Peut être réservé {location}, {postalCode}",
+    "canBeReservedExample": "Peut être réservé Paris, 75001",
+    "yourUsps": "Vos atouts Emporix",
+    "warranty": "{years} ans de garantie",
+    "returnRight": "{days} jours de droit de retour",
+    "onlineAvailable": "Disponible en ligne"
+  },
+  "price": {
+    "yourPrice": "Votre prix",
+    "listPrice": "Prix catalogue",
+    "including": "incl.",
+    "notAvailable": "N/D",
+    "priceNotAvailable": "Prix non disponible",
+    "includingTax": "TVA {taxRate}% incl.",
+    "excludingTax": "TVA {taxRate}% excl.",
+    "net": "net",
+    "gross": "brut"
+  },
+  "filters": {
+    "mixins": {
+      "productVariantAttributes": {
+        "capacity": "Capacité",
+        "nominal-power": "Puissance nominale",
+        "color": "Couleur",
+        "ampere": "Ampères",
+        "length": "Longueur",
+        "farbe": "Couleur",
+        "format": "Format"
+      },
+      "productTemplateAttributes": {
+        "length": "Longueur du produit",
+        "width": "Largeur du produit",
+        "height": "Hauteur du produit",
+        "cell-type": "Type de cellule",
+        "timeframe-months": "Période (mois)",
+        "estimated-budget-month": "Budget estimé / Mois",
+        "not-to-exceed-amout": "Montant maximum"
+      }
+    },
+    "prices": {
+      "effectiveAmount": "Montant effectif"
+    },
+    "categoryAssignments": {
+      "name": "Nom de la catégorie"
+    },
+    "filterButton": "Filtrer",
+    "clearFilter": "Effacer le filtre",
+    "applyFilters": "Appliquer les filtres"
+  },
+  "tabs": {
+    "description": "Description",
+    "specs": "Caractéristiques",
+    "downloads": "Téléchargements",
+    "reviews": "Avis"
+  },
+  "productRecommendations": {
+    "overline": "autre à explorer",
+    "headline": "Vous pourriez également aimer"
+  },
+  "relatedMaterials": {
+    "overline": "Produits associés",
+    "title": "Matériaux associés",
+    "searchPlaceholder": "Rechercher des matériaux associés...",
+    "filterByType": "Filtrer par type",
+    "loading": "Chargement des matériaux associés...",
+    "noResults": "Aucun matériau associé trouvé",
+    "columnProduct": "Produit",
+    "columnType": "Type",
+    "columnPrice": "Prix",
+    "columnQuantity": "Quantité",
+    "types": {
+      "all": "Tous les types",
+      "accessory": "Accessoire",
+      "compulsory": "Obligatoire",
+      "consumable": "Consommable",
+      "part": "Pièce",
+      "similar": "Similaire",
+      "upsell": "Upsell"
+    }
+  },
+  "loadingVariants": "Chargement des variantes...",
+  "variantSelectPlaceholder": "Sélectionner une variante"
+}
