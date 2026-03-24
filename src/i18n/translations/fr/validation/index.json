@@ -1,0 +1,113 @@
+{
+  "contactData": {
+    "email": {
+      "required": "L'e-mail est obligatoire",
+      "invalid": "Veuillez saisir une adresse e-mail valide"
+    },
+    "firstName": {
+      "required": "Le prénom est obligatoire"
+    },
+    "lastName": {
+      "required": "Le nom est obligatoire"
+    }
+  },
+  "address": {
+    "contactName": {
+      "required": "Le nom du contact est obligatoire"
+    },
+    "street": {
+      "required": "La rue est obligatoire"
+    },
+    "streetNumber": {
+      "required": "Le numéro est obligatoire"
+    },
+    "zipCode": {
+      "required": "Le code postal est obligatoire"
+    },
+    "city": {
+      "required": "La ville est obligatoire"
+    },
+    "country": {
+      "required": "Le pays est obligatoire"
+    },
+    "state": {
+      "required": "La région/province est obligatoire"
+    }
+  },
+  "shipping": {
+    "method": {
+      "required": "Le mode de livraison est obligatoire"
+    }
+  },
+  "payment": {
+    "method": {
+      "required": "Le mode de paiement est obligatoire"
+    }
+  },
+  "login": {
+    "username": {
+      "required": "L'e-mail est obligatoire",
+      "invalid": "Veuillez saisir une adresse e-mail valide"
+    },
+    "password": {
+      "required": "Le mot de passe est obligatoire"
+    }
+  },
+  "password": {
+    "email": {
+      "required": "L'e-mail est obligatoire",
+      "invalid": "Veuillez saisir une adresse e-mail valide"
+    }
+  },
+  "register": {
+    "registrationType": {
+      "required": "Le type d'inscription est obligatoire"
+    },
+    "firstName": {
+      "required": "Le prénom est obligatoire"
+    },
+    "lastName": {
+      "required": "Le nom est obligatoire"
+    },
+    "email": {
+      "required": "L'adresse e-mail est obligatoire",
+      "invalid": "Veuillez saisir une adresse e-mail valide",
+      "mismatch": "Les adresses e-mail ne correspondent pas"
+    },
+    "emailConfirmation": {
+      "required": "Veuillez confirmer votre adresse e-mail"
+    },
+    "companyName": {
+      "required": "Le nom de l'entreprise est obligatoire"
+    },
+    "vatNumber": {
+      "required": "Le numéro de TVA est obligatoire"
+    },
+    "street": {
+      "required": "La rue est obligatoire"
+    },
+    "houseNumber": {
+      "required": "Le numéro est obligatoire"
+    },
+    "postalCode": {
+      "required": "Le code postal est obligatoire"
+    },
+    "city": {
+      "required": "La ville est obligatoire"
+    },
+    "country": {
+      "required": "Le pays est obligatoire"
+    },
+    "password": {
+      "mismatch": "Les mots de passe ne correspondent pas"
+    },
+    "passwordConfirmation": {
+      "required": "Veuillez confirmer votre mot de passe"
+    },
+    "general": {
+      "emailExists": "Cet e-mail est déjà enregistré. Utilisez un autre e-mail ou essayez de vous connecter.",
+      "registrationFailed": "Échec de l'inscription. Veuillez réessayer.",
+      "serverError": "Une erreur serveur s'est produite. Veuillez réessayer plus tard."
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "SUBSTITUTION_AVAILABLE": "Substitution d'article du panier disponible",
+  "ITEM_PRICE_CHANGE": "Prix de l'article modifié",
+  "actions": {
+    "goToCart": "Aller au panier"
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "NotFound": {
+    "title": "404",
+    "home": "Retour à l'accueil"
+  },
+  "Languages": {
+    "label": "Langues",
+    "en": "Anglais",
+    "de": "Allemand",
+    "it": "Italien",
+    "fr": "Français"
+  },
+  "Currencies": {
+    "label": "Devises"
+  },
+  "Regions": {
+    "label": "Site",
+    "switchFailed": "Impossible de changer de site. Veuillez réessayer."
+  },
+  "hello": {
+    "world": "Bonjour le monde",
+    "friend": "Bonjour ami"
+  },
+  "Breadcrumb": {
+    "backLink": "Retour",
+    "homeLink": "Accueil",
+    "backLinkAriaLabel": "Retour à la page précédente"
+  },
+  "UI": {
+    "spinner": {
+      "loading": "Chargement..."
+    },
+    "Carousel": {
+      "pageTitle": "Page {index}",
+      "prev": "Précédent",
+      "next": "Suivant"
+    }
+  },
+  "Notification": {
+    "close": "Fermer",
+    "company": {
+      "onboarding": {
+        "rejected": "Votre entreprise n'a pas été approuvée. Si vous pensez que c'est une erreur, veuillez nous contacter.",
+        "pending": "Votre entreprise est actuellement en cours d'examen. Vous ne pourrez pas effectuer d'achats tant que ce n'est pas terminé.",
+        "approved": "Félicitations ! Votre entreprise a été approuvée. Vous pouvez maintenant commencer vos achats."
+      }
+    }
+  },
+  "optional": "(optionnel)"
+}
