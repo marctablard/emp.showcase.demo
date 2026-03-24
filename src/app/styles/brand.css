@@ -67,15 +67,17 @@
   --color-orange-800: oklch(0.3094 0.0842 46.1);
   --color-orange-900: oklch(0.206 0.049 54.11);
 
-  --color-red-100: oklch(0.8841 0.0394 17.92);
-  --color-red-200: oklch(0.7683 0.0852 19.2);
-  --color-red-300: oklch(0.6626 0.1345 21.36);
-  --color-red-400: oklch(0.5703 0.18 24.92);
-  --color-red-500: oklch(0.5093 0.2032 28.63);
-  --color-red-600: oklch(0.4331 0.1717 28.49);
-  --color-red-700: oklch(0.3539 0.138 28.16);
-  --color-red-800: oklch(0.2672 0.1017 27.7);
-  --color-red-900: oklch(0.1765 0.0615 26.24);
+  /* Franke Red — #E2001A at 500 */
+  --color-red-50: oklch(0.975 0.012 26.5);
+  --color-red-100: oklch(0.94 0.03 26.5);
+  --color-red-200: oklch(0.87 0.068 26.5);
+  --color-red-300: oklch(0.76 0.12 26.5);
+  --color-red-400: oklch(0.63 0.185 26.5);
+  --color-red-500: oklch(0.508 0.234 26.5);
+  --color-red-600: oklch(0.43 0.198 26.5);
+  --color-red-700: oklch(0.35 0.158 26.5);
+  --color-red-800: oklch(0.26 0.115 26.5);
+  --color-red-900: oklch(0.17 0.065 26.5);
 
   --color-grey-25: oklch(0.9824 0.0013 286.38);
   --color-grey-50: oklch(0.9647 0.0027 286.35);

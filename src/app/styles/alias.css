@@ -3,26 +3,28 @@
 /* Semantic color aliases */
 
 :root {
-  --color-primary-50: var(--color-blue-50);
-  --color-primary-100: var(--color-blue-100);
-  --color-primary-200: var(--color-blue-200);
-  --color-primary-300: var(--color-blue-300);
-  --color-primary-400: var(--color-blue-400);
-  --color-primary-500: var(--color-blue-500);
-  --color-primary-600: var(--color-blue-600);
-  --color-primary-700: var(--color-blue-700);
-  --color-primary-800: var(--color-blue-800);
-  --color-primary-900: var(--color-blue-900);
+  /* Franke Red as primary */
+  --color-primary-50: var(--color-red-50);
+  --color-primary-100: var(--color-red-100);
+  --color-primary-200: var(--color-red-200);
+  --color-primary-300: var(--color-red-300);
+  --color-primary-400: var(--color-red-400);
+  --color-primary-500: var(--color-red-500);
+  --color-primary-600: var(--color-red-600);
+  --color-primary-700: var(--color-red-700);
+  --color-primary-800: var(--color-red-800);
+  --color-primary-900: var(--color-red-900);
 
-  --color-secondary-100: var(--color-teal-100);
-  --color-secondary-200: var(--color-teal-200);
-  --color-secondary-300: var(--color-teal-300);
-  --color-secondary-400: var(--color-teal-400);
-  --color-secondary-500: var(--color-teal-500);
-  --color-secondary-600: var(--color-teal-600);
-  --color-secondary-700: var(--color-teal-700);
-  --color-secondary-800: var(--color-teal-800);
-  --color-secondary-900: var(--color-teal-900);
+  /* Neutral grey as secondary (Franke brand has no teal accent) */
+  --color-secondary-100: var(--color-grey-100);
+  --color-secondary-200: var(--color-grey-200);
+  --color-secondary-300: var(--color-grey-300);
+  --color-secondary-400: var(--color-grey-400);
+  --color-secondary-500: var(--color-grey-500);
+  --color-secondary-600: var(--color-grey-600);
+  --color-secondary-700: var(--color-grey-700);
+  --color-secondary-800: var(--color-grey-800);
+  --color-secondary-900: var(--color-grey-900);
 
   --color-success-100: var(--color-green-100);
   --color-success-200: var(--color-green-200);
