@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { SessionProvider as AuthSessionProvider } from 'next-auth/react';
 import { Locale, NextIntlClientProvider, hasLocale } from 'next-intl';
-import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { getMessages, getTranslations, setRequestLocale } from 'next-intl/server';
 import { Open_Sans, Ubuntu } from 'next/font/google';
 import { notFound } from 'next/navigation';
 import '@/app/globals.css';
@@ -97,6 +97,8 @@ export default async function LocaleLayout({ children, dialog, params }: Props) 
   setRequestSite(siteCode);
   setRequestLocale(locale);
 
+  const messages = await getMessages();
+
   return (
     <html
       lang={locale}
@@ -105,7 +107,7 @@ export default async function LocaleLayout({ children, dialog, params }: Props) 
       <body className="flex h-full flex-col font-body has-[.search]:overflow-hidden">
         <AuthSessionProvider>
           <SiteProvider siteCode={siteCode}>
-            <NextIntlClientProvider locale={locale}>
+            <NextIntlClientProvider locale={locale} messages={messages}>
               <StoreProvider site={site} availableSites={availableSites}>
                 <StoryblokProvider>
                   <CsrfProvider />
