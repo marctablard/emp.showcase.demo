@@ -190,7 +190,7 @@ export type QuoteStatusKey =
 // Namespace: common.Languages
 // Used by: header-language-switcher.tsx
 // ---------------------------------------------------------------------------
-export type LanguageKey = 'label' | 'en' | 'de';
+export type LanguageKey = 'label' | 'en' | 'de' | 'it';
 
 // ---------------------------------------------------------------------------
 // Namespace: common.Notification  (sub-path: company.onboarding.*)
