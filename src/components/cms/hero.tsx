@@ -65,32 +65,15 @@ const Hero = ({ headline, text, main_button, image, video }: HeroProps) => {
         'max-w-[2500px] mx-auto',
       )}
     >
-      <div className="w-full flex justify-end">
-        <div className="mb-44 sm:mb-0 h-100 sm:h-145 md:h-185 w-full sm:w-auto">
-          {image && (
-            <svg className="h-full w-full sm:w-auto" viewBox={isAboveSmallScreen ? '0 0 1573 735' : '0 500 1573 735'}>
-              <defs>
-                <clipPath id="shape">
-                  <path
-                    className="hidden sm:block"
-                    d="M575.995 711.064L0.5 0H1572.5V525.401C1572.5 556.733 1549.82 583.458 1518.9 588.55L636.144 733.95C613.438 737.69 590.472 728.952 575.995 711.064Z"
-                    fill="#0F77D9"
-                  />
-                  <path className="w-full sm:hidden" d="M0 0H360V220L0 260V0Z" fill="#0F77D9" transform="scale(5)" />
-                </clipPath>
-              </defs>
-
-              {image && !videoData?.autoplay && (
-                <image clipPath="url(#shape)" xlinkHref={image.filename} className="sm:translate-x-0 sm:w-full"></image>
-              )}
-              {video && (
-                <foreignObject clipPath="url(#shape)" className="sm:translate-x-0 w-full h-[200%] sm:h-full">
-                  <div className="w-full h-full" ref={videoPlayer}>
-                    <Video {...video[0]} controls={false} />
-                  </div>
-                </foreignObject>
-              )}
-            </svg>
+      <div className="w-full">
+        <div className="mb-44 sm:mb-0 h-100 sm:h-145 md:h-185 w-full overflow-hidden">
+          {image && !videoData?.autoplay && (
+            <img src={image.filename} alt={image.alt || ''} className="w-full h-full object-cover" />
+          )}
+          {video && (
+            <div className="w-full h-full" ref={videoPlayer}>
+              <Video {...video[0]} controls={false} />
+            </div>
           )}
         </div>
       </div>

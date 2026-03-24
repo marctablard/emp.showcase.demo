@@ -120,8 +120,8 @@ export function HeaderActionBar() {
     <div
       ref={actionBarRef}
       className={cn(
-        'bg-surface-page/95 backdrop-blur-default shadow-sm px-4 py-2 sm:px-6 sm:pt-5 sm:rounded-b-lg sm:group',
-        scrolled && 'sm:rounded-t-lg sm:pt-2',
+        'bg-surface-page/95 backdrop-blur-default shadow-sm px-4 py-2 sm:px-6 sm:pt-5 sm:group',
+        scrolled && 'sm:pt-2',
         showMenu && 'sm:h-auto',
       )}
     >

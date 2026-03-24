@@ -17,7 +17,7 @@ export function HeaderTopBanner() {
   return (
     <div
       className={cn(
-        'hidden sm:flex items-center -mx-2 lg:-mx-4 -mb-1 h-8 px-8 lg:px-10 relative z-10 bg-surface-action text-text-on-action shadow-sm rounded-lg',
+        'hidden sm:flex items-center -mx-2 lg:-mx-4 -mb-1 h-8 px-8 lg:px-10 relative z-10 bg-surface-action text-text-on-action shadow-sm',
         scrolled && 'sm:hidden',
       )}
     >
