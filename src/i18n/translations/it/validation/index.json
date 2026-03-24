@@ -1,0 +1,113 @@
+{
+  "contactData": {
+    "email": {
+      "required": "L'email è obbligatoria",
+      "invalid": "Inserisci un indirizzo email valido"
+    },
+    "firstName": {
+      "required": "Il nome è obbligatorio"
+    },
+    "lastName": {
+      "required": "Il cognome è obbligatorio"
+    }
+  },
+  "address": {
+    "contactName": {
+      "required": "Il nome del contatto è obbligatorio"
+    },
+    "street": {
+      "required": "La via è obbligatoria"
+    },
+    "streetNumber": {
+      "required": "Il numero civico è obbligatorio"
+    },
+    "zipCode": {
+      "required": "Il codice postale è obbligatorio"
+    },
+    "city": {
+      "required": "La città è obbligatoria"
+    },
+    "country": {
+      "required": "Il paese è obbligatorio"
+    },
+    "state": {
+      "required": "La provincia/regione è obbligatoria"
+    }
+  },
+  "shipping": {
+    "method": {
+      "required": "Il metodo di spedizione è obbligatorio"
+    }
+  },
+  "payment": {
+    "method": {
+      "required": "Il metodo di pagamento è obbligatorio"
+    }
+  },
+  "login": {
+    "username": {
+      "required": "L'email è obbligatoria",
+      "invalid": "Inserisci un indirizzo email valido"
+    },
+    "password": {
+      "required": "La password è obbligatoria"
+    }
+  },
+  "password": {
+    "email": {
+      "required": "L'email è obbligatoria",
+      "invalid": "Inserisci un indirizzo email valido"
+    }
+  },
+  "register": {
+    "registrationType": {
+      "required": "Il tipo di registrazione è obbligatorio"
+    },
+    "firstName": {
+      "required": "Il nome è obbligatorio"
+    },
+    "lastName": {
+      "required": "Il cognome è obbligatorio"
+    },
+    "email": {
+      "required": "L'indirizzo email è obbligatorio",
+      "invalid": "Inserisci un indirizzo email valido",
+      "mismatch": "Gli indirizzi email non corrispondono"
+    },
+    "emailConfirmation": {
+      "required": "Conferma il tuo indirizzo email"
+    },
+    "companyName": {
+      "required": "Il nome azienda è obbligatorio"
+    },
+    "vatNumber": {
+      "required": "La partita IVA è obbligatoria"
+    },
+    "street": {
+      "required": "La via è obbligatoria"
+    },
+    "houseNumber": {
+      "required": "Il numero civico è obbligatorio"
+    },
+    "postalCode": {
+      "required": "Il codice postale è obbligatorio"
+    },
+    "city": {
+      "required": "La città è obbligatoria"
+    },
+    "country": {
+      "required": "Il paese è obbligatorio"
+    },
+    "password": {
+      "mismatch": "Le password non corrispondono"
+    },
+    "passwordConfirmation": {
+      "required": "Conferma la tua password"
+    },
+    "general": {
+      "emailExists": "Questa email è già registrata. Usa un'email diversa o prova ad accedere.",
+      "registrationFailed": "Registrazione fallita. Riprova.",
+      "serverError": "Si è verificato un errore del server. Riprova più tardi."
+    }
+  }
+}

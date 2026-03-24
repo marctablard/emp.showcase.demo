@@ -1,0 +1,16 @@
+{
+  "searchResults": {
+    "showing": "Mostrando {start}-{end} di {total} prodotti",
+    "noProductsFound": "Nessun prodotto trovato",
+    "tryAdjusting": "Prova a modificare la ricerca o i filtri",
+    "allProducts": "Tutti i prodotti",
+    "resultsFor": "Risultati per \"{query}\"",
+    "resetFilter": "Cancella filtro",
+    "loadMore": "Carica altri",
+    "loadingMore": "Caricamento…"
+  },
+  "layoutToggle": {
+    "list": "Vista elenco",
+    "grid": "Vista griglia"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "defaultProductName": "Prodotto",
+  "defaultProductDescription": "{productName} - Prodotto di alta qualità dal nostro catalogo",
+  "productTitle": "{productName} | Emporix Showcase",
+  "productNotFoundTitle": "Prodotto non trovato | Emporix Showcase",
+  "productNotFoundDescription": "Il prodotto richiesto non è stato trovato. Controlla il nostro catalogo per altri prodotti.",
+  "brandName": "Emporix",
+  "currency": "EUR",
+  "storeName": "Emporix Showcase Store"
+}

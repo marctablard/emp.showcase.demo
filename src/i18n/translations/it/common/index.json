@@ -1,0 +1,49 @@
+{
+  "NotFound": {
+    "title": "404",
+    "home": "Torna alla home"
+  },
+  "Languages": {
+    "label": "Lingue",
+    "en": "Inglese",
+    "de": "Tedesco",
+    "it": "Italiano"
+  },
+  "Currencies": {
+    "label": "Valute"
+  },
+  "Regions": {
+    "label": "Sito",
+    "switchFailed": "Impossibile cambiare sito. Riprova."
+  },
+  "hello": {
+    "world": "Ciao Mondo",
+    "friend": "Ciao Amico"
+  },
+  "Breadcrumb": {
+    "backLink": "Indietro",
+    "homeLink": "Home",
+    "backLinkAriaLabel": "Torna alla pagina precedente"
+  },
+  "UI": {
+    "spinner": {
+      "loading": "Caricamento..."
+    },
+    "Carousel": {
+      "pageTitle": "Pagina {index}",
+      "prev": "Precedente",
+      "next": "Successivo"
+    }
+  },
+  "Notification": {
+    "close": "Chiudi",
+    "company": {
+      "onboarding": {
+        "rejected": "La tua azienda non è stata approvata. Se pensi che sia un errore, contattaci.",
+        "pending": "La tua azienda è attualmente in fase di revisione. Non potrai effettuare acquisti finché non sarà completata.",
+        "approved": "Congratulazioni! La tua azienda è stata approvata. Ora puoi iniziare a fare acquisti."
+      }
+    }
+  },
+  "optional": "(opzionale)"
+}
