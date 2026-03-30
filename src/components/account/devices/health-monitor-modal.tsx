@@ -20,8 +20,8 @@ interface HealthMonitorModalProps {
   customerId: string;
 }
 
-const WEBHOOK_URL = 'https://hook.emporix-cop.integromat.celonis.com/fvardsdlvw3gj3xabzniaep3ih3wwj83';
-const COOLANT_THRESHOLD = 25;
+const WEBHOOK_URL = process.env.NEXT_PUBLIC_DEVICE_HEALTH_WEBHOOK_URL ?? '';
+const HEALTH_THRESHOLD = Number(process.env.NEXT_PUBLIC_HEALTH_THRESHOLD ?? 25);
 
 // All colours reference the app's CSS design tokens so the modal
 // automatically stays in sync with the brand theme.
@@ -54,7 +54,10 @@ export function HealthMonitorModal({
   const [coolantLevel, setCoolantLevel] = useState(initialLevel);
   const [webhookStatus, setWebhookStatus] = useState<WebhookStatus>('Ready');
   const [logs, setLogs] = useState<string[]>([]);
-  const wasAboveThreshold = useRef(initialLevel >= COOLANT_THRESHOLD);
+  const wasAboveThreshold = useRef(initialLevel >= HEALTH_THRESHOLD);
+  // keeps latest mode/triggerWebhook accessible inside effects without changing deps array size
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
   const logsRef = useRef<HTMLDivElement>(null);
 
   const addLog = useCallback((message: string) => {
@@ -62,42 +65,56 @@ export function HealthMonitorModal({
     setLogs((prev) => [`[${ts}] ${message}`, ...prev].slice(0, 30));
   }, []);
 
-  const triggerWebhook = useCallback(
-    async (currentMode: OperationMode) => {
-      setWebhookStatus('Triggered');
-      addLog(`Coolant below ${COOLANT_THRESHOLD}% — calling ${currentMode} webhook…`);
-      try {
-        const res = await fetch(WEBHOOK_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: currentMode,
-            customerId,
-            companyId: device.companyId ?? '',
-            productId: device.productId ?? '',
-            serial: device.serialNumber,
-          }),
-        });
-        if (res.ok) {
-          addLog(`Webhook accepted (HTTP ${res.status})`);
-        } else {
-          setWebhookStatus('Error');
-          addLog(`Webhook failed (HTTP ${res.status})`);
-        }
-      } catch (err) {
+  const triggerWebhook = useCallback(async () => {
+    const currentMode = modeRef.current;
+    if (!WEBHOOK_URL) {
+      addLog('Webhook URL not configured (NEXT_PUBLIC_DEVICE_HEALTH_WEBHOOK_URL is empty)');
+      setWebhookStatus('Error');
+      console.warn('[HealthMonitor] Webhook skipped — NEXT_PUBLIC_DEVICE_HEALTH_WEBHOOK_URL is empty');
+      return;
+    }
+    const payload = {
+      type: currentMode,
+      customerId,
+      companyId: device.companyId ?? '',
+      productId: device.productId ?? '',
+      serial: device.serialNumber,
+    };
+    console.log('[HealthMonitor] Calling webhook', { url: WEBHOOK_URL, payload });
+    setWebhookStatus('Triggered');
+    addLog(`Coolant below ${HEALTH_THRESHOLD}% — calling ${currentMode} webhook…`);
+    try {
+      const res = await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        console.log(`[HealthMonitor] Webhook accepted (HTTP ${res.status})`);
+        addLog(`Webhook accepted (HTTP ${res.status})`);
+      } else {
+        console.error(`[HealthMonitor] Webhook failed (HTTP ${res.status})`);
         setWebhookStatus('Error');
-        getLogger().error({ err }, 'Health monitor webhook failed');
-        addLog(`Webhook error: ${err instanceof Error ? err.message : String(err)}`);
+        addLog(`Webhook failed (HTTP ${res.status})`);
       }
-    },
-    [addLog, customerId, device.companyId, device.productId, device.serialNumber],
-  );
+    } catch (err) {
+      console.error('[HealthMonitor] Webhook error', err);
+      setWebhookStatus('Error');
+      getLogger().error({ err }, 'Health monitor webhook failed');
+      addLog(`Webhook error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [addLog, customerId, device.companyId, device.productId, device.serialNumber]);
+
+  // Store triggerWebhook in a ref so the effect below can always call the latest
+  // version without adding it to the dependency array (which would change its size).
+  const triggerWebhookRef = useRef(triggerWebhook);
+  triggerWebhookRef.current = triggerWebhook;
 
   useEffect(() => {
-    const isBelow = coolantLevel < COOLANT_THRESHOLD;
+    const isBelow = coolantLevel < HEALTH_THRESHOLD;
     if (isBelow && wasAboveThreshold.current) {
       wasAboveThreshold.current = false;
-      triggerWebhook(mode);
+      triggerWebhookRef.current();
     } else if (!isBelow) {
       wasAboveThreshold.current = true;
       setWebhookStatus('Ready');
@@ -111,18 +128,18 @@ export function HealthMonitorModal({
       setCoolantLevel(initialLevel);
       setWebhookStatus('Ready');
       setLogs([]);
-      wasAboveThreshold.current = initialLevel >= COOLANT_THRESHOLD;
+      wasAboveThreshold.current = initialLevel >= HEALTH_THRESHOLD;
     }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleReset = () => {
     setCoolantLevel(initialLevel);
     setWebhookStatus('Ready');
-    wasAboveThreshold.current = initialLevel >= COOLANT_THRESHOLD;
+    wasAboveThreshold.current = initialLevel >= HEALTH_THRESHOLD;
     addLog(`System reset — coolant level restored to ${initialLevel}%`);
   };
 
-  const isCritical = coolantLevel < COOLANT_THRESHOLD;
+  const isCritical = coolantLevel < HEALTH_THRESHOLD;
   const webhookColor = webhookStatus === 'Ready' ? C.success : webhookStatus === 'Error' ? C.error : C.warning;
 
   return (
