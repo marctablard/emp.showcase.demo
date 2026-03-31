@@ -121,11 +121,32 @@ const customJestConfig = {
       testEnvironment: 'node',
       testMatch: ['**/components/**/?(*.)+(spec|test).ts?(x)'],
       setupFilesAfterEnv: ['<rootDir>/jest.platform.setup.js'],
+      transformIgnorePatterns: ['/node_modules/(?!(next-intl|use-intl)/)'],
       transform: {
         '^.+\\.tsx?$': [
           'ts-jest',
           {
             tsconfig: 'tsconfig.json',
+          },
+        ],
+        '^.+\\.(js|jsx)$': [
+          '@swc/jest',
+          {
+            jsc: {
+              parser: {
+                syntax: 'ecmascript',
+                jsx: true,
+              },
+              transform: {
+                react: {
+                  runtime: 'automatic',
+                },
+              },
+              target: 'es2017',
+            },
+            module: {
+              type: 'es6',
+            },
           },
         ],
       },
@@ -137,11 +158,32 @@ const customJestConfig = {
       testEnvironment: 'node',
       testMatch: ['**/platform/**/?(*.)+(spec|test).ts?(x)'],
       setupFilesAfterEnv: ['<rootDir>/jest.platform.setup.js'],
+      transformIgnorePatterns: ['/node_modules/(?!(next-intl|use-intl)/)'],
       transform: {
         '^.+\\.tsx?$': [
           'ts-jest',
           {
             tsconfig: 'tsconfig.json',
+          },
+        ],
+        '^.+\\.(js|jsx)$': [
+          '@swc/jest',
+          {
+            jsc: {
+              parser: {
+                syntax: 'ecmascript',
+                jsx: true,
+              },
+              transform: {
+                react: {
+                  runtime: 'automatic',
+                },
+              },
+              target: 'es2017',
+            },
+            module: {
+              type: 'es6',
+            },
           },
         ],
       },

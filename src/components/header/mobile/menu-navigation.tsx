@@ -178,7 +178,7 @@ export function MobileMenuNavigation({ onClose }: MobileMenuNavigationProps) {
     }
   };
 
-  const mainItems = getItemsForView('main');
+  const mainItems = menuItems;
   const secondLevelItems = currentView !== 'main' ? getItemsForView(currentView) : [];
   const categoryPreviewCount = getNavigationRootCategoriesPageSize();
   const secondLevelPage =

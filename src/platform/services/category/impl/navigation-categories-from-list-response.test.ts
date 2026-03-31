@@ -35,26 +35,38 @@ describe('mapListCategoryRowsToNavigationCategories', () => {
     const listed: EmporixCategory[] = [
       {
         id: '38118',
-        name: 'ProductRoot',
+        name: { en: 'ProductRoot' },
         code: 'productroot',
         position: 1,
         published: true,
         subcategories: [
-          { id: '38198', parentId: '38118', name: 'Child1', position: 1, published: true },
-          { id: '38199', parentId: '38118', name: 'Child2', position: 2, published: true },
+          {
+            id: '38198',
+            parentId: '38118',
+            name: { en: 'Child1' },
+            position: 1,
+            published: true,
+          },
+          {
+            id: '38199',
+            parentId: '38118',
+            name: { en: 'Child2' },
+            position: 2,
+            published: true,
+          },
         ],
       },
       {
         id: '38198',
         parentId: '38118',
-        name: 'Child1',
+        name: { en: 'Child1' },
         position: 1,
         published: true,
       },
       {
         id: '38199',
         parentId: '38118',
-        name: 'Child2',
+        name: { en: 'Child2' },
         position: 2,
         published: true,
       },
@@ -62,6 +74,8 @@ describe('mapListCategoryRowsToNavigationCategories', () => {
     const out = mapListCategoryRowsToNavigationCategories(listed, idMap);
     expect(out).toHaveLength(1);
     expect(out[0].id).toBe('38118');
-    expect(out[0].children?.map((c) => c.id).sort()).toEqual(['38198', '38199']);
+    expect(
+      out[0].children?.map((c) => (typeof c === 'string' ? c : c.id)).sort(),
+    ).toEqual(['38198', '38199']);
   });
 });
