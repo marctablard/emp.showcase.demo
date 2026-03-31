@@ -3,25 +3,38 @@ import { X } from 'lucide-react';
 import { Pill } from '@/components/ui/pill';
 import { FilterValue as SearchFilterValue } from '@/hooks/search/useSearch';
 import { type ProductFilterKey, dk } from '@/i18n/dynamic-key';
+import { parseCategoryIdsFilterValue } from '@/lib/search/parse-category-ids-filter';
 
 interface SearchActiveFiltersProps {
   activeFilters: Record<string, SearchFilterValue>;
   resetFacet: (facetId: string) => void;
   resetAllFacets: () => void;
+  categoryFilterLabelsById?: Record<string, string>;
 }
 
-export function SearchActiveFilters({ activeFilters, resetFacet }: SearchActiveFiltersProps) {
+export function SearchActiveFilters({
+  activeFilters,
+  resetFacet,
+  categoryFilterLabelsById,
+}: SearchActiveFiltersProps) {
   const t = useTranslations('product');
   const filters = Object.entries(activeFilters);
 
-  // Helper function to format filter values for display
-  const formatFilterValue = (value: SearchFilterValue): string => {
+  const formatFilterValue = (facetId: string, value: SearchFilterValue): string => {
+    if (facetId === 'categoryIds') {
+      const ids = parseCategoryIdsFilterValue(value);
+      if (ids.length === 0) {
+        return '';
+      }
+      return ids.map((id) => categoryFilterLabelsById?.[id] ?? id).join(', ');
+    }
     if (typeof value === 'string') {
       return value;
-    } else if (Array.isArray(value)) {
+    }
+    if (Array.isArray(value)) {
       return value.join(', ');
-    } else if (value && typeof value === 'object') {
-      // Handle Record<string, string>
+    }
+    if (value && typeof value === 'object') {
       return Object.entries(value)
         .map(([k, v]) => `${k}: ${v}`)
         .join(', ');
@@ -38,7 +51,7 @@ export function SearchActiveFilters({ activeFilters, resetFacet }: SearchActiveF
               trailingIcon={<X />}
               key={id}
               label={t(dk<ProductFilterKey>(`filters.${id}`))}
-              value={formatFilterValue(value)}
+              value={formatFilterValue(id, value)}
               onClick={() => resetFacet(id)}
             />
           );

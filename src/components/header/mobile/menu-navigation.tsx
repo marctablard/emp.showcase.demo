@@ -6,23 +6,118 @@ import { ArrowLeft, ChevronDown, MapPin } from 'lucide-react';
 import { HeaderPromo } from '@/components/header/common/header-promo';
 import { LocationSettingsDialog } from '@/components/header/mobile/location-settings-dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { navigationMenuItems, serviceMenuItems } from '@/data/navigation-menu';
+import { useNavigationProductSubmenu } from '@/components/header/navigation-product-submenu-context';
+import {
+  ALL_PRODUCTS_NAVIGATION_ITEM_ID,
+  navigationMenuItems,
+  serviceMenuItems,
+  SubMenuItem,
+} from '@/data/navigation-menu';
 import { Link } from '@/i18n/navigation';
+import { mergeNavigationProductSubmenu } from '@/lib/navigation/merge-navigation-product-submenu';
+import { getNavigationRootCategoriesPageSize } from '@/lib/navigation/navigation-root-categories-page-size';
+import { takeRootCategoryPage } from '@/lib/navigation/take-root-category-page';
+import { cn } from '@/lib/utils';
 
 interface MobileMenuNavigationProps {
   onClose?: () => void;
 }
 
+function subMenuItemKey(item: SubMenuItem, index: number): string {
+  return item.id ?? `${item.href}::${item.label}::${index}`;
+}
+
+function expandKey(item: SubMenuItem, index: number): string {
+  return item.id ?? subMenuItemKey(item, index);
+}
+
+interface NestedSubmenuProps {
+  items: SubMenuItem[];
+  depth: number;
+  expandedItems: Set<string>;
+  toggleExpanded: (key: string) => void;
+  onNavigate?: () => void;
+}
+
+function NestedSubmenuItems({ items, depth, expandedItems, toggleExpanded, onNavigate }: NestedSubmenuProps) {
+  const rowPad = depth === 0 ? 'px-5' : 'px-2';
+
+  return (
+    <ul className={cn(depth > 0 && 'ms-3 border-s border-border-subtle ps-3')}>
+      {items.map((item, index) => {
+        const key = expandKey(item, index);
+        const hasChildren = item.hasSubmenu && (item.submenuItems?.length ?? 0) > 0;
+
+        if (item.href && !hasChildren) {
+          return (
+            <li key={subMenuItemKey(item, index)}>
+              <Link
+                href={item.href}
+                onClick={() => onNavigate?.()}
+                className={cn(
+                  'flex items-center justify-between py-3',
+                  depth === 0 ? 'text-md font-bold' : 'text-base',
+                  rowPad,
+                )}
+              >
+                {item.label}
+              </Link>
+            </li>
+          );
+        }
+
+        if (hasChildren && item.submenuItems) {
+          return (
+            <li key={subMenuItemKey(item, index)}>
+              <Collapsible open={expandedItems.has(key)} onOpenChange={() => toggleExpanded(key)}>
+                <CollapsibleTrigger
+                  className={cn(
+                    'w-full flex items-center justify-between py-3 text-base font-bold cursor-pointer text-start',
+                    rowPad,
+                  )}
+                >
+                  {item.label}
+                  <ChevronDown
+                    className={cn('w-5 h-5 shrink-0 transition-transform', expandedItems.has(key) && 'rotate-180')}
+                    aria-hidden
+                  />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <NestedSubmenuItems
+                    items={item.submenuItems}
+                    depth={depth + 1}
+                    expandedItems={expandedItems}
+                    toggleExpanded={toggleExpanded}
+                    onNavigate={onNavigate}
+                  />
+                </CollapsibleContent>
+              </Collapsible>
+            </li>
+          );
+        }
+
+        return (
+          <li key={subMenuItemKey(item, index)}>
+            <span className={cn('flex items-center py-3 text-base', rowPad)}>{item.label}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function MobileMenuNavigation({ onClose }: MobileMenuNavigationProps) {
   const t = useTranslations('layout.header');
+  const { submenuItems: productCategorySubmenu, showSeeAllBrowse } = useNavigationProductSubmenu();
 
-  // Transform menu items with translations
-  const menuItems = navigationMenuItems.map((item) => ({
-    ...item,
-    label: t(item.labelKey as any),
-  }));
+  const menuItems = navigationMenuItems.map((item) => {
+    const merged = mergeNavigationProductSubmenu(item, productCategorySubmenu);
+    return {
+      ...merged,
+      label: t(item.labelKey as any),
+    };
+  });
 
-  // Transform service items with translations
   const serviceItems = serviceMenuItems.map((item) => ({
     ...item,
     label: t(item.labelKey as any),
@@ -33,38 +128,41 @@ export function MobileMenuNavigation({ onClose }: MobileMenuNavigationProps) {
   const [showLocationSettings, setShowLocationSettings] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
-  const toggleExpanded = useCallback((itemId: string) => {
+  const toggleExpanded = useCallback((itemKey: string) => {
     setExpandedItems((prev) => {
       const next = new Set(prev);
-      if (next.has(itemId)) {
-        next.delete(itemId);
+      if (next.has(itemKey)) {
+        next.delete(itemKey);
       } else {
-        next.add(itemId);
+        next.add(itemKey);
       }
       return next;
     });
   }, []);
 
-  const getItemsForView = (view: string) => {
+  const getItemsForView = (view: string): SubMenuItem[] => {
     if (view === 'main') {
-      return menuItems;
+      return [];
     }
-    const findSubmenu = (items: any[], targetId: string): any[] | null => {
-      for (const item of items) {
+    type NavEntry = { id?: string; label?: string; submenuItems?: SubMenuItem[] };
+    const findSubmenu = (nodes: NavEntry[], targetId: string): SubMenuItem[] | null => {
+      for (const item of nodes) {
         if (item.id === targetId || item.label === targetId) {
-          return item.submenuItems || [];
+          return item.submenuItems ?? [];
         }
-        if (item.submenuItems) {
-          const found = findSubmenu(item.submenuItems, targetId);
-          if (found) return found;
+        if (item.submenuItems?.length) {
+          const found = findSubmenu(item.submenuItems as NavEntry[], targetId);
+          if (found) {
+            return found;
+          }
         }
       }
       return null;
     };
-    return findSubmenu(menuItems, view) || [];
+    return findSubmenu(menuItems as NavEntry[], view) ?? [];
   };
 
-  const handleItemClick = (item: any) => {
+  const handleItemClick = (item: (typeof menuItems)[0]) => {
     if (item.hasSubmenu && currentView === 'main') {
       setSecondLevelLabel(item.label);
       setCurrentView(item.id || item.label);
@@ -82,64 +180,40 @@ export function MobileMenuNavigation({ onClose }: MobileMenuNavigationProps) {
 
   const mainItems = getItemsForView('main');
   const secondLevelItems = currentView !== 'main' ? getItemsForView(currentView) : [];
+  const categoryPreviewCount = getNavigationRootCategoriesPageSize();
+  const secondLevelPage =
+    currentView === ALL_PRODUCTS_NAVIGATION_ITEM_ID
+      ? takeRootCategoryPage(secondLevelItems, categoryPreviewCount)
+      : null;
+  const secondLevelVisibleItems = secondLevelPage?.visible ?? secondLevelItems;
+  const secondLevelTruncated = secondLevelPage?.truncated ?? false;
+  const showMobileProductsSeeAll =
+    currentView === ALL_PRODUCTS_NAVIGATION_ITEM_ID && (showSeeAllBrowse || secondLevelTruncated);
 
-  // Shared render function for menu items
-  const renderMenuItems = (items: any[], isSecondLevel: boolean) => (
+  const renderMainMenuItems = () => (
     <ul>
-      {items.map((item, index) => (
-        <li key={item.id || item.label || index}>
+      {mainItems.map((item, index) => (
+        <li key={item.id || index}>
           {item.href && !item.hasSubmenu ? (
             <>
               <Link
                 href={item.href}
-                onClick={() => (isSecondLevel ? onClose?.() : handleItemClick(item))}
-                className={`flex items-center justify-between px-5 py-4 ${isSecondLevel ? 'text-md font-bold' : 'text-lg'}`}
+                onClick={() => onClose?.()}
+                className="flex items-center justify-between px-5 py-4 text-lg"
               >
                 {item.label}
               </Link>
-              {!isSecondLevel && <hr className="mx-5 border-border-subtle" />}
+              <hr className="mx-5 border-border-subtle" />
             </>
-          ) : isSecondLevel && item.submenuItems && item.submenuItems.length > 0 ? (
-            <Collapsible
-              open={expandedItems.has(item.id || item.label)}
-              onOpenChange={() => toggleExpanded(item.id || item.label)}
-            >
-              <CollapsibleTrigger className="w-full flex items-center justify-between px-5 py-4 text-md font-bold cursor-pointer">
-                {item.label}
-                <ChevronDown
-                  className={`w-5 h-5 transition-transform ${expandedItems.has(item.id || item.label) ? 'rotate-180' : ''}`}
-                />
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <ul>
-                  {item.submenuItems.map((subItem: any, subIndex: number) => (
-                    <li key={subItem.id || subItem.label || subIndex}>
-                      {subItem.href ? (
-                        <Link
-                          href={subItem.href}
-                          onClick={() => onClose?.()}
-                          className="flex items-center justify-between pl-10 pr-5 py-3 text-base"
-                        >
-                          {subItem.label}
-                        </Link>
-                      ) : (
-                        <span className="flex items-center justify-between pl-10 pr-5 py-3 text-base">
-                          {subItem.label}
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </CollapsibleContent>
-            </Collapsible>
-          ) : !isSecondLevel && item.hasSubmenu ? (
+          ) : item.hasSubmenu ? (
             <>
               <button
+                type="button"
                 onClick={() => handleItemClick(item)}
                 className="w-full flex items-center justify-between px-5 py-4 text-lg cursor-pointer"
               >
                 {item.label}
-                <ChevronDown className="w-5 h-5 ms-1" />
+                <ChevronDown className="w-5 h-5 ms-1 shrink-0" aria-hidden />
               </button>
               <hr className="mx-5 border-border-subtle" />
             </>
@@ -147,7 +221,7 @@ export function MobileMenuNavigation({ onClose }: MobileMenuNavigationProps) {
             <Link
               href={item.href || '#'}
               onClick={() => onClose?.()}
-              className={`flex items-center justify-between px-5 py-4 ${isSecondLevel ? 'text-md font-bold' : 'text-lg'}`}
+              className="flex items-center justify-between px-5 py-4 text-lg"
             >
               {item.label}
             </Link>
@@ -162,11 +236,9 @@ export function MobileMenuNavigation({ onClose }: MobileMenuNavigationProps) {
       <nav
         className={`w-full flex transition-transform duration-300 ease-in-out ${currentView !== 'main' ? '-translate-x-full' : 'translate-x-0'}`}
       >
-        {/* Main panel */}
         <div className="w-full flex-shrink-0 bg-surface-page overflow-y-auto">
-          {renderMenuItems(mainItems, false)}
+          {renderMainMenuItems()}
 
-          {/* Service & Contact Group */}
           <ul>
             <li>
               <div className="px-5 pt-8 font-semibold text-base text-text-placeholders">{t('serviceAndContact')}</div>
@@ -187,18 +259,18 @@ export function MobileMenuNavigation({ onClose }: MobileMenuNavigationProps) {
             ))}
           </ul>
 
-          {/* Location Settings */}
           <ul>
             <li>
               <div className="px-5 pt-8 font-semibold text-base text-text-placeholders">{t('settings')}</div>
             </li>
             <li>
               <button
+                type="button"
                 onClick={() => setShowLocationSettings(true)}
                 className="w-full flex items-center justify-between px-5 py-4 text-md cursor-pointer"
               >
                 {t('locationSettings')}
-                <MapPin className="w-5 h-5" />
+                <MapPin className="w-5 h-5 shrink-0" aria-hidden />
               </button>
             </li>
           </ul>
@@ -206,22 +278,38 @@ export function MobileMenuNavigation({ onClose }: MobileMenuNavigationProps) {
           <HeaderPromo />
         </div>
 
-        {/* Second level panel */}
         <div className="w-full flex-shrink-0 bg-surface-page overflow-y-auto">
-          {/* Back button */}
           <div className="flex items-center gap-3 px-4 py-4">
-            <button onClick={handleBack} className="flex items-center gap-2">
-              <ArrowLeft className="w-5 h-5 text-text-action" />
+            <button type="button" onClick={handleBack} className="flex items-center gap-2">
+              <ArrowLeft className="w-5 h-5 text-text-action shrink-0" aria-hidden />
               <span className="text-lg font-medium">{secondLevelLabel || 'Back'}</span>
             </button>
           </div>
           <hr className="mx-5 border-border-subtle" />
 
-          {renderMenuItems(secondLevelItems, true)}
+          <NestedSubmenuItems
+            items={secondLevelVisibleItems}
+            depth={0}
+            expandedItems={expandedItems}
+            toggleExpanded={toggleExpanded}
+            onNavigate={onClose}
+          />
+          {showMobileProductsSeeAll ? (
+            <ul>
+              <li>
+                <Link
+                  href="/browse"
+                  onClick={() => onClose?.()}
+                  className="flex items-center justify-between px-5 py-4 text-md font-bold text-text-action"
+                >
+                  {t('seeAllCategories')}
+                </Link>
+              </li>
+            </ul>
+          ) : null}
         </div>
       </nav>
 
-      {/* Location Settings Dialog */}
       <LocationSettingsDialog open={showLocationSettings} onOpenChange={setShowLocationSettings} />
     </div>
   );

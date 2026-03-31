@@ -1,4 +1,4 @@
-import { buildSearchQuery, checkTokenValidity } from './common';
+import { buildSearchQuery, checkTokenValidity, extractItemsFromPaginatedJsonBody } from './common';
 
 describe('buildSearchQuery', () => {
   it('should produce correct body for single value without spaces', () => {
@@ -57,6 +57,20 @@ describe('buildSearchQuery', () => {
     // (not '~(solar blue)') and buildSearchQuery is the single canonical wrapping point
     const result = buildSearchQuery({ criteria: { name: '~solar blue' } });
     expect(result.body).toBe('name:(~solar blue)');
+  });
+});
+
+describe('extractItemsFromPaginatedJsonBody', () => {
+  it('returns the array when body is T[]', () => {
+    expect(extractItemsFromPaginatedJsonBody([{ id: '1' }])).toEqual([{ id: '1' }]);
+  });
+
+  it('returns body.items when present', () => {
+    expect(extractItemsFromPaginatedJsonBody({ items: [{ id: 'a' }], total: 1 })).toEqual([{ id: 'a' }]);
+  });
+
+  it('returns empty array for error-shaped objects without items', () => {
+    expect(extractItemsFromPaginatedJsonBody({ code: 404, message: 'Not Found' })).toEqual([]);
   });
 });
 

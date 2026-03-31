@@ -45,6 +45,25 @@ export function buildSearchQuery<T>(
 }
 
 /**
+ * Emporix list endpoints may return a JSON array or a wrapper `{ items: [...] }`.
+ * Using a non-array as `items` breaks `.map()` downstream.
+ */
+export function extractItemsFromPaginatedJsonBody<T>(body: unknown): T[] {
+  if (Array.isArray(body)) {
+    return body as T[];
+  }
+  if (
+    body !== null &&
+    typeof body === 'object' &&
+    'items' in body &&
+    Array.isArray((body as { items: unknown }).items)
+  ) {
+    return (body as { items: T[] }).items;
+  }
+  return [];
+}
+
+/**
  * Builds a PaginatedResponse object from a HTTP Response object
  * @param params search parameters
  * @param response HTTP response object
@@ -55,9 +74,10 @@ export async function buildPaginatedResponse<T>(
   response: Response,
 ): Promise<EmporixPaginatedResponse<T>> {
   const total: number = Number(response.headers.get('x-total-count')) || -1;
-  const data: T[] = await response.json();
+  const body: unknown = await response.json();
+  const items = extractItemsFromPaginatedJsonBody<T>(body);
   return {
-    items: data,
+    items,
     page: params.page || 0,
     size: params.size || 20,
     total: total,

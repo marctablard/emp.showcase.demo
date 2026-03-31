@@ -3,6 +3,7 @@ import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { type ProductAttributeKey, dk } from '@/i18n/dynamic-key';
 import { Link } from '@/i18n/navigation';
+import { l10nOrEmpty } from '@/lib/l10n';
 import { formatCurrency, l10n } from '@/lib/utils';
 import { Product } from '@/platform/services/model/product';
 
@@ -129,7 +130,7 @@ export function ProductTileFlyOut({ product, locale = 'de', onProductClick, keyw
                 src={image?.url}
                 height={90}
                 width={90}
-                alt={l10n(image?.altText || '', locale) || ''}
+                alt={l10nOrEmpty(image?.altText || '', locale)}
               />
             ) : (
               <Image
@@ -137,7 +138,7 @@ export function ProductTileFlyOut({ product, locale = 'de', onProductClick, keyw
                 src={'/images/no_image_alt.png'}
                 height={90}
                 width={90}
-                alt={l10n(product.name, locale) || ''}
+                alt={l10nOrEmpty(product.name, locale)}
               />
             )}
           </div>

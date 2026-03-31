@@ -48,6 +48,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     page: DEFAULT_PAGE_INDEX,
     size: DEFAULT_PAGE_SIZE,
   });
+  const searchGeneration = useRef(0);
 
   /**
    * Updates the browser URL to reflect current search parameters without reloading.
@@ -65,6 +66,10 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
       const normalize = (src: URLSearchParams, mapQuery: boolean) => {
         const out = new URLSearchParams();
         src.forEach((value, key) => {
+          // Only for /api/search — never mirror onto the storefront URL (path already encodes site/locale).
+          if (key === 'site' || key === 'locale') {
+            return;
+          }
           // Replace 'query' with 'q' in the browser URL for consistency
           const k = mapQuery && key === 'query' ? 'q' : key;
           // Omit empty search terms so /browse?q= is treated as /browse
@@ -103,9 +108,17 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
    */
   const search = useCallback(
     async (params: SearchParams<T>) => {
+      const gen = ++searchGeneration.current;
       try {
         setLoading(true);
         setError(null);
+
+        const resolvedSite = siteCode?.trim();
+        if (!resolvedSite) {
+          setError('Missing site context');
+          setLoading(false);
+          return;
+        }
 
         // Build the URL with query parameters
         const url = new URL('/api/search', window.location.origin);
@@ -130,18 +143,18 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
           url.searchParams.append('sort', params.sort);
           setCurrentSort(params.sort);
         }
-        url.searchParams.append('site', siteCode);
+        url.searchParams.append('site', resolvedSite);
         url.searchParams.append('locale', locale);
 
-        // Add filters if present
-        if (params.filters) {
-          Object.entries(params.filters).forEach(([key, value]) => {
+        const filtersToApply =
+          params.filters && Object.keys(params.filters).length > 0 ? params.filters : undefined;
+        if (filtersToApply) {
+          Object.entries(filtersToApply).forEach(([key, value]) => {
             if (Array.isArray(value)) {
               value.forEach((val) => {
                 url.searchParams.append(`filters[${key}][]`, val);
               });
             } else if (typeof value === 'object' && value !== null) {
-              // Handle nested objects like range filters
               Object.entries(value).forEach(([nestedKey, nestedValue]) => {
                 url.searchParams.append(`filters[${key}][${nestedKey}]`, String(nestedValue));
               });
@@ -149,11 +162,11 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
               url.searchParams.append(`filters[${key}]`, String(value));
             }
           });
-          setActiveFilters(params.filters);
         }
+        setActiveFilters(filtersToApply ?? {});
 
-        // Save the search params for pagination
-        lastSearchParams.current = params;
+        const paramsForRef: SearchParams<T> = { ...params, filters: filtersToApply };
+        lastSearchParams.current = paramsForRef;
 
         // Update browser URL with the same parameters (but with 'q' instead of 'query')
         updateBrowserUrl(url.searchParams);
@@ -167,6 +180,10 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
 
         const data: SearchResult<T> = await response.json();
 
+        if (gen !== searchGeneration.current) {
+          return;
+        }
+
         // Update state with the search results
         setData(data.items);
         setTotal(data.total);
@@ -177,9 +194,13 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
           setFacets(data.availableFilters);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
+        if (gen === searchGeneration.current) {
+          setError(err instanceof Error ? err.message : String(err));
+        }
       } finally {
-        setLoading(false);
+        if (gen === searchGeneration.current) {
+          setLoading(false);
+        }
       }
     },
     [updateBrowserUrl, locale, siteCode],
@@ -310,6 +331,9 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   const loadMore = useCallback(async () => {
     if (!hasMore || loadingMore || loading) return;
 
+    const resolvedSite = siteCode?.trim();
+    if (!resolvedSite) return;
+
     const nextPage = currentPage + 1;
     try {
       setLoadingMore(true);
@@ -319,7 +343,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         origin: window.location.origin,
         nextPage,
         pageSize,
-        siteCode,
+        siteCode: resolvedSite,
         locale,
         query: lastSearchParams.current.query,
         sort: lastSearchParams.current.sort,
@@ -368,10 +392,15 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         setLoading(false);
         return;
       }
+      const resolvedSite = siteCode?.trim();
+      if (!resolvedSite) {
+        setLoading(false);
+        return;
+      }
       try {
         const url = new URL('/api/search/suggestions', window.location.origin);
         url.searchParams.append('query', query);
-        url.searchParams.append('site', siteCode);
+        url.searchParams.append('site', resolvedSite);
         if (locale) {
           url.searchParams.append('locale', locale);
         }
@@ -401,6 +430,41 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
       });
     },
     [search],
+  );
+
+  /**
+   * When browse URL matches SSR (redundant /api/search skipped), keep hook state aligned with the URL so
+   * filter chips, category label resolution, and pagination refs stay correct after client navigation.
+   */
+  const syncBrowseSearchStateFromUrl = useCallback(
+    (slice: {
+      query: string;
+      page: number;
+      size: number;
+      sort?: string;
+      filtersRecord: Record<string, unknown>;
+    }) => {
+      const filters =
+        slice.filtersRecord && Object.keys(slice.filtersRecord).length > 0
+          ? (slice.filtersRecord as Record<string, FilterValue>)
+          : undefined;
+      const q = slice.query.trim() ? slice.query : undefined;
+
+      setActiveFilters(filters ?? {});
+      setCurrentPage(slice.page);
+      setPageSize(slice.size);
+      setCurrentQuery(q);
+      setCurrentSort(slice.sort);
+
+      lastSearchParams.current = {
+        page: slice.page,
+        size: slice.size,
+        query: q,
+        sort: slice.sort,
+        filters,
+      };
+    },
+    [],
   );
 
   useEffect(() => {
@@ -436,6 +500,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     suggestions,
     getSuggestions,
     setPage: changePage,
+    syncBrowseSearchStateFromUrl,
   };
 }
 

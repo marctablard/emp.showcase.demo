@@ -54,7 +54,7 @@ export async function renderBrowsePage({
   locale: string;
   q?: string;
   initialSearch: SearchParams<Product>;
-  initialResults: Awaited<ReturnType<typeof searchProducts>>;
+  initialResults?: Awaited<ReturnType<typeof searchProducts>>;
 }) {
   const t = await getTranslations({ locale, namespace: 'search.searchResults' });
 
@@ -64,11 +64,7 @@ export async function renderBrowsePage({
         {q ? t('resultsFor', { query: q }) : t('allProducts')}
       </Heading>
 
-      <SearchResultsComponent
-        initialSearch={initialSearch}
-        initialResults={initialResults}
-        locale={locale}
-      ></SearchResultsComponent>
+      <SearchResultsComponent initialSearch={initialSearch} initialResults={initialResults} locale={locale} />
     </div>
   );
 }
@@ -89,8 +85,12 @@ export default async function BrowsePage({
   const rawParams = await searchParams;
 
   const { initialSearch, q } = createBrowseInitialSearch(rawParams, false, site);
-  // Fetch initial products server-side if SSR is enabled
   const initialResults = isSearchSsrEnabled() ? await searchProducts(initialSearch) : undefined;
 
-  return renderBrowsePage({ locale, q, initialSearch, initialResults });
+  return renderBrowsePage({
+    locale,
+    q,
+    initialSearch,
+    initialResults,
+  });
 }

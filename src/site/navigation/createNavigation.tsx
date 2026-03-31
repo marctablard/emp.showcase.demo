@@ -20,11 +20,13 @@ export default function createNavigation(siteRouting: SiteRoutingConfig, intlRou
       if (!pathname) return pathname;
 
       let unprefixedPathname = pathname;
-      const sitePrefix = prependPrefix(site);
-      const isPathnameSitePrefixed = hasPathnamePrefixed(sitePrefix, pathname);
+      if (site) {
+        const sitePrefix = prependPrefix(site);
+        const isPathnameSitePrefixed = hasPathnamePrefixed(sitePrefix, pathname);
 
-      if (isPathnameSitePrefixed) {
-        unprefixedPathname = unprefixPathname(pathname, sitePrefix);
+        if (isPathnameSitePrefixed) {
+          unprefixedPathname = unprefixPathname(pathname, sitePrefix);
+        }
       }
       // We must reimplement this logic, because next-intl does not allow to hook into it
       const localePrefix = getLocalePrefix(locale, intlRouting);
@@ -48,7 +50,7 @@ export default function createNavigation(siteRouting: SiteRoutingConfig, intlRou
           const { site: nextSite, ...rest } = options || {};
           const path = addPrefixIfNeeded(
             typeof href === 'string' ? href : href.pathname,
-            nextSite || (site as string),
+            nextSite || site,
             siteRouting,
           );
           const args: [href: string, options?: Options] = [path];

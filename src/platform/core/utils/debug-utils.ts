@@ -644,13 +644,22 @@ export function withApiRouteDebug<T extends (...args: any[]) => Promise<Response
     const start = Date.now();
     const requestId = generateRequestId();
 
-    // Extract request body for POST/PUT/PATCH
+    // Extract request body for POST/PUT/PATCH; for GET, surface query string as the effective "payload"
     let reqBodyStr: string | undefined;
     if (['POST', 'PUT', 'PATCH'].includes(method)) {
       try {
         reqBodyStr = await request.clone().text();
       } catch {
         // body might not be readable
+      }
+    } else if (method === 'GET') {
+      try {
+        const u = new URL(url);
+        if (u.search.length > 1) {
+          reqBodyStr = u.search.slice(1);
+        }
+      } catch {
+        // ignore
       }
     }
 

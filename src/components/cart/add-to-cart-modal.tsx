@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { H3 } from '@/components/ui/h';
 import { useRouter } from '@/i18n/navigation';
-import { l10n } from '@/lib/utils';
+import { l10n, l10nOrEmpty } from '@/lib/utils';
 import type { CartStatus, CartStatusDetailCode } from '@/platform/services/cart/CartService';
 import { Product } from '@/platform/services/model/product';
 import UINotification from '../ui/molecules/ui-notification';
@@ -72,7 +72,13 @@ export function AddToCartModal({
                     width={100}
                     height={65}
                     src={product.images?.[0].url}
-                    alt={l10n(product.images?.[0].altText || product.name, locale)}
+                    alt={
+                      product.images?.[0]?.altText
+                        ? l10nOrEmpty(product.images[0].altText, locale) ||
+                          l10nOrEmpty(product.name, locale) ||
+                          '-'
+                        : l10nOrEmpty(product.name, locale) || '-'
+                    }
                     className="w-full h-full object-cover"
                   />
                 ) : (

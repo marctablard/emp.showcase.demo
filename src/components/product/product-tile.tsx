@@ -28,7 +28,7 @@ interface ProductTileProps {
 
 export function ProductTile({ product, locale = 'en', skipVariantFetch = false }: ProductTileProps) {
   const t = useTranslations('product');
-  const { l10n } = useL10n(locale);
+  const { l10n, l10nOrEmpty } = useL10n(locale);
   const { addItem, loading: cartLoading } = useCart();
   const horizontalScrollRef = useHorizontalScroll();
 
@@ -111,7 +111,11 @@ export function ProductTile({ product, locale = 'en', skipVariantFetch = false }
                 <div className="relative h-full w-full">
                   <Image
                     src={product.primaryImage.url}
-                    alt={product.primaryImage.altText ? l10n(product.primaryImage.altText) : l10n(product.name)}
+                    alt={
+                      product.primaryImage.altText
+                        ? l10nOrEmpty(product.primaryImage.altText) || l10nOrEmpty(product.name) || ''
+                        : l10nOrEmpty(product.name) || ''
+                    }
                     fill
                     sizes={imageSizes}
                     className="object-contain object-center"
@@ -119,7 +123,7 @@ export function ProductTile({ product, locale = 'en', skipVariantFetch = false }
                 </div>
               ) : (
                 <div className="flex h-full items-center justify-center">
-                  <Image src={'/images/no_image_alt.png'} alt={l10n(product.name)} width={220} height={220} />
+                  <Image src={'/images/no_image_alt.png'} alt={l10nOrEmpty(product.name) || ''} width={220} height={220} />
                 </div>
               )}
             </div>

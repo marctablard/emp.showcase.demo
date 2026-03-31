@@ -8,7 +8,7 @@ import { useSearchParams } from 'next/navigation';
 import { useNotifications } from '@/hooks/notifications/useNotifications';
 import { type AuthErrorKey, type NotificationOnboardingKey, dk } from '@/i18n/dynamic-key';
 import { stripAuthNotificationQueryParams } from '@/lib/notification/auth-notification-utils';
-import { l10n } from '@/lib/utils';
+import { L10N_MISSING_LABEL, l10n } from '@/lib/l10n';
 import type { CompanyOnboardingStatus } from '@/platform/services/model/company/company';
 import type { StorefrontNotification } from '@/platform/services/model/notification/notification';
 import { ToastType, notify } from '../ui/toast-notification';
@@ -113,8 +113,11 @@ export function Notification() {
             return;
           }
           const status = notification.data_json?.status;
+          const resolved = l10n(notification.message, locale);
           const message =
-            l10n(notification.message, locale) || t(dk<NotificationOnboardingKey>('company.onboarding.' + status));
+            resolved && resolved !== L10N_MISSING_LABEL
+              ? resolved
+              : t(dk<NotificationOnboardingKey>('company.onboarding.' + status));
           let type = ToastType.Success;
           switch (status) {
             case 'rejected':

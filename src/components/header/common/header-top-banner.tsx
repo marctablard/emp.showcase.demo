@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import TopBannerAnnouncement from '@/components/cms/top-banner-announcement';
+import { useHeaderDesktopNavigation } from '@/components/header/header-desktop-navigation-context';
 import { CurrencySwitcher } from '@/components/header/switcher/header-currency-switcher';
 import { LanguageSwitcher } from '@/components/header/switcher/header-language-switcher';
 import { SiteSwitcher } from '@/components/header/switcher/header-site-switcher';
@@ -14,12 +15,14 @@ export function HeaderTopBanner() {
   const t = useTranslations('layout.header');
   const { scrolled } = useHeaderScroll();
   const isAboveLargeScreen = useBreakpoint('lg');
+  const { dismissFlyout } = useHeaderDesktopNavigation();
   return (
     <div
       className={cn(
         'hidden sm:flex items-center -mx-2 lg:-mx-4 -mb-1 h-8 px-8 lg:px-10 relative z-10 bg-surface-action text-text-on-action shadow-sm rounded-lg',
         scrolled && 'sm:hidden',
       )}
+      onMouseEnter={dismissFlyout}
     >
       <div className="flex justify-between items-center self-stretch w-full">
         <div className="flex grow basis-0 shrink-0 gap-4 items-center">

@@ -153,11 +153,49 @@ const customJestConfig = {
       testEnvironment: 'node',
       testMatch: ['**/lib/**/?(*.)+(spec|test).ts?(x)', '**/stores/**/?(*.)+(spec|test).ts?(x)'],
       setupFilesAfterEnv: ['<rootDir>/jest.platform.setup.js'],
+      transformIgnorePatterns: ['/node_modules/(?!(next-intl|use-intl)/)'],
       transform: {
-        '^.+\\.tsx?$': [
-          'ts-jest',
+        '^.+\\.(ts|tsx)$': [
+          '@swc/jest',
           {
-            tsconfig: 'tsconfig.json',
+            jsc: {
+              parser: {
+                syntax: 'typescript',
+                decorators: true,
+                tsx: true,
+              },
+              transform: {
+                react: {
+                  runtime: 'automatic',
+                },
+                legacyDecorator: true,
+                decoratorMetadata: true,
+              },
+              target: 'es2017',
+            },
+            module: {
+              type: 'es6',
+            },
+          },
+        ],
+        '^.+\\.(js|jsx)$': [
+          '@swc/jest',
+          {
+            jsc: {
+              parser: {
+                syntax: 'ecmascript',
+                jsx: true,
+              },
+              transform: {
+                react: {
+                  runtime: 'automatic',
+                },
+              },
+              target: 'es2017',
+            },
+            module: {
+              type: 'es6',
+            },
           },
         ],
       },

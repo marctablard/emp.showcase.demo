@@ -7,6 +7,8 @@ import { getLogger } from '@/lib/logger/use-logger-client';
 import { Product } from '@/platform/services/model/product';
 import { ProductFetchOptions } from '@/platform/services/product/ProductService';
 
+const variantFetchInflight = new Map<string, Promise<Product[]>>();
+
 /**
  * Fetch a product by ID
  * Uses React's cache() to deduplicate requests within the same render cycle
@@ -45,25 +47,39 @@ export const fetchProductById = cache(async (id: string, options?: ProductFetchO
   }
 });
 
+async function fetchProductVariantsOnce(parentId: string): Promise<Product[]> {
+  const response = await fetch(`/api/products/${parentId}/variants`, {
+    cache: 'no-store',
+    next: { tags: [`product-variants-${parentId}`] },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch product variants: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.variants;
+}
+
 /**
- * Fetch variants for a product by parent ID
- * Uses React's cache() to deduplicate requests within the same render cycle
+ * Fetch variants for a product by parent ID.
+ * Uses React cache() for RSC dedupe and an in-flight map so concurrent client calls (e.g. Strict Mode) share one request.
  */
 export const fetchProductVariants = cache(async (parentId: string): Promise<Product[]> => {
-  try {
-    const response = await fetch(`/api/products/${parentId}/variants`, {
-      cache: 'no-store',
-      next: { tags: [`product-variants-${parentId}`] },
+  const existing = variantFetchInflight.get(parentId);
+  if (existing) {
+    return existing;
+  }
+
+  const promise = fetchProductVariantsOnce(parentId)
+    .catch((error) => {
+      getLogger().error({ err: error, parentId }, 'Error fetching product variants');
+      throw error;
+    })
+    .finally(() => {
+      variantFetchInflight.delete(parentId);
     });
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch product variants: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data.variants;
-  } catch (error) {
-    getLogger().error({ err: error, parentId }, 'Error fetching product variants');
-    throw error;
-  }
+  variantFetchInflight.set(parentId, promise);
+  return promise;
 });

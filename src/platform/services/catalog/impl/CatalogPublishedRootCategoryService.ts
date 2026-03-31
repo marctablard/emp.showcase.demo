@@ -2,6 +2,7 @@ import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCatalogApi } from '@/platform/integrations/emporix/catalog/EmporixCatalogApi';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
+import { isConfiguredStorefrontSiteCode } from '@/site/is-configured-storefront-site';
 
 function resolveCacheTtlMs(): number {
   const raw = process.env.CATALOG_ROOT_CATEGORY_CACHE_TTL_SECONDS;
@@ -34,6 +35,14 @@ export class CatalogPublishedRootCategoryService {
   ) {}
 
   async getRootCategoryIdsForSite(siteCode: string): Promise<string[]> {
+    if (!isConfiguredStorefrontSiteCode(siteCode)) {
+      this.logger.debug(
+        { siteCode },
+        'Skipping catalog lookup: site code is not a configured storefront site (avoid bogus publishedSite)',
+      );
+      return [];
+    }
+
     const now = Date.now();
     const cached = this.cache.get(siteCode);
     if (cached && cached.expiresAt > now) {
@@ -54,27 +63,38 @@ export class CatalogPublishedRootCategoryService {
   }
 
   private async fetchUnionRootCategoryIds(siteCode: string): Promise<string[]> {
-    const catalogs = await this.catalogApi.getCatalogs({
-      page: 1,
-      size: 100,
-      criteria: {
-        publishedSite: siteCode,
-      },
-    });
-
     const union = new Set<string>();
-    for (const catalog of catalogs.items) {
-      const roots = catalog.categoryIds;
-      if (!roots?.length) {
-        continue;
-      }
-      for (const id of roots) {
-        const trimmed = id?.trim();
-        if (trimmed) {
-          union.add(trimmed);
+    const pageSize = 100;
+    let page = 1;
+
+    while (true) {
+      const catalogs = await this.catalogApi.getCatalogs({
+        page,
+        size: pageSize,
+        criteria: {
+          publishedSite: siteCode,
+        },
+      });
+
+      for (const catalog of catalogs.items) {
+        const roots = catalog.categoryIds;
+        if (!roots?.length) {
+          continue;
+        }
+        for (const id of roots) {
+          const trimmed = id?.trim();
+          if (trimmed) {
+            union.add(trimmed);
+          }
         }
       }
+
+      if (catalogs.items.length < pageSize) {
+        break;
+      }
+      page += 1;
     }
+
     return [...union];
   }
 }

@@ -38,6 +38,10 @@
     "doubleCheck": "Prüfen Sie Ihre Suche auf Rechtschreibung oder Tippfehler, oder versuchen Sie es mit einem anderen Suchbegriff.",
     "commonSearch": "Hier sind häufige Suchbegriffe von anderen Kunden:",
     "clearHistory": "Suchverlauf löschen",
+    "seeAllCategories": "Alle anzeigen",
+    "allFromCategory": "Alle aus {name}",
+    "back": "Zurück",
+    "openSubcategoriesFor": "Unterkategorien für {name} öffnen",
     "navigation": {
       "meta": "Meta"
     }
@@ -69,6 +73,7 @@
     "privacyPolicy": "Datenschutz"
   },
   "footerLinks": {
+    "showAllCategories": "Alle anzeigen",
     "products": "Produkte",
     "solarPanels": "Solarpaneele",
     "inverters": "Wechselrichter",

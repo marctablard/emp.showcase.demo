@@ -1,6 +1,6 @@
 import { Category } from '@/platform/services/model/category';
 import { Product } from '@/platform/services/model/product';
-import { l10n } from './utils';
+import { L10N_MISSING_LABEL, l10n } from './l10n';
 
 export interface BreadcrumbContent {
   href: string;
@@ -9,7 +9,10 @@ export interface BreadcrumbContent {
 
 function getCategorySlug(category: Category, locale: string): string {
   if (category.slug) {
-    return l10n(category.slug, locale);
+    const slug = l10n(category.slug, locale);
+    if (slug !== L10N_MISSING_LABEL) {
+      return slug;
+    }
   }
   if (category.code) {
     return '/category/' + category.code;

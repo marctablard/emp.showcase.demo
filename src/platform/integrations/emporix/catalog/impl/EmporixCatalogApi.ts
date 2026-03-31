@@ -1,5 +1,6 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import { buildPaginatedResponse, buildSearchQuery } from '../../common/util/common';
 import type { EmporixConfig } from '../../config';
@@ -11,17 +12,34 @@ class EmporixCatalogApi implements IEmporixCatalogApi {
   constructor(
     @inject('EmporixApiInvoker') protected apiClient: EmporixApiClient,
     @inject('EmporixConfig') protected config: EmporixConfig,
+    @inject('LoggerService') private logger: LoggerService,
   ) {}
 
   async getCatalogs(params: EmporixSearchParams<any>): Promise<EmporixPaginatedResponse<EmporixCatalog>> {
     const { body: _body, query } = buildSearchQuery(params, true);
+    this.logger.info(
+      {
+        path: `/catalog/${this.config.tenant}/catalogs`,
+        query,
+      },
+      'Emporix catalogs request',
+    );
     const response = await this.apiClient.authenticatedFetch(
       `/catalog/${this.config.tenant}/catalogs?${query}`,
       { method: 'GET', headers: { 'X-Total-Count': 'true' } },
       'public',
     );
 
-    return buildPaginatedResponse(params, response);
+    const result = await buildPaginatedResponse<EmporixCatalog>(params, response);
+    this.logger.info(
+      {
+        itemCount: result.items.length,
+        total: result.total,
+        page: result.page,
+      },
+      'Emporix catalogs response',
+    );
+    return result;
   }
 
   async getCatalog(id: string): Promise<EmporixCatalog | null> {

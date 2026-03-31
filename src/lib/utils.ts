@@ -1,6 +1,9 @@
 import { type ClassValue, clsx } from 'clsx';
 import { extendTailwindMerge } from 'tailwind-merge';
-import { LocalizedString, SearchParams } from '@/platform/services/model/common';
+import { SearchParams } from '@/platform/services/model/common';
+
+export { L10N_MISSING_LABEL, l10n, l10nOrEmpty, resolveLocalizedString } from './l10n';
+export type { L10nInput } from './l10n';
 import type { Session } from '@/platform/services/model/session/session';
 
 function buildBaseUrl() {
@@ -100,67 +103,5 @@ export function buildCanonicalUrl(locale: string, path: string): string {
   }
   return `${baseUrl}${locale === defaultEmptyLocale ? '' : `/${locale}`}${path}`;
 }
-/**
- * Extract the localized value from a LocalizedString, array format, or return the string directly
- * @param input The string, LocalizedString, or array of language/message objects to localize
- * @param locale The locale to extract
- * @returns The localized string
- */
-export function l10n(
-  input: string | LocalizedString | Array<{ language: string; message: string }> | any,
-  locale: string,
-): string {
-  if (!input) {
-    return '';
-  }
-
-  // If input is a simple string, return it directly
-  if (typeof input === 'string') {
-    return input;
-  }
-
-  // Handle array format with language/message objects
-  if (Array.isArray(input)) {
-    try {
-      // Find matching locale in array
-      const matchingItem = input.find((item: any) => item && typeof item === 'object' && item.language === locale);
-
-      if (matchingItem && typeof matchingItem.message === 'string') {
-        return matchingItem.message;
-      }
-
-      // Fallback to first available message with valid language
-      const firstValidItem = input.find(
-        (item: any) =>
-          item && typeof item === 'object' && typeof item.message === 'string' && typeof item.language === 'string',
-      );
-      return firstValidItem ? firstValidItem.message : '';
-    } catch {
-      // Fail gracefully on any array processing error
-      return '';
-    }
-  }
-
-  // Handle object format (LocalizedString)
-  if (typeof input === 'object' && input !== null) {
-    try {
-      // Try to get the value for the current locale
-      if (input[locale] && typeof input[locale] === 'string') {
-        return input[locale];
-      }
-
-      // If all else fails, return the first available string value or an empty string
-      const firstAvailableLocale = Object.keys(input).find((key) => typeof input[key] === 'string');
-      return firstAvailableLocale ? input[firstAvailableLocale] : '';
-    } catch {
-      // Fail gracefully on any object processing error
-      return '';
-    }
-  }
-
-  // Fallback for any other type - fail gracefully
-  return '';
-}
-
 // TODO fill with correct sizes
 export const imageSizes = '(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw';

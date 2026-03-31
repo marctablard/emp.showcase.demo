@@ -20,7 +20,6 @@ export default async function AuthenticatedBrowsePage({
   const rawParams = await searchParams;
 
   const { initialSearch, q } = createBrowseInitialSearch(rawParams, true, site);
-
   const initialResults = await searchProducts(initialSearch);
 
   return renderBrowsePage({ locale, q, initialSearch, initialResults });

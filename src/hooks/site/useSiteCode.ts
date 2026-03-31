@@ -1,7 +1,8 @@
 import { useContext } from 'react';
 import { SiteContext } from '@/providers/SiteProvider';
 
-export function useSiteCode() {
+export function useSiteCode(): string | undefined {
   const siteCode = useContext(SiteContext);
-  return siteCode ?? 'main';
+  const trimmed = siteCode?.trim();
+  return trimmed || undefined;
 }

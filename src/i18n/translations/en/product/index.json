@@ -83,6 +83,7 @@
     "categoryAssignments": {
       "name": "Category name"
     },
+    "categoryIds": "Category",
     "filterButton": "Filter",
     "clearFilter": "Clear Filter",
     "applyFilters": "Apply Filters"

@@ -7,7 +7,7 @@ import { addPrefixIfNeeded } from '@/site/utils';
 interface SiteLinkProps extends React.ComponentPropsWithoutRef<any> {
   site?: string;
   I18nLink: React.ElementType;
-  getSite: () => string;
+  getSite: () => string | undefined;
   siteRouting: SiteRoutingConfig;
 }
 

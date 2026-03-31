@@ -280,6 +280,7 @@ export type ValidationKey =
 // ---------------------------------------------------------------------------
 export type ProductFilterKey =
   | 'filters.prices.effectiveAmount'
+  | 'filters.categoryIds'
   | 'filters.categoryAssignments.name'
   | 'filters.filterButton'
   | 'filters.clearFilter'

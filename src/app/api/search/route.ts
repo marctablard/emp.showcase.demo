@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withApiRouteDebug } from '@/platform/core/utils/debug-utils';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import { SearchService } from '@/platform/services/search';
+import { extractFiltersFromUrlSearchParams } from '@/utils/filterUtils';
 
 /**
  * API endpoint to search for products
  * GET /api/search?query=term&page=0&size=12&sort=name:asc&site=main
  *
- * Catalog `categoryIds` in product search `q` can be disabled with `NEXT_PUBLIC_SEARCH_OMIT_CATALOG_CATALOG_FILTER=true`
- * (e.g. old DBs without product `categoryIds`). Per-request unscoped search: set `SEARCH_ALLOW_UNSCOPED_PRODUCT_SEARCH=true`
- * and pass `allProducts=1` or `searchAllProducts=true`.
+ * Product search always includes published **navigation** root `categoryIds` in Emporix `q` when
+ * `filters.categoryIds` is absent. Requests without resolvable `categoryIds` are not sent upstream.
+ * `filters.categoryIds` are passed through as selected id(s); Emporix search includes products from subcategories.
  */
-export async function GET(request: NextRequest) {
+async function handleSearch(request: NextRequest): Promise<NextResponse> {
   const url = new URL(request.url);
   const query = url.searchParams.get('query') || undefined;
 
@@ -23,30 +25,9 @@ export async function GET(request: NextRequest) {
     const locale = url.searchParams.get('locale') || undefined;
     const site = url.searchParams.get('site') || undefined;
 
-    let searchAllProducts = false;
-    if (process.env.SEARCH_ALLOW_UNSCOPED_PRODUCT_SEARCH === 'true') {
-      const raw = url.searchParams.get('allProducts') ?? url.searchParams.get('searchAllProducts');
-      searchAllProducts = raw === '1' || raw === 'true';
-    }
-
-    // Extract filters if present (format: filters[key]=value or filters[key][]=value1&filters[key][]=value2)
-    const filters: Record<string, string | string[]> = {};
-    for (const [key, value] of url.searchParams.entries()) {
-      if (key.startsWith('filters[') && key.endsWith(']')) {
-        const filterKey = key.slice(8, -1);
-        if (key.endsWith('[]')) {
-          const actualKey = filterKey.slice(0, -2);
-          if (!filters[actualKey]) {
-            filters[actualKey] = [];
-          }
-          if (Array.isArray(filters[actualKey])) {
-            (filters[actualKey] as string[]).push(value);
-          }
-        } else {
-          filters[filterKey] = value;
-        }
-      }
-    }
+    const filtersRecord = extractFiltersFromUrlSearchParams(url.searchParams);
+    const filters: Record<string, string | string[]> | undefined =
+      Object.keys(filtersRecord).length > 0 ? (filtersRecord as Record<string, string | string[]>) : undefined;
 
     // Perform the search
     const searchResults = await searchService.searchProducts(
@@ -55,10 +36,9 @@ export async function GET(request: NextRequest) {
         page,
         size,
         sort,
-        filters: Object.keys(filters).length > 0 ? filters : undefined,
+        filters,
         site: site || undefined,
         locale: locale || undefined,
-        searchAllProducts,
       },
       locale,
       site,
@@ -80,3 +60,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to search products' }, { status: 500 });
   }
 }
+
+export const GET = withApiRouteDebug(handleSearch);

@@ -7,6 +7,7 @@ interface SearchActiveFiltersWithResetProps {
   resetFacet: (key: string) => void;
   resetAllFacets: () => void;
   resetLabel: string;
+  categoryFilterLabelsById?: Record<string, string>;
 }
 
 export function SearchActiveFiltersWithReset({
@@ -14,10 +15,16 @@ export function SearchActiveFiltersWithReset({
   resetFacet,
   resetAllFacets,
   resetLabel,
+  categoryFilterLabelsById,
 }: Omit<SearchActiveFiltersWithResetProps, 'className'>) {
   return (
     <>
-      <SearchActiveFilters activeFilters={activeFilters} resetFacet={resetFacet} resetAllFacets={resetAllFacets} />
+      <SearchActiveFilters
+        activeFilters={activeFilters}
+        resetFacet={resetFacet}
+        resetAllFacets={resetAllFacets}
+        categoryFilterLabelsById={categoryFilterLabelsById}
+      />
       {Object.keys(activeFilters).length > 0 && (
         <Pill variant="reset" leadingIcon={<Trash2 />} label={resetLabel} onClick={resetAllFacets} />
       )}

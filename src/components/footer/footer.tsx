@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Instagram, Linkedin, Mail, Youtube } from 'lucide-react';
 import { useNewsletterForm } from '@/hooks/newsletter/useNewsletterForm';
+import { getNavigationRootCategoriesPageSize } from '@/lib/navigation/navigation-root-categories-page-size';
 import { cn } from '@/lib/utils';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '../ui/form';
 import { InputButton } from '../ui/input';
@@ -93,28 +94,55 @@ export default function Footer({ reduced = false }: { reduced?: boolean }) {
   );
 }
 
-export function FooterLinks() {
+export type FooterTopProductCategoryLink = { label: string; href: string };
+
+export function FooterLinks({
+  topProductCategories,
+  showAllProductsBrowse = false,
+}: {
+  topProductCategories?: FooterTopProductCategoryLink[];
+  showAllProductsBrowse?: boolean;
+}) {
   const t = useTranslations('layout.footerLinks');
+  const categoryPreviewCount = getNavigationRootCategoriesPageSize();
+  const visibleTopProductCategories = topProductCategories?.slice(0, categoryPreviewCount) ?? [];
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 md:gap-6 ml-4 mr-4 md:ml-6 md:mr-6 py-4 md:py-6 border-b border-b-border-primary">
       <div className="flex flex-col gap-2">
         <p className="text-lg mb-1">{t('products')}</p>
-        <UiLink type="Link" href="#" variant="secondary" size="s">
-          {t('solarPanels')}
-        </UiLink>
-        <UiLink type="Link" href="#" variant="secondary" size="s">
-          {t('inverters')}
-        </UiLink>
-        <UiLink type="Link" href="#" variant="secondary" size="s">
-          {t('batterySolutions')}
-        </UiLink>
-        <UiLink type="Link" href="#" variant="secondary" size="s">
-          {t('wiringSolutions')}
-        </UiLink>
-        <UiLink type="Link" href="#" variant="secondary" size="s">
-          {t('solarAccessories')}
-        </UiLink>
+        {topProductCategories && topProductCategories.length > 0 ? (
+          <>
+            {visibleTopProductCategories.map((link) => (
+              <UiLink key={link.href + link.label} type="Link" href={link.href} variant="secondary" size="s">
+                {link.label}
+              </UiLink>
+            ))}
+            {showAllProductsBrowse ? (
+              <UiLink type="Link" href="/browse" variant="secondary" size="s">
+                {t('showAllCategories')}
+              </UiLink>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <UiLink type="Link" href="#" variant="secondary" size="s">
+              {t('solarPanels')}
+            </UiLink>
+            <UiLink type="Link" href="#" variant="secondary" size="s">
+              {t('inverters')}
+            </UiLink>
+            <UiLink type="Link" href="#" variant="secondary" size="s">
+              {t('batterySolutions')}
+            </UiLink>
+            <UiLink type="Link" href="#" variant="secondary" size="s">
+              {t('wiringSolutions')}
+            </UiLink>
+            <UiLink type="Link" href="#" variant="secondary" size="s">
+              {t('solarAccessories')}
+            </UiLink>
+          </>
+        )}
       </div>
       <div className="flex flex-col gap-2">
         <p className="text-lg mb-1">{t('services')}</p>

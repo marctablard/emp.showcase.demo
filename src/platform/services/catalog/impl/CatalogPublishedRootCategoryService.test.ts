@@ -62,4 +62,14 @@ describe('CatalogPublishedRootCategoryService', () => {
     await expect(svc.getRootCategoryIdsForSite('main')).resolves.toEqual([]);
     expect(logger.warn).toHaveBeenCalled();
   });
+
+  it('does not call Emporix when site code is not a configured storefront (e.g. .well-known path segment)', async () => {
+    const getCatalogs = jest.fn();
+    const catalogApi = { getCatalogs, getCatalog: jest.fn() } as unknown as EmporixCatalogApi;
+
+    const svc = new CatalogPublishedRootCategoryService(catalogApi, logger);
+    await expect(svc.getRootCategoryIdsForSite('.well-known')).resolves.toEqual([]);
+    expect(getCatalogs).not.toHaveBeenCalled();
+    expect(logger.debug).toHaveBeenCalled();
+  });
 });

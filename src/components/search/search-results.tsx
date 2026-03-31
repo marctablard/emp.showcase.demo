@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
+import { useCategoryDisplayLabelIndex } from '@/components/navigation/category-display-label-index-context';
 import { SearchActiveFiltersWithReset } from '@/components/search/search-active-filters-with-reset';
 import { SearchFilter } from '@/components/search/search-filter';
 import { SearchLayoutToggle } from '@/components/search/search-layout-toggle';
@@ -10,8 +11,14 @@ import { SearchResultsGrid } from '@/components/search/search-results-grid';
 import { SearchResultsList } from '@/components/search/search-results-list';
 import { Button } from '@/components/ui/button';
 import { useSearch } from '@/hooks/search/useSearch';
+import { parseCategoryIdsFilterValue } from '@/lib/search/parse-category-ids-filter';
 import { SearchParams, SearchResult } from '@/platform/services/model/common';
 import { Product } from '@/platform/services/model/product';
+import {
+  browseSearchStateSignature,
+  extractFiltersFromSearchParams,
+  urlSearchParamsToNextRecord,
+} from '@/utils/filterUtils';
 
 interface SearchClientWrapperProps {
   initialSearch?: SearchParams<Product>;
@@ -19,9 +26,13 @@ interface SearchClientWrapperProps {
   locale: string;
 }
 
+/** Matches `createBrowseInitialSearch` default when `size` is omitted from the URL. */
+const BROWSE_DEFAULT_PAGE_SIZE = 12;
+
 export function SearchResultsComponent({ initialSearch, initialResults, locale }: SearchClientWrapperProps) {
   const t = useTranslations('search.searchResults');
   const searchParams = useSearchParams();
+  const navigationLabelIndex = useCategoryDisplayLabelIndex();
   const [layout, setLayout] = useState<'list' | 'grid'>('grid');
   // Initialize the search hook with Product type and initial results
   const {
@@ -41,7 +52,18 @@ export function SearchResultsComponent({ initialSearch, initialResults, locale }
     resetFacet,
     resetAllFacets,
     activeFilters,
+    syncBrowseSearchStateFromUrl,
   } = useSearch<Product>(initialSearch, initialResults);
+
+  const categoryFilterLabelsById = useMemo(() => {
+    const ids = parseCategoryIdsFilterValue(activeFilters.categoryIds);
+    const out: Record<string, string> = {};
+    for (const id of ids) {
+      const label = navigationLabelIndex[id]?.trim();
+      out[id] = label && label.length > 0 ? label : id;
+    }
+    return out;
+  }, [navigationLabelIndex, activeFilters.categoryIds]);
 
   // Shared props for SearchFilter component (used in both mobile and desktop layouts)
   const searchFilterProps = {
@@ -60,81 +82,81 @@ export function SearchResultsComponent({ initialSearch, initialResults, locale }
     resetFacet,
     resetAllFacets,
     resetLabel: t('resetFilter'),
+    categoryFilterLabelsById,
   };
-  const initialLoadRef = useRef(true);
+  const searchParamsKey = searchParams.toString();
 
   useEffect(() => {
-    // Whitelist of search-related parameters
     const searchRelatedParams = ['q', 'page', 'size', 'sort', 'filters'];
     const isSearchRelatedParam = (key: string) =>
       searchRelatedParams.some((param) => key === param || key.startsWith(`${param}[`));
 
-    // Check if URL has any search-related params - if not, skip processing
-    // This prevents reacting to unrelated params like email, callbackUrl from auth dialogs
-    const hasSearchParams = Array.from(searchParams.keys()).some(isSearchRelatedParam);
-    if (!hasSearchParams && searchParams.toString() !== '') {
+    const isApiOnlyBrowseParam = (key: string) => key === 'site' || key === 'locale';
+    const meaningfulKeys = Array.from(searchParams.keys()).filter((k) => !isApiOnlyBrowseParam(k));
+    const hasSearchParams = meaningfulKeys.some(isSearchRelatedParam);
+    // Ignore tracking params etc.; still run when URL only had site/locale (legacy bad URLs from old client sync).
+    if (!hasSearchParams && meaningfulKeys.length > 0) {
       return;
     }
 
-    // On initial mount, skip the duplicate fetch when SSR already provided matching results
-    if (initialLoadRef.current && initialResults) {
-      initialLoadRef.current = false;
-      return;
-    }
-    initialLoadRef.current = false;
+    const raw = urlSearchParamsToNextRecord(searchParams);
+    const filtersRecord = extractFiltersFromSearchParams(raw) as Record<string, unknown>;
 
-    // Parse URL parameters to restore search state
-    const query = searchParams.get('q') ?? '';
-    const page = parseInt(searchParams.get('page') ?? '0', 10);
-    const size = parseInt(searchParams.get('size') ?? String(pageSize), 10);
-    const sort = searchParams.get('sort') ?? undefined;
+    const qVal = raw.q;
+    const query = (Array.isArray(qVal) ? qVal[0] : qVal) ?? '';
+    const pageRaw = raw.page;
+    const page = pageRaw !== undefined ? parseInt(Array.isArray(pageRaw) ? pageRaw[0] : pageRaw, 10) : 0;
+    const sizeRaw = raw.size;
+    const defaultSize = initialSearch?.size ?? BROWSE_DEFAULT_PAGE_SIZE;
+    const parsedSize =
+      sizeRaw !== undefined ? parseInt(Array.isArray(sizeRaw) ? sizeRaw[0] : sizeRaw, 10) : defaultSize;
+    const size = Number.isFinite(parsedSize) ? parsedSize : defaultSize;
+    const sortRaw = raw.sort;
+    const sort = sortRaw !== undefined ? (Array.isArray(sortRaw) ? sortRaw[0] : sortRaw) : undefined;
 
-    const filters: Record<string, string | string[] | Record<string, string>> = {};
-
-    searchParams.forEach((value, key) => {
-      const filterRegex = /^filters\[(.*?)](\[]|\[(.*?)])?$/;
-      const match = key.match(filterRegex);
-
-      if (match) {
-        const filterKey = match[1];
-        const isArray = match[2] === '[]';
-        const nestedKey = match[3];
-
-        // Handle nested filters like filters[price][from]
-        if (nestedKey) {
-          if (!filters[filterKey] || typeof filters[filterKey] !== 'object' || Array.isArray(filters[filterKey])) {
-            filters[filterKey] = {};
-          }
-
-          (filters[filterKey] as Record<string, string>)[nestedKey] = value;
-        }
-        // Handle array filters like filters[category][]
-        else if (isArray) {
-          if (!filters[filterKey]) {
-            filters[filterKey] = [];
-          } else if (!Array.isArray(filters[filterKey])) {
-            filters[filterKey] = [filters[filterKey] as string];
-          }
-
-          (filters[filterKey] as string[]).push(value);
-        }
-        // Handle simple filters like filters[inStock]
-        else {
-          filters[filterKey] = value;
-        }
-      }
+    const urlSig = browseSearchStateSignature({
+      query,
+      page: Number.isFinite(page) ? page : 0,
+      size,
+      sort,
+      filters: Object.keys(filtersRecord).length > 0 ? filtersRecord : undefined,
     });
 
-    // Perform search with parameters from URL
+    const initSig = browseSearchStateSignature({
+      query: initialSearch?.query ?? '',
+      page: initialSearch?.page ?? 0,
+      size: initialSearch?.size ?? BROWSE_DEFAULT_PAGE_SIZE,
+      sort: initialSearch?.sort,
+      filters: initialSearch?.filters as Record<string, unknown> | undefined,
+    });
+
+    // Avoid duplicate /api/search whenever the URL still matches SSR criteria (including total === 0).
+    // Previously we only skipped on the first effect run; `useSearchParams()` can re-subscribe and re-run
+    // this effect without the query string changing, which caused many redundant fetches on /browse.
+    if (initialResults !== undefined && urlSig === initSig) {
+      syncBrowseSearchStateFromUrl({
+        query,
+        page: Number.isFinite(page) ? page : 0,
+        size,
+        sort,
+        filtersRecord,
+      });
+      return;
+    }
+
     search({
-      query: query,
-      page: page,
-      size: size, // Use the size from URL parameters
-      sort: sort,
-      filters: Object.keys(filters).length > 0 ? filters : undefined,
+      query,
+      page: Number.isFinite(page) ? page : 0,
+      size,
+      sort,
+      filters:
+        Object.keys(filtersRecord).length > 0
+          ? (filtersRecord as Record<string, string | string[] | Record<string, string>>)
+          : undefined,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- initialResults is an SSR prop that doesn't change
-  }, [searchParams, pageSize, search]);
+    // Depend on searchParamsKey so we do not re-run when ReadonlyURLSearchParams identity changes without query updates.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- searchParams is read from the latest render whenever searchParamsKey changes
+  }, [searchParamsKey, search, initialResults, initialSearch, syncBrowseSearchStateFromUrl]);
 
   return (
     <>

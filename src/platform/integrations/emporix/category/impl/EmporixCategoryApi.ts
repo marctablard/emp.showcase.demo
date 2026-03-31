@@ -6,9 +6,11 @@ import {
   EmporixCategoryAssignment,
   EmporixCategoryAssignmentQuery,
   EmporixCategoryParent,
+  EmporixCategoryTree,
   EmporixPaginatedResponse,
   EmporixSearchParams,
 } from '@/platform/integrations/emporix/model';
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
 import EmporixCommonUtil from '../../common/util/EmporixCommonUtil';
 import { buildPaginatedResponse, buildSearchQuery } from '../../common/util/common';
@@ -26,6 +28,7 @@ class EmporixCategoryApi implements IEmporixCategoryApi {
     @inject('EmporixApiInvoker') protected apiInvoker: EmporixApiInvoker,
     @inject('EmporixConfig') protected config: EmporixConfig,
     @inject('EmporixCommonUtil') protected commonUtil: EmporixCommonUtil,
+    @inject('LoggerService') private logger: LoggerService,
   ) {}
 
   /**
@@ -56,6 +59,29 @@ class EmporixCategoryApi implements IEmporixCategoryApi {
     );
 
     return buildPaginatedResponse(params, response);
+  }
+
+  async getCategoriesByIds(
+    categoryIds: string[],
+    options?: { showRoots?: boolean; showUnpublished?: boolean; pageSize?: number },
+  ): Promise<EmporixCategory[]> {
+    const trimmed = [...new Set(categoryIds.map((id) => id.trim()).filter(Boolean))];
+    if (trimmed.length === 0) {
+      return [];
+    }
+
+    const q = `id:(${trimmed.join(',')})`;
+    const pageSize = Math.min(Math.max(options?.pageSize ?? 100, trimmed.length), 500);
+
+    const response = await this.getCategories({
+      pageNumber: 1,
+      pageSize,
+      q,
+      showRoots: options?.showRoots ?? true,
+      showUnpublished: options?.showUnpublished ?? false,
+    });
+
+    return response.items ?? [];
   }
 
   /**
@@ -250,6 +276,137 @@ class EmporixCategoryApi implements IEmporixCategoryApi {
       }
       throw error;
     }
+  }
+
+  /**
+   * Retrieves category trees for root ids via GET /category/{tenant}/category-trees (non-deprecated).
+   */
+  async getCategoryTrees(categoryIds: string[], showUnpublished?: boolean): Promise<EmporixCategoryTree[]> {
+    const trimmed = [...new Set(categoryIds.map((id) => id.trim()).filter(Boolean))];
+    if (trimmed.length === 0) {
+      return [];
+    }
+
+    // OpenAPI: categoryIds is an array. Emporix expects repeated query keys (categoryIds=a&categoryIds=b),
+    // not a single comma-separated value — the latter can yield HTTP 200 with an empty array.
+    const params = new URLSearchParams();
+    for (const id of trimmed) {
+      params.append('categoryIds', id);
+    }
+    if (showUnpublished === true) {
+      params.set('showUnpublished', 'true');
+    }
+
+    const path = `/category/${this.config.tenant}/category-trees?${params.toString()}`;
+
+    const tokenType = showUnpublished ? 'service' : 'public';
+    const authOptions = showUnpublished ? { scopes: ['category:read'] } : undefined;
+
+    const response = await this.apiInvoker.authenticatedFetch(
+      path,
+      {
+        method: 'GET',
+        headers: {
+          'X-Version': 'v2',
+        },
+      },
+      tokenType,
+      authOptions,
+    );
+
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => '');
+      this.logger.warn(
+        {
+          status: response.status,
+          statusText: response.statusText,
+          bodyPreview: errBody.slice(0, 2000),
+        },
+        'Emporix category-trees error response',
+      );
+      throw new Error(`Failed to get category trees: ${response.statusText}`);
+    }
+
+    return (await response.json()) as EmporixCategoryTree[];
+  }
+
+  /**
+   * Retrieves all category trees for the tenant (no categoryIds filter).
+   */
+  async getAllCategoryTrees(showUnpublished?: boolean): Promise<EmporixCategoryTree[]> {
+    const params = new URLSearchParams();
+    if (showUnpublished === true) {
+      params.set('showUnpublished', 'true');
+    }
+    const qs = params.toString();
+    const path = `/category/${this.config.tenant}/category-trees${qs ? `?${qs}` : ''}`;
+
+    const tokenType = showUnpublished ? 'service' : 'public';
+    const authOptions = showUnpublished ? { scopes: ['category:read'] } : undefined;
+
+    const response = await this.apiInvoker.authenticatedFetch(
+      path,
+      {
+        method: 'GET',
+        headers: {
+          'X-Version': 'v2',
+        },
+      },
+      tokenType,
+      authOptions,
+    );
+
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => '');
+      this.logger.warn(
+        {
+          status: response.status,
+          statusText: response.statusText,
+          bodyPreview: errBody.slice(0, 2000),
+        },
+        'Emporix category-trees (all) error response',
+      );
+      throw new Error(`Failed to get category trees: ${response.statusText}`);
+    }
+
+    return (await response.json()) as EmporixCategoryTree[];
+  }
+
+  async searchCategoryTreesForCategoryIds(categoryIds: string[]): Promise<EmporixCategoryTree[]> {
+    const trimmed = [...new Set(categoryIds.map((id) => id.trim()).filter(Boolean))];
+    if (trimmed.length === 0) {
+      return [];
+    }
+
+    const path = `/category/${this.config.tenant}/category-trees/search`;
+
+    const response = await this.apiInvoker.authenticatedFetch(
+      path,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Version': 'v2',
+        },
+        body: JSON.stringify({ categoryIds: trimmed }),
+      },
+      'public',
+    );
+
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => '');
+      this.logger.warn(
+        {
+          status: response.status,
+          statusText: response.statusText,
+          bodyPreview: errBody.slice(0, 2000),
+        },
+        'Emporix category-trees search error response',
+      );
+      throw new Error(`Failed to search category trees: ${response.statusText}`);
+    }
+
+    return (await response.json()) as EmporixCategoryTree[];
   }
 
   /**

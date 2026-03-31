@@ -1,9 +1,9 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
-import type { EmporixCategoryApi } from '@/platform/integrations/emporix/category/EmporixCategoryApi';
 import { EmporixPaginatedResponse, EmporixProduct } from '@/platform/integrations/emporix/model';
 import type { EmporixProductApi } from '@/platform/integrations/emporix/product/EmporixProductApi';
 import { buildProductCategoryIdsCriteriaValue } from '@/platform/integrations/emporix/product/buildProductCatalogScopeQ';
+import type { CategoryService } from '@/platform/services/category/CategoryService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
@@ -12,11 +12,11 @@ import type { SearchService } from '@/platform/services/search/SearchService';
 import type { SessionService } from '@/platform/services/session/SessionService';
 import type { ProductMapper } from '../../model/product/ProductMapper';
 import type { SearchSuggestions } from '../../model/search';
-import { CatalogPublishedRootCategoryService } from './CatalogPublishedRootCategoryService';
 import type SegmentFilterService from './SegmentFilterService';
 
-function isOmitCatalogCategoryFilterEnv(): boolean {
-  return process.env.NEXT_PUBLIC_SEARCH_OMIT_CATALOG_CATALOG_FILTER === 'true';
+function criteriaIncludesCategoryIds(criteria: Partial<EmporixProduct>): boolean {
+  const v = (criteria as Record<string, unknown>).categoryIds;
+  return typeof v === 'string' && v.trim().length > 0;
 }
 
 /**
@@ -28,29 +28,26 @@ class EmporixSearchService implements SearchService {
   private productApi: EmporixProductApi;
   private productMapper: ProductMapper<EmporixProduct>;
   private sessionService: SessionService;
-  private categoryApi: EmporixCategoryApi;
   private productService: ProductService;
   private segmentFilterService: SegmentFilterService;
-  private catalogRootCategoryService: CatalogPublishedRootCategoryService;
+  private categoryService: CategoryService;
   private logger: LoggerService;
 
   constructor(
     @inject('SessionService') sessionService: SessionService,
     @inject('EmporixProductApi') productApi: EmporixProductApi,
     @inject('EmporixProductMapper') productMapper: ProductMapper<EmporixProduct>,
-    @inject('EmporixCategoryApi') categoryApi: EmporixCategoryApi,
     @inject('ProductService') productService: ProductService,
     @inject('SegmentFilterService') segmentFilterService: SegmentFilterService,
-    @inject('CatalogPublishedRootCategoryService') catalogRootCategoryService: CatalogPublishedRootCategoryService,
+    @inject('CategoryService') categoryService: CategoryService,
     @inject('LoggerService') logger: LoggerService,
   ) {
     this.productApi = productApi;
     this.productMapper = productMapper;
-    this.categoryApi = categoryApi;
     this.productService = productService;
     this.sessionService = sessionService;
     this.segmentFilterService = segmentFilterService;
-    this.catalogRootCategoryService = catalogRootCategoryService;
+    this.categoryService = categoryService;
     this.logger = logger;
   }
 
@@ -87,24 +84,41 @@ class EmporixSearchService implements SearchService {
   }
 
   /**
-   * Builds product search `q` criteria: optional name match plus catalog root `categoryIds` when scoped.
+   * Builds product search `q` criteria: optional name match plus `categoryIds` when scoped.
+   * Default `/browse` (no `filters.categoryIds`) uses **published navigation root** ids only — same trees as
+   * header/footer — so products tied only to unpublished categories are not in scope. User-selected
+   * `filters.categoryIds` are passed through unchanged; Emporix resolves subcategories in search.
    */
   private async buildSearchCriteria(
     params: SearchParams<Product>,
     effectiveSite?: string,
   ): Promise<Partial<EmporixProduct> | null> {
-    const scoped = !params.searchAllProducts && !isOmitCatalogCategoryFilterEnv();
-
-    void this.categoryApi;
+    const filterCategoryRaw = params.filters?.categoryIds;
+    const filterCategoryIds =
+      filterCategoryRaw === undefined || filterCategoryRaw === null || filterCategoryRaw === ''
+        ? []
+        : (Array.isArray(filterCategoryRaw) ? filterCategoryRaw : [filterCategoryRaw]).filter(
+            (id): id is string => typeof id === 'string' && id.trim().length > 0,
+          );
 
     let categoryValue: string | undefined;
-    if (scoped) {
+    if (filterCategoryIds.length > 0) {
+      categoryValue = buildProductCategoryIdsCriteriaValue(filterCategoryIds);
+      if (!categoryValue) {
+        return null;
+      }
+    } else {
       const siteCode = await this.resolveSiteCode(effectiveSite);
       if (!siteCode) {
         this.logger.warn({}, 'Catalog-scoped search missing site; returning empty results');
         return null;
       }
-      const rootIds = await this.catalogRootCategoryService.getRootCategoryIdsForSite(siteCode);
+      const navigationRoots = await this.categoryService.getNavigationCategoryTrees(siteCode, false);
+      if (navigationRoots.length === 0) {
+        this.logger.warn({ siteCode }, 'Scoped product search: no published navigation category roots');
+        return null;
+      }
+      const rootIds = navigationRoots.map((c) => c.id).filter((id) => typeof id === 'string' && id.trim().length > 0);
       if (rootIds.length === 0) {
         return null;
       }
@@ -116,7 +130,7 @@ class EmporixSearchService implements SearchService {
 
     const criteriaRecord: Record<string, string> = {
       ...(params.query ? { name: '~' + params.query } : {}),
-      ...(scoped && categoryValue ? { categoryIds: categoryValue } : {}),
+      ...(categoryValue ? { categoryIds: categoryValue } : {}),
     };
 
     return criteriaRecord as Partial<EmporixProduct>;
@@ -134,6 +148,13 @@ class EmporixSearchService implements SearchService {
 
     const criteria = await this.buildSearchCriteria(params, effectiveSite);
     if (criteria === null) {
+      return this.emptySearchResult(page, requestedSize);
+    }
+    if (!criteriaIncludesCategoryIds(criteria)) {
+      this.logger.warn(
+        { site: effectiveSite },
+        'Refusing product search without categoryIds in criteria',
+      );
       return this.emptySearchResult(page, requestedSize);
     }
 
@@ -163,6 +184,14 @@ class EmporixSearchService implements SearchService {
   async getSuggestions(params: SearchParams<Product>): Promise<SearchSuggestions> {
     const criteria = await this.buildSearchCriteria(params, params.site);
     if (criteria === null) {
+      return {
+        queryCompletions: [],
+        products: [],
+        categories: [],
+      };
+    }
+    if (!criteriaIncludesCategoryIds(criteria)) {
+      this.logger.warn({ site: params.site }, 'Refusing search suggestions without categoryIds in criteria');
       return {
         queryCompletions: [],
         products: [],

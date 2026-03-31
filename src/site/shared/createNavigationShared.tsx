@@ -9,7 +9,11 @@ import { SiteLink } from './SiteLink';
 type ParametersExceptFirst<Fn> = Fn extends (arg0: any, ...rest: infer R) => any ? R : never;
 
 // intlRouting-Config depends on some non exposed types from next-intl so we pass any here
-export function createSiteNavigationShared(siteRouting: SiteRoutingConfig, intlRouting: any, getSite: () => string) {
+export function createSiteNavigationShared(
+  siteRouting: SiteRoutingConfig,
+  intlRouting: any,
+  getSite: () => string | undefined,
+) {
   const { Link: I18nLink, getPathname: getI18nPathname } = createNavigation(intlRouting);
 
   const config = siteRouting;

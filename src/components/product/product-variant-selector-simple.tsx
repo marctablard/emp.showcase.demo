@@ -33,7 +33,7 @@ export default function ProductVariantSelectorSimple({
 
   const router = useRouter();
   const t = useTranslations('product');
-  const { l10n } = useL10n();
+  const { l10n, l10nOrEmpty } = useL10n();
   const { session } = useSession();
 
   // Reset variant prices when currency changes to trigger re-fetch
@@ -165,7 +165,11 @@ export default function ProductVariantSelectorSimple({
                 {variant.images && variant.images.length > 0 ? (
                   <Image
                     src={variant.images[0].url}
-                    alt={variant.images[0].altText ? l10n(variant.images[0].altText) : `Product image`}
+                    alt={
+                      variant.images[0].altText
+                        ? l10nOrEmpty(variant.images[0].altText) || ''
+                        : ''
+                    }
                     width={100}
                     height={50}
                     className="object-center w-full h-full"
