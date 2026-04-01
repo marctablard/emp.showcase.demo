@@ -203,6 +203,37 @@ class EmporixCategoryApi implements IEmporixCategoryApi {
   }
 
   /**
+   * Retrieves all category trees for the tenant.
+   * Mirrors the b2b-showcase approach: GET /category/{tenant}/category-trees.
+   * Uses the session token (customer/anonymous) so the result is site-aware.
+   * Falls back to the public token if no session exists yet (e.g. first SSR render).
+   */
+  async getCategoryTrees(): Promise<EmporixCategory[]> {
+    const url = `/category/${this.config.tenant}/category-trees`;
+
+    // X-Version: v2 is required — without it the API returns 404.
+    const headers = { 'X-Version': 'v2' };
+
+    let response: Response;
+    try {
+      response = await this.apiInvoker.authenticatedFetch(url, { method: 'GET', headers }, 'session');
+    } catch {
+      response = await this.apiInvoker.authenticatedFetch(url, { method: 'GET', headers }, 'public');
+    }
+
+    if (!response.ok) {
+      if (response.status === 404) return [];
+      throw new Error(`Failed to fetch category trees: ${response.status} ${response.statusText}`);
+    }
+
+    const raw = await response.json();
+    if (Array.isArray(raw)) return raw;
+    if (Array.isArray(raw?.items)) return raw.items;
+    if (Array.isArray(raw?.trees)) return raw.trees;
+    return [];
+  }
+
+  /**
    * Retrieves a category tree for a root category with a given ID.
    * Note: You can retrieve a category tree only for a root category.
    * It is not possible to get a category tree for a category that lies lower in the hierarchy.

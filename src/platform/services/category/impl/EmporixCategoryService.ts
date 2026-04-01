@@ -1,5 +1,6 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
+import type { EmporixCatalogApi } from '@/platform/integrations/emporix/catalog/EmporixCatalogApi';
 import type { EmporixCategoryApi } from '@/platform/integrations/emporix/category/EmporixCategoryApi';
 import type { EmporixCategory } from '@/platform/integrations/emporix/model';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
@@ -17,9 +18,11 @@ export class EmporixCategoryService implements CategoryService {
     @inject('EmporixCategoryApi') private categoryApi: EmporixCategoryApi,
     @inject('EmporixCategoryMapper') private categoryMapper: CategoryMapper<EmporixCategory>,
     @inject('LoggerService') private logger: LoggerService,
+    @inject('EmporixCatalogApi') private catalogApi: EmporixCatalogApi,
   ) {
     this.categoryApi = categoryApi;
     this.categoryMapper = categoryMapper;
+    this.catalogApi = catalogApi;
   }
 
   /**
@@ -206,6 +209,66 @@ export class EmporixCategoryService implements CategoryService {
     } catch (error) {
       this.logger.error({ err: error, categoryId }, 'Error fetching category tree');
       return null;
+    }
+  }
+
+  /**
+   * Retrieve all category trees for the tenant.
+   */
+  async getCategoryTrees(): Promise<Category[]> {
+    try {
+      const trees = await this.categoryApi.getCategoryTrees();
+      return trees.map((tree) => this.categoryMapper.mapToService(tree));
+    } catch (error) {
+      this.logger.error({ err: error }, 'Error fetching category trees');
+      return [];
+    }
+  }
+
+  /**
+   * Retrieve category trees scoped to a specific site.
+   * Mirrors the b2b-showcase approach:
+   *   1. Fetch catalogs published for the site → extract root categoryIds
+   *   2. Fetch all category trees
+   *   3. Filter to only the site's root categories
+   */
+  async getCategoryTreesForSite(siteCode: string): Promise<Category[]> {
+    try {
+      const catalogResponse = await this.catalogApi.getCatalogs({
+        size: 100,
+        criteria: { publishedSite: siteCode },
+      });
+      const rootCategoryIds = new Set((catalogResponse.items ?? []).flatMap((c) => c.categoryIds ?? []));
+
+      const allTrees = await this.getCategoryTrees();
+
+      return rootCategoryIds.size > 0 ? allTrees.filter((t) => rootCategoryIds.has(t.id)) : allTrees;
+    } catch (error) {
+      this.logger.error({ err: error, siteCode }, 'Error fetching category trees for site');
+      return [];
+    }
+  }
+
+  /**
+   * Get the product IDs assigned to a category.
+   */
+  async getProductIdsForCategory(
+    categoryId: string,
+    options?: { page?: number; pageSize?: number },
+  ): Promise<{ ids: string[]; total: number; page: number; pageSize: number }> {
+    try {
+      const page = options?.page ?? 0;
+      const pageSize = options?.pageSize ?? 20;
+      const response = await this.categoryApi.getCategoryAssignments(categoryId, {
+        page,
+        size: pageSize,
+        criteria: { assignmentType: 'product' },
+      });
+      const ids = (response.items ?? []).filter((a) => a.ref?.type === 'product').map((a) => a.ref.id);
+      return { ids, total: response.total ?? 0, page, pageSize };
+    } catch (error) {
+      this.logger.error({ err: error, categoryId }, 'Error fetching product IDs for category');
+      return { ids: [], total: 0, page: 0, pageSize: options?.pageSize ?? 20 };
     }
   }
 

@@ -39,30 +39,37 @@ export function DesktopMenuFlyout({ menuItem, onMouseLeave }: DesktopMenuFlyoutP
         {/* 2nd level */}
         {submenuItems.map((item, index) => (
           <li key={index}>
-            {item.href && !item.hasSubmenu ? (
-              <>
+            {item.hasSubmenu ? (
+              <div
+                className={cn(
+                  'flex items-center rounded-sm hover:bg-surface-action-hover-2',
+                  hoveredSubItem === item && 'bg-surface-action-hover-2',
+                )}
+                onMouseEnter={() => setHoveredSubItem(item)}
+              >
                 <Link
                   href={item.href}
-                  className="flex items-center justify-between px-4 py-2 text-md font-bold rounded-sm hover:bg-surface-action-hover-2"
-                  onMouseEnter={() => setHoveredSubItem(null)}
-                >
-                  {item.label}
-                </Link>
-              </>
-            ) : (
-              <>
-                <button
-                  className={cn(
-                    'w-full flex items-center px-4 py-2 text-md font-bold cursor-pointer rounded-sm hover:bg-surface-action-hover-2',
-                    hoveredSubItem === item && 'bg-surface-action-hover-2',
-                  )}
-                  onMouseEnter={() => setHoveredSubItem(item)}
+                  className="flex-1 px-4 py-2 text-md font-bold"
                   onClick={() => handleSubItemClick(item)}
                 >
                   {item.label}
-                  <ChevronRight className="w-5 h-5 ms-1" />
+                </Link>
+                <button
+                  className="px-2 py-2 cursor-pointer"
+                  onClick={() => handleSubItemClick(item)}
+                  aria-label={`Open ${item.label} subcategories`}
+                >
+                  <ChevronRight className="w-5 h-5" />
                 </button>
-              </>
+              </div>
+            ) : (
+              <Link
+                href={item.href}
+                className="flex items-center justify-between px-4 py-2 text-md font-bold rounded-sm hover:bg-surface-action-hover-2"
+                onMouseEnter={() => setHoveredSubItem(null)}
+              >
+                {item.label}
+              </Link>
             )}
           </li>
         ))}

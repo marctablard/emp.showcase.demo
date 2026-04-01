@@ -8,9 +8,15 @@ interface HeaderNavigationProps {
   className?: string;
   onMenuHover?: (item: MenuItem | null) => void;
   activeMenuId?: string | null;
+  menuItems?: MenuItem[];
 }
 
-export function MenuLevel1({ className, onMenuHover, activeMenuId }: HeaderNavigationProps) {
+export function MenuLevel1({
+  className,
+  onMenuHover,
+  activeMenuId,
+  menuItems = navigationMenuItems,
+}: HeaderNavigationProps) {
   const t = useTranslations('layout.header');
 
   const handleMenuClick = (item: MenuItem) => {
@@ -23,7 +29,7 @@ export function MenuLevel1({ className, onMenuHover, activeMenuId }: HeaderNavig
 
   return (
     <ul className={cn('flex justify-center items-center gap-8', className)}>
-      {navigationMenuItems.map((item) => (
+      {menuItems.map((item) => (
         <li key={item.id}>
           {item.href && !item.hasSubmenu ? (
             <>

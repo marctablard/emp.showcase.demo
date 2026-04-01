@@ -11,10 +11,16 @@ import { MobileMenuNavigation } from '@/components/header/mobile/menu-navigation
 import { useHeaderSearch } from '@/components/header/search/search-context';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
+import { SubMenuItem, buildNavigationMenuItems } from '@/data/navigation-menu';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { cn } from '@/lib/utils';
 
-export function HeaderMobile() {
+interface HeaderMobileProps {
+  categoryItems?: SubMenuItem[];
+}
+
+export function HeaderMobile({ categoryItems = [] }: HeaderMobileProps) {
+  const menuItems = buildNavigationMenuItems(categoryItems);
   const t = useTranslations('layout.header');
   const { showSearch, activateSearch } = useHeaderSearch();
   const [open, setOpen] = useState(false);
@@ -71,7 +77,7 @@ export function HeaderMobile() {
                   <VisuallyHidden>
                     <DrawerTitle>{t('menu')}</DrawerTitle>
                   </VisuallyHidden>
-                  <MobileMenuNavigation onClose={closeMenu} />
+                  <MobileMenuNavigation menuItems={menuItems} onClose={closeMenu} />
                 </DrawerContent>
               </Drawer>
               <HeaderIconLink icon={LayoutGrid} text={t('products')} href="/#" />

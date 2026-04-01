@@ -6,18 +6,22 @@ import { ArrowLeft, ChevronDown, MapPin } from 'lucide-react';
 import { HeaderPromo } from '@/components/header/common/header-promo';
 import { LocationSettingsDialog } from '@/components/header/mobile/location-settings-dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { navigationMenuItems, serviceMenuItems } from '@/data/navigation-menu';
+import { MenuItem, navigationMenuItems, serviceMenuItems } from '@/data/navigation-menu';
 import { Link } from '@/i18n/navigation';
 
 interface MobileMenuNavigationProps {
   onClose?: () => void;
+  menuItems?: MenuItem[];
 }
 
-export function MobileMenuNavigation({ onClose }: MobileMenuNavigationProps) {
+export function MobileMenuNavigation({
+  onClose,
+  menuItems: menuItemsProp = navigationMenuItems,
+}: MobileMenuNavigationProps) {
   const t = useTranslations('layout.header');
 
   // Transform menu items with translations
-  const menuItems = navigationMenuItems.map((item) => ({
+  const menuItems = menuItemsProp.map((item) => ({
     ...item,
     label: t(item.labelKey as any),
   }));
@@ -134,13 +138,18 @@ export function MobileMenuNavigation({ onClose }: MobileMenuNavigationProps) {
             </Collapsible>
           ) : !isSecondLevel && item.hasSubmenu ? (
             <>
-              <button
-                onClick={() => handleItemClick(item)}
-                className="w-full flex items-center justify-between px-5 py-4 text-lg cursor-pointer"
-              >
-                {item.label}
-                <ChevronDown className="w-5 h-5 ms-1" />
-              </button>
+              <div className="flex items-center justify-between px-5 text-lg">
+                <Link href={item.href || '#'} onClick={() => onClose?.()} className="flex-1 py-4">
+                  {item.label}
+                </Link>
+                <button
+                  onClick={() => handleItemClick(item)}
+                  className="cursor-pointer ps-3 py-4"
+                  aria-label={`Open ${item.label} subcategories`}
+                >
+                  <ChevronDown className="w-5 h-5" />
+                </button>
+              </div>
               <hr className="mx-5 border-border-subtle" />
             </>
           ) : (
@@ -212,8 +221,17 @@ export function MobileMenuNavigation({ onClose }: MobileMenuNavigationProps) {
           <div className="flex items-center gap-3 px-4 py-4">
             <button onClick={handleBack} className="flex items-center gap-2">
               <ArrowLeft className="w-5 h-5 text-text-action" />
-              <span className="text-lg font-medium">{secondLevelLabel || 'Back'}</span>
             </button>
+            {(() => {
+              const activeItem = menuItems.find((m) => m.id === currentView || m.label === currentView);
+              return activeItem?.href ? (
+                <Link href={activeItem.href} onClick={() => onClose?.()} className="text-lg font-medium">
+                  {secondLevelLabel || 'Back'}
+                </Link>
+              ) : (
+                <span className="text-lg font-medium">{secondLevelLabel || 'Back'}</span>
+              );
+            })()}
           </div>
           <hr className="mx-5 border-border-subtle" />
 

@@ -12,14 +12,19 @@ import { DesktopMenuFlyout } from '@/components/header/desktop/menu-flyout';
 import { MenuLevel1 } from '@/components/header/desktop/menu-level-1';
 import { useHeaderSearch } from '@/components/header/search/search-context';
 import { TabletMenuFlyout } from '@/components/header/tablet/menu-flyout';
-import { MenuItem } from '@/data/navigation-menu';
+import { MenuItem, SubMenuItem, buildNavigationMenuItems } from '@/data/navigation-menu';
 import useAuthentication from '@/hooks/authentication/useAuthentication';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useHeaderScroll } from '@/hooks/useHeaderScroll';
 import { usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 
-export function HeaderActionBar() {
+interface HeaderActionBarProps {
+  categoryItems?: SubMenuItem[];
+}
+
+export function HeaderActionBar({ categoryItems = [] }: HeaderActionBarProps) {
+  const menuItems = buildNavigationMenuItems(categoryItems);
   const t = useTranslations('layout.header');
   const { showSearch, activateSearch } = useHeaderSearch();
   const { isAuthenticated, loading } = useAuthentication();
@@ -170,7 +175,7 @@ export function HeaderActionBar() {
           )}
         >
           <div className={cn('hidden md:block', (showSearch || scrolled) && 'md:hidden')}>
-            <MenuLevel1 onMenuHover={handleMenuHover} activeMenuId={activeDesktopMenu?.id} />
+            <MenuLevel1 menuItems={menuItems} onMenuHover={handleMenuHover} activeMenuId={activeDesktopMenu?.id} />
           </div>
           <HeaderCartButton />
           <HeaderIconButton
@@ -184,10 +189,12 @@ export function HeaderActionBar() {
       </div>
 
       {/* Navigation Menu */}
-      {!showSearch && showMenu && isAboveSmallScreen && !isAboveMediumScreen && <TabletMenuFlyout />}
+      {!showSearch && showMenu && isAboveSmallScreen && !isAboveMediumScreen && (
+        <TabletMenuFlyout menuItems={menuItems} />
+      )}
       {!showSearch && scrolled && showMenu && isAboveMediumScreen && (
         <div className="flex mt-5">
-          <MenuLevel1 onMenuHover={handleMenuHover} activeMenuId={activeDesktopMenu?.id} />
+          <MenuLevel1 menuItems={menuItems} onMenuHover={handleMenuHover} activeMenuId={activeDesktopMenu?.id} />
         </div>
       )}
       {!showSearch && activeDesktopMenu && isAboveMediumScreen && (!scrolled || showMenu) && (

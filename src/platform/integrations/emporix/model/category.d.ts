@@ -3,15 +3,24 @@ import { EmporixLocalizedString, EmporixMedia, EmporixMetadata, EmporixMixins } 
 export interface EmporixCategory {
   id: string;
   code?: string;
-  name: EmporixLocalizedString;
-  description?: EmporixLocalizedString;
+  /** Plain string name (e.g. "ProductRoot") or localized map from some endpoints */
+  name?: string | EmporixLocalizedString;
+  /** Localized name map returned by the /category-trees endpoint — preferred over name */
+  localizedName?: EmporixLocalizedString;
+  description?: string | EmporixLocalizedString;
+  localizedDescription?: EmporixLocalizedString;
   shortDescription?: EmporixLocalizedString;
-  slug?: EmporixLocalizedString;
+  slug?: string | EmporixLocalizedString;
+  localizedSlug?: EmporixLocalizedString;
   published?: boolean;
   visible?: boolean;
   position?: number;
   parentId?: string;
   supercategoriesIds?: string[];
+  /** Nested categories from the /category-trees endpoint */
+  subcategories?: EmporixCategory[];
+  /** Nested categories from other tree endpoints */
+  children?: EmporixCategory[];
   media?: EmporixMedia[];
   metadata?: EmporixMetadata;
   mixins?: EmporixMixins;
@@ -24,7 +33,7 @@ export interface EmporixCategoryParent extends EmporixCategory {
   level?: number;
 }
 
-export const EmporixCategoryAssignmentType = 'PRODUCT';
+export type EmporixCategoryAssignmentType = 'product';
 
 export interface EmporixCategoryAssignment {
   id: string;

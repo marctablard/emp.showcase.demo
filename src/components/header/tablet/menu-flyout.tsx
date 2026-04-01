@@ -4,14 +4,18 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 import { HeaderPromo } from '@/components/header/common/header-promo';
-import { navigationMenuItems } from '@/data/navigation-menu';
+import { MenuItem, navigationMenuItems } from '@/data/navigation-menu';
 import { Link } from '@/i18n/navigation';
 
-export function TabletMenuFlyout() {
+interface TabletMenuFlyoutProps {
+  menuItems?: MenuItem[];
+}
+
+export function TabletMenuFlyout({ menuItems: menuItemsProp = navigationMenuItems }: TabletMenuFlyoutProps) {
   const t = useTranslations('layout.header');
 
   // Transform menu items with translations
-  const menuItems = navigationMenuItems.map((item) => ({
+  const menuItems = menuItemsProp.map((item) => ({
     ...item,
     label: t(item.labelKey as any),
   }));
@@ -40,22 +44,27 @@ export function TabletMenuFlyout() {
         <ul>
           {menuItems.map((item) => (
             <li key={item.id}>
-              {item.href && !item.hasSubmenu ? (
+              {item.hasSubmenu ? (
                 <>
-                  <Link href={item.href} className="flex items-center justify-between py-4 text-lg">
-                    {item.label}
-                  </Link>
+                  <div className="flex items-center justify-between py-4 text-lg">
+                    <Link href={item.href ?? '#'} className="flex-1">
+                      {item.label}
+                    </Link>
+                    <button
+                      onClick={() => handleItemClick(item)}
+                      className="cursor-pointer ps-2"
+                      aria-label={`Open ${item.label} subcategories`}
+                    >
+                      <ChevronDown className="w-5 h-5" />
+                    </button>
+                  </div>
                   <hr className="border-border-subtle" />
                 </>
               ) : (
                 <>
-                  <button
-                    onClick={() => handleItemClick(item)}
-                    className="w-full flex items-center justify-between py-4 text-lg text-left cursor-pointer"
-                  >
+                  <Link href={item.href ?? '#'} className="flex items-center justify-between py-4 text-lg">
                     {item.label}
-                    <ChevronDown className="w-5 h-5 ms-1" />
-                  </button>
+                  </Link>
                   <hr className="border-border-subtle" />
                 </>
               )}
@@ -71,10 +80,18 @@ export function TabletMenuFlyout() {
       >
         {/* Back button */}
         <div className="col-span-3 flex flex-col gap-3">
-          <button onClick={handleBack} className="flex items-center gap-2">
-            <ArrowLeft className="w-5 h-5 text-text-action" />
-            <span className="text-lg font-medium">{selectedItem?.label}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={handleBack} className="flex items-center gap-2">
+              <ArrowLeft className="w-5 h-5 text-text-action" />
+            </button>
+            {selectedItem?.href ? (
+              <Link href={selectedItem.href} className="text-lg font-medium">
+                {selectedItem.label}
+              </Link>
+            ) : (
+              <span className="text-lg font-medium">{selectedItem?.label}</span>
+            )}
+          </div>
           <hr className="border-border-subtle" />
         </div>
         <ul>

@@ -104,6 +104,18 @@ export const navigationMenuItems: MenuItem[] = [
   },
 ];
 
+/**
+ * Returns a copy of navigationMenuItems where the "all-products" entry has its
+ * submenuItems replaced by the dynamic category items fetched from Emporix.
+ * If no category items are available the original hardcoded items are preserved.
+ */
+export function buildNavigationMenuItems(categoryItems: SubMenuItem[]): MenuItem[] {
+  if (categoryItems.length === 0) return navigationMenuItems;
+  return navigationMenuItems.map((item) =>
+    item.id === 'all-products' ? { ...item, submenuItems: categoryItems } : item,
+  );
+}
+
 export const serviceMenuItems: MenuItem[] = [
   {
     id: 'blog',

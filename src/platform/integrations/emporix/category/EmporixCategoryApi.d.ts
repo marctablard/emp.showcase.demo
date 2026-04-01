@@ -149,6 +149,14 @@ export interface EmporixCategoryApi {
   getCategoryTree(categoryId: string, showUnpublished?: boolean): Promise<EmporixCategory | undefined>;
 
   /**
+   * Retrieves all category trees for the tenant.
+   * Calls GET /category/{tenant}/category-trees with a customer/session token.
+   * Each tree item already contains nested subcategories.
+   * @returns Array of root category objects with their subcategories pre-populated
+   */
+  getCategoryTrees(): Promise<EmporixCategory[]>;
+
+  /**
    * Retrieves resources (such as products) assigned to a specified category.
    * @param categoryId The category ID to get assignments for
    * @param query Query parameters for filtering and pagination
