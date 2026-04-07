@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Leaf, Package, ShoppingCart } from 'lucide-react';
+import { Clock, Leaf, Package, ShoppingCart } from 'lucide-react';
+import { SupportTicketDialog } from '@/components/account/dashboard/cards/support-ticket-dialog';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { H3 } from '@/components/ui/h';
@@ -39,6 +40,7 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
   const [priceMap, setPriceMap] = useState<Record<string, ProductPrice>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isPriceLoading, setIsPriceLoading] = useState(true);
+  const [showHelpDialog, setShowHelpDialog] = useState(false);
   const { availability } = useAvailability(cartItem.product?.id);
   // Get original product ID
   const originalProductId = cartItem.product?.id || '';
@@ -267,19 +269,25 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
                 </div>
 
                 {availability && (
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 mt-3">
                     {availability.availableQuantity && (
-                      <p className="text-sm font-bold pr-4">
-                        {t('substitution.availableDescription', {
-                          available: availability.availableQuantity,
-                          total: cartItem.quantity,
-                        })}
-                      </p>
+                      <div className="flex items-center gap-2 rounded-md border border-border-primary bg-bg-surface px-3 py-2">
+                        <Package className="h-4 w-4 shrink-0 text-text-error" />
+                        <span className="text-sm font-semibold text-text-primary">
+                          {t('substitution.availableDescription', {
+                            available: availability.availableQuantity,
+                            total: cartItem.quantity,
+                          })}
+                        </span>
+                      </div>
                     )}
                     {availability.availableInDays && (
-                      <p className="text-sm font-bold text-text-warning pr-4 justify-end">
-                        {t('substitution.availableInDays', { days: availability.availableInDays })}
-                      </p>
+                      <div className="flex items-center gap-2 rounded-md border border-border-warning bg-bg-surface px-3 py-2">
+                        <Clock className="h-4 w-4 shrink-0 text-text-warning" />
+                        <span className="text-sm font-semibold text-text-warning">
+                          {t('substitution.availableInDays', { days: availability.availableInDays })}
+                        </span>
+                      </div>
                     )}
                   </div>
                 )}
@@ -437,6 +445,9 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
               t('substitution.addSubstitution')
             )}
           </Button>
+          <Button variant="secondary" className="w-full" onClick={() => setShowHelpDialog(true)}>
+            {t('substitution.getHelp')}
+          </Button>
           <Button variant="secondary" className="w-full" onClick={handleReduceAmount}>
             {t('substitution.reduceAmount')}
           </Button>
@@ -445,6 +456,15 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
           </UiLink>
         </DialogFooter>
       </DialogContent>
+
+      <SupportTicketDialog
+        open={showHelpDialog}
+        onOpenChange={setShowHelpDialog}
+        showTriggerButton={false}
+        initialProductId={originalProductId}
+        initialProductName={l10n(productMap[originalProductId]?.name || originalProductId)}
+        initialSubjectName="Product Availability"
+      />
     </Dialog>
   );
 }

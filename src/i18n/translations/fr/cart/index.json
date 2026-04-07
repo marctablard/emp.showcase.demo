@@ -126,7 +126,8 @@
     "availableInDays": "Commande en attente disponible dans {days} jours",
     "sustainabilityClaim": "Pour un commerce plus vert",
     "sustainabilityNote": "Éviter les commandes en attente contribue à réduire les émissions de CO2, en réduisant le besoin de production et de transport supplémentaires.",
-    "poweredBy": "Powered by"
+    "poweredBy": "Powered by",
+    "getHelp": "Besoin d'aide ? Contacter le support"
   },
   "freeShippingOn": "Livraison gratuite pour les commandes supérieures à {threshold} !",
   "untilFreeShipping": " jusqu'à la livraison gratuite",

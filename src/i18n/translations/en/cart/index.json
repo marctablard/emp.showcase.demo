@@ -126,7 +126,8 @@
     "availableInDays": "Backorder available in {days} days",
     "sustainabilityClaim": "For a greener Commerce",
     "sustainabilityNote": "Avoiding Backorders helps to reduce CO2 emissions, by reducing the need for additional production and transportation.",
-    "poweredBy": "Powered by"
+    "poweredBy": "Powered by",
+    "getHelp": "Need help? Contact support"
   },
   "freeShippingOn": "Free shipping on orders over {threshold}!",
   "untilFreeShipping": " until free shipping",

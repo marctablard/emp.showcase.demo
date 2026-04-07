@@ -126,7 +126,8 @@
     "availableInDays": "Ordine arretrato disponibile in {days} giorni",
     "sustainabilityClaim": "Per un commercio più verde",
     "sustainabilityNote": "Evitare gli ordini arretrati contribuisce a ridurre le emissioni di CO2, riducendo la necessità di produzione e trasporto aggiuntivi.",
-    "poweredBy": "Powered by"
+    "poweredBy": "Powered by",
+    "getHelp": "Hai bisogno di aiuto? Contatta il supporto"
   },
   "freeShippingOn": "Spedizione gratuita per ordini superiori a {threshold}!",
   "untilFreeShipping": " fino alla spedizione gratuita",

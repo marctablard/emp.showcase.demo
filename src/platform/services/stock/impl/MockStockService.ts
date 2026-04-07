@@ -4,7 +4,7 @@ import { StockService } from '../StockService';
 
 /**
  * Mock implementation of StockService
- * Always returns 40 as available quantity and +10 days for availability
+ * Always returns 40 as available quantity and +28 days for availability
  */
 @injectable('StockService', 'Singleton')
 export class MockStockService implements StockService {
@@ -18,7 +18,7 @@ export class MockStockService implements StockService {
     return {
       productId,
       availableQuantity: 40,
-      availableInDays: 10,
+      availableInDays: 28,
       isAvailable: true,
     };
   }

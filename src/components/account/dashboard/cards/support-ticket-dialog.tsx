@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { HelpingHand } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,12 @@ export interface SupportTicketDialogProps {
   onOpenChange?: (open: boolean) => void;
   onSubmit?: (data: SupportTicketData) => void;
   showTriggerButton?: boolean;
+  /** Pre-populate the product field (bypasses order requirement) */
+  initialProductId?: string;
+  /** Display name for the pre-populated product */
+  initialProductName?: string;
+  /** Auto-select a subject by name (case-insensitive partial match) */
+  initialSubjectName?: string;
 }
 
 export function SupportTicketDialog({
@@ -41,6 +47,9 @@ export function SupportTicketDialog({
   onOpenChange,
   onSubmit,
   showTriggerButton = true,
+  initialProductId,
+  initialProductName,
+  initialSubjectName,
 }: SupportTicketDialogProps) {
   const t = useTranslations('account');
   const { customer } = useCustomer();
@@ -60,6 +69,7 @@ export function SupportTicketDialog({
   const isViewMode = !!ticket; // read-only when viewing an existing ticket
   const [productName, setProductName] = useState<string>('');
   const [productOptions, setProductOptions] = useState<Product[]>([]);
+  const prevOpenRef = useRef<boolean | undefined>(undefined);
 
   useEffect(() => {
     if (ticket) {
@@ -186,13 +196,69 @@ export function SupportTicketDialog({
     if (orderId) {
       setProductOptions([]);
       loadProductsFromOrder(orderId);
+    } else if (initialProductId) {
+      // Keep the pre-set product available even when no order is selected
+      setProductOptions([
+        {
+          id: initialProductId,
+          sku: initialProductId,
+          name: initialProductName || initialProductId,
+        } as unknown as Product,
+      ]);
     } else {
       setProductOptions([]);
     }
     return () => {
       cancelled = true;
     };
-  }, [isViewMode, orderId]);
+  }, [isViewMode, orderId, initialProductId, initialProductName]);
+
+  const resolveSubjectId = (subjectList: ServiceTicketSubject[], name: string): string => {
+    const target = name.toLowerCase();
+    const match = subjectList.find((s) => {
+      const n = (typeof s.name === 'string' ? s.name : s.name?.en || s.name?.de || '').toLowerCase();
+      return n === target || n.includes(target) || target.includes(n);
+    });
+    return match?.id ?? '';
+  };
+
+  // When the dialog opens in create mode, apply pre-set values and reset transient state
+  useEffect(() => {
+    if (open === true && prevOpenRef.current !== true && !isViewMode) {
+      setDescriptionEn('');
+      setError('');
+      setOrderId('');
+      setOwnerId('');
+      setTicketId('');
+      setTicketName('');
+      setStatus('open');
+
+      if (initialProductId) {
+        setProductId(initialProductId);
+        setProductOptions([
+          {
+            id: initialProductId,
+            sku: initialProductId,
+            name: initialProductName || initialProductId,
+          } as unknown as Product,
+        ]);
+      } else {
+        setProductId('');
+      }
+
+      // Resolve subject immediately if subjects are already loaded; otherwise the
+      // effect below will catch it once they arrive.
+      setSubjectId(initialSubjectName && subjects.length > 0 ? resolveSubjectId(subjects, initialSubjectName) : '');
+    }
+    prevOpenRef.current = open;
+  }, [open, isViewMode, initialProductId, initialProductName, initialSubjectName, subjects]);
+
+  // Fallback: auto-select subject when subjects finish loading after the dialog is already open
+  useEffect(() => {
+    if (!isViewMode && initialSubjectName && subjects.length > 0 && open === true) {
+      setSubjectId((prev) => (prev ? prev : resolveSubjectId(subjects, initialSubjectName)));
+    }
+  }, [subjects, initialSubjectName, isViewMode, open]);
 
   const statusBadge = useMemo(() => {
     const normalized = (status || 'open').toLowerCase();

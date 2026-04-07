@@ -122,7 +122,8 @@
     "availableInDays": "Rückstand verfügbar in {days} Tagen",
     "sustainabilityClaim": "Für ein grüneres Commerce",
     "sustainabilityNote": "Das Vermeiden von Nachlieferungen hilft, CO2-Emissionen zu reduzieren, indem die Notwendigkeit für zusätzliche Produktion und Transport reduziert wird.",
-    "poweredBy": "Powered by"
+    "poweredBy": "Powered by",
+    "getHelp": "Hilfe benötigt? Support kontaktieren"
   },
   "fees": "Zusatzkosten",
   "freeShippingOn": "Gratisversand bei Bestellungen über {threshold}!",
