@@ -34,6 +34,7 @@
   },
   "columns": {
     "orderNumber": "Bestell-Nr.",
+    "channel": "Kanal",
     "status": "Status",
     "totalShippingCost": "Gesamtversandkosten",
     "customer": "Kunde",

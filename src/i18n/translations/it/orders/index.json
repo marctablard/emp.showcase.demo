@@ -40,6 +40,7 @@
   },
   "columns": {
     "orderNumber": "Ordine #",
+    "channel": "Canale",
     "status": "Stato",
     "totalShippingCost": "Costo spedizione totale",
     "customer": "Cliente",

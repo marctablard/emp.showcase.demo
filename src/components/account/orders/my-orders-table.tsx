@@ -156,6 +156,9 @@ export function MyOrdersTable({
             <TableHead className="!h-14 w-[200px] font-bold">
               <span className="inline-flex items-center gap-1">{t('columns.orderDate')}</span>
             </TableHead>
+            <TableHead className="!h-14 w-[160px] font-bold">
+              <span className="inline-flex items-center gap-1">{t('columns.channel')}</span>
+            </TableHead>
             <TableHead className="!h-14 w-[200px] font-bold">
               <span className="inline-flex items-center gap-1">{t('columns.expectedDeliveryDate')}</span>
             </TableHead>
@@ -174,13 +177,13 @@ export function MyOrdersTable({
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={10} className="text-center py-4">
+              <TableCell colSpan={11} className="text-center py-4">
                 {t('loading')}
               </TableCell>
             </TableRow>
           ) : visibleOrders.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={10} className="text-center py-4">
+              <TableCell colSpan={11} className="text-center py-4">
                 {t('noOrders')}
               </TableCell>
             </TableRow>
@@ -214,6 +217,7 @@ export function MyOrdersTable({
                   {order.customer?.name || order.customer?.firstName || order.customer?.lastName}
                 </TableCell>
                 <TableCell className="px-2 py-4">{formatDate(order.createdAt)}</TableCell>
+                <TableCell className="px-2 py-4">{order.siteCode ?? '-'}</TableCell>
                 <TableCell className="px-2 py-4">
                   {/* Use lastStatusChange as an approximation for delivery date */}
                   {/*formatDate(order.lastStatusChange)*/}-

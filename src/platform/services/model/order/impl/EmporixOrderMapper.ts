@@ -60,6 +60,7 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
         : undefined,
       customerEmail: integrationModel.customer?.email,
       customerNote: integrationModel.customerNote,
+      siteCode: integrationModel.siteCode,
     };
   }
 

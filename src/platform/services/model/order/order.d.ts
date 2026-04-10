@@ -102,6 +102,7 @@ export interface Order {
   status: OrderStatus;
   createdAt?: string;
   lastStatusChange?: string;
+  siteCode?: string;
   items: OrderItem[];
   billingAddress?: Address;
   shippingAddress?: Address;
