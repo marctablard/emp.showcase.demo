@@ -127,7 +127,32 @@
     "sustainabilityClaim": "Per un commercio più verde",
     "sustainabilityNote": "Evitare gli ordini arretrati contribuisce a ridurre le emissioni di CO2, riducendo la necessità di produzione e trasporto aggiuntivi.",
     "poweredBy": "Powered by",
-    "getHelp": "Hai bisogno di aiuto? Contatta il supporto"
+    "getHelp": "Hai bisogno di aiuto? Contatta il supporto",
+    "serviceCockpitTicket": {
+      "title": "Ticket Service Cockpit",
+      "contextSectionTitle": "Contesto della richiesta",
+      "type": "Tipo:",
+      "contextProduct": "Prodotto:",
+      "contextProductId": "ID prodotto:",
+      "contextQuantity": "Quantità desiderata:",
+      "subject": "Oggetto",
+      "subjectPlaceholder": "Titolo breve per la richiesta",
+      "summary": "Riepilogo",
+      "summaryPlaceholder": "Descrivi la situazione in dettaglio",
+      "businessImpact": "Impatto sul business",
+      "businessImpactPlaceholder": "Qual è l'impatto sulla tua attività?",
+      "send": "Invia ticket",
+      "sending": "Invio in corso…",
+      "validation": {
+        "subjectRequired": "Inserisci un oggetto.",
+        "summaryRequired": "Inserisci un riepilogo.",
+        "businessImpactRequired": "Descrivi l'impatto sul business.",
+        "cartContextRequired": "Manca il prodotto o la quantità. Riprova dal carrello."
+      },
+      "errors": {
+        "submitFailed": "Impossibile inviare il ticket. Riprova."
+      }
+    }
   },
   "freeShippingOn": "Spedizione gratuita per ordini superiori a {threshold}!",
   "untilFreeShipping": " fino alla spedizione gratuita",

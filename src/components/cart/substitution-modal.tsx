@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Clock, Leaf, Package, ShoppingCart } from 'lucide-react';
-import { SupportTicketDialog } from '@/components/account/dashboard/cards/support-ticket-dialog';
+import { ServiceCockpitTicketDialog } from '@/components/cart/service-cockpit-ticket-dialog';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { H3 } from '@/components/ui/h';
@@ -43,7 +43,7 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
   const [showHelpDialog, setShowHelpDialog] = useState(false);
   const { availability } = useAvailability(cartItem.product?.id);
   // Get original product ID
-  const originalProductId = cartItem.product?.id || '';
+  const originalProductId = cartItem.product?.id || substitution.productId || '';
 
   // Get original product price
   const originalPrice = priceMap[originalProductId]?.originalAmount || 0;
@@ -457,13 +457,12 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
         </DialogFooter>
       </DialogContent>
 
-      <SupportTicketDialog
+      <ServiceCockpitTicketDialog
         open={showHelpDialog}
         onOpenChange={setShowHelpDialog}
-        showTriggerButton={false}
-        initialProductId={originalProductId}
-        initialProductName={l10n(productMap[originalProductId]?.name || originalProductId)}
-        initialSubjectName="Product Availability"
+        productId={originalProductId}
+        productName={l10n(productMap[originalProductId]?.name || originalProductId)}
+        quantity={cartItem.quantity}
       />
     </Dialog>
   );

@@ -127,7 +127,32 @@
     "sustainabilityClaim": "For a greener Commerce",
     "sustainabilityNote": "Avoiding Backorders helps to reduce CO2 emissions, by reducing the need for additional production and transportation.",
     "poweredBy": "Powered by",
-    "getHelp": "Need help? Contact support"
+    "getHelp": "Need help? Contact support",
+    "serviceCockpitTicket": {
+      "title": "Service Cockpit Ticket",
+      "contextSectionTitle": "Request context",
+      "type": "Type:",
+      "contextProduct": "Product:",
+      "contextProductId": "Product ID:",
+      "contextQuantity": "Desired quantity:",
+      "subject": "Subject",
+      "subjectPlaceholder": "Short title for your request",
+      "summary": "Summary",
+      "summaryPlaceholder": "Describe the situation in detail",
+      "businessImpact": "Business impact",
+      "businessImpactPlaceholder": "How does this affect your business?",
+      "send": "Submit ticket",
+      "sending": "Submitting…",
+      "validation": {
+        "subjectRequired": "Please enter a subject.",
+        "summaryRequired": "Please enter a summary.",
+        "businessImpactRequired": "Please describe the business impact.",
+        "cartContextRequired": "Product or quantity is missing. Try again from the cart."
+      },
+      "errors": {
+        "submitFailed": "Could not submit the ticket. Please try again."
+      }
+    }
   },
   "freeShippingOn": "Free shipping on orders over {threshold}!",
   "untilFreeShipping": " until free shipping",

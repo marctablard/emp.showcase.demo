@@ -127,7 +127,32 @@
     "sustainabilityClaim": "Pour un commerce plus vert",
     "sustainabilityNote": "Éviter les commandes en attente contribue à réduire les émissions de CO2, en réduisant le besoin de production et de transport supplémentaires.",
     "poweredBy": "Powered by",
-    "getHelp": "Besoin d'aide ? Contacter le support"
+    "getHelp": "Besoin d'aide ? Contacter le support",
+    "serviceCockpitTicket": {
+      "title": "Ticket Service Cockpit",
+      "contextSectionTitle": "Contexte de la demande",
+      "type": "Type :",
+      "contextProduct": "Produit :",
+      "contextProductId": "ID produit :",
+      "contextQuantity": "Quantité souhaitée :",
+      "subject": "Objet",
+      "subjectPlaceholder": "Titre court pour votre demande",
+      "summary": "Résumé",
+      "summaryPlaceholder": "Décrivez la situation en détail",
+      "businessImpact": "Impact sur l'activité",
+      "businessImpactPlaceholder": "Quel est l'impact sur votre activité ?",
+      "send": "Envoyer le ticket",
+      "sending": "Envoi en cours…",
+      "validation": {
+        "subjectRequired": "Veuillez saisir un objet.",
+        "summaryRequired": "Veuillez saisir un résumé.",
+        "businessImpactRequired": "Veuillez décrire l'impact sur l'activité.",
+        "cartContextRequired": "Produit ou quantité manquant. Réessayez depuis le panier."
+      },
+      "errors": {
+        "submitFailed": "Impossible d'envoyer le ticket. Veuillez réessayer."
+      }
+    }
   },
   "freeShippingOn": "Livraison gratuite pour les commandes supérieures à {threshold} !",
   "untilFreeShipping": " jusqu'à la livraison gratuite",

@@ -123,7 +123,32 @@
     "sustainabilityClaim": "Für ein grüneres Commerce",
     "sustainabilityNote": "Das Vermeiden von Nachlieferungen hilft, CO2-Emissionen zu reduzieren, indem die Notwendigkeit für zusätzliche Produktion und Transport reduziert wird.",
     "poweredBy": "Powered by",
-    "getHelp": "Hilfe benötigt? Support kontaktieren"
+    "getHelp": "Hilfe benötigt? Support kontaktieren",
+    "serviceCockpitTicket": {
+      "title": "Service-Cockpit-Ticket",
+      "contextSectionTitle": "Kontext der Anfrage",
+      "type": "Typ:",
+      "contextProduct": "Produkt:",
+      "contextProductId": "Produkt-ID:",
+      "contextQuantity": "Gewünschte Menge:",
+      "subject": "Betreff",
+      "subjectPlaceholder": "Kurzer Titel für Ihr Anliegen",
+      "summary": "Zusammenfassung",
+      "summaryPlaceholder": "Beschreiben Sie die Situation ausführlich",
+      "businessImpact": "Geschäftliche Auswirkungen",
+      "businessImpactPlaceholder": "Wie wirkt sich dies auf Ihr Geschäft aus?",
+      "send": "Ticket absenden",
+      "sending": "Wird gesendet…",
+      "validation": {
+        "subjectRequired": "Bitte geben Sie einen Betreff ein.",
+        "summaryRequired": "Bitte geben Sie eine Zusammenfassung ein.",
+        "businessImpactRequired": "Bitte beschreiben Sie die geschäftlichen Auswirkungen.",
+        "cartContextRequired": "Produkt oder Menge fehlt. Bitte erneut über den Warenkorb versuchen."
+      },
+      "errors": {
+        "submitFailed": "Das Ticket konnte nicht abgeschickt werden. Bitte versuchen Sie es erneut."
+      }
+    }
   },
   "fees": "Zusatzkosten",
   "freeShippingOn": "Gratisversand bei Bestellungen über {threshold}!",
