@@ -2,8 +2,9 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
+import { Badge } from '@/components/ui/badge';
 import { QuoteDetailsData } from '../types';
-import { formatDate, formatPrice, getQuoteStatusColor } from '../utils';
+import { formatDate, formatPrice, getQuoteStatusBadgeVariantForAi } from '../utils';
 import { ProductItem, UnifiedProductItem } from './ProductItem';
 
 interface QuoteDetailsRendererProps {
@@ -29,13 +30,9 @@ export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data
                 >
                   {data.reference || `#${data.quoteId}`}
                 </a>
-                <span
-                  className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getQuoteStatusColor(
-                    data.status,
-                  )}`}
-                >
+                <Badge variant={getQuoteStatusBadgeVariantForAi(data.status)} size="status">
                   {data.status}
-                </span>
+                </Badge>
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm text-text-on-action/90">
                 <div className="flex items-center space-x-2">

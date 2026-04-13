@@ -1,6 +1,7 @@
 {
   "previous": "Vorherige",
   "next": "Nächste",
+  "pageIndicator": "Seite {current} / {total}",
   "title": "Bestellungen",
   "myOrders": "Meine Bestellungen",
   "showAllOrders": "Alle Bestellungen anzeigen",
@@ -56,7 +57,8 @@
     "shipped": "Versendet",
     "delivered": "Geliefert",
     "completed": "Abgeschlossen",
-    "cancelled": "Storniert"
+    "cancelled": "Storniert",
+    "declined": "Abgelehnt"
   },
   "paymentTypes": {
     "creditcard": "Kreditkarte",
@@ -96,7 +98,7 @@
     "CONFIRMED": "Bestätigt",
     "SHIPPED": "Versandt",
     "COMPLETED": "Abgeschlossen",
-    "DECLINED": "Storniert"
+    "DECLINED": "Abgelehnt"
   },
   "Confirmation": {
     "title": "Bestellbestätigung",
@@ -107,6 +109,7 @@
     "emailConfirmation": "Eine Bestätigungs-E-Mail wurde gesendet an",
     "continueShopping": "Weiter einkaufen",
     "viewOrders": "Meine Bestellungen anzeigen",
+    "viewApprovals": "Meine Freigaben",
     "freightShipping": "Frachtversand",
     "freightInfo": "Nach der Bestellung kontaktiert Sie die beauftragte Spedition mit weiteren Informationen."
   },
@@ -183,7 +186,10 @@
     "enterRequestorComment": "Anforderer-Kommentar eingeben...",
     "saveApproverComment": "Genehmiger-Kommentar speichern",
     "saveRequestorComment": "Anforderer-Kommentar speichern",
-    "orderSuccessfullySubmitted": "Bestellung erfolgreich aufgegeben"
+    "orderSuccessfullySubmitted": "Bestellung erfolgreich aufgegeben",
+    "previous": "Zurück",
+    "next": "Weiter",
+    "pageIndicator": "Seite {current} / {total}"
   },
   "ApprovalAction": {
     "CHECKOUT": "Bestellung"

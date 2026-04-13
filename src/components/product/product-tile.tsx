@@ -62,14 +62,15 @@ export function ProductTile({ product, locale = 'en', skipVariantFetch = false }
     }
   };
 
-  function getIcon(icon: string): LucideIcon {
-    if (icon.includes('years')) {
+  function getIcon(icon: unknown): LucideIcon {
+    const s = typeof icon === 'string' ? icon : icon != null ? String(icon) : '';
+    if (s.includes('years')) {
       return Shield;
-    } else if (icon === 'worldwide') {
+    } else if (s === 'worldwide') {
       return Globe;
-    } else if (icon === 'waterproof') {
+    } else if (s === 'waterproof') {
       return DropletOff;
-    } else if (icon === 'sustainable') {
+    } else if (s === 'sustainable') {
       return Trees;
     }
 

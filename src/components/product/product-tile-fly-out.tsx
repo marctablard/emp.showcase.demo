@@ -23,13 +23,14 @@ const formatAttributeKey = (key: string) => {
 };
 
 // Helper function to mark text without creating a p element
-const markText = (text: string, keyword?: string): React.ReactNode => {
-  if (!keyword || !text) return text;
+const markText = (text: unknown, keyword?: string): React.ReactNode => {
+  const safeText = text == null ? '' : String(text);
+  if (!keyword || !safeText) return safeText;
 
   // Check if the text contains HTML tags like <mark>
-  if (text.includes('<mark>')) {
+  if (safeText.includes('<mark>')) {
     // Extract content between <mark> tags and make it bold
-    const parts = text.split(/<\/?mark>/g);
+    const parts = safeText.split(/<\/?mark>/g);
     return parts.map((part, index) => {
       // Every odd index is content that was between <mark> tags
       if (index % 2 === 1) {
@@ -48,7 +49,7 @@ const markText = (text: string, keyword?: string): React.ReactNode => {
     // Escape special regex characters in the keyword
     const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(`(${escapedKeyword.trim().split(' ').join('|')})`, 'gi');
-    const parts = text.split(regex);
+    const parts = safeText.split(regex);
 
     return parts.map((part, index) => {
       if (
@@ -68,7 +69,7 @@ const markText = (text: string, keyword?: string): React.ReactNode => {
     });
   } catch (_e) {
     // Fallback in case of regex error
-    return text;
+    return safeText;
   }
 };
 

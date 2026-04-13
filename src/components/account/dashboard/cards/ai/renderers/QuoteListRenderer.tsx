@@ -3,8 +3,9 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
+import { Badge } from '@/components/ui/badge';
 import { QuoteData, QuoteListData, QuotePreviewItemData } from '../types';
-import { formatDate, formatPrice, getQuoteStatusColor, handleImageError } from '../utils';
+import { formatDate, formatPrice, getQuoteStatusBadgeVariantForAi, handleImageError } from '../utils';
 
 interface QuoteListRendererProps {
   data: QuoteListData;
@@ -32,13 +33,9 @@ export const QuoteListRenderer: React.FC<QuoteListRendererProps> = ({ data }) =>
                     >
                       {quote.reference || `#${quote.quoteId}`}
                     </a>
-                    <span
-                      className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getQuoteStatusColor(
-                        quote.status,
-                      )}`}
-                    >
+                    <Badge variant={getQuoteStatusBadgeVariantForAi(quote.status)} size="status">
                       {quote.status}
-                    </span>
+                    </Badge>
                   </div>
                   <div className="grid grid-cols-2 gap-4 text-sm text-text-on-action/90">
                     <div className="flex items-center space-x-2">

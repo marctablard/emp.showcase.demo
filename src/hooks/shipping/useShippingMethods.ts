@@ -1,17 +1,15 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import { getShippingMethods, invalidateShippingMethodsResponseCache } from '@/lib/client/shipping';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { ShippingMethod } from '@/platform/services/model/shipping';
-import { useShippingMethodsStore } from '@/providers/StoreProvider';
+import { useSessionStore, useShippingMethodsStore } from '@/providers/StoreProvider';
 
 interface UseShippingMethods {
-  // Data
   shippingMethods: ShippingMethod[];
   loading: boolean;
   error: Error | null;
-
-  // Actions
   fetchShippingMethods: (
     countryCode: string,
     postalCode: string,
@@ -25,7 +23,8 @@ interface UseShippingMethods {
  * @returns Shipping methods data and operations
  */
 export const useShippingMethods = (): UseShippingMethods => {
-  const { shippingMethods, loading, getLoading, setLoading, setShippingMethods } = useShippingMethodsStore();
+  const { shippingMethods, loading, setLoading, setShippingMethods } = useShippingMethodsStore();
+  const { session } = useSessionStore();
   const [error, setError] = useState<Error | null>(null);
   const fetchShippingMethods = useCallback(
     async (
@@ -36,15 +35,18 @@ export const useShippingMethods = (): UseShippingMethods => {
       if (!countryCode || !postalCode) {
         return;
       }
-      if (getLoading()) {
-        return;
-      }
       setError(null);
       setLoading(true);
-
       try {
-        const { getShippingMethods } = await import('@/lib/client/shipping');
-        const methods = await getShippingMethods(countryCode, postalCode, orderValue);
+        const sessionContext =
+          session != null
+            ? {
+                siteCode: session.siteCode,
+                currency: session.currency,
+                legalEntityId: session.legalEntityId,
+              }
+            : undefined;
+        const methods = await getShippingMethods(countryCode, postalCode, orderValue, sessionContext);
         setShippingMethods(methods);
       } catch (err) {
         getLogger().error({ err }, 'Error fetching shipping methods');
@@ -53,10 +55,11 @@ export const useShippingMethods = (): UseShippingMethods => {
         setLoading(false);
       }
     },
-    [setShippingMethods, setLoading, getLoading],
+    [session, setShippingMethods, setLoading],
   );
 
   const clearShippingMethods = useCallback(() => {
+    invalidateShippingMethodsResponseCache();
     setShippingMethods([]);
   }, [setShippingMethods]);
 

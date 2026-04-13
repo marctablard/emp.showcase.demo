@@ -13,7 +13,8 @@ export type OrderStatus =
   | 'SHIPPED'
   | 'DELIVERED'
   | 'COMPLETED'
-  | 'CANCELLED';
+  | 'CANCELLED'
+  | 'DECLINED';
 
 /**
  * Order item representing a product in the order

@@ -30,7 +30,7 @@ export default function createNavigation(siteRouting: SiteRoutingConfig, intlRou
       const localePrefix = getLocalePrefix(locale, intlRouting);
       const isPathnameLocalePrefixed = hasPathnamePrefixed(localePrefix, unprefixedPathname);
       if (isPathnameLocalePrefixed) {
-        unprefixedPathname = unprefixPathname(pathname, localePrefix);
+        unprefixedPathname = unprefixPathname(unprefixedPathname, localePrefix);
       }
       return unprefixedPathname;
     }, [locale, site, pathname]);

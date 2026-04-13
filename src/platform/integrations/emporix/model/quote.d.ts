@@ -267,7 +267,11 @@ export type EmporixQuoteStatus =
   | 'DECLINED'
   | 'ACCEPTED'
   | 'ORDER_CREATED'
-  | 'CLOSED';
+  | 'CLOSED'
+  | 'CHANGE'
+  | 'DECLINE'
+  | 'DECLINED_BY_MERCHANT'
+  | 'EXPIRED';
 
 export interface EmporixQuoteUpdateRequest {
   op: EmporixQuoteUpdateOperation;

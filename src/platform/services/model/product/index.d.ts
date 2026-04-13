@@ -88,6 +88,8 @@ export interface Product {
   variantAttributes?: ProductVariantAttribute[];
   variantAttributeValues?: Record<string, string>;
   relatedItems?: RelatedItem[];
+  /** Emporix product category roots when provided by API */
+  categoryIds?: string[];
 }
 
 export interface ProductRecommendations {

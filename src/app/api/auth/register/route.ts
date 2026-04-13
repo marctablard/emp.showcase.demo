@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Failed to register customer' }, { status: 401 });
     }
-    return NextResponse.json({ success: true }, { status: 201 });
+    return NextResponse.json(session, { status: 201 });
   } catch (error) {
     const logger = server.get<LoggerService>('LoggerService');
     // Determine appropriate status code based on error

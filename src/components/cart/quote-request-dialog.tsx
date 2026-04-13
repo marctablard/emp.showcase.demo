@@ -11,7 +11,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useCart } from '@/hooks/cart/useCart';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
-import { useAddresses } from '@/hooks/customer/useAddresses';
 import useCustomer from '@/hooks/customer/useCustomer';
 import { useToast } from '@/hooks/ui/useToast';
 import { useRouter } from '@/i18n/navigation';
@@ -29,7 +28,6 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
   const { toast } = useToast();
   const router = useRouter();
 
-  const { addresses } = useAddresses();
   const { customer } = useCustomer();
   const { clearCart } = useCart();
   const { checkoutCart, shippingAddress, billingAddress, shippingMethod, submitShippingAddress, submitBillingAddress } =
@@ -159,18 +157,17 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
         {/* Scrollable content area */}
         <div className="grid grid-cols-1 gap-6 flex-1 min-h-0 overflow-y-auto px-1 overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {/* Shipping address selector + form */}
-          {addresses && addresses.length > 0 && (
-            <AddressSelector
-              addressType="SHIPPING"
-              selectedAddressId={shippingAddress?.id}
-              onSelect={handleShippingChange}
-              triggerElement={
-                <div className="flex gap-1 text-text-action font-bold mb-2 cursor-pointer">
-                  <p>{tCheckout('fromAddressbook')}</p>
-                </div>
-              }
-            />
-          )}
+          <AddressSelector
+            addressBook="companyAndCustomer"
+            addressType="SHIPPING"
+            selectedAddressId={shippingAddress?.id}
+            onSelect={handleShippingChange}
+            triggerElement={
+              <div className="flex gap-1 text-text-action font-bold mb-2 cursor-pointer">
+                <p>{tCheckout('fromAddressbook')}</p>
+              </div>
+            }
+          />
           <CheckoutAddress
             address={shippingAddress}
             addressLabel={tCheckout('address')}
@@ -179,18 +176,17 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
             testIdPrefix="quoteShipping"
           />
 
-          {addresses && addresses.length > 0 && (
-            <AddressSelector
-              addressType="BILLING"
-              selectedAddressId={billingAddress?.id}
-              onSelect={handleBillingChange}
-              triggerElement={
-                <div className="flex gap-1 text-text-action font-bold mb-2 cursor-pointer">
-                  <p>{tCheckout('fromAddressbook')}</p>
-                </div>
-              }
-            />
-          )}
+          <AddressSelector
+            addressBook="companyAndCustomer"
+            addressType="BILLING"
+            selectedAddressId={billingAddress?.id}
+            onSelect={handleBillingChange}
+            triggerElement={
+              <div className="flex gap-1 text-text-action font-bold mb-2 cursor-pointer">
+                <p>{tCheckout('fromAddressbook')}</p>
+              </div>
+            }
+          />
           <CheckoutAddress
             address={billingAddress}
             addressLabel={t('billingAddress')}

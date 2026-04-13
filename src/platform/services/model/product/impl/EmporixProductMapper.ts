@@ -8,6 +8,7 @@ import {
   ProductVariantAttribute,
 } from '@/platform/services/model/product';
 import { ProductMapper } from '../ProductMapper';
+import { normalizeProductAttributeStringMap } from './normalizeProductAttributeStringMap';
 
 /**
  * Implementation of ProductMapper for Emporix product data.
@@ -16,6 +17,7 @@ import { ProductMapper } from '../ProductMapper';
 @injectable('EmporixProductMapper', 'Singleton')
 export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
   constructor() {}
+
   /**
    * Maps an Emporix product to the internal Product model.
    *
@@ -37,7 +39,9 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
     // Extract localized name and description
     const name = source.name || ''; // Add null/empty check
     const description = source.description || '';
-    const templateAttributes = source.mixins?.productTemplateAttributes;
+    const templateAttributes = normalizeProductAttributeStringMap(
+      source.mixins?.productTemplateAttributes as Record<string, unknown> | undefined,
+    );
     const highlights = source.mixins?.highlights?.highlights?.map((highlight: any) => highlight.value);
     const mappedSpecs = !source.mixins?.specifications?.specifications
       ? []
@@ -79,6 +83,7 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
     return {
       id: source.id || source.code,
       parentVariantId: source.parentVariantId,
+      categoryIds: source.categoryIds,
       brand: source.brandId ? { id: source.brandId } : undefined,
       labels: source.labelIds ? source.labelIds.map((id) => ({ id })) : undefined,
       name,
@@ -91,7 +96,9 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
       templateAttributes,
       variantAttributes: this.mapVariantAttributes(source),
       purchasable: source.productType !== 'PARENT_VARIANT',
-      variantAttributeValues: source.mixins?.productVariantAttributes,
+      variantAttributeValues: normalizeProductAttributeStringMap(
+        source.mixins?.productVariantAttributes as Record<string, unknown> | undefined,
+      ),
       relatedItems: source.relatedItems,
     };
   }
@@ -156,6 +163,7 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
       description: service.description,
       media: media,
       published: true,
+      ...(service.categoryIds?.length ? { categoryIds: service.categoryIds } : {}),
     };
   }
 

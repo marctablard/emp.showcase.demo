@@ -1,4 +1,13 @@
 import { format } from 'date-fns';
+import type { BadgeVariant } from '@/components/ui/badge';
+import {
+  getOrderStatusVariant,
+  getQuoteStatusVariant,
+  getReturnStatusVariant,
+  isOrderStatusValue,
+  isQuoteStatusValue,
+  isReturnStatusValue,
+} from '@/lib/common/status-tag-variants';
 
 /**
  * Helper function to safely format currency
@@ -52,73 +61,30 @@ export const formatDateTime = (date: Date | string | undefined | null, _locale: 
   }
 };
 
-/**
- * Gets the CSS classes for quote status badges
- */
-export const getQuoteStatusColor = (status: string): string => {
-  switch (status?.toUpperCase()) {
-    case 'CREATING':
-    case 'CLOSED':
-      return 'bg-surface-disabled text-text-body';
-    case 'OPEN':
-      return 'bg-surface-information text-text-action-hover';
-    case 'IN_PROGRESS':
-      return 'bg-surface-warning text-text-warning';
-    case 'DECLINED':
-      return 'bg-surface-error text-text-error';
-    case 'ACCEPTED':
-    case 'ORDER_CREATED':
-      return 'bg-surface-success text-text-success';
-    default:
-      return 'bg-surface-disabled text-text-body';
-  }
-};
+function normalizeEnumKey(status: string): string {
+  return (status || '').toUpperCase().replace(/-/g, '_');
+}
 
-/**
- * Gets the CSS classes for order status badges
- */
-export const getOrderStatusColor = (status: string): string => {
-  const statusUpper = status?.toUpperCase();
-  if (statusUpper === 'COMPLETED' || statusUpper === 'SHIPPED' || statusUpper === 'DELIVERED') {
-    return 'bg-surface-success text-text-success';
-  }
-  if (
-    statusUpper === 'CONFIRMED' ||
-    statusUpper === 'PROCESSING' ||
-    statusUpper === 'READY_FOR_PICKUP' ||
-    statusUpper === 'READY_FOR_SHIPPING'
-  ) {
-    return 'bg-surface-warning text-text-warning';
-  }
-  if (statusUpper === 'PENDING') {
-    return 'bg-surface-warning text-text-warning';
-  }
-  if (statusUpper === 'CANCELLED') {
-    return 'bg-surface-error text-text-error';
-  }
-  return 'bg-surface-disabled text-text-body';
-};
+/** Maps AI / API order status strings to the same variants as {@link OrderStatusBadge}. */
+export function getOrderStatusBadgeVariantForAi(status: string): BadgeVariant {
+  const key = normalizeEnumKey(status);
+  if (!isOrderStatusValue(key)) return 'outline';
+  return getOrderStatusVariant(key);
+}
 
-/**
- * Gets the CSS classes for return approval status badges
- * Possible values: APPROVED, PENDING, REJECTED, CLOSED
- */
-export const getReturnStatusColor = (status: string): string => {
-  const statusUpper = status?.toUpperCase();
-  if (statusUpper === 'APPROVED') {
-    return 'bg-surface-success text-text-success';
-  }
-  if (statusUpper === 'PENDING') {
-    return 'bg-surface-warning text-text-warning';
-  }
-  if (statusUpper === 'REJECTED') {
-    return 'bg-surface-error text-text-error';
-  }
-  if (statusUpper === 'CLOSED') {
-    return 'bg-surface-disabled text-text-body';
-  }
-  return 'bg-surface-disabled text-text-body';
-};
+/** Maps AI / API quote status strings to the same variants as {@link QuoteStatusBadge}. */
+export function getQuoteStatusBadgeVariantForAi(status: string): BadgeVariant {
+  const key = normalizeEnumKey(status);
+  if (!isQuoteStatusValue(key)) return 'outline';
+  return getQuoteStatusVariant(key);
+}
+
+/** Maps AI / API return status strings to the same variants as {@link ReturnStatusBadge}. */
+export function getReturnStatusBadgeVariantForAi(status: string): BadgeVariant {
+  const key = normalizeEnumKey(status);
+  if (!isReturnStatusValue(key)) return 'default';
+  return getReturnStatusVariant(key);
+}
 
 /**
  * Handler for image load errors - hides the image element

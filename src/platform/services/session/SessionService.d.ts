@@ -52,4 +52,10 @@ export interface SessionService {
    * Removes the 'currentCart' attribute from the Emporix session.
    */
   clearCart(): Promise<void>;
+
+  /**
+   * Set the legal entity (company) for the current session context
+   * This will refresh the customer token with the new legal entity ID
+   */
+  setLegalEntity(legalEntityId: string): Promise<void>;
 }

@@ -5,22 +5,16 @@ import { SearchService } from '@/platform/services/search/SearchService';
 
 /**
  * API endpoint to get product suggestions based on a search query
- * GET /api/search/suggestions?query=term&locale=en
+ * GET /api/search/suggestions?query=term&locale=en&site=main
  */
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const query = url.searchParams.get('query');
   const locale = url.searchParams.get('locale') || undefined;
+  const site = url.searchParams.get('site') || undefined;
 
   try {
     const searchService = server.get<SearchService>('SearchService');
-
-    const url = new URL(request.url);
-
-    // Extract query and locale parameters
-    const query = url.searchParams.get('query');
-    const locale = url.searchParams.get('locale') || undefined;
-    const site = url.searchParams.get('site') || undefined;
 
     if (!query) {
       return NextResponse.json({ error: 'Query parameter is required' }, { status: 400 });
@@ -39,6 +33,7 @@ export async function GET(request: NextRequest) {
         method: 'GET',
         query,
         locale,
+        site,
       },
       'Error fetching suggestions',
     );

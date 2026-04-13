@@ -3,7 +3,8 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { formatDate, formatPrice, getReturnStatusColor, handleImageError } from '../utils';
+import { Badge } from '@/components/ui/badge';
+import { formatDate, formatPrice, getReturnStatusBadgeVariantForAi, handleImageError } from '../utils';
 
 interface ReturnCardProps {
   returnItem: any;
@@ -40,23 +41,17 @@ export const ReturnCard: React.FC<ReturnCardProps> = ({ returnItem }) => {
           <div className="flex-1 min-w-0">
             <div className="flex items-center space-x-2 mb-2">
               <span className="text-text-on-action font-semibold text-base">#{returnItem.id}</span>
-              <span
-                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${getReturnStatusColor(
-                  returnItem.approvalStatus,
-                )}`}
+              <Badge
+                variant={getReturnStatusBadgeVariantForAi(returnItem.approvalStatus)}
+                size="status"
+                className="flex-shrink-0 max-w-full truncate"
               >
                 {returnItem.approvalStatus}
-              </span>
+              </Badge>
               {returnItem.received !== undefined && (
-                <span
-                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${
-                    returnItem.received
-                      ? 'bg-surface-success text-text-success'
-                      : 'bg-surface-warning text-text-warning'
-                  }`}
-                >
+                <Badge variant={returnItem.received ? 'success' : 'warning'} size="status" className="flex-shrink-0">
                   {returnItem.received ? t('received') : t('notReceived')}
-                </span>
+                </Badge>
               )}
             </div>
             <div className="flex items-center space-x-4 text-xs text-text-on-action/90">

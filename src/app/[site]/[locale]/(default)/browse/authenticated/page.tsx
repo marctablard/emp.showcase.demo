@@ -13,13 +13,13 @@ export default async function AuthenticatedBrowsePage({
   params,
   searchParams,
 }: {
-  params: Promise<{ locale: string }>;
+  params: Promise<{ site: string; locale: string }>;
   searchParams: Promise<Record<string, string | string[]>>;
 }) {
-  const { locale } = await params;
+  const { locale, site } = await params;
   const rawParams = await searchParams;
 
-  const { initialSearch, q } = createBrowseInitialSearch(rawParams, true);
+  const { initialSearch, q } = createBrowseInitialSearch(rawParams, true, site);
 
   const initialResults = await searchProducts(initialSearch);
 

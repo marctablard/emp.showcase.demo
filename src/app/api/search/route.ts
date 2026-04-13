@@ -5,7 +5,11 @@ import { SearchService } from '@/platform/services/search';
 
 /**
  * API endpoint to search for products
- * GET /api/search?query=term&page=0&size=20&sort=name:asc
+ * GET /api/search?query=term&page=0&size=12&sort=name:asc&site=main
+ *
+ * Catalog `categoryIds` in product search `q` can be disabled with `NEXT_PUBLIC_SEARCH_OMIT_CATALOG_CATALOG_FILTER=true`
+ * (e.g. old DBs without product `categoryIds`). Per-request unscoped search: set `SEARCH_ALLOW_UNSCOPED_PRODUCT_SEARCH=true`
+ * and pass `allProducts=1` or `searchAllProducts=true`.
  */
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
@@ -14,10 +18,16 @@ export async function GET(request: NextRequest) {
   try {
     const searchService = server.get<SearchService>('SearchService');
     const page = url.searchParams.get('page') ? parseInt(url.searchParams.get('page')!) : 0;
-    const size = url.searchParams.get('size') ? parseInt(url.searchParams.get('size')!) : 20;
+    const size = url.searchParams.get('size') ? parseInt(url.searchParams.get('size')!) : 12;
     const sort = url.searchParams.get('sort') || undefined;
     const locale = url.searchParams.get('locale') || undefined;
     const site = url.searchParams.get('site') || undefined;
+
+    let searchAllProducts = false;
+    if (process.env.SEARCH_ALLOW_UNSCOPED_PRODUCT_SEARCH === 'true') {
+      const raw = url.searchParams.get('allProducts') ?? url.searchParams.get('searchAllProducts');
+      searchAllProducts = raw === '1' || raw === 'true';
+    }
 
     // Extract filters if present (format: filters[key]=value or filters[key][]=value1&filters[key][]=value2)
     const filters: Record<string, string | string[]> = {};
@@ -46,6 +56,9 @@ export async function GET(request: NextRequest) {
         size,
         sort,
         filters: Object.keys(filters).length > 0 ? filters : undefined,
+        site: site || undefined,
+        locale: locale || undefined,
+        searchAllProducts,
       },
       locale,
       site,

@@ -25,6 +25,7 @@ export async function generateBrowsePageMetadata(locale: string): Promise<Metada
 export function createBrowseInitialSearch(
   rawParams: Record<string, string | string[]>,
   customerSegments: boolean,
+  site: string,
 ): { initialSearch: SearchParams<Product>; q?: string } {
   const q = rawParams.q as string | undefined;
   const page = rawParams.page as string | undefined;
@@ -38,6 +39,7 @@ export function createBrowseInitialSearch(
     query: q,
     filters: Object.keys(filters).length > 0 ? filters : undefined,
     customerSegments,
+    site,
   };
 
   return { initialSearch, q };
@@ -80,13 +82,13 @@ export default async function BrowsePage({
   params,
   searchParams,
 }: {
-  params: Promise<{ locale: string }>;
+  params: Promise<{ site: string; locale: string }>;
   searchParams: Promise<Record<string, string | string[]>>;
 }) {
-  const { locale } = await params;
+  const { locale, site } = await params;
   const rawParams = await searchParams;
 
-  const { initialSearch, q } = createBrowseInitialSearch(rawParams, false);
+  const { initialSearch, q } = createBrowseInitialSearch(rawParams, false, site);
   // Fetch initial products server-side if SSR is enabled
   const initialResults = isSearchSsrEnabled() ? await searchProducts(initialSearch) : undefined;
 

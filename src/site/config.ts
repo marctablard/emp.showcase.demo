@@ -1,9 +1,13 @@
 import { SitePrefixMode, SiteRoutingConfig } from './types';
 
-const availableSites = process.env.NEXT_PUBLIC_AVAILABLE_SITES?.split(',') || [];
-const defaultSite = process.env.NEXT_PUBLIC_DEFAULT_SITE || undefined;
-if (defaultSite && (availableSites.length === 0 || !availableSites.includes(defaultSite))) {
-  availableSites.push(defaultSite);
+const availableSites = (process.env.NEXT_PUBLIC_AVAILABLE_SITES ?? '')
+  .split(',')
+  .map((site) => site.trim())
+  .filter(Boolean);
+const configuredDefaultSite = process.env.NEXT_PUBLIC_DEFAULT_SITE?.trim() || undefined;
+const defaultSite = configuredDefaultSite || availableSites[0];
+if (configuredDefaultSite && !availableSites.includes(configuredDefaultSite)) {
+  availableSites.push(configuredDefaultSite);
 }
 
 export default {

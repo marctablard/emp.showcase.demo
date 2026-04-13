@@ -2,10 +2,10 @@
 
 import React from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { ArrowRight, CheckCheck, CircleAlert, Clock, MoveRight } from 'lucide-react';
+import { ArrowRight, MoveRight } from 'lucide-react';
 import { Search } from 'lucide-react';
+import { Badge, type BadgeVariant } from '@/components/ui/badge';
 import { CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/dashboard-badge';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { H4 } from '@/components/ui/h';
 import { Input } from '@/components/ui/input';
@@ -129,17 +129,16 @@ export function TicketCard({ className, title, items: customItems, ...props }: T
     }
   }, [customItems, mapTickets]);
 
-  // Get the appropriate status badge variant
-  const getStatusBadge = (status: string) => {
+  const getTicketStatusVariant = (status: string): BadgeVariant => {
     switch (status) {
       case 'open':
-        return { variant: 'default' as const, icon: <CircleAlert className="h-3 w-3" /> };
+        return 'information';
       case 'pending':
-        return { variant: 'warning' as const, icon: <Clock className="h-3 w-3" /> };
+        return 'warning';
       case 'closed':
-        return { variant: 'success' as const, icon: <CheckCheck className="h-3 w-3" /> };
+        return 'success';
       default:
-        return { variant: 'default' as const, icon: <CircleAlert className="h-3 w-3" /> };
+        return 'information';
     }
   };
 
@@ -209,7 +208,11 @@ export function TicketCard({ className, title, items: customItems, ...props }: T
                 }}
               >
                 <TableCell className="px-2 py-4">
-                  <Badge variant={getStatusBadge(item.status).variant} className="flex items-center gap-1">
+                  <Badge
+                    variant={getTicketStatusVariant(item.status)}
+                    size="status"
+                    className="flex items-center gap-1"
+                  >
                     {t(`status.${item.status}`)}
                   </Badge>
                 </TableCell>

@@ -42,7 +42,7 @@ export default async function ReturnsPage({ params }: { params: Promise<{ locale
 
   return (
     <AccountLayout breadcrumbs={breadcrumbs}>
-      <ReturnsList initialReturns={returns} />
+      <ReturnsList initialReturns={returns} forceRefreshOnMount />
     </AccountLayout>
   );
 }

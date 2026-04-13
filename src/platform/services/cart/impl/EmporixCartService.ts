@@ -42,6 +42,49 @@ class EmporixCartService implements CartService {
     @inject('SiteService') private siteService: SiteService,
   ) {}
 
+  private normalizeLegalEntityId(value: string | undefined): string {
+    return typeof value === 'string' ? value.trim() : '';
+  }
+
+  private isCartOptimisticLockConflict(error: unknown): boolean {
+    if (!(error instanceof Error)) {
+      return false;
+    }
+    const m = error.message;
+    return m.includes('optimistic_locking') && m.includes('metadata.version');
+  }
+
+  /**
+   * B2B: when the session carries a legal entity, the cart must use the same `legalEntityId`.
+   * Otherwise we clear the session cart pointer and return null so callers can create an empty cart.
+   */
+  private async ensureCartMatchesSessionLegalEntity(
+    cart: EmporixCart | null | undefined,
+    session: { legalEntityId?: string; cartId?: string },
+  ): Promise<EmporixCart | null> {
+    if (!cart) {
+      return null;
+    }
+    const expected = this.normalizeLegalEntityId(session.legalEntityId);
+    if (!expected) {
+      return cart;
+    }
+    const onCart = this.normalizeLegalEntityId(cart.legalEntityId);
+    if (onCart === expected) {
+      return cart;
+    }
+    this.logger.info(
+      {
+        cartId: cart.id,
+        cartLegalEntityId: cart.legalEntityId,
+        sessionLegalEntityId: session.legalEntityId,
+      },
+      'Discarding cart — legalEntityId does not match session (no cross-company cart reuse)',
+    );
+    await this.sessionService.clearCart();
+    return null;
+  }
+
   async createCart(currency: string, siteCode: string): Promise<string> {
     // TODO extract these information to a SiteConfigService
     const createCartRequest = {
@@ -102,11 +145,17 @@ class EmporixCartService implements CartService {
         );
         cart = undefined;
       }
+
+      if (cart) {
+        cart = await this.ensureCartMatchesSessionLegalEntity(cart, session);
+      }
     }
 
     // Fallback to search by criteria if no valid cart found
     if (!cart) {
       const isAuthenticated = isAuthenticatedSessionCustomerId(session.customerId);
+      const sessionLegalEntity = this.normalizeLegalEntityId(session.legalEntityId);
+      const skipSessionIdCartFallback = isAuthenticated && sessionLegalEntity !== '';
 
       // For authenticated users, prefer customer-owned cart lookup first.
       // Never pass create=true here — auto-created carts use the site's default
@@ -121,6 +170,7 @@ class EmporixCartService implements CartService {
             'shopping',
             false,
           );
+          cart = await this.ensureCartMatchesSessionLegalEntity(cart, session);
         } catch (error) {
           throw this.mapCartResolutionError(error, {
             fallbackCode: CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN,
@@ -129,10 +179,12 @@ class EmporixCartService implements CartService {
         }
       }
 
-      // Anonymous or fallback lookup by session criteria.
-      if (!cart) {
+      // Anonymous or fallback lookup by session criteria — not used for authenticated B2B with a
+      // session legalEntityId, otherwise session-scoped lookup could return another company's cart.
+      if (!cart && !skipSessionIdCartFallback) {
         try {
           cart = await this.cartApi.getCartByCriteria(currentSiteCode, session.id, undefined, 'shopping', false);
+          cart = await this.ensureCartMatchesSessionLegalEntity(cart, session);
         } catch (error) {
           throw this.mapCartResolutionError(error, {
             fallbackCode: CART_CURRENCY_UPDATE_ERROR_CODE.UPSTREAM_FAILURE,
@@ -151,11 +203,20 @@ class EmporixCartService implements CartService {
   }
 
   async getCartById(id: string, checkSession = true): Promise<Cart | null> {
-    const cart = await this.cartApi.getCart(id, checkSession);
-    if (!cart) {
+    const raw = await this.cartApi.getCart(id, checkSession);
+    if (!raw) {
       return null;
     }
-    return this.mapper.mapToService(cart);
+    if (checkSession) {
+      const session = await this.sessionService.getCurrent();
+      if (session) {
+        const aligned = await this.ensureCartMatchesSessionLegalEntity(raw, session);
+        if (!aligned) {
+          return null;
+        }
+      }
+    }
+    return this.mapper.mapToService(raw);
   }
 
   async addItemToCart(cartId: string, productId: string, quantity: number): Promise<ModifyCartItemResult> {
@@ -332,7 +393,7 @@ class EmporixCartService implements CartService {
    * cannot detect it preemptively — instead we catch the specific error, clear the field,
    * and retry the refresh.
    */
-  private async refreshCartWithCleanup(cartId: string): Promise<void> {
+  private async refreshCartOnceWithCleanup(cartId: string): Promise<void> {
     try {
       await this.cartApi.refreshCart(cartId);
     } catch (error) {
@@ -380,7 +441,28 @@ class EmporixCartService implements CartService {
     }
   }
 
-  async updateShippingInfo(
+  /**
+   * Emporix persists carts with optimistic locking. Concurrent updates (e.g. parallel
+   * shipping PATCHes) can yield 409 on refresh; bounded retries with backoff match API guidance.
+   */
+  private async refreshCartWithCleanup(cartId: string): Promise<void> {
+    const maxAttempts = 4;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        await this.refreshCartOnceWithCleanup(cartId);
+        return;
+      } catch (error) {
+        if (this.isCartOptimisticLockConflict(error) && attempt < maxAttempts - 1) {
+          this.logger.warn({ cartId, attempt }, 'Cart refresh hit optimistic lock — retrying');
+          await new Promise((r) => setTimeout(r, 45 * (attempt + 1)));
+          continue;
+        }
+        throw error;
+      }
+    }
+  }
+
+  private async updateShippingInfoOnce(
     cartId: string,
     shippingAddress: CartShippingAddress,
     billingAddress?: CartShippingAddress,
@@ -403,6 +485,30 @@ class EmporixCartService implements CartService {
       addresses,
     });
     await this.refreshCartWithCleanup(cartId);
+  }
+
+  async updateShippingInfo(
+    cartId: string,
+    shippingAddress: CartShippingAddress,
+    billingAddress?: CartShippingAddress,
+  ): Promise<void> {
+    const maxAttempts = 3;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        await this.updateShippingInfoOnce(cartId, shippingAddress, billingAddress);
+        return;
+      } catch (error) {
+        if (this.isCartOptimisticLockConflict(error) && attempt < maxAttempts - 1) {
+          this.logger.warn(
+            { cartId, attempt },
+            'Cart shipping update hit optimistic lock — retrying with fresh version',
+          );
+          await new Promise((r) => setTimeout(r, 55 * (attempt + 1)));
+          continue;
+        }
+        throw error;
+      }
+    }
   }
 
   async updateCurrency(cartId: string, currency: string): Promise<void> {

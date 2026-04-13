@@ -34,6 +34,8 @@ export function CartDelivery() {
           <div className="flex justify-between">
             <H5>{isPickup ? t('pickup') : t('ship')}</H5>
             <AddressSelector
+              addressBook="companyAndCustomer"
+              addressType="SHIPPING"
               onSelect={(address) => submitShippingAddress({ ...address, type: 'SHIPPING' })}
               selectedAddressId={shippingAddress?.id}
               triggerElement={

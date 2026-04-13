@@ -2,8 +2,9 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
+import { Badge } from '@/components/ui/badge';
 import { OrderItemData, OrderSummaryData } from '../types';
-import { extractPrice, formatDate, formatPrice, getOrderStatusColor } from '../utils';
+import { extractPrice, formatDate, formatPrice, getOrderStatusBadgeVariantForAi } from '../utils';
 import { ItemsListRenderer } from './ItemsListRenderer';
 
 interface OrderSummaryRendererProps {
@@ -71,13 +72,9 @@ export const OrderSummaryRenderer: React.FC<OrderSummaryRendererProps> = ({ data
               >
                 #{data.orderId}
               </a>
-              <span
-                className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getOrderStatusColor(
-                  data.status,
-                )}`}
-              >
+              <Badge variant={getOrderStatusBadgeVariantForAi(data.status)} size="status">
                 {data.status}
-              </span>
+              </Badge>
             </div>
             <div className="grid grid-cols-2 gap-4 text-sm text-text-on-action/90">
               <div className="flex items-center space-x-2">

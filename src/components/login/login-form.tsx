@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Loader2, LockKeyhole, User } from 'lucide-react';
 import { providerOptions } from '@/auth/auth.config';
@@ -12,8 +12,9 @@ import { Heading } from '@/components/ui/h';
 import { Input } from '@/components/ui/input';
 import UiLink from '@/components/ui/link';
 import useAuthentication from '@/hooks/authentication/useAuthentication';
+import { useSite } from '@/hooks/site/useSite';
 import { useValidator } from '@/hooks/validation/useValidator';
-import { Link, useRouter } from '@/i18n/navigation';
+import { Link, getPathname } from '@/i18n/navigation';
 
 type LoginData = {
   username: string;
@@ -30,8 +31,9 @@ type LoginFormProps = {
 
 export function LoginForm({ callbackUrl, email, onSuccess, guestCheckout = false, isDialog = false }: LoginFormProps) {
   const t = useTranslations('auth.login');
+  const locale = useLocale();
+  const { site } = useSite();
   const { login, loading } = useAuthentication();
-  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -83,12 +85,19 @@ export function LoginForm({ callbackUrl, email, onSuccess, guestCheckout = false
     }
   }
 
-  const handleRegisterRedirect = () => {
+  // Dialog login: @dialog onCloseAction calls router.back() when the URL still ends in /login.
+  // Fixes client Link → dialog closes first → back() races /register (no redirect or bad history).
+  // assign() is a full navigation that avoids that stack; no extra onCloseAction branches needed.
+  const handleRegisterRedirect = (): void => {
     if (!isDialog) return;
-    router.back();
-    setTimeout(() => {
-      router.replace('/register');
-    }, 0);
+    window.location.assign(
+      getPathname({
+        href: '/register',
+        locale,
+        site: site?.code,
+        forcePrefix: true,
+      }),
+    );
   };
 
   return (
@@ -225,11 +234,11 @@ export function LoginForm({ callbackUrl, email, onSuccess, guestCheckout = false
         <div className="flex flex-col gap-2 mx-auto items-center">
           <p>{t('noAccountYet')}</p>
           {isDialog ? (
-            <UiLink type="Button" onClick={handleRegisterRedirect}>
+            <UiLink type="Button" onClick={handleRegisterRedirect} data-testid="login-createAccount">
               {t('createAccount')}
             </UiLink>
           ) : (
-            <UiLink type="Link" href="/register">
+            <UiLink type="Link" href="/register" data-testid="login-createAccount">
               {t('createAccount')}
             </UiLink>
           )}

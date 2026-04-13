@@ -1,5 +1,9 @@
 import type { Return } from '@/platform/services/model/return';
 
+const REQUEST_CACHE_TTL_MS = 60_000;
+const returnsRequestCache = new Map<string, { expiresAt: number; value: ReturnsPageResult }>();
+const inflightReturnsRequests = new Map<string, Promise<ReturnsPageResult>>();
+
 /**
  * Item to return - contains item ID and quantity
  */
@@ -81,8 +85,9 @@ export async function fetchReturns(
   pageNumber?: number,
   query?: string,
   sort?: string,
+  forceRefresh: boolean = false,
 ): Promise<Return[]> {
-  const result = await fetchReturnsPage(pageSize, pageNumber, query, sort);
+  const result = await fetchReturnsPage(pageSize, pageNumber, query, sort, forceRefresh);
   return result.items;
 }
 
@@ -91,6 +96,7 @@ export async function fetchReturnsPage(
   pageNumber?: number,
   query?: string,
   sort?: string,
+  forceRefresh: boolean = false,
 ): Promise<ReturnsPageResult> {
   const params = new URLSearchParams();
   if (pageSize) params.set('pageSize', pageSize.toString());
@@ -100,27 +106,53 @@ export async function fetchReturnsPage(
 
   const queryString = params.toString();
   const url = `/api/returns${queryString ? `?${queryString}` : ''}`;
-
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to fetch returns');
+  if (!forceRefresh) {
+    const now = Date.now();
+    const cached = returnsRequestCache.get(url);
+    if (cached && cached.expiresAt > now) {
+      return cached.value;
+    }
   }
 
-  const totalCountHeader = response.headers.get('x-total-count');
-  const parsedTotalCount = totalCountHeader ? parseInt(totalCountHeader, 10) : Number.NaN;
-  const items = (await response.json()) as Return[];
+  const inflightRequest = inflightReturnsRequests.get(url);
+  if (inflightRequest) {
+    return inflightRequest;
+  }
+  const requestPromise = (async (): Promise<ReturnsPageResult> => {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-  return {
-    items,
-    totalCount: Number.isFinite(parsedTotalCount) ? parsedTotalCount : undefined,
-  };
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to fetch returns');
+    }
+
+    const totalCountHeader = response.headers.get('x-total-count');
+    const parsedTotalCount = totalCountHeader ? parseInt(totalCountHeader, 10) : Number.NaN;
+    const items = (await response.json()) as Return[];
+    const value = {
+      items,
+      totalCount: Number.isFinite(parsedTotalCount) ? parsedTotalCount : undefined,
+    };
+
+    returnsRequestCache.set(url, {
+      expiresAt: Date.now() + REQUEST_CACHE_TTL_MS,
+      value,
+    });
+
+    return value;
+  })();
+
+  inflightReturnsRequests.set(url, requestPromise);
+  try {
+    return await requestPromise;
+  } finally {
+    inflightReturnsRequests.delete(url);
+  }
 }
 
 /**
@@ -129,10 +161,11 @@ export async function fetchReturnsPage(
  * @see https://developer.emporix.io/api-references-1/readme/api-reference-29/returns
  */
 function buildOrderIdsQuery(orderIds: string[]): string {
-  if (orderIds.length === 1) {
-    return `orders._id:${orderIds[0]}`;
+  const uniqueSortedOrderIds = [...new Set(orderIds)].sort();
+  if (uniqueSortedOrderIds.length === 1) {
+    return `orders._id:${uniqueSortedOrderIds[0]}`;
   }
-  return `orders._id:(${orderIds.join(',')})`;
+  return `orders._id:(${uniqueSortedOrderIds.join(',')})`;
 }
 
 /**

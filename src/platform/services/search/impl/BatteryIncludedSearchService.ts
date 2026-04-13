@@ -146,10 +146,11 @@ class BatteryIncludedSearchService implements SearchService {
     */
   }
 
-  async getRecommendations(productId: string): Promise<Product[]> {
+  async getRecommendations(productId: string, _locale?: string, _site?: string, limit?: number): Promise<Product[]> {
     const recommendations = await this.shopApi.getRecommendations(productId);
+    const cap = limit ?? 12;
 
-    return recommendations.map((product) => this.productMapper.mapToService(product.document));
+    return recommendations.slice(0, cap).map((product) => this.productMapper.mapToService(product.document));
   }
 }
 

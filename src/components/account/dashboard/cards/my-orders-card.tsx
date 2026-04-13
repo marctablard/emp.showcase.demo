@@ -21,9 +21,10 @@ type OrderSearchFormData = {
 
 interface MyOrdersCardProps extends Omit<DashboardCardProps, 'children'> {
   className?: string;
+  forceRefreshOnMount?: boolean;
 }
 
-export function MyOrdersCard({ className, title, ...props }: MyOrdersCardProps) {
+export function MyOrdersCard({ className, title, forceRefreshOnMount = false, ...props }: MyOrdersCardProps) {
   const t = useTranslations('orders');
 
   const { form } = useValidator('OrderSearchValidationService', {
@@ -38,41 +39,12 @@ export function MyOrdersCard({ className, title, ...props }: MyOrdersCardProps) 
   // Fetch orders from the hook
   const { orders, loading, refetchOrders } = useOrders();
 
-  // Fetch fresh order data when component mounts
   useEffect(() => {
-    refetchOrders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Get the appropriate status badge variant
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'IN_CHECKOUT':
-        return { variant: 'default' as const };
-      case 'CREATED':
-        return { variant: 'default' as const };
-      case 'CONFIRMED':
-        return { variant: 'warning' as const };
-      case 'PROCESSING':
-        return { variant: 'warning' as const };
-      case 'READY_FOR_PICKUP':
-        return { variant: 'warning' as const };
-      case 'READY_FOR_SHIPPING':
-        return { variant: 'warning' as const };
-      case 'SHIPPED':
-        return { variant: 'success' as const };
-      case 'DELIVERED':
-        return { variant: 'success' as const };
-      case 'COMPLETED':
-        return { variant: 'success' as const };
-      case 'CANCELLED':
-        return { variant: 'default' as const };
-      default:
-        return { variant: 'default' as const };
+    if (!forceRefreshOnMount) {
+      return;
     }
-  };
-
-  // No formatting functions needed here anymore as they're moved to MyOrdersTable component
+    refetchOrders();
+  }, [forceRefreshOnMount, refetchOrders]);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -103,7 +75,7 @@ export function MyOrdersCard({ className, title, ...props }: MyOrdersCardProps) 
         </UiLink>
       </div>
       {/* search */}
-      <div className="mb-4 w-[60%]">
+      <div className="mb-4 w-full max-w-[380px]">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSearch)} className="w-full">
             <FormField
@@ -129,7 +101,6 @@ export function MyOrdersCard({ className, title, ...props }: MyOrdersCardProps) 
           loading={loading}
           onPreviousPage={handlePreviousPage}
           onNextPage={handleNextPage}
-          getStatusBadge={getStatusBadge}
         />
       </div>
     </DashboardCard>

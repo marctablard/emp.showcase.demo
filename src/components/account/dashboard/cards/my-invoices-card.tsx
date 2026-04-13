@@ -5,9 +5,9 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { ArrowRight, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { Badge, type BadgeVariant } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/dashboard-badge';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { H4 } from '@/components/ui/h';
 import { Input } from '@/components/ui/input';
@@ -154,17 +154,16 @@ export function MyInvoicesCard({ className, title, ...props }: MyInvoicesCardPro
 
   const invoices = mockInvoices;
 
-  // Get the appropriate status badge variant
-  const getStatusBadge = (status: string) => {
+  const getInvoiceStatusVariant = (status: string): BadgeVariant => {
     switch (status) {
       case 'OPEN':
-        return { variant: 'default' as const };
+        return 'outline';
       case 'OVERDUE':
-        return { variant: 'warning' as const };
+        return 'warning';
       case 'PAID':
-        return { variant: 'success' as const };
+        return 'success';
       default:
-        return { variant: 'default' as const };
+        return 'outline';
     }
   };
 
@@ -264,7 +263,7 @@ export function MyInvoicesCard({ className, title, ...props }: MyInvoicesCardPro
                     </UiLink>
                   </TableCell>
                   <TableCell className="px-2 py-4">
-                    <Badge variant={getStatusBadge(invoice.status).variant}>
+                    <Badge variant={getInvoiceStatusVariant(invoice.status)} size="status">
                       {t(dk<InvoiceStatusKey>(`status.${invoice.status.toLowerCase()}`))}
                     </Badge>
                   </TableCell>

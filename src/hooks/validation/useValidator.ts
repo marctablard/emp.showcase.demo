@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { isEqual } from 'lodash';
@@ -53,8 +53,13 @@ export function useValidator(
     return () => unsubscribe();
   }, [form]);
 
+  const alignAfterExternalReset = useCallback(() => {
+    valuesRef.current = form.getValues();
+  }, [form]);
+
   return {
     form,
     validator,
+    alignAfterExternalReset,
   };
 }

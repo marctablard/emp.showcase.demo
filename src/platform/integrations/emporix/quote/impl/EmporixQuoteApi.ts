@@ -45,7 +45,13 @@ class EmporixQuoteApi implements IEmporixQuoteApi {
 
     if (!response.ok) {
       const errorDetails = await response.text();
-      throw new Error(`Failed to update quote ${body.path} : ${response.statusText} ${errorDetails}`);
+      const firstOpPath =
+        Array.isArray(body) && body[0] && typeof body[0] === 'object' && 'path' in body[0]
+          ? String((body[0] as { path?: string }).path)
+          : undefined;
+      throw new Error(
+        `Failed to update quote ${quoteId}${firstOpPath ? ` (${firstOpPath})` : ''}: ${response.statusText} ${errorDetails}`,
+      );
     }
   }
 

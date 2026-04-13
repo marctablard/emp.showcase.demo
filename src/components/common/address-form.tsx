@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSite } from '@/hooks/site/useSite';
 import { useValidator } from '@/hooks/validation/useValidator';
@@ -43,18 +43,41 @@ const AddressForm: React.FC<AddressFormProps> = ({
 }) => {
   const tid = (field: string) => `${testIdPrefix}-${field}`;
   const t = useTranslations('account.AddressForm');
-  const { form } = useValidator(
+
+  const addressContentKey =
+    initialData == null
+      ? ''
+      : [
+          initialData.id ?? '',
+          initialData.contactName ?? '',
+          initialData.companyName ?? '',
+          initialData.street ?? '',
+          initialData.streetNumber ?? '',
+          initialData.streetAppendix ?? '',
+          initialData.zipCode ?? '',
+          initialData.city ?? '',
+          initialData.country ?? '',
+          initialData.state ?? '',
+          initialData.contactPhone ?? '',
+        ].join('|');
+
+  const mergedInitial = useMemo(
+    () => ({ ...emptyAddress, ...(initialData ?? {}) }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- key captures all address fields used for cart/checkout sync
+    [addressContentKey],
+  );
+
+  const { form, alignAfterExternalReset } = useValidator(
     'AddressValidationService',
-    { ...emptyAddress, ...initialData },
+    mergedInitial,
     'onBlur',
     onDataChange,
   );
+
   useEffect(() => {
-    if (initialData) {
-      form.reset({ ...emptyAddress, ...initialData });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialData]);
+    form.reset(mergedInitial);
+    alignAfterExternalReset();
+  }, [mergedInitial, form, alignAfterExternalReset]);
   const { countries, loading } = useSite();
 
   return (
@@ -132,7 +155,7 @@ const AddressForm: React.FC<AddressFormProps> = ({
               name="streetNumber"
               render={({ field }) => (
                 <FormItem className="relative">
-                  <FormLabel htmlFor="streetNumber">{t('streetNumber')}*</FormLabel>
+                  <FormLabel htmlFor="streetNumber">{t('streetNumber')}</FormLabel>
                   <FormControl>
                     <Input
                       id="streetNumber"

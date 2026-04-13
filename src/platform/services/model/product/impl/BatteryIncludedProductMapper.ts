@@ -10,6 +10,7 @@ import { SuggestionsMapper } from '../../search/SuggestionsMapper';
 import { ProductMapper } from '../ProductMapper';
 import { Product } from '../index';
 import { EmporixProductMapper } from './EmporixProductMapper';
+import { normalizeProductAttributeStringMap } from './normalizeProductAttributeStringMap';
 
 /**
  * Maps BatteryIncluded API product format to internal Product model.
@@ -189,7 +190,7 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
 
     if (mixins.usp?.usp) {
       enhancedProduct.usps = mixins.usp.usp.map((usp: any) => ({
-        icon: usp.icon,
+        icon: typeof usp.icon === 'string' ? usp.icon : usp.icon != null ? String(usp.icon) : '',
         description: usp.description.reduce((acc: LocalizedString, item: any) => {
           acc[item.language] = item.value;
           return acc;
@@ -198,11 +199,15 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
     }
 
     if (mixins.productTemplateAttributes) {
-      enhancedProduct.templateAttributes = { ...mixins.productTemplateAttributes };
+      enhancedProduct.templateAttributes = normalizeProductAttributeStringMap(
+        mixins.productTemplateAttributes as Record<string, unknown>,
+      );
     }
 
     if (mixins.productVariantAttributes) {
-      enhancedProduct.variantAttributes = { ...mixins.productVariantAttributes };
+      enhancedProduct.variantAttributeValues = normalizeProductAttributeStringMap(
+        mixins.productVariantAttributes as Record<string, unknown>,
+      );
     }
 
     return enhancedProduct;

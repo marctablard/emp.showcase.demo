@@ -162,4 +162,22 @@ describe('useAuthentication canonical post-login redirect', () => {
     });
     expect(mockFetchCurrentSession).toHaveBeenCalledTimes(3);
   });
+
+  it('uses home path for post-login redirect when callbackUrl is /', async () => {
+    mockFetchCurrentSession.mockResolvedValue({ siteCode: 'main', customerId: '01964559' });
+
+    const { result } = renderHook(() => useAuthentication());
+
+    await act(async () => {
+      const success = await result.current.login('john@example.com', 'secret', '/');
+      expect(success).toBe(true);
+    });
+
+    expect(mockGetPathname).toHaveBeenCalledWith({
+      href: '/?login=success',
+      locale: 'en',
+      site: 'main',
+      forcePrefix: true,
+    });
+  });
 });

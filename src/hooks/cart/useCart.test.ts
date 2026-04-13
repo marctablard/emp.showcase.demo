@@ -604,6 +604,7 @@ describe('CartStore - Fetch Deduplication', () => {
       lastShippingUpdate: null,
       sessionStatus: null,
       lastSiteCode: 'main',
+      lastLegalEntityId: null,
       pendingCurrencySync: null,
     });
     const createdCart = {

@@ -17,9 +17,17 @@ const badgeVariants = cva(
         destructive: 'border-transparent bg-surface-error text-text-error [a&]:hover:bg-surface-error/90',
         sale: 'border-transparent bg-icon-error text-text-on-action [a&]:hover:bg-surface-icon-error/90',
         outline: 'text-text-body [a&]:hover:bg-surface-page [a&]:hover:bg-surface-page/90',
+        /** Figma Tags — final / inactive (surface/disabled + border/primary) */
+        muted: 'border-transparent bg-surface-disabled text-text-secondary [a&]:hover:bg-surface-disabled/90',
         information:
           'border-transparent bg-surface-information text-text-action-hover [a&]:hover:bg-surface-information/90',
         info: 'border-transparent bg-surface-warning uppercase [a&]:hover:bg-surface-error/90',
+      },
+      size: {
+        default: '',
+        /** Figma Molecules / Tags — same on mobile and desktop */
+        status:
+          'h-7 min-h-[28px] min-w-0 px-4 py-1 text-[12px] leading-3 tracking-[2px] uppercase font-primary text-text-headings',
       },
       rounded: {
         none: 'rounded-none',
@@ -32,26 +40,81 @@ const badgeVariants = cva(
         medium: 'font-medium',
       },
     },
+    compoundVariants: [
+      {
+        size: 'status',
+        class: 'rounded-[4px]',
+      },
+      {
+        variant: 'success',
+        size: 'status',
+        class: 'border-border-success bg-surface-success text-text-headings',
+      },
+      {
+        variant: 'warning',
+        size: 'status',
+        class: 'border-border-warning bg-surface-warning text-text-headings',
+      },
+      {
+        variant: 'destructive',
+        size: 'status',
+        class: 'border-border-error bg-surface-error text-text-headings',
+      },
+      {
+        variant: 'information',
+        size: 'status',
+        class: 'border-border-information bg-surface-information text-text-headings',
+      },
+      {
+        variant: 'secondary',
+        size: 'status',
+        class: 'border-border-primary bg-surface-secondary text-text-headings',
+      },
+      {
+        variant: 'muted',
+        size: 'status',
+        class: 'border-border-primary bg-surface-disabled text-text-headings',
+      },
+      {
+        variant: 'outline',
+        size: 'status',
+        class: 'border-border-primary bg-surface-primary text-text-headings',
+      },
+      {
+        variant: 'default',
+        size: 'status',
+        class: 'border-border-primary bg-surface-primary text-text-headings',
+      },
+    ],
     defaultVariants: {
       variant: 'default',
       rounded: 'default',
       fontWeight: 'medium',
+      size: 'default',
     },
   },
 );
+
+export type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>['variant']>;
 
 function Badge({
   className,
   variant,
   rounded,
   fontWeight,
+  size,
   asChild = false,
   ...props
 }: React.ComponentProps<'span'> & VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
   const Comp = asChild ? Slot : 'span';
+  const effectiveFontWeight = size === 'status' ? 'bold' : (fontWeight ?? 'medium');
 
   return (
-    <Comp data-slot="badge" className={cn(badgeVariants({ variant, rounded, fontWeight }), className)} {...props} />
+    <Comp
+      data-slot="badge"
+      className={cn(badgeVariants({ variant, rounded, fontWeight: effectiveFontWeight, size }), className)}
+      {...props}
+    />
   );
 }
 

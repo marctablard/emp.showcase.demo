@@ -17,6 +17,7 @@ interface UseReturnsOptions {
   pageNumber?: number;
   sort?: string;
   query?: string;
+  forceRefreshOnMount?: boolean;
 }
 
 /**
@@ -26,37 +27,40 @@ interface UseReturnsOptions {
  * @param pageNumber Optional page number (default: 1)
  */
 export function useReturns(initialReturns?: Return[], options: UseReturnsOptions = {}): UseReturnsReturn {
-  const { pageSize, pageNumber, sort, query } = options;
+  const { pageSize, pageNumber, sort, query, forceRefreshOnMount = false } = options;
   const [returns, setReturns] = useState<Return[]>(initialReturns || []);
   const [totalCount, setTotalCount] = useState<number | undefined>(initialReturns?.length);
   const [loading, setLoading] = useState<boolean>(!initialReturns || pageNumber !== 1 || !!query || !!sort);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchReturnsData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await fetchReturnsPage(pageSize, pageNumber, query, sort);
-      setReturns(data.items);
-      setTotalCount(data.totalCount);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error(String(err)));
-    } finally {
-      setLoading(false);
-    }
-  }, [pageSize, pageNumber, query, sort]);
+  const fetchReturnsData = useCallback(
+    async (forceRefresh: boolean = false) => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await fetchReturnsPage(pageSize, pageNumber, query, sort, forceRefresh);
+        setReturns(data.items);
+        setTotalCount(data.totalCount);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error(String(err)));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [pageSize, pageNumber, query, sort],
+  );
 
   const refreshReturns = useCallback(async () => {
-    await fetchReturnsData();
+    await fetchReturnsData(true);
   }, [fetchReturnsData]);
 
   useEffect(() => {
     // Use SSR-provided returns only for the default first-page, no-query/no-sort-load.
     const canReuseInitialData = !!initialReturns && pageNumber === 1 && !query && !sort;
-    if (!canReuseInitialData) {
-      fetchReturnsData();
+    if (!canReuseInitialData || forceRefreshOnMount) {
+      fetchReturnsData(forceRefreshOnMount);
     }
-  }, [initialReturns, pageNumber, query, sort, fetchReturnsData]);
+  }, [initialReturns, pageNumber, query, sort, forceRefreshOnMount, fetchReturnsData]);
 
   return {
     returns,

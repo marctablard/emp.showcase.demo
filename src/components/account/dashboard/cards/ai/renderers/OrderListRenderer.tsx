@@ -3,8 +3,9 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
+import { Badge } from '@/components/ui/badge';
 import { OrderData, OrderItemData, OrderListData } from '../types';
-import { extractPrice, formatDate, formatPrice, getOrderStatusColor, handleImageError } from '../utils';
+import { extractPrice, formatDate, formatPrice, getOrderStatusBadgeVariantForAi, handleImageError } from '../utils';
 
 interface OrderListRendererProps {
   data: OrderListData;
@@ -38,13 +39,13 @@ export const OrderListRenderer: React.FC<OrderListRendererProps> = ({ data }) =>
                       >
                         #{order.orderId}
                       </a>
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${getOrderStatusColor(
-                          order.status,
-                        )}`}
+                      <Badge
+                        variant={getOrderStatusBadgeVariantForAi(order.status)}
+                        size="status"
+                        className="flex-shrink-0 max-w-full truncate"
                       >
                         {order.status}
-                      </span>
+                      </Badge>
                       {order.siteCode && (
                         <span className="text-xs font-medium text-text-on-action bg-surface-action/30 px-2.5 py-1 rounded-full flex-shrink-0">
                           {order.siteCode}

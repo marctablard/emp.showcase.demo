@@ -9,7 +9,7 @@ import { SearchSuggestions } from '@/platform/services/model/search/SearchSugges
 import { buildSearchPaginationUrl } from './build-search-pagination-url';
 
 const DEFAULT_PAGE_INDEX = 0;
-const DEFAULT_PAGE_SIZE = 16;
+const DEFAULT_PAGE_SIZE = 12;
 
 // Extend the SearchParams type to support nested objects in filters
 export type FilterValue = string | string[] | Record<string, string>;
@@ -356,36 +356,41 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     }
   }, [hasMore, loadingMore, loading, currentPage, pageSize, siteCode, locale]);
 
-  const getSuggestions = useCallback(async (query: string, locale?: string): Promise<void> => {
-    setLoading(true);
-    if (!query?.trim()) {
-      setSuggestions({
-        queryCompletions: [],
-        products: [],
-        categories: [],
-      });
-      return;
-    }
-    try {
-      const url = new URL('/api/search/suggestions', window.location.origin);
-      url.searchParams.append('query', query);
-      if (locale) {
-        url.searchParams.append('locale', locale);
+  const getSuggestions = useCallback(
+    async (query: string, locale?: string): Promise<void> => {
+      setLoading(true);
+      if (!query?.trim()) {
+        setSuggestions({
+          queryCompletions: [],
+          products: [],
+          categories: [],
+        });
+        setLoading(false);
+        return;
       }
-      const response = await fetch(url.toString());
-      if (!response.ok) {
-        throw new Error(`Suggestions failed: ${response.statusText}`);
-      }
-      const data = await response.json();
+      try {
+        const url = new URL('/api/search/suggestions', window.location.origin);
+        url.searchParams.append('query', query);
+        url.searchParams.append('site', siteCode);
+        if (locale) {
+          url.searchParams.append('locale', locale);
+        }
+        const response = await fetch(url.toString());
+        if (!response.ok) {
+          throw new Error(`Suggestions failed: ${response.statusText}`);
+        }
+        const data = await response.json();
 
-      // Set suggestions directly from API response
-      setSuggestions(data);
-    } catch (err) {
-      getLogger().error({ err, query }, 'Error fetching suggestions');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+        // Set suggestions directly from API response
+        setSuggestions(data);
+      } catch (err) {
+        getLogger().error({ err, query }, 'Error fetching suggestions');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [siteCode],
+  );
 
   const changeSort = useCallback(
     (sort: string) => {

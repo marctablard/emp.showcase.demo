@@ -14,6 +14,7 @@ import { CheckoutItemlist } from './checkout-itemlist';
 import { CheckoutPayment } from './checkout-payment';
 import { CheckoutShipping } from './checkout-shipping';
 import CheckoutSummary from './checkout-summary';
+import { PENDING_APPROVAL_CONFIRMATION_SEGMENT } from './confirmation-constants';
 import ContactData from './contact-data';
 
 interface CheckoutProps {
@@ -65,7 +66,7 @@ const Checkout: React.FC<CheckoutProps> = ({ onComplete }) => {
       // since Emporix does NOT auto-close the cart for approvals)
       clearCart({ deleteCart: true });
       // Navigate to confirmation page
-      router.push(`/confirmation/Approval%20Requested`);
+      router.push(`/confirmation/${PENDING_APPROVAL_CONFIRMATION_SEGMENT}`);
     } else {
       // Proceed with checkout
       await processCheckout();

@@ -62,4 +62,6 @@ export interface EmporixProduct {
     [key: string]: [{ key: string }];
   };
   relatedItems?: EmporixRelatedItem[];
+  /** Catalog / navigation root category ids (Product Service). */
+  categoryIds?: string[];
 }

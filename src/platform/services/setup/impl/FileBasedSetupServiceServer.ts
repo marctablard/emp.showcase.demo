@@ -111,50 +111,91 @@ export class FileBasedSetupServiceServer implements SetupService {
   }
 
   /**
-   * Read all setup files in the directory and parse the operations
+   * Read all setup files in the directory and parse the operations.
+   * Scans both scripts/setup and enabled extension setup directories.
    */
   private async readSetupFile(): Promise<SetupOperation[]> {
     try {
-      // Resolve the directory path relative to the scripts/setup directory
-      const setupDir = path.resolve(process.cwd(), 'scripts', 'setup');
-      const directoryPath = path.resolve(setupDir, '');
-
-      // Check if the directory exists
-      try {
-        await fs.access(directoryPath);
-      } catch (_error) {
-        throw new Error(`Setup directory not found: ${directoryPath}`);
-      }
-
-      // Read all files in the directory
-      const files = await fs.readdir(directoryPath);
-
-      // Filter for JSON files
-      const jsonFiles = files.filter((file) => file.endsWith('.json'));
-
-      // Sort files by name to ensure ordered execution
-      jsonFiles.sort();
-
-      // Read and parse each file
       const allOperations: SetupOperation[] = [];
 
-      for (const file of jsonFiles) {
-        const filePath = path.join(directoryPath, file);
-        const fileContent = await fs.readFile(filePath, 'utf-8');
-        const fileOperations = JSON.parse(fileContent);
+      // 1. Read from the standard scripts/setup directory
+      const setupDir = path.resolve(process.cwd(), 'scripts', 'setup');
+      await this.readSetupDir(setupDir, allOperations);
 
-        // Validate the operations
-        if (!Array.isArray(fileOperations)) {
-          throw new Error(`Invalid setup file format in ${file}: expected an array of operations`);
+      // 2. Read from enabled extension setup directories
+      const extensionsDir = path.resolve(process.cwd(), 'extensions');
+      try {
+        await fs.access(extensionsDir);
+        const extEntries = await fs.readdir(extensionsDir, { withFileTypes: true });
+        for (const entry of extEntries) {
+          if (!entry.isDirectory()) continue;
+          const manifestPath = path.join(extensionsDir, entry.name, 'plugin.json');
+          try {
+            const manifestContent = await fs.readFile(manifestPath, 'utf-8');
+            const manifest = JSON.parse(manifestContent);
+            if (!manifest.enabled) continue;
+
+            // Read setup files listed in the manifest
+            if (Array.isArray(manifest.setup)) {
+              for (const setupFile of manifest.setup) {
+                const setupFilePath = path.join(extensionsDir, entry.name, setupFile);
+                try {
+                  const fileContent = await fs.readFile(setupFilePath, 'utf-8');
+                  const fileOperations = JSON.parse(fileContent);
+                  if (Array.isArray(fileOperations)) {
+                    allOperations.push(...fileOperations);
+                    this.logger.info(
+                      { extension: manifest.name, file: setupFile },
+                      `Loaded ${fileOperations.length} setup operations from extension '${manifest.name}': ${setupFile}`,
+                    );
+                  }
+                } catch (_err) {
+                  this.logger.warn(
+                    { extension: manifest.name, file: setupFile },
+                    `Failed to read extension setup file: ${setupFile}`,
+                  );
+                }
+              }
+            }
+          } catch (_err) {
+            // No plugin.json or not readable — skip
+          }
         }
-
-        // Add file operations to the combined list
-        allOperations.push(...fileOperations);
+      } catch (_err) {
+        // No extensions directory — that's fine
       }
 
       return allOperations;
     } catch (error) {
       throw new Error(`Failed to read setup files: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Read all JSON setup files from a single directory
+   */
+  private async readSetupDir(directoryPath: string, allOperations: SetupOperation[]): Promise<void> {
+    try {
+      await fs.access(directoryPath);
+    } catch (_error) {
+      this.logger.warn({}, `Setup directory not found: ${directoryPath}`);
+      return;
+    }
+
+    const files = await fs.readdir(directoryPath);
+    const jsonFiles = files.filter((file) => file.endsWith('.json'));
+    jsonFiles.sort();
+
+    for (const file of jsonFiles) {
+      const filePath = path.join(directoryPath, file);
+      const fileContent = await fs.readFile(filePath, 'utf-8');
+      const fileOperations = JSON.parse(fileContent);
+
+      if (!Array.isArray(fileOperations)) {
+        throw new Error(`Invalid setup file format in ${file}: expected an array of operations`);
+      }
+
+      allOperations.push(...fileOperations);
     }
   }
 

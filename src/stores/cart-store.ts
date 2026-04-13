@@ -29,6 +29,8 @@ export interface CartState {
   sessionStatus: string | null;
   // Track last site code to detect site changes
   lastSiteCode: string | null;
+  /** Normalized session legal entity; null = not initialized yet (mirrors lastSiteCode). */
+  lastLegalEntityId: string | null;
   pendingCurrencySync: {
     currency: string;
     siteCode: string;
@@ -47,6 +49,7 @@ interface CartActions {
 
   validateCart: (sessionStatus: string) => Promise<void>;
   validateSite: (siteCode: string) => Promise<void>;
+  validateLegalEntity: (legalEntityId: string | undefined) => Promise<void>;
 
   // Cart API operations
   fetchCart: (createCurrent?: boolean) => Promise<Cart | null | undefined>;
@@ -73,6 +76,7 @@ const defaultState: CartState = {
   lastShippingUpdate: null,
   sessionStatus: null,
   lastSiteCode: null,
+  lastLegalEntityId: null,
   pendingCurrencySync: null,
 };
 
@@ -81,6 +85,8 @@ export const createCartStore = (initState: CartState = defaultState) => {
   // Stored outside Zustand state to avoid triggering re-renders
   let _fetchPromise: Promise<Cart | null | undefined> | null = null;
   let _fetchPromiseCreate: boolean = false;
+  /** Serializes PATCH /shipping so parallel callers cannot race Emporix optimistic locking. */
+  let _shippingUpdateGate: Promise<void> = Promise.resolve();
 
   return create<CartStore>()(
     subscribeWithSelector((set, get) => ({
@@ -119,6 +125,35 @@ export const createCartStore = (initState: CartState = defaultState) => {
         } else if (lastSiteCode === null) {
           // First time setting site
           set({ lastSiteCode: newSiteCode });
+        }
+      },
+      validateLegalEntity: async (newLegalEntityId: string | undefined) => {
+        const normalized = newLegalEntityId?.trim() ?? '';
+        const { lastLegalEntityId } = get();
+        if (lastLegalEntityId !== null && lastLegalEntityId !== normalized) {
+          set({
+            lastLegalEntityId: normalized,
+            currentCart: null,
+            loading: true,
+            error: null,
+            lastShippingUpdate: null,
+            pendingCurrencySync: null,
+          });
+          await get().fetchCart(false);
+        } else if (lastLegalEntityId === null) {
+          set({ lastLegalEntityId: normalized });
+          // First bound session legal entity (e.g. B2B company selection): re-resolve cart server-side
+          // so we never keep a cart from another company or from before LE context existed.
+          if (normalized !== '') {
+            set({
+              currentCart: null,
+              loading: true,
+              error: null,
+              lastShippingUpdate: null,
+              pendingCurrencySync: null,
+            });
+            await get().fetchCart(false);
+          }
         }
       },
       // State setters
@@ -317,6 +352,13 @@ export const createCartStore = (initState: CartState = defaultState) => {
       },
 
       updateShippingInfo: async (shippingAddress: CartShippingAddress, billingAddress?: CartShippingAddress) => {
+        const afterPrevious = _shippingUpdateGate;
+        let releaseNext!: () => void;
+        _shippingUpdateGate = new Promise<void>((resolve) => {
+          releaseNext = resolve;
+        });
+        await afterPrevious.catch(() => {});
+
         try {
           const { lastShippingUpdate } = get();
           const now = Date.now();
@@ -361,6 +403,8 @@ export const createCartStore = (initState: CartState = defaultState) => {
           const error = err instanceof Error ? err : new Error('Failed to update shipping info');
           set({ error, loading: false });
           getLogger().error({ err }, 'Error updating shipping info');
+        } finally {
+          releaseNext();
         }
       },
 
@@ -396,6 +440,7 @@ export const createCartStore = (initState: CartState = defaultState) => {
           error: null,
           lastShippingUpdate: null,
           lastSiteCode: null,
+          lastLegalEntityId: null,
           pendingCurrencySync: null,
         });
         // 2. Fire-and-forget: clear server-side session + optionally delete cart

@@ -50,6 +50,22 @@ export async function fetchCustomerAddresses(): Promise<CustomerAddress[]> {
 }
 
 /**
+ * Legal entity location addresses for B2B checkout (not profile /customer addresses).
+ */
+export async function fetchLegalEntityCheckoutAddresses(): Promise<CustomerAddress[]> {
+  try {
+    const response = await fetch('/api/customer/current/legal-entity-addresses');
+    if (!response.ok) {
+      throw new Error(`Failed to fetch legal entity addresses: ${response.statusText}`);
+    }
+    return (await response.json()) as CustomerAddress[];
+  } catch (error) {
+    getLogger().error({ err: error }, 'Error fetching legal entity checkout addresses');
+    return [];
+  }
+}
+
+/**
  * Create a new address for the current customer
  * @param {CustomerAddress} address - The address data to save
  * @returns {Promise<CustomerAddress>} The saved address with ID

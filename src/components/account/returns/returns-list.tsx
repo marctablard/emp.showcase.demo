@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { ArrowDown, ArrowRight, ArrowUp, ChevronLeft, ChevronRight, ChevronsUpDown, Search } from 'lucide-react';
+import { ArrowDown, ArrowRight, ArrowUp, ChevronsUpDown, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { TablePagination } from '@/components/ui/table-pagination';
 import { useReturns } from '@/hooks/return/useReturns';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { Link } from '@/i18n/navigation';
@@ -17,28 +18,30 @@ import { ReturnStatusBadge } from './return-status-badge';
 
 type ReturnSortField = 'date' | 'value' | 'status';
 const RETURNS_PER_PAGE = 5;
+const SEARCH_DEBOUNCE_MS = 500;
 const RETURN_SORT_FIELD_MAP: Record<ReturnSortField, string> = {
   date: 'metadata.createdAt',
   value: 'total.value',
-  status: 'status',
+  status: 'approvalStatus',
 };
 
 interface ReturnsListProps {
   initialReturns?: Return[];
+  forceRefreshOnMount?: boolean;
 }
 
-export function ReturnsList({ initialReturns }: ReturnsListProps) {
+export function ReturnsList({ initialReturns, forceRefreshOnMount = false }: ReturnsListProps) {
   const t = useTranslations('account.returns');
-  const tQuotesList = useTranslations('account.quotesList');
   const locale = useLocale();
   const [quickSearch, setQuickSearch] = useState('');
+  const [debouncedQuickSearch, setDebouncedQuickSearch] = useState('');
   const [sortField, setSortField] = useState<ReturnSortField>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const isTabletUp = useBreakpoint('sm');
-  const normalizedSearch = quickSearch.trim().toLowerCase();
+  const normalizedSearch = debouncedQuickSearch.trim();
   const apiSort = `${RETURN_SORT_FIELD_MAP[sortField]}:${sortDirection === 'asc' ? 'ASC' : 'DESC'}`;
-  const apiQuery = normalizedSearch.length > 0 ? normalizedSearch : undefined;
+  const apiQuery = normalizedSearch.length > 0 ? `id:~(${normalizedSearch})` : undefined;
   const {
     returns: visibleReturns,
     totalCount,
@@ -50,15 +53,28 @@ export function ReturnsList({ initialReturns }: ReturnsListProps) {
     pageSize: RETURNS_PER_PAGE,
     sort: apiSort,
     query: apiQuery,
+    forceRefreshOnMount,
   });
-  const displayedCount = Math.min(
-    currentPage * RETURNS_PER_PAGE,
-    totalCount ?? (currentPage - 1) * RETURNS_PER_PAGE + visibleReturns.length,
-  );
   const hasNextPage =
     totalCount !== undefined
       ? currentPage < Math.ceil(totalCount / RETURNS_PER_PAGE)
       : visibleReturns.length === RETURNS_PER_PAGE;
+  const totalPages =
+    totalCount !== undefined
+      ? Math.max(1, Math.ceil(totalCount / RETURNS_PER_PAGE))
+      : Math.max(currentPage, currentPage + (hasNextPage ? 1 : 0));
+  const isInitialLoading = loading && visibleReturns.length === 0 && !quickSearch && currentPage === 1;
+  const isTableReloading = loading && !isInitialLoading;
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedQuickSearch(quickSearch);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [quickSearch]);
 
   const toggleSort = (field: ReturnSortField) => {
     setCurrentPage(1);
@@ -96,7 +112,7 @@ export function ReturnsList({ initialReturns }: ReturnsListProps) {
       returnItem.orders[0]?.items[0]?.unitPrice?.currency,
   });
 
-  if (loading) {
+  if (isInitialLoading) {
     return (
       <Card>
         <CardHeader>
@@ -154,8 +170,7 @@ export function ReturnsList({ initialReturns }: ReturnsListProps) {
 
       <div className="bg-surface-primary border border-border-primary rounded-md p-4 min-[768px]:p-6 shadow-sm">
         <div className="mb-4">
-          <div className="relative w-full min-[768px]:max-w-[380px]">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-on-disabled" />
+          <div className="relative w-full max-w-[380px]">
             <Input
               value={quickSearch}
               onChange={(event) => {
@@ -163,86 +178,120 @@ export function ReturnsList({ initialReturns }: ReturnsListProps) {
                 setQuickSearch(event.target.value);
               }}
               placeholder={t('searchPlaceholder')}
-              className="pl-9"
+              className="pr-10"
+              endIcon={isTableReloading ? undefined : Search}
               aria-label={t('searchPlaceholder')}
             />
+            {isTableReloading && (
+              <Spinner
+                variant="sm"
+                color="primary"
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
+                loadingText={t('loading')}
+              />
+            )}
           </div>
         </div>
 
-        {visibleReturns.length === 0 && quickSearch && (
+        {!loading && visibleReturns.length === 0 && quickSearch && (
           <div className="rounded-md border border-border-primary p-4 text-sm text-text-on-disabled">
             {t('noMatches')}
           </div>
         )}
 
         {isTabletUp && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="font-medium">{t('returnNumber')}</TableHead>
-                <TableHead className="font-medium" aria-sort={getSortAriaSort('date')}>
-                  <button onClick={() => toggleSort('date')} className="flex items-center gap-1 hover:text-text-action">
-                    {t('returnDate')}
-                    {getSortIcon('date')}
-                  </button>
-                </TableHead>
-                <TableHead className="font-medium">{t('orderNumber')}</TableHead>
-                <TableHead className="hidden min-[1280px]:table-cell font-medium">{t('email')}</TableHead>
-                <TableHead className="font-medium" aria-sort={getSortAriaSort('value')}>
-                  <button
-                    onClick={() => toggleSort('value')}
-                    className="flex items-center gap-1 hover:text-text-action"
+          <div className={`transition-opacity ${isTableReloading ? 'opacity-70' : 'opacity-100'}`}>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="font-bold text-base leading-5 font-primary text-text-headings">
+                    {t('returnNumber')}
+                  </TableHead>
+                  <TableHead
+                    className="font-bold text-base leading-5 font-primary text-text-headings"
+                    aria-sort={getSortAriaSort('date')}
                   >
-                    {t('returnValue')}
-                    {getSortIcon('value')}
-                  </button>
-                </TableHead>
-                <TableHead className="font-medium" aria-sort={getSortAriaSort('status')}>
-                  <button
-                    onClick={() => toggleSort('status')}
-                    className="flex items-center gap-1 hover:text-text-action"
+                    <button
+                      onClick={() => toggleSort('date')}
+                      className="flex items-center gap-2 hover:text-text-action"
+                    >
+                      {t('returnDate')}
+                      {getSortIcon('date')}
+                    </button>
+                  </TableHead>
+                  <TableHead className="font-bold text-base leading-5 font-primary text-text-headings">
+                    {t('orderNumber')}
+                  </TableHead>
+                  <TableHead className="hidden min-[1280px]:table-cell font-bold text-base leading-5 font-primary text-text-headings">
+                    {t('email')}
+                  </TableHead>
+                  <TableHead
+                    className="font-bold text-base leading-5 font-primary text-text-headings"
+                    aria-sort={getSortAriaSort('value')}
                   >
-                    {t('statusLabel')}
-                    {getSortIcon('status')}
-                  </button>
-                </TableHead>
-                <TableHead className="font-medium text-right">{t('view')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visibleReturns.map((returnItem) => {
-                const displayAmount = getDisplayReturnAmount(returnItem);
-                return (
-                  <TableRow key={returnItem.id} className="border-t border-border-primary">
-                    <TableCell>
-                      <Link
-                        href={`/account/returns/${returnItem.id}`}
-                        className="text-text-action underline decoration-solid font-bold hover:text-text-action/80"
-                      >
-                        {returnItem.id}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{formatReturnDate(returnItem.createdAt, locale)}</TableCell>
-                    <TableCell>{getFirstOrderId(returnItem)}</TableCell>
-                    <TableCell className="hidden min-[1280px]:table-cell">{getRequestorEmail(returnItem)}</TableCell>
-                    <TableCell>{formatReturnCurrency(displayAmount.value, displayAmount.currency, locale)}</TableCell>
-                    <TableCell>
-                      <ReturnStatusBadge status={returnItem.status} isExpired={returnItem.isExpired} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Link href={`/account/returns/${returnItem.id}`} className="inline-flex items-center justify-end">
-                        <ArrowRight className="h-6 w-6 text-text-headings hover:text-text-action" />
-                      </Link>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                    <button
+                      onClick={() => toggleSort('value')}
+                      className="flex items-center gap-2 hover:text-text-action"
+                    >
+                      {t('returnValue')}
+                      {getSortIcon('value')}
+                    </button>
+                  </TableHead>
+                  <TableHead
+                    className="font-bold text-base leading-5 font-primary text-text-headings"
+                    aria-sort={getSortAriaSort('status')}
+                  >
+                    <button
+                      onClick={() => toggleSort('status')}
+                      className="flex items-center gap-2 hover:text-text-action"
+                    >
+                      {t('statusLabel')}
+                      {getSortIcon('status')}
+                    </button>
+                  </TableHead>
+                  <TableHead className="font-bold text-base leading-5 font-primary text-text-headings text-right">
+                    {t('view')}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visibleReturns.map((returnItem) => {
+                  const displayAmount = getDisplayReturnAmount(returnItem);
+                  return (
+                    <TableRow key={returnItem.id} className="border-t border-border-primary">
+                      <TableCell>
+                        <Link
+                          href={`/account/returns/${returnItem.id}`}
+                          className="text-text-action underline decoration-solid font-bold hover:text-text-action/80"
+                        >
+                          {returnItem.id}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{formatReturnDate(returnItem.createdAt, locale)}</TableCell>
+                      <TableCell>{getFirstOrderId(returnItem)}</TableCell>
+                      <TableCell className="hidden min-[1280px]:table-cell">{getRequestorEmail(returnItem)}</TableCell>
+                      <TableCell>{formatReturnCurrency(displayAmount.value, displayAmount.currency, locale)}</TableCell>
+                      <TableCell>
+                        <ReturnStatusBadge status={returnItem.status} isExpired={returnItem.isExpired} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Link
+                          href={`/account/returns/${returnItem.id}`}
+                          className="inline-flex items-center justify-end"
+                        >
+                          <ArrowRight className="h-6 w-6 text-text-headings hover:text-text-action" />
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
         )}
 
         {!isTabletUp && (
-          <div className="space-y-3">
+          <div className={`space-y-3 transition-opacity ${isTableReloading ? 'opacity-70' : 'opacity-100'}`}>
             {visibleReturns.map((returnItem) => {
               const displayAmount = getDisplayReturnAmount(returnItem);
               return (
@@ -287,26 +336,16 @@ export function ReturnsList({ initialReturns }: ReturnsListProps) {
             })}
           </div>
         )}
-        {(currentPage > 1 || hasNextPage) && (
-          <div className="flex items-center justify-end p-3">
-            <div className="flex items-center space-x-6">
-              {currentPage > 1 && (
-                <Button variant="neutral" size="small" onClick={handlePreviousPage}>
-                  <ChevronLeft className="h-4 w-4" />
-                  {tQuotesList('previous')}
-                </Button>
-              )}
-              <span className="text-sm">
-                {displayedCount} / {totalCount ?? displayedCount}
-              </span>
-              {hasNextPage && (
-                <Button variant="neutral" size="small" onClick={handleNextPage}>
-                  {tQuotesList('next')} <ChevronRight className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
+        <TablePagination
+          className="px-3"
+          currentPage={currentPage}
+          totalPages={totalPages}
+          pageIndicator={t('pageIndicator', { current: currentPage, total: totalPages })}
+          previousLabel={t('previous')}
+          nextLabel={t('next')}
+          onPreviousPage={handlePreviousPage}
+          onNextPage={handleNextPage}
+        />
       </div>
     </div>
   );

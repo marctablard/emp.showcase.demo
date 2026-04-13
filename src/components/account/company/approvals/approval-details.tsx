@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ApprovalStatusBadge } from '@/components/account/approvals/approval-status-badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +12,6 @@ import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { useApproval } from '@/hooks/approval/useApproval';
 import { Approval } from '@/platform/services/model/approval';
-import { ApprovalStatusBadge } from './approval-status-badge';
 
 interface ApprovalDetailsProps {
   approvalId: string;
