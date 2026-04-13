@@ -32,6 +32,13 @@ export default function createNavigation(siteRouting: SiteRoutingConfig, intlRou
       if (isPathnameLocalePrefixed) {
         unprefixedPathname = unprefixPathname(unprefixedPathname, localePrefix);
       }
+
+      // Guard against corrupted URLs that still contain the site prefix after stripping
+      // (e.g. /brand1/de/brand1/product/123 → after first strip → /brand1/product/123)
+      if (hasPathnamePrefixed(sitePrefix, unprefixedPathname)) {
+        unprefixedPathname = unprefixPathname(unprefixedPathname, sitePrefix);
+      }
+
       return unprefixedPathname;
     }, [locale, site, pathname]);
   }

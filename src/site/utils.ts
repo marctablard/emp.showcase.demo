@@ -18,10 +18,14 @@ export function addPrefixIfNeeded(
   forcePrefix: boolean = false,
 ) {
   if (site && (shouldPrefix(site, siteRouting) || forcePrefix)) {
-    if (path.startsWith('/')) {
-      return `/${site}${path}`;
+    const sitePrefix = `/${site}`;
+    if (path === sitePrefix || path.startsWith(`${sitePrefix}/`)) {
+      return path;
     }
-    return `/${site}/${path}`;
+    if (path.startsWith('/')) {
+      return `${sitePrefix}${path}`;
+    }
+    return `${sitePrefix}/${path}`;
   }
   return path;
 }
