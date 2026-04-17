@@ -1,9 +1,10 @@
-import React, { Dispatch, SetStateAction } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
+import React from 'react';
 import { useTranslations } from 'next-intl';
 import { Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Heading } from '@/components/ui/h';
-import { SearchSuggestions } from '@/platform/services/model/search';
+import type { SearchSuggestions } from '@/platform/services/model/search';
 
 export interface NoResultsProps {
   queryCompletions: SearchSuggestions['queryCompletions'];

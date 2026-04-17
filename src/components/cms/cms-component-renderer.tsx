@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { CMSComponent } from '@/platform/services/model/cms';
+import type { CMSComponent } from '@/platform/services/model/cms';
 
 // Dynamically import components
 const Hero = dynamic(() => import('./hero'));

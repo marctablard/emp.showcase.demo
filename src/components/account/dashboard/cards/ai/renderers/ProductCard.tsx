@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Product } from '../types';
+import type { Product } from '../types';
 import { formatPrice, handleImageError } from '../utils';
 
 interface ProductCardProps {

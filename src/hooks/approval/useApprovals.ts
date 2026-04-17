@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import {
+import type {
   Approval,
   ApprovalCreateRequest,
   ApprovalId,

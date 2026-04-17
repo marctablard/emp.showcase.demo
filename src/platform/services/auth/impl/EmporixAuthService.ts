@@ -1,22 +1,22 @@
 import crypto from 'crypto';
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
-import EmporixCustomerApi from '@/platform/integrations/emporix/customer/impl/EmporixCustomerApi';
-import { EmporixAddress } from '@/platform/integrations/emporix/model';
-import { EmporixCustomer } from '@/platform/integrations/emporix/model/customer';
-import { EmporixSessionContext } from '@/platform/integrations/emporix/model/session-context';
-import EmporixSessionContextApi from '@/platform/integrations/emporix/session/impl/EmporixSessionContextApi';
+import type EmporixCustomerApi from '@/platform/integrations/emporix/customer/impl/EmporixCustomerApi';
+import type { EmporixAddress } from '@/platform/integrations/emporix/model';
+import type { EmporixCustomer } from '@/platform/integrations/emporix/model/customer';
+import type { EmporixSessionContext } from '@/platform/integrations/emporix/model/session-context';
+import type EmporixSessionContextApi from '@/platform/integrations/emporix/session/impl/EmporixSessionContextApi';
 import { CART_CURRENCY_UPDATE_ERROR_CODE, CartCurrencyUpdateError } from '@/platform/services/cart/errors';
-import { Credentials, Registration, Session } from '@/platform/services/model/auth/auth';
+import type { Credentials, Registration, Session } from '@/platform/services/model/auth/auth';
 import type { Cart } from '@/platform/services/model/cart/cart';
 import type { Site } from '@/platform/services/model/common/site';
 import type { CartMigrationService } from '../../cart/CartMigrationService';
 import type { CartService } from '../../cart/CartService';
 import type { LoggerService } from '../../logger/LoggerService';
-import EmporixAddressMapper from '../../model/common/impl/EmporixAddressMapper';
+import type EmporixAddressMapper from '../../model/common/impl/EmporixAddressMapper';
 import type { SessionService } from '../../session';
 import type { SiteService } from '../../site/SiteService';
-import { AuthService } from '../AuthService';
+import type { AuthService } from '../AuthService';
 
 /**
  * Emporix implementation of the AuthService

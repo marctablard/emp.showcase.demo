@@ -1,4 +1,4 @@
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import { searchProducts } from '@/lib/ssr/search';
 import { createBrowseInitialSearch, generateBrowsePageMetadata, renderBrowsePage } from '../page';
 

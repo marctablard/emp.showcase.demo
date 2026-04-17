@@ -6,8 +6,9 @@ import { CloudDrizzle, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun,
 import { Button } from '@/components/ui/button';
 import { useWeather } from '@/hooks/weather/useWeather';
 import { type WeatherKey, dk } from '@/i18n/dynamic-key';
-import { LocationData } from '@/platform/services/model/common';
-import { DashboardCard, DashboardCardProps } from './dashboard-card';
+import type { LocationData } from '@/platform/services/model/common';
+import type { DashboardCardProps } from './dashboard-card';
+import { DashboardCard } from './dashboard-card';
 
 interface WeatherCardProps extends Omit<DashboardCardProps, 'children'> {}
 

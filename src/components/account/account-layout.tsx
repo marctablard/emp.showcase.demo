@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
-import { BreadcrumbContent } from '@/lib/breadcrumb';
+import type { BreadcrumbContent } from '@/lib/breadcrumb';
 import { UiBreadcrumb } from '../ui/molecules/ui-breadcrumb';
 import { AccountSidebar } from './account-sidebar';
 

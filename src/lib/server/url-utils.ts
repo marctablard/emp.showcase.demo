@@ -1,5 +1,5 @@
-import { ReadonlyHeaders } from 'next/dist/server/web/spec-extension/adapters/headers';
-import { NextRequest } from 'next/server';
+import type { ReadonlyHeaders } from 'next/dist/server/web/spec-extension/adapters/headers';
+import type { NextRequest } from 'next/server';
 
 export function getBaseUrl(req: NextRequest, fallbackBaseUrl?: string): string {
   const forwardedProto = req.headers.get('x-forwarded-proto');

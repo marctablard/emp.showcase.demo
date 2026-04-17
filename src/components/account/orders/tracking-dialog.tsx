@@ -11,7 +11,7 @@ import { H3 } from '@/components/ui/h';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTracking } from '@/hooks/order/useTracking';
 import { type TrackingKey, dk } from '@/i18n/dynamic-key';
-import { TrackingInfo } from '@/platform/services/model/tracking';
+import type { TrackingInfo } from '@/platform/services/model/tracking';
 
 interface TrackingDialogProps {
   orderId: string;

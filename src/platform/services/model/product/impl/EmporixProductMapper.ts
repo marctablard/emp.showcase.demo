@@ -1,13 +1,13 @@
 import { injectable } from '@/platform/core/di/injectable';
-import { EmporixProduct } from '@/platform/integrations/emporix/model/product';
-import { LocalizedString } from '@/platform/services/model/common';
-import {
+import type { EmporixProduct } from '@/platform/integrations/emporix/model/product';
+import type { LocalizedString } from '@/platform/services/model/common';
+import type {
   GroupedSpecification,
   Product,
   ProductSpecification,
   ProductVariantAttribute,
 } from '@/platform/services/model/product';
-import { ProductMapper } from '../ProductMapper';
+import type { ProductMapper } from '../ProductMapper';
 import { normalizeProductAttributeStringMap } from './normalizeProductAttributeStringMap';
 
 /**

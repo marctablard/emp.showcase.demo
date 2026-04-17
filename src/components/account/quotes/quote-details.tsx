@@ -17,7 +17,7 @@ import { useQuoteHistory } from '@/hooks/quotes/useQuoteHistory';
 import { useQuote } from '@/hooks/quotes/useQuotes';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
-import { Quote } from '@/platform/services/model/quote';
+import type { Quote } from '@/platform/services/model/quote';
 
 interface QuoteDetailsProps {
   quoteId: string;

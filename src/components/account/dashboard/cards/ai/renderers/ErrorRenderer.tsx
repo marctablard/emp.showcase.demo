@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { ErrorData, StructuredDataHandlers } from '../types';
+import type { ErrorData, StructuredDataHandlers } from '../types';
 
 interface ErrorRendererProps {
   data: ErrorData;

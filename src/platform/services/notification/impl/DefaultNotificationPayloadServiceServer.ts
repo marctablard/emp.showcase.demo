@@ -1,8 +1,8 @@
 import { getTranslations } from 'next-intl/server';
 import { type NotificationCodeKey, dk } from '@/i18n/dynamic-key';
 import { injectable } from '@/platform/core/di/injectable';
-import { NotificationPayload, StorefrontNotification } from '@/platform/services/model/notification/notification';
-import { NotificationPayloadService } from '../NotificationPayloadService';
+import type { NotificationPayload, StorefrontNotification } from '@/platform/services/model/notification/notification';
+import type { NotificationPayloadService } from '../NotificationPayloadService';
 
 /**
  * Default implementation of NotificationPayloadService

@@ -1,7 +1,7 @@
 import { format } from 'date-fns';
 import { injectable } from '@/platform/core/di/injectable';
-import { EmporixQuoteHistory, EmporixQuoteHistoryItem } from '@/platform/integrations/emporix/model/quote';
-import { QuoteHistory } from '..';
+import type { EmporixQuoteHistory, EmporixQuoteHistoryItem } from '@/platform/integrations/emporix/model/quote';
+import type { QuoteHistory } from '..';
 import type { QuoteHistoryMapper } from './QuoteHistoryMapper';
 
 /**

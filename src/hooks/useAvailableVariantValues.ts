@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { fetchProductVariants } from '@/lib/client/products';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { LocalizedString } from '@/platform/services/model/common';
-import { Product } from '@/platform/services/model/product';
+import type { LocalizedString } from '@/platform/services/model/common';
+import type { Product } from '@/platform/services/model/product';
 import { useProductStore } from '@/providers/StoreProvider';
 
 interface VariantAttributeValue {

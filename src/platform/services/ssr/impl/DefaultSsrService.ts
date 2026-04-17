@@ -1,5 +1,5 @@
 import { injectable } from '@/platform/core/di/injectable';
-import { SsrConfig, SsrService } from '../SsrService';
+import type { SsrConfig, SsrService } from '../SsrService';
 
 /**
  * Default implementation of SsrService that reads configuration from environment variables

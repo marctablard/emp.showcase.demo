@@ -1,4 +1,5 @@
-import { BindingScope, injectable as inversifyInjectable } from 'inversify';
+import type { BindingScope } from 'inversify';
+import { injectable as inversifyInjectable } from 'inversify';
 import 'reflect-metadata';
 
 export const ID_KEY = 'emp_inversify:id';

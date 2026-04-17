@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { fetchReturnsPage } from '@/lib/client/returns';
-import { Return } from '@/platform/services/model/return';
+import type { Return } from '@/platform/services/model/return';
 
 interface UseReturnsReturn {
   returns: Return[];

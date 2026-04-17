@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { FormProvider, UseFormReturn } from 'react-hook-form';
+import type { UseFormReturn } from 'react-hook-form';
+import { FormProvider } from 'react-hook-form';
 import { useTranslations } from 'next-intl';
 import { FormControl, FormField, FormItem } from '@/components/ui/form';
 import { InputButton } from '@/components/ui/input';
-import { AiHelperFormData } from './types';
+import type { AiHelperFormData } from './types';
 
 interface ChatInputProps {
   form: UseFormReturn<AiHelperFormData>;

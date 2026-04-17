@@ -1,6 +1,6 @@
 'use client';
 
-import { Product } from '@/platform/services/model/product';
+import type { Product } from '@/platform/services/model/product';
 import { useHistoryStore } from '@/providers/StoreProvider';
 
 interface UseHistoryResult {

@@ -1,14 +1,15 @@
 import { inject } from 'inversify';
+import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../../config';
-import {
+import type {
   EmporixAIChatContext,
   EmporixAIChatRequest,
   EmporixAIChatResponse,
   EmporixAIUserMessage,
 } from '../../model/ai';
-import { EmporixAIApi as IEmporixAIApi } from '../EmporixAIApi';
+import type { EmporixAIApi as IEmporixAIApi } from '../EmporixAIApi';
 
 @injectable('EmporixAIApi', 'Singleton')
 class EmporixAIApi implements IEmporixAIApi {

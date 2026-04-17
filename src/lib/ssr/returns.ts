@@ -4,7 +4,7 @@ import { cache } from 'react';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Return, ReturnItem } from '@/platform/services/model/return';
 import type { OrderService } from '@/platform/services/order/OrderService';
-import { ReturnService } from '@/platform/services/return/ReturnService';
+import type { ReturnService } from '@/platform/services/return/ReturnService';
 import ssr from '@/platform/ssr';
 
 /**

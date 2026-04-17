@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Check, NotebookText, Pencil, ReceiptText } from 'lucide-react';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
-import { useAddresses } from '@/hooks/customer/useAddresses';
 import { type PaymentModeKey, dk } from '@/i18n/dynamic-key';
-import { Address } from '@/platform/services/model/common';
+import type { Address } from '@/platform/services/model/common';
 import { AddressSelector } from '../address/address-selector';
 import { AddressDisplay } from '../common/address-display';
 import { Button } from '../ui/button';
@@ -16,7 +15,6 @@ import PaymentMethodComponent from './payment-method';
 export function CheckoutPayment({ initialEdit }: { initialEdit: boolean }) {
   const t = useTranslations('checkout.payment');
   const tPayment = useTranslations('checkout.PaymentModes');
-  const { addresses } = useAddresses();
   const { billingAddress, shippingAddress, paymentMethod, submitBillingAddress } = useCheckout();
   const [isPaymentEdit, setIsPaymentEdit] = useState(
     initialEdit || !paymentMethod || !billingAddress || !shippingAddress,
@@ -76,19 +74,18 @@ export function CheckoutPayment({ initialEdit }: { initialEdit: boolean }) {
         ) : (
           <>
             {/* Addresses */}
-            {addresses && addresses.length > 0 && (
-              <AddressSelector
-                addressType="BILLING"
-                selectedAddressId={billingAddress?.id}
-                onSelect={handleBillingAddressChange}
-                triggerElement={
-                  <div className="flex gap-1 text-text-action font-bold mb-4 cursor-pointer">
-                    <p>{t('fromAddressbook')}</p>
-                    <NotebookText />
-                  </div>
-                }
-              />
-            )}
+            <AddressSelector
+              addressBook="companyAndCustomer"
+              addressType="BILLING"
+              selectedAddressId={billingAddress?.id}
+              onSelect={handleBillingAddressChange}
+              triggerElement={
+                <div className="flex gap-1 text-text-action font-bold mb-4 cursor-pointer">
+                  <p>{t('fromAddressbook')}</p>
+                  <NotebookText />
+                </div>
+              }
+            />
             <div className="col-span-2 flex flex-col gap-4">
               <CheckoutAddress
                 address={billingAddress}

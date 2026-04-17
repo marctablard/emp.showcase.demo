@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Approval, ApprovalStatus } from '@/platform/services/model/approval';
+import type { Approval, ApprovalStatus } from '@/platform/services/model/approval';
 
 interface UseApprovalReturn {
   approval: Approval | null;

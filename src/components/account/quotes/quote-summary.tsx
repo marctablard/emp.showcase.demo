@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { List, NotebookPen, ReceiptText, Truck } from 'lucide-react';
 import { SummaryCard, SummaryRow } from '@/components/ui/summary-card';
 import { formatDate } from '@/lib/date-utils';
-import { Quote } from '@/platform/services/model/quote';
+import type { Quote } from '@/platform/services/model/quote';
 
 interface QuoteSummaryProps {
   quote: Quote;

@@ -6,9 +6,9 @@ import { Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { ReturnReasonCode } from '@/lib/client/returns';
+import type { ReturnReasonCode } from '@/lib/client/returns';
 import { formatCurrency } from '@/lib/utils';
-import { OrderItem } from '@/platform/services/model/order/order';
+import type { OrderItem } from '@/platform/services/model/order/order';
 
 export interface ItemQuantity {
   [itemId: string]: number;

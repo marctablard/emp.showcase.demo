@@ -8,8 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { useProduct } from '@/hooks/product/useProduct';
 import { cn } from '@/lib/utils';
-import { ProductPrice } from '@/platform/services/model/price';
-import { Product } from '@/platform/services/model/product';
+import type { ProductPrice } from '@/platform/services/model/price';
+import type { Product } from '@/platform/services/model/product';
 import ProductAddToCartButton from './product-add-to-cart-button';
 
 // Client component that uses the product signal

@@ -1,6 +1,6 @@
 import { injectable } from '@/platform/core/di/injectable';
-import { Customer } from '../../model/customer/customer';
-import { CustomerNamingService } from '../CustomerNamingService';
+import type { Customer } from '../../model/customer/customer';
+import type { CustomerNamingService } from '../CustomerNamingService';
 
 @injectable('CustomerNamingService', 'Singleton')
 export class DefaultCustomerNamingService implements CustomerNamingService {

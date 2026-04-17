@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { QuoteUpdateRequest } from '@/platform/services/model/quote';
-import { PriceService } from '@/platform/services/price/PriceService';
-import { QuoteService } from '@/platform/services/quote/QuoteService';
-import { SchemaService } from '@/platform/services/schema/SchemaService';
+import type { QuoteUpdateRequest } from '@/platform/services/model/quote';
+import type { PriceService } from '@/platform/services/price/PriceService';
+import type { QuoteService } from '@/platform/services/quote/QuoteService';
+import type { SchemaService } from '@/platform/services/schema/SchemaService';
 
 /**
  * POST /api/quote

@@ -1,7 +1,7 @@
 import { cache } from 'react';
-import { CartService } from '@/platform/services/cart';
+import type { CartService } from '@/platform/services/cart';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { Cart } from '@/platform/services/model/cart/cart';
+import type { Cart } from '@/platform/services/model/cart/cart';
 import ssr from '@/platform/ssr';
 
 /**

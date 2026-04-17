@@ -1,17 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { SearchService } from '@/platform/services/search/SearchService';
+import type { SearchService } from '@/platform/services/search/SearchService';
 
 /**
  * API endpoint to get product suggestions based on a search query
- * GET /api/search/suggestions?query=term&locale=en&site=main
+ * GET /api/search/suggestions?query=term&locale=en&site=main&currency=EUR
  */
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const query = url.searchParams.get('query');
   const locale = url.searchParams.get('locale') || undefined;
   const site = url.searchParams.get('site') || undefined;
+  const currency = url.searchParams.get('currency') || undefined;
 
   try {
     const searchService = server.get<SearchService>('SearchService');
@@ -20,7 +22,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Query parameter is required' }, { status: 400 });
     }
 
-    const suggestions = await searchService.getSuggestions({ query, locale, site });
+    const suggestions = await searchService.getSuggestions({ query, locale, site, currency });
 
     return NextResponse.json(suggestions);
   } catch (error) {

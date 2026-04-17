@@ -1,4 +1,4 @@
-import { LocalePrefixMode } from 'next-intl/routing';
+import type { LocalePrefixMode } from 'next-intl/routing';
 
 export const NEXT_MIDDLEWARE_PREFIX = 'x-middleware-request-x-';
 // this is used to memorize the site in the middleware

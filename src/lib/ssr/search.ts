@@ -1,8 +1,8 @@
 import { cache } from 'react';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { SearchParams, SearchResult } from '@/platform/services/model/common';
-import { Product } from '@/platform/services/model/product';
-import { SearchService } from '@/platform/services/search';
+import type { SearchParams, SearchResult } from '@/platform/services/model/common';
+import type { Product } from '@/platform/services/model/product';
+import type { SearchService } from '@/platform/services/search';
 import ssr from '@/platform/ssr';
 
 const getSearchService = () => ssr.get<SearchService>('SearchService');

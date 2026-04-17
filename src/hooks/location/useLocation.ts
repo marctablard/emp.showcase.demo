@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { LocationData } from '@/platform/services/model/common';
+import type { LocationData } from '@/platform/services/model/common';
 import { useAddresses } from '../customer/useAddresses';
 import { useSite } from '../site/useSite';
 

@@ -1,7 +1,8 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Circle, DropletOff, Globe, LucideIcon, MapPin, Pin, Shield, ShoppingCart, Trees, Truck } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { Circle, DropletOff, Globe, MapPin, Pin, Shield, ShoppingCart, Trees, Truck } from 'lucide-react';
 import { ProductCharacteristic } from '@/components/product/product-characteristic';
 import { ProductColorTile } from '@/components/product/product-color-tile';
 import { ProductTag } from '@/components/product/product-tag';
@@ -17,7 +18,7 @@ import { type ProductTemplateAttributeKey, dk } from '@/i18n/dynamic-key';
 import { Link } from '@/i18n/navigation';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency, imageSizes } from '@/lib/utils';
-import { Product } from '@/platform/services/model/product';
+import type { Product } from '@/platform/services/model/product';
 import { ToastType, notify } from '../ui/toast-notification';
 
 interface ProductTileProps {
@@ -123,7 +124,12 @@ export function ProductTile({ product, locale = 'en', skipVariantFetch = false }
                 </div>
               ) : (
                 <div className="flex h-full items-center justify-center">
-                  <Image src={'/images/no_image_alt.png'} alt={l10nOrEmpty(product.name) || ''} width={220} height={220} />
+                  <Image
+                    src={'/images/no_image_alt.png'}
+                    alt={l10nOrEmpty(product.name) || ''}
+                    width={220}
+                    height={220}
+                  />
                 </div>
               )}
             </div>

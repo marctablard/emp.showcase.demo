@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import TopBannerAnnouncement from '@/components/cms/top-banner-announcement';
 import { useHeaderDesktopNavigation } from '@/components/header/header-desktop-navigation-context';
+import { CompanySwitcher } from '@/components/header/switcher/header-company-switcher';
 import { CurrencySwitcher } from '@/components/header/switcher/header-currency-switcher';
 import { LanguageSwitcher } from '@/components/header/switcher/header-language-switcher';
 import { SiteSwitcher } from '@/components/header/switcher/header-site-switcher';
@@ -31,6 +32,7 @@ export function HeaderTopBanner() {
           <LanguageSwitcher />
           <hr className="w-px h-6 bg-surface-page" />
           <CurrencySwitcher />
+          <CompanySwitcher />
         </div>
         {isAboveLargeScreen && (
           <div className="justify-center items-center font-bold">

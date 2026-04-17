@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { SiteService } from '@/platform/services/site/SiteService';
+import type { SiteService } from '@/platform/services/site/SiteService';
 
 /**
  * GET /api/site

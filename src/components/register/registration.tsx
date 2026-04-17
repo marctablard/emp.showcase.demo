@@ -11,7 +11,7 @@ import { useRegistration } from '@/hooks/registration/useRegistration';
 import useCurrency from '@/hooks/useCurrency';
 import { useValidator } from '@/hooks/validation/useValidator';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { RegistrationData } from '@/platform/services/validation/impl/EmporixRegistrationValidationService';
+import type { RegistrationData } from '@/lib/validation/form-schemas';
 import { Spinner } from '../ui/spinner';
 import { AccountSettingsSection } from './account-settings-section';
 import { AddressInfoSection } from './address-info-section';

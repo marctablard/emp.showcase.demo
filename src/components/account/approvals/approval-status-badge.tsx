@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
 import { getApprovalStatusVariant } from '@/lib/common/status-tag-variants';
-import { ApprovalStatus } from '@/platform/services/model/approval';
+import type { ApprovalStatus } from '@/platform/services/model/approval';
 
 interface ApprovalStatusBadgeProps {
   status: ApprovalStatus;

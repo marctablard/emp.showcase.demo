@@ -1,9 +1,10 @@
 import { inject } from 'inversify';
+import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../../config';
-import { EmporixReturnCreateRequest, EmporixReturnId, EmporixReturnResponse } from '../../model/return';
-import { EmporixReturnApi as IEmporixReturnApi } from '../EmporixReturnApi';
+import type { EmporixReturnCreateRequest, EmporixReturnId, EmporixReturnResponse } from '../../model/return';
+import type { EmporixReturnApi as IEmporixReturnApi } from '../EmporixReturnApi';
 
 /**
  * Implementation of the Emporix Return API

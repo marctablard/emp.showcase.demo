@@ -12,7 +12,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { useAddresses } from '@/hooks/customer/useAddresses';
 import { useToast } from '@/hooks/ui/useToast';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { Address, AddressType } from '@/platform/services/model/common';
+import type { Address, AddressType } from '@/platform/services/model/common';
 import { AddressDialog } from './address-dialog';
 
 interface AddressCardProps {

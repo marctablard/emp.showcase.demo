@@ -1,10 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { getSites as apiGetSites } from '@/lib/client/site';
+import { useCallback, useContext, useEffect, useState } from 'react';
+import { getSite as apiGetSite, getSites as apiGetSites } from '@/lib/client/site';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { Country, Currency, Region } from '@/platform/services/model/common';
-import { PaymentMode } from '@/platform/services/model/payment';
+import type { Country, Currency, Region } from '@/platform/services/model/common';
+import type { PaymentMode } from '@/platform/services/model/payment';
+import { SiteContext } from '@/providers/SiteProvider';
 import { useSiteStore } from '@/providers/StoreProvider';
 
 /**
@@ -13,6 +14,7 @@ import { useSiteStore } from '@/providers/StoreProvider';
 export function useSite(id?: string) {
   const { setLoading, getLoading, setSite, getSite, setAvailableSites, availableSites, reset, loading, site } =
     useSiteStore();
+  const urlSiteCode = useContext(SiteContext);
   if (id && site && site.code != id) {
     // id mismatch, that's a client-side site-switch
     reset();
@@ -27,16 +29,24 @@ export function useSite(id?: string) {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiGetSites();
-      setSite(data.current);
-      setAvailableSites(data.available);
+      const siteCode = id || urlSiteCode;
+      if (siteCode) {
+        // Fetch specific site by code (URL-derived) to avoid returning the Emporix default
+        const [currentSite, allSites] = await Promise.all([apiGetSite(siteCode), apiGetSites()]);
+        setSite(currentSite);
+        setAvailableSites(allSites.available);
+      } else {
+        const data = await apiGetSites();
+        setSite(data.current);
+        setAvailableSites(data.available);
+      }
     } catch (error) {
       getLogger().error({ err: error }, 'Error fetching site data');
       setError(error instanceof Error ? error : new Error('Failed to fetch site data'));
     } finally {
       setLoading(false);
     }
-  }, [setLoading, setError, setSite, setAvailableSites]);
+  }, [setLoading, setError, setSite, setAvailableSites, id, urlSiteCode]);
 
   useEffect(() => {
     if (site) {

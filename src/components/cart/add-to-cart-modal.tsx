@@ -9,7 +9,7 @@ import { H3 } from '@/components/ui/h';
 import { useRouter } from '@/i18n/navigation';
 import { l10n, l10nOrEmpty } from '@/lib/utils';
 import type { CartStatus, CartStatusDetailCode } from '@/platform/services/cart/CartService';
-import { Product } from '@/platform/services/model/product';
+import type { Product } from '@/platform/services/model/product';
 import UINotification from '../ui/molecules/ui-notification';
 
 interface AddToCartModalProps {
@@ -74,9 +74,7 @@ export function AddToCartModal({
                     src={product.images?.[0].url}
                     alt={
                       product.images?.[0]?.altText
-                        ? l10nOrEmpty(product.images[0].altText, locale) ||
-                          l10nOrEmpty(product.name, locale) ||
-                          '-'
+                        ? l10nOrEmpty(product.images[0].altText, locale) || l10nOrEmpty(product.name, locale) || '-'
                         : l10nOrEmpty(product.name, locale) || '-'
                     }
                     className="w-full h-full object-cover"

@@ -3,17 +3,11 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
-import {
-  Carousel,
-  CarouselApi,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from '@/components/ui/carousel';
+import type { CarouselApi } from '@/components/ui/carousel';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { useL10n } from '@/hooks/useL10n';
 import { imageSizes } from '@/lib/utils';
-import { Media } from '@/platform/services/model/common';
+import type { Media } from '@/platform/services/model/common';
 
 interface ProductCarouselProps {
   images: Media[] | undefined;
@@ -113,7 +107,9 @@ export function ProductCarousel({ images }: ProductCarouselProps) {
                     <Image
                       src={image.url}
                       alt={
-                        image.altText ? l10nOrEmpty(image.altText) || `Thumbnail ${index + 1}` : `Thumbnail ${index + 1}`
+                        image.altText
+                          ? l10nOrEmpty(image.altText) || `Thumbnail ${index + 1}`
+                          : `Thumbnail ${index + 1}`
                       }
                       fill
                       sizes={imageSizes}

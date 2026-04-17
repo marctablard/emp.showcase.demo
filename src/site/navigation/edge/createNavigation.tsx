@@ -1,6 +1,6 @@
 import { getRequestSite } from '../../server/RequestSiteCache';
 import { createSiteNavigationShared } from '../../shared/createNavigationShared';
-import { SiteRoutingConfig } from '../../types';
+import type { SiteRoutingConfig } from '../../types';
 
 // this a server variation of the navigation, it is used in server only code (like edge middleware or api routes)
 export default function createNavigation(siteRouting: SiteRoutingConfig, intlRouting: any) {

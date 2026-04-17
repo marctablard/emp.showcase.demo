@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { mapCartCurrencyPutError } from '@/lib/common/cart-api-error-mapping';
 import server from '@/platform/server';
-import { CartService } from '@/platform/services/cart';
+import type { CartService } from '@/platform/services/cart';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { SessionService } from '@/platform/services/session/SessionService';
+import type { SessionService } from '@/platform/services/session/SessionService';
 
 /**
  * PUT /api/cart/[id]/currency

@@ -1,9 +1,9 @@
 'use server';
 
 import { cache } from 'react';
-import { ApprovalService } from '@/platform/services/approval/ApprovalService';
+import type { ApprovalService } from '@/platform/services/approval/ApprovalService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { Approval } from '@/platform/services/model/approval';
+import type { Approval } from '@/platform/services/model/approval';
 import ssr from '@/platform/ssr';
 
 /**

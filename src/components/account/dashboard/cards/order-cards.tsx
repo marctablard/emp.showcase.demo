@@ -17,8 +17,9 @@ import { useOrder } from '@/hooks/order/useOrder';
 import { useOrders } from '@/hooks/order/useOrders';
 import { type PaymentModeKey, dk } from '@/i18n/dynamic-key';
 import { Link } from '@/i18n/navigation';
-import { Order } from '@/platform/services/model/order/order';
-import { DashboardCard, DashboardCardProps } from './dashboard-card';
+import type { Order } from '@/platform/services/model/order/order';
+import type { DashboardCardProps } from './dashboard-card';
+import { DashboardCard } from './dashboard-card';
 import { StatCard } from './stat-card';
 
 /**

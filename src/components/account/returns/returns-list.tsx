@@ -2,16 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { ArrowDown, ArrowRight, ArrowUp, ChevronLeft, ChevronRight, ChevronsUpDown, Search } from 'lucide-react';
+import { ArrowDown, ArrowRight, ArrowUp, ChevronsUpDown, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { TablePagination } from '@/components/ui/table-pagination';
 import { useReturns } from '@/hooks/return/useReturns';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { Link } from '@/i18n/navigation';
-import { Return } from '@/platform/services/model/return';
+import type { Return } from '@/platform/services/model/return';
 import { formatReturnCurrency, formatReturnDate, getFirstOrderId, getRequestorEmail } from './helpers';
 import { ReturnStatusBadge } from './return-status-badge';
 
@@ -31,7 +32,6 @@ interface ReturnsListProps {
 
 export function ReturnsList({ initialReturns, forceRefreshOnMount = false }: ReturnsListProps) {
   const t = useTranslations('account.returns');
-  const tQuotesList = useTranslations('account.quotesList');
   const locale = useLocale();
   const [quickSearch, setQuickSearch] = useState('');
   const [debouncedQuickSearch, setDebouncedQuickSearch] = useState('');
@@ -55,14 +55,14 @@ export function ReturnsList({ initialReturns, forceRefreshOnMount = false }: Ret
     query: apiQuery,
     forceRefreshOnMount,
   });
-  const displayedCount = Math.min(
-    currentPage * RETURNS_PER_PAGE,
-    totalCount ?? (currentPage - 1) * RETURNS_PER_PAGE + visibleReturns.length,
-  );
   const hasNextPage =
     totalCount !== undefined
       ? currentPage < Math.ceil(totalCount / RETURNS_PER_PAGE)
       : visibleReturns.length === RETURNS_PER_PAGE;
+  const totalPages =
+    totalCount !== undefined
+      ? Math.max(1, Math.ceil(totalCount / RETURNS_PER_PAGE))
+      : Math.max(currentPage, currentPage + (hasNextPage ? 1 : 0));
   const isInitialLoading = loading && visibleReturns.length === 0 && !quickSearch && currentPage === 1;
   const isTableReloading = loading && !isInitialLoading;
 
@@ -336,26 +336,16 @@ export function ReturnsList({ initialReturns, forceRefreshOnMount = false }: Ret
             })}
           </div>
         )}
-        {(currentPage > 1 || hasNextPage) && (
-          <div className="flex items-center justify-end p-3">
-            <div className="flex items-center space-x-6">
-              {currentPage > 1 && (
-                <Button variant="neutral" size="small" onClick={handlePreviousPage}>
-                  <ChevronLeft className="h-4 w-4" />
-                  {tQuotesList('previous')}
-                </Button>
-              )}
-              <span className="text-sm">
-                {displayedCount} / {totalCount ?? displayedCount}
-              </span>
-              {hasNextPage && (
-                <Button variant="neutral" size="small" onClick={handleNextPage}>
-                  {tQuotesList('next')} <ChevronRight className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
+        <TablePagination
+          className="px-3"
+          currentPage={currentPage}
+          totalPages={totalPages}
+          pageIndicator={t('pageIndicator', { current: currentPage, total: totalPages })}
+          previousLabel={t('previous')}
+          nextLabel={t('next')}
+          onPreviousPage={handlePreviousPage}
+          onNextPage={handleNextPage}
+        />
       </div>
     </div>
   );

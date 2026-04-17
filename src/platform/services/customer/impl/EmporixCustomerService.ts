@@ -3,14 +3,14 @@ import { isAnonymousProfileCustomerId } from '@/lib/common/customer-identity';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCustomerApi } from '@/platform/integrations/emporix/customer/EmporixCustomerApi';
 import type { EmporixIamApi } from '@/platform/integrations/emporix/iam/EmporixIamApi';
-import { EmporixAddress } from '@/platform/integrations/emporix/model';
-import { EmporixGroup } from '@/platform/integrations/emporix/model/iam';
+import type { EmporixAddress } from '@/platform/integrations/emporix/model';
+import type { EmporixGroup } from '@/platform/integrations/emporix/model/iam';
 import type { EmporixSessionContextApi } from '@/platform/integrations/emporix/session/EmporixSessionContextApi';
 import type { LoggerService } from '../../logger/LoggerService';
-import EmporixAddressMapper from '../../model/common/impl/EmporixAddressMapper';
-import { Customer, CustomerAddress } from '../../model/customer/customer';
+import type EmporixAddressMapper from '../../model/common/impl/EmporixAddressMapper';
+import type { Customer, CustomerAddress } from '../../model/customer/customer';
 import { CustomerRole } from '../../model/customer/roles';
-import { CustomerService, CustomerUpdateDto, PasswordChangeDto } from '../CustomerService';
+import type { CustomerService, CustomerUpdateDto, PasswordChangeDto } from '../CustomerService';
 
 enum B2BRole {
   ADMIN = 'Admin',

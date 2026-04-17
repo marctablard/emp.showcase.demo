@@ -1,12 +1,13 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
-import { EmporixPaginatedResponse, EmporixProduct } from '@/platform/integrations/emporix/model';
+import type { EmporixPaginatedResponse, EmporixProduct } from '@/platform/integrations/emporix/model';
 import type { EmporixProductApi } from '@/platform/integrations/emporix/product/EmporixProductApi';
 import { buildProductCategoryIdsCriteriaValue } from '@/platform/integrations/emporix/product/buildProductCatalogScopeQ';
 import type { CategoryService } from '@/platform/services/category/CategoryService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
+import type { PriceFetchOptions } from '@/platform/services/price/PriceService';
 import type { ProductFetchOptions, ProductService } from '@/platform/services/product/ProductService';
 import type { SearchService } from '@/platform/services/search/SearchService';
 import type { SessionService } from '@/platform/services/session/SessionService';
@@ -17,6 +18,13 @@ import type SegmentFilterService from './SegmentFilterService';
 function criteriaIncludesCategoryIds(criteria: Partial<EmporixProduct>): boolean {
   const v = (criteria as Record<string, unknown>).categoryIds;
   return typeof v === 'string' && v.trim().length > 0;
+}
+
+function isUnscopedProductSearch(params: SearchParams<Product>): boolean {
+  if (params.searchAllProducts === true) {
+    return true;
+  }
+  return process.env.NEXT_PUBLIC_SEARCH_OMIT_CATALOG_CATALOG_FILTER === 'true';
 }
 
 /**
@@ -59,6 +67,13 @@ class EmporixSearchService implements SearchService {
       total: 0,
       availableFilters: [],
     };
+  }
+
+  private buildPriceOption(siteCode?: string, currency?: string): boolean | PriceFetchOptions {
+    if (siteCode) {
+      return { siteCode, ...(currency && { currency }) };
+    }
+    return true;
   }
 
   private async mapAndEnrichSearchResults(
@@ -107,6 +122,8 @@ class EmporixSearchService implements SearchService {
       if (!categoryValue) {
         return null;
       }
+    } else if (isUnscopedProductSearch(params)) {
+      categoryValue = undefined;
     } else {
       const siteCode = await this.resolveSiteCode(effectiveSite);
       if (!siteCode) {
@@ -150,11 +167,8 @@ class EmporixSearchService implements SearchService {
     if (criteria === null) {
       return this.emptySearchResult(page, requestedSize);
     }
-    if (!criteriaIncludesCategoryIds(criteria)) {
-      this.logger.warn(
-        { site: effectiveSite },
-        'Refusing product search without categoryIds in criteria',
-      );
+    if (!isUnscopedProductSearch(params) && !criteriaIncludesCategoryIds(criteria)) {
+      this.logger.warn({ site: effectiveSite }, 'Refusing product search without categoryIds in criteria');
       return this.emptySearchResult(page, requestedSize);
     }
 
@@ -167,7 +181,7 @@ class EmporixSearchService implements SearchService {
     });
 
     const enrichedProducts = await this.mapAndEnrichSearchResults(searchResult.items, {
-      prices: true,
+      prices: this.buildPriceOption(effectiveSite, params.currency),
       variants: false,
       categories: false,
     });
@@ -190,7 +204,7 @@ class EmporixSearchService implements SearchService {
         categories: [],
       };
     }
-    if (!criteriaIncludesCategoryIds(criteria)) {
+    if (!isUnscopedProductSearch(params) && !criteriaIncludesCategoryIds(criteria)) {
       this.logger.warn({ site: params.site }, 'Refusing search suggestions without categoryIds in criteria');
       return {
         queryCompletions: [],
@@ -208,7 +222,7 @@ class EmporixSearchService implements SearchService {
     });
 
     const enrichedProducts = await this.mapAndEnrichSearchResults(searchResult.items, {
-      prices: true,
+      prices: this.buildPriceOption(params.site, params.currency),
       variants: false,
       categories: false,
     });

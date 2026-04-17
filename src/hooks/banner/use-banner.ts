@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocale } from 'next-intl';
-import { ISbStoriesParams, StoryblokClient } from '@storyblok/react/rsc';
+import type { ISbStoriesParams, StoryblokClient } from '@storyblok/react/rsc';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { getStoryblokApi } from '@/lib/storyblok';
 import { useBannerStore } from '@/stores/banner-store';

@@ -1,13 +1,14 @@
-import { RequestCookie } from 'next/dist/compiled/@edge-runtime/cookies';
+import type { RequestCookie } from 'next/dist/compiled/@edge-runtime/cookies';
 import { cookies } from 'next/headers';
 import { inject } from 'inversify';
 import { omit } from 'lodash';
+import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
-import { StoredToken } from '@/platform/integrations/types/auth';
-import { EmporixCustomerTokenResponse } from '../../model/oauth';
+import type { StoredToken } from '@/platform/integrations/types/auth';
+import type { EmporixCustomerTokenResponse } from '../../model/oauth';
 import type { EmporixOAuthApi } from '../../oauth/EmporixOAuthApi';
 import { EMPORIX_TOKEN_TYPE } from '../token-types';
-import { TokenStore } from './EmporixTokenManagerAbstract';
+import type { TokenStore } from './EmporixTokenManagerAbstract';
 import { EmporixTokenManagerAbstract } from './EmporixTokenManagerAbstract';
 
 @injectable('EmporixTokenManager', 'Singleton')

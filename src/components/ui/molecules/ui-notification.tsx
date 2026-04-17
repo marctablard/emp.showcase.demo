@@ -1,6 +1,6 @@
 import React from 'react';
 import { InfoIcon } from 'lucide-react';
-import { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface UINotificationProps {

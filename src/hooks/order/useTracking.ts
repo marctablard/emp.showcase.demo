@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { TrackingInfo } from '@/platform/services/model/tracking';
+import type { TrackingInfo } from '@/platform/services/model/tracking';
 
 interface UseTrackingProps {
   orderId: string;

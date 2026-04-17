@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
 import { type OrderStatusLowercaseKey, dk } from '@/i18n/dynamic-key';
 import { getOrderStatusVariant } from '@/lib/common/status-tag-variants';
-import { Order } from '@/platform/services/model/order/order';
+import type { Order } from '@/platform/services/model/order/order';
 
 /**
  * Order status tag — Figma Molecules / Tags; list and detail must stay aligned.

@@ -16,9 +16,9 @@ import { fetchProductPrice } from '@/lib/client/prices';
 import { fetchProductById } from '@/lib/client/products';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency } from '@/lib/utils';
-import { CartItem, CartItemSubstitution } from '@/platform/services/model/cart/cart.d';
-import { ProductPrice } from '@/platform/services/model/price/price';
-import { Product } from '@/platform/services/model/product';
+import type { CartItem, CartItemSubstitution } from '@/platform/services/model/cart/cart.d';
+import type { ProductPrice } from '@/platform/services/model/price/price';
+import type { Product } from '@/platform/services/model/product';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 
 interface SubstitutionModalProps {

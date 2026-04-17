@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Weather, WeatherForecast } from '@/platform/services/model/weather';
+import type { Weather, WeatherForecast } from '@/platform/services/model/weather';
 
 interface WeatherStore {
   weather: WeatherForecast | null;

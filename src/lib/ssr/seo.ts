@@ -1,8 +1,8 @@
 import { cache } from 'react';
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { ProductPrice } from '@/platform/services/model/price';
-import { Product } from '@/platform/services/model/product';
+import type { ProductPrice } from '@/platform/services/model/price';
+import type { Product } from '@/platform/services/model/product';
 import { generateBreadcrumbForProduct } from '../breadcrumb';
 import { buildCanonicalUrl, l10n } from '../utils';
 

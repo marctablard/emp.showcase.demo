@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 export function getContext(Request: NextRequest): { locale: string; site: string } {
   let locale = process.env.NEXT_PUBLIC_LOCALE_COOKIE

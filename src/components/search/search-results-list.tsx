@@ -1,5 +1,5 @@
 import { useTranslations } from 'next-intl';
-import { Product } from '@platform/services/model/product';
+import type { Product } from '@platform/services/model/product';
 import { ProductTileListItemSkeleton } from '@/components/product/product-tile-list-item-skeleton';
 import { SearchNoResults } from '@/components/search/search-no-results';
 import { Skeleton } from '@/components/ui/skeleton';

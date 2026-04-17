@@ -4,8 +4,8 @@
  */
 import { cache } from 'react';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { Product } from '@/platform/services/model/product';
-import { ProductFetchOptions } from '@/platform/services/product/ProductService';
+import type { Product } from '@/platform/services/model/product';
+import type { ProductFetchOptions } from '@/platform/services/product/ProductService';
 
 const variantFetchInflight = new Map<string, Promise<Product[]>>();
 

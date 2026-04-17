@@ -11,8 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useValidator } from '@/hooks/validation/useValidator';
 import { updateCustomerProfile } from '@/lib/client/customer';
-import { CustomerUpdateDto } from '@/platform/services/customer/CustomerService';
-import { Customer } from '@/platform/services/model/customer/customer';
+import type { CustomerUpdateDto } from '@/platform/services/customer/CustomerService';
+import type { Customer } from '@/platform/services/model/customer/customer';
 
 interface ProfileEditFormProps {
   customer: Customer | null;

@@ -6,7 +6,7 @@ import AccountLayout from '@/components/account/account-layout';
 import { QuotesTable } from '@/components/account/quotes/quotes-table';
 import { H1 } from '@/components/ui/h';
 import { useQuotes } from '@/hooks/quotes/useQuotes';
-import { Quote } from '@/platform/services/model/quote';
+import type { Quote } from '@/platform/services/model/quote';
 
 interface QuotesPageContentProps {
   initialQuotes?: Quote[];

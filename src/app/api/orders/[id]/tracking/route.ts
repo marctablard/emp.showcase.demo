@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { TrackingService } from '@/platform/services/tracking/TrackingService';
+import type { TrackingService } from '@/platform/services/tracking/TrackingService';
 
 /**
  * GET /api/orders/[id]/tracking

@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useReturn } from '@/hooks/return/useReturn';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { Link } from '@/i18n/navigation';
-import { Return } from '@/platform/services/model/return';
+import type { Return } from '@/platform/services/model/return';
 import { formatReturnCurrency } from './helpers';
 import { RETURN_REASON_LABEL_KEYS, getReturnReasonLabel, getReturnReasonTranslationKey } from './reason-labels';
 import { ReturnStatusBadge } from './return-status-badge';

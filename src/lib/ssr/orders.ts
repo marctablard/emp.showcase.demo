@@ -2,8 +2,8 @@
 
 import { cache } from 'react';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { Order } from '@/platform/services/model/order/order';
-import { OrderService } from '@/platform/services/order/OrderService';
+import type { Order } from '@/platform/services/model/order/order';
+import type { OrderService } from '@/platform/services/order/OrderService';
 import ssr from '@/platform/ssr';
 
 /**

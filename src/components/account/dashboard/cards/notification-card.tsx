@@ -7,7 +7,8 @@ import { H4 } from '@/components/ui/h';
 import UiLink from '@/components/ui/link';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
-import { DashboardCard, DashboardCardProps } from './dashboard-card';
+import type { DashboardCardProps } from './dashboard-card';
+import { DashboardCard } from './dashboard-card';
 
 // Define the notification item structure
 interface NotificationItem {

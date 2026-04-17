@@ -1,6 +1,6 @@
 'use client';
 
-import { CMSNoResult, CMSPage } from '@/platform/services/model/cms';
+import type { CMSNoResult, CMSPage } from '@/platform/services/model/cms';
 
 /**
  * Get CMS page data from the API

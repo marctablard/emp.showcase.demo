@@ -1,5 +1,5 @@
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { Quote } from '@/platform/services/model/quote';
+import type { Quote } from '@/platform/services/model/quote';
 
 /**
  * Get quote by ID from the API

@@ -4,8 +4,9 @@ import { usePathname, useRouter } from 'next/navigation';
 import useHistory from '@/hooks/history/useHistory';
 import { useSiteCode } from '@/hooks/site/useSiteCode';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { SearchParams as BaseSearchParams, Filter, SearchResult } from '@/platform/services/model/common';
-import { SearchSuggestions } from '@/platform/services/model/search/SearchSuggestions';
+import type { SearchParams as BaseSearchParams, Filter, SearchResult } from '@/platform/services/model/common';
+import type { SearchSuggestions } from '@/platform/services/model/search/SearchSuggestions';
+import { useSessionStore } from '@/providers/StoreProvider';
 import { buildSearchPaginationUrl } from './build-search-pagination-url';
 
 const DEFAULT_PAGE_INDEX = 0;
@@ -42,6 +43,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   });
   const siteCode = useSiteCode();
   const locale = useLocale();
+  const sessionCurrency = useSessionStore().session?.currency;
 
   // Keep track of the last search params for pagination
   const lastSearchParams = useRef<SearchParams<T>>({
@@ -145,9 +147,11 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         }
         url.searchParams.append('site', resolvedSite);
         url.searchParams.append('locale', locale);
+        if (sessionCurrency) {
+          url.searchParams.append('currency', sessionCurrency);
+        }
 
-        const filtersToApply =
-          params.filters && Object.keys(params.filters).length > 0 ? params.filters : undefined;
+        const filtersToApply = params.filters && Object.keys(params.filters).length > 0 ? params.filters : undefined;
         if (filtersToApply) {
           Object.entries(filtersToApply).forEach(([key, value]) => {
             if (Array.isArray(value)) {
@@ -171,7 +175,6 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         // Update browser URL with the same parameters (but with 'q' instead of 'query')
         updateBrowserUrl(url.searchParams);
 
-        // Fetch the search results
         const response = await fetch(url.toString());
 
         if (!response.ok) {
@@ -203,7 +206,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         }
       }
     },
-    [updateBrowserUrl, locale, siteCode],
+    [updateBrowserUrl, locale, siteCode, sessionCurrency],
   );
 
   /**
@@ -347,6 +350,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         locale,
         query: lastSearchParams.current.query,
         sort: lastSearchParams.current.sort,
+        currency: sessionCurrency,
       });
 
       if (lastSearchParams.current.filters) {
@@ -378,7 +382,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     } finally {
       setLoadingMore(false);
     }
-  }, [hasMore, loadingMore, loading, currentPage, pageSize, siteCode, locale]);
+  }, [hasMore, loadingMore, loading, currentPage, pageSize, siteCode, locale, sessionCurrency]);
 
   const getSuggestions = useCallback(
     async (query: string, locale?: string): Promise<void> => {
@@ -404,6 +408,9 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         if (locale) {
           url.searchParams.append('locale', locale);
         }
+        if (sessionCurrency) {
+          url.searchParams.append('currency', sessionCurrency);
+        }
         const response = await fetch(url.toString());
         if (!response.ok) {
           throw new Error(`Suggestions failed: ${response.statusText}`);
@@ -418,7 +425,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         setLoading(false);
       }
     },
-    [siteCode],
+    [siteCode, sessionCurrency],
   );
 
   const changeSort = useCallback(
@@ -437,13 +444,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
    * filter chips, category label resolution, and pagination refs stay correct after client navigation.
    */
   const syncBrowseSearchStateFromUrl = useCallback(
-    (slice: {
-      query: string;
-      page: number;
-      size: number;
-      sort?: string;
-      filtersRecord: Record<string, unknown>;
-    }) => {
+    (slice: { query: string; page: number; size: number; sort?: string; filtersRecord: Record<string, unknown> }) => {
       const filters =
         slice.filtersRecord && Object.keys(slice.filtersRecord).length > 0
           ? (slice.filtersRecord as Record<string, FilterValue>)

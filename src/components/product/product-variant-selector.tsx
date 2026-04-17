@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { ProductPrice } from '@/platform/services/model/price';
-import { Product } from '@/platform/services/model/product';
+import type { ProductPrice } from '@/platform/services/model/price';
+import type { Product } from '@/platform/services/model/product';
 import ProductVariantSelectorMulti from './product-variant-selector-multi';
 import ProductVariantSelectorSimple from './product-variant-selector-simple';
 

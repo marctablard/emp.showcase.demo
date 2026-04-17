@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { CartSummaryData, ShopData } from '../types';
+import type { CartSummaryData, ShopData } from '../types';
 import { extractPrice, formatPrice } from '../utils';
 import { ItemsListRenderer } from './ItemsListRenderer';
 

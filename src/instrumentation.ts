@@ -1,3 +1,5 @@
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
+
 /**
  * Next.js instrumentation hook
  * This function is called once when the Next.js server starts
@@ -9,8 +11,7 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     // Dynamic import to avoid loading Node.js modules in Edge Runtime
     const server = await import('@/platform/server');
-    const logger =
-      server.default.get<import('@/platform/services/logger/LoggerService').LoggerService>('LoggerService');
+    const logger = server.default.get<LoggerService>('LoggerService');
     logger.info('Server logger initialized');
 
     // Tier 2: Runtime configuration healthcheck (sites, currencies, languages vs Emporix API)

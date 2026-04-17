@@ -6,7 +6,8 @@ import { Spinner } from '@/components/ui/spinner';
 import { useCompany } from '@/hooks/company/useCompany';
 import { useOrders } from '@/hooks/order/useOrders';
 import { formatCurrency } from '@/lib/utils';
-import { DashboardCard, DashboardCardProps } from './dashboard-card';
+import type { DashboardCardProps } from './dashboard-card';
+import { DashboardCard } from './dashboard-card';
 import StatCard from './stat-card';
 
 interface BudgetProgressProps extends Omit<DashboardCardProps, 'children'> {}

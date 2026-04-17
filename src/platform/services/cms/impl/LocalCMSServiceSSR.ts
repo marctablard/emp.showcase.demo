@@ -1,9 +1,9 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { CMSNoResult, CMSPage } from '../../model/cms';
+import type { CMSNoResult, CMSPage } from '../../model/cms';
 import type { SessionService } from '../../session';
-import { CMSService } from '../CMSService';
+import type { CMSService } from '../CMSService';
 
 /**
  * Implementation of CMSService that loads content from local JSON files

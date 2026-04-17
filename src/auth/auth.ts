@@ -1,14 +1,14 @@
 import NextAuth from 'next-auth';
-import { User } from 'next-auth';
+import type { User } from 'next-auth';
 import 'next-auth/jwt';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { headers } from 'next/headers';
 import { getBaseUrlFromHeaders } from '@/lib/server/url-utils';
 import server from '@/platform/server';
-import { CustomerNamingService } from '@/platform/services/customer/CustomerNamingService';
-import { CustomerService } from '@/platform/services/customer/CustomerService';
+import type { CustomerNamingService } from '@/platform/services/customer/CustomerNamingService';
+import type { CustomerService } from '@/platform/services/customer/CustomerService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { AuthService } from '../platform/services/auth/AuthService';
+import type { AuthService } from '../platform/services/auth/AuthService';
 import { config } from './auth.config';
 
 const enrichedProviders = config.providers.map((provider) => {

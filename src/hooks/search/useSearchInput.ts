@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Dispatch, SetStateAction } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 
 export interface SearchInputProps {
   showSearch: boolean;

@@ -1,9 +1,14 @@
 import { inject } from 'inversify';
+import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
-import { EmporixLabel, EmporixPaginatedResponse, EmporixSearchParams } from '@/platform/integrations/emporix/model';
-import EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
+import type {
+  EmporixLabel,
+  EmporixPaginatedResponse,
+  EmporixSearchParams,
+} from '@/platform/integrations/emporix/model';
+import type EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
 import { buildPaginatedResponse, buildSearchQuery } from '../../common/util/common';
-import { EmporixLabelApi as IEmporixLabelApi } from '../EmporixLabelApi';
+import type { EmporixLabelApi as IEmporixLabelApi } from '../EmporixLabelApi';
 
 /**
  * Implementation of LabelApi for Emporix label data.

@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { ProductItem, UnifiedProductItem } from './ProductItem';
+import type { UnifiedProductItem } from './ProductItem';
+import { ProductItem } from './ProductItem';
 
 interface ItemsListRendererProps {
   items: any[];

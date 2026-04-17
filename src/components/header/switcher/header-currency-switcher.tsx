@@ -3,7 +3,8 @@
 import { Suspense, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { DynamicIcon, IconName } from 'lucide-react/dynamic';
+import type { IconName } from 'lucide-react/dynamic';
+import { DynamicIcon } from 'lucide-react/dynamic';
 import TopBarSwitcher from '@/components/ui/molecules/ui-topbar-switcher';
 import { Spinner } from '@/components/ui/spinner';
 import { useSession } from '@/hooks/session/useSession';

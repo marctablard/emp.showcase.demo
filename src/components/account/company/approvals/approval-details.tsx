@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { useApproval } from '@/hooks/approval/useApproval';
-import { Approval } from '@/platform/services/model/approval';
+import type { Approval } from '@/platform/services/model/approval';
 
 interface ApprovalDetailsProps {
   approvalId: string;

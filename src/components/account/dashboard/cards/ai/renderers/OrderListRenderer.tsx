@@ -4,7 +4,7 @@ import React from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
-import { OrderData, OrderItemData, OrderListData } from '../types';
+import type { OrderData, OrderItemData, OrderListData } from '../types';
 import { extractPrice, formatDate, formatPrice, getOrderStatusBadgeVariantForAi, handleImageError } from '../utils';
 
 interface OrderListRendererProps {

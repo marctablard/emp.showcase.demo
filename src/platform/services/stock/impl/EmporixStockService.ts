@@ -1,6 +1,6 @@
 import { inject } from 'inversify';
 import type { EmporixAvailabilityApi } from '@/platform/integrations/emporix/availability/EmporixAvailabilityApi';
-import { StockAvailability } from '../../model/common';
+import type { StockAvailability } from '../../model/common';
 import type { StockService } from '../StockService';
 
 /**

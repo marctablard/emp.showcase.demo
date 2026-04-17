@@ -1,10 +1,10 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
-import { EmporixReturnCreateRequest } from '@/platform/integrations/emporix/model/return';
+import type { EmporixReturnCreateRequest } from '@/platform/integrations/emporix/model/return';
 import type { EmporixReturnApi } from '@/platform/integrations/emporix/return/EmporixReturnApi';
-import { Return } from '@/platform/services/model/return';
-import { EmporixReturnMapper } from '@/platform/services/model/return/impl/EmporixReturnMapper';
-import { CreateReturnItem, ReturnService } from '../ReturnService';
+import type { Return } from '@/platform/services/model/return';
+import type { EmporixReturnMapper } from '@/platform/services/model/return/impl/EmporixReturnMapper';
+import type { CreateReturnItem, ReturnService } from '../ReturnService';
 
 /**
  * Implementation of ReturnService interface for Emporix return operations.

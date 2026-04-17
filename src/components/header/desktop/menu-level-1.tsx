@@ -1,6 +1,7 @@
 import { useTranslations } from 'next-intl';
 import { ChevronDown } from 'lucide-react';
-import { MenuItem, navigationMenuItems } from '@/data/navigation-menu';
+import type { MenuItem } from '@/data/navigation-menu';
+import { navigationMenuItems } from '@/data/navigation-menu';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 

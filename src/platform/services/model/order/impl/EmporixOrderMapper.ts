@@ -1,15 +1,15 @@
 import { inject } from 'inversify';
 import { CUSTOMER_ID } from '@/lib/common/customer-identity';
 import { injectable } from '@/platform/core/di/injectable';
-import {
+import type {
   EmporixOrder,
   EmporixOrderEntry,
   EmporixPayment,
   EmporixShipping,
 } from '@/platform/integrations/emporix/model/order';
-import { EmporixAddressMapper } from '@/platform/services/model/common/impl/EmporixAddressMapper';
-import { OrderMapper } from '@/platform/services/model/order/OrderMapper';
-import {
+import type { EmporixAddressMapper } from '@/platform/services/model/common/impl/EmporixAddressMapper';
+import type { OrderMapper } from '@/platform/services/model/order/OrderMapper';
+import type {
   Order,
   OrderDiscount,
   OrderItem,

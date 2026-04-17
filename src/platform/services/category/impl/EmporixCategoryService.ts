@@ -2,17 +2,17 @@ import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCategoryApi } from '@/platform/integrations/emporix/category/EmporixCategoryApi';
 import type { EmporixCategory, EmporixCategoryTree } from '@/platform/integrations/emporix/model';
-import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { Category } from '@/platform/services/model/category';
-import type { CategoryMapper } from '@/platform/services/model/category/CategoryMapper';
+import { CatalogPublishedRootCategoryService } from '@/platform/services/catalog/impl/CatalogPublishedRootCategoryService';
 import { filterEmporixCategoryTreesByCatalogIds } from '@/platform/services/category/impl/filter-emporix-category-trees-for-catalog';
 import {
   mapListCategoryRowsToNavigationCategories,
   selectTopLevelCategoryListRows,
 } from '@/platform/services/category/impl/navigation-categories-from-list-response';
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
+import type { Category } from '@/platform/services/model/category';
+import type { CategoryMapper } from '@/platform/services/model/category/CategoryMapper';
 import { mapEmporixCategoryTreeToCategory } from '@/platform/services/model/category/impl/EmporixCategoryMapper';
-import { CatalogPublishedRootCategoryService } from '@/platform/services/catalog/impl/CatalogPublishedRootCategoryService';
-import { CategoryService } from '../CategoryService';
+import type { CategoryService } from '../CategoryService';
 
 /**
  * Emporix implementation of the CategoryService
@@ -250,9 +250,7 @@ export class EmporixCategoryService implements CategoryService {
       });
 
       const rootsForTreeApi =
-        listed.length > 0
-          ? selectTopLevelCategoryListRows(listed).map((row) => row.id)
-          : catalogIds;
+        listed.length > 0 ? selectTopLevelCategoryListRows(listed).map((row) => row.id) : catalogIds;
 
       const fetchTreesBatch = async (ids: string[]): Promise<EmporixCategoryTree[]> => {
         if (ids.length === 0) {
@@ -261,18 +259,14 @@ export class EmporixCategoryService implements CategoryService {
         try {
           return await this.categoryApi.getCategoryTrees(ids, showUnpublished);
         } catch (err) {
-          this.logger.warn(
-            { err, siteCode, idCount: ids.length },
-            'Emporix batch category-trees request failed',
-          );
+          this.logger.warn({ err, siteCode, idCount: ids.length }, 'Emporix batch category-trees request failed');
           return [];
         }
       };
 
       const rootSet = new Set(rootsForTreeApi);
       const catalogSet = new Set(catalogIds);
-      const sameRootIdSet =
-        rootSet.size === catalogSet.size && catalogIds.every((id) => rootSet.has(id));
+      const sameRootIdSet = rootSet.size === catalogSet.size && catalogIds.every((id) => rootSet.has(id));
 
       // Prefer catalog ids first: one category-trees round-trip when those ids are valid roots
       // (avoids a wasted call when list-derived "top" ids do not resolve to trees).
@@ -302,9 +296,7 @@ export class EmporixCategoryService implements CategoryService {
       }
 
       if (listed.length > 0) {
-        return mapListCategoryRowsToNavigationCategories(listed, (row) =>
-          this.categoryMapper.mapToService(row),
-        );
+        return mapListCategoryRowsToNavigationCategories(listed, (row) => this.categoryMapper.mapToService(row));
       }
 
       return [];

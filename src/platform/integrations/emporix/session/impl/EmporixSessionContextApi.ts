@@ -1,9 +1,10 @@
 import { inject } from 'inversify';
+import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../../config';
-import { EmporixContextAttribute, EmporixSessionContext } from '../../model/session-context';
-import { EmporixSessionContextApi as IEmporixSessionContextApi } from '../EmporixSessionContextApi';
+import type { EmporixContextAttribute, EmporixSessionContext } from '../../model/session-context';
+import type { EmporixSessionContextApi as IEmporixSessionContextApi } from '../EmporixSessionContextApi';
 
 @injectable('EmporixSessionContextApi', 'Singleton')
 class EmporixSessionContextApi implements IEmporixSessionContextApi {

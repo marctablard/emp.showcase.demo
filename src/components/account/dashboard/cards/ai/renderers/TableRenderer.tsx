@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { TableData } from '../types';
+import type { TableData } from '../types';
 import { formatDate } from '../utils';
 
 interface TableRendererProps {

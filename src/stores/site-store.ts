@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import { Site } from '@/platform/services/model/common/site';
+import type { Site } from '@/platform/services/model/common/site';
 
 export interface SiteState {
   // Site data

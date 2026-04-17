@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 import { format } from 'date-fns';
 import UiLink from '@/components/ui/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Order } from '@/platform/services/model/order/order';
+import type { Order } from '@/platform/services/model/order/order';
 import { OrderStatusBadge } from './order-status-badge';
 
 /**

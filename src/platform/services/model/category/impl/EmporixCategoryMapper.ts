@@ -1,7 +1,7 @@
 import { injectable } from '@/platform/core/di/injectable';
-import { EmporixCategory, EmporixCategoryTree } from '@/platform/integrations/emporix/model';
-import { Category } from '@/platform/services/model/category';
-import { CategoryMapper } from '../CategoryMapper';
+import type { EmporixCategory, EmporixCategoryTree } from '@/platform/integrations/emporix/model';
+import type { Category } from '@/platform/services/model/category';
+import type { CategoryMapper } from '../CategoryMapper';
 
 function sortCategoryTreeByPosition(a: EmporixCategoryTree, b: EmporixCategoryTree): number {
   return (a.position ?? 0) - (b.position ?? 0);

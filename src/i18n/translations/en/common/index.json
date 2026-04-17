@@ -15,6 +15,13 @@
     "label": "Site",
     "switchFailed": "Unable to switch site. Please try again."
   },
+  "Companies": {
+    "label": "Company",
+    "errorLoading": "Unable to load companies",
+    "errorLoadingDescription": "Please try again later.",
+    "errorSwitching": "Failed to switch company",
+    "errorSwitchingDescription": "Please try again."
+  },
   "hello": {
     "world": "Hello World",
     "friend": "Hey Friend"

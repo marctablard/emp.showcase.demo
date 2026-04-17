@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 import { Pencil } from 'lucide-react';
 import { H5 } from '@/components/ui/h';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
-import { Address } from '@/platform/services/model/common';
+import type { Address } from '@/platform/services/model/common';
 import { AddressSelector } from '../address/address-selector';
 import ShippingMethod from '../checkout/shipping-method';
 import { AddressDisplay } from '../common/address-display';
@@ -34,6 +34,8 @@ export function CartDelivery() {
           <div className="flex justify-between">
             <H5>{isPickup ? t('pickup') : t('ship')}</H5>
             <AddressSelector
+              addressBook="companyAndCustomer"
+              addressType="SHIPPING"
               onSelect={(address) => submitShippingAddress({ ...address, type: 'SHIPPING' })}
               selectedAddressId={shippingAddress?.id}
               triggerElement={

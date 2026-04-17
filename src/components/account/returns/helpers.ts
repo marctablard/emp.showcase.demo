@@ -1,5 +1,5 @@
 import { formatCurrency } from '@/lib/utils';
-import { Return } from '@/platform/services/model/return';
+import type { Return } from '@/platform/services/model/return';
 
 export function formatReturnDate(dateString: string | undefined, locale: string): string {
   if (!dateString) return '-';

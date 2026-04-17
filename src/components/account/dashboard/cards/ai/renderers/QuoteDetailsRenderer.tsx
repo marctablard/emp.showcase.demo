@@ -3,9 +3,10 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
-import { QuoteDetailsData } from '../types';
+import type { QuoteDetailsData } from '../types';
 import { formatDate, formatPrice, getQuoteStatusBadgeVariantForAi } from '../utils';
-import { ProductItem, UnifiedProductItem } from './ProductItem';
+import type { UnifiedProductItem } from './ProductItem';
+import { ProductItem } from './ProductItem';
 
 interface QuoteDetailsRendererProps {
   data: QuoteDetailsData;

@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react';
 import DOMPurify from 'dompurify';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { HTMLData } from '../types';
+import type { HTMLData } from '../types';
 
 interface HTMLRendererProps {
   data: HTMLData;

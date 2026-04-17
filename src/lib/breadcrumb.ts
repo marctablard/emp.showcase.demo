@@ -1,5 +1,5 @@
-import { Category } from '@/platform/services/model/category';
-import { Product } from '@/platform/services/model/product';
+import type { Category } from '@/platform/services/model/category';
+import type { Product } from '@/platform/services/model/product';
 import { L10N_MISSING_LABEL, l10n } from './l10n';
 
 export interface BreadcrumbContent {

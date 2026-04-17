@@ -17,7 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { BreadcrumbContent } from '@/lib/breadcrumb';
+import type { BreadcrumbContent } from '@/lib/breadcrumb';
 import { cn } from '@/lib/utils';
 
 interface UiBreadcrumbProps extends React.ComponentProps<'nav'> {

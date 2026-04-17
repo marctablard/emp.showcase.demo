@@ -7,8 +7,8 @@ import {
   updateCustomerAddress,
 } from '@/lib/client/customer';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { Address, AddressType } from '@/platform/services/model/common';
-import { CustomerAddress } from '@/platform/services/model/customer/customer';
+import type { Address, AddressType } from '@/platform/services/model/common';
+import type { CustomerAddress } from '@/platform/services/model/customer/customer';
 import { useCustomerStore } from '@/providers/StoreProvider';
 import useCustomer from './useCustomer';
 

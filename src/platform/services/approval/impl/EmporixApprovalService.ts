@@ -2,11 +2,11 @@ import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixApprovalApi } from '@/platform/integrations/emporix/approval/EmporixApprovalApi';
 import type { EmporixIamApi } from '@/platform/integrations/emporix/iam/EmporixIamApi';
-import {
+import type {
   EmporixApprovalSearchUsersRequest,
   EmporixApprovalUpdateRequest,
 } from '@/platform/integrations/emporix/model/approval';
-import {
+import type {
   Approval,
   ApprovalCreateRequest,
   ApprovalId,
@@ -15,9 +15,9 @@ import {
   ApprovalStatus,
   ApprovalUser,
 } from '@/platform/services/model/approval';
-import { EmporixApprovalMapper } from '@/platform/services/model/approval/impl/EmporixApprovalMapper';
+import type { EmporixApprovalMapper } from '@/platform/services/model/approval/impl/EmporixApprovalMapper';
 import type { CustomerService } from '../../customer/CustomerService';
-import { ApprovalService } from '../ApprovalService';
+import type { ApprovalService } from '../ApprovalService';
 
 /**
  * Implementation of ApprovalService interface for Emporix approval operations.

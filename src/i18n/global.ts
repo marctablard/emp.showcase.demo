@@ -10,8 +10,8 @@
  * run `npm run dev` or `npm run build`. On a fresh clone you must run one
  * of those commands first so that the type information is available.
  */
-import { routing } from './routing';
-import en from './translations/en.json';
+import type { routing } from './routing';
+import type en from './translations/en.json';
 
 type Messages = typeof en;
 

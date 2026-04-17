@@ -110,7 +110,28 @@ export function setupCsrfFetch() {
       const enhancedInit = await withCsrf(requestInit);
       const mergedInit = { ...init, ...enhancedInit };
 
-      return originalFetch(input, mergedInit);
+      const response = await originalFetch(input, mergedInit);
+
+      if (response.status === 403) {
+        try {
+          const cloned = response.clone();
+          const body = await cloned.json();
+          if (body?.error === 'Invalid CSRF token') {
+            csrfToken = '';
+            const retryInit = {
+              method: method,
+              headers: init?.headers || {},
+            };
+            const retryEnhanced = await withCsrf(retryInit);
+            const retryMerged = { ...init, ...retryEnhanced };
+            return originalFetch(input, retryMerged);
+          }
+        } catch {
+          // Body parsing failed — not a CSRF error, return original response
+        }
+      }
+
+      return response;
     } catch (_csrfError) {
       return originalFetch(input, init);
     }

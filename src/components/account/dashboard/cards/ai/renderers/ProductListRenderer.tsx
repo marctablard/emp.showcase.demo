@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ProductData, ProductListData } from '../types';
+import type { ProductData, ProductListData } from '../types';
 import { ProductCard } from './ProductCard';
 
 interface ProductListRendererProps {

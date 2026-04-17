@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { ChevronRight } from 'lucide-react';
 import { HeaderPromo } from '@/components/header/common/header-promo';
 import { useNavigationProductSubmenu } from '@/components/header/navigation-product-submenu-context';
-import { ALL_PRODUCTS_NAVIGATION_ITEM_ID, MenuItem, SubMenuItem } from '@/data/navigation-menu';
+import { ALL_PRODUCTS_NAVIGATION_ITEM_ID, type MenuItem, type SubMenuItem } from '@/data/navigation-menu';
 import { Link } from '@/i18n/navigation';
 import { getNavigationRootCategoriesPageSize } from '@/lib/navigation/navigation-root-categories-page-size';
 import { takeRootCategoryPage } from '@/lib/navigation/take-root-category-page';

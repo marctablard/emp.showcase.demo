@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { AccountDetailsData, AddressData } from '../types';
+import type { AccountDetailsData, AddressData } from '../types';
 import { formatDateTime } from '../utils';
 import { AddressCard } from './AddressCard';
 

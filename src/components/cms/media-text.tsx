@@ -6,9 +6,11 @@ import { storyblokEditable } from '@storyblok/react/rsc';
 import { Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Heading } from '../ui/h';
-import Button, { ButtonData } from './button';
-import { TextEditorData } from './hero';
-import Video, { VideoData } from './video';
+import type { ButtonData } from './button';
+import Button from './button';
+import type { TextEditorData } from './hero';
+import type { VideoData } from './video';
+import Video from './video';
 
 export enum ImagePosition {
   Right = 'Right',

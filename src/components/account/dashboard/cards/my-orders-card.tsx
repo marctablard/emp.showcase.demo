@@ -13,7 +13,8 @@ import { useOrders } from '@/hooks/order/useOrders';
 import { useValidator } from '@/hooks/validation/useValidator';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
-import { DashboardCard, DashboardCardProps } from './dashboard-card';
+import type { DashboardCardProps } from './dashboard-card';
+import { DashboardCard } from './dashboard-card';
 
 type OrderSearchFormData = {
   searchQuery: string;

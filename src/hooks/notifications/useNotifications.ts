@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { ReferenceType, StorefrontNotification } from '@/platform/services/model/notification/notification';
 import { useNotificationStore } from '@/providers/StoreProvider';
-import { NotificationListener } from '@/stores/notification-store';
+import type { NotificationListener } from '@/stores/notification-store';
 
 interface UseNotificationsReturn {
   error: string | null;

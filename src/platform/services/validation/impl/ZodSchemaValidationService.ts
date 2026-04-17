@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { ValidationResult } from '..';
-import { ValidationService } from '../ValidationService';
+import type { ValidationResult } from '..';
+import type { ValidationService } from '../ValidationService';
 
 class ZodSchemaValidationService implements ValidationService {
   private schema: z.ZodTypeAny;

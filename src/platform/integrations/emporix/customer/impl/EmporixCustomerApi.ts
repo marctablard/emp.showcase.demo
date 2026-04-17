@@ -1,4 +1,5 @@
 import { inject } from 'inversify';
+import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import type EmporixApiInvoker from '@/platform/integrations/emporix/common/impl/EmporixApiInvoker';
 import type { EmporixTokenManager } from '../../common/EmporixTokenManager';
@@ -9,7 +10,7 @@ import type {
   EmporixPasswordChangeRequest,
   EmporixSignupRequest,
 } from '../../model/customer';
-import { EmporixSessionContext } from '../../model/session-context';
+import type { EmporixSessionContext } from '../../model/session-context';
 import type { EmporixCustomerApi as IEmporixCustomerApi } from '../EmporixCustomerApi';
 
 @injectable('EmporixCustomerApi', 'Singleton')

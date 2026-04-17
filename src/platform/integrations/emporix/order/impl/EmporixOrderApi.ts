@@ -1,15 +1,16 @@
 import { inject } from 'inversify';
+import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../../config';
-import {
+import type {
   EmporixCreateOrderFromQuoteRequest,
   EmporixCreateOrderRequest,
   EmporixOrder,
   EmporixOrderCreationResponse,
   EmporixUpdateOrderRequest,
 } from '../../model/order';
-import { EmporixOrderApi as IEmporixOrderApi } from '../EmporixOrderApi';
+import type { EmporixOrderApi as IEmporixOrderApi } from '../EmporixOrderApi';
 
 // Customer-managed endpoints use '/orders' while tenant-managed endpoints use '/salesorders'
 

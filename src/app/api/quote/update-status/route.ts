@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { QuoteUpdateRequest } from '@/platform/services/model/quote';
-import { QuoteService } from '@/platform/services/quote/QuoteService';
+import type { QuoteUpdateRequest } from '@/platform/services/model/quote';
+import type { QuoteService } from '@/platform/services/quote/QuoteService';
 
 export async function POST(request: NextRequest) {
   let quoteId: string | undefined;

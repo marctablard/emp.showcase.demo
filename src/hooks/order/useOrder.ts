@@ -6,7 +6,7 @@ import {
   fetchOrderStatusTransitions as apiFetchOrderStatusTransitions,
 } from '@/lib/client/orders';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { Order } from '@/platform/services/model/order/order';
+import type { Order } from '@/platform/services/model/order/order';
 
 interface UseOrderOptions {
   orderId?: string;

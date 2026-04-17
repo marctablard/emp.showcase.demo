@@ -6,7 +6,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import client from '@/platform/client';
+import { getLogger } from '@/lib/logger/browser-logger';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 
 /**
@@ -15,6 +15,5 @@ import type { LoggerService } from '@/platform/services/logger/LoggerService';
  * @returns Logger service instance
  */
 export function useLogger(): LoggerService {
-  // Use useMemo to ensure the logger instance is stable across re-renders
-  return useMemo(() => client.get<LoggerService>('LoggerService'), []);
+  return useMemo(() => getLogger(), []);
 }

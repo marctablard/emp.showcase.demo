@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import server from '@/platform/server';
-import { AuthService } from '@/platform/services/auth/AuthService';
+import type { AuthService } from '@/platform/services/auth/AuthService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { Registration } from '@/platform/services/model/auth';
+import type { Registration } from '@/platform/services/model/auth';
 
 /**
  * POST /api/auth/register

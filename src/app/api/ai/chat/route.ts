@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { AIChatContext } from '@/platform/integrations/ai/model';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
+import type { AIChatContext } from '@/platform/integrations/ai/model';
 import server from '@/platform/server';
-import { AIService } from '@/platform/services/ai';
+import type { AIService } from '@/platform/services/ai';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { SessionService } from '@/platform/services/session';
+import type { SessionService } from '@/platform/services/session';
 import { AIChatRequestSchema } from './schema';
 
 export const revalidate = 0;

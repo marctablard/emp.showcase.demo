@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchCurrentCompany } from '@/lib/client/company';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { Company } from '@/platform/services/model/company/company';
+import type { Company } from '@/platform/services/model/company/company';
 
 export interface Order {
   id: string;

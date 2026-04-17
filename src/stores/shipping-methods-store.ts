@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { ShippingMethod } from '@/platform/services/model/shipping';
+import type { ShippingMethod } from '@/platform/services/model/shipping';
 
 export interface ShippingMethodsState {
   // Site data

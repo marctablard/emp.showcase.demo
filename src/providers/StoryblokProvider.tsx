@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { getStoryblokApi } from '@/lib/storyblok';
 
 const StoryblokProvider = ({ children }: { children: ReactNode }) => {

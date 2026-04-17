@@ -11,8 +11,8 @@ import { Label } from '@/components/ui/label';
 import { useValidator } from '@/hooks/validation/useValidator';
 import { changeCustomerPassword } from '@/lib/client/customer';
 import { cn } from '@/lib/utils';
-import { PasswordChangeDto } from '@/platform/services/customer/CustomerService';
-import { Customer } from '@/platform/services/model/customer/customer';
+import type { PasswordChangeDto } from '@/platform/services/customer/CustomerService';
+import type { Customer } from '@/platform/services/model/customer/customer';
 
 interface PasswordChangeFormProps {
   customer: Customer | null;

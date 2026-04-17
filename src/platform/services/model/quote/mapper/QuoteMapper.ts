@@ -1,4 +1,4 @@
-import { Quote } from '..';
+import type { Quote } from '..';
 
 /**
  * Interface for mapping external quote data to application Quote model

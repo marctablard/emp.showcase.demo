@@ -2,16 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withApiRouteDebug } from '@/platform/core/utils/debug-utils';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { SearchService } from '@/platform/services/search';
+import type { SearchService } from '@/platform/services/search';
 import { extractFiltersFromUrlSearchParams } from '@/utils/filterUtils';
 
 /**
  * API endpoint to search for products
- * GET /api/search?query=term&page=0&size=12&sort=name:asc&site=main
+ * GET /api/search?query=term&page=0&size=12&sort=name:asc&site=main&currency=EUR
  *
  * Product search always includes published **navigation** root `categoryIds` in Emporix `q` when
  * `filters.categoryIds` is absent. Requests without resolvable `categoryIds` are not sent upstream.
  * `filters.categoryIds` are passed through as selected id(s); Emporix search includes products from subcategories.
+ *
+ * Catalog `categoryIds` in product search `q` can be disabled with `NEXT_PUBLIC_SEARCH_OMIT_CATALOG_CATALOG_FILTER=true`
+ * (e.g. old DBs without product `categoryIds`). Per-request unscoped search: set `SEARCH_ALLOW_UNSCOPED_PRODUCT_SEARCH=true`
+ * and pass `allProducts=1` or `searchAllProducts=true`.
  */
 async function handleSearch(request: NextRequest): Promise<NextResponse> {
   const url = new URL(request.url);
@@ -24,12 +28,18 @@ async function handleSearch(request: NextRequest): Promise<NextResponse> {
     const sort = url.searchParams.get('sort') || undefined;
     const locale = url.searchParams.get('locale') || undefined;
     const site = url.searchParams.get('site') || undefined;
+    const currency = url.searchParams.get('currency') || undefined;
+
+    let searchAllProducts = false;
+    if (process.env.SEARCH_ALLOW_UNSCOPED_PRODUCT_SEARCH === 'true') {
+      const raw = url.searchParams.get('allProducts') ?? url.searchParams.get('searchAllProducts');
+      searchAllProducts = raw === '1' || raw === 'true';
+    }
 
     const filtersRecord = extractFiltersFromUrlSearchParams(url.searchParams);
     const filters: Record<string, string | string[]> | undefined =
       Object.keys(filtersRecord).length > 0 ? (filtersRecord as Record<string, string | string[]>) : undefined;
 
-    // Perform the search
     const searchResults = await searchService.searchProducts(
       {
         query,
@@ -39,6 +49,8 @@ async function handleSearch(request: NextRequest): Promise<NextResponse> {
         filters,
         site: site || undefined,
         locale: locale || undefined,
+        currency,
+        searchAllProducts,
       },
       locale,
       site,

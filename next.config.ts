@@ -1,6 +1,11 @@
 import type { NextConfig } from 'next';
 import createNextIntlSplitPlugin from 'next-intl-split/plugin';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { validateEnvVars } from './src/platform/healthcheck/env-validation';
+
+/** Directory that contains this config file (= real app root). */
+const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
 // ── Tier 1: Build-time environment variable validation ──────────────────────
 // Runs during `next build`. Fails the build if required vars are missing.
@@ -43,6 +48,12 @@ switch (process.env.NEXT_SERVER_OUTPUTMODE) {
 }
 
 let nextConfig: NextConfig = {
+  // When another package-lock.json exists above this repo (e.g. ~/package-lock.json), Turbopack
+  // can infer the wrong workspace root and resolve `tailwindcss` / `next-intl` from the parent
+  // tree instead of this project's node_modules — breaking `next dev` with bogus module-not-found.
+  turbopack: {
+    root: projectRoot,
+  },
   images: {
     remotePatterns: [
       {

@@ -1,6 +1,7 @@
 import { useProducts } from '@/hooks/product/useProducts';
 import { useL10n } from '@/hooks/useL10n';
-import { ProductList, ProductListItem } from './product-list';
+import type { ProductListItem } from './product-list';
+import { ProductList } from './product-list';
 
 export interface ProductMinimal {
   productId?: string;

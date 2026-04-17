@@ -1,3 +1,4 @@
+import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixConfig as IEmporixConfig } from '..';
 

@@ -1,6 +1,6 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
-import { EmporixOrder } from '@/platform/integrations/emporix/model/order';
+import type { EmporixOrder } from '@/platform/integrations/emporix/model/order';
 import type { EmporixOrderApi } from '@/platform/integrations/emporix/order/EmporixOrderApi';
 import type { Order } from '@/platform/services/model/order/order';
 import type { OrderService } from '@/platform/services/order/OrderService';

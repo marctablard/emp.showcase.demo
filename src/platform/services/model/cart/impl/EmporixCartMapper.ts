@@ -1,8 +1,8 @@
 import { injectable } from '@/platform/core/di/injectable';
-import { EmporixCart, EmporixCartItem } from '@/platform/integrations/emporix/model/cart';
-import { Tax } from '../../common';
-import { CartMapper } from '../CartMapper';
-import { Cart, Cart as ServiceCart, CartItem as ServiceCartItem } from '../cart';
+import type { EmporixCart, EmporixCartItem } from '@/platform/integrations/emporix/model/cart';
+import type { Tax } from '../../common';
+import type { CartMapper } from '../CartMapper';
+import type { Cart, Cart as ServiceCart, CartItem as ServiceCartItem } from '../cart';
 
 /**
  * Maps between Emporix Cart model and Service Cart model

@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
 import { getReturnStatusVariant } from '@/lib/common/status-tag-variants';
-import { ReturnStatus } from '@/platform/services/model/return';
+import type { ReturnStatus } from '@/platform/services/model/return';
 
 interface ReturnStatusBadgeProps {
   status: ReturnStatus;

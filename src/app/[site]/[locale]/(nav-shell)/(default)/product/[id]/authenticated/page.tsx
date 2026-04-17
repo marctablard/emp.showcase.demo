@@ -1,4 +1,4 @@
-import { Metadata, ResolvingMetadata } from 'next';
+import type { Metadata, ResolvingMetadata } from 'next';
 import { createProductOptions, generateProductPageMetadata, renderProductPage } from '../page';
 
 interface AuthenticatedProductPageProps {

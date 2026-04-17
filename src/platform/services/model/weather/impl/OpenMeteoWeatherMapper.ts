@@ -1,7 +1,7 @@
 import { injectable } from '@/platform/core/di/injectable';
-import { OpenMeteoWeatherData, OpenMeteoWeatherForecast } from '@/platform/integrations/openmeteo/model/weather';
-import { WeatherMapper } from '../WeatherMapper';
-import { Weather, WeatherForecast } from '../index';
+import type { OpenMeteoWeatherData, OpenMeteoWeatherForecast } from '@/platform/integrations/openmeteo/model/weather';
+import type { WeatherMapper } from '../WeatherMapper';
+import type { Weather, WeatherForecast } from '../index';
 
 /**
  * Maps between OpenMeteo Weather model and Service Weather model

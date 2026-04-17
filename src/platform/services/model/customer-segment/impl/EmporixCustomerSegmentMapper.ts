@@ -1,7 +1,7 @@
 import { injectable } from '@/platform/core/di/injectable';
-import { ItemAssignmentResponse } from '@/platform/integrations/emporix/model';
-import { CategoryTree, CategoryTreeNode, ItemAssignment } from '@/platform/services/model/customer-segment';
-import { CustomerSegmentMapper } from '../CustomerSegmentMapper';
+import type { ItemAssignmentResponse } from '@/platform/integrations/emporix/model';
+import type { CategoryTree, CategoryTreeNode, ItemAssignment } from '@/platform/services/model/customer-segment';
+import type { CustomerSegmentMapper } from '../CustomerSegmentMapper';
 
 /**
  * Maps Emporix ItemAssignmentResponse to internal ItemAssignment model.

@@ -12,7 +12,7 @@ import { useCart } from '@/hooks/cart/useCart';
 import { useL10n } from '@/hooks/useL10n';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency } from '@/lib/utils';
-import { CartItem, CartItemPriceChange } from '@/platform/services/model/cart/cart.d';
+import type { CartItem, CartItemPriceChange } from '@/platform/services/model/cart/cart.d';
 
 interface ItemPriceChangeModalProps {
   isOpen: boolean;

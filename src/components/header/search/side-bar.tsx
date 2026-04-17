@@ -2,7 +2,7 @@ import React from 'react';
 import { MarkedText } from '@/components/header/search/marked-text';
 import { Heading } from '@/components/ui/h';
 import UiLink from '@/components/ui/link';
-import { SearchSuggestions } from '@/platform/services/model/search';
+import type { SearchSuggestions } from '@/platform/services/model/search';
 
 export interface SideBarProps {
   categories: SearchSuggestions['categories'];

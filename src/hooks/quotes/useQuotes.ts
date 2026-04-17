@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { SearchParams, SearchResult } from '@/platform/services/model/common';
-import { Quote } from '@/platform/services/model/quote';
+import type { SearchParams, SearchResult } from '@/platform/services/model/common';
+import type { Quote } from '@/platform/services/model/quote';
 
 /**
  * Hook for fetching quotes

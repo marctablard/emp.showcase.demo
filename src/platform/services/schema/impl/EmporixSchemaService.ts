@@ -1,8 +1,8 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
-import { EmporixSchema } from '@/platform/integrations/emporix/model/schema';
+import type { EmporixSchema } from '@/platform/integrations/emporix/model/schema';
 import type { EmporixSchemaApi } from '@/platform/integrations/emporix/schema/EmporixSchemaApi';
-import { SchemaService } from '../SchemaService';
+import type { SchemaService } from '../SchemaService';
 
 /**
  * Implementation of SchemaService that loads schema from Emporix

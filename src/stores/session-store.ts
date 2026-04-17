@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { Session } from '@/platform/services/model/session/session';
+import type { Session } from '@/platform/services/model/session/session';
 
 export interface SessionState {
   session: Session | null | undefined;

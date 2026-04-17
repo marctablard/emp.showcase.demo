@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchCategoryTree } from '@/lib/client/category';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { Category } from '@/platform/services/model/category';
+import type { Category } from '@/platform/services/model/category';
 
 interface CategoryTreeHook {
   categoryTree: Category | null;

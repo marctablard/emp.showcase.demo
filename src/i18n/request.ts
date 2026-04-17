@@ -1,4 +1,5 @@
-import { AbstractIntlMessages, hasLocale } from 'next-intl';
+import type { AbstractIntlMessages } from 'next-intl';
+import { hasLocale } from 'next-intl';
 import { loadI18nTranslations } from 'next-intl-split/load';
 import { getRequestConfig } from 'next-intl/server';
 import { routing } from './routing';

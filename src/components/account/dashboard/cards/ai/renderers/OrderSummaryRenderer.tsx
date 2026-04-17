@@ -3,7 +3,7 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
-import { OrderItemData, OrderSummaryData } from '../types';
+import type { OrderItemData, OrderSummaryData } from '../types';
 import { extractPrice, formatDate, formatPrice, getOrderStatusBadgeVariantForAi } from '../utils';
 import { ItemsListRenderer } from './ItemsListRenderer';
 

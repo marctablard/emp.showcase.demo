@@ -1,4 +1,6 @@
 import { Container } from 'inversify';
+import type { EmporixTokenManager } from '@/platform/integrations/emporix/common/EmporixTokenManager';
+import type { EmporixConfig } from '@/platform/integrations/emporix/config';
 import type {
   EmporixContextAttribute,
   EmporixSessionContext,
@@ -15,6 +17,8 @@ describe('EmporixSessionService', () => {
   let sessionService: EmporixSessionService;
   let mockSessionContextApi: jest.Mocked<EmporixSessionContextApi>;
   let mockSiteService: jest.Mocked<SiteService>;
+  let mockTokenManager: jest.Mocked<EmporixTokenManager>;
+  let mockConfig: EmporixConfig;
   let mockSessionMapper: jest.Mocked<SessionMapper<EmporixSessionContext, EmporixContextAttribute>>;
   let mockLogger: jest.Mocked<LoggerService>;
 
@@ -89,6 +93,25 @@ describe('EmporixSessionService', () => {
       getCurrency: jest.fn(),
     };
 
+    mockTokenManager = {
+      getPublicToken: jest.fn(),
+      getAnonymousToken: jest.fn(),
+      clearAnonymousToken: jest.fn(),
+      getCustomerToken: jest.fn(),
+      clearCustomerToken: jest.fn(),
+      getServiceAccessToken: jest.fn(),
+      getSessionToken: jest.fn(),
+      refreshCustomerTokenWithLegalEntity: jest.fn(),
+      clearTokens: jest.fn(),
+    } as jest.Mocked<EmporixTokenManager>;
+
+    mockConfig = {
+      tenant: 'test-tenant',
+      clientId: 'test-client-id',
+      clientSecret: 'test-client-secret',
+      baseUrl: 'https://api.test.com',
+    };
+
     mockLogger = {
       info: jest.fn(),
       warn: jest.fn(),
@@ -105,6 +128,8 @@ describe('EmporixSessionService', () => {
       .toConstantValue(mockSessionMapper);
     container.bind<EmporixSessionService>('SessionService').to(EmporixSessionService);
     container.bind<SiteService>('SiteService').toConstantValue(mockSiteService);
+    container.bind<EmporixTokenManager>('EmporixTokenManager').toConstantValue(mockTokenManager);
+    container.bind<EmporixConfig>('EmporixConfig').toConstantValue(mockConfig);
     container.bind<LoggerService>('LoggerService').toConstantValue(mockLogger);
 
     // Get service instance

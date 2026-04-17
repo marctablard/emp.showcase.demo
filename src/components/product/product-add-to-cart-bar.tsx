@@ -4,8 +4,8 @@ import { FlipHorizontal2, Pin, Share2 } from 'lucide-react';
 import { useProduct } from '@/hooks/product/useProduct';
 import { useL10n } from '@/hooks/useL10n';
 import { cn } from '@/lib/utils';
-import { ProductPrice } from '@/platform/services/model/price';
-import { Product } from '@/platform/services/model/product';
+import type { ProductPrice } from '@/platform/services/model/price';
+import type { Product } from '@/platform/services/model/product';
 import { Button } from '../ui/button';
 import ProductAddToCartButton from './product-add-to-cart-button';
 import { ProductPriceComponent } from './product-price';
@@ -32,11 +32,7 @@ export default function ProductAddToCartBar({
               <div className="w-30 h-16 bg-surface-image-background p-2">
                 <Image
                   src={product.images[0].url}
-                  alt={
-                    product.images[0].altText
-                      ? l10nOrEmpty(product.images[0].altText) || '-'
-                      : '-'
-                  }
+                  alt={product.images[0].altText ? l10nOrEmpty(product.images[0].altText) || '-' : '-'}
                   width="120"
                   height="64"
                   className="object-center w-full h-auto"

@@ -8,7 +8,8 @@ import { useCustomer } from '@/hooks/customer/useCustomer';
 import { useConfigStore } from '@/lib/client/dashboard';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import AccountLayout from '../account-layout';
-import { SupportTicketData, SupportTicketDialog } from './cards/support-ticket-dialog';
+import type { SupportTicketData } from './cards/support-ticket-dialog';
+import { SupportTicketDialog } from './cards/support-ticket-dialog';
 import Dashboard from './dashboard';
 import DashboardControls from './dashboard-controls';
 

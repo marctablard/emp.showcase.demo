@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { ProductService } from '@/platform/services/product/ProductService';
+import type { ProductService } from '@/platform/services/product/ProductService';
 
 /**
  * API endpoint to get a specific product by ID

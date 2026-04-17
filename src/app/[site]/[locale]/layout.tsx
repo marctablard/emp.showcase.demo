@@ -1,6 +1,7 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { SessionProvider as AuthSessionProvider } from 'next-auth/react';
-import { Locale, NextIntlClientProvider, hasLocale } from 'next-intl';
+import type { Locale } from 'next-intl';
+import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Open_Sans, Ubuntu } from 'next/font/google';
 import { notFound } from 'next/navigation';
@@ -15,6 +16,7 @@ import { isBrowserDebugOutputEnabled, isDebugApiEnabled } from '@/lib/common/deb
 import { setSessionLanguage } from '@/lib/ssr/session';
 import { getAvailableSites, getSite } from '@/lib/ssr/site';
 import SiteProvider from '@/providers/SiteProvider';
+import { SiteSessionAligner } from '@/providers/SiteSessionAligner';
 import { StoreProvider } from '@/providers/StoreProvider';
 import { StoryblokProvider } from '@/providers/StoryblokProvider';
 import { setRequestSite } from '@/site/server/';
@@ -109,6 +111,7 @@ export default async function LocaleLayout({ children, dialog, params }: Props) 
               <StoreProvider site={site} availableSites={availableSites}>
                 <StoryblokProvider>
                   <CsrfProvider />
+                  <SiteSessionAligner />
                   {isDebugApiEnabled() && isBrowserDebugOutputEnabled() && <ApiDebugPanel />}
                   {children}
                   {dialog}

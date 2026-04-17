@@ -18,5 +18,6 @@ export interface Session {
   country?: string;
   region?: string;
   cartId?: string;
+  legalEntityId?: string;
   attributes?: Record<string, SessionAttribute>;
 }

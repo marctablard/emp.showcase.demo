@@ -1,7 +1,7 @@
 import { cache } from 'react';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { Session } from '@/platform/services/model/session';
-import { SessionService } from '@/platform/services/session';
+import type { Session } from '@/platform/services/model/session';
+import type { SessionService } from '@/platform/services/session';
 import ssr from '@/platform/ssr';
 
 const getSessionService = () => ssr.get<SessionService>('SessionService');

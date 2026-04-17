@@ -17,7 +17,8 @@ import { useValidator } from '@/hooks/validation/useValidator';
 import { type InvoiceStatusKey, dk } from '@/i18n/dynamic-key';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
-import { DashboardCard, DashboardCardProps } from './dashboard-card';
+import type { DashboardCardProps } from './dashboard-card';
+import { DashboardCard } from './dashboard-card';
 
 type InvoiceSearchFormData = {
   searchQuery: string;

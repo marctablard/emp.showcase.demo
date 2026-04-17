@@ -1,11 +1,12 @@
-import { RefObject, useRef } from 'react';
+import type { RefObject } from 'react';
+import { useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { Info, LockKeyhole } from 'lucide-react';
 import { H5 } from '@/components/ui/h';
 import { useCartTotal } from '@/hooks/cart/useCartTotal';
 import { useElementScroll } from '@/hooks/ui/useElementScroll';
 import { cn, formatCurrency } from '@/lib/utils';
-import { Cart } from '@/platform/services/model/cart';
+import type { Cart } from '@/platform/services/model/cart';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import UiLink from '../ui/link';
 import { CartRequest } from './cart-request';

@@ -3,8 +3,8 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { StructuredDataRenderer } from './StructuredDataRenderer';
-import { ChatMessage as ChatMessageType } from './types';
-import { StructuredDataHandlers } from './types';
+import type { ChatMessage as ChatMessageType } from './types';
+import type { StructuredDataHandlers } from './types';
 import { formatTimestamp } from './utils';
 
 interface ChatMessageProps {

@@ -1,10 +1,10 @@
 import { type ClassValue, clsx } from 'clsx';
 import { extendTailwindMerge } from 'tailwind-merge';
-import { SearchParams } from '@/platform/services/model/common';
+import type { SearchParams } from '@/platform/services/model/common';
+import type { Session } from '@/platform/services/model/session/session';
 
 export { L10N_MISSING_LABEL, l10n, l10nOrEmpty, resolveLocalizedString } from './l10n';
 export type { L10nInput } from './l10n';
-import type { Session } from '@/platform/services/model/session/session';
 
 function buildBaseUrl() {
   const envUrl = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_SERVER_URL || 'emporix-showcase.com';

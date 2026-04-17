@@ -2,8 +2,8 @@
 
 import { useCallback, useState } from 'react';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { Cart } from '@/platform/services/model/cart/cart';
-import { Paginated } from '@/platform/services/model/common';
+import type { Cart } from '@/platform/services/model/cart/cart';
+import type { Paginated } from '@/platform/services/model/common';
 
 interface UseSavedCartsOptions {
   initialPageSize?: number;

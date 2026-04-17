@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { register as apiRegister } from '@/lib/client/auth';
-import { Registration } from '@/platform/services/model/auth/auth';
+import type { Registration } from '@/platform/services/model/auth/auth';
 
 interface RegistrationResult {
   success: boolean;

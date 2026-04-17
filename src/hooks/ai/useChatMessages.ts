@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { ChatMessage } from '@/components/account/dashboard/cards/ai/types';
+import type { ChatMessage } from '@/components/account/dashboard/cards/ai/types';
 import { usePersistedState } from '../common/usePersistedState';
 
 const MESSAGES_KEY = 'ai-helper-chat-messages';

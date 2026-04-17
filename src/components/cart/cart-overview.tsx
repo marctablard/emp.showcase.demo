@@ -6,7 +6,7 @@ import { H3 } from '@/components/ui/h';
 import { Spinner } from '@/components/ui/spinner';
 import { useCart } from '@/hooks/cart/useCart';
 import useCustomer from '@/hooks/customer/useCustomer';
-import { Cart } from '@/platform/services/model/cart/cart';
+import type { Cart } from '@/platform/services/model/cart/cart';
 import { CartAction } from './cart-action';
 import { CartDelivery } from './cart-delivery';
 import { CartEmpty } from './cart-empty';

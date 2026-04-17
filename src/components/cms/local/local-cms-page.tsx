@@ -1,8 +1,8 @@
 import { cache } from 'react';
 import { notFound } from 'next/navigation';
-import { BreadcrumbContent } from '@/lib/breadcrumb';
-import { CMSService } from '@/platform/services/cms/CMSService';
-import { CMSPage } from '@/platform/services/model/cms';
+import type { BreadcrumbContent } from '@/lib/breadcrumb';
+import type { CMSService } from '@/platform/services/cms/CMSService';
+import type { CMSPage } from '@/platform/services/model/cms';
 import ssr from '@/platform/ssr';
 import { UiBreadcrumb } from '../../ui/molecules/ui-breadcrumb';
 import CMSComponentRenderer from '../cms-component-renderer';

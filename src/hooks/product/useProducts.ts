@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLogger } from '@/hooks/common/useLogger';
 import { fetchProductById } from '@/lib/client/products';
-import { Product } from '@/platform/services/model/product';
-import { ProductFetchOptions } from '@/platform/services/product/ProductService';
+import type { Product } from '@/platform/services/model/product';
+import type { ProductFetchOptions } from '@/platform/services/product/ProductService';
 import { useProductStore } from '@/providers/StoreProvider';
 
 interface UseProductsResult {

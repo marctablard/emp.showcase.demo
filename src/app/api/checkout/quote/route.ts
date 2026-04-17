@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { checkoutFromQuote } from '@/lib/client/checkout';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';

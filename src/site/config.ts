@@ -1,4 +1,4 @@
-import { SitePrefixMode, SiteRoutingConfig } from './types';
+import type { SitePrefixMode, SiteRoutingConfig } from './types';
 
 const availableSites = (process.env.NEXT_PUBLIC_AVAILABLE_SITES ?? '')
   .split(',')

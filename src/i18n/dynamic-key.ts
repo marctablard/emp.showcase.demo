@@ -170,7 +170,18 @@ export type InvoiceStatusKey = 'status.open' | 'status.overdue' | 'status.paid';
 // Used by: checkout-payment.tsx, order-confirmation.tsx, payment-method.tsx,
 //          order-detail.tsx, order-cards.tsx
 // ---------------------------------------------------------------------------
-export type PaymentModeKey = 'creditCard' | 'paypal' | 'invoice' | 'none';
+export type PaymentModeKey =
+  | 'creditCard'
+  | 'credit_card'
+  | 'credit-card'
+  | 'credit_card_3ds'
+  | 'paypal'
+  | 'invoice'
+  | 'none'
+  | 'saferpay'
+  | 'sprel'
+  | 'cash_on_delivery'
+  | 'unzer';
 
 // ---------------------------------------------------------------------------
 // Namespace: account.quoteStatus

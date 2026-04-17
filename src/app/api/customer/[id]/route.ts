@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import server from '@/platform/server';
-import { CustomerService } from '@/platform/services/customer/CustomerService';
+import type { CustomerService } from '@/platform/services/customer/CustomerService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

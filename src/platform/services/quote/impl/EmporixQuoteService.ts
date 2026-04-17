@@ -1,6 +1,6 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
-import { EmporixPaginatedResponse } from '@/platform/integrations/emporix/model';
+import type { EmporixPaginatedResponse } from '@/platform/integrations/emporix/model';
 import type { EmporixQuote, EmporixQuoteHistory } from '@/platform/integrations/emporix/model/quote';
 import type { EmporixQuoteApi } from '@/platform/integrations/emporix/quote/EmporixQuoteApi';
 import type { CustomerService } from '@/platform/services/customer/CustomerService';
@@ -15,7 +15,7 @@ import type {
 import type { QuoteHistoryMapper } from '@/platform/services/model/quote/mapper/QuoteHistoryMapper';
 import type { QuoteMapper } from '@/platform/services/model/quote/mapper/QuoteMapper';
 import type { QuoteService } from '@/platform/services/quote/QuoteService';
-import { SearchParams, SearchResult } from '../../model/common';
+import type { SearchParams, SearchResult } from '../../model/common';
 
 @injectable('QuoteService', 'Singleton')
 class EmporixQuoteService implements QuoteService {

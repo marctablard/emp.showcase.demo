@@ -1,11 +1,11 @@
 'use client';
 
 import { useCallback, useRef } from 'react';
-import { AiHelperFormData, ChatMessage } from '@/components/account/dashboard/cards/ai/types';
+import type { AiHelperFormData, ChatMessage } from '@/components/account/dashboard/cards/ai/types';
 import { parseAIResponse } from '@/components/account/dashboard/cards/ai/utils/response-parser';
 import { sanitizeUserInput } from '@/components/account/dashboard/cards/ai/utils/sanitize';
 import { prepareAIContext } from '@/lib/client/ai';
-import { Session } from '@/platform/services/model/session/session';
+import type { Session } from '@/platform/services/model/session/session';
 import type { CartStore } from '@/stores/cart-store';
 import { useAI } from './useAI';
 

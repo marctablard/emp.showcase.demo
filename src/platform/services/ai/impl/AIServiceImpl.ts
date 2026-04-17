@@ -1,8 +1,8 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
-import { AIChatContext, AIChatResponse } from '@/platform/integrations/ai/model';
+import type { AIChatContext, AIChatResponse } from '@/platform/integrations/ai/model';
 import type { EmporixAIApi } from '@/platform/integrations/emporix/ai/EmporixAIApi';
-import { AIService } from '../AIService';
+import type { AIService } from '../AIService';
 
 @injectable('AIService', 'Singleton')
 export class AIServiceImpl implements AIService {

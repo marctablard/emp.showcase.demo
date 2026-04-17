@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useCallback, useMemo } from 'react';
-import { Layout, Layouts, Responsive, WidthProvider } from 'react-grid-layout';
+import type { Layout, Layouts } from 'react-grid-layout';
+import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { isEqual } from 'lodash';

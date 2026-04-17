@@ -1,6 +1,6 @@
 import { Container } from 'inversify';
 import { ID_KEY } from './injectable';
-import { AvailableBinding, Layer } from './types';
+import type { AvailableBinding, Layer } from './types';
 
 const registry = new Map<string, AvailableBinding>();
 const containers = new Map<string, Container>();

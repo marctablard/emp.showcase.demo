@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import server from '@/platform/server';
-import { CheckoutService } from '@/platform/services/checkout/CheckoutService';
+import type { CheckoutService } from '@/platform/services/checkout/CheckoutService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { CheckoutRequest } from '@/platform/services/model/checkout';
 

@@ -11,9 +11,9 @@ import {
   useFormState,
 } from 'react-hook-form';
 import { useTranslations } from 'next-intl';
-import * as LabelPrimitive from '@radix-ui/react-label';
+import type * as LabelPrimitive from '@radix-ui/react-label';
 import { Slot } from '@radix-ui/react-slot';
-import { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { type ValidationKey, dk } from '@/i18n/dynamic-key';
 import { cn } from '@/lib/utils';

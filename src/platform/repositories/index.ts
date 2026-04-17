@@ -8,7 +8,7 @@
  *
  * Run 'npm run generate-di' to regenerate this file after adding new injectable classes.
  */
-import { Container } from 'inversify';
+import type { Container } from 'inversify';
 import getContainer, { registerModule } from '../core/di/registry';
 
 let container: Container;

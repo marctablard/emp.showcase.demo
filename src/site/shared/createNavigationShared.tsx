@@ -1,7 +1,8 @@
 import { forwardRef } from 'react';
 import { createNavigation } from 'next-intl/navigation';
+import type NextLink from 'next/link';
 import { permanentRedirect as nextPermanentRedirect, redirect as nextRedirect } from 'next/navigation';
-import { SiteRoutingConfig } from '@/site/types';
+import type { SiteRoutingConfig } from '@/site/types';
 import { addPrefixIfNeeded } from '@/site/utils';
 import { SiteLink } from './SiteLink';
 
@@ -55,8 +56,16 @@ export function createSiteNavigationShared(
     site?: string;
   }
 
-  const Link = forwardRef<any, LinkProps>((props, ref) => (
-    <SiteLink {...props} ref={ref} I18nLink={I18nLink} getSite={getSite} siteRouting={siteRouting} />
+  const Link = forwardRef<any, LinkProps>(({ prefetch, ...props }, ref) => (
+    <SiteLink
+      {...props}
+      prefetch={prefetch as React.ComponentProps<typeof NextLink>['prefetch']}
+      ref={ref}
+      I18nLink={I18nLink}
+      getSite={getSite}
+      siteRouting={siteRouting}
+      getI18nPathname={getI18nPathname}
+    />
   ));
 
   Link.displayName = 'Link';

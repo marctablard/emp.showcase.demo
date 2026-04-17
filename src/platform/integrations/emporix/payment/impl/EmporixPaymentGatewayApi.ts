@@ -1,9 +1,10 @@
 import { inject } from 'inversify';
+import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../../config';
-import { EmporixPaymentMode, EmporixPaymentModeFrontend } from '../../model/payment';
-import { EmporixPaymentGatewayApi as IEmporixPaymentGatewayApi } from '../EmporixPaymentGatewayApi';
+import type { EmporixPaymentMode, EmporixPaymentModeFrontend } from '../../model/payment';
+import type { EmporixPaymentGatewayApi as IEmporixPaymentGatewayApi } from '../EmporixPaymentGatewayApi';
 
 @injectable('EmporixPaymentGatewayApi', 'Singleton')
 class EmporixPaymentGatewayApi implements IEmporixPaymentGatewayApi {

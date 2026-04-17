@@ -1,15 +1,15 @@
 // c:\Workspace\emporix-showcase\src\platform\services\model\product\impl\BatteryIncludedProductMapper.ts
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
-import { BatteryIncludedProduct } from '@/platform/integrations/batteryincluded/model/product';
-import { EmporixProduct } from '@/platform/integrations/emporix/model';
-import { Product as ServiceProduct } from '@/platform/services/model/product';
-import { LocalizedString, Price } from '../../common';
-import { CategorySuggestion, SearchSuggestions } from '../../search/SearchSuggestions';
-import { SuggestionsMapper } from '../../search/SuggestionsMapper';
-import { ProductMapper } from '../ProductMapper';
-import { Product } from '../index';
-import { EmporixProductMapper } from './EmporixProductMapper';
+import type { BatteryIncludedProduct } from '@/platform/integrations/batteryincluded/model/product';
+import type { EmporixProduct } from '@/platform/integrations/emporix/model';
+import type { Product as ServiceProduct } from '@/platform/services/model/product';
+import type { LocalizedString, Price } from '../../common';
+import type { CategorySuggestion, SearchSuggestions } from '../../search/SearchSuggestions';
+import type { SuggestionsMapper } from '../../search/SuggestionsMapper';
+import type { ProductMapper } from '../ProductMapper';
+import type { Product } from '../index';
+import type { EmporixProductMapper } from './EmporixProductMapper';
 import { normalizeProductAttributeStringMap } from './normalizeProductAttributeStringMap';
 
 /**

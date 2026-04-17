@@ -7,6 +7,10 @@
   "processing": "Wird bearbeitet...",
   "requiredField": "Dieses Feld ist erforderlich",
   "emptyCart": "Ihr Warenkorb ist leer. Bitte fügen Sie Artikel zu Ihrem Warenkorb hinzu, bevor Sie zur Kasse gehen.",
+  "addressBook": {
+    "companyAddresses": "Firmenadressen",
+    "customerAddresses": "Kundenadressen"
+  },
   "formErrors": "Bitte korrigieren Sie die folgenden Fehler:",
   "contactData": {
     "title": "Kontakt",
@@ -138,8 +142,15 @@
   },
   "PaymentModes": {
     "creditCard": "Kreditkarte",
+    "credit_card": "Kreditkarte",
+    "credit-card": "Kreditkarte",
+    "credit_card_3ds": "Kreditkarte (3D Secure)",
     "paypal": "PayPal",
     "invoice": "Rechnung",
-    "none": "Keine Zahlart"
+    "none": "Keine Zahlart",
+    "saferpay": "Saferpay",
+    "sprel": "Sprel",
+    "cash_on_delivery": "Nachnahme",
+    "unzer": "Unzer"
   }
 }

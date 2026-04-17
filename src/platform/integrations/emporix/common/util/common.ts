@@ -1,4 +1,4 @@
-import { EmporixPaginatedResponse, EmporixSearchParams } from '../../model';
+import type { EmporixPaginatedResponse, EmporixSearchParams } from '../../model';
 
 /**
  * Translate Search Parameters to Query and Body (for POST)

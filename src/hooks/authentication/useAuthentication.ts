@@ -40,8 +40,8 @@ export const useAuthentication = (): AuthenticationHook => {
   });
 
   // State for authentication status and user data
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(session.status === 'authenticated');
+  const [loading, setLoading] = useState<boolean>(session.status === 'loading');
   const [error, setError] = useState<Error | null>(null);
   const { reset } = useCheckout();
   const { clearCart } = useCartStore();
@@ -119,6 +119,7 @@ export const useAuthentication = (): AuthenticationHook => {
         // A server-side clear here would wipe that reference.
         clearCart({ clearSession: false });
         reset();
+
         if (safeCallbackUrl) {
           const postLoginHref = safeCallbackUrl + LOGIN_SUCCESS_QUERY_PARAM;
           const canonicalSiteCode = await getCanonicalSiteCode();
@@ -148,6 +149,7 @@ export const useAuthentication = (): AuthenticationHook => {
         clearCart();
         // Clear all persisted store data (localStorage)
         clearAllPersistedStores();
+
         const logoutTarget = getPathname({ href: '/', locale, site: site?.code });
         // ...then log out (no idea how this could fail)
         await signOut({

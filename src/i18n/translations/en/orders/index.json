@@ -20,6 +20,7 @@
   "total": "Total",
   "previous": "Previous",
   "next": "Next",
+  "pageIndicator": "Page {current} / {total}",
   "showAllOrders": "Show all orders",
   "billingAddress": "Billing address",
   "shippingAddress": "Shipping address",
@@ -111,6 +112,7 @@
     "emailConfirmation": "A confirmation email has been sent to",
     "continueShopping": "Continue Shopping",
     "viewOrders": "View Orders",
+    "viewApprovals": "My Approvals",
     "freightShipping": "Freight Shipping",
     "freightInfo": "After the order is completed, the contracted shipping company will contact you with further information."
   },
@@ -187,7 +189,10 @@
     "enterApproverComment": "Enter approver comment...",
     "enterRequestorComment": "Enter requestor comment...",
     "saveApproverComment": "Save Approver Comment",
-    "saveRequestorComment": "Save Requestor Comment"
+    "saveRequestorComment": "Save Requestor Comment",
+    "previous": "Previous",
+    "next": "Next",
+    "pageIndicator": "Page {current} / {total}"
   },
   "ApprovalAction": {
     "CHECKOUT": "Order"

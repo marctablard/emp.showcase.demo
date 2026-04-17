@@ -1,11 +1,6 @@
-import { z } from 'zod';
+import { TicketSearchSchema } from '@/lib/validation/form-schemas';
 import { injectable } from '@/platform/core/di/injectable';
 import ZodSchemaValidationService from './ZodSchemaValidationService';
-
-// Ticket Search validation schema
-export const TicketSearchSchema = z.object({
-  searchQuery: z.string().optional(),
-});
 
 @injectable('TicketSearchValidationService', 'Singleton')
 class EmporixTicketSearchValidationService extends ZodSchemaValidationService {
