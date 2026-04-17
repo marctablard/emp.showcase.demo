@@ -1,6 +1,7 @@
 import {
   extractFiltersFromSearchParams,
   extractFiltersFromUrlSearchParams,
+  isBrowseUrlSearchParamKey,
   urlSearchParamsToNextRecord,
 } from '@/utils/filterUtils';
 
@@ -44,5 +45,26 @@ describe('extractFiltersFromUrlSearchParams', () => {
     const viaRecord = extractFiltersFromSearchParams(urlSearchParamsToNextRecord(sp));
     expect(viaRecord).toEqual({ categoryIds: 'x' });
     expect(viaUrl).toEqual(viaRecord);
+  });
+
+  it('maps legacy f[key][sub] nested facet keys like filters[key][sub]', () => {
+    const raw = urlSearchParamsToNextRecord(new URLSearchParams('f[prices][from]=10&f[prices][till]=99'));
+    const filters = extractFiltersFromSearchParams(raw);
+    expect(filters.prices).toEqual({ from: '10', till: '99' });
+  });
+});
+
+describe('isBrowseUrlSearchParamKey', () => {
+  it('treats legacy f[categoryIds] as browse/search-related', () => {
+    expect(isBrowseUrlSearchParamKey('f[categoryIds]')).toBe(true);
+  });
+
+  it('treats filters[categoryIds] as browse/search-related', () => {
+    expect(isBrowseUrlSearchParamKey('filters[categoryIds]')).toBe(true);
+  });
+
+  it('does not treat unrelated keys as search-related', () => {
+    expect(isBrowseUrlSearchParamKey('email')).toBe(false);
+    expect(isBrowseUrlSearchParamKey('callbackUrl')).toBe(false);
   });
 });

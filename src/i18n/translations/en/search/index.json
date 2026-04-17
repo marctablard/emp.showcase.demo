@@ -1,4 +1,8 @@
 {
+  "errors": {
+    "missingSite": "Products cannot be loaded because the shop context is missing. Try reloading the page or picking a site from the menu.",
+    "generic": "Products could not be loaded. Please try again."
+  },
   "searchResults": {
     "showing": "Showing {start}-{end} of {total} products",
     "noProductsFound": "No products found",

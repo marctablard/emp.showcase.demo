@@ -18,7 +18,7 @@ class EmporixCatalogApi implements IEmporixCatalogApi {
 
   async getCatalogs(params: EmporixSearchParams<any>): Promise<EmporixPaginatedResponse<EmporixCatalog>> {
     const { body: _body, query } = buildSearchQuery(params, true);
-    this.logger.info(
+    this.logger.debug(
       {
         path: `/catalog/${this.config.tenant}/catalogs`,
         query,
@@ -32,7 +32,7 @@ class EmporixCatalogApi implements IEmporixCatalogApi {
     );
 
     const result = await buildPaginatedResponse<EmporixCatalog>(params, response);
-    this.logger.info(
+    this.logger.debug(
       {
         itemCount: result.items.length,
         total: result.total,

@@ -135,8 +135,10 @@ export default function ProductDetail({ product: initialProduct, options, classN
                       src={product.images[0].url}
                       alt={
                         product.images[0].altText
-                          ? l10nOrEmpty(product.images[0].altText) || l10nOrEmpty(product.name) || '-'
-                          : l10nOrEmpty(product.name) || '-'
+                          ? l10nOrEmpty(product.images[0].altText) ||
+                            l10nOrEmpty(product.name) ||
+                            t('primaryImageAltUnlabeled', { id: product.id })
+                          : l10nOrEmpty(product.name) || t('primaryImageAltUnlabeled', { id: product.id })
                       }
                       fill
                       className="object-contain object-center"

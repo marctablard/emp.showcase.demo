@@ -71,18 +71,57 @@ class EmporixCategoryApi implements IEmporixCategoryApi {
       return [];
     }
 
-    const q = `id:(${trimmed.join(',')})`;
-    const pageSize = Math.min(Math.max(options?.pageSize ?? 100, trimmed.length), 500);
+    const maxPageSize = Math.min(Math.max(options?.pageSize ?? 100, 50), 500);
+    /** Keep `q=id:(…)` bounded; then paginate within each chunk when the API returns partial pages. */
+    const idChunkSize = 200;
+    const byId = new Map<string, EmporixCategory>();
 
-    const response = await this.getCategories({
-      pageNumber: 1,
-      pageSize,
-      q,
-      showRoots: options?.showRoots ?? true,
-      showUnpublished: options?.showUnpublished ?? false,
-    });
+    for (let offset = 0; offset < trimmed.length; offset += idChunkSize) {
+      const chunk = trimmed.slice(offset, offset + idChunkSize);
+      const q = `id:(${chunk.join(',')})`;
+      let pageNumber = 1;
 
-    return response.items ?? [];
+      while (true) {
+        const pageSize = Math.min(maxPageSize, Math.max(chunk.length, 50));
+        const response = await this.getCategories({
+          pageNumber,
+          pageSize,
+          q,
+          showRoots: options?.showRoots ?? true,
+          showUnpublished: options?.showUnpublished ?? false,
+        });
+
+        const items = response.items ?? [];
+        for (const cat of items) {
+          byId.set(cat.id, cat);
+        }
+
+        const resolvedAllInChunk = chunk.every((id) => byId.has(id));
+        if (resolvedAllInChunk) {
+          break;
+        }
+        if (items.length === 0) {
+          break;
+        }
+        if (items.length < pageSize) {
+          break;
+        }
+        const total = response.total;
+        if (total >= 0 && pageNumber * pageSize >= total) {
+          break;
+        }
+        pageNumber += 1;
+        if (pageNumber > 100) {
+          this.logger.warn(
+            { event: 'get_categories_by_ids_page_cap', chunkSize: chunk.length, pageNumber },
+            'getCategoriesByIds stopped paginating after safety page cap',
+          );
+          break;
+        }
+      }
+    }
+
+    return trimmed.map((id) => byId.get(id)).filter((c): c is EmporixCategory => Boolean(c));
   }
 
   /**

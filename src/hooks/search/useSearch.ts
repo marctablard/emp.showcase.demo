@@ -12,6 +12,14 @@ import { buildSearchPaginationUrl } from './build-search-pagination-url';
 const DEFAULT_PAGE_INDEX = 0;
 const DEFAULT_PAGE_SIZE = 12;
 
+/** Returned on {@link useSearch}; map to `search.errors.*` in next-intl. */
+export const USE_SEARCH_CLIENT_ERROR = {
+  MISSING_SITE: 'MISSING_SITE',
+  GENERIC: 'GENERIC',
+} as const;
+
+export type UseSearchClientError = (typeof USE_SEARCH_CLIENT_ERROR)[keyof typeof USE_SEARCH_CLIENT_ERROR];
+
 // Extend the SearchParams type to support nested objects in filters
 export type FilterValue = string | string[] | Record<string, string>;
 
@@ -26,8 +34,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   const [data, setData] = useState<T[]>(initialResult?.items || []);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<UseSearchClientError | null>(null);
   const [facets, setFacets] = useState<Filter[]>([]);
   const [total, setTotal] = useState(initialResult?.total || 0);
   const [currentPage, setCurrentPage] = useState(initialResult?.page || DEFAULT_PAGE_INDEX);
@@ -117,7 +124,8 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
 
         const resolvedSite = siteCode?.trim();
         if (!resolvedSite) {
-          setError('Missing site context');
+          getLogger().warn({ event: 'search_missing_site' }, 'Product search skipped: no site context');
+          setError(USE_SEARCH_CLIENT_ERROR.MISSING_SITE);
           setLoading(false);
           return;
         }
@@ -198,7 +206,8 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         }
       } catch (err) {
         if (gen === searchGeneration.current) {
-          setError(err instanceof Error ? err.message : String(err));
+          getLogger().error({ err, event: 'search_request_failed' }, 'Product search request failed');
+          setError(USE_SEARCH_CLIENT_ERROR.GENERIC);
         }
       } finally {
         if (gen === searchGeneration.current) {
@@ -378,7 +387,8 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
 
       lastSearchParams.current = { ...lastSearchParams.current, page: nextPage };
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      getLogger().error({ err, event: 'search_load_more_failed' }, 'Product search load-more failed');
+      setError(USE_SEARCH_CLIENT_ERROR.GENERIC);
     } finally {
       setLoadingMore(false);
     }
@@ -445,6 +455,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
    */
   const syncBrowseSearchStateFromUrl = useCallback(
     (slice: { query: string; page: number; size: number; sort?: string; filtersRecord: Record<string, unknown> }) => {
+      setError(null);
       const filters =
         slice.filtersRecord && Object.keys(slice.filtersRecord).length > 0
           ? (slice.filtersRecord as Record<string, FilterValue>)
@@ -479,6 +490,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     data,
     loading,
     loadingMore,
+    error,
     hasMore,
     facets,
     total,

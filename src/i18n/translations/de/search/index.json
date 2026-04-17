@@ -1,4 +1,8 @@
 {
+  "errors": {
+    "missingSite": "Produkte können nicht geladen werden, da der Shop-Kontext fehlt. Laden Sie die Seite neu oder wählen Sie einen Shop im Menü.",
+    "generic": "Produkte konnten nicht geladen werden. Bitte versuchen Sie es erneut."
+  },
   "searchResults": {
     "showing": "Zeige {start}-{end} von {total} Produkten",
     "noProductsFound": "Keine Produkte gefunden",

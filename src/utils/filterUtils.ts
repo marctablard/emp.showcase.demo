@@ -24,7 +24,8 @@ function mergeFilterParam(
     if (!filters[mainKey]) {
       filters[mainKey] = {};
     }
-    (filters[mainKey] as Record<string, string | string[]>)[subKey] = filterValue as string & string[];
+    const nested = filters[mainKey] as Record<string, string | string[]>;
+    nested[subKey] = filterValue;
     return;
   }
 
@@ -120,6 +121,13 @@ function normalizeFiltersForSignature(filters: Record<string, unknown> | undefin
     }
   }
   return out;
+}
+
+/** URL query keys that imply browse/search state (includes legacy `f[…]` and `filters[…]`). */
+const BROWSE_URL_SEARCH_PARAM_PREFIXES = ['q', 'page', 'size', 'sort', 'filters', 'f'] as const;
+
+export function isBrowseUrlSearchParamKey(key: string): boolean {
+  return BROWSE_URL_SEARCH_PARAM_PREFIXES.some((param) => key === param || key.startsWith(`${param}[`));
 }
 
 /** Stable signature so SSR initial search and client URL parsing can be compared. */

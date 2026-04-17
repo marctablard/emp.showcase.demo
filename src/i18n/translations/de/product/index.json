@@ -15,6 +15,7 @@
   "share": "Teilen",
   "compare": "Vergleichen",
   "noImage": "Kein Bild verfügbar",
+  "primaryImageAltUnlabeled": "Produktansicht (ID: {id})",
   "noDescription": "Keine Beschreibung verfügbar.",
   "productId": "Produkt-ID",
   "quantity": "Menge",

@@ -4,6 +4,7 @@
   "share": "Share",
   "compare": "Compare",
   "noImage": "No image available",
+  "primaryImageAltUnlabeled": "Product view (ID: {id})",
   "noDescription": "No description available.",
   "productId": "Product ID",
   "quantity": "Quantity",

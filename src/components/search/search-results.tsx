@@ -9,14 +9,16 @@ import { SearchFilter } from '@/components/search/search-filter';
 import { SearchLayoutToggle } from '@/components/search/search-layout-toggle';
 import { SearchResultsGrid } from '@/components/search/search-results-grid';
 import { SearchResultsList } from '@/components/search/search-results-list';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { useSearch } from '@/hooks/search/useSearch';
+import { USE_SEARCH_CLIENT_ERROR, useSearch } from '@/hooks/search/useSearch';
 import { parseCategoryIdsFilterValue } from '@/lib/search/parse-category-ids-filter';
 import type { SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
 import {
   browseSearchStateSignature,
   extractFiltersFromSearchParams,
+  isBrowseUrlSearchParamKey,
   urlSearchParamsToNextRecord,
 } from '@/utils/filterUtils';
 
@@ -31,6 +33,7 @@ const BROWSE_DEFAULT_PAGE_SIZE = 12;
 
 export function SearchResultsComponent({ initialSearch, initialResults, locale }: SearchClientWrapperProps) {
   const t = useTranslations('search.searchResults');
+  const tSearch = useTranslations('search');
   const searchParams = useSearchParams();
   const navigationLabelIndex = useCategoryDisplayLabelIndex();
   const [layout, setLayout] = useState<'list' | 'grid'>('grid');
@@ -53,6 +56,7 @@ export function SearchResultsComponent({ initialSearch, initialResults, locale }
     resetAllFacets,
     activeFilters,
     syncBrowseSearchStateFromUrl,
+    error: searchError,
   } = useSearch<Product>(initialSearch, initialResults);
 
   const categoryFilterLabelsById = useMemo(() => {
@@ -87,13 +91,9 @@ export function SearchResultsComponent({ initialSearch, initialResults, locale }
   const searchParamsKey = searchParams.toString();
 
   useEffect(() => {
-    const searchRelatedParams = ['q', 'page', 'size', 'sort', 'filters'];
-    const isSearchRelatedParam = (key: string) =>
-      searchRelatedParams.some((param) => key === param || key.startsWith(`${param}[`));
-
     const isApiOnlyBrowseParam = (key: string) => key === 'site' || key === 'locale';
     const meaningfulKeys = Array.from(searchParams.keys()).filter((k) => !isApiOnlyBrowseParam(k));
-    const hasSearchParams = meaningfulKeys.some(isSearchRelatedParam);
+    const hasSearchParams = meaningfulKeys.some(isBrowseUrlSearchParamKey);
     // Ignore tracking params etc.; still run when URL only had site/locale (legacy bad URLs from old client sync).
     if (!hasSearchParams && meaningfulKeys.length > 0) {
       return;
@@ -160,6 +160,15 @@ export function SearchResultsComponent({ initialSearch, initialResults, locale }
 
   return (
     <>
+      {searchError ? (
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>
+            {searchError === USE_SEARCH_CLIENT_ERROR.MISSING_SITE
+              ? tSearch('errors.missingSite')
+              : tSearch('errors.generic')}
+          </AlertDescription>
+        </Alert>
+      ) : null}
       {/* Top controls */}
       <div className="w-full">
         {/* Row: SearchFilter + Layout toggle inline on mobile; desktop keeps toggle on the right */}
