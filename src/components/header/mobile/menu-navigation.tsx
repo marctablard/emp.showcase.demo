@@ -5,14 +5,10 @@ import { useTranslations } from 'next-intl';
 import { ArrowLeft, ChevronDown, MapPin } from 'lucide-react';
 import { HeaderPromo } from '@/components/header/common/header-promo';
 import { LocationSettingsDialog } from '@/components/header/mobile/location-settings-dialog';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useNavigationProductSubmenu } from '@/components/header/navigation-product-submenu-context';
-import {
-  ALL_PRODUCTS_NAVIGATION_ITEM_ID,
-  navigationMenuItems,
-  serviceMenuItems,
-  SubMenuItem,
-} from '@/data/navigation-menu';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import type { SubMenuItem } from '@/data/navigation-menu';
+import { ALL_PRODUCTS_NAVIGATION_ITEM_ID, navigationMenuItems, serviceMenuItems } from '@/data/navigation-menu';
 import { Link } from '@/i18n/navigation';
 import { mergeNavigationProductSubmenu } from '@/lib/navigation/merge-navigation-product-submenu';
 import { getNavigationRootCategoriesPageSize } from '@/lib/navigation/navigation-root-categories-page-size';

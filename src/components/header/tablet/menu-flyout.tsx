@@ -5,7 +5,8 @@ import { useTranslations } from 'next-intl';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { HeaderPromo } from '@/components/header/common/header-promo';
 import { useNavigationProductSubmenu } from '@/components/header/navigation-product-submenu-context';
-import { ALL_PRODUCTS_NAVIGATION_ITEM_ID, navigationMenuItems, SubMenuItem } from '@/data/navigation-menu';
+import type { SubMenuItem } from '@/data/navigation-menu';
+import { ALL_PRODUCTS_NAVIGATION_ITEM_ID, navigationMenuItems } from '@/data/navigation-menu';
 import { Link } from '@/i18n/navigation';
 import { mergeNavigationProductSubmenu } from '@/lib/navigation/merge-navigation-product-submenu';
 import { getNavigationRootCategoriesPageSize } from '@/lib/navigation/navigation-root-categories-page-size';
@@ -26,8 +27,7 @@ function subMenuItemKey(item: SubMenuItem, index: number): string {
   return item.id ?? `${item.href}::${item.label}::${index}`;
 }
 
-const mainNavRowClass =
-  'flex min-h-11 min-w-0 flex-1 items-center py-3 text-start text-lg text-text-body';
+const mainNavRowClass = 'flex min-h-11 min-w-0 flex-1 items-center py-3 text-start text-lg text-text-body';
 
 export interface TabletMenuFlyoutProps {
   onRequestClose?: () => void;

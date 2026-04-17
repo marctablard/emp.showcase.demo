@@ -20,8 +20,9 @@ export default function createNavigation(siteRouting: SiteRoutingConfig, intlRou
       if (!pathname) return pathname;
 
       let unprefixedPathname = pathname;
+      let sitePrefix: string | null = null;
       if (site) {
-        const sitePrefix = prependPrefix(site);
+        sitePrefix = prependPrefix(site);
         const isPathnameSitePrefixed = hasPathnamePrefixed(sitePrefix, pathname);
 
         if (isPathnameSitePrefixed) {
@@ -37,7 +38,7 @@ export default function createNavigation(siteRouting: SiteRoutingConfig, intlRou
 
       // Guard against corrupted URLs that still contain the site prefix after stripping
       // (e.g. /brand1/de/brand1/product/123 → after first strip → /brand1/product/123)
-      if (hasPathnamePrefixed(sitePrefix, unprefixedPathname)) {
+      if (sitePrefix && hasPathnamePrefixed(sitePrefix, unprefixedPathname)) {
         unprefixedPathname = unprefixPathname(unprefixedPathname, sitePrefix);
       }
 

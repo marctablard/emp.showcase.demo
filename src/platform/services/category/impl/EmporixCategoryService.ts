@@ -2,7 +2,7 @@ import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCategoryApi } from '@/platform/integrations/emporix/category/EmporixCategoryApi';
 import type { EmporixCategory, EmporixCategoryTree } from '@/platform/integrations/emporix/model';
-import { CatalogPublishedRootCategoryService } from '@/platform/services/catalog/impl/CatalogPublishedRootCategoryService';
+import type { CatalogPublishedRootCategoryService } from '@/platform/services/catalog/impl/CatalogPublishedRootCategoryService';
 import { filterEmporixCategoryTreesByCatalogIds } from '@/platform/services/category/impl/filter-emporix-category-trees-for-catalog';
 import {
   mapListCategoryRowsToNavigationCategories,
