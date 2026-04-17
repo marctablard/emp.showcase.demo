@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button';
 import { useCart } from '@/hooks/cart/useCart';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
-import { CartStatus, CartStatusDetailCode } from '@/platform/services/cart/CartService';
-import { ProductPrice } from '@/platform/services/model/price';
-import { Product } from '@/platform/services/model/product';
+import type { CartStatus, CartStatusDetailCode } from '@/platform/services/cart/CartService';
+import type { ProductPrice } from '@/platform/services/model/price';
+import type { Product } from '@/platform/services/model/product';
 import { AddToCartModal } from '../cart/add-to-cart-modal';
 import { ToastType, notify } from '../ui/toast-notification';
 

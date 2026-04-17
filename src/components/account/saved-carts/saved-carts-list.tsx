@@ -15,7 +15,8 @@ import { useToast } from '@/hooks/ui/useToast';
 import { useValidator } from '@/hooks/validation/useValidator';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
-import { DashboardCard, DashboardCardProps } from '../dashboard/cards/dashboard-card';
+import type { DashboardCardProps } from '../dashboard/cards/dashboard-card';
+import { DashboardCard } from '../dashboard/cards/dashboard-card';
 
 type SavedCartSearchFormData = {
   searchQuery: string;

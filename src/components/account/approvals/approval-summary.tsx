@@ -4,7 +4,7 @@ import React from 'react';
 import { useTranslations } from 'next-intl';
 import { CreditCard, NotebookPen, ReceiptText, Truck } from 'lucide-react';
 import { SummaryCard, SummaryRow } from '@/components/ui/summary-card';
-import { Approval } from '@/platform/services/model/approval';
+import type { Approval } from '@/platform/services/model/approval';
 
 interface ApprovalSummaryProps {
   approval: Approval;

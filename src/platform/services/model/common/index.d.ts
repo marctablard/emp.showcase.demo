@@ -106,6 +106,9 @@ export interface SearchParams<T> extends PaginationQuery {
   customerSegments?: boolean;
   locale?: string;
   site?: string;
+  currency?: string;
+  /** When true, omit catalog category constraint in product search (requires trusted caller or env-gated API). */
+  searchAllProducts?: boolean;
 }
 
 export interface LocalizedString {

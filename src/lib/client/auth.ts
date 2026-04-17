@@ -1,6 +1,6 @@
 'use client';
 
-import { Credentials, Registration, Session } from '@/platform/services/model/auth/auth';
+import type { Credentials, Registration, Session } from '@/platform/services/model/auth/auth';
 
 const API_BASE_URL = '/api/auth';
 

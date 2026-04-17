@@ -1,4 +1,4 @@
-import { EmporixSchema } from '@/platform/integrations/emporix/model/schema';
+import type { EmporixSchema } from '@/platform/integrations/emporix/model/schema';
 
 export interface SchemaService {
   /**

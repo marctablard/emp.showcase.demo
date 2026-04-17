@@ -1,5 +1,5 @@
-import { CartShippingAddress, ModifyCartItemResult } from '@/platform/services/cart/CartService';
-import { Cart } from '@/platform/services/model/cart/cart';
+import type { CartShippingAddress, ModifyCartItemResult } from '@/platform/services/cart/CartService';
+import type { Cart } from '@/platform/services/model/cart/cart';
 import { CartErrorCode } from '@/platform/services/model/cart/error-codes';
 
 /**

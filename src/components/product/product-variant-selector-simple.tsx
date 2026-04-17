@@ -12,8 +12,8 @@ import { useRouter } from '@/i18n/navigation';
 import { fetchProductPrice } from '@/lib/client/prices';
 import { fetchProductVariants } from '@/lib/client/products';
 import { cn, formatCurrency } from '@/lib/utils';
-import { ProductPrice } from '@/platform/services/model/price';
-import { Product } from '@/platform/services/model/product';
+import type { ProductPrice } from '@/platform/services/model/price';
+import type { Product } from '@/platform/services/model/product';
 import { Skeleton } from '../ui/skeleton';
 
 export interface ProductVariantSelectorSimpleProps {

@@ -1,8 +1,8 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
-import { EmporixCheckoutPaymentMethod } from '@/platform/integrations/emporix/model';
+import type { EmporixCheckoutPaymentMethod } from '@/platform/integrations/emporix/model';
 //TODO remove all the redundant types
-import {
+import type {
   EmporixApprovalCreateRequest,
   EmporixApprovalDeliveryWindow,
   EmporixApprovalDetails,
@@ -16,7 +16,7 @@ import {
   EmporixApprovalUser,
 } from '@/platform/integrations/emporix/model/approval';
 import type { EmporixPaymentGatewayApi } from '@/platform/integrations/emporix/payment/EmporixPaymentGatewayApi';
-import {
+import type {
   Approval,
   ApprovalCreateRequest,
   ApprovalDeliveryWindow,
@@ -29,10 +29,10 @@ import {
   ApprovalTaxablePrice,
   ApprovalUser,
 } from '@/platform/services/model/approval';
-import { CheckoutPaymentMethod } from '../../checkout';
-import EmporixCheckoutMapper from '../../checkout/impl/EmporixCheckoutMapper';
-import EmporixAddressMapper from '../../common/impl/EmporixAddressMapper';
-import { ApprovalMapper } from '../ApprovalMapper';
+import type { CheckoutPaymentMethod } from '../../checkout';
+import type EmporixCheckoutMapper from '../../checkout/impl/EmporixCheckoutMapper';
+import type EmporixAddressMapper from '../../common/impl/EmporixAddressMapper';
+import type { ApprovalMapper } from '../ApprovalMapper';
 
 /**
  * Implementation of ApprovalMapper for Emporix approval data.

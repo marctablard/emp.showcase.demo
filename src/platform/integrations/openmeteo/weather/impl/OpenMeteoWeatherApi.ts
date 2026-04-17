@@ -1,5 +1,6 @@
 import { inject } from 'inversify';
 import { fetchWeatherApi } from 'openmeteo';
+import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { OpenMeteoWeatherData, OpenMeteoWeatherForecast } from '../../model/weather';

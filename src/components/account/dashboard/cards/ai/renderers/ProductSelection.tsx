@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { StructuredDataHandlers } from '../types';
+import type { StructuredDataHandlers } from '../types';
 import { ProductSelectionItem } from './ProductSelectionItem';
 
 interface ProductSelectionProps {

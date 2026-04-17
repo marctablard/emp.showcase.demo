@@ -1,7 +1,7 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
 import type { BatteryIncludedSearchResponse } from '@/platform/integrations/batteryincluded/model';
-import { BatteryIncludedProduct } from '@/platform/integrations/batteryincluded/model/product';
+import type { BatteryIncludedProduct } from '@/platform/integrations/batteryincluded/model/product';
 import type { BatteryIncludedShopApi } from '@/platform/integrations/batteryincluded/shop/BatteryIncludedShopApi';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Filter, SearchParams, SearchResult } from '@/platform/services/model/common';
@@ -146,10 +146,11 @@ class BatteryIncludedSearchService implements SearchService {
     */
   }
 
-  async getRecommendations(productId: string): Promise<Product[]> {
+  async getRecommendations(productId: string, _locale?: string, _site?: string, limit?: number): Promise<Product[]> {
     const recommendations = await this.shopApi.getRecommendations(productId);
+    const cap = limit ?? 12;
 
-    return recommendations.map((product) => this.productMapper.mapToService(product.document));
+    return recommendations.slice(0, cap).map((product) => this.productMapper.mapToService(product.document));
   }
 }
 

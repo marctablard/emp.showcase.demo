@@ -9,7 +9,7 @@ import { H3 } from '@/components/ui/h';
 import { useRouter } from '@/i18n/navigation';
 import { l10n } from '@/lib/utils';
 import type { CartStatus, CartStatusDetailCode } from '@/platform/services/cart/CartService';
-import { Product } from '@/platform/services/model/product';
+import type { Product } from '@/platform/services/model/product';
 import UINotification from '../ui/molecules/ui-notification';
 
 interface AddToCartModalProps {

@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import server from '@/platform/server';
-import { CMSService } from '@/platform/services/cms/CMSService';
+import type { CMSService } from '@/platform/services/cms/CMSService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import ssr from '@/platform/ssr';
 

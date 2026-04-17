@@ -1,7 +1,7 @@
 import { cache } from 'react';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { Site } from '@/platform/services/model/common/site';
-import { SiteService } from '@/platform/services/site/SiteService';
+import type { Site } from '@/platform/services/model/common/site';
+import type { SiteService } from '@/platform/services/site/SiteService';
 import ssr from '@/platform/ssr';
 
 const getSiteService = () => ssr.get<SiteService>('SiteService');

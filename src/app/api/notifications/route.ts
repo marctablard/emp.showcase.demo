@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { StorefrontNotification } from '@/platform/services/model/notification/notification';
-import { NotificationService } from '@/platform/services/notification/NotificationService';
+import type { StorefrontNotification } from '@/platform/services/model/notification/notification';
+import type { NotificationService } from '@/platform/services/notification/NotificationService';
 
 /**
  * GET handler for fetching notifications

@@ -4,14 +4,14 @@ import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { format } from 'date-fns';
 import { AlertCircle, CheckCircle, Clock, Package, Truck } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Badge, type BadgeVariant } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { H3 } from '@/components/ui/h';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTracking } from '@/hooks/order/useTracking';
 import { type TrackingKey, dk } from '@/i18n/dynamic-key';
-import { TrackingInfo } from '@/platform/services/model/tracking';
+import type { TrackingInfo } from '@/platform/services/model/tracking';
 
 interface TrackingDialogProps {
   orderId: string;
@@ -54,7 +54,7 @@ export function TrackingDialog({ orderId, open, onOpenChange }: TrackingDialogPr
   };
 
   // Status badge color mapping
-  const getStatusBadgeVariant = (status: TrackingInfo['status']) => {
+  const getStatusBadgeVariant = (status: TrackingInfo['status']): BadgeVariant => {
     switch (status) {
       case 'PENDING':
         return 'secondary';
@@ -115,7 +115,7 @@ export function TrackingDialog({ orderId, open, onOpenChange }: TrackingDialogPr
               </div>
               <div className="flex items-center gap-2">
                 {getStatusIcon(trackingInfo.status)}
-                <Badge variant={getStatusBadgeVariant(trackingInfo.status) as any}>
+                <Badge variant={getStatusBadgeVariant(trackingInfo.status)} size="status">
                   {tTracking(dk<TrackingKey>(trackingInfo.status.toLowerCase()))}
                 </Badge>
               </div>

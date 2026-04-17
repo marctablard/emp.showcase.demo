@@ -1,7 +1,7 @@
 import { addDays, format, subDays, subHours } from 'date-fns';
 import { injectable } from '@/platform/core/di/injectable';
-import { TrackingInfo } from '@/platform/services/model/tracking';
-import { TrackingService } from '@/platform/services/tracking/TrackingService';
+import type { TrackingInfo } from '@/platform/services/model/tracking';
+import type { TrackingService } from '@/platform/services/tracking/TrackingService';
 
 /**
  * Mock implementation of the TrackingService interface.

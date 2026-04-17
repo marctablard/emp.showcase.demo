@@ -17,10 +17,10 @@ import { useCartStore } from '@/providers/StoreProvider';
 import { ChatInput } from './ai/ChatInput';
 import { ChatMessages } from './ai/ChatMessages';
 import { Suggestions } from './ai/Suggestions';
-import { AiHelperFormData, ChatMessage as ChatMessageType, StructuredDataHandlers } from './ai/types';
+import type { AiHelperFormData, ChatMessage as ChatMessageType, StructuredDataHandlers } from './ai/types';
 import { parseAIResponse } from './ai/utils/response-parser';
 import { sanitizeUserInput } from './ai/utils/sanitize';
-import { DashboardCardProps } from './dashboard-card';
+import type { DashboardCardProps } from './dashboard-card';
 
 function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, 'children'>) {
   const t = useTranslations('account.AiHelper');

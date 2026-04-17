@@ -22,6 +22,10 @@
   "requiredField": "This field is required",
   "emptyCart": "Your cart is empty. Please add items to your cart before proceeding to checkout.",
   "returnToCart": "Return to Cart",
+  "addressBook": {
+    "companyAddresses": "Company addresses",
+    "customerAddresses": "Customer addresses"
+  },
   "payment": {
     "title": "Payment",
     "close": "Close",
@@ -140,9 +144,16 @@
   },
   "PaymentModes": {
     "creditCard": "Credit Card",
+    "credit_card": "Credit Card",
+    "credit-card": "Credit Card",
+    "credit_card_3ds": "Credit card (3D Secure)",
     "paypal": "PayPal",
     "invoice": "Invoice",
-    "none": "None"
+    "none": "None",
+    "saferpay": "Saferpay",
+    "sprel": "Sprel",
+    "cash_on_delivery": "Cash on delivery",
+    "unzer": "Unzer"
   },
   "step3": "Additional Information",
   "orderNotes": "Order Notes"

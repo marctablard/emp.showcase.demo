@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { QuoteHistory, UseQuoteHistoryResult } from '@/platform/services/model/quote';
+import type { QuoteHistory, UseQuoteHistoryResult } from '@/platform/services/model/quote';
 
 export function useQuoteHistory(quoteId: string): UseQuoteHistoryResult {
   const [history, setHistory] = useState<QuoteHistory>([]);

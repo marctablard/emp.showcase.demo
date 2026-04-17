@@ -1,8 +1,8 @@
 import { injectable } from '@/platform/core/di/injectable';
-import { EmporixMonetaryAmount } from '@/platform/integrations/emporix/model/common';
-import { EmporixShippingMethod } from '@/platform/integrations/emporix/model/shipping';
-import { ShippingMethod } from '..';
-import { ShippingMapper } from '../ShippingMapper';
+import type { EmporixMonetaryAmount } from '@/platform/integrations/emporix/model/common';
+import type { EmporixShippingMethod } from '@/platform/integrations/emporix/model/shipping';
+import type { ShippingMethod } from '..';
+import type { ShippingMapper } from '../ShippingMapper';
 
 /**
  * Implementation of ShippingMapper for Emporix shipping data

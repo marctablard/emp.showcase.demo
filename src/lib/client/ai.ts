@@ -1,5 +1,5 @@
-import { AIChatContext, AIChatResponse } from '@/platform/integrations/ai/model';
-import { Session } from '@/platform/services/model/session/session';
+import type { AIChatContext, AIChatResponse } from '@/platform/integrations/ai/model';
+import type { Session } from '@/platform/services/model/session/session';
 import type { CartStore } from '@/stores/cart-store';
 
 function getOrCreateAISessionId(): string {

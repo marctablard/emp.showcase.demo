@@ -1,5 +1,5 @@
-import { Category } from '@/platform/services/model/category';
-import { Product } from '@/platform/services/model/product';
+import type { Category } from '@/platform/services/model/category';
+import type { Product } from '@/platform/services/model/product';
 import { l10n } from './utils';
 
 export interface BreadcrumbContent {

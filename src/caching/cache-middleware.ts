@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { INTERNAL_APP_PATH_HEADER, NEXT_MIDDLEWARE_PREFIX } from '../site/types';
 import { DEFAULT_CACHE_REVALIDATE, cacheRules } from './cache-config';
 

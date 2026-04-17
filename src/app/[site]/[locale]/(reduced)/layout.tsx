@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import Footer, { FooterWrapper, LegalFooter } from '@/components/footer/footer';
 import { HeaderCheckout } from '@/components/header/header-checkout';
 

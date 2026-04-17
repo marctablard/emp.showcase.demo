@@ -1,5 +1,5 @@
-import { ProductFetchOptions } from '@/platform/services/product';
-import { SsrService } from '@/platform/services/ssr/SsrService';
+import type { ProductFetchOptions } from '@/platform/services/product';
+import type { SsrService } from '@/platform/services/ssr/SsrService';
 import ssr from '@/platform/ssr';
 
 /**

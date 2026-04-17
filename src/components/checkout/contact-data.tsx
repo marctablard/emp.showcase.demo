@@ -4,7 +4,7 @@ import React from 'react';
 import { useTranslations } from 'next-intl';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
 import { useValidator } from '@/hooks/validation/useValidator';
-import { ContactData } from '@/platform/services/model/checkout';
+import type { ContactData } from '@/platform/services/model/checkout';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { H2 } from '../ui/h';

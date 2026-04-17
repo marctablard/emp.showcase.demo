@@ -1,6 +1,6 @@
 import { useTranslations } from 'next-intl';
 import { ArrowRight, Package } from 'lucide-react';
-import { Cart } from '@/platform/services/model/cart';
+import type { Cart } from '@/platform/services/model/cart';
 import { CardContent } from '../ui/card';
 import UiLink from '../ui/link';
 

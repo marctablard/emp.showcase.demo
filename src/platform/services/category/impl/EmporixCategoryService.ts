@@ -3,9 +3,9 @@ import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCategoryApi } from '@/platform/integrations/emporix/category/EmporixCategoryApi';
 import type { EmporixCategory } from '@/platform/integrations/emporix/model';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { Category } from '@/platform/services/model/category';
+import type { Category } from '@/platform/services/model/category';
 import type { CategoryMapper } from '@/platform/services/model/category/CategoryMapper';
-import { CategoryService } from '../CategoryService';
+import type { CategoryService } from '../CategoryService';
 
 /**
  * Emporix implementation of the CategoryService

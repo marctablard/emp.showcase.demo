@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
 import { useMessages } from '@/hooks/messages/useMessages';
 import { Link } from '@/i18n/navigation';
-import { DashboardCard, DashboardCardProps } from './dashboard-card';
+import type { DashboardCardProps } from './dashboard-card';
+import { DashboardCard } from './dashboard-card';
 
 interface InboxCardProps extends Omit<DashboardCardProps, 'children'> {}
 

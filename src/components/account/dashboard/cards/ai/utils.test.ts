@@ -3,9 +3,9 @@ import {
   formatDate,
   formatDateTime,
   formatPrice,
-  getOrderStatusColor,
-  getQuoteStatusColor,
-  getReturnStatusColor,
+  getOrderStatusBadgeVariantForAi,
+  getQuoteStatusBadgeVariantForAi,
+  getReturnStatusBadgeVariantForAi,
 } from './utils';
 
 describe('extractPrice', () => {
@@ -120,80 +120,112 @@ describe('formatDateTime', () => {
   });
 });
 
-describe('getQuoteStatusColor', () => {
-  it('should return success color for ACCEPTED', () => {
-    expect(getQuoteStatusColor('ACCEPTED')).toContain('bg-surface-success');
+describe('getQuoteStatusBadgeVariantForAi', () => {
+  it('should return success for ACCEPTED', () => {
+    expect(getQuoteStatusBadgeVariantForAi('ACCEPTED')).toBe('success');
   });
 
-  it('should return success color for ORDER_CREATED', () => {
-    expect(getQuoteStatusColor('ORDER_CREATED')).toContain('bg-surface-success');
+  it('should return success for ORDER_CREATED', () => {
+    expect(getQuoteStatusBadgeVariantForAi('ORDER_CREATED')).toBe('success');
   });
 
-  it('should return warning color for IN_PROGRESS', () => {
-    expect(getQuoteStatusColor('IN_PROGRESS')).toContain('bg-surface-warning');
+  it('should return warning for IN_PROGRESS', () => {
+    expect(getQuoteStatusBadgeVariantForAi('IN_PROGRESS')).toBe('warning');
   });
 
-  it('should return error color for DECLINED', () => {
-    expect(getQuoteStatusColor('DECLINED')).toContain('bg-surface-error');
+  it('should return destructive for DECLINED', () => {
+    expect(getQuoteStatusBadgeVariantForAi('DECLINED')).toBe('destructive');
   });
 
-  it('should return info color for OPEN', () => {
-    expect(getQuoteStatusColor('OPEN')).toContain('bg-surface-information');
+  it('should return information for OPEN', () => {
+    expect(getQuoteStatusBadgeVariantForAi('OPEN')).toBe('information');
   });
 
   it('should handle lowercase status', () => {
-    expect(getQuoteStatusColor('accepted')).toContain('bg-surface-success');
+    expect(getQuoteStatusBadgeVariantForAi('accepted')).toBe('success');
   });
 
-  it('should return disabled color for unknown status', () => {
-    expect(getQuoteStatusColor('UNKNOWN')).toContain('bg-surface-disabled');
-  });
-});
-
-describe('getOrderStatusColor', () => {
-  it('should return success color for COMPLETED', () => {
-    expect(getOrderStatusColor('COMPLETED')).toContain('bg-surface-success');
+  it('should return outline for EXPIRED', () => {
+    expect(getQuoteStatusBadgeVariantForAi('EXPIRED')).toBe('outline');
   });
 
-  it('should return success color for SHIPPED', () => {
-    expect(getOrderStatusColor('SHIPPED')).toContain('bg-surface-success');
+  it('should return information for CREATING', () => {
+    expect(getQuoteStatusBadgeVariantForAi('CREATING')).toBe('information');
   });
 
-  it('should return success color for DELIVERED', () => {
-    expect(getOrderStatusColor('DELIVERED')).toContain('bg-surface-success');
+  it('should return muted for CLOSED', () => {
+    expect(getQuoteStatusBadgeVariantForAi('CLOSED')).toBe('muted');
   });
 
-  it('should return warning color for PENDING', () => {
-    expect(getOrderStatusColor('PENDING')).toContain('bg-surface-warning');
+  it('should return destructive for CHANGE', () => {
+    expect(getQuoteStatusBadgeVariantForAi('CHANGE')).toBe('destructive');
   });
 
-  it('should return warning color for PROCESSING', () => {
-    expect(getOrderStatusColor('PROCESSING')).toContain('bg-surface-warning');
-  });
-
-  it('should return error color for CANCELLED', () => {
-    expect(getOrderStatusColor('CANCELLED')).toContain('bg-surface-error');
-  });
-
-  it('should return disabled color for unknown status', () => {
-    expect(getOrderStatusColor('UNKNOWN')).toContain('bg-surface-disabled');
+  it('should return outline for unknown status', () => {
+    expect(getQuoteStatusBadgeVariantForAi('UNKNOWN')).toBe('outline');
   });
 });
 
-describe('getReturnStatusColor', () => {
-  it('should return success color for APPROVED', () => {
-    expect(getReturnStatusColor('APPROVED')).toContain('bg-surface-success');
+describe('getOrderStatusBadgeVariantForAi', () => {
+  it('should return muted for COMPLETED', () => {
+    expect(getOrderStatusBadgeVariantForAi('COMPLETED')).toBe('muted');
   });
 
-  it('should return warning color for PENDING', () => {
-    expect(getReturnStatusColor('PENDING')).toContain('bg-surface-warning');
+  it('should return success for CONFIRMED', () => {
+    expect(getOrderStatusBadgeVariantForAi('CONFIRMED')).toBe('success');
   });
 
-  it('should return error color for REJECTED', () => {
-    expect(getReturnStatusColor('REJECTED')).toContain('bg-surface-error');
+  it('should return success for SHIPPED', () => {
+    expect(getOrderStatusBadgeVariantForAi('SHIPPED')).toBe('success');
   });
 
-  it('should return disabled color for CLOSED', () => {
-    expect(getReturnStatusColor('CLOSED')).toContain('bg-surface-disabled');
+  it('should return muted for DELIVERED', () => {
+    expect(getOrderStatusBadgeVariantForAi('DELIVERED')).toBe('muted');
+  });
+
+  it('should return outline for PENDING (non-order enum)', () => {
+    expect(getOrderStatusBadgeVariantForAi('PENDING')).toBe('outline');
+  });
+
+  it('should return warning for PROCESSING', () => {
+    expect(getOrderStatusBadgeVariantForAi('PROCESSING')).toBe('warning');
+  });
+
+  it('should return destructive for CANCELLED', () => {
+    expect(getOrderStatusBadgeVariantForAi('CANCELLED')).toBe('destructive');
+  });
+
+  it('should return destructive for DECLINED', () => {
+    expect(getOrderStatusBadgeVariantForAi('DECLINED')).toBe('destructive');
+  });
+
+  it('should return outline for unknown status', () => {
+    expect(getOrderStatusBadgeVariantForAi('UNKNOWN')).toBe('outline');
+  });
+});
+
+describe('getReturnStatusBadgeVariantForAi', () => {
+  it('should return success for APPROVED', () => {
+    expect(getReturnStatusBadgeVariantForAi('APPROVED')).toBe('success');
+  });
+
+  it('should return warning for PENDING', () => {
+    expect(getReturnStatusBadgeVariantForAi('PENDING')).toBe('warning');
+  });
+
+  it('should return destructive for REJECTED', () => {
+    expect(getReturnStatusBadgeVariantForAi('REJECTED')).toBe('destructive');
+  });
+
+  it('should return muted for CLOSED', () => {
+    expect(getReturnStatusBadgeVariantForAi('CLOSED')).toBe('muted');
+  });
+
+  it('should return warning for REVIEWED', () => {
+    expect(getReturnStatusBadgeVariantForAi('REVIEWED')).toBe('warning');
+  });
+
+  it('should return default for unknown status', () => {
+    expect(getReturnStatusBadgeVariantForAi('UNKNOWN')).toBe('default');
   });
 });

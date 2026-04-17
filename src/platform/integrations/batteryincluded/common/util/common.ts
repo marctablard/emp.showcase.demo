@@ -1,4 +1,4 @@
-import { BatteryIncludedSearchParams } from '../../model';
+import type { BatteryIncludedSearchParams } from '../../model';
 
 /**
  * Builds search parameters for Battery Included API

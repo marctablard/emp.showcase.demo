@@ -1,7 +1,7 @@
 import { injectable } from '@/platform/core/di/injectable';
-import { EmporixCategory } from '@/platform/integrations/emporix/model';
-import { Category } from '@/platform/services/model/category';
-import { CategoryMapper } from '../CategoryMapper';
+import type { EmporixCategory } from '@/platform/integrations/emporix/model';
+import type { Category } from '@/platform/services/model/category';
+import type { CategoryMapper } from '../CategoryMapper';
 
 /**
  * Specialized mapper for transforming Emporix category data to internal Category model.

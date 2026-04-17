@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrency } from '@/lib/utils';
-import { Cart } from '@/platform/services/model/cart/cart';
+import type { Cart } from '@/platform/services/model/cart/cart';
 
 interface SavedCartsTableProps {
   carts: Cart[];

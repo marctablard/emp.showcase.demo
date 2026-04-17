@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Control } from 'react-hook-form';
+import type { Control } from 'react-hook-form';
 import { useTranslations } from 'next-intl';
 import { Eye, EyeOff } from 'lucide-react';
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';

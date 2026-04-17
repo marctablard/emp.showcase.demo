@@ -14,7 +14,8 @@ export type EmporixOrderStatus =
   | 'SHIPPED'
   | 'DELIVERED'
   | 'COMPLETED'
-  | 'CANCELLED';
+  | 'CANCELLED'
+  | 'DECLINED';
 
 /**
  * Order entry representing an item in the order

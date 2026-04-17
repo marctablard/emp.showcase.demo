@@ -1,10 +1,11 @@
 import { inject } from 'inversify';
+import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import { buildPaginatedResponse, buildSearchQuery } from '../../common/util/common';
 import type { EmporixConfig } from '../../config';
-import { EmporixPaginatedResponse, EmporixSearchParams } from '../../model';
-import { EmporixAccessControl, EmporixGroup, EmporixGroupAssignmentRequest, EmporixRole } from '../../model/iam';
+import type { EmporixPaginatedResponse, EmporixSearchParams } from '../../model';
+import type { EmporixAccessControl, EmporixGroup, EmporixGroupAssignmentRequest, EmporixRole } from '../../model/iam';
 import type { EmporixIamApi as IEmporixIamApi } from '../EmporixIamApi';
 
 /**

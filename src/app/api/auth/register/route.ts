@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import server from '@/platform/server';
-import { AuthService } from '@/platform/services/auth/AuthService';
+import type { AuthService } from '@/platform/services/auth/AuthService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { Registration } from '@/platform/services/model/auth';
+import type { Registration } from '@/platform/services/model/auth';
 
 /**
  * POST /api/auth/register
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Failed to register customer' }, { status: 401 });
     }
-    return NextResponse.json({ success: true }, { status: 201 });
+    return NextResponse.json(session, { status: 201 });
   } catch (error) {
     const logger = server.get<LoggerService>('LoggerService');
     // Determine appropriate status code based on error

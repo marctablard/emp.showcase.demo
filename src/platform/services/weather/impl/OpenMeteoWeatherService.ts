@@ -4,7 +4,7 @@ import type { OpenMeteoWeatherApi } from '@/platform/integrations/openmeteo/weat
 import type { WeatherForecast } from '@/platform/services/model/weather';
 import type { WeatherMapper } from '@/platform/services/model/weather/WeatherMapper';
 import type { LoggerService } from '../../logger/LoggerService';
-import { WeatherService } from '../WeatherService';
+import type { WeatherService } from '../WeatherService';
 
 /**
  * OpenMeteo implementation of the WeatherService

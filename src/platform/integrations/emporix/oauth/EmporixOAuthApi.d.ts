@@ -66,7 +66,7 @@ export interface EmporixOAuthApi {
    * Sends an authentication request and returns a refreshed customer token.
    *
    * @param tenant The tenant ID
-   * @param accessToken Current access token
+   * @param accessToken Access token from the original customer token response
    * @param refreshToken Refresh token from the original customer token response
    * @param legalEntityId Optional legal entity ID
    * @returns Promise with the refreshed customer token response

@@ -1,5 +1,5 @@
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { Category } from '@/platform/services/model/category';
+import type { Category } from '@/platform/services/model/category';
 
 /**
  * Fetch the category tree from the API

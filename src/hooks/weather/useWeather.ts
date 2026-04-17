@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getWeatherData, useWeatherStore } from '@/lib/client/weather';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { LocationData } from '@/platform/services/model/common';
+import type { LocationData } from '@/platform/services/model/common';
 import { useLocation } from '../location/useLocation';
 
 export function useWeather() {

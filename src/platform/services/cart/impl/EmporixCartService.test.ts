@@ -32,7 +32,7 @@ describe('EmporixCartService', () => {
     >
   >;
   let mockLogger: jest.Mocked<LoggerService>;
-  let mockSessionService: jest.Mocked<Pick<SessionService, 'getCurrent' | 'setCart'>>;
+  let mockSessionService: jest.Mocked<Pick<SessionService, 'getCurrent' | 'setCart' | 'clearCart'>>;
   let mockSiteService: jest.Mocked<Pick<SiteService, 'getSite'>>;
   let mockPriceService: jest.Mocked<Pick<PriceService, 'getProductPrice'>>;
   let mockProductService: jest.Mocked<Pick<ProductService, 'getProductById'>>;
@@ -77,6 +77,7 @@ describe('EmporixCartService', () => {
     mockSessionService = {
       getCurrent: jest.fn().mockResolvedValue(null),
       setCart: jest.fn().mockResolvedValue(undefined),
+      clearCart: jest.fn().mockResolvedValue(undefined),
     };
 
     mockSiteService = {
@@ -234,6 +235,31 @@ describe('EmporixCartService', () => {
       const updateOrder = mockCartApi.updateCart.mock.invocationCallOrder[0];
       const refreshOrder = mockCartApi.refreshCart.mock.invocationCallOrder[0];
       expect(refreshOrder).toBeGreaterThan(updateOrder);
+    });
+
+    it('should retry refreshCart when Emporix returns optimistic lock conflict', async () => {
+      jest.useFakeTimers();
+      const cart: EmporixCart = {
+        id: 'cart-ol',
+        currency: 'EUR',
+        siteCode: 'main',
+        metadata: { version: 10 },
+      };
+      mockCartApi.getCart.mockResolvedValue(cart);
+
+      const conflict = new Error('Failed to refresh cart: Conflict {"message":"optimistic_locking: metadata.version"}');
+      mockCartApi.refreshCart.mockRejectedValueOnce(conflict).mockResolvedValueOnce(undefined);
+
+      const done = cartService.updateShippingInfo('cart-ol', { country: 'DE', zipCode: '10115' });
+      await jest.runAllTimersAsync();
+      await done;
+
+      expect(mockCartApi.refreshCart).toHaveBeenCalledTimes(2);
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        { cartId: 'cart-ol', attempt: 0 },
+        'Cart refresh hit optimistic lock — retrying',
+      );
+      jest.useRealTimers();
     });
 
     it('should retry refreshCart after clearing orphaned legalEntityId', async () => {
@@ -967,6 +993,86 @@ describe('EmporixCartService', () => {
       expect(mockCartApi.getCartByCriteria).toHaveBeenCalledWith('main', undefined, 'customer-42', 'shopping', false);
       expect(mockSessionService.setCart).toHaveBeenCalledWith('customer-cart-42');
       expect(result).toBe(customerMappedCart);
+    });
+
+    it('should discard cached cart when legalEntityId does not match session and not reuse another company cart', async () => {
+      const b2bSession = {
+        id: 'session-b2b',
+        siteCode: 'main',
+        currency: 'EUR',
+        customerId: 'customer-99',
+        cartId: 'cart-other-co',
+        legalEntityId: 'le-current',
+      };
+      const wrongLeCart: EmporixCart = {
+        id: 'cart-other-co',
+        currency: 'EUR',
+        siteCode: 'main',
+        customerId: 'customer-99',
+        legalEntityId: 'le-old',
+      };
+
+      mockSessionService.getCurrent.mockResolvedValue(b2bSession);
+      mockCartApi.getCart.mockResolvedValue(wrongLeCart);
+      mockCartApi.getCartByCriteria.mockResolvedValue(null);
+
+      const result = await cartService.getCart();
+
+      expect(mockSessionService.clearCart).toHaveBeenCalled();
+      expect(mockCartApi.getCartByCriteria).toHaveBeenCalledWith('main', undefined, 'customer-99', 'shopping', false);
+      expect(mockCartApi.getCartByCriteria).not.toHaveBeenCalledWith(
+        'main',
+        'session-b2b',
+        undefined,
+        'shopping',
+        false,
+      );
+      expect(mockSessionService.setCart).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cartId: 'cart-other-co',
+          cartLegalEntityId: 'le-old',
+          sessionLegalEntityId: 'le-current',
+        }),
+        'Discarding cart — legalEntityId does not match session (no cross-company cart reuse)',
+      );
+    });
+
+    it('should keep cart when legalEntityId matches session (B2B)', async () => {
+      const b2bSession = {
+        id: 'session-b2b',
+        siteCode: 'main',
+        currency: 'EUR',
+        customerId: 'customer-99',
+        cartId: 'cart-ok',
+        legalEntityId: 'le-a',
+      };
+      const rawCart: EmporixCart = {
+        id: 'cart-ok',
+        currency: 'EUR',
+        siteCode: 'main',
+        customerId: 'customer-99',
+        legalEntityId: 'le-a',
+      };
+      const mappedCart: Cart = {
+        id: 'cart-ok',
+        currency: 'EUR',
+        site: 'main',
+        items: [],
+        totalPrice: { amount: 0, originalAmount: 0, currency: 'EUR' },
+        subTotalPrice: { amount: 0, originalAmount: 0, currency: 'EUR' },
+        tax: { amount: 0, currency: 'EUR', grossValue: 0, netValue: 0 },
+      };
+
+      mockSessionService.getCurrent.mockResolvedValue(b2bSession);
+      mockCartApi.getCart.mockResolvedValue(rawCart);
+      mockMapper.mapToService.mockReturnValue(mappedCart);
+
+      const result = await cartService.getCart();
+
+      expect(mockSessionService.clearCart).not.toHaveBeenCalled();
+      expect(result).toBe(mappedCart);
     });
   });
 });

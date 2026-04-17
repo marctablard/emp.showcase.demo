@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import server from '@/platform/server';
-import { ApprovalService } from '@/platform/services/approval/ApprovalService';
+import type { ApprovalService } from '@/platform/services/approval/ApprovalService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { ApprovalStatus } from '@/platform/services/model/approval';
+import type { ApprovalStatus } from '@/platform/services/model/approval';
 
 interface RouteParams {
   params: Promise<{

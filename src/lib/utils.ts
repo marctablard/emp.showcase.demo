@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from 'clsx';
 import { extendTailwindMerge } from 'tailwind-merge';
-import { LocalizedString, SearchParams } from '@/platform/services/model/common';
+import type { LocalizedString, SearchParams } from '@/platform/services/model/common';
 import type { Session } from '@/platform/services/model/session/session';
 
 function buildBaseUrl() {

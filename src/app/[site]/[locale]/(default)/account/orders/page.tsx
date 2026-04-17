@@ -33,7 +33,7 @@ export default async function OrdersPage({ params }: { params: Promise<{ locale:
   ];
   return (
     <AccountLayout breadcrumbs={breadcrumbs}>
-      <MyOrdersCard />
+      <MyOrdersCard forceRefreshOnMount />
     </AccountLayout>
   );
 }

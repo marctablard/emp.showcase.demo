@@ -19,10 +19,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { ToastType, notify } from '@/components/ui/toast-notification';
 import { useRouter } from '@/i18n/navigation';
-import { CreateReturnItem, RETURN_REASON_CODES, ReturnReasonCode, createReturn } from '@/lib/client/returns';
+import type { CreateReturnItem, ReturnReasonCode } from '@/lib/client/returns';
+import { RETURN_REASON_CODES, createReturn } from '@/lib/client/returns';
 import { type OrderReturnability, buildRemainingQuantityMap } from '@/lib/common/returns/returnability';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { Order } from '@/platform/services/model/order/order';
+import type { Order } from '@/platform/services/model/order/order';
 
 interface CreateReturnDialogProps {
   open: boolean;

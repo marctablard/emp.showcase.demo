@@ -1,4 +1,4 @@
-import { FC } from 'react';
+import type { FC } from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowRight, BookText, Building, FileText, ShieldCheck } from 'lucide-react';
 import { H4 } from '@/components/ui/h';

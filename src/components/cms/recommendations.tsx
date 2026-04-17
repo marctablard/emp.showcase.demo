@@ -3,7 +3,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useProducts } from '@/hooks/product/useProducts';
 import { useRecommendations } from '@/hooks/recommendations/useRecommendations';
-import { Product } from '@/platform/services/model/product';
+import type { Product } from '@/platform/services/model/product';
 import { ProductTile } from '../product/product-tile';
 import { ProductTileSkeleton } from '../product/product-tile-skeleton';
 import { Carousel, CarouselContent, CarouselDots, CarouselItem, CarouselNext, CarouselPrevious } from '../ui/carousel';

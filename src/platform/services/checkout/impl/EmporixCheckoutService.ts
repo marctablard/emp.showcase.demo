@@ -1,16 +1,21 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCheckoutApi } from '@/platform/integrations/emporix/checkout/EmporixCheckoutApi';
-import {
+import type {
   EmporixCartCheckoutRequest,
   EmporixCheckoutCustomer,
   EmporixCheckoutPaymentMethod,
 } from '@/platform/integrations/emporix/model';
-import EmporixPaymentGatewayApi from '@/platform/integrations/emporix/payment/impl/EmporixPaymentGatewayApi';
+import type EmporixPaymentGatewayApi from '@/platform/integrations/emporix/payment/impl/EmporixPaymentGatewayApi';
 import type { CustomerService } from '@/platform/services/customer/CustomerService';
-import { CheckoutPaymentMethod, CheckoutRequest, CheckoutResponse, QuoteCheckoutRequest } from '../../model/checkout';
-import EmporixCheckoutMapper from '../../model/checkout/impl/EmporixCheckoutMapper';
-import { CheckoutService } from '../CheckoutService';
+import type {
+  CheckoutPaymentMethod,
+  CheckoutRequest,
+  CheckoutResponse,
+  QuoteCheckoutRequest,
+} from '../../model/checkout';
+import type EmporixCheckoutMapper from '../../model/checkout/impl/EmporixCheckoutMapper';
+import type { CheckoutService } from '../CheckoutService';
 import type { CheckoutValidator } from '../validation/CheckoutValidator';
 
 /**

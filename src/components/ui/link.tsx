@@ -1,6 +1,7 @@
 'use client';
 
-import { VariantProps, cva } from 'class-variance-authority';
+import type { VariantProps } from 'class-variance-authority';
+import { cva } from 'class-variance-authority';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 

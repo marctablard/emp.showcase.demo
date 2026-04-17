@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Cart } from '@platform/services/model/cart';
+import type { Cart } from '@platform/services/model/cart';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import { InfoIcon, ShoppingCart } from 'lucide-react';
 import { HeaderMiniCartContent } from '@/components/header/cart/header-mini-cart-content';
@@ -17,7 +17,7 @@ import { useNotifications } from '@/hooks/notifications/useNotifications';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn, formatCurrency } from '@/lib/utils';
-import { StorefrontNotification } from '@/platform/services/model/notification/notification';
+import type { StorefrontNotification } from '@/platform/services/model/notification/notification';
 
 interface HeaderCartButtonProps {
   initialCart?: Cart | null;

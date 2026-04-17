@@ -1,7 +1,8 @@
 import { cache } from 'react';
 import { notFound } from 'next/navigation';
-import { ISbStoriesParams, StoryblokClient, StoryblokStory } from '@storyblok/react/rsc';
-import { BreadcrumbContent } from '@/lib/breadcrumb';
+import type { ISbStoriesParams, StoryblokClient } from '@storyblok/react/rsc';
+import { StoryblokStory } from '@storyblok/react/rsc';
+import type { BreadcrumbContent } from '@/lib/breadcrumb';
 import { getStoryblokApi } from '@/lib/storyblok';
 import { UiBreadcrumb } from '../../ui/molecules/ui-breadcrumb';
 

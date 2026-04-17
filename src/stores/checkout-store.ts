@@ -2,8 +2,8 @@
 
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { Cart } from '@/platform/services/model/cart/cart';
-import {
+import type { Cart } from '@/platform/services/model/cart/cart';
+import type {
   CheckoutAddress,
   CheckoutPaymentMethod,
   ContactData,

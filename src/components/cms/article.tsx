@@ -1,6 +1,7 @@
 'use client';
 
-import { StoryblokRichTextNode, storyblokEditable } from '@storyblok/react/rsc';
+import type { StoryblokRichTextNode } from '@storyblok/react/rsc';
+import { storyblokEditable } from '@storyblok/react/rsc';
 import { H1, H2, H3 } from '@/components/ui/h';
 import { Link } from '@/i18n/navigation';
 import RichText from './richtext';

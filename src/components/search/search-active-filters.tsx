@@ -1,7 +1,7 @@
 import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 import { Pill } from '@/components/ui/pill';
-import { FilterValue as SearchFilterValue } from '@/hooks/search/useSearch';
+import type { FilterValue as SearchFilterValue } from '@/hooks/search/useSearch';
 import { type ProductFilterKey, dk } from '@/i18n/dynamic-key';
 
 interface SearchActiveFiltersProps {

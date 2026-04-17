@@ -10,7 +10,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useLocation } from '@/hooks/location/useLocation';
 import useWeather from '@/hooks/weather/useWeather';
 import { type WeatherKey, dk } from '@/i18n/dynamic-key';
-import { DashboardCard, DashboardCardProps } from './dashboard-card';
+import type { DashboardCardProps } from './dashboard-card';
+import { DashboardCard } from './dashboard-card';
 
 /**
  * Solar Output Card component

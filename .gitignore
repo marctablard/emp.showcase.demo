@@ -109,4 +109,8 @@ next-env.d.ts
 .github/copilot-instructions.md
 /docs/cursor/
 /docs/pr-analysis/
+/docs/task-analysis/
 /docs/testing-plans/
+
+# Extensions (local only)
+/extensions/*/

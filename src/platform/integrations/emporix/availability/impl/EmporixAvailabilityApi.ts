@@ -1,11 +1,12 @@
 import { inject } from 'inversify';
+import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import { buildPaginatedResponse } from '../../common/util/common';
 import type { EmporixConfig } from '../../config';
-import { EmporixPaginatedResponse, EmporixSearchParams } from '../../model';
-import { EmporixAvailability } from '../../model/availability';
-import { EmporixAvailabilityApi as IEmporixAvailabilityApi } from '../EmporixAvailabilityApi';
+import type { EmporixPaginatedResponse, EmporixSearchParams } from '../../model';
+import type { EmporixAvailability } from '../../model/availability';
+import type { EmporixAvailabilityApi as IEmporixAvailabilityApi } from '../EmporixAvailabilityApi';
 
 @injectable('EmporixAvailabilityApi', 'Singleton')
 class EmporixAvailabilityApi implements IEmporixAvailabilityApi {

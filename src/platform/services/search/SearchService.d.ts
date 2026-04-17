@@ -25,5 +25,5 @@ export interface SearchService {
   /**
    * Get product recommendations based on a product ID
    */
-  getRecommendations(productId: string, locale?: string, site?: string): Promise<Product[]>;
+  getRecommendations(productId: string, locale?: string, site?: string, limit?: number): Promise<Product[]>;
 }

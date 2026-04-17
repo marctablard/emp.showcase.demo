@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { mapCartGetError } from '@/lib/common/cart-api-error-mapping';
 import server from '@/platform/server';
-import { CartService } from '@/platform/services/cart';
+import type { CartService } from '@/platform/services/cart';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Cart } from '@/platform/services/model/cart';
-import { SessionService } from '@/platform/services/session';
+import type { SessionService } from '@/platform/services/session';
 
 /**
  * GET /api/carts

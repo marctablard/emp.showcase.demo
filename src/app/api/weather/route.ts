@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { WeatherForecast } from '@/platform/services/model/weather';
-import { WeatherService } from '@/platform/services/weather/WeatherService';
+import type { WeatherForecast } from '@/platform/services/model/weather';
+import type { WeatherService } from '@/platform/services/weather/WeatherService';
 
 /**
  * GET handler for weather forecast API endpoint

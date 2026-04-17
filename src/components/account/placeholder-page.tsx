@@ -1,4 +1,4 @@
-import { FC } from 'react';
+import type { FC } from 'react';
 import { useTranslations } from 'next-intl';
 import { FileQuestion } from 'lucide-react';
 import { H2 } from '@/components/ui/h';

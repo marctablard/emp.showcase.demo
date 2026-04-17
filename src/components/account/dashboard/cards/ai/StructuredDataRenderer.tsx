@@ -16,7 +16,7 @@ import { QuoteListRenderer } from './renderers/QuoteListRenderer';
 import { ReturnDetailsRenderer } from './renderers/ReturnDetailsRenderer';
 import { ReturnListRenderer } from './renderers/ReturnListRenderer';
 import { TableRenderer } from './renderers/TableRenderer';
-import {
+import type {
   AccountDetailsData,
   AddressListData,
   CartSummaryData,

@@ -1,7 +1,7 @@
 import { injectable } from '@/platform/core/di/injectable';
-import { EmporixAddress, EmporixMixins } from '@/platform/integrations/emporix/model/common';
-import { Address, GeoLocation } from '@/platform/services/model/common';
-import { AddressMapper } from '../AddressMapper';
+import type { EmporixAddress, EmporixMixins } from '@/platform/integrations/emporix/model/common';
+import type { Address, GeoLocation } from '@/platform/services/model/common';
+import type { AddressMapper } from '../AddressMapper';
 
 /**
  * Implementation of AddressMapper for Emporix address data.

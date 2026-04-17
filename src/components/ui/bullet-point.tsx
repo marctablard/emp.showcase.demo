@@ -1,6 +1,8 @@
 import React from 'react';
-import { VariantProps, cva } from 'class-variance-authority';
-import { LucideIcon, Sun } from 'lucide-react';
+import type { VariantProps } from 'class-variance-authority';
+import { cva } from 'class-variance-authority';
+import type { LucideIcon } from 'lucide-react';
+import { Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const bulletPointVariants = cva('flex items-center gap-2', {

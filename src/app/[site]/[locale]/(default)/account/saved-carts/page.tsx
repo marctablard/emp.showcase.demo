@@ -1,4 +1,4 @@
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { AccountLayout } from '@/components/account/account-layout';
 import { SavedCartsList } from '@/components/account/saved-carts/saved-carts-list';

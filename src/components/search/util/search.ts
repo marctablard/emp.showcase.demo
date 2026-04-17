@@ -1,4 +1,4 @@
-import { FilterValue } from '@/platform/services/model/common';
+import type { FilterValue } from '@/platform/services/model/common';
 
 /**
  * Checks if filter values have units of measurement (e.g., '10 kg')

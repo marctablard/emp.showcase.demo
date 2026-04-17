@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import { fetchOrders as apiFetchOrders } from '@/lib/client/orders';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { buildSearchQuery } from '@/platform/integrations/emporix/common/util/common';
-import { Order } from '@/platform/services/model/order/order';
+import type { Order } from '@/platform/services/model/order/order';
 
 export interface OrderState {
   // Order data

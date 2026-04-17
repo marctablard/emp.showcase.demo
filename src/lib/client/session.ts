@@ -1,5 +1,5 @@
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { Session } from '@/platform/services/model/session/session';
+import type { Session } from '@/platform/services/model/session/session';
 
 /**
  * Fetch the current session information
@@ -118,6 +118,30 @@ export async function updateSessionSite(site: string): Promise<boolean> {
     return true;
   } catch (error) {
     getLogger().error({ err: error, site }, 'Error updating site');
+    return false;
+  }
+}
+
+/**
+ * Update the session company (legal entity)
+ * @param {string} legalEntityId - The legal entity ID to set
+ * @returns {Promise<boolean>} Success status
+ */
+export async function updateSessionCompany(legalEntityId: string): Promise<boolean> {
+  try {
+    const response = await fetch('/api/session/company', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ legalEntityId }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to update company: ${response.statusText}`);
+    }
+
+    return true;
+  } catch (error) {
+    getLogger().error({ err: error, legalEntityId }, 'Error updating company');
     return false;
   }
 }

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { MapPin } from 'lucide-react';
-import { Address } from '@/platform/services/model/common';
+import type { Address } from '@/platform/services/model/common';
 
 interface AddressDisplayProps {
   address: Address;
@@ -19,9 +19,8 @@ export function AddressDisplay({ address, className }: AddressDisplayProps) {
       <div className="space-y-1">
         {address.companyName && <p>{address.companyName}</p>}
         {address.contactName && <p>{address.contactName}</p>}
-        <p>
-          {address.street} {address.streetNumber || ''}
-        </p>
+        {address.street ? <p>{address.street}</p> : null}
+        {address.streetNumber ? <p className="tabular-nums">{address.streetNumber}</p> : null}
         <p>
           {address.zipCode} {address.city}
         </p>

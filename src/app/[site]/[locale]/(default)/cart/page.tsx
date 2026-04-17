@@ -1,4 +1,4 @@
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { CartOverview } from '@/components/cart/cart-overview';
 import { getCurrentCart } from '@/lib/ssr/carts';

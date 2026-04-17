@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { PriceService } from '@/platform/services/price/PriceService';
-import { SessionService } from '@/platform/services/session/SessionService';
+import type { PriceService } from '@/platform/services/price/PriceService';
+import type { SessionService } from '@/platform/services/session/SessionService';
 
 /**
  * API endpoint to get price for a specific product by ID

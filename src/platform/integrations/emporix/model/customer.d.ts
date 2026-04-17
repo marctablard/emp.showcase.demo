@@ -137,6 +137,10 @@ export interface EmporixResourceId {
 export interface EmporixContactDetails {
   emails?: string[];
   phones?: string[];
+  /** Structured address fields when returned by the API (preferred over legacy lines). */
+  street?: string;
+  streetNumber?: string;
+  streetAppendix?: string;
   addressLine1?: string;
   addressLine2?: string;
   city?: string;

@@ -2,12 +2,12 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { CheckedState } from '@radix-ui/react-checkbox';
+import type { CheckedState } from '@radix-ui/react-checkbox';
 import { isEqual, omit } from 'lodash';
 import AddressForm from '@/components/common/address-form';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
-import { Address } from '@/platform/services/model/common';
+import type { Address } from '@/platform/services/model/common';
 
 interface CheckoutAddressProps {
   address?: Address | null;

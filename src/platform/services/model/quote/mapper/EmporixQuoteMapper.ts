@@ -1,8 +1,8 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
-import { EmporixQuote } from '@/platform/integrations/emporix/model/quote';
+import type { EmporixQuote } from '@/platform/integrations/emporix/model/quote';
 import type { SiteService } from '@/platform/services/site/SiteService';
-import { Quote, QuoteStatus } from '..';
+import type { Quote, QuoteStatus } from '..';
 import type { QuoteMapper } from './QuoteMapper';
 
 /**

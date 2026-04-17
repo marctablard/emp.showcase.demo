@@ -1,4 +1,4 @@
-import { Order } from '@/platform/services/model/order/order';
+import type { Order } from '@/platform/services/model/order/order';
 
 /**
  * Fetch all orders for the current customer with optional pagination

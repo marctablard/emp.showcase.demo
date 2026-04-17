@@ -84,31 +84,16 @@ This unidirectional dependency flow ensures that:
 
 ## Implementation in Our DI Framework
 
-Our Dependency Injection framework explicitly supports this layered architecture:
+The active generator is `scripts/di-generator.ts`. It scans **`src/platform/` as one tree** (integrations, services, repositories, etc.) and emits:
 
-```typescript
-// From di-generator-core.ts
-export const LAYER_CONFIGS: Record<Layer, { directory: string; outputFile: string }> = {
-  integration: {
-    directory: 'src/platform/integrations',
-    outputFile: 'src/platform/integrations/index.ts',
-  },
-  service: {
-    directory: 'src/platform/services',
-    outputFile: 'src/platform/services/index.ts',
-  },
-  repository: {
-    directory: 'src/platform/repositories',
-    outputFile: 'src/platform/repositories/index.ts',
-  },
-};
-```
+- `src/platform/server.ts` — server-only container (`import 'server-only'`)
+- `src/platform/ssr.ts` — SSR / RSC container (`import 'server-only'`)
 
-Each layer has:
+There is **no** generated per-layer `index.ts` container and **no** browser Inversify bundle. See `docs/dependency-injection.md` for details.
 
-- A dedicated directory structure
-- Its own DI container
-- Auto-generated container configuration
+`src/platform/integrations/index.ts` is a **manual placeholder** (server-only) for possible future integration wiring; it is not part of `npm run generate`.
+
+The legacy script `scripts/di-generator-core.ts` described a per-layer `outputFile` layout; that path is not used by `npm run generate` today.
 
 ## Practical Examples
 

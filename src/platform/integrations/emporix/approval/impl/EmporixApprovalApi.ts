@@ -1,8 +1,9 @@
 import { inject } from 'inversify';
+import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../../config';
-import {
+import type {
   EmporixApprovalCreateRequest,
   EmporixApprovalId,
   EmporixApprovalPermittedRequest,
@@ -12,7 +13,7 @@ import {
   EmporixApprovalUpdateRequest,
   EmporixApprovalUser,
 } from '../../model/approval';
-import { EmporixApprovalApi as IEmporixApprovalApi } from '../EmporixApprovalApi';
+import type { EmporixApprovalApi as IEmporixApprovalApi } from '../EmporixApprovalApi';
 
 @injectable('EmporixApprovalApi', 'Singleton')
 class EmporixApprovalApi implements IEmporixApprovalApi {

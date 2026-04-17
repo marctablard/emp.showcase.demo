@@ -1,9 +1,10 @@
 'use client';
 
 import { createContext, useContext } from 'react';
-import { StoreApi, create, useStore } from 'zustand';
+import type { StoreApi } from 'zustand';
+import { create, useStore } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import { Session } from '@/platform/services/model/session/session';
+import type { Session } from '@/platform/services/model/session/session';
 
 export interface SessionState {
   session: Session | null | undefined;

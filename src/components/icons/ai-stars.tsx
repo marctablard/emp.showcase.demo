@@ -1,6 +1,6 @@
 'use client';
 
-import { SVGProps } from 'react';
+import type { SVGProps } from 'react';
 
 export function AiStarsIcon(props: SVGProps<SVGSVGElement>) {
   return (

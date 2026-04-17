@@ -101,7 +101,9 @@ describe('EmporixOAuthApi', () => {
     it('should handle customer token refresh request correctly', async () => {
       // We can't test with real refresh tokens, but we can verify the call throws the expected error
       // with an invalid refresh token
-      await expect(oauthApi.refreshCustomerToken(config.tenant, 'invalid-refresh-token')).rejects.toThrow();
+      await expect(
+        oauthApi.refreshCustomerToken(config.tenant, 'invalid-access-token', 'invalid-refresh-token'),
+      ).rejects.toThrow();
     });
   });
 

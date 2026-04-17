@@ -12,7 +12,7 @@ import { DesktopMenuFlyout } from '@/components/header/desktop/menu-flyout';
 import { MenuLevel1 } from '@/components/header/desktop/menu-level-1';
 import { useHeaderSearch } from '@/components/header/search/search-context';
 import { TabletMenuFlyout } from '@/components/header/tablet/menu-flyout';
-import { MenuItem } from '@/data/navigation-menu';
+import type { MenuItem } from '@/data/navigation-menu';
 import useAuthentication from '@/hooks/authentication/useAuthentication';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useHeaderScroll } from '@/hooks/useHeaderScroll';
@@ -158,7 +158,7 @@ export function HeaderActionBar() {
             )}
             <div className="hidden sm:flex gap-5">
               <HeaderIconLink icon={Gauge} text={t('quickOrder')} href="/#" />
-              <HeaderIconLink icon={Pin} text={t('wishlists')} href="/#" />
+              <HeaderIconLink icon={Pin} text={t('wishlists')} href="/account/wishlists" />
             </div>
           </div>
         </div>

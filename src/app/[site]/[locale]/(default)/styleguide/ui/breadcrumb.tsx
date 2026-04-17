@@ -1,6 +1,6 @@
 import { H4 } from '@/components/ui/h';
 import { UiBreadcrumb } from '@/components/ui/molecules/ui-breadcrumb';
-import { BreadcrumbContent } from '@/lib/breadcrumb';
+import type { BreadcrumbContent } from '@/lib/breadcrumb';
 
 export default function BreadcrumbStyleGuide() {
   const breadcrumbs: BreadcrumbContent[] = [

@@ -1,12 +1,13 @@
-import { StoredToken } from '@platform/integrations/types/auth';
+import type { StoredToken } from '@platform/integrations/types/auth';
 import { inject } from 'inversify';
+import 'server-only';
 import type {
   EmporixAccessTokenResponse,
   EmporixAnonymousTokenResponse,
   EmporixCustomerTokenResponse,
 } from '../../model/oauth';
 import type { EmporixOAuthApi } from '../../oauth/EmporixOAuthApi';
-import { EmporixTokenManager as IEmporixTokenManager } from '../EmporixTokenManager';
+import type { EmporixTokenManager as IEmporixTokenManager } from '../EmporixTokenManager';
 import { EMPORIX_TOKEN_TYPE, type EmporixTokenType } from '../token-types';
 import { checkTokenValidity } from '../util/common';
 
@@ -155,14 +156,16 @@ export abstract class EmporixTokenManagerAbstract implements IEmporixTokenManage
   protected async refreshCustomerToken(
     customerToken: StoredToken<EmporixCustomerTokenResponse> | undefined,
     tenant: string,
+    legalEntityId?: string,
   ) {
     let response;
     // try refresh token first
     if (customerToken && checkTokenValidity(customerToken.token.refresh_token, customerToken.refreshExpiryAt)) {
       response = await this.oauthApi.refreshCustomerToken(
         tenant,
-        customerToken.token.access_token,
+        customerToken.token.access_token!,
         customerToken.token.refresh_token!,
+        legalEntityId,
       );
     }
     if (response) {
@@ -183,6 +186,38 @@ export abstract class EmporixTokenManagerAbstract implements IEmporixTokenManage
 
   public async clearCustomerToken(tenant: string): Promise<void> {
     return this.writeToken(EMPORIX_TOKEN_TYPE.CUSTOMER, undefined, tenant);
+  }
+
+  public async refreshCustomerTokenWithLegalEntity(
+    tenant: string,
+    legalEntityId: string,
+  ): Promise<{ accessToken: string; saasToken?: string; sessionId: string } | null> {
+    const customerToken = await this.readToken<StoredToken<EmporixCustomerTokenResponse>, EmporixCustomerTokenResponse>(
+      'customer',
+      tenant,
+    );
+
+    if (!customerToken) {
+      return null;
+    }
+
+    const refreshedToken = await this.refreshCustomerToken(customerToken, tenant, legalEntityId);
+
+    if (refreshedToken) {
+      await this.writeToken<StoredToken<EmporixCustomerTokenResponse>, EmporixCustomerTokenResponse>(
+        'customer',
+        refreshedToken,
+        tenant,
+      );
+
+      return {
+        accessToken: refreshedToken.token.access_token,
+        saasToken: refreshedToken.token.saas_token,
+        sessionId: refreshedToken.token.session_id,
+      };
+    }
+
+    return null;
   }
 
   public async getServiceAccessToken(

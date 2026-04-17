@@ -13,54 +13,52 @@ Both implementations conform to the `SearchService` interface, making them inter
 
 ## How to Switch Search Service Implementations
 
-The active search service is determined by which implementation class has the `@injectable('SearchService', 'Singleton')` decorator. To switch between implementations, follow these steps:
+The active implementation is resolved through DI aliases from `src/platform/depency.yml` (and optional environment overrides), not by changing decorators in service classes.
 
-### Option 1: Use EmporixSearchService
+### Option 1 (default): Use `EmporixSearchService`
 
-To use the Emporix search implementation:
+Set the alias in `src/platform/depency.yml`:
 
-1. Open `src/platform/services/search/impl/EmporixSearchService.ts`
-2. Ensure the class has the `@injectable('SearchService', 'Singleton')` decorator:
-
-```typescript
-@injectable('SearchService', 'Singleton')
-class EmporixSearchService implements SearchService {
-  // Implementation...
-}
+```yml
+Services:
+  SearchService: EmporixSearchService
 ```
 
-3. Open `src/platform/services/search/impl/BatteryIncludedSearchService.ts`
-4. Remove the `@injectable('SearchService', 'Singleton')` decorator if present:
+### Option 2: Use `BatteryIncludedSearchService`
 
-```typescript
-// No @injectable decorator
-class BatteryIncludedSearchService implements SearchService {
-  // Implementation...
-}
+Set the alias in `src/platform/depency.yml`:
+
+```yml
+Services:
+  SearchService: BatteryIncludedSearchService
 ```
 
-### Option 2: Use BatteryIncludedSearchService
+### Option 3: Use environment variable override
 
-To use the Battery Included search implementation:
+You can override only the search alias via `.env` without editing `depency.yml`:
 
-1. Open `src/platform/services/search/impl/BatteryIncludedSearchService.ts`
-2. Add the `@injectable('SearchService', 'Singleton')` decorator:
-
-```typescript
-@injectable('SearchService', 'Singleton')
-class BatteryIncludedSearchService implements SearchService {
-  // Implementation...
-}
+```env
+DI_SEARCH_SERVICE=EmporixSearchService
+# or
+DI_SEARCH_SERVICE=BatteryIncludedSearchService
 ```
 
-3. Open `src/platform/services/search/impl/EmporixSearchService.ts`
-4. Remove the `@injectable('SearchService', 'Singleton')` decorator:
+Supported values:
+- `EmporixSearchService`
+- `BatteryIncludedSearchService`
 
-```typescript
-// No @injectable decorator
-class EmporixSearchService implements SearchService {
-  // Implementation...
-}
+If `DI_SEARCH_SERVICE` is not set, the generator defaults to `EmporixSearchService`.
+
+### Environment-specific alias files
+
+You can also select a complete alias file:
+
+```env
+# uses src/platform/depency.<DI_ENV>.yml
+DI_ENV=production
+
+# explicit path (absolute or relative to repo root)
+DI_DEPENDENCY_FILE=src/platform/depency.local.yml
 ```
 
 ## Implementation Differences
@@ -83,16 +81,15 @@ class EmporixSearchService implements SearchService {
 
 ## Important Notes
 
-1. **Only one implementation** should have the `@injectable('SearchService', 'Singleton')` decorator at a time
-2. After changing the implementation, you need to restart the application for changes to take effect
-3. The application's dependency injection system will automatically use the decorated implementation throughout the codebase
-4. No other code changes are required when switching implementations
+1. After changing alias configuration, run `npm run generate` to regenerate DI containers
+2. Restart the application after regeneration
+3. `SearchService` is consumed through DI in API/SSR paths, so no feature code changes are required
 
 ## Troubleshooting
 
 If you encounter issues after switching implementations:
 
-1. Verify that only one implementation has the `@injectable('SearchService', 'Singleton')` decorator
-2. Ensure that the application has been restarted after making changes
-3. Check the browser console for any dependency injection errors
-4. Verify that all required dependencies for the chosen implementation are properly configured
+1. Verify the active alias in `src/platform/depency.yml` or `DI_SEARCH_SERVICE`
+2. Ensure `npm run generate` was executed after config changes
+3. Ensure the app was restarted
+4. Check server logs for DI warnings about missing alias targets

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { fetchReturnById } from '@/lib/client/returns';
-import { Return } from '@/platform/services/model/return';
+import type { Return } from '@/platform/services/model/return';
 
 interface UseReturnReturn {
   returnItem: Return | null;

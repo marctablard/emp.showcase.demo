@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { setRequestLocale } from 'next-intl/server';
 import Footer from '@/components/footer';
 import { FooterLinks, FooterWrapper, LegalFooter } from '@/components/footer/footer';

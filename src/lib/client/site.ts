@@ -1,6 +1,6 @@
 'use client';
 
-import { Site } from '@/platform/services/model/common/site';
+import type { Site } from '@/platform/services/model/common/site';
 
 export async function getSites(): Promise<{ current: Site; available: Site[] }> {
   const response = await fetch('/api/site/');

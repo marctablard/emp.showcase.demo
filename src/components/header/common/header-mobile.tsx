@@ -74,8 +74,8 @@ export function HeaderMobile() {
                   <MobileMenuNavigation onClose={closeMenu} />
                 </DrawerContent>
               </Drawer>
-              <HeaderIconLink icon={LayoutGrid} text={t('products')} href="/#" />
-              <HeaderIconLink icon={Pin} text={t('wishlists')} href="/#" />
+              <HeaderIconLink icon={LayoutGrid} text={t('products')} href="/browse" />
+              <HeaderIconLink icon={Pin} text={t('wishlists')} href="/account/wishlists" />
             </>
           )}
         </>

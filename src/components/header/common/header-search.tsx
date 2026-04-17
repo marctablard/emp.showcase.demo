@@ -2,15 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
 import { Search, X } from 'lucide-react';
 import { useHeaderSearch } from '@/components/header/search/search-context';
 import { SearchFlyOut } from '@/components/header/search/search-fly-out';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useSearch } from '@/hooks/search/useSearch';
+import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
-import { Product } from '@/platform/services/model/product';
+import type { Product } from '@/platform/services/model/product';
 
 export interface HeaderSearchProps {
   small?: boolean;

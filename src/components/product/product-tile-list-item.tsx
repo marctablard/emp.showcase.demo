@@ -1,4 +1,4 @@
-import { Product } from '@platform/services/model/product';
+import type { Product } from '@platform/services/model/product';
 
 interface ProductTileProps {
   product: Product;

@@ -1,5 +1,7 @@
+import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
-import { EmporixTokenManagerAbstract, TokenStore } from './EmporixTokenManagerAbstract';
+import type { TokenStore } from './EmporixTokenManagerAbstract';
+import { EmporixTokenManagerAbstract } from './EmporixTokenManagerAbstract';
 
 /**
  * TokenManager for handling Emporix API tokens

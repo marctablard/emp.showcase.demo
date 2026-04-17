@@ -4,7 +4,7 @@ import { useLocale } from 'next-intl';
 import { usePathname as useNextPathname, useRouter as useNextRouter } from 'next/navigation';
 import { useSiteCode } from '@/hooks/site/useSiteCode';
 import { createSiteNavigationShared } from '../shared/createNavigationShared';
-import { SiteRoutingConfig } from '../types';
+import type { SiteRoutingConfig } from '../types';
 import { addPrefixIfNeeded, getLocalePrefix, hasPathnamePrefixed, prependPrefix, unprefixPathname } from '../utils';
 
 export default function createNavigation(siteRouting: SiteRoutingConfig, intlRouting: any) {
@@ -30,8 +30,15 @@ export default function createNavigation(siteRouting: SiteRoutingConfig, intlRou
       const localePrefix = getLocalePrefix(locale, intlRouting);
       const isPathnameLocalePrefixed = hasPathnamePrefixed(localePrefix, unprefixedPathname);
       if (isPathnameLocalePrefixed) {
-        unprefixedPathname = unprefixPathname(pathname, localePrefix);
+        unprefixedPathname = unprefixPathname(unprefixedPathname, localePrefix);
       }
+
+      // Guard against corrupted URLs that still contain the site prefix after stripping
+      // (e.g. /brand1/de/brand1/product/123 → after first strip → /brand1/product/123)
+      if (hasPathnamePrefixed(sitePrefix, unprefixedPathname)) {
+        unprefixedPathname = unprefixPathname(unprefixedPathname, sitePrefix);
+      }
+
       return unprefixedPathname;
     }, [locale, site, pathname]);
   }

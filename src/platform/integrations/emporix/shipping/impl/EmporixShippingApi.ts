@@ -1,10 +1,11 @@
 import { inject } from 'inversify';
+import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../../config';
-import { EmporixFindSiteRequest, EmporixShippingSite } from '../../model';
-import { EmporixShippingMethod } from '../../model/shipping';
-import { EmporixShippingApi as IEmporixShippingApi } from '../EmporixShippingApi';
+import type { EmporixFindSiteRequest, EmporixShippingSite } from '../../model';
+import type { EmporixShippingMethod } from '../../model/shipping';
+import type { EmporixShippingApi as IEmporixShippingApi } from '../EmporixShippingApi';
 
 @injectable('EmporixShippingApi', 'Singleton')
 class EmporixShippingApi implements IEmporixShippingApi {

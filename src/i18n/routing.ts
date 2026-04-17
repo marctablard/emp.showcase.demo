@@ -1,4 +1,5 @@
-import { LocalePrefixMode, defineRouting } from 'next-intl/routing';
+import type { LocalePrefixMode } from 'next-intl/routing';
+import { defineRouting } from 'next-intl/routing';
 
 export const routingConfig = {
   // A list of all locales that are supported

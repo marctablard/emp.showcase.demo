@@ -74,7 +74,18 @@ export interface QuoteReasonCreationResponse {
 
 export type QuoteScope = 'public' | 'session' | 'customer-saas' | 'service';
 
-export type QuoteStatus = 'CREATING' | 'OPEN' | 'IN_PROGRESS' | 'DECLINED' | 'ACCEPTED' | 'ORDER_CREATED' | 'CLOSED';
+export type QuoteStatus =
+  | 'CREATING'
+  | 'OPEN'
+  | 'IN_PROGRESS'
+  | 'DECLINED'
+  | 'ACCEPTED'
+  | 'ORDER_CREATED'
+  | 'CLOSED'
+  | 'CHANGE'
+  | 'DECLINE'
+  | 'DECLINED_BY_MERCHANT'
+  | 'EXPIRED';
 
 export type QuoteUpdateOperation = 'ADD' | 'REMOVE' | 'REPLACE' | 'CREATE';
 

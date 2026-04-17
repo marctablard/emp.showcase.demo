@@ -400,7 +400,7 @@ describe('EmporixCheckoutApi', () => {
           await cartApi.deleteCart(customerCartId);
         }
       } catch (_error) {
-        // Checkout can consume/delete the cart before teardown runs.
+        // The approval flow can consume/delete the cart during checkout attempts.
       }
     }, 15000);
 

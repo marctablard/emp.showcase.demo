@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { TableData } from '../types';
+import type { TableData } from '../types';
 import { formatDate } from '../utils';
 
 interface TableRendererProps {
@@ -36,7 +36,7 @@ export const TableRenderer: React.FC<TableRendererProps> = ({ data }) => {
         return <span className="text-right">{value}</span>;
       case 'status':
         return (
-          <Badge variant="outline" rounded="default">
+          <Badge variant="outline" size="status">
             {value}
           </Badge>
         );

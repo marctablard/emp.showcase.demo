@@ -4,6 +4,7 @@ import type { Cart } from '@/platform/services/model/cart/cart';
 import type { Site } from '@/platform/services/model/common/site';
 import type { Session } from '@/platform/services/model/session';
 import { createCartStore } from '@/stores/cart-store';
+import { createCustomerStore } from '@/stores/customer-store';
 import { createSessionStore } from '@/stores/session-store-context';
 import { createSiteStore } from '@/stores/site-store';
 import { setupStoreSynchronization } from '@/stores/sync/store-synchronizer';
@@ -73,6 +74,7 @@ describe('Store Synchronizer', () => {
   let sessionStore: ReturnType<typeof createSessionStore>;
   let cartStore: ReturnType<typeof createCartStore>;
   let siteStore: ReturnType<typeof createSiteStore>;
+  let customerStore: ReturnType<typeof createCustomerStore>;
   let unsubscribers: (() => void)[];
 
   beforeEach(() => {
@@ -91,6 +93,8 @@ describe('Store Synchronizer', () => {
       loading: false,
       error: null,
     });
+
+    customerStore = createCustomerStore();
   });
 
   afterEach(() => {
@@ -106,13 +110,16 @@ describe('Store Synchronizer', () => {
         sessionStore,
         cartStore,
         siteStore,
+        customerStore,
       });
 
       expect(Array.isArray(unsubscribers)).toBe(true);
-      expect(unsubscribers.length).toBe(3); // currency + site + siteStore subscriptions
+      expect(unsubscribers.length).toBe(5); // shipping cache + currency + site + siteStore + legalEntity
       expect(typeof unsubscribers[0]).toBe('function');
       expect(typeof unsubscribers[1]).toBe('function');
       expect(typeof unsubscribers[2]).toBe('function');
+      expect(typeof unsubscribers[3]).toBe('function');
+      expect(typeof unsubscribers[4]).toBe('function');
     });
 
     it('should call syncCurrencyWithSession when session currency changes', async () => {
@@ -130,6 +137,7 @@ describe('Store Synchronizer', () => {
         sessionStore,
         cartStore,
         siteStore,
+        customerStore,
       });
 
       // Change session currency
@@ -153,6 +161,7 @@ describe('Store Synchronizer', () => {
         sessionStore,
         cartStore,
         siteStore,
+        customerStore,
       });
 
       // Change session site
@@ -168,11 +177,43 @@ describe('Store Synchronizer', () => {
       expect(validateSiteSpy).toHaveBeenCalledWith('secondary');
     });
 
+    it('should call validateLegalEntity when session legalEntityId changes', async () => {
+      const validateLeSpy = jest.spyOn(cartStore.getState(), 'validateLegalEntity');
+
+      unsubscribers = setupStoreSynchronization({
+        sessionStore,
+        cartStore,
+        siteStore,
+        customerStore,
+      });
+
+      await act(async () => {
+        sessionStore.setState({
+          session: createMockSession({ legalEntityId: 'le-a' }),
+        });
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(validateLeSpy).toHaveBeenCalledWith('le-a');
+
+      await act(async () => {
+        sessionStore.setState({
+          session: createMockSession({ legalEntityId: 'le-b' }),
+        });
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(validateLeSpy).toHaveBeenCalledWith('le-b');
+    });
+
     it('should cleanup subscriptions when unsubscribe functions are called', () => {
       unsubscribers = setupStoreSynchronization({
         sessionStore,
         cartStore,
         siteStore,
+        customerStore,
       });
 
       // All unsubscribe functions should execute without error
@@ -188,6 +229,7 @@ describe('Store Synchronizer', () => {
         sessionStore,
         cartStore,
         siteStore,
+        customerStore,
       });
 
       // Set session to null
@@ -207,6 +249,7 @@ describe('Store Synchronizer', () => {
         sessionStore,
         cartStore,
         siteStore,
+        customerStore,
       });
 
       // Set session with undefined siteCode - cast to allow partial session for testing
@@ -235,6 +278,7 @@ describe('Store Synchronizer', () => {
         sessionStore,
         cartStore,
         siteStore,
+        customerStore,
       });
 
       // Change session currency for 'main' site, but cart belongs to 'other-site'
@@ -265,6 +309,7 @@ describe('Store Synchronizer', () => {
         sessionStore,
         cartStore,
         siteStore,
+        customerStore,
       });
 
       // Change session to EUR (same as cart)
@@ -294,6 +339,7 @@ describe('Store Synchronizer', () => {
         sessionStore,
         cartStore,
         siteStore,
+        customerStore,
       });
 
       // Rapid currency changes
@@ -331,6 +377,7 @@ describe('Store Synchronizer', () => {
         sessionStore,
         cartStore,
         siteStore,
+        customerStore,
       });
 
       // Change session currency while cart is loading
@@ -360,6 +407,7 @@ describe('Store Synchronizer', () => {
         sessionStore,
         cartStore,
         siteStore,
+        customerStore,
       });
 
       // Change currency while loading — should be skipped
@@ -399,6 +447,7 @@ describe('Store Synchronizer', () => {
         sessionStore,
         cartStore,
         siteStore,
+        customerStore,
       });
 
       // Switch session to 'us-branch'
@@ -421,6 +470,7 @@ describe('Store Synchronizer', () => {
         sessionStore,
         cartStore,
         siteStore,
+        customerStore,
       });
 
       // Set same site again — should not trigger reset

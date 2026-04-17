@@ -4,12 +4,13 @@ import { usePathname, useRouter } from 'next/navigation';
 import useHistory from '@/hooks/history/useHistory';
 import { useSiteCode } from '@/hooks/site/useSiteCode';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { SearchParams as BaseSearchParams, Filter, SearchResult } from '@/platform/services/model/common';
-import { SearchSuggestions } from '@/platform/services/model/search/SearchSuggestions';
+import type { SearchParams as BaseSearchParams, Filter, SearchResult } from '@/platform/services/model/common';
+import type { SearchSuggestions } from '@/platform/services/model/search/SearchSuggestions';
+import { useSessionStore } from '@/providers/StoreProvider';
 import { buildSearchPaginationUrl } from './build-search-pagination-url';
 
 const DEFAULT_PAGE_INDEX = 0;
-const DEFAULT_PAGE_SIZE = 16;
+const DEFAULT_PAGE_SIZE = 12;
 
 // Extend the SearchParams type to support nested objects in filters
 export type FilterValue = string | string[] | Record<string, string>;
@@ -42,6 +43,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   });
   const siteCode = useSiteCode();
   const locale = useLocale();
+  const sessionCurrency = useSessionStore().session?.currency;
 
   // Keep track of the last search params for pagination
   const lastSearchParams = useRef<SearchParams<T>>({
@@ -132,6 +134,9 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         }
         url.searchParams.append('site', siteCode);
         url.searchParams.append('locale', locale);
+        if (sessionCurrency) {
+          url.searchParams.append('currency', sessionCurrency);
+        }
 
         // Add filters if present
         if (params.filters) {
@@ -158,7 +163,6 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         // Update browser URL with the same parameters (but with 'q' instead of 'query')
         updateBrowserUrl(url.searchParams);
 
-        // Fetch the search results
         const response = await fetch(url.toString());
 
         if (!response.ok) {
@@ -182,7 +186,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         setLoading(false);
       }
     },
-    [updateBrowserUrl, locale, siteCode],
+    [updateBrowserUrl, locale, siteCode, sessionCurrency],
   );
 
   /**
@@ -323,6 +327,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         locale,
         query: lastSearchParams.current.query,
         sort: lastSearchParams.current.sort,
+        currency: sessionCurrency,
       });
 
       if (lastSearchParams.current.filters) {
@@ -354,38 +359,46 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     } finally {
       setLoadingMore(false);
     }
-  }, [hasMore, loadingMore, loading, currentPage, pageSize, siteCode, locale]);
+  }, [hasMore, loadingMore, loading, currentPage, pageSize, siteCode, locale, sessionCurrency]);
 
-  const getSuggestions = useCallback(async (query: string, locale?: string): Promise<void> => {
-    setLoading(true);
-    if (!query?.trim()) {
-      setSuggestions({
-        queryCompletions: [],
-        products: [],
-        categories: [],
-      });
-      return;
-    }
-    try {
-      const url = new URL('/api/search/suggestions', window.location.origin);
-      url.searchParams.append('query', query);
-      if (locale) {
-        url.searchParams.append('locale', locale);
+  const getSuggestions = useCallback(
+    async (query: string, locale?: string): Promise<void> => {
+      setLoading(true);
+      if (!query?.trim()) {
+        setSuggestions({
+          queryCompletions: [],
+          products: [],
+          categories: [],
+        });
+        setLoading(false);
+        return;
       }
-      const response = await fetch(url.toString());
-      if (!response.ok) {
-        throw new Error(`Suggestions failed: ${response.statusText}`);
-      }
-      const data = await response.json();
+      try {
+        const url = new URL('/api/search/suggestions', window.location.origin);
+        url.searchParams.append('query', query);
+        url.searchParams.append('site', siteCode);
+        if (locale) {
+          url.searchParams.append('locale', locale);
+        }
+        if (sessionCurrency) {
+          url.searchParams.append('currency', sessionCurrency);
+        }
+        const response = await fetch(url.toString());
+        if (!response.ok) {
+          throw new Error(`Suggestions failed: ${response.statusText}`);
+        }
+        const data = await response.json();
 
-      // Set suggestions directly from API response
-      setSuggestions(data);
-    } catch (err) {
-      getLogger().error({ err, query }, 'Error fetching suggestions');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+        // Set suggestions directly from API response
+        setSuggestions(data);
+      } catch (err) {
+        getLogger().error({ err, query }, 'Error fetching suggestions');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [siteCode, sessionCurrency],
+  );
 
   const changeSort = useCallback(
     (sort: string) => {

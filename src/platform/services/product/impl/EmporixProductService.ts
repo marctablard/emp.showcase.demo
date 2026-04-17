@@ -1,7 +1,7 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
-import { EmporixLabel } from '@/platform/integrations/emporix/model';
-import { EmporixProduct } from '@/platform/integrations/emporix/model/product';
+import type { EmporixLabel } from '@/platform/integrations/emporix/model';
+import type { EmporixProduct } from '@/platform/integrations/emporix/model/product';
 import type { EmporixBrandApi } from '@/platform/integrations/emporix/product/EmporixBrandApi';
 import type { EmporixLabelApi } from '@/platform/integrations/emporix/product/EmporixLabelApi';
 import type { EmporixProductApi } from '@/platform/integrations/emporix/product/EmporixProductApi';
@@ -10,7 +10,7 @@ import type { Product, ProductLabel } from '@/platform/services/model/product';
 import type { ProductFetchOptions, ProductService } from '@/platform/services/product/ProductService';
 import type { CategoryService } from '../../category/CategoryService';
 import type { Category } from '../../model/category';
-import { ProductPrice } from '../../model/price';
+import type { ProductPrice } from '../../model/price';
 import type { ProductMapper } from '../../model/product/ProductMapper';
 import type { PriceService } from '../../price';
 import type SegmentFilterService from '../../search/impl/SegmentFilterService';

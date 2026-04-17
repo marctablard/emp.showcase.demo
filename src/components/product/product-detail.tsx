@@ -17,10 +17,10 @@ import { type ProductTemplateAttributeKey, type ProductVariantAttributeKey, dk }
 import { fetchProductAvailability } from '@/lib/client/availability';
 import { fetchProductPrice } from '@/lib/client/prices';
 import { cn } from '@/lib/utils';
-import { StockAvailability } from '@/platform/services/model/common';
-import { ProductPrice } from '@/platform/services/model/price';
-import { GroupedSpecification, Product, ProductVariantAttribute } from '@/platform/services/model/product';
-import { ProductFetchOptions } from '@/platform/services/product';
+import type { StockAvailability } from '@/platform/services/model/common';
+import type { ProductPrice } from '@/platform/services/model/price';
+import type { GroupedSpecification, Product, ProductVariantAttribute } from '@/platform/services/model/product';
+import type { ProductFetchOptions } from '@/platform/services/product';
 import Recommendations from '../cms/recommendations';
 import { Button } from '../ui/button';
 import { H1, H2, Overline } from '../ui/h';

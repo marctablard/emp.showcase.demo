@@ -119,7 +119,8 @@ export type OrderStatusLowercaseKey =
   | 'status.shipped'
   | 'status.delivered'
   | 'status.completed'
-  | 'status.cancelled';
+  | 'status.cancelled'
+  | 'status.declined';
 
 // ---------------------------------------------------------------------------
 // Namespace: orders  (sub-path: paymentTypes.*)
@@ -169,7 +170,18 @@ export type InvoiceStatusKey = 'status.open' | 'status.overdue' | 'status.paid';
 // Used by: checkout-payment.tsx, order-confirmation.tsx, payment-method.tsx,
 //          order-detail.tsx, order-cards.tsx
 // ---------------------------------------------------------------------------
-export type PaymentModeKey = 'creditCard' | 'paypal' | 'invoice' | 'none';
+export type PaymentModeKey =
+  | 'creditCard'
+  | 'credit_card'
+  | 'credit-card'
+  | 'credit_card_3ds'
+  | 'paypal'
+  | 'invoice'
+  | 'none'
+  | 'saferpay'
+  | 'sprel'
+  | 'cash_on_delivery'
+  | 'unzer';
 
 // ---------------------------------------------------------------------------
 // Namespace: account.quoteStatus
@@ -184,7 +196,11 @@ export type QuoteStatusKey =
   | 'order_created'
   | 'creating'
   | 'closed'
-  | 'open';
+  | 'open'
+  | 'change'
+  | 'decline'
+  | 'declined_by_merchant'
+  | 'expired';
 
 // ---------------------------------------------------------------------------
 // Namespace: common.Languages

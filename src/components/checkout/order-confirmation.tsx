@@ -10,10 +10,11 @@ import useCustomer from '@/hooks/customer/useCustomer';
 import { useOrder } from '@/hooks/order/useOrder';
 import { type OrderStatusKey, type PaymentModeKey, dk } from '@/i18n/dynamic-key';
 import { formatCurrency } from '@/lib/utils';
-import { Order } from '@/platform/services/model/order/order';
+import type { Order } from '@/platform/services/model/order/order';
 import { AddressDisplay } from '../common/address-display';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { H1, H2, H3 } from '../ui/h';
+import { PENDING_APPROVAL_CONFIRMATION_SEGMENT } from './confirmation-constants';
 
 interface OrderConfirmationProps {
   orderId: string;
@@ -32,11 +33,12 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
   const tPayment = useTranslations('checkout.PaymentModes');
   const { customer } = useCustomer();
   const { order, loading, error } = useOrder({ orderId, initialOrder });
+  const isApprovalPendingConfirmation = orderId === PENDING_APPROVAL_CONFIRMATION_SEGMENT;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
       <div className="text-center mb-8">
-        {orderId.startsWith('Approval') ? (
+        {isApprovalPendingConfirmation ? (
           <>
             <div className="inline-flex items-center justify-center w-16 h-16 bg-surface-warning rounded-full mb-4">
               <ClockAlert className="h-8 w-8 text-icon-warning" />
@@ -263,8 +265,8 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
           </UiLink>
 
           {customer && (
-            <UiLink type="Link" href="/account/orders">
-              {t('viewOrders')}
+            <UiLink type="Link" href={isApprovalPendingConfirmation ? '/account/approvals' : '/account/orders'}>
+              {isApprovalPendingConfirmation ? t('viewApprovals') : t('viewOrders')}
             </UiLink>
           )}
         </div>

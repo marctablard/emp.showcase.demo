@@ -11,12 +11,14 @@ import { useRegistration } from '@/hooks/registration/useRegistration';
 import useCurrency from '@/hooks/useCurrency';
 import { useValidator } from '@/hooks/validation/useValidator';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { RegistrationData } from '@/platform/services/validation/impl/EmporixRegistrationValidationService';
+import type { RegistrationData } from '@/lib/validation/form-schemas';
 import { Spinner } from '../ui/spinner';
 import { AccountSettingsSection } from './account-settings-section';
 import { AddressInfoSection } from './address-info-section';
 import { EmailSignupSection } from './email-signup-section';
 import { RegistrationInfoSection } from './registration-info-section';
+
+const POST_REGISTER_REDIRECT_PATH = '/';
 
 export default function Registration() {
   const t = useTranslations('auth.register');
@@ -89,8 +91,10 @@ export default function Registration() {
       });
 
       if (result.success) {
-        // Redirect to login page or show a success message
-        await login(values.email, values.password);
+        const signedIn = await login(values.email, values.password, POST_REGISTER_REDIRECT_PATH);
+        if (!signedIn) {
+          setFormError(t('validation.signInAfterRegisterFailed'));
+        }
       } else if (result.error) {
         getLogger().warn({ error: result.error }, 'Registration error');
         // Handle specific error types

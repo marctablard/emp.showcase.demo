@@ -42,8 +42,8 @@ jobs:
       #   run: npx playwright install --with-deps
       - name: Pull Vercel environment information
         run: vercel env pull .env --environment=preview --yes --token=${{ secrets.VERCEL_TOKEN }}
-      # - name: Generate files
-      #   run: npm run generate
+      - name: Generate files
+        run: npm run generate
       - name: Run lint
         run: npm run lint
       - name: Run jest
@@ -70,29 +70,29 @@ jobs:
       #     path: playwright-report/
       #     retention-days: 7
 
-      - name: Deploy dev
+      - name: Deploy preview
         id: deploy
         run: |
           DEPLOY_OUTPUT=$(vercel deploy --token=${{ secrets.VERCEL_TOKEN }})
           DEPLOY_STATUS=$?
-          URL=$(echo "$DEPLOY_OUTPUT" | grep -o 'https://.*vercel.app')
+          PREVIEW_URL=$(echo "$DEPLOY_OUTPUT" | grep -o 'https://.*vercel.app')
           echo "deploy_status=$DEPLOY_STATUS" >> $GITHUB_OUTPUT
-          echo "url=$URL" >> $GITHUB_OUTPUT
+          echo "preview_url=$PREVIEW_URL" >> $GITHUB_OUTPUT
 
       - uses: chrnorm/deployment-action@v2
         name: Create GitHub deployment
         id: deployment
         with:
           token: '${{ github.token }}'
-          environment-url: ${{ steps.deploy.outputs.url }}
-          environment: 'dev'
+          environment-url: ${{ steps.deploy.outputs.preview_url }}
+          environment: 'preview'
 
       - name: Update deployment status (success)
         if: success()
         uses: chrnorm/deployment-status@v2
         with:
           token: '${{ github.token }}'
-          environment-url: ${{ steps.deploy.outputs.url }}
+          environment-url: ${{ steps.deploy.outputs.preview_url }}
           deployment-id: ${{ steps.deployment.outputs.deployment_id }}
           state: 'success'
 
@@ -101,6 +101,6 @@ jobs:
         uses: chrnorm/deployment-status@v2
         with:
           token: '${{ github.token }}'
-          environment-url: ${{ steps.deploy.outputs.url }}
+          environment-url: ${{ steps.deploy.outputs.preview_url }}
           deployment-id: ${{ steps.deployment.outputs.deployment_id }}
           state: 'failure'

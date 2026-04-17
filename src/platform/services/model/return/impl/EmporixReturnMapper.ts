@@ -1,6 +1,6 @@
 import { injectable } from '@/platform/core/di/injectable';
-import { EmporixMetadata } from '@/platform/integrations/emporix/model/common';
-import {
+import type { EmporixMetadata } from '@/platform/integrations/emporix/model/common';
+import type {
   EmporixReturnAssistedBuyingEntry,
   EmporixReturnCalculatedPrice,
   EmporixReturnCalculatedValue,
@@ -12,7 +12,7 @@ import {
   EmporixReturnResponse,
   EmporixReturnSubmitter,
 } from '@/platform/integrations/emporix/model/return';
-import {
+import type {
   Return,
   ReturnAssistedBuyingEntry,
   ReturnCalculatedPrice,
@@ -25,7 +25,7 @@ import {
   ReturnRequestor,
   ReturnSubmitter,
 } from '@/platform/services/model/return';
-import { ReturnMapper } from '../ReturnMapper';
+import type { ReturnMapper } from '../ReturnMapper';
 
 /**
  * Implementation of ReturnMapper for Emporix return data.

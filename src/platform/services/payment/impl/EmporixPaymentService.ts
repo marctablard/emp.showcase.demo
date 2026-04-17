@@ -2,8 +2,8 @@ import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixPaymentGatewayApi } from '@/platform/integrations/emporix/payment/EmporixPaymentGatewayApi';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { PaymentMode } from '@/platform/services/model/payment';
-import { PaymentService } from '../PaymentService';
+import type { PaymentMode } from '@/platform/services/model/payment';
+import type { PaymentService } from '../PaymentService';
 
 /**
  * Implementation of PaymentService for Emporix payment gateway

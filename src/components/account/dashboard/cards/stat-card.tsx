@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { H6 } from '@/components/ui/h';
-import { DashboardCard, DashboardCardProps } from './dashboard-card';
+import type { DashboardCardProps } from './dashboard-card';
+import { DashboardCard } from './dashboard-card';
 
 export interface StatCardProps extends Omit<DashboardCardProps, 'children'> {
   value: string | number;

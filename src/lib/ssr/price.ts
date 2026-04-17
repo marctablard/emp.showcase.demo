@@ -1,7 +1,7 @@
 import { cache } from 'react';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { ProductPrice } from '@/platform/services/model/price/price';
-import { PriceService } from '@/platform/services/price';
+import type { ProductPrice } from '@/platform/services/model/price/price';
+import type { PriceService } from '@/platform/services/price';
 import ssr from '@/platform/ssr';
 
 const getPriceService = () => ssr.get<PriceService>('PriceService');

@@ -1,6 +1,6 @@
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { CustomerUpdateDto, PasswordChangeDto } from '@/platform/services/customer/CustomerService';
-import { Customer, CustomerAddress } from '@/platform/services/model/customer/customer';
+import type { CustomerUpdateDto, PasswordChangeDto } from '@/platform/services/customer/CustomerService';
+import type { Customer, CustomerAddress } from '@/platform/services/model/customer/customer';
 
 /**
  * Fetch the current customer information
@@ -45,6 +45,22 @@ export async function fetchCustomerAddresses(): Promise<CustomerAddress[]> {
     return addresses;
   } catch (error) {
     getLogger().error({ err: error }, 'Error fetching customer addresses');
+    return [];
+  }
+}
+
+/**
+ * Legal entity location addresses for B2B checkout (not profile /customer addresses).
+ */
+export async function fetchLegalEntityCheckoutAddresses(): Promise<CustomerAddress[]> {
+  try {
+    const response = await fetch('/api/customer/current/legal-entity-addresses');
+    if (!response.ok) {
+      throw new Error(`Failed to fetch legal entity addresses: ${response.statusText}`);
+    }
+    return (await response.json()) as CustomerAddress[];
+  } catch (error) {
+    getLogger().error({ err: error }, 'Error fetching legal entity checkout addresses');
     return [];
   }
 }

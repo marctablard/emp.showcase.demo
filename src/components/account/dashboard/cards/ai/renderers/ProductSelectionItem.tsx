@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { ProductSelectionItem as ProductSelectionItemType } from '../types';
+import type { ProductSelectionItem as ProductSelectionItemType } from '../types';
 import { formatPrice, handleImageError } from '../utils';
 
 interface ProductSelectionItemProps {

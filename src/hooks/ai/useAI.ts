@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { sendAIChatMessageWithContext } from '@/lib/client/ai';
-import { AIChatContext, AIChatResponse } from '@/platform/integrations/ai/model';
+import type { AIChatContext, AIChatResponse } from '@/platform/integrations/ai/model';
 
 export interface UseAIResult {
   sendMessageWithContext: (userMessage: string, context: AIChatContext) => Promise<AIChatResponse>;

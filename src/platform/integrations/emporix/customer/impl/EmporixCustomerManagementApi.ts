@@ -1,8 +1,9 @@
 import { inject } from 'inversify';
+import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../../config';
-import { EmporixContactAssignment, EmporixLegalEntity, EmporixLocation } from '../../model';
+import type { EmporixContactAssignment, EmporixLegalEntity, EmporixLocation } from '../../model';
 import type { EmporixCustomerManagementApi as IEmporixCustomerManagementApi } from '../EmporixCustomerManagementApi';
 
 @injectable('EmporixCustomerManagementApi', 'Singleton')

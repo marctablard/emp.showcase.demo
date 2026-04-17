@@ -67,7 +67,8 @@
       "emailExists": "This email address is already registered.",
       "registrationFailed": "Registration failed. Please try again.",
       "serverError": "A server error occurred. Please try again later.",
-      "usernameTaken": "This username is already taken."
+      "usernameTaken": "This username is already taken.",
+      "signInAfterRegisterFailed": "Your account was created, but automatic sign-in failed. Please log in manually."
     }
   },
   "Password": {

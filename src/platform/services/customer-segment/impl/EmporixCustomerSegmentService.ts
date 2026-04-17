@@ -1,14 +1,14 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCustomerSegmentApi } from '@/platform/integrations/emporix/customer-segment/EmporixCustomerSegmentApi';
-import { CategoryTreeItemResponse, ItemAssignmentResponse } from '@/platform/integrations/emporix/model';
+import type { CategoryTreeItemResponse, ItemAssignmentResponse } from '@/platform/integrations/emporix/model';
 import type { CustomerService } from '../../customer/CustomerService';
 import type { LoggerService } from '../../logger/LoggerService';
-import { Category } from '../../model/category';
-import { CustomerSegmentQueryOptions, ItemAssignment } from '../../model/customer-segment';
+import type { Category } from '../../model/category';
+import type { CustomerSegmentQueryOptions, ItemAssignment } from '../../model/customer-segment';
 import type { CustomerSegmentMapper } from '../../model/customer-segment/CustomerSegmentMapper';
 import type { SessionService } from '../../session';
-import { CustomerSegmentService } from '../CustomerSegmentService';
+import type { CustomerSegmentService } from '../CustomerSegmentService';
 
 @injectable('CustomerSegmentService', 'Singleton')
 export class EmporixCustomerSegmentService implements CustomerSegmentService {

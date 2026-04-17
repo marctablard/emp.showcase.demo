@@ -16,7 +16,7 @@ import { useApproval } from '@/hooks/approval/useApproval';
 import useCustomer from '@/hooks/customer/useCustomer';
 import { useToast } from '@/hooks/ui/useToast';
 import { checkoutApproval as checkoutApi } from '@/lib/client/checkout';
-import { Approval } from '@/platform/services/model/approval';
+import type { Approval } from '@/platform/services/model/approval';
 import type { CheckoutRequest } from '@/platform/services/model/checkout';
 import { ApprovalStatusBadge } from './approval-status-badge';
 

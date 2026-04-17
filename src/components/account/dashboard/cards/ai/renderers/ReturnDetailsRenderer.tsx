@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ReturnData, ReturnDetailsData } from '../types';
+import type { ReturnData, ReturnDetailsData } from '../types';
 import { ReturnCard } from './ReturnCard';
 
 interface ReturnDetailsRendererProps {

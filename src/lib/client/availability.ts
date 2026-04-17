@@ -4,7 +4,7 @@
  */
 import { cache } from 'react';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { StockAvailability } from '@/platform/services/model/common';
+import type { StockAvailability } from '@/platform/services/model/common';
 
 /**
  * Fetch product availability by product ID

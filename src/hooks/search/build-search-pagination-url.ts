@@ -6,6 +6,7 @@ type BuildSearchPaginationUrlParams = {
   locale: string;
   query?: string;
   sort?: string;
+  currency?: string;
 };
 
 export const buildSearchPaginationUrl = ({
@@ -16,6 +17,7 @@ export const buildSearchPaginationUrl = ({
   locale,
   query,
   sort,
+  currency,
 }: BuildSearchPaginationUrlParams): URL => {
   const url = new URL('/api/search', origin);
 
@@ -32,6 +34,10 @@ export const buildSearchPaginationUrl = ({
 
   url.searchParams.append('site', siteCode);
   url.searchParams.append('locale', locale);
+
+  if (currency) {
+    url.searchParams.append('currency', currency);
+  }
 
   return url;
 };

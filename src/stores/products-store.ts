@@ -1,5 +1,5 @@
 import { create } from 'zustand/react';
-import { Product } from '@/platform/services/model/product';
+import type { Product } from '@/platform/services/model/product';
 
 // src/stores/counter-store.ts
 // re-export for convenience

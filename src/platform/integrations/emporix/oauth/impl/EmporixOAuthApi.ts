@@ -1,3 +1,4 @@
+import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import {
   type DebugContext,
@@ -6,12 +7,12 @@ import {
   logRequestPayload,
   logResponse,
 } from '@/platform/core/utils/debug-utils';
-import {
+import type {
   EmporixAccessTokenResponse,
   EmporixAnonymousTokenResponse,
   EmporixCustomerTokenResponse,
 } from '../../model/oauth';
-import { EmporixOAuthApi as IEmporixOAuthApi } from '../EmporixOAuthApi';
+import type { EmporixOAuthApi as IEmporixOAuthApi } from '../EmporixOAuthApi';
 
 /**
  * Implementation of the Emporix OAuth API
@@ -137,16 +138,27 @@ class EmporixOAuthApi implements IEmporixOAuthApi {
   /**
    * Refresh a customer token
    * @param tenant The tenant ID
+   * @param accessToken Access token from the original customer token response
    * @param refreshToken Refresh token from the original customer token response
+   * @param legalEntityId Optional legal entity ID for B2B company context
    * @returns Promise with the refreshed customer token response
    */
-  async refreshCustomerToken(tenant: string, refreshToken: string): Promise<EmporixCustomerTokenResponse> {
-    const url = `/customer/${tenant}/refreshauthtoken/refresh?refresh_token=${refreshToken}`;
+  async refreshCustomerToken(
+    tenant: string,
+    accessToken: string,
+    refreshToken: string,
+    legalEntityId?: string,
+  ): Promise<EmporixCustomerTokenResponse> {
+    let url = `/customer/${tenant}/refreshauthtoken?refreshToken=${refreshToken}`;
+    if (legalEntityId) {
+      url += `&legalEntityId=${encodeURIComponent(legalEntityId)}`;
+    }
 
     const response = await this.fetch(url, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
+        Authorization: `Bearer ${accessToken}`,
       },
     });
 

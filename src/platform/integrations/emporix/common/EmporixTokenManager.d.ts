@@ -63,6 +63,18 @@ export interface EmporixTokenManager {
   getServiceAccessToken(tenant: string, clientId: string, clientSecret: string, scopes?: string[]): Promise<string>;
 
   /**
+   * Refresh customer token with a specific legal entity ID
+   * Used when switching companies in B2B context
+   * @param tenant The tenant ID
+   * @param legalEntityId The legal entity ID to switch to
+   * @returns Promise with the refreshed token
+   */
+  refreshCustomerTokenWithLegalEntity(
+    tenant: string,
+    legalEntityId: string,
+  ): Promise<{ accessToken: string; saasToken?: string; sessionId: string } | null>;
+
+  /**
    * Clear all stored tokens
    */
   clearTokens(tenant: string): void;

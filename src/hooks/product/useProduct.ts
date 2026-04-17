@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useHistory } from '@/hooks/history/useHistory';
 import { fetchProductById } from '@/lib/client/products';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { Product } from '@/platform/services/model/product';
-import { ProductFetchOptions } from '@/platform/services/product/ProductService';
+import type { Product } from '@/platform/services/model/product';
+import type { ProductFetchOptions } from '@/platform/services/product/ProductService';
 import { useProductStore } from '@/providers/StoreProvider';
 
 interface UseProductResult {

@@ -1,6 +1,6 @@
 'use client';
 
-import { Control } from 'react-hook-form';
+import type { Control } from 'react-hook-form';
 import { useTranslations } from 'next-intl';
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { H2 } from '@/components/ui/h';

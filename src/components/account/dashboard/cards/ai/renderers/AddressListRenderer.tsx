@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { AddressData, AddressListData } from '../types';
+import type { AddressData, AddressListData } from '../types';
 import { AddressCard } from './AddressCard';
 
 interface AddressListRendererProps {

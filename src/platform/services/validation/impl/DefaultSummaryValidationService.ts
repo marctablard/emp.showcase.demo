@@ -1,10 +1,6 @@
-import { z } from 'zod';
+import { SummaryFormSchema } from '@/lib/validation/form-schemas';
 import { injectable } from '@/platform/core/di/injectable';
 import ZodSchemaValidationService from './ZodSchemaValidationService';
-
-const SummaryFormSchema = z.object({
-  termsAndConditions: z.boolean(),
-});
 
 @injectable('SummaryValidationService', 'Singleton')
 class DefaultSummaryValidationService extends ZodSchemaValidationService {

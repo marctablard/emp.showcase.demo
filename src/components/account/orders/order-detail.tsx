@@ -16,7 +16,7 @@ import { useRouter } from '@/i18n/navigation';
 import { fetchReturnsForOrder } from '@/lib/client/returns';
 import { type OrderReturnability, computeOrderReturnability } from '@/lib/common/returns/returnability';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { Order, OrderStatus } from '@/platform/services/model/order/order';
+import type { Order, OrderStatus } from '@/platform/services/model/order/order';
 import { ORDER_STATUS } from '@/platform/services/model/order/order-status';
 import { CreateReturnDialog } from './create-return-dialog';
 import { OrderStatusBadge } from './order-status-badge';

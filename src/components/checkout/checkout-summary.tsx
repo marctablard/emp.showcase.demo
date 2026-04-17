@@ -1,6 +1,7 @@
 'use client';
 
-import React, { RefObject, useEffect, useRef, useState } from 'react';
+import type { RefObject } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { LockKeyhole } from 'lucide-react';
 import { useApprovalCheckout } from '@/hooks/approval/useApprovalCheckout';

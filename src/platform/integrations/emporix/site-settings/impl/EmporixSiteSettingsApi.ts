@@ -1,11 +1,12 @@
 import { inject } from 'inversify';
+import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import { buildPaginatedResponse, buildSearchQuery } from '../../common/util/common';
 import type { EmporixConfig } from '../../config';
-import { EmporixPaginatedResponse, EmporixSearchParams } from '../../model';
-import { EmporixSite } from '../../model/site-settings';
-import { EmporixSiteSettingsApi as IEmporixSiteSettingsApi } from '../EmporixSiteSettingsApi';
+import type { EmporixPaginatedResponse, EmporixSearchParams } from '../../model';
+import type { EmporixSite } from '../../model/site-settings';
+import type { EmporixSiteSettingsApi as IEmporixSiteSettingsApi } from '../EmporixSiteSettingsApi';
 
 @injectable('EmporixSiteSettingsApi', 'Singleton')
 class EmporixSiteSettingsApi implements IEmporixSiteSettingsApi {

@@ -42,6 +42,7 @@ const commonJestConfig = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@platform/(.*)$': '<rootDir>/src/platform/$1',
+    '^server-only$': '<rootDir>/jest/mocks/server-only.js',
   },
   // Exclude e2e tests from Jest runs
   testPathIgnorePatterns: [
@@ -66,6 +67,7 @@ const customJestConfig = {
       moduleNameMapper: {
         '^@/(.*)$': '<rootDir>/src/$1',
         '^@platform/(.*)$': '<rootDir>/src/platform/$1',
+        '^server-only$': '<rootDir>/jest/mocks/server-only.js',
       },
       testPathIgnorePatterns: commonJestConfig.testPathIgnorePatterns,
       transformIgnorePatterns: ['/node_modules/(?!(next-intl|use-intl)/)'],

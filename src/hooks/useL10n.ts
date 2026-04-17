@@ -1,6 +1,6 @@
 import { useLocale } from 'next-intl';
 import { l10n as utill10n } from '@/lib/utils';
-import { LocalizedString } from '@/platform/services/model/common';
+import type { LocalizedString } from '@/platform/services/model/common';
 
 /**
  * Hook for localizing content based on the current locale

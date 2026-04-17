@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { HeaderPromo } from '@/components/header/common/header-promo';
-import { MenuItem, SubMenuItem } from '@/data/navigation-menu';
+import type { MenuItem, SubMenuItem } from '@/data/navigation-menu';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 

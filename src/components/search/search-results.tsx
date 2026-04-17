@@ -10,8 +10,8 @@ import { SearchResultsGrid } from '@/components/search/search-results-grid';
 import { SearchResultsList } from '@/components/search/search-results-list';
 import { Button } from '@/components/ui/button';
 import { useSearch } from '@/hooks/search/useSearch';
-import { SearchParams, SearchResult } from '@/platform/services/model/common';
-import { Product } from '@/platform/services/model/product';
+import type { SearchParams, SearchResult } from '@/platform/services/model/common';
+import type { Product } from '@/platform/services/model/product';
 
 interface SearchClientWrapperProps {
   initialSearch?: SearchParams<Product>;

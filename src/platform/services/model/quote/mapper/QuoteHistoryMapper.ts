@@ -1,4 +1,4 @@
-import { QuoteHistory } from '..';
+import type { QuoteHistory } from '..';
 
 /**
  * Interface for mapping external quote history data to application QuoteHistory model

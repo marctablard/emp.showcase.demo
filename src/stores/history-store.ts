@@ -1,7 +1,7 @@
 import { persist } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { create } from 'zustand/react';
-import { Product } from '@/platform/services/model/product';
+import type { Product } from '@/platform/services/model/product';
 
 // re-export for convenience
 export { useHistoryStore } from '@/providers/StoreProvider';

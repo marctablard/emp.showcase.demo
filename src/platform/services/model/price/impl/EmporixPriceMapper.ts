@@ -1,7 +1,7 @@
 import { injectable } from '@/platform/core/di/injectable';
-import { EmporixMatchedPrice, EmporixQuantity } from '@/platform/integrations/emporix/model/price';
-import { PriceMapper } from '../PriceMapper';
-import { ProductPrice } from '../price';
+import type { EmporixMatchedPrice, EmporixQuantity } from '@/platform/integrations/emporix/model/price';
+import type { PriceMapper } from '../PriceMapper';
+import type { ProductPrice } from '../price';
 
 /**
  * Maps between Emporix Price model and Service Price model

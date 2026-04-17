@@ -1,12 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { normalizeReasonCode, normalizeReasonDetails } from '@/lib/common/returns/reason-normalization';
 import { computeOrderReturnability } from '@/lib/common/returns/returnability';
 import type { EmporixReturnApi } from '@/platform/integrations/emporix/return/EmporixReturnApi';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { EmporixReturnMapper } from '@/platform/services/model/return/impl/EmporixReturnMapper';
+import type { EmporixReturnMapper } from '@/platform/services/model/return/impl/EmporixReturnMapper';
 import type { OrderService } from '@/platform/services/order/OrderService';
-import { ReturnService } from '@/platform/services/return/ReturnService';
+import type { ReturnService } from '@/platform/services/return/ReturnService';
 
 export const revalidate = 0;
 

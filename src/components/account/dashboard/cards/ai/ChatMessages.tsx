@@ -4,8 +4,8 @@ import React, { useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChatMessage } from './ChatMessage';
 import { LoadingIndicator } from './LoadingIndicator';
-import { ChatMessage as ChatMessageType } from './types';
-import { StructuredDataHandlers } from './types';
+import type { ChatMessage as ChatMessageType } from './types';
+import type { StructuredDataHandlers } from './types';
 
 interface ChatMessagesProps {
   messages: ChatMessageType[];

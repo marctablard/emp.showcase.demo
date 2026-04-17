@@ -7,7 +7,8 @@ import { CheckSquare } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useCompany } from '@/hooks/company/useCompany';
 import { Link } from '@/i18n/navigation';
-import { DashboardCard, DashboardCardProps } from './dashboard-card';
+import type { DashboardCardProps } from './dashboard-card';
+import { DashboardCard } from './dashboard-card';
 import { StatCard } from './stat-card';
 
 export function ApprovalsSummaryCard({}: Omit<DashboardCardProps, 'children'>) {

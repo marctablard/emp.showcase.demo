@@ -2,16 +2,16 @@ import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCountryApi } from '@/platform/integrations/emporix/country/EmporixCountryApi';
 import type { EmporixCurrencyApi } from '@/platform/integrations/emporix/currency/EmporixCurrencyApi';
-import { EmporixCountry, EmporixRegion } from '@/platform/integrations/emporix/model/country';
-import { EmporixCurrency, EmporixExchangeRate } from '@/platform/integrations/emporix/model/currency';
-import { EmporixSite } from '@/platform/integrations/emporix/model/site-settings';
+import type { EmporixCountry, EmporixRegion } from '@/platform/integrations/emporix/model/country';
+import type { EmporixCurrency, EmporixExchangeRate } from '@/platform/integrations/emporix/model/currency';
+import type { EmporixSite } from '@/platform/integrations/emporix/model/site-settings';
 import type { EmporixSiteSettingsApi } from '@/platform/integrations/emporix/site-settings/EmporixSiteSettingsApi';
-import { Address, Country, Currency, ExchangeRate, Region } from '@/platform/services/model/common';
+import type { Address, Country, Currency, ExchangeRate, Region } from '@/platform/services/model/common';
 import type { LoggerService } from '../../logger/LoggerService';
-import { PaymentMode } from '../../model';
-import { Site } from '../../model/common/site';
+import type { PaymentMode } from '../../model';
+import type { Site } from '../../model/common/site';
 import type { PaymentService } from '../../payment/PaymentService';
-import { SiteService } from '../SiteService';
+import type { SiteService } from '../SiteService';
 
 /**
  * Implementation of SiteService for Emporix platform

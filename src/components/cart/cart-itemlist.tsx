@@ -1,5 +1,5 @@
 import { useTranslations } from 'next-intl';
-import { Cart } from '@/platform/services/model/cart';
+import type { Cart } from '@/platform/services/model/cart';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { CartItemRow } from './cart-item';
 

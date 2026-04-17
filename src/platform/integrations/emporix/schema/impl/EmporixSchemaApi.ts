@@ -1,11 +1,17 @@
 import { inject } from 'inversify';
+import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import { buildPaginatedResponse, buildSearchQuery } from '../../common/util/common';
 import type { EmporixConfig } from '../../config';
-import { EmporixPaginatedResponse, EmporixSearchParams } from '../../model';
-import { EmporixBulkResponseItem, EmporixCustomEntity, EmporixPatchOperation, EmporixSchema } from '../../model/schema';
+import type { EmporixPaginatedResponse, EmporixSearchParams } from '../../model';
+import type {
+  EmporixBulkResponseItem,
+  EmporixCustomEntity,
+  EmporixPatchOperation,
+  EmporixSchema,
+} from '../../model/schema';
 import type { EmporixSchemaApi as IEmporixSchemaApi } from '../EmporixSchemaApi';
 
 @injectable('EmporixSchemaApi', 'Singleton')

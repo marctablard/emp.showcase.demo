@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn, formatCurrency, formatCurrencyToParts } from '@/lib/utils';
-import { ProductPrice } from '@/platform/services/model/price';
+import type { ProductPrice } from '@/platform/services/model/price';
 
 interface ProductPriceProps {
   price: ProductPrice | null;

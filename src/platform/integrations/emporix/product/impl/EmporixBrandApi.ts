@@ -1,9 +1,14 @@
 import { inject } from 'inversify';
+import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
-import { EmporixBrand, EmporixPaginatedResponse, EmporixSearchParams } from '@/platform/integrations/emporix/model';
-import EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
+import type {
+  EmporixBrand,
+  EmporixPaginatedResponse,
+  EmporixSearchParams,
+} from '@/platform/integrations/emporix/model';
+import type EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
 import { buildPaginatedResponse, buildSearchQuery } from '../../common/util/common';
-import { EmporixBrandApi as IEmporixBrandApi } from '../EmporixBrandApi';
+import type { EmporixBrandApi as IEmporixBrandApi } from '../EmporixBrandApi';
 
 /**
  * Implementation of BrandApi for Emporix brand data.

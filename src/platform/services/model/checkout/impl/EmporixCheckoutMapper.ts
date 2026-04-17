@@ -7,8 +7,8 @@ import type {
   EmporixCheckoutRequest,
   EmporixShipping,
 } from '@/platform/integrations/emporix/model';
-import { CheckoutMapper } from '../CheckoutMapper';
-import { CheckoutAddress, CheckoutRequest, OrderShipping } from '../checkout';
+import type { CheckoutMapper } from '../CheckoutMapper';
+import type { CheckoutAddress, CheckoutRequest, OrderShipping } from '../checkout';
 
 //TODO create different Abstractions for CartCheckout and QuoteCheckout
 @injectable('EmporixCheckoutMapper', 'Singleton')

@@ -1,9 +1,9 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
-import { ValidationResult } from '@/platform/services/validation';
+import type { ValidationResult } from '@/platform/services/validation';
 import type { ValidationService } from '@/platform/services/validation';
-import { CheckoutRequest, QuoteCheckoutRequest } from '../../../model/checkout';
-import { CheckoutStep, CheckoutValidator } from '../CheckoutValidator';
+import type { CheckoutRequest, QuoteCheckoutRequest } from '../../../model/checkout';
+import type { CheckoutStep, CheckoutValidator } from '../CheckoutValidator';
 
 /**
  * Implementation of CheckoutValidator for Emporix checkout

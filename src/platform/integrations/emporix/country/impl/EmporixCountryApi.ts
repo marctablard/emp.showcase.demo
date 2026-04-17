@@ -1,9 +1,10 @@
 import { inject } from 'inversify';
+import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../../config';
-import { EmporixCountry, EmporixRegion } from '../../model/country';
-import { EmporixCountryApi as IEmporixCountryApi } from '../EmporixCountryApi';
+import type { EmporixCountry, EmporixRegion } from '../../model/country';
+import type { EmporixCountryApi as IEmporixCountryApi } from '../EmporixCountryApi';
 
 @injectable('EmporixCountryApi', 'Singleton')
 class EmporixCountryApi implements IEmporixCountryApi {

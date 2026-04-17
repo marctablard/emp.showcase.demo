@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { handlers } from '@/auth/auth';
 import { getContext } from '@/lib/server/context';
 import { getBaseUrl } from '@/lib/server/url-utils';

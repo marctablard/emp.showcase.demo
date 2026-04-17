@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import server from '@/platform/server';
-import { CustomerSegmentService } from '@/platform/services/customer-segment/CustomerSegmentService';
+import type { CustomerSegmentService } from '@/platform/services/customer-segment/CustomerSegmentService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { CustomerSegmentQueryOptions } from '@/platform/services/model/customer-segment';
+import type { CustomerSegmentQueryOptions } from '@/platform/services/model/customer-segment';
 
 export async function GET(request: NextRequest) {
   try {

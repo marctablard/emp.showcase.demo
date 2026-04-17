@@ -1,4 +1,5 @@
-import React, { Dispatch, SetStateAction, forwardRef } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
+import React, { forwardRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowRight } from 'lucide-react';
 import { NoResults } from '@/components/header/search/no-results';
@@ -8,7 +9,7 @@ import { ProductTileFlyOut } from '@/components/product/product-tile-fly-out';
 import { Button } from '@/components/ui/button';
 import { Heading } from '@/components/ui/h';
 import useHistory from '@/hooks/history/useHistory';
-import { SearchSuggestions } from '@/platform/services/model/search';
+import type { SearchSuggestions } from '@/platform/services/model/search';
 
 export interface SearchResultFlyOutProps {
   suggestions: SearchSuggestions;

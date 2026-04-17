@@ -16,4 +16,5 @@ export const ORDER_STATUS: { [K in OrderStatus]: K } = {
   DELIVERED: 'DELIVERED',
   COMPLETED: 'COMPLETED',
   CANCELLED: 'CANCELLED',
+  DECLINED: 'DECLINED',
 };

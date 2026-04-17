@@ -104,6 +104,35 @@ export default function BadgeStyleGuide() {
           </Badge>
         </div>
       </div>
+      <H5 className="mb-3">Status tags (Figma Molecules / Tags)</H5>
+      <p className="text-sm text-text-secondary mb-3 max-w-3xl">
+        Account order, quote, return, and approval status chips use{' '}
+        <span className="font-mono text-xs">size=&quot;status&quot;</span> with semantic variants below (parity with
+        node 8590:33425).
+      </p>
+      <div className="p-4 flex flex-wrap gap-3 items-center mb-6 bg-surface-image-background rounded-md">
+        <Badge variant="success" size="status">
+          green
+        </Badge>
+        <Badge variant="warning" size="status">
+          orange
+        </Badge>
+        <Badge variant="destructive" size="status">
+          red
+        </Badge>
+        <Badge variant="secondary" size="status">
+          grey
+        </Badge>
+        <Badge variant="information" size="status">
+          blue
+        </Badge>
+        <Badge variant="outline" size="status">
+          outline
+        </Badge>
+        <Badge variant="default" size="status">
+          neutral
+        </Badge>
+      </div>
       <H5 className="mb-3">As Link</H5>
       <div className="p-4 grid grid-cols-[1fr] sm:grid-cols-[1fr_1fr] lg:grid-cols-[1fr_1fr_1fr_1fr] gap-6 mb-2">
         <div className="flex flex-wrap gap-3 flex-col items-start">

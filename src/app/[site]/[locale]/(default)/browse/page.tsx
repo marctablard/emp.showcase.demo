@@ -1,12 +1,12 @@
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { SearchResultsComponent } from '@/components/search/search-results';
 import { Heading } from '@/components/ui/h';
 import { searchProducts } from '@/lib/ssr/search';
 import { getPageTitle } from '@/lib/ssr/seo';
 import { isSearchSsrEnabled } from '@/lib/ssr/ssr-config';
-import { SearchParams } from '@/platform/services/model/common';
-import { Product } from '@/platform/services/model/product';
+import type { SearchParams } from '@/platform/services/model/common';
+import type { Product } from '@/platform/services/model/product';
 import { extractFiltersFromSearchParams } from '@/utils/filterUtils';
 
 export async function generateBrowsePageMetadata(locale: string): Promise<Metadata> {
@@ -25,6 +25,7 @@ export async function generateBrowsePageMetadata(locale: string): Promise<Metada
 export function createBrowseInitialSearch(
   rawParams: Record<string, string | string[]>,
   customerSegments: boolean,
+  site: string,
 ): { initialSearch: SearchParams<Product>; q?: string } {
   const q = rawParams.q as string | undefined;
   const page = rawParams.page as string | undefined;
@@ -38,6 +39,7 @@ export function createBrowseInitialSearch(
     query: q,
     filters: Object.keys(filters).length > 0 ? filters : undefined,
     customerSegments,
+    site,
   };
 
   return { initialSearch, q };
@@ -80,13 +82,13 @@ export default async function BrowsePage({
   params,
   searchParams,
 }: {
-  params: Promise<{ locale: string }>;
+  params: Promise<{ site: string; locale: string }>;
   searchParams: Promise<Record<string, string | string[]>>;
 }) {
-  const { locale } = await params;
+  const { locale, site } = await params;
   const rawParams = await searchParams;
 
-  const { initialSearch, q } = createBrowseInitialSearch(rawParams, false);
+  const { initialSearch, q } = createBrowseInitialSearch(rawParams, false, site);
   // Fetch initial products server-side if SSR is enabled
   const initialResults = isSearchSsrEnabled() ? await searchProducts(initialSearch) : undefined;
 
