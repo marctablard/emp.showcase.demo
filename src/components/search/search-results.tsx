@@ -214,6 +214,10 @@ export function SearchResultsComponent({
             pageSize={pageSize}
             total={total}
             loading={loading}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            loadMore={loadMore}
+            activeCategoryIdsFilter={activeFilters.categoryIds}
             navigationRoots={navigationRoots}
           />
         )}

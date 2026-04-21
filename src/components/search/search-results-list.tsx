@@ -1,11 +1,9 @@
-import { useTranslations } from 'next-intl';
-import type { Product } from '@platform/services/model/product';
-import { ProductTileListItemSkeleton } from '@/components/product/product-tile-list-item-skeleton';
-import { PlpCategoryBreadcrumbs } from '@/components/search/list-view/plp-category-breadcrumbs';
-import { PlpCategoryCarousel } from '@/components/search/list-view/plp-category-carousel';
-import { SearchNoResults } from '@/components/search/search-no-results';
-import { Skeleton } from '@/components/ui/skeleton';
+'use client';
+
+import { PlpListLayout } from '@/components/search/list-view/plp-list-layout';
+import { parseCategoryIdsFilterValue } from '@/lib/search/parse-category-ids-filter';
 import type { Category } from '@/platform/services/model/category';
+import type { Product } from '@/platform/services/model/product';
 
 interface SearchResultsListProps {
   products: Product[];
@@ -14,9 +12,14 @@ interface SearchResultsListProps {
   pageSize: number;
   total: number;
   loading: boolean;
+  hasMore: boolean;
+  loadingMore: boolean;
+  loadMore: () => void | Promise<void>;
+  /** Active `filters[categoryIds]` from `useSearch`, used to highlight the selected tree node. */
+  activeCategoryIdsFilter?: string | string[] | Record<string, string>;
   /**
-   * Site-scoped navigation root categories rendered in the PLP thumbnail carousel. Optional so
-   * legacy call sites that do not plumb the forest keep rendering the placeholder product area.
+   * Site-scoped navigation root categories rendered in the PLP thumbnail carousel and left-column
+   * tree. Optional so legacy call sites that do not plumb the forest keep rendering a slim layout.
    */
   navigationRoots?: Category[];
 }
@@ -28,54 +31,27 @@ export function SearchResultsList({
   pageSize,
   total,
   loading,
+  hasMore,
+  loadingMore,
+  loadMore,
+  activeCategoryIdsFilter,
   navigationRoots,
 }: SearchResultsListProps) {
-  const t = useTranslations('search');
   const rootCategories = navigationRoots ?? [];
+  const selectedCategoryId = parseCategoryIdsFilterValue(activeCategoryIdsFilter)[0];
 
   return (
-    <>
-      <PlpCategoryCarousel categories={rootCategories} locale={locale} />
-      <PlpCategoryBreadcrumbs />
-
-      {loading ? (
-        <>
-          <Skeleton className="mb-4 h-5 w-[180px]" />
-          <div className="flex flex-col gap-4">
-            {Array.from({ length: Math.min(pageSize, products.length) }).map((_, i) => (
-              <ProductTileListItemSkeleton key={i} />
-            ))}
-          </div>
-        </>
-      ) : (
-        <>
-          {products.length === 0 ? (
-            <SearchNoResults />
-          ) : (
-            <>
-              <div className="mb-4">
-                <p className="text-text-placeholders text-sm">
-                  {t('searchResults.showing', {
-                    start: 1,
-                    end: products.length,
-                    total: total,
-                  })}
-                </p>
-              </div>
-
-              {/* Client-side rendered products - this will replace the server-rendered ones */}
-              <div className="flex flex-col gap-4">
-                <p>List view currently not available. Please select grid view.</p>
-                {/*{products.map((product) => (*/}
-                {/*  <div key={product.id} className="h-full">*/}
-                {/*    <ProductTileListItem product={product} locale={locale} />*/}
-                {/*  </div>*/}
-                {/*))}*/}
-              </div>
-            </>
-          )}
-        </>
-      )}
-    </>
+    <PlpListLayout
+      products={products}
+      locale={locale}
+      pageSize={pageSize}
+      total={total}
+      loading={loading}
+      navigationRoots={rootCategories}
+      selectedCategoryId={selectedCategoryId}
+      hasMore={hasMore}
+      loadingMore={loadingMore}
+      loadMore={loadMore}
+    />
   );
 }

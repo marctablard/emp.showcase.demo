@@ -19,5 +19,9 @@
   },
   "plpCategoryCarousel": {
     "title": "Kategorien"
+  },
+  "plpCategoryTree": {
+    "title": "Kategorien",
+    "totalProducts": "— {total} Produkte"
   }
 }
