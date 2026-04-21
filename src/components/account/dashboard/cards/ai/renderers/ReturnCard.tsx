@@ -4,6 +4,7 @@ import React from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
+import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import { formatDate, formatPrice, getReturnStatusBadgeVariantForAi, handleImageError } from '../utils';
 
 interface ReturnCardProps {
@@ -22,7 +23,7 @@ export const ReturnCard: React.FC<ReturnCardProps> = ({ returnItem }) => {
     return null;
   }
 
-  const returnCurrency = returnItem.currency || returnItem.total?.currency || 'EUR';
+  const returnCurrency = returnItem.currency || returnItem.total?.currency || getPublicDefaultCurrency();
   const totalValue = extractPriceValue(returnItem.total);
 
   const allItems: any[] = [];

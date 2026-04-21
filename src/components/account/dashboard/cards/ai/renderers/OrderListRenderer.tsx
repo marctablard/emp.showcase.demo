@@ -4,6 +4,7 @@ import React from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
+import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import type { OrderData, OrderItemData, OrderListData } from '../types';
 import { extractPrice, formatDate, formatPrice, getOrderStatusBadgeVariantForAi, handleImageError } from '../utils';
 
@@ -18,7 +19,7 @@ export const OrderListRenderer: React.FC<OrderListRendererProps> = ({ data }) =>
     <div className="space-y-3">
       {data.orders &&
         data.orders.map((order: OrderData, index: number) => {
-          const orderCurrency = order.currency || 'EUR';
+          const orderCurrency = order.currency || getPublicDefaultCurrency();
           const totalPrice = extractPrice(order.total);
           const totalGross = totalPrice.gross || 0;
           const totalNet = totalPrice.net || 0;

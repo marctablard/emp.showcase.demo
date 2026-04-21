@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import { Container } from 'inversify';
 import { first } from 'lodash';
+import type { EmporixTokenManager } from '../../common/EmporixTokenManager';
 import EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
 import { EmporixTestTokenManager } from '../../common/impl/EmporixTokenManager.test';
 import { EmporixConfig } from '../../config';
@@ -61,8 +62,17 @@ describe('EmporixIamApi', () => {
     // Set up the container with our test config
     container = new Container();
     container.bind<EmporixConfig>('EmporixConfig').to(TestEmporixConfig);
-    container.bind<EmporixTestTokenManager>('EmporixTokenManager').to(EmporixTestTokenManager);
-    container.bind<EmporixApiInvoker>('EmporixApiInvoker').to(EmporixApiInvoker);
+    container.bind<EmporixTestTokenManager>('EmporixTokenManager').to(EmporixTestTokenManager).inSingletonScope();
+    container
+      .bind<EmporixApiInvoker>('EmporixApiInvoker')
+      .toDynamicValue(
+        (ctx) =>
+          new EmporixApiInvoker(
+            ctx.get<EmporixConfig>('EmporixConfig'),
+            ctx.get<EmporixTokenManager>('EmporixTokenManager'),
+          ),
+      )
+      .inSingletonScope();
     container.bind<EmporixOAuthApi>('EmporixOAuthApi').to(EmporixOAuthApi);
     container.bind<EmporixCustomerApi>('EmporixCustomerApi').to(EmporixCustomerApi);
     container.bind<EmporixIamApi>('EmporixIamApi').to(EmporixIamApi);

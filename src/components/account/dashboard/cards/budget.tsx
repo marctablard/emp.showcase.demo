@@ -5,6 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Spinner } from '@/components/ui/spinner';
 import { useCompany } from '@/hooks/company/useCompany';
 import { useOrders } from '@/hooks/order/useOrders';
+import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import { formatCurrency } from '@/lib/utils';
 import type { DashboardCardProps } from './dashboard-card';
 import { DashboardCard } from './dashboard-card';
@@ -17,7 +18,7 @@ export function BudgetSummaryCard() {
   const { loading, error, company } = useCompany();
   const { orders, loading: ordersLoading } = useOrders();
   const revenue = useMemo(() => orders?.reduce((sum, order) => sum + (order.price?.total.net || 0), 0) ?? 0, [orders]);
-  const currency = orders?.[0]?.currency || 'EUR';
+  const currency = orders?.[0]?.currency || getPublicDefaultCurrency();
 
   if (loading || ordersLoading) {
     return (
@@ -44,7 +45,7 @@ export function BudgetProgress({ className, title, ...props }: BudgetProgressPro
   const { loading, error, company } = useCompany();
   const { orders, loading: ordersLoading } = useOrders();
   const revenue = useMemo(() => orders?.reduce((sum, order) => sum + (order.price?.total.net || 0), 0) ?? 0, [orders]);
-  const currency = orders?.[0]?.currency || 'EUR';
+  const currency = orders?.[0]?.currency || getPublicDefaultCurrency();
 
   if (loading || ordersLoading) {
     return (

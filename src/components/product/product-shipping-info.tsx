@@ -5,7 +5,8 @@ import { useTranslations } from 'next-intl';
 import { Check, MapPin, Package, RefreshCw } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { H2 } from '@/components/ui/h';
-import { cn } from '@/lib/utils';
+import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
+import { cn, formatCurrency } from '@/lib/utils';
 
 interface ProductShippingInfoProps {
   className?: string;
@@ -22,13 +23,14 @@ export function ProductShippingInfo({
   className,
   deliveryDays = [1, 3],
   shippingCost = 9.95,
-  currency = 'EUR',
+  currency,
   location = 'London',
   postalCode = 'NW1 6XE',
   warrantyYears = 5,
   returnDays = 30,
 }: ProductShippingInfoProps) {
   const t = useTranslations('product.shipping');
+  const resolvedCurrency = currency ?? getPublicDefaultCurrency();
 
   return (
     <Card variant="gray" rounded="lg" className={cn('mt-8 p-0', className)}>
@@ -48,8 +50,7 @@ export function ProductShippingInfo({
           <div className="flex items-center gap-2 text-sm mb-2 ml-8">
             {shippingCost > 0 ? (
               <span>
-                {t('shipping')}: {shippingCost.toFixed(2)}
-                {currency === 'EUR' ? ' €' : ` ${currency}`}
+                {t('shipping')}: {formatCurrency(shippingCost, resolvedCurrency)}
               </span>
             ) : (
               <span className="ml-4">{t('freeShipping')}</span>

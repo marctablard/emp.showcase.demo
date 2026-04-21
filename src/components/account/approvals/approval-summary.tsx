@@ -4,6 +4,7 @@ import React from 'react';
 import { useTranslations } from 'next-intl';
 import { CreditCard, NotebookPen, ReceiptText, Truck } from 'lucide-react';
 import { SummaryCard, SummaryRow } from '@/components/ui/summary-card';
+import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import type { Approval } from '@/platform/services/model/approval';
 
 interface ApprovalSummaryProps {
@@ -16,7 +17,10 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
   const details = approval.details;
   const items = approval.resource.items || [];
   const currency =
-    details?.currency || approval.resource.totalPrice?.currency || approval.resource.subTotalPrice?.currency || 'EUR';
+    details?.currency ||
+    approval.resource.totalPrice?.currency ||
+    approval.resource.subTotalPrice?.currency ||
+    getPublicDefaultCurrency();
 
   const valueOfGoods = items.reduce((sum: number, it: any) => sum + (it?.itemPrice?.amount || 0), 0);
   const shippingCost = details?.shipping?.amount ?? 0;

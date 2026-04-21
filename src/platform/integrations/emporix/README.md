@@ -100,8 +100,18 @@ The main client for interacting with Emporix APIs.
 - `getAnonymousToken()`: Get an anonymous token for accessing public resources
 - `getCustomerToken(username, password)`: Get a customer token for authenticated user access
 - `getServiceAccessToken([clientId], [clientSecret])`: Get a service access token for administrative operations
-- `authenticatedFetch(url, options, tokenType)`: Create a fetch request with the appropriate authentication headers
+- `authenticatedFetch(url, options, tokenType, authOptions?, metrics?, cacheSeconds?)`: Create a fetch request with the appropriate authentication headers. Supported `tokenType` values: `'public'`, `'session'`, `'customer-saas'`, `'ai'`, `'service'`. See the **Caching** section below for the `cacheSeconds` semantics.
 - `clearTokens()`: Clear all stored tokens
+
+### Caching
+
+Caching is **opt-in per call**, not implied by `tokenType`:
+
+- Pass `cacheSeconds` (trailing argument) to enable Next fetch caching for that call. It sets `cache: 'force-cache'` and `next: { revalidate: cacheSeconds }`.
+- It applies only to `GET`/`HEAD` requests, and only when the caller has not already set `options.cache` or `options.next` explicitly (explicit options always win).
+- Write methods (`POST`/`PUT`/`PATCH`/`DELETE`) are always forced to `cache: 'no-store'` regardless of `cacheSeconds`.
+- Omit `cacheSeconds` for anything volatile or shopper-specific (orders, approvals, cart-ownership-sensitive reads, custom entities, per-session data). Use it only for reference / catalog-style reads.
+- For reference/catalog reads, prefer the shared `DEFAULT_CACHE_REVALIDATE` constant from `src/platform/integrations/emporix/common/cache-defaults.ts` instead of hard-coded literals, so the TTL stays consistent across integrations. It reads the same `NEXT_PUBLIC_CACHE_DEFAULT_REVALIDATE` env var as the HTTP cache middleware (`src/caching/cache-config.ts`), so a single setting controls the default revalidation window across both layers. The default is `3600` seconds; non-positive or non-numeric values fall back to `3600`. The `NEXT_PUBLIC_` prefix is required because this module can be evaluated from the client DI container graph (non-public env vars resolve to `undefined` in the browser bundle). See `docs/cache-middleware.md` for the shared semantics.
 
 ### TokenManager
 

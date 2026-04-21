@@ -25,7 +25,7 @@ describe('EmporixOAuthApi', () => {
     container = new Container();
     container.bind<EmporixConfig>('EmporixConfig').to(TestEmporixConfig);
     container.bind<IEmporixOAuthApi>('EmporixOAuthApi').to(EmporixOAuthApi);
-    container.bind<EmporixTokenManager>('EmporixTokenManager').to(EmporixTestTokenManager);
+    container.bind<EmporixTokenManager>('EmporixTokenManager').to(EmporixTestTokenManager).inSingletonScope();
 
     // Get instances from the container
     oauthApi = container.get<EmporixOAuthApi>('EmporixOAuthApi');

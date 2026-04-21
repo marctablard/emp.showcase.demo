@@ -1,9 +1,17 @@
 import { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { fetchProductById } from '@/lib/client/products';
-import { HistoryStoreContext, ProductStoreContext, StoreProvider, useProductStore } from '@/providers/StoreProvider';
+import type { Session } from '@/platform/services/model/session/session';
+import {
+  HistoryStoreContext,
+  ProductStoreContext,
+  SessionStoreContext,
+  StoreProvider,
+  useProductStore,
+} from '@/providers/StoreProvider';
 import { createHistoryStore } from '@/stores/history-store';
 import { createProductStore } from '@/stores/products-store';
+import { createSessionStore } from '@/stores/session-store-context';
 import { useProduct } from './useProduct';
 
 // Mock logger to avoid DI container requirements in tests
@@ -23,6 +31,26 @@ jest.mock('@/lib/client/products', () => ({
   fetchProductById: jest.fn(),
 }));
 
+jest.mock('@/hooks/site/useSite', () => ({
+  useSite: () => ({
+    site: {
+      code: 'main',
+      name: 'Main',
+      countries: [],
+      shipToCountries: [],
+      defaultCurrency: { id: 'USD', name: 'USD' },
+      currencies: [{ id: 'USD' }, { id: 'EUR' }],
+      languages: ['en'],
+      regions: [],
+      paymentModes: [],
+      defaultLanguage: 'en',
+      decimals: 2,
+      address: {},
+      includesTax: false,
+    },
+  }),
+}));
+
 // Sample product data for testing
 const mockProduct = {
   id: 'test-product-123',
@@ -36,8 +64,17 @@ const mockProduct = {
   purchasable: true,
 };
 
+const defaultTestShopSession: Session = {
+  id: 'jest-session',
+  siteCode: 'main',
+  currency: 'USD',
+  customerId: 'ANONYMOUS',
+};
+
 // Wrapper component to provide the store context
-const wrapper = ({ children }: { children: ReactNode }) => <StoreProvider>{children}</StoreProvider>;
+const wrapper = ({ children }: { children: ReactNode }) => (
+  <StoreProvider shopSession={defaultTestShopSession}>{children}</StoreProvider>
+);
 
 describe('useProduct hook', () => {
   beforeEach(() => {
@@ -70,7 +107,7 @@ describe('useProduct hook', () => {
     expect(result.current.error).toBe(null);
 
     // Verify that the API was called with the correct ID and options
-    expect(fetchProductById).toHaveBeenCalledWith('test-product-123', undefined);
+    expect(fetchProductById).toHaveBeenCalledWith('test-product-123', undefined, 'main|USD');
   });
 
   /**
@@ -106,7 +143,7 @@ describe('useProduct hook', () => {
       expect(result.current.error).toBe(mockError);
 
       // Verify that the API was called with the correct ID and options
-      expect(fetchProductById).toHaveBeenCalledWith('test-product-123', undefined);
+      expect(fetchProductById).toHaveBeenCalledWith('test-product-123', undefined, 'main|USD');
     } finally {
       // Restore the original console.error
       console.error = originalConsoleError;
@@ -125,10 +162,16 @@ describe('useProduct hook', () => {
     // Create a shared store
     const sharedStore = createProductStore();
     const historyStore = createHistoryStore();
+    const sessionStore = createSessionStore({
+      session: { id: 'test-session', siteCode: 'main', currency: 'USD', customerId: 'ANONYMOUS' },
+      loading: false,
+    });
     const customWrapper = ({ children }: { children: ReactNode }) => (
-      <HistoryStoreContext.Provider value={historyStore}>
-        <ProductStoreContext.Provider value={sharedStore}>{children}</ProductStoreContext.Provider>
-      </HistoryStoreContext.Provider>
+      <SessionStoreContext.Provider value={sessionStore}>
+        <HistoryStoreContext.Provider value={historyStore}>
+          <ProductStoreContext.Provider value={sharedStore}>{children}</ProductStoreContext.Provider>
+        </HistoryStoreContext.Provider>
+      </SessionStoreContext.Provider>
     );
 
     // Mock the API response
@@ -161,10 +204,16 @@ describe('useProduct hook', () => {
     // Create a shared store
     const sharedStore = createProductStore();
     const historyStore = createHistoryStore();
+    const sessionStore = createSessionStore({
+      session: { id: 'test-session', siteCode: 'main', currency: 'USD', customerId: 'ANONYMOUS' },
+      loading: false,
+    });
     const customWrapper = ({ children }: { children: ReactNode }) => (
-      <HistoryStoreContext.Provider value={historyStore}>
-        <ProductStoreContext.Provider value={sharedStore}>{children}</ProductStoreContext.Provider>
-      </HistoryStoreContext.Provider>
+      <SessionStoreContext.Provider value={sessionStore}>
+        <HistoryStoreContext.Provider value={historyStore}>
+          <ProductStoreContext.Provider value={sharedStore}>{children}</ProductStoreContext.Provider>
+        </HistoryStoreContext.Provider>
+      </SessionStoreContext.Provider>
     );
 
     // First, add a product to the store
@@ -181,14 +230,46 @@ describe('useProduct hook', () => {
     expect(hookResult.current.loading).toBe(false);
   });
 
+  test('should set error when session is irrecoverably null', async () => {
+    const sharedStore = createProductStore();
+    const historyStore = createHistoryStore();
+    const sessionStore = createSessionStore({
+      session: null,
+      loading: false,
+    });
+    const customWrapper = ({ children }: { children: ReactNode }) => (
+      <SessionStoreContext.Provider value={sessionStore}>
+        <HistoryStoreContext.Provider value={historyStore}>
+          <ProductStoreContext.Provider value={sharedStore}>{children}</ProductStoreContext.Provider>
+        </HistoryStoreContext.Provider>
+      </SessionStoreContext.Provider>
+    );
+
+    const { result } = renderHook(() => useProduct('test-product-123'), { wrapper: customWrapper });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.error).not.toBeNull();
+    expect(result.current.error?.message).toContain('Session unavailable');
+    expect(fetchProductById).not.toHaveBeenCalled();
+  });
+
   test('refetch should work correctly', async () => {
     // Create a shared store
     const sharedStore = createProductStore();
     const historyStore = createHistoryStore();
+    const sessionStore = createSessionStore({
+      session: { id: 'test-session', siteCode: 'main', currency: 'USD', customerId: 'ANONYMOUS' },
+      loading: false,
+    });
     const customWrapper = ({ children }: { children: ReactNode }) => (
-      <HistoryStoreContext.Provider value={historyStore}>
-        <ProductStoreContext.Provider value={sharedStore}>{children}</ProductStoreContext.Provider>
-      </HistoryStoreContext.Provider>
+      <SessionStoreContext.Provider value={sessionStore}>
+        <HistoryStoreContext.Provider value={historyStore}>
+          <ProductStoreContext.Provider value={sharedStore}>{children}</ProductStoreContext.Provider>
+        </HistoryStoreContext.Provider>
+      </SessionStoreContext.Provider>
     );
 
     // Mock the API response

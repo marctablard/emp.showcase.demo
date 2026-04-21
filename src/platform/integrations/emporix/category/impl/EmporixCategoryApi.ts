@@ -2,6 +2,7 @@ import { inject } from 'inversify';
 import { omit } from 'lodash';
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
+import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
 import type {
   EmporixCategory,
   EmporixCategoryAssignment,
@@ -12,12 +13,15 @@ import type {
   EmporixSearchParams,
 } from '@/platform/integrations/emporix/model';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
+import { DEFAULT_CACHE_REVALIDATE } from '../../common/cache-defaults';
 import type EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
 import type EmporixCommonUtil from '../../common/util/EmporixCommonUtil';
 import { buildPaginatedResponse, buildSearchQuery } from '../../common/util/common';
 import type { EmporixConfig } from '../../config';
 import type { EmporixCategoryQuery } from '../EmporixCategoryApi';
 import type { EmporixCategoryApi as IEmporixCategoryApi } from '../EmporixCategoryApi';
+
+const createCategoryMetrics = (route: string) => createFetchMetricsParams('category', route);
 
 /**
  * Implementation of CategoryApi for Emporix category data.
@@ -57,6 +61,9 @@ class EmporixCategoryApi implements IEmporixCategoryApi {
       url,
       { method: 'GET', headers: { 'X-Total-Count': 'true' } },
       'public',
+      undefined,
+      createCategoryMetrics('/category/{tenant}/categories'),
+      DEFAULT_CACHE_REVALIDATE,
     );
 
     return buildPaginatedResponse(params, response);
@@ -139,6 +146,9 @@ class EmporixCategoryApi implements IEmporixCategoryApi {
         },
       },
       'public',
+      undefined,
+      createCategoryMetrics('/category/{tenant}/categories/{id}'),
+      DEFAULT_CACHE_REVALIDATE,
     );
 
     if (!response.ok) {
@@ -167,6 +177,9 @@ class EmporixCategoryApi implements IEmporixCategoryApi {
         },
       },
       'public',
+      undefined,
+      createCategoryMetrics('/category/{tenant}/categories/{id}/parents'),
+      DEFAULT_CACHE_REVALIDATE,
     );
 
     if (!response.ok) {
@@ -210,6 +223,9 @@ class EmporixCategoryApi implements IEmporixCategoryApi {
           },
         },
         'public',
+        undefined,
+        createCategoryMetrics('/category/{tenant}/categories/{id}/subcategories'),
+        DEFAULT_CACHE_REVALIDATE,
       );
       return buildPaginatedResponse(params, response);
     } catch (error: any) {
@@ -258,6 +274,9 @@ class EmporixCategoryApi implements IEmporixCategoryApi {
           },
         },
         'public',
+        undefined,
+        createCategoryMetrics('/category/{tenant}/assignments/references/{id}'),
+        DEFAULT_CACHE_REVALIDATE,
       );
       return buildPaginatedResponse(params, response);
     } catch (error: any) {
@@ -299,6 +318,8 @@ class EmporixCategoryApi implements IEmporixCategoryApi {
         },
         tokenType,
         authOptions,
+        createCategoryMetrics('/category/{tenant}/category-trees/{id}'),
+        DEFAULT_CACHE_REVALIDATE,
       );
 
       if (!response.ok) {
@@ -478,6 +499,9 @@ class EmporixCategoryApi implements IEmporixCategoryApi {
           },
         },
         'public',
+        undefined,
+        createCategoryMetrics('/category/{tenant}/categories/{id}/assignments'),
+        DEFAULT_CACHE_REVALIDATE,
       );
       return buildPaginatedResponse(params, response);
     } catch (error: any) {

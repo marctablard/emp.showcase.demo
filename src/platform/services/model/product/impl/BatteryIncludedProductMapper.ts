@@ -1,5 +1,6 @@
 // c:\Workspace\emporix-showcase\src\platform\services\model\product\impl\BatteryIncludedProductMapper.ts
 import { inject } from 'inversify';
+import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import { injectable } from '@/platform/core/di/injectable';
 import type { BatteryIncludedProduct } from '@/platform/integrations/batteryincluded/model/product';
 import type { EmporixProduct } from '@/platform/integrations/emporix/model';
@@ -171,7 +172,7 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
   mapPrice(priceData: any): Price {
     return {
       amount: priceData.effectiveAmount || 0,
-      currency: priceData.currency || 'EUR',
+      currency: priceData.currency || getPublicDefaultCurrency(),
       originalAmount: priceData.originalAmount || priceData.amount || 0,
     };
   }

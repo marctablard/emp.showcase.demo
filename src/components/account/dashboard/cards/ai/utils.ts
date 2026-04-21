@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
 import type { BadgeVariant } from '@/components/ui/badge';
+import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import {
   getOrderStatusVariant,
   getQuoteStatusVariant,
@@ -12,8 +13,8 @@ import {
 /**
  * Helper function to safely format currency
  */
-export const formatPrice = (price: number, currency: string | undefined, fallbackCurrency: string = 'USD') => {
-  const currencyToUse = currency || fallbackCurrency;
+export const formatPrice = (price: number, currency: string | undefined, fallbackCurrency?: string) => {
+  const currencyToUse = currency || fallbackCurrency || getPublicDefaultCurrency();
   try {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',

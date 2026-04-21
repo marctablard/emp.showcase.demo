@@ -15,6 +15,7 @@ import UiLink from '@/components/ui/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useValidator } from '@/hooks/validation/useValidator';
 import { type InvoiceStatusKey, dk } from '@/i18n/dynamic-key';
+import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
 import type { DashboardCardProps } from './dashboard-card';
@@ -59,99 +60,102 @@ export function MyInvoicesCard({ className, title, ...props }: MyInvoicesCardPro
   };
 
   // Generate mock invoice data
-  const mockInvoices: Invoice[] = [
-    {
-      id: '1',
-      invoiceNumber: 'INV-2025-001',
-      status: 'PAID',
-      invoiceDate: '2025-05-15',
-      dueDate: '2025-06-15',
-      billingDate: '2025-05-15',
-      value: {
-        total: 256.78,
-        currency: 'EUR',
+  const mockInvoices: Invoice[] = useMemo(() => {
+    const currency = getPublicDefaultCurrency();
+    return [
+      {
+        id: '1',
+        invoiceNumber: 'INV-2025-001',
+        status: 'PAID',
+        invoiceDate: '2025-05-15',
+        dueDate: '2025-06-15',
+        billingDate: '2025-05-15',
+        value: {
+          total: 256.78,
+          currency,
+        },
+        orderReference: 'ORD-28746',
       },
-      orderReference: 'ORD-28746',
-    },
-    {
-      id: '2',
-      invoiceNumber: 'INV-2025-002',
-      status: 'OPEN',
-      invoiceDate: '2025-05-28',
-      dueDate: '2025-06-28',
-      billingDate: '2025-05-28',
-      value: {
-        total: 189.99,
-        currency: 'EUR',
+      {
+        id: '2',
+        invoiceNumber: 'INV-2025-002',
+        status: 'OPEN',
+        invoiceDate: '2025-05-28',
+        dueDate: '2025-06-28',
+        billingDate: '2025-05-28',
+        value: {
+          total: 189.99,
+          currency,
+        },
+        orderReference: 'ORD-29845',
       },
-      orderReference: 'ORD-29845',
-    },
-    {
-      id: '3',
-      invoiceNumber: 'INV-2025-003',
-      status: 'OVERDUE',
-      invoiceDate: '2025-04-10',
-      dueDate: '2025-05-10',
-      billingDate: '2025-04-10',
-      value: {
-        total: 534.5,
-        currency: 'EUR',
+      {
+        id: '3',
+        invoiceNumber: 'INV-2025-003',
+        status: 'OVERDUE',
+        invoiceDate: '2025-04-10',
+        dueDate: '2025-05-10',
+        billingDate: '2025-04-10',
+        value: {
+          total: 534.5,
+          currency,
+        },
+        orderReference: 'ORD-27632',
       },
-      orderReference: 'ORD-27632',
-    },
-    {
-      id: '4',
-      invoiceNumber: 'INV-2025-004',
-      status: 'PAID',
-      invoiceDate: '2025-05-02',
-      dueDate: '2025-06-02',
-      billingDate: '2025-05-02',
-      value: {
-        total: 99.95,
-        currency: 'EUR',
+      {
+        id: '4',
+        invoiceNumber: 'INV-2025-004',
+        status: 'PAID',
+        invoiceDate: '2025-05-02',
+        dueDate: '2025-06-02',
+        billingDate: '2025-05-02',
+        value: {
+          total: 99.95,
+          currency,
+        },
+        orderReference: 'ORD-28532',
       },
-      orderReference: 'ORD-28532',
-    },
-    {
-      id: '5',
-      invoiceNumber: 'INV-2025-005',
-      status: 'OPEN',
-      invoiceDate: '2025-06-01',
-      dueDate: '2025-07-01',
-      billingDate: '2025-06-01',
-      value: {
-        total: 345.2,
-        currency: 'EUR',
+      {
+        id: '5',
+        invoiceNumber: 'INV-2025-005',
+        status: 'OPEN',
+        invoiceDate: '2025-06-01',
+        dueDate: '2025-07-01',
+        billingDate: '2025-06-01',
+        value: {
+          total: 345.2,
+          currency,
+        },
+        orderReference: 'ORD-30126',
       },
-      orderReference: 'ORD-30126',
-    },
-    {
-      id: '6',
-      invoiceNumber: 'INV-2025-006',
-      status: 'PAID',
-      invoiceDate: '2025-06-10',
-      dueDate: '2025-07-10',
-      billingDate: '2025-06-10',
-      value: {
-        total: 125.75,
-        currency: 'EUR',
+      {
+        id: '6',
+        invoiceNumber: 'INV-2025-006',
+        status: 'PAID',
+        invoiceDate: '2025-06-10',
+        dueDate: '2025-07-10',
+        billingDate: '2025-06-10',
+        value: {
+          total: 125.75,
+          currency,
+        },
+        orderReference: 'ORD-30458',
       },
-      orderReference: 'ORD-30458',
-    },
-    {
-      id: '7',
-      invoiceNumber: 'INV-2025-007',
-      status: 'OVERDUE',
-      invoiceDate: '2025-03-25',
-      dueDate: '2025-04-25',
-      billingDate: '2025-03-25',
-      value: {
-        total: 420.3,
-        currency: 'EUR',
+      {
+        id: '7',
+        invoiceNumber: 'INV-2025-007',
+        status: 'OVERDUE',
+        invoiceDate: '2025-03-25',
+        dueDate: '2025-04-25',
+        billingDate: '2025-03-25',
+        value: {
+          total: 420.3,
+          currency,
+        },
+        orderReference: 'ORD-26987',
       },
-      orderReference: 'ORD-26987',
-    },
-  ];
+    ];
+  }, []);
 
   const invoices = mockInvoices;
 

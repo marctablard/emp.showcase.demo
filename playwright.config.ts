@@ -1,12 +1,29 @@
 import { defineConfig, devices } from '@playwright/test';
+import dotenv from 'dotenv';
+import path from 'path';
 
-/**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
- */
-// import dotenv from 'dotenv';
-// import path from 'path';
-// dotenv.config({ path: path.resolve(__dirname, '.env') });
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+
+/** Strip broken Node flags that trigger stderr noise in dev subprocesses (e.g. empty `--localstorage-file`). */
+function sanitizedNodeOptionsPatch(): Record<string, string> | undefined {
+  const raw = process.env.NODE_OPTIONS;
+  if (!raw) return undefined;
+  const filtered = raw
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((p) => !p.startsWith('--localstorage-file') && !p.startsWith('--experimental-webstorage'));
+  return { NODE_OPTIONS: filtered.join(' ') };
+}
+
+function stringEnvOnly(env: NodeJS.ProcessEnv): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(env)) {
+    if (v !== undefined) {
+      out[k] = v;
+    }
+  }
+  return out;
+}
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -73,8 +90,13 @@ export default defineConfig({
   /* Run your local dev server before starting the tests */
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:3000',
+    /** Use liveness endpoint so readiness polling does not hit `/` (site middleware health-check shortcut). */
+    url: 'http://localhost:3000/api/health',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000, // 2 minutes to allow for Next.js to build
+    env: {
+      ...stringEnvOnly(process.env),
+      ...(sanitizedNodeOptionsPatch() ?? {}),
+    },
   },
 });

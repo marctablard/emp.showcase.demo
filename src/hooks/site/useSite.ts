@@ -12,13 +12,26 @@ import { useSiteStore } from '@/providers/StoreProvider';
  * Hook for accessing site data like countries, regions, and currencies
  */
 export function useSite(id?: string) {
-  const { setLoading, getLoading, setSite, getSite, setAvailableSites, availableSites, reset, loading, site } =
-    useSiteStore();
+  const {
+    setLoading,
+    getLoading,
+    setSite,
+    getSite,
+    setAvailableSites,
+    getAvailableSites,
+    availableSites,
+    resetSite,
+    loading,
+    site,
+  } = useSiteStore();
   const urlSiteCode = useContext(SiteContext);
-  if (id && site && site.code != id) {
-    // id mismatch, that's a client-side site-switch
-    reset();
-  }
+  const effectiveSiteCode = id || urlSiteCode;
+
+  useEffect(() => {
+    if (effectiveSiteCode && site && site.code !== effectiveSiteCode) {
+      resetSite();
+    }
+  }, [effectiveSiteCode, site, resetSite]);
   const [countries, setCountries] = useState<Country[] | undefined>(getSite()?.countries);
   const [regions, setRegions] = useState<Region[] | undefined>(getSite()?.regions);
   const [currencies, setCurrencies] = useState<Currency[] | undefined>(getSite()?.currencies);
@@ -30,15 +43,24 @@ export function useSite(id?: string) {
     setError(null);
     try {
       const siteCode = id || urlSiteCode;
+      const cachedAvailableSites = getAvailableSites();
+      const hasCachedAvailable = Array.isArray(cachedAvailableSites) && cachedAvailableSites.length > 0;
+
       if (siteCode) {
-        // Fetch specific site by code (URL-derived) to avoid returning the Emporix default
-        const [currentSite, allSites] = await Promise.all([apiGetSite(siteCode), apiGetSites()]);
-        setSite(currentSite);
-        setAvailableSites(allSites.available);
+        if (hasCachedAvailable) {
+          const currentSite = await apiGetSite(siteCode);
+          setSite(currentSite);
+        } else {
+          const [currentSite, allSites] = await Promise.all([apiGetSite(siteCode), apiGetSites()]);
+          setSite(currentSite);
+          setAvailableSites(allSites.available);
+        }
       } else {
         const data = await apiGetSites();
         setSite(data.current);
-        setAvailableSites(data.available);
+        if (!hasCachedAvailable) {
+          setAvailableSites(data.available);
+        }
       }
     } catch (error) {
       getLogger().error({ err: error }, 'Error fetching site data');
@@ -46,7 +68,7 @@ export function useSite(id?: string) {
     } finally {
       setLoading(false);
     }
-  }, [setLoading, setError, setSite, setAvailableSites, id, urlSiteCode]);
+  }, [setLoading, setError, setSite, setAvailableSites, getAvailableSites, id, urlSiteCode]);
 
   useEffect(() => {
     if (site) {

@@ -1,6 +1,7 @@
 import { inject } from 'inversify';
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
+import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../../config';
 import type {
@@ -11,6 +12,8 @@ import type {
   EmporixUpdateOrderRequest,
 } from '../../model/order';
 import type { EmporixOrderApi as IEmporixOrderApi } from '../EmporixOrderApi';
+
+const createOrderMetrics = (route: string) => createFetchMetricsParams('order', route);
 
 // Customer-managed endpoints use '/orders' while tenant-managed endpoints use '/salesorders'
 
@@ -42,6 +45,8 @@ class EmporixOrderApi implements IEmporixOrderApi {
         body: JSON.stringify(createOrderRequest),
       },
       'service',
+      undefined,
+      createOrderMetrics('/order-v2/{tenant}/salesorders'),
     );
 
     if (!response.ok) {
@@ -69,6 +74,8 @@ class EmporixOrderApi implements IEmporixOrderApi {
         body: JSON.stringify(createOrderRequest),
       },
       'customer-saas',
+      undefined,
+      createOrderMetrics('/order-v2/{tenant}/orders'),
     );
 
     if (!response.ok) {
@@ -89,6 +96,8 @@ class EmporixOrderApi implements IEmporixOrderApi {
       `/order-v2/${this.config.tenant}/salesorders/${orderId}`,
       { method: 'GET' },
       'service',
+      undefined,
+      createOrderMetrics('/order-v2/{tenant}/salesorders/{id}'),
     );
 
     if (!response.ok) {
@@ -112,6 +121,8 @@ class EmporixOrderApi implements IEmporixOrderApi {
       `/order-v2/${this.config.tenant}/orders/${orderId}`,
       { method: 'GET' },
       'session',
+      undefined,
+      createOrderMetrics('/order-v2/{tenant}/orders/{id}'),
     );
 
     if (!response.ok) {
@@ -158,6 +169,8 @@ class EmporixOrderApi implements IEmporixOrderApi {
       `/order-v2/${this.config.tenant}/salesorders${queryString}`,
       { method: 'GET' },
       'service',
+      undefined,
+      createOrderMetrics('/order-v2/{tenant}/salesorders'),
     );
 
     if (!response.ok) {
@@ -206,6 +219,8 @@ class EmporixOrderApi implements IEmporixOrderApi {
       `/order-v2/${this.config.tenant}/orders${queryString}`,
       { method: 'GET' },
       'session',
+      undefined,
+      createOrderMetrics('/order-v2/{tenant}/orders'),
     );
 
     if (!response.ok) {
@@ -234,6 +249,8 @@ class EmporixOrderApi implements IEmporixOrderApi {
         body: JSON.stringify(updateRequest),
       },
       'service',
+      undefined,
+      createOrderMetrics('/order-v2/{tenant}/salesorders/{id}'),
     );
 
     if (!response.ok) {
@@ -260,6 +277,8 @@ class EmporixOrderApi implements IEmporixOrderApi {
         body: JSON.stringify(updateRequest),
       },
       'session',
+      undefined,
+      createOrderMetrics('/order-v2/{tenant}/orders/{id}'),
     );
 
     if (!response.ok) {
@@ -278,6 +297,8 @@ class EmporixOrderApi implements IEmporixOrderApi {
       `/order-v2/${this.config.tenant}/salesorders/${orderId}`,
       { method: 'DELETE' },
       'service',
+      undefined,
+      createOrderMetrics('/order-v2/{tenant}/salesorders/{id}'),
     );
 
     if (!response.ok) {
@@ -296,6 +317,8 @@ class EmporixOrderApi implements IEmporixOrderApi {
       `/order-v2/${this.config.tenant}/salesorders/${orderId}/transitions`,
       { method: 'GET' },
       'service',
+      undefined,
+      createOrderMetrics('/order-v2/{tenant}/salesorders/{id}/transitions'),
     );
 
     if (!response.ok) {
@@ -317,6 +340,8 @@ class EmporixOrderApi implements IEmporixOrderApi {
       `/order-v2/${this.config.tenant}/orders/${orderId}/transitions`,
       { method: 'GET' },
       'session',
+      undefined,
+      createOrderMetrics('/order-v2/{tenant}/orders/{id}/transitions'),
     );
 
     if (!response.ok) {

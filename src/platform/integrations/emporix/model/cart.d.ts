@@ -27,6 +27,7 @@ export interface EmporixCartItem {
   product?: {
     id: string;
     name?: string;
+    localizedName?: { [language: string]: string };
     description?: string;
     sku?: string;
     images?: {
@@ -128,7 +129,8 @@ export interface EmporixCreatedCart {
 
 export interface EmporixCartProduct {
   id: string;
-  name: string;
+  name?: string;
+  localizedName?: { [language: string]: string };
   description?: string;
   sku?: string;
   images?: {

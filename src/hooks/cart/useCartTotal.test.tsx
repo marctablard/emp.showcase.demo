@@ -40,7 +40,7 @@ describe('useCartTotal', () => {
     });
   });
 
-  it('prefers cart currency when an active cart exists', () => {
+  it('prefers session currency when cart totals are in a different currency (stale until sync)', () => {
     mockUseCheckout.mockReturnValue({
       shippingMethod: { amount: 5 },
     });
@@ -53,11 +53,17 @@ describe('useCartTotal', () => {
     mockUseSession.mockReturnValue({
       session: { currency: 'EUR' },
     });
+    mockUseSite.mockReturnValue({
+      site: {
+        currencies: [{ id: 'USD' }, { id: 'EUR' }],
+        defaultCurrency: { id: 'USD' },
+      },
+    });
 
     const { result } = renderHook(() => useCartTotal());
 
     expect(result.current.cartTotal).toBe(15);
-    expect(result.current.currency).toBe('USD');
+    expect(result.current.currency).toBe('EUR');
   });
 
   it('falls back to session currency when no cart exists', () => {
@@ -74,6 +80,32 @@ describe('useCartTotal', () => {
     const { result } = renderHook(() => useCartTotal());
 
     expect(result.current.cartTotal).toBe(0);
+    expect(result.current.currency).toBe('USD');
+  });
+
+  it('uses cart currency when session currency is not allowed for the site', () => {
+    mockUseCheckout.mockReturnValue({
+      shippingMethod: { amount: 2 },
+    });
+    mockUseCart.mockReturnValue({
+      cart: {
+        subTotalPrice: { amount: 10, currency: 'USD' },
+        totalPrice: { amount: 10, currency: 'USD' },
+      },
+    });
+    mockUseSession.mockReturnValue({
+      session: { currency: 'GBP' },
+    });
+    mockUseSite.mockReturnValue({
+      site: {
+        currencies: [{ id: 'USD' }, { id: 'EUR' }],
+        defaultCurrency: { id: 'EUR' },
+      },
+    });
+
+    const { result } = renderHook(() => useCartTotal());
+
+    expect(result.current.cartTotal).toBe(12);
     expect(result.current.currency).toBe('USD');
   });
 

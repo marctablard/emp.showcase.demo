@@ -69,7 +69,7 @@ export function ItemPriceChangeModal({ isOpen, onClose, cartItem, priceChange, o
                     width={100}
                     height={65}
                     src={String(cartItem.product.images[0].url)}
-                    alt={String(cartItem.product.name || 'Product')}
+                    alt={l10n(cartItem.product.name || 'Product')}
                     className="w-full h-full object-cover"
                   />
                 ) : (

@@ -1,11 +1,15 @@
 import { inject } from 'inversify';
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
+import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
+import { DEFAULT_CACHE_REVALIDATE } from '../../common/cache-defaults';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import { buildPaginatedResponse, buildSearchQuery } from '../../common/util/common';
 import type { EmporixConfig } from '../../config';
 import type { EmporixPaginatedResponse, EmporixProduct, EmporixSearchParams } from '../../model';
 import type { EmporixProductApi as IEmporixProductApi } from '../EmporixProductApi';
+
+const createProductMetrics = (route: string) => createFetchMetricsParams('product', route);
 
 @injectable('EmporixProductApi', 'Singleton')
 class EmporixProductApi implements IEmporixProductApi {
@@ -24,6 +28,9 @@ class EmporixProductApi implements IEmporixProductApi {
       `/product/${this.config.tenant}/products?${query}`,
       { method: 'GET', headers: { 'X-Total-Count': 'true' } },
       'public',
+      undefined,
+      createProductMetrics('/product/{tenant}/products'),
+      DEFAULT_CACHE_REVALIDATE,
     );
 
     return buildPaginatedResponse(params, response);
@@ -42,6 +49,8 @@ class EmporixProductApi implements IEmporixProductApi {
         body: JSON.stringify({ q: body }),
       },
       'public',
+      undefined,
+      createProductMetrics('/product/{tenant}/products/search'),
     );
     return buildPaginatedResponse(params, response);
   }
@@ -51,6 +60,9 @@ class EmporixProductApi implements IEmporixProductApi {
       `/product/${this.config.tenant}/products/${id}?expand=parentVariant,template`,
       { method: 'GET' },
       'public',
+      undefined,
+      createProductMetrics('/product/{tenant}/products/{id}'),
+      DEFAULT_CACHE_REVALIDATE,
     );
     if (!response.ok) {
       if (response.status == 404) {

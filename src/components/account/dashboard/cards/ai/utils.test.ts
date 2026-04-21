@@ -1,3 +1,4 @@
+import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import {
   extractPrice,
   formatDate,
@@ -65,8 +66,14 @@ describe('formatPrice', () => {
     expect(result).toContain('€');
   });
 
-  it('should handle undefined currency with fallback', () => {
-    expect(formatPrice(99.99, undefined)).toBe('$99.99');
+  it('should handle undefined currency with fallback from env', () => {
+    const expected = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: getPublicDefaultCurrency(),
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(99.99);
+    expect(formatPrice(99.99, undefined)).toBe(expected);
   });
 
   it('should handle undefined currency with custom fallback', () => {

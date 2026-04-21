@@ -1,5 +1,12 @@
 import { SearchParams, SearchResult } from '../model/common';
-import { CreateQuoteInput, QuoteHistory, QuoteReason, QuoteReasonCreationResponse, QuoteScope } from '../model/quote';
+import type {
+  CreateQuoteInput,
+  QuoteHistory,
+  QuoteReason,
+  QuoteReasonCreationResponse,
+  QuoteScope,
+  QuoteUpdateRequest,
+} from '../model/quote';
 import { Quote } from '../model/quote';
 
 export interface QuoteService {
@@ -27,9 +34,14 @@ export interface QuoteService {
    */
   updateQuote(
     quoteId: string,
-    operations: QuoteUpdateOperation | QuoteUpdateOperation[],
+    operations: QuoteUpdateRequest | QuoteUpdateRequest[],
     scope?: QuoteScope,
   ): Promise<void>;
+
+  /**
+   * Set or update the quote user comment (additionalInfo mixin) using the service patch scope.
+   */
+  addQuoteUserComment(quoteId: string, input: { comment: string; reference?: string }): Promise<void>;
 
   /**
    * Get a specific quote reason by ID

@@ -5,9 +5,14 @@ import { useTranslations } from 'next-intl';
 import { ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/hooks/cart/useCart';
+import { useGlobalSyncReady } from '@/hooks/common/useGlobalSyncReady';
+import { useSession } from '@/hooks/session/useSession';
+import { useSite } from '@/hooks/site/useSite';
+import { isProductPriceDisplayableForPurchase } from '@/lib/common/product-price-site-context';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
 import type { CartStatus, CartStatusDetailCode } from '@/platform/services/cart/CartService';
+import type { StockAvailability } from '@/platform/services/model/common';
 import type { ProductPrice } from '@/platform/services/model/price';
 import type { Product } from '@/platform/services/model/product';
 import { AddToCartModal } from '../cart/add-to-cart-modal';
@@ -18,15 +23,30 @@ export default function ProductAddToCartButton({
   price,
   quantity = 1,
   className,
+  availability,
+  availabilityLoading = false,
 }: {
   product: Product;
   price?: ProductPrice | null;
   quantity?: number;
   className?: string;
+  /** When set, block add while loading or when stock is not available for the current shop context. */
+  availability?: StockAvailability | null;
+  availabilityLoading?: boolean;
 }) {
   const t = useTranslations('product');
   const { addItem, cart } = useCart();
+  const { session } = useSession();
+  const { site } = useSite();
+  const { ready: syncReady, reason: syncReason } = useGlobalSyncReady();
   const [adding, setAdding] = useState(false);
+
+  const priceOkForCart = price != null && isProductPriceDisplayableForPurchase(price.currency, session, site);
+
+  const isMidSwitch =
+    !syncReady &&
+    (syncReason === 'session-mutation' || syncReason === 'site-mismatch' || syncReason === 'cart-mismatch');
+  const syncTitle = isMidSwitch ? t('updatingSite') : undefined;
 
   // State for the add-to-cart modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -75,7 +95,16 @@ export default function ProductAddToCartButton({
       <Button
         className={cn('flex-1 w-full', className)}
         onClick={handleAddToCart}
-        disabled={cart === undefined || product.purchasable === false || adding || !price}
+        disabled={
+          cart === undefined ||
+          product.purchasable === false ||
+          adding ||
+          !priceOkForCart ||
+          availabilityLoading ||
+          (availability != null && !availability.isAvailable) ||
+          !syncReady
+        }
+        title={syncTitle}
         data-testid="product-addToCartButton"
       >
         {t('addToCart')}

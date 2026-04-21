@@ -9,6 +9,8 @@ import { useSite } from '@/hooks/site/useSite';
 import { type LanguageKey, dk } from '@/i18n/dynamic-key';
 import { redirect, usePathname } from '@/i18n/navigation';
 import { routing } from '@/i18n/routing';
+import { updateSessionLanguage } from '@/lib/client/session';
+import { getLogger } from '@/lib/logger/use-logger-client';
 
 export function LanguageSwitcher() {
   const t = useTranslations('common.Languages');
@@ -37,9 +39,21 @@ export function LanguageSwitcher() {
     }));
   }, [site, t]);
 
-  const switchLocale = (newLocale: string) => {
+  const switchLocale = async (newLocale: string) => {
     if (!site) {
       return;
+    }
+    // Keep Emporix session.language aligned with the UI locale so downstream
+    // localized reads (cart, checkout, recommendations) receive the expected
+    // language. Failures are logged but never block navigation — the SSR
+    // layout self-heals unsupported locales on next request.
+    try {
+      await updateSessionLanguage(newLocale);
+    } catch (err) {
+      getLogger().error(
+        { err, locale: newLocale, site: site.code },
+        'updateSessionLanguage failed during language switch',
+      );
     }
     const searchParamsString = searchParams.toString();
     const queryString = searchParamsString ? `?${searchParamsString}` : '';

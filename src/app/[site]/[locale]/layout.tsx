@@ -4,6 +4,7 @@ import type { Locale } from 'next-intl';
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Open_Sans, Ubuntu } from 'next/font/google';
+import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import '@/app/globals.css';
 import { CsrfProvider } from '@/components/csrf/CsrfProvider';
@@ -13,13 +14,14 @@ import { Toaster } from '@/components/ui/sonner';
 import { redirect } from '@/i18n/edge/navigation';
 import { routing } from '@/i18n/routing';
 import { isBrowserDebugOutputEnabled, isDebugApiEnabled } from '@/lib/common/debug-env';
-import { setSessionLanguage } from '@/lib/ssr/session';
+import { getSessionForSite, setSessionLanguage } from '@/lib/ssr/session';
 import { getAvailableSites, getSite } from '@/lib/ssr/site';
 import SiteProvider from '@/providers/SiteProvider';
 import { SiteSessionAligner } from '@/providers/SiteSessionAligner';
 import { StoreProvider } from '@/providers/StoreProvider';
 import { StoryblokProvider } from '@/providers/StoryblokProvider';
 import { setRequestSite } from '@/site/server/';
+import { INTERNAL_APP_PATH_HEADER } from '@/site/types';
 
 const defaultSiteCode = process.env.NEXT_PUBLIC_DEFAULT_SITE || undefined;
 
@@ -41,6 +43,24 @@ type Props = {
   params: Promise<{ locale: Locale; site: string }>;
   searchParams?: { [key: string]: string | string[] | undefined };
 };
+
+/**
+ * Strip a leading locale segment from the site-relative app path the middleware stored in
+ * `INTERNAL_APP_PATH_HEADER`. Used when the URL-derived locale is not supported by the current
+ * site so we can redirect to the same deep link under a supported locale.
+ */
+function stripLocalePrefix(appPath: string, locale: string): string {
+  if (!appPath || !locale) {
+    return appPath;
+  }
+  if (appPath === locale) {
+    return '';
+  }
+  if (appPath.startsWith(`${locale}/`)) {
+    return appPath.slice(locale.length + 1);
+  }
+  return appPath;
+}
 
 export const viewport = {
   themeColor: '#192A42',
@@ -70,7 +90,16 @@ export default async function LocaleLayout({ children, dialog, params }: Props) 
     notFound();
   }
 
-  const [site, availableSites] = await Promise.all([getSite(siteCode), getAvailableSites()]);
+  // Align the Emporix session's siteCode with the URL-derived site BEFORE hydration.
+  // Prevents the "stale siteCode" deep-link race where the server session still points
+  // at the previous site (e.g. `main`) while the URL and `siteStore` already reflect
+  // the target site (e.g. `us-branch`), causing `SiteSessionAligner` to tear down the
+  // correct `siteStore` state on mount. See `_alignSessionSite` for the full rationale.
+  const [site, availableSites, shopSession] = await Promise.all([
+    getSite(siteCode),
+    getAvailableSites(),
+    getSessionForSite(siteCode),
+  ]);
 
   // Handle invalid site: redirect to valid site (fallback ON) or show 404 (fallback OFF)
   if (!site) {
@@ -87,11 +116,21 @@ export default async function LocaleLayout({ children, dialog, params }: Props) 
   }
 
   if (site && !hasLocale(site.languages, locale)) {
-    setSessionLanguage(locale);
-    // ensure that languages are aligned
+    // Pick the first locale advertised by the target site as the replacement. Align the Emporix
+    // session with that supported locale (the previous value would have been the unsupported one,
+    // which the downstream price/content services cannot render).
     const newLocale = site.languages[0];
-    // force prefix to ensure that the redirect is correctly adapting the cookie
-    return redirect({ href: '/', locale: newLocale, site: siteCode, forcePrefix: true });
+    setSessionLanguage(newLocale);
+
+    // Preserve the deep link the user is trying to reach. Before this fix the redirect always
+    // landed on `/`, so clicking a stale `/us/de/product/<id>` link (produced by a header search
+    // rendered mid-site-switch) redirected to the US home page instead of the product.
+    const requestHeaders = await headers();
+    const appPath = requestHeaders.get(INTERNAL_APP_PATH_HEADER) ?? '';
+    const pathWithoutLocale = stripLocalePrefix(appPath, locale);
+    const targetHref = pathWithoutLocale ? `/${pathWithoutLocale}` : '/';
+
+    return redirect({ href: targetHref, locale: newLocale, site: siteCode, forcePrefix: true });
   }
   // TODO: we need to figure out why getRequestSite
   // doesn't return the correct value in child layouts
@@ -108,7 +147,7 @@ export default async function LocaleLayout({ children, dialog, params }: Props) 
         <AuthSessionProvider>
           <SiteProvider siteCode={siteCode}>
             <NextIntlClientProvider locale={locale}>
-              <StoreProvider site={site} availableSites={availableSites}>
+              <StoreProvider shopSession={shopSession} site={site} availableSites={availableSites}>
                 <StoryblokProvider>
                   <CsrfProvider />
                   <SiteSessionAligner />

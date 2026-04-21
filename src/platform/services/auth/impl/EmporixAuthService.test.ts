@@ -214,6 +214,7 @@ describe('EmporixAuthService', () => {
 
     mockSiteService = {
       getSite: jest.fn(),
+      invalidateSiteCache: jest.fn(),
     } as unknown as jest.Mocked<SiteService>;
 
     mockLogger = {

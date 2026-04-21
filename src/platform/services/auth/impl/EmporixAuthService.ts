@@ -1,5 +1,10 @@
 import crypto from 'crypto';
 import { inject } from 'inversify';
+import {
+  getPublicDefaultCurrency,
+  getPublicDefaultLanguage,
+  getPublicDefaultSite,
+} from '@/lib/common/public-default-env';
 import { injectable } from '@/platform/core/di/injectable';
 import type EmporixCustomerApi from '@/platform/integrations/emporix/customer/impl/EmporixCustomerApi';
 import type { EmporixAddress } from '@/platform/integrations/emporix/model';
@@ -24,7 +29,6 @@ import type { AuthService } from '../AuthService';
  */
 @injectable('AuthService', 'Singleton')
 export class EmporixAuthService implements AuthService {
-  private readonly DEFAULT_CURRENCY = 'EUR';
   private readonly CART_VERIFICATION_ATTEMPTS = 10;
   private readonly CART_VERIFICATION_DELAY_MS = process.env.NODE_ENV === 'test' ? 1 : 300;
   private readonly CART_VERIFICATION_MAX_DELAY_MS = process.env.NODE_ENV === 'test' ? 5 : 1200;
@@ -76,7 +80,7 @@ export class EmporixAuthService implements AuthService {
     if (!session) {
       throw new Error('Failed to get session context');
     }
-    const targetSiteCode = session.siteCode || oldSession?.siteCode || 'main';
+    const targetSiteCode = session.siteCode || oldSession?.siteCode || getPublicDefaultSite();
     const targetSite = await this.safeGetSite(targetSiteCode);
     let finalCurrency = this.resolveFinalLoginCurrency(targetSite, oldSession?.currency, session.currency);
     const preferredLoginCurrency = finalCurrency;
@@ -405,8 +409,8 @@ export class EmporixAuthService implements AuthService {
       throw new Error('Failed to get session context');
     }
 
-    customer.preferredLanguage = currentSession.language || 'en';
-    customer.preferredCurrency = currentSession.currency || 'EUR';
+    customer.preferredLanguage = currentSession.language || getPublicDefaultLanguage();
+    customer.preferredCurrency = currentSession.currency || getPublicDefaultCurrency();
     customer.preferredSite = currentSession.siteCode;
 
     const address: EmporixAddress | undefined = registration.address
@@ -502,7 +506,7 @@ export class EmporixAuthService implements AuthService {
     customerCurrency?: string,
   ): string {
     if (!site) {
-      return customerCurrency || shopperSelectedCurrency || this.DEFAULT_CURRENCY;
+      return customerCurrency || shopperSelectedCurrency || getPublicDefaultCurrency();
     }
 
     if (this.isCurrencySupportedOnSite(site, shopperSelectedCurrency)) {
@@ -511,7 +515,7 @@ export class EmporixAuthService implements AuthService {
     if (this.isCurrencySupportedOnSite(site, customerCurrency)) {
       return customerCurrency!;
     }
-    return site.defaultCurrency?.id || customerCurrency || shopperSelectedCurrency || this.DEFAULT_CURRENCY;
+    return site.defaultCurrency?.id || customerCurrency || shopperSelectedCurrency || getPublicDefaultCurrency();
   }
 
   private isCurrencySupportedOnSite(site: Site, currency?: string): boolean {
@@ -885,7 +889,7 @@ export class EmporixAuthService implements AuthService {
       };
     }
 
-    const createdCartId = await this.cartService.createCart(currency || this.DEFAULT_CURRENCY, siteCode);
+    const createdCartId = await this.cartService.createCart(currency || getPublicDefaultCurrency(), siteCode);
     const createdCart = await this.getVerifiedCustomerCart(createdCartId, customerId);
     return {
       cartId: createdCartId,

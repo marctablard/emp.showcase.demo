@@ -29,14 +29,26 @@ test.describe('Auth + Site synchronization', () => {
     await page.goto('/');
 
     // Pre-login: switch to US to reproduce canonicalization handoff path.
+    await page.evaluate(() => window.scrollTo({ top: 0 }));
+    await expect(page.locator('button[aria-label="Site"]')).toBeVisible({ timeout: 10_000 });
     await page.locator('button[aria-label="Site"]').click();
     await page.getByRole('menuitem', { name: 'US' }).click();
     await expect(page).toHaveURL(/\/us-branch/);
 
     await page.goto('/us-branch/login');
-    await page.locator('#username').fill(LOGIN_EMAIL!);
-    await page.locator('#password').fill(LOGIN_PASSWORD!);
-    await page.getByRole('button', { name: /log in/i }).click();
+
+    // Wait for the form to be fully hydrated before interacting.
+    // Playwright's fill() can race with React hydration on controlled inputs,
+    // causing the filled values to be overwritten by the default empty state.
+    const usernameInput = page.getByTestId('login-username');
+    await expect(usernameInput).toBeVisible({ timeout: 15_000 });
+
+    await usernameInput.fill(LOGIN_EMAIL!);
+    await page.getByTestId('login-password').fill(LOGIN_PASSWORD!);
+
+    const submitButton = page.getByTestId('login-submitButton');
+    await expect(submitButton).toBeEnabled({ timeout: 10_000 });
+    await submitButton.click();
 
     // Wait for authenticated landing to settle.
     await expect
@@ -54,6 +66,8 @@ test.describe('Auth + Site synchronization', () => {
     expect(urlSiteCode).toBe(session.siteCode);
 
     // Post-login: switch site and assert header/site/currency consistency.
+    await page.evaluate(() => window.scrollTo({ top: 0 }));
+    await expect(page.locator('button[aria-label="Site"]')).toBeVisible({ timeout: 10_000 });
     await page.locator('button[aria-label="Site"]').click();
     await page.getByRole('menuitem', { name: 'US' }).click();
 

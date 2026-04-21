@@ -76,7 +76,7 @@ export function HeaderMiniCartItemList({ cart }: HeaderMiniCartItemListProps) {
                   width={100}
                   height={65}
                   src={String(item.product.images[0].url)}
-                  alt={String(item.product.name || 'Product')}
+                  alt={l10n(item.product.name || 'Product')}
                   className="w-full h-full object-cover"
                 />
               ) : (

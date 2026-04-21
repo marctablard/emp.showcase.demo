@@ -15,6 +15,7 @@
   "payment": "Zahlung",
   "paymentMethod": "Zahlungsmethode",
   "shippingMethod": "Versandart",
+  "shippingMethodUnknown": "Unbekannte Versandart",
   "orderItems": "Bestellte Artikel",
   "product": "Produkt",
   "price": "Preis",

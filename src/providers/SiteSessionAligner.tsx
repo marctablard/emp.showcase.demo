@@ -1,10 +1,10 @@
 'use client';
 
 import { useContext, useEffect } from 'react';
-import { fetchCurrentSession, updateSessionSite } from '@/lib/client/session';
+import { performSiteSwitch } from '@/lib/client/site-switch';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { SiteContext } from '@/providers/SiteProvider';
-import { useSessionStore } from '@/providers/StoreProvider';
+import { CartStoreContext, SessionStoreContext, SiteStoreContext } from '@/providers/StoreProvider';
 
 /**
  * Bridges URL-driven site changes to the Emporix session + Zustand session store.
@@ -12,61 +12,39 @@ import { useSessionStore } from '@/providers/StoreProvider';
  * When a user navigates to a different site via direct URL (external link, bookmark,
  * typed URL) the middleware updates the site cookie and the layout provides the new
  * site code through SiteContext. However, the server-side Emporix session and the
- * client-side session store are NOT automatically updated — the store synchronizer
- * only reacts to session.siteCode changes in the client store.
+ * client-side session store are NOT automatically updated on mount.
  *
- * This component closes that gap: it detects when the URL site diverges from the
- * session site and calls the session site API so the full sync pipeline fires
- * (currency, cart, site store reset, etc.).
- *
- * Uses the session store's shared mutation lock to prevent concurrent API calls.
- * The async work intentionally runs to completion even after unmount — updating a
- * Zustand store from a detached async closure is safe (external state, not
- * component state), and aborting would leave the session permanently misaligned
- * when React Strict Mode cancels the first mount's effect.
+ * This component closes that gap by delegating to `performSiteSwitch` with
+ * `source: 'deep-link'`, so the same single awaited pipeline runs regardless of
+ * whether the user clicked the header switcher or deep-linked to a different site.
+ * The orchestrator's session mutation lock prevents concurrent runs (double-mount
+ * under Strict Mode, race with the header switcher).
  */
 export function SiteSessionAligner() {
   const urlSiteCode = useContext(SiteContext);
-  const { session, setSession, loading, tryAcquireMutationLock, releaseMutationLock } = useSessionStore();
+  const sessionStore = useContext(SessionStoreContext);
+  const siteStore = useContext(SiteStoreContext);
+  const cartStore = useContext(CartStoreContext);
 
   useEffect(() => {
-    if (!urlSiteCode || !session?.siteCode || loading) {
+    if (!urlSiteCode || !sessionStore || !siteStore || !cartStore) {
       return;
     }
 
-    if (session.siteCode === urlSiteCode) {
+    const { session, loading } = sessionStore.getState();
+    if (!session?.siteCode || loading || session.siteCode === urlSiteCode) {
       return;
     }
 
-    if (!tryAcquireMutationLock()) {
-      return;
-    }
+    void performSiteSwitch(
+      urlSiteCode,
+      { sessionStore, siteStore, cartStore },
+      { source: 'deep-link', logger: getLogger() },
+    );
 
-    const targetSite = urlSiteCode;
-
-    (async () => {
-      const logger = getLogger();
-      try {
-        const success = await updateSessionSite(targetSite);
-
-        if (!success) {
-          logger.warn({ targetSite, sessionSiteCode: session.siteCode }, 'Site session alignment: update failed');
-          return;
-        }
-
-        const updatedSession = await fetchCurrentSession(true);
-        setSession(updatedSession);
-      } catch (error) {
-        logger.error({ err: error, targetSite, sessionSiteCode: session.siteCode }, 'Site session alignment failed');
-      } finally {
-        releaseMutationLock();
-      }
-    })();
-
-    // No cleanup — the async work must run to completion so the store is updated.
-    // Aborting here (e.g. on Strict Mode remount) would skip setSession and leave
-    // the session permanently misaligned.
-  }, [urlSiteCode, session?.siteCode, loading, session, setSession, tryAcquireMutationLock, releaseMutationLock]);
+    // No cleanup — the async pipeline runs to completion under the session mutation lock,
+    // so a Strict Mode re-mount cannot fire a second orchestrator run.
+  }, [urlSiteCode, sessionStore, siteStore, cartStore]);
 
   return null;
 }

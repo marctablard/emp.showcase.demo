@@ -1,6 +1,7 @@
 import { inject } from 'inversify';
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
+import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../../config';
 import type {
@@ -10,6 +11,8 @@ import type {
   EmporixAIUserMessage,
 } from '../../model/ai';
 import type { EmporixAIApi as IEmporixAIApi } from '../EmporixAIApi';
+
+const createAiMetrics = (route: string) => createFetchMetricsParams('ai', route);
 
 @injectable('EmporixAIApi', 'Singleton')
 class EmporixAIApi implements IEmporixAIApi {
@@ -35,6 +38,8 @@ class EmporixAIApi implements IEmporixAIApi {
           body: JSON.stringify(request),
         },
         'ai',
+        undefined,
+        createAiMetrics('/ai-service/{tenant}/agentic/chat'),
       );
 
       if (!response.ok) {

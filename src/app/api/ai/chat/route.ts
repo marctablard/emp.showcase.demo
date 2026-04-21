@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { getPublicDefaultCurrency, getPublicDefaultLanguage } from '@/lib/common/public-default-env';
 import type { AIChatContext } from '@/platform/integrations/ai/model';
 import server from '@/platform/server';
 import type { AIService } from '@/platform/services/ai';
@@ -43,8 +44,8 @@ export async function POST(request: NextRequest) {
     const context: AIChatContext = {
       ...requestContext,
       siteId: requestContext.siteId || session.siteCode || 'default',
-      currency: requestContext.currency || session.currency || 'EUR',
-      language: requestContext.language || session.language || 'en',
+      currency: requestContext.currency || session.currency || getPublicDefaultCurrency(),
+      language: requestContext.language || session.language || getPublicDefaultLanguage(),
       sessionId: requestContext.sessionId,
       cartId: requestContext.cartId,
     };

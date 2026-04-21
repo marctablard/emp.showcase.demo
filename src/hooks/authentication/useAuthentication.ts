@@ -6,6 +6,7 @@ import { useLocale } from 'next-intl';
 import { getPathname } from '@/i18n/navigation';
 import { fetchCurrentSession } from '@/lib/client/session';
 import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
+import { getPublicDefaultSite } from '@/lib/common/public-default-env';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { useCartStore } from '@/providers/StoreProvider';
 import { clearAllPersistedStores } from '@/utils/storeUtils';
@@ -15,7 +16,6 @@ import { useSite } from '../site/useSite';
 const LOGIN_SUCCESS_QUERY_PARAM = '?login=success';
 const CANONICAL_SESSION_FETCH_RETRY_COUNT = 3;
 const CANONICAL_SESSION_FETCH_RETRY_DELAY_MS = 250;
-const DEFAULT_SITE_CODE = process.env.NEXT_PUBLIC_DEFAULT_SITE || 'main';
 interface AuthenticationHook {
   isAuthenticated: boolean;
   error: Error | null;
@@ -80,11 +80,11 @@ export const useAuthentication = (): AuthenticationHook => {
       logger.warn(
         {
           err: lastError instanceof Error ? lastError.message : lastError ? String(lastError) : undefined,
-          fallbackSiteCode: DEFAULT_SITE_CODE,
+          fallbackSiteCode: getPublicDefaultSite(),
         },
         'Post-login canonical session fetch failed after retries, using default site redirect',
       );
-      return DEFAULT_SITE_CODE;
+      return getPublicDefaultSite();
     }
 
     return canonicalSiteCode;

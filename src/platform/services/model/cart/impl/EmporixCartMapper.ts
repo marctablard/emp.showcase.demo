@@ -119,10 +119,14 @@ export class EmporixCartMapper implements CartMapper<EmporixCart, EmporixCartIte
       product: emporixCartItem.product
         ? {
             id: emporixCartItem.product.id,
-            name: emporixCartItem.product.name,
+            // Prefer the full localized map so the UI can resolve the current UI locale
+            // on every render via `useL10n()`; fall back to the single-language string
+            // only when Emporix responded without a localized map (e.g. legacy cart lines).
+            name: emporixCartItem.product.localizedName ?? emporixCartItem.product.name,
             description: emporixCartItem.product.description,
             images: emporixCartItem.product.images?.map((img) => {
-              return { altText: emporixCartItem.product?.name || 'Product', url: img.url };
+              const altSource = emporixCartItem.product?.localizedName ?? emporixCartItem.product?.name;
+              return { altText: altSource ?? 'Product', url: img.url };
             }),
           }
         : undefined,

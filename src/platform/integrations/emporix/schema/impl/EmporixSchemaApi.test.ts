@@ -78,8 +78,17 @@ describe('EmporixSchemaApi', () => {
     container = new Container();
     container.bind<EmporixConfig>('EmporixConfig').to(TestEmporixConfig);
     container.bind<EmporixOAuthApi>('EmporixOAuthApi').to(EmporixOAuthApi);
-    container.bind<EmporixTokenManager>('EmporixTokenManager').to(TestTokenManager);
-    container.bind<EmporixApiInvoker>('EmporixApiInvoker').to(EmporixApiInvoker);
+    container.bind<EmporixTokenManager>('EmporixTokenManager').to(TestTokenManager).inSingletonScope();
+    container
+      .bind<EmporixApiInvoker>('EmporixApiInvoker')
+      .toDynamicValue(
+        (ctx) =>
+          new EmporixApiInvoker(
+            ctx.get<EmporixConfig>('EmporixConfig'),
+            ctx.get<EmporixTokenManager>('EmporixTokenManager'),
+          ),
+      )
+      .inSingletonScope();
     container.bind<LoggerService>('LoggerService').toConstantValue({
       trace: jest.fn(),
       debug: jest.fn(),

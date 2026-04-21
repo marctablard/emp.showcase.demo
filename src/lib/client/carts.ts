@@ -1,27 +1,45 @@
+import { getLogger } from '@/lib/logger/use-logger-client';
 import type { CartShippingAddress, ModifyCartItemResult } from '@/platform/services/cart/CartService';
 import type { Cart } from '@/platform/services/model/cart/cart';
 import { CartErrorCode } from '@/platform/services/model/cart/error-codes';
 
-/**
- * Fetch the current cart
- * If no cart ID is found in cookies, a new cart will be created
- * @param {boolean} [createIfNotExist=false] - Whether to create a new cart if one doesn't exist
- * @returns {Promise<Cart|null>} The cart or null if no cart exists and createIfNotExist is false
- */
-export async function fetchCurrentCart(createIfNotExist: boolean = false): Promise<Cart | null | undefined> {
-  const response = await fetch(`/api/cart?create=${createIfNotExist}`);
+/** Same-request Emporix session `siteCode` echoed by GET /api/cart (`x-session-site-code`). */
+export interface FetchCurrentCartResult {
+  cart: Cart | null | undefined;
+  sessionSiteCode: string | null;
+}
 
-  // If we get a 204, it means no cart exists yet
-  if (response.status === 204) {
-    return null;
+let _loggedDeprecatedFetchCurrentCartCreate = false;
+
+/**
+ * Fetch the current cart without creating a new one when absent.
+ *
+ * The optional `createIfNotExist` argument is retained for one release for backwards compatibility
+ * with external callers but is **no-op**: `GET /api/cart` never creates a cart.
+ * Clients that need a new cart must use `createCart()` (POST /api/cart) instead.
+ */
+export async function fetchCurrentCart(createIfNotExist: boolean = false): Promise<FetchCurrentCartResult> {
+  if (createIfNotExist && !_loggedDeprecatedFetchCurrentCartCreate) {
+    _loggedDeprecatedFetchCurrentCartCreate = true;
+    getLogger().warn(
+      {},
+      'Deprecated: fetchCurrentCart(true) — GET /api/cart never creates carts; use createCart() instead',
+    );
   }
 
-  // For other error codes, throw an error
+  const response = await fetch('/api/cart');
+  const sessionSiteCode = response.headers.get('x-session-site-code')?.trim() || null;
+
+  if (response.status === 204) {
+    return { cart: null, sessionSiteCode };
+  }
+
   if (!response.ok) {
     throw new Error(`Failed to fetch cart: ${response.statusText}`);
   }
 
-  return await response.json();
+  const cart = (await response.json()) as Cart;
+  return { cart, sessionSiteCode };
 }
 
 /**
@@ -39,14 +57,25 @@ export async function fetchCartById(cartId: string): Promise<Cart> {
 }
 
 /**
- * Create a new cart
+ * Create a new cart explicitly.
+ *
+ * Optional `siteCode` / `currency` override the server-side session defaults (see
+ * `POST /api/cart`). Call this when the client discovers that no cart exists yet and it
+ * needs one — e.g. on the first add-to-cart of a new site. Never auto-called by
+ * `fetchCurrentCart`.
  */
-export async function createCart(): Promise<Cart> {
+export async function createCart(options: { siteCode?: string; currency?: string } = {}): Promise<Cart> {
+  const body = JSON.stringify({
+    ...(options.siteCode ? { siteCode: options.siteCode } : {}),
+    ...(options.currency ? { currency: options.currency } : {}),
+  });
+
   const response = await fetch('/api/cart', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
+    body,
   });
 
   if (!response.ok) {

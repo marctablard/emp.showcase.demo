@@ -4,6 +4,7 @@ import React from 'react';
 import { useTranslations } from 'next-intl';
 import { List, NotebookPen, ReceiptText, Truck } from 'lucide-react';
 import { SummaryCard, SummaryRow } from '@/components/ui/summary-card';
+import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import { formatDate } from '@/lib/date-utils';
 import type { Quote } from '@/platform/services/model/quote';
 
@@ -15,7 +16,7 @@ export const QuoteSummary: React.FC<QuoteSummaryProps> = ({ quote }) => {
   const t = useTranslations('account.quoteDetails');
 
   // Get quote data
-  const currency = quote.currency || 'EUR';
+  const currency = quote.currency || getPublicDefaultCurrency();
   const itemCount = quote.items?.reduce((total, item) => total + (item.quantity.quantity || 0), 0) || 0;
 
   // Format currency values

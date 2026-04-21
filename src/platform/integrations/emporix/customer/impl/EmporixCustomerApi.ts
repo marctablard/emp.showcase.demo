@@ -2,6 +2,7 @@ import { inject } from 'inversify';
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import type EmporixApiInvoker from '@/platform/integrations/emporix/common/impl/EmporixApiInvoker';
+import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
 import type { EmporixTokenManager } from '../../common/EmporixTokenManager';
 import type { EmporixConfig } from '../../config';
 import type {
@@ -12,6 +13,8 @@ import type {
 } from '../../model/customer';
 import type { EmporixSessionContext } from '../../model/session-context';
 import type { EmporixCustomerApi as IEmporixCustomerApi } from '../EmporixCustomerApi';
+
+const createCustomerMetrics = (route: string) => createFetchMetricsParams('customer', route);
 
 @injectable('EmporixCustomerApi', 'Singleton')
 class EmporixCustomerApi implements IEmporixCustomerApi {
@@ -32,6 +35,8 @@ class EmporixCustomerApi implements IEmporixCustomerApi {
         },
       },
       'session',
+      undefined,
+      createCustomerMetrics('/customer/{tenant}/me'),
     );
 
     if (!response.ok) {
@@ -55,6 +60,8 @@ class EmporixCustomerApi implements IEmporixCustomerApi {
         body: JSON.stringify(customerData),
       },
       'session',
+      undefined,
+      createCustomerMetrics('/customer/{tenant}/me'),
     );
 
     if (!response.ok) {
@@ -74,6 +81,8 @@ class EmporixCustomerApi implements IEmporixCustomerApi {
         },
       },
       'session',
+      undefined,
+      createCustomerMetrics('/customer/{tenant}/me'),
     );
 
     if (!response.ok && response.status !== 204) {
@@ -93,6 +102,8 @@ class EmporixCustomerApi implements IEmporixCustomerApi {
         },
       },
       'session',
+      undefined,
+      createCustomerMetrics('/customer/{tenant}/me/addresses'),
     );
 
     if (!response.ok) {
@@ -116,6 +127,8 @@ class EmporixCustomerApi implements IEmporixCustomerApi {
         body: JSON.stringify(address),
       },
       'session',
+      undefined,
+      createCustomerMetrics('/customer/{tenant}/me/addresses'),
     );
 
     if (!response.ok) {
@@ -138,6 +151,8 @@ class EmporixCustomerApi implements IEmporixCustomerApi {
         },
       },
       'session',
+      undefined,
+      createCustomerMetrics('/customer/{tenant}/me/addresses/{id}'),
     );
 
     if (!response.ok) {
@@ -161,6 +176,8 @@ class EmporixCustomerApi implements IEmporixCustomerApi {
         body: JSON.stringify(address),
       },
       'session',
+      undefined,
+      createCustomerMetrics('/customer/{tenant}/me/addresses/{id}'),
     );
 
     if (!response.ok) {
@@ -180,6 +197,8 @@ class EmporixCustomerApi implements IEmporixCustomerApi {
         },
       },
       'session',
+      undefined,
+      createCustomerMetrics('/customer/{tenant}/me/addresses/{id}'),
     );
 
     if (!response.ok && response.status !== 204) {
@@ -199,6 +218,8 @@ class EmporixCustomerApi implements IEmporixCustomerApi {
         },
       },
       'session',
+      undefined,
+      createCustomerMetrics('/customer/{tenant}/me/addresses/{id}/tags'),
     );
 
     if (!response.ok && response.status !== 204) {
@@ -218,6 +239,8 @@ class EmporixCustomerApi implements IEmporixCustomerApi {
         },
       },
       'session',
+      undefined,
+      createCustomerMetrics('/customer/{tenant}/me/addresses/{id}/tags'),
     );
 
     if (!response.ok && response.status !== 204) {
@@ -237,6 +260,8 @@ class EmporixCustomerApi implements IEmporixCustomerApi {
         method: 'GET',
       },
       'session',
+      undefined,
+      createCustomerMetrics('/customer/{tenant}/logout'),
     );
 
     if (!response.ok) {
@@ -259,6 +284,7 @@ class EmporixCustomerApi implements IEmporixCustomerApi {
       },
       'session',
       { credentials: { username, password } },
+      createCustomerMetrics('/session-context/{tenant}/me/context'),
     );
 
     if (!response.ok) {
@@ -283,6 +309,8 @@ class EmporixCustomerApi implements IEmporixCustomerApi {
         body: JSON.stringify(signupRequest),
       },
       'session',
+      undefined,
+      createCustomerMetrics('/customer/{tenant}/signup'),
     );
 
     if (!response.ok) {
@@ -308,6 +336,8 @@ class EmporixCustomerApi implements IEmporixCustomerApi {
         body: JSON.stringify(passwordData),
       },
       'session',
+      undefined,
+      createCustomerMetrics('/customer/{tenant}/password/change'),
     );
 
     if (!response.ok) {
@@ -332,6 +362,8 @@ class EmporixCustomerApi implements IEmporixCustomerApi {
         }),
       },
       'public',
+      undefined,
+      createCustomerMetrics('/customer/{tenant}/password/reset'),
     );
 
     if (!response.ok) {
@@ -359,6 +391,8 @@ class EmporixCustomerApi implements IEmporixCustomerApi {
         }),
       },
       'public',
+      undefined,
+      createCustomerMetrics('/customer/{tenant}/password/reset/update'),
     );
 
     if (!response.ok) {

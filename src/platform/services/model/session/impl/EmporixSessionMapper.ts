@@ -1,3 +1,4 @@
+import { getPublicDefaultCurrency, getPublicDefaultSite } from '@/lib/common/public-default-env';
 import { injectable } from '@/platform/core/di/injectable';
 import type {
   EmporixContextAttribute,
@@ -12,9 +13,6 @@ import type { Session, SessionAttribute } from '../session';
  */
 @injectable('EmporixSessionMapper', 'Singleton')
 export class EmporixSessionMapper implements SessionMapper<EmporixSessionContext, EmporixContextAttribute> {
-  private defaultCurrency = process.env.NEXT_PUBLIC_DEFAULT_CURRENCY || 'EUR';
-  private availableSites = process.env.NEXT_PUBLIC_AVAILABLE_SITES?.split(',') || [];
-  private defaultSite = process.env.NEXT_PUBLIC_DEFAULT_SITE || this.availableSites[0];
   /**
    * Maps from integration layer SessionContext to service layer Session
    */
@@ -32,12 +30,12 @@ export class EmporixSessionMapper implements SessionMapper<EmporixSessionContext
     }
     // adjust for default site
     if (source.siteCode === 'default') {
-      source.siteCode = this.defaultSite;
+      source.siteCode = getPublicDefaultSite();
     }
     return {
       id: source.sessionId,
-      currency: source.currency || this.defaultCurrency,
-      siteCode: source.siteCode || this.defaultSite,
+      currency: source.currency || getPublicDefaultCurrency(),
+      siteCode: source.siteCode || getPublicDefaultSite(),
       customerId: source.customerId,
       language: source.context?.['language'],
       country: source.targetLocation,

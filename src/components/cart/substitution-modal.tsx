@@ -14,6 +14,7 @@ import { useAvailability } from '@/hooks/product/useAvailability';
 import { useL10n } from '@/hooks/useL10n';
 import { fetchProductPrice } from '@/lib/client/prices';
 import { fetchProductById } from '@/lib/client/products';
+import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency } from '@/lib/utils';
 import type { CartItem, CartItemSubstitution } from '@/platform/services/model/cart/cart.d';
@@ -45,7 +46,7 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
 
   // Get original product price
   const originalPrice = priceMap[originalProductId]?.originalAmount || 0;
-  const originalCurrency = priceMap[originalProductId]?.currency || 'EUR';
+  const originalCurrency = priceMap[originalProductId]?.currency || getPublicDefaultCurrency();
 
   // Calculate price difference between original and substitution
   const calculatePriceDifference = (substitutionPrice: number) => {
@@ -231,7 +232,7 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
                     width={100}
                     height={65}
                     src={String(cartItem.product.images[0].url)}
-                    alt={String(cartItem.product.name || 'Product')}
+                    alt={l10n(cartItem.product.name || 'Product')}
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -311,7 +312,7 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
                             width={60}
                             height={60}
                             src={String(productMap[sub.productId]?.images?.[0]?.url || '')}
-                            alt={String(productMap[sub.productId]?.name || 'Product')}
+                            alt={l10n(productMap[sub.productId]?.name || 'Product')}
                             className="w-full h-full object-cover"
                           />
                         ) : (

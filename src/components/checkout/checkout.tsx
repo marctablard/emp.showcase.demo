@@ -2,10 +2,10 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
 import { useCart } from '@/hooks/cart/useCart';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
 import { useCustomer } from '@/hooks/customer/useCustomer';
+import { useRouter } from '@/i18n/navigation';
 import { createApproval } from '@/lib/client/approval';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { H1 } from '../ui/h';

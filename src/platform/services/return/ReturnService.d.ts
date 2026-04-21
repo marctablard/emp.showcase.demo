@@ -1,6 +1,15 @@
 import { Return } from '../model/return';
 
 /**
+ * Paginated return list from upstream, including optional total for response headers.
+ */
+export interface ReturnListResult {
+  items: Return[];
+  /** Total number of matching returns when the upstream API provides it */
+  totalCount?: number;
+}
+
+/**
  * Item to return - contains item ID and quantity
  */
 export interface CreateReturnItem {
@@ -26,6 +35,15 @@ export interface ReturnService {
    * @returns Promise with array of returns
    */
   getReturns(pageNumber?: number, pageSize?: number, sort?: string, query?: string): Promise<Return[]>;
+
+  /**
+   * List returns with optional total count (for APIs that expose `x-total-count`).
+   * @param pageNumber Optional page number (default: 1)
+   * @param pageSize Optional page size (default: 60)
+   * @param sort Optional sort parameter
+   * @param query Optional query parameter for filtering
+   */
+  listReturns(pageNumber?: number, pageSize?: number, sort?: string, query?: string): Promise<ReturnListResult>;
 
   /**
    * Get a specific return by ID

@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useValidator } from '@/hooks/validation/useValidator';
 import { updateCustomerProfile } from '@/lib/client/customer';
+import { getPublicDefaultCurrency, getPublicDefaultLanguage } from '@/lib/common/public-default-env';
 import type { CustomerUpdateDto } from '@/platform/services/customer/CustomerService';
 import type { Customer } from '@/platform/services/model/customer/customer';
 
@@ -47,8 +48,8 @@ export default function ProfileEditForm({ customer }: ProfileEditFormProps) {
     lastName: customer?.lastName || '',
     email: customer?.email || '',
     phone: customer?.contactPhone || '',
-    preferredLanguage: customer?.language || 'de',
-    preferredCurrency: customer?.currency || 'EUR',
+    preferredLanguage: customer?.language || getPublicDefaultLanguage(),
+    preferredCurrency: customer?.currency || getPublicDefaultCurrency(),
   };
 
   // Use the validator hook with the profile validation service

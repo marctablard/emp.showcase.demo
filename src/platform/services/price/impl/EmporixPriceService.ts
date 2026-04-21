@@ -41,8 +41,12 @@ class EmporixPriceService implements PriceService {
         if (!site) {
           throw new Error(`Site ${params.siteCode} not found`);
         }
-        params.currency = site.defaultCurrency.id;
-        params.country = site.defaultCountry;
+        if (!params.currency) {
+          params.currency = site.defaultCurrency.id;
+        }
+        if (!params.country) {
+          params.country = site.defaultCountry;
+        }
       }
       const matchRequest: EmporixMatchPricesRequest = {
         targetCurrency: params.currency!,
@@ -89,8 +93,12 @@ class EmporixPriceService implements PriceService {
           if (!site) {
             throw new Error(`Site ${params.siteCode} not found`);
           }
-          params.currency = site.defaultCurrency.id;
-          params.country = site.defaultCountry;
+          if (!params.currency) {
+            params.currency = site.defaultCurrency.id;
+          }
+          if (!params.country) {
+            params.country = site.defaultCountry;
+          }
         }
         matchedPrices = await this.priceApi.matchPrices({
           targetCurrency: params.currency!,

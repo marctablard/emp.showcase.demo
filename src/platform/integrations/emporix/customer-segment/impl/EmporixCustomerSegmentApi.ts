@@ -1,10 +1,13 @@
 import { inject } from 'inversify';
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
+import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../../config';
 import type { CategoryTreeItemResponse, CustomerSegmentQueryParams, ItemAssignmentResponse } from '../../model';
 import type { EmporixCustomerSegmentApi as IEmporixCustomerSegmentApi } from '../EmporixCustomerSegmentApi';
+
+const createCustomerSegmentMetrics = (route: string) => createFetchMetricsParams('customer-segment', route);
 
 @injectable('EmporixCustomerSegmentApi', 'Singleton')
 class EmporixCustomerSegmentApi implements IEmporixCustomerSegmentApi {
@@ -23,6 +26,8 @@ class EmporixCustomerSegmentApi implements IEmporixCustomerSegmentApi {
         method: 'GET',
       },
       'session',
+      undefined,
+      createCustomerSegmentMetrics('/customer-segment/{tenant}/segments/items'),
     );
     if (!response.ok) {
       throw new Error(`Failed to retrieve customer segment items: ${response.statusText}`);
@@ -43,6 +48,8 @@ class EmporixCustomerSegmentApi implements IEmporixCustomerSegmentApi {
         method: 'GET',
       },
       'session',
+      undefined,
+      createCustomerSegmentMetrics('/customer-segment/{tenant}/segments/items/category-trees'),
     );
 
     if (!response.ok) {

@@ -1,4 +1,5 @@
 import type { EmporixCurrencyApi } from '@/platform/integrations/emporix/currency/EmporixCurrencyApi';
+import type { EmporixSite } from '@/platform/integrations/emporix/model/site-settings';
 import type { EmporixSiteSettingsApi } from '@/platform/integrations/emporix/site-settings/EmporixSiteSettingsApi';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { HealthcheckItem, HealthcheckResult } from './types';
@@ -60,9 +61,13 @@ export async function validateRemoteConfig(params: RemoteValidationParams): Prom
       });
     }
 
+    // Fetch all sites in one bulk call instead of N individual getSite calls
+    const bulkResponse = await siteSettingsApi.getSites({}, false);
+    const sitesByCode = new Map<string, EmporixSite>(bulkResponse.items.map((s: EmporixSite) => [s.code, s]));
+
     // Check 1, 3, 4: Validate each configured site
     for (const siteCode of configuredSites) {
-      const site = await siteSettingsApi.getSite(siteCode);
+      const site = sitesByCode.get(siteCode);
 
       if (!site) {
         items.push({

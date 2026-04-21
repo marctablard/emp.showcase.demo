@@ -10,8 +10,15 @@ export const REQUIRED_ENV_VARS: ReadonlyArray<EnvVarDefinition> = [
   { key: 'NEXT_PUBLIC_EMPORIX_CLIENT_ID', severity: 'error', description: 'Emporix public/storefront client ID' },
   { key: 'NEXTAUTH_SECRET', severity: 'error', description: 'NextAuth session encryption secret' },
   { key: 'NEXT_PUBLIC_DEFAULT_CURRENCY', severity: 'error', description: 'Default currency code' },
+  { key: 'NEXT_PUBLIC_DEFAULT_SITE', severity: 'error', description: 'Default site code' },
   { key: 'NEXT_PUBLIC_DEFAULT_LANGUAGE', severity: 'error', description: 'Default language code' },
   { key: 'NEXT_PUBLIC_DEFAULT_COUNTRY', severity: 'error', description: 'Default country code' },
+  { key: 'NEXT_PUBLIC_DEFAULT_REGION', severity: 'error', description: 'Default region name' },
+  {
+    key: 'NEXT_PUBLIC_EMPORIX_DEFAULT_UNIT_CODE',
+    severity: 'error',
+    description: 'Default Emporix quantity unit code (e.g. piece)',
+  },
   {
     key: 'NEXT_PUBLIC_AVAILABLE_SITES',
     severity: 'error',
@@ -24,12 +31,6 @@ export const REQUIRED_ENV_VARS: ReadonlyArray<EnvVarDefinition> = [
  * Missing these produces warnings but does not fail the build.
  */
 export const OPTIONAL_ENV_VARS: ReadonlyArray<EnvVarDefinition> = [
-  {
-    key: 'NEXT_PUBLIC_DEFAULT_SITE',
-    severity: 'warning',
-    description:
-      'Default site code (resolved from NEXT_PUBLIC_AVAILABLE_SITES[0] if absent and turns off fallback to default site)',
-  },
   { key: 'NEXT_EMPORIX_CLIENT_ID', severity: 'warning', description: 'Emporix server-side client ID' },
   { key: 'NEXT_EMPORIX_CLIENT_SECRET', severity: 'warning', description: 'Emporix server-side client secret' },
 ];

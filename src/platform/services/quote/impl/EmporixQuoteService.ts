@@ -15,6 +15,7 @@ import type {
 import type { QuoteHistoryMapper } from '@/platform/services/model/quote/mapper/QuoteHistoryMapper';
 import type { QuoteMapper } from '@/platform/services/model/quote/mapper/QuoteMapper';
 import type { QuoteService } from '@/platform/services/quote/QuoteService';
+import type { SchemaService } from '@/platform/services/schema/SchemaService';
 import type { SearchParams, SearchResult } from '../../model/common';
 
 @injectable('QuoteService', 'Singleton')
@@ -24,6 +25,7 @@ class EmporixQuoteService implements QuoteService {
     @inject('CustomerService') private customerService: CustomerService,
     @inject('QuoteMapper') private quoteMapper: QuoteMapper<EmporixQuote>,
     @inject('QuoteHistoryMapper') private quoteHistoryMapper: QuoteHistoryMapper<EmporixQuoteHistory>,
+    @inject('SchemaService') private schemaService: SchemaService,
   ) {}
 
   async createQuote(input: CreateQuoteInput): Promise<{ quoteId: string }> {
@@ -69,6 +71,36 @@ class EmporixQuoteService implements QuoteService {
 
   async updateQuote(quoteId: string, operations: QuoteUpdateRequest[], scope: QuoteScope = 'public'): Promise<void> {
     await this.quoteApi.patchQuote(quoteId, operations, scope);
+  }
+
+  async addQuoteUserComment(quoteId: string, input: { comment: string; reference?: string }): Promise<void> {
+    const emporixQuote = await this.quoteApi.getQuote(quoteId);
+    const mixinValue = { reference: input.reference, userComment: input.comment };
+    const updateList: QuoteUpdateRequest[] = [];
+
+    if (emporixQuote.mixins?.additionalInfo !== undefined) {
+      updateList.push({
+        op: 'REPLACE',
+        path: '/mixins/additionalInfo',
+        value: mixinValue,
+      });
+    } else {
+      const quoteMixinSchema = await this.schemaService.getSchema('additionalInfo');
+      updateList.push({
+        op: 'ADD',
+        path: '/mixins/additionalInfo',
+        value: mixinValue,
+      });
+      if (quoteMixinSchema.metadata?.url) {
+        updateList.push({
+          op: 'ADD',
+          path: '/metadata/mixins/additionalInfo',
+          value: quoteMixinSchema.metadata.url,
+        });
+      }
+    }
+
+    await this.updateQuote(quoteId, updateList, 'service');
   }
 
   async getQuoteReason(quoteReasonId: string): Promise<QuoteReason> {

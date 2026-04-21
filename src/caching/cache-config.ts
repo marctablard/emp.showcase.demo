@@ -18,10 +18,13 @@ export interface CacheRule {
 }
 
 /**
- * Default cache revalidation time in seconds
- * Can be overridden by NEXT_CACHE_DEFAULT_REVALIDATE environment variable
+ * Default cache revalidation time in seconds.
+ * Can be overridden by `NEXT_PUBLIC_CACHE_DEFAULT_REVALIDATE`. The
+ * `NEXT_PUBLIC_` name is shared with the Emporix integration layer
+ * (`src/platform/integrations/emporix/common/cache-defaults.ts`) so a single
+ * setting controls the default revalidation window across both layers.
  */
-export const DEFAULT_CACHE_REVALIDATE = parseInt(process.env.NEXT_CACHE_DEFAULT_REVALIDATE || '3600', 10);
+export const DEFAULT_CACHE_REVALIDATE = parseInt(process.env.NEXT_PUBLIC_CACHE_DEFAULT_REVALIDATE || '3600', 10);
 
 /**
  * Cache rules applied in order

@@ -1,15 +1,16 @@
 // src/hooks/cart/store-synchronizer.test.ts
-import { act } from '@testing-library/react';
+import { act, waitFor } from '@testing-library/react';
 import type { Cart } from '@/platform/services/model/cart/cart';
 import type { Site } from '@/platform/services/model/common/site';
 import type { Session } from '@/platform/services/model/session';
+import { createAvailabilityStore } from '@/stores/availability-store';
 import { createCartStore } from '@/stores/cart-store';
 import { createCustomerStore } from '@/stores/customer-store';
+import { createProductStore } from '@/stores/products-store';
 import { createSessionStore } from '@/stores/session-store-context';
 import { createSiteStore } from '@/stores/site-store';
 import { setupStoreSynchronization } from '@/stores/sync/store-synchronizer';
 
-// Mock logger
 jest.mock('@/lib/logger/use-logger-client', () => ({
   getLogger: () => ({
     error: jest.fn(),
@@ -19,9 +20,8 @@ jest.mock('@/lib/logger/use-logger-client', () => ({
   }),
 }));
 
-// Mock cart API calls
 jest.mock('@/lib/client/carts', () => ({
-  fetchCurrentCart: jest.fn().mockResolvedValue(null),
+  fetchCurrentCart: jest.fn().mockResolvedValue({ cart: null, sessionSiteCode: null }),
   updateCartCurrency: jest.fn().mockResolvedValue({ id: 'cart-1', currency: 'EUR' }),
   validateCartItems: jest.fn().mockResolvedValue(undefined),
   addToCart: jest.fn(),
@@ -32,7 +32,12 @@ jest.mock('@/lib/client/carts', () => ({
   updateCartShippingInfo: jest.fn(),
 }));
 
-// Helper to create minimal mock data
+const mockUpdateSessionSite = jest.fn().mockResolvedValue(true);
+jest.mock('@/lib/client/session', () => ({
+  updateSessionSite: (...args: unknown[]) => mockUpdateSessionSite(...args),
+  fetchCurrentSession: jest.fn().mockResolvedValue(null),
+}));
+
 const createMockSession = (overrides: Partial<Session> = {}): Session => ({
   id: 'session-1',
   currency: 'USD',
@@ -75,6 +80,8 @@ describe('Store Synchronizer', () => {
   let cartStore: ReturnType<typeof createCartStore>;
   let siteStore: ReturnType<typeof createSiteStore>;
   let customerStore: ReturnType<typeof createCustomerStore>;
+  let productStore: ReturnType<typeof createProductStore>;
+  let availabilityStore: ReturnType<typeof createAvailabilityStore>;
   let unsubscribers: (() => void)[];
 
   beforeEach(() => {
@@ -95,42 +102,67 @@ describe('Store Synchronizer', () => {
     });
 
     customerStore = createCustomerStore();
+    productStore = createProductStore();
+    availabilityStore = createAvailabilityStore();
   });
 
   afterEach(() => {
-    // Cleanup subscriptions after each test
     if (unsubscribers) {
       unsubscribers.forEach((unsub) => unsub());
     }
   });
 
   describe('setupStoreSynchronization', () => {
-    it('should return array of unsubscribe functions', () => {
+    it('should return array of unsubscribe functions (6 reactive subscriptions; no reconciliation writers)', () => {
       unsubscribers = setupStoreSynchronization({
         sessionStore,
         cartStore,
         siteStore,
         customerStore,
+        productStore,
+        availabilityStore,
       });
 
       expect(Array.isArray(unsubscribers)).toBe(true);
-      expect(unsubscribers.length).toBe(5); // shipping cache + currency + site + siteStore + legalEntity
-      expect(typeof unsubscribers[0]).toBe('function');
-      expect(typeof unsubscribers[1]).toBe('function');
-      expect(typeof unsubscribers[2]).toBe('function');
-      expect(typeof unsubscribers[3]).toBe('function');
-      expect(typeof unsubscribers[4]).toBe('function');
+      // shipping cache + product/availability cache + currency + site-validate + site-store-reset + legal-entity
+      expect(unsubscribers.length).toBe(6);
+      for (const unsub of unsubscribers) {
+        expect(typeof unsub).toBe('function');
+      }
+    });
+
+    it('never calls updateSessionSite from the synchronizer (all session mutations flow through performSiteSwitch)', async () => {
+      unsubscribers = setupStoreSynchronization({
+        sessionStore,
+        cartStore,
+        siteStore,
+        customerStore,
+        productStore,
+        availabilityStore,
+      });
+
+      // Simulate scenarios that previously triggered reconcileSiteWithSession:
+      //   (a) site store mismatch on init
+      await act(async () => {
+        siteStore.setState({ site: createMockSite({ code: 'secondary' }) });
+      });
+      //   (b) session site changed
+      await act(async () => {
+        sessionStore.setState({ session: createMockSession({ siteCode: 'other' }) });
+      });
+      //   (c) a full 3-second wait (previous debounce was 2s)
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      expect(mockUpdateSessionSite).not.toHaveBeenCalled();
     });
 
     it('should call syncCurrencyWithSession when session currency changes', async () => {
-      // Set up cart with different currency
       act(() => {
         cartStore.setState({
           currentCart: createMockCart(),
         });
       });
 
-      // Spy on syncCurrencyWithSession
       const syncSpy = jest.spyOn(cartStore.getState(), 'syncCurrencyWithSession');
 
       unsubscribers = setupStoreSynchronization({
@@ -138,23 +170,45 @@ describe('Store Synchronizer', () => {
         cartStore,
         siteStore,
         customerStore,
+        productStore,
+        availabilityStore,
       });
 
-      // Change session currency
       await act(async () => {
         sessionStore.setState({
           session: createMockSession({ currency: 'EUR' }),
         });
       });
 
-      // Allow subscription to process
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       expect(syncSpy).toHaveBeenCalledWith('EUR', 'main');
     });
 
+    it('should clear availability store when session currency changes (same subscription as product cache)', async () => {
+      const clearSpy = jest.spyOn(availabilityStore.getState(), 'clearAllAvailabilities');
+
+      unsubscribers = setupStoreSynchronization({
+        sessionStore,
+        cartStore,
+        siteStore,
+        customerStore,
+        productStore,
+        availabilityStore,
+      });
+
+      await act(async () => {
+        sessionStore.setState({
+          session: createMockSession({ currency: 'EUR' }),
+        });
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(clearSpy).toHaveBeenCalled();
+    });
+
     it('should call validateSite when session site changes', async () => {
-      // Spy on validateSite
       const validateSiteSpy = jest.spyOn(cartStore.getState(), 'validateSite');
 
       unsubscribers = setupStoreSynchronization({
@@ -162,19 +216,19 @@ describe('Store Synchronizer', () => {
         cartStore,
         siteStore,
         customerStore,
+        productStore,
+        availabilityStore,
       });
 
-      // Change session site
       await act(async () => {
         sessionStore.setState({
           session: createMockSession({ siteCode: 'secondary' }),
         });
       });
 
-      // Allow subscription to process
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      expect(validateSiteSpy).toHaveBeenCalledWith('secondary');
+      await waitFor(() => {
+        expect(validateSiteSpy).toHaveBeenCalledWith('secondary');
+      });
     });
 
     it('should call validateLegalEntity when session legalEntityId changes', async () => {
@@ -185,6 +239,8 @@ describe('Store Synchronizer', () => {
         cartStore,
         siteStore,
         customerStore,
+        productStore,
+        availabilityStore,
       });
 
       await act(async () => {
@@ -214,9 +270,10 @@ describe('Store Synchronizer', () => {
         cartStore,
         siteStore,
         customerStore,
+        productStore,
+        availabilityStore,
       });
 
-      // All unsubscribe functions should execute without error
       expect(() => {
         unsubscribers.forEach((unsub) => unsub());
       }).not.toThrow();
@@ -230,9 +287,10 @@ describe('Store Synchronizer', () => {
         cartStore,
         siteStore,
         customerStore,
+        productStore,
+        availabilityStore,
       });
 
-      // Set session to null
       await act(async () => {
         sessionStore.setState({ session: null });
       });
@@ -250,9 +308,10 @@ describe('Store Synchronizer', () => {
         cartStore,
         siteStore,
         customerStore,
+        productStore,
+        availabilityStore,
       });
 
-      // Set session with undefined siteCode - cast to allow partial session for testing
       await act(async () => {
         sessionStore.setState({
           session: { id: 'test', currency: 'USD', siteCode: '' } as Session,
@@ -265,7 +324,6 @@ describe('Store Synchronizer', () => {
     });
 
     it('should not update currency when cart site differs from session site', async () => {
-      // Set up cart belonging to a different site
       act(() => {
         cartStore.setState({
           currentCart: createMockCart({ site: 'other-site', currency: 'USD' }),
@@ -279,9 +337,10 @@ describe('Store Synchronizer', () => {
         cartStore,
         siteStore,
         customerStore,
+        productStore,
+        availabilityStore,
       });
 
-      // Change session currency for 'main' site, but cart belongs to 'other-site'
       await act(async () => {
         sessionStore.setState({
           session: createMockSession({ currency: 'EUR', siteCode: 'main' }),
@@ -290,13 +349,10 @@ describe('Store Synchronizer', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      // syncCurrencyWithSession should be called, but updateCurrency should NOT
-      // because the cart belongs to a different site
       expect(updateCurrencySpy).not.toHaveBeenCalled();
     });
 
     it('should not update currency when cart currency already matches session currency', async () => {
-      // Set up cart with same currency as session
       act(() => {
         cartStore.setState({
           currentCart: createMockCart({ site: 'main', currency: 'EUR' }),
@@ -310,9 +366,10 @@ describe('Store Synchronizer', () => {
         cartStore,
         siteStore,
         customerStore,
+        productStore,
+        availabilityStore,
       });
 
-      // Change session to EUR (same as cart)
       await act(async () => {
         sessionStore.setState({
           session: createMockSession({ currency: 'EUR', siteCode: 'main' }),
@@ -321,12 +378,10 @@ describe('Store Synchronizer', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      // updateCurrency should NOT be called because currencies already match
       expect(updateCurrencySpy).not.toHaveBeenCalled();
     });
 
     it('should handle multiple rapid currency changes correctly', async () => {
-      // Set up cart
       act(() => {
         cartStore.setState({
           currentCart: createMockCart({ site: 'main', currency: 'USD' }),
@@ -340,9 +395,10 @@ describe('Store Synchronizer', () => {
         cartStore,
         siteStore,
         customerStore,
+        productStore,
+        availabilityStore,
       });
 
-      // Rapid currency changes
       await act(async () => {
         sessionStore.setState({ session: createMockSession({ currency: 'EUR' }) });
       });
@@ -355,7 +411,6 @@ describe('Store Synchronizer', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      // Each change should trigger a sync call
       expect(syncSpy).toHaveBeenCalledTimes(3);
       expect(syncSpy).toHaveBeenCalledWith('EUR', 'main');
       expect(syncSpy).toHaveBeenCalledWith('GBP', 'main');
@@ -363,7 +418,6 @@ describe('Store Synchronizer', () => {
     });
 
     it('should not update currency when cart store is in loading state (e.g., post-login transition)', async () => {
-      // Set up cart with loading state (simulating post-login cart fetch in progress)
       act(() => {
         cartStore.setState({
           currentCart: createMockCart({ site: 'main', currency: 'USD' }),
@@ -378,9 +432,10 @@ describe('Store Synchronizer', () => {
         cartStore,
         siteStore,
         customerStore,
+        productStore,
+        availabilityStore,
       });
 
-      // Change session currency while cart is loading
       await act(async () => {
         sessionStore.setState({
           session: createMockSession({ currency: 'EUR' }),
@@ -389,13 +444,10 @@ describe('Store Synchronizer', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      // syncCurrencyWithSession should be called but should early-return due to loading state,
-      // so updateCurrency should NOT be called
       expect(updateCurrencySpy).not.toHaveBeenCalled();
     });
 
     it('should resume currency sync after loading state clears', async () => {
-      // Start with loading state
       act(() => {
         cartStore.setState({
           currentCart: createMockCart({ site: 'main', currency: 'USD' }),
@@ -408,9 +460,10 @@ describe('Store Synchronizer', () => {
         cartStore,
         siteStore,
         customerStore,
+        productStore,
+        availabilityStore,
       });
 
-      // Change currency while loading — should be skipped
       await act(async () => {
         sessionStore.setState({
           session: createMockSession({ currency: 'EUR' }),
@@ -421,12 +474,10 @@ describe('Store Synchronizer', () => {
 
       const updateCurrencySpy = jest.spyOn(cartStore.getState(), 'updateCurrency');
 
-      // Clear loading state (simulating fetchCart completed)
       act(() => {
         cartStore.setState({ loading: false });
       });
 
-      // Now change currency again — should trigger sync
       await act(async () => {
         sessionStore.setState({
           session: createMockSession({ currency: 'GBP' }),
@@ -435,22 +486,21 @@ describe('Store Synchronizer', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      // This time updateCurrency should be called since loading is false
       expect(updateCurrencySpy).toHaveBeenCalled();
     });
 
-    it('should reset site store when session site changes to a different site', async () => {
-      // Site store starts with 'main' site
-      const resetSpy = jest.spyOn(siteStore.getState(), 'reset');
+    it('should call resetSite on site store when session site changes to a different site (preserves availableSites)', async () => {
+      const resetSiteSpy = jest.spyOn(siteStore.getState(), 'resetSite');
 
       unsubscribers = setupStoreSynchronization({
         sessionStore,
         cartStore,
         siteStore,
         customerStore,
+        productStore,
+        availabilityStore,
       });
 
-      // Switch session to 'us-branch'
       await act(async () => {
         sessionStore.setState({
           session: createMockSession({ siteCode: 'us-branch' }),
@@ -459,21 +509,77 @@ describe('Store Synchronizer', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      expect(resetSpy).toHaveBeenCalledTimes(1);
+      expect(resetSiteSpy).toHaveBeenCalledTimes(1);
     });
 
-    it('should not reset site store when session site matches site store', async () => {
-      // Site store starts with 'main', session also starts with 'main'
-      const resetSpy = jest.spyOn(siteStore.getState(), 'reset');
+    it('should not trigger currency sync when only the cart updates (develop parity — no cart subscription)', async () => {
+      const syncSpy = jest.spyOn(cartStore.getState(), 'syncCurrencyWithSession');
+
+      sessionStore = createSessionStore({
+        session: createMockSession({ currency: 'EUR', siteCode: 'main' }),
+        loading: false,
+      });
 
       unsubscribers = setupStoreSynchronization({
         sessionStore,
         cartStore,
         siteStore,
         customerStore,
+        productStore,
+        availabilityStore,
       });
 
-      // Set same site again — should not trigger reset
+      await act(async () => {
+        cartStore.setState({
+          currentCart: createMockCart({ site: 'main', currency: 'CHF' }),
+        });
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(syncSpy).not.toHaveBeenCalled();
+    });
+
+    it('should not call validateSite when only the cart updates with a different site (develop parity)', async () => {
+      const validateSiteSpy = jest.spyOn(cartStore.getState(), 'validateSite');
+
+      sessionStore = createSessionStore({
+        session: createMockSession({ currency: 'EUR', siteCode: 'main' }),
+        loading: false,
+      });
+
+      unsubscribers = setupStoreSynchronization({
+        sessionStore,
+        cartStore,
+        siteStore,
+        customerStore,
+        productStore,
+        availabilityStore,
+      });
+
+      await act(async () => {
+        cartStore.setState({
+          currentCart: createMockCart({ site: 'us-branch', currency: 'USD' }),
+        });
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(validateSiteSpy).not.toHaveBeenCalled();
+    });
+
+    it('should not call resetSite when session site matches site store', async () => {
+      const resetSiteSpy = jest.spyOn(siteStore.getState(), 'resetSite');
+
+      unsubscribers = setupStoreSynchronization({
+        sessionStore,
+        cartStore,
+        siteStore,
+        customerStore,
+        productStore,
+        availabilityStore,
+      });
+
       await act(async () => {
         sessionStore.setState({
           session: createMockSession({ siteCode: 'main', currency: 'GBP' }),
@@ -482,7 +588,7 @@ describe('Store Synchronizer', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      expect(resetSpy).not.toHaveBeenCalled();
+      expect(resetSiteSpy).not.toHaveBeenCalled();
     });
   });
 });
