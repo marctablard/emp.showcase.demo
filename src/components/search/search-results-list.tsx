@@ -1,8 +1,11 @@
 import { useTranslations } from 'next-intl';
 import type { Product } from '@platform/services/model/product';
 import { ProductTileListItemSkeleton } from '@/components/product/product-tile-list-item-skeleton';
+import { PlpCategoryBreadcrumbs } from '@/components/search/list-view/plp-category-breadcrumbs';
+import { PlpCategoryCarousel } from '@/components/search/list-view/plp-category-carousel';
 import { SearchNoResults } from '@/components/search/search-no-results';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { Category } from '@/platform/services/model/category';
 
 interface SearchResultsListProps {
   products: Product[];
@@ -11,14 +14,30 @@ interface SearchResultsListProps {
   pageSize: number;
   total: number;
   loading: boolean;
+  /**
+   * Site-scoped navigation root categories rendered in the PLP thumbnail carousel. Optional so
+   * legacy call sites that do not plumb the forest keep rendering the placeholder product area.
+   */
+  navigationRoots?: Category[];
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function SearchResultsList({ products, locale, currentPage, pageSize, total, loading }: SearchResultsListProps) {
+export function SearchResultsList({
+  products,
+  locale,
+  currentPage: _currentPage,
+  pageSize,
+  total,
+  loading,
+  navigationRoots,
+}: SearchResultsListProps) {
   const t = useTranslations('search');
+  const rootCategories = navigationRoots ?? [];
 
   return (
     <>
+      <PlpCategoryCarousel categories={rootCategories} locale={locale} />
+      <PlpCategoryBreadcrumbs />
+
       {loading ? (
         <>
           <Skeleton className="mb-4 h-5 w-[180px]" />

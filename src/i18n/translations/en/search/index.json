@@ -16,5 +16,8 @@
   "layoutToggle": {
     "list": "List view",
     "grid": "Grid view"
+  },
+  "plpCategoryCarousel": {
+    "title": "Categories"
   }
 }
