@@ -6,11 +6,11 @@ import Image from 'next/image';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   Carousel,
-  type CarouselApi,
   CarouselContent,
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
+  type CarouselType,
 } from '@/components/ui/carousel';
 import { H4, H5 } from '@/components/ui/h';
 import { useCategoryProductCounts } from '@/hooks/category/useCategoryProductCounts';
@@ -35,7 +35,7 @@ interface PlpCategoryCarouselProps {
  */
 export function PlpCategoryCarousel({ categories, locale }: PlpCategoryCarouselProps) {
   const t = useTranslations('search.plpCategoryCarousel');
-  const [api, setApi] = useState<CarouselApi>();
+  const [api, setApi] = useState<CarouselType>();
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
 

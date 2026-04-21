@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-type CarouselApi = UseEmblaCarouselType[1];
+type CarouselType = UseEmblaCarouselType[1];
 type UseCarouselParameters = Parameters<typeof useEmblaCarousel>;
 type CarouselOptions = UseCarouselParameters[0];
 type CarouselPlugin = UseCarouselParameters[1];
@@ -17,7 +17,7 @@ type CarouselProps = {
   loop?: boolean;
   plugins?: CarouselPlugin;
   orientation?: 'horizontal' | 'vertical';
-  setApi?: (api: CarouselApi) => void;
+  setApi?: (api: CarouselType) => void;
 };
 
 type CarouselContextProps = {
@@ -69,7 +69,7 @@ function Carousel({
   const [canScrollNext, setCanScrollNext] = React.useState(false);
   const [selectedIndex, setSelectedIndex] = React.useState(0);
 
-  const onSelect = React.useCallback((api: CarouselApi) => {
+  const onSelect = React.useCallback((api: CarouselType) => {
     if (!api) return;
     setCanScrollPrev(api.canScrollPrev());
     setCanScrollNext(api.canScrollNext());
@@ -245,4 +245,4 @@ function CarouselNext({ className, ...props }: React.ComponentProps<typeof Butto
   );
 }
 
-export { type CarouselApi, Carousel, CarouselContent, CarouselItem, CarouselDots, CarouselPrevious, CarouselNext };
+export { type CarouselType, Carousel, CarouselContent, CarouselItem, CarouselDots, CarouselPrevious, CarouselNext };
