@@ -22,6 +22,8 @@
   },
   "plpCategoryTree": {
     "title": "Categories",
-    "totalProducts": "— {total} Products"
+    "totalProducts": "— {total} Products",
+    "expand": "Expand {name}",
+    "collapse": "Collapse {name}"
   }
 }
