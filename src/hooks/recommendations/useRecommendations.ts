@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react';
+import { useShopContextReady } from '@/hooks/common/useShopContextReady';
+import { useSession } from '@/hooks/session/useSession';
 import { fetchRecommendations } from '@/lib/client/recommendations';
 import type { ProductRecommendations } from '@/platform/services/model/product';
 
 export function useRecommendations(productId?: string) {
+  const { session } = useSession();
+  const { ready: shopContextReady } = useShopContextReady();
   const [recommendations, setRecommendations] = useState<ProductRecommendations | undefined>(undefined);
-  const [loading, setLoading] = useState(false);
+  const [fetchLoading, setFetchLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!productId) {
+    if (!productId || !shopContextReady) {
       return;
     }
 
@@ -20,7 +24,7 @@ export function useRecommendations(productId?: string) {
       }
 
       setRecommendations(undefined);
-      setLoading(true);
+      setFetchLoading(true);
       setError(null);
 
       fetchRecommendations(productId)
@@ -31,7 +35,7 @@ export function useRecommendations(productId?: string) {
           if (!isCancelled) setError((err as Error).message);
         })
         .finally(() => {
-          if (!isCancelled) setLoading(false);
+          if (!isCancelled) setFetchLoading(false);
         });
     };
 
@@ -39,13 +43,16 @@ export function useRecommendations(productId?: string) {
 
     return () => {
       isCancelled = true;
+      setFetchLoading(false);
     };
-  }, [productId]);
+  }, [productId, shopContextReady, session?.currency, session?.siteCode]);
 
   const hasProduct = Boolean(productId);
+  const waitingForShopContext = hasProduct && !shopContextReady;
+  const loading = hasProduct && (waitingForShopContext || fetchLoading);
 
   return {
-    recommendations: hasProduct ? recommendations : undefined,
+    recommendations: hasProduct && shopContextReady ? recommendations : undefined,
     loading: hasProduct ? loading : false,
     error: hasProduct ? error : null,
   };

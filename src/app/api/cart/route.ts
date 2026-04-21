@@ -8,42 +8,40 @@ import type { Cart } from '@/platform/services/model/cart';
 import type { SessionService } from '@/platform/services/session';
 
 /**
- * GET /api/carts
- * Get the current cart or create a new one if none exists
- * @param {Object} params - Request parameters
- * @param {boolean} [params.create=true] - Whether to create a new cart if one doesn't exist
+ * GET /api/cart
+ *
+ * Fetches the current cart. **Never creates a cart on GET** — callers must POST /api/cart
+ * explicitly when they want a fresh cart. Legacy `?create=true` is ignored and logged as deprecated.
  */
 export async function GET(request: NextRequest) {
   try {
-    // Parse URL to check for 'create' parameter
     const { searchParams } = new URL(request.url);
-    const create = searchParams.get('create') === 'true'; // Default to false if not specified
+    const legacyCreate = searchParams.get('create') === 'true';
 
     const cartService = server.get<CartService>('CartService');
     const sessionService = server.get<SessionService>('SessionService');
+    const logger = server.get<LoggerService>('LoggerService');
     const session = await sessionService.getCurrent();
     if (!session) {
       return new Response(null, {
         status: 204,
       });
     }
-    // Check for cart ID in cookies
-    let cart: Cart | null = await cartService.getCart();
+    const sessionSiteHeader = { 'x-session-site-code': session.siteCode ?? '' };
 
-    // If we don't have a cart and shouldCreate is false, return 204 (intentionally empty)
-    if (!cart && create) {
-      // Create a new cart
-      const newCartId = await cartService.createCart(session.currency, session.siteCode);
-      if (!newCartId) {
-        return NextResponse.json({ error: 'Failed to create cart' }, { status: 500 });
-      }
-      cart = await cartService.getCartById(newCartId);
+    if (legacyCreate) {
+      logger.warn(
+        { path: '/api/cart', method: 'GET' },
+        'Deprecated: GET /api/cart?create=true — use explicit POST /api/cart instead; ignoring create flag',
+      );
     }
-    // null found for cart
+
+    const cart: Cart | null = await cartService.getCart();
+
     if (cart === null) {
-      return new Response(null, { status: 204 });
+      return new Response(null, { status: 204, headers: sessionSiteHeader });
     }
-    return NextResponse.json(cart);
+    return NextResponse.json(cart, { headers: sessionSiteHeader });
   } catch (error) {
     const logger = server.get<LoggerService>('LoggerService');
     const mappedError = mapCartGetError(error);

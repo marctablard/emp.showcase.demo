@@ -1,6 +1,8 @@
 import { Address } from '../common/';
 import { Customer, CustomerAddress } from '../customer/customer';
 
+export type TokenType = 'public' | 'session' | 'customer-saas' | 'ai' | 'service';
+
 /**
  * Authentication Credentials
  */

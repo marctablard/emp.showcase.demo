@@ -1,17 +1,17 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { Globe } from 'lucide-react';
 import TopBarSwitcher from '@/components/ui/molecules/ui-topbar-switcher';
 import { Spinner } from '@/components/ui/spinner';
 import { useSession } from '@/hooks/session/useSession';
 import { useSite } from '@/hooks/site/useSite';
-import { l10n } from '@/lib/utils';
+import { useL10n } from '@/hooks/useL10n';
 
 export function RegionSwitcher() {
   const { session, loading: sessionLoading, setRegion } = useSession();
-  const locale = useLocale();
+  const { l10n } = useL10n();
   const t = useTranslations('common.Regions');
   const { regions, loading: siteLoading } = useSite();
   const currentRegion = useMemo(() => {
@@ -45,7 +45,7 @@ export function RegionSwitcher() {
     <TopBarSwitcher
       options={regions.map((region) => ({
         code: region.code,
-        name: l10n(region.name, locale),
+        name: l10n(region.name),
       }))}
       current={currentRegion.code}
       label={t('label')}

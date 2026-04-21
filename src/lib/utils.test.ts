@@ -1,3 +1,4 @@
+import { getPublicDefaultLanguage } from '@/lib/common/public-default-env';
 import { formatCurrency, formatCurrencyToParts } from './utils';
 
 describe('currency formatting utilities', () => {
@@ -13,9 +14,9 @@ describe('currency formatting utilities', () => {
     expect(formatCurrency(amount, 'EUR', 'en-US')).toBe(expected);
   });
 
-  it('uses de fallback when locale is omitted', () => {
+  it('uses default language from env when locale is omitted', () => {
     const amount = 1234.5;
-    const expected = new Intl.NumberFormat('de', {
+    const expected = new Intl.NumberFormat(getPublicDefaultLanguage(), {
       style: 'currency',
       currency: 'EUR',
       minimumFractionDigits: 2,

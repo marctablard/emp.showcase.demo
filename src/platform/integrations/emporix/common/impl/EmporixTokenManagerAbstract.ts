@@ -2,6 +2,7 @@ import type { StoredToken } from '@platform/integrations/types/auth';
 import { inject } from 'inversify';
 import 'server-only';
 import type {
+  AnonymousTokenSessionParams,
   EmporixAccessTokenResponse,
   EmporixAnonymousTokenResponse,
   EmporixCustomerTokenResponse,
@@ -21,24 +22,125 @@ export interface TokenStore {
   serviceToken?: StoredToken<EmporixAccessTokenResponse>;
 }
 
+interface PublicTokenCache {
+  entries: Map<string, { accessToken: string; expiresAt: number }>;
+  inflight: Map<string, Promise<{ accessToken: string }>>;
+}
+
+const PUBLIC_TOKEN_CACHE_KEY = '__emporix_public_token_cache' as const;
+const PUBLIC_TOKEN_SAFETY_MARGIN_MS = 60_000;
+
+function getPublicTokenCache(): PublicTokenCache {
+  const g = globalThis as unknown as Record<string, PublicTokenCache>;
+  if (!g[PUBLIC_TOKEN_CACHE_KEY]) {
+    g[PUBLIC_TOKEN_CACHE_KEY] = { entries: new Map(), inflight: new Map() };
+  }
+  return g[PUBLIC_TOKEN_CACHE_KEY];
+}
+
+interface ServiceTokenCache {
+  entries: Map<string, { accessToken: string; expiresAt: number }>;
+  inflight: Map<string, Promise<string>>;
+}
+
+export const SERVICE_TOKEN_CACHE_KEY = '__emporix_service_token_cache' as const;
+const SERVICE_TOKEN_SAFETY_MARGIN_MS = 60_000;
+
+function getServiceTokenCache(): ServiceTokenCache {
+  const g = globalThis as unknown as Record<string, ServiceTokenCache>;
+  if (!g[SERVICE_TOKEN_CACHE_KEY]) {
+    g[SERVICE_TOKEN_CACHE_KEY] = { entries: new Map(), inflight: new Map() };
+  }
+  return g[SERVICE_TOKEN_CACHE_KEY];
+}
+
+function buildServiceTokenCacheKey(tenant: string, clientId: string, clientSecret: string, scopes?: string[]): string {
+  // Include clientSecret in the key so rotation of NEXT_EMPORIX_CLIENT_SECRET
+  // invalidates the cache automatically without needing an explicit flush.
+  // scopes are normalized (sorted, space-joined) so callers passing the same
+  // scopes in different order still share an entry.
+  const normalizedScopes = scopes && scopes.length > 0 ? [...scopes].sort().join(' ') : '';
+  return `${tenant}:${clientId}:${clientSecret}:${normalizedScopes}`;
+}
+
 export abstract class EmporixTokenManagerAbstract implements IEmporixTokenManager {
+  private static readonly ANON_TOKEN_DEDUP_GRACE_MS = 2_000;
+  private _anonymousTokenInflight = new Map<string, Promise<StoredToken<EmporixAnonymousTokenResponse>>>();
+
   constructor(@inject('EmporixOAuthApi') protected oauthApi: EmporixOAuthApi) {}
   abstract clearTokens(tenant: string): void;
 
   async getPublicToken(tenant: string, clientId: string): Promise<{ accessToken: string }> {
-    // this token should already be a cached one.
-    const publicToken = await this.oauthApi.getPublicToken(tenant, clientId);
-    return { accessToken: publicToken.access_token };
+    const cacheKey = `${tenant}:${clientId}`;
+    const cache = getPublicTokenCache();
+
+    const cached = cache.entries.get(cacheKey);
+    if (cached && Date.now() < cached.expiresAt) {
+      return { accessToken: cached.accessToken };
+    }
+
+    const inflight = cache.inflight.get(cacheKey);
+    if (inflight) {
+      return inflight;
+    }
+
+    const promise = (async () => {
+      const response = await this.oauthApi.getPublicToken(tenant, clientId);
+      const expiresAt = Date.now() + response.expires_in * 1000 - PUBLIC_TOKEN_SAFETY_MARGIN_MS;
+      cache.entries.set(cacheKey, { accessToken: response.access_token, expiresAt });
+      return { accessToken: response.access_token };
+    })();
+
+    cache.inflight.set(cacheKey, promise);
+    try {
+      return await promise;
+    } finally {
+      cache.inflight.delete(cacheKey);
+    }
   }
 
-  async getAnonymousToken(tenant: string, clientId: string): Promise<{ accessToken: string; sessionId: string }> {
+  clearPublicTokenCache(tenant: string, clientId: string): void {
+    const cacheKey = `${tenant}:${clientId}`;
+    const cache = getPublicTokenCache();
+    cache.entries.delete(cacheKey);
+    cache.inflight.delete(cacheKey);
+  }
+
+  async getAnonymousToken(
+    tenant: string,
+    clientId: string,
+    sessionParams?: AnonymousTokenSessionParams,
+  ): Promise<{ accessToken: string; sessionId: string }> {
     let anonymousToken = await this.readToken<
       StoredToken<EmporixAnonymousTokenResponse>,
       EmporixAnonymousTokenResponse
     >(EMPORIX_TOKEN_TYPE.ANONYMOUS, tenant);
-    // Check if token is expired or about to expire (within 5 minutes)
     if (!this.checkAccessToken(anonymousToken)) {
-      anonymousToken = await this.fetchAnonymousToken(anonymousToken, tenant, clientId);
+      // Deduplicate concurrent token creation requests (thundering herd prevention).
+      // When multiple API route handlers fire simultaneously without a stored token,
+      // they all share a single upstream call instead of each creating a new token.
+      // Key includes siteCode so requests for different sites get separate tokens.
+      const dedupeKey = `${tenant}:${sessionParams?.siteCode ?? ''}`;
+      const inflight = this._anonymousTokenInflight.get(dedupeKey);
+      if (inflight) {
+        anonymousToken = await inflight;
+      } else {
+        const promise = this.fetchAnonymousToken(anonymousToken, tenant, clientId, sessionParams);
+        this._anonymousTokenInflight.set(dedupeKey, promise);
+        try {
+          anonymousToken = await promise;
+        } finally {
+          // Keep the resolved promise in the map for a grace period so sequential
+          // callers (arriving after the first completes but before the cookie is
+          // readable) still coalesce instead of creating a new token.
+          const ref = promise;
+          setTimeout(() => {
+            if (this._anonymousTokenInflight.get(dedupeKey) === ref) {
+              this._anonymousTokenInflight.delete(dedupeKey);
+            }
+          }, EmporixTokenManagerAbstract.ANON_TOKEN_DEDUP_GRACE_MS);
+        }
+      }
       await this.writeToken<StoredToken<EmporixAnonymousTokenResponse>, EmporixAnonymousTokenResponse>(
         EMPORIX_TOKEN_TYPE.ANONYMOUS,
         anonymousToken,
@@ -52,10 +154,11 @@ export abstract class EmporixTokenManagerAbstract implements IEmporixTokenManage
     anonymousToken: StoredToken<EmporixAnonymousTokenResponse> | undefined,
     tenant: string,
     clientId: string,
+    sessionParams?: AnonymousTokenSessionParams,
   ) {
     const now = Date.now();
     let response;
-    // Try refresh token
+    // Try refresh token — session params are NOT passed on refresh (only on new creation)
     if (anonymousToken && checkTokenValidity(anonymousToken.token.refresh_token, anonymousToken.refreshExpiryAt)) {
       try {
         response = await this.oauthApi.refreshAnonymousToken(tenant, anonymousToken.token.refresh_token!, clientId);
@@ -63,9 +166,8 @@ export abstract class EmporixTokenManagerAbstract implements IEmporixTokenManage
         response = undefined;
       }
     }
-    // final resort, we have to get a new token
     if (!response) {
-      response = await this.oauthApi.getAnonymousToken(tenant, clientId);
+      response = await this.oauthApi.getAnonymousToken(tenant, clientId, sessionParams);
     }
     anonymousToken = {
       token: response,
@@ -170,10 +272,15 @@ export abstract class EmporixTokenManagerAbstract implements IEmporixTokenManage
     }
     if (response) {
       const now = Date.now();
+      const previous = customerToken!.token;
+      const saasTokenFromRefresh = response.saas_token;
+      const saasToken =
+        saasTokenFromRefresh != null && saasTokenFromRefresh !== '' ? saasTokenFromRefresh : previous.saas_token;
       customerToken = {
         token: {
           ...response,
-          session_id: customerToken!.token.session_id,
+          session_id: previous.session_id,
+          saas_token: saasToken,
         },
         expiryAt: now + response.expires_in * 1000,
         refreshExpiryAt: response.refresh_token_expires_in ? now + response.refresh_token_expires_in * 1000 : undefined,
@@ -226,8 +333,46 @@ export abstract class EmporixTokenManagerAbstract implements IEmporixTokenManage
     clientSecret: string,
     scopes?: string[],
   ): Promise<string> {
-    const response = await this.oauthApi.getServiceAccessToken(tenant, clientId, clientSecret, scopes);
-    return response.access_token;
+    const cacheKey = buildServiceTokenCacheKey(tenant, clientId, clientSecret, scopes);
+    const cache = getServiceTokenCache();
+
+    const cached = cache.entries.get(cacheKey);
+    if (cached && Date.now() < cached.expiresAt) {
+      return cached.accessToken;
+    }
+
+    const inflight = cache.inflight.get(cacheKey);
+    if (inflight) {
+      return inflight;
+    }
+
+    const promise = (async () => {
+      const response = await this.oauthApi.getServiceAccessToken(tenant, clientId, clientSecret, scopes);
+      // Only cache entries that are meaningfully useful — tokens that expire in
+      // less than the safety margin would cause immediate re-fetch storms.
+      const effectiveTtlMs = response.expires_in * 1000 - SERVICE_TOKEN_SAFETY_MARGIN_MS;
+      if (effectiveTtlMs > 0) {
+        cache.entries.set(cacheKey, {
+          accessToken: response.access_token,
+          expiresAt: Date.now() + effectiveTtlMs,
+        });
+      }
+      return response.access_token;
+    })();
+
+    cache.inflight.set(cacheKey, promise);
+    try {
+      return await promise;
+    } finally {
+      cache.inflight.delete(cacheKey);
+    }
+  }
+
+  public clearServiceTokenCache(tenant: string, clientId: string, clientSecret: string, scopes?: string[]): void {
+    const cacheKey = buildServiceTokenCacheKey(tenant, clientId, clientSecret, scopes);
+    const cache = getServiceTokenCache();
+    cache.entries.delete(cacheKey);
+    cache.inflight.delete(cacheKey);
   }
 
   protected async readToken<T extends StoredToken<K>, K>(

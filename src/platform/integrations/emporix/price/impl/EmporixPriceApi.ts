@@ -1,6 +1,7 @@
 import { inject } from 'inversify';
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
+import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
 import type EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../../config';
 import type {
@@ -9,6 +10,8 @@ import type {
   EmporixMatchedPrice,
 } from '../../model/price';
 import type { EmporixPriceApi as IEmporixPriceApi } from '../EmporixPriceApi';
+
+const createPriceMetrics = (route: string) => createFetchMetricsParams('price', route);
 
 /**
  * Implementation of the Emporix Price API
@@ -43,6 +46,8 @@ class EmporixPriceApi implements IEmporixPriceApi {
         body: JSON.stringify(request),
       },
       'service',
+      undefined,
+      createPriceMetrics('/price/{tenant}/match-prices'),
     );
 
     if (!response.ok) {
@@ -70,6 +75,8 @@ class EmporixPriceApi implements IEmporixPriceApi {
         body: JSON.stringify(request),
       },
       'session',
+      undefined,
+      createPriceMetrics('/price/{tenant}/match-prices-by-context'),
     );
 
     if (!response.ok) {

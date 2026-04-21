@@ -17,8 +17,19 @@ This avoids sprinkling `export const revalidate` / `export const dynamic` across
 
 ```bash
 NEXT_CACHE_MIDDLEWARE_ENABLED=true
-NEXT_CACHE_DEFAULT_REVALIDATE=3600
+NEXT_PUBLIC_CACHE_DEFAULT_REVALIDATE=3600
 ```
+
+### `NEXT_PUBLIC_CACHE_DEFAULT_REVALIDATE`
+
+Default revalidation window in **seconds**. Fallback is `3600`. Non-positive or non-numeric values fall back to `3600`. Consumed in two places:
+
+- **HTTP cache middleware** — `DEFAULT_CACHE_REVALIDATE` in `src/caching/cache-config.ts`. Used as the default `s-maxage` when a matching rule does not set `cache.revalidate` explicitly.
+- **Emporix `authenticatedFetch` opt-in caching** — `DEFAULT_CACHE_REVALIDATE` in `src/platform/integrations/emporix/common/cache-defaults.ts`. Passed as the trailing `cacheSeconds` argument from reference/catalog GET callers (currency, country, catalog, category, brand, label, product GET, site settings, shipping, availability, payment gateway frontend, etc.). Applies only to GET/HEAD and only when the caller has not set `options.cache` / `options.next` explicitly; write methods are always forced to `cache: 'no-store'`.
+
+Both layers read the same env so a single setting controls the default revalidation window across the app. The integration module keeps its own parse of the env (and does not import from `src/caching/**`) to preserve the platform / caching layer boundary.
+
+The `NEXT_PUBLIC_` prefix is required because the integration module can be evaluated from the client DI container graph; Next.js only inlines `NEXT_PUBLIC_*` env vars into the browser bundle, so a non-public name would resolve to `undefined` on the client and the override would be silently lost.
 
 ## Rule shape
 

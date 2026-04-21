@@ -3,6 +3,7 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
+import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import type { QuoteDetailsData } from '../types';
 import { formatDate, formatPrice, getQuoteStatusBadgeVariantForAi } from '../utils';
 import type { UnifiedProductItem } from './ProductItem';
@@ -14,7 +15,7 @@ interface QuoteDetailsRendererProps {
 
 export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data }) => {
   const t = useTranslations('account.AiHelper');
-  const fallbackCurrency = 'USD';
+  const fallbackCurrency = getPublicDefaultCurrency();
 
   return (
     <div className="space-y-4">

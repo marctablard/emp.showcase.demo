@@ -1,6 +1,7 @@
 import { inject } from 'inversify';
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
+import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import { buildPaginatedResponse, buildSearchQuery } from '../../common/util/common';
 import type { EmporixConfig } from '../../config';
@@ -15,6 +16,8 @@ import type {
 } from '../../model/quote';
 import type { EmporixQuote } from '../../model/quote';
 import type { EmporixQuoteApi as IEmporixQuoteApi } from '../EmporixQuoteApi';
+
+const createQuoteMetrics = (route: string) => createFetchMetricsParams('quote', route);
 
 @injectable('EmporixQuoteApi', 'Singleton')
 class EmporixQuoteApi implements IEmporixQuoteApi {
@@ -42,6 +45,8 @@ class EmporixQuoteApi implements IEmporixQuoteApi {
         body: JSON.stringify(body),
       },
       scope,
+      undefined,
+      createQuoteMetrics('/quote/{tenant}/quotes/{id}'),
     );
 
     if (!response.ok) {
@@ -70,6 +75,8 @@ class EmporixQuoteApi implements IEmporixQuoteApi {
       //TODO: Changed to service now as the customer cannot create quotes with cartId and without company addresses.
       // Should be reverted to session later.
       'service',
+      undefined,
+      createQuoteMetrics('/quote/{tenant}/quotes'),
     );
 
     if (!response.ok) {
@@ -93,6 +100,8 @@ class EmporixQuoteApi implements IEmporixQuoteApi {
         cache: 'no-store',
       },
       'service',
+      undefined,
+      createQuoteMetrics('/quote/{tenant}/quotes'),
     );
 
     if (!response.ok) {
@@ -114,6 +123,8 @@ class EmporixQuoteApi implements IEmporixQuoteApi {
         },
       },
       'session',
+      undefined,
+      createQuoteMetrics('/quote/{tenant}/quotes/{id}'),
     );
 
     if (!response.ok) {
@@ -135,6 +146,8 @@ class EmporixQuoteApi implements IEmporixQuoteApi {
         },
       },
       'session',
+      undefined,
+      createQuoteMetrics('/quote/{tenant}/quote-reasons/{id}'),
     );
 
     if (!response.ok) {
@@ -159,6 +172,8 @@ class EmporixQuoteApi implements IEmporixQuoteApi {
         body: JSON.stringify(createQuoteReasonRequest),
       },
       'service',
+      undefined,
+      createQuoteMetrics('/quote/{tenant}/quote-reasons'),
     );
 
     if (!response.ok) {
@@ -180,6 +195,8 @@ class EmporixQuoteApi implements IEmporixQuoteApi {
         cache: 'no-store',
       },
       'service',
+      undefined,
+      createQuoteMetrics('/quote/{tenant}/quotes/{id}/history'),
     );
 
     if (!response.ok) {

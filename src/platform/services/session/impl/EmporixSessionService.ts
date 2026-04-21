@@ -8,6 +8,7 @@ import type {
 } from '@/platform/integrations/emporix/model/session-context';
 import type { EmporixSessionContextApi } from '@/platform/integrations/emporix/session/EmporixSessionContextApi';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
+import type { Site } from '@/platform/services/model/common/site';
 import type { SessionMapper } from '@/platform/services/model/session/SessionMapper';
 import type { Session } from '@/platform/services/model/session/session';
 import type { SiteService } from '../../site/SiteService';
@@ -136,6 +137,26 @@ class EmporixSessionService implements SessionService {
         throw error;
       }
 
+      if (latestSession.siteCode === site) {
+        this.logger.info({ site }, 'Site already set to target — skipping retry');
+        return;
+      }
+
+      // Guard: if the siteCode changed between our initial read and the retry,
+      // a concurrent setSite() call already completed (e.g. site switcher vs.
+      // reconciliation race). Retrying would overwrite the newer intent.
+      if (latestSession.siteCode !== initialSession.siteCode) {
+        this.logger.info(
+          {
+            targetSite: site,
+            initialSiteCode: initialSession.siteCode,
+            currentSiteCode: latestSession.siteCode,
+          },
+          'Aborting setSite retry — siteCode was concurrently changed by another mutation',
+        );
+        return;
+      }
+
       const retryPayload = buildUpdatePayload(latestSession);
       this.logger.warn(
         {
@@ -146,6 +167,14 @@ class EmporixSessionService implements SessionService {
         'Retrying session site update after version conflict',
       );
       await this.sessionContextApi.updateOwnSessionContext(retryPayload);
+    }
+
+    if (siteChanged) {
+      const previousSiteCode = initialSession.siteCode;
+      if (previousSiteCode) {
+        this.siteService.invalidateSiteCache(previousSiteCode);
+      }
+      this.siteService.invalidateSiteCache(site);
     }
   }
 
@@ -220,11 +249,25 @@ class EmporixSessionService implements SessionService {
       updateDefaults.siteCode = resolvedDefaultSite;
       result.siteCode = resolvedDefaultSite;
     }
+
+    this.logger.debug(
+      {
+        siteCode: result.siteCode,
+        currency: result.currency,
+        country: result.country,
+        language: result.language,
+        region: result.region,
+        needsAdjustment: Object.keys(updateDefaults).length > 0,
+      },
+      'adjustSessionsSettings entry',
+    );
+
     const site = await this.siteService.getSite(result.siteCode);
     if (!site) {
       return;
     }
-    if (!sessionContext?.currency || !site.currencies.find((currency) => currency.id === result.currency)) {
+
+    if (site.defaultCurrency?.id && (!result.currency || !this.isCurrencySupportedOnSite(site, result.currency))) {
       updateDefaults.currency = site.defaultCurrency.id;
       result.currency = site.defaultCurrency.id;
     }
@@ -249,6 +292,7 @@ class EmporixSessionService implements SessionService {
       result.region = this.defaultRegion;
     }
     if (Object.keys(updateDefaults).length > 0) {
+      this.logger.info({ updateDefaults }, 'Patching session defaults');
       updateDefaults.metadata = {
         version: sessionContext?.metadata?.version || 1,
       };
@@ -263,6 +307,25 @@ class EmporixSessionService implements SessionService {
         }
       });
     }
+  }
+
+  private isCurrencySupportedOnSite(site: Site, currency: string): boolean {
+    const supported = new Set<string>();
+    if (site.defaultCurrency?.id) {
+      supported.add(site.defaultCurrency.id);
+    }
+    if (site.defaultCurrency?.code) {
+      supported.add(site.defaultCurrency.code);
+    }
+    for (const entry of site.currencies ?? []) {
+      if (entry.id) {
+        supported.add(entry.id);
+      }
+      if (entry.code) {
+        supported.add(entry.code);
+      }
+    }
+    return supported.has(currency);
   }
 
   private isSessionContextVersionConflictError(error: unknown): boolean {

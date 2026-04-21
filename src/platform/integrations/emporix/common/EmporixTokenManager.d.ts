@@ -1,3 +1,5 @@
+import type { AnonymousTokenSessionParams } from '../model/oauth';
+
 /**
  * TokenManager for handling Emporix API tokens
  * Manages token caching and refreshing
@@ -13,9 +15,14 @@ export interface EmporixTokenManager {
   /**
    * Get a valid anonymous token, refreshing if necessary
    * @param tenant The tenant ID
+   * @param sessionParams Optional session context values to pre-seed the new session (COP-5047)
    * @returns Promise with the token
    */
-  getAnonymousToken(tenant: string, clientId: string): Promise<{ accessToken: string; sessionId: string }>;
+  getAnonymousToken(
+    tenant: string,
+    clientId: string,
+    sessionParams?: AnonymousTokenSessionParams,
+  ): Promise<{ accessToken: string; sessionId: string }>;
 
   /**
    * Clear the anonymous token for the given tenant
@@ -73,6 +80,12 @@ export interface EmporixTokenManager {
     tenant: string,
     legalEntityId: string,
   ): Promise<{ accessToken: string; saasToken?: string; sessionId: string } | null>;
+
+  /**
+   * Clear the in-process public token cache for the given tenant+clientId.
+   * Used by invokers to force a fresh token on 401 retry.
+   */
+  clearPublicTokenCache(tenant: string, clientId: string): void;
 
   /**
    * Clear all stored tokens

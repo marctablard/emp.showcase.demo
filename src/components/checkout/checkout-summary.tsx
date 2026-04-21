@@ -41,7 +41,9 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
   const [isSubmitting] = useState(false);
   const [disabled, setDisabled] = useState(true);
   const hasShippingMethods = availableShippingMethods.length > 0;
-  const isShippingSelectionValid = !!shippingMethod && hasShippingMethods;
+  const selectedMethodIsCurrent =
+    !!shippingMethod && availableShippingMethods.some((m) => m.id === shippingMethod.methodId);
+  const isShippingSelectionValid = hasShippingMethods && selectedMethodIsCurrent;
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
 
   const onValidationSuccess = (data: any) => {

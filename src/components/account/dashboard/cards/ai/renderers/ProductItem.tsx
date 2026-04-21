@@ -3,6 +3,7 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
+import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import { formatPrice, handleImageError } from '../utils';
 
 export interface UnifiedProductItem {
@@ -70,7 +71,8 @@ export const ProductItem: React.FC<ProductItemProps> = ({
   const t = useTranslations('account.AiHelper');
 
   // Determine currency to use
-  const itemCurrency = item.unitPrice?.currency || item.totalPrice?.currency || item.currency || currency || 'USD';
+  const itemCurrency =
+    item.unitPrice?.currency || item.totalPrice?.currency || item.currency || currency || getPublicDefaultCurrency();
 
   // Get unit price
   const unitPriceValue = item.unitPrice?.value ?? item.price ?? 0;

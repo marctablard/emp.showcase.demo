@@ -15,7 +15,7 @@ interface UseProductsResult {
 
 export function useProducts(productIds: Product['id'][] = [], fetchOptions?: ProductFetchOptions): UseProductsResult {
   const logger = useLogger();
-  const { getProduct, addProducts } = useProductStore();
+  const { getProduct, addProducts, cacheGeneration } = useProductStore();
 
   // Stabilize fetchOptions to prevent unnecessary re-renders
   const fetchOptionsRef = useRef<ProductFetchOptions | undefined>(fetchOptions);
@@ -85,12 +85,16 @@ export function useProducts(productIds: Product['id'][] = [], fetchOptions?: Pro
     [productIds, getProduct, addProducts, logger],
   );
 
+  const prevCacheGenRef = useRef(cacheGeneration);
+
   useEffect(() => {
     if (productIds && productIds.length > 0) {
-      fetchProducts();
+      const generationChanged = prevCacheGenRef.current !== cacheGeneration;
+      prevCacheGenRef.current = cacheGeneration;
+      fetchProducts(generationChanged);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productIds.join(',')]);
+  }, [productIds.join(','), cacheGeneration]);
 
   const refetch = useCallback(() => fetchProducts(true), [fetchProducts]);
 

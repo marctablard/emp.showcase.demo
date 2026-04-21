@@ -27,7 +27,7 @@ interface ProductTileProps {
   skipVariantFetch?: boolean;
 }
 
-export function ProductTile({ product, locale = 'en', skipVariantFetch = false }: ProductTileProps) {
+export function ProductTile({ product, locale, skipVariantFetch = false }: ProductTileProps) {
   const t = useTranslations('product');
   const { l10n, l10nOrEmpty } = useL10n(locale);
   const { addItem, loading: cartLoading } = useCart();

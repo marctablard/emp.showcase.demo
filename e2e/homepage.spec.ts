@@ -11,9 +11,6 @@ test.describe('Homepage Tests', () => {
     // Navigate to the German homepage
     await page.goto('/de');
 
-    // Wait for the page to be fully loaded
-    await page.waitForLoadState('networkidle');
-
     // Verify the page has loaded by checking for expected elements
     // The header element contains fixed-positioned children, so we check for the first visible child div
     await expect(page.locator('header > div').first()).toBeVisible();
@@ -44,9 +41,6 @@ test.describe('Homepage Tests', () => {
   test('Root URL (/) loads the default English locale', async ({ page }) => {
     // Navigate to the root URL
     await page.goto('/');
-
-    // Wait for the page to be fully loaded
-    await page.waitForLoadState('networkidle');
 
     // Verify the page has loaded by checking for the fixed header container
     await expect(page.locator('header > div').first()).toBeVisible();

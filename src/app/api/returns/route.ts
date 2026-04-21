@@ -2,10 +2,8 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { normalizeReasonCode, normalizeReasonDetails } from '@/lib/common/returns/reason-normalization';
 import { computeOrderReturnability } from '@/lib/common/returns/returnability';
-import type { EmporixReturnApi } from '@/platform/integrations/emporix/return/EmporixReturnApi';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import type { EmporixReturnMapper } from '@/platform/services/model/return/impl/EmporixReturnMapper';
 import type { OrderService } from '@/platform/services/order/OrderService';
 import type { ReturnService } from '@/platform/services/return/ReturnService';
 
@@ -32,10 +30,8 @@ export async function GET(request: NextRequest) {
     const sort = searchParams.get('sort') || undefined;
     const query = searchParams.get('query') || undefined;
 
-    const returnApi = server.get<EmporixReturnApi>('EmporixReturnApi');
-    const returnMapper = server.get<EmporixReturnMapper>('EmporixReturnMapper');
-    const { items, totalCount } = await returnApi.getReturns(pageNumber, pageSize, sort, query);
-    const returns = items.map((returnItem) => returnMapper.mapToService(returnItem));
+    const returnService = server.get<ReturnService>('ReturnService');
+    const { items: returns, totalCount } = await returnService.listReturns(pageNumber, pageSize, sort, query);
 
     return NextResponse.json(returns, {
       headers: totalCount !== undefined ? { 'x-total-count': String(totalCount) } : undefined,

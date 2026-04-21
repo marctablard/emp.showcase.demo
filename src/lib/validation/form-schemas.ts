@@ -8,7 +8,7 @@ export const LoginSchema = z.object({
 export const AddressFormSchema = z.object({
   contactName: z.string().min(1, { message: 'address.contactName.required' }),
   street: z.string().min(1, { message: 'address.street.required' }),
-  streetNumber: z.string().min(1, { message: 'address.streetNumber.required' }),
+  streetNumber: z.string().optional(),
   zipCode: z.string().min(1, { message: 'address.zipCode.required' }),
   city: z.string().min(1, { message: 'address.city.required' }),
   country: z.string().min(1, { message: 'address.country.required' }),

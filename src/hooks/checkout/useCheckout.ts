@@ -295,6 +295,14 @@ export const useCheckout = (): UseCheckout => {
     }
     lastShippingRatesKeyRef.current = ratesKey;
 
+    // Drop stale rates and any previously selected method synchronously so the
+    // auto-selection effect cannot re-pick from the previous list while the new
+    // fetch is in flight.
+    clearShippingMethods();
+    if (shippingMethod) {
+      submitShippingMethod(null);
+    }
+
     const orderValue =
       orderAmount !== undefined && orderCurrency !== undefined && orderCurrency !== ''
         ? { amount: orderAmount, currency: orderCurrency }
@@ -308,6 +316,8 @@ export const useCheckout = (): UseCheckout => {
     orderCurrency,
     fetchShippingMethods,
     clearShippingMethods,
+    shippingMethod,
+    submitShippingMethod,
   ]);
 
   useEffect(() => {

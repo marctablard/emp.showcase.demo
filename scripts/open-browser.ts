@@ -3,6 +3,8 @@ import * as http from 'http';
 
 const PORT = process.env.PORT || 3000;
 const URL = `http://localhost:${PORT}`;
+/** Poll liveness so Node's minimal `http.get` headers do not hit `/` (middleware health-check shortcut). */
+const HEALTH_URL = `${URL}/api/health`;
 const MAX_RETRIES = 30;
 const RETRY_INTERVAL = 1000;
 
@@ -54,7 +56,7 @@ async function waitForServerAndOpen(): Promise<void> {
   console.log(`\x1b[36m⏳ Waiting for dev server at ${URL}...\x1b[0m`);
 
   for (let i = 0; i < MAX_RETRIES; i++) {
-    const isReady = await checkServer(URL);
+    const isReady = await checkServer(HEALTH_URL);
 
     if (isReady) {
       // Small additional delay to ensure the server is fully ready

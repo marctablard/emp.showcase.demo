@@ -14,7 +14,7 @@ function getOrCreateAISessionId(): string {
 
 export async function prepareAIContext(session: Session, cartStore: CartStore): Promise<AIChatContext> {
   const aiSessionId = getOrCreateAISessionId();
-  await cartStore.fetchCart(true);
+  await cartStore.fetchCart();
   const currentCart = cartStore.getCurrentCart();
   const freshCartId = currentCart?.id;
 

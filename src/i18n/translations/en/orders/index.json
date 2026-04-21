@@ -13,6 +13,7 @@
   "noRemainingItems": "A return for all items in this order has already been requested.",
   "paymentMethod": "Payment Method",
   "shippingMethod": "Shipping Method",
+  "shippingMethodUnknown": "Unknown shipping method",
   "orderItems": "Order Items",
   "product": "Product",
   "price": "Price",

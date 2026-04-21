@@ -1,14 +1,18 @@
 import { inject } from 'inversify';
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
+import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
 import type {
   EmporixLabel,
   EmporixPaginatedResponse,
   EmporixSearchParams,
 } from '@/platform/integrations/emporix/model';
+import { DEFAULT_CACHE_REVALIDATE } from '../../common/cache-defaults';
 import type EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
 import { buildPaginatedResponse, buildSearchQuery } from '../../common/util/common';
 import type { EmporixLabelApi as IEmporixLabelApi } from '../EmporixLabelApi';
+
+const createLabelMetrics = (route: string) => createFetchMetricsParams('label', route);
 
 /**
  * Implementation of LabelApi for Emporix label data.
@@ -47,6 +51,9 @@ class EmporixLabelApi implements IEmporixLabelApi {
       url,
       { method: 'GET', headers: { 'X-Total-Count': 'true' } },
       'public',
+      undefined,
+      createLabelMetrics('/label/labels'),
+      DEFAULT_CACHE_REVALIDATE,
     );
 
     return buildPaginatedResponse(params, response);
@@ -58,7 +65,14 @@ class EmporixLabelApi implements IEmporixLabelApi {
    * @returns The label data or undefined if not found
    */
   async getLabel(id: string): Promise<EmporixLabel | undefined> {
-    const response = await this.apiInvoker.authenticatedFetch(`/label/labels/${id}`, { method: 'GET' }, 'public');
+    const response = await this.apiInvoker.authenticatedFetch(
+      `/label/labels/${id}`,
+      { method: 'GET' },
+      'public',
+      undefined,
+      createLabelMetrics('/label/labels/{id}'),
+      DEFAULT_CACHE_REVALIDATE,
+    );
 
     if (!response.ok) {
       if (response.status === 404) {

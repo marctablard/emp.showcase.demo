@@ -43,7 +43,16 @@ describe('EmporixCustomerApi', () => {
     container = new Container();
     container.bind<EmporixConfig>('EmporixConfig').toConstantValue(new TestEmporixConfig());
     container.bind<EmporixTokenManager>('EmporixTokenManager').to(EmporixTestTokenManager).inSingletonScope();
-    container.bind<EmporixApiInvoker>('EmporixApiInvoker').to(EmporixApiInvoker).inSingletonScope();
+    container
+      .bind<EmporixApiInvoker>('EmporixApiInvoker')
+      .toDynamicValue(
+        (ctx) =>
+          new EmporixApiInvoker(
+            ctx.get<EmporixConfig>('EmporixConfig'),
+            ctx.get<EmporixTokenManager>('EmporixTokenManager'),
+          ),
+      )
+      .inSingletonScope();
     container.bind<EmporixOAuthApi>('EmporixOAuthApi').to(EmporixOAuthApi).inSingletonScope();
     container.bind<EmporixCustomerApi>('EmporixCustomerApi').to(EmporixCustomerApi).inSingletonScope();
 

@@ -61,6 +61,7 @@ export interface OrderShipping {
   methods?: Array<{
     id: string;
     name?: string;
+    localizedName?: Record<string, string>;
     description?: string;
     price: number;
     currency: string;

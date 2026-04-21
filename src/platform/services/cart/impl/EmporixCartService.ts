@@ -1,6 +1,5 @@
 import { inject } from 'inversify';
 import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
-import { l10n } from '@/lib/utils';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCartApi } from '@/platform/integrations/emporix/cart/EmporixCartApi';
 import type EmporixCommonUtil from '@/platform/integrations/emporix/common/util/EmporixCommonUtil';
@@ -16,7 +15,8 @@ import {
 } from '@/platform/services/cart/errors';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Cart } from '@/platform/services/model/cart/cart';
-import type { PriceService } from '@/platform/services/price/PriceService';
+import type { Session } from '@/platform/services/model/session/session';
+import type { PriceFetchOptions, PriceService } from '@/platform/services/price/PriceService';
 import type { ProductService } from '@/platform/services/product/ProductService';
 import type { StockService } from '@/platform/services/stock/StockService';
 import type { CartMapper } from '../../model/cart/CartMapper';
@@ -44,6 +44,50 @@ class EmporixCartService implements CartService {
 
   private normalizeLegalEntityId(value: string | undefined): string {
     return typeof value === 'string' ? value.trim() : '';
+  }
+
+  /**
+   * Use explicit match-prices (site + session currency + country) for cart mutations.
+   * `match-prices-by-context` can diverge from the shop session cookie when propagation lags,
+   * which produced priceIds incompatible with the cart currency.
+   */
+  private explicitPriceParamsForCartOperation(session: Session, cartSiteCode: string): PriceFetchOptions {
+    return {
+      siteCode: cartSiteCode,
+      currency: session.currency,
+      country: session.country,
+    };
+  }
+
+  private normalizeCurrencyCode(value: string | undefined): string {
+    return typeof value === 'string' ? value.trim().toUpperCase() : '';
+  }
+
+  /**
+   * Emporix validates new line prices against the cart's pricing currency. If the cart still
+   * carries a stale currency (e.g. site default while the session already switched), match-prices
+   * for the session can yield a priceId that the cart API rejects ("PriceIds … from cart are invalid").
+   */
+  private async ensureCartCurrencyMatchesSessionBeforeLineMutation(
+    rawCart: EmporixCart,
+    session: Session,
+  ): Promise<EmporixCart> {
+    const cartCur = this.normalizeCurrencyCode(rawCart.currency);
+    const sessionCur = this.normalizeCurrencyCode(session.currency);
+    if (!cartCur || !sessionCur || cartCur === sessionCur) {
+      return rawCart;
+    }
+
+    this.logger.info(
+      { cartId: rawCart.id, cartCurrency: rawCart.currency, sessionCurrency: session.currency },
+      'Aligning cart currency with session before cart line mutation',
+    );
+    await this.updateCurrency(rawCart.id, session.currency);
+    const refreshed = await this.cartApi.getCart(rawCart.id);
+    if (!refreshed) {
+      throw new Error('Cart not found after currency alignment');
+    }
+    return refreshed;
   }
 
   private isCartOptimisticLockConflict(error: unknown): boolean {
@@ -99,6 +143,10 @@ class EmporixCartService implements CartService {
     };
     try {
       const cartId = await this.cartApi.createCart(createCartRequest);
+      // Emporix POST /carts does not always persist `currentCart` on the session context immediately
+      // for anonymous flows. Without this, GET /api/cart?create=true can return null (getCartById
+      // / follow-up getCart) and the client shows "No cart available" until a full page reload.
+      await this.sessionService.setCart(cartId);
       return cartId;
     } catch (error) {
       // only business error can be that it's a duplicate
@@ -220,11 +268,12 @@ class EmporixCartService implements CartService {
   }
 
   async addItemToCart(cartId: string, productId: string, quantity: number): Promise<ModifyCartItemResult> {
-    const [rawCart, product, session] = await Promise.all([
+    const [initialRawCart, product, session] = await Promise.all([
       this.cartApi.getCart(cartId),
       this.productService.getProductById(productId),
       this.sessionService.getCurrent(),
     ]);
+    let rawCart = initialRawCart;
     if (!rawCart) {
       throw new Error('Cart not found');
     }
@@ -236,7 +285,7 @@ class EmporixCartService implements CartService {
     }
 
     // Determine the cart's effective site code
-    const cartSiteCode = rawCart.siteCode || session.siteCode;
+    let cartSiteCode = rawCart.siteCode || session.siteCode;
 
     // GUARD: If cart belongs to a different site, auto-recover by fetching/creating the correct cart.
     // This handles race conditions where the session site changed but the cart ID wasn't updated yet.
@@ -258,9 +307,15 @@ class EmporixCartService implements CartService {
       return this.addItemToCart(correctCart.id, productId, quantity);
     }
 
-    // Session and cart are aligned → matchPricesByContext handles currency conversion,
-    // cross-site price fallback, and tax recalculation internally via the session context.
-    const price = await this.priceService.getProductPrice(productId, quantity);
+    rawCart = await this.ensureCartCurrencyMatchesSessionBeforeLineMutation(rawCart, session);
+    cartSiteCode = rawCart.siteCode || session.siteCode;
+
+    const price = await this.priceService.getProductPrice(
+      productId,
+      quantity,
+      undefined,
+      this.explicitPriceParamsForCartOperation(session, cartSiteCode),
+    );
 
     // TODO find existing cartItem and merge if desired
     if (!price) {
@@ -268,14 +323,22 @@ class EmporixCartService implements CartService {
     }
     const { hasSufficientStock, availableQuantity } = await this.checkStock(cartSiteCode, productId, quantity);
 
+    const productNamePayload: { name?: string; localizedName?: { [language: string]: string } } = {};
+    if (typeof product.name === 'string') {
+      productNamePayload.name = product.name;
+    } else if (product.name && typeof product.name === 'object') {
+      // Persist the full localized map on the cart line so the UI can resolve it per render.
+      // This avoids stamping the language active at add time onto every subsequent view of the cart.
+      productNamePayload.localizedName = { ...(product.name as { [language: string]: string }) };
+    }
+
     const addItemRequest: EmporixAddCartItemRequest = {
       siteCode: cartSiteCode,
       itemYrn: this.commonUtil.generateProductYrn(productId),
       quantity,
       product: {
         id: productId,
-        name: l10n(product.name, session.language),
-        description: l10n(product.description, session.language),
+        ...productNamePayload,
         sku: product.sku,
         images: product.images?.map((img: Media) => ({
           id: img.url,
@@ -291,9 +354,10 @@ class EmporixCartService implements CartService {
     };
     // Add item to cart regardless of stock availability
     // (we determine availability for information and handle the surplus asynchronously)
-    const itemId = await this.cartApi.addItemToCart(cartId, addItemRequest);
+    const postAlignCartId = rawCart.id;
+    const itemId = await this.cartApi.addItemToCart(postAlignCartId, addItemRequest);
 
-    const cart = await this.getCartById(cartId);
+    const cart = await this.getCartById(postAlignCartId);
     const cartItem = cart?.items.find((item) => item.id === itemId);
     if (!cartItem) {
       throw new Error('Cart item not found');
@@ -319,11 +383,11 @@ class EmporixCartService implements CartService {
   }
 
   async updateCartItemQuantity(cartId: string, itemId: string, quantity: number): Promise<ModifyCartItemResult> {
-    const cart = await this.getCartById(cartId);
+    let cart = await this.getCartById(cartId);
     if (!cart) {
       throw new Error('Cart not found');
     }
-    const cartItem = cart.items.find((item) => item.id === itemId);
+    let cartItem = cart.items.find((item) => item.id === itemId);
     if (!cartItem || !cartItem.product?.id) {
       throw new Error('Cart item not found');
     }
@@ -342,8 +406,31 @@ class EmporixCartService implements CartService {
       throw new Error('Cart belongs to a different site. Please refresh the page.');
     }
 
-    // Session-based pricing — matchPricesByContext handles currency/tax internally
-    const price = await this.priceService.getProductPrice(cartItem.product.id, quantity);
+    if (!session) {
+      throw new Error('Failed to get session context');
+    }
+
+    const rawCartForCurrency = await this.cartApi.getCart(cartId);
+    if (rawCartForCurrency) {
+      const aligned = await this.ensureCartCurrencyMatchesSessionBeforeLineMutation(rawCartForCurrency, session);
+      if (this.normalizeCurrencyCode(rawCartForCurrency.currency) !== this.normalizeCurrencyCode(aligned.currency)) {
+        cart = await this.getCartById(cartId);
+        if (!cart) {
+          throw new Error('Cart not found');
+        }
+        cartItem = cart.items.find((item) => item.id === itemId);
+        if (!cartItem || !cartItem.product?.id) {
+          throw new Error('Cart item not found');
+        }
+      }
+    }
+
+    const price = await this.priceService.getProductPrice(
+      cartItem.product.id,
+      quantity,
+      undefined,
+      this.explicitPriceParamsForCartOperation(session, cartSiteCode),
+    );
 
     if (!price) {
       throw new Error('Price missing');

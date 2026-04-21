@@ -1,5 +1,6 @@
 import { inject } from 'inversify';
 import webpush from 'web-push';
+import { getPublicDefaultLanguage } from '@/lib/common/public-default-env';
 import { baseUrl } from '@/lib/utils';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixPaginatedResponse } from '@/platform/integrations/emporix/model';
@@ -347,7 +348,7 @@ export class EmporixNotificationServiceServer implements INotificationService {
       await Promise.all(
         subscriptions.map(async (subscription) => {
           // Try to get the session to determine language preference
-          let language = 'en';
+          let language = getPublicDefaultLanguage();
           if (subscription.recipient.sessionId) {
             try {
               const session = await this.sessionService.getById(subscription.recipient.sessionId);

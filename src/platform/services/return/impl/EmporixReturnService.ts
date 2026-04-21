@@ -4,7 +4,7 @@ import type { EmporixReturnCreateRequest } from '@/platform/integrations/emporix
 import type { EmporixReturnApi } from '@/platform/integrations/emporix/return/EmporixReturnApi';
 import type { Return } from '@/platform/services/model/return';
 import type { EmporixReturnMapper } from '@/platform/services/model/return/impl/EmporixReturnMapper';
-import type { CreateReturnItem, ReturnService } from '../ReturnService';
+import type { CreateReturnItem, ReturnListResult, ReturnService } from '../ReturnService';
 
 /**
  * Implementation of ReturnService interface for Emporix return operations.
@@ -24,9 +24,22 @@ export class EmporixReturnService implements ReturnService {
    * @param query Optional query parameter for filtering
    * @returns Promise with array of returns
    */
-  async getReturns(pageNumber: number = 1, pageSize: number = 60, sort?: string, query?: string): Promise<Return[]> {
+  async listReturns(
+    pageNumber: number = 1,
+    pageSize: number = 60,
+    sort?: string,
+    query?: string,
+  ): Promise<ReturnListResult> {
     const emporixReturns = await this.returnApi.getReturns(pageNumber, pageSize, sort, query);
-    return emporixReturns.items.map((returnItem) => this.returnMapper.mapToService(returnItem));
+    return {
+      items: emporixReturns.items.map((returnItem) => this.returnMapper.mapToService(returnItem)),
+      totalCount: emporixReturns.totalCount,
+    };
+  }
+
+  async getReturns(pageNumber: number = 1, pageSize: number = 60, sort?: string, query?: string): Promise<Return[]> {
+    const { items } = await this.listReturns(pageNumber, pageSize, sort, query);
+    return items;
   }
 
   /**
