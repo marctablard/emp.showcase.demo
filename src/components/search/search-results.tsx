@@ -28,8 +28,8 @@ interface SearchClientWrapperProps {
   initialResults?: SearchResult<Product>;
   locale: string;
   /**
-   * Site-scoped navigation category forest (from `getCachedNavigationCategoryTrees`). Threaded in
-   * for the list-view tree / carousel; currently accepted and ignored.
+   * Site-scoped navigation category forest (from `getCachedNavigationCategoryTrees`). Feeds the
+   * list-view thumbnail carousel and later the expandable category tree.
    */
   navigationRoots?: Category[];
 }
@@ -41,8 +41,7 @@ export function SearchResultsComponent({
   initialSearch,
   initialResults,
   locale,
-  // TODO(COP-4859 step 2a): consume in SearchResultsList — carousel + tree read this forest.
-  navigationRoots: _navigationRoots,
+  navigationRoots,
 }: SearchClientWrapperProps) {
   const t = useTranslations('search.searchResults');
   const tSearch = useTranslations('search');
@@ -215,6 +214,11 @@ export function SearchResultsComponent({
             pageSize={pageSize}
             total={total}
             loading={loading}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            loadMore={loadMore}
+            activeCategoryIdsFilter={activeFilters.categoryIds}
+            navigationRoots={navigationRoots}
           />
         )}
 

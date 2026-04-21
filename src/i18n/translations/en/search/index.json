@@ -16,5 +16,12 @@
   "layoutToggle": {
     "list": "List view",
     "grid": "Grid view"
+  },
+  "plpCategoryCarousel": {
+    "title": "Categories"
+  },
+  "plpCategoryTree": {
+    "title": "Categories",
+    "totalProducts": "— {total} Products"
   }
 }

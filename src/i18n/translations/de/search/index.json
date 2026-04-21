@@ -16,5 +16,12 @@
   "layoutToggle": {
     "list": "Listenansicht",
     "grid": "Rasteransicht"
+  },
+  "plpCategoryCarousel": {
+    "title": "Kategorien"
+  },
+  "plpCategoryTree": {
+    "title": "Kategorien",
+    "totalProducts": "— {total} Produkte"
   }
 }
