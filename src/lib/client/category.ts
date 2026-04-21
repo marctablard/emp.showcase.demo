@@ -47,3 +47,37 @@ export async function fetchCategoryTree(
     throw error;
   }
 }
+
+/**
+ * Fetch the total number of products assigned to a category (including subcategories).
+ *
+ * Returns `0` on any error — the count is a best-effort display value.
+ */
+export async function fetchCategoryProductCount(categoryId: string): Promise<number> {
+  const trimmedId = categoryId?.trim();
+  if (!trimmedId) {
+    return 0;
+  }
+
+  try {
+    const url = new URL(`/api/categories/${encodeURIComponent(trimmedId)}/product-count`, window.location.origin);
+    const response = await fetch(url.toString());
+
+    if (!response.ok) {
+      getLogger().debug(
+        { status: response.status, statusText: response.statusText, categoryId: trimmedId },
+        'Non-OK response fetching category product count',
+      );
+      return 0;
+    }
+
+    const data = (await response.json()) as { count?: unknown };
+    if (typeof data.count !== 'number' || data.count < 0 || !Number.isFinite(data.count)) {
+      return 0;
+    }
+    return data.count;
+  } catch (error) {
+    getLogger().debug({ err: error, categoryId: trimmedId }, 'Error fetching category product count');
+    return 0;
+  }
+}

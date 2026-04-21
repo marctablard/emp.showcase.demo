@@ -311,6 +311,47 @@ export class EmporixCategoryService implements CategoryService {
       category.parent = parents.get(category.parent);
     }
   }
+
+  async getProductCountForCategory(
+    categoryId: string,
+    options?: {
+      withSubcategories?: boolean;
+      hideUnpublishedProducts?: boolean;
+    },
+  ): Promise<number> {
+    const trimmedId = categoryId?.trim();
+    if (!trimmedId) {
+      return 0;
+    }
+
+    const withSubcategories = options?.withSubcategories ?? true;
+    const hideUnpublishedProducts = options?.hideUnpublishedProducts ?? true;
+
+    try {
+      const response = await this.categoryApi.getCategoryAssignments(trimmedId, {
+        page: 1,
+        size: 1,
+        criteria: {
+          assignmentType: 'PRODUCT',
+          withSubcategories,
+          hideUnpublishedProducts,
+        },
+      });
+
+      // Emporix returns -1 from buildPaginatedResponse when X-Total-Count header is missing.
+      const total = response.total;
+      if (typeof total !== 'number' || total < 0) {
+        return 0;
+      }
+      return total;
+    } catch (error) {
+      this.logger.warn(
+        { err: error, categoryId: trimmedId },
+        'Failed to fetch product count for category; returning 0',
+      );
+      return 0;
+    }
+  }
 }
 
 export default EmporixCategoryService;
