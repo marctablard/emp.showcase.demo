@@ -52,6 +52,10 @@ export function PlpCategoryCarousel({ categories, locale }: PlpCategoryCarouselP
     // same ids (e.g. re-memoised navigationRoots).
   }, [categoryIdsKey, categoryIds, requestCounts]);
 
+  // Drop categories whose product count has resolved to 0. Unknown counts stay visible so the
+  // carousel does not flicker while counts stream in.
+  const visibleCategories = useMemo(() => categories.filter((c) => counts[c.id] !== 0), [categories, counts]);
+
   useEffect(() => {
     if (!api) {
       return;
@@ -69,7 +73,7 @@ export function PlpCategoryCarousel({ categories, locale }: PlpCategoryCarouselP
     };
   }, [api]);
 
-  if (categories.length === 0) {
+  if (visibleCategories.length === 0) {
     return null;
   }
 
@@ -98,7 +102,7 @@ export function PlpCategoryCarousel({ categories, locale }: PlpCategoryCarouselP
         </div>
 
         <CarouselContent className="py-6">
-          {categories.map((category) => {
+          {visibleCategories.map((category) => {
             const name = l10n(category.name, locale);
             const href = buildBrowseHrefForCategoryId(category.id);
             const image = category.media?.[0];
