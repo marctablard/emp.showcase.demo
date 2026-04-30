@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { useProducts } from '@/hooks/product/useProducts';
 import { useL10n } from '@/hooks/useL10n';
-import { RelatedItem } from '@/platform/services/model/product';
+import type { RelatedItem } from '@/platform/services/model/product';
 
 interface RelatedProductsModalProps {
   open: boolean;

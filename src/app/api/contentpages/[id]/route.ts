@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import server from '@/platform/server';
-import { ContentPagesService } from '@/platform/services/contentpages/ContentPagesService';
+import type { ContentPagesService } from '@/platform/services/contentpages/ContentPagesService';
 
 export async function GET(
   _request: NextRequest,

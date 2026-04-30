@@ -5,8 +5,8 @@ import { ContentPageResolver } from '@/platform/services/contentpages/ContentPag
 import type { ContentPagesService } from '@/platform/services/contentpages/ContentPagesService';
 import { ContentSiteResolver } from '@/platform/services/contentsites/ContentSiteResolver';
 import type { ContentSitesService } from '@/platform/services/contentsites/ContentSitesService';
-import { CMSNoResult, CMSPage } from '../../model/cms';
-import { CMSService } from '../CMSService';
+import type { CMSNoResult, CMSPage } from '../../model/cms';
+import type { CMSService } from '../CMSService';
 
 /**
  * CMSService implementation backed by Emporix custom entities.

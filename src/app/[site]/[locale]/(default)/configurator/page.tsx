@@ -1,4 +1,4 @@
-import { Metadata, ResolvingMetadata } from 'next';
+import type { Metadata, ResolvingMetadata } from 'next';
 import { notFound } from 'next/navigation';
 import ProductDetailConfigurator from '@/components/product/product-detail-configurator';
 import { JsonLd } from '@/components/seo/json-ld';

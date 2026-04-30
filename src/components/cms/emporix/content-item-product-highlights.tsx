@@ -1,7 +1,7 @@
 import { cache } from 'react';
 import { getLocale } from 'next-intl/server';
 import { getCurrentContentSiteId } from '@/lib/ssr/content-site';
-import { ContentSitesService } from '@/platform/services/contentsites/ContentSitesService';
+import type { ContentSitesService } from '@/platform/services/contentsites/ContentSitesService';
 import ssr from '@/platform/ssr';
 import { RecommendationsWrapper } from './content-item-product-highlights-wrapper';
 

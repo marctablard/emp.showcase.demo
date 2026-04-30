@@ -1,9 +1,9 @@
 import { cache } from 'react';
 import { notFound } from 'next/navigation';
-import { BreadcrumbContent } from '@/lib/breadcrumb';
-import { CMSService } from '@/platform/services/cms/CMSService';
-import { ContentItem } from '@/platform/services/contentitems/ContentItemsService';
-import { CMSPage } from '@/platform/services/model/cms';
+import type { BreadcrumbContent } from '@/lib/breadcrumb';
+import type { CMSService } from '@/platform/services/cms/CMSService';
+import type { ContentItem } from '@/platform/services/contentitems/ContentItemsService';
+import type { CMSPage } from '@/platform/services/model/cms';
 import ssr from '@/platform/ssr';
 import { UiBreadcrumb } from '../../ui/molecules/ui-breadcrumb';
 import { renderContentItems } from './content-item-renderer';

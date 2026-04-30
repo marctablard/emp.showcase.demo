@@ -3,8 +3,9 @@
 import Image from 'next/image';
 import { Heading } from '@/components/ui/h';
 import { cn } from '@/lib/utils';
-import Button, { ButtonData } from '../button';
-import { TextEditorData } from './hero';
+import type { ButtonData } from '../button';
+import Button from '../button';
+import type { TextEditorData } from './hero';
 
 interface ContentItemCenteredProps {
   headline?: string;

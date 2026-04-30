@@ -5,9 +5,11 @@ import Image from 'next/image';
 import { Play } from 'lucide-react';
 import { Heading } from '@/components/ui/h';
 import { cn } from '@/lib/utils';
-import Button, { ButtonData } from '../button';
-import Video, { VideoData } from '../video';
-import { TextEditorData } from './hero';
+import type { ButtonData } from '../button';
+import Button from '../button';
+import type { VideoData } from '../video';
+import Video from '../video';
+import type { TextEditorData } from './hero';
 
 export enum ImagePosition {
   Right = 'Right',

@@ -1,7 +1,7 @@
 import { cache } from 'react';
 import { ContentSiteResolver } from '@/platform/services/contentsites/ContentSiteResolver';
-import { ContentSitesService } from '@/platform/services/contentsites/ContentSitesService';
-import { SessionService } from '@/platform/services/session/SessionService';
+import type { ContentSitesService } from '@/platform/services/contentsites/ContentSitesService';
+import type { SessionService } from '@/platform/services/session/SessionService';
 import ssr from '@/platform/ssr';
 
 /**

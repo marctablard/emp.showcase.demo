@@ -1,6 +1,7 @@
 import { cache } from 'react';
-import { ContentPageResolver, PageType } from '@/platform/services/contentpages/ContentPageResolver';
-import { ContentPagesService } from '@/platform/services/contentpages/ContentPagesService';
+import type { PageType } from '@/platform/services/contentpages/ContentPageResolver';
+import { ContentPageResolver } from '@/platform/services/contentpages/ContentPageResolver';
+import type { ContentPagesService } from '@/platform/services/contentpages/ContentPagesService';
 import ssr from '@/platform/ssr';
 
 /**

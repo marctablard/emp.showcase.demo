@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import type EmporixApiInvoker from '@/platform/integrations/emporix/common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '@/platform/integrations/emporix/config';
 import server from '@/platform/server';
-import { ContentSitesService } from '@/platform/services/contentsites/ContentSitesService';
-import { SessionService } from '@/platform/services/session/SessionService';
+import type { ContentSitesService } from '@/platform/services/contentsites/ContentSitesService';
+import type { SessionService } from '@/platform/services/session/SessionService';
 import { INTERNAL_SITE_HEADER } from '@/site/types';
 
 /**

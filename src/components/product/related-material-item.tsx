@@ -10,7 +10,7 @@ import { useCart } from '@/hooks/cart/useCart';
 import { useL10n } from '@/hooks/useL10n';
 import { Link } from '@/i18n/navigation';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { Product } from '@/platform/services/model/product';
+import type { Product } from '@/platform/services/model/product';
 import { ToastType, notify } from '../ui/toast-notification';
 
 interface RelatedMaterialItemProps {

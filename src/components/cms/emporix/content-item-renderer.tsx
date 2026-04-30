@@ -4,15 +4,17 @@ import { getCurrentContentPageId } from '@/lib/ssr/content-page';
 import { getCurrentContentSiteId } from '@/lib/ssr/content-site';
 import type EmporixApiInvoker from '@/platform/integrations/emporix/common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '@/platform/integrations/emporix/config';
-import { ContentItem, ContentItemsService } from '@/platform/services/contentitems/ContentItemsService';
+import type { ContentItem, ContentItemsService } from '@/platform/services/contentitems/ContentItemsService';
 import ssr from '@/platform/ssr';
 import type { ButtonData } from '../button';
 import type { VideoData } from '../video';
 import ContentItemCentered from './content-item-centered';
 import styles from './content-item-hero.module.css';
-import ContentItemMediaText, { ImagePosition } from './content-item-media-text';
+import type { ImagePosition } from './content-item-media-text';
+import ContentItemMediaText from './content-item-media-text';
 import ContentItemProductHighlights from './content-item-product-highlights';
-import Hero, { TextEditorData } from './hero';
+import type { TextEditorData } from './hero';
+import Hero from './hero';
 
 /**
  * Fetch a media asset URL by its Emporix media ID

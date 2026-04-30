@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useProducts } from '@/hooks/product/useProducts';
 import { useL10n } from '@/hooks/useL10n';
 import { cn } from '@/lib/utils';
-import { RelatedItem } from '@/platform/services/model/product';
+import type { RelatedItem } from '@/platform/services/model/product';
 import { H2, Overline } from '../ui/h';
 import { RelatedMaterialItem } from './related-material-item';
 
