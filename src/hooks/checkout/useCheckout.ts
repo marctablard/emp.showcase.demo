@@ -23,9 +23,32 @@ import { useCheckoutStore } from '@/providers/StoreProvider';
 import { useCart } from '../cart/useCart';
 import { useAddresses } from '../customer/useAddresses';
 import useCustomer from '../customer/useCustomer';
+import { useLegalEntityCheckoutAddresses } from '../customer/useLegalEntityCheckoutAddresses';
 import { useSession as useShopSession } from '../session/useSession';
 import { useShippingMethods } from '../shipping/useShippingMethods';
 import { useSite } from '../site/useSite';
+
+/**
+ * Applies `source` as the checkout address of the given `type` only when
+ * `current` is not yet set and `source.tags` includes `type`. Returns `true`
+ * when applied so the caller can mark the prefill as done.
+ *
+ * The source is spread in full (mirroring `handleShippingAddressChange`'s
+ * `{ ...address, type }` pattern) so that every field — including `contactName`
+ * and `companyName` — is forwarded without manual enumeration.
+ */
+function applyAddressIfEmpty(
+  current: CheckoutAddress | null,
+  source: CustomerAddress,
+  type: 'SHIPPING' | 'BILLING',
+  submit: (addr: CheckoutAddress) => void,
+): boolean {
+  if (current || !source.tags.includes(type)) {
+    return false;
+  }
+  submit({ ...source, type });
+  return true;
+}
 
 interface UseCheckout {
   // Status
@@ -80,6 +103,10 @@ export const useCheckout = (): UseCheckout => {
   const { customer } = useCustomer();
   const { addresses: customerAddresses } = useAddresses();
   const { session: shopSession } = useShopSession();
+  const isB2BCustomer = Boolean(
+    customer && (customer.businessModel === 'B2B' || resolveLegalEntityIdFromSessionAndCustomer(shopSession, customer)),
+  );
+  const { addresses: legalEntityAddresses } = useLegalEntityCheckoutAddresses(!isB2BCustomer);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [orderResponse, setOrderResponse] = useState<CheckoutResponse | null>(null);
@@ -348,22 +375,11 @@ export const useCheckout = (): UseCheckout => {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- shippingMethod excluded: this effect SETS it, including it would cause an infinite loop
   }, [availableShippingMethods, checkoutCartId, submitShippingMethod]);
 
-  // B2C-only address prefill: when the user has a default customer address and
-  // no shipping/billing has been picked yet, seed it from the profile. B2B
-  // users (carrying a legalEntityId) must choose a legal-entity location
-  // explicitly — no prefill so the wrong company address never becomes the
-  // default silently.
+  // B2C address prefill: seed from the customer profile when no address has been
+  // picked yet. B2B customers (carrying a legalEntityId) are handled separately.
   const prefilledRef = useRef(false);
   useEffect(() => {
-    if (prefilledRef.current) {
-      return;
-    }
-    if (!customer) {
-      return;
-    }
-    const hasLegalEntity = Boolean(resolveLegalEntityIdFromSessionAndCustomer(shopSession, customer));
-    const isB2B = customer.businessModel === 'B2B' || hasLegalEntity;
-    if (isB2B) {
+    if (prefilledRef.current || !customer || isB2BCustomer) {
       return;
     }
     if (!customerAddresses || customerAddresses.length === 0) {
@@ -371,53 +387,65 @@ export const useCheckout = (): UseCheckout => {
     }
     const pickForTag = (tag: AddressType): CustomerAddress | undefined => {
       const tagged = customerAddresses.filter((addr) => addr.tags.includes(tag));
-      if (tagged.length === 0) {
-        return undefined;
-      }
       return tagged.find((addr) => addr.isDefault) ?? tagged[0];
     };
-    const shippingSource = pickForTag(ADDRESS_TYPE.SHIPPING);
-    const billingSource = pickForTag(ADDRESS_TYPE.BILLING);
-    const applyIfEmpty = (
-      current: CheckoutAddress | null,
-      source: CustomerAddress | undefined,
-      type: 'SHIPPING' | 'BILLING',
-      submit: (addr: CheckoutAddress) => void,
-    ): boolean => {
-      if (!source || current) {
-        return false;
-      }
-      if (type === ADDRESS_TYPE.SHIPPING && !source.tags.includes(ADDRESS_TYPE.SHIPPING)) {
-        return false;
-      }
-      if (type === ADDRESS_TYPE.BILLING && !source.tags.includes(ADDRESS_TYPE.BILLING)) {
-        return false;
-      }
-      submit({
-        id: source.id,
-        contactName: source.contactName,
-        companyName: source.companyName,
-        street: source.street,
-        streetNumber: source.streetNumber,
-        streetAppendix: source.streetAppendix,
-        zipCode: source.zipCode,
-        city: source.city,
-        country: source.country,
-        state: source.state,
-        contactPhone: source.contactPhone,
-        type,
-      });
-      return true;
-    };
-    const appliedShipping = applyIfEmpty(shippingAddress, shippingSource, ADDRESS_TYPE.SHIPPING, submitShippingAddress);
-    const appliedBilling = applyIfEmpty(billingAddress, billingSource, ADDRESS_TYPE.BILLING, submitBillingAddress);
+    const appliedShipping = applyAddressIfEmpty(
+      shippingAddress,
+      pickForTag(ADDRESS_TYPE.SHIPPING) as CustomerAddress,
+      ADDRESS_TYPE.SHIPPING,
+      submitShippingAddress,
+    );
+    const appliedBilling = applyAddressIfEmpty(
+      billingAddress,
+      pickForTag(ADDRESS_TYPE.BILLING) as CustomerAddress,
+      ADDRESS_TYPE.BILLING,
+      submitBillingAddress,
+    );
     if (appliedShipping || appliedBilling) {
       prefilledRef.current = true;
     }
   }, [
     customer,
+    isB2BCustomer,
     customerAddresses,
-    shopSession,
+    shippingAddress,
+    billingAddress,
+    submitShippingAddress,
+    submitBillingAddress,
+  ]);
+
+  // B2B address prefill: seed from the first legal-entity location carrying the
+  // DEFAULT tag. Runs once as soon as legal-entity addresses are loaded.
+  const b2bPrefilledRef = useRef(false);
+  useEffect(() => {
+    if (b2bPrefilledRef.current || !isB2BCustomer) {
+      return;
+    }
+    if (!legalEntityAddresses || legalEntityAddresses.length === 0) {
+      return;
+    }
+    const defaultAddress = legalEntityAddresses.find((addr) => addr.isDefault);
+    if (!defaultAddress) {
+      return;
+    }
+    const appliedShipping = applyAddressIfEmpty(
+      shippingAddress,
+      defaultAddress,
+      ADDRESS_TYPE.SHIPPING,
+      submitShippingAddress,
+    );
+    const appliedBilling = applyAddressIfEmpty(
+      billingAddress,
+      defaultAddress,
+      ADDRESS_TYPE.BILLING,
+      submitBillingAddress,
+    );
+    if (appliedShipping || appliedBilling) {
+      b2bPrefilledRef.current = true;
+    }
+  }, [
+    isB2BCustomer,
+    legalEntityAddresses,
     shippingAddress,
     billingAddress,
     submitShippingAddress,

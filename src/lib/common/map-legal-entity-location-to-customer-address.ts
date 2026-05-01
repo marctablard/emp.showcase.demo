@@ -89,5 +89,6 @@ export function mapLegalEntityLocationToCustomerAddress(
     contactPhone: cd?.phones?.[0],
     tags: inferLocationAddressTags(location),
     source: 'legalEntity',
+    isDefault: Boolean(cd?.tags?.includes('DEFAULT')),
   };
 }

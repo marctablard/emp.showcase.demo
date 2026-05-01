@@ -51,6 +51,24 @@ describe('mapLegalEntityLocationToCustomerAddress', () => {
     expect(mapLegalEntityLocationToCustomerAddress(baseLocation({ id: '   ' }), 'ACME')).toBeNull();
   });
 
+  it('sets isDefault true when DEFAULT tag is present in contactDetails.tags', () => {
+    const loc = baseLocation({
+      contactDetails: {
+        ...baseLocation().contactDetails,
+        tags: [ADDRESS_TYPE.BILLING, ADDRESS_TYPE.SHIPPING, 'DEFAULT'],
+      },
+    });
+    const mapped = mapLegalEntityLocationToCustomerAddress(loc, 'ACME GmbH');
+    expect(mapped).not.toBeNull();
+    expect(mapped!.isDefault).toBe(true);
+  });
+
+  it('sets isDefault false when DEFAULT tag is absent', () => {
+    const mapped = mapLegalEntityLocationToCustomerAddress(baseLocation(), 'ACME GmbH');
+    expect(mapped).not.toBeNull();
+    expect(mapped!.isDefault).toBe(false);
+  });
+
   it('maps explicit street, streetNumber, and streetAppendix when provided', () => {
     const mapped = mapLegalEntityLocationToCustomerAddress(
       baseLocation({

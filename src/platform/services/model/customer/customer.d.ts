@@ -34,10 +34,10 @@ export interface CustomerAddress extends Address {
   tags: string[];
   source: AddressSource;
   /**
-   * Only meaningful for `source: 'customer'` addresses — mirrors the
-   * `isDefault` flag Emporix returns on customer-profile addresses (B2C primary
-   * shipping/billing). Legal-entity locations have no equivalent flag, so this
-   * is always `undefined` for `source: 'legalEntity'`.
+   * Whether this is the default address.
+   * - `source: 'customer'` — mirrors the `isDefault` flag on Emporix customer-profile addresses.
+   * - `source: 'legalEntity'` — `true` when the location carries the `DEFAULT` tag in
+   *   `contactDetails.tags`; `false` otherwise (never `undefined` for legal-entity addresses).
    */
   isDefault?: boolean;
 }
