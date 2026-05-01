@@ -8,6 +8,7 @@ const mockUseShippingMethods = jest.fn();
 const mockUseSite = jest.fn();
 const mockUseAddresses = jest.fn();
 const mockUseShopSession = jest.fn();
+const mockUseLegalEntityCheckoutAddresses = jest.fn();
 
 jest.mock('@/providers/StoreProvider', () => ({
   useCheckoutStore: () => mockUseCheckoutStore(),
@@ -25,6 +26,10 @@ jest.mock('../customer/useCustomer', () => ({
 
 jest.mock('../customer/useAddresses', () => ({
   useAddresses: () => mockUseAddresses(),
+}));
+
+jest.mock('../customer/useLegalEntityCheckoutAddresses', () => ({
+  useLegalEntityCheckoutAddresses: (_skip?: boolean) => mockUseLegalEntityCheckoutAddresses(),
 }));
 
 jest.mock('../session/useSession', () => ({
@@ -118,6 +123,7 @@ describe('useCheckout', () => {
     mockUseSite.mockReturnValue({ paymentModes: [], site: null });
     mockUseAddresses.mockReturnValue({ addresses: [] });
     mockUseShopSession.mockReturnValue({ session: null });
+    mockUseLegalEntityCheckoutAddresses.mockReturnValue({ addresses: [], loading: false });
   });
 
   it('clears previous methods and selected method before fetching when country changes', () => {
@@ -211,6 +217,122 @@ describe('useCheckout', () => {
     expect(fetchShippingMethods).not.toHaveBeenCalled();
     expect(clearShippingMethods).not.toHaveBeenCalled();
     expect(setShippingMethod).not.toHaveBeenCalled();
+  });
+
+  it('prefills shipping and billing from the DEFAULT legal-entity location for B2B customers', () => {
+    const setShippingAddress = jest.fn();
+    const setBillingAddress = jest.fn();
+    const setShippingMethod = jest.fn();
+
+    mockUseCheckoutStore.mockReturnValue({
+      contactData: null,
+      billingAddress: null,
+      shippingAddress: null,
+      paymentMethod: null,
+      shippingMethod: null,
+      setContactData: jest.fn(),
+      setBillingAddress,
+      setShippingAddress,
+      setPaymentMethod: jest.fn(),
+      setShippingMethod,
+      reset: jest.fn(),
+    });
+    mockUseCart.mockReturnValue(buildCartValue(null));
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [],
+        clearShippingMethods: jest.fn(),
+        fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
+      }),
+    );
+    mockUseCustomer.mockReturnValue({
+      customer: { id: 'cust-1', businessModel: 'B2B', legalEntityId: 'le-1' },
+    });
+    mockUseShopSession.mockReturnValue({ session: { legalEntityId: 'le-1' } });
+    mockUseLegalEntityCheckoutAddresses.mockReturnValue({
+      loading: false,
+      addresses: [
+        {
+          id: 'loc-hq',
+          contactName: 'World Company HQ — OFFICE',
+          companyName: 'World Company',
+          street: 'Hauptstrasse',
+          streetNumber: '10',
+          streetAppendix: '',
+          zipCode: '10501',
+          city: 'Berlin',
+          state: 'BE',
+          country: 'DE',
+          tags: ['BILLING', 'SHIPPING'],
+          source: 'legalEntity',
+          isDefault: true,
+        },
+      ],
+    });
+
+    renderHook(() => useCheckout());
+
+    const shippingCall = setShippingAddress.mock.calls.find(([addr]) => addr.type === 'SHIPPING');
+    expect(shippingCall).toBeDefined();
+    expect(shippingCall![0]).toMatchObject({ id: 'loc-hq', city: 'Berlin', type: 'SHIPPING' });
+
+    const billingCall = setBillingAddress.mock.calls.find(([addr]) => addr.type === 'BILLING');
+    expect(billingCall).toBeDefined();
+    expect(billingCall![0]).toMatchObject({ id: 'loc-hq', city: 'Berlin', type: 'BILLING' });
+  });
+
+  it('does not prefill addresses when no DEFAULT legal-entity location exists', () => {
+    const setShippingAddress = jest.fn();
+    const setBillingAddress = jest.fn();
+
+    mockUseCheckoutStore.mockReturnValue({
+      contactData: null,
+      billingAddress: null,
+      shippingAddress: null,
+      paymentMethod: null,
+      shippingMethod: null,
+      setContactData: jest.fn(),
+      setBillingAddress,
+      setShippingAddress,
+      setPaymentMethod: jest.fn(),
+      setShippingMethod: jest.fn(),
+      reset: jest.fn(),
+    });
+    mockUseCart.mockReturnValue(buildCartValue(null));
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [],
+        clearShippingMethods: jest.fn(),
+        fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
+      }),
+    );
+    mockUseCustomer.mockReturnValue({
+      customer: { id: 'cust-1', businessModel: 'B2B', legalEntityId: 'le-1' },
+    });
+    mockUseShopSession.mockReturnValue({ session: { legalEntityId: 'le-1' } });
+    mockUseLegalEntityCheckoutAddresses.mockReturnValue({
+      loading: false,
+      addresses: [
+        {
+          id: 'loc-branch',
+          contactName: 'Branch Office',
+          companyName: 'World Company',
+          street: 'Nebenstrasse',
+          streetNumber: '5',
+          zipCode: '10502',
+          city: 'Berlin',
+          country: 'DE',
+          tags: ['SHIPPING'],
+          source: 'legalEntity',
+          isDefault: false,
+        },
+      ],
+    });
+
+    renderHook(() => useCheckout());
+
+    expect(setShippingAddress).not.toHaveBeenCalled();
+    expect(setBillingAddress).not.toHaveBeenCalled();
   });
 
   it('auto-selects the only available shipping method after a fresh fetch', () => {
