@@ -44,6 +44,7 @@ describe('EmporixSiteService', () => {
   const mockPaymentModes: PaymentMode[] = [{ id: 'credit-card', code: 'credit-card', active: true }];
 
   beforeEach(() => {
+    delete (globalThis as Record<string, unknown>)['__emporix_site_cache'];
     container = new Container();
     jest.clearAllMocks();
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -102,10 +103,25 @@ describe('EmporixSiteService', () => {
   });
 
   afterEach(() => {
-    // Reset environment variable
-    delete process.env.NEXT_PUBLIC_DEFAULT_SITE;
+    process.env.NEXT_PUBLIC_DEFAULT_SITE = 'main';
+    process.env.NEXT_PUBLIC_DEFAULT_CURRENCY = 'EUR';
+    process.env.NEXT_PUBLIC_DEFAULT_LANGUAGE = 'en';
+    process.env.NEXT_PUBLIC_DEFAULT_COUNTRY = 'DE';
+    process.env.NEXT_PUBLIC_DEFAULT_REGION = 'Europe';
+    process.env.NEXT_PUBLIC_EMPORIX_DEFAULT_UNIT_CODE = 'piece';
     consoleErrorSpy.mockRestore();
     consoleWarnSpy.mockRestore();
+  });
+
+  describe('invalidateSiteCache', () => {
+    it('should refetch Emporix after invalidating a site code', async () => {
+      mockSiteSettingsApi.getSite.mockResolvedValue(mockSite);
+      await siteService.getSite('main');
+      expect(mockSiteSettingsApi.getSite).toHaveBeenCalledTimes(1);
+      siteService.invalidateSiteCache('main');
+      await siteService.getSite('main');
+      expect(mockSiteSettingsApi.getSite).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('getSite - recursion prevention', () => {
@@ -212,6 +228,95 @@ describe('EmporixSiteService', () => {
       expect(result?.code).toBe('main');
       expect(mockSiteSettingsApi.getSite).toHaveBeenCalledTimes(1);
       expect(mockSiteSettingsApi.getSite).toHaveBeenCalledWith('main');
+    });
+  });
+
+  describe('getAvailableSites - bulk fetch', () => {
+    const secondSite: EmporixSite = {
+      code: 'us-branch',
+      name: 'US Branch',
+      default: false,
+      currency: 'USD',
+      defaultLanguage: 'en',
+      languages: ['en'],
+      includesTax: false,
+    };
+
+    beforeEach(() => {
+      process.env.NEXT_PUBLIC_AVAILABLE_SITES = 'main,us-branch';
+      process.env.NEXT_PUBLIC_DEFAULT_SITE = 'main';
+    });
+
+    it('should call getSites once instead of getSite per code', async () => {
+      mockSiteSettingsApi.getSites.mockResolvedValue({ items: [mockSite, secondSite], total: 2 });
+
+      const sites = await siteService.getAvailableSites();
+
+      expect(mockSiteSettingsApi.getSites).toHaveBeenCalledTimes(1);
+      expect(mockSiteSettingsApi.getSite).not.toHaveBeenCalled();
+      expect(sites).toHaveLength(2);
+      expect(sites.map((s) => s.code)).toEqual(['main', 'us-branch']);
+    });
+
+    it('should filter bulk results to configured codes only', async () => {
+      const extraSite: EmporixSite = {
+        code: 'other',
+        name: 'Other',
+        default: false,
+        currency: 'EUR',
+        languages: ['de'],
+      };
+      mockSiteSettingsApi.getSites.mockResolvedValue({ items: [mockSite, secondSite, extraSite], total: 3 });
+
+      const sites = await siteService.getAvailableSites();
+
+      expect(sites).toHaveLength(2);
+      expect(sites.map((s) => s.code)).toEqual(['main', 'us-branch']);
+    });
+
+    it('should not poison getSite cache with incomplete Site objects', async () => {
+      mockSiteSettingsApi.getSites.mockResolvedValue({ items: [mockSite], total: 1 });
+      mockSiteSettingsApi.getSite.mockResolvedValue(mockSite);
+      process.env.NEXT_PUBLIC_AVAILABLE_SITES = 'main';
+
+      await siteService.getAvailableSites();
+      const site = await siteService.getSite('main');
+
+      expect(site).not.toBeNull();
+      expect(site?.code).toBe('main');
+      expect(site?.countries).toHaveLength(2);
+      expect(mockSiteSettingsApi.getSite).toHaveBeenCalledWith('main');
+    });
+
+    it('should return lightweight sites with empty countries/regions/paymentModes', async () => {
+      mockSiteSettingsApi.getSites.mockResolvedValue({ items: [mockSite], total: 1 });
+      process.env.NEXT_PUBLIC_AVAILABLE_SITES = 'main';
+
+      const sites = await siteService.getAvailableSites();
+
+      expect(sites[0].countries).toEqual([]);
+      expect(sites[0].regions).toEqual([]);
+      expect(sites[0].paymentModes).toEqual([]);
+      expect(sites[0].currencies).toBeDefined();
+    });
+
+    it('should handle empty bulk response gracefully', async () => {
+      mockSiteSettingsApi.getSites.mockResolvedValue({ items: [], total: 0 });
+
+      const sites = await siteService.getAvailableSites();
+
+      expect(sites).toEqual([]);
+    });
+
+    it('should add default site to configured codes when missing', async () => {
+      process.env.NEXT_PUBLIC_AVAILABLE_SITES = 'us-branch';
+      process.env.NEXT_PUBLIC_DEFAULT_SITE = 'main';
+      mockSiteSettingsApi.getSites.mockResolvedValue({ items: [mockSite, secondSite], total: 2 });
+
+      const sites = await siteService.getAvailableSites();
+
+      expect(sites).toHaveLength(2);
+      expect(sites.map((s) => s.code)).toContain('main');
     });
   });
 });

@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from 'clsx';
 import { extendTailwindMerge } from 'tailwind-merge';
+import { getPublicDefaultCurrency, getPublicDefaultLanguage } from '@/lib/common/public-default-env';
 import type { LocalizedString, SearchParams } from '@/platform/services/model/common';
 import type { Session } from '@/platform/services/model/session/session';
 
@@ -12,8 +13,6 @@ function buildBaseUrl() {
 }
 
 export const baseUrl = buildBaseUrl();
-
-const defaultEmptyLocale = 'en';
 
 const customTwMerge = extendTailwindMerge({
   extend: {
@@ -64,12 +63,12 @@ export function buildSearchQuery<T>(params: SearchParams<T>): { body: string; qu
  * @param currencyCode The ISO currency code (e.g., 'USD', 'EUR')
  * @returns Formatted currency string
  */
-const DEFAULT_CURRENCY_LOCALE = 'de';
-
-export function formatCurrency(amount: number, currencyCode: string = 'USD', locale?: Session['language']): string {
-  return new Intl.NumberFormat(locale || DEFAULT_CURRENCY_LOCALE, {
+export function formatCurrency(amount: number, currencyCode?: string, locale?: Session['language']): string {
+  const code = currencyCode ?? getPublicDefaultCurrency();
+  const loc = locale ?? getPublicDefaultLanguage(); // if locale is not provided it will set currency formatter to the default language from NEXT_PUBLIC_DEFAULT_LANGUAGE env
+  return new Intl.NumberFormat(loc, {
     style: 'currency',
-    currency: currencyCode,
+    currency: code,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);
@@ -77,12 +76,14 @@ export function formatCurrency(amount: number, currencyCode: string = 'USD', loc
 
 export function formatCurrencyToParts(
   amount: number,
-  currencyCode: string = 'USD',
+  currencyCode?: string,
   locale?: Session['language'],
 ): Intl.NumberFormatPart[] {
-  return new Intl.NumberFormat(locale || DEFAULT_CURRENCY_LOCALE, {
+  const code = currencyCode ?? getPublicDefaultCurrency();
+  const loc = locale ?? getPublicDefaultLanguage();
+  return new Intl.NumberFormat(loc, {
     style: 'currency',
-    currency: currencyCode,
+    currency: code,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).formatToParts(amount);
@@ -98,67 +99,120 @@ export function buildCanonicalUrl(locale: string, path: string): string {
   if (!path.startsWith('/')) {
     path = `/${path}`;
   }
-  return `${baseUrl}${locale === defaultEmptyLocale ? '' : `/${locale}`}${path}`;
+  return `${baseUrl}${locale === getPublicDefaultLanguage() ? '' : `/${locale}`}${path}`;
 }
 /**
- * Extract the localized value from a LocalizedString, array format, or return the string directly
- * @param input The string, LocalizedString, or array of language/message objects to localize
- * @param locale The locale to extract
- * @returns The localized string
+ * Placeholder returned by `l10n` when the localized input has entries
+ * but none of them match the deterministic fallback chain.
+ *
+ * Returned only when data exists in languages outside the configured
+ * fallback order — never when the input is empty/missing (those keep
+ * the legacy empty-string contract so `l10n(x) || fallback` works).
+ */
+export const L10N_PLACEHOLDER = '-';
+
+/**
+ * Build the deterministic lookup chain for `l10n`:
+ *   [currentLocale, ...callerFallbacks, NEXT_PUBLIC_DEFAULT_LANGUAGE]
+ *
+ * Empty / non-string entries are dropped and duplicates removed so the
+ * chain is stable across call sites. The env default is always appended
+ * last so every caller — even ones that don't know the site default —
+ * gets a consistent final fallback instead of a random "first value".
+ */
+function buildLocaleChain(
+  locale?: string | null,
+  fallbackLocales?: ReadonlyArray<string | null | undefined>,
+): string[] {
+  const chain: string[] = [];
+  const push = (candidate: string | null | undefined) => {
+    if (typeof candidate === 'string' && candidate.length > 0 && !chain.includes(candidate)) {
+      chain.push(candidate);
+    }
+  };
+  push(locale);
+  fallbackLocales?.forEach(push);
+  push(getPublicDefaultLanguage());
+  return chain;
+}
+
+/**
+ * Extract the localized value from a LocalizedString, array format, or
+ * return the string directly.
+ *
+ * Fallback order (deterministic — no random "first available"):
+ *   1. `locale` (usually the current UI locale)
+ *   2. each entry in `fallbackLocales` (e.g. `site.defaultLanguage`)
+ *   3. `NEXT_PUBLIC_DEFAULT_LANGUAGE` (env default, always appended)
+ *
+ * Return value semantics:
+ *   - empty / null / undefined input → `''`
+ *   - plain string input → returned as-is
+ *   - localized map / array with a match in the chain → matched value
+ *   - localized map / array with entries but no match in the chain → `L10N_PLACEHOLDER`
+ *   - localized map / array with no valid string entries at all → `''`
+ *
+ * Client components should normally consume this via `useL10n()`, which
+ * threads `site.defaultLanguage` through `fallbackLocales` automatically.
  */
 export function l10n(
-  input: string | LocalizedString | Array<{ language: string; message: string }> | any,
-  locale: string,
+  input: string | LocalizedString | Array<{ language: string; message: string }> | unknown,
+  locale?: string | null,
+  fallbackLocales?: ReadonlyArray<string | null | undefined>,
 ): string {
-  if (!input) {
+  if (input === null || input === undefined || input === '') {
     return '';
   }
 
-  // If input is a simple string, return it directly
   if (typeof input === 'string') {
     return input;
   }
 
-  // Handle array format with language/message objects
+  const chain = buildLocaleChain(locale, fallbackLocales);
+
   if (Array.isArray(input)) {
     try {
-      // Find matching locale in array
-      const matchingItem = input.find((item: any) => item && typeof item === 'object' && item.language === locale);
-
-      if (matchingItem && typeof matchingItem.message === 'string') {
-        return matchingItem.message;
+      for (const lang of chain) {
+        const match = input.find(
+          (item) =>
+            item !== null &&
+            typeof item === 'object' &&
+            (item as { language?: unknown }).language === lang &&
+            typeof (item as { message?: unknown }).message === 'string',
+        ) as { message: string } | undefined;
+        if (match) {
+          return match.message;
+        }
       }
-
-      // Fallback to first available message with valid language
-      const firstValidItem = input.find(
-        (item: any) =>
-          item && typeof item === 'object' && typeof item.message === 'string' && typeof item.language === 'string',
+      const hasValidEntry = input.some(
+        (item) =>
+          item !== null &&
+          typeof item === 'object' &&
+          typeof (item as { language?: unknown }).language === 'string' &&
+          typeof (item as { message?: unknown }).message === 'string',
       );
-      return firstValidItem ? firstValidItem.message : '';
+      return hasValidEntry ? L10N_PLACEHOLDER : '';
     } catch {
-      // Fail gracefully on any array processing error
       return '';
     }
   }
 
-  // Handle object format (LocalizedString)
-  if (typeof input === 'object' && input !== null) {
+  if (typeof input === 'object') {
     try {
-      // Try to get the value for the current locale
-      if (input[locale] && typeof input[locale] === 'string') {
-        return input[locale];
+      const record = input as Record<string, unknown>;
+      for (const lang of chain) {
+        const value = record[lang];
+        if (typeof value === 'string' && value.length > 0) {
+          return value;
+        }
       }
-
-      // If all else fails, return the first available string value or an empty string
-      const firstAvailableLocale = Object.keys(input).find((key) => typeof input[key] === 'string');
-      return firstAvailableLocale ? input[firstAvailableLocale] : '';
+      const hasValidEntry = Object.values(record).some((v) => typeof v === 'string' && v.length > 0);
+      return hasValidEntry ? L10N_PLACEHOLDER : '';
     } catch {
-      // Fail gracefully on any object processing error
       return '';
     }
   }
 
-  // Fallback for any other type - fail gracefully
   return '';
 }
 

@@ -1,11 +1,10 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { normalizeReasonCode, normalizeReasonDetails } from '@/lib/common/returns/reason-normalization';
+import { mapReturnCreateError, mapReturnValidationError } from '@/lib/common/returns/return-api-error-mapping';
 import { computeOrderReturnability } from '@/lib/common/returns/returnability';
-import type { EmporixReturnApi } from '@/platform/integrations/emporix/return/EmporixReturnApi';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import type { EmporixReturnMapper } from '@/platform/services/model/return/impl/EmporixReturnMapper';
 import type { OrderService } from '@/platform/services/order/OrderService';
 import type { ReturnService } from '@/platform/services/return/ReturnService';
 
@@ -32,10 +31,8 @@ export async function GET(request: NextRequest) {
     const sort = searchParams.get('sort') || undefined;
     const query = searchParams.get('query') || undefined;
 
-    const returnApi = server.get<EmporixReturnApi>('EmporixReturnApi');
-    const returnMapper = server.get<EmporixReturnMapper>('EmporixReturnMapper');
-    const { items, totalCount } = await returnApi.getReturns(pageNumber, pageSize, sort, query);
-    const returns = items.map((returnItem) => returnMapper.mapToService(returnItem));
+    const returnService = server.get<ReturnService>('ReturnService');
+    const { items: returns, totalCount } = await returnService.listReturns(pageNumber, pageSize, sort, query);
 
     return NextResponse.json(returns, {
       headers: totalCount !== undefined ? { 'x-total-count': String(totalCount) } : undefined,
@@ -139,11 +136,16 @@ export async function POST(request: NextRequest) {
       }
     } catch (validationError) {
       const logger = server.get<LoggerService>('LoggerService');
+      const mappedError = mapReturnValidationError(validationError);
       logger.error(
-        { error: validationError instanceof Error ? validationError.message : String(validationError), orderId },
+        {
+          error: validationError instanceof Error ? validationError.message : String(validationError),
+          orderId,
+          ...mappedError.logContext,
+        },
         'Returnability validation failed',
       );
-      return NextResponse.json({ error: 'Failed to validate return request' }, { status: 503 });
+      return NextResponse.json(mappedError.response, { status: mappedError.status });
     }
 
     const normalizedItems = items.map((item) => {
@@ -172,15 +174,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ id: returnId }, { status: 201 });
   } catch (error) {
     const logger = server.get<LoggerService>('LoggerService');
+    const mappedError = mapReturnCreateError(error);
     logger.error(
       {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
         path: '/api/returns',
         method: 'POST',
+        ...mappedError.logContext,
       },
       'Error creating return',
     );
-    return NextResponse.json({ error: 'Failed to create return' }, { status: 500 });
+    return NextResponse.json(mappedError.response, { status: mappedError.status });
   }
 }

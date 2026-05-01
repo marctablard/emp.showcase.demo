@@ -53,6 +53,7 @@ export function AddressDialog({
         const updatedAddress = await updateAddress(addressId, {
           ...formData,
           tags: [addressType],
+          source: 'customer',
         });
         if (onSave) onSave(updatedAddress);
       } else {
@@ -60,6 +61,7 @@ export function AddressDialog({
         const newAddress = await createAddress({
           ...formData,
           tags: [addressType],
+          source: 'customer',
         });
         if (onSave) onSave(newAddress);
       }

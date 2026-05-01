@@ -14,6 +14,7 @@ import type { ProductPrice } from '../../model/price';
 import type { ProductMapper } from '../../model/product/ProductMapper';
 import type { PriceService } from '../../price';
 import type SegmentFilterService from '../../search/impl/SegmentFilterService';
+import type { SessionService } from '../../session/SessionService';
 
 /**
  * Implementation of ProductService for Emporix product data.
@@ -29,6 +30,7 @@ class EmporixProductService implements ProductService {
     @inject('EmporixLabelApi') private labelApi: EmporixLabelApi,
     @inject('CategoryService') private categoryService: CategoryService,
     @inject('SegmentFilterService') private segmentFilterService: SegmentFilterService,
+    @inject('SessionService') private sessionService: SessionService,
   ) {}
 
   async getProductById(id: string, options?: ProductFetchOptions): Promise<Product | undefined> {
@@ -211,6 +213,8 @@ class EmporixProductService implements ProductService {
       if (product.id) productIds.add(product.id);
     });
 
+    let sessionForProductPrices: Awaited<ReturnType<SessionService['getCurrent']>> | null = null;
+
     // Fetch all brands, labels, and categories in parallel
     const [brands, labels, productCategoriesArray, batchPriceMap, variantArray] = await Promise.all([
       Promise.all([...brandIds].map((id) => this.brandApi.getBrand(id))),
@@ -225,6 +229,14 @@ class EmporixProductService implements ProductService {
         if (typeof options?.prices === 'object' && options.prices !== null) {
           return this.priceService.getProductPrices(ids, undefined, undefined, options.prices);
         } else if (options?.prices === true) {
+          sessionForProductPrices = await this.sessionService.getCurrent();
+          if (sessionForProductPrices) {
+            return this.priceService.getProductPrices(ids, undefined, undefined, {
+              siteCode: sessionForProductPrices.siteCode,
+              currency: sessionForProductPrices.currency,
+              country: sessionForProductPrices.country,
+            });
+          }
           return this.priceService.getProductPrices(ids);
         }
         return new Map<string, ProductPrice | null>();
@@ -253,7 +265,13 @@ class EmporixProductService implements ProductService {
 
     const priceMap = new Map<string, ProductPrice>();
     batchPriceMap.forEach((price: ProductPrice | null, productId: string) => {
-      if (price) priceMap.set(productId, price);
+      if (!price) {
+        return;
+      }
+      if (sessionForProductPrices && price.currency !== sessionForProductPrices.currency) {
+        return;
+      }
+      priceMap.set(productId, price);
     });
 
     const variantMap = new Map<string, Product[]>();

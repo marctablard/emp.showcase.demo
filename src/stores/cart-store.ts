@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import {
   addItemToCart as apiAddItemToCart,
+  createCart as apiCreateCart,
   fetchCurrentCart as apiFetchCurrentCart,
   removeCartItem as apiRemoveCartItem,
   updateCartCurrency as apiUpdateCartCurrency,
@@ -12,6 +13,7 @@ import {
   clearCartSession,
   loadSavedCart,
 } from '@/lib/client/carts';
+import { devSyncLog } from '@/lib/client/dev-sync-log';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { CartShippingAddress, ModifyCartItemResult } from '@/platform/services/cart/CartService';
 import type { Cart } from '@/platform/services/model/cart/cart';
@@ -36,6 +38,8 @@ export interface CartState {
     siteCode: string;
     attempts: number;
   } | null;
+  /** Consolidated loader for orchestrated flows — flips 0→1 / N→0 to drive a single UI spinner. */
+  isSettling: boolean;
 }
 
 interface CartActions {
@@ -63,6 +67,11 @@ interface CartActions {
   // Cross-store synchronization
   syncCurrencyWithSession: (currency: string, siteCode: string) => Promise<void>;
   flushPendingCurrencySync: () => Promise<void>;
+
+  /** Nestable; flips `isSettling` on 0→1. */
+  beginSettling: (reason?: string) => void;
+  /** Flips `isSettling` off on N→0; unmatched calls clamp at 0. */
+  endSettling: (reason?: string) => void;
 }
 export type CartStore = CartState & CartActions;
 
@@ -78,15 +87,16 @@ const defaultState: CartState = {
   lastSiteCode: null,
   lastLegalEntityId: null,
   pendingCurrencySync: null,
+  isSettling: false,
 };
 
 export const createCartStore = (initState: CartState = defaultState) => {
-  // In-flight promise deduplication for fetchCart
-  // Stored outside Zustand state to avoid triggering re-renders
+  /** Dedupes concurrent `fetchCart` calls; kept outside state to avoid re-renders. */
   let _fetchPromise: Promise<Cart | null | undefined> | null = null;
-  let _fetchPromiseCreate: boolean = false;
   /** Serializes PATCH /shipping so parallel callers cannot race Emporix optimistic locking. */
   let _shippingUpdateGate: Promise<void> = Promise.resolve();
+  /** Settling counter kept outside state so only 0→1 / N→0 transitions notify subscribers. */
+  let _settlingCount = 0;
 
   return create<CartStore>()(
     subscribeWithSelector((set, get) => ({
@@ -98,6 +108,7 @@ export const createCartStore = (initState: CartState = defaultState) => {
           // Only clear cart on actual auth transitions (not initial mount)
           // On first mount, sessionStatus is null — this is initialization, not an auth change
           if (sessionStatus !== null) {
+            _fetchPromise = null;
             set({
               currentCart: null,
               loading: true,
@@ -105,32 +116,44 @@ export const createCartStore = (initState: CartState = defaultState) => {
               lastShippingUpdate: null,
               pendingCurrencySync: null,
             });
-            await get().fetchCart(false);
+            await get().fetchCart();
           }
         }
       },
+      /**
+       * Snap `lastSiteCode`, clear the cart, and refetch once. The session is already settled
+       * by the orchestrator; `fetchCart` guards catch any residual races.
+       */
       validateSite: async (newSiteCode: string) => {
-        const { lastSiteCode } = get();
-        if (lastSiteCode !== null && lastSiteCode !== newSiteCode) {
-          // Site changed - set new site first to prevent race conditions, then clear cart state and fetch new one
-          set({
-            lastSiteCode: newSiteCode,
-            currentCart: null,
-            loading: true,
-            error: null,
-            lastShippingUpdate: null,
-            pendingCurrencySync: null,
-          });
-          await get().fetchCart(false);
-        } else if (lastSiteCode === null) {
-          // First time setting site
-          set({ lastSiteCode: newSiteCode });
+        const { lastSiteCode, currentCart } = get();
+        devSyncLog('cart-store: validateSite', {
+          newSiteCode,
+          lastSiteCode,
+          cartSite: currentCart?.site,
+          cartId: currentCart?.id,
+        });
+        if (!newSiteCode || newSiteCode === lastSiteCode) {
+          if (lastSiteCode === null && newSiteCode) {
+            set({ lastSiteCode: newSiteCode });
+          }
+          return;
         }
+        _fetchPromise = null;
+        set({
+          lastSiteCode: newSiteCode,
+          currentCart: null,
+          loading: true,
+          error: null,
+          lastShippingUpdate: null,
+          pendingCurrencySync: null,
+        });
+        await get().fetchCart();
       },
       validateLegalEntity: async (newLegalEntityId: string | undefined) => {
         const normalized = newLegalEntityId?.trim() ?? '';
         const { lastLegalEntityId } = get();
         if (lastLegalEntityId !== null && lastLegalEntityId !== normalized) {
+          _fetchPromise = null;
           set({
             lastLegalEntityId: normalized,
             currentCart: null,
@@ -139,12 +162,13 @@ export const createCartStore = (initState: CartState = defaultState) => {
             lastShippingUpdate: null,
             pendingCurrencySync: null,
           });
-          await get().fetchCart(false);
+          await get().fetchCart();
         } else if (lastLegalEntityId === null) {
           set({ lastLegalEntityId: normalized });
           // First bound session legal entity (e.g. B2B company selection): re-resolve cart server-side
           // so we never keep a cart from another company or from before LE context existed.
           if (normalized !== '') {
+            _fetchPromise = null;
             set({
               currentCart: null,
               loading: true,
@@ -152,7 +176,7 @@ export const createCartStore = (initState: CartState = defaultState) => {
               lastShippingUpdate: null,
               pendingCurrencySync: null,
             });
-            await get().fetchCart(false);
+            await get().fetchCart();
           }
         }
       },
@@ -168,27 +192,86 @@ export const createCartStore = (initState: CartState = defaultState) => {
       getLoading: () => get().loading,
       setError: (error: Error | null) => set({ error }),
 
-      // Cart API operations
-      fetchCart: async (createCurrent: boolean = false) => {
-        // Dedup: if a fetch is already in-flight, reuse it
-        // A create=true call must NOT reuse a create=false in-flight request
-        if (_fetchPromise && (createCurrent === _fetchPromiseCreate || !createCurrent)) {
+      /**
+       * Read the current cart. Never creates. Discards responses whose site disagrees with the
+       * session's `x-session-site-code` header or the local `lastSiteCode`. `_createCurrent` is
+       * retained for API compatibility and ignored.
+       */
+      fetchCart: async (_createCurrent: boolean = false) => {
+        if (_fetchPromise) {
           return _fetchPromise;
         }
 
-        _fetchPromiseCreate = createCurrent;
+        let thisPromise: Promise<Cart | null | undefined> | null = null;
+
         const currentFetchPromise = (async () => {
           try {
             set({ loading: true, error: null });
 
             try {
-              const cartData = await apiFetchCurrentCart(createCurrent);
+              const { cart: fetchedCart, sessionSiteCode } = await apiFetchCurrentCart();
+              let cartData = fetchedCart;
+              const expectedSite = get().lastSiteCode;
+
+              // Server inconsistency guard: cart tenant ≠ Emporix session.siteCode from the same GET.
+              if (cartData && sessionSiteCode && cartData.site && cartData.site !== sessionSiteCode) {
+                devSyncLog('cart-store: fetchCart discarding cart/session site mismatch', {
+                  cartSite: cartData.site,
+                  sessionSiteCode,
+                  cartId: cartData.id,
+                });
+                getLogger().warn(
+                  { cartSite: cartData.site, sessionSiteCode },
+                  'fetchCart received cart whose site does not match session site — discarding',
+                );
+                cartData = null;
+              } else if (
+                cartData &&
+                !sessionSiteCode &&
+                expectedSite &&
+                cartData.site &&
+                cartData.site !== expectedSite
+              ) {
+                // No header (legacy): fall back to lastSiteCode-only mismatch guard.
+                devSyncLog('cart-store: fetchCart discarding wrong-site cart (no session header)', {
+                  cartSite: cartData.site,
+                  expectedSite,
+                  cartId: cartData.id,
+                });
+                getLogger().warn(
+                  { cartSite: cartData.site, expectedSite },
+                  'fetchCart received cart from wrong site — discarding',
+                );
+                cartData = null;
+              }
+
               set({ currentCart: cartData, loading: false });
+              try {
+                getLogger().info(
+                  {
+                    event: 'fetch_cart_snapshot',
+                    cartId: cartData?.id ?? null,
+                    site: cartData?.site ?? null,
+                    currency: cartData?.currency ?? cartData?.totalPrice?.currency ?? null,
+                    sessionId: cartData?.sessionId ?? null,
+                    sessionSiteCode,
+                    lastSiteCode: get().lastSiteCode,
+                  },
+                  'fetchCart: cart id, site, currency, session id, and session header (single snapshot)',
+                );
+              } catch {
+                /* logging must never clear cart state */
+              }
+              if (_fetchPromise === thisPromise) {
+                _fetchPromise = null;
+              }
               await get().flushPendingCurrencySync();
               return cartData;
             } catch (_err) {
-              // Silent error when cart is gone
               set({ currentCart: null, loading: false });
+              if (_fetchPromise === thisPromise) {
+                _fetchPromise = null;
+              }
               await get().flushPendingCurrencySync();
               return null;
             }
@@ -196,14 +279,16 @@ export const createCartStore = (initState: CartState = defaultState) => {
             const error = err instanceof Error ? err : new Error('Failed to fetch cart');
             set({ error, loading: false });
             getLogger().error({ err }, 'Error fetching cart');
+            if (_fetchPromise === thisPromise) {
+              _fetchPromise = null;
+            }
             await get().flushPendingCurrencySync();
             return undefined;
           }
         })();
+        thisPromise = currentFetchPromise;
         _fetchPromise = currentFetchPromise;
 
-        // Clean up after completion — only clear if this is still the current in-flight promise
-        // (prevents a later fetchCart(true) from being cleared by an earlier fetchCart(false) completing)
         void currentFetchPromise.finally(() => {
           if (_fetchPromise === currentFetchPromise) {
             _fetchPromise = null;
@@ -235,44 +320,42 @@ export const createCartStore = (initState: CartState = defaultState) => {
         }
       },
 
+      /**
+       * Add an item to the cart. Creates the cart explicitly (`POST /api/cart`) if missing, and
+       * re-resolves via `fetchCart` if the existing cart belongs to the wrong site.
+       */
       addToCart: async (productId: string, quantity: number, _retryCount = 0) => {
-        const { loading, lastSiteCode } = get();
+        const { lastSiteCode } = get();
 
-        // Guard 1: Block while a site transition is in progress
-        // (validateSite sets loading=true before async fetchCart)
-        if (loading) {
-          if (_retryCount >= 1) {
-            throw new Error('Site transition in progress. Please try again.');
-          }
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          const { loading: stillLoading } = get();
-          if (stillLoading) {
-            throw new Error('Site transition in progress. Please try again.');
-          }
-          // Retry with fresh state after transition completes (max 1 retry)
-          return get().addToCart(productId, quantity, _retryCount + 1);
-        }
-
-        // first get a cart (before we block with the loading state)
         let { currentCart } = get();
         if (!currentCart) {
-          currentCart = await get().fetchCart(true);
-          if (!currentCart) throw new Error('No cart available');
+          try {
+            const newCart = await apiCreateCart({
+              ...(lastSiteCode ? { siteCode: lastSiteCode } : {}),
+            });
+            set({ currentCart: newCart, loading: false });
+            currentCart = newCart;
+          } catch (err) {
+            const error = err instanceof Error ? err : new Error('Failed to create cart');
+            set({ error, loading: false });
+            getLogger().error({ err }, 'Error creating cart before add-to-cart');
+            throw err;
+          }
         }
 
-        // Guard 2: Verify cart-site alignment using lastSiteCode from validateSite()
+        // Cart belongs to a different site than `validateSite` last snapped — re-resolve via GET.
         if (lastSiteCode && currentCart.site && currentCart.site !== lastSiteCode) {
           getLogger().warn(
             { cartSite: currentCart.site, sessionSite: lastSiteCode },
-            'Cart-site mismatch detected on client — clearing stale cart',
+            'Cart-site mismatch detected on client — clearing stale cart and re-resolving',
           );
+          _fetchPromise = null;
           set({ currentCart: null, loading: true, error: null });
-          await get().fetchCart(true);
+          await get().fetchCart();
           const { currentCart: correctCart } = get();
           if (!correctCart) {
             throw new Error('Failed to get correct site cart');
           }
-          // Use the correct cart directly instead of recursing (max 1 retry)
           currentCart = correctCart;
         }
 
@@ -281,14 +364,11 @@ export const createCartStore = (initState: CartState = defaultState) => {
         try {
           const cartId = currentCart.id;
 
-          // Call API to add item
           const result = await apiAddItemToCart(cartId, productId, quantity);
 
-          // Update cart state with the result
           if (result.cart) {
             set({ currentCart: result.cart, loading: false });
           } else {
-            // Refetch cart to get updated state if result doesn't include cart
             await get().fetchCart();
           }
 
@@ -433,7 +513,7 @@ export const createCartStore = (initState: CartState = defaultState) => {
 
       clearCart: (options?: { deleteCart?: boolean; clearSession?: boolean }) => {
         const { deleteCart = false, clearSession = true } = options ?? {};
-        // 1. Optimistically reset all cart-related state immediately
+        _fetchPromise = null;
         set({
           currentCart: null,
           loading: false,
@@ -443,8 +523,7 @@ export const createCartStore = (initState: CartState = defaultState) => {
           lastLegalEntityId: null,
           pendingCurrencySync: null,
         });
-        // 2. Fire-and-forget: clear server-side session + optionally delete cart
-        //    Skip server-side clear during login — the merge already set the correct cartId
+        // Fire-and-forget server-side clear; skipped during login where merge already sets cartId.
         if (clearSession) {
           clearCartSession(deleteCart).catch((err) => {
             getLogger().error({ err }, 'Failed to clear cart session on server');
@@ -453,8 +532,20 @@ export const createCartStore = (initState: CartState = defaultState) => {
       },
 
       syncCurrencyWithSession: async (currency: string, siteCode: string) => {
-        // Queue retry intent while cart/session transitions are in-flight.
+        devSyncLog('cart-store: syncCurrencyWithSession', {
+          currency,
+          siteCode,
+          cartSite: get().currentCart?.site,
+          cartCurrency: get().currentCart?.currency ?? get().currentCart?.totalPrice?.currency,
+          loading: get().loading,
+        });
+        // Queue retry while cart/session transitions are in-flight.
         if (get().loading) {
+          devSyncLog('cart-store: syncCurrencyWithSession deferred — cart loading', {
+            currency,
+            siteCode,
+            cartId: get().currentCart?.id ?? null,
+          });
           const pendingCurrencySync = get().pendingCurrencySync;
           if (
             pendingCurrencySync &&
@@ -487,11 +578,17 @@ export const createCartStore = (initState: CartState = defaultState) => {
 
         const { currentCart } = get();
         if (!currentCart) {
+          devSyncLog('cart-store: syncCurrencyWithSession skipped — no cart', { currency, siteCode });
           return;
         }
 
-        // Don't update if cart belongs to different site
         if (currentCart.site !== siteCode) {
+          devSyncLog('cart-store: syncCurrencyWithSession skipped — cart site mismatch', {
+            currency,
+            siteCode,
+            cartSite: currentCart.site,
+            cartId: currentCart.id,
+          });
           return;
         }
 
@@ -506,12 +603,36 @@ export const createCartStore = (initState: CartState = defaultState) => {
 
       flushPendingCurrencySync: async () => {
         const pendingCurrencySync = get().pendingCurrencySync;
-        if (!pendingCurrencySync || get().loading) {
+        if (!pendingCurrencySync) {
           return;
         }
 
         set({ pendingCurrencySync: null });
         await get().syncCurrencyWithSession(pendingCurrencySync.currency, pendingCurrencySync.siteCode);
+      },
+
+      beginSettling: (reason?: string) => {
+        _settlingCount += 1;
+        devSyncLog('cart-store: beginSettling', { reason, count: _settlingCount });
+        if (_settlingCount === 1 && !get().isSettling) {
+          set({ isSettling: true });
+        }
+      },
+
+      endSettling: (reason?: string) => {
+        if (_settlingCount <= 0) {
+          _settlingCount = 0;
+          getLogger().warn({ reason }, 'cart-store: endSettling called without matching beginSettling — clamping at 0');
+          if (get().isSettling) {
+            set({ isSettling: false });
+          }
+          return;
+        }
+        _settlingCount -= 1;
+        devSyncLog('cart-store: endSettling', { reason, count: _settlingCount });
+        if (_settlingCount === 0 && get().isSettling) {
+          set({ isSettling: false });
+        }
       },
     })),
   );

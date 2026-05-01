@@ -15,6 +15,7 @@
   "payment": "Zahlung",
   "paymentMethod": "Zahlungsmethode",
   "shippingMethod": "Versandart",
+  "shippingMethodUnknown": "Unbekannte Versandart",
   "orderItems": "Bestellte Artikel",
   "product": "Produkt",
   "price": "Preis",
@@ -69,6 +70,9 @@
   },
   "orderActions": "Bestellaktionen",
   "cancelOrder": "Bestellung stornieren",
+  "cancelOrderFailed": "Bestellung konnte nicht storniert werden",
+  "cancelOrderNotAllowed": "Diese Bestellung kann in ihrem aktuellen Status nicht abgelehnt werden.",
+  "cancelOrderFailedUnknown": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
   "orderDetails": "Bestelldetails",
   "Invoices": {
     "title": "Rechnungen",

@@ -1,5 +1,4 @@
 import 'server-only';
-import { injectable } from '@/platform/core/di/injectable';
 import {
   type DebugContext,
   buildAndLogCurl,
@@ -8,6 +7,7 @@ import {
   logResponse,
 } from '@/platform/core/utils/debug-utils';
 import type {
+  AnonymousTokenSessionParams,
   EmporixAccessTokenResponse,
   EmporixAnonymousTokenResponse,
   EmporixCustomerTokenResponse,
@@ -15,9 +15,9 @@ import type {
 import type { EmporixOAuthApi as IEmporixOAuthApi } from '../EmporixOAuthApi';
 
 /**
- * Implementation of the Emporix OAuth API
+ * @deprecated Use EmporixOAuthApiServer or EmporixOAuthApiSSR instead.
+ * Kept as non-injectable base for test compatibility.
  */
-@injectable('EmporixOAuthApi', 'Singleton')
 class EmporixOAuthApi implements IEmporixOAuthApi {
   protected readonly baseUrl: string = process.env.NEXT_PUBLIC_EMPORIX_BASE_URL || 'https://api.emporix.io';
 
@@ -35,9 +35,11 @@ class EmporixOAuthApi implements IEmporixOAuthApi {
       headers: {
         Accept: 'application/json',
       },
-      next: {
-        revalidate: 3200,
-      },
+      // OAuth token responses must never be persisted in Next.js Data Cache —
+      // that cache survives across Vercel deploys and would serve revoked
+      // tokens after credential rotation. In-memory dedup/cache lives in
+      // EmporixTokenManagerAbstract.
+      cache: 'no-store',
     });
 
     if (!response.ok) {
@@ -52,10 +54,21 @@ class EmporixOAuthApi implements IEmporixOAuthApi {
    * Get an anonymous token
    * @param tenant The tenant ID
    * @param clientId Client ID for anonymous access
+   * @param sessionParams Optional session context values to pre-seed the new session (COP-5047)
    * @returns Promise with the anonymous token response
    */
-  async getAnonymousToken(tenant: string, clientId: string): Promise<EmporixAnonymousTokenResponse> {
-    const url = `/customerlogin/auth/anonymous/login?tenant=${tenant}&client_id=${clientId}`;
+  async getAnonymousToken(
+    tenant: string,
+    clientId: string,
+    sessionParams?: AnonymousTokenSessionParams,
+  ): Promise<EmporixAnonymousTokenResponse> {
+    let url = `/customerlogin/auth/anonymous/login?tenant=${tenant}&client_id=${clientId}`;
+    if (sessionParams) {
+      if (sessionParams.siteCode) url += `&siteCode=${encodeURIComponent(sessionParams.siteCode)}`;
+      if (sessionParams.currency) url += `&currency=${encodeURIComponent(sessionParams.currency)}`;
+      if (sessionParams.language) url += `&language=${encodeURIComponent(sessionParams.language)}`;
+      if (sessionParams.targetLocation) url += `&targetLocation=${encodeURIComponent(sessionParams.targetLocation)}`;
+    }
 
     const response = await this.fetch(url, {
       method: 'GET',
@@ -198,9 +211,8 @@ class EmporixOAuthApi implements IEmporixOAuthApi {
         Accept: 'application/json',
       },
       body: formData,
-      next: {
-        revalidate: 3200,
-      },
+      // See getPublicToken — OAuth token fetches must bypass Next.js Data Cache.
+      cache: 'no-store',
     });
 
     if (!response.ok) {

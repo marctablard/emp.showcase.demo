@@ -40,7 +40,6 @@ export interface AddressData {
   state?: string;
   postalCode: string;
   country: string;
-  isDefault?: boolean;
   tags?: string[];
 }
 

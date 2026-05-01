@@ -4,13 +4,16 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   fetchOrderById as apiFetchOrderById,
   fetchOrderStatusTransitions as apiFetchOrderStatusTransitions,
+  postCustomerOrderDecline as apiPostCustomerOrderDecline,
 } from '@/lib/client/orders';
+import { ORDER_CUSTOMER_DECLINE_NOT_ALLOWED_MESSAGE } from '@/lib/common/order-customer-decline-not-allowed';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { Order } from '@/platform/services/model/order/order';
 
 interface UseOrderOptions {
   orderId?: string;
   initialOrder?: Order | null;
+  autoFetchStatusTransitions?: boolean;
 }
 
 interface UseOrderResult {
@@ -38,7 +41,7 @@ interface UseOrderResult {
  * @returns Order data and operations
  */
 export const useOrder = (options: UseOrderOptions = {}): UseOrderResult => {
-  const { orderId, initialOrder } = options;
+  const { orderId, initialOrder, autoFetchStatusTransitions = true } = options;
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [order, setOrder] = useState<Order | null | undefined>(initialOrder);
@@ -78,28 +81,25 @@ export const useOrder = (options: UseOrderOptions = {}): UseOrderResult => {
     }
   }, [orderId]);
 
-  // Cancel order function - implementation would depend on your API
   const cancelOrder = useCallback(async () => {
     if (!orderId || !order) return;
-
-    // Check if cancellation is allowed based on status transitions
-    if (!statusTransitions.includes('CANCELLED')) {
-      throw new Error('Order cannot be cancelled in its current state');
-    }
 
     try {
       setLoading(true);
       setError(null);
 
-      // This would be replaced with an actual API call
-      // await apiCancelOrder(orderId);
+      if (!statusTransitions.includes('DECLINED')) {
+        throw new Error(ORDER_CUSTOMER_DECLINE_NOT_ALLOWED_MESSAGE);
+      }
 
-      // After cancellation, refetch the order to get updated status
+      await apiPostCustomerOrderDecline(orderId);
       await fetchOrder();
       await fetchStatusTransitions();
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to cancel order'));
-      getLogger().error({ err, orderId }, 'Error cancelling order');
+      const nextError = err instanceof Error ? err : new Error('Failed to cancel order');
+      setError(nextError);
+      getLogger().error({ err: nextError, orderId }, 'Error cancelling order');
+      throw nextError;
     } finally {
       setLoading(false);
     }
@@ -133,13 +133,15 @@ export const useOrder = (options: UseOrderOptions = {}): UseOrderResult => {
     }
   }, [orderId, order, fetchOrder, fetchStatusTransitions]);
 
-  // Initialize on first render
   useEffect(() => {
-    if (orderId && order === undefined) {
-      fetchOrder();
-      fetchStatusTransitions();
+    if (!orderId) return;
+    if (order === undefined) {
+      void fetchOrder();
     }
-  }, [orderId, order, fetchOrder, fetchStatusTransitions]);
+    if (autoFetchStatusTransitions) {
+      void fetchStatusTransitions();
+    }
+  }, [orderId, order, autoFetchStatusTransitions, fetchOrder, fetchStatusTransitions]);
 
   return {
     order,

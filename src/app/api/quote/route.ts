@@ -1,82 +1,122 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import server from '@/platform/server';
+import type { CustomerService } from '@/platform/services/customer/CustomerService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { QuoteUpdateRequest } from '@/platform/services/model/quote';
-import type { PriceService } from '@/platform/services/price/PriceService';
 import type { QuoteService } from '@/platform/services/quote/QuoteService';
 import type { SchemaService } from '@/platform/services/schema/SchemaService';
+import type { SessionService } from '@/platform/services/session/SessionService';
 
 /**
  * POST /api/quote
- * Creates a quote from the current cart and provided checkout data
+ *
+ * Creates a quote from the shopper's current cart using the Emporix
+ * `QuoteCreateFromCartRequest` shape (customer session token, scope
+ * `quote.quote_manage_own`). The client is allowed to send additional
+ * metadata at the top level of the body (`reference`, `userComment`,
+ * `comment`) — those are stripped from the Emporix payload and re-applied
+ * via PATCH after the quote id is returned so the BFF contract is stable
+ * across client callers.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const { cartId, billingAddressId, shippingAddressId, shipping, reference, userComment, comment } = body ?? {};
 
-    const priceService = server.get<PriceService>('PriceService');
     const quoteService = server.get<QuoteService>('QuoteService');
     const schemaService = server.get<SchemaService>('SchemaService');
+    const sessionService = server.get<SessionService>('SessionService');
+    const logger = server.get<LoggerService>('LoggerService');
 
-    const items = Array.isArray(body?.items) ? body.items : undefined;
+    if (!cartId) {
+      return NextResponse.json({ error: 'cartId is required' }, { status: 400 });
+    }
 
-    if (items && items.length > 0) {
-      const defaultUnitCode = process.env.NEXT_PUBLIC_EMPORIX_DEFAULT_UNIT_CODE || 'piece';
-
-      body.items = await Promise.all(
-        items.map(async (item: any) => {
-          const productId: string | undefined = item?.product?.productId;
-          const quantity: number | undefined = item?.quantity?.quantity ?? item?.quantity;
-          const unitCode: string = item?.quantity?.unitCode || defaultUnitCode;
-          if (!productId || !quantity) return item;
-
-          // Fetch matched price for the product to satisfy required fields
-          const matched = await priceService.getProductPrice(productId, quantity);
-          if (!matched) return { ...item, quantity: { quantity, unitCode } };
-
-          const unitPrice = matched.amount;
-          const taxClass = matched.tax?.taxCode ?? 'STANDARD';
-          const taxRate = matched.tax?.taxRate ?? 0;
-          const totalNetValue = matched.amount * quantity;
-
-          return {
-            ...item,
-            quantity: { quantity, unitCode: matched.quantity.unitCode },
-            price: {
-              priceId: matched.id,
-              unitPrice,
-              totalNetValue,
-              tax: { taxClass, taxRate },
-            },
-          };
-        }),
+    try {
+      const session = await sessionService.getCurrent();
+      const customerService = server.get<CustomerService>('CustomerService');
+      let customerBusinessModel: string | undefined;
+      let customerLegalEntityId: string | undefined;
+      try {
+        const customer = await customerService.getCustomer();
+        customerBusinessModel = customer?.businessModel;
+        customerLegalEntityId = customer?.legalEntityId;
+      } catch {
+        customerBusinessModel = undefined;
+        customerLegalEntityId = undefined;
+      }
+      const sessionLegalEntityId = session?.legalEntityId;
+      logger.info(
+        {
+          route: '/api/quote',
+          method: 'POST',
+          hasLegalEntityInSession: Boolean(sessionLegalEntityId),
+          hasLegalEntityOnCustomer: Boolean(customerLegalEntityId),
+          sessionLegalEntityId: sessionLegalEntityId ?? null,
+          customerLegalEntityId: customerLegalEntityId ?? null,
+          customerBusinessModel: customerBusinessModel ?? null,
+          cartId,
+          payloadBillingAddressId: billingAddressId ?? null,
+          payloadShippingAddressId: shippingAddressId ?? null,
+          tokenTypeUsed: 'session',
+        },
+        'Quote create (from-cart) — B2B context snapshot',
+      );
+    } catch (diagError) {
+      logger.warn(
+        { error: diagError instanceof Error ? diagError.message : String(diagError) },
+        'Quote create — failed to collect B2B context snapshot',
       );
     }
 
-    const result = await quoteService.createQuote(body);
+    const wireBody = {
+      cartId,
+      billingAddressId,
+      shippingAddressId,
+      shipping,
+    };
+
+    const result = await quoteService.createQuote(wireBody);
 
     if (result.quoteId) {
       try {
-        const quoteMixinSchema = await schemaService.getSchema('additionalInfo');
         const updateList: QuoteUpdateRequest[] = [];
 
-        if (body.shipping) {
-          updateList.push({ op: 'REPLACE', path: '/shipping', value: body.shipping });
+        // `shipping` is sent in the create body (QuoteCreateFromCartRequest
+        // accepts it natively — see Emporix Quote Tutorial). Patching it
+        // again here would be redundant, so it is intentionally omitted from
+        // the post-create update list.
+
+        if (comment !== undefined && comment !== '') {
+          updateList.push({ op: 'REPLACE', path: '/comment', value: comment });
         }
-        updateList.push({ op: 'REPLACE', path: '/comment', value: body.comment });
-        updateList.push({
-          op: 'ADD',
-          path: '/mixins/additionalInfo',
-          value: { reference: body.reference, userComment: body.userComment },
-        });
-        updateList.push({ op: 'ADD', path: '/metadata/mixins/additionalInfo', value: quoteMixinSchema.metadata?.url });
+
+        const hasReference = reference !== undefined && reference !== '';
+        const hasUserComment = userComment !== undefined && userComment !== '';
+        if (hasReference || hasUserComment) {
+          const quoteMixinSchema = await schemaService.getSchema('additionalInfo');
+          updateList.push({
+            op: 'ADD',
+            path: '/mixins/additionalInfo',
+            value: {
+              ...(hasReference ? { reference } : {}),
+              ...(hasUserComment ? { userComment } : {}),
+            },
+          });
+          if (quoteMixinSchema?.metadata?.url) {
+            updateList.push({
+              op: 'ADD',
+              path: '/metadata/mixins/additionalInfo',
+              value: quoteMixinSchema.metadata.url,
+            });
+          }
+        }
 
         if (updateList.length > 0) {
           await quoteService.updateQuote(result.quoteId, updateList, 'service');
         }
       } catch (updateError) {
-        const logger = server.get<LoggerService>('LoggerService');
         logger.error(
           {
             error: updateError instanceof Error ? updateError.message : String(updateError),

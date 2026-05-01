@@ -20,18 +20,17 @@ export function useLocation(): UseLocationResult {
   const [location, setLocation] = useState<LocationData | null | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const { addresses, getDefaultAddress } = useAddresses();
+  const { addresses } = useAddresses();
   const { countries } = useSite();
 
-  // Try to get location from customer's shipping address
+  // Try to get location from the first shipping-tagged customer address, if any
   const getLocationFromCustomerAddress = useCallback((): LocationData | null => {
-    const shippingAddress = getDefaultAddress('SHIPPING');
+    const shippingAddress = (addresses || []).find((addr) => addr.tags.includes('SHIPPING'));
 
     if (!shippingAddress) {
       return null;
     }
     const country = countries?.find((country) => country.code === shippingAddress.country) || null;
-    // If we have a city and country, use the address data
     if (shippingAddress.city && country) {
       return {
         city: shippingAddress.city,
@@ -39,12 +38,13 @@ export function useLocation(): UseLocationResult {
         geoLocation: shippingAddress.geoLocation,
         state: shippingAddress.state || '',
         postalCode: shippingAddress.zipCode,
-        timezone: 'Europe/Berlin', // Default timezone, would need to be determined based on location
+        // TODO derive timezone from geolocation/country; hardcoded until a real mapping is in place.
+        timezone: 'Europe/Berlin',
       };
     }
 
     return null;
-  }, [countries, getDefaultAddress]);
+  }, [addresses, countries]);
 
   const fetchLocationFromBrowser = useCallback((): Promise<LocationData> => {
     return new Promise((resolve, reject) => {

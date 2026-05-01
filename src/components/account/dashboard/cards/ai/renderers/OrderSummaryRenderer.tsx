@@ -3,6 +3,7 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
+import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import type { OrderItemData, OrderSummaryData } from '../types';
 import { extractPrice, formatDate, formatPrice, getOrderStatusBadgeVariantForAi } from '../utils';
 import { ItemsListRenderer } from './ItemsListRenderer';
@@ -14,7 +15,7 @@ interface OrderSummaryRendererProps {
 export const OrderSummaryRenderer: React.FC<OrderSummaryRendererProps> = ({ data }) => {
   const t = useTranslations('account.AiHelper');
 
-  const displayCurrency = data.currency || data.total?.currency || 'USD';
+  const displayCurrency = data.currency || data.total?.currency || getPublicDefaultCurrency();
 
   const total = data.total || {};
   const totalPrice = extractPrice(total);

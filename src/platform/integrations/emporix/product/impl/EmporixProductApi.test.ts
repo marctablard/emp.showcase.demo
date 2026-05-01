@@ -48,8 +48,17 @@ describe('EmporixProductApi', () => {
     const test = new TestEmporixConfig();
     container.bind<EmporixConfig>('EmporixConfig').to(TestEmporixConfig);
     container.bind<EmporixOAuthApi>('EmporixOAuthApi').to(EmporixOAuthApi);
-    container.bind<EmporixTokenManager>('EmporixTokenManager').to(EmporixTestTokenManager);
-    container.bind<EmporixApiInvoker>('EmporixApiInvoker').to(EmporixApiInvoker);
+    container.bind<EmporixTokenManager>('EmporixTokenManager').to(EmporixTestTokenManager).inSingletonScope();
+    container
+      .bind<EmporixApiInvoker>('EmporixApiInvoker')
+      .toDynamicValue(
+        (ctx) =>
+          new EmporixApiInvoker(
+            ctx.get<EmporixConfig>('EmporixConfig'),
+            ctx.get<EmporixTokenManager>('EmporixTokenManager'),
+          ),
+      )
+      .inSingletonScope();
     container.bind<EmporixProductApi>('EmporixProductApi').to(EmporixProductApi);
 
     // Get instances from the container

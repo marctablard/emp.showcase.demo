@@ -1,8 +1,16 @@
-// src/stores/sync/store-synchronizer.ts
 import { shallow } from 'zustand/shallow';
+import { devSyncLog } from '@/lib/client/dev-sync-log';
 import { invalidateShippingMethodsResponseCache } from '@/lib/client/shipping-methods-response-cache';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import type { CartStoreApi, CustomerStoreApi, SessionStoreApi, SiteStoreApi } from '@/providers/StoreProvider';
+import type {
+  AvailabilityStoreApi,
+  CartStoreApi,
+  CheckoutStoreApi,
+  CustomerStoreApi,
+  ProductStoreApi,
+  SessionStoreApi,
+  SiteStoreApi,
+} from '@/providers/StoreProvider';
 
 type UnsubscribeFn = () => void;
 
@@ -11,34 +19,27 @@ interface StoreSynchronizerParams {
   cartStore: CartStoreApi;
   siteStore: SiteStoreApi;
   customerStore: CustomerStoreApi;
+  productStore: ProductStoreApi;
+  availabilityStore: AvailabilityStoreApi;
+  checkoutStore: CheckoutStoreApi;
 }
 
 const CURRENCY_SYNC_RETRY_DELAYS_MS = [0, 250, 750];
 
 /**
- * Sets up cross-store subscriptions for state synchronization.
- * Returns an array of unsubscribe functions that should be called on cleanup.
- *
- * This module centralizes cross-store side effects that were previously scattered
- * across individual hooks (like useCart). By using Zustand's subscribeWithSelector,
- * we can:
- * - Run effects only once instead of in every component that uses the hook
- * - Ensure proper cleanup on unmount
- * - Reduce duplicate API calls significantly
- *
- * Subscriptions:
- * 1. Session currency changes → Cart currency update
- * 2. Session site changes → Cart site validation
- * 3. Session site changes → Site store reset (triggers re-fetch of site config, currencies, etc.)
- * 4. Session legalEntityId changes (B2B company switcher) → Cart re-fetch for current company
- * 5. Session site / legal entity changes → Invalidate cached legal-entity checkout addresses (single refetch per new key)
- * 6. Session site / currency / legal entity changes → Invalidate client shipping-methods response cache (GET /api/shipping)
+ * Defensive/reactive cross-store subscriptions. Session mutations are owned by
+ * `performSiteSwitch`; these handlers only react to already-settled session changes
+ * (cache invalidations, derived-store updates, defensive nets for non-orchestrated flows
+ * such as login/logout). Returns unsubscribers for unmount.
  */
 export function setupStoreSynchronization({
   sessionStore,
   cartStore,
   siteStore,
   customerStore,
+  productStore,
+  availabilityStore,
+  checkoutStore,
 }: StoreSynchronizerParams): UnsubscribeFn[] {
   const unsubscribers: UnsubscribeFn[] = [];
   let activeCurrencySyncToken = 0;
@@ -56,7 +57,84 @@ export function setupStoreSynchronization({
   );
   unsubscribers.push(unsubShippingMethodsCache);
 
+  // Reset the persisted checkout store (`emp-checkout`, sessionStorage) when the session
+  // site or currency changes. Shipping/billing addresses, payment and shipping method
+  // selections are scoped to a single site+currency context — keeping them across a site
+  // or currency switch can POST legal-entity addresses or shipping methods from the
+  // previous context to Emporix and make the cart calc reject the order.
+  const unsubCheckoutReset = sessionStore.subscribe(
+    (state) => ({
+      siteCode: state.session?.siteCode ?? '',
+      currency: state.session?.currency ?? '',
+    }),
+    (curr, prev) => {
+      if (!curr.siteCode || !curr.currency) {
+        return;
+      }
+      const prevSite = typeof prev === 'object' && prev && 'siteCode' in prev ? prev.siteCode : '';
+      const prevCurrency = typeof prev === 'object' && prev && 'currency' in prev ? prev.currency : '';
+      if (!prevSite || !prevCurrency) {
+        return;
+      }
+      if (prevSite === curr.siteCode && prevCurrency === curr.currency) {
+        return;
+      }
+      devSyncLog('store-sync: reset checkout store (session site/currency changed)', {
+        prevSite,
+        prevCurrency,
+        siteCode: curr.siteCode,
+        currency: curr.currency,
+      });
+      checkoutStore.getState().reset();
+    },
+    { equalityFn: shallow },
+  );
+  unsubscribers.push(unsubCheckoutReset);
+
+  // Product cache is keyed only by id; clear on site/currency change so PDP/search never
+  // display another site's currency before the fresh fetch completes.
+  const unsubProductClientCache = sessionStore.subscribe(
+    (state) => ({
+      siteCode: state.session?.siteCode ?? '',
+      currency: state.session?.currency ?? '',
+    }),
+    (curr, prev) => {
+      if (!curr.siteCode || !curr.currency) {
+        return;
+      }
+      if (prev === undefined) {
+        return;
+      }
+      const prevSite =
+        typeof prev === 'object' && prev && 'siteCode' in prev ? (prev as { siteCode: string }).siteCode : '';
+      const prevCur =
+        typeof prev === 'object' && prev && 'currency' in prev ? (prev as { currency: string }).currency : '';
+      if (!prevSite || !prevCur) {
+        return;
+      }
+      if (prevSite === curr.siteCode && prevCur === curr.currency) {
+        return;
+      }
+      devSyncLog('store-sync: clear client product cache (session site/currency changed)', {
+        prevSite,
+        prevCurrency: prevCur,
+        siteCode: curr.siteCode,
+        currency: curr.currency,
+      });
+      productStore.getState().clearProductCache();
+      availabilityStore.getState().clearAllAvailabilities();
+    },
+    { equalityFn: shallow },
+  );
+  unsubscribers.push(unsubProductClientCache);
+
   const runCurrencySync = async (currency: string, siteCode: string) => {
+    // Suppressed while `performSiteSwitch` holds the mutation lock: the orchestrator is the
+    // single writer and already reconciles cart currency inside its settling window.
+    if (sessionStore.getState().isMutationInFlight()) {
+      devSyncLog('store-sync: currency sync suppressed — mutation in flight', { currency, siteCode });
+      return;
+    }
     const syncToken = ++activeCurrencySyncToken;
     for (let i = 0; i < CURRENCY_SYNC_RETRY_DELAYS_MS.length; i++) {
       const delay = CURRENCY_SYNC_RETRY_DELAYS_MS[i];
@@ -71,10 +149,17 @@ export function setupStoreSynchronization({
 
       const latestSession = sessionStore.getState().session;
       if (!latestSession || latestSession.currency !== currency || latestSession.siteCode !== siteCode) {
+        devSyncLog('store-sync: currency sync skipped (stale session)', {
+          currency,
+          siteCode,
+          latestCurrency: latestSession?.currency,
+          latestSite: latestSession?.siteCode,
+        });
         return;
       }
 
       try {
+        devSyncLog('store-sync: syncing cart currency with session', { currency, siteCode });
         await cartStore.getState().syncCurrencyWithSession(currency, siteCode);
       } catch (error) {
         getLogger().error({ error, currency, siteCode, attempt: i + 1 }, 'Failed to sync cart currency with session');
@@ -88,8 +173,7 @@ export function setupStoreSynchronization({
     }
   };
 
-  // Subscription 1: Currency synchronization
-  // When session currency changes, update cart currency to match
+  // Currency sync — reacts immediately to settled session changes.
   const unsubCurrency = sessionStore.subscribe(
     (state) => ({
       currency: state.session?.currency,
@@ -103,13 +187,19 @@ export function setupStoreSynchronization({
   );
   unsubscribers.push(unsubCurrency);
 
-  // Subscription 2: Site validation
-  // When session site changes, validate that cart belongs to the current site
+  // Site validation — defensive net for non-orchestrated session changes (login/logout,
+  // SSR seed propagation). Gated on `isMutationInFlight` so we never race `performSiteSwitch`.
   const unsubSite = sessionStore.subscribe(
     (state) => state.session?.siteCode,
     async (siteCode, prevSiteCode) => {
       if (!siteCode || siteCode === prevSiteCode) return;
 
+      if (sessionStore.getState().isMutationInFlight()) {
+        devSyncLog('store-sync: validate cart site suppressed — mutation in flight', { siteCode, prevSiteCode });
+        return;
+      }
+
+      devSyncLog('store-sync: session site changed — validate cart site (defensive)', { siteCode, prevSiteCode });
       try {
         await cartStore.getState().validateSite(siteCode);
       } catch (error) {
@@ -119,11 +209,7 @@ export function setupStoreSynchronization({
   );
   unsubscribers.push(unsubSite);
 
-  // Subscription 3: Site store reset
-  // When session site changes, reset the site store so useSite() re-fetches
-  // the correct site config (currencies, countries, regions, payment modes).
-  // Without this, a soft client-side navigation after site switch keeps stale
-  // site data in the store — e.g., currency switcher shows USD on main site.
+  // Site store reset on session site change; preserves `availableSites` cache.
   const unsubSiteStore = sessionStore.subscribe(
     (state) => state.session?.siteCode,
     (siteCode, prevSiteCode) => {
@@ -131,8 +217,12 @@ export function setupStoreSynchronization({
 
       const currentSite = siteStore.getState().getSite();
       if (currentSite && currentSite.code !== siteCode) {
+        devSyncLog('store-sync: resetting site store after session site change', {
+          siteCode,
+          previousStoreSite: currentSite.code,
+        });
         customerStore.getState().invalidateLegalEntityCheckoutAddresses();
-        siteStore.getState().reset();
+        siteStore.getState().resetSite();
       }
     },
   );
@@ -147,7 +237,16 @@ export function setupStoreSynchronization({
       if (legalEntityId === previousLegalEntityId) {
         return;
       }
+      // Cache invalidation is free (no upstream call); cart re-fetch waits for the mutation
+      // lock to release so we don't race a concurrent per-site `fetchCart`.
       customerStore.getState().invalidateLegalEntityCheckoutAddresses();
+      if (sessionStore.getState().isMutationInFlight()) {
+        devSyncLog('store-sync: validate cart legal entity suppressed — mutation in flight', {
+          legalEntityId,
+          previousLegalEntityId,
+        });
+        return;
+      }
       try {
         await cartStore.getState().validateLegalEntity(legalEntityId === '' ? undefined : legalEntityId);
       } catch (error) {

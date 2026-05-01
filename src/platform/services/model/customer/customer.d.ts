@@ -20,6 +20,24 @@ export interface Customer {
   roles?: string[];
 }
 
+/**
+ * Origin of a {@link CustomerAddress}.
+ * - `customer`: a personal entry from the shopper's profile address book.
+ * - `legalEntity`: a B2B company location (`EmporixLocation`) tied to the
+ *   customer's legal entity; its `id` is the raw Emporix location id and is
+ *   what the Emporix quote/checkout APIs expect for B2B billing/shipping
+ *   address references.
+ */
+export type AddressSource = 'customer' | 'legalEntity';
+
 export interface CustomerAddress extends Address {
   tags: string[];
+  source: AddressSource;
+  /**
+   * Only meaningful for `source: 'customer'` addresses — mirrors the
+   * `isDefault` flag Emporix returns on customer-profile addresses (B2C primary
+   * shipping/billing). Legal-entity locations have no equivalent flag, so this
+   * is always `undefined` for `source: 'legalEntity'`.
+   */
+  isDefault?: boolean;
 }

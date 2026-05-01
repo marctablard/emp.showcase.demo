@@ -13,6 +13,7 @@
   "noRemainingItems": "A return for all items in this order has already been requested.",
   "paymentMethod": "Payment Method",
   "shippingMethod": "Shipping Method",
+  "shippingMethodUnknown": "Unknown shipping method",
   "orderItems": "Order Items",
   "product": "Product",
   "price": "Price",
@@ -36,6 +37,9 @@
   "ordersTotal": "Total orders",
   "orderActions": "Order Actions",
   "cancelOrder": "Cancel Order",
+  "cancelOrderFailed": "Could not cancel order",
+  "cancelOrderNotAllowed": "This order cannot be declined in its current state.",
+  "cancelOrderFailedUnknown": "Something went wrong. Please try again.",
   "search": {
     "placeholder": "Search orders..."
   },

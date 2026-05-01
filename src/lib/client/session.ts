@@ -1,10 +1,8 @@
 import { getLogger } from '@/lib/logger/use-logger-client';
+import type { Cart } from '@/platform/services/model/cart/cart';
 import type { Session } from '@/platform/services/model/session/session';
 
-/**
- * Fetch the current session information
- * @returns {Promise<Session|null>} The session or null if not available
- */
+/** Fetch the current session; returns `null` on failure unless `throwOnError` is true. */
 export async function fetchCurrentSession(throwOnError: boolean = false): Promise<Session | null> {
   try {
     const response = await fetch('/api/session', {
@@ -26,11 +24,43 @@ export async function fetchCurrentSession(throwOnError: boolean = false): Promis
   }
 }
 
+/** Partial session context fields accepted by `PATCH /api/session`. */
+export type SessionContextPatch = {
+  siteCode?: string;
+  currency?: string;
+  language?: string;
+  country?: string;
+};
+
 /**
- * Update the session language
- * @param {string} language - The language code to set
- * @returns {Promise<boolean>} Success status
+ * Combined `PATCH /api/session` — prefer over per-field helpers so one upstream PATCH runs
+ * and the canonical Session is returned. `expectedVersion` skips the pre-PATCH read.
  */
+export async function updateSessionContext(
+  fields: SessionContextPatch,
+  expectedVersion?: number,
+): Promise<Session | null> {
+  try {
+    const response = await fetch('/api/session', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...fields,
+        ...(typeof expectedVersion === 'number' ? { expectedVersion } : {}),
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to update session context: ${response.statusText}`);
+    }
+
+    return (await response.json()) as Session;
+  } catch (error) {
+    getLogger().error({ err: error, fields }, 'Error updating session context');
+    return null;
+  }
+}
+
 export async function updateSessionLanguage(language: string): Promise<boolean> {
   try {
     const response = await fetch('/api/session/language', {
@@ -50,12 +80,14 @@ export async function updateSessionLanguage(language: string): Promise<boolean> 
   }
 }
 
-/**
- * Update the session currency
- * @param {string} currency - The currency code to set
- * @returns {Promise<boolean>} Success status
- */
-export async function updateSessionCurrency(currency: string): Promise<boolean> {
+export interface UpdateSessionCurrencyResult {
+  success: boolean;
+  cart?: Cart | null;
+  /** Set when `/api/session/currency` returns 409 (cart cannot be repriced in the target currency). */
+  cartCurrencyBlocked?: boolean;
+}
+
+export async function updateSessionCurrency(currency: string): Promise<UpdateSessionCurrencyResult> {
   try {
     const response = await fetch('/api/session/currency', {
       method: 'PUT',
@@ -63,22 +95,25 @@ export async function updateSessionCurrency(currency: string): Promise<boolean> 
       body: JSON.stringify({ currency }),
     });
 
+    const payload: unknown = await response.json().catch(() => ({}));
+    const obj = typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>) : {};
+
     if (!response.ok) {
-      throw new Error(`Failed to update currency: ${response.statusText}`);
+      const cartCurrencyBlocked = response.status === 409;
+      return { success: false, ...(cartCurrencyBlocked ? { cartCurrencyBlocked: true } : {}) };
     }
 
-    return true;
+    const hasCart = Object.prototype.hasOwnProperty.call(obj, 'cart');
+    return {
+      success: obj.success !== false,
+      ...(hasCart ? { cart: (obj.cart as Cart | null) ?? null } : {}),
+    };
   } catch (error) {
     getLogger().error({ err: error, currency }, 'Error updating currency');
-    return false;
+    return { success: false };
   }
 }
 
-/**
- * Update the session country
- * @param {string} country - The country code to set
- * @returns {Promise<boolean>} Success status
- */
 export async function updateSessionCountry(country: string): Promise<boolean> {
   try {
     const response = await fetch('/api/session/country', {
@@ -98,11 +133,6 @@ export async function updateSessionCountry(country: string): Promise<boolean> {
   }
 }
 
-/**
- * Update the session site
- * @param {string} site - The site code to set
- * @returns {Promise<boolean>} Success status
- */
 export async function updateSessionSite(site: string): Promise<boolean> {
   try {
     const response = await fetch('/api/session/site', {
@@ -122,11 +152,6 @@ export async function updateSessionSite(site: string): Promise<boolean> {
   }
 }
 
-/**
- * Update the session company (legal entity)
- * @param {string} legalEntityId - The legal entity ID to set
- * @returns {Promise<boolean>} Success status
- */
 export async function updateSessionCompany(legalEntityId: string): Promise<boolean> {
   try {
     const response = await fetch('/api/session/company', {

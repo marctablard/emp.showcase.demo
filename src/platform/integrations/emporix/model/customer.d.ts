@@ -43,8 +43,8 @@ export interface EmporixPasswordChangeRequest {
  */
 export interface EmporixCustomerAddress extends EmporixAddress {
   id: string;
+  /** Marks the customer's primary personal address (B2C). Not returned for legal-entity locations. */
   isDefault?: boolean;
-  tags?: string[];
 }
 
 export interface EmporixB2Binfo {

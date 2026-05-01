@@ -114,19 +114,32 @@ describe('site middleware - domain and prefix handling', () => {
     expect(result.appPath).toBe('en/products');
   });
 
-  test('resolves site from cookie when no path segment is present and cookieOverridesDefault is enabled', () => {
+  test('locale-first unprefixed paths use defaultSite instead of a stale site cookie', () => {
     const headers = new Headers();
     const cookies = createCookies({ NEXT_SITE: 'tenant2' }) as unknown as NextRequest['cookies'];
     const result = resolveSite('/en/products', cookies, headers, baseRouting);
 
-    expect(result.site).toBe('tenant2');
+    expect(result.site).toBe('main');
     expect(result.appPath).toBe('en/products');
   });
 
-  test('resolves site from header when cookie is missing', () => {
+  test('default-locale-hidden paths use defaultSite instead of a stale site cookie', () => {
+    const headers = new Headers();
+    const cookies = createCookies({ NEXT_SITE: 'tenant2' }) as unknown as NextRequest['cookies'];
+    const result = resolveSite('/browse', cookies, headers, baseRouting);
+
+    expect(result.site).toBe('main');
+    expect(result.appPath).toBe('browse');
+  });
+
+  test('resolves site from header when cookie is missing (prefix always — not URL-canonical as-needed)', () => {
+    const alwaysPrefixRouting: SiteRoutingConfig = {
+      ...baseRouting,
+      prefix: 'always',
+    };
     const headers = new Headers({ 'x-emp-site': 'tenant1' });
     const cookies = createCookies({}) as unknown as NextRequest['cookies'];
-    const result = resolveSite('/en/products', cookies, headers, baseRouting);
+    const result = resolveSite('/en/products', cookies, headers, alwaysPrefixRouting);
 
     expect(result.site).toBe('tenant1');
     expect(result.appPath).toBe('en/products');
@@ -209,16 +222,17 @@ describe('createSiteMiddleware redirect/rewrite behavior', () => {
     cookieOverridesDefault: true,
   };
 
-  test('redirects to include site when prefix is required', () => {
-    const middleware = createSiteMiddleware(routingConfig);
+  test('redirects to include site when prefix is required (prefix always + root + cookie)', () => {
+    const alwaysRouting: SiteRoutingConfig = { ...routingConfig, prefix: 'always' };
+    const middleware = createSiteMiddleware(alwaysRouting);
     const req = createRequest(
-      'https://example.com/en/products',
+      'https://example.com/',
       { NEXT_SITE: 'tenant1' },
       { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
     );
     const response = middleware(req);
 
-    expect(response?.headers.get('location')).toBe('https://example.com/tenant1/en/products');
+    expect(response?.headers.get('location')).toBe('https://example.com/tenant1');
   });
 
   test('redirects to remove site when prefix is not needed', () => {
@@ -246,9 +260,10 @@ describe('createSiteMiddleware redirect/rewrite behavior', () => {
   });
 
   test('prepends site to intl redirect when prefix is required', () => {
-    const middleware = createSiteMiddleware(routingConfig);
+    const alwaysRouting: SiteRoutingConfig = { ...routingConfig, prefix: 'always' };
+    const middleware = createSiteMiddleware(alwaysRouting);
     const req = createRequest(
-      'https://example.com/en',
+      'https://example.com/deep-link-entry',
       { NEXT_SITE: 'tenant1' },
       { 'x-intl-mode': 'redirect', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
     );

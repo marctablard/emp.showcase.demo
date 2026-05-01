@@ -1,6 +1,4 @@
-import { inject } from 'inversify';
 import 'server-only';
-import { injectable } from '@/platform/core/di/injectable';
 import {
   type DebugContext,
   buildAndLogCurl,
@@ -9,21 +7,18 @@ import {
   logResponse,
 } from '@/platform/core/utils/debug-utils';
 import type { EmporixConfig } from '../../config';
+import type { FetchMetrics } from '../../model/metrics';
 import type { EmporixTokenManager } from '../EmporixTokenManager';
 
 /**
- * Main client for interacting with Emporix APIs
- * Handles authentication and provides access to various API endpoints
+ * @deprecated Use EmporixApiInvokerServer or EmporixApiInvokerSSR instead.
+ * Kept as non-injectable base for test compatibility.
  */
-@injectable('EmporixApiInvoker', 'Singleton')
 class EmporixApiInvoker {
   protected config: EmporixConfig;
   protected tokenManager: EmporixTokenManager;
 
-  constructor(
-    @inject('EmporixConfig') config: EmporixConfig,
-    @inject('EmporixTokenManager') tokenManager: EmporixTokenManager,
-  ) {
+  constructor(config: EmporixConfig, tokenManager: EmporixTokenManager) {
     this.config = config;
     this.tokenManager = tokenManager;
   }
@@ -59,6 +54,11 @@ class EmporixApiInvoker {
    * @param options Fetch options
    * @param tokenType Type of token to use for authentication
    * @param authOptions Optional authOptions for customer (username/password)
+   * @param _metrics Optional Prometheus metrics parameters (recorded by Server/SSR subclasses)
+   * @param cacheSeconds Optional opt-in cache TTL in seconds. Applied only to GET/HEAD
+   *   requests that do not already set `cache` or `next`; translates to
+   *   `cache: 'force-cache', next: { revalidate: cacheSeconds }`. Undefined means no caching
+   *   (callers must opt in per-endpoint). Write methods are always forced to `no-store`.
    * @returns Promise with the fetch response
    */
   async authenticatedFetch(
@@ -69,6 +69,8 @@ class EmporixApiInvoker {
       credentials?: { username: string; password: string };
       scopes?: string[];
     },
+    _metrics?: FetchMetrics,
+    cacheSeconds?: number,
   ): Promise<Response> {
     let token: string;
 
@@ -135,21 +137,19 @@ class EmporixApiInvoker {
         throw new Error(`Unknown token type: ${tokenType}`);
     }
 
-    // Unified cache defaults for public and service tokens
-    if (tokenType === 'public' || tokenType === 'service') {
+    // Caching is opt-in. Callers enable it per-endpoint via `cacheSeconds` or by
+    // setting `options.cache` / `options.next` explicitly. Writes are always uncached.
+    {
       const method = (options.method || 'GET').toUpperCase();
       const isWriteMethod = method !== 'GET' && method !== 'HEAD';
 
       if (isWriteMethod) {
-        // Write operations must never be cached
         options['cache'] = 'no-store';
         delete (options as Record<string, unknown>)['next'];
-      } else if (!options['cache'] && !options['next']) {
-        // Read operations: apply defaults only when caller set neither
+      } else if (!options['cache'] && !options['next'] && cacheSeconds !== undefined) {
         options['cache'] = 'force-cache';
-        options['next'] = { revalidate: 3600 };
+        options['next'] = { revalidate: cacheSeconds };
       }
-      // If caller set either cache or next explicitly → respect both as-is
     }
 
     // Add authorization header to the request

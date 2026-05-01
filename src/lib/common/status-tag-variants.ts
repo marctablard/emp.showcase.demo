@@ -21,6 +21,7 @@ enum OrderStatusTag {
 
 enum QuoteStatusTag {
   CREATING = 'CREATING',
+  AWAITING = 'AWAITING',
   OPEN = 'OPEN',
   IN_PROGRESS = 'IN_PROGRESS',
   DECLINED = 'DECLINED',
@@ -67,6 +68,7 @@ void _orderStatusTagExhaustive;
 
 const _quoteStatusTagExhaustive: Record<QuoteStatus, true> = {
   [QuoteStatusTag.CREATING]: true,
+  [QuoteStatusTag.AWAITING]: true,
   [QuoteStatusTag.OPEN]: true,
   [QuoteStatusTag.IN_PROGRESS]: true,
   [QuoteStatusTag.DECLINED]: true,
@@ -143,10 +145,16 @@ export function getOrderStatusVariant(status: Order['status']): BadgeVariant {
   }
 }
 
-/** Maps every {@link QuoteStatus}; default covers malformed strings (e.g. AI). */
+/**
+ * Maps every {@link QuoteStatus} to a {@link BadgeVariant}.
+ * Canonical storefront tags (Figma Molecules / Quote Statuses): CREATING, AWAITING, OPEN (information);
+ * IN_PROGRESS (warning); ACCEPTED (success); DECLINED, DECLINED_BY_MERCHANT (destructive); EXPIRED (outline).
+ * Legacy Emporix values ORDER_CREATED, CLOSED, CHANGE, DECLINE keep distinct variants until product removes them.
+ */
 export function getQuoteStatusVariant(status: QuoteStatus): BadgeVariant {
   switch (status) {
     case QuoteStatusTag.CREATING:
+    case QuoteStatusTag.AWAITING:
       return 'information';
     case QuoteStatusTag.CLOSED:
       return 'muted';

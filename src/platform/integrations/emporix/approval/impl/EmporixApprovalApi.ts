@@ -1,6 +1,7 @@
 import { inject } from 'inversify';
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
+import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../../config';
 import type {
@@ -14,6 +15,8 @@ import type {
   EmporixApprovalUser,
 } from '../../model/approval';
 import type { EmporixApprovalApi as IEmporixApprovalApi } from '../EmporixApprovalApi';
+
+const createApprovalMetrics = (route: string) => createFetchMetricsParams('approval', route);
 
 @injectable('EmporixApprovalApi', 'Singleton')
 class EmporixApprovalApi implements IEmporixApprovalApi {
@@ -36,6 +39,8 @@ class EmporixApprovalApi implements IEmporixApprovalApi {
         body: JSON.stringify(approval),
       },
       'session',
+      undefined,
+      createApprovalMetrics('/approval/{tenant}/approvals'),
     );
 
     if (!response.ok) {
@@ -71,6 +76,8 @@ class EmporixApprovalApi implements IEmporixApprovalApi {
         },
       },
       'session',
+      undefined,
+      createApprovalMetrics('/approval/{tenant}/approvals'),
     );
 
     if (!response.ok) {
@@ -86,6 +93,8 @@ class EmporixApprovalApi implements IEmporixApprovalApi {
       `/approval/${this.config.tenant}/approvals/${approvalId}`,
       { method: 'GET' },
       'session',
+      undefined,
+      createApprovalMetrics('/approval/{tenant}/approvals/{id}'),
     );
 
     if (!response.ok) {
@@ -110,6 +119,8 @@ class EmporixApprovalApi implements IEmporixApprovalApi {
         body: JSON.stringify(updateOperations),
       },
       'session',
+      undefined,
+      createApprovalMetrics('/approval/{tenant}/approvals/{id}'),
     );
 
     if (!response.ok) {
@@ -123,6 +134,8 @@ class EmporixApprovalApi implements IEmporixApprovalApi {
       `/approval/${this.config.tenant}/approvals/${approvalId}`,
       { method: 'DELETE' },
       'session',
+      undefined,
+      createApprovalMetrics('/approval/{tenant}/approvals/{id}'),
     );
 
     if (!response.ok) {
@@ -142,6 +155,8 @@ class EmporixApprovalApi implements IEmporixApprovalApi {
         body: JSON.stringify(request),
       },
       'session',
+      undefined,
+      createApprovalMetrics('/approval/{tenant}/approval/permitted'),
     );
 
     if (!response.ok) {
@@ -163,6 +178,8 @@ class EmporixApprovalApi implements IEmporixApprovalApi {
         body: JSON.stringify(request),
       },
       'session',
+      undefined,
+      createApprovalMetrics('/approval/{tenant}/search/users'),
     );
 
     if (!response.ok) {

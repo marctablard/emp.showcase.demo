@@ -1,29 +1,38 @@
 import { act } from '@testing-library/react';
+import type { Cart } from '@/platform/services/model/cart/cart';
 import { createCartStore } from '@/stores/cart-store';
 
-// Mock the API calls
+function fcResult(cart: Cart | null): { cart: Cart | null; sessionSiteCode: string | null } {
+  if (!cart) return { cart: null, sessionSiteCode: null };
+  return { cart, sessionSiteCode: cart.site ?? null };
+}
+
 jest.mock('@/lib/client/carts', () => ({
   fetchCurrentCart: jest.fn(),
+  createCart: jest.fn(),
   addItemToCart: jest.fn(),
   removeCartItem: jest.fn(),
   updateCartItemQuantity: jest.fn(),
+  updateCartCurrency: jest.fn(),
   updateShippingInfo: jest.fn(),
   loadSavedCart: jest.fn(),
   clearCartSession: jest.fn(),
 }));
 
 jest.mock('@/lib/logger/use-logger-client', () => ({
-  getLogger: jest.fn(() => ({
+  getLogger: () => ({
     error: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),
     debug: jest.fn(),
-  })),
+  }),
 }));
 
 const mockFetchCurrentCart = require('@/lib/client/carts').fetchCurrentCart;
+const mockCreateCart = require('@/lib/client/carts').createCart;
 const mockAddItemToCart = require('@/lib/client/carts').addItemToCart;
 const mockClearCartSession = require('@/lib/client/carts').clearCartSession;
+const mockUpdateCartCurrency = require('@/lib/client/carts').updateCartCurrency;
 
 describe('CartStore - Site Validation', () => {
   let store: ReturnType<typeof createCartStore>;
@@ -35,8 +44,7 @@ describe('CartStore - Site Validation', () => {
   });
 
   describe('validateSite', () => {
-    it('should set lastSiteCode on first call without clearing cart', async () => {
-      // Arrange
+    it('should snap lastSiteCode, clear cart, and refetch on initial bind from null', async () => {
       const initialCart = {
         id: 'cart-1',
         currency: 'EUR',
@@ -47,24 +55,34 @@ describe('CartStore - Site Validation', () => {
         tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0 },
       };
 
-      // Set initial cart state
+      const refetchedCart = {
+        id: 'cart-refreshed',
+        currency: 'EUR',
+        site: 'site-a',
+        items: [],
+        totalPrice: { amount: 0, currency: 'EUR' },
+        subTotalPrice: { amount: 0, currency: 'EUR' },
+        tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0 },
+      };
+
+      mockFetchCurrentCart.mockResolvedValueOnce(fcResult(refetchedCart as Cart));
+
       act(() => {
         store.getState().setCurrentCart(initialCart);
       });
 
-      // Act
       await act(async () => {
         await store.getState().validateSite('site-a');
       });
 
-      // Assert
+      // With the simplified validateSite, any null→siteCode transition is
+      // treated as a site change: snap lastSiteCode, clear, refetch.
       expect(store.getState().lastSiteCode).toBe('site-a');
-      expect(store.getState().currentCart).toEqual(initialCart);
-      expect(mockFetchCurrentCart).not.toHaveBeenCalled();
+      expect(mockFetchCurrentCart).toHaveBeenCalledTimes(1);
+      expect(store.getState().currentCart).toEqual(refetchedCart);
     });
 
-    it('should clear cart and refetch when site changes', async () => {
-      // Arrange
+    it('should snap lastSiteCode early, clear cart, and refetch when site changes', async () => {
       const initialCart = {
         id: 'cart-1',
         currency: 'EUR',
@@ -85,9 +103,10 @@ describe('CartStore - Site Validation', () => {
         tax: { amount: 0, currency: 'USD', netValue: 0, grossValue: 0 },
       };
 
-      mockFetchCurrentCart.mockResolvedValueOnce(newSiteCart);
+      // Initial bind triggers one refetch; then the transition to site-b triggers another.
+      mockFetchCurrentCart.mockResolvedValueOnce(fcResult(initialCart as Cart));
+      mockFetchCurrentCart.mockResolvedValueOnce(fcResult(newSiteCart as Cart));
 
-      // Set initial cart and site
       act(() => {
         store.getState().setCurrentCart(initialCart);
       });
@@ -96,19 +115,16 @@ describe('CartStore - Site Validation', () => {
         await store.getState().validateSite('site-a');
       });
 
-      // Act - change site
       await act(async () => {
         await store.getState().validateSite('site-b');
       });
 
-      // Assert
       expect(store.getState().lastSiteCode).toBe('site-b');
-      expect(mockFetchCurrentCart).toHaveBeenCalledTimes(1);
+      expect(mockFetchCurrentCart).toHaveBeenCalledTimes(2);
       expect(store.getState().currentCart).toEqual(newSiteCart);
     });
 
     it('should not clear cart when called with same site', async () => {
-      // Arrange
       const initialCart = {
         id: 'cart-1',
         currency: 'EUR',
@@ -119,28 +135,21 @@ describe('CartStore - Site Validation', () => {
         tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0 },
       };
 
-      // Set initial cart and site
+      // Seed lastSiteCode directly so the first validateSite('site-a') is the no-op path.
       act(() => {
-        store.getState().setCurrentCart(initialCart);
+        store.setState({ lastSiteCode: 'site-a', currentCart: initialCart });
       });
 
       await act(async () => {
         await store.getState().validateSite('site-a');
       });
 
-      // Act - call with same site again
-      await act(async () => {
-        await store.getState().validateSite('site-a');
-      });
-
-      // Assert
       expect(store.getState().lastSiteCode).toBe('site-a');
       expect(store.getState().currentCart).toEqual(initialCart);
       expect(mockFetchCurrentCart).not.toHaveBeenCalled();
     });
 
     it('should reset lastSiteCode to null when clearCart is called', async () => {
-      // Arrange
       const initialCart = {
         id: 'cart-1',
         currency: 'EUR',
@@ -151,7 +160,6 @@ describe('CartStore - Site Validation', () => {
         tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0 },
       };
 
-      // Set initial cart and site
       act(() => {
         store.getState().setCurrentCart(initialCart);
       });
@@ -162,18 +170,15 @@ describe('CartStore - Site Validation', () => {
 
       expect(store.getState().lastSiteCode).toBe('site-a');
 
-      // Act
       act(() => {
         store.getState().clearCart();
       });
 
-      // Assert
       expect(store.getState().lastSiteCode).toBeNull();
       expect(store.getState().currentCart).toBeNull();
     });
 
-    it('should set lastSiteCode before clearing cart to prevent race conditions', async () => {
-      // Arrange
+    it('snaps lastSiteCode to the new site synchronously before fetchCart resolves', async () => {
       const initialCart = {
         id: 'cart-1',
         currency: 'EUR',
@@ -184,7 +189,6 @@ describe('CartStore - Site Validation', () => {
         tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0 },
       };
 
-      // Set initial cart and site
       act(() => {
         store.getState().setCurrentCart(initialCart);
       });
@@ -193,42 +197,113 @@ describe('CartStore - Site Validation', () => {
         await store.getState().validateSite('site-a');
       });
 
-      // Create a delayed mock to simulate slow network
       let resolvePromise: (cart: unknown) => void;
       const slowPromise = new Promise((resolve) => {
         resolvePromise = resolve;
       });
       mockFetchCurrentCart.mockReturnValueOnce(slowPromise);
 
-      // Act - start site change but don't await
       const validatePromise = store.getState().validateSite('site-b');
 
-      // Assert - lastSiteCode should be updated immediately (before fetch completes)
+      // validateSite snaps lastSiteCode synchronously — the orchestrator awaits the session
+      // update, so there's no stale window for a prior-site response to masquerade.
       expect(store.getState().lastSiteCode).toBe('site-b');
       expect(store.getState().currentCart).toBeNull();
       expect(store.getState().loading).toBe(true);
 
-      // Complete the fetch
-      resolvePromise!({
-        id: 'cart-2',
-        currency: 'USD',
-        site: 'site-b',
-        items: [],
-        totalPrice: { amount: 0, currency: 'USD' },
-        subTotalPrice: { amount: 0, currency: 'USD' },
-        tax: { amount: 0, currency: 'USD', netValue: 0, grossValue: 0 },
-      });
+      resolvePromise!(
+        fcResult({
+          id: 'cart-2',
+          currency: 'USD',
+          site: 'site-b',
+          items: [],
+          totalPrice: { amount: 0, currency: 'USD' },
+          subTotalPrice: { amount: 0, currency: 'USD' },
+          tax: { amount: 0, currency: 'USD', netValue: 0, grossValue: 0 },
+        } as Cart),
+      );
 
       await act(async () => {
         await validatePromise;
       });
 
-      // Assert final state
       expect(store.getState().lastSiteCode).toBe('site-b');
     });
 
-    it('should handle fetchCart failure during site change gracefully', async () => {
-      // Arrange
+    it('invalidates the in-flight _fetchPromise dedupe when called during a pending fetchCart so the target site gets a fresh GET', async () => {
+      // Regression for Copilot review https://github.com/emporix/emporix-showcase/pull/283#discussion_r3128797246.
+      // The closure-level `_fetchPromise` in `createCartStore` dedupes concurrent `fetchCart`
+      // calls. If `validateSite` did not clear it, a new `fetchCart` triggered for the target
+      // site would short-circuit on the previous-site promise and a stale cart response could
+      // overwrite the reset state. This test pins down that `validateSite` resets the dedupe
+      // and issues a second, independent HTTP call.
+      act(() => {
+        store.setState({ lastSiteCode: 'site-a' });
+      });
+
+      let resolveFirst!: (value: { cart: Cart | null; sessionSiteCode: string | null }) => void;
+      let resolveSecond!: (value: { cart: Cart | null; sessionSiteCode: string | null }) => void;
+      const firstPromise = new Promise<{ cart: Cart | null; sessionSiteCode: string | null }>((resolve) => {
+        resolveFirst = resolve;
+      });
+      const secondPromise = new Promise<{ cart: Cart | null; sessionSiteCode: string | null }>((resolve) => {
+        resolveSecond = resolve;
+      });
+
+      mockFetchCurrentCart.mockReturnValueOnce(firstPromise).mockReturnValueOnce(secondPromise);
+
+      // In-flight fetchCart for site-a installs `_fetchPromise` inside the store closure.
+      const inFlight = store.getState().fetchCart();
+      expect(mockFetchCurrentCart).toHaveBeenCalledTimes(1);
+
+      // Kick off validateSite for site-b while the previous-site GET is still pending. The
+      // bug signature: without `_fetchPromise = null` inside validateSite, a subsequent
+      // `fetchCart` would return the in-flight promise and NOT issue a new HTTP request.
+      const validatePromise = store.getState().validateSite('site-b');
+
+      // Flush enough microtasks for validateSite to reach its internal `await get().fetchCart()`.
+      for (let i = 0; i < 5; i += 1) {
+        await Promise.resolve();
+      }
+
+      expect(mockFetchCurrentCart).toHaveBeenCalledTimes(2);
+
+      // Resolve both fetches; both should complete cleanly. The site-a response is dropped
+      // by fetchCart's dedupe ownership check, and the site-b response is installed.
+      resolveFirst({
+        cart: {
+          id: 'cart-a',
+          currency: 'EUR',
+          site: 'site-a',
+          items: [],
+          totalPrice: { amount: 0, currency: 'EUR' },
+          subTotalPrice: { amount: 0, currency: 'EUR' },
+          tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0 },
+        } as Cart,
+        sessionSiteCode: 'site-a',
+      });
+      resolveSecond({
+        cart: {
+          id: 'cart-b',
+          currency: 'EUR',
+          site: 'site-b',
+          items: [],
+          totalPrice: { amount: 0, currency: 'EUR' },
+          subTotalPrice: { amount: 0, currency: 'EUR' },
+          tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0 },
+        } as Cart,
+        sessionSiteCode: 'site-b',
+      });
+
+      await act(async () => {
+        await inFlight;
+        await validatePromise;
+      });
+
+      expect(store.getState().lastSiteCode).toBe('site-b');
+    });
+
+    it('should handle fetchCart failure during site change gracefully — lastSiteCode stays snapped to new site', async () => {
       const initialCart = {
         id: 'cart-1',
         currency: 'EUR',
@@ -239,7 +314,6 @@ describe('CartStore - Site Validation', () => {
         tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0 },
       };
 
-      // Set initial cart and site
       act(() => {
         store.getState().setCurrentCart(initialCart);
       });
@@ -248,15 +322,74 @@ describe('CartStore - Site Validation', () => {
         await store.getState().validateSite('site-a');
       });
 
-      // Mock fetch to throw error
       mockFetchCurrentCart.mockRejectedValueOnce(new Error('Network error'));
 
-      // Act - change site (fetchCart handles error internally)
       await act(async () => {
         await store.getState().validateSite('site-b');
       });
 
-      // Assert - lastSiteCode should still be updated, cart should be null
+      // New behavior: lastSiteCode is snapped eagerly so subsequent requests are aligned to the
+      // target site even when the network call fails. The cart is cleared to null (no stale cart
+      // from site-a survives the switch).
+      expect(store.getState().lastSiteCode).toBe('site-b');
+      expect(store.getState().currentCart).toBeNull();
+    });
+
+    it('does not clear lastSiteCode or refetch when newSiteCode is falsy', async () => {
+      act(() => {
+        store.setState({ lastSiteCode: 'site-a' });
+      });
+      await act(async () => {
+        await store.getState().validateSite('');
+      });
+      expect(store.getState().lastSiteCode).toBe('site-a');
+      expect(mockFetchCurrentCart).not.toHaveBeenCalled();
+    });
+
+    it('after validateSite(B), a fetchCart returning a cart for site B does not mutate lastSiteCode', async () => {
+      const cartB = {
+        id: 'cart-b',
+        currency: 'USD',
+        site: 'site-b',
+        items: [],
+        totalPrice: { amount: 0, currency: 'USD' },
+        subTotalPrice: { amount: 0, currency: 'USD' },
+        tax: { amount: 0, currency: 'USD', netValue: 0, grossValue: 0 },
+      };
+
+      act(() => {
+        store.setState({ lastSiteCode: 'site-a' });
+      });
+
+      mockFetchCurrentCart.mockResolvedValueOnce(fcResult(cartB as Cart));
+      await act(async () => {
+        await store.getState().validateSite('site-b');
+      });
+
+      expect(store.getState().lastSiteCode).toBe('site-b');
+      expect(store.getState().currentCart).toEqual(cartB);
+    });
+
+    it('after validateSite(B), a fetchCart returning a cart for site A is discarded', async () => {
+      const cartFromStaleSite = {
+        id: 'cart-a-stale',
+        currency: 'EUR',
+        site: 'site-a',
+        items: [],
+        totalPrice: { amount: 0, currency: 'EUR' },
+        subTotalPrice: { amount: 0, currency: 'EUR' },
+        tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0 },
+      };
+
+      act(() => {
+        store.setState({ lastSiteCode: 'site-a' });
+      });
+
+      mockFetchCurrentCart.mockResolvedValueOnce({ cart: cartFromStaleSite as Cart, sessionSiteCode: 'site-b' });
+      await act(async () => {
+        await store.getState().validateSite('site-b');
+      });
+
       expect(store.getState().lastSiteCode).toBe('site-b');
       expect(store.getState().currentCart).toBeNull();
     });
@@ -264,8 +397,6 @@ describe('CartStore - Site Validation', () => {
 
   describe('validateCart', () => {
     it('should NOT clear cart or fetch on initial mount (null → status)', async () => {
-      // On initial mount, sessionStatus goes from null → 'unauthenticated'
-      // This is initialization, not an auth transition — should NOT trigger fetch
       const initialCart = {
         id: 'cart-1',
         currency: 'EUR',
@@ -284,9 +415,7 @@ describe('CartStore - Site Validation', () => {
         await store.getState().validateCart('unauthenticated');
       });
 
-      // Session status should be updated
       expect(store.getState().sessionStatus).toBe('unauthenticated');
-      // But cart should NOT be cleared (initial mount, not auth transition)
       expect(store.getState().currentCart).toEqual(initialCart);
       expect(mockFetchCurrentCart).not.toHaveBeenCalled();
     });
@@ -316,14 +445,12 @@ describe('CartStore - Site Validation', () => {
         store.getState().setCurrentCart(initialCart);
       });
 
-      // First call: initial mount (null → 'unauthenticated') — no fetch
       await act(async () => {
         await store.getState().validateCart('unauthenticated');
       });
 
       expect(mockFetchCurrentCart).not.toHaveBeenCalled();
 
-      // Second call: auth transition ('unauthenticated' → 'authenticated') — should clear & fetch
       let resolvePromise: (cart: unknown) => void;
       const slowPromise = new Promise((resolve) => {
         resolvePromise = resolve;
@@ -336,7 +463,7 @@ describe('CartStore - Site Validation', () => {
       expect(store.getState().currentCart).toBeNull();
       expect(store.getState().loading).toBe(true);
 
-      resolvePromise!(refreshedCart);
+      resolvePromise!(fcResult(refreshedCart as Cart));
 
       await act(async () => {
         await validatePromise;
@@ -347,7 +474,6 @@ describe('CartStore - Site Validation', () => {
     });
 
     it('should not refetch when session status is unchanged', async () => {
-      // Initialize with a status first (simulating initial mount)
       await act(async () => {
         await store.getState().validateCart('unauthenticated');
       });
@@ -362,16 +488,14 @@ describe('CartStore - Site Validation', () => {
         tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0 },
       };
 
-      mockFetchCurrentCart.mockResolvedValueOnce(refreshedCart);
+      mockFetchCurrentCart.mockResolvedValueOnce(fcResult(refreshedCart as Cart));
 
-      // Actual transition: 'unauthenticated' → 'authenticated'
       await act(async () => {
         await store.getState().validateCart('authenticated');
       });
 
       expect(mockFetchCurrentCart).toHaveBeenCalledTimes(1);
 
-      // Same status again — should NOT refetch
       await act(async () => {
         await store.getState().validateCart('authenticated');
       });
@@ -390,7 +514,7 @@ describe('CartStore - Fetch Deduplication', () => {
     store = createCartStore();
   });
 
-  it('should deduplicate concurrent fetchCart(false) calls to a single API call', async () => {
+  it('should deduplicate concurrent fetchCart calls to a single API call', async () => {
     const cartData = {
       id: 'cart-1',
       currency: 'EUR',
@@ -401,69 +525,17 @@ describe('CartStore - Fetch Deduplication', () => {
       tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0 },
     };
 
-    mockFetchCurrentCart.mockResolvedValueOnce(cartData);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(cartData as Cart));
 
-    // Fire 5 concurrent fetchCart(false) calls
-    const promises = Array.from({ length: 5 }, () => store.getState().fetchCart(false));
+    const promises = Array.from({ length: 5 }, () => store.getState().fetchCart());
 
     const results = await Promise.all(promises);
 
-    // All should resolve to the same cart data
     results.forEach((result) => {
       expect(result).toEqual(cartData);
     });
 
-    // API should only be called ONCE
     expect(mockFetchCurrentCart).toHaveBeenCalledTimes(1);
-    expect(mockFetchCurrentCart).toHaveBeenCalledWith(false);
-  });
-
-  it('should NOT reuse fetchCart(false) promise for fetchCart(true)', async () => {
-    const existingCart = {
-      id: 'cart-1',
-      currency: 'EUR',
-      site: 'main',
-      items: [],
-      totalPrice: { amount: 0, currency: 'EUR' },
-      subTotalPrice: { amount: 0, currency: 'EUR' },
-      tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0 },
-    };
-
-    const createdCart = {
-      id: 'cart-2',
-      currency: 'EUR',
-      site: 'main',
-      items: [],
-      totalPrice: { amount: 0, currency: 'EUR' },
-      subTotalPrice: { amount: 0, currency: 'EUR' },
-      tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0 },
-    };
-
-    // First call: create=false (slow)
-    let resolveFirst: (value: unknown) => void;
-    const firstPromise = new Promise((resolve) => {
-      resolveFirst = resolve;
-    });
-    mockFetchCurrentCart.mockReturnValueOnce(firstPromise);
-    mockFetchCurrentCart.mockResolvedValueOnce(createdCart);
-
-    // Start fetchCart(false)
-    const fetchFalsePromise = store.getState().fetchCart(false);
-
-    // While first is in-flight, call fetchCart(true)
-    const fetchTruePromise = store.getState().fetchCart(true);
-
-    // Both should produce separate API calls
-    expect(mockFetchCurrentCart).toHaveBeenCalledTimes(2);
-    expect(mockFetchCurrentCart).toHaveBeenNthCalledWith(1, false);
-    expect(mockFetchCurrentCart).toHaveBeenNthCalledWith(2, true);
-
-    // Resolve first call
-    resolveFirst!(existingCart);
-
-    await act(async () => {
-      await Promise.all([fetchFalsePromise, fetchTruePromise]);
-    });
   });
 
   it('should allow fresh fetch after previous one completes', async () => {
@@ -487,118 +559,42 @@ describe('CartStore - Fetch Deduplication', () => {
       tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0 },
     };
 
-    mockFetchCurrentCart.mockResolvedValueOnce(cart1);
-    mockFetchCurrentCart.mockResolvedValueOnce(cart2);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(cart1 as Cart));
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(cart2 as Cart));
 
-    // First fetch
     await act(async () => {
-      await store.getState().fetchCart(false);
+      await store.getState().fetchCart();
     });
 
     expect(mockFetchCurrentCart).toHaveBeenCalledTimes(1);
     expect(store.getState().currentCart).toEqual(cart1);
 
-    // Second fetch (after first completed) — should start a new API call
     await act(async () => {
-      await store.getState().fetchCart(false);
+      await store.getState().fetchCart();
     });
 
     expect(mockFetchCurrentCart).toHaveBeenCalledTimes(2);
     expect(store.getState().currentCart).toEqual(cart2);
   });
 
-  it('should deduplicate fetchCart(true) calls from concurrent addToCart-like scenarios', async () => {
-    const cartData = {
-      id: 'cart-new',
-      currency: 'EUR',
-      site: 'main',
-      items: [],
-      totalPrice: { amount: 0, currency: 'EUR' },
-      subTotalPrice: { amount: 0, currency: 'EUR' },
-      tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0 },
-    };
-
-    mockFetchCurrentCart.mockResolvedValueOnce(cartData);
-
-    // Multiple concurrent fetchCart(true) calls
-    const promises = Array.from({ length: 3 }, () => store.getState().fetchCart(true));
-
-    const results = await Promise.all(promises);
-
-    results.forEach((result) => {
-      expect(result).toEqual(cartData);
-    });
-
-    // Only one API call
-    expect(mockFetchCurrentCart).toHaveBeenCalledTimes(1);
-    expect(mockFetchCurrentCart).toHaveBeenCalledWith(true);
-  });
-
-  it('should reuse fetchCart(true) promise for fetchCart(false)', async () => {
-    // If create=true is in-flight, a create=false call can reuse it
-    // (create=true is a superset of create=false behavior)
-    const cartData = {
-      id: 'cart-new',
-      currency: 'EUR',
-      site: 'main',
-      items: [],
-      totalPrice: { amount: 0, currency: 'EUR' },
-      subTotalPrice: { amount: 0, currency: 'EUR' },
-      tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0 },
-    };
-
-    let resolvePromise: (value: unknown) => void;
-    const slowPromise = new Promise((resolve) => {
-      resolvePromise = resolve;
-    });
-    mockFetchCurrentCart.mockReturnValueOnce(slowPromise);
-
-    // Start fetchCart(true)
-    const fetchTruePromise = store.getState().fetchCart(true);
-
-    // While in-flight, call fetchCart(false) — should reuse
-    const fetchFalsePromise = store.getState().fetchCart(false);
-
-    // Only one API call
-    expect(mockFetchCurrentCart).toHaveBeenCalledTimes(1);
-
-    resolvePromise!(cartData);
-
-    const [resultTrue, resultFalse] = await Promise.all([fetchTruePromise, fetchFalsePromise]);
-
-    expect(resultTrue).toEqual(cartData);
-    expect(resultFalse).toEqual(cartData);
-  });
-
   it('should propagate null to all callers when shared fetch returns error', async () => {
-    // When the API call fails, all callers sharing the promise should get null
     mockFetchCurrentCart.mockRejectedValueOnce(new Error('Network error'));
 
-    const promises = Array.from({ length: 3 }, () => store.getState().fetchCart(false));
+    const promises = Array.from({ length: 3 }, () => store.getState().fetchCart());
 
     const results = await Promise.all(promises);
 
-    // All should resolve to null (error is caught internally)
     results.forEach((result) => {
       expect(result).toBeNull();
     });
 
-    // Only one API call
     expect(mockFetchCurrentCart).toHaveBeenCalledTimes(1);
     expect(store.getState().currentCart).toBeNull();
   });
 
-  it('should create the next cart through fetchCart(true) after clear and use the returned currency', async () => {
+  it('addToCart on empty cart issues exactly one POST /api/cart (createCart) and one add-item call', async () => {
     const clearedStore = createCartStore({
-      currentCart: {
-        id: 'old-cart',
-        currency: 'EUR',
-        site: 'main',
-        items: [],
-        totalPrice: { amount: 0, currency: 'EUR' },
-        subTotalPrice: { amount: 0, currency: 'EUR' },
-        tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0 },
-      },
+      currentCart: null,
       loading: false,
       error: null,
       lastShippingUpdate: null,
@@ -606,7 +602,9 @@ describe('CartStore - Fetch Deduplication', () => {
       lastSiteCode: 'main',
       lastLegalEntityId: null,
       pendingCurrencySync: null,
+      isSettling: false,
     });
+
     const createdCart = {
       id: 'cart-usd',
       currency: 'USD',
@@ -623,16 +621,114 @@ describe('CartStore - Fetch Deduplication', () => {
       subTotalPrice: { amount: 10, currency: 'USD' },
     };
 
-    clearedStore.getState().clearCart({ clearSession: false });
-    mockFetchCurrentCart.mockResolvedValueOnce(createdCart);
+    mockCreateCart.mockResolvedValueOnce(createdCart);
     mockAddItemToCart.mockResolvedValueOnce({ cart: updatedCart });
 
     await act(async () => {
       await clearedStore.getState().addToCart('product-1', 1);
     });
 
-    expect(mockFetchCurrentCart).toHaveBeenCalledWith(true);
+    expect(mockCreateCart).toHaveBeenCalledTimes(1);
+    expect(mockCreateCart).toHaveBeenCalledWith({ siteCode: 'main' });
+    expect(mockAddItemToCart).toHaveBeenCalledTimes(1);
     expect(mockAddItemToCart).toHaveBeenCalledWith('cart-usd', 'product-1', 1);
+    expect(mockFetchCurrentCart).not.toHaveBeenCalled();
     expect(clearedStore.getState().currentCart?.currency).toBe('USD');
+  });
+
+  it('addToCart with existing aligned cart does not create a new cart', async () => {
+    const existingCart = {
+      id: 'cart-existing',
+      currency: 'EUR',
+      site: 'main',
+      items: [],
+      totalPrice: { amount: 0, currency: 'EUR' },
+      subTotalPrice: { amount: 0, currency: 'EUR' },
+      tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0 },
+    };
+    const existingStore = createCartStore({
+      currentCart: existingCart as Cart,
+      loading: false,
+      error: null,
+      lastShippingUpdate: null,
+      sessionStatus: null,
+      lastSiteCode: 'main',
+      lastLegalEntityId: null,
+      pendingCurrencySync: null,
+      isSettling: false,
+    });
+    const updatedCart = {
+      ...existingCart,
+      items: [{ id: 'item-1', quantity: 1, price: { amount: 10, currency: 'EUR' } }],
+    };
+    mockAddItemToCart.mockResolvedValueOnce({ cart: updatedCart });
+
+    await act(async () => {
+      await existingStore.getState().addToCart('product-1', 1);
+    });
+
+    expect(mockCreateCart).not.toHaveBeenCalled();
+    expect(mockAddItemToCart).toHaveBeenCalledWith('cart-existing', 'product-1', 1);
+  });
+});
+
+describe('CartStore - fetchCart loading gap with pendingCurrencySync', () => {
+  let store: ReturnType<typeof createCartStore>;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockClearCartSession.mockResolvedValue(undefined);
+    store = createCartStore();
+  });
+
+  it('should set loading=false after fetchCart even with pendingCurrencySync and flush the pending sync', async () => {
+    const cart = {
+      id: 'cart-1',
+      currency: 'EUR',
+      site: 'main',
+      items: [],
+    } as unknown as Cart;
+
+    const cartAfterCurrencySync = {
+      ...cart,
+      currency: 'USD',
+    } as unknown as Cart;
+
+    store.setState({
+      lastSiteCode: 'main',
+      pendingCurrencySync: { currency: 'USD', siteCode: 'main', attempts: 1 },
+    });
+
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(cart));
+    mockUpdateCartCurrency.mockResolvedValueOnce(undefined);
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(cartAfterCurrencySync));
+
+    await act(async () => {
+      await store.getState().fetchCart();
+    });
+
+    expect(store.getState().loading).toBe(false);
+    expect(store.getState().currentCart?.currency).toBe('USD');
+    expect(store.getState().pendingCurrencySync).toBeNull();
+  });
+
+  it('should set loading=false after fetchCart when no pendingCurrencySync', async () => {
+    const cart = {
+      id: 'cart-1',
+      currency: 'EUR',
+      site: 'main',
+      items: [],
+    } as unknown as Cart;
+
+    store.setState({ lastSiteCode: 'main', pendingCurrencySync: null });
+
+    mockFetchCurrentCart.mockResolvedValueOnce(fcResult(cart));
+
+    await act(async () => {
+      await store.getState().fetchCart();
+    });
+
+    expect(store.getState().loading).toBe(false);
+    expect(store.getState().currentCart).toEqual(cart);
   });
 });

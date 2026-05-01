@@ -11,7 +11,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useCart } from '@/hooks/cart/useCart';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
-import useCustomer from '@/hooks/customer/useCustomer';
 import { useToast } from '@/hooks/ui/useToast';
 import { useRouter } from '@/i18n/navigation';
 import { getLogger } from '@/lib/logger/use-logger-client';
@@ -28,7 +27,6 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
   const { toast } = useToast();
   const router = useRouter();
 
-  const { customer } = useCustomer();
   const { clearCart } = useCart();
   const { checkoutCart, shippingAddress, billingAddress, shippingMethod, submitShippingAddress, submitBillingAddress } =
     useCheckout();
@@ -44,13 +42,14 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
     submitBillingAddress({ ...address, type: 'BILLING' });
   };
 
-  // Create a payload using EmporixCreateQuoteFromCartRequest
-  const _createFromCartPayload = () => {
+  // Build the Emporix QuoteCreateFromCartRequest fields. The BFF accepts
+  // additional top-level fields (reference, userComment, comment) and applies
+  // them via PATCH after the quote id is returned — they are intentionally not
+  // part of the Emporix wire shape here.
+  const createFromCartPayload = () => {
     if (!checkoutCart?.id) {
       throw new Error('Cart ID is required for quote from cart');
     }
-
-    //TODO : For cart payload currently for B2B customers we could only pass the address ids of the legal entity
 
     return {
       cartId: checkoutCart.id,
@@ -67,45 +66,22 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
     } as const;
   };
 
-  // Create manual quote payload
-  const createManualPayload = () => {
-    const items = (checkoutCart?.items || [])
-      .map((item) => {
-        const productId = item.product?.id;
-        if (!productId) return null;
-        const quantity = item.quantity;
-        return {
-          quantity: {
-            quantity,
-          },
-          product: { productId },
-        };
-      })
-      .filter((x): x is any => Boolean(x));
-
-    return {
-      customerId: customer?.id,
-      siteCode: checkoutCart?.site,
-      currency: checkoutCart?.currency,
-      billingAddressId: billingAddress?.id,
-      shippingAddressId: shippingAddress?.id,
-      shipping: shippingMethod
-        ? {
-            value: shippingMethod.amount,
-            methodId: shippingMethod.methodId,
-            zoneId: shippingMethod.zoneId,
-            shippingTaxCode: shippingMethod.taxCode,
-          }
-        : undefined,
-      items,
-      reference: reference || undefined,
-      userComment: comment || undefined,
-    } as const;
-  };
-
   const sendQuote = async () => {
+    if (!checkoutCart?.id || !checkoutCart.items?.length) {
+      toast({
+        title: t('failedTitle'),
+        description: t('failedDescription'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
-      const payload = createManualPayload();
+      const payload = {
+        ...createFromCartPayload(),
+        reference: reference || undefined,
+        userComment: comment || undefined,
+      };
 
       const res = await fetch('/api/quote', {
         method: 'POST',
@@ -120,11 +96,12 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
 
       const data = await res.json();
 
-      // Clear the cart after successful quote creation (also delete the cart entity
-      // since the manual quote payload does not include cartId, so Emporix won't auto-close it)
-      clearCart({ deleteCart: true });
+      // Drop local cart state so the header badge and mini-cart zero out.
+      // Emporix owns the cart's post-quote lifecycle now that the quote stores
+      // cartId (spec: QuoteCreateFromCartRequest), so we no longer force
+      // `deleteCart: true` from the client.
+      clearCart();
 
-      // Show success toast notification
       toast({
         title: t('submittedTitle'),
         description: t('submittedDescription'),
@@ -133,11 +110,9 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
 
       onOpenChange(false);
 
-      // Navigate to the newly created quote detail page
       router.push(`/account/quotes/${data.quoteId}`);
     } catch (err) {
       getLogger().error({ err }, 'Send quote failed');
-      // Show error toast notification
       toast({
         title: t('failedTitle'),
         description: err instanceof Error ? err.message : t('failedDescription'),
@@ -158,7 +133,7 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
         <div className="grid grid-cols-1 gap-6 flex-1 min-h-0 overflow-y-auto px-1 overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {/* Shipping address selector + form */}
           <AddressSelector
-            addressBook="companyAndCustomer"
+            addressBook="auto"
             addressType="SHIPPING"
             selectedAddressId={shippingAddress?.id}
             onSelect={handleShippingChange}
@@ -177,7 +152,7 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
           />
 
           <AddressSelector
-            addressBook="companyAndCustomer"
+            addressBook="auto"
             addressType="BILLING"
             selectedAddressId={billingAddress?.id}
             onSelect={handleBillingChange}

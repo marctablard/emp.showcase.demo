@@ -115,17 +115,16 @@ describe('validateEnvVars', () => {
       'NEXT_PUBLIC_EMPORIX_CLIENT_ID',
       'NEXTAUTH_SECRET',
       'NEXT_PUBLIC_DEFAULT_CURRENCY',
+      'NEXT_PUBLIC_DEFAULT_SITE',
       'NEXT_PUBLIC_DEFAULT_LANGUAGE',
       'NEXT_PUBLIC_DEFAULT_COUNTRY',
+      'NEXT_PUBLIC_DEFAULT_REGION',
+      'NEXT_PUBLIC_EMPORIX_DEFAULT_UNIT_CODE',
       'NEXT_PUBLIC_AVAILABLE_SITES',
     ]);
   });
 
   it('should cover all expected optional env var keys', () => {
-    expect(allOptionalKeys).toEqual([
-      'NEXT_PUBLIC_DEFAULT_SITE',
-      'NEXT_EMPORIX_CLIENT_ID',
-      'NEXT_EMPORIX_CLIENT_SECRET',
-    ]);
+    expect(allOptionalKeys).toEqual(['NEXT_EMPORIX_CLIENT_ID', 'NEXT_EMPORIX_CLIENT_SECRET']);
   });
 });

@@ -82,8 +82,9 @@ export interface EmporixShipping {
     currency: string;
   };
   lines?: Array<{
-    id: string;
+    code: string;
     name?: string;
+    localizedName?: Record<string, string>;
     description?: string;
     amount: number;
     currency: string;

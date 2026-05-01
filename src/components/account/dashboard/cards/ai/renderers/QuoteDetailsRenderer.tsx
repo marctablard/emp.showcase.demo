@@ -3,6 +3,8 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
+import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
+import { getQuoteStatusDisplayLabel } from '@/lib/common/quote-status-message-keys';
 import type { QuoteDetailsData } from '../types';
 import { formatDate, formatPrice, getQuoteStatusBadgeVariantForAi } from '../utils';
 import type { UnifiedProductItem } from './ProductItem';
@@ -14,7 +16,8 @@ interface QuoteDetailsRendererProps {
 
 export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data }) => {
   const t = useTranslations('account.AiHelper');
-  const fallbackCurrency = 'USD';
+  const tQuoteStatus = useTranslations('account.quoteStatus');
+  const fallbackCurrency = getPublicDefaultCurrency();
 
   return (
     <div className="space-y-4">
@@ -32,7 +35,7 @@ export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data
                   {data.reference || `#${data.quoteId}`}
                 </a>
                 <Badge variant={getQuoteStatusBadgeVariantForAi(data.status)} size="status">
-                  {data.status}
+                  {getQuoteStatusDisplayLabel(data.status, tQuoteStatus)}
                 </Badge>
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm text-text-on-action/90">

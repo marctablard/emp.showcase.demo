@@ -2,18 +2,28 @@
  * Shared API layer for product-related data fetching
  * Can be used by both server and client components
  */
-import { cache } from 'react';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { Product } from '@/platform/services/model/product';
 import type { ProductFetchOptions } from '@/platform/services/product/ProductService';
 
+const _productInflight = new Map<string, Promise<Product | null>>();
+const _variantInflight = new Map<string, Promise<Product[]>>();
+
 /**
- * Fetch a product by ID
- * Uses React's cache() to deduplicate requests within the same render cycle
+ * Fetch a product by ID.
+ * Uses module-level in-flight map to deduplicate concurrent requests for the same product.
  */
-export const fetchProductById = cache(async (id: string, options?: ProductFetchOptions): Promise<Product | null> => {
-  try {
-    // Build query parameters
+export async function fetchProductById(
+  id: string,
+  options?: ProductFetchOptions,
+  /** Separates in-flight dedupe per shop session so a site switch does not reuse the previous site's response. */
+  clientDedupeScope = '',
+): Promise<Product | null> {
+  const cacheKey = `${id}:${clientDedupeScope}:${options?.variants ?? false}:${options?.prices ?? false}`;
+  const existing = _productInflight.get(cacheKey);
+  if (existing) return existing;
+
+  const promise = (async () => {
     const searchParams = new URLSearchParams();
     if (options?.variants) {
       searchParams.set('variants', 'true');
@@ -26,7 +36,6 @@ export const fetchProductById = cache(async (id: string, options?: ProductFetchO
     const url = `/api/products/${id}${queryString ? `?${queryString}` : ''}`;
 
     const response = await fetch(url, {
-      // This makes the request work in both client and server environments
       cache: 'no-store',
       next: { tags: [`product-${id}`] },
     });
@@ -39,18 +48,32 @@ export const fetchProductById = cache(async (id: string, options?: ProductFetchO
     }
 
     return await response.json();
+  })();
+
+  _productInflight.set(cacheKey, promise);
+  void promise.finally(() => {
+    if (_productInflight.get(cacheKey) === promise) {
+      _productInflight.delete(cacheKey);
+    }
+  });
+
+  try {
+    return await promise;
   } catch (error) {
     getLogger().error({ err: error, productId: id }, 'Error fetching product');
     throw error;
   }
-});
+}
 
 /**
- * Fetch variants for a product by parent ID
- * Uses React's cache() to deduplicate requests within the same render cycle
+ * Fetch variants for a product by parent ID.
+ * Uses module-level in-flight map to deduplicate concurrent requests.
  */
-export const fetchProductVariants = cache(async (parentId: string): Promise<Product[]> => {
-  try {
+export async function fetchProductVariants(parentId: string): Promise<Product[]> {
+  const existing = _variantInflight.get(parentId);
+  if (existing) return existing;
+
+  const promise = (async () => {
     const response = await fetch(`/api/products/${parentId}/variants`, {
       cache: 'no-store',
       next: { tags: [`product-variants-${parentId}`] },
@@ -62,8 +85,19 @@ export const fetchProductVariants = cache(async (parentId: string): Promise<Prod
 
     const data = await response.json();
     return data.variants;
+  })();
+
+  _variantInflight.set(parentId, promise);
+  void promise.finally(() => {
+    if (_variantInflight.get(parentId) === promise) {
+      _variantInflight.delete(parentId);
+    }
+  });
+
+  try {
+    return await promise;
   } catch (error) {
     getLogger().error({ err: error, parentId }, 'Error fetching product variants');
     throw error;
   }
-});
+}

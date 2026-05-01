@@ -30,10 +30,27 @@ export function inferLocationAddressTags(location: EmporixLocation): AddressType
   }
 }
 
+/**
+ * Maps an Emporix legal-entity {@link EmporixLocation} to the UI-facing
+ * {@link CustomerAddress} model.
+ *
+ * The resulting `id` is the raw Emporix `location.id` — unchanged — because
+ * that is the identifier Emporix quote/checkout APIs expect for B2B
+ * billing/shipping address references. Disambiguation from customer profile
+ * addresses is carried on the `source` field (`'legalEntity'`), not on the id.
+ *
+ * Returns `null` when `location.id` is missing or blank so callers never surface
+ * a legal-entity address that cannot be submitted to quote/checkout APIs.
+ */
 export function mapLegalEntityLocationToCustomerAddress(
   location: EmporixLocation,
   companyDisplayName: string,
-): CustomerAddress {
+): CustomerAddress | null {
+  const rawId = location.id;
+  if (typeof rawId !== 'string' || rawId.trim() === '') {
+    return null;
+  }
+
   const cd = location.contactDetails;
 
   const street = cd?.street ?? cd?.addressLine1 ?? '';
@@ -59,7 +76,7 @@ export function mapLegalEntityLocationToCustomerAddress(
   }
 
   return {
-    id: location.id ? `le-loc:${location.id}` : `le-loc:${encodeURIComponent(location.name)}`,
+    id: rawId,
     contactName: [location.name, location.type].filter(Boolean).join(' — '),
     companyName: companyDisplayName,
     street,
@@ -71,21 +88,6 @@ export function mapLegalEntityLocationToCustomerAddress(
     country: cd?.countryCode ?? '',
     contactPhone: cd?.phones?.[0],
     tags: inferLocationAddressTags(location),
-    isDefault: location.type === EMPORIX_LOCATION_TYPE.HEADQUARTER,
+    source: 'legalEntity',
   };
-}
-
-export function pickDefaultLegalEntityAddress(
-  addresses: CustomerAddress[] | undefined,
-  tag: AddressType,
-): CustomerAddress | null {
-  if (!addresses?.length) {
-    return null;
-  }
-  const withTag = addresses.filter((a) => a.tags.includes(tag));
-  if (withTag.length === 0) {
-    return null;
-  }
-  const def = withTag.find((a) => a.isDefault);
-  return def ?? withTag[0];
 }

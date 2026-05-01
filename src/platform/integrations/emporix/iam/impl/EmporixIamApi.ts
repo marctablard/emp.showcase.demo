@@ -1,12 +1,15 @@
 import { inject } from 'inversify';
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
+import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import { buildPaginatedResponse, buildSearchQuery } from '../../common/util/common';
 import type { EmporixConfig } from '../../config';
 import type { EmporixPaginatedResponse, EmporixSearchParams } from '../../model';
 import type { EmporixAccessControl, EmporixGroup, EmporixGroupAssignmentRequest, EmporixRole } from '../../model/iam';
 import type { EmporixIamApi as IEmporixIamApi } from '../EmporixIamApi';
+
+const createIamMetrics = (route: string) => createFetchMetricsParams('iam', route);
 
 /**
  * Implementation of the Emporix IAM API
@@ -32,6 +35,8 @@ class EmporixIamApi implements IEmporixIamApi {
       url,
       { method: 'GET', headers: { 'X-Total-Count': 'true' } },
       'service',
+      undefined,
+      createIamMetrics('/iam/{tenant}/access-controls'),
     );
 
     if (!response.ok) {
@@ -44,7 +49,13 @@ class EmporixIamApi implements IEmporixIamApi {
   async getAccessControlById(id: string, expand?: string[]): Promise<EmporixAccessControl> {
     const queryString = expand && expand.length > 0 ? `?expand=${expand.join(',')}` : '';
     const url = `/iam/${this.config.tenant}/access-controls/${id}${queryString}`;
-    const response = await this.apiClient.authenticatedFetch(url, { method: 'GET' }, 'service');
+    const response = await this.apiClient.authenticatedFetch(
+      url,
+      { method: 'GET' },
+      'service',
+      undefined,
+      createIamMetrics('/iam/{tenant}/access-controls/{id}'),
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to retrieve access control with ID ${id}: ${response.statusText}`);
@@ -61,6 +72,8 @@ class EmporixIamApi implements IEmporixIamApi {
       url,
       { method: 'GET', headers: { 'X-Total-Count': 'true' } },
       'service',
+      undefined,
+      createIamMetrics('/iam/{tenant}/roles'),
     );
 
     if (!response.ok) {
@@ -72,7 +85,13 @@ class EmporixIamApi implements IEmporixIamApi {
   async getRoleById(id: string, expand?: string[]): Promise<EmporixRole> {
     const queryString = expand && expand.length > 0 ? `?expand=${expand.join(',')}` : '';
     const url = `/iam/${this.config.tenant}/roles/${id}${queryString}`;
-    const response = await this.apiClient.authenticatedFetch(url, { method: 'GET' }, 'service');
+    const response = await this.apiClient.authenticatedFetch(
+      url,
+      { method: 'GET' },
+      'service',
+      undefined,
+      createIamMetrics('/iam/{tenant}/roles/{id}'),
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to retrieve role with ID ${id}: ${response.statusText}`);
@@ -84,7 +103,13 @@ class EmporixIamApi implements IEmporixIamApi {
   async getGroups(params: EmporixSearchParams<EmporixGroup>): Promise<EmporixGroup[]> {
     const { query } = buildSearchQuery(params);
     const url = `/iam/${this.config.tenant}/groups?${query}`;
-    const response = await this.apiClient.authenticatedFetch(url, { method: 'GET' }, 'service');
+    const response = await this.apiClient.authenticatedFetch(
+      url,
+      { method: 'GET' },
+      'service',
+      undefined,
+      createIamMetrics('/iam/{tenant}/groups'),
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to retrieve groups: ${response.statusText}`);
@@ -95,7 +120,13 @@ class EmporixIamApi implements IEmporixIamApi {
 
   async getGroupById(id: string): Promise<EmporixGroup> {
     const url = `/iam/${this.config.tenant}/groups/${id}`;
-    const response = await this.apiClient.authenticatedFetch(url, { method: 'GET' }, 'service');
+    const response = await this.apiClient.authenticatedFetch(
+      url,
+      { method: 'GET' },
+      'service',
+      undefined,
+      createIamMetrics('/iam/{tenant}/groups/{id}'),
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to retrieve group with ID ${id}: ${response.statusText}`);
@@ -114,6 +145,8 @@ class EmporixIamApi implements IEmporixIamApi {
         body: JSON.stringify(group),
       },
       'service',
+      undefined,
+      createIamMetrics('/iam/{tenant}/groups'),
     );
 
     if (!response.ok) {
@@ -133,6 +166,8 @@ class EmporixIamApi implements IEmporixIamApi {
         body: JSON.stringify(group),
       },
       'service',
+      undefined,
+      createIamMetrics('/iam/{tenant}/groups/{id}'),
     );
 
     if (!response.ok) {
@@ -142,7 +177,13 @@ class EmporixIamApi implements IEmporixIamApi {
 
   async deleteGroup(id: string): Promise<void> {
     const url = `/iam/${this.config.tenant}/groups/${id}`;
-    const response = await this.apiClient.authenticatedFetch(url, { method: 'DELETE' }, 'service');
+    const response = await this.apiClient.authenticatedFetch(
+      url,
+      { method: 'DELETE' },
+      'service',
+      undefined,
+      createIamMetrics('/iam/{tenant}/groups/{id}'),
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to delete group with ID ${id}: ${response.statusText}`);
@@ -159,6 +200,8 @@ class EmporixIamApi implements IEmporixIamApi {
         body: JSON.stringify(groupAssignment),
       },
       'service',
+      undefined,
+      createIamMetrics('/iam/{tenant}/groups/{id}/users'),
     );
 
     if (!response.ok) {
@@ -180,6 +223,8 @@ class EmporixIamApi implements IEmporixIamApi {
         headers: { 'Content-Type': 'application/json' },
       },
       'service',
+      undefined,
+      createIamMetrics('/iam/{tenant}/groups/{id}/users/{userType}/{id}'),
     );
 
     if (!response.ok) {
@@ -191,7 +236,13 @@ class EmporixIamApi implements IEmporixIamApi {
 
   async removeAllUsersFromGroup(groupId: string): Promise<void> {
     const url = `/iam/${this.config.tenant}/groups/${groupId}/users`;
-    const response = await this.apiClient.authenticatedFetch(url, { method: 'DELETE' }, 'service');
+    const response = await this.apiClient.authenticatedFetch(
+      url,
+      { method: 'DELETE' },
+      'service',
+      undefined,
+      createIamMetrics('/iam/{tenant}/groups/{id}/users'),
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to delete all group assignments with ID ${groupId}: ${response.statusText}`);
@@ -200,7 +251,13 @@ class EmporixIamApi implements IEmporixIamApi {
 
   async removeUserFromGroup(groupId: string, userId: string): Promise<void> {
     const url = `/iam/${this.config.tenant}/groups/${groupId}/users/${userId}`;
-    const response = await this.apiClient.authenticatedFetch(url, { method: 'DELETE' }, 'service');
+    const response = await this.apiClient.authenticatedFetch(
+      url,
+      { method: 'DELETE' },
+      'service',
+      undefined,
+      createIamMetrics('/iam/{tenant}/groups/{id}/users/{id}'),
+    );
 
     if (!response.ok) {
       throw new Error(
@@ -211,7 +268,13 @@ class EmporixIamApi implements IEmporixIamApi {
 
   async getUserScopes(userId?: string): Promise<{ userId: string; scopes: string }> {
     const url = `/iam/${this.config.tenant}/users/${userId || 'me'}/scopes`;
-    const response = await this.apiClient.authenticatedFetch(url, { method: 'GET' }, userId ? 'service' : 'session');
+    const response = await this.apiClient.authenticatedFetch(
+      url,
+      { method: 'GET' },
+      userId ? 'service' : 'session',
+      undefined,
+      createIamMetrics('/iam/{tenant}/users/{id}/scopes'),
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to retrieve user scopes: ${response.statusText}`);
@@ -230,6 +293,8 @@ class EmporixIamApi implements IEmporixIamApi {
       url,
       { method: 'GET', headers: { 'X-Total-Count': 'true' } },
       'service',
+      undefined,
+      createIamMetrics('/iam/{tenant}/users/{id}/groups'),
     );
 
     if (!response.ok) {
@@ -241,7 +306,13 @@ class EmporixIamApi implements IEmporixIamApi {
 
   async getUserAccessControls(userId?: string): Promise<EmporixAccessControl[]> {
     const url = `/iam/${this.config.tenant}/users/${userId || 'me'}/access-controls`;
-    const response = await this.apiClient.authenticatedFetch(url, { method: 'GET' }, userId ? 'service' : 'session');
+    const response = await this.apiClient.authenticatedFetch(
+      url,
+      { method: 'GET' },
+      userId ? 'service' : 'session',
+      undefined,
+      createIamMetrics('/iam/{tenant}/users/{id}/access-controls'),
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to retrieve user access controls: ${response.statusText}`);

@@ -1,4 +1,5 @@
 import {
+  EmporixCreateOrderFromQuoteRequest,
   EmporixCreateOrderRequest,
   EmporixOrder,
   EmporixOrderCreationResponse,
@@ -99,4 +100,9 @@ export interface EmporixOrderApi {
    * @returns Promise with available status transitions
    */
   getCustomerOrderStatusTransitions(orderId: string): Promise<string[]>;
+
+  /**
+   * POST customer order status transition (session), e.g. `{ status: 'DECLINED' }` — success is typically 204.
+   */
+  postCustomerOrderTransition(orderId: string, body: { status: string }): Promise<void>;
 }

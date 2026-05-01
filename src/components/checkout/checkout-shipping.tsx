@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Check, NotebookText, Package, Pencil } from 'lucide-react';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
@@ -9,12 +9,18 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { H2 } from '../ui/h';
 import CheckoutAddress from './checkout-address';
+import { useRegisterSectionExpander } from './checkout-validation-registry';
 import ShippingMethod from './shipping-method';
 
 export function CheckoutShipping({ initialEdit }: { initialEdit: boolean }) {
   const t = useTranslations('checkout.shipping');
   const { availableShippingMethods, shippingAddress, shippingMethod, submitShippingAddress } = useCheckout();
   const [isShippingEdit, setIsShippingEdit] = useState(initialEdit || !shippingAddress || !shippingMethod);
+
+  const expandShipping = useCallback(() => {
+    if (!isShippingEdit) setIsShippingEdit(true);
+  }, [isShippingEdit]);
+  useRegisterSectionExpander('shipping', expandShipping);
 
   const handleShippingAddressChange = (address: Address) => {
     submitShippingAddress({
@@ -91,7 +97,7 @@ export function CheckoutShipping({ initialEdit }: { initialEdit: boolean }) {
             <div className="col-span-2 flex flex-col gap-4">
               {/* Addresses */}
               <AddressSelector
-                addressBook="companyAndCustomer"
+                addressBook="auto"
                 addressType="SHIPPING"
                 selectedAddressId={shippingAddress?.id}
                 onSelect={handleShippingAddressChange}

@@ -428,8 +428,7 @@
   "quotesPageDescription": "Angebote anzeigen und verwalten",
   "quotesPagePlaceholder": "Angebote werden hier angezeigt",
   "quoteStatus": {
-    "requested": "Angefordert",
-    "available": "Verfügbar",
+    "awaiting": "Wartet auf Freigabe",
     "in_progress": "In Bearbeitung",
     "declined": "Abgelehnt",
     "accepted": "Akzeptiert",
@@ -494,7 +493,9 @@
     "commentAdded": "Kommentar hinzugefügt",
     "initialQuoteRequest": "Angebotsanfrage",
     "statusChanged": "Status geändert {currentStatus}",
-    "loadingHistory": "Verlauf wird geladen..."
+    "loadingHistory": "Verlauf wird geladen...",
+    "quoteActionFailedTitle": "Die Aktion konnte nicht ausgeführt werden",
+    "quoteActionFailedDescription": "Bitte versuchen Sie es erneut oder wenden Sie sich an den Support."
   },
   "quotesList": {
     "title": "Angebote",

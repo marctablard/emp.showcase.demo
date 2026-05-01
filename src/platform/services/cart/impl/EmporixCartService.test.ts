@@ -26,6 +26,7 @@ describe('EmporixCartService', () => {
       | 'updateCart'
       | 'refreshCart'
       | 'changeCurrency'
+      | 'changeSite'
       | 'addItemToCart'
       | 'getCartByCriteria'
       | 'updateCartItemQuantity'
@@ -33,7 +34,7 @@ describe('EmporixCartService', () => {
   >;
   let mockLogger: jest.Mocked<LoggerService>;
   let mockSessionService: jest.Mocked<Pick<SessionService, 'getCurrent' | 'setCart' | 'clearCart'>>;
-  let mockSiteService: jest.Mocked<Pick<SiteService, 'getSite'>>;
+  let mockSiteService: jest.Mocked<Pick<SiteService, 'getSite' | 'invalidateSiteCache'>>;
   let mockPriceService: jest.Mocked<Pick<PriceService, 'getProductPrice'>>;
   let mockProductService: jest.Mocked<Pick<ProductService, 'getProductById'>>;
   let mockStockService: jest.Mocked<Pick<StockService, 'getStockAvailability'>>;
@@ -59,6 +60,7 @@ describe('EmporixCartService', () => {
       updateCart: jest.fn().mockResolvedValue(undefined),
       refreshCart: jest.fn().mockResolvedValue(undefined),
       changeCurrency: jest.fn().mockResolvedValue(undefined),
+      changeSite: jest.fn().mockResolvedValue(undefined),
       addItemToCart: jest.fn().mockResolvedValue('new-item-id'),
       getCartByCriteria: jest.fn().mockResolvedValue(null),
       updateCartItemQuantity: jest.fn().mockResolvedValue(undefined),
@@ -82,6 +84,7 @@ describe('EmporixCartService', () => {
 
     mockSiteService = {
       getSite: jest.fn().mockResolvedValue(mainSite),
+      invalidateSiteCache: jest.fn(),
     };
 
     mockPriceService = {
@@ -549,19 +552,83 @@ describe('EmporixCartService', () => {
 
       const result = await cartService.addItemToCart('cart-us', 'prod-1', 1);
 
-      // When cart site matches session site, use session-based pricing (no explicit siteCode)
-      expect(mockPriceService.getProductPrice).toHaveBeenCalledWith('prod-1', 1);
+      expect(mockPriceService.getProductPrice).toHaveBeenCalledWith('prod-1', 1, undefined, {
+        siteCode: 'us-branch',
+        currency: 'USD',
+        country: undefined,
+      });
 
-      // Verify the addItemRequest uses cart's siteCode
+      // Verify the addItemRequest uses cart's siteCode and sends the full localized
+      // name map (not a single-language string) so the cart line can be re-rendered
+      // in any supported locale without another add-to-cart round trip.
       expect(mockCartApi.addItemToCart).toHaveBeenCalledWith(
         'cart-us',
         expect.objectContaining({
           siteCode: 'us-branch',
+          product: expect.objectContaining({
+            id: 'prod-1',
+            localizedName: { en: 'Widget' },
+            sku: 'WID-001',
+          }),
         }),
       );
 
+      const addItemCallArg = mockCartApi.addItemToCart.mock.calls[0][1];
+      expect(addItemCallArg.product).not.toHaveProperty('name');
+      expect(addItemCallArg.product).not.toHaveProperty('description');
+
       expect(result.cartItem.id).toBe('new-item-id');
       expect(result.status).toBe('OK');
+    });
+
+    it('should align cart currency with session before add when they differ on the same site', async () => {
+      const eurCart: EmporixCart = {
+        id: 'cart-us',
+        currency: 'EUR',
+        siteCode: 'us-branch',
+        metadata: { version: 1 },
+      };
+      const usdCartAfterChange: EmporixCart = {
+        ...eurCart,
+        currency: 'USD',
+      };
+      const sessionUsd: typeof mockSession = {
+        ...mockSession,
+        currency: 'USD',
+      };
+
+      mockCartApi.getCart
+        .mockResolvedValueOnce(eurCart)
+        .mockResolvedValueOnce(eurCart)
+        .mockResolvedValueOnce(usdCartAfterChange)
+        .mockResolvedValueOnce(usdCartAfterChange)
+        .mockResolvedValueOnce(usdCartAfterChange);
+      mockProductService.getProductById.mockResolvedValue(mockProduct);
+      mockSessionService.getCurrent.mockResolvedValue(sessionUsd);
+      mockPriceService.getProductPrice.mockResolvedValue(mockPrice);
+
+      const mappedCart: Cart = {
+        id: 'cart-us',
+        currency: 'USD',
+        site: 'us-branch',
+        items: [
+          {
+            id: 'new-item-id',
+            quantity: 1,
+            price: { amount: 29.99, originalAmount: 29.99, currency: 'USD' },
+            product: { id: 'prod-1' },
+          },
+        ],
+        totalPrice: { amount: 29.99, originalAmount: 29.99, currency: 'USD' },
+        subTotalPrice: { amount: 29.99, originalAmount: 29.99, currency: 'USD' },
+        tax: { amount: 0, currency: 'USD', grossValue: 29.99, netValue: 29.99 },
+      };
+      mockMapper.mapToService.mockReturnValue(mappedCart);
+
+      await cartService.addItemToCart('cart-us', 'prod-1', 1);
+
+      expect(mockCartApi.changeCurrency).toHaveBeenCalledWith('cart-us', 'USD');
+      expect(mockCartApi.addItemToCart).toHaveBeenCalled();
     });
 
     it('should auto-recover when cart site differs from session site', async () => {
@@ -626,8 +693,11 @@ describe('EmporixCartService', () => {
         'Cart belongs to different site — auto-recovering correct cart',
       );
 
-      // Price should be fetched with session-based pricing (no explicit params)
-      expect(mockPriceService.getProductPrice).toHaveBeenCalledWith('prod-1', 1);
+      expect(mockPriceService.getProductPrice).toHaveBeenCalledWith('prod-1', 1, undefined, {
+        siteCode: 'us-branch',
+        currency: 'USD',
+        country: undefined,
+      });
 
       // Should have added item to the recovered cart, not the original
       expect(mockCartApi.addItemToCart).toHaveBeenCalledWith(
@@ -754,8 +824,11 @@ describe('EmporixCartService', () => {
 
       const result = await cartService.updateCartItemQuantity('cart-us', 'item-1', 3);
 
-      // When session site matches cart site, use session-based matching (no explicit params)
-      expect(mockPriceService.getProductPrice).toHaveBeenCalledWith('prod-1', 3);
+      expect(mockPriceService.getProductPrice).toHaveBeenCalledWith('prod-1', 3, undefined, {
+        siteCode: 'us-branch',
+        currency: 'USD',
+        country: undefined,
+      });
 
       expect(result.cartItem.quantity).toBe(3);
       expect(result.status).toBe('OK');

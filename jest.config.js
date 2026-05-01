@@ -1,4 +1,5 @@
 // jest.config.js
+const fs = require('fs');
 const nextJest = require('next/jest');
 const path = require('path');
 const dotenv = require('dotenv');
@@ -7,11 +8,62 @@ const dotenv = require('dotenv');
 const createJestConfig = nextJest({ dir: './' });
 
 const isCi = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
-const envPath = process.env.DOTENV_CONFIG_PATH || path.resolve(__dirname, '.env.test');
+
+/** Prefer `DOTENV_CONFIG_PATH`, then `.env.test`, then `.env` (no values hardcoded here). */
+function resolveJestDotenvPath() {
+  if (process.env.DOTENV_CONFIG_PATH) {
+    const raw = process.env.DOTENV_CONFIG_PATH;
+    return path.isAbsolute(raw) ? raw : path.resolve(process.cwd(), raw);
+  }
+  const testEnv = path.resolve(__dirname, '.env.test');
+  const defaultEnv = path.resolve(__dirname, '.env');
+  if (fs.existsSync(testEnv)) return testEnv;
+  if (fs.existsSync(defaultEnv)) return defaultEnv;
+  return testEnv;
+}
+
+const envPath = resolveJestDotenvPath();
 
 if (!isCi || process.env.DOTENV_CONFIG_PATH) {
   dotenv.config({ path: envPath, quiet: true });
 }
+
+// Tier 1 (same rules as `next.config.ts`): fail fast if required env vars are missing.
+// Values must come from `.env.test`, `DOTENV_CONFIG_PATH`, or CI-injected `process.env` — no literals here.
+(function assertJestRequiredEnv() {
+  require('ts-node').register({
+    project: path.resolve(__dirname, 'scripts/tsconfig.json'),
+    transpileOnly: true,
+  });
+  const { validateEnvVars } = require('./src/platform/healthcheck/env-validation.ts');
+  const envResult = validateEnvVars();
+  if (envResult.hasErrors) {
+    const missing = envResult.items
+      .filter((i) => !i.passed && i.severity === 'error')
+      .map((i) => `  ✗ ${i.message}`)
+      .join('\n');
+    // eslint-disable-next-line no-console -- Jest bootstrap runs before application LoggerService exists
+    console.error(`\n[jest] Missing required environment variables (same Tier-1 set as next build):\n${missing}\n`);
+    throw new Error(
+      'Missing required env values for Jest. Use a complete env file (e.g. `.env.test` or `.env`), set DOTENV_CONFIG_PATH, or export the same Tier-1 variables as `next.config.ts` / validateEnvVars in CI.',
+    );
+  }
+})();
+
+(function sanitizeProcessNodeOptions() {
+  const raw = process.env.NODE_OPTIONS;
+  if (!raw) return;
+  const filtered = raw
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((p) => !p.startsWith('--localstorage-file') && !p.startsWith('--experimental-webstorage'));
+  if (filtered.length === 0) {
+    delete process.env.NODE_OPTIONS;
+  } else {
+    process.env.NODE_OPTIONS = filtered.join(' ');
+  }
+})();
+
 const hasEmporixTestConfig = Boolean(
   process.env.NEXT_EMPORIX_TEST_TENANT &&
     process.env.NEXT_EMPORIX_TEST_CLIENT_ID &&
@@ -62,7 +114,11 @@ const customJestConfig = {
       preset: 'ts-jest',
       displayName: 'React Tests',
       testEnvironment: 'jsdom',
-      testMatch: ['**/hooks/**/?(*.)+(spec|test).ts?(x)'],
+      testMatch: [
+        '**/hooks/**/?(*.)+(spec|test).ts?(x)',
+        '**/providers/**/?(*.)+(spec|test).ts?(x)',
+        '**/components/checkout/checkout-validation-registry*.test.ts?(x)',
+      ],
       setupFilesAfterEnv: ['<rootDir>/jest.react.setup.js'],
       moduleNameMapper: {
         '^@/(.*)$': '<rootDir>/src/$1',
@@ -132,6 +188,10 @@ const customJestConfig = {
         ],
       },
       ...commonJestConfig,
+      testPathIgnorePatterns: [
+        ...commonJestConfig.testPathIgnorePatterns,
+        'src/components/checkout/checkout-validation-registry.*\\.test\\.(ts|tsx)$',
+      ],
     },
     {
       preset: 'ts-jest',
@@ -153,7 +213,11 @@ const customJestConfig = {
       preset: 'ts-jest',
       displayName: 'Library Tests',
       testEnvironment: 'node',
-      testMatch: ['**/lib/**/?(*.)+(spec|test).ts?(x)', '**/stores/**/?(*.)+(spec|test).ts?(x)'],
+      testMatch: [
+        '**/lib/**/?(*.)+(spec|test).ts?(x)',
+        '**/stores/**/?(*.)+(spec|test).ts?(x)',
+        '**/app/api/**/?(*.)+(spec|test).ts?(x)',
+      ],
       setupFilesAfterEnv: ['<rootDir>/jest.platform.setup.js'],
       transform: {
         '^.+\\.tsx?$': [

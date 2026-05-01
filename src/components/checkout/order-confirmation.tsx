@@ -8,13 +8,14 @@ import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
 import useCustomer from '@/hooks/customer/useCustomer';
 import { useOrder } from '@/hooks/order/useOrder';
+import { useL10n } from '@/hooks/useL10n';
 import { type OrderStatusKey, type PaymentModeKey, dk } from '@/i18n/dynamic-key';
 import { formatCurrency } from '@/lib/utils';
 import type { Order } from '@/platform/services/model/order/order';
 import { AddressDisplay } from '../common/address-display';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { H1, H2, H3 } from '../ui/h';
-import { PENDING_APPROVAL_CONFIRMATION_SEGMENT } from './confirmation-constants';
+import { isPendingApprovalConfirmationSegment } from './confirmation-constants';
 
 interface OrderConfirmationProps {
   orderId: string;
@@ -31,9 +32,14 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
   const tOrder = useTranslations('orders');
   const tOrderStatus = useTranslations('orders.OrderStatus');
   const tPayment = useTranslations('checkout.PaymentModes');
+  const { l10n } = useL10n();
   const { customer } = useCustomer();
-  const { order, loading, error } = useOrder({ orderId, initialOrder });
-  const isApprovalPendingConfirmation = orderId === PENDING_APPROVAL_CONFIRMATION_SEGMENT;
+  const isApprovalPendingConfirmation = isPendingApprovalConfirmationSegment(orderId);
+  const { order, loading, error } = useOrder({
+    orderId: isApprovalPendingConfirmation ? undefined : orderId,
+    initialOrder,
+    autoFetchStatusTransitions: !isApprovalPendingConfirmation && customer !== undefined && customer !== null,
+  });
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
@@ -143,9 +149,7 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
                   <div className="flex justify-between mb-2">
                     <span className="text-text-on-disabled">{tOrder('subtotal')}</span>
                     <span className="font-medium">
-                      {order.price?.subtotal?.gross
-                        ? formatCurrency(order.price.subtotal.gross, order.currency || 'EUR')
-                        : ''}
+                      {order.price?.subtotal?.gross ? formatCurrency(order.price.subtotal.gross, order.currency) : ''}
                     </span>
                   </div>
 
@@ -154,10 +158,7 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
                       <span className="text-text-on-disabled">{tOrder('shipping')}</span>
                       <span className="font-medium">
                         {order.shipping.total?.value
-                          ? formatCurrency(
-                              order.shipping.total.value,
-                              order.shipping.total.currency || order.currency || 'EUR',
-                            )
+                          ? formatCurrency(order.shipping.total.value, order.shipping.total.currency || order.currency)
                           : tOrder('free')}
                       </span>
                     </div>
@@ -175,9 +176,7 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
                   <div className="flex justify-between pt-2 border-t border-border-primary">
                     <span className="font-medium">{tOrder('total')}</span>
                     <span className="font-bold">
-                      {order.price?.total?.gross
-                        ? formatCurrency(order.price.total.gross, order.currency || 'EUR')
-                        : ''}
+                      {order.price?.total?.gross ? formatCurrency(order.price.total.gross, order.currency) : ''}
                     </span>
                   </div>
                 </div>
@@ -206,7 +205,14 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
                         <Package className="h-4 w-4 mt-1.5 mr-1.5" />
                       </div>
                       <div>
-                        <p>{order.shipping?.methods?.[0]?.name || 'Unknown'}</p>
+                        <p>
+                          {(() => {
+                            const method = order.shipping?.methods?.[0];
+                            if (!method) return tOrder('shippingMethodUnknown');
+                            const localized = method.localizedName ? l10n(method.localizedName) : '';
+                            return localized || method.name || tOrder('shippingMethodUnknown');
+                          })()}
+                        </p>
                         {/*<p>Arrives on July 12, 2025</p>*/}
                       </div>
                     </div>

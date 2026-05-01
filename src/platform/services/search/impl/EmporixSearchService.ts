@@ -72,6 +72,24 @@ class EmporixSearchService implements SearchService {
     return true;
   }
 
+  /**
+   * Resolve the currency for price matching: explicit `params.currency` wins,
+   * otherwise fall back to the current session currency so we never price
+   * search results against a site's default currency when the shopper has
+   * picked another supported currency.
+   */
+  private async resolveSearchCurrency(explicitCurrency?: string): Promise<string | undefined> {
+    if (explicitCurrency) {
+      return explicitCurrency;
+    }
+    try {
+      const session = await this.sessionService.getCurrent();
+      return session?.currency;
+    } catch {
+      return undefined;
+    }
+  }
+
   private async mapAndEnrichSearchResults(
     items: EmporixProduct[],
     enrichOptions?: ProductFetchOptions,
@@ -153,8 +171,9 @@ class EmporixSearchService implements SearchService {
       filters: undefined,
     });
 
+    const effectiveCurrency = await this.resolveSearchCurrency(params.currency);
     const enrichedProducts = await this.mapAndEnrichSearchResults(searchResult.items, {
-      prices: this.buildPriceOption(effectiveSite, params.currency),
+      prices: this.buildPriceOption(effectiveSite, effectiveCurrency),
       variants: false,
       categories: false,
     });
@@ -186,8 +205,9 @@ class EmporixSearchService implements SearchService {
       filters: undefined,
     });
 
+    const effectiveCurrency = await this.resolveSearchCurrency(params.currency);
     const enrichedProducts = await this.mapAndEnrichSearchResults(searchResult.items, {
-      prices: this.buildPriceOption(params.site, params.currency),
+      prices: this.buildPriceOption(params.site, effectiveCurrency),
       variants: false,
       categories: false,
     });

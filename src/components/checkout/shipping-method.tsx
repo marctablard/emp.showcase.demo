@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { Info } from 'lucide-react';
 import { H2 } from '@/components/ui/h';
@@ -10,6 +10,7 @@ import { formatCurrency } from '@/lib/utils';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { Spinner } from '../ui/spinner';
+import { useRegisterCheckoutForm } from './checkout-validation-registry';
 
 interface ShippingMethodProps {
   isReadOnly?: boolean;
@@ -34,10 +35,12 @@ const ShippingMethod: React.FC<ShippingMethodProps> = ({ isReadOnly = false, var
       submitShippingMethod(option);
     }
   });
+  const rootRef = useRef<HTMLDivElement>(null);
+  useRegisterCheckoutForm('shipping-method', form, rootRef, { testIdPrefix: 'shipping' });
   const t = useTranslations('checkout.shipping');
   return (
     <Form {...form}>
-      <div className="bg-surface-page">
+      <div className="bg-surface-page" ref={rootRef}>
         <H2 variant="h5" className="mb-2">
           {t('shippingMethod')}
         </H2>

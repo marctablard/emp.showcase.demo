@@ -637,6 +637,138 @@ export async function GET() {
 }
 ```
 
+## Prometheus Metrics
+
+The application exposes Prometheus-format metrics for monitoring upstream API call volume, latency, and error rates. These are essential for detecting redundant calls, regressions, and performance bottlenecks.
+
+### Accessing Metrics
+
+Metrics are served at `http://localhost:3001/metrics/prometheus` (metrics port is separate from the app port). In production, the endpoint path depends on your deployment configuration.
+
+### Available Counters
+
+#### `emx_bff_oauth_fetch_total`
+
+Counts every outbound OAuth/token fetch. Labels:
+
+| Label | Description | Example values |
+|---|---|---|
+| `site` | Resolved site code | `main`, `us-branch`, `unknown` |
+| `method` | HTTP method | `GET`, `POST` |
+| `status_code` | HTTP status | `200`, `401` |
+| `source` | Always `oauth` | `oauth` |
+| `route` | Route pattern (see below) | `/customerlogin/auth/anonymous/login` |
+
+**Route patterns:**
+
+| Pattern | Token type | Description |
+|---|---|---|
+| `/customerlogin/auth/anonymous/login` | Public + anonymous (metrics) | `getPublicToken` and `getAnonymousToken` use this label so it matches the upstream `…/anonymous/login` path; shared read-only token uses `next: { revalidate: 3200 }` where applicable |
+| `/customerlogin/auth/anonymous/refresh` | Anonymous | Anonymous refresh |
+| `/oauth/token` | Service | Client-credentials token for admin operations (cart ownership, IAM) |
+| `/customer/{tenant}/login` | Customer | User login (email + password) |
+| `/customer/{tenant}/refreshauthtoken` | Customer | Customer token refresh |
+
+> **Note:** `getPublicToken` and `getAnonymousToken` hit the **same** upstream anonymous-login path family; metrics use the **anonymous** route pattern for both so dashboards match the URL.
+
+#### `emx_bff_api_fetch_total`
+
+Counts every outbound API fetch to Emporix services. Labels:
+
+| Label | Description | Example values |
+|---|---|---|
+| `site` | Resolved site code | `main`, `us-branch` |
+| `method` | HTTP method | `GET`, `POST`, `PATCH`, `PUT`, `DELETE` |
+| `status_code` | HTTP status | `200`, `404`, `204` |
+| `source` | Service domain | `site-settings`, `session`, `currency`, `country`, `payment`, `cart`, `product`, `order`, etc. |
+| `token_type` | Auth token used | `public`, `session`, `service` |
+| `route` | URL pattern | `/site/{tenant}/sites/{id}`, `/session-context/{tenant}/me/context` |
+
+#### `emx_bff_api_fetch_errors_total`
+
+Same labels as `emx_bff_api_fetch_total`, but only incremented for responses with status >= 400.
+
+#### `emx_bff_oauth_fetch_duration_seconds` / `emx_bff_api_fetch_duration_seconds`
+
+Histograms measuring round-trip time in seconds. Buckets: `0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10`.
+
+### What to Watch For
+
+| Metric pattern | Healthy range (full session) | Investigation trigger |
+|---|---|---|
+| `route="/customerlogin/auth/anonymous/login"` (includes `getPublicToken` + `getAnonymousToken`) | 1–4 | >10 indicates cache miss or deduplication failure |
+| `source="site-settings"` | 10–25 (depends on site count) | >50 indicates cache expiration storm |
+| `source="session"` GET | 5–15 | >30 indicates missing cache or excessive callers |
+| `source="currency"` / `"country"` / `"payment"` | 3–6 each | >10 indicates reference data cache miss |
+
+### Prometheus metrics HTTP listener
+
+When `NEXT_METRICS_ENABLED` is `true`, `src/instrumentation.ts` starts `src/metrics-server.ts`, which listens on **`127.0.0.1`** and the port from `NEXT_MONITORING_PORT` (default **3001**). Endpoints: `/metrics/prometheus`, `/health`. Scraping from another host requires a same-host agent, SSH tunnel, or platform forwarding — the listener is **not** exposed on all interfaces.
+
+### Server-Side Caching Architecture
+
+The application uses `globalThis`-backed in-memory caches to share data across Next.js module scopes (SSR container and Server container run as separate Inversify singletons in the same process). This prevents duplicate upstream fetches when both containers need the same data within a short window.
+
+```
+┌──────────────────────────────────────────────────┐
+│                   globalThis                      │
+│                                                   │
+│  __emporix_site_cache         (30s TTL)           │
+│  __emporix_session_ctx_cache  (5s TTL)            │
+└────────────┬───────────────────┬──────────────────┘
+             │                   │
+    ┌────────▼────────┐ ┌───────▼─────────┐
+    │  SSR Container  │ │ Server Container │
+    │  (ssr.ts)       │ │ (server.ts)      │
+    │                 │ │                  │
+    │ SiteService     │ │ SiteService      │
+    │ SessionCtxApi   │ │ SessionCtxApi    │
+    └─────────────────┘ └──────────────────┘
+```
+
+**Cache details:**
+
+| `globalThis` key | Owner class | TTL | Invalidation | What it caches |
+|---|---|---|---|---|
+| `__emporix_site_cache` | `EmporixSiteService` | 30s (per-site and ref data) | TTL expiry + **`SiteService.invalidateSiteCache`** after successful session site switch | Site config, currencies, countries, regions, payment modes |
+| `__emporix_session_ctx_cache` | `EmporixSessionContextApi` | 5s per `sessionId` entry (max 128 keys) | Own-context PATCH/POST/DELETE clear all in-process entries; service-token context writes clear the **target** `sessionId` key after success | Own `/me/context` keyed by Emporix `sessionId` from `EmporixTokenManager` |
+
+| `__emporix_public_token_cache` | `EmporixTokenManagerAbstract` | Derived from token `expires_in` (minus safety margin) | `clearPublicTokenCache`; entry replaced on fetch | Public access token per `tenant:clientId`; inflight dedupe across SSR and Server scopes |
+
+`EmporixOAuthApiServer.getPublicToken` still passes `next: { revalidate: 3200 }` on the underlying `fetch`, which can help in production when Next’s fetch cache applies; the **`globalThis`** cache above is what guarantees deduplication across separate DI containers and in dev where that cache is often inactive.
+
+**When caches are NOT shared:**
+- Anonymous **shopper** session tokens use per–token-manager-instance inflight maps with a 2s post-resolve grace period (not `globalThis`), because storage and cookie wiring are subclass-specific.
+
+### Adding Metrics to New API Integrations
+
+Use `createFetchMetricsParams()` to generate standard metric labels:
+
+```typescript
+import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
+import { DEFAULT_CACHE_REVALIDATE } from '@/platform/integrations/emporix/common/cache-defaults';
+
+const metrics = createFetchMetricsParams('my-service', '/my-service/{tenant}/endpoint');
+
+const response = await this.apiClient.authenticatedFetch(
+  `/my-service/${tenant}/endpoint`,
+  { method: 'GET' },
+  'public',
+  undefined,
+  metrics,
+  // Optional: opt in to Next fetch caching for this endpoint.
+  // Only applied on GET/HEAD when `options.cache` / `options.next` are not set.
+  // Omit for volatile data (orders, approvals, cart-ownership-sensitive reads, custom entities).
+  DEFAULT_CACHE_REVALIDATE,
+);
+```
+
+**Caching is opt-in per call.** The trailing `cacheSeconds` argument is the only way to enable Next `fetch` caching — no `tokenType` (including `public` or `service`) implies caching anymore. Write methods always bypass the cache regardless of `cacheSeconds`.
+
+For reference/catalog reads where a shared TTL is appropriate, prefer the `DEFAULT_CACHE_REVALIDATE` constant over hard-coded literals. It reads the same `NEXT_PUBLIC_CACHE_DEFAULT_REVALIDATE` environment variable as the HTTP cache middleware (`src/caching/cache-config.ts`), so a single setting controls the default revalidation window across both layers. The default is `3600` seconds; non-positive or non-numeric values fall back to `3600`. Endpoint-specific TTLs can still pass a different literal. See `docs/cache-middleware.md` for the full semantics of the env var.
+
+For OAuth-level metrics in `EmporixOAuthApi*` subclasses, use `fetchWithMetrics()` directly with a route pattern string.
+
 ## Troubleshooting
 
 ### Logs Not Appearing

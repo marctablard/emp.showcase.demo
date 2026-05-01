@@ -35,9 +35,49 @@ export interface CreateReturnResponse {
   id: string;
 }
 
+export interface ReturnApiErrorResponse {
+  error?: string;
+  reason?: string;
+  upstreamStatus?: number;
+  upstreamMessage?: string;
+}
+
+export class ReturnApiError extends Error {
+  public readonly status: number;
+  public readonly reason?: string;
+  public readonly upstreamStatus?: number;
+  public readonly upstreamMessage?: string;
+
+  constructor(message: string, status: number, details?: ReturnApiErrorResponse) {
+    super(message);
+    this.name = 'ReturnApiError';
+    this.status = status;
+    this.reason = details?.reason;
+    this.upstreamStatus = details?.upstreamStatus;
+    this.upstreamMessage = details?.upstreamMessage;
+  }
+}
+
 export interface ReturnsPageResult {
   items: Return[];
   totalCount?: number;
+}
+
+async function readErrorResponse(response: Response): Promise<ReturnApiErrorResponse> {
+  try {
+    const data: unknown = await response.json();
+    return data && typeof data === 'object' && !Array.isArray(data) ? (data as ReturnApiErrorResponse) : {};
+  } catch {
+    return {};
+  }
+}
+
+function formatCreateReturnError(response: Response, errorData: ReturnApiErrorResponse): string {
+  if (errorData.upstreamStatus && errorData.upstreamStatus >= 500) {
+    return `Returns service failed upstream (${errorData.upstreamStatus}). Please retry.`;
+  }
+
+  return errorData.error || `Failed to create return (${response.status})`;
 }
 
 /**
@@ -67,8 +107,8 @@ export async function createReturn(
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to create return');
+    const errorData = await readErrorResponse(response);
+    throw new ReturnApiError(formatCreateReturnError(response, errorData), response.status, errorData);
   }
 
   return response.json();

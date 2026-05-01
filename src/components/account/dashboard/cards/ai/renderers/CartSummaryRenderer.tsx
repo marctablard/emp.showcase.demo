@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
+import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import type { CartSummaryData, ShopData } from '../types';
 import { extractPrice, formatPrice } from '../utils';
 import { ItemsListRenderer } from './ItemsListRenderer';
@@ -13,7 +14,7 @@ interface CartSummaryRendererProps {
 export const CartSummaryRenderer: React.FC<CartSummaryRendererProps> = ({ data }) => {
   const t = useTranslations('account.AiHelper');
 
-  const displayCurrency = data.currency || data.total?.currency || 'USD';
+  const displayCurrency = data.currency || data.total?.currency || getPublicDefaultCurrency();
 
   const total = data.total || {};
   const totalPrice = extractPrice(total);

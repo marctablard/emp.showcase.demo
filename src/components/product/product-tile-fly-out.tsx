@@ -1,15 +1,17 @@
+'use client';
+
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
+import { useL10n } from '@/hooks/useL10n';
 import { type ProductAttributeKey, dk } from '@/i18n/dynamic-key';
 import { Link } from '@/i18n/navigation';
-import { formatCurrency, l10n } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import type { Product } from '@/platform/services/model/product';
 
 interface ProductTileProps {
   product: Product;
   className?: string;
-  locale?: string;
   onProductClick?: () => void;
   keyword?: string;
 }
@@ -114,8 +116,9 @@ const extractDimensions = (attributes: Record<string, string>) => {
   return null;
 };
 
-export function ProductTileFlyOut({ product, locale = 'de', onProductClick, keyword }: ProductTileProps) {
+export function ProductTileFlyOut({ product, onProductClick, keyword }: ProductTileProps) {
   const t = useTranslations('product');
+  const { l10n } = useL10n();
   const [image] = product.images || [];
   const clickable_id = product.id ? product.id.replaceAll(/<\/?mark>/g, '') : '';
   return (
@@ -129,7 +132,7 @@ export function ProductTileFlyOut({ product, locale = 'de', onProductClick, keyw
                 src={image?.url}
                 height={90}
                 width={90}
-                alt={l10n(image?.altText || '', locale) || ''}
+                alt={l10n(image?.altText || '') || ''}
               />
             ) : (
               <Image
@@ -137,7 +140,7 @@ export function ProductTileFlyOut({ product, locale = 'de', onProductClick, keyw
                 src={'/images/no_image_alt.png'}
                 height={90}
                 width={90}
-                alt={l10n(product.name, locale) || ''}
+                alt={l10n(product.name) || ''}
               />
             )}
           </div>
@@ -147,12 +150,11 @@ export function ProductTileFlyOut({ product, locale = 'de', onProductClick, keyw
             {markText(
               l10n(
                 product.brand?.name || product.specifications?.find((spec) => spec.key === 'manufacturer')?.value || '',
-                locale,
               ),
               keyword,
             )}
           </p>
-          <p className="text-md font-headlines text-text-body">{markText(l10n(product.name, locale), keyword)}</p>
+          <p className="text-md font-headlines text-text-body">{markText(l10n(product.name), keyword)}</p>
           {(() => {
             // TODO make this more dynamic
             // Calculate how many attributes to show in total (max 3)

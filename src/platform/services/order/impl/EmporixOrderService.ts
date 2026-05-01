@@ -120,6 +120,20 @@ class EmporixOrderService implements OrderService {
     }
   }
 
+  async applyCustomerOrderTransition(orderId: string, status: string): Promise<void> {
+    if (status !== 'DECLINED') {
+      throw new Error(`Unsupported customer order transition: status=${String(status)}`);
+    }
+    try {
+      await this.orderApi.postCustomerOrderTransition(orderId, { status });
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Failed to apply customer order transition: ${error.message}`);
+      }
+      throw error;
+    }
+  }
+
   async getOrderStatusTransitions(orderId: string): Promise<string[]> {
     try {
       return await this.orderApi.getOrderStatusTransitions(orderId);

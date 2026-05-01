@@ -16,6 +16,7 @@ import { useHorizontalScroll } from '@/hooks/useHorizontalScroll';
 import { useL10n } from '@/hooks/useL10n';
 import { type ProductTemplateAttributeKey, dk } from '@/i18n/dynamic-key';
 import { Link } from '@/i18n/navigation';
+import { getPublicDefaultLanguage } from '@/lib/common/public-default-env';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency, imageSizes } from '@/lib/utils';
 import type { Product } from '@/platform/services/model/product';
@@ -27,9 +28,10 @@ interface ProductTileProps {
   skipVariantFetch?: boolean;
 }
 
-export function ProductTile({ product, locale = 'en', skipVariantFetch = false }: ProductTileProps) {
+export function ProductTile({ product, locale, skipVariantFetch = false }: ProductTileProps) {
   const t = useTranslations('product');
-  const { l10n } = useL10n(locale);
+  const effectiveLocale = locale ?? getPublicDefaultLanguage();
+  const { l10n } = useL10n(effectiveLocale);
   const { addItem, loading: cartLoading } = useCart();
   const horizontalScrollRef = useHorizontalScroll();
 

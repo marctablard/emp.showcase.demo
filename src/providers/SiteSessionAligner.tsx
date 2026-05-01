@@ -1,72 +1,80 @@
 'use client';
 
-import { useContext, useEffect } from 'react';
-import { fetchCurrentSession, updateSessionSite } from '@/lib/client/session';
+import { useContext, useEffect, useRef } from 'react';
+import { shallow } from 'zustand/shallow';
+import { performSiteSwitch } from '@/lib/client/site-switch';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { SiteContext } from '@/providers/SiteProvider';
-import { useSessionStore } from '@/providers/StoreProvider';
+import { CartStoreContext, SessionStoreContext, SiteStoreContext } from '@/providers/StoreProvider';
 
 /**
- * Bridges URL-driven site changes to the Emporix session + Zustand session store.
+ * Aligns Emporix session + session store with a URL-driven site change (deep links).
  *
- * When a user navigates to a different site via direct URL (external link, bookmark,
- * typed URL) the middleware updates the site cookie and the layout provides the new
- * site code through SiteContext. However, the server-side Emporix session and the
- * client-side session store are NOT automatically updated — the store synchronizer
- * only reacts to session.siteCode changes in the client store.
- *
- * This component closes that gap: it detects when the URL site diverges from the
- * session site and calls the session site API so the full sync pipeline fires
- * (currency, cart, site store reset, etc.).
- *
- * Uses the session store's shared mutation lock to prevent concurrent API calls.
- * The async work intentionally runs to completion even after unmount — updating a
- * Zustand store from a detached async closure is safe (external state, not
- * component state), and aborting would leave the session permanently misaligned
- * when React Strict Mode cancels the first mount's effect.
+ * Subscribes to the session store so the check re-runs once the session finishes loading —
+ * common cold-start case: SSR cannot fetch Emporix session (no `session-id` cookie yet) →
+ * store seeds `null`/`undefined` → client `/api/session` resolves to a different site than
+ * the URL. A plain `useEffect` with only store-reference deps would run once with `session=null`
+ * and bail out forever, leaving `useGlobalSyncReady` wedged on `site-mismatch` and disabling
+ * the switchers. The `pipelineInFlightRef` guard + session mutation lock ensure at most one
+ * orchestrator pipeline runs at a time.
  */
 export function SiteSessionAligner() {
   const urlSiteCode = useContext(SiteContext);
-  const { session, setSession, loading, tryAcquireMutationLock, releaseMutationLock } = useSessionStore();
+  const sessionStore = useContext(SessionStoreContext);
+  const siteStore = useContext(SiteStoreContext);
+  const cartStore = useContext(CartStoreContext);
+  const pipelineInFlightRef = useRef(false);
 
   useEffect(() => {
-    if (!urlSiteCode || !session?.siteCode || loading) {
+    if (!urlSiteCode || !sessionStore || !siteStore || !cartStore) {
       return;
     }
 
-    if (session.siteCode === urlSiteCode) {
-      return;
-    }
-
-    if (!tryAcquireMutationLock()) {
-      return;
-    }
-
-    const targetSite = urlSiteCode;
-
-    (async () => {
-      const logger = getLogger();
-      try {
-        const success = await updateSessionSite(targetSite);
-
-        if (!success) {
-          logger.warn({ targetSite, sessionSiteCode: session.siteCode }, 'Site session alignment: update failed');
-          return;
-        }
-
-        const updatedSession = await fetchCurrentSession(true);
-        setSession(updatedSession);
-      } catch (error) {
-        logger.error({ err: error, targetSite, sessionSiteCode: session.siteCode }, 'Site session alignment failed');
-      } finally {
-        releaseMutationLock();
+    const getSiteByCode = async (code: string) => {
+      const availableSites = siteStore.getState().getAvailableSites?.();
+      if (!availableSites) {
+        return undefined;
       }
-    })();
+      return availableSites.find((s) => s.code === code);
+    };
 
-    // No cleanup — the async work must run to completion so the store is updated.
-    // Aborting here (e.g. on Strict Mode remount) would skip setSession and leave
-    // the session permanently misaligned.
-  }, [urlSiteCode, session?.siteCode, loading, session, setSession, tryAcquireMutationLock, releaseMutationLock]);
+    const runAlignmentIfNeeded = async () => {
+      if (pipelineInFlightRef.current) {
+        return;
+      }
+      const { session, loading, isMutationInFlight } = sessionStore.getState();
+      if (!session?.siteCode || loading || isMutationInFlight() || session.siteCode === urlSiteCode) {
+        return;
+      }
+
+      pipelineInFlightRef.current = true;
+      try {
+        await performSiteSwitch(
+          urlSiteCode,
+          { sessionStore, siteStore, cartStore },
+          { source: 'deep-link', getSiteByCode, logger: getLogger() },
+        );
+      } finally {
+        pipelineInFlightRef.current = false;
+      }
+    };
+
+    void runAlignmentIfNeeded();
+
+    // Re-evaluate on relevant session slice changes — picks up the client `/api/session`
+    // resolution when SSR seeded a `null`/`undefined` session.
+    const unsubscribe = sessionStore.subscribe(
+      (state) => ({
+        siteCode: state.session?.siteCode ?? null,
+        loading: state.loading,
+      }),
+      () => {
+        void runAlignmentIfNeeded();
+      },
+      { equalityFn: shallow },
+    );
+    return unsubscribe;
+  }, [urlSiteCode, sessionStore, siteStore, cartStore]);
 
   return null;
 }

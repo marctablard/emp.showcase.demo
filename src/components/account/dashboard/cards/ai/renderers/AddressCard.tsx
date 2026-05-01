@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
 
 interface AddressCardProps {
@@ -14,14 +13,11 @@ interface AddressCardProps {
     state?: string;
     postalCode: string;
     country: string;
-    isDefault?: boolean;
     tags?: string[];
   };
 }
 
 export const AddressCard: React.FC<AddressCardProps> = ({ address }) => {
-  const t = useTranslations('account.AiHelper');
-
   return (
     <div className="bg-gradient-to-t from-gradient-secondary-end to-gradient-secondary-start rounded-xl border border-border-primary p-4 flex flex-col h-full shadow-lg">
       <div className="flex items-start justify-between mb-3">
@@ -29,15 +25,6 @@ export const AddressCard: React.FC<AddressCardProps> = ({ address }) => {
           <h4 className="text-base font-bold text-text-on-action">{address.name}</h4>
           {address.company && <div className="text-sm text-text-on-action/90 mt-1">{address.company}</div>}
         </div>
-        {address.isDefault && (
-          <Badge
-            variant="success"
-            rounded="default"
-            className="text-xs bg-surface-action/30 text-text-on-action border-text-on-action/30"
-          >
-            {t('default')}
-          </Badge>
-        )}
       </div>
 
       <div className="space-y-1 text-sm text-text-on-action/90 flex-grow">

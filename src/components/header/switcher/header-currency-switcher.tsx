@@ -1,36 +1,42 @@
 'use client';
 
 import { Suspense, useMemo, useState } from 'react';
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import type { IconName } from 'lucide-react/dynamic';
 import { DynamicIcon } from 'lucide-react/dynamic';
 import TopBarSwitcher from '@/components/ui/molecules/ui-topbar-switcher';
 import { Spinner } from '@/components/ui/spinner';
+import { ToastType, notify } from '@/components/ui/toast-notification';
+import { useGlobalSyncReady } from '@/hooks/common/useGlobalSyncReady';
 import { useSession } from '@/hooks/session/useSession';
 import { useSite } from '@/hooks/site/useSite';
-import { l10n } from '@/lib/utils';
+import { useL10n } from '@/hooks/useL10n';
 
 function CurrencySwitcherContent() {
   const { session, loading: sessionLoading, setCurrency } = useSession();
-  const locale = useLocale();
+  const { l10n } = useL10n();
   const router = useRouter();
   const t = useTranslations('common.Currencies');
+  const tRegions = useTranslations('common.Regions');
   const { currencies, loading: siteLoading, site } = useSite();
+  const { ready: syncReady } = useGlobalSyncReady();
   const [isSwitching, setIsSwitching] = useState(false);
   const currentCurrency = useMemo(() => {
-    // First, try to find session currency in available currencies
-    if (currencies && currencies.length > 0) {
-      if (session?.currency) {
-        const matchedCurrency = currencies.find((currency) => currency.code === session.currency);
-        if (matchedCurrency) {
-          return matchedCurrency;
-        }
+    if (currencies && currencies.length > 0 && session?.currency) {
+      const matchedCurrency = currencies.find(
+        (currency) => currency.id === session.currency || currency.code === session.currency,
+      );
+      if (matchedCurrency) {
+        return matchedCurrency;
       }
+      return { id: session.currency, code: session.currency, name: session.currency };
+    }
+
+    if (currencies && currencies.length > 0) {
       return currencies[0];
     }
 
-    // Fallback to site's default currency when currencies array is empty
     if (site?.defaultCurrency) {
       return site.defaultCurrency;
     }
@@ -46,12 +52,21 @@ function CurrencySwitcherContent() {
       return;
     }
 
+    const fromCurrency = currentCurrency.id;
     setIsSwitching(true);
     try {
-      const success = await setCurrency(currency);
-      if (success) {
-        // Refresh page after session update completes to reload prices with new currency
+      const result = await setCurrency(currency);
+      if (result.success) {
         router.refresh();
+      } else if (result.cartCurrencyBlocked) {
+        notify({
+          title: tRegions('currencySwitchCartBlocked', {
+            fromCurrency,
+            toCurrency: currency,
+          }),
+          type: ToastType.Info,
+          duration: 8000,
+        });
       }
     } finally {
       setIsSwitching(false);
@@ -66,17 +81,16 @@ function CurrencySwitcherContent() {
     return <></>;
   }
 
-  // Build options array - use currencies if available, otherwise use currentCurrency
   const options =
     currencies && currencies.length > 0
       ? currencies.map((currency) => ({
           code: currency.id,
-          name: l10n(currency.name || currency.id, locale),
+          name: l10n(currency.name || currency.id),
         }))
       : [
           {
             code: currentCurrency.id,
-            name: l10n(currentCurrency.name || currentCurrency.id, locale),
+            name: l10n(currentCurrency.name || currentCurrency.id),
           },
         ];
 
@@ -103,14 +117,16 @@ function CurrencySwitcherContent() {
   );
 
   return (
-    <TopBarSwitcher
-      options={options}
-      current={currentCurrency.id}
-      label={t('label')}
-      onSelected={switchCurrency}
-      icon={icon}
-      disabled={isSwitching || sessionLoading}
-    />
+    <div data-testid="header-currency-display" data-selected-currency={currentCurrency.id}>
+      <TopBarSwitcher
+        options={options}
+        current={currentCurrency.id}
+        label={t('label')}
+        onSelected={switchCurrency}
+        icon={icon}
+        disabled={isSwitching || sessionLoading || !syncReady}
+      />
+    </div>
   );
 }
 

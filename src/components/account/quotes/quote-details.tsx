@@ -7,12 +7,14 @@ import { ArrowLeft } from 'lucide-react';
 import { QuoteStatusBadge } from '@/components/account/quotes/quote-status-badge';
 import { QuoteSummary } from '@/components/account/quotes/quote-summary';
 import { ProductListResolver } from '@/components/product/product-list-resolver';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { H2, H3, H4 } from '@/components/ui/h';
 import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
+import { ToastType, notify } from '@/components/ui/toast-notification';
 import { useQuoteHistory } from '@/hooks/quotes/useQuoteHistory';
 import { useQuote } from '@/hooks/quotes/useQuotes';
 import { getLogger } from '@/lib/logger/use-logger-client';
@@ -35,7 +37,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   const [comment, setComment] = useState('');
   const maxCommentLength = 500;
   const [isProcessing, setIsProcessing] = useState(false);
-  const [_processError, setProcessError] = useState<string | null>(null);
+  const [processError, setProcessError] = useState<string | null>(null);
   const locale = useLocale();
 
   const updateQuoteStatus = async (
@@ -191,7 +193,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                   size="small"
                   disabled={!(quote.status === 'OPEN')}
                   onClick={() => {
-                    // Show rejection confirmation dialog
+                    setProcessError(null);
                     setShowRejectConfirmation(true);
                   }}
                 >
@@ -204,6 +206,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                   className={cn('disabled:border-none')}
                   disabled={!(quote.status === 'OPEN')}
                   onClick={() => {
+                    setProcessError(null);
                     setShowRequestChangeConfirmation(true);
                   }}
                 >
@@ -215,6 +218,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                   size="small"
                   disabled={!(quote.status === 'OPEN')}
                   onClick={() => {
+                    setProcessError(null);
                     setShowAcceptConfirmation(true);
                   }}
                   className="bg-surface-success hover:bg-surface-action-hover-2"
@@ -262,10 +266,17 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                   </UiLink>
                 </div>
 
+                {processError ? (
+                  <Alert variant="destructive" className="mb-4" role="alert">
+                    <AlertDescription>{processError}</AlertDescription>
+                  </Alert>
+                ) : null}
+
                 <div className="flex space-x-3">
                   <Button
                     variant="secondary"
                     onClick={() => {
+                      setProcessError(null);
                       setShowAcceptConfirmation(false);
                       setComment('');
                     }}
@@ -286,7 +297,13 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                         setComment('');
                       } catch (error) {
                         getLogger().error({ err: error }, 'Failed to process quote');
-                        setProcessError(error instanceof Error ? error.message : 'Failed to process quote');
+                        const msg = error instanceof Error ? error.message : t('quoteActionFailedDescription');
+                        setProcessError(msg);
+                        notify({
+                          title: t('quoteActionFailedTitle'),
+                          description: msg,
+                          type: ToastType.Error,
+                        });
                       } finally {
                         setIsProcessing(false);
                       }
@@ -327,10 +344,17 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                   />
                 </div>
 
+                {processError ? (
+                  <Alert variant="destructive" className="mb-4" role="alert">
+                    <AlertDescription>{processError}</AlertDescription>
+                  </Alert>
+                ) : null}
+
                 <div className="flex space-x-3">
                   <Button
                     variant="secondary"
                     onClick={() => {
+                      setProcessError(null);
                       setShowRejectConfirmation(false);
                       setComment('');
                     }}
@@ -351,7 +375,13 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                         setComment('');
                       } catch (error) {
                         getLogger().error({ err: error }, 'Failed to reject quote');
-                        setProcessError(error instanceof Error ? error.message : 'Failed to reject quote');
+                        const msg = error instanceof Error ? error.message : t('quoteActionFailedDescription');
+                        setProcessError(msg);
+                        notify({
+                          title: t('quoteActionFailedTitle'),
+                          description: msg,
+                          type: ToastType.Error,
+                        });
                       } finally {
                         setIsProcessing(false);
                       }
@@ -391,10 +421,17 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                   />
                 </div>
 
+                {processError ? (
+                  <Alert variant="destructive" className="mb-4" role="alert">
+                    <AlertDescription>{processError}</AlertDescription>
+                  </Alert>
+                ) : null}
+
                 <div className="flex space-x-3">
                   <Button
                     variant="secondary"
                     onClick={() => {
+                      setProcessError(null);
                       setShowRequestChangeConfirmation(false);
                       setComment('');
                     }}
@@ -415,7 +452,13 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                         setComment('');
                       } catch (error) {
                         getLogger().error({ err: error }, 'Failed to add comment to quote');
-                        setProcessError(error instanceof Error ? error.message : 'Failed to add comment to quote');
+                        const msg = error instanceof Error ? error.message : t('quoteActionFailedDescription');
+                        setProcessError(msg);
+                        notify({
+                          title: t('quoteActionFailedTitle'),
+                          description: msg,
+                          type: ToastType.Error,
+                        });
                       } finally {
                         setIsProcessing(false);
                       }

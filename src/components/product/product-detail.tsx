@@ -9,13 +9,20 @@ import { ProductCarousel } from '@/components/product/product-carousel';
 import { Badge } from '@/components/ui/badge';
 import { BulletPoint } from '@/components/ui/bullet-point';
 import { Card, CardContent } from '@/components/ui/card';
+import { useShopContextReady } from '@/hooks/common/useShopContextReady';
 import { useProduct } from '@/hooks/product/useProduct';
 import { useSession } from '@/hooks/session/useSession';
+import { useSite } from '@/hooks/site/useSite';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useL10n } from '@/hooks/useL10n';
 import { type ProductTemplateAttributeKey, type ProductVariantAttributeKey, dk } from '@/i18n/dynamic-key';
 import { fetchProductAvailability } from '@/lib/client/availability';
 import { fetchProductPrice } from '@/lib/client/prices';
+import {
+  isProductPriceDisplayableForPurchase,
+  isPurchaseShopContextReady,
+} from '@/lib/common/product-price-site-context';
+import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
 import type { StockAvailability } from '@/platform/services/model/common';
 import type { ProductPrice } from '@/platform/services/model/price';
@@ -29,7 +36,7 @@ import { RatingStarRow } from '../ui/rating';
 import { Spinner } from '../ui/spinner';
 import ProductAddToCart from './product-add-to-cart';
 import ProductAddToCartBar from './product-add-to-cart-bar';
-import { ProductPriceComponent, ProductPriceSkeleton } from './product-price';
+import { ProductPriceComponent, ProductPriceSkeleton, ProductPriceUnavailable } from './product-price';
 import { ProductShippingInfo } from './product-shipping-info';
 import ProductVariantSelector from './product-variant-selector';
 import { RelatedMaterials } from './related-materials';
@@ -41,8 +48,10 @@ export interface ProductDetailProps {
 }
 
 export default function ProductDetail({ product: initialProduct, options, className }: ProductDetailProps) {
+  const { ready: shopContextReady } = useShopContextReady();
   const { product, loading, setAsCurrent } = useProduct(initialProduct, options);
   const { session } = useSession();
+  const { site } = useSite();
   const [price, setPrice] = useState<ProductPrice | null | undefined>(product?.price);
   const [availability, setAvailability] = useState<StockAvailability | undefined>(product?.availability);
   const locale = useLocale();
@@ -51,6 +60,9 @@ export default function ProductDetail({ product: initialProduct, options, classN
   const isAboveMediumScreen = useBreakpoint('md');
   const addToCartButton = useRef<HTMLDivElement>(null);
   const addToCartBar = useRef<HTMLDivElement>(null);
+  const priceSyncGenerationRef = useRef(0);
+  const availabilitySyncGenerationRef = useRef(0);
+  const availabilityShopContextRef = useRef('');
   const [opacity, setOpacity] = React.useState(false);
   //   const { recommendations, loading: recLoading } = useRecommendations(product?.id);
   useEffect(() => {
@@ -63,25 +75,108 @@ export default function ProductDetail({ product: initialProduct, options, classN
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product]);
 
-  // asynchronous price fetching if not provided in SSR
+  // Price: keep aligned with session site/currency (store cache can hold another site's price until useProduct refetches).
   useEffect(() => {
-    if (product) {
-      if (product.price === undefined || session?.currency != price?.currency) {
-        fetchProductPrice(product.id).then((price) => {
-          setPrice(price);
-        });
-      }
-      if (product.availability === undefined) {
-        fetchProductAvailability(product.id).then((availability) => {
-          setAvailability(availability);
-        });
-      }
-    } else {
+    const syncGeneration = ++priceSyncGenerationRef.current;
+    let cancelled = false;
+
+    if (!product?.id) {
       setPrice(undefined);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (!session?.currency || !session?.siteCode || !isPurchaseShopContextReady(session, site)) {
+      setPrice(undefined);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const embedded = product.price;
+    if (
+      embedded !== undefined &&
+      embedded !== null &&
+      embedded.currency &&
+      isProductPriceDisplayableForPurchase(embedded.currency, session, site)
+    ) {
+      setPrice(embedded);
+    } else {
+      const syncPrice = async () => {
+        const nextPrice = await fetchProductPrice(product.id);
+        if (cancelled || syncGeneration !== priceSyncGenerationRef.current) {
+          return;
+        }
+        if (nextPrice?.currency && !isProductPriceDisplayableForPurchase(nextPrice.currency, session, site)) {
+          getLogger().warn(
+            {
+              productId: product.id,
+              currency: nextPrice.currency,
+              sessionCurrency: session.currency,
+              siteCode: site?.code,
+            },
+            'Rejected product price API response — currency not allowed for current shop context',
+          );
+          setPrice(null);
+          return;
+        }
+        setPrice(nextPrice);
+      };
+      void syncPrice();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [product, session, site]);
+
+  // Stock / delivery context is site+session scoped — refetch when shop context changes (do not reuse another site's row).
+  useEffect(() => {
+    const syncGeneration = ++availabilitySyncGenerationRef.current;
+    let cancelled = false;
+
+    if (!product?.id) {
+      setAvailability(undefined);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (!session?.currency || !session?.siteCode || !isPurchaseShopContextReady(session, site)) {
+      setAvailability(undefined);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const shopSyncKey = `${session.siteCode}|${session.currency}|${site?.code ?? ''}|${product.id}`;
+    if (availabilityShopContextRef.current !== '' && availabilityShopContextRef.current !== shopSyncKey) {
       setAvailability(undefined);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [product, session?.currency]);
+    availabilityShopContextRef.current = shopSyncKey;
+
+    setAvailability(undefined);
+    const syncAvailability = async () => {
+      try {
+        const nextAvailability = await fetchProductAvailability(product.id);
+        if (cancelled || syncGeneration !== availabilitySyncGenerationRef.current) {
+          return;
+        }
+        setAvailability(nextAvailability);
+      } catch {
+        if (cancelled || syncGeneration !== availabilitySyncGenerationRef.current) {
+          return;
+        }
+        setAvailability(undefined);
+      }
+    };
+    void syncAvailability();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [product?.id, session, site]);
 
   useEffect(() => {
     if (addToCartButton.current !== null && isAboveMediumScreen) {
@@ -107,7 +202,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
     }
   });
 
-  if (loading) {
+  if (!shopContextReady || loading) {
     return (
       <div className={cn('flex justify-center items-center min-h-[400px] mb-6', className)}>
         <Spinner variant="lg" />
@@ -265,10 +360,22 @@ export default function ProductDetail({ product: initialProduct, options, classN
             ref={addToCartButton}
           >
             <div className="col-start-1 sm:row-start-1 md:col-end-4 xl-col-end-5">
-              {price === undefined ? <ProductPriceSkeleton /> : <ProductPriceComponent price={price} />}
+              {price === undefined ? (
+                <ProductPriceSkeleton />
+              ) : price === null ? (
+                <ProductPriceUnavailable />
+              ) : (
+                <ProductPriceComponent price={price} />
+              )}
             </div>
           </div>
-          <ProductAddToCart product={product} price={price} className="mt-6" />
+          <ProductAddToCart
+            product={product}
+            price={price}
+            availability={availability}
+            availabilityLoading={availability === undefined}
+            className="mt-6"
+          />
           <div className="flex md:hidden justify-center gap-2 mt-6">
             <Button size="icon" variant="secondary" aria-label={t('compare')}>
               <FlipHorizontal2 />
@@ -282,6 +389,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
           </div>
           {product.variantAttributes && <ProductVariantSelector product={product} className="mt-6" />}
           <ProductShippingInfo
+            currency={price?.currency ?? session?.currency}
             deliveryDays={
               availability?.isAvailable
                 ? [0, 0]
@@ -293,7 +401,12 @@ export default function ProductDetail({ product: initialProduct, options, classN
           className={cn(opacity ? 'opacity-100' : 'opacity-0', 'transition-opacity ease-in-out delay-150 duration-300')}
           ref={addToCartBar}
         >
-          <ProductAddToCartBar product={product} price={price} />
+          <ProductAddToCartBar
+            product={product}
+            price={price}
+            availability={availability}
+            availabilityLoading={availability === undefined}
+          />
         </div>
 
         <div className="row-start-5 md:col-start-2 md:row-start-4 mt-8 md:mt-0">

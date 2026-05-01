@@ -1,6 +1,7 @@
 import { inject } from 'inversify';
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
+import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import { buildSearchQuery } from '../../common/util/common';
 import type { EmporixConfig } from '../../config';
@@ -16,6 +17,14 @@ import type {
   EmporixUpdateCartItemRequest,
 } from '../../model';
 import type { EmporixCartApi as IEmporixCartApi } from '../EmporixCartApi';
+
+const createCartMetrics = (route: string) => createFetchMetricsParams('cart', route);
+
+// Ask Emporix to return all locales for localized fields (e.g. product.localizedName
+// on cart lines) so the mapper can expose the full map and the UI can resolve
+// the current UI locale per render. Without this, Emporix defaults to the
+// session language and flattens localized values into a single string.
+const ACCEPT_LANGUAGE_ALL: Record<string, string> = { 'Accept-Language': '*' };
 
 @injectable('EmporixCartApi', 'Singleton')
 class EmporixCartApi implements IEmporixCartApi {
@@ -43,6 +52,8 @@ class EmporixCartApi implements IEmporixCartApi {
       },
       // differentiate between customer and anonymous
       createCartRequest.customerId ? 'customer-saas' : 'session',
+      undefined,
+      createCartMetrics('/cart/{tenant}/carts'),
     );
 
     if (!response.ok) {
@@ -58,8 +69,10 @@ class EmporixCartApi implements IEmporixCartApi {
   async getCart(cartId: string, checkSession = true): Promise<EmporixCart | null> {
     const response = await this.apiClient.authenticatedFetch(
       `/cart/${this.config.tenant}/carts/${cartId}`,
-      { method: 'GET' },
+      { method: 'GET', headers: { ...ACCEPT_LANGUAGE_ALL } },
       checkSession ? 'session' : 'service',
+      undefined,
+      createCartMetrics('/cart/{tenant}/carts/{cartId}'),
     );
 
     if (!response.ok) {
@@ -101,8 +114,10 @@ class EmporixCartApi implements IEmporixCartApi {
 
     const response = await this.apiClient.authenticatedFetch(
       `/cart/${this.config.tenant}/carts?${queryParams.toString()}`,
-      { method: 'GET' },
+      { method: 'GET', headers: { ...ACCEPT_LANGUAGE_ALL } },
       'session',
+      undefined,
+      createCartMetrics('/cart/{tenant}/carts'),
     );
 
     if (!response.ok) {
@@ -124,10 +139,13 @@ class EmporixCartApi implements IEmporixCartApi {
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',
+          ...ACCEPT_LANGUAGE_ALL,
         },
         body: JSON.stringify(body),
       },
       'session',
+      undefined,
+      createCartMetrics('/cart/{tenant}/carts/search'),
     );
 
     if (!response.ok) {
@@ -149,6 +167,8 @@ class EmporixCartApi implements IEmporixCartApi {
         body: JSON.stringify(item),
       },
       'session',
+      undefined,
+      createCartMetrics('/cart/{tenant}/carts/{cartId}/items'),
     );
 
     if (!response.ok) {
@@ -163,8 +183,10 @@ class EmporixCartApi implements IEmporixCartApi {
   async getCartItems(cartId: string): Promise<EmporixCartItem[]> {
     const response = await this.apiClient.authenticatedFetch(
       `/cart/${this.config.tenant}/carts/${cartId}/items`,
-      { method: 'GET' },
+      { method: 'GET', headers: { ...ACCEPT_LANGUAGE_ALL } },
       'session',
+      undefined,
+      createCartMetrics('/cart/{tenant}/carts/{cartId}/items'),
     );
 
     if (!response.ok) {
@@ -198,6 +220,8 @@ class EmporixCartApi implements IEmporixCartApi {
         body: JSON.stringify(updateRequest),
       },
       'session',
+      undefined,
+      createCartMetrics('/cart/{tenant}/carts/{cartId}/items/{itemId}'),
     );
 
     if (!response.ok) {
@@ -211,6 +235,8 @@ class EmporixCartApi implements IEmporixCartApi {
       `/cart/${this.config.tenant}/carts/${cartId}/items/${itemId}`,
       { method: 'DELETE' },
       'session',
+      undefined,
+      createCartMetrics('/cart/{tenant}/carts/{cartId}/items/{itemId}'),
     );
 
     if (!response.ok) {
@@ -224,6 +250,8 @@ class EmporixCartApi implements IEmporixCartApi {
       `/cart/${this.config.tenant}/carts/${cartId}`,
       { method: 'DELETE' },
       'session',
+      undefined,
+      createCartMetrics('/cart/{tenant}/carts/{cartId}'),
     );
 
     if (!response.ok) {
@@ -244,6 +272,8 @@ class EmporixCartApi implements IEmporixCartApi {
         body: JSON.stringify(cart),
       },
       'service',
+      undefined,
+      createCartMetrics('/cart/{tenant}/carts/{cartId}'),
     );
 
     if (!response.ok) {
@@ -264,6 +294,8 @@ class EmporixCartApi implements IEmporixCartApi {
         body: JSON.stringify({ currency }),
       },
       'session',
+      undefined,
+      createCartMetrics('/cart/{tenant}/carts/{cartId}/changeCurrency'),
     );
 
     if (!response.ok) {
@@ -284,6 +316,8 @@ class EmporixCartApi implements IEmporixCartApi {
         body: JSON.stringify({ siteCode }),
       },
       'session',
+      undefined,
+      createCartMetrics('/cart/{tenant}/carts/{cartId}/changeSite'),
     );
 
     if (!response.ok) {
@@ -302,6 +336,8 @@ class EmporixCartApi implements IEmporixCartApi {
         },
       },
       'session',
+      undefined,
+      createCartMetrics('/cart/{tenant}/carts/{cartId}/refresh'),
     );
 
     if (!response.ok) {
@@ -322,6 +358,8 @@ class EmporixCartApi implements IEmporixCartApi {
         body: JSON.stringify({ carts: [sourceCartId] }),
       },
       'session',
+      undefined,
+      createCartMetrics('/cart/{tenant}/carts/{cartId}/merge'),
     );
 
     if (!response.ok) {

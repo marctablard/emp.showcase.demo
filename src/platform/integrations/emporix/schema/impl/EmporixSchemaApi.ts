@@ -1,6 +1,7 @@
 import { inject } from 'inversify';
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
+import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import { buildPaginatedResponse, buildSearchQuery } from '../../common/util/common';
@@ -13,6 +14,8 @@ import type {
   EmporixSchema,
 } from '../../model/schema';
 import type { EmporixSchemaApi as IEmporixSchemaApi } from '../EmporixSchemaApi';
+
+const createSchemaMetrics = (route: string) => createFetchMetricsParams('schema', route);
 
 @injectable('EmporixSchemaApi', 'Singleton')
 class EmporixSchemaApi implements IEmporixSchemaApi {
@@ -68,6 +71,8 @@ class EmporixSchemaApi implements IEmporixSchemaApi {
         body: JSON.stringify(customEntity),
       },
       'service',
+      undefined,
+      createSchemaMetrics('/schema/{tenant}/custom-entities/{id}/instances'),
     );
 
     if (!response.ok) {
@@ -91,7 +96,13 @@ class EmporixSchemaApi implements IEmporixSchemaApi {
     const urlQuery = query ? `?${query}&q=${searchBody}` : `?q=${searchBody}`;
     const url = `/schema/${this.config.tenant}/custom-entities/${type}/instances${urlQuery}`;
 
-    const response = await this.apiClient.authenticatedFetch(url, { method: 'GET' }, 'service');
+    const response = await this.apiClient.authenticatedFetch(
+      url,
+      { method: 'GET' },
+      'service',
+      undefined,
+      createSchemaMetrics('/schema/{tenant}/custom-entities/{id}/instances'),
+    );
 
     if (!response.ok) {
       const errorDetails = await response.text();
@@ -106,6 +117,8 @@ class EmporixSchemaApi implements IEmporixSchemaApi {
       `/schema/${this.config.tenant}/custom-entities/${type}/instances/${instanceId}`,
       { method: 'GET' },
       'service',
+      undefined,
+      createSchemaMetrics('/schema/{tenant}/custom-entities/{id}/instances/{id}'),
     );
 
     if (!response.ok) {
@@ -131,6 +144,8 @@ class EmporixSchemaApi implements IEmporixSchemaApi {
         body: JSON.stringify(customEntity),
       },
       'service',
+      undefined,
+      createSchemaMetrics('/schema/{tenant}/custom-entities/{id}/instances/{id}'),
     );
 
     if (!response.ok) {
@@ -144,6 +159,8 @@ class EmporixSchemaApi implements IEmporixSchemaApi {
       `/schema/${this.config.tenant}/custom-entities/${type}/instances/${instanceId}`,
       { method: 'DELETE' },
       'service',
+      undefined,
+      createSchemaMetrics('/schema/{tenant}/custom-entities/{id}/instances/{id}'),
     );
 
     if (!response.ok) {
@@ -164,6 +181,8 @@ class EmporixSchemaApi implements IEmporixSchemaApi {
         body: JSON.stringify(operations),
       },
       'service',
+      undefined,
+      createSchemaMetrics('/schema/{tenant}/custom-entities/{id}/instances/{id}'),
     );
 
     if (!response.ok) {
@@ -194,6 +213,8 @@ class EmporixSchemaApi implements IEmporixSchemaApi {
         body: JSON.stringify({ q: searchBody }),
       },
       'service',
+      undefined,
+      createSchemaMetrics('/schema/{tenant}/custom-entities/{id}/instances/search'),
     );
 
     if (!response.ok) {
@@ -215,6 +236,8 @@ class EmporixSchemaApi implements IEmporixSchemaApi {
         body: JSON.stringify(entities),
       },
       'service',
+      undefined,
+      createSchemaMetrics('/schema/{tenant}/custom-entities/{id}/instances/bulk'),
     );
 
     if (!response.ok) {
@@ -237,6 +260,8 @@ class EmporixSchemaApi implements IEmporixSchemaApi {
         body: JSON.stringify(entities),
       },
       'service',
+      undefined,
+      createSchemaMetrics('/schema/{tenant}/custom-entities/{id}/instances/bulk'),
     );
 
     if (!response.ok) {
@@ -259,6 +284,8 @@ class EmporixSchemaApi implements IEmporixSchemaApi {
         body: JSON.stringify(instanceIds),
       },
       'service',
+      undefined,
+      createSchemaMetrics('/schema/{tenant}/custom-entities/{id}/instances/bulk'),
     );
 
     if (!response.ok) {
@@ -282,7 +309,13 @@ class EmporixSchemaApi implements IEmporixSchemaApi {
       url += `?version=${version}`;
     }
 
-    const response = await this.apiClient.authenticatedFetch(url, { method: 'GET' }, 'service');
+    const response = await this.apiClient.authenticatedFetch(
+      url,
+      { method: 'GET' },
+      'service',
+      undefined,
+      createSchemaMetrics('/schema/{tenant}/schemas/{id}'),
+    );
 
     if (!response.ok) {
       const errorDetails = await response.text();

@@ -15,7 +15,9 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card
 import { Checkbox } from '../ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '../ui/form';
 import { H2 } from '../ui/h';
+import { ToastType, notify } from '../ui/toast-notification';
 import { ApprovalModal } from './approval-modal';
+import { focusFirstInvalid, useCheckoutValidation, useRegisterCheckoutForm } from './checkout-validation-registry';
 
 interface OrderSummaryProps {
   isReadOnly?: boolean;
@@ -28,21 +30,15 @@ interface OrderSummaryProps {
  * Displays cart items, subtotal, shipping, and total
  */
 const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, onSubmit }) => {
-  const {
-    checkoutCart: cart,
-    loading: checkoutLoading,
-    shippingMethod,
-    availableShippingMethods,
-    shippingMethodsLoading,
-  } = useCheckout();
+  const { checkoutCart: cart, loading: checkoutLoading } = useCheckout();
   const { requiresApproval, loading: approvalLoading, setCartId } = useApprovalCheckout(cart?.id?.toString());
   const loading = checkoutLoading || approvalLoading;
   const t = useTranslations('checkout.summary');
-  const [isSubmitting] = useState(false);
+  const tCheckout = useTranslations('checkout');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [disabled, setDisabled] = useState(true);
-  const hasShippingMethods = availableShippingMethods.length > 0;
-  const isShippingSelectionValid = !!shippingMethod && hasShippingMethods;
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
+  const { validateAll } = useCheckoutValidation();
 
   const onValidationSuccess = (data: any) => {
     setDisabled(!data.termsAndConditions);
@@ -68,6 +64,9 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
     onValidationSuccess,
   );
 
+  const summaryRootRef = useRef<HTMLDivElement>(null);
+  useRegisterCheckoutForm('summary-terms', form, summaryRootRef);
+
   const fixedContainer = useRef<HTMLDivElement>(null);
   const { isFixed, isFixedToTop, isContainerBottom } = useElementScroll(fixedContainer, 80, leftContent);
   const { cartTotal, shippingCosts } = useCartTotal();
@@ -91,7 +90,7 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
       >
         <Card
           className={cn('bg-surface-action-hover-2 p-6 border-none gap-4 md:max-w-[438px] w-full')}
-          ref={fixedContainer}
+          ref={summaryRootRef}
         >
           <CardHeader className="p-0">
             <CardTitle>
@@ -156,22 +155,29 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
 
               <Button
                 type="submit"
-                onClick={(e) => {
-                  if (requiresApproval) {
-                    e.preventDefault();
-                    setIsApprovalModalOpen(true);
-                  } else {
-                    onSubmit();
+                onClick={async (e) => {
+                  e.preventDefault();
+                  if (isSubmitting || loading) {
+                    return;
+                  }
+                  setIsSubmitting(true);
+                  try {
+                    const { valid, firstInvalid } = await validateAll();
+                    if (!valid) {
+                      notify({ type: ToastType.Error, title: tCheckout('formErrors') });
+                      focusFirstInvalid(firstInvalid);
+                      return;
+                    }
+                    if (requiresApproval) {
+                      setIsApprovalModalOpen(true);
+                    } else {
+                      onSubmit();
+                    }
+                  } finally {
+                    setIsSubmitting(false);
                   }
                 }}
-                disabled={
-                  disabled ||
-                  isSubmitting ||
-                  loading ||
-                  approvalLoading ||
-                  shippingMethodsLoading ||
-                  !isShippingSelectionValid
-                }
+                disabled={disabled || isSubmitting || loading || approvalLoading}
                 className="w-full"
                 data-testid="checkout-submitOrder"
               >

@@ -17,11 +17,13 @@ function createMockLogger(): jest.Mocked<LoggerService> {
   } as unknown as jest.Mocked<LoggerService>;
 }
 
-function createMockSiteSettingsApi(
-  siteMap: Record<string, EmporixSite | null>,
-): jest.Mocked<Pick<EmporixSiteSettingsApi, 'getSite'>> {
+function createMockSiteSettingsApi(siteMap: Record<string, EmporixSite | null>) {
+  const allSites = Object.values(siteMap).filter((s): s is EmporixSite => s !== null);
   return {
     getSite: jest.fn((code: string) => Promise.resolve(siteMap[code] ?? null)),
+    getSites: jest.fn((_searchParams?: unknown, _includeInactive?: boolean) =>
+      Promise.resolve({ items: allSites, total: allSites.length }),
+    ),
   };
 }
 

@@ -8,7 +8,7 @@ export const LoginSchema = z.object({
 export const AddressFormSchema = z.object({
   contactName: z.string().min(1, { message: 'address.contactName.required' }),
   street: z.string().min(1, { message: 'address.street.required' }),
-  streetNumber: z.string().min(1, { message: 'address.streetNumber.required' }),
+  streetNumber: z.string().optional(),
   zipCode: z.string().min(1, { message: 'address.zipCode.required' }),
   city: z.string().min(1, { message: 'address.city.required' }),
   country: z.string().min(1, { message: 'address.country.required' }),
@@ -63,7 +63,7 @@ export const ProfileEditSchema = z.object({
 
 export const PaymentFormSchema = z
   .object({
-    id: z.string().min(1, 'payment.id.required'),
+    id: z.string().min(1, 'payment.method.required'),
     cardNumber: z.string().optional(),
     cardHolder: z.string().optional(),
     expiryDate: z.string().optional(),
@@ -73,7 +73,7 @@ export const PaymentFormSchema = z
   .passthrough();
 
 export const ShippingFormSchema = z.object({
-  methodId: z.string().min(1, 'shipping.methodId.required'),
+  methodId: z.string().min(1, 'shipping.method.required'),
 });
 
 export const SummaryFormSchema = z.object({

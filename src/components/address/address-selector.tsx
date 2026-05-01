@@ -17,7 +17,16 @@ import { cn } from '@/lib/utils';
 import type { Address, AddressType } from '@/platform/services/model/common';
 import type { CustomerAddress } from '@/platform/services/model/customer/customer';
 
-export type AddressBookMode = 'customer' | 'legalEntity' | 'companyAndCustomer';
+/**
+ * - `customer` — force the customer profile book.
+ * - `legalEntity` — force the B2B legal-entity locations book.
+ * - `auto` — pick one book based on the signed-in customer:
+ *     • B2B (businessModel='B2B' with a legalEntityId in session or customer)
+ *       → legal-entity locations only, no prefill.
+ *     • Everyone else signed in (for example, B2C customers) → customer profile addresses only.
+ *   This is the default for checkout/quote flows.
+ */
+export type AddressBookMode = 'customer' | 'legalEntity' | 'auto';
 
 export interface AddressSelectorProps {
   onSelect: (address: Address) => void;
@@ -27,11 +36,6 @@ export interface AddressSelectorProps {
   showAddressTypes?: boolean;
   addressType?: AddressType;
   className?: string;
-  /**
-   * `customer` — profile addresses only.
-   * `legalEntity` — legal-entity locations only (B2B).
-   * `companyAndCustomer` — both, in two sections; company section only for logged-in B2B users with a legal entity.
-   */
   addressBook?: AddressBookMode;
 }
 
@@ -65,15 +69,7 @@ function formatAddressSummary(address: Address): string {
   return parts.join(', ');
 }
 
-interface GroupedLists {
-  showCompanyRow: boolean;
-  companyAddresses: CustomerAddress[];
-  customerAddresses: CustomerAddress[];
-}
-
 interface AddressSelectorInnerProps extends Omit<AddressSelectorProps, 'addressBook'> {
-  grouped: GroupedLists | null;
-  /** Used when `grouped` is null */
   flatAddresses: CustomerAddress[] | undefined;
   loading: boolean;
 }
@@ -86,12 +82,10 @@ function AddressSelectorInner({
   showAddressTypes = true,
   addressType: _addressType,
   className,
-  grouped,
   flatAddresses,
   loading,
 }: AddressSelectorInnerProps) {
   const t = useTranslations('account.AddressForm');
-  const tCheckout = useTranslations('checkout');
   const [open, setOpen] = useState(false);
   const [internalSelectedId, setInternalSelectedId] = useState<string | undefined>(selectedAddressId);
 
@@ -105,9 +99,7 @@ function AddressSelectorInner({
     setOpen(false);
   };
 
-  const flatList = grouped
-    ? [...(grouped.showCompanyRow ? grouped.companyAddresses : []), ...grouped.customerAddresses]
-    : (flatAddresses ?? []);
+  const flatList = flatAddresses ?? [];
 
   const selectedAddress = resolvedSelectedId ? flatList.find((addr) => addr.id === resolvedSelectedId) : undefined;
 
@@ -124,7 +116,12 @@ function AddressSelectorInner({
       data-testid={`addressSelector-item-${address.id}`}
     >
       <div className="flex justify-between items-start mb-1">
-        <p className="font-bold">{address.contactName}</p>
+        <div className="flex items-center gap-2">
+          <p className="font-bold">{address.contactName}</p>
+          {address.source === 'customer' && address.isDefault ? (
+            <span className="text-xs px-2 py-0.5 rounded-sm bg-surface-success text-text-success">{t('default')}</span>
+          ) : null}
+        </div>
 
         {showAddressTypes && (
           <div className="flex gap-1">
@@ -156,20 +153,10 @@ function AddressSelectorInner({
         {address.state ? <p>{address.state}</p> : null}
         <p>{address.country}</p>
       </div>
-
-      {address.isDefault && (
-        <div className="w-fit text-sm px-2 py-1 rounded-sm bg-surface-success text-text-body mt-1">{t('default')}</div>
-      )}
     </div>
   );
 
-  const hasGroupedContent =
-    grouped &&
-    ((grouped.showCompanyRow && grouped.companyAddresses.length > 0) || grouped.customerAddresses.length > 0);
-
-  const hasFlatContent = !grouped && flatAddresses && flatAddresses.length > 0;
-
-  const showList = hasGroupedContent || hasFlatContent;
+  const hasContent = flatList.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -194,26 +181,8 @@ function AddressSelectorInner({
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
             </div>
-          ) : showList ? (
-            <div className="max-h-[400px] overflow-y-auto space-y-4">
-              {grouped && grouped.showCompanyRow && grouped.companyAddresses.length > 0 ? (
-                <div>
-                  <p className="text-sm font-semibold text-text-body mb-2">
-                    {tCheckout('addressBook.companyAddresses')}
-                  </p>
-                  <div>{grouped.companyAddresses.map(renderAddressBlock)}</div>
-                </div>
-              ) : null}
-              {grouped && grouped.customerAddresses.length > 0 ? (
-                <div>
-                  <p className="text-sm font-semibold text-text-body mb-2">
-                    {tCheckout('addressBook.customerAddresses')}
-                  </p>
-                  <div>{grouped.customerAddresses.map(renderAddressBlock)}</div>
-                </div>
-              ) : null}
-              {!grouped && flatAddresses?.length ? flatAddresses.map(renderAddressBlock) : null}
-            </div>
+          ) : hasContent ? (
+            <div className="max-h-[400px] overflow-y-auto">{flatList.map(renderAddressBlock)}</div>
           ) : (
             <div className="text-center py-8">{t('noAddresses')}</div>
           )}
@@ -226,69 +195,62 @@ function AddressSelectorInner({
 function AddressSelectorCustomerBook(props: Omit<AddressSelectorProps, 'addressBook'>) {
   const { addresses, loading } = useAddresses();
   const filtered = filterByAddressRole(addresses, props.addressType);
-  return <AddressSelectorInner {...props} grouped={null} flatAddresses={filtered} loading={loading} />;
+  return <AddressSelectorInner {...props} flatAddresses={filtered} loading={loading} />;
 }
 
 function AddressSelectorLegalEntityBook(props: Omit<AddressSelectorProps, 'addressBook'>) {
   const { addresses, loading } = useLegalEntityCheckoutAddresses();
   const filtered = filterByAddressRole(addresses, props.addressType);
-  return <AddressSelectorInner {...props} grouped={null} flatAddresses={filtered} loading={loading} />;
-}
-
-function AddressSelectorCompanyAndCustomerBook(props: Omit<AddressSelectorProps, 'addressBook'>) {
-  const { status } = useSession();
-  const { customer } = useCustomer();
-  const { session: shopSession } = useShopSession();
-
-  const showCompanyRow =
-    status === 'authenticated' &&
-    customer?.businessModel === 'B2B' &&
-    Boolean(resolveLegalEntityIdFromSessionAndCustomer(shopSession, customer));
-
-  const { addresses: leAddresses, loading: leLoading } = useLegalEntityCheckoutAddresses(!showCompanyRow);
-  const { addresses: customerAddresses, loading: custLoading } = useAddresses();
-
-  const companyFiltered = filterByAddressRole(showCompanyRow ? leAddresses : [], props.addressType);
-  const customerFiltered = filterByAddressRole(customerAddresses, props.addressType);
-
-  const loading = custLoading || (showCompanyRow && leLoading);
-
-  if (!loading && companyFiltered.length === 0 && customerFiltered.length === 0) {
-    return null;
-  }
-
-  return (
-    <AddressSelectorInner
-      {...props}
-      grouped={{
-        showCompanyRow,
-        companyAddresses: companyFiltered,
-        customerAddresses: customerFiltered,
-      }}
-      flatAddresses={undefined}
-      loading={loading}
-    />
-  );
+  return <AddressSelectorInner {...props} flatAddresses={filtered} loading={loading} />;
 }
 
 /**
- * Dialog to pick an address from the customer profile book, the B2B legal-entity location book, or both (grouped).
+ * For logged-in B2B users (businessModel='B2B' with a legalEntityId in the
+ * shop session or customer profile) this dispatches to the legal-entity book;
+ * for everyone else it dispatches to the customer profile book. Both books are
+ * flat — no grouping — so the user always sees addresses of a single origin.
+ */
+function useIsB2BWithLegalEntity(): boolean {
+  const { status } = useSession();
+  const { customer } = useCustomer();
+  const { session: shopSession } = useShopSession();
+  return (
+    status === 'authenticated' &&
+    customer?.businessModel === 'B2B' &&
+    Boolean(resolveLegalEntityIdFromSessionAndCustomer(shopSession, customer))
+  );
+}
+
+function AddressSelectorAutoBook(props: Omit<AddressSelectorProps, 'addressBook'>) {
+  const isB2B = useIsB2BWithLegalEntity();
+  if (isB2B) {
+    return <AddressSelectorLegalEntityBook {...props} />;
+  }
+  return <AddressSelectorCustomerBook {...props} />;
+}
+
+/**
+ * Dialog to pick an address from the customer profile book or the B2B legal-entity location book.
  *
  * @param onSelect - Callback when the user picks a row; receives the {@link Address} and closes the dialog.
- * @param triggerElement - Optional element that opens the dialog (default: secondary button with truncated label or “select address”).
+ * @param triggerElement - Optional element that opens the dialog (default: secondary button with truncated label or "select address").
  * @param selectedAddressId - Controlled selection id; when set, that row is highlighted and internal selection is not used for that id.
- * @param title - Dialog title override (default: translated “select an address”).
- * @param showAddressTypes - When true (default), show SHIPPING/BILLING chips from each address’s `tags`.
+ * @param title - Dialog title override (default: translated "select an address").
+ * @param showAddressTypes - When true (default), show SHIPPING/BILLING chips from each address's `tags`.
  * @param addressType - When set, filter to addresses whose `tags` include this role (e.g. checkout shipping passes shipping).
  * @param className - Extra classes on the default trigger button when `triggerElement` is omitted.
- * @param addressBook - `customer`: profile addresses. `legalEntity`: B2B locations. `companyAndCustomer`: both sections for checkout (company row only when logged-in B2B with legal entity).
+ * @param addressBook - See {@link AddressBookMode}. Defaults to `'auto'` which picks the right book based on B2B/B2C context.
  */
-export function AddressSelector({ addressBook = 'customer', ...props }: AddressSelectorProps) {
+export function AddressSelector({ addressBook = 'auto', ...props }: AddressSelectorProps) {
+  const { status } = useSession();
+  if (status !== 'authenticated') {
+    return null;
+  }
   if (addressBook === 'legalEntity') {
     return <AddressSelectorLegalEntityBook {...props} />;
   }
-  if (addressBook === 'companyAndCustomer') {
-    return <AddressSelectorCompanyAndCustomerBook {...props} />;
+  if (addressBook === 'customer') {
+    return <AddressSelectorCustomerBook {...props} />;
   }
-  return <AddressSelectorCustomerBook {...props} />;
+  return <AddressSelectorAutoBook {...props} />;
 }

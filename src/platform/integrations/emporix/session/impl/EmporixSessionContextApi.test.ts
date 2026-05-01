@@ -1,4 +1,5 @@
 import { Container } from 'inversify';
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import { EmporixTokenManager as TokenManager } from '../../common/EmporixTokenManager';
 import EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
 import { EmporixTestTokenManager } from '../../common/impl/EmporixTokenManager.test';
@@ -48,14 +49,30 @@ describe('EmporixSessionContextApi', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Clear the globalThis-based session context cache between tests
+    delete (globalThis as Record<string, unknown>)['__emporix_session_ctx_cache'];
 
     // Set up the container with our test config
     container = new Container();
     container.bind<EmporixConfig>('EmporixConfig').to(TestEmporixConfig);
     container.bind<EmporixOAuthApi>('EmporixOAuthApi').to(EmporixOAuthApi);
-    container.bind<TokenManager>('EmporixTokenManager').to(EmporixTestTokenManager);
+    container.bind<TokenManager>('EmporixTokenManager').to(EmporixTestTokenManager).inSingletonScope();
     container.bind<EmporixCustomerApi>('EmporixCustomerApi').to(EmporixCustomerApi);
-    container.bind<EmporixApiInvoker>('EmporixApiInvoker').to(EmporixApiInvoker);
+    container
+      .bind<EmporixApiInvoker>('EmporixApiInvoker')
+      .toDynamicValue(
+        (ctx) =>
+          new EmporixApiInvoker(ctx.get<EmporixConfig>('EmporixConfig'), ctx.get<TokenManager>('EmporixTokenManager')),
+      )
+      .inSingletonScope();
+    container.bind<LoggerService>('LoggerService').toConstantValue({
+      trace: jest.fn(),
+      debug: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      fatal: jest.fn(),
+    } as unknown as LoggerService);
     container.bind<EmporixSessionContextApi>('EmporixSessionContextApi').to(EmporixSessionContextApi);
     // enable for debug output as curl
     // container.bind<boolean>('debugCurl').toConstantValue(true);
@@ -81,6 +98,8 @@ describe('EmporixSessionContextApi', () => {
         `/session-context/${config.tenant}/context/${sessionId}`,
         expect.objectContaining({ method: 'GET' }),
         'service',
+        undefined,
+        expect.anything(),
       );
 
       expect(result).toBeDefined();
@@ -96,6 +115,8 @@ describe('EmporixSessionContextApi', () => {
         `/session-context/${config.tenant}/context/${nonExistentSessionId}`,
         expect.objectContaining({ method: 'GET' }),
         'service',
+        undefined,
+        expect.anything(),
       );
 
       expect(result).toBeUndefined();
@@ -125,6 +146,7 @@ describe('EmporixSessionContextApi', () => {
         }),
         'service',
         { scopes: ['sessioncontext.context_manage'] },
+        expect.anything(),
       );
     });
   });
@@ -148,6 +170,7 @@ describe('EmporixSessionContextApi', () => {
         }),
         'service',
         { scopes: ['sessioncontext.context_manage'] },
+        expect.anything(),
       );
 
       // Verify the attribute was added by fetching the session
@@ -175,6 +198,7 @@ describe('EmporixSessionContextApi', () => {
         expect.objectContaining({ method: 'DELETE' }),
         'service',
         { scopes: ['sessioncontext.context_manage'] },
+        expect.anything(),
       );
 
       // Verify the attribute was removed by fetching the session

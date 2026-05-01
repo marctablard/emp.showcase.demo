@@ -1,4 +1,5 @@
 import { inject } from 'inversify';
+import { getPublicPriceMatchUseFallback } from '@/lib/common/public-default-env';
 import { injectable } from '@/platform/core/di/injectable';
 import type {
   EmporixMatchPricesRequest,
@@ -41,8 +42,12 @@ class EmporixPriceService implements PriceService {
         if (!site) {
           throw new Error(`Site ${params.siteCode} not found`);
         }
-        params.currency = site.defaultCurrency.id;
-        params.country = site.defaultCountry;
+        if (!params.currency) {
+          params.currency = site.defaultCurrency.id;
+        }
+        if (!params.country) {
+          params.country = site.defaultCountry;
+        }
       }
       const matchRequest: EmporixMatchPricesRequest = {
         targetCurrency: params.currency!,
@@ -51,7 +56,7 @@ class EmporixPriceService implements PriceService {
           countryCode: params.country!,
         },
         items: [this.mapToMatchPriceItem(productId, quantity, unitCode)],
-        useFallback: true, //TODO: confirm if it should be true by default, or if it should be configurable via account settings, endpoint or ENVs
+        useFallback: getPublicPriceMatchUseFallback(),
       };
       matchedPrices = await this.priceApi.matchPrices(matchRequest);
     }
@@ -89,24 +94,26 @@ class EmporixPriceService implements PriceService {
           if (!site) {
             throw new Error(`Site ${params.siteCode} not found`);
           }
-          params.currency = site.defaultCurrency.id;
-          params.country = site.defaultCountry;
+          if (!params.currency) {
+            params.currency = site.defaultCurrency.id;
+          }
+          if (!params.country) {
+            params.country = site.defaultCountry;
+          }
         }
         matchedPrices = await this.priceApi.matchPrices({
           targetCurrency: params.currency!,
           siteCode: params.siteCode,
           targetLocation: { countryCode: params.country! },
           items,
-          useFallback: true,
+          useFallback: getPublicPriceMatchUseFallback(),
         });
       }
       allMatched.push(...matchedPrices);
     }
 
-    // Initialize all requested IDs to null
     productIds.forEach((id) => result.set(id, null));
 
-    // Map matched prices by product ID (first match wins)
     allMatched.forEach((matched) => {
       const productId = matched.itemId.id;
       if (result.has(productId) && result.get(productId) === null) {

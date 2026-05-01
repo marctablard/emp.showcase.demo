@@ -42,6 +42,8 @@ cypress/videos/**/*
 
 # testing
 /coverage
+/e2e/plan
+/e2e/local
 
 # next.js
 /.next/
@@ -89,6 +91,10 @@ next-env.d.ts
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+# Local-only e2e specs and helpers: kept for developer reproduction/exploration,
+# not shipped to CI or deployment.
+/e2e/local/
+/e2e/plan/
 
 # Generated translation files
 /src/i18n/translations/*.json

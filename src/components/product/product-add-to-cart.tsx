@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { useProduct } from '@/hooks/product/useProduct';
 import { cn } from '@/lib/utils';
+import type { StockAvailability } from '@/platform/services/model/common';
 import type { ProductPrice } from '@/platform/services/model/price';
 import type { Product } from '@/platform/services/model/product';
 import ProductAddToCartButton from './product-add-to-cart-button';
@@ -17,10 +18,14 @@ export default function ProductAddToCart({
   product: initialProduct,
   price,
   className,
+  availability,
+  availabilityLoading = false,
 }: {
   product?: Product;
   price?: ProductPrice | null;
   className?: string;
+  availability?: StockAvailability | null;
+  availabilityLoading?: boolean;
 }) {
   const t = useTranslations('product');
   const { product, loading: productLoading, error: productError } = useProduct(initialProduct);
@@ -107,6 +112,8 @@ export default function ProductAddToCart({
         price={price}
         quantity={quantity}
         className="flex-1 w-full h-[52px] mt-4 sm:mt-0 sm:flex-grow"
+        availability={availability}
+        availabilityLoading={availabilityLoading}
       />
     </div>
   );

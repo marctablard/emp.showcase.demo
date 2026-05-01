@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { edgeLog } from '@/lib/server/edge-stderr-log';
 import { INTERNAL_APP_PATH_HEADER, NEXT_MIDDLEWARE_PREFIX } from '../site/types';
 import { DEFAULT_CACHE_REVALIDATE, cacheRules } from './cache-config';
 
@@ -26,8 +27,10 @@ function matchPattern(url: string, pattern: string): { matches: boolean; groups:
     const groups = match.slice(1);
     return { matches: true, groups };
   } catch (error) {
-    // eslint-disable-next-line no-console -- Edge middleware: Pino logger unavailable
-    console.error(`Invalid cache rule pattern: ${pattern}`, error);
+    edgeLog('error', 'invalid_cache_rule_pattern', {
+      pattern,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return { matches: false, groups: [] };
   }
 }

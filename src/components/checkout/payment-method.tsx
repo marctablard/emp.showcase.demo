@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { ReceiptText } from 'lucide-react';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '../ui/input';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { Spinner } from '../ui/spinner';
+import { useRegisterCheckoutForm } from './checkout-validation-registry';
 
 interface PaymentMethodProps {
   isReadOnly?: boolean;
@@ -33,13 +34,15 @@ const PaymentMethodComponent: React.FC<PaymentMethodProps> = ({ isReadOnly = fal
       });
     }
   });
+  const rootRef = useRef<HTMLDivElement>(null);
+  useRegisterCheckoutForm('payment-method', form, rootRef, { testIdPrefix: 'payment' });
 
   const t = useTranslations('checkout.payment');
   const tPayment = useTranslations('checkout.PaymentModes');
 
   return (
     <Form {...form}>
-      <div className="space-y-6 bg-surface-page">
+      <div className="space-y-6 bg-surface-page" ref={rootRef}>
         {loading && <Spinner variant="md" loadingText={t('loading')} />}
 
         {error && <div className="py-4 text-center text-text-error">{t('errorLoadingPaymentMethods')}</div>}

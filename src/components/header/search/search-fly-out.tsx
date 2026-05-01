@@ -14,7 +14,6 @@ import type { SearchSuggestions } from '@/platform/services/model/search';
 export interface SearchResultFlyOutProps {
   suggestions: SearchSuggestions;
   hasInitialSearch: boolean;
-  locale: string;
   query: string;
   loading: boolean;
   setQuery: Dispatch<SetStateAction<string>>;
@@ -31,7 +30,6 @@ export const SearchFlyOut = forwardRef<HTMLDivElement, SearchResultFlyOutProps>(
       loading,
       query,
       hasInitialSearch,
-      locale,
       setQuery,
       onProductClick,
       onQuerySelect,
@@ -77,7 +75,6 @@ export const SearchFlyOut = forwardRef<HTMLDivElement, SearchResultFlyOutProps>(
                   {productsShow.map((product) => (
                     <ProductTileFlyOut
                       key={product.id}
-                      locale={locale}
                       product={product}
                       onProductClick={onProductClick}
                       keyword={isProductsShown ? query : undefined}

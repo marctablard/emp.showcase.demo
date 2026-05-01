@@ -1,13 +1,13 @@
 'use client';
 
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { CogIcon, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { H3 } from '@/components/ui/h';
+import { useL10n } from '@/hooks/useL10n';
 import { useRouter } from '@/i18n/navigation';
-import { l10n } from '@/lib/utils';
 import type { CartStatus, CartStatusDetailCode } from '@/platform/services/cart/CartService';
 import type { Product } from '@/platform/services/model/product';
 import UINotification from '../ui/molecules/ui-notification';
@@ -35,7 +35,7 @@ export function AddToCartModal({
 }: AddToCartModalProps) {
   const t = useTranslations('product.addToCartResult');
   const tSubstitution = useTranslations('cart');
-  const locale = useLocale();
+  const { l10n } = useL10n();
   const router = useRouter();
 
   const handleViewCart = () => {
@@ -72,7 +72,7 @@ export function AddToCartModal({
                     width={100}
                     height={65}
                     src={product.images?.[0].url}
-                    alt={l10n(product.images?.[0].altText || product.name, locale)}
+                    alt={l10n(product.images?.[0].altText || product.name)}
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -85,8 +85,8 @@ export function AddToCartModal({
               <div className="flex-grow">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm">{l10n(product?.brand?.name || '', locale)}</p>
-                    <p className="font-bold text-sm">{l10n(product?.name || '', locale)}</p>
+                    <p className="text-sm">{l10n(product?.brand?.name || '')}</p>
+                    <p className="font-bold text-sm">{l10n(product?.name || '')}</p>
                   </div>
                 </div>
 

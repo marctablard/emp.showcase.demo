@@ -77,7 +77,9 @@ export class EmporixCompanyService implements CompanyService {
       const companyName = entity.legalInfo?.legalName || entity.name;
       const locations = await this.resolveLegalEntityLocations(entity);
 
-      return locations.map((loc) => mapLegalEntityLocationToCustomerAddress(loc, companyName));
+      return locations
+        .map((loc) => mapLegalEntityLocationToCustomerAddress(loc, companyName))
+        .filter((addr): addr is CustomerAddress => addr !== null);
     } catch (err) {
       this.logger.error({ err: err instanceof Error ? err : String(err) }, 'Legal entity checkout addresses failed');
       return [];

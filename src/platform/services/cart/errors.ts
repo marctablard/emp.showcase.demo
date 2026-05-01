@@ -27,6 +27,13 @@ export class CartCurrencyUpdateError extends Error {
   }
 }
 
+/** Works across bundle boundaries where `instanceof` can fail for the same class. */
+export function isCartCurrencyUpdateError(error: unknown): error is CartCurrencyUpdateError {
+  return (
+    error instanceof CartCurrencyUpdateError || (error instanceof Error && error.name === 'CartCurrencyUpdateError')
+  );
+}
+
 const UPSTREAM_STATUS_REGEX = /(?:\bstatus\b["':\s]+)?(400|401|403|404|409|422|500|502|503)\b/i;
 
 export function extractUpstreamStatus(message: string): number | undefined {

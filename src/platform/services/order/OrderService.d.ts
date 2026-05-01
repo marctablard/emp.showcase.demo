@@ -75,6 +75,11 @@ export interface OrderService {
   getCustomerOrderStatusTransitions(orderId: string): Promise<string[]>;
 
   /**
+   * Applies a customer-managed order transition (e.g. decline: status `DECLINED`).
+   */
+  applyCustomerOrderTransition(orderId: string, status: string): Promise<void>;
+
+  /**
    * Creates a new order from a quote.
    *
    * @param quoteId - The ID of the quote to create an order from

@@ -198,7 +198,6 @@ export function HeaderSearch({ small, show, isCollapsedHeader, className }: Head
           suggestions={suggestions}
           hasInitialSearch={hasInitialSearch}
           loading={loading}
-          locale={locale}
           query={query}
           setQuery={setQuery}
           onProductClick={handleProductClick}

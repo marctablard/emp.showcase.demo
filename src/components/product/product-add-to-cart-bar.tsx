@@ -4,6 +4,7 @@ import { FlipHorizontal2, Pin, Share2 } from 'lucide-react';
 import { useProduct } from '@/hooks/product/useProduct';
 import { useL10n } from '@/hooks/useL10n';
 import { cn } from '@/lib/utils';
+import type { StockAvailability } from '@/platform/services/model/common';
 import type { ProductPrice } from '@/platform/services/model/price';
 import type { Product } from '@/platform/services/model/product';
 import { Button } from '../ui/button';
@@ -14,10 +15,14 @@ export default function ProductAddToCartBar({
   product: initialProduct,
   price,
   className,
+  availability,
+  availabilityLoading = false,
 }: {
   product?: Product;
   price?: ProductPrice | null;
   className?: string;
+  availability?: StockAvailability | null;
+  availabilityLoading?: boolean;
 }) {
   const { product } = useProduct(initialProduct);
   const locale = useLocale();
@@ -54,6 +59,8 @@ export default function ProductAddToCartBar({
                     product={product}
                     price={price}
                     className="h-14 bg-surface-page text-text-action hover:bg-surface-page hover:text-text-action-hover"
+                    availability={availability}
+                    availabilityLoading={availabilityLoading}
                   />
                 </div>
               )}

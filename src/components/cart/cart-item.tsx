@@ -144,7 +144,7 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
                 width={100}
                 height={65}
                 src={String(item.product.images[0].url)}
-                alt={String(item.product.name || 'Product')}
+                alt={l10n(item.product.name || 'Product')}
                 className="rounded-ss-[inherit] rounded-ee-[inherit] w-[100px] h-[65px] sm:w-[120px] sm:h-[78px]"
               />
             ) : (

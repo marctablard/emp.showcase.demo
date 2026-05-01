@@ -39,6 +39,7 @@ describe('EmporixApiInvoker', () => {
         .fn()
         .mockResolvedValue({ accessToken: 'session-token-123', saasToken: undefined, sessionId: 'session-3' }),
       getServiceAccessToken: jest.fn().mockResolvedValue('service-token-123'),
+      clearPublicTokenCache: jest.fn(),
       clearTokens: jest.fn(),
       refreshCustomerTokenWithLegalEntity: jest.fn().mockResolvedValue(null),
     };
@@ -47,8 +48,26 @@ describe('EmporixApiInvoker', () => {
   });
 
   describe('authenticatedFetch cache behavior', () => {
-    it('should apply force-cache by default for service token', async () => {
+    it('should not cache by default for service token (opt-in required)', async () => {
       await invoker.authenticatedFetch('/test-url', { method: 'GET' }, 'service');
+
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+      expect(options.cache).toBeUndefined();
+      expect(options.next).toBeUndefined();
+    });
+
+    it('should not cache by default for public token (opt-in required)', async () => {
+      await invoker.authenticatedFetch('/test-url', { method: 'GET' }, 'public');
+
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+      expect(options.cache).toBeUndefined();
+      expect(options.next).toBeUndefined();
+    });
+
+    it('should opt in to caching via cacheSeconds for service token', async () => {
+      await invoker.authenticatedFetch('/test-url', { method: 'GET' }, 'service', undefined, undefined, 3600);
 
       expect(global.fetch).toHaveBeenCalledTimes(1);
       const [, options] = (global.fetch as jest.Mock).mock.calls[0];
@@ -56,13 +75,25 @@ describe('EmporixApiInvoker', () => {
       expect(options.next).toEqual({ revalidate: 3600 });
     });
 
-    it('should apply force-cache by default for public token', async () => {
-      await invoker.authenticatedFetch('/test-url', { method: 'GET' }, 'public');
+    it('should opt in to caching via cacheSeconds for public token', async () => {
+      await invoker.authenticatedFetch('/test-url', { method: 'GET' }, 'public', undefined, undefined, 60);
 
       expect(global.fetch).toHaveBeenCalledTimes(1);
       const [, options] = (global.fetch as jest.Mock).mock.calls[0];
       expect(options.cache).toBe('force-cache');
-      expect(options.next).toEqual({ revalidate: 3600 });
+      expect(options.next).toEqual({ revalidate: 60 });
+    });
+
+    it('should not cache when cacheSeconds is 0 via explicit next option', async () => {
+      await invoker.authenticatedFetch(
+        '/test-url',
+        { method: 'GET', next: { revalidate: 0 } } as RequestInit,
+        'public',
+      );
+
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+      expect(options.next).toEqual({ revalidate: 0 });
     });
 
     it('should respect pre-set cache: no-store for service token', async () => {
@@ -158,6 +189,21 @@ describe('EmporixApiInvoker', () => {
       expect(global.fetch).toHaveBeenCalledTimes(1);
       const [, options] = (global.fetch as jest.Mock).mock.calls[0];
       expect(options.cache).toBeUndefined();
+      expect(options.next).toEqual({ revalidate: 60 });
+    });
+
+    it('should let explicit options.next override cacheSeconds opt-in', async () => {
+      await invoker.authenticatedFetch(
+        '/test-url',
+        { method: 'GET', next: { revalidate: 60 } } as RequestInit,
+        'public',
+        undefined,
+        undefined,
+        3600,
+      );
+
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      const [, options] = (global.fetch as jest.Mock).mock.calls[0];
       expect(options.next).toEqual({ revalidate: 60 });
     });
   });

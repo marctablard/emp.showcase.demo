@@ -13,10 +13,11 @@ import { useAddresses } from '@/hooks/customer/useAddresses';
 import { useToast } from '@/hooks/ui/useToast';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { Address, AddressType } from '@/platform/services/model/common';
+import type { CustomerAddress } from '@/platform/services/model/customer/customer';
 import { AddressDialog } from './address-dialog';
 
 interface AddressCardProps {
-  address: Address;
+  address: CustomerAddress;
   isDeleting?: boolean;
   onEdit?: (address: Address) => void;
   onDelete?: (address: Address) => void;
@@ -32,14 +33,14 @@ export function AddressCard({ address, isDeleting = false, onEdit, onDelete }: A
     <Card className="h-full">
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
-          <CardTitle className="text-lg font-medium">
-            {address.contactName}
-            {address.isDefault && (
-              <Badge variant="secondary" className="ml-2">
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-lg font-medium">{address.contactName}</CardTitle>
+            {address.source === 'customer' && address.isDefault ? (
+              <Badge variant="outline" rounded="default" className="bg-surface-success text-text-success">
                 {t('Address.default')}
               </Badge>
-            )}
-          </CardTitle>
+            ) : null}
+          </div>
           <div className="flex space-x-2">
             {onEdit && (
               <Button
@@ -141,7 +142,7 @@ export function AddressesList({ type = 'SHIPPING' as AddressType }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           {addresses
             .filter((address) => address.tags.includes(type))
-            .map((address: Address) => {
+            .map((address: CustomerAddress) => {
               return (
                 <AddressCard
                   key={address.id || `${address.contactName}-${address.street}-${address.city}`}

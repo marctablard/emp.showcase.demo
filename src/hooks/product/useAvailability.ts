@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useSession } from '@/hooks/session/useSession';
 import { fetchProductAvailability } from '@/lib/client/availability';
 import type { StockAvailability } from '@/platform/services/model/common';
 import { useAvailabilityStore } from '@/stores/availability-store';
@@ -40,13 +41,15 @@ interface UseAvailabilityResult {
 
 /**
  * Hook for fetching and caching product availability
- * Uses the availability store for caching to prevent duplicate requests
+ * Uses the availability store for caching; refetches when session site/currency changes because keys are productId-only.
  */
 export function useAvailability(
   productId: string | null | undefined,
   options: UseAvailabilityOptions = {},
 ): UseAvailabilityResult {
   const { autoFetch = true } = options;
+  const { session } = useSession();
+  const shopSessionKey = session?.siteCode && session?.currency ? `${session.siteCode}|${session.currency}` : '';
 
   // Get store actions
   const { getAvailability, setAvailability, setLoading, setError } = useAvailabilityStore();
@@ -59,7 +62,7 @@ export function useAvailability(
   const [error, setLocalError] = useState<Error | null>(null);
 
   // Function to fetch availability
-  const fetchAvailability = async (): Promise<void> => {
+  const fetchAvailability = useCallback(async (): Promise<void> => {
     if (!productId) return;
 
     try {
@@ -81,15 +84,16 @@ export function useAvailability(
       setIsLoading(false);
       setLocalError(error);
     }
-  };
+  }, [productId, setAvailability, setLoading, setError]);
 
-  // Fetch availability on mount if autoFetch is true
   useEffect(() => {
-    if (productId && autoFetch && !cachedAvailability) {
-      fetchAvailability();
+    if (!productId || !autoFetch || !shopSessionKey) {
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productId, autoFetch]);
+    queueMicrotask(() => {
+      void fetchAvailability();
+    });
+  }, [productId, autoFetch, shopSessionKey, fetchAvailability]);
 
   // Function to check if a specific quantity is available
   const hasSufficientStock = (quantity: number): boolean => {

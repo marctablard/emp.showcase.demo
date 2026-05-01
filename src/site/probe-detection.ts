@@ -16,12 +16,26 @@ export function isLikelyProbe(req: {
   const ua = req.headers.get('user-agent') ?? '';
   if (isProbeUserAgent(ua)) return true;
 
+  // HEAD is also common for health checks
+  if (req.method === 'HEAD') return true;
+
+  // Real browser navigations (Playwright, Chrome, Firefox, etc.) send Fetch Metadata;
+  // never treat them as infra probes — otherwise `/` returns a synthetic plain-text body
+  // and E2E (and users) see an empty document without `<html lang>` or app shell.
+  const secFetchMode = req.headers.get('sec-fetch-mode') ?? '';
+  const secFetchDest = req.headers.get('sec-fetch-dest') ?? '';
+  if (secFetchMode === 'navigate' || secFetchDest === 'document') {
+    return false;
+  }
+
+  const accept = req.headers.get('accept') ?? '';
+  if (accept.includes('text/html')) {
+    return false;
+  }
+
   // Heuristic fallback for "generic" probes with no clear UA:
   // Many probes send Accept: */* and lack typical browser headers.
-  const accept = req.headers.get('accept') ?? '';
   const acceptLang = req.headers.get('accept-language') ?? '';
-  const secFetchDest = req.headers.get('sec-fetch-dest') ?? '';
-  const secFetchMode = req.headers.get('sec-fetch-mode') ?? '';
   const referer = req.headers.get('referer') ?? '';
 
   const looksNonBrowser =
@@ -31,9 +45,6 @@ export function isLikelyProbe(req: {
     secFetchMode === '' &&
     referer === '' &&
     ua === ''; // Only consider it a probe if ALL conditions are met
-
-  // HEAD is also common for health checks
-  if (req.method === 'HEAD') return true;
 
   return looksNonBrowser;
 }

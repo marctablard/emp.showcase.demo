@@ -25,6 +25,7 @@ export interface ToastProps {
 export interface NotificationProps {
   id: string | number;
   title: string;
+  description?: string;
   duration?: number;
   button?: {
     label: string;
@@ -57,7 +58,15 @@ function toast(toast: Omit<ToastProps, 'id'>) {
 
 function notify(toast: Omit<NotificationProps, 'id'>) {
   return sonnerToast.custom(
-    (id) => <Notification id={id} title={toast.title} duration={toast.duration || 5000} type={toast.type} />,
+    (id) => (
+      <Notification
+        id={id}
+        title={toast.title}
+        description={toast.description}
+        duration={toast.duration || 5000}
+        type={toast.type}
+      />
+    ),
     {
       position: 'top-center',
       duration: toast.duration || 5000,
@@ -125,7 +134,7 @@ function Toast(props: ToastProps) {
 }
 
 function Notification(props: NotificationProps) {
-  const { title, button, id, type } = props;
+  const { title, description, button, id, type } = props;
 
   const icon = {
     success: <CircleCheck />,
@@ -149,11 +158,14 @@ function Notification(props: NotificationProps) {
       )}
     >
       <div className="flex gap-2 w-full">
-        <div className="flex w-full justify-center items-center">
+        <div className="flex w-full flex-col justify-center items-center gap-1 px-1">
           <div className={cn('flex items-center gap-2', 'text-text-' + className[type])}>
             {icon[type]}
             <p className="text-base font-bold text-text-headings m-0">{title}</p>
           </div>
+          {description ? (
+            <p className="text-sm font-body text-text-headings m-0 text-center max-w-prose">{description}</p>
+          ) : null}
         </div>
         <div
           className="flex justify-end items-center"

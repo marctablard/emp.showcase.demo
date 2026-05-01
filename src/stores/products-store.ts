@@ -11,6 +11,8 @@ export type ProductState = {
     [id: string]: Product | null;
   };
   variantsByParentId: Record<string, Product[]>;
+  /** Monotonically increasing counter; bumped by `clearProductCache` so consuming hooks can react. */
+  cacheGeneration: number;
 };
 
 export type ProductActions = {
@@ -20,6 +22,8 @@ export type ProductActions = {
   setCurrentProduct: (product: Product | null) => void;
   addProduct: (product: Product | string) => void;
   addProducts: (products: Product[]) => void;
+  /** Clears cached products/variants — required after session site or currency changes (prices are site-scoped). */
+  clearProductCache: () => void;
   getVariants: (parentId: string) => Product[] | undefined;
   setVariants: (parentId: string, variants: Product[]) => void;
 };
@@ -30,6 +34,7 @@ const defaultState: ProductState = {
   currentProductId: null,
   products: {},
   variantsByParentId: {},
+  cacheGeneration: 0,
 };
 
 export const createProductStore = (initState: ProductState = defaultState) => {
@@ -92,6 +97,13 @@ export const createProductStore = (initState: ProductState = defaultState) => {
     setVariants: (parentId: string, variants: Product[]) =>
       set((state) => ({
         variantsByParentId: { ...state.variantsByParentId, [parentId]: variants },
+      })),
+    clearProductCache: () =>
+      set((state) => ({
+        products: {},
+        variantsByParentId: {},
+        currentProductId: null,
+        cacheGeneration: state.cacheGeneration + 1,
       })),
   }));
 };

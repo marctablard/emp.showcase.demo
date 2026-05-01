@@ -76,6 +76,7 @@ export type QuoteScope = 'public' | 'session' | 'customer-saas' | 'service';
 
 export type QuoteStatus =
   | 'CREATING'
+  | 'AWAITING'
   | 'OPEN'
   | 'IN_PROGRESS'
   | 'DECLINED'

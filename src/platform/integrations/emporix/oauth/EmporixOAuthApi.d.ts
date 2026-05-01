@@ -1,4 +1,5 @@
 import {
+  AnonymousTokenSessionParams,
   EmporixAccessTokenResponse,
   EmporixAnonymousTokenResponse,
   EmporixCustomerTokenResponse,
@@ -28,9 +29,14 @@ export interface EmporixOAuthApi {
    *
    * @param tenant The tenant ID
    * @param clientId Client ID for anonymous access
+   * @param sessionParams Optional session context values to pre-seed the new session (COP-5047)
    * @returns Promise with the anonymous token response
    */
-  getAnonymousToken(tenant: string, clientId: string): Promise<EmporixAnonymousTokenResponse>;
+  getAnonymousToken(
+    tenant: string,
+    clientId: string,
+    sessionParams?: AnonymousTokenSessionParams,
+  ): Promise<EmporixAnonymousTokenResponse>;
 
   /**
    * Refresh an anonymous token

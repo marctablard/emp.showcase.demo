@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
+import { useRegisterCheckoutForm } from '@/components/checkout/checkout-validation-registry';
 import { useSite } from '@/hooks/site/useSite';
+import { useL10n } from '@/hooks/useL10n';
 import { useValidator } from '@/hooks/validation/useValidator';
 import type { Address } from '@/platform/services/model/common';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
@@ -43,6 +45,7 @@ const AddressForm: React.FC<AddressFormProps> = ({
 }) => {
   const tid = (field: string) => `${testIdPrefix}-${field}`;
   const t = useTranslations('account.AddressForm');
+  const { l10n } = useL10n();
 
   const addressContentKey =
     initialData == null
@@ -80,9 +83,12 @@ const AddressForm: React.FC<AddressFormProps> = ({
   }, [mergedInitial, form, alignAfterExternalReset]);
   const { countries, loading } = useSite();
 
+  const rootRef = useRef<HTMLDivElement>(null);
+  useRegisterCheckoutForm(`address-${testIdPrefix}`, form, rootRef, { testIdPrefix });
+
   return (
     <Form {...form}>
-      <div className="space-y-6">
+      <div className="space-y-6" ref={rootRef}>
         <div>
           <FormField
             control={form.control}
@@ -273,7 +279,7 @@ const AddressForm: React.FC<AddressFormProps> = ({
                         field.onChange(e);
                         field.onBlur();
                       }}
-                      defaultValue={field.value}
+                      value={field.value ?? ''}
                     >
                       <SelectTrigger data-testid={tid('country')}>
                         <SelectValue placeholder={t('country')} />
@@ -281,9 +287,7 @@ const AddressForm: React.FC<AddressFormProps> = ({
                       <SelectContent>
                         {countries.map((country) => (
                           <SelectItem key={country.code} value={country.code} className="px-2">
-                            {typeof country.name === 'string'
-                              ? country.name
-                              : country.name.en || Object.values(country.name)[0]}
+                            {l10n(country.name) || country.code}
                           </SelectItem>
                         ))}
                       </SelectContent>

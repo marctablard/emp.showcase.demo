@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
 import { useValidator } from '@/hooks/validation/useValidator';
@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader } from '../ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { H2 } from '../ui/h';
 import { Input } from '../ui/input';
+import { useRegisterCheckoutForm } from './checkout-validation-registry';
 
 interface ContactDataProps {
   initialData?: Partial<ContactData>;
@@ -37,9 +38,11 @@ const ContactDataComponent: React.FC<ContactDataProps> = ({ initialData = undefi
     'onBlur',
     submitContactData,
   );
+  const rootRef = useRef<HTMLDivElement>(null);
+  useRegisterCheckoutForm('contact-data', form, rootRef);
 
   return (
-    <Card className="p-0 border-none mb-6">
+    <Card className="p-0 border-none mb-6" ref={rootRef}>
       <CardHeader className="p-0 mt-6 mx-6 border-b flex justify-between">
         <H2 variant="h5" className="col-start-1">
           {t('title')}

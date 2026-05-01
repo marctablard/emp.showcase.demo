@@ -1,5 +1,8 @@
+import { getPublicDefaultLanguage } from '@/lib/common/public-default-env';
 import { LocalizedString } from '@/platform/services/model/common';
-import { formatCurrency, formatCurrencyToParts, l10n } from './utils';
+import { L10N_PLACEHOLDER, formatCurrency, formatCurrencyToParts, l10n } from './utils';
+
+const envDefault = getPublicDefaultLanguage();
 
 describe('l10n function', () => {
   describe('null and undefined handling', () => {
@@ -30,27 +33,42 @@ describe('l10n function', () => {
     });
   });
 
-  describe('LocalizedString object format', () => {
+  describe('LocalizedString object format — deterministic fallback', () => {
     const localizedObject: LocalizedString = {
       de: 'Text in Deutsch',
       en: 'Message in English',
     };
 
-    it('should return correct translation for existing locale', () => {
+    it('should return the value for the requested locale when present', () => {
       expect(l10n(localizedObject, 'de')).toBe('Text in Deutsch');
       expect(l10n(localizedObject, 'en')).toBe('Message in English');
     });
 
-    it('should return first available value for non-existing locale', () => {
-      // Since object iteration order is not guaranteed, we test that it returns one of the available values
-      const result = l10n(localizedObject, 'fr');
-      expect(['Text in Deutsch', 'Message in English']).toContain(result);
+    it('should fall back to NEXT_PUBLIC_DEFAULT_LANGUAGE before returning placeholder', () => {
+      // envDefault ('en' in .env.template) is present in the map, so it should be chosen
+      // deterministically rather than picking a random "first available" entry.
+      expect(l10n(localizedObject, 'fr')).toBe(
+        envDefault === 'de' ? 'Text in Deutsch' : envDefault === 'en' ? 'Message in English' : L10N_PLACEHOLDER,
+      );
     });
 
-    it('should handle single locale object', () => {
-      const singleLocale: LocalizedString = { en: 'English only' };
-      expect(l10n(singleLocale, 'en')).toBe('English only');
-      expect(l10n(singleLocale, 'de')).toBe('English only');
+    it('should honor a caller-provided fallbackLocales chain (e.g. site.defaultLanguage)', () => {
+      // Simulates site.defaultLanguage = 'de' with current locale not in map.
+      expect(l10n(localizedObject, 'fr', ['de'])).toBe('Text in Deutsch');
+    });
+
+    it('should return placeholder when neither the locale, caller fallbacks, nor env default match', () => {
+      const onlyPlMap: LocalizedString = { pl: 'Tekst po polsku' };
+      // pick fallbacks that are guaranteed not to overlap with the env default / 'pl'
+      const nonMatchingFallbacks = ['uk', 'it'].filter((l) => l !== envDefault);
+      expect(l10n(onlyPlMap, 'uk', nonMatchingFallbacks)).toBe(
+        envDefault === 'pl' ? 'Tekst po polsku' : L10N_PLACEHOLDER,
+      );
+    });
+
+    it('should return the single available translation when it happens to match env default', () => {
+      const singleLocale: LocalizedString = { [envDefault]: 'Env default translation' };
+      expect(l10n(singleLocale, 'xx')).toBe('Env default translation');
     });
 
     it('should return empty string for empty object', () => {
@@ -58,7 +76,7 @@ describe('l10n function', () => {
       expect(l10n(emptyObject, 'en')).toBe('');
     });
 
-    it('should handle object with multiple locales', () => {
+    it('should handle object with multiple locales via direct match', () => {
       const multiLocale: LocalizedString = {
         en: 'English text',
         de: 'Deutscher Text',
@@ -71,6 +89,12 @@ describe('l10n function', () => {
       expect(l10n(multiLocale, 'fr')).toBe('Texte français');
       expect(l10n(multiLocale, 'es')).toBe('Texto en español');
     });
+
+    it('should return the site-default translation when current locale is missing', () => {
+      const product: LocalizedString = { en: 'item1', de: 'item 1', pl: 'item1' };
+      // site.defaultLanguage = 'de', current locale unsupported
+      expect(l10n(product, 'fr', ['de'])).toBe('item 1');
+    });
   });
 
   describe('array format with language/message objects', () => {
@@ -79,14 +103,19 @@ describe('l10n function', () => {
       { language: 'en', message: 'Message in English' },
     ];
 
-    it('should handle array format with correct locale', () => {
+    it('should return the entry for the requested locale', () => {
       expect(l10n(arrayFormat, 'en')).toBe('Message in English');
       expect(l10n(arrayFormat, 'de')).toBe('Text in Deutsch');
     });
 
-    it('should fallback to first available message for non-existing locale', () => {
-      const result = l10n(arrayFormat, 'fr');
-      expect(['Text in Deutsch', 'Message in English']).toContain(result);
+    it('should fall back deterministically to env default for missing locale', () => {
+      const expected =
+        envDefault === 'de' ? 'Text in Deutsch' : envDefault === 'en' ? 'Message in English' : L10N_PLACEHOLDER;
+      expect(l10n(arrayFormat, 'fr')).toBe(expected);
+    });
+
+    it('should honor caller-provided fallbackLocales for array inputs', () => {
+      expect(l10n(arrayFormat, 'fr', ['de'])).toBe('Text in Deutsch');
     });
 
     it('should return empty string for empty array', () => {
@@ -94,42 +123,38 @@ describe('l10n function', () => {
       expect(l10n(emptyArray, 'en')).toBe('');
     });
 
-    it('should handle malformed array items gracefully', () => {
+    it('should skip malformed items and match only valid locale entries', () => {
       const malformedArray = [
         null,
-        { language: 'en' }, // missing message
-        { message: 'No language' }, // missing language
+        { language: 'en' },
+        { message: 'No language' },
         { language: 'de', message: 'Valid German' },
         'invalid string item',
         undefined,
       ];
 
       expect(l10n(malformedArray, 'de')).toBe('Valid German');
-      expect(l10n(malformedArray, 'fr')).toBe('Valid German'); // fallback to first valid
+      // No 'fr' in map and env default likely 'en' (no valid entry) → placeholder
+      const expectedFr = envDefault === 'de' ? 'Valid German' : L10N_PLACEHOLDER;
+      expect(l10n(malformedArray, 'fr')).toBe(expectedFr);
     });
 
-    it('should handle array with no valid items', () => {
-      const invalidArray = [
-        null,
-        undefined,
-        { language: 'en' }, // missing message
-        { message: 'No language' }, // missing language
-        'string',
-        123,
-      ];
+    it('should return empty string when array has no valid items', () => {
+      const invalidArray = [null, undefined, { language: 'en' }, { message: 'No language' }, 'string', 123];
 
       expect(l10n(invalidArray, 'en')).toBe('');
     });
 
-    it('should handle array with non-string messages gracefully', () => {
+    it('should ignore non-string messages and match remaining valid entries', () => {
       const arrayWithNonStringMessages = [
         { language: 'en', message: null },
         { language: 'de', message: 123 },
         { language: 'fr', message: 'Valid French' },
       ];
 
-      expect(l10n(arrayWithNonStringMessages, 'en')).toBe('Valid French'); // fallback to first valid string
       expect(l10n(arrayWithNonStringMessages, 'fr')).toBe('Valid French');
+      // 'en'/'de' entries are invalid; caller fallback chain can reach 'fr'
+      expect(l10n(arrayWithNonStringMessages, 'en', ['fr'])).toBe('Valid French');
     });
   });
 
@@ -146,7 +171,7 @@ describe('l10n function', () => {
       expect(l10n(localizedObject, 'de-DE')).toBe('German');
     });
 
-    it('should handle case-sensitive locale keys', () => {
+    it('should treat locale keys as case-sensitive', () => {
       const localizedObject: LocalizedString = {
         EN: 'UPPERCASE English',
         en: 'lowercase english',
@@ -154,12 +179,13 @@ describe('l10n function', () => {
 
       expect(l10n(localizedObject, 'EN')).toBe('UPPERCASE English');
       expect(l10n(localizedObject, 'en')).toBe('lowercase english');
-      // Case mismatch should fall back to first available
-      const result = l10n(localizedObject, 'En');
-      expect(['UPPERCASE English', 'lowercase english']).toContain(result);
+      // 'En' is neither in the map nor covered by env default directly unless envDefault==='EN' (unlikely)
+      const expected =
+        envDefault === 'en' ? 'lowercase english' : envDefault === 'EN' ? 'UPPERCASE English' : L10N_PLACEHOLDER;
+      expect(l10n(localizedObject, 'En')).toBe(expected);
     });
 
-    it('should handle objects with non-string values gracefully', () => {
+    it('should skip non-string values and match only valid string entries', () => {
       const invalidObject = {
         en: 'Valid string',
         de: null,
@@ -168,16 +194,17 @@ describe('l10n function', () => {
       } as any;
 
       expect(l10n(invalidObject, 'en')).toBe('Valid string');
-      // For invalid values, the function should now fallback to first valid string
-      expect(l10n(invalidObject, 'de')).toBe('Valid string');
-      expect(l10n(invalidObject, 'es')).toBe('Valid string');
+      // non-string values for 'de'/'es' mean those locales don't match; env default (likely 'en') wins, else placeholder
+      const expected = envDefault === 'en' ? 'Valid string' : L10N_PLACEHOLDER;
+      expect(l10n(invalidObject, 'de')).toBe(expected);
+      expect(l10n(invalidObject, 'es')).toBe(expected);
     });
 
     it('should handle completely invalid input types gracefully', () => {
       expect(l10n(123 as any, 'en')).toBe('');
       expect(l10n(true as any, 'en')).toBe('');
       expect(l10n(Symbol('test') as any, 'en')).toBe('');
-      expect(l10n(() => 'function' as any, 'en')).toBe('');
+      expect(l10n((() => 'function') as any, 'en')).toBe('');
     });
 
     it('should handle objects that throw errors during processing', () => {
@@ -188,7 +215,6 @@ describe('l10n function', () => {
         de: 'German text',
       };
 
-      // Should fail gracefully and return empty string
       expect(l10n(problematicObject as any, 'en')).toBe('');
     });
 
@@ -202,8 +228,18 @@ describe('l10n function', () => {
         },
       ];
 
-      // Should fail gracefully and return empty string
       expect(l10n(problematicArray as any, 'en')).toBe('');
+    });
+
+    it('should dedupe the fallback chain (locale same as site default same as env default)', () => {
+      const map: LocalizedString = { [envDefault]: 'Env translation only' };
+      // All fallbacks collapse to envDefault; expect single lookup success.
+      expect(l10n(map, envDefault, [envDefault])).toBe('Env translation only');
+    });
+
+    it('should ignore empty / non-string fallback entries in the chain', () => {
+      const map: LocalizedString = { en: 'English only' };
+      expect(l10n(map, 'fr', ['', null as any, undefined as any, 'en'])).toBe('English only');
     });
   });
 });
@@ -221,9 +257,9 @@ describe('currency formatting utilities', () => {
     expect(formatCurrency(amount, 'EUR', 'en-US')).toBe(expected);
   });
 
-  it('uses de fallback when locale is omitted', () => {
+  it('uses default language from env when locale is omitted', () => {
     const amount = 1234.5;
-    const expected = new Intl.NumberFormat('de', {
+    const expected = new Intl.NumberFormat(getPublicDefaultLanguage(), {
       style: 'currency',
       currency: 'EUR',
       minimumFractionDigits: 2,

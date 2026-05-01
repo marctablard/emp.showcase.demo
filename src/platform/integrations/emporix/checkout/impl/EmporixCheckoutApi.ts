@@ -1,6 +1,7 @@
 import { inject } from 'inversify';
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
+import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
 import type EmporixCartApi from '../../cart/impl/EmporixCartApi';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../../config';
@@ -10,6 +11,8 @@ import type {
   EmporixQuoteCheckoutRequest,
 } from '../../model/checkout';
 import type { EmporixCheckoutApi as IEmporixCheckoutApi } from '../EmporixCheckoutApi';
+
+const createCheckoutMetrics = (route: string) => createFetchMetricsParams('checkout', route);
 
 @injectable('EmporixCheckoutApi', 'Singleton')
 class EmporixCheckoutApi implements IEmporixCheckoutApi {
@@ -42,6 +45,8 @@ class EmporixCheckoutApi implements IEmporixCheckoutApi {
         body: JSON.stringify(request),
       },
       'customer-saas', // Customer checkout requires customer authentication
+      undefined,
+      createCheckoutMetrics('/checkout/{tenant}/checkouts/order'),
     );
 
     if (!response.ok) {
@@ -67,6 +72,8 @@ class EmporixCheckoutApi implements IEmporixCheckoutApi {
         body: JSON.stringify(request),
       },
       'session',
+      undefined,
+      createCheckoutMetrics('/checkout/{tenant}/checkouts/order'),
     );
 
     if (!response.ok) {
@@ -89,6 +96,8 @@ class EmporixCheckoutApi implements IEmporixCheckoutApi {
         body: JSON.stringify(request),
       },
       'customer-saas', // Quote checkout requires customer authentication
+      undefined,
+      createCheckoutMetrics('/checkout/{tenant}/checkouts/order'),
     );
 
     if (!response.ok) {

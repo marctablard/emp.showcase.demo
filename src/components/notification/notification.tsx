@@ -3,12 +3,11 @@
 import { Suspense, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
-import { useLocale } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { useNotifications } from '@/hooks/notifications/useNotifications';
+import { useL10n } from '@/hooks/useL10n';
 import { type AuthErrorKey, type NotificationOnboardingKey, dk } from '@/i18n/dynamic-key';
 import { stripAuthNotificationQueryParams } from '@/lib/notification/auth-notification-utils';
-import { l10n } from '@/lib/utils';
 import type { CompanyOnboardingStatus } from '@/platform/services/model/company/company';
 import type { StorefrontNotification } from '@/platform/services/model/notification/notification';
 import { ToastType, notify } from '../ui/toast-notification';
@@ -102,7 +101,7 @@ function WelcomeNotification() {
 export function Notification() {
   const { registerNotificationListener, unregisterNotificationListener, markNotificationAsRead } = useNotifications();
   const t = useTranslations('common.Notification');
-  const locale = useLocale();
+  const { l10n } = useL10n();
 
   useEffect(() => {
     const notificationSubscription = registerNotificationListener(
@@ -114,7 +113,7 @@ export function Notification() {
           }
           const status = notification.data_json?.status;
           const message =
-            l10n(notification.message, locale) || t(dk<NotificationOnboardingKey>('company.onboarding.' + status));
+            l10n(notification.message) || t(dk<NotificationOnboardingKey>('company.onboarding.' + status));
           let type = ToastType.Success;
           switch (status) {
             case 'rejected':

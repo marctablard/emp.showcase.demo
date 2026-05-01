@@ -13,6 +13,12 @@ export interface SiteService {
   getSite(code?: string): Promise<Site | null>;
 
   /**
+   * Drop in-process cached site (and optional tenant ref data) so the next getSite refetches Emporix.
+   * @param code When set, evicts that site code only; when omitted, clears all cached sites and tenant reference data.
+   */
+  invalidateSiteCache(code?: string): void;
+
+  /**
    * Get all available sites
    * @returns List of available sites
    */

@@ -19,7 +19,13 @@ interface SiteActions {
   getAvailableSites: () => Site[] | undefined;
   setLoading: (loading: boolean) => void;
   getLoading: () => boolean;
+  /** Full teardown — drops everything including the cached `availableSites` list. Use on logout / provider unmount. */
   reset: () => void;
+  /**
+   * Partial reset used on site switches: drops only the active site payload so `useSite` refetches,
+   * but preserves `availableSites` for the rest of the browser session (avoids redundant `GET /api/site/`).
+   */
+  resetSite: () => void;
 }
 export type SiteStore = SiteState & SiteActions;
 
@@ -41,6 +47,7 @@ export const createSiteStore = (initState: SiteState = defaultState) => {
       setLoading: (loading: boolean) => set({ loading }),
       getLoading: () => get().loading,
       reset: () => set(defaultState),
+      resetSite: () => set({ site: undefined, loading: false, error: null }),
     })),
   );
 };

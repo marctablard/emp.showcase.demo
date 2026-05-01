@@ -473,8 +473,7 @@
   "quotesPageDescription": "View and manage your quotes",
   "quotesPagePlaceholder": "Quotes will be displayed here",
   "quoteStatus": {
-    "requested": "Requested",
-    "available": "Available",
+    "awaiting": "Awaiting approval",
     "in_progress": "In progress",
     "declined": "Declined",
     "accepted": "Accepted",
@@ -539,7 +538,9 @@
     "commentAdded": "Comment Added",
     "initialQuoteRequest": "Initial Quote Request",
     "statusChanged": "Status Changed to {currentStatus}",
-    "loadingHistory": "Loading history..."
+    "loadingHistory": "Loading history...",
+    "quoteActionFailedTitle": "We couldn't complete this action",
+    "quoteActionFailedDescription": "Please try again or contact support if the problem persists."
   },
   "quotesList": {
     "title": "Quotes",

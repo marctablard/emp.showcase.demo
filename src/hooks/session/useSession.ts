@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   fetchCurrentSession,
   updateSessionCompany,
@@ -10,18 +10,23 @@ import {
   updateSessionRegion,
   updateSessionSite,
 } from '@/lib/client/session';
+import { getLogger } from '@/lib/logger/use-logger-client';
+import type { Cart } from '@/platform/services/model/cart/cart';
 import type { Session } from '@/platform/services/model/session/session';
-import { useSessionStore } from '@/providers/StoreProvider';
+import { useCartStore, useSessionStore } from '@/providers/StoreProvider';
 
-/**
- * Hook for managing session data
- * Provides methods to get and update session information
- */
+export interface SetCurrencyResult {
+  success: boolean;
+  cartCurrencyBlocked?: boolean;
+}
+
+/** Hook for reading and mutating session data. */
 export function useSession() {
-  // Get state from the store
   const sessionStore = useSessionStore();
+  const cartStore = useCartStore();
   const session = sessionStore.session;
   const loading = sessionStore.loading;
+  const hasAttemptedRecovery = useRef(false);
 
   const fetchSessionWithStatus = useCallback(async (): Promise<{ session: Session | null; hasError: boolean }> => {
     try {
@@ -33,7 +38,10 @@ export function useSession() {
   }, []);
 
   const runSessionMutation = useCallback(
-    async (mutation: () => Promise<boolean>): Promise<boolean> => {
+    async (
+      mutation: () => Promise<boolean>,
+      afterCommit?: (updatedSession: Session | null) => Promise<void>,
+    ): Promise<boolean> => {
       if (!sessionStore.tryAcquireMutationLock()) {
         return false;
       }
@@ -43,10 +51,21 @@ export function useSession() {
         if (success) {
           const { session: updatedSession, hasError } = await fetchSessionWithStatus();
           if (hasError) {
-            // Treat mutation as incomplete when we cannot confirm updated session state.
             return false;
           }
           sessionStore.setSession(updatedSession);
+          if (afterCommit) {
+            // Runs while the mutation lock is still held so any cart writes here are treated as
+            // orchestrator-driven (mirroring `performSiteSwitch` → `validateSite`). Cross-store
+            // subscribers that gate on `isMutationInFlight()` stay suppressed; this hook is the
+            // single authoritative caller. afterCommit failures must not fail the mutation —
+            // the PUT already succeeded, so we log and continue so `finally` releases the lock.
+            try {
+              await afterCommit(updatedSession);
+            } catch (err) {
+              getLogger().error({ err }, 'Session mutation afterCommit failed');
+            }
+          }
         }
         return success;
       } finally {
@@ -57,84 +76,83 @@ export function useSession() {
     [fetchSessionWithStatus, sessionStore],
   );
 
-  const fetchSession = useCallback(async () => {
-    sessionStore.setLoading(true);
-    const { session: sessionData, hasError } = await fetchSessionWithStatus();
-    if (!hasError) {
-      sessionStore.setSession(sessionData);
-    } else if (sessionStore.session === undefined) {
-      // Stop initial refetch loop when the first session request fails.
-      sessionStore.setSession(null);
-    }
-    sessionStore.setLoading(false);
-  }, [fetchSessionWithStatus, sessionStore]);
-  // Fetch session data on initial load
   useEffect(() => {
-    if (sessionStore.session !== undefined || sessionStore.loading) {
+    if (session === undefined) {
+      hasAttemptedRecovery.current = false;
+      sessionStore.fetchSession();
       return;
     }
-    fetchSession();
-  }, [sessionStore.session, sessionStore.loading, fetchSession]);
 
-  /**
-   * Update the session language
-   */
+    const needsRecovery = session === null || !session.siteCode || !session.currency;
+    if (needsRecovery && !hasAttemptedRecovery.current && !loading) {
+      hasAttemptedRecovery.current = true;
+      sessionStore.fetchSession();
+      return;
+    }
+
+    if (!needsRecovery) {
+      hasAttemptedRecovery.current = false;
+    }
+  }, [session, sessionStore, loading]);
+
   const setLanguage = async (language: string): Promise<boolean> => {
     return runSessionMutation(() => updateSessionLanguage(language));
   };
 
-  /**
-   * Update the session currency
-   */
-  const setCurrency = async (currency: string): Promise<boolean> => {
-    return runSessionMutation(() => updateSessionCurrency(currency));
+  const setCurrency = async (currency: string): Promise<SetCurrencyResult> => {
+    let reconciledCart: Cart | null | undefined;
+    let cartIncludedInResponse = false;
+    let cartCurrencyBlocked = false;
+    const success = await runSessionMutation(async () => {
+      const result = await updateSessionCurrency(currency);
+      if (result.success && 'cart' in result) {
+        reconciledCart = result.cart ?? null;
+        cartIncludedInResponse = true;
+      }
+      if (!result.success && result.cartCurrencyBlocked) {
+        cartCurrencyBlocked = true;
+      }
+      return result.success;
+    });
+    if (success && cartIncludedInResponse) {
+      cartStore.setCurrentCart(reconciledCart ?? null);
+    }
+    return { success, ...(cartCurrencyBlocked ? { cartCurrencyBlocked: true } : {}) };
   };
 
-  /**
-   * Update the session country
-   */
   const setCountry = async (country: string): Promise<boolean> => {
     return runSessionMutation(() => updateSessionCountry(country));
   };
 
-  /**
-   * Update the session site
-   */
   const setSite = async (site: string): Promise<boolean> => {
     return runSessionMutation(() => updateSessionSite(site));
   };
 
-  /**
-   * Update the session region
-   */
   const setRegion = async (region: string): Promise<boolean> => {
     return runSessionMutation(() => updateSessionRegion(region));
   };
 
-  /**
-   * Update the session company (legal entity)
-   */
   const setCompany = async (legalEntityId: string): Promise<boolean> => {
-    sessionStore.setLoading(true);
-    const success = await updateSessionCompany(legalEntityId);
-    if (success) {
-      const updatedSession = await fetchCurrentSession();
-      sessionStore.setSession(updatedSession);
-    }
-    sessionStore.setLoading(false);
-    return success;
+    // `store-synchronizer`'s `unsubLegalEntity` subscriber is suppressed while the mutation lock
+    // is held, so the cart refetch that normally reacts to a `legalEntityId` change never runs
+    // during `setCompany`. Mirror `performSiteSwitch`'s pattern: explicitly drive the cart
+    // reconciliation here, under the lock, using the session-refetched (authoritative) value.
+    return runSessionMutation(
+      () => updateSessionCompany(legalEntityId),
+      async (updatedSession) => {
+        const rawLegalEntityId = updatedSession?.legalEntityId;
+        const normalized = typeof rawLegalEntityId === 'string' ? rawLegalEntityId.trim() : '';
+        await cartStore.validateLegalEntity(normalized === '' ? undefined : normalized);
+      },
+    );
   };
 
-  /**
-   * Manually refresh the session data
-   */
   const refreshSession = async (): Promise<Session | null | undefined> => {
     sessionStore.setLoading(true);
     const { session: updatedSession, hasError } = await fetchSessionWithStatus();
     if (!hasError) {
       sessionStore.setSession(updatedSession);
     } else if (sessionStore.session === undefined) {
-      // Keep refresh behavior consistent with initial fetch fallback.
       sessionStore.setSession(null);
     }
     sessionStore.setLoading(false);

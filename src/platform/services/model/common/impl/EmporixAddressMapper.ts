@@ -19,7 +19,6 @@ export class EmporixAddressMapper implements AddressMapper<EmporixAddress> {
     const geoLocation = source.mixins?.['geolocation'] as GeoLocation;
     return {
       id: source.id,
-      isDefault: source.isDefault,
       contactName: source.contactName || '',
       companyName: source.companyName || '',
       street: source.street || '',
@@ -48,7 +47,6 @@ export class EmporixAddressMapper implements AddressMapper<EmporixAddress> {
 
     return {
       id: service.id,
-      isDefault: service.isDefault,
       contactName: service.contactName,
       companyName: service.companyName,
       street: service.street,
