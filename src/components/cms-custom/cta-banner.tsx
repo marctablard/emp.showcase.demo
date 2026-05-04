@@ -4,7 +4,12 @@ import type { CMSComponentEntry } from '@extensions/medienwerft-cms-plugin/types
 import { Button } from '@/components/ui/button';
 import { H2, Overline } from '@/components/ui/h';
 import { cn } from '@/lib/utils';
-import { type SharedImage, type SharedLink, sharedFieldDefinitions } from './_shared/field-definitions';
+import {
+  type SharedImage,
+  type SharedLink,
+  resolveImageSrc,
+  sharedFieldDefinitions,
+} from './_shared/field-definitions';
 import { type Alignment, type Tone, alignClass, justifyClass, toneSurfaceClass } from './_shared/styles';
 
 type Pattern = 'none' | 'gradient' | 'image';
@@ -38,6 +43,7 @@ export default function CtaBanner({
   height = 'md',
 }: CtaBannerProps) {
   const isInverted = tone === 'inverted' || tone === 'accent';
+  const backgroundImageSrc = resolveImageSrc(backgroundImage);
   return (
     <section
       data-cms="cta-banner"
@@ -45,11 +51,11 @@ export default function CtaBanner({
       data-pattern={pattern}
       className={cn('relative isolate w-full overflow-hidden', heightClass(height), toneSurfaceClass(tone))}
     >
-      {pattern === 'image' && backgroundImage?.filename ? (
+      {pattern === 'image' && backgroundImageSrc ? (
         <>
           <Image
-            src={backgroundImage.filename}
-            alt={backgroundImage.alt ?? ''}
+            src={backgroundImageSrc}
+            alt={backgroundImage?.alt ?? ''}
             fill
             sizes="100vw"
             className="object-cover -z-20"

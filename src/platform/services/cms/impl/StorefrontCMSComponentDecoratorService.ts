@@ -22,7 +22,7 @@ const mapCategory = (category: Category, locale: string): DecoratedCategory => {
     path: slug ? `/category/${slug}` : undefined,
     image: firstMedia?.url
       ? {
-          filename: firstMedia.url,
+          url: firstMedia.url,
           alt: typeof firstMedia.altText === 'string' ? firstMedia.altText : pickLocalized(firstMedia.altText, locale),
         }
       : undefined,

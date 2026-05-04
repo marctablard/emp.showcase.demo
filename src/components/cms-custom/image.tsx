@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import type { CMSComponentEntry } from '@extensions/medienwerft-cms-plugin/types';
 import { cn } from '@/lib/utils';
-import { type SharedImage, sharedFieldDefinitions } from './_shared/field-definitions';
+import { type SharedImage, resolveImageSrc, sharedFieldDefinitions } from './_shared/field-definitions';
 import { type MaxWidth, type Radius, maxWidthClass, radiusClass } from './_shared/styles';
 
 type Aspect = 'auto' | 'square' | 'video' | 'wide' | 'portrait';
@@ -40,7 +40,8 @@ export default function ImageBlock({
   fit = 'cover',
   maxWidth = 'content',
 }: ImageBlockProps) {
-  if (!image?.filename) return null;
+  const imageSrc = resolveImageSrc(image);
+  if (!imageSrc) return null;
   return (
     <figure data-cms="image" className={cn('flex flex-col gap-2 px-6 md:px-12', maxWidthClass(maxWidth))}>
       <div
@@ -51,8 +52,8 @@ export default function ImageBlock({
         )}
       >
         <Image
-          src={image.filename}
-          alt={image.alt ?? ''}
+          src={imageSrc}
+          alt={image?.alt ?? ''}
           fill
           sizes="(max-width: 768px) 100vw, 1024px"
           className={fit === 'contain' ? 'object-contain' : 'object-cover'}

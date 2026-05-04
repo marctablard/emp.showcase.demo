@@ -4,7 +4,12 @@ import type { CMSComponentEntry } from '@extensions/medienwerft-cms-plugin/types
 import { Button } from '@/components/ui/button';
 import { H3, Overline } from '@/components/ui/h';
 import { cn } from '@/lib/utils';
-import { type SharedImage, type SharedLink, sharedFieldDefinitions } from './_shared/field-definitions';
+import {
+  type SharedImage,
+  type SharedLink,
+  resolveImageSrc,
+  sharedFieldDefinitions,
+} from './_shared/field-definitions';
 import { type Tone, toneSurfaceClass } from './_shared/styles';
 
 type ImagePosition = 'left' | 'right';
@@ -58,7 +63,8 @@ export default function ImageText({
   verticalAlign = 'center',
   tone = 'default',
 }: ImageTextProps) {
-  const imageEl = image?.filename ? (
+  const imageSrc = resolveImageSrc(image);
+  const imageEl = imageSrc ? (
     <div
       className={cn(
         'relative aspect-[4/3] w-full overflow-hidden rounded-md bg-surface-image-background',
@@ -66,8 +72,8 @@ export default function ImageText({
       )}
     >
       <Image
-        src={image.filename}
-        alt={image.alt ?? ''}
+        src={imageSrc}
+        alt={image?.alt ?? ''}
         fill
         sizes="(max-width: 768px) 100vw, 50vw"
         className="object-cover"

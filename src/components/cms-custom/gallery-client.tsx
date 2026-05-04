@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import type { SharedImage } from './_shared/field-definitions';
+import { type SharedImage, resolveImageSrc } from './_shared/field-definitions';
 
 export type GalleryColumns = 2 | 3 | 4;
 type Gap = 'sm' | 'md' | 'lg';
@@ -41,12 +41,15 @@ export default function Gallery({
   aspect = 'square',
 }: GalleryProps) {
   const [active, setActive] = useState<number | null>(null);
-  if (images.length === 0) return null;
+  const validImages = images
+    .map((img) => ({ ...img, _src: resolveImageSrc(img) }))
+    .filter((img): img is SharedImage & { _src: string } => Boolean(img._src));
+  if (validImages.length === 0) return null;
 
   return (
     <div data-cms="gallery" className="mx-auto flex w-full max-w-6xl flex-col px-6 md:px-12">
       <div className={cn('grid', colClass(columns), gapClass(gap))}>
-        {images.map((img, i) => (
+        {validImages.map((img, i) => (
           <button
             type="button"
             key={i}
@@ -58,7 +61,7 @@ export default function Gallery({
             )}
           >
             <Image
-              src={img.filename}
+              src={img._src}
               alt={img.alt ?? ''}
               fill
               sizes="(max-width: 768px) 50vw, 33vw"
@@ -67,7 +70,7 @@ export default function Gallery({
           </button>
         ))}
       </div>
-      {lightbox && active !== null && images[active] ? (
+      {lightbox && active !== null && validImages[active] ? (
         <div
           role="dialog"
           aria-modal="true"
@@ -77,8 +80,8 @@ export default function Gallery({
         >
           <div className="relative max-h-full max-w-5xl">
             <Image
-              src={images[active].filename}
-              alt={images[active].alt ?? ''}
+              src={validImages[active]._src}
+              alt={validImages[active].alt ?? ''}
               width={1600}
               height={1200}
               className="h-auto max-h-[90vh] w-auto object-contain"

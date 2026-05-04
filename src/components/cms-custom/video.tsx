@@ -1,6 +1,6 @@
 import type { CMSComponentEntry } from '@extensions/medienwerft-cms-plugin/types';
 import { cn } from '@/lib/utils';
-import { type SharedImage, sharedFieldDefinitions } from './_shared/field-definitions';
+import { type SharedImage, resolveImageSrc, sharedFieldDefinitions } from './_shared/field-definitions';
 import { type Radius, radiusClass } from './_shared/styles';
 
 type Aspect = 'video' | 'wide' | 'square';
@@ -52,7 +52,7 @@ export default function VideoBlock({
       >
         <video
           src={src}
-          poster={poster?.filename}
+          poster={resolveImageSrc(poster)}
           autoPlay={autoplay}
           loop={loop}
           muted={muted || autoplay}

@@ -15,10 +15,14 @@ export default async function LocaleLayout({ children, params }: Props) {
   setRequestSite(site);
   setRequestLocale(locale);
   return (
-    <EmporixCmsLayout layoutId="reduced" locale={locale} site={site}>
-      <EmporixContentSlot slot="top" />
+    <EmporixCmsLayout layoutId="default" locale={locale} site={site}>
+      <header>
+        <EmporixContentSlot slot="top" />
+      </header>
       <main className="flex-grow mt-28">{children}</main>
-      <EmporixContentSlot slot="bottom" />
+      <footer>
+        <EmporixContentSlot slot="bottom" />
+      </footer>
     </EmporixCmsLayout>
   );
 }

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import type { CMSComponentEntry } from '@extensions/medienwerft-cms-plugin/types';
 import { H2, H4 } from '@/components/ui/h';
 import { cn } from '@/lib/utils';
+import { type SharedImage, resolveImageSrc } from './_shared/field-definitions';
 
 type Columns = 3 | 4 | 6;
 type TileStyle = 'image' | 'image_overlay' | 'card';
@@ -18,7 +19,7 @@ export type DecoratedCategory = {
   name?: string;
   slug?: string;
   path?: string;
-  image?: { filename?: string; alt?: string };
+  image?: SharedImage;
 };
 
 type CategoryTileRowProps = {
@@ -68,6 +69,7 @@ export default function CategoryTileRow({
           {categories.map((c) => {
             const href = c.path ?? (c.slug ? `/category/${c.slug}` : `/category/${c.id}`);
             const label = c.name ?? c.id;
+            const tileImageSrc = resolveImageSrc(c.image);
             const tile = (
               <div
                 className={cn(
@@ -75,10 +77,10 @@ export default function CategoryTileRow({
                   aspectClass(aspect),
                 )}
               >
-                {c.image?.filename ? (
+                {tileImageSrc ? (
                   <Image
-                    src={c.image.filename}
-                    alt={c.image.alt ?? label}
+                    src={tileImageSrc}
+                    alt={c.image?.alt ?? label}
                     fill
                     sizes="(max-width: 768px) 100vw, 33vw"
                     className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"

@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import type { CMSComponentEntry } from '@extensions/medienwerft-cms-plugin/types';
 import { cn } from '@/lib/utils';
-import { type SharedImage, sharedFieldDefinitions } from './_shared/field-definitions';
+import { type SharedImage, resolveImageSrc, sharedFieldDefinitions } from './_shared/field-definitions';
 import { type Alignment, alignClass } from './_shared/styles';
 
 type QuoteStyle = 'plain' | 'card' | 'bordered';
@@ -41,6 +41,7 @@ export default function Quote({
   style = 'plain',
 }: QuoteProps) {
   if (!quote) return null;
+  const authorImageSrc = resolveImageSrc(authorImage);
   return (
     <figure
       data-cms="quote"
@@ -53,11 +54,11 @@ export default function Quote({
     >
       <blockquote className={cn('text-2xl leading-relaxed font-headlines', toneClass(tone))}>“{quote}”</blockquote>
       <figcaption className="flex items-center gap-3">
-        {authorImage?.filename ? (
+        {authorImageSrc ? (
           <span className="relative h-10 w-10 overflow-hidden rounded-full bg-surface-image-background">
             <Image
-              src={authorImage.filename}
-              alt={authorImage.alt ?? author ?? ''}
+              src={authorImageSrc}
+              alt={authorImage?.alt ?? author ?? ''}
               fill
               sizes="40px"
               className="object-cover"

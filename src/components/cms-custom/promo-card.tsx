@@ -4,7 +4,12 @@ import type { CMSComponentEntry } from '@extensions/medienwerft-cms-plugin/types
 import { Button } from '@/components/ui/button';
 import { H3, Overline } from '@/components/ui/h';
 import { cn } from '@/lib/utils';
-import { type SharedImage, type SharedLink, sharedFieldDefinitions } from './_shared/field-definitions';
+import {
+  type SharedImage,
+  type SharedLink,
+  resolveImageSrc,
+  sharedFieldDefinitions,
+} from './_shared/field-definitions';
 import { type Density, type Radius, type Tone, densityClass, radiusClass, toneSurfaceClass } from './_shared/styles';
 
 type ImagePosition = 'top' | 'left' | 'right' | 'background';
@@ -33,6 +38,7 @@ export default function PromoCard({
   padding = 'comfortable',
 }: PromoCardProps) {
   const isInverted = tone === 'accent' || tone === 'inverted' || imagePosition === 'background';
+  const imageSrc = resolveImageSrc(image);
   const Inner = (
     <div className="flex flex-col gap-3">
       {eyebrow ? <Overline>{eyebrow}</Overline> : null}
@@ -62,11 +68,11 @@ export default function PromoCard({
           densityClass(padding),
         )}
       >
-        {image?.filename ? (
+        {imageSrc ? (
           <>
             <Image
-              src={image.filename}
-              alt={image.alt ?? ''}
+              src={imageSrc}
+              alt={image?.alt ?? ''}
               fill
               sizes="(max-width: 768px) 100vw, 1024px"
               className="-z-20 object-cover"
@@ -93,7 +99,7 @@ export default function PromoCard({
           imagePosition === 'right' && 'md:flex-row-reverse md:items-center',
         )}
       >
-        {image?.filename ? (
+        {imageSrc ? (
           <div
             className={cn(
               'relative w-full overflow-hidden rounded-md bg-surface-image-background',
@@ -101,8 +107,8 @@ export default function PromoCard({
             )}
           >
             <Image
-              src={image.filename}
-              alt={image.alt ?? ''}
+              src={imageSrc}
+              alt={image?.alt ?? ''}
               fill
               sizes="(max-width: 768px) 100vw, 50vw"
               className="object-cover"

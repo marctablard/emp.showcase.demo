@@ -4,7 +4,12 @@ import type { CMSComponentEntry } from '@extensions/medienwerft-cms-plugin/types
 import { Button } from '@/components/ui/button';
 import { H1, Overline } from '@/components/ui/h';
 import { cn } from '@/lib/utils';
-import { type SharedImage, type SharedLink, sharedFieldDefinitions } from './_shared/field-definitions';
+import {
+  type SharedImage,
+  type SharedLink,
+  resolveImageSrc,
+  sharedFieldDefinitions,
+} from './_shared/field-definitions';
 import { type Alignment, type Tone, alignClass, justifyClass } from './_shared/styles';
 
 type Height = 'auto' | 'sm' | 'md' | 'lg' | 'fullscreen';
@@ -51,6 +56,7 @@ export default function HeroBanner({
   tone = 'default',
 }: HeroBannerProps) {
   const isInverted = tone === 'inverted';
+  const imageSrc = resolveImageSrc(image);
   return (
     <section
       data-cms="hero-banner"
@@ -62,8 +68,8 @@ export default function HeroBanner({
         isInverted ? 'text-text-on-action' : 'text-text-body',
       )}
     >
-      {image?.filename ? (
-        <Image src={image.filename} alt={image.alt ?? ''} fill priority sizes="100vw" className="object-cover -z-20" />
+      {imageSrc ? (
+        <Image src={imageSrc} alt={image?.alt ?? ''} fill priority sizes="100vw" className="object-cover -z-20" />
       ) : null}
       {overlay !== 'none' ? (
         <span
@@ -120,7 +126,7 @@ export const heroBannerEntry: CMSComponentEntry = {
       eyebrow: { label: 'Eyebrow', type: 'text' },
       headline: { label: 'Headline', type: 'text', required: true },
       subheadline: { label: 'Subheadline', type: 'textarea' },
-      image: { $ref: 'image', label: 'Background image', type: 'object' },
+      image: { $ref: 'image', label: 'Background Image', type: 'media', allowedTypes: ['image/*'], required: true },
       primary_cta: { $ref: 'link', label: 'Primary CTA', type: 'object' },
       secondary_cta: { $ref: 'link', label: 'Secondary CTA', type: 'object' },
       alignment: {

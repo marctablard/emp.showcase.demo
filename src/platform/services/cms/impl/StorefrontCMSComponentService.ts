@@ -4,7 +4,9 @@ import { categoryTileRowEntry } from '@/components/cms-custom/category-tile-row'
 import { ctaBannerEntry } from '@/components/cms-custom/cta-banner';
 import { ctaButtonEntry } from '@/components/cms-custom/cta-button';
 import { featureListEntry } from '@/components/cms-custom/feature-list';
+import { cmsFooterEntry } from '@/components/cms-custom/footer';
 import { galleryEntry } from '@/components/cms-custom/gallery';
+import { cmsHeaderEntry } from '@/components/cms-custom/header';
 import { headingEntry } from '@/components/cms-custom/heading';
 import { heroBannerEntry } from '@/components/cms-custom/hero-banner';
 import { imageEntry } from '@/components/cms-custom/image';
@@ -20,6 +22,8 @@ import { videoEntry } from '@/components/cms-custom/video';
 import { injectable } from '@/platform/core/di/injectable';
 
 const definitionMap: Record<string, CMSComponentEntry> = {
+  [cmsHeaderEntry.definition.type]: cmsHeaderEntry,
+  [cmsFooterEntry.definition.type]: cmsFooterEntry,
   [heroBannerEntry.definition.type]: heroBannerEntry,
   [sectionEntry.definition.type]: sectionEntry,
   [spacerEntry.definition.type]: spacerEntry,

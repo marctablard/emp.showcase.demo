@@ -129,7 +129,7 @@ let nextConfig: NextConfig = {
     });
 
     // Emporix CMS editor — allow the editor to embed the storefront in its preview iframe.
-    const editorOrigins = (process.env.CMS_EDITOR_ORIGINS ?? 'https://app.emporix.io')
+    const editorOrigins = (process.env.CMS_EDITOR_ORIGINS ?? 'https://admin.emporix.io')
       .split(',')
       .map((o) => o.trim())
       .filter(Boolean);
