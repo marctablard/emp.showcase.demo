@@ -6,6 +6,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Open_Sans, Ubuntu } from 'next/font/google';
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
+import { EmporixCmsThemeStyle } from '@extensions/medienwerft-cms-plugin/components';
 import '@/app/globals.css';
 import { CsrfProvider } from '@/components/csrf/CsrfProvider';
 import { ApiDebugPanel } from '@/components/debug/ApiDebugPanel';
@@ -144,7 +145,8 @@ export default async function LocaleLayout({ children, dialog, params }: Props) 
       lang={locale}
       className={`${fontHeadlines.variable} ${fontBody.variable} ${fontHeadlines.className} ${fontBody.className}`}
     >
-      <body className="flex h-full flex-col font-body has-[.search]:overflow-hidden">
+      <body data-cms-site={siteCode} className="flex h-full flex-col font-body has-[.search]:overflow-hidden">
+        <EmporixCmsThemeStyle site={siteCode} />
         <AuthSessionProvider>
           <SiteProvider siteCode={siteCode}>
             <NextIntlClientProvider locale={locale}>

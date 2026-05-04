@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@source "../../extensions";
 @import 'tw-animate-css';
 @import './styles/brand.css';
 @import './styles/alias.css';
@@ -73,6 +74,11 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
+
+  /* CMS component overlays — overridable via the CMS theme editor. */
+  --cms-overlay-light: oklch(1 0 0 / 0.4);
+  --cms-overlay-dark: oklch(0.2 0 0 / 0.5);
+  --cms-banner-radius: var(--border-radius-lg);
 }
 
 @media (min-width: 64em) {

@@ -128,6 +128,22 @@ let nextConfig: NextConfig = {
       headers: securityHeaders,
     });
 
+    // Emporix CMS editor — allow the editor to embed the storefront in its preview iframe.
+    const editorOrigins = (process.env.CMS_EDITOR_ORIGINS ?? 'https://app.emporix.io')
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean);
+    const isDev = process.env.NODE_ENV === 'development';
+    const frameAncestors = ["'self'", ...editorOrigins, ...(isDev ? ['http://localhost:*'] : [])].join(' ');
+
+    headers.push({
+      source: '/:path*',
+      headers: [
+        { key: 'Content-Security-Policy', value: `frame-ancestors ${frameAncestors}` },
+        { key: 'X-Frame-Options', value: `ALLOW-FROM ${editorOrigins[0]}` },
+      ],
+    });
+
     // Robots meta tag for noindex
     if (process.env.NEXT_ROBOTS_NOINDEX === 'true') {
       headers.push({
