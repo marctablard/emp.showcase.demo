@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { EmporixCMSContext } from '../context/emporix-cms-context';
 import type { CMSPageContextValue } from '../context/emporix-cms-context';
 import { useCMSLiveEditor } from '../hooks/useCMSLiveEditor';
-import { CMSLayout, CMSPage, CMSSlotConfig } from '../types';
+import type { CMSLayout, CMSPage, CMSSlotConfig } from '../types';
 import CMSSetupMissingDialog from './cms-setup-missing-banner';
 import EmporixContentSlot from './emporix-content-slot';
 
@@ -45,7 +45,6 @@ export default function EmporixCMSProvider({
   // Layout data lifted in from a nested provider after hydration. Falls back
   // to the server-rendered `initialLayout` while unset.
   const [layout, setLayout] = useState<CMSLayout | undefined>(initialLayout);
-  const refLayout = useRef<CMSLayout | undefined>(initialLayout);
 
   const own = useCMSLiveEditor({
     initialPage,
@@ -57,14 +56,14 @@ export default function EmporixCMSProvider({
 
   // Nested provider → forward our page-bundled layout to the nearest parent
   // that accepts hoists. If no parent handles it (we're the root), we keep
-  // our own layout state via `hoistedLayout` above.
+  // our own layout state via `hoistLayoutData` below.
   const parentHoist = parent?.hoistLayoutData;
   useEffect(() => {
-    if (!refLayout.current) return;
+    if (!initialLayout) return;
     if (parentHoist) {
-      parentHoist(refLayout.current as CMSLayout);
+      parentHoist(initialLayout);
     }
-  }, [parentHoist, refLayout.current]);
+  }, [parentHoist, initialLayout]);
 
   const hoistLayoutData = useCallback(
     (hoistedLayout: CMSLayout) => {
@@ -80,15 +79,6 @@ export default function EmporixCMSProvider({
     },
     [parentHoist, layout],
   );
-
-  // When DI isn't wired, short-circuit before producing any context so nested
-  // editor-only UIs can surface the "setup missing" banner at the root level.
-  if (missingSetup) {
-    if (serverIsEditorMode) {
-      return <CMSSetupMissingDialog />;
-    }
-    return <></>;
-  }
 
   const contextValue = useMemo<CMSPageContextValue>(() => {
     if (!parent) {
@@ -117,6 +107,15 @@ export default function EmporixCMSProvider({
       hoistLayoutData,
     };
   }, [parent, own, initialPage, hoistLayoutData]);
+
+  // When DI isn't wired, short-circuit before producing any context so nested
+  // editor-only UIs can surface the "setup missing" banner at the root level.
+  if (missingSetup) {
+    if (serverIsEditorMode) {
+      return <CMSSetupMissingDialog />;
+    }
+    return <></>;
+  }
 
   // Render components according to structure if Layout was defined
   if (children) {

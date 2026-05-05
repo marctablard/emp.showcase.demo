@@ -3,9 +3,9 @@ import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCustomEntity } from '@/platform/integrations/emporix/model/schema';
 import type { EmporixSchemaApi } from '@/platform/integrations/emporix/schema/EmporixSchemaApi';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { CMSComponent } from '@/platform/services/model/cms';
+import type { CMSComponent } from '@/platform/services/model/cms';
 import { buildEntityId, parseVersionedId } from '../../lib/version-utils';
-import { CMSLayout, CMSPage } from '../../types';
+import type { CMSLayout, CMSPage } from '../../types';
 import type { GetLayoutOptions, GetPageOptions, EmporixCmsApi as IEmporixCmsApi } from '../EmporixCmsApi';
 
 /**

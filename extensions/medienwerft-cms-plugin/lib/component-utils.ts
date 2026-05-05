@@ -1,6 +1,6 @@
 import client from '@/platform/client';
 import type { CMSComponentService } from '../services/CMSComponentService';
-import { CMSComponentTypeDefinition } from '../types';
+import type { CMSComponentTypeDefinition } from '../types';
 
 /** Extract all component type definitions from entries */
 

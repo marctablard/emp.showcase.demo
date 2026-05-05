@@ -1,8 +1,8 @@
 import { cache } from 'react';
-import { CMSNoResult } from '@/platform/services/model/cms';
+import type { CMSNoResult } from '@/platform/services/model/cms';
 import ssr from '@/platform/ssr';
 import type { EmporixCMSService, GetLayoutOptions, GetPageOptions } from '../services/EmporixCMSService';
-import { CMSLayout, CMSPage } from '../types';
+import type { CMSLayout, CMSPage } from '../types';
 
 /**
  * Fetch CMS page data from the CMSService.

@@ -10,52 +10,6 @@ export function generateUrlHash(url: string): string {
 }
 
 /**
- * Strip any already-applied prefix / suffix / version marker from a value
- * that might already be a fully built entity id.
- *
- * The editor stores the cross-entity FK (e.g. a page's `layout_id`) as the
- * full built id — `cms-layout-default-en-main` — rather than the logical
- * short id (`default`). When that value is passed back through
- * {@link buildEntityId}, we'd otherwise double-wrap it and produce
- * nonsense like `cms-layout-cms-layout-default-en-main-en-main`.
- *
- * We only unwrap when **all three** markers match — leading prefix,
- * trailing `-{locale}-{site}` and (optionally) a trailing version marker —
- * so a legitimate logical id that happens to start with the prefix string
- * won't be mangled.
- */
-function unwrapAlreadyBuiltId(raw: string, type: 'page' | 'layout', locale: string, site: string): string {
-  const prefix = type === 'layout' ? 'cms-layout-' : 'cms-page-';
-  if (!raw.startsWith(prefix)) return raw;
-
-  // Drop a trailing version marker (`-draft` or `-YYYY-MM-DDTHH-MM-SSZ`)
-  // before checking for the locale/site suffix.
-  const { baseId } = parseVersionedId(raw);
-
-  const siteSuffix = `-${locale.toLowerCase()}-${site.toLowerCase()}`;
-  if (!baseId.toLowerCase().endsWith(siteSuffix)) return raw;
-
-  const withoutPrefix = baseId.slice(prefix.length);
-  const withoutSuffix = withoutPrefix.slice(0, withoutPrefix.length - siteSuffix.length);
-
-  // For pages the built id carries a 12-hex-character url hash as its
-  // last dash-separated segment. We can't reconstruct the original URL
-  // path from the hash alone, so we bail out and let the caller deal
-  // with it — the fallback mixin search in `EmporixCmsApi` will still
-  // find the entity by attribute even if the direct `getCustomEntity`
-  // lookup misses.
-  if (type === 'page') {
-    const parts = withoutSuffix.split('-');
-    const maybeHash = parts[parts.length - 1];
-    if (/^[0-9a-f]{12}$/.test(maybeHash)) {
-      return raw; // keep as-is; direct lookup will succeed with the full id.
-    }
-  }
-
-  return withoutSuffix;
-}
-
-/**
  * Build a deterministic entity ID from slug/id, locale, and site.
  *
  * Matches the editor-side buildEntityId convention:

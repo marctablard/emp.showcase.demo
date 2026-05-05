@@ -1,8 +1,8 @@
 'use client';
 
 import { createContext, useContext } from 'react';
-import { CMSComponent } from '@/platform/services/model/cms';
-import { CMSLayout, CMSSlotConfig } from '../types';
+import type { CMSComponent } from '@/platform/services/model/cms';
+import type { CMSLayout, CMSSlotConfig } from '../types';
 
 export interface CMSPageContextValue {
   slotComponents: Record<string, CMSComponent[]>;

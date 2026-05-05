@@ -1,7 +1,7 @@
 import { getSiteFallback } from '../lib/cms-settings-access';
 import { fetchCMSLayout } from '../lib/fetch-cms-page';
 import '../styles/cms-editor.css';
-import { CMSLayout } from '../types';
+import type { CMSLayout } from '../types';
 import EmporixCMSProvider from './emporix-cms-provider';
 
 type EmporixCmsLayoutCommonProps = {

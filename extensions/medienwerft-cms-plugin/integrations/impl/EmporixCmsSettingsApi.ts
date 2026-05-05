@@ -9,12 +9,6 @@ import type {
 } from '../EmporixCmsSettingsApi';
 
 /**
- * TTL applied to the underlying Emporix read (seconds). See
- * `EmporixCmsThemeApi.THEME_TTL_SECONDS` for the rationale — same model.
- */
-const SETTINGS_TTL_SECONDS = 300;
-
-/**
  * Emporix Custom Entities-backed implementation of the CMS Settings API.
  *
  * The settings row is a single `STOREFRONT_CMS_SETTINGS` entity per

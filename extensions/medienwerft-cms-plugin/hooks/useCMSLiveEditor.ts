@@ -2,12 +2,12 @@ import { useContext, useEffect, useRef, useState } from 'react';
 import { useLocale } from 'next-intl';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import client from '@/platform/client';
-import { CMSComponent } from '@/platform/services/model/cms';
+import type { CMSComponent } from '@/platform/services/model/cms';
 import { SiteContext } from '@/providers/SiteProvider';
 import { categoryToTreeNodes } from '../lib/category-tree';
 import { getComponentTypes } from '../lib/component-utils';
 import { fetchCategoryTreesForSite } from '../lib/fetch-category-tree';
-import { CMSContentSlot, CMSEditorMessage, CMSLayout, CMSPage, CMSSlotConfig } from '../types';
+import type { CMSContentSlot, CMSEditorMessage, CMSLayout, CMSPage, CMSSlotConfig } from '../types';
 
 export interface UseCMSEditorMessagesOptions {
   /**
@@ -111,7 +111,6 @@ export function useCMSLiveEditor({
       switch (data.type) {
         case 'REQUEST_COMPONENT_TYPES':
           const componentTypes = getComponentTypes(theme);
-          console.log(componentTypes);
           event.source?.postMessage(
             {
               type: 'COMPONENT_TYPES',

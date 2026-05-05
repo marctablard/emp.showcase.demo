@@ -1,10 +1,10 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { CMSComponent, CMSNoResult } from '@/platform/services/model/cms';
+import type { CMSComponent, CMSNoResult } from '@/platform/services/model/cms';
 import type { EmporixCmsApi } from '../../integrations/EmporixCmsApi';
 import { tryLoadWithFallbacks } from '../../lib/try-load-with-fallbacks';
-import { CMSLayout, CMSPage } from '../../types';
+import type { CMSLayout, CMSPage } from '../../types';
 import type { CMSComponentDecoratorContext, CMSComponentDecoratorService } from '../CMSComponentDecoratorService';
 import type { CMSSiteFallback } from '../CMSSettingsService';
 import type { GetLayoutOptions, GetPageOptions, EmporixCMSService as IEmporixCMSService } from '../EmporixCMSService';

@@ -4,7 +4,7 @@ import { useContext, useMemo } from 'react';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
 import client from '@/platform/client';
-import { CMSComponent } from '@/platform/services/model/cms';
+import type { CMSComponent } from '@/platform/services/model/cms';
 import { EmporixCMSContext } from '../context/emporix-cms-context';
 import type { CMSComponentService } from '../services/CMSComponentService';
 import CMSSetupMissingDialog from './cms-setup-missing-banner';
@@ -33,7 +33,7 @@ export default function EmporixCMSComponentRenderer({ components, theme }: Empor
     // `theme` isn't used by the service resolution itself (it's a
     // per-call arg to getDefinition) but we re-read the DI binding if
     // the theme changes in case the host swaps the impl per theme.
-  }, [theme]);
+  }, []);
 
   if (!definitionService) {
     return <CMSSetupMissingDialog />;

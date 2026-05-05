@@ -1,8 +1,6 @@
 import type { ReactNode } from 'react';
 import { setRequestLocale } from 'next-intl/server';
 import { EmporixCmsLayout, EmporixContentSlot } from '@extensions/medienwerft-cms-plugin/components';
-import Footer, { FooterWrapper, LegalFooter } from '@/components/footer/footer';
-import { HeaderCheckout } from '@/components/header/header-checkout';
 import { setRequestSite } from '@/site/server/';
 
 type Props = {

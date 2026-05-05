@@ -5,7 +5,7 @@ import { getSiteFallback } from '../lib/cms-settings-access';
 import { fetchCMSLayout, fetchCMSPage } from '../lib/fetch-cms-page';
 import { fetchCMSTheme } from '../lib/fetch-cms-theme';
 import { isValidVersion } from '../lib/version-utils';
-import { CMSLayout, CMSPage } from '../types';
+import type { CMSLayout, CMSPage } from '../types';
 import EmporixCMSProvider from './emporix-cms-provider';
 
 type EmporixCmsPageCommonProps = {
@@ -59,12 +59,10 @@ export default async function EmporixCmsPage(props: EmporixCmsPageProps) {
   let effectiveLayout;
   let effectiveSite;
   let effectiveLocale;
-  let effectiveLayoutData;
   let fallback;
   if ('page' in props) {
     page = props.page;
     effectiveLayout = (cmsLayout as string) || page.layout?.id;
-    effectiveLayoutData = (cmsLayout as string) ? undefined : page.layout;
     effectiveLocale = (cmsLocale as string) || page.locale;
     effectiveSite = (cmsSite as string) || page.site;
     fallback = isEditorMode ? undefined : await getSiteFallback(effectiveSite);

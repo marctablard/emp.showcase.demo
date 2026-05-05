@@ -1,5 +1,5 @@
-import { CMSComponentEntry } from '../../types';
-import { CMSComponentService } from '../CMSComponentService';
+import type { CMSComponentEntry } from '../../types';
+import type { CMSComponentService } from '../CMSComponentService';
 
 export abstract class AbstractCMSComponentService implements CMSComponentService {
   /**

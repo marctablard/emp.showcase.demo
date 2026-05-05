@@ -117,6 +117,3 @@ next-env.d.ts
 /docs/pr-analysis/
 /docs/task-analysis/
 /docs/testing-plans/
-
-# Extensions (local only)
-/extensions/*/
