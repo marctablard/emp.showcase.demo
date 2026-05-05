@@ -124,7 +124,7 @@ export const imageTextEntry: CMSComponentEntry = {
     description: 'Side-by-side image and text block.',
     fieldDefinitions: sharedFieldDefinitions,
     props: {
-      image: { $ref: 'image', label: 'Image', type: 'object', required: true },
+      image: { $ref: 'image', label: 'Image', type: 'media', allowedTypes: ['image/*'], required: true },
       eyebrow: { label: 'Eyebrow', type: 'text' },
       headline: { label: 'Headline', type: 'text' },
       body: { label: 'Body', type: 'textarea' },

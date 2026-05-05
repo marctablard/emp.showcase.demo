@@ -74,7 +74,7 @@ export const videoEntry: CMSComponentEntry = {
     fieldDefinitions: sharedFieldDefinitions,
     props: {
       src: { label: 'Video URL', type: 'url', required: true },
-      poster: { $ref: 'image', label: 'Poster image', type: 'object' },
+      poster: { $ref: 'image', label: 'Poster image', type: 'media', allowedTypes: ['image/*'] },
       caption: { label: 'Caption', type: 'text' },
       aspect: {
         label: 'Aspect ratio',

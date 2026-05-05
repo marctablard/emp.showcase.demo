@@ -15,7 +15,7 @@ export const galleryEntry: CMSComponentEntry = {
       images: {
         label: 'Images',
         type: 'array',
-        items: { $ref: 'image', label: 'Image', type: 'object' },
+        items: { $ref: 'image', label: 'Image', type: 'media', allowedTypes: ['image/*'] },
       },
       columns: {
         label: 'Columns',

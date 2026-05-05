@@ -71,7 +71,7 @@ export const imageEntry: CMSComponentEntry = {
     description: 'Standalone image with optional caption and aspect ratio.',
     fieldDefinitions: sharedFieldDefinitions,
     props: {
-      image: { $ref: 'image', label: 'Image', type: 'object', required: true },
+      image: { $ref: 'image', label: 'Image', type: 'media', allowedTypes: ['image/*'], required: true },
       caption: { label: 'Caption', type: 'text' },
       aspect: {
         label: 'Aspect ratio',

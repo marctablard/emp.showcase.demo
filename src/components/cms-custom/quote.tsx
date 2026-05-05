@@ -84,7 +84,7 @@ export const quoteEntry: CMSComponentEntry = {
       quote: { label: 'Quote', type: 'textarea', required: true },
       author: { label: 'Author', type: 'text' },
       author_role: { label: 'Author role', type: 'text' },
-      author_image: { $ref: 'image', label: 'Author image', type: 'object' },
+      author_image: { $ref: 'image', label: 'Author image', type: 'media', allowedTypes: ['image/*'] },
       alignment: {
         label: 'Alignment',
         type: 'select',

@@ -115,7 +115,7 @@ export const ctaBannerEntry: CMSComponentEntry = {
       body: { label: 'Body', type: 'textarea' },
       primary_cta: { $ref: 'link', label: 'Primary CTA', type: 'object' },
       secondary_cta: { $ref: 'link', label: 'Secondary CTA', type: 'object' },
-      background_image: { $ref: 'image', label: 'Background image', type: 'object' },
+      background_image: { $ref: 'image', label: 'Background image', type: 'media', allowedTypes: ['image/*'] },
       alignment: {
         label: 'Alignment',
         type: 'select',

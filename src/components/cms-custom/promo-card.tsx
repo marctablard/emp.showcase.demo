@@ -131,7 +131,7 @@ export const promoCardEntry: CMSComponentEntry = {
       eyebrow: { label: 'Eyebrow', type: 'text' },
       headline: { label: 'Headline', type: 'text', required: true },
       body: { label: 'Body', type: 'textarea' },
-      image: { $ref: 'image', label: 'Image', type: 'object' },
+      image: { $ref: 'image', label: 'Image', type: 'media', allowedTypes: ['image/*'] },
       cta: { $ref: 'link', label: 'CTA', type: 'object' },
       image_position: {
         label: 'Image position',
