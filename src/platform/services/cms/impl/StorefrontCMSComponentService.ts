@@ -12,6 +12,7 @@ import { heroBannerEntry } from '@/components/cms-custom/hero-banner';
 import { imageEntry } from '@/components/cms-custom/image';
 import { imageTextEntry } from '@/components/cms-custom/image-text';
 import { newsletterSignupEntry } from '@/components/cms-custom/newsletter-signup';
+import { productCarouselEntry } from '@/components/cms-custom/product-carousel';
 import { productGridEntry } from '@/components/cms-custom/product-grid';
 import { promoCardEntry } from '@/components/cms-custom/promo-card';
 import { quoteEntry } from '@/components/cms-custom/quote';
@@ -41,6 +42,7 @@ const definitionMap: Record<string, CMSComponentEntry> = {
   [newsletterSignupEntry.definition.type]: newsletterSignupEntry,
   [featureListEntry.definition.type]: featureListEntry,
   [productGridEntry.definition.type]: productGridEntry,
+  [productCarouselEntry.definition.type]: productCarouselEntry,
   [categoryTileRowEntry.definition.type]: categoryTileRowEntry,
   [promoCardEntry.definition.type]: promoCardEntry,
 };
