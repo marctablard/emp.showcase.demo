@@ -33,10 +33,18 @@ export function CmsProductTile({ sku, showPrice = true, showRating = false, clas
   const { l10n } = useL10n();
   // undefined = loading, null = not found / fetch failed
   const [product, setProduct] = useState<Product | null | undefined>(undefined);
+  // Reset to the loading state when `sku` changes by tracking the previous
+  // value and updating during render — see React docs, "Adjusting state on
+  // prop change" — so we don't trigger a cascading render from inside an
+  // effect.
+  const [prevSku, setPrevSku] = useState(sku);
+  if (sku !== prevSku) {
+    setPrevSku(sku);
+    setProduct(undefined);
+  }
 
   useEffect(() => {
     let cancelled = false;
-    setProduct(undefined);
     fetchProductById(sku, { prices: true })
       .then((p) => {
         if (!cancelled) setProduct(p);
