@@ -37,11 +37,7 @@ class EmporixCmsSettingsApi implements IEmporixCmsSettingsApi {
 
   async getSettings(): Promise<RawCmsSettings | null> {
     try {
-      const result = await this.schemaApi.searchCustomEntities(
-        this.SETTINGS_ENTITY_TYPE,
-        { size: 1 },
-        SETTINGS_TTL_SECONDS,
-      );
+      const result = await this.schemaApi.searchCustomEntities(this.SETTINGS_ENTITY_TYPE, { size: 1 });
       const entity = result.items?.[0];
       if (!entity) {
         return null;
