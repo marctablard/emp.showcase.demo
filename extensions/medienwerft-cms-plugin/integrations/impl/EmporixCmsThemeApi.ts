@@ -51,11 +51,7 @@ class EmporixCmsThemeApi implements IEmporixCmsThemeApi {
         if (version) {
           criteria[`mixins.${this.THEME_MIXIN_KEY}.version`] = version;
         }
-        const result = await this.schemaApi.searchCustomEntities(
-          this.THEME_ENTITY_TYPE,
-          { criteria, size: 1 },
-          THEME_TTL_SECONDS,
-        );
+        const result = await this.schemaApi.searchCustomEntities(this.THEME_ENTITY_TYPE, { criteria, size: 1 });
         entity = result.items?.[0];
       }
 
