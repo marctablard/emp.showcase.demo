@@ -1,0 +1,12 @@
+{
+  "name": "medienwerft-cms-plugin",
+  "description": "CMS page management backed by Emporix Custom Entities",
+  "version": "1.0.0",
+  "enabled": true,
+  "aliases": {
+    "CMSService": "EmporixCMSService",
+    "CMSSettingsService": "EmporixCMSSettingsService",
+    "CMSThemeService": "EmporixCMSThemeService",
+    "CMSThemeTokenManifestService": "TailwindCMSThemeTokenManifestService"
+  }
+}
