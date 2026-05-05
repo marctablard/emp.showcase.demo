@@ -18,10 +18,12 @@ import { quoteEntry } from '@/components/cms-custom/quote';
 import { richTextEntry } from '@/components/cms-custom/rich-text';
 import { sectionEntry } from '@/components/cms-custom/section';
 import { spacerEntry } from '@/components/cms-custom/spacer';
+import { cmsTopBarEntry } from '@/components/cms-custom/top-bar';
 import { videoEntry } from '@/components/cms-custom/video';
 import { injectable } from '@/platform/core/di/injectable';
 
 const definitionMap: Record<string, CMSComponentEntry> = {
+  [cmsTopBarEntry.definition.type]: cmsTopBarEntry,
   [cmsHeaderEntry.definition.type]: cmsHeaderEntry,
   [cmsFooterEntry.definition.type]: cmsFooterEntry,
   [heroBannerEntry.definition.type]: heroBannerEntry,

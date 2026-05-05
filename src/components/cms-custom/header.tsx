@@ -24,6 +24,7 @@ export const cmsHeaderEntry: CMSComponentEntry = {
       show_search: { label: 'Show search bar', type: 'boolean' },
       show_account: { label: 'Show account button', type: 'boolean' },
       show_cart: { label: 'Show cart button', type: 'boolean' },
+      show_language_switcher: { label: 'Show language switcher', type: 'boolean' },
       tone: {
         label: 'Tone',
         type: 'select',
@@ -41,6 +42,7 @@ export const cmsHeaderEntry: CMSComponentEntry = {
       show_search: true,
       show_account: true,
       show_cart: true,
+      show_language_switcher: true,
     },
   },
   mapProps: (p) => ({
@@ -53,6 +55,7 @@ export const cmsHeaderEntry: CMSComponentEntry = {
     showSearch: p.show_search,
     showAccount: p.show_account,
     showCart: p.show_cart,
+    showLanguageSwitcher: p.show_language_switcher,
   }),
   component: CmsHeader,
 };

@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { HeaderCartButton } from '@/components/header/cart/header-cart-button';
+import { LanguageSwitcher } from '@/components/header/switcher/header-language-switcher';
 import { cn } from '@/lib/utils';
 import { type SharedImage, type SharedLink, resolveImageSrc } from './_shared/field-definitions';
 import { type Tone, toneSurfaceClass } from './_shared/styles';
@@ -19,6 +20,7 @@ export type CmsHeaderProps = {
   showSearch?: boolean;
   showAccount?: boolean;
   showCart?: boolean;
+  showLanguageSwitcher?: boolean;
 };
 
 const linkHref = (link?: SharedLink): string | undefined =>
@@ -36,6 +38,7 @@ export default function CmsHeader({
   showSearch = true,
   showAccount = true,
   showCart = true,
+  showLanguageSwitcher = true,
 }: CmsHeaderProps) {
   const logoSrc = resolveImageSrc(logo);
   const ctaHref = linkHref(cta);
@@ -101,6 +104,7 @@ export default function CmsHeader({
               {cta?.label ?? 'Get started'}
             </Link>
           ) : null}
+          {showLanguageSwitcher ? <LanguageSwitcher /> : null}
           {showAccount ? <CmsAccountButton /> : null}
           {showCart ? <HeaderCartButton showSum={false} /> : null}
         </div>
@@ -137,8 +141,9 @@ export default function CmsHeader({
                 {cta?.label ?? 'Get started'}
               </Link>
             ) : null}
-            {(showAccount || showCart) && (
-              <div className="mt-2 flex items-center justify-around border-t border-border-primary pt-3">
+            {(showAccount || showCart || showLanguageSwitcher) && (
+              <div className="mt-2 flex items-center justify-around gap-2 border-t border-border-primary pt-3">
+                {showLanguageSwitcher ? <LanguageSwitcher /> : null}
                 {showAccount ? <CmsAccountButton /> : null}
                 {showCart ? <HeaderCartButton showSum={false} /> : null}
               </div>
