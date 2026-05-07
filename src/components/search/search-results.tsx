@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { USE_SEARCH_CLIENT_ERROR, useSearch } from '@/hooks/search/useSearch';
 import { parseCategoryIdsFilterValue } from '@/lib/search/parse-category-ids-filter';
+import type { Category } from '@/platform/services/model/category';
 import type { SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
 import {
@@ -26,12 +27,22 @@ interface SearchClientWrapperProps {
   initialSearch?: SearchParams<Product>;
   initialResults?: SearchResult<Product>;
   locale: string;
+  /**
+   * Site-scoped navigation category forest (from `getCachedNavigationCategoryTrees`). Feeds the
+   * list-view thumbnail carousel and later the expandable category tree.
+   */
+  navigationRoots?: Category[];
 }
 
 /** Matches `createBrowseInitialSearch` default when `size` is omitted from the URL. */
 const BROWSE_DEFAULT_PAGE_SIZE = 12;
 
-export function SearchResultsComponent({ initialSearch, initialResults, locale }: SearchClientWrapperProps) {
+export function SearchResultsComponent({
+  initialSearch,
+  initialResults,
+  locale,
+  navigationRoots,
+}: SearchClientWrapperProps) {
   const t = useTranslations('search.searchResults');
   const tSearch = useTranslations('search');
   const searchParams = useSearchParams();
@@ -203,6 +214,11 @@ export function SearchResultsComponent({ initialSearch, initialResults, locale }
             pageSize={pageSize}
             total={total}
             loading={loading}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            loadMore={loadMore}
+            activeCategoryIdsFilter={activeFilters.categoryIds}
+            navigationRoots={navigationRoots}
           />
         )}
 

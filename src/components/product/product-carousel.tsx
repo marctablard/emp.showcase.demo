@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
-import type { CarouselApi } from '@/components/ui/carousel';
+import type { CarouselType } from '@/components/ui/carousel';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { useL10n } from '@/hooks/useL10n';
 import { imageSizes } from '@/lib/utils';
@@ -16,8 +16,8 @@ interface ProductCarouselProps {
 export function ProductCarousel({ images }: ProductCarouselProps) {
   const { l10nOrEmpty } = useL10n();
 
-  const [mainApi, setMainApi] = useState<CarouselApi>();
-  const [thumbApi, setThumbApi] = useState<CarouselApi>();
+  const [mainApi, setMainApi] = useState<CarouselType>();
+  const [thumbApi, setThumbApi] = useState<CarouselType>();
   const [activeIndex, setActiveIndex] = useState(0);
 
   // Sync the main carousel with the thumbnail carousel
