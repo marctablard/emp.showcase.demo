@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import dynamic from 'next/dynamic';
 import { ClientOnly } from '@/components/common/client-only';
 import { H3 } from '@/components/ui/h';
 import { useCustomer } from '@/hooks/customer/useCustomer';
@@ -10,8 +11,9 @@ import { getLogger } from '@/lib/logger/use-logger-client';
 import AccountLayout from '../account-layout';
 import type { SupportTicketData } from './cards/support-ticket-dialog';
 import { SupportTicketDialog } from './cards/support-ticket-dialog';
-import Dashboard from './dashboard';
 import DashboardControls from './dashboard-controls';
+
+const Dashboard = dynamic(() => import('./dashboard'), { ssr: false });
 
 interface AccountDashboardProps {
   // customer prop is now optional since we'll get it from useCustomer hook

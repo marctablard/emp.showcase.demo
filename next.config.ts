@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next';
 import createNextIntlSplitPlugin from 'next-intl-split/plugin';
+import createBundleAnalyzer from '@next/bundle-analyzer';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { validateEnvVars } from './src/platform/healthcheck/env-validation';
@@ -80,6 +81,12 @@ let nextConfig: NextConfig = {
   },
 
   reactStrictMode: true,
+  modularizeImports: {
+    lodash: {
+      transform: 'lodash/{{member}}',
+      preventFullImport: true,
+    },
+  },
   webpack: (config, { dev, isServer }) => {
     // Exclude test files from being compiled by Next.js
     config.module.rules.push({
@@ -149,7 +156,13 @@ let nextConfig: NextConfig = {
 // add i18n Logic to Next-Configuration
 const withNextIntlSplit = createNextIntlSplitPlugin('./src/i18n/translations');
 
+const withBundleAnalyzer = createBundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+  openAnalyzer: false,
+});
+
 // Apply plugins in sequence
 nextConfig = withNextIntlSplit(nextConfig);
+nextConfig = withBundleAnalyzer(nextConfig);
 
 export default nextConfig;
