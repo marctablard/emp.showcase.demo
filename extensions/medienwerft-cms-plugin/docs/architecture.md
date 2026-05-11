@@ -156,7 +156,7 @@ extensions/medienwerft-cms-plugin/
 ├── context/
 │   └── emporix-cms-context.tsx           # React context for CMS state
 ├── hooks/
-│   └── useCMSEditorMessages.ts           # Editor integration (useCMSLiveEditor hook)
+│   └── useCMSLiveEditor.ts               # Editor postMessage bridge + singleton overlay store
 ├── lib/
 │   ├── fetch-cms-page.ts                 # Server-side data fetching
 │   ├── component-utils.ts               # Component type extraction from DI

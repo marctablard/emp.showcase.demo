@@ -32,7 +32,13 @@ interface EmporixCMSProviderProps {
  * the state for layout slots it rendered during SSR (typically the published
  * version); after hydration, if the inner page carries an editor-version
  * layout (because `EmporixCmsPage` had access to `searchParams`), it is
- * hoisted up and the outer provider re-derives its slot state from it.
+ * hoisted up and the outer provider re-derives its slot state from it. This
+ * is what keeps layout slot consumers — which live outside the inner
+ * provider — in sync with the editor-aware data.
+ *
+ * Live-editor postMessage updates are owned by a singleton store inside
+ * `useCMSLiveEditor`, so every provider sees the same overlay regardless of
+ * how deep it sits in the tree.
  */
 export default function EmporixCMSProvider({
   initialPage,
@@ -59,11 +65,12 @@ export default function EmporixCMSProvider({
   // our own layout state via `hoistLayoutData` below.
   const parentHoist = parent?.hoistLayoutData;
   useEffect(() => {
-    if (!initialLayout) return;
+    const bundledLayout = initialPage?.layout || initialLayout;
+    if (!bundledLayout) return;
     if (parentHoist) {
-      parentHoist(initialLayout);
+      parentHoist(bundledLayout);
     }
-  }, [parentHoist, initialLayout]);
+  }, [parentHoist, initialPage, initialLayout]);
 
   const hoistLayoutData = useCallback(
     (hoistedLayout: CMSLayout) => {
@@ -73,11 +80,9 @@ export default function EmporixCMSProvider({
         parentHoist(hoistedLayout);
         return;
       }
-      if (!layout || layout.id !== hoistedLayout.id) {
-        setLayout(hoistedLayout);
-      }
+      setLayout((prev) => (prev?.id === hoistedLayout.id ? prev : hoistedLayout));
     },
-    [parentHoist, layout],
+    [parentHoist],
   );
 
   const contextValue = useMemo<CMSPageContextValue>(() => {
@@ -139,11 +144,8 @@ export default function EmporixCMSProvider({
   );
 }
 
-/**
- * Merge two `slotConfig` lists. Own entries win for overlapping `slotId`s.
- * Position is preserved from the original lists; inner entries are appended
- * after the parent's — consumers sort by `position` when rendering.
- */
+// Own entries shadow parent on collision; original `position` values are
+// preserved (consumers sort before rendering).
 function mergeSlotConfig(parent: CMSSlotConfig[], own: CMSSlotConfig[]): CMSSlotConfig[] {
   const ownIds = new Set(own.map((s) => s.slotId));
   return [...parent.filter((s) => !ownIds.has(s.slotId)), ...own];

@@ -58,11 +58,12 @@ import type {
  * `src/platform/services/cms/impl/StorefrontCMSThemeTokenManifestService.ts`
  * for a project-specific example.
  *
- * **Defaults** below match `brand.css` / `alias.css` / `mapped.css` as
- * shipped by the reference storefront. They are advisory — the live
- * bridge enriches each token with its actual computed `currentValue`
- * at `REQUEST_THEME_TOKENS` time, so if a `.theme-<name>` class
- * overrides a default the editor sees the live value regardless.
+ * No `defaultValue`s are declared on the tokens below: the live bridge
+ * resolves both `defaultValue` (no-override cascade reading) and
+ * `currentValue` (cascade-with-overrides reading) at
+ * `REQUEST_THEME_TOKENS` time via `getComputedStyle`, so the editor
+ * always sees what the static CSS files actually produce — no
+ * hand-maintained mirror to drift.
  */
 
 const COLOR_GROUP: ThemeTokenGroup = {
@@ -79,7 +80,6 @@ const COLOR_GROUP: ThemeTokenGroup = {
       description:
         'Main action / brand colour. Cascades through `--color-surface-action`, `--color-text-action`, `--color-border-focus`, `--color-icon-action`, …',
       type: 'color',
-      defaultValue: 'oklch(0.5701 0.1725 253.49)',
     },
     {
       name: '--color-primary-700',
@@ -87,14 +87,12 @@ const COLOR_GROUP: ThemeTokenGroup = {
       description:
         'Darker shade for hover / active states. Drives `--color-surface-action-hover`, `--color-text-action-hover`, `--color-border-action-hover`.',
       type: 'color',
-      defaultValue: 'oklch(0.3965 0.1149 252.87)',
     },
     {
       name: '--color-primary-50',
       label: 'Primary 50 (tint)',
       description: 'Very light primary tint used as `--color-surface-action-hover-2` (secondary hover fill).',
       type: 'color',
-      defaultValue: 'oklch(0.9536 0.0172 248.01)',
       advanced: true,
     },
     // Secondary scale — default is teal via alias.css.
@@ -103,13 +101,11 @@ const COLOR_GROUP: ThemeTokenGroup = {
       label: 'Secondary 500',
       description: 'Secondary brand colour. Drives `--color-surface-secondary` and `--color-border-secondary`.',
       type: 'color',
-      defaultValue: 'oklch(0.8852 0.1348 156.84)',
     },
     {
       name: '--color-secondary-700',
       label: 'Secondary 700',
       type: 'color',
-      defaultValue: 'oklch(0.6058 0.0883 157.43)',
       advanced: true,
     },
     // Context tokens — the second dial. These are the variables
@@ -120,7 +116,6 @@ const COLOR_GROUP: ThemeTokenGroup = {
       description:
         'Fill colour for primary buttons / CTAs (e.g. cart button). Defaults to `--color-primary-500` — override only if you want buttons to diverge from the primary scale.',
       type: 'color',
-      defaultValue: 'oklch(0.5701 0.1725 253.49)',
       aliasOf: '--color-primary-500',
     },
     {
@@ -128,7 +123,6 @@ const COLOR_GROUP: ThemeTokenGroup = {
       label: 'Surface — action hover',
       description: 'Hover fill for primary buttons / CTAs. Defaults to `--color-primary-700`.',
       type: 'color',
-      defaultValue: 'oklch(0.3965 0.1149 252.87)',
       aliasOf: '--color-primary-700',
     },
     {
@@ -136,7 +130,6 @@ const COLOR_GROUP: ThemeTokenGroup = {
       label: 'Surface — action hover (subtle)',
       description: 'Light tint hover fill used by secondary / outline buttons. Defaults to `--color-primary-50`.',
       type: 'color',
-      defaultValue: 'oklch(0.9536 0.0172 248.01)',
       aliasOf: '--color-primary-50',
       advanced: true,
     },
@@ -145,42 +138,36 @@ const COLOR_GROUP: ThemeTokenGroup = {
       label: 'Surface — disabled',
       description: 'Fill for disabled buttons / inputs.',
       type: 'color',
-      defaultValue: 'oklch(0.9288 0.004 286.32)',
     },
     {
       name: '--color-surface-page',
       label: 'Surface — page',
       description: 'Page-level background; applied on `<body>`.',
       type: 'color',
-      defaultValue: 'oklch(1 0 0)',
     },
     {
       name: '--color-text-headings',
       label: 'Text — headings',
       description: 'Default colour for h1–h6.',
       type: 'color',
-      defaultValue: 'oklch(0.2234 0.0058 285.92)',
     },
     {
       name: '--color-text-body',
       label: 'Text — body',
       description: 'Default paragraph / inline text colour.',
       type: 'color',
-      defaultValue: 'oklch(0.3381 0.0105 278.28)',
     },
     {
       name: '--color-text-on-action',
       label: 'Text — on action',
       description: 'Text / icon colour rendered on top of `--color-surface-action` (e.g. button labels).',
       type: 'color',
-      defaultValue: 'oklch(1 0 0)',
     },
     {
       name: '--color-text-action',
       label: 'Text — action',
       description: 'Default colour for action text and inline links. Defaults to `--color-primary-500`.',
       type: 'color',
-      defaultValue: 'oklch(0.5701 0.1725 253.49)',
       aliasOf: '--color-primary-500',
     },
     {
@@ -188,7 +175,6 @@ const COLOR_GROUP: ThemeTokenGroup = {
       label: 'Text — action hover',
       description: 'Hover colour for action text and inline links. Defaults to `--color-primary-700`.',
       type: 'color',
-      defaultValue: 'oklch(0.3965 0.1149 252.87)',
       aliasOf: '--color-primary-700',
     },
     {
@@ -196,7 +182,6 @@ const COLOR_GROUP: ThemeTokenGroup = {
       label: 'Text — disabled',
       description: 'Colour for disabled link / button text.',
       type: 'color',
-      defaultValue: 'oklch(0.7837 0.0129 276.05)',
       advanced: true,
     },
     {
@@ -204,7 +189,6 @@ const COLOR_GROUP: ThemeTokenGroup = {
       label: 'Text — on disabled',
       description: 'Label colour rendered on top of `--color-surface-disabled`.',
       type: 'color',
-      defaultValue: 'oklch(0.5394 0.0175 273.64)',
       advanced: true,
     },
     {
@@ -212,14 +196,12 @@ const COLOR_GROUP: ThemeTokenGroup = {
       label: 'Border — primary',
       description: 'Default border colour for cards, inputs, separators.',
       type: 'color',
-      defaultValue: 'oklch(0.8586 0.0083 278.62)',
     },
     {
       name: '--color-border-focus',
       label: 'Border — focus ring',
       description: 'Accessible focus ring colour. Defaults to `--color-primary-500`.',
       type: 'color',
-      defaultValue: 'oklch(0.5701 0.1725 253.49)',
       aliasOf: '--color-primary-500',
     },
     {
@@ -228,7 +210,6 @@ const COLOR_GROUP: ThemeTokenGroup = {
       description:
         'Outline colour for secondary / outline buttons. Defaults to `--color-primary-500` so the outline tracks the primary scale.',
       type: 'color',
-      defaultValue: 'oklch(0.5701 0.1725 253.49)',
       aliasOf: '--color-primary-500',
     },
     {
@@ -236,7 +217,6 @@ const COLOR_GROUP: ThemeTokenGroup = {
       label: 'Border — action hover',
       description: 'Hover outline colour for outline / secondary buttons. Defaults to `--color-primary-700`.',
       type: 'color',
-      defaultValue: 'oklch(0.3965 0.1149 252.87)',
       aliasOf: '--color-primary-700',
       advanced: true,
     },
@@ -245,7 +225,6 @@ const COLOR_GROUP: ThemeTokenGroup = {
       label: 'Border — disabled',
       description: 'Outline colour for disabled outline / secondary buttons.',
       type: 'color',
-      defaultValue: 'oklch(0.7837 0.0129 276.05)',
       advanced: true,
     },
     {
@@ -254,7 +233,6 @@ const COLOR_GROUP: ThemeTokenGroup = {
       description:
         'Outline colour for action surfaces (e.g. solid CTAs that opt in to a border). Defaults to `--color-primary-500`.',
       type: 'color',
-      defaultValue: 'oklch(0.5701 0.1725 253.49)',
       aliasOf: '--color-primary-500',
       advanced: true,
     },
@@ -262,7 +240,6 @@ const COLOR_GROUP: ThemeTokenGroup = {
       name: '--color-border-information',
       label: 'Border — information',
       type: 'color',
-      defaultValue: 'oklch(0.7912 0.111 248.26)',
       aliasOf: '--color-information-500',
       advanced: true,
     },
@@ -270,7 +247,6 @@ const COLOR_GROUP: ThemeTokenGroup = {
       name: '--color-border-success',
       label: 'Border — success',
       type: 'color',
-      defaultValue: 'oklch(0.548 0.1741 144.13)',
       aliasOf: '--color-success-500',
       advanced: true,
     },
@@ -278,7 +254,6 @@ const COLOR_GROUP: ThemeTokenGroup = {
       name: '--color-border-warning',
       label: 'Border — warning',
       type: 'color',
-      defaultValue: 'oklch(0.5825 0.1717 42.53)',
       aliasOf: '--color-warning-500',
       advanced: true,
     },
@@ -286,7 +261,6 @@ const COLOR_GROUP: ThemeTokenGroup = {
       name: '--color-border-error',
       label: 'Border — error',
       type: 'color',
-      defaultValue: 'oklch(0.5093 0.2032 28.63)',
       aliasOf: '--color-error-500',
       advanced: true,
     },
@@ -294,14 +268,12 @@ const COLOR_GROUP: ThemeTokenGroup = {
       name: '--color-border-neutral-black',
       label: 'Border — neutral black',
       type: 'color',
-      defaultValue: 'oklch(0.2234 0.0058 285.92)',
       advanced: true,
     },
     {
       name: '--color-border-neutral-white',
       label: 'Border — neutral white',
       type: 'color',
-      defaultValue: 'oklch(1 0 0)',
       advanced: true,
     },
     // Status scales — advanced.
@@ -309,28 +281,24 @@ const COLOR_GROUP: ThemeTokenGroup = {
       name: '--color-success-500',
       label: 'Success 500',
       type: 'color',
-      defaultValue: 'oklch(0.548 0.1741 144.13)',
       advanced: true,
     },
     {
       name: '--color-warning-500',
       label: 'Warning 500',
       type: 'color',
-      defaultValue: 'oklch(0.5825 0.1717 42.53)',
       advanced: true,
     },
     {
       name: '--color-error-500',
       label: 'Error 500',
       type: 'color',
-      defaultValue: 'oklch(0.5093 0.2032 28.63)',
       advanced: true,
     },
     {
       name: '--color-information-500',
       label: 'Information 500',
       type: 'color',
-      defaultValue: 'oklch(0.7912 0.111 248.26)',
       advanced: true,
     },
     // Raw palette swatches — advanced. These are what the `primary` /
@@ -339,35 +307,30 @@ const COLOR_GROUP: ThemeTokenGroup = {
       name: '--color-blue-500',
       label: 'Palette — Blue 500',
       type: 'color',
-      defaultValue: 'oklch(0.5701 0.1725 253.49)',
       advanced: true,
     },
     {
       name: '--color-teal-500',
       label: 'Palette — Teal 500',
       type: 'color',
-      defaultValue: 'oklch(0.8852 0.1348 156.84)',
       advanced: true,
     },
     {
       name: '--color-grey-500',
       label: 'Palette — Grey 500',
       type: 'color',
-      defaultValue: 'oklch(0.6326 0.0227 276.74)',
       advanced: true,
     },
     {
       name: '--color-white',
       label: 'Palette — White',
       type: 'color',
-      defaultValue: 'oklch(1 0 0)',
       advanced: true,
     },
     {
       name: '--color-black',
       label: 'Palette — Black',
       type: 'color',
-      defaultValue: 'oklch(0 0 0)',
       advanced: true,
     },
   ],
@@ -389,13 +352,11 @@ const TYPOGRAPHY_GROUP: ThemeTokenGroup = {
       name: '--font-primary',
       label: 'Primary font (headlines)',
       type: 'font-family',
-      defaultValue: 'Ubuntu, sans-serif',
     },
     {
       name: '--font-secondary',
       label: 'Secondary font (body)',
       type: 'font-family',
-      defaultValue: 'Open sans, sans-serif',
     },
   ],
 };
@@ -417,40 +378,34 @@ const RADIUS_GROUP: ThemeTokenGroup = {
       name: '--border-radius-sm',
       label: 'Small',
       type: 'length',
-      defaultValue: '0.25rem',
     },
     {
       name: '--border-radius-md',
       label: 'Medium',
       type: 'length',
-      defaultValue: '0.5rem',
     },
     {
       name: '--border-radius-lg',
       label: 'Large',
       type: 'length',
-      defaultValue: '1rem',
     },
     {
       name: '--border-radius-button',
       label: 'Buttons',
       description: 'Applied to every `rounded-button` utility. Defaults to `--border-radius-sm`.',
       type: 'length',
-      defaultValue: '0.25rem',
       aliasOf: '--border-radius-sm',
     },
     {
       name: '--border-radius-form-field',
       label: 'Form fields',
       type: 'length',
-      defaultValue: '0.25rem',
       aliasOf: '--border-radius-sm',
     },
     {
       name: '--border-radius-pills',
       label: 'Pills',
       type: 'length',
-      defaultValue: '0.25rem',
       aliasOf: '--border-radius-sm',
       advanced: true,
     },
@@ -458,7 +413,6 @@ const RADIUS_GROUP: ThemeTokenGroup = {
       name: '--border-radius-xl',
       label: 'Extra large',
       type: 'length',
-      defaultValue: '1.5rem',
       advanced: true,
     },
   ],
@@ -483,32 +437,27 @@ const SPACING_GROUP: ThemeTokenGroup = {
       description:
         "0.25 rem by default. Doubles as Tailwind's `--spacing` base — bumping this rescales every spacing utility site-wide.",
       type: 'length',
-      defaultValue: '0.25rem',
     },
     {
       name: '--spacing-2',
       label: 'Spacing 2 (sm)',
       type: 'length',
-      defaultValue: '0.5rem',
     },
     {
       name: '--spacing-4',
       label: 'Spacing 4 (md)',
       type: 'length',
-      defaultValue: '1rem',
     },
     {
       name: '--spacing-8',
       label: 'Spacing 8 (xl)',
       type: 'length',
-      defaultValue: '2rem',
       advanced: true,
     },
     {
       name: '--spacing-16',
       label: 'Spacing 16 (2xl)',
       type: 'length',
-      defaultValue: '4rem',
       advanced: true,
     },
   ],
@@ -530,24 +479,18 @@ const SHADOW_GROUP: ThemeTokenGroup = {
       name: '--theme-shadow-sm',
       label: 'Shadow sm',
       type: 'text',
-      defaultValue:
-        '0 0.0625rem 0.75rem 0.0625rem oklch(0.2234 0.0058 285.92 / 5%), 0 0.125rem 0.5rem 0.125rem oklch(0.2234 0.0058 285.92 / 10%)',
       advanced: true,
     },
     {
       name: '--theme-shadow-md',
       label: 'Shadow md',
       type: 'text',
-      defaultValue:
-        '0 0.0625rem 0.75rem 0 oklch(0.2234 0.0058 285.92 / 5%), 0 0.25rem 0.5rem 0.25rem oklch(0.2234 0.0058 285.92 / 10%)',
       advanced: true,
     },
     {
       name: '--theme-shadow-lg',
       label: 'Shadow lg',
       type: 'text',
-      defaultValue:
-        '0 0.0625rem 0.75rem 0 oklch(0.2234 0.0058 285.92 / 10%), 0 0.5rem 0.75rem 0.5rem oklch(0.2234 0.0058 285.92 / 10%)',
       advanced: true,
     },
   ],

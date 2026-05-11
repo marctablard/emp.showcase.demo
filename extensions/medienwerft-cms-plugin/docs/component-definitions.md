@@ -25,7 +25,7 @@ Component definitions serve as the **critical bridge** between the storefront's 
 │  │  • Helper functions (resolveEntries, getMapper)          │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │  ┌──────────────────────────────────────────────────────────┐  │
-│  │  useCMSEditorMessages.ts (useCMSLiveEditor hook)         │  │
+│  │  useCMSLiveEditor.ts                                     │  │
 │  │  • Handles editor postMessage events                     │  │
 │  │  • Manages live component state                          │  │
 │  │  • Responds with component type definitions              │  │

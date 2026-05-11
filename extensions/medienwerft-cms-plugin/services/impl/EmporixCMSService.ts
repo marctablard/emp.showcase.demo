@@ -129,17 +129,31 @@ export class EmporixCMSService implements IEmporixCMSService {
   }
 
   /**
-   * Run every component on the page (both the flat `components` list and the
-   * per-slot `contentSlots` buckets) through the decorator service. Failures
-   * for individual components are swallowed by the decorator itself so the
-   * page is always returned in a usable shape.
+   * Run every component on the page (the flat `components` list, the
+   * per-slot `contentSlots` buckets, **and** any bundled `page.layout`)
+   * through the decorator service. Failures for individual components are
+   * swallowed by the decorator itself so the page is always returned in a
+   * usable shape.
+   *
+   * Decorating the bundled layout here matters for editor mode: the inner
+   * page provider hoists `page.layout` up to the outer layout provider
+   * after hydration, replacing the SSR-decorated published layout with
+   * the editor-aware version. Without this step, hoisting silently strips
+   * server-resolved extras (e.g. `_category_tree` on `mw-header`) and the
+   * layout slots flicker into a degraded state on the first client render.
    */
   private async decoratePage(page: CMSPage, ctx: CMSComponentDecoratorContext): Promise<CMSPage> {
-    const [components, contentSlots] = await Promise.all([
+    const [components, contentSlots, decoratedLayout] = await Promise.all([
       this.decorateList(page.components, ctx),
       this.decorateSlotRecord(page.contentSlots, ctx),
+      page.layout ? this.decorateLayout(page.layout, ctx) : Promise.resolve<CMSLayout | undefined>(undefined),
     ]);
-    return { ...page, components, contentSlots };
+    return {
+      ...page,
+      components,
+      contentSlots,
+      ...(decoratedLayout ? { layout: decoratedLayout } : {}),
+    };
   }
 
   /**

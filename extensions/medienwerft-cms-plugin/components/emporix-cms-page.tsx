@@ -45,7 +45,7 @@ type EmporixCmsPageProps =
  *
  * Per-site fallbacks are loaded via the `CMSSettingsService` (extension-
  * owned) and applied only **outside** editor mode — editors must see the
- * "real" notfound state for the site they are editing.
+ * "real" notFound state for the site they are editing.
  */
 export default async function EmporixCmsPage(props: EmporixCmsPageProps) {
   let page: CMSPage | undefined = undefined;
@@ -88,7 +88,9 @@ export default async function EmporixCmsPage(props: EmporixCmsPageProps) {
       }
     } else {
       page = pageData as CMSPage;
-      effectiveLayout = page.layout?.id;
+      if (!effectiveLayout) {
+        effectiveLayout = page.layout?.id;
+      }
     }
   }
 

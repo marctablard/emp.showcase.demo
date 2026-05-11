@@ -198,7 +198,7 @@ The DI generator will automatically discover and register your service if:
 ### 3. Rebuild
 
 ```bash
-npm run generate-di
+npm run generate
 npm run dev
 ```
 
@@ -275,7 +275,7 @@ Always use the TypeScript types provided by the service interface.
 If you get an error like "Service 'EmporixCMSComponentService' not found":
 
 1. Ensure the service is registered in the DI container
-2. Run `npm run generate-di` to regenerate the container
+2. Run `npm run generate` to regenerate the container
 3. Check that the service file is in the correct location
 4. Verify the `@injectable` decorator is present
 

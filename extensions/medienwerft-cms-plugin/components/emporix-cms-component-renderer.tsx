@@ -23,16 +23,11 @@ export default function EmporixCMSComponentRenderer({ components, theme }: Empor
   const highlightedComponentId = context?.highlightedComponentId ?? null;
   const isEditorMode = context?.isEditorMode ?? false;
 
-  // Resolve the definition service once per `theme` — the lookup hits
-  // the DI container and walks the theme-scoped registry, so keeping
-  // the reference stable across renders avoids the per-render cost on
-  // large pages.
+  // The DI binding is a singleton — `theme` is only a per-call arg to
+  // `getDefinition`, not a service-scoping dimension — so we resolve once.
   const definitionService = useMemo<CMSComponentService | null>(() => {
     if (!client.isBound('EmporixCMSComponentService')) return null;
     return client.get<CMSComponentService>('EmporixCMSComponentService');
-    // `theme` isn't used by the service resolution itself (it's a
-    // per-call arg to getDefinition) but we re-read the DI binding if
-    // the theme changes in case the host swaps the impl per theme.
   }, []);
 
   if (!definitionService) {

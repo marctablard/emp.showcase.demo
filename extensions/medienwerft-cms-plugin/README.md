@@ -43,14 +43,14 @@ not repeat them.
 2. `plugin.json` is the manifest. The directory name and
    `manifest.name` should match (see `../README.md` → "plugin.json
    Manifest").
-3. `npm run generate-di` scans every enabled extension with
+3. `npm run generate` scans every enabled extension with
    [`scripts/di-generator.ts`](../../scripts/di-generator.ts) and
    re-generates the DI container in `src/platform/`.
 4. `aliases` in `plugin.json` become service overrides in the generated
    container — e.g. `CMSService: EmporixCMSService` means every caller
    that asks for `CMSService` gets our Emporix implementation.
 
-No manual wiring is needed — just `npm run generate-di` after dropping
+No manual wiring is needed — just `npm run generate` after dropping
 the extension in place.
 
 ## 3. Including an extension in a host app
@@ -118,7 +118,7 @@ export default function Hello({ name }: { name: string }) {
 Then:
 
 ```bash
-npm run generate-di
+npm run generate
 ```
 
 The extension is picked up on the next dev-server restart; its service is
@@ -153,7 +153,7 @@ either:
   reference), or
 - **Vendor** the files in-tree (drop the nested `.git`).
 
-After pulling an update, re-run `npm run generate-di` so the storefront
+After pulling an update, re-run `npm run generate` so the storefront
 picks up any new injectables or alias changes. Versioning and
 release-channel details live in [`INSTALLATION.md`](./INSTALLATION.md#updating-the-extension).
 

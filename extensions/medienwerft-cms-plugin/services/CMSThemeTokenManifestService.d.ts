@@ -51,10 +51,18 @@ export interface ThemeToken {
   /** Control hint; see {@link ThemeTokenType}. */
   type: ThemeTokenType;
   /**
-   * Value the storefront ships with (from the base theme CSS). Used
-   * as the initial value in the editor and as the reset target.
+   * Value the storefront ships with — i.e. what the variable resolves
+   * to with no CMS overrides applied. Optional in source data: the
+   * live bridge populates it dynamically at `REQUEST_THEME_TOKENS`
+   * time by reading `getComputedStyle` with the persisted-theme
+   * `<link>` and the bridge's draft `<style>` momentarily disabled.
+   * That reading reflects whatever the static CSS cascade actually
+   * produces (including `.theme-<name>` overrides), so a manifest
+   * that omits this field still yields a meaningful baseline in the
+   * editor — and one that tracks the real CSS files instead of a
+   * hand-maintained mirror that can silently drift.
    */
-  defaultValue: string;
+  defaultValue?: string;
   /**
    * Live computed value read from the storefront DOM at
    * `REQUEST_THEME_TOKENS` time. Populated by the live bridge via

@@ -172,7 +172,7 @@ Editor mode is now detected automatically from `searchParams.editMode === 'true'
 4. `components/emporix-content-slot.tsx` - Slot renderer
 5. `components/emporix-cms-component-renderer.tsx` - Component renderer with highlight support
 6. `components/cms-setup-missing-banner.tsx` - Fallback when DI services are missing
-7. `hooks/useCMSEditorMessages.ts` - Live editor hook (`useCMSLiveEditor`)
+7. `hooks/useCMSLiveEditor.ts` - Editor postMessage bridge (singleton overlay store)
 8. `lib/fetch-cms-page.ts` - Data fetching utility
 9. `lib/version-utils.ts` - Version parameter validation
 10. `lib/component-utils.ts` - Component type extraction from DI

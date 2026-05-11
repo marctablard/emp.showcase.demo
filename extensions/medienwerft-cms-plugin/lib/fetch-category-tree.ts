@@ -11,53 +11,8 @@ import type { Category } from '@/platform/services/model/category';
  *
  * The matching server route is mounted by re-exporting `categoryTreeGET`
  * from `@extensions/medienwerft-cms-plugin/route-handlers` at
- * `src/app/api/categories/tree/route.ts`.
+ * `src/app/api/cms/categories/tree/route.ts`.
  */
-
-/**
- * Fetch the category tree rooted at a single category id.
- * @param categoryId The ID of the root category (required)
- * @param showUnpublished Whether to include unpublished categories
- * @returns The category tree, or `null` when the id resolves to nothing.
- */
-export async function fetchCategoryTree(
-  categoryId: string,
-  showUnpublished: boolean = false,
-): Promise<Category | null> {
-  try {
-    const url = new URL('/api/categories/tree', window.location.origin);
-    url.searchParams.append('categoryId', categoryId);
-    if (showUnpublished) {
-      url.searchParams.append('showUnpublished', 'true');
-    }
-
-    const response = await fetch(url.toString());
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        getLogger().debug({ categoryId }, `Category '${categoryId}' not found`);
-        return null;
-      }
-
-      const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
-      getLogger().error(
-        {
-          status: response.status,
-          statusText: response.statusText,
-          errorData,
-          categoryId,
-        },
-        'Error response from API',
-      );
-      throw new Error(errorData.error || `API error: ${response.status} ${response.statusText}`);
-    }
-
-    return response.json();
-  } catch (error) {
-    getLogger().error({ err: error, categoryId }, 'Error fetching category tree');
-    throw error;
-  }
-}
 
 /**
  * Fetch all category trees available for a given site. The backend resolves
@@ -70,7 +25,7 @@ export async function fetchCategoryTree(
  */
 export async function fetchCategoryTreesForSite(site: string, showUnpublished: boolean = false): Promise<Category[]> {
   try {
-    const url = new URL('/api/categories/tree', window.location.origin);
+    const url = new URL('/api/cms/categories/tree', window.location.origin);
     url.searchParams.append('site', site);
     if (showUnpublished) {
       url.searchParams.append('showUnpublished', 'true');
@@ -87,7 +42,7 @@ export async function fetchCategoryTreesForSite(site: string, showUnpublished: b
           errorData,
           site,
         },
-        'Error response from /api/categories/tree (site mode)',
+        'Error response from /api/cms/categories/tree (site mode)',
       );
       throw new Error(errorData.error || `API error: ${response.status} ${response.statusText}`);
     }

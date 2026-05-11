@@ -218,13 +218,28 @@ export function useCMSThemeLiveEditor({
             fallback: true,
             groups: [],
           };
+          // Read the "default" (no-override) values for every token by
+          // briefly silencing both override sources — the persisted
+          // theme `<link>` and the bridge's draft `<style>` — and
+          // querying `getComputedStyle`. The dynamic read is what the
+          // user is actually seeing without their CMS customisations,
+          // which is the right baseline for the editor's "reset"
+          // affordance and beats whatever the manifest had hardcoded
+          // (which can drift from the active theme's static CSS, e.g.
+          // a Tailwind-default manifest for a custom .theme-medienwerft).
+          const defaults = readNoOverrideValues(base, styleNode);
           const resolved: ThemeTokenManifest = {
             ...base,
             groups: base.groups.map((group) => ({
               ...group,
               tokens: group.tokens.map((token) => {
                 const live = readLiveVariable(token.name);
-                return live === null ? token : { ...token, currentValue: live };
+                const dynamicDefault = defaults[token.name];
+                return {
+                  ...token,
+                  ...(dynamicDefault !== undefined && { defaultValue: dynamicDefault }),
+                  ...(live !== null && { currentValue: live }),
+                };
               }),
             })),
           };
@@ -351,6 +366,54 @@ function readLiveVariable(name: string): string | null {
   if (!target) return null;
   const value = getComputedStyle(target).getPropertyValue(name).trim();
   return value.length ? value : null;
+}
+
+/**
+ * Read every manifest token's value as it would resolve **without**
+ * any CMS-theme overrides — i.e. from the static CSS cascade only
+ * (`brand.css` → `alias.css` → `themes/<theme>.css`).
+ *
+ * Implementation: synchronously toggle the two override sources off,
+ * snapshot `getComputedStyle` for each token, then restore. Doing this
+ * in a single synchronous block means React/the browser don't paint a
+ * frame mid-read, so there's no flicker on the live preview. The
+ * `try/finally` guarantees we restore the disabled state even if a
+ * `getComputedStyle` call ever throws.
+ *
+ * The two override sources are:
+ *  - the persisted-theme `<link>` rendered by `EmporixCmsThemeStyle`
+ *    (located via its `data-cms-theme-href` attribute), and
+ *  - the bridge's own draft `<style>` element (passed in as `draftNode`).
+ *
+ * Toggling `link.disabled` and `sheet.disabled` updates the cascade
+ * synchronously in modern browsers, so the subsequent `getComputedStyle`
+ * call returns the post-toggle value — that's what we sample.
+ */
+function readNoOverrideValues(manifest: ThemeTokenManifest, draftNode: HTMLStyleElement): Record<string, string> {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return {};
+
+  const link = document.querySelector<HTMLLinkElement>('link[data-cms-theme-href]');
+  const draftSheet = draftNode.sheet;
+
+  const linkWasDisabled = link?.disabled ?? false;
+  const draftWasDisabled = draftSheet?.disabled ?? false;
+
+  if (link) link.disabled = true;
+  if (draftSheet) draftSheet.disabled = true;
+
+  try {
+    const out: Record<string, string> = {};
+    for (const group of manifest.groups) {
+      for (const token of group.tokens) {
+        const value = readLiveVariable(token.name);
+        if (value !== null) out[token.name] = value;
+      }
+    }
+    return out;
+  } finally {
+    if (link) link.disabled = linkWasDisabled;
+    if (draftSheet) draftSheet.disabled = draftWasDisabled;
+  }
 }
 
 /**

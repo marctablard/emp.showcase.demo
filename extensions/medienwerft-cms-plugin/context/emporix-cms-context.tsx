@@ -22,7 +22,10 @@ export interface CMSPageContextValue {
    * SSR-renders the published layout; the inner `EmporixCmsPage`, which has
    * access to `searchParams` and can therefore fetch editor-version data,
    * hoists its `page.layout` up after hydration so the outer provider re-
-   * renders layout slots with the editor-aware version.
+   * renders layout slots with the editor-aware version. Layout slot consumers
+   * (e.g. `<EmporixContentSlot slot="top" />`) live outside the inner
+   * provider and thus only see the outer's context — without this hoist they
+   * would be stuck on whatever the outer was SSR-seeded with.
    *
    * Only the root provider implements this; nested providers inherit the
    * parent's callback unchanged so hoists propagate to the top.

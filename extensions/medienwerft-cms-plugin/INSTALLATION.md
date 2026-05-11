@@ -17,6 +17,7 @@ Complete guide for installing and configuring the Emporix CMS extension
    - [4. Generate DI Container](#4-generate-di-container)
    - [5. Mount the Theme Stylesheet Route](#5-mount-the-theme-stylesheet-route)
    - [6. Configure Environment Variables](#6-configure-environment-variables)
+   - [7. Mount the Category Tree Route](#7-mount-the-category-tree-route)
 3. [Configuration](#configuration)
 4. [Component Setup](#component-setup)
 5. [Page Integration](#page-integration)
@@ -67,12 +68,12 @@ Before running the generator, set
 `NEXT_PUBLIC_ENABLE_DI_GENERATE_CLIENT=true` in your env (see
 [§6](#6-configure-environment-variables)) — otherwise the client-side
 DI bundle the live editor needs won't be emitted. Re-run
-`generate-di` whenever this value changes.
+`generate` whenever this value changes.
 
 Then run the DI generator to register the extension's services:
 
 ```bash
-npm run generate-di
+npm run generate
 ```
 
 This will automatically discover and register the injectables shipped
@@ -140,13 +141,40 @@ CMS_EDITOR_ORIGINS=https://app.emporix.io
 # Generate client-side DI containers. Required for live-editing — the
 # editor iframe instantiates CMS services in the browser, so the DI
 # generator must emit a client bundle alongside the server one.
-# If you change this value, re-run `npm run generate-di`.
+# If you change this value, re-run `npm run generate`.
 NEXT_PUBLIC_ENABLE_DI_GENERATE_CLIENT=true
 
 # Optional shared key for the iframe ↔ editor handshake.
 # Omit in development; set in staging/production (see API Key Authentication).
 NEXT_PUBLIC_CMS_EDITOR_API_KEY=your-secret-api-key
 ```
+
+### 7. Mount the Category Tree Route
+
+The CMS editor's category-picker UI asks the storefront for the site's
+catalog tree (`REQUEST_CATEGORY_TREE` over postMessage). The bridge
+answers by hitting a thin server route, so the Emporix call stays
+server-side (no browser-origin scope or CORS friction). Add a one-line
+route handler that re-exports the implementation from the extension:
+
+**Create:** `src/app/api/cms/categories/tree/route.ts`
+
+```ts
+export { categoryTreeGET as GET } from '@extensions/medienwerft-cms-plugin/route-handlers';
+```
+
+The handler responds at:
+- `GET /api/cms/categories/tree?site=<code>` — trees rooted at each
+  catalog published to the site (used by the editor on category-picker
+  open).
+- `GET /api/cms/categories/tree?categoryId=<id>` — single tree rooted
+  at the given id.
+
+The `/api/cms/...` namespace is intentional: it keeps the plugin's
+routes from colliding with any host-owned `/api/categories/*` surface
+(shopper navigation, search facets, etc.) and signals at the URL level
+that the response is editor-oriented. Without this file the editor's
+category picker silently shows an empty list.
 
 ---
 
@@ -501,7 +529,7 @@ export async function generateMetadata({
 }) {
   const { slug, locale, site } = await params;
   const data = await fetchCMSPage(slug.join('/'), locale, site);
-  if ('notFound' in data) {
+  if ('notfound' in data) {
     return { title: 'Page not found' };
   }
   const page = data as CMSPage;
@@ -541,8 +569,8 @@ Notes:
 - `fetchCMSPage` runs both inside `generateMetadata` and again inside
   `EmporixCmsPage`. The calls are deduped per request via React's
   `cache()`, so the page payload is fetched once per request.
-- `'notFound' in data` is the type discriminator: `fetchCMSPage`
-  returns either a `CMSPage` or `{ notFound: true }`.
+- `'notfound' in data` is the type discriminator: `fetchCMSPage`
+  returns either a `CMSPage` or `{ notfound: true }`.
 - Catch-all routes claim every URL in the route group. To serve a
   **different** page at the group root (`/<site>/<locale>/`), keep a
   predefined-slug `page.tsx` next to the `[...slug]/` folder — Next.js
@@ -936,7 +964,7 @@ export default nextConfig;
 
 **Check console logs:**
 ```
-[useCMSEditorMessages] Initializing with contentSlots: {...}
+[useCMSLiveEditor] Initializing with contentSlots: {...}
 [EmporixContentSlot] Rendering slot "main": {...}
 ```
 
@@ -960,7 +988,7 @@ when this binding is missing.)
    under `src/platform/services/cms/impl/`
 2. Check the `@injectable('EmporixCMSComponentService', 'Singleton')`
    decorator is present
-3. Run `npm run generate-di`
+3. Run `npm run generate`
 4. Restart dev server
 
 ### Theme Stylesheet 404

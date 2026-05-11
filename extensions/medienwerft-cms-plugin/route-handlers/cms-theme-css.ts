@@ -65,7 +65,7 @@ export async function cmsThemeCssGET(
   // a generous SWR window so the CDN can serve stale while
   // revalidating in the background.
   const cacheControl = versionParam
-    ? 'public, max-age=31536000, immutable'
+    ? 'public, max-age=360, immutable'
     : 'public, max-age=0, s-maxage=10, stale-while-revalidate=60';
 
   return new NextResponse(css, {

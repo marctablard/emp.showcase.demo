@@ -22,7 +22,13 @@ export type CMSFieldType =
    * data the editor receives from the storefront. Use with `multiple: true`
    * for a multi-select chip UI.
    */
-  | 'category';
+  | 'category'
+  /**
+   * SKU input with a magnifying-glass dialog backed by the
+   * `PRODUCT_SEARCH_RESPONSE` data the editor receives from the
+   * storefront. Stores the selected `sku` as the field value.
+   */
+  | 'product';
 
 /** Describes a single prop exposed to the CMS editor */
 export interface CMSPropDefinition {
@@ -224,6 +230,72 @@ export interface CategoryTreeResponseMessage {
 }
 
 /**
+ * One product row rendered by the CMS editor's product picker dialog and
+ * inline autocomplete. Shape is dictated by the editor contract — the
+ * storefront maps its internal `Product` model into this shape before
+ * sending.
+ */
+export interface ProductSearchResult {
+  /** Required. The value the editor stores in the field. */
+  sku: string;
+  /** Required. Display name (already localized to the request locale). */
+  name: string;
+  /** Optional thumbnail. Absolute or relative URL. */
+  imageUrl?: string;
+  /**
+   * Optional price. Either a pre-formatted string (e.g. "€19.90") or a
+   * structured object the editor formats as `${amount} ${currency}`.
+   */
+  price?: { amount: number; currency: string } | string;
+  /** Optional breadcrumb-ish category labels for context. */
+  categoryNames?: string[];
+  /** Free-form metadata. Currently unused by the editor. */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Editor → Storefront. Search products by free-text and optional category
+ * filter. Sent on every keystroke (debounced ~250 ms) and on every
+ * category-filter change. The storefront answers with a
+ * {@link ProductSearchResponseMessage}.
+ */
+export interface RequestProductSearchMessage {
+  type: 'REQUEST_PRODUCT_SEARCH';
+  /** Echo back unchanged on the response — used to discard stale results. */
+  requestId: string;
+  /** Tenant scope. Always populated by the editor. */
+  site: string;
+  /** Locale for translated names / prices. Always populated by the editor. */
+  locale: string;
+  /** Free-text query. May be empty (treat as "list top products"). */
+  query: string;
+  /** Optional category filter. `null` / absent means "no filter". */
+  categoryId?: string | null;
+  /** Soft cap. Editor sends 20; storefronts may clamp further. */
+  limit?: number;
+}
+
+/**
+ * Storefront → Editor. Reply to a {@link RequestProductSearchMessage}.
+ *
+ * On success, `products` holds the matched rows (already localized).
+ * On failure, `error` is a short human-readable message that the editor
+ * renders verbatim in the dialog; `products` is an empty array.
+ */
+export interface ProductSearchResponseMessage {
+  type: 'PRODUCT_SEARCH_RESPONSE';
+  /** MUST equal the requestId from the matching request. */
+  requestId: string;
+  site: string;
+  locale: string;
+  query: string;
+  /** Always an array — empty on no results / error. */
+  products: ProductSearchResult[];
+  /** Optional human-readable error; rendered verbatim in the dialog. */
+  error?: string;
+}
+
+/**
  * Iframe ready signal.
  * Sent from storefront to editor when iframe is loaded and ready.
  */
@@ -414,6 +486,8 @@ export type CMSEditorMessage =
   | ComponentTypesMessage
   | RequestCategoryTreeMessage
   | CategoryTreeResponseMessage
+  | RequestProductSearchMessage
+  | ProductSearchResponseMessage
   | IframeReadyMessage
   | HighlightComponentMessage
   | HighlightSlotMessage
