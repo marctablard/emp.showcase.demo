@@ -53,10 +53,24 @@ export const ProfileEditSchema = z.object({
   phone: z
     .string()
     .optional()
-    .refine(
-      (val) => !val || /^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/.test(val),
-      'profile.form.phone.invalid',
-    ),
+    .refine((val) => {
+      if (!val) return true;
+      if (!/^[+0-9()\s.\-]+$/.test(val)) return false;
+      // Structural checks: reject malformed punctuation patterns
+      if (/\+.*\+/.test(val)) return false; // multiple + signs
+      if (val.includes('+') && !val.startsWith('+')) return false; // + not at start
+      const openParens = (val.match(/\(/g) || []).length;
+      const closeParens = (val.match(/\)/g) || []).length;
+      if (openParens !== closeParens) return false; // unbalanced parentheses
+      if (/\)[^)\s.\-]*\(/.test(val)) return false; // closing before opening in wrong order
+      let digits = val.replace(/[^0-9]/g, '');
+      if (digits.startsWith('00')) {
+        digits = digits.slice(2);
+      } else if (val.startsWith('+')) {
+        // + prefix already stripped by replace, digits start with country code
+      }
+      return digits.length >= 7 && digits.length <= 15;
+    }, 'profile.form.phone.invalid'),
   preferredLanguage: z.string(),
   preferredCurrency: z.string(),
 });

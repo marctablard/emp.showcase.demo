@@ -198,8 +198,14 @@ interface InjectableInfo {
   isClientOnly: boolean;
   isServerOnly: boolean;
   isSsrOnly: boolean;
+  hasServerOnlyImport: boolean;
   dependencies: string[];
 }
+
+// Matches `import 'server-only'` / `import "server-only"` (with or without trailing
+// semicolon) anywhere in a file. The leading `^\s*import` anchor avoids matching
+// commented-out forms like `// import 'server-only'`.
+const SERVER_ONLY_IMPORT_RE = /^\s*import\s+["']server-only["']/m;
 
 /**
  * Scans TypeScript files for classes decorated with @injectable
@@ -222,6 +228,7 @@ async function scanForInjectables(directory: string): Promise<InjectableInfo[]> 
   for (const filePath of files) {
     try {
       const fileContent = fs.readFileSync(filePath, 'utf8');
+      const hasServerOnlyImport = SERVER_ONLY_IMPORT_RE.test(fileContent);
       const sourceFile = ts.createSourceFile(
         filePath,
         fileContent,
@@ -295,6 +302,7 @@ async function scanForInjectables(directory: string): Promise<InjectableInfo[]> 
                 isClientOnly,
                 isServerOnly,
                 isSsrOnly,
+                hasServerOnlyImport,
                 dependencies,
               });
 
@@ -780,7 +788,24 @@ async function generateContainerFiles(layer: Layer): Promise<void> {
       !injectable.isClientOnly && !injectable.isServerOnly && !injectable.isSsrOnly;
     const isAlreadyInEnv = (i: InjectableInfo) => envInjectables.find((envI: InjectableInfo) => i.serviceId == envI.serviceId);
     const common = list.filter(isCommon).filter((i) => !isAlreadyInEnv(i));
-    return common.concat(envInjectables);
+    const combined = common.concat(envInjectables);
+
+    // Files carrying `import 'server-only'` cannot load in the browser, so they
+    // must never end up in the client container — even if their class name has
+    // a `Client` suffix (which would be a source-file inconsistency worth warning about).
+    if (env === 'client') {
+      return combined.filter((i) => {
+        if (!i.hasServerOnlyImport) return true;
+        if (i.isClientOnly) {
+          console.warn(
+            `[DI] Excluding ${i.className} from client container: file ${i.relativePath} imports 'server-only' despite the Client suffix.`,
+          );
+        }
+        return false;
+      });
+    }
+
+    return combined;
   };
 
   // When pruning is enabled, compute the reachable set per environment by walking the
@@ -903,7 +928,19 @@ async function generateContainerFile(
       if (!isForEnv) continue;
       extensionTotal++;
       if (reachable && !reachable.has(extInjectable.serviceId)) continue;
+
+      // Mirror the project-side rule: never emit a 'server-only' file into the client container.
+      if (type === 'client' && extInjectable.hasServerOnlyImport) {
+        if (extInjectable.isClientOnly) {
+          console.warn(
+            `[DI] Excluding ${extInjectable.className} (extension '${ext.name}') from client container: file ${extInjectable.relativePath} imports 'server-only' despite the Client suffix.`,
+          );
+        }
+        continue;
+      }
+
       extensionKept++;
+
 
       // Build a unique module name prefixed by extension name
       const baseName = path.basename(extInjectable.relativePath)

@@ -98,7 +98,7 @@
         "invalid": "Please enter a valid email address."
       },
       "phone": {
-        "invalid": "Please enter a valid phone number."
+        "invalid": "Please enter a valid phone number (7–15 digits, e.g. +49 123 456 7890)."
       },
       "language": {
         "de": "German",

@@ -1,4 +1,3 @@
-import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import type { TokenStore } from './EmporixTokenManagerAbstract';
 import { EmporixTokenManagerAbstract } from './EmporixTokenManagerAbstract';
@@ -14,7 +13,7 @@ class EmporixTokenManagerClient extends EmporixTokenManagerAbstract {
   }
 
   protected async readTokens(tenant: string): Promise<TokenStore> {
-    const tokenStoreString: string | null = this.buildStorageKey(tenant);
+    const tokenStoreString: string | null = localStorage.getItem(this.buildStorageKey(tenant));
     if (!tokenStoreString) {
       return Promise.resolve({});
     }

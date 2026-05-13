@@ -45,7 +45,7 @@
         "invalid": "Bitte geben Sie eine gültige E-Mail-Adresse ein."
       },
       "phone": {
-        "invalid": "Bitte geben Sie eine gültige Telefonnummer ein."
+        "invalid": "Bitte geben Sie eine gültige Telefonnummer ein (7–15 Ziffern, z. B. +49 123 456 7890)."
       },
       "language": {
         "de": "Deutsch",
