@@ -49,8 +49,13 @@ export async function cmsThemeCssGET(
   }
 
   const versionParam = request.nextUrl.searchParams.get('v');
+  // `?v=live-preview` / `?v=draft` are the editor's cache-bypass
+  // tokens. Anything else is treated as a stable content-hash buster.
+  const isLivePreview = versionParam === 'live-preview';
+  const isDraft = versionParam === 'draft';
+  const isPreviewMode = isLivePreview || isDraft;
 
-  const theme = await fetchCMSTheme(site);
+  const theme = await fetchCMSTheme(site, isDraft ? 'draft' : isLivePreview ? 'live-preview' : undefined);
   const variables = theme?.variables ?? {};
   // `baseTheme` from the persisted row drives the selector. When a row
   // exists but has no `baseTheme`, fall through to the
@@ -59,14 +64,13 @@ export async function cmsThemeCssGET(
   const target = resolveTargetSelector(theme?.baseTheme, site);
   const css = buildCssDeclaration(target, variables);
 
-  // Versioned URLs are cache-busted on publish, so they're safe to
-  // mark `immutable` for a year. Without a version we lean on a short
-  // s-maxage that mirrors the upstream theme TTL (currently 10s) and
-  // a generous SWR window so the CDN can serve stale while
-  // revalidating in the background.
-  const cacheControl = versionParam
-    ? 'public, max-age=360, immutable'
-    : 'public, max-age=0, s-maxage=10, stale-while-revalidate=60';
+  // Editor previews must not cache; content-hashed URLs are safe to
+  // pin; bare URLs fall back to a short s-maxage + SWR for the edge.
+  const cacheControl = isPreviewMode
+    ? 'private, no-store'
+    : versionParam
+      ? 'public, max-age=360, immutable'
+      : 'public, max-age=0, s-maxage=10, stale-while-revalidate=60';
 
   return new NextResponse(css, {
     status: 200,

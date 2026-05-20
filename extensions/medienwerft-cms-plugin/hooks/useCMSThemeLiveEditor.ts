@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { cmsThemeCssUrl } from '../lib/build-theme-css';
 import { THEME_DRAFT_MARKER_ATTR } from '../lib/theme-style-constants';
 import type { ThemeTokenManifest } from '../services/CMSThemeTokenManifestService';
 import type { CMSEditorMessage } from '../types';
@@ -37,31 +38,20 @@ const VALID_VARIABLE_VALUE = /^[^;<>]+$/;
 const DISALLOWED_VALUE_TOKENS = /url\s*\(|expression\s*\(|javascript\s*:/i;
 
 /**
- * Installs a `message` listener that owns a draft `<style>` element
- * appended to `<head>` after the React-managed persisted-theme
- * `<link>`. The bridge mutates this draft element's `textContent` for
- * each editor patch — no React state, no re-render — so preview
- * updates stay sub-frame even with hundreds of variables.
+ * Installs a `message` listener that lazily owns a draft `<style>`
+ * element appended to `<head>` after the persisted-theme `<link>`.
+ * The bridge mutates the draft's `textContent` per editor patch — no
+ * React state, no re-render — so preview updates stay sub-frame.
  *
- * Architecture:
- *  - Persisted theme lives in `<link rel="stylesheet">` served by the
- *    `app/[site]/cms-theme.css` route (cacheable, browser-preflighted).
- *  - The draft `<style>` lives only in editor mode and only carries
- *    the editor's transient delta on top of the `<link>`. Source
- *    order in `<head>` (link first, draft after) gives the draft the
- *    cascade win at equal specificity, so editor edits reliably
- *    override published values.
+ * The iframe hosts several editor views (Page, Layout, Theme); only
+ * the Theme view sends `UPDATE_THEME_VARIABLES` / `UPDATE_THEME_TARGET`.
+ * The draft `<style>` is created lazily on the first such message and
+ * torn down on `RESET_THEME_VARIABLES`, so Page/Layout sessions render
+ * with no inline overlay CSS — identical to a shopper cascade.
  *
- * Lifecycle:
- *  1. On mount in editor mode, sweep any orphaned **draft** `<style>`
- *     nodes from previous sessions / HMR ({@link sweepDraftStragglers}),
- *     then create a fresh draft `<style>` element with an empty rule.
- *  2. Install the message listener; handle theme-scoped message types
- *     and ignore everything else (component LiveEditor messages share
- *     the same window).
- *  3. On unmount, remove the listener **and** the draft `<style>`.
- *     Unlike the previous architecture this is safe — the persisted
- *     theme lives in the `<link>`, untouched by the bridge.
+ * The mount also rewrites the `<link>` href to a cache-bypassed `?v=`
+ * so iframe navigations always pick up the latest publish. See
+ * {@link swapLinkToLivePreview}.
  */
 export function useCMSThemeLiveEditor({
   site,
@@ -108,19 +98,34 @@ export function useCMSThemeLiveEditor({
     const isEditorMode = isFramed && search.get('editMode') === 'true';
     if (!isEditorMode) return;
 
-    // Defensive cleanup — kills any draft `<style>` nodes left behind
-    // by HMR or a previous editor session. Runs before we create our
-    // own so a stale node can't shadow the fresh one.
+    // Kill any draft `<style>` left behind by HMR or a previous Theme
+    // editor session so a Page/Layout session doesn't inherit it.
     sweepDraftStragglers(site);
 
-    // Create the bridge-owned draft element. Appended to <head> after
-    // React's hoisted persisted-theme <link>: equal specificity, source
-    // order wins, so draft variables override published ones in the
-    // cascade.
-    const styleNode = document.createElement('style');
-    styleNode.setAttribute(THEME_DRAFT_MARKER_ATTR, site);
-    styleNode.textContent = `${target} { }`;
-    document.head.appendChild(styleNode);
+    // Rewrite the SSR `<link>` to a cache-bypassed `?v=` so iframe
+    // navigations pick up the latest publish. No host opt-in needed.
+    swapLinkToLivePreview(site);
+
+    // Draft `<style>` is created on the first theme-mutation message
+    // and removed on `RESET_THEME_VARIABLES`. Page/Layout sessions
+    // therefore render with no inline overlay CSS.
+    let styleNode: HTMLStyleElement | null = null;
+
+    function ensureStyleNode(): HTMLStyleElement {
+      if (styleNode) return styleNode;
+      const node = document.createElement('style');
+      node.setAttribute(THEME_DRAFT_MARKER_ATTR, site);
+      node.textContent = `${currentTargetRef.current} { }`;
+      document.head.appendChild(node);
+      styleNode = node;
+      return node;
+    }
+
+    function removeStyleNode(): void {
+      if (!styleNode) return;
+      styleNode.remove();
+      styleNode = null;
+    }
 
     // Empty draft — published values come from the <link> in the
     // cascade. `initialTargetRef` is the SSR-resolved selector; the
@@ -183,7 +188,10 @@ export function useCMSThemeLiveEditor({
             }
           }
           currentVariablesRef.current = next;
-          paint(styleNode!, currentTargetRef.current, next);
+          // No-op when there's nothing to apply and no existing draft
+          // — a stray empty payload shouldn't materialise the `<style>`.
+          if (Object.keys(next).length === 0 && !styleNode) break;
+          paint(ensureStyleNode(), currentTargetRef.current, next);
           break;
         }
 
@@ -195,18 +203,18 @@ export function useCMSThemeLiveEditor({
           const nextTarget = computeTarget(data.site, data.base_theme);
           if (nextTarget === currentTargetRef.current) return; // idempotent no-op
           currentTargetRef.current = nextTarget;
-          paint(styleNode!, nextTarget, currentVariablesRef.current);
+          // Retarget alone shouldn't materialise the `<style>` —
+          // repaint only if a draft already exists.
+          if (styleNode) paint(styleNode, nextTarget, currentVariablesRef.current);
           break;
         }
 
         case 'RESET_THEME_VARIABLES': {
           if (data.site && data.site !== site) return;
-          // Empty the draft and restore the SSR-resolved target so the
-          // <link> values shine through the cascade, exactly as a
-          // freshly loaded shopper page would render.
+          // Drop the draft entirely so the DOM matches a shopper render.
           currentVariablesRef.current = {};
           currentTargetRef.current = initialTargetRef.current;
-          paint(styleNode, currentTargetRef.current, currentVariablesRef.current);
+          removeStyleNode();
           break;
         }
 
@@ -227,7 +235,7 @@ export function useCMSThemeLiveEditor({
           // affordance and beats whatever the manifest had hardcoded
           // (which can drift from the active theme's static CSS, e.g.
           // a Tailwind-default manifest for a custom .theme-medienwerft).
-          const defaults = readNoOverrideValues(base, styleNode);
+          const defaults = readNoOverrideValues(base, styleNode, site);
           const resolved: ThemeTokenManifest = {
             ...base,
             groups: base.groups.map((group) => ({
@@ -260,12 +268,8 @@ export function useCMSThemeLiveEditor({
     window.addEventListener('message', handleMessage);
     return () => {
       window.removeEventListener('message', handleMessage);
-      // The draft <style> is bridge-owned; tearing it down on unmount
-      // is safe because the persisted theme lives in the <link>.
-      // Removing it on every effect re-run also keeps HMR clean: the
-      // next mount's `sweepDraftStragglers` would catch it anyway,
-      // but explicit removal avoids a transient duplicate.
-      styleNode.remove();
+      // No-op when no draft was ever created (Page/Layout sessions).
+      removeStyleNode();
     };
     // `target` / `baseTheme` / `publishedVariables` are intentionally
     // **not** in the dep array: the listener owns them via refs after
@@ -337,6 +341,61 @@ function sweepDraftStragglers(_site: string): void {
 }
 
 /**
+ * Pick `?v=<mode>` for the bridge link swap from the iframe page URL.
+ * Layouts can't see `searchParams`, so the URL is the only signal an
+ * editor view can pass to a layout-mounted bridge.
+ *
+ *  - `cmsThemeVersion=draft` → request the draft row (API falls back
+ *    to live-preview when no draft exists).
+ *  - else → `live-preview` (cache-bypassed live read).
+ */
+function determinePreviewVersion(): 'draft' | 'live-preview' {
+  if (typeof window === 'undefined') return 'live-preview';
+  const search = new URLSearchParams(window.location.search);
+  if (search.get('cmsThemeVersion') === 'draft') return 'draft';
+  return 'live-preview';
+}
+
+/**
+ * Rewrite the SSR `<link>` href to a cache-bypassed `?v=<mode>`. SSR
+ * emits a content-hashed `immutable` URL (CDN-friendly for shoppers,
+ * wrong for editor previews where a publish must land on the next
+ * navigation). The `?v=live-preview` / `?v=draft` responses carry
+ * `Cache-Control: private, no-store`.
+ *
+ * The `<link>` is matched by href pattern, not by a `data-*` attribute
+ * — React 19 doesn't reliably preserve custom data attributes on
+ * hoisted stylesheet resources. Idempotent; bails if the link hasn't
+ * been hoisted yet (next mount retries).
+ */
+/**
+ * Locate the persisted-theme `<link>` for the given site. Matched by
+ * href pattern (`/<site>/cms-theme.css`) rather than `data-*` attribute
+ * because React 19's stylesheet resource hoisting strips custom data
+ * attributes from hoisted `<link>` nodes.
+ */
+function findCmsThemeLink(site: string): HTMLLinkElement | null {
+  if (typeof document === 'undefined') return null;
+  const sitePath = `/${encodeURIComponent(site)}/cms-theme.css`;
+  const altSitePath = `/${site}/cms-theme.css`;
+  const links = document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]');
+  for (const candidate of Array.from(links)) {
+    const href = candidate.getAttribute('href') ?? '';
+    if (href.includes(sitePath) || href.includes(altSitePath)) return candidate;
+  }
+  return null;
+}
+
+function swapLinkToLivePreview(site: string): void {
+  const link = findCmsThemeLink(site);
+  if (!link) return;
+
+  const targetHref = cmsThemeCssUrl(site, determinePreviewVersion());
+  if (link.getAttribute('href') === targetHref) return;
+  link.setAttribute('href', targetHref);
+}
+
+/**
  * Read the live computed value of a CSS custom property from the
  * storefront DOM.
  *
@@ -373,27 +432,21 @@ function readLiveVariable(name: string): string | null {
  * any CMS-theme overrides — i.e. from the static CSS cascade only
  * (`brand.css` → `alias.css` → `themes/<theme>.css`).
  *
- * Implementation: synchronously toggle the two override sources off,
- * snapshot `getComputedStyle` for each token, then restore. Doing this
- * in a single synchronous block means React/the browser don't paint a
- * frame mid-read, so there's no flicker on the live preview. The
- * `try/finally` guarantees we restore the disabled state even if a
- * `getComputedStyle` call ever throws.
- *
- * The two override sources are:
- *  - the persisted-theme `<link>` rendered by `EmporixCmsThemeStyle`
- *    (located via its `data-cms-theme-href` attribute), and
- *  - the bridge's own draft `<style>` element (passed in as `draftNode`).
- *
- * Toggling `link.disabled` and `sheet.disabled` updates the cascade
- * synchronously in modern browsers, so the subsequent `getComputedStyle`
- * call returns the post-toggle value — that's what we sample.
+ * Synchronously toggle the two override sources off (the persisted-
+ * theme `<link>` located via {@link findCmsThemeLink}, and the bridge's
+ * own draft `<style>`), snapshot `getComputedStyle` for each token,
+ * then restore. The `try/finally` guarantees we re-enable the sources
+ * even if a read throws.
  */
-function readNoOverrideValues(manifest: ThemeTokenManifest, draftNode: HTMLStyleElement): Record<string, string> {
+function readNoOverrideValues(
+  manifest: ThemeTokenManifest,
+  draftNode: HTMLStyleElement | null,
+  site: string,
+): Record<string, string> {
   if (typeof window === 'undefined' || typeof document === 'undefined') return {};
 
-  const link = document.querySelector<HTMLLinkElement>('link[data-cms-theme-href]');
-  const draftSheet = draftNode.sheet;
+  const link = findCmsThemeLink(site);
+  const draftSheet = draftNode?.sheet ?? null;
 
   const linkWasDisabled = link?.disabled ?? false;
   const draftWasDisabled = draftSheet?.disabled ?? false;

@@ -14,16 +14,17 @@
  * Unlike pages/layouts, themes do not carry a locale suffix — one row
  * per site — so the id convention is simpler:
  *
- *  - `cms-theme-<site>` (live)
+ *  - `cms-theme-<site>` (live; also returned for the `'live-preview'`
+ *    alias, which is a cache-bypass mode, not a separate row)
  *  - `cms-theme-<site>-draft`
  *  - `cms-theme-<site>-<archivedTimestamp>`
  *
  * Lower-cased to keep the id deterministic regardless of casing in the
  * site param.
  */
-export function buildThemeEntityId(site: string, version?: 'draft' | 'live' | string): string {
+export function buildThemeEntityId(site: string, version?: 'draft' | 'live' | 'live-preview' | string): string {
   const base = `cms-theme-${site.toLowerCase()}`;
-  if (!version || version === 'live') return base;
+  if (!version || version === 'live' || version === 'live-preview') return base;
   if (version === 'draft') return `${base}-draft`;
   return `${base}-${version}`;
 }

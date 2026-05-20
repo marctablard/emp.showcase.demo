@@ -26,6 +26,12 @@ export interface EmporixCmsThemeApi {
    * Returns the decoded theme entity for the given site/version, or
    * `null` when no row exists. Must **not** throw for a missing entity
    * — a missing theme is the "no overrides" state.
+   *
+   * `'live-preview'` aliases `'live'` but bypasses the Next data-cache
+   * window so a publish lands on the next call. `'draft'` falls back
+   * to `'live-preview'` internally when no draft row exists; the
+   * returned `version` reports the stored discriminator so callers can
+   * detect that a fallback occurred.
    */
-  getThemeEntity(site: string, version?: 'draft' | 'live' | string): Promise<RawCmsTheme | null>;
+  getThemeEntity(site: string, version?: 'draft' | 'live' | 'live-preview' | string): Promise<RawCmsTheme | null>;
 }

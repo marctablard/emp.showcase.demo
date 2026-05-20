@@ -29,12 +29,12 @@ export interface CMSTheme {
  */
 export interface GetThemeOptions {
   /**
-   * 'draft' | 'live' | ISO timestamp. Defaults to 'live'. When `draft`
-   * is requested but missing, implementations fall back to `live`
-   * transparently so previews never go blank because a draft hasn't
-   * been saved yet.
+   * 'draft' | 'live' | 'live-preview' | ISO timestamp. Defaults to
+   * 'live'. `'live-preview'` aliases `'live'` but bypasses every cache
+   * layer — use it for editor previews where a publish must land on
+   * the next request. Draft → live fallback is handled by the API.
    */
-  version?: 'draft' | 'live' | string;
+  version?: 'draft' | 'live' | 'live-preview' | string;
 }
 
 /**
