@@ -1,5 +1,4 @@
 import { inject } from 'inversify';
-import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
 import { DEFAULT_CACHE_REVALIDATE } from '../../common/cache-defaults';

@@ -1,6 +1,5 @@
 import { inject } from 'inversify';
 import { omit } from 'lodash';
-import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
 import type {
