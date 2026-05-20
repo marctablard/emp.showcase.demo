@@ -8,6 +8,8 @@ import type {
   RawSiteFallbackEntry,
 } from '../EmporixCmsSettingsApi';
 
+const SETTINGS_TTL_SECONDS = 360;
+
 /**
  * Emporix Custom Entities-backed implementation of the CMS Settings API.
  *
@@ -31,8 +33,11 @@ class EmporixCmsSettingsApi implements IEmporixCmsSettingsApi {
 
   async getSettings(): Promise<RawCmsSettings | null> {
     try {
-      const result = await this.schemaApi.searchCustomEntities(this.SETTINGS_ENTITY_TYPE, { size: 1 });
-      const entity = result.items?.[0];
+      const entity = await this.schemaApi.getCustomEntity(
+        this.SETTINGS_ENTITY_TYPE,
+        'cms-settings',
+        SETTINGS_TTL_SECONDS,
+      );
       if (!entity) {
         return null;
       }

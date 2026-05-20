@@ -24,7 +24,7 @@ import type { EmporixCmsThemeApi as IEmporixCmsThemeApi, RawCmsTheme } from '../
  * controls how stale the *shopper-facing* SSR reads can get after a
  * publish.
  */
-const THEME_TTL_SECONDS = 10;
+const THEME_TTL_SECONDS = 360;
 
 @injectable('EmporixCmsThemeApi', 'Singleton')
 class EmporixCmsThemeApi implements IEmporixCmsThemeApi {
