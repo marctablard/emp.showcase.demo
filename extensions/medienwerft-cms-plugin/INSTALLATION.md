@@ -18,6 +18,7 @@ Complete guide for installing and configuring the Emporix CMS extension
    - [5. Mount the Theme Stylesheet Route](#5-mount-the-theme-stylesheet-route)
    - [6. Configure Environment Variables](#6-configure-environment-variables)
    - [7. Mount the Category Tree Route](#7-mount-the-category-tree-route)
+   - [8. Mount the Component Registry Route](#8-mount-the-component-registry-route)
 3. [Configuration](#configuration)
 4. [Component Setup](#component-setup)
 5. [Page Integration](#page-integration)
@@ -175,6 +176,86 @@ routes from colliding with any host-owned `/api/categories/*` surface
 (shopper navigation, search facets, etc.) and signals at the URL level
 that the response is editor-oriented. Without this file the editor's
 category picker silently shows an empty list.
+
+### 8. Mount the Component Registry Route
+
+The Emporix CMS MCP server (`emporix-jas-cms-plugin/mcp-server`) needs a
+JSON catalog of every component the storefront renders so AI agents can
+author CMS content with valid types and prop shapes. Add a one-line
+route handler that re-exports the implementation from the extension:
+
+**Create:** `src/app/api/cms/component-registry/route.ts`
+
+```ts
+export { componentRegistryGET as GET } from '@extensions/medienwerft-cms-plugin/route-handlers';
+```
+
+The handler responds at:
+
+- `GET /api/cms/component-registry` — full catalogue.
+- `GET /api/cms/component-registry?theme=<name>` — filtered to the
+  entries exposed under the given theme (theme-neutral entries are
+  always included).
+
+Wire format (validated server-side by the MCP plugin's zod schemas in
+`mcp-server/src/tools/schemas.ts`):
+
+```json
+{
+  "$schema": "https://emporix.io/cms/component-registry/v1",
+  "components": {
+    "<type>": {
+      "type": "<type>",
+      "label": "...",
+      "description": "...",
+      "props": { /* see PropDefinition */ },
+      "defaultProps": { /* values used when the agent creates an instance */ },
+      "allowedComponents": ["..."]
+    }
+  }
+}
+```
+
+The handler reuses the same DI-bound `EmporixCMSComponentService` the
+live editor consumes, so the schema the MCP serves to agents and the
+schema the editor renders are guaranteed to agree without a parallel
+source of truth. `$ref` references against `fieldDefinitions` are
+expanded server-side, `allowedComponentTypes` collapses onto the wire
+format's single `allowedTypes` key, and plugin-only fields (e.g.
+`dynamicOptionsSource`) are stripped.
+
+**Authentication.** When `NEXT_PUBLIC_CMS_EDITOR_API_KEY` is set, the
+caller must send the same value as `X-Emporix-API-Key`; the comparison
+runs in constant time. When the env var is unset (typical development)
+the route accepts any caller — same posture as the live-editor iframe
+handshake (see [API Key Authentication](#api-key-authentication)).
+
+**Caching.** The response carries `Cache-Control: public, max-age=300`;
+the MCP server additionally caches in-process for 5 minutes per
+`(site, url)`, so editor-visible registry changes propagate to agents
+within ~5 minutes without a deploy. To force a refresh, append a
+cache-buster (e.g. `?v=2`) to the URL configured in CMS Settings.
+
+**Configuring the URL in CMS.** After deploying, register the route in
+the Emporix Admin under **Settings → Component Registries**: add a row
+with **Site** = your site code and **URL** = the full URL of the
+deployed route (e.g. `https://storefront.example.com/api/cms/component-registry`).
+The MCP server reads this from `CMSSettings.componentRegistries` on the
+next agent call.
+
+**Quick test.** Hit the route directly to verify the shape passes the
+MCP server's validation:
+
+```bash
+curl -i 'https://your-storefront.example/api/cms/component-registry' \
+  -H 'X-Emporix-API-Key: <NEXT_PUBLIC_CMS_EDITOR_API_KEY>'
+```
+
+If the MCP server later returns `502` with a zod path
+(`components.<Type>.props.<name>.type: Invalid enum value …`), that
+prop's `type` is not in the supported set (see
+[Field Types Reference](#3-field-types-reference)) — fix it in the
+storefront's component service and re-run.
 
 ---
 
@@ -443,6 +524,41 @@ Both patterns share the same essentials:
   [Dynamic Themes](#dynamic-themes)) — for example
   `theme={siteData?.theme}` when a per-site theme name is available.
   Adding it later is one prop.
+- **Wire up `generateMetadata`** so the browser tab title and the
+  `<meta name="description">` come from the CMS page entity. The CMS
+  page model carries `title` and `description` fields editors fill in
+  per page; without `generateMetadata` the page renders with whatever
+  defaults the parent layout supplies, and SEO/social previews fall
+  back to those defaults. See
+  [Page Metadata](#page-metadata) below — both route patterns share
+  the same approach.
+
+### Page Metadata
+
+Both route patterns drive Next.js' `generateMetadata` from the same
+CMS payload `EmporixCmsPage` will fetch a moment later. Two things to
+know:
+
+- `fetchCMSPage` is re-exported from
+  `@extensions/medienwerft-cms-plugin/components` for use inside
+  `generateMetadata`. It returns either a `CMSPage` or
+  `{ notfound: true }` — the same union the page wrapper consumes.
+- The call is deduped per request via React's `cache()`, so wiring up
+  `generateMetadata` adds zero extra round-trips: SSR fetches once and
+  both the metadata and the body read the same payload.
+
+The CMS `STOREFRONT_CMS_PAGE` entity exposes two editor-facing fields
+intended for metadata:
+
+| Field          | Maps to                              |
+|----------------|--------------------------------------|
+| `title`        | Next.js `metadata.title` (tab title) |
+| `description`  | Next.js `metadata.description` (`<meta name="description">`) |
+
+A 404 payload returns a fixed `'Page not found'` title so the browser
+tab still reads sensibly when an editor unpublishes a slug while a
+shopper is on the page. The exact rendering for each route pattern is
+shown in the sections that follow.
 
 ### 1. Predefined-Slug Pages
 
@@ -454,14 +570,41 @@ hardcoded by the developer rather than derived from the URL.
 
 ```tsx
 import { setRequestLocale } from 'next-intl/server';
-import { EmporixCmsPage, EmporixContentSlot } from '@extensions/medienwerft-cms-plugin/components';
+import {
+  EmporixCmsPage,
+  EmporixContentSlot,
+  fetchCMSPage,
+} from '@extensions/medienwerft-cms-plugin/components';
+import type { CMSPage } from '@extensions/medienwerft-cms-plugin/types';
 import { setRequestSite } from '@/site/server';
+
+interface HomePageParams {
+  locale: string;
+  site: string;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<HomePageParams>;
+}) {
+  const { locale, site } = await params;
+  const data = await fetchCMSPage('home', locale, site);
+  if ('notfound' in data) {
+    return { title: 'Page not found' };
+  }
+  const page = data as CMSPage;
+  return {
+    title: page.title,
+    description: page.description,
+  };
+}
 
 export default async function Home({
   params,
   searchParams,
 }: {
-  params: Promise<{ locale: string; site: string }>;
+  params: Promise<HomePageParams>;
   searchParams: Promise<{ [key: string]: string | string[] }>;
 }) {
   const { locale, site } = await params;
@@ -482,6 +625,11 @@ export default async function Home({
   );
 }
 ```
+
+The slug passed to `fetchCMSPage` (`'home'` above) **must** match the
+slug used in the `<EmporixCmsPage slug="…">` JSX below it. Pass the
+same string in both places so metadata and content describe the same
+CMS entity.
 
 The hardcoded slug (`"home"` above) is the `slug` attribute on the
 corresponding `STOREFRONT_CMS_PAGE` Custom Entity row — pick whatever
@@ -533,7 +681,10 @@ export async function generateMetadata({
     return { title: 'Page not found' };
   }
   const page = data as CMSPage;
-  return { title: page.title };
+  return {
+    title: page.title,
+    description: page.description,
+  };
 }
 
 export default async function DynamicPage({

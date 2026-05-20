@@ -16,3 +16,4 @@
  */
 export { cmsThemeCssGET } from './cms-theme-css';
 export { categoryTreeGET } from './category-tree';
+export { componentRegistryGET } from './component-registry';

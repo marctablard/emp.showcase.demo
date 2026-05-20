@@ -62,6 +62,9 @@ what state the host repo is in:
 - `src/app/[site]/cms-theme.css/route.ts` — exists?
 - `src/app/api/cms/categories/tree/route.ts` — exists? (the editor's
   category picker silently shows nothing if missing)
+- `src/app/api/cms/component-registry/route.ts` — exists? (the
+  Emporix CMS MCP server returns an empty catalogue to AI agents if
+  missing)
 - Any pre-existing `src/app/api/categories/...` route in the host —
   note its shape; the plugin's namespace is `/api/cms/...` to avoid
   collisions, but if there's an existing host route serving the same
@@ -141,6 +144,26 @@ ones succeeded.
   with a different purpose (shopper-facing tree, search facet feed,
   etc.), do **not** delete or rename it. Mount the plugin's route at
   the `/api/cms/...` path next to it; the two coexist by design.
+
+### Step 8 — Component Registry route handler
+
+- Path: `src/app/api/cms/component-registry/route.ts` — same
+  `/api/cms/...` namespace as Step 7, for the same reason.
+- Body must be exactly the one-line re-export shown in
+  [INSTALLATION.md §8](./INSTALLATION.md#8-mount-the-component-registry-route).
+- If the file exists, read it and verify it re-exports
+  `componentRegistryGET as GET`. Don't replace.
+- The host **does not** need its own registry-serialisation code — the
+  plugin's serializer (in `lib/serialize-component-registry.ts`)
+  resolves `$ref` against `fieldDefinitions` and translates the
+  storefront's `CMSComponentTypeDefinition` to the MCP wire format.
+  If the user asks how to "expose components to the MCP server", the
+  answer is to register entries in `StorefrontCMSComponentService`
+  (Configuration §1) — the route handler reads the same registry.
+- The corresponding URL in **Emporix Admin → Settings → Component
+  Registries** is a per-site row the operator owns; do **not** try to
+  configure it from the install script. Add it to the post-install
+  protocol so the user remembers.
 
 ### Configuration §1 — Service Interface Implementation
 
@@ -308,6 +331,23 @@ host service.
     `fetchCMSPage` is `'notfound' in data` (all lowercase, matching
     the `CMSNoResult` type). Don't write `'notFound'` — that branch
     never fires.
+  - **Wire up `generateMetadata` on every CMS-driven route** —
+    predefined-slug and catch-all alike. The CMS page entity carries
+    editor-facing `title` and `description` fields; without
+    `generateMetadata` they go unused and the browser tab + meta
+    description fall back to the parent layout's defaults. The
+    handler is a short async function that calls `fetchCMSPage` with
+    the same slug the page below it renders, returns
+    `{ title: 'Page not found' }` on the `'notfound' in data` branch,
+    and otherwise returns `{ title: page.title, description: page.description }`.
+    The two `fetchCMSPage` calls (metadata + page) are deduped by
+    React's `cache()`, so adding it costs no extra round-trips. See
+    [INSTALLATION.md §Page Metadata](./INSTALLATION.md#page-metadata)
+    for the exact shapes for each pattern.
+  - When adding `generateMetadata` to a **predefined-slug** route,
+    keep the hardcoded slug identical in both the metadata fetch and
+    the `<EmporixCmsPage slug="…">` JSX. Drift between them means
+    metadata describes one CMS entity while the body renders another.
 
 ### Cross-Origin Configuration — `next.config.ts`
 
@@ -340,6 +380,13 @@ diagnose before continuing:
    (e.g. add an `mw-header`-style nav item, click "select category")
    does not 404 on `/api/cms/categories/tree?site=...`. A 404 means
    Step 7 was skipped or the folder path is wrong.
+5b. `curl -i http://localhost:3000/api/cms/component-registry` returns
+   `200` with a JSON body containing `"$schema":
+   "https://emporix.io/cms/component-registry/v1"` and a `components`
+   map. An empty `components: {}` is **not** a failure on a fresh
+   install (the host hasn't authored definitions yet); a 404 or 500
+   is. A 401 means `NEXT_PUBLIC_CMS_EDITOR_API_KEY` is set in env and
+   the curl needs `-H 'X-Emporix-API-Key: <key>'`.
 6. The page renders without React hydration warnings about mismatched
    `<body>` attributes — those usually mean the `data-cms-site`
    attribute changed between server and client.
@@ -390,6 +437,10 @@ to do it (CMS editor, env file, code review, etc.). Typical entries:
 
 - env values that the user must fill in (e.g. `CMS_EDITOR_ORIGINS`,
   `NEXT_PUBLIC_CMS_EDITOR_API_KEY`)
+- registering the component-registry URL per site in **Emporix Admin
+  → Settings → Component Registries** so the MCP server can find it
+  (this is what makes AI-agent CMS authoring see the storefront's
+  catalogue — without it, agents only get an empty list)
 - CMSLayout entities to author in the editor (one per `layoutId`
   used in route-group layouts), populated with the layout-level
   slots the storefront exposes
