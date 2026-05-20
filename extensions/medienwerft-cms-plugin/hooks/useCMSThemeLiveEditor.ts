@@ -235,7 +235,7 @@ export function useCMSThemeLiveEditor({
           // affordance and beats whatever the manifest had hardcoded
           // (which can drift from the active theme's static CSS, e.g.
           // a Tailwind-default manifest for a custom .theme-medienwerft).
-          const defaults = readNoOverrideValues(base, styleNode);
+          const defaults = readNoOverrideValues(base, styleNode, site);
           const resolved: ThemeTokenManifest = {
             ...base,
             groups: base.groups.map((group) => ({
@@ -368,19 +368,26 @@ function determinePreviewVersion(): 'draft' | 'live-preview' {
  * hoisted stylesheet resources. Idempotent; bails if the link hasn't
  * been hoisted yet (next mount retries).
  */
-function swapLinkToLivePreview(site: string): void {
-  if (typeof document === 'undefined') return;
+/**
+ * Locate the persisted-theme `<link>` for the given site. Matched by
+ * href pattern (`/<site>/cms-theme.css`) rather than `data-*` attribute
+ * because React 19's stylesheet resource hoisting strips custom data
+ * attributes from hoisted `<link>` nodes.
+ */
+function findCmsThemeLink(site: string): HTMLLinkElement | null {
+  if (typeof document === 'undefined') return null;
   const sitePath = `/${encodeURIComponent(site)}/cms-theme.css`;
   const altSitePath = `/${site}/cms-theme.css`;
   const links = document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]');
-  let link: HTMLLinkElement | null = null;
   for (const candidate of Array.from(links)) {
     const href = candidate.getAttribute('href') ?? '';
-    if (href.includes(sitePath) || href.includes(altSitePath)) {
-      link = candidate;
-      break;
-    }
+    if (href.includes(sitePath) || href.includes(altSitePath)) return candidate;
   }
+  return null;
+}
+
+function swapLinkToLivePreview(site: string): void {
+  const link = findCmsThemeLink(site);
   if (!link) return;
 
   const targetHref = cmsThemeCssUrl(site, determinePreviewVersion());
@@ -425,33 +432,20 @@ function readLiveVariable(name: string): string | null {
  * any CMS-theme overrides — i.e. from the static CSS cascade only
  * (`brand.css` → `alias.css` → `themes/<theme>.css`).
  *
- * Implementation: synchronously toggle the two override sources off,
- * snapshot `getComputedStyle` for each token, then restore. Doing this
- * in a single synchronous block means React/the browser don't paint a
- * frame mid-read, so there's no flicker on the live preview. The
- * `try/finally` guarantees we restore the disabled state even if a
- * `getComputedStyle` call ever throws.
- *
- * The two override sources are:
- *  - the persisted-theme `<link>` rendered by `EmporixCmsThemeStyle`
- *    (located via its `data-cms-theme-href` attribute), and
- *  - the bridge's own draft `<style>` element (passed in as `draftNode`).
- *
- * Toggling `link.disabled` and `sheet.disabled` updates the cascade
- * synchronously in modern browsers, so the subsequent `getComputedStyle`
- * call returns the post-toggle value — that's what we sample.
+ * Synchronously toggle the two override sources off (the persisted-
+ * theme `<link>` located via {@link findCmsThemeLink}, and the bridge's
+ * own draft `<style>`), snapshot `getComputedStyle` for each token,
+ * then restore. The `try/finally` guarantees we re-enable the sources
+ * even if a read throws.
  */
 function readNoOverrideValues(
   manifest: ThemeTokenManifest,
   draftNode: HTMLStyleElement | null,
+  site: string,
 ): Record<string, string> {
   if (typeof window === 'undefined' || typeof document === 'undefined') return {};
 
-  const link = document.querySelector<HTMLLinkElement>('link[data-cms-theme-href]');
-  // `draftNode` may be null when the bridge hasn't materialised a draft
-  // yet (Page/Layout editor sessions, or a Theme session before the
-  // first mutation). In that case the only override source we need to
-  // silence is the persisted `<link>`.
+  const link = findCmsThemeLink(site);
   const draftSheet = draftNode?.sheet ?? null;
 
   const linkWasDisabled = link?.disabled ?? false;
