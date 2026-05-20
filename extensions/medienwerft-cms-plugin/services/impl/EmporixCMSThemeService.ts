@@ -65,18 +65,11 @@ export class EmporixCMSThemeService implements ICMSThemeService {
   }
 
   /**
-   * Fetch → draft→live fallback → sanitize. Kept as a separate method
-   * so tests can exercise the resolution path directly.
+   * Fetch → sanitize. Version semantics (including the draft → live
+   * fallback) live in {@link EmporixCmsThemeApi}.
    */
-  private async loadTheme(site: string, version: 'draft' | 'live' | string): Promise<CMSTheme | null> {
-    let raw = await this.themeApi.getThemeEntity(site, version);
-
-    // Draft → live fallback: a site may have a live theme without a
-    // draft. Matches the behavior of EmporixCMSService.
-    if (!raw && version === 'draft') {
-      raw = await this.themeApi.getThemeEntity(site, 'live');
-    }
-
+  private async loadTheme(site: string, version: 'draft' | 'live' | 'live-preview' | string): Promise<CMSTheme | null> {
+    const raw = await this.themeApi.getThemeEntity(site, version);
     if (!raw) return null;
     return this.sanitize(raw);
   }

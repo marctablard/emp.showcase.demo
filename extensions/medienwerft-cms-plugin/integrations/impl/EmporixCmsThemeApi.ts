@@ -36,11 +36,17 @@ class EmporixCmsThemeApi implements IEmporixCmsThemeApi {
     @inject('LoggerService') private logger: LoggerService,
   ) {}
 
-  async getThemeEntity(site: string, version?: 'draft' | 'live' | string): Promise<RawCmsTheme | null> {
+  async getThemeEntity(
+    site: string,
+    version?: 'draft' | 'live' | 'live-preview' | string,
+  ): Promise<RawCmsTheme | null> {
     if (!site) return null;
     try {
       const entityId = buildThemeEntityId(site, version);
-      let entity = await this.schemaApi.getCustomEntity(this.THEME_ENTITY_TYPE, entityId, THEME_TTL_SECONDS);
+      // `'live-preview'` reuses the live id (via the helper) but skips
+      // the cache window so a publish lands on the next request.
+      const ttl = version === 'live-preview' ? undefined : THEME_TTL_SECONDS;
+      let entity = await this.schemaApi.getCustomEntity(this.THEME_ENTITY_TYPE, entityId, ttl);
 
       if (!entity) {
         // Fallback: search by mixin attributes. Useful if the editor
@@ -48,11 +54,23 @@ class EmporixCmsThemeApi implements IEmporixCmsThemeApi {
         const criteria: Record<string, string> = {
           [`mixins.${this.THEME_MIXIN_KEY}.site`]: site,
         };
-        if (version) {
+        // The mixin only stores the row's discriminator; map the
+        // aliased `'live-preview'` mode to `'live'` for the search.
+        if (version && version !== 'live-preview') {
           criteria[`mixins.${this.THEME_MIXIN_KEY}.version`] = version;
+        } else if (version === 'live-preview') {
+          criteria[`mixins.${this.THEME_MIXIN_KEY}.version`] = 'live';
         }
         const result = await this.schemaApi.searchCustomEntities(this.THEME_ENTITY_TYPE, { criteria, size: 1 });
         entity = result.items?.[0];
+      }
+
+      // Draft → live-preview fallback: editor asked for a draft that
+      // doesn't exist; show the freshest live row instead (cache-free
+      // so a recent publish lands immediately). `raw.version` stays
+      // `'live'` from the mixin, so callers can detect the fallback.
+      if (!entity && version === 'draft') {
+        return this.getThemeEntity(site, 'live-preview');
       }
 
       if (!entity) return null;

@@ -45,13 +45,11 @@ export type EmporixCmsThemeStyleProps = {
 export default async function EmporixCmsThemeStyle({ site, themeClass }: EmporixCmsThemeStyleProps) {
   if (!site) return null;
 
-  // SSR resolves the published theme so we can:
-  //   1. emit a version-busted `<link>` href that the browser caches,
-  //   2. hand the bridge the published baseline (target + variables)
-  //      it needs to seed `THEME_RESPONSE` and `RESET` semantics
-  //      without an extra fetch from inside the iframe.
-  //
-  // Both reads are request-scoped via React's `cache()`.
+  // SSR resolves the published theme so we can emit a versioned
+  // `<link>` and hand the bridge the published baseline it needs to
+  // seed `THEME_RESPONSE` without an extra fetch. Both reads are
+  // request-scoped via React's `cache()`. The bridge swaps the URL to
+  // a cache-bypassed `?v=` in editor mode (no host opt-in needed).
   const [theme, manifest] = await Promise.all([fetchCMSTheme(site), fetchCMSThemeTokenManifest(site)]);
   const variables = theme?.variables ?? {};
   const target = resolveTargetSelector(themeClass ?? theme?.baseTheme, site);
