@@ -12,7 +12,7 @@ interface DynamicPageParams {
 export async function generateMetadata({ params }: { params: Promise<DynamicPageParams> }) {
   const { slug, locale, site } = await params;
   const data = await fetchCMSPage(slug.join('/'), locale, site);
-  if ('notFound' in data) {
+  if ('notfound' in data) {
     return { title: 'Page not found' };
   }
   const page = data as CMSPage;
