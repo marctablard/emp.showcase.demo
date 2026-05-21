@@ -1,5 +1,5 @@
 Services:
-  SearchService: BatteryIncludedSearchService
+  SearchService: EmporixSearchService
   ProductService: EmporixProductService
 
 Integrations:
