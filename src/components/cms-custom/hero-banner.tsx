@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import {
   type SharedImage,
   type SharedLink,
+  linkHref,
   resolveImageSrc,
   sharedFieldDefinitions,
 } from './_shared/field-definitions';
@@ -14,6 +15,7 @@ import { type Alignment, type Tone, alignClass, justifyClass } from './_shared/s
 
 type Height = 'auto' | 'sm' | 'md' | 'lg' | 'fullscreen';
 type Overlay = 'none' | 'light' | 'dark';
+type ContentBox = 'none' | 'light' | 'dark';
 
 type HeroBannerProps = {
   eyebrow?: string;
@@ -26,6 +28,7 @@ type HeroBannerProps = {
   height?: Height;
   overlay?: Overlay;
   tone?: Exclude<Tone, 'muted'>;
+  contentBox?: ContentBox;
 };
 
 const heightClass = (height?: Height) => {
@@ -54,9 +57,15 @@ export default function HeroBanner({
   height = 'md',
   overlay = 'none',
   tone = 'default',
+  contentBox = 'none',
 }: HeroBannerProps) {
   const isInverted = tone === 'inverted';
+  // When a content box is present, its own background drives the text color
+  // (dark text on light box, light text on dark box) — overriding tone.
+  const effectiveInverted = contentBox === 'dark' || (contentBox === 'none' && isInverted);
   const imageSrc = resolveImageSrc(image);
+  const primaryHref = linkHref(primaryCta);
+  const secondaryHref = linkHref(secondaryCta);
   return (
     <section
       data-cms="hero-banner"
@@ -82,35 +91,61 @@ export default function HeroBanner({
       ) : null}
       <div
         className={cn(
-          'relative flex w-full flex-col gap-6 px-6 py-12 md:px-12',
+          'relative flex w-full px-6 py-12 md:px-12',
           alignClass(alignment),
           justifyClass(alignment),
           'm-auto max-w-6xl',
         )}
       >
-        {eyebrow ? <Overline className={isInverted ? 'text-text-on-action' : undefined}>{eyebrow}</Overline> : null}
-        {headline ? <H1 className={cn(isInverted && 'text-text-on-action')}>{headline}</H1> : null}
-        {subheadline ? (
-          <p className={cn('max-w-2xl text-lg', isInverted && 'text-text-on-action')}>{subheadline}</p>
-        ) : null}
-        {primaryCta?.url || secondaryCta?.url ? (
-          <div className={cn('flex flex-wrap gap-3', justifyClass(alignment))}>
-            {primaryCta?.url ? (
-              <Button asChild variant="primary">
-                <Link href={primaryCta.url} target={primaryCta.newTab ? '_blank' : undefined}>
-                  {primaryCta.label ?? 'Learn more'}
-                </Link>
-              </Button>
-            ) : null}
-            {secondaryCta?.url ? (
-              <Button asChild variant="secondary">
-                <Link href={secondaryCta.url} target={secondaryCta.newTab ? '_blank' : undefined}>
-                  {secondaryCta.label ?? 'See more'}
-                </Link>
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
+        <div
+          className={cn(
+            'flex flex-col gap-6',
+            alignClass(alignment),
+            contentBox !== 'none' && 'max-w-2xl rounded-lg p-6 backdrop-blur-sm md:p-8',
+            contentBox === 'light' && 'text-text-body',
+            contentBox === 'dark' && 'text-text-on-action',
+          )}
+          style={
+            contentBox === 'light'
+              ? { background: 'oklch(1 0 0 / 0.85)' }
+              : contentBox === 'dark'
+                ? { background: 'oklch(0.2 0 0 / 0.65)' }
+                : undefined
+          }
+        >
+          {eyebrow ? (
+            <Overline className={effectiveInverted ? 'text-text-on-action' : undefined}>{eyebrow}</Overline>
+          ) : null}
+          {headline ? <H1 className={cn(effectiveInverted && 'text-text-on-action')}>{headline}</H1> : null}
+          {subheadline ? (
+            <p className={cn('max-w-2xl text-lg', effectiveInverted && 'text-text-on-action')}>{subheadline}</p>
+          ) : null}
+          {primaryHref || secondaryHref ? (
+            <div className={cn('flex flex-wrap gap-3', justifyClass(alignment))}>
+              {primaryHref ? (
+                <Button asChild variant="primary">
+                  <Link href={primaryHref} target={primaryCta?.newTab ? '_blank' : undefined}>
+                    {primaryCta?.label ?? 'Learn more'}
+                  </Link>
+                </Button>
+              ) : null}
+              {secondaryHref ? (
+                <Button
+                  asChild
+                  variant="secondary"
+                  className={cn(
+                    effectiveInverted &&
+                      'border-current bg-[oklch(1_0_0/0.1)] text-text-on-action hover:border-current hover:bg-[oklch(1_0_0/0.2)] hover:text-text-on-action',
+                  )}
+                >
+                  <Link href={secondaryHref} target={secondaryCta?.newTab ? '_blank' : undefined}>
+                    {secondaryCta?.label ?? 'See more'}
+                  </Link>
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       </div>
     </section>
   );
@@ -166,6 +201,15 @@ export const heroBannerEntry: CMSComponentEntry = {
           { label: 'Inverted', value: 'inverted' },
         ],
       },
+      content_box: {
+        label: 'Content box',
+        type: 'select',
+        options: [
+          { label: 'None', value: 'none' },
+          { label: 'Light', value: 'light' },
+          { label: 'Dark', value: 'dark' },
+        ],
+      },
     },
     defaultProps: {
       headline: 'Welcome',
@@ -173,6 +217,7 @@ export const heroBannerEntry: CMSComponentEntry = {
       height: 'md',
       overlay: 'none',
       tone: 'default',
+      content_box: 'none',
     },
   },
   mapProps: (p) => ({
@@ -186,6 +231,7 @@ export const heroBannerEntry: CMSComponentEntry = {
     height: p.height,
     overlay: p.overlay,
     tone: p.tone,
+    contentBox: p.content_box,
   }),
   component: HeroBanner,
 };

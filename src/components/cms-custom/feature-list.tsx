@@ -4,7 +4,7 @@ import { H2, H4 } from '@/components/ui/h';
 import { cn } from '@/lib/utils';
 import { type Alignment, type Tone, alignClass, toneSurfaceClass } from './_shared/styles';
 
-type Columns = 1 | 2 | 3 | 4;
+type Columns = 1 | 2 | 3 | 4 | 5;
 type IconStyle = 'filled' | 'outline' | 'circle';
 type IconKey = 'check' | 'star' | 'bolt' | 'heart' | 'leaf';
 
@@ -40,6 +40,8 @@ const colClass = (c?: Columns) => {
       return 'grid-cols-1 md:grid-cols-2';
     case 4:
       return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4';
+    case 5:
+      return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-5';
     case 3:
     default:
       return 'grid-cols-1 md:grid-cols-3';
@@ -62,21 +64,23 @@ export default function FeatureList({
         {intro ? <p className="max-w-prose text-base">{intro}</p> : null}
         <ul className={cn('grid w-full gap-8', colClass(columns))}>
           {features.map((f, i) => {
-            const Icon = iconMap[f.icon ?? 'check'];
+            const Icon = (f.icon && iconMap[f.icon]) || Check;
             return (
               <li key={i} className={cn('flex flex-col gap-3', alignClass(alignment))}>
-                <span
-                  data-icon-style={iconStyle}
-                  className={cn(
-                    'flex size-12 items-center justify-center text-icon-action',
-                    iconStyle === 'circle' && 'rounded-full bg-surface-action-hover-2',
-                    iconStyle === 'outline' && 'rounded-full border-2 border-border-action',
-                  )}
-                >
-                  <Icon size={24} strokeWidth={iconStyle === 'filled' ? 2.5 : 2} />
-                </span>
-                {f.title ? <H4 className="text-text-headings">{f.title}</H4> : null}
-                {f.description ? <p className="text-base text-text-body">{f.description}</p> : null}
+                <div className="flex items-center gap-3">
+                  <span
+                    data-icon-style={iconStyle}
+                    className={cn(
+                      'flex size-12 shrink-0 items-center justify-center text-icon-action',
+                      iconStyle === 'circle' && 'rounded-full bg-surface-action-hover-2',
+                      iconStyle === 'outline' && 'rounded-full border-2 border-border-action',
+                    )}
+                  >
+                    <Icon size={24} strokeWidth={iconStyle === 'filled' ? 2.5 : 2} />
+                  </span>
+                  {f.title ? <H4 className="text-text-headings">{f.title}</H4> : null}
+                </div>
+                {f.description ? <p className="whitespace-pre-line text-base text-text-body">{f.description}</p> : null}
               </li>
             );
           })}
@@ -125,6 +129,7 @@ export const featureListEntry: CMSComponentEntry = {
           { label: '2', value: '2' },
           { label: '3', value: '3' },
           { label: '4', value: '4' },
+          { label: '5', value: '5' },
         ],
       },
       alignment: {

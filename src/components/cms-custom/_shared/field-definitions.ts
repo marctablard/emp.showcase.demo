@@ -20,7 +20,10 @@ export const sharedFieldDefinitions: Record<string, CMSPropDefinition> = {
 };
 
 export type SharedImage = { filename?: string; alt?: string; url?: string };
-export type SharedLink = { url: string; label?: string; newTab?: boolean };
+// Schema stores `href`; legacy payloads used `url`. Components must accept either.
+export type SharedLink = { href?: string; url?: string; label?: string; newTab?: boolean };
+
+export const linkHref = (link?: SharedLink | null): string | undefined => link?.href ?? link?.url;
 
 const tryAsImageSrc = (value: string | undefined | null): string | undefined => {
   if (!value) return undefined;

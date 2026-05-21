@@ -6,7 +6,7 @@ import { type Radius, radiusClass } from './_shared/styles';
 type Aspect = 'video' | 'wide' | 'square';
 
 type VideoBlockProps = {
-  src?: string;
+  src?: SharedImage;
   poster?: SharedImage;
   caption?: string;
   aspect?: Aspect;
@@ -15,6 +15,7 @@ type VideoBlockProps = {
   muted?: boolean;
   controls?: boolean;
   radius?: Radius;
+  coverMode?: boolean;
 };
 
 const aspectClass = (aspect?: Aspect) => {
@@ -39,19 +40,25 @@ export default function VideoBlock({
   muted = false,
   controls = true,
   radius = 'md',
+  coverMode = false,
 }: VideoBlockProps) {
-  if (!src) return null;
+  const videoSrc = resolveImageSrc(src);
+  if (!videoSrc) return null;
   return (
-    <figure data-cms="video" className="mx-auto flex w-full max-w-5xl flex-col gap-2 px-6 md:px-12">
+    <figure
+      data-cms="video"
+      data-cover-mode={coverMode || undefined}
+      className={cn('flex flex-col gap-2', coverMode ? 'w-full' : 'mx-auto w-full max-w-5xl px-6 md:px-12')}
+    >
       <div
         className={cn(
           'relative w-full overflow-hidden bg-surface-image-background',
-          aspectClass(aspect),
-          radiusClass(radius),
+          coverMode ? 'h-screen' : aspectClass(aspect),
+          coverMode ? 'rounded-none' : radiusClass(radius),
         )}
       >
         <video
-          src={src}
+          src={videoSrc}
           poster={resolveImageSrc(poster)}
           autoPlay={autoplay}
           loop={loop}
@@ -73,7 +80,7 @@ export const videoEntry: CMSComponentEntry = {
     description: 'Self-hosted or external video. URL must point at a playable video file.',
     fieldDefinitions: sharedFieldDefinitions,
     props: {
-      src: { label: 'Video URL', type: 'url', required: true },
+      src: { $ref: 'image', label: 'Video', type: 'media', allowedTypes: ['video/*'], required: true },
       poster: { $ref: 'image', label: 'Poster image', type: 'media', allowedTypes: ['image/*'] },
       caption: { label: 'Caption', type: 'text' },
       aspect: {
@@ -99,8 +106,17 @@ export const videoEntry: CMSComponentEntry = {
           { label: 'Large', value: 'lg' },
         ],
       },
+      cover_mode: { label: 'Cover mode (full page)', type: 'boolean' },
     },
-    defaultProps: { aspect: 'video', autoplay: false, loop: false, muted: false, controls: true, radius: 'md' },
+    defaultProps: {
+      aspect: 'video',
+      autoplay: false,
+      loop: false,
+      muted: false,
+      controls: true,
+      radius: 'md',
+      cover_mode: false,
+    },
   },
   mapProps: (p) => ({
     src: p.src,
@@ -112,6 +128,7 @@ export const videoEntry: CMSComponentEntry = {
     muted: p.muted,
     controls: p.controls,
     radius: p.radius,
+    coverMode: p.cover_mode,
   }),
   component: VideoBlock,
 };
