@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { CMSComponentEntry } from '@extensions/medienwerft-cms-plugin/types';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { type SharedLink, sharedFieldDefinitions } from './_shared/field-definitions';
+import { type SharedLink, linkHref, sharedFieldDefinitions } from './_shared/field-definitions';
 import { type Alignment, justifyClass } from './_shared/styles';
 
 type Variant = 'primary' | 'secondary' | 'neutral' | 'link';
@@ -25,12 +25,13 @@ export default function CtaButton({
   alignment = 'left',
   fullWidth = false,
 }: CtaButtonProps) {
-  if (!link?.url) return null;
+  const href = linkHref(link);
+  if (!href) return null;
   return (
     <div data-cms="cta-button" className={cn('flex w-full px-6 md:px-12', justifyClass(alignment))}>
       <Button asChild variant={variant} className={cn(sizeClass(size), fullWidth && 'w-full')}>
-        <Link href={link.url} target={link.newTab ? '_blank' : undefined}>
-          {link.label ?? 'Learn more'}
+        <Link href={href} target={link?.newTab ? '_blank' : undefined}>
+          {link?.label ?? 'Learn more'}
         </Link>
       </Button>
     </div>

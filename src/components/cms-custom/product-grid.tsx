@@ -14,7 +14,7 @@ export const productGridEntry: CMSComponentEntry = {
     description: 'Curated product grid by SKU. Products are fetched per tile and rendered with image, name, and price.',
     fieldDefinitions: sharedFieldDefinitions,
     props: {
-      skus: { label: 'Product SKUs', type: 'array', items: { label: 'SKU', type: 'text' } },
+      skus: { label: 'Product SKUs', type: 'array', items: { label: 'SKU', type: 'product' } },
       headline: { label: 'Headline', type: 'text' },
       view_all_link: { $ref: 'link', label: 'View all link', type: 'object' },
       columns: {
