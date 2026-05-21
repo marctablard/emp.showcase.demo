@@ -51,6 +51,14 @@
   "requestQuotestep2": "Start your quote creation with just one click on \"Request a quote\"",
   "requestQuotestep3": "Our staff will contact you as soon as possible.",
   "requestQuoteButton": "Request a quote",
+  "punchout": {
+    "title": "Procurement",
+    "description": "Transfer the products in your cart back to your procurement system.",
+    "button": "Send to Procurement",
+    "submitting": "Sending…",
+    "emptyCart": "Your cart is empty.",
+    "submitFailed": "Could not prepare the punchout transfer. Please try again."
+  },
   "itemNumber": "Item number: ",
   "available": "Online Available",
   "availableInWeeks": "Available in 4-6 weeks",

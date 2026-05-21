@@ -9,6 +9,7 @@ import { cn, formatCurrency } from '@/lib/utils';
 import type { Cart } from '@/platform/services/model/cart';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import UiLink from '../ui/link';
+import { CartPunchout } from './cart-punchout';
 import { CartRequest } from './cart-request';
 
 interface CartSummaryProps {
@@ -109,6 +110,7 @@ export function CartSummary({ cart, boundingContent }: CartSummaryProps) {
             </CardFooter>
           </Card>
           <CartRequest />
+          <CartPunchout cart={cart} />
         </div>
       </div>
     </div>

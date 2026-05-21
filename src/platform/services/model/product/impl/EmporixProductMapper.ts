@@ -99,7 +99,15 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
       variantAttributeValues: normalizeProductAttributeStringMap(
         source.mixins?.productVariantAttributes as Record<string, unknown> | undefined,
       ),
+      punchout: this.mapPunchoutData(source),
     };
+  }
+
+  private mapPunchoutData(source: EmporixProduct): Product['punchout'] {
+    const punchoutMixin = source.mixins?.punchoutdata as { classification?: { unspsc?: string } } | undefined;
+    const unspsc = punchoutMixin?.classification?.unspsc?.trim();
+    if (!unspsc) return undefined;
+    return { classification: { unspsc } };
   }
 
   /**

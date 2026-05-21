@@ -47,6 +47,14 @@
   "requestQuotestep2": "Beginne mit der Erstellung Ihres Angebots mit einem Klick auf \"Angebot anfragen\"",
   "requestQuotestep3": "Unser Personal kontaktiert Sie so schnell wie möglich.",
   "requestQuoteButton": "Ein Angebot anfragen",
+  "punchout": {
+    "title": "Beschaffung",
+    "description": "Übermitteln Sie die Produkte in Ihrem Warenkorb an Ihr Beschaffungssystem.",
+    "button": "An Beschaffung senden",
+    "submitting": "Wird gesendet…",
+    "emptyCart": "Ihr Warenkorb ist leer.",
+    "submitFailed": "Punchout-Übermittlung konnte nicht vorbereitet werden. Bitte erneut versuchen."
+  },
   "itemNumber": "Artikelnummer: ",
   "available": "Online Verfügbar",
   "availableInWeeks": "Verfügbar in 4-6 Wochen",

@@ -84,6 +84,12 @@ export interface Product {
   variantAttributeValues?: Record<string, string>;
   /** Emporix product category roots when provided by API */
   categoryIds?: string[];
+  /** Punchout classification data from mixins.punchoutdata */
+  punchout?: {
+    classification?: {
+      unspsc?: string;
+    };
+  };
 }
 
 export interface ProductRecommendations {
