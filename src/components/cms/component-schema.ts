@@ -30,7 +30,12 @@ export type PageData = {
   body: CMSComponent[];
 };
 
-export const PageSchema = z.object({
+export const PageSchema: z.ZodObject<{
+  id: z.ZodString;
+  type: z.ZodLiteral<'page'>;
+  title: z.ZodOptional<z.ZodString>;
+  body: z.ZodArray<z.ZodLazy<z.ZodTypeAny>>;
+}> = z.object({
   id: z.string(),
   type: z.literal('page'),
   title: z.string().optional(),

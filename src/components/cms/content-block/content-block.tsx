@@ -7,7 +7,10 @@ import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import type { ContentBlockData } from './schema';
 
-export type ContentBlockProps = ContentBlockData & HTMLAttributes<HTMLDivElement>;
+// Omit HTMLAttributes.style — collides with our schema's literal-union
+// `style` field. Inline-style overrides on a CMS block aren't a use case
+// the spread contract needs to cover.
+export type ContentBlockProps = ContentBlockData & Omit<HTMLAttributes<HTMLDivElement>, 'style'>;
 
 const CONTAINER_CLASSES = {
   'full-width': 'w-full',
