@@ -48,16 +48,6 @@ export function getPublicPriceMatchUseFallback(): boolean {
 }
 
 /**
- * Active CMS provider identifier. Empty string triggers auto-resolution
- * downstream (see `CmsProviderResolver`); other values are validated
- * against `CMS_PROVIDER_IDS` at resolution time.
- */
-export function getPublicCmsProvider(): string {
-  const raw = process.env.NEXT_PUBLIC_CMS_PROVIDER;
-  return typeof raw === 'string' ? raw.trim() : '';
-}
-
-/**
  * Default site folder for the local-JSON CMS adapter (used when no
  * session site is available or the session site has no matching JSON).
  */

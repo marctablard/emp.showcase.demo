@@ -1,4 +1,5 @@
 import { inject } from 'inversify';
+import { getPublicCmsLocalDefaultSite } from '@/lib/common/public-default-env';
 import { injectable } from '@/platform/core/di/injectable';
 import type { CmsAdapter } from '@/platform/services/cms/CmsAdapter';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
@@ -21,15 +22,6 @@ export type CmsDataLoader = (site: string, locale: string, slug: string) => Prom
 
 const defaultJsonLoader: CmsDataLoader = (site, locale, slug) =>
   import(`../../../../../data/cms/${site}/${locale}/${slug}.json`).then((m) => m.default).catch(() => null);
-
-const FALLBACK_DEFAULT_SITE = '_default_';
-
-function readDefaultSiteFromEnv(): string {
-  const raw = process.env.NEXT_PUBLIC_CMS_LOCAL_DEFAULT_SITE;
-  if (typeof raw !== 'string') return FALLBACK_DEFAULT_SITE;
-  const trimmed = raw.trim();
-  return trimmed.length > 0 ? trimmed : FALLBACK_DEFAULT_SITE;
-}
 
 /**
  * `CmsAdapter` backed by version-controlled JSON under `src/data/cms/`.
@@ -59,7 +51,7 @@ export class LocalJsonCmsAdapter implements CmsAdapter {
     private readonly loader: CmsDataLoader = defaultJsonLoader,
     defaultSite?: string,
   ) {
-    this.defaultSite = defaultSite ?? readDefaultSiteFromEnv();
+    this.defaultSite = defaultSite ?? getPublicCmsLocalDefaultSite();
   }
 
   hasContent(): boolean {
