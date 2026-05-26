@@ -1,16 +1,17 @@
 import { inject } from 'inversify';
-import { injectable } from '@/platform/core/di/injectable';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { CMSNoResult, CMSPage } from '../../model/cms';
 import type { SessionService } from '../../session';
-import type { CMSService } from '../CMSService';
 
 /**
- * Implementation of CMSService that loads content from local JSON files
- * using a folder structure of cms/[site]/[language]/slug.json
+ * Legacy CMSService implementation that loaded content from local JSON
+ * files. Kept temporarily as dead code: the DI decorator was removed so
+ * the container no longer binds it. New CMS resolution flows through
+ * `DelegatingCmsServiceSSR` + `LocalJsonCmsAdapter`.
+ *
+ * Scheduled for removal in the next CMS-layout slice.
  */
-@injectable('CMSService', 'Singleton')
-export class LocalCmsServiceSSR implements CMSService {
+export class LocalCmsServiceSSR {
   private defaultSite: string;
   private sessionService: SessionService;
   private logger: LoggerService;

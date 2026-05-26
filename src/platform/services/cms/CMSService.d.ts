@@ -1,15 +1,18 @@
-import { CMSNoResult, CMSPage } from '../model/cms';
+import type { ComponentType, HTMLAttributes } from 'react';
+import type { CMSComponent, CMSNavigation, CMSNoResult, CMSPage } from '../model/cms';
 
 /**
- * Service for CMS-related operations
+ * Service for CMS-related operations.
+ *
+ * Single implementation: `DelegatingCmsServiceSSR`, which forwards every
+ * call to the active `CmsAdapter` plugin (chosen at bootstrap by
+ * `CmsProviderResolver`).
  */
 export interface CMSService {
-  /**
-   * Get a page from CMS
-   * @param slug The page slug
-   * @param locale The locale
-   * @param site The site
-   * @returns Promise with the page or CMSNoResult if not found
-   */
+  readonly providerId: string;
+  hasContent(): boolean;
   getPage(slug: string, locale: string, site: string): Promise<CMSPage | CMSNoResult>;
+  getNavigation(locale: string, site: string): Promise<CMSNavigation | CMSNoResult>;
+  getEditableProps(component: CMSComponent): HTMLAttributes<HTMLElement>;
+  readonly BridgeScript: ComponentType | null;
 }

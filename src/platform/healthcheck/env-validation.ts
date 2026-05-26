@@ -33,6 +33,11 @@ export const REQUIRED_ENV_VARS: ReadonlyArray<EnvVarDefinition> = [
 export const OPTIONAL_ENV_VARS: ReadonlyArray<EnvVarDefinition> = [
   { key: 'NEXT_EMPORIX_CLIENT_ID', severity: 'warning', description: 'Emporix server-side client ID' },
   { key: 'NEXT_EMPORIX_CLIENT_SECRET', severity: 'warning', description: 'Emporix server-side client secret' },
+  {
+    key: 'NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN',
+    severity: 'warning',
+    description: 'Storyblok CMS access token (without it the CMS adapter falls back to "none")',
+  },
 ];
 
 /**

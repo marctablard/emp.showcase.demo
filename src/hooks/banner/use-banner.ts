@@ -49,12 +49,22 @@ export function useBanner(): UseBannerResult {
       try {
         setIsLoading(true);
 
+        // Without a configured Storyblok client (token unset) the API
+        // accessor returns null. Treat this as "no banner configured" —
+        // no fetch, no error, just settle.
+        const storyblokApi: StoryblokClient | null = getStoryblokApi();
+        if (!storyblokApi) {
+          if (isMounted) {
+            setIsLoading(false);
+          }
+          return;
+        }
+
         const sbParams: ISbStoriesParams = {
           version: process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW === 'true' ? 'draft' : 'published',
           language: locale,
         };
 
-        const storyblokApi: StoryblokClient = getStoryblokApi();
         const response = await storyblokApi.get('cdn/stories/top-banner-announcement', sbParams);
 
         if (isMounted) {

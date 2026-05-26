@@ -22,41 +22,50 @@ import TopBannerAnnouncement from '@/components/cms/top-banner-announcement';
 import Video from '@/components/cms/video';
 
 /**
- * Initialize Storyblok client with the access token from environment variables
- * This client can be used to fetch content from Storyblok
- * Using RSC (React Server Components) approach
+ * Initialize Storyblok client conditionally — only when an access token is
+ * configured. Without a token the module returns a no-op accessor that
+ * resolves to `null` (instead of crashing at module-load time inside
+ * `storyblokInit`). Callers must treat the `null` case gracefully.
  *
- * Note: we are not wrapping all Components for now
+ * Using RSC (React Server Components) approach.
+ *
+ * Note: we are not wrapping all Components for now.
  */
-export const getStoryblokApi = storyblokInit({
-  accessToken: process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN || '',
-  use: [apiPlugin],
-  bridge: true,
-  apiOptions: {
-    maxRetries: 2,
-    cache: {
-      type: 'none',
-    },
-  },
-  components: {
-    feature: Feature,
-    teaser: Teaser,
-    grid: Grid,
-    columns: Columns,
-    page: Page,
-    logo: Logo,
-    navigation: Navigation,
-    content_block: ContentBlock,
-    category: Category,
-    segment: Segment,
-    article: Article,
-    button: StoryblokButton,
-    hero: StoryblokHero,
-    quick_entry: StoryblokQuickEntry,
-    media_text: MediaText,
-    recommendations: StoryblokRecommendations,
-    column_teaser: StoryblokColumnTeaser,
-    video: Video,
-    top_banner_announcement: TopBannerAnnouncement,
-  },
-});
+const TOKEN = process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN?.trim();
+
+const noopApi = (() => null) as unknown as ReturnType<typeof storyblokInit>;
+
+export const getStoryblokApi: ReturnType<typeof storyblokInit> = TOKEN
+  ? storyblokInit({
+      accessToken: TOKEN,
+      use: [apiPlugin],
+      bridge: true,
+      apiOptions: {
+        maxRetries: 2,
+        cache: {
+          type: 'none',
+        },
+      },
+      components: {
+        feature: Feature,
+        teaser: Teaser,
+        grid: Grid,
+        columns: Columns,
+        page: Page,
+        logo: Logo,
+        navigation: Navigation,
+        content_block: ContentBlock,
+        category: Category,
+        segment: Segment,
+        article: Article,
+        button: StoryblokButton,
+        hero: StoryblokHero,
+        quick_entry: StoryblokQuickEntry,
+        media_text: MediaText,
+        recommendations: StoryblokRecommendations,
+        column_teaser: StoryblokColumnTeaser,
+        video: Video,
+        top_banner_announcement: TopBannerAnnouncement,
+      },
+    })
+  : noopApi;

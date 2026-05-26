@@ -21,7 +21,10 @@ export const fetchData = cache(async (locale: string, slug: string, site?: strin
     slug = `${site}/${slug}`;
   }
   try {
-    const storyblokApi: StoryblokClient = getStoryblokApi();
+    const storyblokApi: StoryblokClient | null = getStoryblokApi();
+    if (!storyblokApi) {
+      return null;
+    }
     return await storyblokApi.getStory(slug, sbParams, { next: { revalidate: 0 } });
   } catch {
     return null;
