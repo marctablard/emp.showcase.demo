@@ -78,13 +78,13 @@ describe('cmsComponentMap drift-guard', () => {
     }
   });
 
-  it('registers the five walking-skeleton pilot components', () => {
+  it('registers the five pilot components', () => {
     /*
      * Pins the foundation inventory explicitly: button, hero, content-block,
      * richtext, page. The drift-guard above keeps map/union in lock-step;
      * this list pins the explicit expectation so accidentally dropping a
      * pilot registration surfaces here. When the remaining default
-     * components are registered in a follow-up slice, this list extends
+     * components are registered in a later registration, this list extends
      * (a legitimate contract tightening, not a loosening).
      */
     const expected = ['button', 'content-block', 'hero', 'page', 'richtext'];
