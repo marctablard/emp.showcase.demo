@@ -1,47 +1,24 @@
 'use client';
 
+import type { HTMLAttributes } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { CirclePause, CirclePlay } from 'lucide-react';
 import { H1 } from '@/components/ui/h';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { cn } from '@/lib/utils';
-import type { ButtonData } from './button';
-import Button from './button';
-import type { VideoData } from './video';
-import Video from './video';
+import Button from '../button';
+import Video from '../video';
+import type { HeroData } from './schema';
 
-export interface TextEditorData {
-  content: [
-    {
-      text: string;
-      type: string;
-      content: [
-        {
-          text: string;
-        },
-      ];
-    },
-  ];
-}
+export type HeroProps = HeroData & HTMLAttributes<HTMLDivElement>;
 
-interface HeroProps {
-  headline: string;
-  text: TextEditorData;
-  main_button: ButtonData[];
-  image: {
-    filename: string;
-    alt?: string;
-  };
-  video?: VideoData[];
-}
-
-const Hero = ({ headline, text, main_button, image, video }: HeroProps) => {
+const Hero = ({ id: _id, type: _type, headline, text, main_button, image, video, className, ...rest }: HeroProps) => {
   const button = main_button?.[0];
   const videoData = video?.[0];
-  const content = text?.content?.[0]?.content?.[0].text;
+  const content = text?.content?.[0]?.content?.[0]?.text;
   const isAboveSmallScreen = useBreakpoint('sm');
   const videoPlayer = useRef<HTMLDivElement>(null);
-  const [isPlaying, setIsPlaying] = useState(videoData?.autoplay);
+  const [isPlaying, setIsPlaying] = useState(videoData?.autoplay ?? false);
 
   useEffect(() => {
     videoPlayer?.current?.querySelector('video')?.addEventListener('ended', () => {
@@ -65,7 +42,9 @@ const Hero = ({ headline, text, main_button, image, video }: HeroProps) => {
         'relative mb-10 sm:mb-20 md:mb-10',
         'lg:bg-[url("/images/hero-pattern.svg")] bg-no-repeat bg-left-top',
         'max-w-[2500px] mx-auto',
+        className,
       )}
+      {...rest}
     >
       <div className="w-full flex justify-end">
         <div className="mb-44 sm:mb-0 h-100 sm:h-145 md:h-185 w-full sm:w-auto">
@@ -85,10 +64,17 @@ const Hero = ({ headline, text, main_button, image, video }: HeroProps) => {
               {image && !videoData?.autoplay && (
                 <image clipPath="url(#shape)" xlinkHref={image.filename} className="sm:translate-x-0 sm:w-full"></image>
               )}
-              {video && (
+              {video && videoData && (
                 <foreignObject clipPath="url(#shape)" className="sm:translate-x-0 w-full h-[200%] sm:h-full">
                   <div className="w-full h-full" ref={videoPlayer}>
-                    <Video {...video[0]} controls={false} />
+                    <Video
+                      video_file={videoData.video_file}
+                      autoplay={videoData.autoplay}
+                      loop={videoData.loop ?? false}
+                      mute={videoData.mute ?? false}
+                      controls={false}
+                      alt_text={videoData.alt_text}
+                    />
                   </div>
                 </foreignObject>
               )}
