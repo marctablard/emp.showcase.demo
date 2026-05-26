@@ -130,7 +130,7 @@ describe('LocalJsonCmsAdapter', () => {
   describe('getPage — session fallback', () => {
     it('falls back to the default site when no session is available', async () => {
       const loader: CmsDataLoader = jest.fn(async (site) => (site === '_default_' ? SAMPLE_PAGE : null));
-      const adapter = new LocalJsonCmsAdapter(buildSessionService(undefined), buildLogger(), loader);
+      const adapter = new LocalJsonCmsAdapter(buildSessionService(undefined), buildLogger(), loader, '_default_');
 
       const result = await adapter.getPage('home', 'en', 'whatever');
 

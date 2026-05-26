@@ -87,7 +87,7 @@ describe('useBanner', () => {
       expect(apiGet).toHaveBeenCalledTimes(1);
       expect(apiGet).toHaveBeenCalledWith(
         'cdn/stories/top-banner-announcement',
-        expect.objectContaining({ language: 'en' }),
+        expect.objectContaining({ language: 'en', version: 'published' }),
       );
       expect(result.current.data).toEqual(storyResponse.data);
     });
