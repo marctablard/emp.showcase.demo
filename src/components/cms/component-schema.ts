@@ -1,0 +1,60 @@
+import { z } from 'zod';
+import { ButtonSchema } from './button/schema';
+import { ContentBlockSchema } from './content-block/schema';
+import { HeroSchema } from './hero/schema';
+import { RichtextSchema } from './richtext/schema';
+
+/**
+ * Page is the recursive container of CMS components: its `body` references
+ * the global discriminated union, which itself contains PageSchema.
+ *
+ * The schema is owned here (rather than in `page/schema.ts`) to keep the
+ * cycle inside a single module. `z.lazy(() => CMSComponentSchema)` defers
+ * the cyclic reference until parse-time — at module load, the closure
+ * captures the lexical binding but does not invoke it, so the discriminated
+ * union below has a chance to be assigned before the first `parse()` call
+ * reads through it.
+ *
+ * `page/schema.ts` re-exports `PageSchema` and `PageData` so consumers still
+ * import from the conventional `<name>/schema.ts` location.
+ *
+ * The explicit `PageData` interface breaks the inference cycle that would
+ * otherwise leave `body` typed as `unknown[]` (zod cannot infer the output
+ * of a `z.lazy()` until the inner schema is bound).
+ */
+
+export type PageData = {
+  id: string;
+  type: 'page';
+  title?: string;
+  body: CMSComponent[];
+};
+
+export const PageSchema = z.object({
+  id: z.string(),
+  type: z.literal('page'),
+  title: z.string().optional(),
+  body: z.array(z.lazy(() => CMSComponentSchema)),
+});
+
+/**
+ * Discriminated union of every registered CMS component schema.
+ *
+ * Adapters validate against this union at the CMS boundary; the renderer
+ * consults `cmsComponentMap` (component-map.ts) for the matching React
+ * component. The two surfaces stay in lock-step via the drift-guard
+ * test in component-map.test.ts.
+ *
+ * Pure schema-aggregate: imports only `<name>/schema.ts` files (no React,
+ * no .tsx) so the Domain layer can re-export `CMSComponent` from here
+ * without dragging the UI tree along.
+ */
+export const CMSComponentSchema = z.discriminatedUnion('type', [
+  ButtonSchema,
+  ContentBlockSchema,
+  HeroSchema,
+  PageSchema,
+  RichtextSchema,
+]);
+
+export type CMSComponent = z.infer<typeof CMSComponentSchema>;
