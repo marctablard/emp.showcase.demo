@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ArticleSchema } from './article/schema';
 import { ButtonSchema } from './button/schema';
 import { ContentBlockSchema } from './content-block/schema';
 import { HeroSchema } from './hero/schema';
@@ -55,6 +56,7 @@ export const PageSchema: z.ZodObject<{
  * without dragging the UI tree along.
  */
 export const CMSComponentSchema = z.discriminatedUnion('type', [
+  ArticleSchema,
   ButtonSchema,
   ContentBlockSchema,
   HeroSchema,

@@ -1,3 +1,4 @@
+import Article, { ArticleSchema } from './article';
 import Button, { ButtonSchema } from './button';
 import { PageSchema } from './component-schema';
 import ContentBlock, { ContentBlockSchema } from './content-block';
@@ -19,6 +20,7 @@ import Richtext, { RichtextSchema } from './richtext';
  * React component graph in.
  */
 export const cmsComponentMap = {
+  article: { component: Article, schema: ArticleSchema },
   button: { component: Button, schema: ButtonSchema },
   'content-block': { component: ContentBlock, schema: ContentBlockSchema },
   hero: { component: Hero, schema: HeroSchema },
