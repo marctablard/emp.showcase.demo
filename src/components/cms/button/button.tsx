@@ -1,31 +1,22 @@
+import type { HTMLAttributes } from 'react';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
-import UiLink from '../ui/link';
+import UiLink from '@/components/ui/link';
+import { cn } from '@/lib/utils';
+import type { ButtonData } from './schema';
 
 const IconVariant = {
   ArrowRight: ArrowRight,
   ArrowLeft: ArrowLeft,
 } as const;
 
-export interface ButtonData {
-  title: string;
-  link: string;
-  iconLeft?: string;
-  iconRight?: string;
-}
+export type ButtonProps = ButtonData & HTMLAttributes<HTMLDivElement>;
 
-export interface ButtonProps {
-  title: string;
-  link: string;
-  iconLeft?: string;
-  iconRight?: string;
-}
-
-const Button = ({ title, link, iconLeft, iconRight }: ButtonProps) => {
+const Button = ({ id: _id, type: _type, title, link, iconLeft, iconRight, className, ...rest }: ButtonProps) => {
   const IconLeft = iconLeft && IconVariant[iconLeft as keyof typeof IconVariant];
   const IconRight = iconRight && IconVariant[iconRight as keyof typeof IconVariant];
 
   return (
-    <div>
+    <div className={cn(className)} {...rest}>
       <UiLink type="Link" variant="buttonPrimary" href={link}>
         {IconLeft && <IconLeft />}
         {title}
