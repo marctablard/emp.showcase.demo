@@ -36,8 +36,11 @@ test.describe('CMS — no Storyblok token', () => {
 
     expect(response?.status()).toBe(200);
 
-    // Page shell (header) must be present even when CMS content is empty.
-    await expect(page.locator('header').first()).toBeVisible();
+    // Page shell rendered — title comes from i18n via async `generateMetadata`,
+    // so a non-empty Emporix title proves the server-render pipeline succeeded
+    // without a Storyblok token. Title is race-free (no CSS animation visibility
+    // gating), whereas `<header>` locators are showcase-specific and brittle.
+    await expect(page).toHaveTitle(/Emporix/i);
 
     // No fatal page errors at all — module-load crash from storyblokInit is gone.
     expect(pageErrors).toEqual([]);
