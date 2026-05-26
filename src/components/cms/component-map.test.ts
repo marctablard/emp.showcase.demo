@@ -78,16 +78,16 @@ describe('cmsComponentMap drift-guard', () => {
     }
   });
 
-  it('registers the five pilot components', () => {
+  it('registers the migrated CMS components', () => {
     /*
-     * Pins the foundation inventory explicitly: button, hero, content-block,
-     * richtext, page. The drift-guard above keeps map/union in lock-step;
-     * this list pins the explicit expectation so accidentally dropping a
-     * pilot registration surfaces here. When the remaining default
-     * components are registered in a later registration, this list extends
-     * (a legitimate contract tightening, not a loosening).
+     * Pins the registry inventory explicitly: article, button,
+     * content-block, hero, page, richtext. The drift-guard above keeps
+     * map/union in lock-step; this list pins the explicit expectation so
+     * accidentally dropping (or failing to register) a component surfaces
+     * here. When further default components are registered, this list
+     * extends (a legitimate contract tightening, not a loosening).
      */
-    const expected = ['button', 'content-block', 'hero', 'page', 'richtext'];
+    const expected = ['article', 'button', 'content-block', 'hero', 'page', 'richtext'];
     const actual = Object.keys(cmsComponentMap).sort();
 
     expect(actual).toEqual(expected);

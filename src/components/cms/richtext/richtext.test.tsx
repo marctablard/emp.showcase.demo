@@ -23,6 +23,8 @@
  */
 import '@testing-library/jest-dom';
 import { render } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import Richtext, { type RichtextData, RichtextSchema } from './index';
 
 const text = (value: string) => ({ kind: 'text' as const, value });
@@ -369,15 +371,14 @@ describe('Richtext — inline rendering (semantic DOM)', () => {
 });
 
 describe('Richtext — provider-decoupling guarantee', () => {
-  it('does not pull provider-specific (`@storyblok/*`) symbols into the render', () => {
+  it('renders a non-provider AST without depending on provider-specific discriminators', () => {
     /*
-     * Render of the agnostic component must not depend on Storyblok's
-     * `BlockTypes`/`TextTypes` enums or `StoryblokRichTextNode` type —
-     * an agnostic AST means every adapter feeds the same shape. This
-     * is a behaviour pin via successful render of a non-provider AST,
-     * not a source-text grep. If `richtext.tsx` re-imports a Storyblok
-     * symbol the build will still succeed, but the AST cannot include
-     * provider-specific discriminators — which the schema rejects above.
+     * Behaviour pin: every adapter feeds the same agnostic shape, so a
+     * non-provider AST must render successfully. This complements — but
+     * does not replace — the source-text audit below: a passing render
+     * alone would stay green even if `richtext.tsx` re-introduced a
+     * `@storyblok/*` import, so the real decoupling guarantee is the
+     * import-absence audit.
      */
     const data: RichtextData = {
       id: 'rt-decoupled',
@@ -388,5 +389,33 @@ describe('Richtext — provider-decoupling guarantee', () => {
     const { getByText } = render(<Richtext {...data} />);
 
     expect(getByText('decoupled')).toBeInTheDocument();
+  });
+
+  describe('source-text audit — no `@storyblok/*` imports', () => {
+    /*
+     * The render-based pin above cannot detect a re-introduced provider
+     * dependency: a `@storyblok/*` import would still compile and the
+     * agnostic-AST render would still pass. To make the decoupling
+     * guarantee real, read the source of the renderer and its schema as
+     * text and assert no `@storyblok/` import string survives.
+     *
+     * Comments are stripped before the grep so narrative documentation
+     * that *mentions* `@storyblok/*` (like this very block) does not
+     * false-positive. The audit reads files as text and never requires
+     * them, so it is robust whether the module compiles or not.
+     */
+    const stripComments = (source: string): string =>
+      source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+
+    const AUDITED_FILES = [
+      { label: 'richtext.tsx', path: join(__dirname, 'richtext.tsx') },
+      { label: 'schema.ts', path: join(__dirname, 'schema.ts') },
+    ] as const;
+
+    it.each(AUDITED_FILES)('$label imports no `@storyblok/*` module', ({ path }) => {
+      const source = stripComments(readFileSync(path, 'utf8'));
+
+      expect(source).not.toMatch(/@storyblok\//);
+    });
   });
 });
