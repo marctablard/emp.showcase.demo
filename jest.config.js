@@ -90,7 +90,11 @@ const integrationTestIgnorePatterns = [
 
 const commonJestConfig = {
   // Note: nextJest automatically creates moduleNameMapper from tsconfig.json paths
-  // We explicitly set it here to ensure it's applied to all projects
+  // We explicitly set it here to ensure it's applied to all projects.
+  //
+  // `next-auth/react` is mocked narrowly inside the `React Tests` project
+  // only — see jest/mocks/README.md for the rationale. Platform / Library
+  // tests resolve it to the real module path.
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@platform/(.*)$': '<rootDir>/src/platform/$1',
@@ -118,12 +122,28 @@ const customJestConfig = {
         '**/hooks/**/?(*.)+(spec|test).ts?(x)',
         '**/providers/**/?(*.)+(spec|test).ts?(x)',
         '**/components/checkout/checkout-validation-registry*.test.ts?(x)',
+        '**/components/cms/**/?(*.)+(spec|test).ts?(x)',
+        // Adapter-owned `renderPage` tests + the Storyblok component
+        // wrappers mount the shared React render tree, so they belong in
+        // the jsdom React project (next-intl / next-auth / product-tile
+        // mocks live here), not the node-env Platform project. See
+        // ADR 0001 for the adapter-owned render-path rationale.
+        '**/platform/**/*.render-page.test.tsx',
+        '**/platform/integrations/storyblok/cms/components/**/*.test.tsx',
       ],
       setupFilesAfterEnv: ['<rootDir>/jest.react.setup.js'],
       moduleNameMapper: {
+        // CMS-component tests do not exercise full ProductTile rendering —
+        // stub these heavy children so the carousel/recommendations trees
+        // can hydrate without dragging the full Zustand provider stack into
+        // every test setup. The platform-side mapper entry below (`^@/...$`)
+        // must remain the *last* fallback so these specific paths win.
+        '^@/components/product/product-tile$': '<rootDir>/jest/mocks/product-tile.js',
+        '^@/components/product/product-tile-skeleton$': '<rootDir>/jest/mocks/product-tile-skeleton.js',
         '^@/(.*)$': '<rootDir>/src/$1',
         '^@platform/(.*)$': '<rootDir>/src/platform/$1',
         '^server-only$': '<rootDir>/jest/mocks/server-only.js',
+        '^next-auth/react$': '<rootDir>/jest/mocks/next-auth-react.js',
       },
       testPathIgnorePatterns: commonJestConfig.testPathIgnorePatterns,
       transformIgnorePatterns: ['/node_modules/(?!(next-intl|use-intl)/)'],
@@ -191,6 +211,11 @@ const customJestConfig = {
       testPathIgnorePatterns: [
         ...commonJestConfig.testPathIgnorePatterns,
         'src/components/checkout/checkout-validation-registry.*\\.test\\.(ts|tsx)$',
+        // CMS component tests need RTL/jsdom; routed to the React Tests project.
+        'src/components/cms/.*\\.test\\.(ts|tsx)$',
+        // Storyblok component wrappers also mount the shared React
+        // render tree — routed to the React Tests project.
+        'src/platform/integrations/storyblok/cms/components/.*\\.test\\.(ts|tsx)$',
       ],
     },
     {
@@ -206,8 +231,41 @@ const customJestConfig = {
             tsconfig: 'tsconfig.json',
           },
         ],
+        // The RSC-side `StoryblokCmsApi.storyblokInit({ components })`
+        // imports the Storyblok component registry, whose wrappers pull
+        // the shared CMS components and transitively the pure-ESM
+        // `next-intl` (via `UiLink` → `@/i18n/navigation`). ts-jest only
+        // transforms `.tsx?`; the ESM `.js` from `next-intl` / `use-intl`
+        // needs an explicit transform here so platform tests importing
+        // the API can load it.
+        '^.+\\.(js|jsx|mjs)$': [
+          '@swc/jest',
+          {
+            jsc: {
+              parser: { syntax: 'ecmascript', jsx: true },
+              transform: { react: { runtime: 'automatic' } },
+              target: 'es2017',
+            },
+            module: { type: 'commonjs' },
+          },
+        ],
       },
       ...commonJestConfig,
+      transformIgnorePatterns: ['/node_modules/(?!(next-intl|use-intl)/)'],
+      testPathIgnorePatterns: [
+        ...commonJestConfig.testPathIgnorePatterns,
+        // The adapter-owned `renderPage` contract tests mount the shared
+        // React render tree (Mock → `CmsRenderer`; Storyblok → SDK +
+        // shared wrappers) and the Storyblok component wrappers. They
+        // are jsdom React-render tests and run in the `React Tests`
+        // project, which carries the next-intl / next-auth / product-tile
+        // mock stack the render tree needs. Excluded here so they are
+        // not picked up twice (and not run under the node-env platform
+        // transformer). See ADR 0001 for the adapter-owned render-path
+        // rationale.
+        'src/platform/.*\\.render-page\\.test\\.tsx$',
+        'src/platform/integrations/storyblok/cms/components/.*\\.test\\.tsx$',
+      ],
     },
     {
       preset: 'ts-jest',
