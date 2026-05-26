@@ -98,7 +98,7 @@ const commonJestConfig = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@platform/(.*)$': '<rootDir>/src/platform/$1',
-    '^server-only$': '<rootDir>/jest/mocks/server-only.js',
+    '^server-only$': '<rootDir>/jest/mocks/server-only.ts',
   },
   // Exclude e2e tests from Jest runs
   testPathIgnorePatterns: [
@@ -138,12 +138,12 @@ const customJestConfig = {
         // can hydrate without dragging the full Zustand provider stack into
         // every test setup. The platform-side mapper entry below (`^@/...$`)
         // must remain the *last* fallback so these specific paths win.
-        '^@/components/product/product-tile$': '<rootDir>/jest/mocks/product-tile.js',
-        '^@/components/product/product-tile-skeleton$': '<rootDir>/jest/mocks/product-tile-skeleton.js',
+        '^@/components/product/product-tile$': '<rootDir>/jest/mocks/product-tile.ts',
+        '^@/components/product/product-tile-skeleton$': '<rootDir>/jest/mocks/product-tile-skeleton.ts',
         '^@/(.*)$': '<rootDir>/src/$1',
         '^@platform/(.*)$': '<rootDir>/src/platform/$1',
-        '^server-only$': '<rootDir>/jest/mocks/server-only.js',
-        '^next-auth/react$': '<rootDir>/jest/mocks/next-auth-react.js',
+        '^server-only$': '<rootDir>/jest/mocks/server-only.ts',
+        '^next-auth/react$': '<rootDir>/jest/mocks/next-auth-react.ts',
       },
       testPathIgnorePatterns: commonJestConfig.testPathIgnorePatterns,
       transformIgnorePatterns: ['/node_modules/(?!(next-intl|use-intl)/)'],

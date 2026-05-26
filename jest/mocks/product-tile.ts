@@ -11,15 +11,16 @@
  * Tests that specifically need real `ProductTile` behaviour should
  * import the source path directly or override this mapping.
  */
-// eslint-disable-next-line @typescript-eslint/no-require-imports -- jest mocks are CommonJS modules
-const React = require('react');
+import { type ReactElement, createElement } from 'react';
 
-const ProductTile = ({ product }) => {
-  return React.createElement(
+interface MockProductTileProps {
+  product?: { id?: string; name?: string };
+}
+
+export const ProductTile = ({ product }: MockProductTileProps): ReactElement => {
+  return createElement(
     'div',
     { 'data-testid': 'mock-product-tile', 'data-product-id': product?.id ?? '' },
     product?.name ?? '',
   );
 };
-
-module.exports = { ProductTile };
