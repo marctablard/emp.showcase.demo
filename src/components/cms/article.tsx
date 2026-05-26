@@ -1,14 +1,14 @@
 'use client';
 
-import type { StoryblokRichTextNode } from '@storyblok/react/rsc';
 import { storyblokEditable } from '@storyblok/react/rsc';
 import { H1, H2, H3 } from '@/components/ui/h';
 import { Link } from '@/i18n/navigation';
-import RichText from './richtext';
 
 /**
  * Article component for Storyblok
- * Displays an article with title, introduction, video, rich text, and linked products
+ * Displays an article with title, introduction, video, rich text, and linked products.
+ * Rich text rendering is migrating to the provider-agnostic block AST and re-lands
+ * once the Storyblok adapter maps the wire format into RichtextData.
  */
 interface ArticleProps {
   blok: {
@@ -18,7 +18,6 @@ interface ArticleProps {
       url?: string;
       title?: string;
     };
-    content?: StoryblokRichTextNode; // Rich text content
     linked_products?: Array<{
       _uid: string;
       product_id?: string;
@@ -56,8 +55,8 @@ const Article = ({ blok }: ArticleProps) => {
         </div>
       )}
 
-      {/* Rich text content */}
-      {blok.content && <RichText content={blok.content} className="mb-8" />}
+      {/* Rich text content rendering pending Storyblok adapter mapping to the
+          provider-agnostic block AST. */}
 
       {/* Linked products */}
       {blok.linked_products && blok.linked_products.length > 0 && (
