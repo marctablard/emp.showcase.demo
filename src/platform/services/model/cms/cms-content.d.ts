@@ -13,8 +13,8 @@ export interface CMSNoResult {
   message?: string;
 }
 
-export interface CMSComponent {
-  id: string;
-  type: string;
-  [key: string]: any;
-}
+// Re-export the strict, schema-derived CMSComponent type from the
+// schema-aggregate. This is a build-time-only type import (no runtime UI
+// code reaches the Domain layer). The discriminated union is the
+// source of truth for adapter validation and renderer lookup.
+export type { CMSComponent } from '@/components/cms/component-schema';

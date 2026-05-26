@@ -32,7 +32,12 @@ interface CmsAdapterContractOptions {
   readonly build: () => CmsAdapter;
 }
 
-const SAMPLE_COMPONENT: CMSComponent = { id: 'sample-1', type: 'hero' };
+const SAMPLE_COMPONENT: CMSComponent = {
+  id: 'sample-1',
+  type: 'button',
+  title: 'Sample',
+  link: '/',
+};
 
 function isCmsNoResult(value: unknown): value is { notfound?: boolean; message?: string } {
   return typeof value === 'object' && value !== null && 'notfound' in value;

@@ -21,7 +21,12 @@ const SAMPLE_PAGE: CMSPage = {
   components: [],
 };
 const SAMPLE_NAV: CMSNavigation = { items: [{ title: 'Shop', href: '/shop' }] };
-const SAMPLE_COMPONENT: CMSComponent = { id: 'c1', type: 'hero' };
+const SAMPLE_COMPONENT: CMSComponent = {
+  id: 'c1',
+  type: 'button',
+  title: 'Buy',
+  link: '/',
+};
 
 function buildAdapter(overrides: Partial<CmsAdapter> = {}): jest.Mocked<CmsAdapter> {
   const base: CmsAdapter = {
