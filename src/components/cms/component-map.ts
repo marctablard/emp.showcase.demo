@@ -1,5 +1,6 @@
 import Article, { ArticleSchema } from './article';
 import Button, { ButtonSchema } from './button';
+import Category, { CategorySchema } from './category';
 import { PageSchema } from './component-schema';
 import ContentBlock, { ContentBlockSchema } from './content-block';
 import Feature, { FeatureSchema } from './feature';
@@ -27,6 +28,7 @@ import Video, { VideoSchema } from './video';
 export const cmsComponentMap = {
   article: { component: Article, schema: ArticleSchema },
   button: { component: Button, schema: ButtonSchema },
+  category: { component: Category, schema: CategorySchema },
   'content-block': { component: ContentBlock, schema: ContentBlockSchema },
   feature: { component: Feature, schema: FeatureSchema },
   hero: { component: Hero, schema: HeroSchema },

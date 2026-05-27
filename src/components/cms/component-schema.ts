@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ArticleSchema } from './article/schema';
 import { ButtonSchema } from './button/schema';
+import { CategorySchema } from './category/schema';
 import { ContentBlockSchema } from './content-block/schema';
 import { FeatureSchema } from './feature/schema';
 import { HeroSchema } from './hero/schema';
@@ -63,6 +64,7 @@ export const PageSchema: z.ZodObject<{
 export const CMSComponentSchema = z.discriminatedUnion('type', [
   ArticleSchema,
   ButtonSchema,
+  CategorySchema,
   ContentBlockSchema,
   FeatureSchema,
   HeroSchema,
