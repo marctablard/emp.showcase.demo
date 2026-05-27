@@ -6,10 +6,35 @@ import { CompanySwitcher } from '@/components/header/switcher/header-company-swi
 import { CurrencySwitcher } from '@/components/header/switcher/header-currency-switcher';
 import { LanguageSwitcher } from '@/components/header/switcher/header-language-switcher';
 import { SiteSwitcher } from '@/components/header/switcher/header-site-switcher';
+import { useBanner } from '@/hooks/banner/use-banner';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useHeaderScroll } from '@/hooks/useHeaderScroll';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
+
+function HeaderTopBannerAnnouncement() {
+  const { data, isLoading } = useBanner();
+
+  if (isLoading || !data) {
+    return null;
+  }
+
+  const content = data.story?.content;
+
+  if (!content) {
+    return null;
+  }
+
+  return (
+    <TopBannerAnnouncement
+      id="top-banner-announcement"
+      type="top-banner-announcement"
+      title={content.title}
+      link={content.link}
+      is_active={content.is_active}
+    />
+  );
+}
 
 export function HeaderTopBanner() {
   const t = useTranslations('layout.header');
@@ -33,7 +58,7 @@ export function HeaderTopBanner() {
         </div>
         {isAboveLargeScreen && (
           <div className="justify-center items-center font-bold">
-            <TopBannerAnnouncement />
+            <HeaderTopBannerAnnouncement />
           </div>
         )}
         <nav

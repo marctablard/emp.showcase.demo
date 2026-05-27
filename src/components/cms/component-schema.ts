@@ -11,6 +11,7 @@ import { QuickEntrySchema } from './quick-entry/schema';
 import { RecommendationsSchema } from './recommendations/schema';
 import { RichtextSchema } from './richtext/schema';
 import { TeaserSchema } from './teaser/schema';
+import { TopBannerAnnouncementSchema } from './top-banner-announcement/schema';
 import { VideoSchema } from './video/schema';
 
 /**
@@ -109,6 +110,7 @@ export const CMSComponentSchema = z.discriminatedUnion('type', [
   RichtextSchema,
   SegmentSchema,
   TeaserSchema,
+  TopBannerAnnouncementSchema,
   VideoSchema,
 ]);
 

@@ -13,6 +13,7 @@ import Recommendations, { RecommendationsSchema } from './recommendations';
 import Richtext, { RichtextSchema } from './richtext';
 import Segment, { SegmentSchema } from './segment';
 import Teaser, { TeaserSchema } from './teaser';
+import TopBannerAnnouncement, { TopBannerAnnouncementSchema } from './top-banner-announcement';
 import Video, { VideoSchema } from './video';
 
 /**
@@ -43,6 +44,7 @@ export const cmsComponentMap = {
   richtext: { component: Richtext, schema: RichtextSchema },
   segment: { component: Segment, schema: SegmentSchema },
   teaser: { component: Teaser, schema: TeaserSchema },
+  'top-banner-announcement': { component: TopBannerAnnouncement, schema: TopBannerAnnouncementSchema },
   video: { component: Video, schema: VideoSchema },
 } as const;
 
