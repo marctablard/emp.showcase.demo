@@ -462,6 +462,8 @@ export default function ProductDetail({ product: initialProduct, options, classN
       ) : null}
 
       <Recommendations
+        id={product.id}
+        type="recommendations"
         productId={product.id}
         locale={locale}
         overline={t('productRecommendations.overline')}

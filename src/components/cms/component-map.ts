@@ -8,6 +8,7 @@ import Hero, { HeroSchema } from './hero';
 import Logo, { LogoSchema } from './logo';
 import Page from './page';
 import QuickEntry, { QuickEntrySchema } from './quick-entry';
+import Recommendations, { RecommendationsSchema } from './recommendations';
 import Richtext, { RichtextSchema } from './richtext';
 import Segment, { SegmentSchema } from './segment';
 import Teaser, { TeaserSchema } from './teaser';
@@ -36,6 +37,7 @@ export const cmsComponentMap = {
   logo: { component: Logo, schema: LogoSchema },
   page: { component: Page, schema: PageSchema },
   'quick-entry': { component: QuickEntry, schema: QuickEntrySchema },
+  recommendations: { component: Recommendations, schema: RecommendationsSchema },
   richtext: { component: Richtext, schema: RichtextSchema },
   segment: { component: Segment, schema: SegmentSchema },
   teaser: { component: Teaser, schema: TeaserSchema },

@@ -7,6 +7,7 @@ import { FeatureSchema } from './feature/schema';
 import { HeroSchema } from './hero/schema';
 import { LogoSchema } from './logo/schema';
 import { QuickEntrySchema } from './quick-entry/schema';
+import { RecommendationsSchema } from './recommendations/schema';
 import { RichtextSchema } from './richtext/schema';
 import { TeaserSchema } from './teaser/schema';
 import { VideoSchema } from './video/schema';
@@ -102,6 +103,7 @@ export const CMSComponentSchema = z.discriminatedUnion('type', [
   LogoSchema,
   PageSchema,
   QuickEntrySchema,
+  RecommendationsSchema,
   RichtextSchema,
   SegmentSchema,
   TeaserSchema,
