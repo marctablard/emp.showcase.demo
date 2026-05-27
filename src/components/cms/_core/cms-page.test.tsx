@@ -9,8 +9,10 @@
  * swap is transparent to this shell.
  *
  * Behaviour contract pinned here:
- * - Server boundary: the page is fetched through `ssr.get('CMSService')`,
- *   i.e. via the DI container, never by direct instantiation.
+ * - Server boundary: the page is fetched through `getCmsService()`, the
+ *   SSR lazy-bind helper that resolves `CMSService` off the active container
+ *   instance — never by direct instantiation, never via a bare
+ *   `ssr.get('CMSService')` that can hit an unbound render-graph container.
  * - Valid `CMSPage`: every entry in `components[]` is handed to `CmsRenderer`.
  * - `CMSNoResult` + `emptyOnNoResult` falsy: `notFound()` is invoked.
  * - `CMSNoResult` + `emptyOnNoResult` true: `notFound()` is NOT invoked; a
@@ -29,8 +31,8 @@ import { notFound } from 'next/navigation';
 import '@testing-library/jest-dom';
 import { render } from '@testing-library/react';
 import type { CMSService } from '@/platform/services/cms/CMSService';
+import { getCmsService } from '@/platform/services/cms/get-cms-service';
 import type { CMSComponent, CMSNoResult, CMSPage as CMSPageModel } from '@/platform/services/model/cms';
-import ssr from '@/platform/ssr';
 import CmsPage from './cms-page';
 
 jest.mock('next/navigation', () => ({
@@ -39,9 +41,9 @@ jest.mock('next/navigation', () => ({
   }),
 }));
 
-jest.mock('@/platform/ssr', () => ({
+jest.mock('@/platform/services/cms/get-cms-service', () => ({
   __esModule: true,
-  default: { get: jest.fn() },
+  getCmsService: jest.fn(),
 }));
 
 jest.mock('./cms-renderer', () => ({
@@ -51,13 +53,13 @@ jest.mock('./cms-renderer', () => ({
 }));
 
 const mockGetPage = jest.fn<Promise<CMSPageModel | CMSNoResult>, [string, string, string]>();
-const ssrGet = ssr.get as jest.Mock;
+const getCmsServiceMock = getCmsService as jest.Mock;
 const notFoundMock = notFound as unknown as jest.Mock;
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockGetPage.mockReset();
-  ssrGet.mockReturnValue({ getPage: mockGetPage } as unknown as CMSService);
+  getCmsServiceMock.mockResolvedValue({ getPage: mockGetPage } as unknown as CMSService);
   // Re-apply the throwing impl: clearAllMocks() strips the factory-defined
   // implementation, so without this notFound() would be a no-op and the
   // shell would fall through to the components.map branch — mirror Next's
@@ -78,13 +80,13 @@ const makePage = (overrides: Partial<CMSPageModel> = {}): CMSPageModel => ({
   ...overrides,
 });
 
-describe('CmsPage — server boundary (DI container)', () => {
-  it('resolves CMSService through the DI container and fetches via getPage(slug, locale, site)', async () => {
+describe('CmsPage — server boundary (lazy-bind helper)', () => {
+  it('resolves CMSService through getCmsService() and fetches via getPage(slug, locale, site)', async () => {
     mockGetPage.mockResolvedValue(makePage());
 
     render(await CmsPage({ slug: '/demo', locale: 'en', site: 'main' }));
 
-    expect(ssrGet).toHaveBeenCalledWith('CMSService');
+    expect(getCmsServiceMock).toHaveBeenCalledTimes(1);
     expect(mockGetPage).toHaveBeenCalledWith('/demo', 'en', 'main');
   });
 });
