@@ -4,6 +4,7 @@ import { ButtonSchema } from './button/schema';
 import { ContentBlockSchema } from './content-block/schema';
 import { HeroSchema } from './hero/schema';
 import { LogoSchema } from './logo/schema';
+import { QuickEntrySchema } from './quick-entry/schema';
 import { RichtextSchema } from './richtext/schema';
 import { TeaserSchema } from './teaser/schema';
 import { VideoSchema } from './video/schema';
@@ -65,6 +66,7 @@ export const CMSComponentSchema = z.discriminatedUnion('type', [
   HeroSchema,
   LogoSchema,
   PageSchema,
+  QuickEntrySchema,
   RichtextSchema,
   TeaserSchema,
   VideoSchema,

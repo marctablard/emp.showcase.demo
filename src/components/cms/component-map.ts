@@ -5,6 +5,7 @@ import ContentBlock, { ContentBlockSchema } from './content-block';
 import Hero, { HeroSchema } from './hero';
 import Logo, { LogoSchema } from './logo';
 import Page from './page';
+import QuickEntry, { QuickEntrySchema } from './quick-entry';
 import Richtext, { RichtextSchema } from './richtext';
 import Teaser, { TeaserSchema } from './teaser';
 import Video, { VideoSchema } from './video';
@@ -29,6 +30,7 @@ export const cmsComponentMap = {
   hero: { component: Hero, schema: HeroSchema },
   logo: { component: Logo, schema: LogoSchema },
   page: { component: Page, schema: PageSchema },
+  'quick-entry': { component: QuickEntry, schema: QuickEntrySchema },
   richtext: { component: Richtext, schema: RichtextSchema },
   teaser: { component: Teaser, schema: TeaserSchema },
   video: { component: Video, schema: VideoSchema },
