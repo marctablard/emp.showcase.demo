@@ -3,6 +3,7 @@ import Button, { ButtonSchema } from './button';
 import { PageSchema } from './component-schema';
 import ContentBlock, { ContentBlockSchema } from './content-block';
 import Hero, { HeroSchema } from './hero';
+import Logo, { LogoSchema } from './logo';
 import Page from './page';
 import Richtext, { RichtextSchema } from './richtext';
 
@@ -24,6 +25,7 @@ export const cmsComponentMap = {
   button: { component: Button, schema: ButtonSchema },
   'content-block': { component: ContentBlock, schema: ContentBlockSchema },
   hero: { component: Hero, schema: HeroSchema },
+  logo: { component: Logo, schema: LogoSchema },
   page: { component: Page, schema: PageSchema },
   richtext: { component: Richtext, schema: RichtextSchema },
 } as const;

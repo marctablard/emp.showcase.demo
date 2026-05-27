@@ -3,6 +3,7 @@ import { ArticleSchema } from './article/schema';
 import { ButtonSchema } from './button/schema';
 import { ContentBlockSchema } from './content-block/schema';
 import { HeroSchema } from './hero/schema';
+import { LogoSchema } from './logo/schema';
 import { RichtextSchema } from './richtext/schema';
 
 /**
@@ -60,6 +61,7 @@ export const CMSComponentSchema = z.discriminatedUnion('type', [
   ButtonSchema,
   ContentBlockSchema,
   HeroSchema,
+  LogoSchema,
   PageSchema,
   RichtextSchema,
 ]);
