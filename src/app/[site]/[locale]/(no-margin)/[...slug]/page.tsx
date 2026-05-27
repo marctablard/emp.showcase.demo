@@ -1,7 +1,6 @@
 import { setRequestLocale } from 'next-intl/server';
 import CmsPage from '@/components/cms/_core/cms-page';
-import type { CMSService } from '@/platform/services/cms/CMSService';
-import ssr from '@/platform/ssr';
+import { getCmsService } from '@/platform/services/cms/get-cms-service';
 import { setRequestSite } from '@/site/server';
 
 interface DynamicPageParams {
@@ -12,7 +11,8 @@ interface DynamicPageParams {
 
 export async function generateMetadata({ params }: { params: Promise<DynamicPageParams> }) {
   const { slug, locale, site } = await params;
-  const page = await ssr.get<CMSService>('CMSService').getPage(slug.join('/'), locale, site);
+  const cmsService = await getCmsService();
+  const page = await cmsService.getPage(slug.join('/'), locale, site);
   return {
     title: 'title' in page ? page.title : undefined,
   };

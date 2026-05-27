@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation';
-import type { CMSService } from '@/platform/services/cms/CMSService';
-import ssr from '@/platform/ssr';
+import { getCmsService } from '@/platform/services/cms/get-cms-service';
 import { CmsRenderer } from './cms-renderer';
 
 interface CmsPageProps {
@@ -19,7 +18,7 @@ interface CmsPageProps {
  * is referenced here: a CMS-provider swap is transparent to this shell.
  */
 export default async function CmsPage({ slug, locale, site, emptyOnNoResult }: CmsPageProps) {
-  const cmsService = ssr.get<CMSService>('CMSService');
+  const cmsService = await getCmsService();
   const page = await cmsService.getPage(slug, locale, site);
 
   if ('notfound' in page && page.notfound) {

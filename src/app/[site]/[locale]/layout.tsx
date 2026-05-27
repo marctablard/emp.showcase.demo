@@ -17,8 +17,7 @@ import { routing } from '@/i18n/routing';
 import { isBrowserDebugOutputEnabled, isDebugApiEnabled } from '@/lib/common/debug-env';
 import { getSessionForSite, setSessionLanguage } from '@/lib/ssr/session';
 import { getAvailableSites, getSite } from '@/lib/ssr/site';
-import type { CMSService } from '@/platform/services/cms/CMSService';
-import ssr from '@/platform/ssr';
+import { getCmsService } from '@/platform/services/cms/get-cms-service';
 import SiteProvider from '@/providers/SiteProvider';
 import { SiteSessionAligner } from '@/providers/SiteSessionAligner';
 import { StoreProvider } from '@/providers/StoreProvider';
@@ -143,7 +142,7 @@ export default async function LocaleLayout({ children, dialog, params }: Props) 
   // Provider-side editing bridge (e.g. Storyblok Visual Editor). The active
   // CmsAdapter exposes it via the CMSService facade; `null` when the adapter
   // has no bridge (local-JSON / none), so it is mounted conditionally.
-  const CmsBridgeScript = ssr.get<CMSService>('CMSService').BridgeScript;
+  const CmsBridgeScript = (await getCmsService()).BridgeScript;
 
   return (
     <html
