@@ -6,9 +6,9 @@ import { storyblokEditable } from '@storyblok/react/rsc';
 import { Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Heading } from '../ui/h';
+import type { TextEditorData } from './_shared/text-editor.schema';
 import type { ButtonData } from './button';
 import Button from './button';
-import type { TextEditorData } from './hero';
 import type { VideoData } from './video';
 import Video from './video';
 
