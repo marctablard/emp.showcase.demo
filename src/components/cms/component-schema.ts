@@ -142,6 +142,7 @@ export const CMSComponentSchema = z.discriminatedUnion('type', [
   ColumnsSchema,
   ContentBlockSchema,
   FeatureSchema,
+  GridSchema,
   HeroSchema,
   LogoSchema,
   MediaTextSchema,

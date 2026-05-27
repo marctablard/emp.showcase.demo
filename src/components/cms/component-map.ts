@@ -6,6 +6,7 @@ import Columns, { ColumnsSchema } from './columns';
 import { PageSchema } from './component-schema';
 import ContentBlock, { ContentBlockSchema } from './content-block';
 import Feature, { FeatureSchema } from './feature';
+import Grid, { GridSchema } from './grid';
 import Hero, { HeroSchema } from './hero';
 import Logo, { LogoSchema } from './logo';
 import MediaText, { MediaTextSchema } from './media-text';
@@ -39,6 +40,7 @@ export const cmsComponentMap = {
   columns: { component: Columns, schema: ColumnsSchema },
   'content-block': { component: ContentBlock, schema: ContentBlockSchema },
   feature: { component: Feature, schema: FeatureSchema },
+  grid: { component: Grid, schema: GridSchema },
   hero: { component: Hero, schema: HeroSchema },
   logo: { component: Logo, schema: LogoSchema },
   'media-text': { component: MediaText, schema: MediaTextSchema },
