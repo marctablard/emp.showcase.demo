@@ -85,6 +85,44 @@ export const SegmentSchema: z.ZodObject<{
 });
 
 /**
+ * Columns and Grid are recursive layout containers: their `columns` field
+ * references the same discriminated union. Owned here alongside `PageSchema`
+ * and `SegmentSchema` for the same load-time reason; the `<name>/schema.ts`
+ * files re-export them for the conventional import path.
+ */
+export type ColumnsData = {
+  id: string;
+  type: 'columns';
+  columns?: CMSComponent[];
+};
+
+export const ColumnsSchema: z.ZodObject<{
+  id: z.ZodString;
+  type: z.ZodLiteral<'columns'>;
+  columns: z.ZodOptional<z.ZodArray<z.ZodLazy<z.ZodTypeAny>>>;
+}> = z.object({
+  id: z.string(),
+  type: z.literal('columns'),
+  columns: z.array(z.lazy(() => CMSComponentSchema)).optional(),
+});
+
+export type GridData = {
+  id: string;
+  type: 'grid';
+  columns?: CMSComponent[];
+};
+
+export const GridSchema: z.ZodObject<{
+  id: z.ZodString;
+  type: z.ZodLiteral<'grid'>;
+  columns: z.ZodOptional<z.ZodArray<z.ZodLazy<z.ZodTypeAny>>>;
+}> = z.object({
+  id: z.string(),
+  type: z.literal('grid'),
+  columns: z.array(z.lazy(() => CMSComponentSchema)).optional(),
+});
+
+/**
  * Discriminated union of every registered CMS component schema.
  *
  * Adapters validate against this union at the CMS boundary; the renderer
@@ -101,6 +139,7 @@ export const CMSComponentSchema = z.discriminatedUnion('type', [
   ButtonSchema,
   CategorySchema,
   ColumnTeaserSchema,
+  ColumnsSchema,
   ContentBlockSchema,
   FeatureSchema,
   HeroSchema,
