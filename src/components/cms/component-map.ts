@@ -6,6 +6,7 @@ import Hero, { HeroSchema } from './hero';
 import Logo, { LogoSchema } from './logo';
 import Page from './page';
 import Richtext, { RichtextSchema } from './richtext';
+import Teaser, { TeaserSchema } from './teaser';
 import Video, { VideoSchema } from './video';
 
 /**
@@ -29,6 +30,7 @@ export const cmsComponentMap = {
   logo: { component: Logo, schema: LogoSchema },
   page: { component: Page, schema: PageSchema },
   richtext: { component: Richtext, schema: RichtextSchema },
+  teaser: { component: Teaser, schema: TeaserSchema },
   video: { component: Video, schema: VideoSchema },
 } as const;
 

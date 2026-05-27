@@ -5,6 +5,7 @@ import { ContentBlockSchema } from './content-block/schema';
 import { HeroSchema } from './hero/schema';
 import { LogoSchema } from './logo/schema';
 import { RichtextSchema } from './richtext/schema';
+import { TeaserSchema } from './teaser/schema';
 import { VideoSchema } from './video/schema';
 
 /**
@@ -65,6 +66,7 @@ export const CMSComponentSchema = z.discriminatedUnion('type', [
   LogoSchema,
   PageSchema,
   RichtextSchema,
+  TeaserSchema,
   VideoSchema,
 ]);
 
