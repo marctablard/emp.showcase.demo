@@ -12,14 +12,15 @@
  *     `CMSPage.components[]`, the `component` field becomes `type`,
  *     `_uid` becomes `id`, richtext-typed fields are pre-mapped to the AST.
  *
- * Schema-boundary note (reported to the architect): the agnostic
- * `RichtextSchema` has no `hr` / `br` blocks and no `underline` / `strike` /
- * `highlight` / `superscript` / `subscript` marks, and the TipTap
- * `blockquote` / `image` / `code_block` nodes have no agnostic equivalent
- * that the mapper can populate from a TipTap payload. These nodes/marks are
- * silently dropped — the mapper never invents a block kind the schema cannot
- * validate. This behaviour is pinned explicitly so the mapper does not grow
- * past what the renderer actually displays.
+ * Schema-boundary note: the agnostic `RichtextSchema` represents the
+ * TipTap `horizontal_rule` and `hard_break` nodes (as `hr` / `br`) and the
+ * `underline` / `strike` marks (as boolean flags), so the mapper maps them
+ * faithfully. It still has no `highlight` / `superscript` / `subscript`
+ * marks, and the TipTap `blockquote` / `image` / `code_block` nodes have no
+ * agnostic equivalent that the mapper can populate from a TipTap payload.
+ * Those are silently dropped — the mapper never invents a block kind the
+ * schema cannot validate. This boundary is pinned explicitly so the mapper
+ * does not grow past what the renderer actually displays.
  */
 import type { ISbStoryData, StoryblokRichTextNode } from '@storyblok/react/rsc';
 import { BlockTypes, MarkTypes, TextTypes } from '@storyblok/react/rsc';
@@ -229,21 +230,21 @@ describe('StoryblokCmsMapper — TipTap to richtext AST (inline kinds & marks)',
     }
   });
 
-  it('drops the TipTap `underline` mark — schema has no underline', () => {
+  it('maps the TipTap `underline` mark → `{ kind: "text", value, underline: true }`', () => {
     const block = newMapper().mapRichtext(doc(paragraph(textNode('under', [{ type: MarkTypes.UNDERLINE }]))), 'id-t8')
       ?.blocks[0];
 
     if (block?.kind === 'paragraph') {
-      expect(block.inlines[0]).toEqual({ kind: 'text', value: 'under' });
+      expect(block.inlines[0]).toEqual({ kind: 'text', value: 'under', underline: true });
     }
   });
 
-  it('drops the TipTap `strike` mark — schema has no strike', () => {
+  it('maps the TipTap `strike` mark → `{ kind: "text", value, strike: true }`', () => {
     const block = newMapper().mapRichtext(doc(paragraph(textNode('struck', [{ type: MarkTypes.STRIKE }]))), 'id-t9')
       ?.blocks[0];
 
     if (block?.kind === 'paragraph') {
-      expect(block.inlines[0]).toEqual({ kind: 'text', value: 'struck' });
+      expect(block.inlines[0]).toEqual({ kind: 'text', value: 'struck', strike: true });
     }
   });
 
@@ -269,22 +270,17 @@ describe('StoryblokCmsMapper — TipTap to richtext AST (inline kinds & marks)',
   });
 });
 
-describe('StoryblokCmsMapper — nodes the agnostic schema cannot represent (dropped)', () => {
-  // The agnostic `RichtextSchema` has no `hr` / `br` block or inline. The
-  // TipTap `blockquote` / `image` / `code_block` nodes carry content the
-  // mapper cannot faithfully translate from a TipTap payload. Rather than
-  // invent a block kind the schema cannot validate, the mapper drops these
-  // silently — matching the renderer surface. Reported to the architect for
-  // a possible schema extension.
-  it('drops a TipTap `horizontal_rule` (no `hr` in schema)', () => {
+describe('StoryblokCmsMapper — structural nodes the agnostic schema represents (mapped)', () => {
+  it('maps a TipTap `horizontal_rule` → `{ kind: "hr" }` block', () => {
     const hr: StoryblokRichTextNode = { type: BlockTypes.HR } as unknown as StoryblokRichTextNode;
     const result = newMapper().mapRichtext(doc(paragraph(textNode('before')), hr), 'id-hr');
 
-    expect(result?.blocks).toHaveLength(1);
+    expect(result?.blocks).toHaveLength(2);
     expect(result?.blocks[0]?.kind).toBe('paragraph');
+    expect(result?.blocks[1]).toEqual({ kind: 'hr' });
   });
 
-  it('drops a TipTap `hard_break` inline (no `br` in schema)', () => {
+  it('maps a TipTap `hard_break` inline → `{ kind: "br" }`, preserving surrounding text', () => {
     const para = paragraph(
       textNode('line one'),
       { type: BlockTypes.BR } as unknown as StoryblokRichTextNode,
@@ -295,11 +291,19 @@ describe('StoryblokCmsMapper — nodes the agnostic schema cannot represent (dro
     if (block?.kind === 'paragraph') {
       expect(block.inlines).toEqual([
         { kind: 'text', value: 'line one' },
+        { kind: 'br' },
         { kind: 'text', value: 'line two' },
       ]);
     }
   });
+});
 
+describe('StoryblokCmsMapper — nodes the agnostic schema cannot represent (dropped)', () => {
+  // The TipTap `blockquote` / `image` / `code_block` nodes carry content the
+  // mapper cannot faithfully translate from a TipTap payload, and the schema
+  // has no `highlight` / `superscript` / `subscript` marks. Rather than
+  // invent a block kind the schema cannot validate, the mapper drops these
+  // silently — matching the renderer surface.
   it('drops a TipTap `blockquote` (no faithful agnostic mapping from a TipTap payload)', () => {
     const quote: StoryblokRichTextNode = {
       type: BlockTypes.QUOTE,

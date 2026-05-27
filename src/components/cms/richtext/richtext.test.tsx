@@ -107,6 +107,58 @@ describe('Richtext — schema (block AST)', () => {
     expect(parsed.blocks[0]?.kind).toBe('code');
   });
 
+  it('parses a horizontal-rule block (payload-free, `kind` is the whole shape)', () => {
+    const parsed = RichtextSchema.parse({
+      id: 'rt-hr',
+      type: 'richtext',
+      blocks: [{ kind: 'hr' }],
+    });
+
+    expect(parsed.blocks[0]?.kind).toBe('hr');
+  });
+
+  it('parses a hard line-break inline (payload-free, `kind` is the whole shape)', () => {
+    const parsed = RichtextSchema.parse({
+      id: 'rt-br',
+      type: 'richtext',
+      blocks: [{ kind: 'paragraph', inlines: [text('line one'), { kind: 'br' }, text('line two')] }],
+    });
+
+    const block = parsed.blocks[0];
+    expect(block?.kind).toBe('paragraph');
+    if (block?.kind === 'paragraph') {
+      expect(block.inlines[1]?.kind).toBe('br');
+    }
+  });
+
+  it('parses a text inline with the `underline` mark flag', () => {
+    const parsed = RichtextSchema.parse({
+      id: 'rt-underline',
+      type: 'richtext',
+      blocks: [{ kind: 'paragraph', inlines: [{ kind: 'text', value: 'underlined', underline: true }] }],
+    });
+
+    const block = parsed.blocks[0];
+    if (block?.kind === 'paragraph') {
+      const inline = block.inlines[0];
+      if (inline?.kind === 'text') expect(inline.underline).toBe(true);
+    }
+  });
+
+  it('parses a text inline with the `strike` mark flag', () => {
+    const parsed = RichtextSchema.parse({
+      id: 'rt-strike',
+      type: 'richtext',
+      blocks: [{ kind: 'paragraph', inlines: [{ kind: 'text', value: 'struck', strike: true }] }],
+    });
+
+    const block = parsed.blocks[0];
+    if (block?.kind === 'paragraph') {
+      const inline = block.inlines[0];
+      if (inline?.kind === 'text') expect(inline.strike).toBe(true);
+    }
+  });
+
   it('parses a text inline with optional marks', () => {
     const parsed = RichtextSchema.parse({
       id: 'rt-marks',
@@ -291,6 +343,18 @@ describe('Richtext — block rendering (semantic DOM)', () => {
     expect(pre?.querySelector('code')).not.toBeNull();
     expect(pre?.textContent).toContain('const x = 1;');
   });
+
+  it('renders a horizontal-rule block as an <hr> element', () => {
+    const data: RichtextData = {
+      id: 'rt-hr',
+      type: 'richtext',
+      blocks: [{ kind: 'paragraph', inlines: [text('above')] }, { kind: 'hr' }],
+    };
+
+    const { container } = render(<Richtext {...data} />);
+
+    expect(container.querySelector('hr')).not.toBeNull();
+  });
 });
 
 describe('Richtext — inline rendering (semantic DOM)', () => {
@@ -367,6 +431,61 @@ describe('Richtext — inline rendering (semantic DOM)', () => {
     const inlineCode = container.querySelector('p code');
     expect(inlineCode).not.toBeNull();
     expect(inlineCode?.textContent).toBe('snippet');
+  });
+
+  it('renders underlined text inside a <u> element', () => {
+    const data: RichtextData = {
+      id: 'rt-underline',
+      type: 'richtext',
+      blocks: [
+        {
+          kind: 'paragraph',
+          inlines: [{ kind: 'text', value: 'underlined', underline: true }],
+        },
+      ],
+    };
+
+    const { container } = render(<Richtext {...data} />);
+
+    const underlined = container.querySelector('u');
+    expect(underlined).not.toBeNull();
+    expect(underlined?.textContent).toBe('underlined');
+  });
+
+  it('renders struck-through text inside an <s> element', () => {
+    const data: RichtextData = {
+      id: 'rt-strike',
+      type: 'richtext',
+      blocks: [
+        {
+          kind: 'paragraph',
+          inlines: [{ kind: 'text', value: 'struck', strike: true }],
+        },
+      ],
+    };
+
+    const { container } = render(<Richtext {...data} />);
+
+    const struck = container.querySelector('s');
+    expect(struck).not.toBeNull();
+    expect(struck?.textContent).toBe('struck');
+  });
+
+  it('renders a hard line-break inline as a <br> element inside its block', () => {
+    const data: RichtextData = {
+      id: 'rt-br',
+      type: 'richtext',
+      blocks: [
+        {
+          kind: 'paragraph',
+          inlines: [text('line one'), { kind: 'br' }, text('line two')],
+        },
+      ],
+    };
+
+    const { container } = render(<Richtext {...data} />);
+
+    expect(container.querySelector('p br')).not.toBeNull();
   });
 });
 
