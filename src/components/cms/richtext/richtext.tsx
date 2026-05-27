@@ -21,9 +21,18 @@ const renderInline = (inline: RichtextInline, key: number): ReactNode => {
       </a>
     );
   }
+  if (inline.kind === 'br') {
+    return <br key={key} />;
+  }
   let node: ReactNode = inline.value;
   if (inline.code) {
     node = <code>{node}</code>;
+  }
+  if (inline.strike) {
+    node = <s>{node}</s>;
+  }
+  if (inline.underline) {
+    node = <u>{node}</u>;
   }
   if (inline.italic) {
     node = <em>{node}</em>;
@@ -66,6 +75,8 @@ const renderBlock = (block: RichtextBlock, key: number): ReactNode => {
           <code>{block.value}</code>
         </pre>
       );
+    case 'hr':
+      return <hr key={key} className="mb-4" />;
   }
 };
 

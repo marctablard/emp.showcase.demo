@@ -7,11 +7,16 @@ const InlineSchema = z.discriminatedUnion('kind', [
     bold: z.boolean().optional(),
     italic: z.boolean().optional(),
     code: z.boolean().optional(),
+    underline: z.boolean().optional(),
+    strike: z.boolean().optional(),
   }),
   z.object({
     kind: z.literal('link'),
     href: z.string(),
     text: z.string(),
+  }),
+  z.object({
+    kind: z.literal('br'),
   }),
 ]);
 
@@ -45,6 +50,9 @@ const BlockSchema = z.discriminatedUnion('kind', [
     kind: z.literal('code'),
     language: z.string().optional(),
     value: z.string(),
+  }),
+  z.object({
+    kind: z.literal('hr'),
   }),
 ]);
 
