@@ -115,8 +115,9 @@ export class StoryblokCmsMapper {
       return [];
     }
 
-    const value = typeof node.text === 'string' ? node.text : '';
-    const marks = (node.marks ?? []) as Array<{ type: string; attrs?: Record<string, unknown> }>;
+    const textNode = node as { text?: string; marks?: Array<{ type: string; attrs?: Record<string, unknown> }> };
+    const value = typeof textNode.text === 'string' ? textNode.text : '';
+    const marks = textNode.marks ?? [];
 
     const link = marks.find((mark) => mark.type === MarkTypes.LINK);
     if (link) {
