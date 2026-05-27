@@ -9,10 +9,14 @@
  * - optional surface (`getEditableProps`, `BridgeScript`) is NOT implemented
  *   on the instance (the facade falls back to `{}` / `null`).
  */
+import type { CmsAdapter } from '../CmsAdapter';
 import { NullCmsAdapter } from './NullCmsAdapter';
 
 describe('NullCmsAdapter', () => {
-  let adapter: NullCmsAdapter;
+  // Typed as the `CmsAdapter` SPI (not the concrete class) so the optional
+  // surface (`getEditableProps?` / `BridgeScript?`) is reachable for the
+  // "not implemented" assertions below.
+  let adapter: CmsAdapter;
 
   beforeEach(() => {
     adapter = new NullCmsAdapter();
