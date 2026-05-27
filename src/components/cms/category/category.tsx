@@ -1,8 +1,8 @@
 import type { HTMLAttributes } from 'react';
 import Image from 'next/image';
 import { H3 } from '@/components/ui/h';
-import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
+import CategoryLink from './category-link';
 import type { CategoryData } from './schema';
 
 export type CategoryProps = CategoryData & HTMLAttributes<HTMLDivElement>;
@@ -41,9 +41,9 @@ const Category = ({
 
         {description && <p className="text-text-placeholders mb-4 line-clamp-2">{description}</p>}
 
-        <Link href={categoryUrl} className="text-text-action hover:underline font-medium">
+        <CategoryLink href={categoryUrl} className="text-text-action hover:underline font-medium">
           View Products
-        </Link>
+        </CategoryLink>
       </div>
     </div>
   );
