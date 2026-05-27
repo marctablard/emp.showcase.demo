@@ -43,6 +43,23 @@ An adapter is a **pure data translator**: it fetches from its provider and
 maps the provider-specific wire format into the agnostic `CMSPage` domain
 model through a dedicated mapper. An adapter contains **no render code**.
 
+The request-time data flow is identical for every provider — only the leftmost
+box is provider-specific:
+
+```
+┌─────────────────────┐   getPage()   ┌──────────────┐   walks body[]   ┌──────────────────┐
+│  <Provider>Adapter   │ ────────────► │   CMSPage     │ ───────────────► │   CmsRenderer    │
+│  + <Provider>Mapper  │  (wire→CMSPage)│ (agnostic AST)│                  │  + cmsComponentMap│
+└─────────────────────┘               └──────────────┘                  └──────────────────┘
+   provider-specific                     shared, agnostic                    shared, agnostic
+        ▲                                                                          │
+        │ optional SPI (getEditableProps / BridgeScript) ──────────────────────────┘
+        │ provider editing concerns only — never application code
+```
+
+A new provider adds only the leftmost box. Everything to its right is shared
+and untouched (ADR 0001).
+
 Rendering is done once, centrally, for every provider:
 
 - The page-route shell `CmsPage` (`src/components/cms/_core/cms-page.tsx`)
