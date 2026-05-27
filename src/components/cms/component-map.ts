@@ -7,6 +7,7 @@ import ContentBlock, { ContentBlockSchema } from './content-block';
 import Feature, { FeatureSchema } from './feature';
 import Hero, { HeroSchema } from './hero';
 import Logo, { LogoSchema } from './logo';
+import MediaText, { MediaTextSchema } from './media-text';
 import Page from './page';
 import QuickEntry, { QuickEntrySchema } from './quick-entry';
 import Recommendations, { RecommendationsSchema } from './recommendations';
@@ -38,6 +39,7 @@ export const cmsComponentMap = {
   feature: { component: Feature, schema: FeatureSchema },
   hero: { component: Hero, schema: HeroSchema },
   logo: { component: Logo, schema: LogoSchema },
+  'media-text': { component: MediaText, schema: MediaTextSchema },
   page: { component: Page, schema: PageSchema },
   'quick-entry': { component: QuickEntry, schema: QuickEntrySchema },
   recommendations: { component: Recommendations, schema: RecommendationsSchema },
