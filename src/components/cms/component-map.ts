@@ -9,6 +9,7 @@ import Logo, { LogoSchema } from './logo';
 import Page from './page';
 import QuickEntry, { QuickEntrySchema } from './quick-entry';
 import Richtext, { RichtextSchema } from './richtext';
+import Segment, { SegmentSchema } from './segment';
 import Teaser, { TeaserSchema } from './teaser';
 import Video, { VideoSchema } from './video';
 
@@ -36,6 +37,7 @@ export const cmsComponentMap = {
   page: { component: Page, schema: PageSchema },
   'quick-entry': { component: QuickEntry, schema: QuickEntrySchema },
   richtext: { component: Richtext, schema: RichtextSchema },
+  segment: { component: Segment, schema: SegmentSchema },
   teaser: { component: Teaser, schema: TeaserSchema },
   video: { component: Video, schema: VideoSchema },
 } as const;

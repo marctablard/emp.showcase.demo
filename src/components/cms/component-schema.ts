@@ -50,6 +50,37 @@ export const PageSchema: z.ZodObject<{
 });
 
 /**
+ * Segment is a second recursive container: its `content_blocks` reference
+ * the same discriminated union. Owned here alongside `PageSchema` for the
+ * same load-time reason; `segment/schema.ts` re-exports it for the
+ * conventional import path.
+ */
+export type SegmentData = {
+  id: string;
+  type: 'segment';
+  segment_name?: string;
+  emporix_segment_id?: string;
+  site?: string;
+  content_blocks?: CMSComponent[];
+};
+
+export const SegmentSchema: z.ZodObject<{
+  id: z.ZodString;
+  type: z.ZodLiteral<'segment'>;
+  segment_name: z.ZodOptional<z.ZodString>;
+  emporix_segment_id: z.ZodOptional<z.ZodString>;
+  site: z.ZodOptional<z.ZodString>;
+  content_blocks: z.ZodOptional<z.ZodArray<z.ZodLazy<z.ZodTypeAny>>>;
+}> = z.object({
+  id: z.string(),
+  type: z.literal('segment'),
+  segment_name: z.string().optional(),
+  emporix_segment_id: z.string().optional(),
+  site: z.string().optional(),
+  content_blocks: z.array(z.lazy(() => CMSComponentSchema)).optional(),
+});
+
+/**
  * Discriminated union of every registered CMS component schema.
  *
  * Adapters validate against this union at the CMS boundary; the renderer
@@ -72,6 +103,7 @@ export const CMSComponentSchema = z.discriminatedUnion('type', [
   PageSchema,
   QuickEntrySchema,
   RichtextSchema,
+  SegmentSchema,
   TeaserSchema,
   VideoSchema,
 ]);
