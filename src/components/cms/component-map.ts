@@ -6,6 +6,7 @@ import Hero, { HeroSchema } from './hero';
 import Logo, { LogoSchema } from './logo';
 import Page from './page';
 import Richtext, { RichtextSchema } from './richtext';
+import Video, { VideoSchema } from './video';
 
 /**
  * Registry mapping each CMS component's discriminator string to the
@@ -28,6 +29,7 @@ export const cmsComponentMap = {
   logo: { component: Logo, schema: LogoSchema },
   page: { component: Page, schema: PageSchema },
   richtext: { component: Richtext, schema: RichtextSchema },
+  video: { component: Video, schema: VideoSchema },
 } as const;
 
 export type CmsComponentMap = typeof cmsComponentMap;

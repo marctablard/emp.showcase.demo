@@ -5,6 +5,7 @@ import { ContentBlockSchema } from './content-block/schema';
 import { HeroSchema } from './hero/schema';
 import { LogoSchema } from './logo/schema';
 import { RichtextSchema } from './richtext/schema';
+import { VideoSchema } from './video/schema';
 
 /**
  * Page is the recursive container of CMS components: its `body` references
@@ -64,6 +65,7 @@ export const CMSComponentSchema = z.discriminatedUnion('type', [
   LogoSchema,
   PageSchema,
   RichtextSchema,
+  VideoSchema,
 ]);
 
 export type CMSComponent = z.infer<typeof CMSComponentSchema>;

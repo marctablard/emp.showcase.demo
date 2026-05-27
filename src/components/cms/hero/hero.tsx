@@ -68,12 +68,10 @@ const Hero = ({ id: _id, type: _type, headline, text, main_button, image, video,
                 <foreignObject clipPath="url(#shape)" className="sm:translate-x-0 w-full h-[200%] sm:h-full">
                   <div className="w-full h-full" ref={videoPlayer}>
                     <Video
-                      video_file={videoData.video_file}
-                      autoplay={videoData.autoplay}
+                      {...videoData}
                       loop={videoData.loop ?? false}
                       mute={videoData.mute ?? false}
                       controls={false}
-                      alt_text={videoData.alt_text}
                     />
                   </div>
                 </foreignObject>
