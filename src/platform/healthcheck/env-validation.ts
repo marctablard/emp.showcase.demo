@@ -38,6 +38,11 @@ export const OPTIONAL_ENV_VARS: ReadonlyArray<EnvVarDefinition> = [
     severity: 'warning',
     description: 'Storyblok CMS access token (without it the CMS adapter falls back to "none")',
   },
+  {
+    key: 'NEXT_CMS_WEBHOOK_SECRET',
+    severity: 'warning',
+    description: 'CMS webhook HMAC secret — webhooks are disabled (503) without it',
+  },
 ];
 
 /**

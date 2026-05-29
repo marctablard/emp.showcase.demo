@@ -324,3 +324,183 @@ describe('StoryblokCmsAdapter — getLayout(layoutId, locale, site)', () => {
     expect(logger.warn).toHaveBeenCalled();
   });
 });
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- crypto for signing fixtures
+const nodeCrypto = require('crypto') as typeof import('crypto');
+
+const WEBHOOK_SECRET = 'top-secret';
+
+const sign = (rawBody: string, secret: string = WEBHOOK_SECRET): string =>
+  nodeCrypto.createHmac('sha256', secret).update(rawBody, 'utf8').digest('hex');
+
+const buildAdapter = () => {
+  const { mapper } = buildMapper();
+  return new StoryblokCmsAdapter(buildApi(), mapper, silentLogger());
+};
+
+describe('StoryblokCmsAdapter — validateWebhookSignature (HMAC-SHA-256, constant-time)', () => {
+  const originalSecret = process.env.NEXT_CMS_WEBHOOK_SECRET;
+
+  beforeEach(() => {
+    process.env.NEXT_CMS_WEBHOOK_SECRET = WEBHOOK_SECRET;
+  });
+
+  afterAll(() => {
+    if (originalSecret === undefined) {
+      delete process.env.NEXT_CMS_WEBHOOK_SECRET;
+    } else {
+      process.env.NEXT_CMS_WEBHOOK_SECRET = originalSecret;
+    }
+  });
+
+  it('accepts a body signed with the configured secret', () => {
+    const body = JSON.stringify({ action: 'published', full_slug: 'home' });
+    const headers = new Headers({ 'webhook-signature': sign(body) });
+
+    expect(buildAdapter().validateWebhookSignature(headers, body)).toBe(true);
+  });
+
+  it('rejects a same-length but wrong signature', () => {
+    const body = JSON.stringify({ action: 'published', full_slug: 'home' });
+    const wrong = sign(body, 'other-secret'); // also 64 hex chars
+    const headers = new Headers({ 'webhook-signature': wrong });
+
+    expect(buildAdapter().validateWebhookSignature(headers, body)).toBe(false);
+  });
+
+  it('returns false (does NOT throw) on a wrong-length signature — length guard', () => {
+    const body = JSON.stringify({ action: 'published', full_slug: 'home' });
+    const headers = new Headers({ 'webhook-signature': 'deadbeef' }); // 8 chars, not 64
+
+    const adapter = buildAdapter();
+    expect(() => adapter.validateWebhookSignature(headers, body)).not.toThrow();
+    expect(adapter.validateWebhookSignature(headers, body)).toBe(false);
+  });
+
+  it('rejects when the signature header is absent', () => {
+    const body = JSON.stringify({ action: 'published', full_slug: 'home' });
+
+    expect(buildAdapter().validateWebhookSignature(new Headers(), body)).toBe(false);
+  });
+
+  it('rejects (never validates) when no secret is configured', () => {
+    delete process.env.NEXT_CMS_WEBHOOK_SECRET;
+    const body = JSON.stringify({ action: 'published', full_slug: 'home' });
+    const headers = new Headers({ 'webhook-signature': sign(body) });
+
+    expect(buildAdapter().validateWebhookSignature(headers, body)).toBe(false);
+  });
+
+  it('does NOT use a naive === string comparison (source-text audit)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- test-time source-text inspection
+    const fs = require('node:fs');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- test-time source-text inspection
+    const path = require('node:path');
+    const source = fs.readFileSync(path.resolve(__dirname, './StoryblokCmsAdapter.ts'), 'utf8') as string;
+
+    expect(source).toMatch(/timingSafeEqual/);
+  });
+});
+
+describe('StoryblokCmsAdapter — mapWebhookPayload', () => {
+  const originalMultiSite = process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE;
+  const originalSites = process.env.NEXT_PUBLIC_AVAILABLE_SITES;
+
+  beforeEach(() => {
+    delete process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE;
+    // Single-site spaces fan out across the configured sites — pin a known set.
+    process.env.NEXT_PUBLIC_AVAILABLE_SITES = 'main';
+  });
+
+  afterAll(() => {
+    if (originalMultiSite === undefined) {
+      delete process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE;
+    } else {
+      process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE = originalMultiSite;
+    }
+    if (originalSites === undefined) {
+      delete process.env.NEXT_PUBLIC_AVAILABLE_SITES;
+    } else {
+      process.env.NEXT_PUBLIC_AVAILABLE_SITES = originalSites;
+    }
+  });
+
+  it('fans a slug without a locale prefix out across every configured locale (real site key)', () => {
+    const events = buildAdapter().mapWebhookPayload(new Headers(), { action: 'published', full_slug: 'about' });
+
+    expect(events).toEqual([
+      { kind: 'page', slug: 'about', locale: 'en', site: 'main' },
+      { kind: 'page', slug: 'about', locale: 'de', site: 'main' },
+    ]);
+  });
+
+  it('fans out across all configured sites when the slug carries no explicit site prefix', () => {
+    process.env.NEXT_PUBLIC_AVAILABLE_SITES = 'main,us-branch';
+
+    const events = buildAdapter().mapWebhookPayload(new Headers(), { action: 'published', full_slug: 'de/about' });
+
+    // single locale (prefixed) × two sites — invalidation keys stay congruent
+    // with whatever route segment cached the read.
+    expect(events).toEqual([
+      { kind: 'page', slug: 'about', locale: 'de', site: 'main' },
+      { kind: 'page', slug: 'about', locale: 'de', site: 'us-branch' },
+    ]);
+  });
+
+  it('falls back to the default site when no available sites are configured', () => {
+    const savedDefaultSite = process.env.NEXT_PUBLIC_DEFAULT_SITE;
+    delete process.env.NEXT_PUBLIC_AVAILABLE_SITES;
+    process.env.NEXT_PUBLIC_DEFAULT_SITE = 'fallback-site';
+    try {
+      const events = buildAdapter().mapWebhookPayload(new Headers(), { action: 'published', full_slug: 'de/about' });
+
+      expect(events).toEqual([{ kind: 'page', slug: 'about', locale: 'de', site: 'fallback-site' }]);
+    } finally {
+      if (savedDefaultSite === undefined) {
+        delete process.env.NEXT_PUBLIC_DEFAULT_SITE;
+      } else {
+        process.env.NEXT_PUBLIC_DEFAULT_SITE = savedDefaultSite;
+      }
+    }
+  });
+
+  it('targets a single locale when the slug carries a locale prefix', () => {
+    const events = buildAdapter().mapWebhookPayload(new Headers(), { action: 'published', full_slug: 'de/about' });
+
+    expect(events).toEqual([{ kind: 'page', slug: 'about', locale: 'de', site: 'main' }]);
+  });
+
+  it('maps a layouts/ slug to layout events', () => {
+    const events = buildAdapter().mapWebhookPayload(new Headers(), {
+      action: 'published',
+      full_slug: 'de/layouts/default',
+    });
+
+    expect(events).toEqual([{ kind: 'layout', layoutId: 'default', locale: 'de', site: 'main' }]);
+  });
+
+  it('extracts the site prefix in a multi-site space (single addressed site)', () => {
+    process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE = 'true';
+
+    const events = buildAdapter().mapWebhookPayload(new Headers(), {
+      action: 'published',
+      full_slug: 'us-branch/de/about',
+    });
+
+    expect(events).toEqual([{ kind: 'page', slug: 'about', locale: 'de', site: 'us-branch' }]);
+  });
+
+  it('handles unpublished and deleted actions', () => {
+    const adapter = buildAdapter();
+    expect(adapter.mapWebhookPayload(new Headers(), { action: 'unpublished', full_slug: 'de/x' })).toHaveLength(1);
+    expect(adapter.mapWebhookPayload(new Headers(), { action: 'deleted', full_slug: 'de/x' })).toHaveLength(1);
+  });
+
+  it('returns null for an unknown action, a missing full_slug, or a non-object body', () => {
+    const adapter = buildAdapter();
+    expect(adapter.mapWebhookPayload(new Headers(), { action: 'unknown', full_slug: 'x' })).toBeNull();
+    expect(adapter.mapWebhookPayload(new Headers(), { action: 'published' })).toBeNull();
+    expect(adapter.mapWebhookPayload(new Headers(), null)).toBeNull();
+    expect(adapter.mapWebhookPayload(new Headers(), 'nope')).toBeNull();
+  });
+});

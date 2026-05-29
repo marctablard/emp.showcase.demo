@@ -1,9 +1,33 @@
 import type { ComponentType, HTMLAttributes } from 'react';
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
-import type { CMSComponent, CMSLayout, CMSNavigation, CMSNoResult, CMSPage } from '../../model/cms';
+import type {
+  CMSComponent,
+  CMSLayout,
+  CMSNavigation,
+  CMSNoResult,
+  CMSPage,
+  WebhookEvent,
+  WebhookResult,
+} from '../../model/cms';
 import type { CMSService } from '../CMSService';
 import type { CmsAdapter } from '../CmsAdapter';
+import {
+  getCachedLayout,
+  getCachedPage,
+  invalidateLayout,
+  invalidatePage,
+  setCachedLayout,
+  setCachedPage,
+} from '../cms-cache';
+
+function isNotFound(value: CMSPage | CMSNoResult): value is CMSNoResult {
+  return 'notfound' in value && value.notfound === true;
+}
+
+function isLayoutNotFound(value: CMSLayout | CMSNoResult): value is CMSNoResult {
+  return 'notfound' in value && value.notfound === true;
+}
 
 /**
  * Sole `CMSService` implementation: a thin facade that delegates every
@@ -28,12 +52,30 @@ export class DelegatingCmsServiceSSR implements CMSService {
     return this.adapter.hasContent();
   }
 
-  getPage(slug: string, locale: string, site: string): Promise<CMSPage | CMSNoResult> {
-    return this.adapter.getPage(slug, locale, site);
+  async getPage(slug: string, locale: string, site: string): Promise<CMSPage | CMSNoResult> {
+    const cached = getCachedPage(slug, locale, site);
+    if (cached) {
+      return cached;
+    }
+    const result = await this.adapter.getPage(slug, locale, site);
+    // `{ notfound: true }` is never cached: a missing page is cheap to re-resolve
+    // and caching it would mask content that gets published moments later.
+    if (!isNotFound(result)) {
+      setCachedPage(slug, locale, site, result);
+    }
+    return result;
   }
 
-  getLayout(layoutId: string, locale: string, site: string): Promise<CMSLayout | CMSNoResult> {
-    return this.adapter.getLayout(layoutId, locale, site);
+  async getLayout(layoutId: string, locale: string, site: string): Promise<CMSLayout | CMSNoResult> {
+    const cached = getCachedLayout(layoutId, locale, site);
+    if (cached) {
+      return cached;
+    }
+    const result = await this.adapter.getLayout(layoutId, locale, site);
+    if (!isLayoutNotFound(result)) {
+      setCachedLayout(layoutId, locale, site, result);
+    }
+    return result;
   }
 
   getNavigation(locale: string, site: string): Promise<CMSNavigation | CMSNoResult> {
@@ -46,6 +88,56 @@ export class DelegatingCmsServiceSSR implements CMSService {
 
   get BridgeScript(): ComponentType | null {
     return this.adapter.BridgeScript ?? null;
+  }
+
+  /**
+   * Webhook entry point, surfaced only when the active adapter supports
+   * webhooks. Resolution order:
+   *  1. the adapter fully owns the request (`handleWebhook`), or
+   *  2. the facade orchestrates the default flow from the adapter's
+   *     `validateWebhookSignature` + `mapWebhookPayload` primitives, keeping
+   *     cache invalidation in the service layer (the adapter stays
+   *     cache-agnostic), or
+   *  3. neither — `undefined`, which the route maps to `405`.
+   */
+  get handleWebhook(): ((request: Request) => Promise<WebhookResult>) | undefined {
+    const adapter = this.adapter;
+    if (adapter.handleWebhook) {
+      return adapter.handleWebhook.bind(adapter);
+    }
+    if (adapter.validateWebhookSignature && adapter.mapWebhookPayload) {
+      return (request: Request) => this.dispatchWebhook(request, adapter);
+    }
+    return undefined;
+  }
+
+  private async dispatchWebhook(request: Request, adapter: CmsAdapter): Promise<WebhookResult> {
+    const rawBody = await request.text();
+    if (!adapter.validateWebhookSignature!(request.headers, rawBody)) {
+      return { status: 401, body: { error: 'Invalid signature' } };
+    }
+    let payload: unknown;
+    try {
+      payload = rawBody.length > 0 ? JSON.parse(rawBody) : {};
+    } catch {
+      return { status: 400, body: { error: 'Invalid payload' } };
+    }
+    const events = adapter.mapWebhookPayload!(request.headers, payload) ?? [];
+    for (const event of events) {
+      this.invalidate(event);
+    }
+    return { status: 200, body: { invalidated: events.length } };
+  }
+
+  private invalidate(event: WebhookEvent): void {
+    if (event.kind === 'page') {
+      invalidatePage(event.slug, event.locale, event.site);
+    } else if (event.kind === 'layout') {
+      invalidateLayout(event.layoutId, event.locale, event.site);
+    }
+    // `navigation` events carry no cache key in the current scope (only
+    // page-cache and layout-cache exist) — intentionally a no-op until a
+    // navigation cache is introduced.
   }
 }
 

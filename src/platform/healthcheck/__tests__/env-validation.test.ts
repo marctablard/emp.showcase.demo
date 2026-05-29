@@ -129,7 +129,39 @@ describe('validateEnvVars', () => {
       'NEXT_EMPORIX_CLIENT_ID',
       'NEXT_EMPORIX_CLIENT_SECRET',
       'NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN',
+      'NEXT_CMS_WEBHOOK_SECRET',
     ]);
+  });
+
+  // ---------------------------------------------------------------------------
+  // The CMS webhook secret must be OPTIONAL: without it, the app still boots and
+  // the webhook endpoint deliberately returns 503 (disabled). Absence is a
+  // warning, never a build error.
+  // ---------------------------------------------------------------------------
+  describe('CMS webhook secret is optional', () => {
+    it('registers NEXT_CMS_WEBHOOK_SECRET in OPTIONAL_ENV_VARS with severity "warning"', () => {
+      const definition = OPTIONAL_ENV_VARS.find((v) => v.key === 'NEXT_CMS_WEBHOOK_SECRET');
+
+      expect(definition).toBeDefined();
+      expect(definition!.severity).toBe('warning');
+    });
+
+    it('is NOT a NEXT_PUBLIC_ var — the secret must stay server-only', () => {
+      const definition = OPTIONAL_ENV_VARS.find((v) => v.key === 'NEXT_CMS_WEBHOOK_SECRET');
+
+      expect(definition!.key.startsWith('NEXT_PUBLIC_')).toBe(false);
+    });
+
+    it('reports hasErrors: false and a warning when the webhook secret is missing', () => {
+      delete process.env.NEXT_CMS_WEBHOOK_SECRET;
+
+      const result = validateEnvVars();
+
+      expect(result.hasErrors).toBe(false);
+      const item = result.items.find((i) => i.name === 'NEXT_CMS_WEBHOOK_SECRET');
+      expect(item!.passed).toBe(false);
+      expect(item!.severity).toBe('warning');
+    });
   });
 
   // ---------------------------------------------------------------------------

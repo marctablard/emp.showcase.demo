@@ -1,5 +1,13 @@
 import type { ComponentType, HTMLAttributes } from 'react';
-import type { CMSComponent, CMSLayout, CMSNavigation, CMSNoResult, CMSPage } from '../model/cms';
+import type {
+  CMSComponent,
+  CMSLayout,
+  CMSNavigation,
+  CMSNoResult,
+  CMSPage,
+  WebhookEvent,
+  WebhookResult,
+} from '../model/cms';
 
 /**
  * Plugin SPI for CMS providers (Storyblok, local-JSON, none, ...).
@@ -42,4 +50,24 @@ export interface CmsAdapter {
   getEditableProps?(component: CMSComponent): HTMLAttributes<HTMLElement>;
   /** Optional. Mounted once in the layout. */
   BridgeScript?: ComponentType;
+
+  /**
+   * Optional webhook surface. A provider that pushes content-change
+   * notifications (Storyblok) implements `validateWebhookSignature` +
+   * `mapWebhookPayload`; the `DelegatingCmsServiceSSR` facade then
+   * orchestrates the default flow (verify → parse → map → invalidate). An
+   * adapter MAY instead provide `handleWebhook` to own the whole request; the
+   * facade prefers it when present. An adapter that implements none of these
+   * has no webhook endpoint — the route answers `405`.
+   *
+   * Security: `validateWebhookSignature` MUST be constant-time
+   * (`crypto.timingSafeEqual` with an explicit length guard) and MUST NOT
+   * fall back to a naive `===` comparison. The signing secret is read from
+   * the server-only `NEXT_CMS_WEBHOOK_SECRET`.
+   */
+  handleWebhook?(request: Request): Promise<WebhookResult>;
+  /** Optional. `true` iff the request carries a valid HMAC signature. Constant-time. */
+  validateWebhookSignature?(headers: Headers, rawBody: string): boolean;
+  /** Optional. Translate a provider webhook payload into granular invalidation events. */
+  mapWebhookPayload?(headers: Headers, body: unknown): WebhookEvent[] | null;
 }

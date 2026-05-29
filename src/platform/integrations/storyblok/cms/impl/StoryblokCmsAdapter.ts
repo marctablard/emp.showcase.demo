@@ -1,10 +1,19 @@
 import type { HTMLAttributes } from 'react';
+import crypto from 'crypto';
 import { inject } from 'inversify';
 import 'server-only';
+import { routingConfig } from '@/i18n/routing';
 import { injectable } from '@/platform/core/di/injectable';
 import type { CmsAdapter } from '@/platform/services/cms/CmsAdapter';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import type { CMSComponent, CMSLayout, CMSNavigation, CMSNoResult, CMSPage } from '@/platform/services/model/cms';
+import type {
+  CMSComponent,
+  CMSLayout,
+  CMSNavigation,
+  CMSNoResult,
+  CMSPage,
+  WebhookEvent,
+} from '@/platform/services/model/cms';
 import type { StoryblokCmsApi } from '../StoryblokCmsApi';
 import { StoryblokBridgeScript } from './StoryblokBridgeScript';
 import type { StoryblokCmsMapper } from './StoryblokCmsMapper';
@@ -70,6 +79,120 @@ export class StoryblokCmsAdapter implements CmsAdapter {
 
   async getNavigation(_locale: string, _site: string): Promise<CMSNavigation | CMSNoResult> {
     return { notfound: true };
+  }
+
+  /**
+   * Constant-time HMAC-SHA-256 verification of the `webhook-signature` header
+   * against the raw request body, keyed by the server-only
+   * `NEXT_CMS_WEBHOOK_SECRET`.
+   *
+   * Length-guard rationale: `crypto.timingSafeEqual` THROWS on unequal buffer
+   * lengths. A signature of the wrong length is itself an invalid signature,
+   * so we compare lengths first and return `false` (→ caller answers `401`)
+   * rather than (a) letting `timingSafeEqual` throw into a 500, or (b)
+   * swallowing that throw in a `try/catch` that would mask unrelated errors.
+   * The SHA-256 hex digest is always 64 chars, so a legitimate signature is
+   * always length-64; a mismatch is a forgery, not a server fault.
+   */
+  validateWebhookSignature(headers: Headers, rawBody: string): boolean {
+    const secret = process.env.NEXT_CMS_WEBHOOK_SECRET;
+    if (!secret) {
+      // Defensive: the route guards with 503 before reaching here. Never
+      // validate against an empty/absent secret.
+      return false;
+    }
+    const provided = headers.get('webhook-signature') ?? '';
+    const expected = crypto.createHmac('sha256', secret).update(rawBody, 'utf8').digest('hex');
+    const expectedBuf = Buffer.from(expected, 'utf8');
+    const providedBuf = Buffer.from(provided, 'utf8');
+    if (expectedBuf.length !== providedBuf.length) {
+      return false;
+    }
+    return crypto.timingSafeEqual(expectedBuf, providedBuf);
+  }
+
+  /**
+   * Translate a Storyblok story webhook into granular invalidation events.
+   *
+   * Storyblok posts `{ action, full_slug, ... }`. Only `published`,
+   * `unpublished` and `deleted` actions invalidate content. The `full_slug`
+   * is decoded against the same conventions the read path uses:
+   *  - multi-site spaces prefix the slug with the site code
+   *    (`NEXT_PUBLIC_STORYBLOK_MULTI_SITE`), mirroring `StoryblokCmsApi`;
+   *    without that explicit prefix the change fans out across every
+   *    configured site, since one story then serves all of them — and the
+   *    read path keys the cache by the real route-segment site code (always a
+   *    member of `NEXT_PUBLIC_AVAILABLE_SITES`), so a `site: ''` event would
+   *    never match a cached key;
+   *  - a leading locale segment (`de/…`) addresses a single locale; without
+   *    one (field-level i18n) the change fans out across every configured
+   *    locale, since one story serves all of them;
+   *  - a `layouts/` prefix targets the layout cache, everything else the page
+   *    cache.
+   *
+   * The result is the cartesian product of the target sites and locales, so
+   * the produced invalidation keys stay congruent with whatever the read path
+   * cached.
+   */
+  mapWebhookPayload(_headers: Headers, body: unknown): WebhookEvent[] | null {
+    if (typeof body !== 'object' || body === null) {
+      return null;
+    }
+    const { action, full_slug: fullSlug } = body as { action?: unknown; full_slug?: unknown };
+    if (action !== 'published' && action !== 'unpublished' && action !== 'deleted') {
+      return null;
+    }
+    if (typeof fullSlug !== 'string' || fullSlug.length === 0) {
+      return null;
+    }
+
+    let explicitSite: string | null = null;
+    let rest = fullSlug;
+    if (process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE === 'true') {
+      const slash = rest.indexOf('/');
+      if (slash > 0) {
+        explicitSite = rest.slice(0, slash);
+        rest = rest.slice(slash + 1);
+      }
+    }
+
+    const locales = routingConfig.locales;
+    const firstSlash = rest.indexOf('/');
+    const maybeLocale = firstSlash > 0 ? rest.slice(0, firstSlash) : '';
+    let targetLocales: readonly string[] = locales;
+    if (maybeLocale && locales.includes(maybeLocale)) {
+      targetLocales = [maybeLocale];
+      rest = rest.slice(firstSlash + 1);
+    }
+
+    const targetSites = explicitSite !== null ? [explicitSite] : this.configuredSites();
+    const expand = <E extends WebhookEvent>(make: (site: string, locale: string) => E): E[] =>
+      targetSites.flatMap((site) => targetLocales.map((locale) => make(site, locale)));
+
+    if (rest.startsWith('layouts/')) {
+      const layoutId = rest.slice('layouts/'.length);
+      return expand((site, locale) => ({ kind: 'layout', layoutId, locale, site }));
+    }
+    return expand((site, locale) => ({ kind: 'page', slug: rest, locale, site }));
+  }
+
+  /**
+   * Sites the cache must be invalidated for when a webhook carries no explicit
+   * site prefix. Mirrors the read path's source of truth
+   * (`NEXT_PUBLIC_AVAILABLE_SITES`); falls back to the default site, then to a
+   * single empty-site event so a misconfigured deployment still invalidates
+   * the default key rather than silently no-opping.
+   */
+  private configuredSites(): string[] {
+    const sites = (process.env.NEXT_PUBLIC_AVAILABLE_SITES ?? '')
+      .split(',')
+      .map((site) => site.trim())
+      .filter(Boolean);
+    if (sites.length > 0) {
+      return sites;
+    }
+    const fallback = process.env.NEXT_PUBLIC_DEFAULT_SITE?.trim();
+    return fallback ? [fallback] : [''];
   }
 
   getEditableProps(component: CMSComponent): HTMLAttributes<HTMLElement> {
