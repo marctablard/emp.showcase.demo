@@ -3,9 +3,11 @@ import { apiPlugin, storyblokInit } from '@storyblok/react/rsc';
 /**
  * Browser-side Storyblok Content-Delivery accessor for the top-banner hook.
  *
- * Page rendering goes through the agnostic `CMSService` / `CmsAdapter`
- * pipeline; this accessor exists only for the client-side top-banner fetch,
- * which reads an arbitrary story by full slug (outside the page SPI).
+ * Co-located with `useBanner` (ADR 0002): page rendering goes through the
+ * provider-agnostic `CmsService` / `CmsAdapter` pipeline, so there is no shared
+ * `@/lib/storyblok` glue any more. This accessor is a deliberate exception that
+ * lives next to its only consumer — the client-side top-banner fetch, which
+ * reads an arbitrary story by full slug (outside the page SPI).
  *
  * Initialised conditionally — only when an access token is configured.
  * Without a token it is a no-op accessor that resolves to `null` (instead

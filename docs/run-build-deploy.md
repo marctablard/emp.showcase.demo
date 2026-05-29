@@ -209,7 +209,7 @@ Steps:
 - For Visual Editor local use, run `npm run dev:https` (HTTPS required).
 - Ensure your Storyblok space allows the dev/deployed domain.
 
-See `docs/storyblok-integration.md` and `docs/local-cms.md`.
+See `docs/cms-framework.md` and `docs/local-cms.md`.
 
 ## Health checks (important for hosting)
 - Liveness: `/api/health`
@@ -300,6 +300,6 @@ A: Check GitHub Actions logs (build/test) and Vercel deployment logs. Common iss
 - `docs/environment-variables.md`
 - `docs/deployment-process.md`
 - `docs/health-checks.md`
-- `docs/storyblok-integration.md`
+- `docs/cms-framework.md`
 - `docs/sso-authentication.md`
 - `docs/site-middleware.md`

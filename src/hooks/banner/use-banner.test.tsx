@@ -12,8 +12,8 @@
  * so we reset it between tests via its public `reset()` action.
  */
 import { renderHook, waitFor } from '@testing-library/react';
-import { getStoryblokApi } from '@/lib/storyblok';
 import { useBannerStore } from '@/stores/banner-store';
+import { getStoryblokApi } from './storyblok-banner-api';
 import { useBanner } from './use-banner';
 
 jest.mock('@/lib/logger/use-logger-client', () => ({
@@ -29,7 +29,7 @@ jest.mock('@/lib/logger/use-logger-client', () => ({
 
 // `getStoryblokApi` is re-bound per test via `mockReturnValue` below; the default
 // mock here keeps Jest happy at module-eval time.
-jest.mock('@/lib/storyblok', () => ({
+jest.mock('./storyblok-banner-api', () => ({
   getStoryblokApi: jest.fn(() => null),
 }));
 

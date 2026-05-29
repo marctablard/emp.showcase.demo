@@ -489,4 +489,4 @@ NEXT_DEBUG_API_PAYLOAD=false
 
 - [Deployment Process](./deployment-process.md)
 - [Testing Guide](./testing-guide.md)
-- [Storyblok Integration](./storyblok-integration.md)
+- [CMS Framework](./cms-framework.md)
