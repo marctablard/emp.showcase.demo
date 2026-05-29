@@ -25,7 +25,9 @@
 import '@testing-library/jest-dom';
 import { render } from '@testing-library/react';
 import type { ButtonData } from '../button/schema';
+import type { ColumnsData } from '../columns/schema';
 import type { CMSComponent } from '../component-schema';
+import type { GridData } from '../grid/schema';
 import type { PageData } from '../page/schema';
 import type { SegmentData } from '../segment/schema';
 import { CmsRenderer } from './cms-renderer';
@@ -109,14 +111,14 @@ describe('CmsRenderer — container recursion', () => {
   });
 
   it('renders a `columns` container and recurses into its `columns[]`', () => {
-    const columns = {
+    const columns: ColumnsData = {
       id: 'cols-1',
       type: 'columns',
       columns: [
         { ...BUTTON, id: 'col-a', title: 'Col A' },
         { ...BUTTON, id: 'col-b', title: 'Col B' },
       ],
-    } as unknown as CMSComponent;
+    };
 
     const { getByText } = render(<CmsRenderer component={columns} />);
 
@@ -125,11 +127,11 @@ describe('CmsRenderer — container recursion', () => {
   });
 
   it('renders a `grid` container and recurses into its `columns[]`', () => {
-    const grid = {
+    const grid: GridData = {
       id: 'grid-1',
       type: 'grid',
       columns: [{ ...BUTTON, id: 'g-a', title: 'Grid A' }],
-    } as unknown as CMSComponent;
+    };
 
     const { getByText } = render(<CmsRenderer component={grid} />);
 

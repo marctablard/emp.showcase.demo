@@ -16,8 +16,12 @@
  * The contract intentionally does NOT assert side-effects (logging, caching,
  * network calls) — those belong in adapter-specific tests.
  *
- * NOT a `*.test.ts` file: Jest must not pick it up directly. Runners import
- * `runCmsAdapterContract` and embed the suite in their own `describe()`.
+ * Repo-convention exception: the rest of `src/` uses co-located `*.test.ts`
+ * files; this is a shared SUITE BUILDER, not a test file. It lives under
+ * `__tests__/` and uses the `.contract.ts` (no `.test.`) suffix so Jest does
+ * NOT pick it up as a standalone runner. Each concrete adapter has its own
+ * co-located `*.contract.test.ts` thin runner that imports and invokes
+ * `runCmsAdapterContract`.
  */
 import { type ReactElement, isValidElement } from 'react';
 import type { CMSComponent } from '../../model/cms';

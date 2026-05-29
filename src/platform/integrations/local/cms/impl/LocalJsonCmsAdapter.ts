@@ -59,37 +59,35 @@ export class LocalJsonCmsAdapter implements CmsAdapter {
   }
 
   async getPage(slug: string, locale: string, _site: string): Promise<CMSPage | CMSNoResult> {
-    try {
-      const normalizedSlug = slug.replace(/[^a-zA-Z0-9-_]/g, '').toLowerCase();
-      const normalizedLocale = locale.toLowerCase();
+    const normalizedSlug = slug.replace(/[^a-zA-Z0-9-_]/g, '').toLowerCase();
+    const normalizedLocale = locale.toLowerCase();
 
-      const session = await this.sessionService.getCurrent();
-      const normalizedSite = session && session.siteCode ? session.siteCode : this.defaultSite;
+    const session = await this.sessionService.getCurrent();
+    const normalizedSite = session && session.siteCode ? session.siteCode : this.defaultSite;
 
-      let pageData = await this.tryLoadPage(normalizedSlug, normalizedLocale, normalizedSite);
+    let pageData = await this.tryLoadPage(normalizedSlug, normalizedLocale, normalizedSite);
 
-      if ('notfound' in pageData && normalizedSite !== this.defaultSite) {
-        this.logger.info(
-          { slug, site: normalizedSite },
-          `Page '${slug}' not found for site '${normalizedSite}', trying default site`,
-        );
-        pageData = await this.tryLoadPage(normalizedSlug, normalizedLocale, this.defaultSite);
-      }
-
-      return pageData;
-    } catch (_error) {
-      this.logger.warn({ slug }, `Error loading CMS page with slug '${slug}'`);
-      return {
-        notfound: true,
-        message: `Error loading page with slug '${slug}'`,
-      };
+    if ('notfound' in pageData && normalizedSite !== this.defaultSite) {
+      this.logger.info(
+        { slug, site: normalizedSite },
+        `Page '${slug}' not found for site '${normalizedSite}', trying default site`,
+      );
+      pageData = await this.tryLoadPage(normalizedSlug, normalizedLocale, this.defaultSite);
     }
+
+    return pageData;
   }
 
   async getNavigation(_locale: string, _site: string): Promise<CMSNavigation | CMSNoResult> {
     return { notfound: true };
   }
 
+  /**
+   * Single try/catch: the default loader (`defaultJsonLoader`) already swallows
+   * its own `import()` rejection to `null` for missing files, so a thrown error
+   * here is a genuine I/O / parse problem. Surface those as `{ notfound: true }`
+   * — the adapter MUST NOT throw upward (SPI contract).
+   */
   private async tryLoadPage(slug: string, locale: string, site: string): Promise<CMSPage | CMSNoResult> {
     try {
       const pageData = await this.loader(site, locale, slug);

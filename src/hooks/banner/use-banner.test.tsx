@@ -91,5 +91,22 @@ describe('useBanner', () => {
       );
       expect(result.current.data).toEqual(storyResponse.data);
     });
+
+    it('surfaces a rejected fetch as an Error and settles isLoading:false', async () => {
+      const apiGet = jest.fn(async () => {
+        throw new Error('API down');
+      });
+      mockedGetStoryblokApi.mockReturnValue({ get: apiGet });
+
+      const { result } = renderHook(() => useBanner());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(apiGet).toHaveBeenCalledTimes(1);
+      expect(result.current.error).toBeInstanceOf(Error);
+      expect(result.current.error?.message).toBe('API down');
+    });
   });
 });
