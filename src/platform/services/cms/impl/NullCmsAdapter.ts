@@ -1,5 +1,5 @@
 import { injectable } from '@/platform/core/di/injectable';
-import type { CMSNavigation, CMSNoResult, CMSPage } from '../../model/cms';
+import type { CMSLayout, CMSNavigation, CMSNoResult, CMSPage } from '../../model/cms';
 import type { CmsAdapter } from '../CmsAdapter';
 
 /**
@@ -24,6 +24,13 @@ export class NullCmsAdapter implements CmsAdapter {
     return {
       notfound: true,
       message: `No CMS provider configured (slug: ${slug})`,
+    };
+  }
+
+  async getLayout(layoutId: string, _locale: string, _site: string): Promise<CMSLayout | CMSNoResult> {
+    return {
+      notfound: true,
+      message: `No CMS provider configured (layoutId: ${layoutId})`,
     };
   }
 

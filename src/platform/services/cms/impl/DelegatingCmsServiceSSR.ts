@@ -1,7 +1,7 @@
 import type { ComponentType, HTMLAttributes } from 'react';
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
-import type { CMSComponent, CMSNavigation, CMSNoResult, CMSPage } from '../../model/cms';
+import type { CMSComponent, CMSLayout, CMSNavigation, CMSNoResult, CMSPage } from '../../model/cms';
 import type { CMSService } from '../CMSService';
 import type { CmsAdapter } from '../CmsAdapter';
 
@@ -30,6 +30,10 @@ export class DelegatingCmsServiceSSR implements CMSService {
 
   getPage(slug: string, locale: string, site: string): Promise<CMSPage | CMSNoResult> {
     return this.adapter.getPage(slug, locale, site);
+  }
+
+  getLayout(layoutId: string, locale: string, site: string): Promise<CMSLayout | CMSNoResult> {
+    return this.adapter.getLayout(layoutId, locale, site);
   }
 
   getNavigation(locale: string, site: string): Promise<CMSNavigation | CMSNoResult> {

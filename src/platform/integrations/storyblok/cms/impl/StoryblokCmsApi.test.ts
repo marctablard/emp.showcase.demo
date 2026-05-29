@@ -221,6 +221,20 @@ describe('StoryblokCmsApi', () => {
       );
     });
 
+    it('honours an explicit `version` argument over the env (layout path stays "published" even with preview ON)', async () => {
+      process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW = 'true';
+      const { StoryblokCmsApi } = await import('./StoryblokCmsApi');
+      const api = new StoryblokCmsApi(silentLogger());
+
+      await api.getStory('layouts/default', 'en', 'main', 'published');
+
+      expect(mockGetStory).toHaveBeenCalledWith(
+        'layouts/default',
+        expect.objectContaining({ version: 'published' }),
+        expect.any(Object),
+      );
+    });
+
     it('passes `language: <locale>` from the call args to the SDK', async () => {
       const { StoryblokCmsApi } = await import('./StoryblokCmsApi');
       const api = new StoryblokCmsApi(silentLogger());

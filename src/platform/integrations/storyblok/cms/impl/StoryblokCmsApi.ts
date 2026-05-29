@@ -26,15 +26,22 @@ export class StoryblokCmsApi implements StoryblokCmsApiContract {
     return this.token().length > 0;
   }
 
-  async getStory(slug: string, locale: string, site?: string): Promise<StoryblokStoryResult | null> {
+  async getStory(
+    slug: string,
+    locale: string,
+    site?: string,
+    version?: 'draft' | 'published',
+  ): Promise<StoryblokStoryResult | null> {
     const client = this.client();
     if (!client) {
       return null;
     }
 
     const fullSlug = this.resolveSlug(slug, site);
+    const resolvedVersion =
+      version ?? (process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW === 'true' ? 'draft' : 'published');
     const params: ISbStoriesParams = {
-      version: process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW === 'true' ? 'draft' : 'published',
+      version: resolvedVersion,
       language: locale,
     };
 

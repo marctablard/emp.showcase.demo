@@ -5,9 +5,11 @@ import ColumnTeaser, { ColumnTeaserSchema } from './column-teaser';
 import Columns, { ColumnsSchema } from './columns';
 import { PageSchema } from './component-schema';
 import ContentBlock, { ContentBlockSchema } from './content-block';
+import ContentSlot, { ContentSlotSchema } from './content-slot';
 import Feature, { FeatureSchema } from './feature';
 import Grid, { GridSchema } from './grid';
 import Hero, { HeroSchema } from './hero';
+import Layout, { LayoutSchema } from './layout';
 import Logo, { LogoSchema } from './logo';
 import MediaText, { MediaTextSchema } from './media-text';
 import Navigation, { NavigationSchema } from './navigation';
@@ -40,9 +42,11 @@ export const cmsComponentMap = {
   'column-teaser': { component: ColumnTeaser, schema: ColumnTeaserSchema },
   columns: { component: Columns, schema: ColumnsSchema },
   'content-block': { component: ContentBlock, schema: ContentBlockSchema },
+  'content-slot': { component: ContentSlot, schema: ContentSlotSchema },
   feature: { component: Feature, schema: FeatureSchema },
   grid: { component: Grid, schema: GridSchema },
   hero: { component: Hero, schema: HeroSchema },
+  layout: { component: Layout, schema: LayoutSchema },
   logo: { component: Logo, schema: LogoSchema },
   'media-text': { component: MediaText, schema: MediaTextSchema },
   navigation: { component: Navigation, schema: NavigationSchema },

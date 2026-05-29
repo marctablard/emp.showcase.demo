@@ -452,3 +452,43 @@ describe('StoryblokCmsMapper — mapPage (story payload to CMSPage)', () => {
     expect(newMapper().mapPage(garbage).components).toEqual([]);
   });
 });
+
+describe('StoryblokCmsMapper — mapLayout (story payload to CMSLayout)', () => {
+  const buildStory = (content: Record<string, unknown>, overrides: Partial<ISbStoryData> = {}): ISbStoryData =>
+    ({
+      id: 1,
+      uuid: 'layout-uuid',
+      full_slug: 'main/layouts/default',
+      slug: 'default',
+      name: 'Default layout',
+      content,
+      ...overrides,
+    }) as unknown as ISbStoryData;
+
+  it('lifts each `content.body[]` entry into a `layout` component body', () => {
+    const layout = newMapper().mapLayout(
+      buildStory({
+        body: [
+          { _uid: 'banner-1', component: 'top-banner-announcement', title: 'Sale' },
+          { _uid: 'slot-1', component: 'content-slot' },
+          { _uid: 'nav-1', component: 'navigation' },
+        ],
+      }),
+    );
+
+    expect(layout.type).toBe('layout');
+    expect(layout.id).toBe('layout-uuid');
+    expect(layout.body.map((c) => c.type)).toEqual(['top-banner-announcement', 'content-slot', 'navigation']);
+  });
+
+  it('returns an empty body for a story with no body', () => {
+    expect(newMapper().mapLayout(buildStory({ body: undefined })).body).toEqual([]);
+  });
+
+  it('survives an unknown story shape without throwing', () => {
+    const garbage = { id: 1 } as unknown as ISbStoryData;
+
+    expect(() => newMapper().mapLayout(garbage)).not.toThrow();
+    expect(newMapper().mapLayout(garbage).body).toEqual([]);
+  });
+});

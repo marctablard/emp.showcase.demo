@@ -1,9 +1,10 @@
 import { inject } from 'inversify';
+import { LayoutContentSchema } from '@/components/cms/component-schema';
 import { getPublicCmsLocalDefaultSite } from '@/lib/common/public-default-env';
 import { injectable } from '@/platform/core/di/injectable';
 import type { CmsAdapter } from '@/platform/services/cms/CmsAdapter';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import type { CMSNavigation, CMSNoResult, CMSPage } from '@/platform/services/model/cms';
+import type { CMSLayout, CMSNavigation, CMSNoResult, CMSPage } from '@/platform/services/model/cms';
 import type { SessionService } from '@/platform/services/session';
 
 /**
@@ -78,8 +79,73 @@ export class LocalJsonCmsAdapter implements CmsAdapter {
     return pageData;
   }
 
+  /**
+   * Loads a layout from `src/data/cms/<site>/<locale>/layouts/<layoutId>.json`.
+   *
+   * Mirrors `getPage`'s site-resolution and default-site fallback, then
+   * validates the payload against `LayoutContentSchema` (which enforces the
+   * single-`content-slot` invariant). A missing file or a validation failure
+   * surfaces as `{ notfound: true }` — the page shell then renders the page
+   * body directly. The adapter MUST NOT throw upward (SPI contract).
+   */
+  async getLayout(layoutId: string, locale: string, _site: string): Promise<CMSLayout | CMSNoResult> {
+    const normalizedLayoutId = layoutId.replace(/[^a-zA-Z0-9-_]/g, '').toLowerCase();
+    const normalizedLocale = locale.toLowerCase();
+    const slug = `layouts/${normalizedLayoutId}`;
+
+    const session = await this.sessionService.getCurrent();
+    const normalizedSite = session && session.siteCode ? session.siteCode : this.defaultSite;
+
+    let result = await this.tryLoadLayout(slug, normalizedLocale, normalizedSite, layoutId);
+
+    if ('notfound' in result && normalizedSite !== this.defaultSite) {
+      this.logger.info(
+        { layoutId, site: normalizedSite },
+        `Layout '${layoutId}' not found for site '${normalizedSite}', trying default site`,
+      );
+      result = await this.tryLoadLayout(slug, normalizedLocale, this.defaultSite, layoutId);
+    }
+
+    return result;
+  }
+
   async getNavigation(_locale: string, _site: string): Promise<CMSNavigation | CMSNoResult> {
     return { notfound: true };
+  }
+
+  private async tryLoadLayout(
+    slug: string,
+    locale: string,
+    site: string,
+    layoutId: string,
+  ): Promise<CMSLayout | CMSNoResult> {
+    try {
+      const layoutData = await this.loader(site, locale, slug);
+
+      if (!layoutData) {
+        return {
+          notfound: true,
+          message: `Layout '${layoutId}' not found for site '${site}' and locale '${locale}'`,
+        };
+      }
+
+      const parsed = LayoutContentSchema.safeParse(layoutData);
+      if (!parsed.success) {
+        this.logger.warn({ layoutId, issues: parsed.error.issues }, `Layout '${layoutId}' failed schema validation`);
+        return {
+          notfound: true,
+          message: `Layout '${layoutId}' failed schema validation`,
+        };
+      }
+
+      return parsed.data as CMSLayout;
+    } catch (_error) {
+      this.logger.warn({ layoutId }, `Error loading layout '${layoutId}'`);
+      return {
+        notfound: true,
+        message: `Error loading layout '${layoutId}'`,
+      };
+    }
   }
 
   /**

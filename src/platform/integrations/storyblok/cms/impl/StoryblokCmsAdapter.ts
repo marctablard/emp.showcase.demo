@@ -4,7 +4,7 @@ import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import type { CmsAdapter } from '@/platform/services/cms/CmsAdapter';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import type { CMSComponent, CMSNavigation, CMSNoResult, CMSPage } from '@/platform/services/model/cms';
+import type { CMSComponent, CMSLayout, CMSNavigation, CMSNoResult, CMSPage } from '@/platform/services/model/cms';
 import type { StoryblokCmsApi } from '../StoryblokCmsApi';
 import { StoryblokBridgeScript } from './StoryblokBridgeScript';
 import type { StoryblokCmsMapper } from './StoryblokCmsMapper';
@@ -49,6 +49,21 @@ export class StoryblokCmsAdapter implements CmsAdapter {
       return this.mapper.mapPage(result.data.story);
     } catch (_error) {
       this.logger.warn({ slug }, `Error loading Storyblok page with slug '${slug}'`);
+      return { notfound: true };
+    }
+  }
+
+  async getLayout(layoutId: string, locale: string, site: string): Promise<CMSLayout | CMSNoResult> {
+    try {
+      // Layouts are always fetched `published` — an in-progress editor draft
+      // of the storefront frame must never leak into a live page.
+      const result = await this.api.getStory(`layouts/${layoutId}`, locale, site, 'published');
+      if (!result?.data?.story) {
+        return { notfound: true };
+      }
+      return this.mapper.mapLayout(result.data.story);
+    } catch (_error) {
+      this.logger.warn({ layoutId }, `Error loading Storyblok layout '${layoutId}'`);
       return { notfound: true };
     }
   }

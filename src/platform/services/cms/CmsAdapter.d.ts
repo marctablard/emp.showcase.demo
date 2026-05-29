@@ -1,5 +1,5 @@
 import type { ComponentType, HTMLAttributes } from 'react';
-import type { CMSComponent, CMSNavigation, CMSNoResult, CMSPage } from '../model/cms';
+import type { CMSComponent, CMSLayout, CMSNavigation, CMSNoResult, CMSPage } from '../model/cms';
 
 /**
  * Plugin SPI for CMS providers (Storyblok, local-JSON, none, ...).
@@ -29,6 +29,14 @@ export interface CmsAdapter {
    * source — they pick the right one and continue.
    */
   getPage(slug: string, locale: string, site: string): Promise<CMSPage | CMSNoResult>;
+  /**
+   * Resolves the layout frame `layoutId` renders into. Like `getPage`, the
+   * `site` is a hint, not a directive, and the method never rejects for a
+   * missing layout — it surfaces "no result" as `{ notfound: true }`. The
+   * page shell falls back to rendering the page body directly when the
+   * active adapter has no layout for the id.
+   */
+  getLayout(layoutId: string, locale: string, site: string): Promise<CMSLayout | CMSNoResult>;
   getNavigation(locale: string, site: string): Promise<CMSNavigation | CMSNoResult>;
   /** Optional. Plain DOM attributes, NO wrapper tag. */
   getEditableProps?(component: CMSComponent): HTMLAttributes<HTMLElement>;

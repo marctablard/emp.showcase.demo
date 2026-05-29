@@ -267,3 +267,60 @@ describe('StoryblokCmsAdapter — BridgeScript', () => {
     expect(typeof adapter.BridgeScript).toBe('function');
   });
 });
+
+describe('StoryblokCmsAdapter — getLayout(layoutId, locale, site)', () => {
+  const SAMPLE_LAYOUT = {
+    id: 'layout-uuid',
+    type: 'layout' as const,
+    body: [{ id: 'slot-1', type: 'content-slot' as const }],
+  };
+
+  const buildLayoutMapper = () => {
+    const mapLayout = jest.fn(() => SAMPLE_LAYOUT);
+    const mapper = {
+      mapPage: jest.fn(() => SAMPLE_PAGE),
+      mapLayout,
+      mapRichtext: jest.fn(),
+    } as unknown as jest.Mocked<StoryblokCmsMapper>;
+    return { mapper, mapLayout };
+  };
+
+  it('fetches `layouts/<id>` at the published version and maps the story via mapLayout', async () => {
+    const api = buildApi({ getStory: jest.fn(async () => storyResult({ body: [] })) });
+    const { mapper, mapLayout } = buildLayoutMapper();
+    const adapter = new StoryblokCmsAdapter(api, mapper, silentLogger());
+
+    const result = await adapter.getLayout('default', 'en', 'main');
+
+    expect(api.getStory).toHaveBeenCalledWith('layouts/default', 'en', 'main', 'published');
+    expect(mapLayout).toHaveBeenCalledTimes(1);
+    expect(result).toEqual(SAMPLE_LAYOUT);
+  });
+
+  it('returns `{ notfound: true }` when the API yields no story', async () => {
+    const api = buildApi({ getStory: jest.fn(async () => null) });
+    const { mapper, mapLayout } = buildLayoutMapper();
+    const adapter = new StoryblokCmsAdapter(api, mapper, silentLogger());
+
+    const result = await adapter.getLayout('default', 'en', 'main');
+
+    expect(result).toEqual(expect.objectContaining({ notfound: true }));
+    expect(mapLayout).not.toHaveBeenCalled();
+  });
+
+  it('never throws — an API error surfaces as `{ notfound: true }` (warn-logged)', async () => {
+    const logger = silentLogger();
+    const api = buildApi({
+      getStory: jest.fn(async () => {
+        throw new Error('network down');
+      }),
+    });
+    const { mapper } = buildLayoutMapper();
+    const adapter = new StoryblokCmsAdapter(api, mapper, logger);
+
+    const result = await adapter.getLayout('default', 'en', 'main');
+
+    expect(result).toEqual(expect.objectContaining({ notfound: true }));
+    expect(logger.warn).toHaveBeenCalled();
+  });
+});

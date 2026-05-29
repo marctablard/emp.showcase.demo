@@ -27,7 +27,14 @@ export interface StoryblokCmsApi {
    * response carries no `data.story`. Never rejects.
    *
    * Multi-site slug prefixing and draft/published version resolution are
-   * applied internally from environment configuration.
+   * applied internally from environment configuration. Pass `version` to
+   * force a specific version regardless of env (layouts are always fetched
+   * `published` so editor drafts never leak into the storefront frame).
    */
-  getStory(slug: string, locale: string, site?: string): Promise<StoryblokStoryResult | null>;
+  getStory(
+    slug: string,
+    locale: string,
+    site?: string,
+    version?: 'draft' | 'published',
+  ): Promise<StoryblokStoryResult | null>;
 }

@@ -154,6 +154,76 @@ describe('LocalJsonCmsAdapter', () => {
     });
   });
 
+  describe('getLayout', () => {
+    const VALID_LAYOUT = {
+      id: 'layout-default',
+      type: 'layout',
+      body: [{ id: 'slot-1', type: 'content-slot' }],
+    };
+
+    it('loads the JSON under the `layouts/<id>` slug and returns it as a CMSLayout', async () => {
+      const loader: CmsDataLoader = jest.fn(async () => VALID_LAYOUT);
+      const adapter = new LocalJsonCmsAdapter(buildSessionService('main'), buildLogger(), loader);
+
+      const result = await adapter.getLayout('default', 'en', 'main');
+
+      expect(loader).toHaveBeenCalledWith('main', 'en', 'layouts/default');
+      expect(result).toEqual(VALID_LAYOUT);
+    });
+
+    it('normalizes the layoutId and locale before building the slug', async () => {
+      const loader: CmsDataLoader = jest.fn(async () => VALID_LAYOUT);
+      const adapter = new LocalJsonCmsAdapter(buildSessionService('main'), buildLogger(), loader);
+
+      await adapter.getLayout('Marketing!', 'DE', 'main');
+
+      expect(loader).toHaveBeenCalledWith('main', 'de', 'layouts/marketing');
+    });
+
+    it('retries with the default site when the session site has no layout', async () => {
+      const loader: CmsDataLoader = jest.fn(async (site) => (site === '_default_' ? VALID_LAYOUT : null));
+      const adapter = new LocalJsonCmsAdapter(buildSessionService('us-branch'), buildLogger(), loader);
+
+      const result = await adapter.getLayout('default', 'en', 'us-branch');
+
+      expect(loader).toHaveBeenNthCalledWith(1, 'us-branch', 'en', 'layouts/default');
+      expect(loader).toHaveBeenNthCalledWith(2, '_default_', 'en', 'layouts/default');
+      expect(result).toEqual(VALID_LAYOUT);
+    });
+
+    it('returns `{ notfound: true }` when the layout file is missing', async () => {
+      const loader: CmsDataLoader = jest.fn(async () => null);
+      const adapter = new LocalJsonCmsAdapter(buildSessionService('_default_'), buildLogger(), loader, '_default_');
+
+      const result = await adapter.getLayout('default', 'en', '_default_');
+
+      expect(result).toEqual(expect.objectContaining({ notfound: true }));
+    });
+
+    it('surfaces `{ notfound: true }` (and warns) when the layout fails the single-content-slot refine', async () => {
+      const logger = buildLogger();
+      const noSlot = { id: 'l', type: 'layout', body: [{ id: 'nav', type: 'navigation' }] };
+      const loader: CmsDataLoader = jest.fn(async () => noSlot);
+      const adapter = new LocalJsonCmsAdapter(buildSessionService('main'), logger, loader, 'main');
+
+      const result = await adapter.getLayout('default', 'en', 'main');
+
+      expect(result).toEqual(expect.objectContaining({ notfound: true }));
+      expect(logger.warn).toHaveBeenCalled();
+    });
+
+    it('catches loader exceptions and returns `{ notfound: true }` (no throw)', async () => {
+      const loader: CmsDataLoader = jest.fn(async () => {
+        throw new Error('disk I/O exploded');
+      });
+      const adapter = new LocalJsonCmsAdapter(buildSessionService('main'), buildLogger(), loader, 'main');
+
+      const result = await adapter.getLayout('default', 'en', 'main');
+
+      expect(result).toEqual(expect.objectContaining({ notfound: true }));
+    });
+  });
+
   describe('getNavigation (notfound stub)', () => {
     it('getNavigation resolves to `{ notfound: true }`', async () => {
       const adapter = new LocalJsonCmsAdapter(buildSessionService('main'), buildLogger());

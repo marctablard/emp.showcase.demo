@@ -1,0 +1,12 @@
+/*
+ * Per-site theme — `showcase` (the third test site for the per-site theming
+ * acceptance smoke).
+ *
+ * See `main.css` for the cascade rationale. Overrides only the action
+ * surface tokens to a distinct accent so the three demo sites render three
+ * different `--color-surface-action` values.
+ */
+:root {
+  --color-surface-action: #047857;
+  --color-surface-action-hover: #065f46;
+}

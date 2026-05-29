@@ -6,6 +6,13 @@ export interface CMSPage {
   components: CMSComponent[];
   no_margin?: boolean;
   template?: string; // Reference to a template
+  /**
+   * Id of the layout frame this page renders into. Resolved by the page
+   * shell via `CmsAdapter.getLayout(layoutId ?? 'default', ...)`. Absent
+   * pages fall back to the `default` layout (or, when no layout resolves,
+   * render their body directly).
+   */
+  layoutId?: string;
 }
 
 export interface CMSNoResult {
@@ -18,3 +25,9 @@ export interface CMSNoResult {
 // code reaches the Domain layer). The discriminated union is the
 // source of truth for adapter validation and renderer lookup.
 export type { CMSComponent } from '@/components/cms/component-schema';
+
+// `CMSLayout` is structurally the `layout` CMS component (the per-page
+// frame fetched via `CmsAdapter.getLayout`). Re-exported from the
+// schema-aggregate as the Domain-layer alias so adapters return a single
+// canonical type without re-declaring its shape.
+export type { LayoutData as CMSLayout } from '@/components/cms/component-schema';

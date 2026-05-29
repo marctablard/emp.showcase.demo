@@ -149,3 +149,65 @@ describe('CmsRenderer — container recursion', () => {
     expect(container.querySelector('section')).not.toBeNull();
   });
 });
+
+describe('CmsRenderer — content-slot substitution (layout frame)', () => {
+  const PAGE_BODY: CMSComponent[] = [
+    { ...BUTTON, id: 'pb-a', title: 'Page A' },
+    { ...BUTTON, id: 'pb-b', title: 'Page B' },
+  ];
+
+  const layoutWith = (body: CMSComponent[]): CMSComponent =>
+    ({ id: 'lay-1', type: 'layout', body }) as unknown as CMSComponent;
+
+  it('substitutes a direct content-slot with the rendered pageBody[]', () => {
+    const layout = layoutWith([
+      { ...BUTTON, id: 'frame-top', title: 'Frame Top' },
+      { id: 'slot-1', type: 'content-slot' } as unknown as CMSComponent,
+      { ...BUTTON, id: 'frame-bottom', title: 'Frame Bottom' },
+    ]);
+
+    const { getByText } = render(<CmsRenderer component={layout} pageBody={PAGE_BODY} />);
+
+    expect(getByText('Frame Top')).toBeInTheDocument();
+    expect(getByText('Page A')).toBeInTheDocument();
+    expect(getByText('Page B')).toBeInTheDocument();
+    expect(getByText('Frame Bottom')).toBeInTheDocument();
+  });
+
+  it('substitutes a content-slot nested transitively inside a container', () => {
+    const layout = layoutWith([
+      {
+        id: 'cols-1',
+        type: 'columns',
+        columns: [{ id: 'slot-deep', type: 'content-slot' }],
+      } as unknown as CMSComponent,
+    ]);
+
+    const { getByText } = render(<CmsRenderer component={layout} pageBody={PAGE_BODY} />);
+
+    expect(getByText('Page A')).toBeInTheDocument();
+    expect(getByText('Page B')).toBeInTheDocument();
+  });
+
+  it('renders nothing for a content-slot when no pageBody is threaded (defence-in-depth)', () => {
+    const slot = { id: 'slot-orphan', type: 'content-slot' } as unknown as CMSComponent;
+
+    const { container } = render(<CmsRenderer component={slot} />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('does not re-substitute a stray content-slot inside the page body (no infinite recursion)', () => {
+    const pageBodyWithSlot: CMSComponent[] = [
+      { ...BUTTON, id: 'pb-real', title: 'Real Content' },
+      { id: 'pb-slot', type: 'content-slot' } as unknown as CMSComponent,
+    ];
+    const layout = layoutWith([{ id: 'slot-1', type: 'content-slot' } as unknown as CMSComponent]);
+
+    const { getByText, container } = render(<CmsRenderer component={layout} pageBody={pageBodyWithSlot} />);
+
+    expect(getByText('Real Content')).toBeInTheDocument();
+    // The nested slot resolves to nothing rather than re-injecting the page body.
+    expect(container.textContent).not.toContain('Real ContentReal Content');
+  });
+});

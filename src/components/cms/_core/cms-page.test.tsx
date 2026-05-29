@@ -47,19 +47,32 @@ jest.mock('@/platform/services/cms/get-cms-service', () => ({
 }));
 
 jest.mock('./cms-renderer', () => ({
-  CmsRenderer: ({ component }: { component: CMSComponent }) => (
-    <div data-testid="cms-renderer" data-component-id={component.id} data-component-type={component.type} />
+  CmsRenderer: ({ component, pageBody }: { component: CMSComponent; pageBody?: CMSComponent[] }) => (
+    <div
+      data-testid="cms-renderer"
+      data-component-id={component.id}
+      data-component-type={component.type}
+      data-page-body-ids={(pageBody ?? []).map((c) => c.id).join(',')}
+    />
   ),
 }));
 
 const mockGetPage = jest.fn<Promise<CMSPageModel | CMSNoResult>, [string, string, string]>();
+const mockGetLayout = jest.fn<Promise<unknown>, [string, string, string]>();
 const getCmsServiceMock = getCmsService as jest.Mock;
 const notFoundMock = notFound as unknown as jest.Mock;
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockGetPage.mockReset();
-  getCmsServiceMock.mockResolvedValue({ getPage: mockGetPage } as unknown as CMSService);
+  mockGetLayout.mockReset();
+  // Default: no layout resolves -> shell renders the page body directly
+  // (the backward-compatible path the original suite was written against).
+  mockGetLayout.mockResolvedValue({ notfound: true });
+  getCmsServiceMock.mockResolvedValue({
+    getPage: mockGetPage,
+    getLayout: mockGetLayout,
+  } as unknown as CMSService);
   // Re-apply the throwing impl: clearAllMocks() strips the factory-defined
   // implementation, so without this notFound() would be a no-op and the
   // shell would fall through to the components.map branch — mirror Next's
@@ -161,5 +174,46 @@ describe('CmsPage — no_margin layout toggle', () => {
     const wrapper = container.firstElementChild;
     expect(wrapper).not.toHaveClass('flex-grow');
     expect(wrapper?.className).toBe('');
+  });
+});
+
+describe('CmsPage — layout frame', () => {
+  const makeLayout = () => ({
+    id: 'layout-1',
+    type: 'layout' as const,
+    body: [{ id: 'slot-1', type: 'content-slot' }],
+  });
+
+  it('fetches the layout for page.layoutId and renders the layout tree with the page body threaded as pageBody', async () => {
+    mockGetPage.mockResolvedValue(makePage({ layoutId: 'marketing' }));
+    mockGetLayout.mockResolvedValue(makeLayout());
+
+    const { getAllByTestId } = render(await CmsPage({ slug: '/demo', locale: 'en', site: 'main' }));
+
+    expect(mockGetLayout).toHaveBeenCalledWith('marketing', 'en', 'main');
+    // Single render call for the layout root, carrying the page body.
+    const rendered = getAllByTestId('cms-renderer');
+    expect(rendered).toHaveLength(1);
+    expect(rendered[0]?.getAttribute('data-component-type')).toBe('layout');
+    expect(rendered[0]?.getAttribute('data-page-body-ids')).toBe('cmp-a,cmp-b');
+  });
+
+  it("defaults to the 'default' layout id when the page declares none", async () => {
+    mockGetPage.mockResolvedValue(makePage());
+    mockGetLayout.mockResolvedValue(makeLayout());
+
+    render(await CmsPage({ slug: '/demo', locale: 'en', site: 'main' }));
+
+    expect(mockGetLayout).toHaveBeenCalledWith('default', 'en', 'main');
+  });
+
+  it('falls back to rendering the page body directly when no layout resolves', async () => {
+    mockGetPage.mockResolvedValue(makePage());
+    mockGetLayout.mockResolvedValue({ notfound: true });
+
+    const { getAllByTestId } = render(await CmsPage({ slug: '/demo', locale: 'en', site: 'main' }));
+
+    const rendered = getAllByTestId('cms-renderer');
+    expect(rendered.map((el) => el.getAttribute('data-component-id'))).toEqual(['cmp-a', 'cmp-b']);
   });
 });

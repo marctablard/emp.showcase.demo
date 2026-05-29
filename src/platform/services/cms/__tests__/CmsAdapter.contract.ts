@@ -86,6 +86,19 @@ export function runCmsAdapterContract({ name, expectedId, build }: CmsAdapterCon
       });
     });
 
+    describe('getLayout(layoutId, locale, site)', () => {
+      it('resolves (does not reject) for a non-existent layout — adapters surface no-result via `{ notfound: true }`', async () => {
+        const result = await adapter.getLayout('definitely-no-such-layout', 'en', '_default_');
+        expect(result).toBeDefined();
+        // Either a CMSLayout (with a body array) or a CMSNoResult (notfound).
+        if ('body' in result) {
+          expect(Array.isArray(result.body)).toBe(true);
+        } else {
+          expect(isCmsNoResult(result)).toBe(true);
+        }
+      });
+    });
+
     describe('getNavigation(locale, site)', () => {
       it('resolves and never rejects', async () => {
         await expect(adapter.getNavigation('en', '_default_')).resolves.toBeDefined();

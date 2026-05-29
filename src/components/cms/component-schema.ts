@@ -4,6 +4,7 @@ import { ButtonSchema } from './button/schema';
 import { CategorySchema } from './category/schema';
 import { ColumnTeaserSchema } from './column-teaser/schema';
 import { ContentBlockSchema } from './content-block/schema';
+import { ContentSlotSchema } from './content-slot/schema';
 import { FeatureSchema } from './feature/schema';
 import { HeroSchema } from './hero/schema';
 import { LogoSchema } from './logo/schema';
@@ -124,6 +125,30 @@ export const GridSchema: z.ZodObject<{
 });
 
 /**
+ * Layout is the per-page frame container fetched via `CmsAdapter.getLayout`.
+ * Like `page`, its `body` field references the global discriminated union, so
+ * a layout body can hold any registered component — including the
+ * `content-slot` placeholder that marks where the page's own body is
+ * substituted. Owned here alongside `PageSchema` for the same load-time
+ * reason; `layout/schema.ts` re-exports it for the conventional import path.
+ */
+export type LayoutData = {
+  id: string;
+  type: 'layout';
+  body: CMSComponent[];
+};
+
+export const LayoutSchema: z.ZodObject<{
+  id: z.ZodString;
+  type: z.ZodLiteral<'layout'>;
+  body: z.ZodArray<z.ZodLazy<z.ZodTypeAny>>;
+}> = z.object({
+  id: z.string(),
+  type: z.literal('layout'),
+  body: z.array(z.lazy(() => CMSComponentSchema)),
+});
+
+/**
  * Discriminated union of every registered CMS component schema.
  *
  * Adapters validate against this union at the CMS boundary; the renderer
@@ -142,9 +167,11 @@ export const CMSComponentSchema = z.discriminatedUnion('type', [
   ColumnTeaserSchema,
   ColumnsSchema,
   ContentBlockSchema,
+  ContentSlotSchema,
   FeatureSchema,
   GridSchema,
   HeroSchema,
+  LayoutSchema,
   LogoSchema,
   MediaTextSchema,
   NavigationSchema,
@@ -159,3 +186,61 @@ export const CMSComponentSchema = z.discriminatedUnion('type', [
 ]);
 
 export type CMSComponent = z.infer<typeof CMSComponentSchema>;
+
+/**
+ * Recursive container fields a `content-slot` can be nested inside. Mirrors
+ * the renderer's `CONTAINER_CHILD_KEYS` so the "exactly one slot" count and
+ * the runtime substitution walk the same tree.
+ *
+ * Exported so the `slot-container-fields.drift.test.ts` guard can pin it
+ * against the renderer's `CONTAINER_CHILD_KEYS`: if the two ever diverge, a
+ * slot nested in a container the renderer substitutes but the validator does
+ * not count would silently admit two slots (page body rendered twice).
+ */
+export const SLOT_CONTAINER_FIELDS = ['body', 'columns', 'content_blocks'] as const;
+
+/**
+ * Counts `content-slot` discriminators in a component array, descending
+ * transitively through known container fields (`page`/`layout` body,
+ * `columns`/`grid` columns, `segment` content_blocks). Used by
+ * `LayoutContentSchema` to enforce the single-slot invariant.
+ */
+export function countContentSlots(components: ReadonlyArray<unknown>): number {
+  let count = 0;
+  for (const entry of components) {
+    if (typeof entry !== 'object' || entry === null) {
+      continue;
+    }
+    const node = entry as Record<string, unknown>;
+    if (node.type === 'content-slot') {
+      count += 1;
+      continue;
+    }
+    for (const field of SLOT_CONTAINER_FIELDS) {
+      const nested = node[field];
+      if (Array.isArray(nested)) {
+        count += countContentSlots(nested);
+      }
+    }
+  }
+  return count;
+}
+
+/**
+ * Refined `layout` schema used at the `getLayout` boundary: a valid layout
+ * holds EXACTLY ONE `content-slot` (counted transitively). Zero slots means
+ * the page body would have nowhere to render; two or more would render the
+ * page body twice. Both are validation errors.
+ *
+ * Kept separate from `LayoutSchema` (the union member) because `superRefine`
+ * produces a `ZodEffects` wrapper that `z.discriminatedUnion` rejects.
+ */
+export const LayoutContentSchema = LayoutSchema.superRefine((layout, ctx) => {
+  const slots = countContentSlots(layout.body);
+  if (slots !== 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `A layout must contain exactly one content-slot (found ${slots})`,
+    });
+  }
+});

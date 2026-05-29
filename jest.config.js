@@ -123,6 +123,7 @@ const customJestConfig = {
         '**/providers/**/?(*.)+(spec|test).ts?(x)',
         '**/components/checkout/checkout-validation-registry*.test.ts?(x)',
         '**/components/cms/**/?(*.)+(spec|test).ts?(x)',
+        '**/components/theme/**/?(*.)+(spec|test).ts?(x)',
       ],
       setupFilesAfterEnv: ['<rootDir>/jest.react.setup.js'],
       moduleNameMapper: {
@@ -206,6 +207,8 @@ const customJestConfig = {
         'src/components/checkout/checkout-validation-registry.*\\.test\\.(ts|tsx)$',
         // CMS component tests need RTL/jsdom; routed to the React Tests project.
         'src/components/cms/.*\\.test\\.(ts|tsx)$',
+        // Theme component tests need RTL/jsdom; routed to the React Tests project.
+        'src/components/theme/.*\\.test\\.(ts|tsx)$',
       ],
     },
     {
@@ -251,6 +254,9 @@ const customJestConfig = {
         '**/lib/**/?(*.)+(spec|test).ts?(x)',
         '**/stores/**/?(*.)+(spec|test).ts?(x)',
         '**/app/api/**/?(*.)+(spec|test).ts?(x)',
+        // Per-site theme registry (`src/app/styles/themes`) — pure resolver
+        // logic, no DOM; node project keeps it from being a silent skip.
+        '**/app/styles/**/?(*.)+(spec|test).ts?(x)',
       ],
       setupFilesAfterEnv: ['<rootDir>/jest.platform.setup.js'],
       transform: {

@@ -11,6 +11,7 @@ import { CsrfProvider } from '@/components/csrf/CsrfProvider';
 import { ApiDebugPanel } from '@/components/debug/ApiDebugPanel';
 import { CurrencyFallbackToastBus } from '@/components/header/switcher/currency-fallback-toast-bus';
 import { Notification } from '@/components/notification/notification';
+import { SiteThemeStyle } from '@/components/theme/site-theme-style';
 import { Toaster } from '@/components/ui/sonner';
 import { redirect } from '@/i18n/edge/navigation';
 import { routing } from '@/i18n/routing';
@@ -150,6 +151,7 @@ export default async function LocaleLayout({ children, dialog, params }: Props) 
       className={`${fontHeadlines.variable} ${fontBody.variable} ${fontHeadlines.className} ${fontBody.className}`}
     >
       <body className="flex h-full flex-col font-body has-[.search]:overflow-hidden">
+        <SiteThemeStyle siteCode={siteCode} />
         <AuthSessionProvider>
           <SiteProvider siteCode={siteCode}>
             <NextIntlClientProvider locale={locale}>

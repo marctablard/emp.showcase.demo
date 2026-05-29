@@ -21,6 +21,11 @@
  * enumerates "local-JSON, Storyblok, or none") does not trip a false positive.
  */
 
+// `export {}` makes this file a module so its top-level `const`s are
+// file-scoped, not globals (sibling `*.drift.test.ts` files declare the same
+// `fs`/`path`/`stripComments`/`readCode` names at global script scope).
+export {};
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- test-time source-text inspection
 const fs = require('node:fs');
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- test-time source-text inspection

@@ -10,7 +10,7 @@
  *   never see this fallback, the facade does.
  */
 import type { ComponentType, HTMLAttributes } from 'react';
-import type { CMSComponent, CMSNavigation, CMSNoResult, CMSPage } from '../../model/cms';
+import type { CMSComponent, CMSLayout, CMSNavigation, CMSNoResult, CMSPage } from '../../model/cms';
 import type { CmsAdapter } from '../CmsAdapter';
 import { DelegatingCmsServiceSSR } from './DelegatingCmsServiceSSR';
 
@@ -19,6 +19,11 @@ const SAMPLE_PAGE: CMSPage = {
   description: 'Landing',
   url: '/',
   components: [],
+};
+const SAMPLE_LAYOUT: CMSLayout = {
+  id: 'layout-1',
+  type: 'layout',
+  body: [{ id: 'slot-1', type: 'content-slot' }],
 };
 const SAMPLE_NAV: CMSNavigation = { items: [{ title: 'Shop', href: '/shop' }] };
 const SAMPLE_COMPONENT: CMSComponent = {
@@ -33,6 +38,7 @@ function buildAdapter(overrides: Partial<CmsAdapter> = {}): jest.Mocked<CmsAdapt
     id: 'none',
     hasContent: jest.fn(() => true),
     getPage: jest.fn(async () => SAMPLE_PAGE),
+    getLayout: jest.fn(async () => SAMPLE_LAYOUT),
     getNavigation: jest.fn(async () => SAMPLE_NAV),
     ...overrides,
   };

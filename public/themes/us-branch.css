@@ -1,0 +1,10 @@
+/*
+ * Per-site theme — `us-branch`.
+ *
+ * See `main.css` for the cascade rationale. Overrides only the action
+ * surface tokens to give the US branch a distinct accent.
+ */
+:root {
+  --color-surface-action: #b91c1c;
+  --color-surface-action-hover: #991b1b;
+}

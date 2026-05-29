@@ -2,7 +2,7 @@ import { BlockTypes, type ISbStoryData, MarkTypes, type StoryblokRichTextNode, T
 import 'server-only';
 import type { RichtextBlock, RichtextData, RichtextInline } from '@/components/cms/richtext/schema';
 import { injectable } from '@/platform/core/di/injectable';
-import type { CMSComponent, CMSPage } from '@/platform/services/model/cms';
+import type { CMSComponent, CMSLayout, CMSPage } from '@/platform/services/model/cms';
 
 type RichtextTextInline = Extract<RichtextInline, { kind: 'text' }>;
 
@@ -45,6 +45,17 @@ export class StoryblokCmsMapper {
       url: story?.full_slug ?? story?.slug ?? '',
       no_margin: content.no_margin === true ? true : undefined,
       components: body.map((blok) => this.mapComponent(blok)),
+    };
+  }
+
+  mapLayout(story: ISbStoryData): CMSLayout {
+    const content = (story?.content ?? {}) as Record<string, unknown>;
+    const body = Array.isArray(content.body) ? (content.body as Array<Record<string, unknown>>) : [];
+
+    return {
+      id: typeof story?.uuid === 'string' ? story.uuid : (story?.slug ?? 'layout'),
+      type: 'layout',
+      body: body.map((blok) => this.mapComponent(blok)),
     };
   }
 
