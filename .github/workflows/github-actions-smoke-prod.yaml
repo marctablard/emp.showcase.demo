@@ -10,14 +10,28 @@
 #   - `scripts/smoke-prod.sh` self-skips with exit 0 when the Tier-1 Emporix
 #     credentials are absent (a runner without secrets never goes red), and
 #   - the smoke step is `continue-on-error: true`, so even a hard failure
-#     surfaces as a signal without blocking a merge.
+#     surfaces as a signal without blocking a merge — but a follow-up step
+#     turns that failure into a visible `::warning` annotation + job summary,
+#     so a non-blocking red is never an invisible green tick.
+#
+# Triggers: the integration MR for this work lives on Gitea
+# (feature/SHOW-323 → feature/SHOW-323-target), which GitHub Actions cannot
+# observe as a `pull_request` event. So the lane ALSO runs on `push` to the
+# feature branches (fired from the GitHub mirror) — that is what gives the
+# production-build smoke real coverage for this work, independent of any
+# GitHub PR. The `pull_request`/`workflow_dispatch` triggers are kept for the
+# normal GitHub-native flow.
 
 name: Smoke (production build)
 
 on:
+  push:
+    branches:
+      - 'feature/**'
   pull_request:
     branches:
       - develop
+      - 'feature/SHOW-323-target'
   workflow_dispatch:
 
 concurrency:
@@ -55,5 +69,20 @@ jobs:
         continue-on-error: true
         run: vercel env pull .env --environment=preview --yes --token=${{ secrets.VERCEL_TOKEN }}
       - name: Run production-build smoke
+        id: smoke
         continue-on-error: true
         run: npm run smoke:prod
+      # Visibility signal: `continue-on-error` keeps the smoke non-blocking
+      # (AC #4), but on its own a failure would surface as a green tick. Turn a
+      # failed smoke into a `::warning` annotation and a job-summary line so the
+      # red is visible without blocking the merge. A skip (missing credentials)
+      # exits 0, so this only fires on a genuine build/boot/serve failure.
+      - name: Surface smoke failure (non-blocking)
+        if: steps.smoke.outcome == 'failure'
+        run: |
+          echo "::warning title=Production-build smoke failed::npm run smoke:prod did not pass (non-blocking — see the 'Run production-build smoke' step log)."
+          {
+            echo "### ⚠️ Production-build smoke failed (non-blocking)"
+            echo ""
+            echo "\`npm run smoke:prod\` returned a non-zero exit. This does not block the merge, but the production bundle did not build/boot/serve cleanly — review the **Run production-build smoke** step log."
+          } >> "$GITHUB_STEP_SUMMARY"

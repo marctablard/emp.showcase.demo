@@ -251,6 +251,11 @@ const customJestConfig = {
       displayName: 'Library Tests',
       testEnvironment: 'node',
       testMatch: [
+        // Server bootstrap hook lives at the src/ root (Next.js fixes its
+        // location), so it matches none of the directory-scoped patterns
+        // above. Pin it explicitly here — node env + tsconfig transform fit a
+        // server-only boot test — so it can never become a silent skip.
+        '**/src/instrumentation.test.ts',
         '**/lib/**/?(*.)+(spec|test).ts?(x)',
         '**/stores/**/?(*.)+(spec|test).ts?(x)',
         '**/app/api/**/?(*.)+(spec|test).ts?(x)',

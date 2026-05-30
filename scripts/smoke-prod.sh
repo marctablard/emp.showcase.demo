@@ -49,8 +49,11 @@ if [[ -f .env ]]; then
 fi
 
 # --- Credential guard ---------------------------------------------------------
-# Mirror the error-severity keys in src/platform/healthcheck/env-validation.ts.
-# Any one missing ⇒ the build would hard-fail, so skip non-blocking instead.
+# Mirror EVERY error-severity key in REQUIRED_ENV_VARS
+# (src/platform/healthcheck/env-validation.ts) — this list must stay in
+# lock-step with it. Any one missing ⇒ validateEnvVars() reports hasErrors and
+# `next build` hard-fails, so a partial mirror would let the build go red while
+# the guard wrongly proceeded. Skip non-blocking instead.
 REQUIRED_ENV=(
   NEXT_PUBLIC_EMPORIX_BASE_URL
   NEXT_PUBLIC_EMPORIX_TENANT
@@ -61,6 +64,8 @@ REQUIRED_ENV=(
   NEXT_PUBLIC_DEFAULT_LANGUAGE
   NEXT_PUBLIC_DEFAULT_COUNTRY
   NEXT_PUBLIC_DEFAULT_REGION
+  NEXT_PUBLIC_EMPORIX_DEFAULT_UNIT_CODE
+  NEXT_PUBLIC_AVAILABLE_SITES
 )
 
 missing=()
