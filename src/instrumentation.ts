@@ -33,26 +33,15 @@ export async function register() {
     // Bind the active CmsAdapter alias on both server- and ssr-side containers.
     // `CmsAdapter:<id>` implementations declare themselves via @injectable; this
     // step decides which one `CmsAdapter` resolves to at runtime, driven by env.
-    // Symmetric to `getCmsService()` (the render-graph lazy-bind helper): if the
-    // env-resolved target isn't bound on this container instance, fall back to
-    // `CmsAdapter:none` so the container still resolves a CMSService rather than
-    // throwing later when something asks for it.
+    // The alias-vs-composite decision (incl. the optional default-content
+    // fallback wrap and the `CmsAdapter:none` degrade-path) lives in the shared
+    // `bindActiveCmsAdapter` helper — the same one `getCmsService()` uses on the
+    // render graph — so the binding stays symmetric across both module graphs
+    // (see ADR 0001).
     const ssr = await import('@/platform/ssr');
-    const { resolveCmsProvider } = await import('@/platform/services/cms/CmsProviderResolver');
-    const providerId = resolveCmsProvider(process.env);
-    const cmsAdapterTarget = `CmsAdapter:${providerId}`;
+    const { bindActiveCmsAdapter } = await import('@/platform/services/cms/bind-active-cms-adapter');
     for (const c of [server.default, ssr.default]) {
-      const effectiveTarget = c.isBound(cmsAdapterTarget) ? cmsAdapterTarget : 'CmsAdapter:none';
-      if (effectiveTarget !== cmsAdapterTarget) {
-        logger.warn(
-          { providerId, cmsAdapterTarget, fallback: effectiveTarget },
-          'CMS adapter target not bound — falling back to CmsAdapter:none',
-        );
-      }
-      if (c.isBound('CmsAdapter')) {
-        c.unbind('CmsAdapter');
-      }
-      c.bind('CmsAdapter').toService(effectiveTarget);
+      bindActiveCmsAdapter(c);
     }
 
     // Tier 2: Runtime configuration healthcheck (sites, currencies, languages vs Emporix API)

@@ -1,0 +1,59 @@
+# Production-build smoke (EMP-16 Phase G).
+#
+# Standalone, NON-BLOCKING lane: it runs a real `next build` + `next start` and
+# asserts the running app is serviceable (`npm run smoke:prod` — /api/health 200
+# + home route non-5xx). It is deliberately NOT wired into the deploy pipelines —
+# those build inside Vercel, so adding a build step there would double-build.
+# This lane owns the production-bundle boot smoke on its own.
+#
+# Non-blocking by design:
+#   - `scripts/smoke-prod.sh` self-skips with exit 0 when the Tier-1 Emporix
+#     credentials are absent (a runner without secrets never goes red), and
+#   - the smoke step is `continue-on-error: true`, so even a hard failure
+#     surfaces as a signal without blocking a merge.
+
+name: Smoke (production build)
+
+on:
+  pull_request:
+    branches:
+      - develop
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke_prod:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      - name: Align npm with packageManager
+        run: npm install -g "$(node -p 'const packageManager = require("./package.json").packageManager; if (!packageManager?.startsWith("npm@")) throw new Error("Expected packageManager to start with npm@"); packageManager')"
+      - name: Setup safe-chain
+        run: |
+          npm i -g @aikidosec/safe-chain
+          safe-chain setup-ci
+      - name: Install Vercel CLI
+        run: npm i -g vercel
+      - name: Install dependencies
+        run: npm ci
+      # The smoke pulls its full runtime config (the NEXT_PUBLIC_EMPORIX_* /
+      # NEXTAUTH_SECRET / NEXT_PUBLIC_DEFAULT_* keys that env-validation requires)
+      # from the Vercel preview environment into `.env`. `scripts/smoke-prod.sh`
+      # sources that `.env` before its credential guard, so the guard, the build
+      # and `next start` all read the same source. If the pull yields no
+      # credentials, the script self-skips (exit 0) — non-blocking by design.
+      - name: Pull Vercel environment information
+        continue-on-error: true
+        run: vercel env pull .env --environment=preview --yes --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Run production-build smoke
+        continue-on-error: true
+        run: npm run smoke:prod

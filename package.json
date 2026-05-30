@@ -23,6 +23,7 @@
     "start": "next start",
     "lint": "eslint",
     "verify:client-chunks": "node scripts/verify-client-chunks.mjs",
+    "smoke:prod": "bash scripts/smoke-prod.sh",
     "test": "npm-run-all --parallel jest e2e",
     "jest": "node scripts/run-jest.cjs --runInBand",
     "jest:watch": "node scripts/run-jest.cjs --watch",

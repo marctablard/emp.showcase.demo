@@ -4,7 +4,7 @@
  *
  * Tier: Platform tests (Jest `Platform Tests` project, node env).
  */
-import { CMS_PROVIDER_IDS, resolveCmsProvider } from './CmsProviderResolver';
+import { CMS_PROVIDER_IDS, resolveCmsFallbackProvider, resolveCmsProvider } from './CmsProviderResolver';
 
 function buildEnv(partial: Partial<NodeJS.ProcessEnv>): NodeJS.ProcessEnv {
   // Start from an empty env so each row in the matrix is hermetic.
@@ -98,5 +98,83 @@ describe('resolveCmsProvider', () => {
         expect(resolveCmsProvider(env)).toBe(id);
       }
     });
+  });
+});
+
+/**
+ * `resolveCmsFallbackProvider` reads `NEXT_PUBLIC_CMS_FALLBACK_PROVIDER` and
+ * decides whether a default-content fallback layer is wired beneath the
+ * active primary provider (EMP-16 Phase G).
+ *
+ * Resolution rules pinned below:
+ * - Unset / empty / whitespace-only → `null` (no composite layer).
+ * - `'mock'` is an alias for `'local'` (the local-JSON adapter id).
+ * - `'local'` → `'local'`.
+ * - A value equal to the resolved active primary provider → `null`
+ *   (self-wrap guard: a provider must never fall back onto itself).
+ * - Any unknown value → `null` (strict: unknown is treated as "no fallback",
+ *   NOT auto-resolved to a default).
+ */
+describe('resolveCmsFallbackProvider', () => {
+  it('returns null when NEXT_PUBLIC_CMS_FALLBACK_PROVIDER is unset', () => {
+    const env = buildEnv({});
+
+    expect(resolveCmsFallbackProvider(env)).toBeNull();
+  });
+
+  it('returns null for an empty value', () => {
+    const env = buildEnv({ NEXT_PUBLIC_CMS_FALLBACK_PROVIDER: '' });
+
+    expect(resolveCmsFallbackProvider(env)).toBeNull();
+  });
+
+  it('returns null for a whitespace-only value', () => {
+    const env = buildEnv({ NEXT_PUBLIC_CMS_FALLBACK_PROVIDER: '   ' });
+
+    expect(resolveCmsFallbackProvider(env)).toBeNull();
+  });
+
+  it('aliases "mock" to the local provider', () => {
+    const env = buildEnv({ NEXT_PUBLIC_CMS_FALLBACK_PROVIDER: 'mock' });
+
+    expect(resolveCmsFallbackProvider(env)).toBe('local');
+  });
+
+  it('resolves "local" to the local provider', () => {
+    const env = buildEnv({ NEXT_PUBLIC_CMS_FALLBACK_PROVIDER: 'local' });
+
+    expect(resolveCmsFallbackProvider(env)).toBe('local');
+  });
+
+  it('returns null when the fallback equals the active primary provider (self-wrap guard)', () => {
+    // Primary resolves to "local"; a "local" fallback would wrap a provider
+    // onto itself — disallowed.
+    const env = buildEnv({
+      NEXT_PUBLIC_CMS_PROVIDER: 'local',
+      NEXT_PUBLIC_CMS_FALLBACK_PROVIDER: 'local',
+    });
+
+    expect(resolveCmsProvider(env)).toBe('local');
+    expect(resolveCmsFallbackProvider(env)).toBeNull();
+  });
+
+  it('returns null for an unknown fallback value (strict, no auto-resolution)', () => {
+    const env = buildEnv({ NEXT_PUBLIC_CMS_FALLBACK_PROVIDER: 'wordpress' });
+
+    expect(resolveCmsFallbackProvider(env)).toBeNull();
+  });
+
+  it('uses `process.env` when no env argument is supplied', () => {
+    const original = process.env.NEXT_PUBLIC_CMS_FALLBACK_PROVIDER;
+    process.env.NEXT_PUBLIC_CMS_FALLBACK_PROVIDER = 'local';
+    try {
+      expect(resolveCmsFallbackProvider()).toBe('local');
+    } finally {
+      if (original === undefined) {
+        delete process.env.NEXT_PUBLIC_CMS_FALLBACK_PROVIDER;
+      } else {
+        process.env.NEXT_PUBLIC_CMS_FALLBACK_PROVIDER = original;
+      }
+    }
   });
 });

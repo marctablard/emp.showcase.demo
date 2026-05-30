@@ -1,6 +1,6 @@
 import 'server-only';
 import type { CMSService } from './CMSService';
-import { resolveCmsProvider } from './CmsProviderResolver';
+import { bindActiveCmsAdapter } from './bind-active-cms-adapter';
 
 /**
  * SSR helper: returns the active `CMSService` after guaranteeing that the
@@ -24,10 +24,11 @@ import { resolveCmsProvider } from './CmsProviderResolver';
  * alias-binding is kept as the server-container / Route-Handler path; this
  * helper is the render-path safety net. See ADR 0001.
  *
- * When the env-resolved target (`CmsAdapter:<id>`) is itself not bound on this
- * container instance, the helper falls back to `CmsAdapter:none`
- * (`NullCmsAdapter`) so the app still boots on a partially-configured
- * container.
+ * The alias/composite decision itself is owned by `bindActiveCmsAdapter`
+ * (the same helper `instrumentation.ts` uses), so the optional default-content
+ * fallback composite and the `CmsAdapter:none` degrade-path apply identically
+ * on the render graph and at boot — the wrap can never be present on one graph
+ * but lost on the other.
  *
  * This module is `import 'server-only'` because it touches the SSR container,
  * so it must never be called from a Client Component or from a module that
@@ -43,8 +44,7 @@ export async function getCmsService(): Promise<CMSService> {
   const container = (await import('@/platform/ssr')).default;
 
   if (!container.isBound('CmsAdapter')) {
-    const target = `CmsAdapter:${resolveCmsProvider(process.env)}`;
-    container.bind('CmsAdapter').toService(container.isBound(target) ? target : 'CmsAdapter:none');
+    bindActiveCmsAdapter(container);
   }
 
   return container.get<CMSService>('CMSService');

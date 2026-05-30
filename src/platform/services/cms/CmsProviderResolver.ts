@@ -45,3 +45,42 @@ export function resolveCmsProvider(env: NodeJS.ProcessEnv = process.env): CmsPro
   }
   return 'none';
 }
+
+/**
+ * Resolves the default-content fallback source provider from
+ * `NEXT_PUBLIC_CMS_FALLBACK_PROVIDER`, or `null` when no composite fallback
+ * layer should be wired (EMP-16 Phase G).
+ *
+ * Resolution rules:
+ * - Unset / empty / whitespace-only → `null` (composite layer is transparently
+ *   absent — the active primary binds directly).
+ * - `'mock'` is a backwards-compat alias for `'local'` (the local-JSON adapter
+ *   that serves the version-controlled `_default_` showcase tree).
+ * - A known provider id (`'local'`, ...) resolves to itself.
+ * - A value equal to the resolved active primary provider → `null`
+ *   (self-wrap guard: a provider must never fall back onto itself).
+ * - Any unknown value → `null` (strict: unknown is NOT auto-resolved to a
+ *   default — an opt-in fallback must name a real source).
+ *
+ * The resolved id is used by `bindActiveCmsAdapter` to wrap the active
+ * `CmsAdapter` in a `FallbackCmsAdapter` composite.
+ */
+export function resolveCmsFallbackProvider(env: NodeJS.ProcessEnv = process.env): CmsProviderId | null {
+  const raw = env.NEXT_PUBLIC_CMS_FALLBACK_PROVIDER?.trim() ?? '';
+  if (!raw) {
+    return null;
+  }
+
+  const resolved = raw === 'mock' ? 'local' : raw;
+  if (!isCmsProviderId(resolved)) {
+    return null;
+  }
+
+  // Self-wrap guard: a fallback that equals the active primary is pointless
+  // and would double the same adapter — treat as "no fallback".
+  if (resolved === resolveCmsProvider(env)) {
+    return null;
+  }
+
+  return resolved;
+}

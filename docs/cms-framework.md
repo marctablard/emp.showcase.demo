@@ -151,7 +151,37 @@ Resolution rules:
 
 `instrumentation.ts` uses the resolved id to alias-bind
 `CmsAdapter -> CmsAdapter:<id>` at bootstrap; `getCmsService()` re-establishes
-that alias on the render-graph container when needed (see above).
+that alias on the render-graph container when needed (see above). Both delegate
+the actual bind decision to the shared server-only helper
+`bindActiveCmsAdapter(container, env)`, so the alias-vs-composite choice (next
+section) is identical on both module graphs.
+
+## Default-content fallback (composite adapter)
+
+A fresh clone whose primary CMS space is still empty would render a blank
+shell. The opt-in **composite fallback** wraps the active provider so that a
+`{ notfound: true }` from the primary falls back to a default-content source —
+the version-controlled showcase tree under `data/cms/_default_`, served by the
+local-JSON adapter.
+
+- Enabled by `NEXT_PUBLIC_CMS_FALLBACK_PROVIDER`. Values: `mock` (alias for
+  `local`) | `local` | empty. `resolveCmsFallbackProvider(env)` resolves it to a
+  source provider id or `null`. Empty / whitespace / unknown values, and any
+  value equal to the active primary (self-wrap guard), resolve to `null`.
+- When `null`, the composite layer is **transparently absent**: the primary
+  binds directly, behaviour is identical to having no fallback.
+- When a source is resolved and its `CmsAdapter:<id>` target is bound,
+  `bindActiveCmsAdapter` binds `CmsAdapter` to a `FallbackCmsAdapter` instance
+  (`new`-ed and bound via `toConstantValue`, not `@injectable` — see ADR 0001).
+- `FallbackCmsAdapter` queries the fallback source against the fixed
+  `_default_` site (from `getPublicCmsLocalDefaultSite()`), regardless of the
+  caller's `site` hint. Its optional surface (`getEditableProps` /
+  `BridgeScript` / webhook primitives) mirrors the **primary only** — the
+  fallback's optional surface is never invoked, so webhook events never
+  double-fire.
+
+`.env.template` ships `NEXT_PUBLIC_CMS_FALLBACK_PROVIDER=mock` so a fresh clone
+sees the showcase out of the box; production deployments can clear it.
 
 ## How to add a new CMS provider
 
