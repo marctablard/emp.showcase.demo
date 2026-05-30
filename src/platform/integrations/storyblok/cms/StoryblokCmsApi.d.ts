@@ -22,6 +22,15 @@ export interface StoryblokCmsApi {
   hasToken(): boolean;
 
   /**
+   * Returns the configured Storyblok space id (from
+   * `NEXT_PUBLIC_STORYBLOK_SPACE_ID`, trimmed), or `null` when unset / blank.
+   * The preview adapter compares it against the signed
+   * `_storyblok_tk[space_id]`; a `null` here means the adapter SKIPS that
+   * check (documented residual risk, FU-004).
+   */
+  getSpaceId(): string | null;
+
+  /**
    * Fetches a single story by slug. Resolves to the raw SDK payload on
    * success, or `null` when there is no token, the SDK throws, or the
    * response carries no `data.story`. Never rejects.

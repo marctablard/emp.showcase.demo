@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { routing as intlRouting } from '@/i18n/routing';
 import { getPublicDefaultLanguage } from '@/lib/common/public-default-env';
 import { edgeLog } from '@/lib/server/edge-stderr-log';
+import { PREVIEW_ROUTE_PREFIX, getPreviewDetector } from '@/platform/services/cms/preview/preview-detector-registry';
 import {
   INTERNAL_APP_PATH_HEADER,
   INTERNAL_SITE_HEADER,
@@ -166,6 +167,19 @@ const withCookies = function (
 export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
   return (req: NextRequest) => {
     const path = req.nextUrl.pathname;
+
+    // Preview routes carry their own `/preview/[site]/[locale]/...` — never
+    // site-rewrite them. The edge-safe detector flags genuine preview requests
+    // so caching is skipped; everything Storyblok-specific stays out of the
+    // Edge bundle (the registry imports only the pure detection module).
+    if (path.startsWith(PREVIEW_ROUTE_PREFIX)) {
+      const isPreview = getPreviewDetector(process.env).isPreviewRequest(req.nextUrl);
+      const res = NextResponse.next();
+      if (isPreview) {
+        res.headers.set('cache-control', 'no-store');
+      }
+      return res;
+    }
 
     // Only protect the expensive "main routes"
     if (path === '/' || /^\/[^/]+\/[^/]+$/.test(path)) {

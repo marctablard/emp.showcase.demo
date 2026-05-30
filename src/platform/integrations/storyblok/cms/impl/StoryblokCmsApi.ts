@@ -26,6 +26,10 @@ export class StoryblokCmsApi implements StoryblokCmsApiContract {
     return this.token().length > 0;
   }
 
+  getSpaceId(): string | null {
+    return process.env.NEXT_PUBLIC_STORYBLOK_SPACE_ID?.trim() || null;
+  }
+
   async getStory(
     slug: string,
     locale: string,

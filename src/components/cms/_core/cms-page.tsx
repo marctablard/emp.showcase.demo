@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getCmsService } from '@/platform/services/cms/get-cms-service';
 import type { CMSComponent } from '../component-schema';
+import { CmsBodyFrame } from './cms-page-frame';
 import { CmsRenderer } from './cms-renderer';
 
 interface CmsPageProps {
@@ -31,7 +32,7 @@ export default async function CmsPage({ slug, locale, site, emptyOnNoResult }: C
 
   if ('notfound' in page && page.notfound) {
     if (emptyOnNoResult) {
-      return <div className="flex-grow mt-17 sm:mt-36 md:mt-52" />;
+      return <CmsBodyFrame />;
     }
     notFound();
   }
@@ -49,10 +50,10 @@ export default async function CmsPage({ slug, locale, site, emptyOnNoResult }: C
 
   // No layout: render the page body directly (backward-compatible path).
   return (
-    <div className={page.no_margin ? '' : 'flex-grow mt-17 sm:mt-36 md:mt-52'}>
+    <CmsBodyFrame noMargin={page.no_margin}>
       {page.components.map((component) => (
         <CmsRenderer key={component.id} component={component} />
       ))}
-    </div>
+    </CmsBodyFrame>
   );
 }
