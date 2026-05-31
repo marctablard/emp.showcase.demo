@@ -63,7 +63,7 @@ function previewUrl(overrides: Partial<Record<string, string>> = {}, omit: strin
     [STORYBLOK_KEY]: '',
     [TIMESTAMP_KEY]: String(nowSeconds()),
     [TOKEN_KEY]: 'irrelevant-hmac-token-content-not-validated',
-    [SPACE_ID_KEY]: '295018',
+    [SPACE_ID_KEY]: '338074',
   };
   const merged: Record<string, string | undefined> = { ...base, ...overrides };
   const params = new URLSearchParams();
@@ -107,8 +107,12 @@ test.describe('preview route — storyblok rejection states → 404', () => {
   );
 
   // The dummy space id the harness configured (NEXT_PUBLIC_STORYBLOK_SPACE_ID).
-  // State 5 sends a guaranteed-different value so the mismatch branch fires.
-  const configuredSpaceId = (process.env.E2E_PREVIEW_SPACE_ID ?? '295018').trim();
+  // Default matches the real Emporix-Showcase Storyblok space (verified via
+  // `https://api.storyblok.com/v2/cdn/spaces/me?token=<demo-token>` → 338074),
+  // so a STEP-3 run that boots with the repo demo token doesn't need to
+  // re-configure this. State 5 still sends a guaranteed-different value so the
+  // mismatch branch fires.
+  const configuredSpaceId = (process.env.E2E_PREVIEW_SPACE_ID ?? '338074').trim();
 
   test('state 1 — no signed params → detector rejects → 404', async ({ page }) => {
     const response = await page.goto(PREVIEW_PATH);
