@@ -132,6 +132,16 @@ describe('getStoryblokBridgeConfig — referer access check', () => {
     await expect(getStoryblokBridgeConfig()).resolves.toBeNull();
     expect(mockLoggerWarn).toHaveBeenCalledTimes(1);
   });
+
+  it('returns null and warn-logs when the referer is not a parsable URL', async () => {
+    process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN = 'tk-bridge';
+    mockHeadersGet.mockImplementation((name) => (name === 'referer' ? 'not-a-url' : null));
+
+    const getStoryblokBridgeConfig = await loadAction();
+
+    await expect(getStoryblokBridgeConfig()).resolves.toBeNull();
+    expect(mockLoggerWarn).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('getStoryblokBridgeConfig — allowed callers', () => {

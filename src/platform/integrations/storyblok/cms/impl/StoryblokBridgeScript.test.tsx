@@ -99,6 +99,31 @@ describe('StoryblokBridgeScript — bridge bootstrap via server action', () => {
 
     expect(mockStoryblokInit).not.toHaveBeenCalled();
   });
+
+  it('does NOT call storyblokInit when component unmounts before getStoryblokBridgeConfig resolves', async () => {
+    // Deferred promise: the action stays pending until we explicitly resolve
+    // it after unmount. This pins the in-flight `cancelled` guard in the
+    // component's effect — without it, the resolved config would still drive
+    // the bridge bootstrap on a torn-down component.
+    let resolveAction: (value: { accessToken: string } | null) => void = () => {};
+    const pending = new Promise<{ accessToken: string } | null>((resolve) => {
+      resolveAction = resolve;
+    });
+    mockGetStoryblokBridgeConfig.mockReturnValueOnce(pending);
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- defer module-load to after mock setup
+    const { StoryblokBridgeScript } = require('./StoryblokBridgeScript');
+
+    const { unmount } = render(createElement(StoryblokBridgeScript));
+    unmount();
+
+    await act(async () => {
+      resolveAction({ accessToken: 'tk-bridge' });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockStoryblokInit).not.toHaveBeenCalled();
+  });
 });
 
 describe('StoryblokBridgeScript — render contract', () => {
