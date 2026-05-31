@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocale } from 'next-intl';
-import type { ISbStoriesParams, StoryblokClient } from '@storyblok/react/rsc';
+import { fetchTopBanner } from '@/app/_actions/cms-banner';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { useBannerStore } from '@/stores/banner-store';
-import { getStoryblokApi } from './storyblok-banner-api';
 
 interface TopBannerAnnouncementContent {
   title: string;
@@ -28,8 +27,15 @@ interface UseBannerResult {
 }
 
 /**
- * Hook for fetching and managing banner data
- * Uses the BannerStore to share data between components
+ * Hook for fetching and managing banner data.
+ *
+ * The Storyblok access token never lives in the browser bundle: the fetch
+ * is delegated to the `fetchTopBanner` server action, which reads the env
+ * server-side and hands the resolved story payload back across the wire.
+ * When the action resolves `null` (no token configured / blank token /
+ * defensive null), the hook settles with `data: null` and no error.
+ *
+ * Uses the `BannerStore` to share data between components.
  */
 export function useBanner(): UseBannerResult {
   const locale = useLocale();
@@ -49,28 +55,20 @@ export function useBanner(): UseBannerResult {
       try {
         setIsLoading(true);
 
-        // Without a configured Storyblok client (token unset) the API
-        // accessor returns null. Treat this as "no banner configured" —
-        // no fetch, no error, just settle.
-        const storyblokApi: StoryblokClient | null = getStoryblokApi();
-        if (!storyblokApi) {
-          if (isMounted) {
-            setIsLoading(false);
-          }
+        const payload = await fetchTopBanner({ locale });
+
+        if (!isMounted) {
           return;
         }
 
-        const sbParams: ISbStoriesParams = {
-          version: process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW === 'true' ? 'draft' : 'published',
-          language: locale,
-        };
-
-        const response = await storyblokApi.get('cdn/stories/top-banner-announcement', sbParams);
-
-        if (isMounted) {
-          setData(response.data);
+        if (payload === null) {
+          // No banner configured (token unset) or defensive null — settle quietly.
           setIsLoading(false);
+          return;
         }
+
+        setData(payload as BannerData);
+        setIsLoading(false);
       } catch (err) {
         if (isMounted) {
           getLogger().error({ err }, 'Error fetching banner data');

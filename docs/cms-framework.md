@@ -144,7 +144,7 @@ Resolution rules:
 
 - If `NEXT_CMS_PROVIDER` is explicitly set to one of the known ids
   (after trimming), that value wins.
-- Otherwise auto-resolve: if `NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN` is non-empty,
+- Otherwise auto-resolve: if `NEXT_STORYBLOK_ACCESS_TOKEN` is non-empty,
   return `storyblok`; else return `none`.
 - Unknown or whitespace-only `NEXT_CMS_PROVIDER` values are treated as
   unset and fall through to auto-resolution.

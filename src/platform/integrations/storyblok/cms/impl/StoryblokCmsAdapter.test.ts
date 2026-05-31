@@ -77,13 +77,13 @@ const storyResult = (content: Record<string, unknown> = { body: [] }): Storyblok
     },
   }) as unknown as StoryblokStoryResult;
 
-const originalToken = process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN;
+const originalToken = process.env.NEXT_STORYBLOK_ACCESS_TOKEN;
 
 afterAll(() => {
   if (originalToken === undefined) {
-    delete process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN;
+    delete process.env.NEXT_STORYBLOK_ACCESS_TOKEN;
   } else {
-    process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN = originalToken;
+    process.env.NEXT_STORYBLOK_ACCESS_TOKEN = originalToken;
   }
 });
 

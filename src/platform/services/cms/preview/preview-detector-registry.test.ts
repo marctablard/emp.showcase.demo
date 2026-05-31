@@ -33,7 +33,7 @@ describe('getPreviewDetector — provider dispatch', () => {
   });
 
   it('returns the Storyblok detector when a token is present (auto-resolution)', () => {
-    const detector = getPreviewDetector({ NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN: 'tk-1' } as unknown as NodeJS.ProcessEnv);
+    const detector = getPreviewDetector({ NEXT_STORYBLOK_ACCESS_TOKEN: 'tk-1' } as unknown as NodeJS.ProcessEnv);
 
     expect(detector.id).toBe('storyblok');
   });

@@ -17,7 +17,7 @@
  *    given. Pinned against the legacy `storyblok-cms-page.tsx#fetchData`
  *    branch.
  *  - Version: env-driven preview resolution mirrors the legacy bridge —
- *    `NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW === 'true'` selects `draft`,
+ *    `NEXT_STORYBLOK_ACCESS_PREVIEW === 'true'` selects `draft`,
  *    otherwise `published`. The resolved `language` comes from the locale
  *    argument.
  *  - Error path: SDK throws → `null` (no rethrow); SDK returns a payload
@@ -47,17 +47,13 @@ const silentLogger = (): jest.Mocked<LoggerService> =>
     fatal: jest.fn(),
   }) as unknown as jest.Mocked<LoggerService>;
 
-const ENV_KEYS = [
-  'NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN',
-  'NEXT_STORYBLOK_MULTI_SITE',
-  'NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW',
-] as const;
+const ENV_KEYS = ['NEXT_STORYBLOK_ACCESS_TOKEN', 'NEXT_STORYBLOK_MULTI_SITE', 'NEXT_STORYBLOK_ACCESS_PREVIEW'] as const;
 
 function snapshotEnv(): Record<(typeof ENV_KEYS)[number], string | undefined> {
   return {
-    NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN: process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN,
+    NEXT_STORYBLOK_ACCESS_TOKEN: process.env.NEXT_STORYBLOK_ACCESS_TOKEN,
     NEXT_STORYBLOK_MULTI_SITE: process.env.NEXT_STORYBLOK_MULTI_SITE,
-    NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW: process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW,
+    NEXT_STORYBLOK_ACCESS_PREVIEW: process.env.NEXT_STORYBLOK_ACCESS_PREVIEW,
   };
 }
 
@@ -88,9 +84,9 @@ describe('StoryblokCmsApi', () => {
     // Return a getStoryblokApi accessor that hands back a fake client.
     mockStoryblokInit.mockImplementation(() => () => ({ getStory: mockGetStory }));
     // Reset env to a clean "no token" baseline so each test is hermetic.
-    delete process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN;
+    delete process.env.NEXT_STORYBLOK_ACCESS_TOKEN;
     delete process.env.NEXT_STORYBLOK_MULTI_SITE;
-    delete process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW;
+    delete process.env.NEXT_STORYBLOK_ACCESS_PREVIEW;
   });
 
   describe('identity & lazy init', () => {
@@ -102,7 +98,7 @@ describe('StoryblokCmsApi', () => {
     });
 
     it('triggers storyblokInit on the first getStory() call with the configured access token', async () => {
-      process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN = 'tk-1';
+      process.env.NEXT_STORYBLOK_ACCESS_TOKEN = 'tk-1';
       mockGetStory.mockResolvedValueOnce({ data: { story: { name: 'Home' } } });
 
       const { StoryblokCmsApi } = await import('./StoryblokCmsApi');
@@ -120,7 +116,7 @@ describe('StoryblokCmsApi', () => {
     });
 
     it('triggers storyblokInit only once across multiple getStory() calls (singleton init)', async () => {
-      process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN = 'tk-2';
+      process.env.NEXT_STORYBLOK_ACCESS_TOKEN = 'tk-2';
       mockGetStory.mockResolvedValue({ data: { story: { name: 'X' } } });
 
       const { StoryblokCmsApi } = await import('./StoryblokCmsApi');
@@ -137,7 +133,7 @@ describe('StoryblokCmsApi', () => {
 
   describe('token guard', () => {
     it('resolves to `null` when the access token is empty or unset', async () => {
-      delete process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN;
+      delete process.env.NEXT_STORYBLOK_ACCESS_TOKEN;
       const { StoryblokCmsApi } = await import('./StoryblokCmsApi');
       const api = new StoryblokCmsApi(silentLogger());
 
@@ -147,7 +143,7 @@ describe('StoryblokCmsApi', () => {
     });
 
     it('does NOT call storyblokInit when there is no token (no module-load crash)', async () => {
-      process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN = '   '; // whitespace-only → treated as empty
+      process.env.NEXT_STORYBLOK_ACCESS_TOKEN = '   '; // whitespace-only → treated as empty
       const { StoryblokCmsApi } = await import('./StoryblokCmsApi');
       const api = new StoryblokCmsApi(silentLogger());
 
@@ -159,7 +155,7 @@ describe('StoryblokCmsApi', () => {
 
   describe('getStory', () => {
     beforeEach(() => {
-      process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN = 'tk-3';
+      process.env.NEXT_STORYBLOK_ACCESS_TOKEN = 'tk-3';
       mockGetStory.mockResolvedValue({ data: { story: { name: 'OK' } } });
     });
 
@@ -194,7 +190,7 @@ describe('StoryblokCmsApi', () => {
     });
 
     it('resolves `version: "published"` for normal visitor traffic (preview env unset)', async () => {
-      delete process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW;
+      delete process.env.NEXT_STORYBLOK_ACCESS_PREVIEW;
       const { StoryblokCmsApi } = await import('./StoryblokCmsApi');
       const api = new StoryblokCmsApi(silentLogger());
 
@@ -207,8 +203,8 @@ describe('StoryblokCmsApi', () => {
       );
     });
 
-    it('resolves `version: "draft"` when NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW is "true"', async () => {
-      process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW = 'true';
+    it('resolves `version: "draft"` when NEXT_STORYBLOK_ACCESS_PREVIEW is "true"', async () => {
+      process.env.NEXT_STORYBLOK_ACCESS_PREVIEW = 'true';
       const { StoryblokCmsApi } = await import('./StoryblokCmsApi');
       const api = new StoryblokCmsApi(silentLogger());
 
@@ -222,7 +218,7 @@ describe('StoryblokCmsApi', () => {
     });
 
     it('honours an explicit `version` argument over the env (layout path stays "published" even with preview ON)', async () => {
-      process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW = 'true';
+      process.env.NEXT_STORYBLOK_ACCESS_PREVIEW = 'true';
       const { StoryblokCmsApi } = await import('./StoryblokCmsApi');
       const api = new StoryblokCmsApi(silentLogger());
 
@@ -289,7 +285,7 @@ describe('StoryblokCmsApi', () => {
     });
 
     it('accepts an injected LoggerService — error path emits a warn-log', async () => {
-      process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN = 'tk-4';
+      process.env.NEXT_STORYBLOK_ACCESS_TOKEN = 'tk-4';
       mockGetStory.mockRejectedValueOnce(new Error('SDK boom'));
       const logger = silentLogger();
       const { StoryblokCmsApi } = await import('./StoryblokCmsApi');

@@ -42,8 +42,7 @@ export class StoryblokCmsApi implements StoryblokCmsApiContract {
     }
 
     const fullSlug = this.resolveSlug(slug, site);
-    const resolvedVersion =
-      version ?? (process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW === 'true' ? 'draft' : 'published');
+    const resolvedVersion = version ?? (process.env.NEXT_STORYBLOK_ACCESS_PREVIEW === 'true' ? 'draft' : 'published');
     const params: ISbStoriesParams = {
       version: resolvedVersion,
       language: locale,
@@ -62,7 +61,7 @@ export class StoryblokCmsApi implements StoryblokCmsApiContract {
   }
 
   private token(): string {
-    return process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN?.trim() ?? '';
+    return process.env.NEXT_STORYBLOK_ACCESS_TOKEN?.trim() ?? '';
   }
 
   private resolveSlug(slug: string, site?: string): string {

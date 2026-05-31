@@ -4,7 +4,7 @@
  * Resolution rules:
  * - When `NEXT_CMS_PROVIDER` is explicitly set to one of the known
  *   provider ids (after trimming), that value wins.
- * - Otherwise auto-resolve: if `NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN` is
+ * - Otherwise auto-resolve: if `NEXT_STORYBLOK_ACCESS_TOKEN` is
  *   non-empty (after trimming), return `'storyblok'`. Else return `'none'`.
  * - Unknown / whitespace-only `NEXT_CMS_PROVIDER` values are treated
  *   as unset (fall through to auto-resolution).
@@ -40,7 +40,7 @@ export function resolveCmsProvider(env: NodeJS.ProcessEnv = process.env): CmsPro
   if (isCmsProviderId(explicit)) {
     return explicit;
   }
-  if (env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN?.trim()) {
+  if (env.NEXT_STORYBLOK_ACCESS_TOKEN?.trim()) {
     return 'storyblok';
   }
   return 'none';

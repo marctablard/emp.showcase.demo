@@ -46,7 +46,7 @@ const getLogger = (): LoggerService => {
  * the action body runs, so a referer-path check is sufficient here.
  */
 export async function getStoryblokBridgeConfig(): Promise<StoryblokBridgeConfig | null> {
-  const accessToken = process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN?.trim();
+  const accessToken = process.env.NEXT_STORYBLOK_ACCESS_TOKEN?.trim();
   if (!accessToken) {
     return null;
   }

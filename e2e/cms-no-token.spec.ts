@@ -1,7 +1,7 @@
 /**
  * E2E proof for **AC #1**: the app must boot, serve the homepage with a 200
  * response, and emit no `access-token`-related console errors when
- * `NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN` is empty.
+ * `NEXT_STORYBLOK_ACCESS_TOKEN` is empty.
  *
  * Mechanic: tester starts `next start` with the token unset and
  * `E2E_CMS_NO_TOKEN=true`. This suite is gated on `E2E_CMS_NO_TOKEN` so it
@@ -17,7 +17,7 @@ import { expect, test } from '@playwright/test';
 test.describe('CMS — no Storyblok token', () => {
   test.skip(
     process.env.E2E_CMS_NO_TOKEN !== 'true',
-    'Set E2E_CMS_NO_TOKEN=true (with NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN unset) to run the AC#1 boot check.',
+    'Set E2E_CMS_NO_TOKEN=true (with NEXT_STORYBLOK_ACCESS_TOKEN unset) to run the AC#1 boot check.',
   );
 
   test('homepage serves a 200 and renders the page shell without Storyblok-token errors', async ({ page }) => {

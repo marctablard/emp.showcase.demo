@@ -20,7 +20,7 @@ describe('resolveCmsProvider', () => {
     });
 
     it('picks "storyblok" when only the Storyblok token is set', () => {
-      const env = buildEnv({ NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN: 'abc' });
+      const env = buildEnv({ NEXT_STORYBLOK_ACCESS_TOKEN: 'abc' });
 
       expect(resolveCmsProvider(env)).toBe('storyblok');
     });
@@ -42,7 +42,7 @@ describe('resolveCmsProvider', () => {
     it('honors NEXT_CMS_PROVIDER="none" even when a Storyblok token is present (explicit > auto)', () => {
       const env = buildEnv({
         NEXT_CMS_PROVIDER: 'none',
-        NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN: 'abc',
+        NEXT_STORYBLOK_ACCESS_TOKEN: 'abc',
       });
 
       expect(resolveCmsProvider(env)).toBe('none');
@@ -69,7 +69,7 @@ describe('resolveCmsProvider', () => {
     });
 
     it('treats a whitespace-only Storyblok token as missing (auto → "none")', () => {
-      const env = buildEnv({ NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN: '   ' });
+      const env = buildEnv({ NEXT_STORYBLOK_ACCESS_TOKEN: '   ' });
 
       expect(resolveCmsProvider(env)).toBe('none');
     });
