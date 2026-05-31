@@ -271,6 +271,11 @@ const customJestConfig = {
         // Per-site theme registry (`src/app/styles/themes`) — pure resolver
         // logic, no DOM; node project keeps it from being a silent skip.
         '**/app/styles/**/?(*.)+(spec|test).ts?(x)',
+        // Server-action modules under `src/app/_actions/` are server-only
+        // (`'use server'` + `'server-only'`). Their tests fit the Library
+        // project's node env + tsconfig transform; without this entry they
+        // match no project and become a silent skip (see `test_orphaned-tests`).
+        '**/app/_actions/**/?(*.)+(spec|test).ts?(x)',
       ],
       setupFilesAfterEnv: ['<rootDir>/jest.platform.setup.js'],
       transform: {

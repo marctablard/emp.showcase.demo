@@ -7,25 +7,29 @@
  *
  * The bridge is the adapter's `BridgeScript` component type: the layout
  * mounts it once (`<BridgeScript />`, standalone, NOT as a children
- * wrapper). It bootstraps the Storyblok bridge SDK when an access token is
- * configured and renders `null` either way — it adds no DOM of its own.
+ * wrapper). It bootstraps the Storyblok bridge SDK only when the server
+ * action `getStoryblokBridgeConfig` resolves a config object — the access
+ * token never reaches the browser bundle. The component itself adds no
+ * DOM of its own.
  *
- * Behaviour pinned here (matches the legacy `StoryblokProvider` token
- * guard):
- *  - With `NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN` set → calls `storyblokInit`
- *    once on mount with `{ accessToken, bridge: true }`.
- *  - Without a token → renders `null`, never calls `storyblokInit` (the
- *    app boots without a Storyblok token).
+ * Behaviour pinned here:
+ *  - `getStoryblokBridgeConfig()` resolves null → no `storyblokInit` call
+ *    (the bridge stays a no-op; the app still boots).
+ *  - `getStoryblokBridgeConfig()` resolves `{ accessToken }` → exactly one
+ *    `storyblokInit({ accessToken, bridge: true })` call.
+ *  - `getStoryblokBridgeConfig()` rejects → no `storyblokInit` call (the
+ *    bridge fails safe and the page keeps rendering).
  *  - Renders `null` regardless — no wrapper DOM node.
  *  - `'use client'` directive remains at the file head.
  */
 import { createElement } from 'react';
 import '@testing-library/jest-dom';
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 const mockStoryblokInit = jest.fn();
+const mockGetStoryblokBridgeConfig = jest.fn();
 
 jest.mock('@storyblok/react/rsc', () => ({
   __esModule: true,
@@ -33,49 +37,48 @@ jest.mock('@storyblok/react/rsc', () => ({
   storyblokInit: (...args: unknown[]) => mockStoryblokInit(...args),
 }));
 
-const originalToken = process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN;
+jest.mock('@/app/_actions/storyblok-bridge', () => ({
+  __esModule: true,
+  getStoryblokBridgeConfig: (...args: unknown[]) => mockGetStoryblokBridgeConfig(...args),
+}));
 
 beforeEach(() => {
   mockStoryblokInit.mockReset();
   mockStoryblokInit.mockImplementation(() => () => ({}));
-  delete process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN;
+  mockGetStoryblokBridgeConfig.mockReset();
+  // Default: the bridge is a no-op. Each test that exercises the init path
+  // explicitly overrides this with mockResolvedValueOnce / mockRejectedValueOnce.
+  mockGetStoryblokBridgeConfig.mockResolvedValue(null);
 });
 
-afterAll(() => {
-  if (originalToken === undefined) {
-    delete process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN;
-  } else {
-    process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN = originalToken;
-  }
-});
-
-describe('StoryblokBridgeScript — token guard', () => {
-  it('renders null and does NOT call storyblokInit when no token is configured', () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports -- defer module-load to after env reset
-    const { StoryblokBridgeScript } = require('./StoryblokBridgeScript');
-
-    const { container } = render(createElement(StoryblokBridgeScript));
-
-    expect(container.firstChild).toBeNull();
-    expect(mockStoryblokInit).not.toHaveBeenCalled();
+async function flushAsyncEffects() {
+  // The component runs the action inside `useEffect`. Wait for the resolved
+  // microtask queue to drain so post-resolution assertions are deterministic.
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
   });
+}
 
-  it('does NOT call storyblokInit for a whitespace-only token', () => {
-    process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN = '   ';
-    // eslint-disable-next-line @typescript-eslint/no-require-imports -- defer module-load to after env reset
+describe('StoryblokBridgeScript — bridge bootstrap via server action', () => {
+  it('does NOT call storyblokInit when getStoryblokBridgeConfig() resolves null', async () => {
+    mockGetStoryblokBridgeConfig.mockResolvedValueOnce(null);
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- defer module-load to after mock setup
     const { StoryblokBridgeScript } = require('./StoryblokBridgeScript');
 
     render(createElement(StoryblokBridgeScript));
+    await flushAsyncEffects();
 
     expect(mockStoryblokInit).not.toHaveBeenCalled();
   });
 
-  it('calls storyblokInit once with the configured access token and bridge enabled', () => {
-    process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN = 'tk-bridge';
-    // eslint-disable-next-line @typescript-eslint/no-require-imports -- defer module-load to after env reset
+  it('calls storyblokInit once with the returned accessToken when getStoryblokBridgeConfig() resolves a config', async () => {
+    mockGetStoryblokBridgeConfig.mockResolvedValueOnce({ accessToken: 'tk-bridge' });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- defer module-load to after mock setup
     const { StoryblokBridgeScript } = require('./StoryblokBridgeScript');
 
     render(createElement(StoryblokBridgeScript));
+    await flushAsyncEffects();
 
     expect(mockStoryblokInit).toHaveBeenCalledTimes(1);
     expect(mockStoryblokInit).toHaveBeenCalledWith(
@@ -85,33 +88,47 @@ describe('StoryblokBridgeScript — token guard', () => {
       }),
     );
   });
+
+  it('does NOT call storyblokInit when getStoryblokBridgeConfig() rejects', async () => {
+    mockGetStoryblokBridgeConfig.mockRejectedValueOnce(new Error('action failed'));
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- defer module-load to after mock setup
+    const { StoryblokBridgeScript } = require('./StoryblokBridgeScript');
+
+    render(createElement(StoryblokBridgeScript));
+    await flushAsyncEffects();
+
+    expect(mockStoryblokInit).not.toHaveBeenCalled();
+  });
 });
 
 describe('StoryblokBridgeScript — render contract', () => {
-  it('returns null — no wrapper DOM node added to the document (token set)', () => {
-    process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN = 'tk';
-    // eslint-disable-next-line @typescript-eslint/no-require-imports -- defer module-load to after env reset
+  it('returns null — no wrapper DOM node added to the document (config resolved)', async () => {
+    mockGetStoryblokBridgeConfig.mockResolvedValueOnce({ accessToken: 'tk' });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- defer module-load to after mock setup
     const { StoryblokBridgeScript } = require('./StoryblokBridgeScript');
 
     const { container } = render(createElement(StoryblokBridgeScript));
+    await flushAsyncEffects();
 
     expect(container.firstChild).toBeNull();
   });
 
-  it('does not throw on first render', () => {
-    process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN = 'tk';
-    // eslint-disable-next-line @typescript-eslint/no-require-imports -- defer module-load to after env reset
+  it('does not throw on first render', async () => {
+    mockGetStoryblokBridgeConfig.mockResolvedValueOnce({ accessToken: 'tk' });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- defer module-load to after mock setup
     const { StoryblokBridgeScript } = require('./StoryblokBridgeScript');
 
     expect(() => render(createElement(StoryblokBridgeScript))).not.toThrow();
+    await flushAsyncEffects();
   });
 
-  it('does not throw on unmount (cleanup-safe)', () => {
-    process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN = 'tk';
-    // eslint-disable-next-line @typescript-eslint/no-require-imports -- defer module-load to after env reset
+  it('does not throw on unmount (cleanup-safe)', async () => {
+    mockGetStoryblokBridgeConfig.mockResolvedValueOnce({ accessToken: 'tk' });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- defer module-load to after mock setup
     const { StoryblokBridgeScript } = require('./StoryblokBridgeScript');
 
     const { unmount } = render(createElement(StoryblokBridgeScript));
+    await flushAsyncEffects();
 
     expect(() => unmount()).not.toThrow();
   });
