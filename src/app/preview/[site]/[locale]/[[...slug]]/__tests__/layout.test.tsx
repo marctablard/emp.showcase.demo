@@ -155,9 +155,15 @@ describe('PreviewLocaleLayout', () => {
   it('rendert html/body + vollständige Provider-Kette in dokumentierter Reihenfolge', async () => {
     const { container, getByTestId } = await renderLayout({ locale: 'en' });
 
-    // <html lang> + <body>
-    const html = container.querySelector('html');
-    const body = container.querySelector('body');
+    // <html lang> + <body>.
+    // React 19 treats <html>/<head>/<body> as document SINGLETONS: their attributes
+    // are applied to the real `document.documentElement` / `document.body` and the
+    // body's children render into the RTL container — the wrapper elements never land
+    // inside `container`. So `container.querySelector('html')` is always null for a
+    // correct root layout; the rendered `<html lang>` / `<body>` are asserted on the
+    // document instead (verified empirically against React 19 + RTL).
+    const html = document.documentElement;
+    const body = document.body;
     expect(html).not.toBeNull();
     expect(html).toHaveAttribute('lang', 'en');
     expect(body).not.toBeNull();
