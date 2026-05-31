@@ -35,10 +35,27 @@ jest.mock('./storyblok-banner-api', () => ({
 
 const mockedGetStoryblokApi = getStoryblokApi as unknown as jest.MockedFunction<() => unknown>;
 
+const PREVIEW_ENV_KEY = 'NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW';
+
 describe('useBanner', () => {
+  // The hook reads `process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW` to pick
+  // between 'draft' and 'published'. Hermetic-isolate it so a local `.env`
+  // setting cannot flip the default-path tests.
+  let originalPreviewEnv: string | undefined;
+
   beforeEach(() => {
+    originalPreviewEnv = process.env[PREVIEW_ENV_KEY];
+    delete process.env[PREVIEW_ENV_KEY];
     jest.clearAllMocks();
     useBannerStore.getState().reset();
+  });
+
+  afterEach(() => {
+    if (originalPreviewEnv === undefined) {
+      delete process.env[PREVIEW_ENV_KEY];
+    } else {
+      process.env[PREVIEW_ENV_KEY] = originalPreviewEnv;
+    }
   });
 
   describe('when no Storyblok token is configured (getStoryblokApi returns null)', () => {
@@ -69,7 +86,7 @@ describe('useBanner', () => {
   });
 
   describe('when a Storyblok client is available', () => {
-    it('fetches the top-banner-announcement story with the expected params', async () => {
+    it('fetches the top-banner-announcement story with the expected params (preview off → version:published)', async () => {
       const storyResponse = {
         data: {
           story: { content: { title: 'Sale', link: { id: '1', url: '/sale', target: '_self' }, is_active: true } },
@@ -90,6 +107,30 @@ describe('useBanner', () => {
         expect.objectContaining({ language: 'en', version: 'published' }),
       );
       expect(result.current.data).toEqual(storyResponse.data);
+    });
+
+    it('requests version:draft when NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW="true"', async () => {
+      process.env[PREVIEW_ENV_KEY] = 'true';
+
+      const storyResponse = {
+        data: {
+          story: { content: { title: 'Sale', link: { id: '1', url: '/sale', target: '_self' }, is_active: true } },
+        },
+      };
+      const apiGet = jest.fn(async () => storyResponse);
+      mockedGetStoryblokApi.mockReturnValue({ get: apiGet });
+
+      const { result } = renderHook(() => useBanner());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(apiGet).toHaveBeenCalledTimes(1);
+      expect(apiGet).toHaveBeenCalledWith(
+        'cdn/stories/top-banner-announcement',
+        expect.objectContaining({ language: 'en', version: 'draft' }),
+      );
     });
 
     it('surfaces a rejected fetch as an Error and settles isLoading:false', async () => {
