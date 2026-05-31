@@ -52,14 +52,21 @@ export async function fetchTopBanner({ locale }: { locale: string }): Promise<To
     return null;
   }
 
-  // `storyblokInit` types its return as `() => StoryblokClient` (an accessor),
-  // but its runtime contract under our SDK mock layer is a direct client-shape
-  // (`{ get(slug, params): Promise<{ data }> }`) — pinned by the action's
-  // acceptance tests. We treat the return as the client directly and
-  // defensively bail when the SDK refuses to bootstrap (null / falsy).
-  const api = storyblokInit({ accessToken: token, use: [apiPlugin] }) as unknown as {
+  // `storyblokInit` returns an *accessor* function `() => StoryblokClient`
+  // (see `node_modules/@storyblok/react/dist/rsc.d.ts:139`). Calling
+  // `storyblokInit({...}).get(...)` directly would crash at runtime with
+  // `api.get is not a function`. We must invoke the accessor to get the
+  // client. Same pattern as `StoryblokCmsApi.ts:74-90`.
+  //
+  // We defensively bail both when `storyblokInit` itself returns null and
+  // when the accessor it returns resolves to a null client.
+  type StoryblokBannerClient = {
     get(slug: string, params: { version: 'draft' | 'published'; language: string }): Promise<{ data: TopBannerData }>;
-  } | null;
+  };
+  const accessor = storyblokInit({ accessToken: token, use: [apiPlugin] }) as unknown as
+    | (() => StoryblokBannerClient | null)
+    | null;
+  const api = accessor?.() ?? null;
   if (!api) {
     return null;
   }

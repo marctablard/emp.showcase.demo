@@ -10,12 +10,21 @@ export {}; // mark this file as a TS module — the sibling _actions test file
  * the resolved story payload, the env value stays in the action.
  *
  *  - returns `null` when the access token env is unset or whitespace-only,
- *  - returns `null` when the Storyblok SDK init returns null (defensive),
+ *  - returns `null` when the Storyblok SDK init accessor resolves null (defensive),
+ *  - returns `null` when `storyblokInit` itself returns null (defensive),
  *  - requests `version: 'published'` unless the preview env is exactly
  *    `'true'` (strict case — `'TRUE'` does NOT enable preview),
  *  - requests `version: 'draft'` when the preview env equals `'true'`,
  *  - passes the `locale` argument through as the `language` param,
  *  - returns `null` and warn-logs when the underlying `api.get` rejects.
+ *
+ * The SDK contract from `@storyblok/react/rsc`:
+ *
+ *     storyblokInit(opts) -> (() => StoryblokClient)
+ *
+ * i.e. it returns an *accessor* function that must be invoked to get the
+ * client. The test mock matches this shape: `mockStoryblokInit` returns an
+ * accessor function which itself returns the client (or `null`).
  *
  * Runs in the Library project (node env). The action's lazy-require of
  * `@/platform/server` is mocked so the test never boots the real DI graph.
@@ -62,12 +71,15 @@ beforeEach(() => {
   mockLoggerDebug.mockReset();
   mockLoggerError.mockReset();
 
-  // Default: a fresh storyblok client whose `get` is the file-local spy.
-  // Each test that needs a different shape (null, throwing get) overrides
-  // this explicitly. Re-prime here because the platform setup runs
-  // `jest.resetAllMocks()` in `afterEach`, which would otherwise strip
+  // Default: `storyblokInit` returns an accessor `() => client`. The accessor
+  // is invoked by the action to get the SDK client whose `get` is the
+  // file-local spy. This matches the real SDK shape
+  // (`@storyblok/react/rsc.storyblokInit` returns `() => StoryblokClient`).
+  // Each test that needs a different shape (null init, null accessor, throwing
+  // get) overrides this explicitly. Re-prime here because the platform setup
+  // runs `jest.resetAllMocks()` in `afterEach`, which would otherwise strip
   // both the module-mock implementation and the spy default.
-  mockStoryblokInit.mockReturnValue({ get: mockApiGet });
+  mockStoryblokInit.mockReturnValue(() => ({ get: mockApiGet }));
 
   const serverModule = jest.requireMock('@/platform/server') as {
     default: { get: jest.Mock };
@@ -138,6 +150,17 @@ describe('fetchTopBanner — token guard', () => {
   it('returns null when storyblokInit returns null (defensive: SDK refused to bootstrap)', async () => {
     process.env[TOKEN_KEY] = 'tk-banner';
     mockStoryblokInit.mockReturnValue(null);
+    const fetchTopBanner = await loadAction();
+
+    await expect(fetchTopBanner({ locale: 'en' })).resolves.toBeNull();
+    expect(mockApiGet).not.toHaveBeenCalled();
+  });
+
+  it('returns null when the storyblokInit accessor resolves a null client (defensive)', async () => {
+    process.env[TOKEN_KEY] = 'tk-banner';
+    // Accessor is callable but yields no client — the action must bail before
+    // attempting `client.get(...)`.
+    mockStoryblokInit.mockReturnValue(() => null);
     const fetchTopBanner = await loadAction();
 
     await expect(fetchTopBanner({ locale: 'en' })).resolves.toBeNull();
