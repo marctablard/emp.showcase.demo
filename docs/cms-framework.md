@@ -142,11 +142,11 @@ runtime guard.
 
 Resolution rules:
 
-- If `NEXT_PUBLIC_CMS_PROVIDER` is explicitly set to one of the known ids
+- If `NEXT_CMS_PROVIDER` is explicitly set to one of the known ids
   (after trimming), that value wins.
 - Otherwise auto-resolve: if `NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN` is non-empty,
   return `storyblok`; else return `none`.
-- Unknown or whitespace-only `NEXT_PUBLIC_CMS_PROVIDER` values are treated as
+- Unknown or whitespace-only `NEXT_CMS_PROVIDER` values are treated as
   unset and fall through to auto-resolution.
 
 `instrumentation.ts` uses the resolved id to alias-bind
@@ -164,7 +164,7 @@ shell. The opt-in **composite fallback** wraps the active provider so that a
 the version-controlled showcase tree under `data/cms/_default_`, served by the
 local-JSON adapter.
 
-- Enabled by `NEXT_PUBLIC_CMS_FALLBACK_PROVIDER`. Values: `mock` (alias for
+- Enabled by `NEXT_CMS_FALLBACK_PROVIDER`. Values: `mock` (alias for
   `local`) | `local` | empty. `resolveCmsFallbackProvider(env)` resolves it to a
   source provider id or `null`. Empty / whitespace / unknown values, and any
   value equal to the active primary (self-wrap guard), resolve to `null`.
@@ -174,13 +174,13 @@ local-JSON adapter.
   `bindActiveCmsAdapter` binds `CmsAdapter` to a `FallbackCmsAdapter` instance
   (`new`-ed and bound via `toConstantValue`, not `@injectable` — see ADR 0001).
 - `FallbackCmsAdapter` queries the fallback source against the fixed
-  `_default_` site (from `getPublicCmsLocalDefaultSite()`), regardless of the
+  `_default_` site (from `getCmsLocalDefaultSite()`), regardless of the
   caller's `site` hint. Its optional surface (`getEditableProps` /
   `BridgeScript` / webhook primitives) mirrors the **primary only** — the
   fallback's optional surface is never invoked, so webhook events never
   double-fire.
 
-`.env.template` ships `NEXT_PUBLIC_CMS_FALLBACK_PROVIDER=mock` so a fresh clone
+`.env.template` ships `NEXT_CMS_FALLBACK_PROVIDER=mock` so a fresh clone
 sees the showcase out of the box; production deployments can clear it.
 
 ## How to add a new CMS provider

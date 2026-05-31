@@ -2,7 +2,7 @@
  * Boot-wiring test for the Next.js `register()` instrumentation hook
  * (EMP-16 Phase G, AC #2).
  *
- * AC #2 — "`NEXT_PUBLIC_CMS_FALLBACK_PROVIDER` empty ⇒ composite gone, primary
+ * AC #2 — "`NEXT_CMS_FALLBACK_PROVIDER` empty ⇒ composite gone, primary
  * binds directly. Test via an `instrumentation.ts` sub-stub." — is covered in
  * TWO layers:
  *  - The env-driven alias-vs-composite DECISION (empty env → plain alias, no

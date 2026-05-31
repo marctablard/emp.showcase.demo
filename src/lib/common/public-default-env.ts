@@ -46,13 +46,3 @@ export function getPublicPriceMatchUseFallback(): boolean {
   const normalized = raw.trim().toLowerCase();
   return normalized === 'true' || normalized === '1' || normalized === 'yes';
 }
-
-/**
- * Default site folder for the local-JSON CMS adapter (used when no
- * session site is available or the session site has no matching JSON).
- */
-export function getPublicCmsLocalDefaultSite(): string {
-  const raw = process.env.NEXT_PUBLIC_CMS_LOCAL_DEFAULT_SITE;
-  const trimmed = typeof raw === 'string' ? raw.trim() : '';
-  return trimmed.length > 0 ? trimmed : '_default_';
-}

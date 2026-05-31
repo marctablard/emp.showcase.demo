@@ -3,7 +3,7 @@
  *
  * The preview adapter compares the signed `_storyblok_tk[space_id]` against
  * the configured space id. `getSpaceId()` exposes that id, sourced purely from
- * `NEXT_PUBLIC_STORYBLOK_SPACE_ID`:
+ * `NEXT_STORYBLOK_SPACE_ID`:
  *   - configured (after trimming) → the trimmed value.
  *   - unset / blank / whitespace-only → `null` (adapter then SKIPS the
  *     space-id check; documented residual risk, FU-004).
@@ -29,7 +29,7 @@ const silentLogger = (): jest.Mocked<LoggerService> =>
     fatal: jest.fn(),
   }) as unknown as jest.Mocked<LoggerService>;
 
-const ENV_KEY = 'NEXT_PUBLIC_STORYBLOK_SPACE_ID';
+const ENV_KEY = 'NEXT_STORYBLOK_SPACE_ID';
 const original = process.env[ENV_KEY];
 
 afterAll(() => {

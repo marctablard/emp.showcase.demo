@@ -27,7 +27,7 @@ export class StoryblokCmsApi implements StoryblokCmsApiContract {
   }
 
   getSpaceId(): string | null {
-    return process.env.NEXT_PUBLIC_STORYBLOK_SPACE_ID?.trim() || null;
+    return process.env.NEXT_STORYBLOK_SPACE_ID?.trim() || null;
   }
 
   async getStory(
@@ -66,7 +66,7 @@ export class StoryblokCmsApi implements StoryblokCmsApiContract {
   }
 
   private resolveSlug(slug: string, site?: string): string {
-    if (process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE === 'true' && site) {
+    if (process.env.NEXT_STORYBLOK_MULTI_SITE === 'true' && site) {
       return `${site}/${slug}`;
     }
     return slug;

@@ -12,7 +12,7 @@ function buildEnv(partial: Partial<NodeJS.ProcessEnv>): NodeJS.ProcessEnv {
 }
 
 describe('resolveCmsProvider', () => {
-  describe('auto-resolution (NEXT_PUBLIC_CMS_PROVIDER unset)', () => {
+  describe('auto-resolution (NEXT_CMS_PROVIDER unset)', () => {
     it('falls back to "none" when neither provider nor Storyblok token is set', () => {
       const env = buildEnv({});
 
@@ -27,21 +27,21 @@ describe('resolveCmsProvider', () => {
   });
 
   describe('explicit override', () => {
-    it('honors NEXT_PUBLIC_CMS_PROVIDER="storyblok" even without a token', () => {
-      const env = buildEnv({ NEXT_PUBLIC_CMS_PROVIDER: 'storyblok' });
+    it('honors NEXT_CMS_PROVIDER="storyblok" even without a token', () => {
+      const env = buildEnv({ NEXT_CMS_PROVIDER: 'storyblok' });
 
       expect(resolveCmsProvider(env)).toBe('storyblok');
     });
 
-    it('honors NEXT_PUBLIC_CMS_PROVIDER="local"', () => {
-      const env = buildEnv({ NEXT_PUBLIC_CMS_PROVIDER: 'local' });
+    it('honors NEXT_CMS_PROVIDER="local"', () => {
+      const env = buildEnv({ NEXT_CMS_PROVIDER: 'local' });
 
       expect(resolveCmsProvider(env)).toBe('local');
     });
 
-    it('honors NEXT_PUBLIC_CMS_PROVIDER="none" even when a Storyblok token is present (explicit > auto)', () => {
+    it('honors NEXT_CMS_PROVIDER="none" even when a Storyblok token is present (explicit > auto)', () => {
       const env = buildEnv({
-        NEXT_PUBLIC_CMS_PROVIDER: 'none',
+        NEXT_CMS_PROVIDER: 'none',
         NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN: 'abc',
       });
 
@@ -51,19 +51,19 @@ describe('resolveCmsProvider', () => {
 
   describe('robustness', () => {
     it('treats an unknown provider value as auto-resolution → "none"', () => {
-      const env = buildEnv({ NEXT_PUBLIC_CMS_PROVIDER: 'invalid' });
+      const env = buildEnv({ NEXT_CMS_PROVIDER: 'invalid' });
 
       expect(resolveCmsProvider(env)).toBe('none');
     });
 
     it('treats a whitespace-only provider value as auto-resolution → "none"', () => {
-      const env = buildEnv({ NEXT_PUBLIC_CMS_PROVIDER: '   ' });
+      const env = buildEnv({ NEXT_CMS_PROVIDER: '   ' });
 
       expect(resolveCmsProvider(env)).toBe('none');
     });
 
     it('trims surrounding whitespace from the provider value', () => {
-      const env = buildEnv({ NEXT_PUBLIC_CMS_PROVIDER: '  storyblok  ' });
+      const env = buildEnv({ NEXT_CMS_PROVIDER: '  storyblok  ' });
 
       expect(resolveCmsProvider(env)).toBe('storyblok');
     });
@@ -75,15 +75,15 @@ describe('resolveCmsProvider', () => {
     });
 
     it('uses `process.env` when no env argument is supplied', () => {
-      const original = process.env.NEXT_PUBLIC_CMS_PROVIDER;
-      process.env.NEXT_PUBLIC_CMS_PROVIDER = 'local';
+      const original = process.env.NEXT_CMS_PROVIDER;
+      process.env.NEXT_CMS_PROVIDER = 'local';
       try {
         expect(resolveCmsProvider()).toBe('local');
       } finally {
         if (original === undefined) {
-          delete process.env.NEXT_PUBLIC_CMS_PROVIDER;
+          delete process.env.NEXT_CMS_PROVIDER;
         } else {
-          process.env.NEXT_PUBLIC_CMS_PROVIDER = original;
+          process.env.NEXT_CMS_PROVIDER = original;
         }
       }
     });
@@ -93,7 +93,7 @@ describe('resolveCmsProvider', () => {
       // in sync. Adding a new id to `CMS_PROVIDER_IDS` without updating the
       // resolver branch will trip this assertion.
       for (const id of CMS_PROVIDER_IDS) {
-        const env = buildEnv({ NEXT_PUBLIC_CMS_PROVIDER: id });
+        const env = buildEnv({ NEXT_CMS_PROVIDER: id });
 
         expect(resolveCmsProvider(env)).toBe(id);
       }
@@ -102,7 +102,7 @@ describe('resolveCmsProvider', () => {
 });
 
 /**
- * `resolveCmsFallbackProvider` reads `NEXT_PUBLIC_CMS_FALLBACK_PROVIDER` and
+ * `resolveCmsFallbackProvider` reads `NEXT_CMS_FALLBACK_PROVIDER` and
  * decides whether a default-content fallback layer is wired beneath the
  * active primary provider (EMP-16 Phase G).
  *
@@ -116,32 +116,32 @@ describe('resolveCmsProvider', () => {
  *   NOT auto-resolved to a default).
  */
 describe('resolveCmsFallbackProvider', () => {
-  it('returns null when NEXT_PUBLIC_CMS_FALLBACK_PROVIDER is unset', () => {
+  it('returns null when NEXT_CMS_FALLBACK_PROVIDER is unset', () => {
     const env = buildEnv({});
 
     expect(resolveCmsFallbackProvider(env)).toBeNull();
   });
 
   it('returns null for an empty value', () => {
-    const env = buildEnv({ NEXT_PUBLIC_CMS_FALLBACK_PROVIDER: '' });
+    const env = buildEnv({ NEXT_CMS_FALLBACK_PROVIDER: '' });
 
     expect(resolveCmsFallbackProvider(env)).toBeNull();
   });
 
   it('returns null for a whitespace-only value', () => {
-    const env = buildEnv({ NEXT_PUBLIC_CMS_FALLBACK_PROVIDER: '   ' });
+    const env = buildEnv({ NEXT_CMS_FALLBACK_PROVIDER: '   ' });
 
     expect(resolveCmsFallbackProvider(env)).toBeNull();
   });
 
   it('aliases "mock" to the local provider', () => {
-    const env = buildEnv({ NEXT_PUBLIC_CMS_FALLBACK_PROVIDER: 'mock' });
+    const env = buildEnv({ NEXT_CMS_FALLBACK_PROVIDER: 'mock' });
 
     expect(resolveCmsFallbackProvider(env)).toBe('local');
   });
 
   it('resolves "local" to the local provider', () => {
-    const env = buildEnv({ NEXT_PUBLIC_CMS_FALLBACK_PROVIDER: 'local' });
+    const env = buildEnv({ NEXT_CMS_FALLBACK_PROVIDER: 'local' });
 
     expect(resolveCmsFallbackProvider(env)).toBe('local');
   });
@@ -150,8 +150,8 @@ describe('resolveCmsFallbackProvider', () => {
     // Primary resolves to "local"; a "local" fallback would wrap a provider
     // onto itself — disallowed.
     const env = buildEnv({
-      NEXT_PUBLIC_CMS_PROVIDER: 'local',
-      NEXT_PUBLIC_CMS_FALLBACK_PROVIDER: 'local',
+      NEXT_CMS_PROVIDER: 'local',
+      NEXT_CMS_FALLBACK_PROVIDER: 'local',
     });
 
     expect(resolveCmsProvider(env)).toBe('local');
@@ -159,21 +159,21 @@ describe('resolveCmsFallbackProvider', () => {
   });
 
   it('returns null for an unknown fallback value (strict, no auto-resolution)', () => {
-    const env = buildEnv({ NEXT_PUBLIC_CMS_FALLBACK_PROVIDER: 'wordpress' });
+    const env = buildEnv({ NEXT_CMS_FALLBACK_PROVIDER: 'wordpress' });
 
     expect(resolveCmsFallbackProvider(env)).toBeNull();
   });
 
   it('uses `process.env` when no env argument is supplied', () => {
-    const original = process.env.NEXT_PUBLIC_CMS_FALLBACK_PROVIDER;
-    process.env.NEXT_PUBLIC_CMS_FALLBACK_PROVIDER = 'local';
+    const original = process.env.NEXT_CMS_FALLBACK_PROVIDER;
+    process.env.NEXT_CMS_FALLBACK_PROVIDER = 'local';
     try {
       expect(resolveCmsFallbackProvider()).toBe('local');
     } finally {
       if (original === undefined) {
-        delete process.env.NEXT_PUBLIC_CMS_FALLBACK_PROVIDER;
+        delete process.env.NEXT_CMS_FALLBACK_PROVIDER;
       } else {
-        process.env.NEXT_PUBLIC_CMS_FALLBACK_PROVIDER = original;
+        process.env.NEXT_CMS_FALLBACK_PROVIDER = original;
       }
     }
   });

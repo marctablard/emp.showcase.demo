@@ -2,11 +2,11 @@
  * Resolves the active CMS provider id from runtime environment variables.
  *
  * Resolution rules:
- * - When `NEXT_PUBLIC_CMS_PROVIDER` is explicitly set to one of the known
+ * - When `NEXT_CMS_PROVIDER` is explicitly set to one of the known
  *   provider ids (after trimming), that value wins.
  * - Otherwise auto-resolve: if `NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN` is
  *   non-empty (after trimming), return `'storyblok'`. Else return `'none'`.
- * - Unknown / whitespace-only `NEXT_PUBLIC_CMS_PROVIDER` values are treated
+ * - Unknown / whitespace-only `NEXT_CMS_PROVIDER` values are treated
  *   as unset (fall through to auto-resolution).
  *
  * The resolved id is used by `instrumentation.ts` to alias-bind
@@ -36,7 +36,7 @@ function isCmsProviderId(value: string): value is CmsProviderId {
 }
 
 export function resolveCmsProvider(env: NodeJS.ProcessEnv = process.env): CmsProviderId {
-  const explicit = env.NEXT_PUBLIC_CMS_PROVIDER?.trim() ?? '';
+  const explicit = env.NEXT_CMS_PROVIDER?.trim() ?? '';
   if (isCmsProviderId(explicit)) {
     return explicit;
   }
@@ -48,7 +48,7 @@ export function resolveCmsProvider(env: NodeJS.ProcessEnv = process.env): CmsPro
 
 /**
  * Resolves the default-content fallback source provider from
- * `NEXT_PUBLIC_CMS_FALLBACK_PROVIDER`, or `null` when no composite fallback
+ * `NEXT_CMS_FALLBACK_PROVIDER`, or `null` when no composite fallback
  * layer should be wired (EMP-16 Phase G).
  *
  * Resolution rules:
@@ -66,7 +66,7 @@ export function resolveCmsProvider(env: NodeJS.ProcessEnv = process.env): CmsPro
  * `CmsAdapter` in a `FallbackCmsAdapter` composite.
  */
 export function resolveCmsFallbackProvider(env: NodeJS.ProcessEnv = process.env): CmsProviderId | null {
-  const raw = env.NEXT_PUBLIC_CMS_FALLBACK_PROVIDER?.trim() ?? '';
+  const raw = env.NEXT_CMS_FALLBACK_PROVIDER?.trim() ?? '';
   if (!raw) {
     return null;
   }

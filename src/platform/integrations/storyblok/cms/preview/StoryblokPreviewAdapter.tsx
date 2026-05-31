@@ -72,7 +72,7 @@ export class StoryblokPreviewAdapter implements CmsPreviewAdapter {
     if (configuredSpaceId === null) {
       this.logger.warn(
         { slug },
-        'Storyblok space id is unconfigured (NEXT_PUBLIC_STORYBLOK_SPACE_ID) — skipping preview space-id check (FU-004 residual risk)',
+        'Storyblok space id is unconfigured (NEXT_STORYBLOK_SPACE_ID) — skipping preview space-id check (FU-004 residual risk)',
       );
     } else if (url.searchParams.get(SPACE_ID_KEY) !== configuredSpaceId) {
       return null;

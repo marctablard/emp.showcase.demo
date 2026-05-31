@@ -22,7 +22,7 @@
  *     1–4  reject at the pure edge detector (`isStoryblokPreviewRequest`) —
  *          missing keys / out-of-window timestamp → adapter returns `null`.
  *     5    rejects at the adapter's space-id MISMATCH, which runs BEFORE the
- *          draft fetch. `NEXT_PUBLIC_STORYBLOK_SPACE_ID` is a PUBLIC identifier
+ *          draft fetch. `NEXT_STORYBLOK_SPACE_ID` is a PUBLIC identifier
  *          (not a secret); the harness sets it to a known dummy and this spec
  *          sends a deliberately different `_storyblok_tk[space_id]`.
  *
@@ -81,7 +81,7 @@ function previewUrl(overrides: Partial<Record<string, string>> = {}, omit: strin
 test.describe('preview route — non-preview provider always 404 (none/mock)', () => {
   test.skip(
     !PREVIEW_ENABLED || (PROVIDER !== 'none' && PROVIDER !== 'mock'),
-    'Set E2E_PREVIEW=true and boot the server with NEXT_PUBLIC_CMS_PROVIDER=none|mock, then E2E_PREVIEW_PROVIDER=none|mock.',
+    'Set E2E_PREVIEW=true and boot the server with NEXT_CMS_PROVIDER=none|mock, then E2E_PREVIEW_PROVIDER=none|mock.',
   );
 
   test('bare preview URL → 404 (no preview adapter bound)', async ({ page }) => {
@@ -103,10 +103,10 @@ test.describe('preview route — non-preview provider always 404 (none/mock)', (
 test.describe('preview route — storyblok rejection states → 404', () => {
   test.skip(
     !PREVIEW_ENABLED || PROVIDER !== 'storyblok',
-    'Set E2E_PREVIEW=true, boot with NEXT_PUBLIC_CMS_PROVIDER=storyblok (+ dummy NEXT_PUBLIC_STORYBLOK_SPACE_ID, no token needed), then E2E_PREVIEW_PROVIDER=storyblok.',
+    'Set E2E_PREVIEW=true, boot with NEXT_CMS_PROVIDER=storyblok (+ dummy NEXT_STORYBLOK_SPACE_ID, no token needed), then E2E_PREVIEW_PROVIDER=storyblok.',
   );
 
-  // The dummy space id the harness configured (NEXT_PUBLIC_STORYBLOK_SPACE_ID).
+  // The dummy space id the harness configured (NEXT_STORYBLOK_SPACE_ID).
   // Default matches the real Emporix-Showcase Storyblok space (verified via
   // `https://api.storyblok.com/v2/cdn/spaces/me?token=<demo-token>` → 338074),
   // so a STEP-3 run that boots with the repo demo token doesn't need to

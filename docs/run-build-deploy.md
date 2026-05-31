@@ -174,7 +174,7 @@ The `/api/ready` endpoint fails if any of these are missing:
 ### Optional but common
 - Storyblok
   - `NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN`
-  - `NEXT_PUBLIC_STORYBLOK_MULTI_SITE`
+  - `NEXT_STORYBLOK_MULTI_SITE`
   - `NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW`
 - SSO
   - `NEXT_SSO_PASSWORD_SECRET`

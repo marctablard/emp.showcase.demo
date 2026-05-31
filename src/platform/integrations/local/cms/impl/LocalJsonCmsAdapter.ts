@@ -1,6 +1,6 @@
 import { inject } from 'inversify';
 import { LayoutContentSchema } from '@/components/cms/component-schema';
-import { getPublicCmsLocalDefaultSite } from '@/lib/common/public-default-env';
+import { getCmsLocalDefaultSite } from '@/lib/server/cms-server-defaults';
 import { injectable } from '@/platform/core/di/injectable';
 import type { CmsAdapter } from '@/platform/services/cms/CmsAdapter';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
@@ -52,7 +52,7 @@ export class LocalJsonCmsAdapter implements CmsAdapter {
     private readonly loader: CmsDataLoader = defaultJsonLoader,
     defaultSite?: string,
   ) {
-    this.defaultSite = defaultSite ?? getPublicCmsLocalDefaultSite();
+    this.defaultSite = defaultSite ?? getCmsLocalDefaultSite();
   }
 
   hasContent(): boolean {

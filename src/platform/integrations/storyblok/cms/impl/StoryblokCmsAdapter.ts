@@ -118,7 +118,7 @@ export class StoryblokCmsAdapter implements CmsAdapter {
    * `unpublished` and `deleted` actions invalidate content. The `full_slug`
    * is decoded against the same conventions the read path uses:
    *  - multi-site spaces prefix the slug with the site code
-   *    (`NEXT_PUBLIC_STORYBLOK_MULTI_SITE`), mirroring `StoryblokCmsApi`;
+   *    (`NEXT_STORYBLOK_MULTI_SITE`), mirroring `StoryblokCmsApi`;
    *    without that explicit prefix the change fans out across every
    *    configured site, since one story then serves all of them — and the
    *    read path keys the cache by the real route-segment site code (always a
@@ -148,7 +148,7 @@ export class StoryblokCmsAdapter implements CmsAdapter {
 
     let explicitSite: string | null = null;
     let rest = fullSlug;
-    if (process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE === 'true') {
+    if (process.env.NEXT_STORYBLOK_MULTI_SITE === 'true') {
       const slash = rest.indexOf('/');
       if (slash > 0) {
         explicitSite = rest.slice(0, slash);

@@ -40,7 +40,7 @@ type ContainerMock = {
 
 const resolveCmsProviderMock = jest.fn();
 const resolveCmsFallbackProviderMock = jest.fn();
-const getPublicCmsLocalDefaultSiteMock = jest.fn();
+const getCmsLocalDefaultSiteMock = jest.fn();
 
 jest.mock('server-only', () => ({}));
 
@@ -50,9 +50,9 @@ jest.mock('./CmsProviderResolver', () => ({
   resolveCmsFallbackProvider: (...args: unknown[]) => resolveCmsFallbackProviderMock(...args),
 }));
 
-jest.mock('@/lib/common/public-default-env', () => ({
+jest.mock('@/lib/server/cms-server-defaults', () => ({
   __esModule: true,
-  getPublicCmsLocalDefaultSite: (...args: unknown[]) => getPublicCmsLocalDefaultSiteMock(...args),
+  getCmsLocalDefaultSite: (...args: unknown[]) => getCmsLocalDefaultSiteMock(...args),
 }));
 
 // Sentinels returned by container.get for each known target id.
@@ -79,11 +79,11 @@ function buildContainer(boundIds: Set<string>): ContainerMock {
 beforeEach(() => {
   resolveCmsProviderMock.mockReset();
   resolveCmsFallbackProviderMock.mockReset();
-  getPublicCmsLocalDefaultSiteMock.mockReset();
+  getCmsLocalDefaultSiteMock.mockReset();
 
   resolveCmsProviderMock.mockReturnValue('storyblok');
   resolveCmsFallbackProviderMock.mockReturnValue(null);
-  getPublicCmsLocalDefaultSiteMock.mockReturnValue('_default_');
+  getCmsLocalDefaultSiteMock.mockReturnValue('_default_');
 });
 
 describe('bindActiveCmsAdapter — no fallback configured (plain alias)', () => {
@@ -117,7 +117,7 @@ describe('bindActiveCmsAdapter — fallback configured and target bound (composi
   it('binds CmsAdapter to a FallbackCmsAdapter constant built from the resolved primary + fallback', () => {
     resolveCmsProviderMock.mockReturnValue('storyblok');
     resolveCmsFallbackProviderMock.mockReturnValue('local');
-    getPublicCmsLocalDefaultSiteMock.mockReturnValue('_default_');
+    getCmsLocalDefaultSiteMock.mockReturnValue('_default_');
     const container = buildContainer(new Set(['CmsAdapter:storyblok', 'CmsAdapter:local', 'LoggerService']));
 
     bindActiveCmsAdapter(container as never, {} as NodeJS.ProcessEnv);
@@ -132,14 +132,14 @@ describe('bindActiveCmsAdapter — fallback configured and target bound (composi
     expect(constant.id).toBe('fallback');
   });
 
-  it('resolves the local-default site for the composite from getPublicCmsLocalDefaultSite()', () => {
+  it('resolves the local-default site for the composite from getCmsLocalDefaultSite()', () => {
     resolveCmsProviderMock.mockReturnValue('storyblok');
     resolveCmsFallbackProviderMock.mockReturnValue('local');
     const container = buildContainer(new Set(['CmsAdapter:storyblok', 'CmsAdapter:local', 'LoggerService']));
 
     bindActiveCmsAdapter(container as never, {} as NodeJS.ProcessEnv);
 
-    expect(getPublicCmsLocalDefaultSiteMock).toHaveBeenCalled();
+    expect(getCmsLocalDefaultSiteMock).toHaveBeenCalled();
   });
 });
 

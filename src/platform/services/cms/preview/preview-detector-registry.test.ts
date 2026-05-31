@@ -27,7 +27,7 @@ describe('preview-detector-registry — PREVIEW_ROUTE_PREFIX', () => {
 
 describe('getPreviewDetector — provider dispatch', () => {
   it('returns the Storyblok detector (id "storyblok") when the provider is "storyblok"', () => {
-    const detector = getPreviewDetector({ NEXT_PUBLIC_CMS_PROVIDER: 'storyblok' } as unknown as NodeJS.ProcessEnv);
+    const detector = getPreviewDetector({ NEXT_CMS_PROVIDER: 'storyblok' } as unknown as NodeJS.ProcessEnv);
 
     expect(detector.id).toBe('storyblok');
   });
@@ -39,7 +39,7 @@ describe('getPreviewDetector — provider dispatch', () => {
   });
 
   it('returns a never-detector (id "none", isPreviewRequest === false) when the provider is "local"', () => {
-    const detector = getPreviewDetector({ NEXT_PUBLIC_CMS_PROVIDER: 'local' } as unknown as NodeJS.ProcessEnv);
+    const detector = getPreviewDetector({ NEXT_CMS_PROVIDER: 'local' } as unknown as NodeJS.ProcessEnv);
 
     expect(detector.id).toBe('none');
     expect(detector.isPreviewRequest(PLAIN_URL)).toBe(false);
@@ -53,14 +53,14 @@ describe('getPreviewDetector — provider dispatch', () => {
   });
 
   it('treats an unknown "mock" provider value as "none" (auto-resolves with no token)', () => {
-    const detector = getPreviewDetector({ NEXT_PUBLIC_CMS_PROVIDER: 'mock' } as unknown as NodeJS.ProcessEnv);
+    const detector = getPreviewDetector({ NEXT_CMS_PROVIDER: 'mock' } as unknown as NodeJS.ProcessEnv);
 
     expect(detector.id).toBe('none');
     expect(detector.isPreviewRequest(PLAIN_URL)).toBe(false);
   });
 
   it('the never-detector ignores even a well-formed preview query (always false)', () => {
-    const detector = getPreviewDetector({ NEXT_PUBLIC_CMS_PROVIDER: 'none' } as unknown as NodeJS.ProcessEnv);
+    const detector = getPreviewDetector({ NEXT_CMS_PROVIDER: 'none' } as unknown as NodeJS.ProcessEnv);
     const signed = new URL('http://preview.local/preview/main/en/home');
     signed.searchParams.set('_storyblok', '1');
     signed.searchParams.set('_storyblok_tk[timestamp]', String(Math.floor(Date.now() / 1000)));

@@ -7,11 +7,11 @@
  * Setup the tester provides (mirrors the opt-in gating of
  * `cms-no-token.spec.ts` / `auth-site-sync.spec.ts`):
  *   E2E_CMS_COMPOSITE_FALLBACK=true
- *   NEXT_PUBLIC_CMS_PROVIDER=none          # primary always misses
- *   NEXT_PUBLIC_CMS_FALLBACK_PROVIDER=mock # composite wraps with the local _default_ source
+ *   NEXT_CMS_PROVIDER=none          # primary always misses
+ *   NEXT_CMS_FALLBACK_PROVIDER=mock # composite wraps with the local _default_ source
  * then boots `next start`.
  *
- * Why `NEXT_PUBLIC_CMS_PROVIDER=none` rather than a real empty Storyblok space:
+ * Why `NEXT_CMS_PROVIDER=none` rather than a real empty Storyblok space:
  * the mechanic under test is "primary returns { notfound } ⇒ composite delegates
  * to the `_default_` local source ⇒ showcase content renders". An empty Storyblok
  * space and a `none` primary exercise the IDENTICAL composite path
@@ -29,8 +29,8 @@ import { expect, test } from '@playwright/test';
 test.describe('CMS — composite default-content fallback', () => {
   test.skip(
     process.env.E2E_CMS_COMPOSITE_FALLBACK !== 'true',
-    'Set E2E_CMS_COMPOSITE_FALLBACK=true (with NEXT_PUBLIC_CMS_PROVIDER=none + ' +
-      'NEXT_PUBLIC_CMS_FALLBACK_PROVIDER=mock) to run the AC#1 composite-fallback check.',
+    'Set E2E_CMS_COMPOSITE_FALLBACK=true (with NEXT_CMS_PROVIDER=none + ' +
+      'NEXT_CMS_FALLBACK_PROVIDER=mock) to run the AC#1 composite-fallback check.',
   );
 
   test('renders _default_ showcase content on the homepage when the primary space is empty', async ({ page }) => {

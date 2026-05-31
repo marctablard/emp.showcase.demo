@@ -14,8 +14,8 @@ if (process.env.JEST_DEBUG_API !== 'true') {
 // their own env argument and ignore process.env, so this default is safe
 // to apply globally. Developer-set values via `.env.test` or env-injection
 // in CI still win because we only seed when unset.
-if (!process.env.NEXT_PUBLIC_CMS_PROVIDER) {
-  process.env.NEXT_PUBLIC_CMS_PROVIDER = 'storyblok';
+if (!process.env.NEXT_CMS_PROVIDER) {
+  process.env.NEXT_CMS_PROVIDER = 'storyblok';
 }
 
 // Reset all mocks after each test

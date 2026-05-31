@@ -403,20 +403,20 @@ describe('StoryblokCmsAdapter — validateWebhookSignature (HMAC-SHA-256, consta
 });
 
 describe('StoryblokCmsAdapter — mapWebhookPayload', () => {
-  const originalMultiSite = process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE;
+  const originalMultiSite = process.env.NEXT_STORYBLOK_MULTI_SITE;
   const originalSites = process.env.NEXT_PUBLIC_AVAILABLE_SITES;
 
   beforeEach(() => {
-    delete process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE;
+    delete process.env.NEXT_STORYBLOK_MULTI_SITE;
     // Single-site spaces fan out across the configured sites — pin a known set.
     process.env.NEXT_PUBLIC_AVAILABLE_SITES = 'main';
   });
 
   afterAll(() => {
     if (originalMultiSite === undefined) {
-      delete process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE;
+      delete process.env.NEXT_STORYBLOK_MULTI_SITE;
     } else {
-      process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE = originalMultiSite;
+      process.env.NEXT_STORYBLOK_MULTI_SITE = originalMultiSite;
     }
     if (originalSites === undefined) {
       delete process.env.NEXT_PUBLIC_AVAILABLE_SITES;
@@ -480,7 +480,7 @@ describe('StoryblokCmsAdapter — mapWebhookPayload', () => {
   });
 
   it('extracts the site prefix in a multi-site space (single addressed site)', () => {
-    process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE = 'true';
+    process.env.NEXT_STORYBLOK_MULTI_SITE = 'true';
 
     const events = buildAdapter().mapWebhookPayload(new Headers(), {
       action: 'published',

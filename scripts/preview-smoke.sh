@@ -36,12 +36,12 @@ failures=0
 for id in "${BUILD_IDS[@]}"; do
   echo ""
   echo "════════════════════════════════════════════════════════════"
-  echo "▶ BUILD_ID=${id} — NEXT_PUBLIC_CMS_PROVIDER=${id} npm run build:next"
+  echo "▶ BUILD_ID=${id} — NEXT_CMS_PROVIDER=${id} npm run build:next"
   echo "════════════════════════════════════════════════════════════"
 
   rm -rf .next
 
-  if ! NEXT_PUBLIC_CMS_PROVIDER="${id}" npm run build:next; then
+  if ! NEXT_CMS_PROVIDER="${id}" npm run build:next; then
     echo "✗ [${id}] build failed"
     failures=$((failures + 1))
     continue

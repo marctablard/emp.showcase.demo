@@ -13,7 +13,7 @@
  *    without ever calling `storyblokInit` — matches the boot-with-no-token
  *    contract (the app must render without a Storyblok token).
  *  - Multi-site prefixing: `${site}/${slug}` is applied when
- *    `NEXT_PUBLIC_STORYBLOK_MULTI_SITE === 'true'` and a site arg is
+ *    `NEXT_STORYBLOK_MULTI_SITE === 'true'` and a site arg is
  *    given. Pinned against the legacy `storyblok-cms-page.tsx#fetchData`
  *    branch.
  *  - Version: env-driven preview resolution mirrors the legacy bridge —
@@ -49,14 +49,14 @@ const silentLogger = (): jest.Mocked<LoggerService> =>
 
 const ENV_KEYS = [
   'NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN',
-  'NEXT_PUBLIC_STORYBLOK_MULTI_SITE',
+  'NEXT_STORYBLOK_MULTI_SITE',
   'NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW',
 ] as const;
 
 function snapshotEnv(): Record<(typeof ENV_KEYS)[number], string | undefined> {
   return {
     NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN: process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN,
-    NEXT_PUBLIC_STORYBLOK_MULTI_SITE: process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE,
+    NEXT_STORYBLOK_MULTI_SITE: process.env.NEXT_STORYBLOK_MULTI_SITE,
     NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW: process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW,
   };
 }
@@ -89,7 +89,7 @@ describe('StoryblokCmsApi', () => {
     mockStoryblokInit.mockImplementation(() => () => ({ getStory: mockGetStory }));
     // Reset env to a clean "no token" baseline so each test is hermetic.
     delete process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN;
-    delete process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE;
+    delete process.env.NEXT_STORYBLOK_MULTI_SITE;
     delete process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW;
   });
 
@@ -163,8 +163,8 @@ describe('StoryblokCmsApi', () => {
       mockGetStory.mockResolvedValue({ data: { story: { name: 'OK' } } });
     });
 
-    it('forwards the slug verbatim when NEXT_PUBLIC_STORYBLOK_MULTI_SITE is "false" or unset', async () => {
-      delete process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE;
+    it('forwards the slug verbatim when NEXT_STORYBLOK_MULTI_SITE is "false" or unset', async () => {
+      delete process.env.NEXT_STORYBLOK_MULTI_SITE;
       const { StoryblokCmsApi } = await import('./StoryblokCmsApi');
       const api = new StoryblokCmsApi(silentLogger());
 
@@ -173,8 +173,8 @@ describe('StoryblokCmsApi', () => {
       expect(mockGetStory).toHaveBeenCalledWith('catalogue/widgets', expect.any(Object), expect.any(Object));
     });
 
-    it('prefixes the slug with `${site}/` when NEXT_PUBLIC_STORYBLOK_MULTI_SITE is "true"', async () => {
-      process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE = 'true';
+    it('prefixes the slug with `${site}/` when NEXT_STORYBLOK_MULTI_SITE is "true"', async () => {
+      process.env.NEXT_STORYBLOK_MULTI_SITE = 'true';
       const { StoryblokCmsApi } = await import('./StoryblokCmsApi');
       const api = new StoryblokCmsApi(silentLogger());
 
@@ -184,7 +184,7 @@ describe('StoryblokCmsApi', () => {
     });
 
     it('does NOT prefix the slug when multi-site is enabled but no site arg is supplied', async () => {
-      process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE = 'true';
+      process.env.NEXT_STORYBLOK_MULTI_SITE = 'true';
       const { StoryblokCmsApi } = await import('./StoryblokCmsApi');
       const api = new StoryblokCmsApi(silentLogger());
 

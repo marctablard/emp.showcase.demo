@@ -28,8 +28,8 @@ beforeEach(() => {
   __resetCmsCache();
   jest.useRealTimers();
   process.env = { ...ORIGINAL_ENV };
-  delete process.env.NEXT_PUBLIC_CMS_PAGE_CACHE_TTL_MS;
-  delete process.env.NEXT_PUBLIC_CMS_LAYOUT_CACHE_TTL_MS;
+  delete process.env.NEXT_CMS_PAGE_CACHE_TTL_MS;
+  delete process.env.NEXT_CMS_LAYOUT_CACHE_TTL_MS;
 });
 
 afterAll(() => {
@@ -52,7 +52,7 @@ describe('page cache', () => {
 
   it('evicts an entry once its TTL has elapsed', () => {
     jest.useFakeTimers();
-    process.env.NEXT_PUBLIC_CMS_PAGE_CACHE_TTL_MS = '1000';
+    process.env.NEXT_CMS_PAGE_CACHE_TTL_MS = '1000';
     setCachedPage('home', 'de', 'main', PAGE);
     expect(getCachedPage('home', 'de', 'main')).toBe(PAGE);
     jest.advanceTimersByTime(1001);
@@ -61,7 +61,7 @@ describe('page cache', () => {
 
   it('falls back to the 1h default when the TTL env is non-positive or invalid', () => {
     jest.useFakeTimers();
-    process.env.NEXT_PUBLIC_CMS_PAGE_CACHE_TTL_MS = '-5';
+    process.env.NEXT_CMS_PAGE_CACHE_TTL_MS = '-5';
     setCachedPage('home', 'de', 'main', PAGE);
     jest.advanceTimersByTime(3_600_000 - 1);
     expect(getCachedPage('home', 'de', 'main')).toBe(PAGE);

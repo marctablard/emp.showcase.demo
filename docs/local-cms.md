@@ -50,7 +50,7 @@ default site.
 
 ## Default-site fallback
 
-The default site is read from `NEXT_PUBLIC_CMS_LOCAL_DEFAULT_SITE` and defaults
+The default site is read from `NEXT_CMS_LOCAL_DEFAULT_SITE` and defaults
 to `_default_` when unset. If a page is not found for the resolved site and that
 site differs from the default, the adapter retries the lookup against the
 default site:
@@ -93,7 +93,7 @@ complete, working example.
 Set the provider environment variable and restart the dev server:
 
 ```
-NEXT_PUBLIC_CMS_PROVIDER=local
+NEXT_CMS_PROVIDER=local
 ```
 
 This is resolved by `resolveCmsProvider` and binds `LocalJsonCmsAdapter` as the

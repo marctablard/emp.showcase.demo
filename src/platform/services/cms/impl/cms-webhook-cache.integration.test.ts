@@ -70,7 +70,7 @@ beforeEach(() => {
   __resetCmsCache();
   process.env = { ...ORIGINAL_ENV };
   process.env.NEXT_CMS_WEBHOOK_SECRET = WEBHOOK_SECRET;
-  delete process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE;
+  delete process.env.NEXT_STORYBLOK_MULTI_SITE;
 });
 
 afterAll(() => {
@@ -121,7 +121,7 @@ describe('webhook→cache key congruence — single-site space', () => {
 describe('webhook→cache key congruence — multi-site space', () => {
   it('invalidates only the addressed site from the slug prefix', async () => {
     process.env.NEXT_PUBLIC_AVAILABLE_SITES = 'main,us-branch';
-    process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE = 'true';
+    process.env.NEXT_STORYBLOK_MULTI_SITE = 'true';
     const { service, getStory } = buildService();
 
     // Warm both sites.

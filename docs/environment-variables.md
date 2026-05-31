@@ -380,7 +380,7 @@ The application supports multiple sites/storefronts:
 
 - `NEXT_PUBLIC_DEFAULT_SITE` — default site identifier (see **Application defaults** above and [Site middleware](./site-middleware.md))
 - `NEXT_PUBLIC_AVAILABLE_SITES` - Comma-separated list of all sites
-- `NEXT_PUBLIC_STORYBLOK_MULTI_SITE` - Enable folder-based multi-site in Storyblok
+- `NEXT_STORYBLOK_MULTI_SITE` - Enable folder-based multi-site in Storyblok (server-only)
 
 ### Push Notifications
 

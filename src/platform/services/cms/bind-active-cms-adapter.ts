@@ -1,6 +1,6 @@
 import type { Container } from 'inversify';
 import 'server-only';
-import { getPublicCmsLocalDefaultSite } from '@/lib/common/public-default-env';
+import { getCmsLocalDefaultSite } from '@/lib/server/cms-server-defaults';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { CmsAdapter } from './CmsAdapter';
 import { resolveCmsFallbackProvider, resolveCmsProvider } from './CmsProviderResolver';
@@ -61,7 +61,7 @@ export function bindActiveCmsAdapter(container: Container, env: NodeJS.ProcessEn
   if (useComposite) {
     const primary = container.get<CmsAdapter>(effectivePrimaryTarget);
     const fallbackSource = container.get<CmsAdapter>(fallbackTarget);
-    const fallbackSite = getPublicCmsLocalDefaultSite();
+    const fallbackSite = getCmsLocalDefaultSite();
     logger?.info(
       { primaryTarget: effectivePrimaryTarget, fallbackTarget, fallbackSite },
       'Wrapping CMS adapter in default-content fallback composite',
