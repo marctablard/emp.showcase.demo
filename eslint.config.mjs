@@ -46,6 +46,24 @@ const eslintConfig = defineConfig([
           ],
         },
       ],
+      // Forbid reintroduction of `process.env.NEXT_PUBLIC_STORYBLOK_*` and
+      // `process.env.NEXT_PUBLIC_CMS_*` reads. These keys were migrated to
+      // server-only `NEXT_STORYBLOK_*` / `NEXT_CMS_*`; the browser obtains
+      // token-dependent values through server-actions (see
+      // src/app/_actions/storyblok-bridge.ts and
+      // src/app/_actions/cms-banner.ts). The AST selector matches only
+      // MemberExpression nodes — string literals referencing the old names
+      // (e.g. source-text audits in test files) are not affected. Test files
+      // are additionally excluded by globalIgnores below.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "MemberExpression[object.object.name='process'][object.property.name='env'][property.name=/^NEXT_PUBLIC_(STORYBLOK|CMS)_/]",
+          message:
+            'process.env.NEXT_PUBLIC_STORYBLOK_* and process.env.NEXT_PUBLIC_CMS_* are deprecated. Use the server-only NEXT_STORYBLOK_* / NEXT_CMS_* keys server-side; in the browser, fetch values through a server-action (see src/app/_actions/storyblok-bridge.ts and src/app/_actions/cms-banner.ts).',
+        },
+      ],
     },
   },
   globalIgnores([

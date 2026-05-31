@@ -382,6 +382,22 @@ The application supports multiple sites/storefronts:
 - `NEXT_PUBLIC_AVAILABLE_SITES` - Comma-separated list of all sites
 - `NEXT_STORYBLOK_MULTI_SITE` - Enable folder-based multi-site in Storyblok (server-only)
 
+### Server-Only Migration: CMS / Storyblok Variables
+
+Storyblok and CMS configuration was previously exposed as `NEXT_PUBLIC_*`. Next.js inlines every `NEXT_PUBLIC_*` read into the browser bundle, which leaked the Storyblok access token and CMS provider IDs into every `.next/static/chunks/*.js` file — readable by any page visitor. All such reads are now **server-only**.
+
+Renamed keys (drop the `_PUBLIC` infix): `NEXT_STORYBLOK_ACCESS_TOKEN`, `NEXT_STORYBLOK_ACCESS_PREVIEW`, `NEXT_STORYBLOK_SPACE_ID`, `NEXT_STORYBLOK_MULTI_SITE`, `NEXT_CMS_PROVIDER`, `NEXT_CMS_FALLBACK_PROVIDER`, `NEXT_CMS_LOCAL_DEFAULT_SITE`, `NEXT_CMS_PAGE_CACHE_TTL_MS`, `NEXT_CMS_LAYOUT_CACHE_TTL_MS`. Vercel-ENV must be updated in lockstep; there is no backwards compatibility shim.
+
+Where the browser legitimately needs a token-dependent value, it now goes through a server-action:
+
+- [`getStoryblokBridgeConfig`](../src/app/_actions/storyblok-bridge.ts) returns the Visual-Editor bridge token only for requests whose `referer` matches `/preview/*`. Browser code calls it from `useEffect`; otherwise the token never crosses the boundary.
+- [`fetchTopBanner`](../src/app/_actions/cms-banner.ts) reads `NEXT_STORYBLOK_ACCESS_TOKEN` server-side, queries Storyblok, and returns the public banner content. The hook [`useBanner`](../src/hooks/banner/use-banner.ts) consumes it.
+
+Two drift guards prevent reintroduction:
+
+- **ESLint** (`eslint.config.mjs`, `no-restricted-syntax`): forbids `process.env.NEXT_PUBLIC_STORYBLOK_*` and `process.env.NEXT_PUBLIC_CMS_*` reads at AST level. String literals (e.g. source-text audits in tests) are not affected.
+- **Browser-bundle smoke** ([`scripts/preview-smoke.sh`](../scripts/preview-smoke.sh)): grep `.next/static/chunks/*.js` per CMS provider for the deprecated prefixes and the `.env.template` demo token. Any hit fails the build.
+
 ### Push Notifications
 
 #### VAPID Keys
