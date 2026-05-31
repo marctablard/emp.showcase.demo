@@ -2,26 +2,45 @@
 
 import { useEffect } from 'react';
 import { apiPlugin, storyblokInit } from '@storyblok/react/rsc';
+import { getStoryblokBridgeConfig } from '@/app/_actions/storyblok-bridge';
 
 /**
  * Client-side Visual-Editor bridge — the adapter's `BridgeScript` component.
  *
  * The layout mounts it once (standalone, not as a children wrapper). On
- * mount it bootstraps the Storyblok bridge SDK when an access token is
- * configured, and renders `null` either way so it adds no DOM of its own.
- * Without a token it is a no-op, matching the boot-without-token contract.
+ * mount it asks the server action for the bridge config; when the action
+ * resolves a config object it bootstraps the Storyblok bridge SDK. The
+ * access token is never read from the browser bundle — it only ever crosses
+ * the wire as the resolved payload of an authorised server-action call.
+ *
+ * Failure modes are silent on purpose: a missing config (null) or a
+ * rejected action both leave the bridge uninitialised, but the rest of the
+ * page still renders.
  */
 export const StoryblokBridgeScript = (): null => {
   useEffect(() => {
-    const token = process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN?.trim();
-    if (!token) {
-      return;
-    }
-    storyblokInit({
-      accessToken: token,
-      use: [apiPlugin],
-      bridge: true,
-    });
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const config = await getStoryblokBridgeConfig();
+        if (cancelled || !config) {
+          return;
+        }
+        storyblokInit({
+          accessToken: config.accessToken,
+          use: [apiPlugin],
+          bridge: true,
+        });
+      } catch {
+        // Server-action rejected — fail safe: bridge stays uninitialised,
+        // the page keeps rendering.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return null;
