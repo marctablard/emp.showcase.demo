@@ -124,6 +124,11 @@ const customJestConfig = {
         '**/components/checkout/checkout-validation-registry*.test.ts?(x)',
         '**/components/cms/**/?(*.)+(spec|test).ts?(x)',
         '**/components/theme/**/?(*.)+(spec|test).ts?(x)',
+        // App-router layout/page tests that render `<html>`/`<body>` + the
+        // client provider stack need RTL + jsdom. The preview-route layout
+        // (EMP-22) is the first such test; without this entry it matches no
+        // project and becomes a silent skip (see `test_orphaned-tests`).
+        '**/app/preview/**/?(*.)+(spec|test).ts?(x)',
       ],
       setupFilesAfterEnv: ['<rootDir>/jest.react.setup.js'],
       moduleNameMapper: {
@@ -134,6 +139,10 @@ const customJestConfig = {
         // must remain the *last* fallback so these specific paths win.
         '^@/components/product/product-tile$': '<rootDir>/jest/mocks/product-tile.ts',
         '^@/components/product/product-tile-skeleton$': '<rootDir>/jest/mocks/product-tile-skeleton.ts',
+        // Stylesheet imports (e.g. `import '@/app/globals.css'`) must resolve to an
+        // inert module — this project overrides next/jest's CSS handling. Keep this
+        // BEFORE the `^@/(.*)$` fallback so `.css` never feeds the TS transform.
+        '\\.(css|scss|sass)$': '<rootDir>/jest/mocks/style-mock.js',
         '^@/(.*)$': '<rootDir>/src/$1',
         '^@platform/(.*)$': '<rootDir>/src/platform/$1',
         '^server-only$': '<rootDir>/jest/mocks/server-only.ts',
