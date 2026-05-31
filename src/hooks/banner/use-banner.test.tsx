@@ -141,6 +141,17 @@ describe('useBanner — source-text invariants', () => {
     const source = readFileSync(HOOK_PATH, 'utf8');
     expect(source).not.toMatch(/process\.env\.NEXT_STORYBLOK_ACCESS_PREVIEW/);
   });
+
+  it('does not read process.env.NEXT_STORYBLOK_ACCESS_TOKEN (token must never reach the browser bundle)', () => {
+    // The token is the load-bearing secret of this migration: even an
+    // accidental `process.env.NEXT_STORYBLOK_ACCESS_TOKEN` reference in a
+    // `'use client'` module would re-leak the credential into the browser
+    // chunk (Next bundles every `process.env.NEXT_*` read into the client
+    // build). The pure-`NEXT_`-prefixed var is server-only by convention,
+    // so this audit pins the convention at the source-text level.
+    const source = readFileSync(HOOK_PATH, 'utf8');
+    expect(source).not.toMatch(/process\.env\.NEXT.*STORYBLOK_ACCESS_TOKEN/);
+  });
 });
 
 describe('storyblok-banner-api removal guard', () => {

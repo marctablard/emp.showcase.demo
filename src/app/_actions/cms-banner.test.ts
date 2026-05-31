@@ -136,6 +136,13 @@ describe('fetchTopBanner — token guard', () => {
     await expect(fetchTopBanner({ locale: 'en' })).resolves.toBeNull();
     expect(mockStoryblokInit).not.toHaveBeenCalled();
     expect(mockApiGet).not.toHaveBeenCalled();
+    // DI-touch guard: the token-guard exit must short-circuit BEFORE the
+    // lazy-required `@/platform/server` container is asked for the logger.
+    // Without this pin, the no-token path could silently boot the container
+    // (or call `.get` once) and the test would still go green via the early
+    // null return.
+    const serverModule = jest.requireMock('@/platform/server') as { default: { get: jest.Mock } };
+    expect(serverModule.default.get).not.toHaveBeenCalled();
   });
 
   it('returns null when the configured token is whitespace-only', async () => {
@@ -145,6 +152,10 @@ describe('fetchTopBanner — token guard', () => {
     await expect(fetchTopBanner({ locale: 'en' })).resolves.toBeNull();
     expect(mockStoryblokInit).not.toHaveBeenCalled();
     expect(mockApiGet).not.toHaveBeenCalled();
+    // Same DI-touch guard as above: whitespace-only token must take the
+    // same early exit, never reaching the logger lookup.
+    const serverModule = jest.requireMock('@/platform/server') as { default: { get: jest.Mock } };
+    expect(serverModule.default.get).not.toHaveBeenCalled();
   });
 
   it('returns null when storyblokInit returns null (defensive: SDK refused to bootstrap)', async () => {
@@ -214,6 +225,25 @@ describe('fetchTopBanner — story fetch contract', () => {
     );
   });
 
+  // Strict-equality matrix: only the exact string `'true'` enables preview.
+  // Every other value — including blank, `'false'`, `'0'`, `'1'`, `'yes'` —
+  // must yield `version: 'published'`. A future regression that swaps the
+  // comparison to a loose truthy check (e.g. `Boolean(env)` or `=== '1'`)
+  // would flip at least one row red.
+  it.each(['', 'false', '0', '1', 'yes'])(
+    'treats preview env %j as published (strict equality to "true")',
+    async (val) => {
+      process.env[TOKEN_KEY] = 'tk-banner';
+      process.env[PREVIEW_KEY] = val;
+      mockApiGet.mockResolvedValue(SAMPLE_STORY);
+      const fetchTopBanner = await loadAction();
+
+      await fetchTopBanner({ locale: 'en' });
+
+      expect(mockApiGet).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ version: 'published' }));
+    },
+  );
+
   it('passes the locale argument through as the language param', async () => {
     process.env[TOKEN_KEY] = 'tk-banner';
     mockApiGet.mockResolvedValue(SAMPLE_STORY);
@@ -237,5 +267,10 @@ describe('fetchTopBanner — failure mode', () => {
 
     await expect(fetchTopBanner({ locale: 'en' })).resolves.toBeNull();
     expect(mockLoggerWarn).toHaveBeenCalledTimes(1);
+    // Pin the pino-style structured-log shape: first arg is the context
+    // bag `{ err }`, second arg is the message. A swap to `console.warn`
+    // or a string-only log would lose the structured `err` context and
+    // break our log-grep on `storyblok` in ops.
+    expect(mockLoggerWarn).toHaveBeenCalledWith({ err: expect.any(Error) }, expect.stringContaining('storyblok'));
   });
 });
