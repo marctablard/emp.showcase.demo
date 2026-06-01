@@ -1,5 +1,6 @@
 import type { HTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
+import { parseProductIds } from './parse-product-ids';
 import RecommendationsCarousel from './recommendations-carousel';
 import type { RecommendationsData } from './schema';
 
@@ -17,7 +18,7 @@ const Recommendations = ({
   ...rest
 }: RecommendationsProps) => {
   const hasProductId = !!productId;
-  const hasProducts = (products?.split(',').filter((id) => id.trim().length > 0).length ?? 0) > 0;
+  const hasProducts = (products ? parseProductIds(products).length : 0) > 0;
 
   if (!hasProductId && !hasProducts) {
     return null;

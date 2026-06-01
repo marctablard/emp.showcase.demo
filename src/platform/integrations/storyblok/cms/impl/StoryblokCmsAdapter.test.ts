@@ -323,6 +323,70 @@ describe('StoryblokCmsAdapter — getLayout(layoutId, locale, site)', () => {
     expect(result).toEqual(expect.objectContaining({ notfound: true }));
     expect(logger.warn).toHaveBeenCalled();
   });
+
+  it('accepts a valid layout with exactly one content-slot', async () => {
+    const validLayout = {
+      id: 'layout-uuid',
+      type: 'layout' as const,
+      body: [{ id: 'slot-1', type: 'content-slot' as const }],
+    };
+    const api = buildApi({ getStory: jest.fn(async () => storyResult({ body: [] })) });
+    const mapLayout = jest.fn(() => validLayout);
+    const mapper = {
+      mapPage: jest.fn(() => SAMPLE_PAGE),
+      mapLayout,
+      mapRichtext: jest.fn(),
+    } as unknown as jest.Mocked<import('./StoryblokCmsMapper').StoryblokCmsMapper>;
+    const adapter = new StoryblokCmsAdapter(api, mapper, silentLogger());
+
+    const result = await adapter.getLayout('default', 'en', 'main');
+
+    expect(result).toEqual(validLayout);
+  });
+
+  it('returns { notfound: true } when mapped layout fails LayoutContentSchema (e.g. two content-slots)', async () => {
+    const invalidLayout = {
+      id: 'layout-uuid',
+      type: 'layout' as const,
+      body: [
+        { id: 'slot-1', type: 'content-slot' as const },
+        { id: 'slot-2', type: 'content-slot' as const },
+      ],
+    };
+    const api = buildApi({ getStory: jest.fn(async () => storyResult({ body: [] })) });
+    const mapLayout = jest.fn(() => invalidLayout);
+    const mapper = {
+      mapPage: jest.fn(() => SAMPLE_PAGE),
+      mapLayout,
+      mapRichtext: jest.fn(),
+    } as unknown as jest.Mocked<import('./StoryblokCmsMapper').StoryblokCmsMapper>;
+    const adapter = new StoryblokCmsAdapter(api, mapper, silentLogger());
+
+    const result = await adapter.getLayout('default', 'en', 'main');
+
+    expect(result).toEqual(expect.objectContaining({ notfound: true }));
+  });
+
+  it('logs a warn when layout validation fails', async () => {
+    const invalidLayout = {
+      id: 'layout-uuid',
+      type: 'layout' as const,
+      body: [] as { id: string; type: 'content-slot' }[],
+    };
+    const api = buildApi({ getStory: jest.fn(async () => storyResult({ body: [] })) });
+    const mapLayout = jest.fn(() => invalidLayout);
+    const logger = silentLogger();
+    const mapper = {
+      mapPage: jest.fn(() => SAMPLE_PAGE),
+      mapLayout,
+      mapRichtext: jest.fn(),
+    } as unknown as jest.Mocked<import('./StoryblokCmsMapper').StoryblokCmsMapper>;
+    const adapter = new StoryblokCmsAdapter(api, mapper, logger);
+
+    await adapter.getLayout('default', 'en', 'main');
+
+    expect(logger.warn).toHaveBeenCalled();
+  });
 });
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- crypto for signing fixtures

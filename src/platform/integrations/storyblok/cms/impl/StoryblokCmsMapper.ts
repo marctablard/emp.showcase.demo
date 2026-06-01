@@ -132,7 +132,8 @@ export class StoryblokCmsMapper {
 
     const link = marks.find((mark) => mark.type === MarkTypes.LINK);
     if (link) {
-      const href = typeof link.attrs?.href === 'string' ? link.attrs.href : '';
+      const rawHref = typeof link.attrs?.href === 'string' ? link.attrs.href : '';
+      const href = this.sanitizeHref(rawHref);
       return [{ kind: 'link', href, text: value }];
     }
 
@@ -160,6 +161,32 @@ export class StoryblokCmsMapper {
       }
     }
     return [inline];
+  }
+
+  /**
+   * Allowlist-based href sanitiser. Only permits schemes that are safe to
+   * render in an anchor's `href`:
+   *  - `https:` / `http:` — standard web links
+   *  - `mailto:` — email links
+   *  - `tel:` — telephone links
+   *  - relative URLs starting with `/` — internal navigation
+   *  - anchor links starting with `#` — in-page navigation
+   *
+   * Everything else (e.g. `javascript:`, `data:`, `vbscript:`) is stripped
+   * to an empty string so the renderer produces an inert href="".
+   */
+  private sanitizeHref(href: string): string {
+    if (
+      href.startsWith('https://') ||
+      href.startsWith('http://') ||
+      href.startsWith('mailto:') ||
+      href.startsWith('tel:') ||
+      href.startsWith('/') ||
+      href.startsWith('#')
+    ) {
+      return href;
+    }
+    return '';
   }
 }
 

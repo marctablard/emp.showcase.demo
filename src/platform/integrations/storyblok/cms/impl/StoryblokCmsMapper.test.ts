@@ -453,6 +453,80 @@ describe('StoryblokCmsMapper — mapPage (story payload to CMSPage)', () => {
   });
 });
 
+describe('StoryblokCmsMapper — href sanitisation (XSS guard)', () => {
+  const linkMark = (href: string) => ({ type: MarkTypes.LINK, attrs: { href } });
+
+  const getLinkHref = (result: ReturnType<InstanceType<typeof StoryblokCmsMapper>['mapRichtext']>): string => {
+    const block = result?.blocks[0];
+    if (block?.kind === 'paragraph') {
+      const inline = block.inlines[0];
+      if (inline?.kind === 'link') return inline.href;
+    }
+    return '__not_a_link__';
+  };
+
+  it('passes through http: and https: hrefs unchanged', () => {
+    const httpResult = newMapper().mapRichtext(
+      doc(paragraph(textNode('x', [linkMark('http://example.com')]))),
+      'xss-1',
+    );
+    const httpsResult = newMapper().mapRichtext(
+      doc(paragraph(textNode('x', [linkMark('https://example.com')]))),
+      'xss-2',
+    );
+
+    expect(getLinkHref(httpResult)).toBe('http://example.com');
+    expect(getLinkHref(httpsResult)).toBe('https://example.com');
+  });
+
+  it('passes through mailto: and tel: hrefs unchanged', () => {
+    const mailtoResult = newMapper().mapRichtext(doc(paragraph(textNode('x', [linkMark('mailto:a@b.com')]))), 'xss-3');
+    const telResult = newMapper().mapRichtext(doc(paragraph(textNode('x', [linkMark('tel:+4912345')]))), 'xss-4');
+
+    expect(getLinkHref(mailtoResult)).toBe('mailto:a@b.com');
+    expect(getLinkHref(telResult)).toBe('tel:+4912345');
+  });
+
+  it('passes through relative paths starting with /', () => {
+    const result = newMapper().mapRichtext(doc(paragraph(textNode('x', [linkMark('/about/us')]))), 'xss-5');
+
+    expect(getLinkHref(result)).toBe('/about/us');
+  });
+
+  it('passes through anchor hrefs starting with #', () => {
+    const result = newMapper().mapRichtext(doc(paragraph(textNode('x', [linkMark('#section-2')]))), 'xss-6');
+
+    expect(getLinkHref(result)).toBe('#section-2');
+  });
+
+  it('strips javascript: href → empty string', () => {
+    const result = newMapper().mapRichtext(doc(paragraph(textNode('x', [linkMark('javascript:alert(1)')]))), 'xss-7');
+
+    expect(getLinkHref(result)).toBe('');
+  });
+
+  it('strips data: href → empty string', () => {
+    const result = newMapper().mapRichtext(
+      doc(paragraph(textNode('x', [linkMark('data:text/html,<script>alert(1)</script>')]))),
+      'xss-8',
+    );
+
+    expect(getLinkHref(result)).toBe('');
+  });
+
+  it('strips vbscript: href → empty string', () => {
+    const result = newMapper().mapRichtext(doc(paragraph(textNode('x', [linkMark('vbscript:msgbox(1)')]))), 'xss-9');
+
+    expect(getLinkHref(result)).toBe('');
+  });
+
+  it('strips unknown-scheme: href → empty string', () => {
+    const result = newMapper().mapRichtext(doc(paragraph(textNode('x', [linkMark('ftp://evil.com')]))), 'xss-10');
+
+    expect(getLinkHref(result)).toBe('');
+  });
+});
+
 describe('StoryblokCmsMapper — mapLayout (story payload to CMSLayout)', () => {
   const buildStory = (content: Record<string, unknown>, overrides: Partial<ISbStoryData> = {}): ISbStoryData =>
     ({

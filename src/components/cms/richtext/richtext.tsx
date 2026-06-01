@@ -2,6 +2,10 @@ import type { HTMLAttributes, JSX, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import type { RichtextBlock, RichtextData, RichtextInline } from './schema';
 
+/** Defense-in-depth: only allow known-safe href schemes in the renderer. */
+const SAFE_HREF_RE = /^(https?:\/\/|mailto:|tel:|\/|#)/;
+const sanitizeHref = (href: string): string => (SAFE_HREF_RE.test(href) ? href : '');
+
 export type RichtextProps = RichtextData & HTMLAttributes<HTMLDivElement>;
 
 const HEADING_TAGS = {
@@ -16,7 +20,7 @@ const HEADING_TAGS = {
 const renderInline = (inline: RichtextInline, key: number): ReactNode => {
   if (inline.kind === 'link') {
     return (
-      <a key={key} href={inline.href}>
+      <a key={key} href={sanitizeHref(inline.href)}>
         {inline.text}
       </a>
     );

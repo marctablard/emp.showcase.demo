@@ -2,6 +2,7 @@ import type { HTMLAttributes } from 'react';
 import crypto from 'crypto';
 import { inject } from 'inversify';
 import 'server-only';
+import { LayoutContentSchema } from '@/components/cms/component-schema';
 import { routingConfig } from '@/i18n/routing';
 import { injectable } from '@/platform/core/di/injectable';
 import type { CmsAdapter } from '@/platform/services/cms/CmsAdapter';
@@ -70,7 +71,13 @@ export class StoryblokCmsAdapter implements CmsAdapter {
       if (!result?.data?.story) {
         return { notfound: true };
       }
-      return this.mapper.mapLayout(result.data.story);
+      const mapped = this.mapper.mapLayout(result.data.story);
+      const parsed = LayoutContentSchema.safeParse(mapped);
+      if (!parsed.success) {
+        this.logger.warn({ layoutId, issues: parsed.error.issues }, `Layout '${layoutId}' failed schema validation`);
+        return { notfound: true };
+      }
+      return parsed.data as CMSLayout;
     } catch (_error) {
       this.logger.warn({ layoutId }, `Error loading Storyblok layout '${layoutId}'`);
       return { notfound: true };

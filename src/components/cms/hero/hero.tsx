@@ -21,10 +21,12 @@ const Hero = ({ id: _id, type: _type, headline, text, main_button, image, video,
   const [isPlaying, setIsPlaying] = useState(videoData?.autoplay ?? false);
 
   useEffect(() => {
-    videoPlayer?.current?.querySelector('video')?.addEventListener('ended', () => {
-      setIsPlaying(false);
-    });
-  });
+    const v = videoPlayer.current?.querySelector('video');
+    if (!v) return;
+    const onEnded = () => setIsPlaying(false);
+    v.addEventListener('ended', onEnded);
+    return () => v.removeEventListener('ended', onEnded);
+  }, []);
 
   const handleVideoPlay = () => {
     if (isPlaying) {

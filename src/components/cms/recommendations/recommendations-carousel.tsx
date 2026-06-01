@@ -15,6 +15,7 @@ import {
   CarouselPrevious,
 } from '../../ui/carousel';
 import { Heading } from '../../ui/h';
+import { parseProductIds } from './parse-product-ids';
 
 interface RecommendationsCarouselProps {
   overline?: string;
@@ -26,8 +27,8 @@ interface RecommendationsCarouselProps {
 
 const RecommendationsCarousel = ({ overline, headline, productId, products, locale }: RecommendationsCarouselProps) => {
   const hasProductId = !!productId;
-  // get product ids as string because of storyblok and transform it to array
-  const transformProducts = products?.split(', ');
+  // parse product ids from comma-separated string (tolerates any whitespace around commas)
+  const transformProducts = products ? parseProductIds(products) : undefined;
   const hasProducts = Array.isArray(transformProducts) && transformProducts.length > 0;
 
   // Fetch recommendations or products

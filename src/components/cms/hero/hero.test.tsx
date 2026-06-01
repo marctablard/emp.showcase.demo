@@ -74,6 +74,47 @@ describe('Hero — schema', () => {
   });
 });
 
+const VALID_HERO_WITH_VIDEO: HeroData = {
+  ...VALID_HERO,
+  video: [{ id: 'v1', type: 'video', video_file: { filename: '/hero.mp4' }, autoplay: false }],
+};
+
+describe('Hero — useEffect: video "ended" listener lifecycle', () => {
+  it('registers at most one "ended" listener per mount (no accumulation on re-renders)', () => {
+    const addSpy = jest.fn();
+    const removeSpy = jest.fn();
+
+    const mockVideo = { addEventListener: addSpy, removeEventListener: removeSpy };
+    jest.spyOn(HTMLDivElement.prototype, 'querySelector').mockReturnValue(mockVideo as unknown as Element);
+
+    const { rerender } = render(<Hero {...VALID_HERO_WITH_VIDEO} />);
+    rerender(<Hero {...VALID_HERO_WITH_VIDEO} headline="Re-render 1" />);
+    rerender(<Hero {...VALID_HERO_WITH_VIDEO} headline="Re-render 2" />);
+
+    // addEventListener('ended', ...) must be called exactly once (empty dep array)
+    expect(addSpy).toHaveBeenCalledTimes(1);
+    expect(addSpy).toHaveBeenCalledWith('ended', expect.any(Function));
+
+    jest.restoreAllMocks();
+  });
+
+  it('calls removeEventListener on unmount (no listener leak)', () => {
+    const addSpy = jest.fn();
+    const removeSpy = jest.fn();
+
+    const mockVideo = { addEventListener: addSpy, removeEventListener: removeSpy };
+    jest.spyOn(HTMLDivElement.prototype, 'querySelector').mockReturnValue(mockVideo as unknown as Element);
+
+    const { unmount } = render(<Hero {...VALID_HERO_WITH_VIDEO} />);
+    unmount();
+
+    expect(removeSpy).toHaveBeenCalledTimes(1);
+    expect(removeSpy).toHaveBeenCalledWith('ended', expect.any(Function));
+
+    jest.restoreAllMocks();
+  });
+});
+
 describe('Hero — component', () => {
   it('renders the hero headline as visible text', () => {
     const { getByText } = render(<Hero {...VALID_HERO} />);
