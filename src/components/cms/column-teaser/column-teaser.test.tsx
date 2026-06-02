@@ -88,3 +88,16 @@ describe('ColumnTeaser — CMS editable attributes', () => {
     expect(root.getAttribute('data-blok-uid')).toBe('editable-uid-ct');
   });
 });
+
+describe('ColumnTeaser — XSS sanitisation', () => {
+  it('sanitises a javascript: image link — rendered anchor href must not contain the scheme', () => {
+    const xssData: ColumnTeaserData = {
+      id: 'ct-xss',
+      type: 'column-teaser',
+      main_image: { filename: '/main.png', link: 'javascript:alert(1)' },
+    };
+    const { container } = render(<ColumnTeaser {...xssData} />);
+    const anchor = container.querySelector('a');
+    expect(anchor?.getAttribute('href')).not.toMatch(/javascript:/i);
+  });
+});

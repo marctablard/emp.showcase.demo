@@ -91,4 +91,12 @@ describe('ContentBlock — component', () => {
     expect(root.getAttribute('data-blok-c')).toBe('content-block');
     expect(root.getAttribute('data-blok-uid')).toBe('editable-uid-cb');
   });
+
+  it('sanitises a javascript: button link — rendered anchor href must not contain the scheme', () => {
+    const { container } = render(
+      <ContentBlock {...MINIMAL} button={{ name: 'XSS', link: 'javascript:alert(1)', is_external: false }} />,
+    );
+    const anchor = container.querySelector('a');
+    expect(anchor?.getAttribute('href')).not.toMatch(/javascript:/i);
+  });
 });

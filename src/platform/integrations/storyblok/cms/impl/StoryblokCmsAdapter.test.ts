@@ -233,20 +233,39 @@ describe('StoryblokCmsAdapter — getNavigation(locale, site)', () => {
 });
 
 describe('StoryblokCmsAdapter — getEditableProps(component)', () => {
-  it('returns a plain DOM-attribute object (not a React element) with `data-blok-*` for an editable component', () => {
+  it('emits the SDK-shaped `data-blok-*` the Visual-Editor bridge binds against (NOT component-name / bare-uid)', () => {
+    const { mapper } = buildMapper();
+    const adapter = new StoryblokCmsAdapter(buildApi(), mapper, silentLogger());
+
+    // The bridge binds against the full stringified `_editable` object on
+    // `data-blok-c` and `${storyId}-${blockUid}` on `data-blok-uid`.
+    const editable = { name: 'button', space: '12345', uid: 'block-uid', id: 'story-id' };
+    const props = adapter.getEditableProps?.({
+      id: 'b1',
+      type: 'button',
+      _editable: `<!--#storyblok#${JSON.stringify(editable)}-->`,
+    } as never);
+
+    expect(props).toEqual({
+      'data-blok-c': JSON.stringify(editable),
+      'data-blok-uid': 'story-id-block-uid',
+    });
+    // Regression pin: the old impl set `data-blok-c` to the component name.
+    expect(props?.['data-blok-c' as keyof typeof props]).not.toBe('button');
+  });
+
+  it('returns a plain DOM-attribute object (not a React element)', () => {
     const { mapper } = buildMapper();
     const adapter = new StoryblokCmsAdapter(buildApi(), mapper, silentLogger());
 
     const props = adapter.getEditableProps?.({
       id: 'b1',
       type: 'button',
-      _editable: '<!--#storyblok#{"uid":"b1"}-->',
+      _editable: '<!--#storyblok#{"name":"button","space":"1","uid":"u","id":"i"}-->',
     } as never);
 
     expect(typeof props).toBe('object');
     expect(props).not.toBeNull();
-    const keys = Object.keys(props ?? {});
-    expect(keys.some((k) => k.startsWith('data-blok'))).toBe(true);
   });
 
   it('returns an empty object for a component without an `_editable` payload', () => {
@@ -254,6 +273,19 @@ describe('StoryblokCmsAdapter — getEditableProps(component)', () => {
     const adapter = new StoryblokCmsAdapter(buildApi(), mapper, silentLogger());
 
     const props = adapter.getEditableProps?.({ id: 'b1', type: 'button' } as never);
+
+    expect(props).toEqual({});
+  });
+
+  it('returns an empty object for a malformed `_editable` payload (helper swallows the parse error)', () => {
+    const { mapper } = buildMapper();
+    const adapter = new StoryblokCmsAdapter(buildApi(), mapper, silentLogger());
+
+    const props = adapter.getEditableProps?.({
+      id: 'b1',
+      type: 'button',
+      _editable: '<!--#storyblok#{not-json}-->',
+    } as never);
 
     expect(props).toEqual({});
   });

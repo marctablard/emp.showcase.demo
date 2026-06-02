@@ -176,3 +176,19 @@ describe('TopBannerAnnouncement — attribute spread reaches the rendered root',
     expect(container).toBeEmptyDOMElement();
   });
 });
+
+describe('TopBannerAnnouncement — XSS sanitisation', () => {
+  it('sanitises a javascript: link.url — rendered anchor href must not contain the scheme', () => {
+    const { container } = render(
+      <TopBannerAnnouncement
+        id="tba-xss"
+        type="top-banner-announcement"
+        title="XSS"
+        link={{ id: 'l-xss', url: 'javascript:alert(1)', target: '_self' }}
+        is_active={true}
+      />,
+    );
+    const anchor = container.querySelector('a');
+    expect(anchor?.getAttribute('href')).not.toMatch(/javascript:/i);
+  });
+});

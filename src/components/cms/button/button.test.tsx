@@ -106,4 +106,10 @@ describe('Button — component', () => {
     expect(root.getAttribute('data-blok-c')).toBe('button');
     expect(root.getAttribute('data-blok-uid')).toBe('editable-uid-btn');
   });
+
+  it('sanitises a javascript: link — rendered anchor href must not contain the scheme', () => {
+    const { container } = render(<Button {...VALID_PROPS} link="javascript:alert(1)" />);
+    const anchor = container.querySelector('a');
+    expect(anchor?.getAttribute('href')).not.toMatch(/javascript:/i);
+  });
 });

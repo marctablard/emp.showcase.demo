@@ -24,6 +24,22 @@ const HEADING_LEVELS = new Set([1, 2, 3, 4, 5, 6]);
  */
 @injectable('StoryblokCmsMapper', 'Singleton')
 export class StoryblokCmsMapper {
+  /**
+   * Component-type → field-names whose value is a TipTap richtext document the
+   * mapper must pre-lift into the agnostic `RichtextData` AST (so the field
+   * renders through `<Richtext>`).
+   *
+   * This is an EXPLICIT allowlist, deliberately not structural `type:'doc'`
+   * detection. Several components (hero, media-text) carry their own
+   * TipTap-shaped `text` field that the renderer consumes RAW
+   * (`text.content[0]?.content[0]?.text`), so auto-converting every
+   * doc-shaped field to the AST would silently break them. A new
+   * richtext-bearing component registers its field(s) here.
+   */
+  private static readonly RICHTEXT_FIELDS: Readonly<Record<string, readonly string[]>> = {
+    article: ['content'],
+  };
+
   mapRichtext(node: StoryblokRichTextNode | null | undefined, id: string): RichtextData | undefined {
     if (!node) {
       return undefined;
@@ -67,8 +83,10 @@ export class StoryblokCmsMapper {
 
     const mapped: Record<string, unknown> = { ...rest, id, type };
 
-    if (type === 'article' && rest.content) {
-      mapped.content = this.mapRichtext(rest.content as StoryblokRichTextNode, id);
+    for (const field of StoryblokCmsMapper.RICHTEXT_FIELDS[type] ?? []) {
+      if (rest[field]) {
+        mapped[field] = this.mapRichtext(rest[field] as StoryblokRichTextNode, id);
+      }
     }
 
     return mapped as unknown as CMSComponent;

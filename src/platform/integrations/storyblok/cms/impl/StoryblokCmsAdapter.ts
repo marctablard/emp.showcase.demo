@@ -1,4 +1,5 @@
 import type { HTMLAttributes } from 'react';
+import { type SbBlokData, storyblokEditable } from '@storyblok/react/rsc';
 import crypto from 'crypto';
 import { inject } from 'inversify';
 import 'server-only';
@@ -202,21 +203,20 @@ export class StoryblokCmsAdapter implements CmsAdapter {
     return fallback ? [fallback] : [''];
   }
 
+  /**
+   * Visual-Editor click-to-edit attributes for a mapped component.
+   *
+   * Delegates to the SDK's `storyblokEditable` rather than hand-rolling the
+   * attributes: the bridge binds against `data-blok-c` set to the *stringified
+   * `_editable` object* (not the component name) and `data-blok-uid` set to
+   * `${storyId}-${blockUid}` (not the bare uid). Emitting the wrong shape
+   * silently breaks click-to-edit. The helper is pure (no `window` access), so
+   * it is safe in this server-only module; it reads only `_editable`, which
+   * `StoryblokCmsMapper.mapComponent` preserves on the mapped component, and
+   * returns `{}` when that payload is absent or malformed.
+   */
   getEditableProps(component: CMSComponent): HTMLAttributes<HTMLElement> {
-    const editable = (component as { _editable?: unknown })._editable;
-    if (typeof editable !== 'string' || editable.length === 0) {
-      return {};
-    }
-    const uid = this.parseUid(editable);
-    return {
-      'data-blok-c': component.type,
-      'data-blok-uid': uid,
-    } as HTMLAttributes<HTMLElement>;
-  }
-
-  private parseUid(editable: string): string {
-    const match = editable.match(/"uid"\s*:\s*"([^"]+)"/);
-    return match?.[1] ?? '';
+    return storyblokEditable(component as unknown as SbBlokData) as HTMLAttributes<HTMLElement>;
   }
 }
 

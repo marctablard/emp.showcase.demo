@@ -94,3 +94,15 @@ describe('QuickEntry — CMS editable attributes', () => {
     expect(root.getAttribute('data-blok-uid')).toBe('editable-uid-456');
   });
 });
+
+describe('QuickEntry — XSS sanitisation', () => {
+  it('sanitises a javascript: element link — rendered anchor href must not contain the scheme', () => {
+    const xssData = {
+      ...VALID,
+      elements: [{ title: 'XSS', link: 'javascript:alert(1)', link_name: 'Go', icon: 'ShoppingCart' as const }],
+    };
+    const { container } = render(<QuickEntry {...xssData} />);
+    const anchor = container.querySelector('a');
+    expect(anchor?.getAttribute('href')).not.toMatch(/javascript:/i);
+  });
+});

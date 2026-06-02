@@ -441,6 +441,30 @@ describe('StoryblokCmsMapper — mapPage (story payload to CMSPage)', () => {
     });
   });
 
+  it('does NOT pre-map a non-registered component that happens to carry a doc-shaped field (raw passthrough)', () => {
+    // hero/media-text carry a TipTap-shaped `text` field the renderer consumes
+    // RAW — the registry must NOT convert it to the agnostic AST.
+    const rawText = doc(paragraph(textNode('Sub-headline copy.')));
+    const page = newMapper().mapPage(
+      buildStory({
+        body: [{ _uid: 'hero-1', component: 'hero', headline: 'Welcome', text: rawText }],
+      }),
+    );
+
+    const hero = page.components[0] as Record<string, unknown>;
+    // Untouched: still the raw TipTap doc, NOT a `{ type: 'richtext' }` AST.
+    expect(hero.text).toBe(rawText);
+  });
+
+  it('does not invent a richtext field on a registered component when its field is absent', () => {
+    const page = newMapper().mapPage(
+      buildStory({ body: [{ _uid: 'art-1', component: 'article', title: 'Headline only' }] }),
+    );
+
+    const article = page.components[0] as Record<string, unknown>;
+    expect(article.content).toBeUndefined();
+  });
+
   it('returns an empty `components` array for a story with no body', () => {
     expect(newMapper().mapPage(buildStory({ body: undefined })).components).toEqual([]);
   });
