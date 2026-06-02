@@ -1,6 +1,7 @@
 import { AbstractCMSComponentService } from '@extensions/medienwerft-cms-plugin/services/impl/AbstractCMSComponentService';
 import type { CMSComponentEntry } from '@extensions/medienwerft-cms-plugin/types';
 import { categoryTileRowEntry } from '@/components/cms-custom/category-tile-row';
+import { contactFormEntry } from '@/components/cms-custom/contact-form';
 import { ctaBannerEntry } from '@/components/cms-custom/cta-banner';
 import { ctaButtonEntry } from '@/components/cms-custom/cta-button';
 import { featureListEntry } from '@/components/cms-custom/feature-list';
@@ -45,6 +46,7 @@ const definitionMap: Record<string, CMSComponentEntry> = {
   [productCarouselEntry.definition.type]: productCarouselEntry,
   [categoryTileRowEntry.definition.type]: categoryTileRowEntry,
   [promoCardEntry.definition.type]: promoCardEntry,
+  [contactFormEntry.definition.type]: contactFormEntry,
 };
 
 @injectable('EmporixCMSComponentService', 'Singleton')

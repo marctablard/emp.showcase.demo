@@ -1,6 +1,14 @@
 import type { EmporixMetadata, EmporixMixins, LocalizedString } from './common';
 
 /**
+ * Owner reference on a custom entity instance (e.g. employee-owned records).
+ */
+export interface EmporixCustomEntityOwner {
+  type?: string;
+  userId?: string;
+}
+
+/**
  * Custom instance response
  */
 export interface EmporixCustomEntity {
@@ -9,6 +17,7 @@ export interface EmporixCustomEntity {
   type: string;
   mixins?: EmporixMixins;
   metadata?: EmporixMetadata;
+  owner?: EmporixCustomEntityOwner;
 }
 
 /**
