@@ -83,13 +83,25 @@ describe('Article — render contract', () => {
   });
 
   it('when `content` is undefined, no richtext body is mounted (no block-level body elements)', () => {
-    const article: ArticleData = { id: 'art-empty', type: 'article', title: 'Just a title' };
+    // No title/introduction either, so the header is absent too — this
+    // isolates the richtext-body region: an article with no `content` must
+    // render zero block-level elements.
+    const article: ArticleData = { id: 'art-empty', type: 'article' };
 
     const { container } = render(<Article {...article} />);
 
-    // No richtext body is mounted when `content` is omitted: the article
-    // renders no block-level body elements (keyed on observable structure).
     expect(container.querySelectorAll('p, h1, h2, h3, h4, h5, h6, ul, ol, hr')).toHaveLength(0);
+  });
+
+  it('renders the title in an <h1> header without mounting a richtext body when `content` is undefined', () => {
+    const article: ArticleData = { id: 'art-title-only', type: 'article', title: 'Just a title' };
+
+    const { container, getByText } = render(<Article {...article} />);
+
+    // The title is a real <h1> inside the header (not a bare text node)...
+    expect(getByText('Just a title').closest('h1')).not.toBeNull();
+    // ...but no richtext body block elements are mounted.
+    expect(container.querySelectorAll('p, h2, h3, h4, h5, h6, ul, ol, hr')).toHaveLength(0);
   });
 
   it('preserves the title / introduction / video / linked_products contract verbatim', () => {

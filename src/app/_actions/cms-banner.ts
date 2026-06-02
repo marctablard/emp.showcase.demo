@@ -19,6 +19,38 @@ export interface TopBannerData {
 
 const STORY_SLUG = 'cdn/stories/top-banner-announcement';
 
+type StoryblokBannerClient = {
+  get(slug: string, params: { version: 'draft' | 'published'; language: string }): Promise<{ data: TopBannerData }>;
+};
+
+/**
+ * Memoised Storyblok client accessor, keyed by access token.
+ *
+ * `storyblokInit` registers global SDK state / plugins; calling it on every
+ * banner fetch is wasteful and lets that state accumulate. We init once per
+ * token and reuse the returned accessor. The token is keyed (not assumed
+ * constant) so a config change between calls still re-inits against the new
+ * value rather than serving a stale client.
+ */
+let cachedBannerClient: { token: string; accessor: (() => StoryblokBannerClient | null) | null } | null = null;
+
+const getBannerClient = (token: string): StoryblokBannerClient | null => {
+  if (cachedBannerClient?.token !== token) {
+    // `storyblokInit` returns an *accessor* function `() => StoryblokClient`
+    // (see `node_modules/@storyblok/react/dist/rsc.d.ts:139`). Calling
+    // `storyblokInit({...}).get(...)` directly would crash at runtime with
+    // `api.get is not a function`. We must invoke the accessor to get the
+    // client. Same pattern as `StoryblokCmsApi.ts:74-90`.
+    const accessor = storyblokInit({ accessToken: token, use: [apiPlugin] }) as unknown as
+      | (() => StoryblokBannerClient | null)
+      | null;
+    cachedBannerClient = { token, accessor };
+  }
+  // We defensively bail both when `storyblokInit` itself returns null and
+  // when the accessor it returns resolves to a null client.
+  return cachedBannerClient.accessor?.() ?? null;
+};
+
 /**
  * Lazy-require the platform container.
  *
@@ -52,21 +84,7 @@ export async function fetchTopBanner({ locale }: { locale: string }): Promise<To
     return null;
   }
 
-  // `storyblokInit` returns an *accessor* function `() => StoryblokClient`
-  // (see `node_modules/@storyblok/react/dist/rsc.d.ts:139`). Calling
-  // `storyblokInit({...}).get(...)` directly would crash at runtime with
-  // `api.get is not a function`. We must invoke the accessor to get the
-  // client. Same pattern as `StoryblokCmsApi.ts:74-90`.
-  //
-  // We defensively bail both when `storyblokInit` itself returns null and
-  // when the accessor it returns resolves to a null client.
-  type StoryblokBannerClient = {
-    get(slug: string, params: { version: 'draft' | 'published'; language: string }): Promise<{ data: TopBannerData }>;
-  };
-  const accessor = storyblokInit({ accessToken: token, use: [apiPlugin] }) as unknown as
-    | (() => StoryblokBannerClient | null)
-    | null;
-  const api = accessor?.() ?? null;
+  const api = getBannerClient(token);
   if (!api) {
     return null;
   }

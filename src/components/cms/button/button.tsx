@@ -1,6 +1,7 @@
 import type { HTMLAttributes } from 'react';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import UiLink from '@/components/ui/link';
+import { sanitizeHref } from '@/lib/sanitize-href';
 import { cn } from '@/lib/utils';
 import type { ButtonData } from './schema';
 
@@ -17,7 +18,7 @@ const Button = ({ id: _id, type: _type, title, link, iconLeft, iconRight, classN
 
   return (
     <div className={cn(className)} {...rest}>
-      <UiLink type="Link" variant="buttonPrimary" href={link}>
+      <UiLink type="Link" variant="buttonPrimary" href={sanitizeHref(link)}>
         {IconLeft && <IconLeft />}
         {title}
         {IconRight && <IconRight />}

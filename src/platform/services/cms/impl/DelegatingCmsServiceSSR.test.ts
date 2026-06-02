@@ -178,7 +178,7 @@ describe('DelegatingCmsServiceSSR — read-through cache', () => {
   });
 
   it('does NOT cache `{ notfound: true }` — a miss re-hits the adapter', async () => {
-    const adapter = buildAdapter({ getPage: jest.fn(async () => ({ notfound: true })) });
+    const adapter = buildAdapter({ getPage: jest.fn(async () => ({ notfound: true as const })) });
     const service = new DelegatingCmsServiceSSR(adapter);
 
     await service.getPage('missing', 'de', 'main');

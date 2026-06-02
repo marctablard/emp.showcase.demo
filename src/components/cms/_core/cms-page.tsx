@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation';
 import { getCmsService } from '@/platform/services/cms/get-cms-service';
-import type { CMSComponent } from '../component-schema';
 import { CmsBodyFrame } from './cms-page-frame';
 import { CmsRenderer } from './cms-renderer';
 
@@ -45,7 +44,9 @@ export default async function CmsPage({ slug, locale, site, emptyOnNoResult }: C
 
   if ('body' in layout) {
     // Layout present: render the frame, substituting the page body at the slot.
-    return <CmsRenderer component={layout as CMSComponent} pageBody={page.components} />;
+    // `CMSLayout` is the `layout` member of the `CMSComponent` union, so it is
+    // a valid `component` without a cast.
+    return <CmsRenderer component={layout} pageBody={page.components} />;
   }
 
   // No layout: render the page body directly (backward-compatible path).

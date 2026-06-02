@@ -29,6 +29,11 @@ export type ArticleProps = ArticleData & Omit<HTMLAttributes<HTMLElement>, 'cont
  * full header block renders. The conditional shape is load-bearing for
  * existing pages.
  *
+ * The header renders whenever a title OR an introduction is present: the
+ * title (when set) is wrapped in an <H1>, the introduction in its styled
+ * block. Both are optional and rendered independently inside the shared
+ * <header>.
+ *
  * The body uses the agnostic <Richtext> — adapters that speak a
  * different wire format pre-map their richtext into the semantic AST at
  * the adapter boundary.
@@ -46,18 +51,17 @@ const Article = ({
 }: ArticleProps) => {
   return (
     <article className={cn('article max-w-6xl mx-auto px-4 lg:px-9 sm:gap-x-6', className)} {...rest}>
-      {title ||
-        (introduction && (
-          <header className="mb-8">
-            {title && (
-              <H1 variant="h5" className="mb-4">
-                {title}
-              </H1>
-            )}
+      {(title || introduction) && (
+        <header className="mb-8">
+          {title && (
+            <H1 variant="h5" className="mb-4">
+              {title}
+            </H1>
+          )}
 
-            {introduction && <div className="text-lg text-text-on-disabled mb-6">{introduction}</div>}
-          </header>
-        ))}
+          {introduction && <div className="text-lg text-text-on-disabled mb-6">{introduction}</div>}
+        </header>
+      )}
 
       {video?.url && (
         <div className="mb-8">

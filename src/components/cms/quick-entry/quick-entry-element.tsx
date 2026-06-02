@@ -2,6 +2,7 @@
 
 import { ArrowRight, Gauge, MessageSquareQuote, ScanSearch, ShoppingCart } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
+import { sanitizeHref } from '@/lib/sanitize-href';
 import type { QuickEntryElementData } from './schema';
 
 const IconVariant = {
@@ -15,7 +16,7 @@ const QuickEntryElement = ({ title, link, link_name, icon }: QuickEntryElementDa
   const Icon = icon && IconVariant[icon as keyof typeof IconVariant];
   return (
     <Link
-      href={link}
+      href={sanitizeHref(link)}
       className="flex gap-6 align-center group w-full lg:max-w-[400px] bg-surface-page shadow-sm first:rounded-ss-xl last:rounded-ee-xl sm:first:rounded-ss-xl sm:last:rounded-ee-xl"
     >
       <div className="flex items-center justify-center bg-surface-action transition group-hover:bg-surface-action-hover text-icon-on-action p-4 md:p-5 rounded-ss-[inherit]">

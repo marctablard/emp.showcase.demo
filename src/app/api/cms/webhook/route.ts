@@ -32,9 +32,15 @@ export async function POST(request: NextRequest) {
   try {
     const cms = await getCmsService();
 
+    // Capture the webhook handler once: `handleWebhook` is a getter that
+    // allocates a fresh closure per access, so reading it twice (capability
+    // check + invocation) would build two closures and risk drift if the
+    // getter ever became non-idempotent.
+    const handleWebhook = cms.handleWebhook;
+
     // Capability gate first: a provider without a webhook surface has no
     // endpoint here regardless of secret configuration.
-    if (typeof cms.handleWebhook !== 'function') {
+    if (typeof handleWebhook !== 'function') {
       return NextResponse.json({ error: 'CMS webhook not supported' }, { status: 405 });
     }
 
@@ -43,7 +49,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'CMS webhook disabled' }, { status: 503 });
     }
 
-    const result = await cms.handleWebhook(request);
+    const result = await handleWebhook(request);
     logger.info(
       { path: '/api/cms/webhook', method: 'POST', provider: cms.providerId, status: result.status },
       'CMS webhook handled',

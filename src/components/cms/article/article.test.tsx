@@ -92,6 +92,31 @@ describe('Article — component', () => {
     expect(getByText('How we tested it')).toBeInTheDocument();
   });
 
+  it('wraps the title in a <header> with an <h1> (not as a bare text node)', () => {
+    const { container, getByText } = render(<Article {...POPULATED} />);
+
+    const header = container.querySelector('header');
+    expect(header).not.toBeNull();
+    const heading = header?.querySelector('h1');
+    expect(heading).not.toBeNull();
+    expect(getByText('How we tested it').closest('h1')).toBe(heading);
+  });
+
+  it('renders the introduction inside the header when title is absent', () => {
+    const { container, getByText } = render(<Article id="art-intro" type="article" introduction="Intro only" />);
+
+    const header = container.querySelector('header');
+    expect(header).not.toBeNull();
+    expect(header?.querySelector('h1')).toBeNull();
+    expect(header).toContainElement(getByText('Intro only'));
+  });
+
+  it('omits the header entirely when neither title nor introduction is set', () => {
+    const { container } = render(<Article id="art-empty" type="article" />);
+
+    expect(container.querySelector('header')).toBeNull();
+  });
+
   it('spreads `data-testid` onto its root <article> element', () => {
     const { container } = render(<Article {...POPULATED} data-testid="cms-article-root" />);
 

@@ -1,10 +1,7 @@
 import type { HTMLAttributes, JSX, ReactNode } from 'react';
+import { sanitizeHref } from '@/lib/sanitize-href';
 import { cn } from '@/lib/utils';
 import type { RichtextBlock, RichtextData, RichtextInline } from './schema';
-
-/** Defense-in-depth: only allow known-safe href schemes in the renderer. */
-const SAFE_HREF_RE = /^(https?:\/\/|mailto:|tel:|\/|#)/;
-const sanitizeHref = (href: string): string => (SAFE_HREF_RE.test(href) ? href : '');
 
 export type RichtextProps = RichtextData & HTMLAttributes<HTMLDivElement>;
 

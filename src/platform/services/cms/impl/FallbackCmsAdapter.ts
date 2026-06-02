@@ -10,16 +10,7 @@ import type {
   WebhookResult,
 } from '../../model/cms';
 import type { CmsAdapter } from '../CmsAdapter';
-
-/**
- * `true` iff an accessor result is the "no content" sentinel. The CMS SPI
- * surfaces a miss as `{ notfound: true }`; real `CMSPage`/`CMSLayout`/
- * `CMSNavigation` payloads never carry a `notfound` key, so its presence is a
- * safe discriminator across the union.
- */
-function isNoResult(result: unknown): result is CMSNoResult {
-  return typeof result === 'object' && result !== null && 'notfound' in result;
-}
+import { isCmsNoResult } from '../cms-no-result';
 
 /**
  * Composite `CmsAdapter` that wraps a primary provider with a default-content
@@ -91,7 +82,7 @@ export class FallbackCmsAdapter implements CmsAdapter {
 
   async getPage(slug: string, locale: string, site: string): Promise<CMSPage | CMSNoResult> {
     const result = await this.primary.getPage(slug, locale, site);
-    if (!isNoResult(result)) {
+    if (!isCmsNoResult(result)) {
       return result;
     }
     this.logger?.info(
@@ -103,7 +94,7 @@ export class FallbackCmsAdapter implements CmsAdapter {
 
   async getLayout(layoutId: string, locale: string, site: string): Promise<CMSLayout | CMSNoResult> {
     const result = await this.primary.getLayout(layoutId, locale, site);
-    if (!isNoResult(result)) {
+    if (!isCmsNoResult(result)) {
       return result;
     }
     this.logger?.info(
@@ -115,7 +106,7 @@ export class FallbackCmsAdapter implements CmsAdapter {
 
   async getNavigation(locale: string, site: string): Promise<CMSNavigation | CMSNoResult> {
     const result = await this.primary.getNavigation(locale, site);
-    if (!isNoResult(result)) {
+    if (!isCmsNoResult(result)) {
       return result;
     }
     this.logger?.info(

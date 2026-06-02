@@ -148,7 +148,10 @@ describe('CmsPage — notfound × emptyOnNoResult matrix', () => {
   });
 
   it('invokes notFound() for a payload that is neither a not-found marker nor a components-bearing page', async () => {
-    mockGetPage.mockResolvedValue({ message: 'nothing here' } satisfies CMSNoResult);
+    // Deliberately off-contract: no `notfound: true` flag and no `components`.
+    // The tightened `CMSNoResult` type rejects this shape (that is the point —
+    // it models a degenerate runtime payload), so cast through `unknown`.
+    mockGetPage.mockResolvedValue({ message: 'nothing here' } as unknown as CMSNoResult);
 
     await expect(CmsPage({ slug: '/weird', locale: 'en', site: 'main' })).rejects.toThrow('NEXT_NOT_FOUND');
 

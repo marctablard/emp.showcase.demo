@@ -63,6 +63,30 @@ coarser.
 `src/proxy.ts` exempts exactly `/api/cms/webhook` from CSRF — the HMAC
 signature replaces the CSRF token for this machine-to-machine endpoint.
 
+## Security model & known limitations
+
+### No replay / timestamp protection (by design)
+
+The Storyblok adapter computes the HMAC over the **request body only** —
+there is no timestamp or nonce in the signed material. A valid request
+that an attacker manages to capture can therefore be **replayed**
+verbatim and will pass signature verification again.
+
+This is an accepted limitation, not a defect:
+
+- The only side effect of a webhook is **idempotent cache
+  invalidation** — replaying it re-invalidates an already-invalidated
+  (or since-repopulated) cache key. There is no state mutation, no write
+  to the CMS, and no privileged action behind the endpoint.
+- Storyblok does **not** send a timestamp/nonce header, so there is no
+  provider-supplied value to bind the signature to. Adding replay
+  protection would require a provider that signs a timestamp.
+
+If a future provider both (a) signs a timestamp/nonce and (b) gates a
+non-idempotent action behind the webhook, add a freshness window check
+(reject deliveries older than N minutes) in that adapter's
+`validateWebhookSignature` before relying on the signature alone.
+
 ## Provider — Storyblok
 
 ### Algorithm

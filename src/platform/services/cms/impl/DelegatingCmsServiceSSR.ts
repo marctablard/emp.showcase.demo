@@ -20,14 +20,7 @@ import {
   setCachedLayout,
   setCachedPage,
 } from '../cms-cache';
-
-function isNotFound(value: CMSPage | CMSNoResult): value is CMSNoResult {
-  return 'notfound' in value && value.notfound === true;
-}
-
-function isLayoutNotFound(value: CMSLayout | CMSNoResult): value is CMSNoResult {
-  return 'notfound' in value && value.notfound === true;
-}
+import { isCmsNoResult } from '../cms-no-result';
 
 /**
  * Sole `CMSService` implementation: a thin facade that delegates every
@@ -60,7 +53,7 @@ export class DelegatingCmsServiceSSR implements CMSService {
     const result = await this.adapter.getPage(slug, locale, site);
     // `{ notfound: true }` is never cached: a missing page is cheap to re-resolve
     // and caching it would mask content that gets published moments later.
-    if (!isNotFound(result)) {
+    if (!isCmsNoResult(result)) {
       setCachedPage(slug, locale, site, result);
     }
     return result;
@@ -72,7 +65,7 @@ export class DelegatingCmsServiceSSR implements CMSService {
       return cached;
     }
     const result = await this.adapter.getLayout(layoutId, locale, site);
-    if (!isLayoutNotFound(result)) {
+    if (!isCmsNoResult(result)) {
       setCachedLayout(layoutId, locale, site, result);
     }
     return result;

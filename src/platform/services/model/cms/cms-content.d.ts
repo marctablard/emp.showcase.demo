@@ -15,8 +15,15 @@ export interface CMSPage {
   layoutId?: string;
 }
 
+/**
+ * The "no content" sentinel returned by every CMS accessor on a miss. The
+ * `notfound` discriminator is a `true` literal (never `false`/absent): a real
+ * `CMSPage`/`CMSLayout`/`CMSNavigation` payload never carries the key, so its
+ * presence-with-`true` is the single, unambiguous discriminator across the
+ * union. Use `isCmsNoResult` (in `services/cms/cms-no-result`) to test it.
+ */
 export interface CMSNoResult {
-  notfound?: boolean;
+  notfound: true;
   message?: string;
 }
 

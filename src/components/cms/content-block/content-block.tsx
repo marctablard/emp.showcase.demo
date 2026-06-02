@@ -4,6 +4,7 @@ import type { HTMLAttributes } from 'react';
 import Image from 'next/image';
 import { H2 } from '@/components/ui/h';
 import { Link } from '@/i18n/navigation';
+import { sanitizeHref } from '@/lib/sanitize-href';
 import { cn } from '@/lib/utils';
 import type { ContentBlockData } from './schema';
 
@@ -32,8 +33,9 @@ const ContentBlock = ({
 }: ContentBlockProps) => {
   const containerClasses = CONTAINER_CLASSES[style ?? 'full-width'];
 
-  const isExternalButton = button?.is_external || (button?.link?.startsWith('http') ?? false);
-  const buttonHref = button?.link || '#';
+  const sanitizedLink = sanitizeHref(button?.link);
+  const buttonHref = sanitizedLink || '#';
+  const isExternalButton = buttonHref.startsWith('http') || button?.is_external;
 
   return (
     <div className={cn('content-block relative', containerClasses, 'my-8', className)} {...rest}>

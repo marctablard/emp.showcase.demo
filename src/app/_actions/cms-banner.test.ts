@@ -64,6 +64,13 @@ const ORIGINAL_TOKEN = process.env[TOKEN_KEY];
 const ORIGINAL_PREVIEW = process.env[PREVIEW_KEY];
 
 beforeEach(() => {
+  // Drop the module registry so each `loadAction()` re-evaluates `cms-banner`
+  // with a fresh, empty memoised-client cache. Without this, the module-level
+  // `storyblokInit`-accessor memo (keyed by token) leaks across test cases
+  // that reuse the same `tk-banner` token. The `jest.mock` factories above are
+  // re-applied to the freshly required module automatically.
+  jest.resetModules();
+
   mockApiGet.mockReset();
   mockStoryblokInit.mockReset();
   mockLoggerWarn.mockReset();
@@ -243,6 +250,19 @@ describe('fetchTopBanner — story fetch contract', () => {
       expect(mockApiGet).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ version: 'published' }));
     },
   );
+
+  it('memoises the storyblokInit accessor across fetches for the same token (no re-init per fetch)', async () => {
+    process.env[TOKEN_KEY] = 'tk-banner';
+    mockApiGet.mockResolvedValue(SAMPLE_STORY);
+    const fetchTopBanner = await loadAction();
+
+    await fetchTopBanner({ locale: 'en' });
+    await fetchTopBanner({ locale: 'de' });
+
+    // The SDK is init'd once; only the per-request `api.get` repeats.
+    expect(mockStoryblokInit).toHaveBeenCalledTimes(1);
+    expect(mockApiGet).toHaveBeenCalledTimes(2);
+  });
 
   it('passes the locale argument through as the language param', async () => {
     process.env[TOKEN_KEY] = 'tk-banner';

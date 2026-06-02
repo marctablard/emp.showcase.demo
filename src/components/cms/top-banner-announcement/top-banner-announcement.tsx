@@ -1,6 +1,7 @@
 import type { HTMLAttributes } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import UiLink from '@/components/ui/link';
+import { sanitizeHref } from '@/lib/sanitize-href';
 import type { TopBannerAnnouncementData } from './schema';
 
 export type TopBannerAnnouncementProps = TopBannerAnnouncementData &
@@ -21,7 +22,7 @@ const TopBannerAnnouncement = ({
   return (
     <UiLink
       type="Link"
-      href={link.url}
+      href={sanitizeHref(link.url)}
       target={link.target}
       className="text-text-on-action hover:text-text-on-action"
       iconAfter={<ArrowUpRight className="w-4 h-4" />}

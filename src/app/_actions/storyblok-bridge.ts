@@ -11,6 +11,12 @@ import type { LoggerService } from '@/platform/services/logger/LoggerService';
  * Server-only by `'use server';` + `'server-only';`: the access token never
  * lands in the browser bundle; it only crosses the wire as the resolved
  * payload of this action and only when the caller is on a `/preview/*` route.
+ *
+ * Note: `accessToken` here is, by design, the public/preview-scoped Storyblok
+ * READ token (the same token the bridge needs in the browser to talk to the
+ * Visual Editor) — NOT a management token. Handing it to a verified preview
+ * client is expected; it grants no write access. The `/preview/*` referer gate
+ * below is therefore a scoping nicety, not the security boundary for secrets.
  */
 export interface StoryblokBridgeConfig {
   readonly accessToken: string;

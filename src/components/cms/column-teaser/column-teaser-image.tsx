@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { H3 } from '@/components/ui/h';
 import { Link } from '@/i18n/navigation';
+import { sanitizeHref } from '@/lib/sanitize-href';
 import { cn } from '@/lib/utils';
 import type { ColumnTeaserImageData } from './schema';
 
@@ -37,7 +38,7 @@ const ColumnTeaserImage = ({ image, className = '' }: ColumnTeaserImageProps) =>
 
   if (image.link) {
     return (
-      <Link href={image.link} className="block h-full">
+      <Link href={sanitizeHref(image.link)} className="block h-full">
         {imageElement}
       </Link>
     );
