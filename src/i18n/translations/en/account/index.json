@@ -434,7 +434,25 @@
     "loadingHistory": "Loading history...",
     "quoteActionFailedTitle": "We couldn't complete this action",
     "quoteActionFailedDescription": "Please try again or contact support if the problem persists.",
-    "relatedOrder": "Related Order"
+    "relatedOrder": "Related Order",
+    "addProducts": {
+      "title": "Add products to quote",
+      "description": "Search for products, select the ones you want, set quantities, and add them to this quote.",
+      "searchLabel": "Product search",
+      "searchHint": "Enter at least 2 characters to search by product name or item number.",
+      "searchPlaceholder": "Search by name or item number",
+      "selectProductsHint": "Select products from the results below to add them to your quote.",
+      "selectedCount": "{count, plural, one {# product selected} other {# products selected}}",
+      "noResults": "No products found for your search.",
+      "searchFailed": "Product search failed. Please try again.",
+      "selectProduct": "Select {name}",
+      "addToQuote": "ADD TO QUOTE",
+      "adding": "ADDING...",
+      "addSuccessTitle": "Products added",
+      "addSuccessDescription": "{count, plural, one {# product was added to the quote.} other {# products were added to the quote.}}",
+      "addFailedTitle": "Could not add products",
+      "addFailedDescription": "Please try again or contact support if the problem persists."
+    }
   },
   "quotesList": {
     "title": "Quotes",

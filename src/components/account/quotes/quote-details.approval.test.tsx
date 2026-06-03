@@ -22,6 +22,27 @@ jest.mock('@/i18n/navigation', () => ({
   }),
 }));
 
+jest.mock('@/hooks/authentication/useAuthentication', () => ({
+  useAuthentication: () => ({
+    isAuthenticated: true,
+    loading: false,
+    error: null,
+    login: jest.fn(),
+    logout: jest.fn(),
+  }),
+}));
+
+jest.mock('@/hooks/session/useSession', () => ({
+  useSession: () => ({
+    session: { customerId: 'customer-1' },
+    loading: false,
+  }),
+}));
+
+jest.mock('@/components/account/quotes/quote-add-products', () => ({
+  QuoteAddProducts: () => null,
+}));
+
 jest.mock('@/hooks/quotes/useQuotes', () => ({
   useQuote: () => ({
     quote: null,

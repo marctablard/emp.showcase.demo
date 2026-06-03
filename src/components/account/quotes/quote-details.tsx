@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { ArrowLeft } from 'lucide-react';
+import { QuoteAddProducts } from '@/components/account/quotes/quote-add-products';
 import { QuoteStatusBadge } from '@/components/account/quotes/quote-status-badge';
 import { QuoteSummary } from '@/components/account/quotes/quote-summary';
 import { ProductListResolver } from '@/components/product/product-list-resolver';
@@ -26,11 +26,14 @@ import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { ToastType, notify } from '@/components/ui/toast-notification';
 import { useApproverSearch } from '@/hooks/approval/useApproverSearch';
+import { useAuthentication } from '@/hooks/authentication/useAuthentication';
 import { useQuoteHistory } from '@/hooks/quotes/useQuoteHistory';
 import { useQuote } from '@/hooks/quotes/useQuotes';
+import { useSession as useShopSession } from '@/hooks/session/useSession';
 import { useRouter } from '@/i18n/navigation';
 import { createQuoteApprovalRequest } from '@/lib/approval/contracts';
 import { checkApprovalPermitted, createApproval } from '@/lib/client/approval';
+import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
 import { getQuoteStatusDisplayLabel } from '@/lib/common/quote-status-message-keys';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
@@ -66,6 +69,8 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   const tQuoteStatus = useTranslations('account.quoteStatus');
   const tApproval = useTranslations('checkout.approval');
   const router = useRouter();
+  const { isAuthenticated } = useAuthentication();
+  const { session: shopSession } = useShopSession();
 
   // State for confirmation dialogs
   const [showAcceptConfirmation, setShowAcceptConfirmation] = useState(false);
@@ -129,6 +134,8 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
 
   // Use initialQuote if provided, otherwise use fetched quote
   const quote = initialQuote || fetchedQuote;
+  const canAddProductsToQuote =
+    isAuthenticated && isAuthenticatedSessionCustomerId(shopSession?.customerId) && quote?.status === 'OPEN';
 
   useEffect(() => {
     if (!quote || quote.status !== 'OPEN') {
@@ -831,14 +838,11 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
             }))}
           />
         }
-      </CardContent>
 
-      <div>
-        <Button variant="neutral" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          {t('backToQuotes')}
-        </Button>
-      </div>
+        {canAddProductsToQuote ? (
+          <QuoteAddProducts quoteId={quoteId} onProductsAdded={() => window.location.reload()} />
+        ) : null}
+      </CardContent>
     </div>
   );
 }

@@ -16,6 +16,21 @@ import type { PriceService } from '../../price';
 import type SegmentFilterService from '../../search/impl/SegmentFilterService';
 import type { SessionService } from '../../session/SessionService';
 
+function resolveProductNameSearchField(locale?: string): 'name' | `name.${string}` {
+  const language = locale?.split('-')[0]?.split('_')[0]?.toLowerCase();
+  return language ? (`name.${language}` as const) : 'name';
+}
+
+function buildProductNameSearchCriteria(query: string, locale?: string): Record<string, string> {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) {
+    return {};
+  }
+
+  const field = resolveProductNameSearchField(locale);
+  return { [field]: `~${trimmedQuery}` };
+}
+
 /**
  * Implementation of ProductService for Emporix product data.
  * Maps between Emporix API product format and internal Product model.
@@ -77,6 +92,62 @@ class EmporixProductService implements ProductService {
     } else {
       return [];
     }
+  }
+
+  async searchProductsByName(
+    query: string,
+    options?: { page?: number; pageSize?: number; locale?: string } & ProductFetchOptions,
+  ): Promise<Paginated<Product>> {
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) {
+      return { items: [], page: 0, pageSize: options?.pageSize ?? 12, total: 0 };
+    }
+
+    const page = options?.page ?? 0;
+    const pageSize = options?.pageSize ?? 12;
+    const fetchOptions: ProductFetchOptions = {
+      prices: options?.prices ?? true,
+      variants: options?.variants ?? false,
+      categories: options?.categories ?? false,
+      customerSegments: options?.customerSegments,
+    };
+
+    const searchWithCriteria = async (criteria: Record<string, string>) => {
+      return this.productApi.searchProducts({
+        page: page + 1,
+        size: pageSize,
+        criteria,
+      });
+    };
+
+    let searchResult = await searchWithCriteria(buildProductNameSearchCriteria(trimmedQuery, options?.locale));
+
+    if (searchResult.items.length === 0 && options?.locale) {
+      searchResult = await searchWithCriteria(buildProductNameSearchCriteria(trimmedQuery));
+    }
+
+    if (searchResult.items.length === 0) {
+      searchResult = await searchWithCriteria({ id: `~${trimmedQuery}` });
+    }
+
+    let items: EmporixProduct[] = [];
+    if (fetchOptions.customerSegments) {
+      items = (await this.segmentFilterService.filterByCustomerSegments(
+        searchResult.items.filter((item: EmporixProduct) => !!item.id),
+      )) as EmporixProduct[];
+    } else {
+      items = searchResult.items.filter((item: EmporixProduct) => !!item.id);
+    }
+
+    const mappedProducts = items.map((product: EmporixProduct) => this.productMapper.mapToService(product));
+    const enhancedProducts = await this.addAdditionalData(mappedProducts, fetchOptions);
+
+    return {
+      items: enhancedProducts,
+      page: searchResult.page - 1,
+      pageSize,
+      total: searchResult.total,
+    };
   }
 
   async getProducts(page?: number, pageSize?: number, options?: ProductFetchOptions): Promise<Paginated<Product>> {

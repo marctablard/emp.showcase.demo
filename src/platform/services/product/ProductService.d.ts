@@ -48,6 +48,14 @@ export interface ProductService {
   getProducts(page?: number, pageSize?: number, options?: ProductFetchOptions): Promise<Paginated<Product>>;
 
   /**
+   * Search products by name (and product id as fallback) via the Emporix Product API.
+   */
+  searchProductsByName(
+    query: string,
+    options?: { page?: number; pageSize?: number; locale?: string } & ProductFetchOptions,
+  ): Promise<Paginated<Product>>;
+
+  /**
    * Adds additional data (brands, labels, categories, prices, variants) to mapped products.
    * @param mappedProducts The already mapped products to enhance.
    * @param options Optional fetch options for including additional data.

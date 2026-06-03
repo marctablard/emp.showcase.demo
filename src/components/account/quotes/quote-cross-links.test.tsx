@@ -57,6 +57,27 @@ jest.mock('@/i18n/navigation', () => ({
   }),
 }));
 
+jest.mock('@/hooks/authentication/useAuthentication', () => ({
+  useAuthentication: () => ({
+    isAuthenticated: true,
+    loading: false,
+    error: null,
+    login: jest.fn(),
+    logout: jest.fn(),
+  }),
+}));
+
+jest.mock('@/hooks/session/useSession', () => ({
+  useSession: () => ({
+    session: { customerId: 'customer-1' },
+    loading: false,
+  }),
+}));
+
+jest.mock('@/components/account/quotes/quote-add-products', () => ({
+  QuoteAddProducts: () => <div data-testid="quote-add-products-mock">QuoteAddProducts</div>,
+}));
+
 jest.mock('@/hooks/quotes/useQuotes', () => ({
   useQuote: () => ({
     quote: null,
@@ -202,6 +223,12 @@ describe('Quote cross-links', () => {
     const historyTimestamp = screen.getByText(/02\.06\.2026/);
 
     expect(historyTimestamp).toHaveTextContent(/\d{2}:\d{2}/);
+  });
+
+  it('renders add products section for open quotes when the customer is authenticated', () => {
+    render(<QuoteDetails quoteId="quote-open-1" initialQuote={{ ...baseQuote, status: 'OPEN' }} />);
+
+    expect(screen.getByTestId('quote-add-products-mock')).toBeInTheDocument();
   });
 
   it('renders a related approval link when an existing approval id is already available from permission state', async () => {
