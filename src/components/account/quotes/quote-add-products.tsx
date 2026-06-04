@@ -261,9 +261,9 @@ export function QuoteAddProducts({ quoteId, onProductsAdded }: QuoteAddProductsP
               </div>
               <Button
                 type="button"
-                variant="ghost"
+                variant="link"
                 size="icon"
-                className="h-8 w-8 shrink-0"
+                className="h-8 w-8 shrink-0 normal-case tracking-normal"
                 aria-label={t('closeResult')}
                 onClick={() => dismissOutcome(outcome.key)}
               >
