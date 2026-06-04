@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { QuoteAddProducts } from '@/components/account/quotes/quote-add-products';
-import { QuoteStatusBadge } from '@/components/account/quotes/quote-status-badge';
+import { QuoteDetailsHeader } from '@/components/account/quotes/quote-details-header';
+import { QuoteHistorySection } from '@/components/account/quotes/quote-history-section';
 import { QuoteSummary } from '@/components/account/quotes/quote-summary';
 import { ProductListResolver } from '@/components/product/product-list-resolver';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -18,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { H2, H3, H4 } from '@/components/ui/h';
+import { H3 } from '@/components/ui/h';
 import { Label } from '@/components/ui/label';
 import UiLink from '@/components/ui/link';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -423,8 +424,30 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
     );
   }
 
+  const showQuoteActions =
+    !showAcceptConfirmation && !activeDecisionDialog && quote.status !== 'ACCEPTED' && quote.status !== 'DECLINED';
+
+  const historyEntries = [
+    {
+      id: 'initial-quote-request',
+      editor: quote.customerName || 'Unknown User',
+      action: t('initialQuoteRequest'),
+      comment: '-',
+      reason: '-',
+      date: formatDate(quote.submittedDate),
+    },
+    ...quoteHistory.map((historyItem) => ({
+      id: historyItem.id,
+      editor: getHistoryUserName(historyItem),
+      action: getHistoryAction(historyItem),
+      comment: getHistoryComment(historyItem),
+      reason: getHistoryReason(historyItem.quoteReason) || '-',
+      date: formatHistoryDate(historyItem.rawModifiedAt || historyItem.modifiedAt),
+    })),
+  ];
+
   return (
-    <div>
+    <Card className="border-none shadow-sm">
       <Dialog open={showApprovalInquiryDialog} onOpenChange={handleApprovalInquiryDialogChange}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -597,234 +620,108 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         </DialogContent>
       </Dialog>
 
-      <div>
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="flex flex-col px-4 gap-6">
-            <div className="flex items-center gap-6 mb-1">
-              <H2>{quote.reference || `#${quoteId}`}</H2>
-              <QuoteStatusBadge status={quote.status} />
-            </div>
-            <H4>{t('title')}</H4>
-          </div>
-          {/* Only show action buttons when confirmation dialogs are not visible and quote status is not ACCEPTED or DECLINED */}
-          {!showAcceptConfirmation &&
-            !activeDecisionDialog &&
-            quote.status !== 'ACCEPTED' &&
-            quote.status !== 'DECLINED' && (
-              <div className="flex gap-6">
-                <Button
-                  variant="outlineError"
-                  size="small"
-                  className={cn('disabled:border-none')}
-                  disabled={!(quote.status === 'OPEN')}
-                  onClick={() => {
-                    handleDecisionDialogChange('DECLINE');
-                  }}
-                >
-                  {t('reject')}
-                </Button>
+      <CardHeader className="space-y-0 border-b border-border-primary/50 pb-4">
+        <QuoteDetailsHeader
+          quote={quote}
+          quoteId={quoteId}
+          formatDate={formatDate}
+          formatPrice={formatPrice}
+          approvalId={approvalPermission?.approvalId}
+          showActions={showQuoteActions}
+          primaryActionLabel={primaryActionLabel}
+          isPrimaryActionDisabled={isPrimaryActionDisabled}
+          onReject={() => handleDecisionDialogChange('DECLINE')}
+          onRequestChange={() => handleDecisionDialogChange('CHANGE')}
+          onPrimaryAction={() => void handleQuotePrimaryAction()}
+        />
+      </CardHeader>
 
-                <Button
-                  variant="secondary"
-                  size="small"
-                  className={cn('disabled:border-none')}
-                  disabled={!(quote.status === 'OPEN')}
-                  onClick={() => {
-                    handleDecisionDialogChange('CHANGE');
-                  }}
-                >
-                  {t('requestChange')}
-                </Button>
-
-                <Button
-                  variant="outlineSuccess"
-                  size="small"
-                  className={cn('disabled:border-none')}
-                  disabled={isPrimaryActionDisabled}
-                  onClick={() => {
-                    void handleQuotePrimaryAction();
-                  }}
-                >
-                  {primaryActionLabel}
-                </Button>
-              </div>
-            )}
-        </div>
-      </div>
-
-      <CardContent className="space-y-6 mt-6">
+      <CardContent className="space-y-6 pt-6">
         {/* Quote acceptance confirmation dialog */}
         {showAcceptConfirmation && (
-          <div className="grid grid-cols-1 mb-6 gap-6">
-            <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
-              <div className="shadow-none rounded-md py-4 h-full gap-2 bg-surface-page p-6">
-                <H3 variant="h5" className="mb-2">
-                  {t('confirmationTitle')}
-                </H3>
-                <p className="text-sm text-text-on-disabled mb-4">{t('confirmationDescription')}</p>
+          <div className="rounded-md border border-border-primary/50 bg-surface-action-hover-2/60 p-4 shadow-sm">
+            <H3 variant="h5" className="mb-1 text-sm font-bold font-headlines">
+              {t('confirmationTitle')}
+            </H3>
+            <p className="mb-4 text-sm leading-5 text-text-placeholders">{t('confirmationDescription')}</p>
 
-                <div className="mb-4">
-                  <label htmlFor="accept-comment" className="block text-sm font-medium mb-1">
-                    {t('yourComment')}
-                  </label>
-                  <Textarea
-                    id="accept-comment"
-                    placeholder={t('commentPlaceholder')}
-                    className="w-full h-32 resize-none"
-                    value={acceptComment}
-                    onChange={(e) => setAcceptComment(e.target.value)}
-                    maxLength={maxCommentLength}
-                  />
-                </div>
+            <div className="mb-4">
+              <Label htmlFor="accept-comment" className="mb-1 text-xs font-medium text-text-placeholders">
+                {t('yourComment')}
+              </Label>
+              <Textarea
+                id="accept-comment"
+                placeholder={t('commentPlaceholder')}
+                className="min-h-24 w-full resize-none"
+                value={acceptComment}
+                onChange={(e) => setAcceptComment(e.target.value)}
+                maxLength={maxCommentLength}
+              />
+            </div>
 
-                <div className="mb-4">
-                  {t('termsAgreement')}{' '}
-                  <UiLink type="Link" variant="text" href="/privacy-policy">
-                    {t('privacyPolicy')}
-                  </UiLink>
-                  and{' '}
-                  <UiLink type="Link" variant="text" href="/terms-and-conditions">
-                    {t('termsOfUse')}
-                  </UiLink>
-                </div>
+            <p className="mb-4 text-sm text-text-placeholders">
+              {t('termsAgreement')}{' '}
+              <UiLink type="Link" variant="text" href="/privacy-policy">
+                {t('privacyPolicy')}
+              </UiLink>{' '}
+              and{' '}
+              <UiLink type="Link" variant="text" href="/terms-and-conditions">
+                {t('termsOfUse')}
+              </UiLink>
+            </p>
 
-                {processError ? (
-                  <Alert variant="destructive" className="mb-4" role="alert">
-                    <AlertDescription>{processError}</AlertDescription>
-                  </Alert>
-                ) : null}
+            {processError ? (
+              <Alert variant="destructive" className="mb-4" role="alert">
+                <AlertDescription>{processError}</AlertDescription>
+              </Alert>
+            ) : null}
 
-                <div className="flex space-x-3">
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      setProcessError(null);
-                      setShowAcceptConfirmation(false);
-                      setAcceptComment('');
-                    }}
-                  >
-                    {t('cancel')}
-                  </Button>
-                  <Button
-                    variant="primary"
-                    disabled={isProcessing}
-                    onClick={async () => {
-                      try {
-                        setProcessError(null);
-                        setIsProcessing(true);
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="secondary"
+                size="small"
+                onClick={() => {
+                  setProcessError(null);
+                  setShowAcceptConfirmation(false);
+                  setAcceptComment('');
+                }}
+              >
+                {t('cancel')}
+              </Button>
+              <Button
+                variant="primary"
+                size="small"
+                disabled={isProcessing}
+                onClick={async () => {
+                  try {
+                    setProcessError(null);
+                    setIsProcessing(true);
 
-                        await updateQuoteStatus(quoteId, 'ACCEPTED', acceptComment);
+                    await updateQuoteStatus(quoteId, 'ACCEPTED', acceptComment);
 
-                        setShowAcceptConfirmation(false);
-                        setAcceptComment('');
-                      } catch (error) {
-                        getLogger().error({ err: error }, 'Failed to process quote');
-                        const msg = error instanceof Error ? error.message : t('quoteActionFailedDescription');
-                        setProcessError(msg);
-                        notify({
-                          title: t('quoteActionFailedTitle'),
-                          description: msg,
-                          type: ToastType.Error,
-                        });
-                      } finally {
-                        setIsProcessing(false);
-                      }
-                    }}
-                  >
-                    {isProcessing ? t('creating') : t('createOrder')}
-                  </Button>
-                </div>
-              </div>
+                    setShowAcceptConfirmation(false);
+                    setAcceptComment('');
+                  } catch (error) {
+                    getLogger().error({ err: error }, 'Failed to process quote');
+                    const msg = error instanceof Error ? error.message : t('quoteActionFailedDescription');
+                    setProcessError(msg);
+                    notify({
+                      title: t('quoteActionFailedTitle'),
+                      description: msg,
+                      type: ToastType.Error,
+                    });
+                  } finally {
+                    setIsProcessing(false);
+                  }
+                }}
+              >
+                {isProcessing ? t('creating') : t('createOrder')}
+              </Button>
             </div>
           </div>
         )}
 
-        {/* Quote details grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm font-medium text-text-placeholders">{t('quotationDate')}</p>
-            <p className="mt-2 text-text-heading">{formatDate(quote.submittedDate)}</p>
-          </div>
-
-          {quote.customerId && (
-            <div>
-              <p className="text-sm font-medium text-text-placeholders">{t('requestedBy')}</p>
-              <p className="mt-2 text-text-heading">{quote.customerName || quote.customerId}</p>
-            </div>
-          )}
-
-          <div>
-            <p className="text-sm font-medium text-text-placeholders">{t('totalAmount')}</p>
-            <p className="mt-2 text-text-heading font-semibold">{formatPrice(quote.totalGross, quote.currency)}</p>
-          </div>
-
-          {quote.orderId ? (
-            <div>
-              <p className="text-sm font-medium text-text-placeholders">{t('relatedOrder')}</p>
-              <UiLink
-                type="Link"
-                href={`/account/orders/${quote.orderId}`}
-                variant="text"
-                className="mt-2 inline-flex underline"
-              >
-                #{quote.orderId}
-              </UiLink>
-            </div>
-          ) : null}
-
-          {approvalPermission?.approvalId ? (
-            <div>
-              <p className="text-sm font-medium text-text-placeholders">{t('relatedApproval')}</p>
-              <UiLink
-                type="Link"
-                href={`/account/approval/${approvalPermission.approvalId}`}
-                variant="text"
-                className="mt-2 inline-flex underline"
-              >
-                #{approvalPermission.approvalId}
-              </UiLink>
-            </div>
-          ) : null}
-        </div>
-
-        {/* Quote History Section */}
-        <div className="space-y-4">
-          <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr] gap-4">
-            <p className="col-start-1 font-bold font-headlines">{t('editor')}</p>
-            <p className="col-start-2 font-bold font-headlines">{t('action')}</p>
-            <p className="col-start-3 font-bold font-headlines">{t('comment')}</p>
-            <p className="col-start-4 font-bold font-headlines">{t('reason')}</p>
-            <p className="col-start-5 font-bold font-headlines">{t('date')}</p>
-          </div>
-
-          {/* Always show initial quote request as first entry */}
-          <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr] gap-4 py-4 border-t border-border-primary">
-            <p className="col-start-1">{quote.customerName || 'Unknown User'}</p>
-            <p className="col-start-2">{t('initialQuoteRequest')}</p>
-            <p className="col-start-3">{'-'}</p>
-            <p className="col-start-4">{'-'}</p>
-            <p className="col-start-5">{formatDate(quote.submittedDate)}</p>
-          </div>
-
-          {historyLoading ? (
-            <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr] gap-4 py-4 border-t border-border-primary">
-              <p className="col-start-1">{t('loadingHistory')}</p>
-            </div>
-          ) : (
-            quoteHistory.map((historyItem) => (
-              <div
-                key={historyItem.id}
-                className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr] gap-4 py-4 border-t border-border-primary"
-              >
-                <p className="col-start-1">{getHistoryUserName(historyItem)}</p>
-                <p className="col-start-2">{getHistoryAction(historyItem)}</p>
-                <p className="col-start-3">{getHistoryComment(historyItem)}</p>
-                <p className="col-start-4">{getHistoryReason(historyItem.quoteReason) || '-'}</p>
-                <p className="col-start-5">{formatHistoryDate(historyItem.rawModifiedAt || historyItem.modifiedAt)}</p>
-              </div>
-            ))
-          )}
-        </div>
+        <QuoteHistorySection entries={historyEntries} loading={historyLoading} />
 
         {/* Quote Summary Cards */}
         <QuoteSummary quote={quote} />
@@ -843,6 +740,6 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
           <QuoteAddProducts quoteId={quoteId} onProductsAdded={() => window.location.reload()} />
         ) : null}
       </CardContent>
-    </div>
+    </Card>
   );
 }

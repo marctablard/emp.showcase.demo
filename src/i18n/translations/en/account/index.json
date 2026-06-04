@@ -371,6 +371,7 @@
     "price": "Price",
     "quotationDate": "Quotation Date",
     "totalAmount": "Total Amount",
+    "changeHistory": "Change history",
     "editor": "Editor",
     "action": "Action",
     "comment": "Comment",
