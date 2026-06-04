@@ -9,6 +9,8 @@ import type { QuoteService } from '@/platform/services/quote/QuoteService';
 
 const DEFAULT_WEBHOOK_URL = 'https://hook.emporix-cop.integromat.celonis.com/bv4d6h9rbpygnke84qjs2cf73i9ff1uv';
 
+const NOTIFICATION_ID_KEYS = ['QUOTE_ADDITEM_NOTIFICATIONS_ID', 'quote_additem_notifications_id'] as const;
+
 interface AddQuoteProductItem {
   productId?: string;
   quantity?: number | string;
@@ -19,8 +21,47 @@ interface AddQuoteProductsBody {
   items?: AddQuoteProductItem[];
 }
 
+export interface QuoteAddProductRequest {
+  productId: string;
+  notificationId: string;
+}
+
 function getWebhookUrl(): string {
   return process.env.QUOTE_ADD_PRODUCT_WEBHOOK_URL?.trim() || DEFAULT_WEBHOOK_URL;
+}
+
+function extractNotificationId(responseBody: string): string | null {
+  const trimmed = responseBody.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+    for (const key of NOTIFICATION_ID_KEYS) {
+      const value = parsed[key];
+      if (typeof value === 'string' && value.trim()) {
+        return value.trim();
+      }
+    }
+    for (const value of Object.values(parsed)) {
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        const nested = value as Record<string, unknown>;
+        for (const key of NOTIFICATION_ID_KEYS) {
+          const id = nested[key];
+          if (typeof id === 'string' && id.trim()) {
+            return id.trim();
+          }
+        }
+      }
+    }
+  } catch {
+    if (/^[a-f0-9]{24}$/i.test(trimmed)) {
+      return trimmed;
+    }
+  }
+
+  return null;
 }
 
 export async function POST(request: NextRequest) {
@@ -70,6 +111,7 @@ export async function POST(request: NextRequest) {
 
     const webhookUrl = getWebhookUrl();
     const failures: Array<{ productId: string; status: number; message: string }> = [];
+    const requests: QuoteAddProductRequest[] = [];
 
     for (const item of items) {
       const productId = item.productId!.trim();
@@ -86,10 +128,28 @@ export async function POST(request: NextRequest) {
         }),
       });
 
+      const responseBody = await response.text().catch(() => '');
+
       if (!response.ok) {
-        const message = await response.text().catch(() => response.statusText);
-        failures.push({ productId, status: response.status, message: message || response.statusText });
+        failures.push({
+          productId,
+          status: response.status,
+          message: responseBody || response.statusText,
+        });
+        continue;
       }
+
+      const notificationId = extractNotificationId(responseBody);
+      if (!notificationId) {
+        failures.push({
+          productId,
+          status: 502,
+          message: 'Webhook response did not include QUOTE_ADDITEM_NOTIFICATIONS_ID',
+        });
+        continue;
+      }
+
+      requests.push({ productId, notificationId });
     }
 
     if (failures.length > 0) {
@@ -99,13 +159,13 @@ export async function POST(request: NextRequest) {
         {
           error: 'Failed to add one or more products to the quote',
           failures,
-          addedCount: items.length - failures.length,
+          requests,
         },
-        { status: 502 },
+        { status: failures.length === items.length ? 502 : 207 },
       );
     }
 
-    return NextResponse.json({ success: true, addedCount: items.length }, { status: 200 });
+    return NextResponse.json({ accepted: true, requests }, { status: 200 });
   } catch (error) {
     const logger = server.get<LoggerService>('LoggerService');
     logger.error(

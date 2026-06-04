@@ -50,7 +50,7 @@ describe('POST /api/quote/add-products', () => {
 
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      text: jest.fn().mockResolvedValue('Accepted'),
+      text: jest.fn().mockResolvedValue(JSON.stringify({ QUOTE_ADDITEM_NOTIFICATIONS_ID: 'notification-id-1' })),
     }) as unknown as typeof fetch;
   });
 
@@ -102,6 +102,14 @@ describe('POST /api/quote/add-products', () => {
     );
 
     expect(response.status).toBe(200);
+    const payload = await response.json();
+    expect(payload).toEqual({
+      accepted: true,
+      requests: [
+        { productId: 'battery', notificationId: 'notification-id-1' },
+        { productId: 'motor', notificationId: 'notification-id-1' },
+      ],
+    });
     expect(global.fetch).toHaveBeenCalledTimes(2);
     expect(global.fetch).toHaveBeenNthCalledWith(
       1,
@@ -117,6 +125,23 @@ describe('POST /api/quote/add-products', () => {
         }),
       }),
     );
+  });
+
+  it('returns 502 when webhook succeeds without notification id', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      text: jest.fn().mockResolvedValue('Accepted'),
+    }) as unknown as typeof fetch;
+
+    const response = await POST(
+      createRequest({
+        quoteId: 'Q-1000',
+        items: [{ productId: 'battery', quantity: 1 }],
+      }) as never,
+    );
+
+    expect(response.status).toBe(502);
+    expect(logger.error).toHaveBeenCalled();
   });
 
   it('returns 502 when webhook call fails', async () => {

@@ -2,15 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Plus, Search } from 'lucide-react';
+import { CircleCheck, CircleX, Plus, Search, X } from 'lucide-react';
 import { QuoteAddProductResultRow } from '@/components/account/quotes/quote-add-product-result-row';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { H5 } from '@/components/ui/h';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { ToastType, notify } from '@/components/ui/toast-notification';
 import { useProductNameSearch } from '@/hooks/product/useProductNameSearch';
-import { addProductsToQuote } from '@/lib/client/quote-add-products';
+import {
+  type QuoteAddItemOutcome,
+  addProductsToQuote,
+  pollQuoteAddItemOutcomes,
+} from '@/lib/client/quote-add-products';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
 import type { Product } from '@/platform/services/model/product';
@@ -19,6 +24,7 @@ const DEBOUNCE_MS = 300;
 const MIN_QUERY_LENGTH = 2;
 const SEARCH_INPUT_ID = 'quote-add-products-search-input';
 const SEARCH_HINT_ID = 'quote-add-products-search-hint';
+const REQUEST_ACCEPTED_TOAST_MS = 3000;
 
 interface QuoteAddProductsProps {
   quoteId: string;
@@ -29,6 +35,10 @@ interface ProductSelection {
   product: Product;
   quantity: number;
   selected: boolean;
+}
+
+interface DismissibleOutcome extends QuoteAddItemOutcome {
+  key: string;
 }
 
 function SearchResultSkeleton() {
@@ -57,6 +67,8 @@ export function QuoteAddProducts({ quoteId, onProductsAdded }: QuoteAddProductsP
   const [hasSearched, setHasSearched] = useState(false);
   const [selections, setSelections] = useState<Record<string, ProductSelection>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
+  const [outcomeAlerts, setOutcomeAlerts] = useState<DismissibleOutcome[]>([]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -76,6 +88,10 @@ export function QuoteAddProducts({ quoteId, onProductsAdded }: QuoteAddProductsP
     () => Object.values(selections).filter((entry) => entry.selected && entry.quantity >= 1),
     [selections],
   );
+
+  const dismissOutcome = useCallback((key: string) => {
+    setOutcomeAlerts((prev) => prev.filter((entry) => entry.key !== key));
+  }, []);
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,7 +147,7 @@ export function QuoteAddProducts({ quoteId, onProductsAdded }: QuoteAddProductsP
         })),
       );
 
-      if (!result.success) {
+      if (!result.accepted || !result.requests?.length) {
         notify({
           title: t('addFailedTitle'),
           description: result.error || t('addFailedDescription'),
@@ -141,16 +157,43 @@ export function QuoteAddProducts({ quoteId, onProductsAdded }: QuoteAddProductsP
       }
 
       notify({
-        title: t('addSuccessTitle'),
-        description: t('addSuccessDescription', { count: result.addedCount ?? selectedItems.length }),
-        type: ToastType.Success,
+        title: t('requestAcceptedTitle'),
+        type: ToastType.Info,
+        duration: REQUEST_ACCEPTED_TOAST_MS,
       });
 
       setQuery('');
       setHasSearched(false);
       setSelections({});
       resetSearch();
-      onProductsAdded?.();
+
+      setIsPolling(true);
+      try {
+        const outcomes = await pollQuoteAddItemOutcomes(result.requests);
+        setOutcomeAlerts(
+          outcomes.map((outcome) => ({
+            ...outcome,
+            key: `${outcome.notificationId}-${outcome.productId}`,
+          })),
+        );
+
+        if (outcomes.some((outcome) => outcome.responseStatus === 'SUCCESS')) {
+          onProductsAdded?.();
+        }
+      } catch (pollError) {
+        logger.error({ err: pollError, quoteId }, 'Timed out polling quote add-item notifications');
+        setOutcomeAlerts([
+          {
+            key: 'poll-timeout',
+            productId: '',
+            notificationId: '',
+            responseStatus: '',
+            responseMessage: t('pollTimeoutDescription'),
+          },
+        ]);
+      } finally {
+        setIsPolling(false);
+      }
     } catch (error) {
       logger.error({ err: error, quoteId }, 'Failed to add products to quote');
       notify({
@@ -172,6 +215,7 @@ export function QuoteAddProducts({ quoteId, onProductsAdded }: QuoteAddProductsP
   }, []);
 
   const showResultsPanel = loading || hasSearched || products.length > 0;
+  const isBusy = isSubmitting || isPolling;
 
   return (
     <section
@@ -183,6 +227,63 @@ export function QuoteAddProducts({ quoteId, onProductsAdded }: QuoteAddProductsP
         <H5 className="mb-1">{t('title')}</H5>
         <p className="text-sm leading-5 text-text-placeholders">{t('description')}</p>
       </div>
+
+      {outcomeAlerts.map((outcome) => {
+        const isTimeout = outcome.key === 'poll-timeout';
+        const isSuccess = outcome.responseStatus === 'SUCCESS';
+        const isDenied = outcome.responseStatus === 'DENIED';
+
+        return (
+          <Alert
+            key={outcome.key}
+            variant={isDenied || isTimeout ? 'destructive' : 'default'}
+            className={cn(
+              isSuccess && 'border-border-success bg-surface-success text-text-body',
+              isDenied && 'border-border-error',
+            )}
+            data-testid={`quote-add-outcome-${outcome.key}`}
+          >
+            {isSuccess && <CircleCheck className="text-text-success" />}
+            {(isDenied || isTimeout) && <CircleX />}
+            <div className="col-start-2 flex w-full items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <AlertTitle>
+                  {isTimeout ? t('pollTimeoutTitle') : isSuccess ? t('resultSuccessTitle') : t('resultDeniedTitle')}
+                </AlertTitle>
+                {outcome.productId && (
+                  <p className="mt-0.5 text-xs text-text-placeholders">
+                    {t('resultProductLabel', { productId: outcome.productId })}
+                  </p>
+                )}
+                <AlertDescription className="mt-1 text-text-body">
+                  {outcome.responseMessage || (isTimeout ? t('pollTimeoutDescription') : t('addFailedDescription'))}
+                </AlertDescription>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0"
+                aria-label={t('closeResult')}
+                onClick={() => dismissOutcome(outcome.key)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </Alert>
+        );
+      })}
+
+      {isPolling && (
+        <p
+          className="flex items-center gap-2 text-sm text-text-placeholders"
+          role="status"
+          data-testid="quote-add-polling"
+        >
+          <Spinner variant="sm" />
+          {t('processing')}
+        </p>
+      )}
 
       <div>
         <label htmlFor={SEARCH_INPUT_ID} className="mb-1 block text-base font-bold">
@@ -202,6 +303,7 @@ export function QuoteAddProducts({ quoteId, onProductsAdded }: QuoteAddProductsP
             autoComplete="off"
             aria-describedby={SEARCH_HINT_ID}
             data-testid="quote-add-products-search-input"
+            disabled={isBusy}
           />
           <Search className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-placeholders" />
         </div>
@@ -264,7 +366,7 @@ export function QuoteAddProducts({ quoteId, onProductsAdded }: QuoteAddProductsP
                     selected={selection.selected}
                     quantity={selection.quantity}
                     pricesLoading={pricesLoading}
-                    disabled={isSubmitting}
+                    disabled={isBusy}
                     selectLabel={t('selectProduct', { name: plainName })}
                     onToggleSelected={() => updateSelection(product.id, { selected: !selection.selected })}
                     onQuantityChange={(quantity) => updateSelection(product.id, { quantity })}
@@ -282,11 +384,11 @@ export function QuoteAddProducts({ quoteId, onProductsAdded }: QuoteAddProductsP
         <Button
           variant="primary"
           onClick={handleAddToQuote}
-          disabled={isSubmitting || selectedItems.length === 0}
+          disabled={isBusy || selectedItems.length === 0}
           className="h-12 w-full font-headlines tracking-[2px] sm:w-auto sm:min-w-[216px]"
           data-testid="quote-add-products-submit"
         >
-          {isSubmitting ? (
+          {isBusy ? (
             <>
               <Spinner variant="sm" color="white" />
               <span className="ml-2">{t('adding')}</span>

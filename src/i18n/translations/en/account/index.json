@@ -449,8 +449,14 @@
       "selectProduct": "Select {name}",
       "addToQuote": "ADD TO QUOTE",
       "adding": "ADDING...",
-      "addSuccessTitle": "Products added",
-      "addSuccessDescription": "{count, plural, one {# product was added to the quote.} other {# products were added to the quote.}}",
+      "requestAcceptedTitle": "Request Accepted",
+      "processing": "Checking authorization for your products…",
+      "resultSuccessTitle": "Product added",
+      "resultDeniedTitle": "Product not added",
+      "resultProductLabel": "Product: {productId}",
+      "pollTimeoutTitle": "Still processing",
+      "pollTimeoutDescription": "We could not confirm the result in time. Please refresh the quote or try again.",
+      "closeResult": "Close",
       "addFailedTitle": "Could not add products",
       "addFailedDescription": "Please try again or contact support if the problem persists."
     }

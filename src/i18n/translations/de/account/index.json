@@ -405,8 +405,14 @@
       "selectProduct": "{name} auswählen",
       "addToQuote": "ZUM ANGEBOT HINZUFÜGEN",
       "adding": "WIRD HINZUGEFÜGT...",
-      "addSuccessTitle": "Produkte hinzugefügt",
-      "addSuccessDescription": "{count, plural, one {# Produkt wurde zum Angebot hinzugefügt.} other {# Produkte wurden zum Angebot hinzugefügt.}}",
+      "requestAcceptedTitle": "Anfrage angenommen",
+      "processing": "Berechtigung für Ihre Produkte wird geprüft…",
+      "resultSuccessTitle": "Produkt hinzugefügt",
+      "resultDeniedTitle": "Produkt nicht hinzugefügt",
+      "resultProductLabel": "Produkt: {productId}",
+      "pollTimeoutTitle": "Wird noch verarbeitet",
+      "pollTimeoutDescription": "Das Ergebnis konnte nicht rechtzeitig bestätigt werden. Bitte aktualisieren Sie das Angebot oder versuchen Sie es erneut.",
+      "closeResult": "Schließen",
       "addFailedTitle": "Produkte konnten nicht hinzugefügt werden",
       "addFailedDescription": "Bitte versuchen Sie es erneut oder wenden Sie sich an den Support."
     }
