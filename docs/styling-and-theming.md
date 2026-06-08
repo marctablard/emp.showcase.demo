@@ -1,6 +1,11 @@
 # Styling and Theming Guide
 
-This document explains how the storefront design system defines, composes, and consumes visual tokens. Follow these guidelines to keep the UI consistent with the brand and to simplify future theme adjustments.
+**Audience:** frontend developers. This document explains the **mechanics** of the storefront design
+system — how it defines, composes, and consumes visual tokens. Follow these guidelines to keep the
+UI consistent with the brand and to simplify future theme adjustments.
+
+> If you only want to **re-skin a site** (change its colours/accents) without learning the internals,
+> read [`theme-customization.md`](./theme-customization.md) instead — it is the recipe-level guide.
 
 ## Table of Contents
 
@@ -121,11 +126,12 @@ Per-site files override only the tokens they explicitly redefine; everything els
 
 ### Adding a theme for a new site
 
-1. Create `public/themes/<site-code>.css`. Put only `:root` overrides for the tokens you want to change (typically a handful of `--color-*` and `--token-*` variables).
-2. Register the file in `THEME_MAP` in `src/app/styles/themes/index.ts`.
-3. Verify in the browser: navigate to `/<site-code>` and confirm `getComputedStyle()` on a sample element returns the expected per-site value.
-
-A site that is **not** listed in `THEME_MAP` falls back to `_default_.css` — safe by construction, no manual opt-out needed.
+The step-by-step recipe for adding a site theme lives in
+[`theme-customization.md`](./theme-customization.md#recipe-theme-a-site) — that is the
+operator-facing guide. This section explains *why* that recipe works: a per-site file is a static
+stylesheet of `:root` overrides, loaded as the first `<body>` child so it wins the cascade for equal
+specificity (see [Cascade order](#cascade-order)), and a site absent from `THEME_MAP` falls back to
+the empty `_default_.css` — safe by construction, no manual opt-out needed.
 
 ### Boundaries (ADR-0001)
 
@@ -141,5 +147,6 @@ A drift-guard test (`src/components/theme/theme-layer-provider-agnostic.drift.te
 - **Tailwind CSS Documentation**: https://tailwindcss.com/docs
 - **Design Tokens**: `src/app/styles/brand.css`, `src/app/styles/alias.css`, `src/app/styles/mapped.css`, `src/app/globals.css`
 - **Per-Site Theming**: `src/app/styles/themes/index.ts`, `src/components/theme/site-theme-style.tsx`, `public/themes/`
+- **Theme Customization (operator-facing recipe)**: [`theme-customization.md`](./theme-customization.md)
 - **Design Source**: Figma storefront design system (context tokens mirror Figma naming)
 - **ADR-0001**: CMS providers integrated solely through adapters (theme layer is a leaf, no provider coupling)
