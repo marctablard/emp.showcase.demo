@@ -6,6 +6,7 @@ import { CirclePause, CirclePlay } from 'lucide-react';
 import { H1 } from '@/components/ui/h';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { cn } from '@/lib/utils';
+import { extractTipTapText } from '../_shared/text-editor.schema';
 import Button from '../button';
 import Video from '../video';
 import type { HeroData } from './schema';
@@ -15,7 +16,7 @@ export type HeroProps = HeroData & HTMLAttributes<HTMLDivElement>;
 const Hero = ({ id: _id, type: _type, headline, text, main_button, image, video, className, ...rest }: HeroProps) => {
   const button = main_button?.[0];
   const videoData = video?.[0];
-  const content = text?.content?.[0]?.content?.[0]?.text;
+  const content = extractTipTapText(text);
   const isAboveSmallScreen = useBreakpoint('sm');
   const videoPlayer = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(videoData?.autoplay ?? false);

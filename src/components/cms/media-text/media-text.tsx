@@ -1,6 +1,7 @@
 import type { HTMLAttributes } from 'react';
 import { Heading } from '@/components/ui/h';
 import { cn } from '@/lib/utils';
+import { extractTipTapText } from '../_shared/text-editor.schema';
 import Button from '../button';
 import MediaTextMedia from './media-text-media';
 import type { MediaTextData } from './schema';
@@ -22,7 +23,7 @@ const MediaText = ({
   ...rest
 }: MediaTextProps) => {
   const button = main_button ? main_button[0] : null;
-  const textContent = text.content[0]?.content[0]?.text;
+  const textContent = extractTipTapText(text);
 
   return (
     <div

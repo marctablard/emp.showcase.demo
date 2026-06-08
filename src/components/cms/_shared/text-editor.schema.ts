@@ -19,3 +19,19 @@ export const TextEditorDataSchema = z.object({
 });
 
 export type TextEditorData = z.infer<typeof TextEditorDataSchema>;
+
+/**
+ * Joins all text leaves across every paragraph block into a single string.
+ * Leaves within one block are concatenated directly; blocks are separated
+ * by `\n`. Empty blocks are omitted. Returns `''` for an empty payload.
+ *
+ * Use this instead of `data.content[0]?.content[0]?.text` so that
+ * multi-paragraph / multi-leaf hero and media-text bodies are not silently
+ * truncated to the first leaf.
+ */
+export function extractTipTapText(data: TextEditorData): string {
+  return data.content
+    .map((block) => block.content.map((leaf) => leaf.text).join(''))
+    .filter(Boolean)
+    .join('\n');
+}
