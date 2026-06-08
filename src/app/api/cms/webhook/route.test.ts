@@ -5,12 +5,13 @@
  * - Resolves `CMSService` via `getCmsService()` (the SSR lazy-bind helper).
  * - Adapter without a webhook surface (`cms.handleWebhook` not a function) →
  *   `405`.
- * - `NEXT_CMS_WEBHOOK_SECRET` absent (with a webhook-capable provider) → `503`.
- * - Capability gate runs BEFORE the secret gate: a non-webhook provider is
- *   `405` even with no secret.
- * - Otherwise the adapter result `{ status, body }` is passed through verbatim
- *   (valid HMAC → 200, invalid → 401) and the outcome is logged.
+ * - Otherwise the service result `{ status, body }` is passed through verbatim
+ *   (200, 401, 503, …) and the outcome is logged.
  * - Service throws / helper rejects → `500` + `LoggerService.error(...)`.
+ *
+ * Note: the 503 "secret not configured" gate used to live here; it now lives
+ * in `DelegatingCmsServiceSSR.handleWebhook` so that non-HMAC adapters are
+ * not blocked by a missing Storyblok-only secret.
  */
 import type { NextRequest } from 'next/server';
 import { POST } from './route';
@@ -103,15 +104,18 @@ describe('POST /api/cms/webhook — capability gate (405)', () => {
 });
 
 describe('POST /api/cms/webhook — disabled gate (503)', () => {
-  it('returns 503 when a webhook-capable provider has no signing secret', async () => {
+  it('passes through a 503 result from the service (secret gate now lives in the service, not the route)', async () => {
+    // The service owns the "no secret → 503" logic for HMAC-based adapters so
+    // that adapters without HMAC are not blocked by a provider-specific secret.
+    // From the route's perspective, 503 is just another pass-through status.
     delete process.env.NEXT_CMS_WEBHOOK_SECRET;
-    const handleWebhook = jest.fn();
+    const handleWebhook = jest.fn(async () => ({ status: 503, body: { error: 'CMS webhook disabled' } }));
     getCmsService.mockResolvedValue({ providerId: 'storyblok', handleWebhook });
 
     const response = await POST(createRequest());
 
     expect(response.status).toBe(503);
-    expect(handleWebhook).not.toHaveBeenCalled();
+    expect(handleWebhook).toHaveBeenCalledTimes(1);
   });
 });
 

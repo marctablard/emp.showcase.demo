@@ -38,15 +38,11 @@ export async function POST(request: NextRequest) {
     // getter ever became non-idempotent.
     const handleWebhook = cms.handleWebhook;
 
-    // Capability gate first: a provider without a webhook surface has no
-    // endpoint here regardless of secret configuration.
+    // Capability gate: a provider without a webhook surface answers 405.
+    // Secret-gate (503) and HMAC validation (401) are owned by the service /
+    // adapter, not the route — so only HMAC-based adapters need a secret.
     if (typeof handleWebhook !== 'function') {
       return NextResponse.json({ error: 'CMS webhook not supported' }, { status: 405 });
-    }
-
-    // Webhook deliberately disabled when no signing secret is configured.
-    if (!process.env.NEXT_CMS_WEBHOOK_SECRET) {
-      return NextResponse.json({ error: 'CMS webhook disabled' }, { status: 503 });
     }
 
     const result = await handleWebhook(request);

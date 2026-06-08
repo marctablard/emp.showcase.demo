@@ -99,6 +99,14 @@ export class DelegatingCmsServiceSSR implements CMSService {
       return adapter.handleWebhook.bind(adapter);
     }
     if (adapter.validateWebhookSignature && adapter.mapWebhookPayload) {
+      // HMAC-based adapters require a configured signing secret. The check
+      // lives here — not in the generic route handler — so that adapters
+      // without HMAC validation are not blocked by a missing provider-specific
+      // secret. Returning a 503 handler (not `undefined`) keeps the route's
+      // 405 / 503 distinction clean: 405 = no webhook surface, 503 = disabled.
+      if (!process.env.NEXT_CMS_WEBHOOK_SECRET) {
+        return () => Promise.resolve({ status: 503, body: { error: 'CMS webhook disabled' } });
+      }
       return (request: Request) => this.dispatchWebhook(request, adapter);
     }
     return undefined;

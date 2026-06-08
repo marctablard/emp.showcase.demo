@@ -131,7 +131,11 @@ export class StoryblokCmsAdapter implements CmsAdapter {
    *    configured site, since one story then serves all of them — and the
    *    read path keys the cache by the real route-segment site code (always a
    *    member of `NEXT_PUBLIC_AVAILABLE_SITES`), so a `site: ''` event would
-   *    never match a cached key;
+   *    never match a cached key; the site segment is consumed before locale
+   *    detection, so a slug like `us-branch/de/about` unambiguously parses as
+   *    site=`us-branch`, locale=`de`, slug=`about` — no collision with
+   *    locale-prefix mode because the two prefixes occupy distinct segments
+   *    and are evaluated in order (site first, locale second);
    *  - a leading locale segment (`de/…`) addresses a single locale; without
    *    one (field-level i18n) the change fans out across every configured
    *    locale, since one story serves all of them;

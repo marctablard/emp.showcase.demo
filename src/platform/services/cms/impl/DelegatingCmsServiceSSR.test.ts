@@ -189,6 +189,7 @@ describe('DelegatingCmsServiceSSR — read-through cache', () => {
 });
 
 describe('DelegatingCmsServiceSSR — handleWebhook surface', () => {
+  const ORIGINAL_SECRET = process.env.NEXT_CMS_WEBHOOK_SECRET;
   const signature = (rawBody: string) => `sig:${rawBody}`;
 
   const buildWebhookAdapter = (overrides: Partial<CmsAdapter> = {}): jest.Mocked<CmsAdapter> =>
@@ -207,13 +208,47 @@ describe('DelegatingCmsServiceSSR — handleWebhook surface', () => {
       headers: new Headers(signed ? { 'webhook-signature': signature(rawBody) } : {}),
     }) as unknown as Request;
 
+  beforeEach(() => {
+    // HMAC-based adapters require a configured secret; set one so the dispatch
+    // path is exercised rather than the 503 disabled-gate in most tests.
+    process.env.NEXT_CMS_WEBHOOK_SECRET = 'test-secret';
+  });
+
+  afterAll(() => {
+    if (ORIGINAL_SECRET === undefined) {
+      delete process.env.NEXT_CMS_WEBHOOK_SECRET;
+    } else {
+      process.env.NEXT_CMS_WEBHOOK_SECRET = ORIGINAL_SECRET;
+    }
+  });
+
   it('is undefined when the adapter exposes no webhook surface', () => {
     const service = new DelegatingCmsServiceSSR(buildAdapter());
     expect(service.handleWebhook).toBeUndefined();
   });
 
-  it('is a function when the adapter provides validate + map primitives', () => {
+  it('is a function when the adapter provides validate + map primitives (and a secret is configured)', () => {
     const service = new DelegatingCmsServiceSSR(buildWebhookAdapter());
+    expect(typeof service.handleWebhook).toBe('function');
+  });
+
+  it('returns 503 (deliberately disabled) when an HMAC-based adapter has no signing secret', async () => {
+    // Secret gate lives in the service, not the route — so other adapters that
+    // do not use HMAC are not blocked by a missing Storyblok-only secret.
+    delete process.env.NEXT_CMS_WEBHOOK_SECRET;
+    const adapter = buildWebhookAdapter();
+    const service = new DelegatingCmsServiceSSR(adapter);
+
+    const result = await service.handleWebhook!(makeRequest('{}'));
+
+    expect(result.status).toBe(503);
+    expect(adapter.validateWebhookSignature).not.toHaveBeenCalled();
+  });
+
+  it('still exposes handleWebhook as a function when no secret is configured (503 path, not undefined)', () => {
+    delete process.env.NEXT_CMS_WEBHOOK_SECRET;
+    const service = new DelegatingCmsServiceSSR(buildWebhookAdapter());
+
     expect(typeof service.handleWebhook).toBe('function');
   });
 
