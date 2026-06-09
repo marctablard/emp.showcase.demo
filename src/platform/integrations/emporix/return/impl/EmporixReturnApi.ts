@@ -1,6 +1,7 @@
 import { inject } from 'inversify';
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
+import { createEmporixApiError } from '@/platform/integrations/emporix/common/EmporixApiError';
 import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../../config';
@@ -57,8 +58,7 @@ class EmporixReturnApi implements IEmporixReturnApi {
     );
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(`Failed to get returns: ${JSON.stringify(error)}`);
+      throw await createEmporixApiError('Get returns', response);
     }
 
     const totalCountHeader = response.headers.get('x-total-count');
@@ -88,8 +88,7 @@ class EmporixReturnApi implements IEmporixReturnApi {
       if (response.status === 404) {
         return null;
       }
-      const error = await response.json();
-      throw new Error(`Failed to get return: ${JSON.stringify(error)}`);
+      throw await createEmporixApiError('Get return', response);
     }
 
     return await response.json();
@@ -115,8 +114,7 @@ class EmporixReturnApi implements IEmporixReturnApi {
     );
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(`Failed to create return: ${JSON.stringify(error)}`);
+      throw await createEmporixApiError('Create return', response);
     }
 
     return await response.json();

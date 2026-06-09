@@ -1,9 +1,7 @@
 'use client';
 
-import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import UiLink from '@/components/ui/link';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TablePagination } from '@/components/ui/table-pagination';
@@ -16,7 +14,7 @@ interface QuotesTableProps {
   quotes: Quote[];
   loading?: boolean;
   currentPage?: number;
-  quotesPerPage?: number;
+  totalPages?: number;
   onPreviousPage?: () => void;
   onNextPage?: () => void;
 }
@@ -25,23 +23,11 @@ export function QuotesTable({
   quotes,
   loading = false,
   currentPage = 1,
-  quotesPerPage = 5,
+  totalPages = 1,
   onPreviousPage,
   onNextPage,
 }: QuotesTableProps) {
   const t = useTranslations('account.quotesList');
-  const [sortOrder, setSortOrder] = useState<string>('latest');
-
-  // Sort quotes based on the selected order
-  const sortedQuotes = [...quotes].sort((a, b) => {
-    const dateA = new Date(a.submittedDate);
-    const dateB = new Date(b.submittedDate);
-
-    return sortOrder === 'latest' ? dateB.getTime() - dateA.getTime() : dateA.getTime() - dateB.getTime();
-  });
-
-  const visibleQuotes = sortedQuotes.slice((currentPage - 1) * quotesPerPage, currentPage * quotesPerPage);
-  const totalPages = Math.max(1, Math.ceil(sortedQuotes.length / quotesPerPage));
 
   const formatPrice = (price: number, currency: string) => {
     try {
@@ -58,24 +44,11 @@ export function QuotesTable({
 
   return (
     <div className="w-full">
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-2">
-          <Select value={sortOrder} onValueChange={setSortOrder}>
-            <SelectTrigger className="w-[340px]">
-              <SelectValue placeholder={t('latest')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="latest">{t('latest')}</SelectItem>
-              <SelectItem value="oldest">{t('oldest')}</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="whitespace-nowrap">{t('quoteId')}</TableHead>
               <TableHead className="whitespace-nowrap">{t('quoteReference')}</TableHead>
               <TableHead className="whitespace-nowrap">{t('status')}</TableHead>
               <TableHead className="whitespace-nowrap">{t('quotationDate')}</TableHead>
@@ -88,20 +61,20 @@ export function QuotesTable({
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={8} className="h-24 text-center">
                   <div className="flex items-center justify-center">
                     <Spinner color="primary" variant="md" />
                   </div>
                 </TableCell>
               </TableRow>
-            ) : sortedQuotes.length === 0 ? (
+            ) : quotes.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={8} className="h-24 text-center">
                   {t('noQuotes')}
                 </TableCell>
               </TableRow>
             ) : (
-              visibleQuotes.map((quote, index) => (
+              quotes.map((quote, index) => (
                 <TableRow
                   key={quote.id}
                   className={cn(
@@ -116,9 +89,23 @@ export function QuotesTable({
                       variant="text"
                       className="no-underline hover:underline"
                     >
-                      {quote.reference || '#' + quote.id}
+                      {quote.id}
                     </UiLink>
+                    {quote.orderId ? (
+                      <div className="mt-1 text-sm text-text-placeholders">
+                        {t('relatedOrder')}{' '}
+                        <UiLink
+                          type="Link"
+                          href={`/account/orders/${quote.orderId}`}
+                          variant="text"
+                          className="underline"
+                        >
+                          #{quote.orderId}
+                        </UiLink>
+                      </div>
+                    ) : null}
                   </TableCell>
+                  <TableCell className="px-2 py-4">{quote.reference || '-'}</TableCell>
                   <TableCell className="px-2 py-4">
                     <QuoteStatusBadge status={quote.status} />
                   </TableCell>
@@ -139,7 +126,7 @@ export function QuotesTable({
         </Table>
       </div>
 
-      {quotes && quotes.length > quotesPerPage ? (
+      {totalPages > 1 ? (
         <TablePagination
           className="px-3"
           currentPage={currentPage}

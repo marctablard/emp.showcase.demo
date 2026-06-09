@@ -230,6 +230,79 @@ describe('CartStore - Site Validation', () => {
       expect(store.getState().lastSiteCode).toBe('site-b');
     });
 
+    it('invalidates the in-flight _fetchPromise dedupe when called during a pending fetchCart so the target site gets a fresh GET', async () => {
+      // Regression for Copilot review https://github.com/emporix/emporix-showcase/pull/283#discussion_r3128797246.
+      // The closure-level `_fetchPromise` in `createCartStore` dedupes concurrent `fetchCart`
+      // calls. If `validateSite` did not clear it, a new `fetchCart` triggered for the target
+      // site would short-circuit on the previous-site promise and a stale cart response could
+      // overwrite the reset state. This test pins down that `validateSite` resets the dedupe
+      // and issues a second, independent HTTP call.
+      act(() => {
+        store.setState({ lastSiteCode: 'site-a' });
+      });
+
+      let resolveFirst!: (value: { cart: Cart | null; sessionSiteCode: string | null }) => void;
+      let resolveSecond!: (value: { cart: Cart | null; sessionSiteCode: string | null }) => void;
+      const firstPromise = new Promise<{ cart: Cart | null; sessionSiteCode: string | null }>((resolve) => {
+        resolveFirst = resolve;
+      });
+      const secondPromise = new Promise<{ cart: Cart | null; sessionSiteCode: string | null }>((resolve) => {
+        resolveSecond = resolve;
+      });
+
+      mockFetchCurrentCart.mockReturnValueOnce(firstPromise).mockReturnValueOnce(secondPromise);
+
+      // In-flight fetchCart for site-a installs `_fetchPromise` inside the store closure.
+      const inFlight = store.getState().fetchCart();
+      expect(mockFetchCurrentCart).toHaveBeenCalledTimes(1);
+
+      // Kick off validateSite for site-b while the previous-site GET is still pending. The
+      // bug signature: without `_fetchPromise = null` inside validateSite, a subsequent
+      // `fetchCart` would return the in-flight promise and NOT issue a new HTTP request.
+      const validatePromise = store.getState().validateSite('site-b');
+
+      // Flush enough microtasks for validateSite to reach its internal `await get().fetchCart()`.
+      for (let i = 0; i < 5; i += 1) {
+        await Promise.resolve();
+      }
+
+      expect(mockFetchCurrentCart).toHaveBeenCalledTimes(2);
+
+      // Resolve both fetches; both should complete cleanly. The site-a response is dropped
+      // by fetchCart's dedupe ownership check, and the site-b response is installed.
+      resolveFirst({
+        cart: {
+          id: 'cart-a',
+          currency: 'EUR',
+          site: 'site-a',
+          items: [],
+          totalPrice: { amount: 0, currency: 'EUR' },
+          subTotalPrice: { amount: 0, currency: 'EUR' },
+          tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0 },
+        } as Cart,
+        sessionSiteCode: 'site-a',
+      });
+      resolveSecond({
+        cart: {
+          id: 'cart-b',
+          currency: 'EUR',
+          site: 'site-b',
+          items: [],
+          totalPrice: { amount: 0, currency: 'EUR' },
+          subTotalPrice: { amount: 0, currency: 'EUR' },
+          tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0 },
+        } as Cart,
+        sessionSiteCode: 'site-b',
+      });
+
+      await act(async () => {
+        await inFlight;
+        await validatePromise;
+      });
+
+      expect(store.getState().lastSiteCode).toBe('site-b');
+    });
+
     it('should handle fetchCart failure during site change gracefully — lastSiteCode stays snapped to new site', async () => {
       const initialCart = {
         id: 'cart-1',
@@ -529,6 +602,7 @@ describe('CartStore - Fetch Deduplication', () => {
       lastSiteCode: 'main',
       lastLegalEntityId: null,
       pendingCurrencySync: null,
+      isSettling: false,
     });
 
     const createdCart = {
@@ -581,6 +655,7 @@ describe('CartStore - Fetch Deduplication', () => {
       lastSiteCode: 'main',
       lastLegalEntityId: null,
       pendingCurrencySync: null,
+      isSettling: false,
     });
     const updatedCart = {
       ...existingCart,

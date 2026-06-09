@@ -2,7 +2,7 @@
   "name": "Emporix Showcase",
   "short_name": "Emporix",
   "description": "Modern e-commerce storefront powered by Emporix Commerce Platform",
-  "start_url": "https://showcase.emporix.com/",
+  "start_url": "https://showcase.emporix.io/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#000000",

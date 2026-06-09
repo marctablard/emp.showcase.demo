@@ -11,6 +11,8 @@ interface UseOrdersOptions {
   pageSize?: number;
   pageNumber?: number;
   filters?: Record<string, any>;
+  query?: string;
+  forceRefresh?: boolean;
 }
 
 interface UseOrdersResult {
@@ -35,6 +37,14 @@ interface UseOrdersResult {
   refetchOrders: () => Promise<void>;
 }
 
+function createOrderQueryKey(searchQuery: { query: string; body: unknown }, freeTextQuery?: string): string {
+  return JSON.stringify({
+    query: searchQuery.query,
+    body: searchQuery.body,
+    search: freeTextQuery ?? null,
+  });
+}
+
 /**
  * Hook for managing collections of orders with pagination, filtering, and searching
  * This is now a simple pass-through to the order store
@@ -48,6 +58,8 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
     pageSize: initialPageSize = 50,
     pageNumber: initialPageNumber = 1,
     filters: initialFilters = {},
+    query: searchQuery,
+    forceRefresh = false,
   } = options;
 
   const {
@@ -69,7 +81,7 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
     size: pageSize,
     criteria: filters,
   });
-  const queryKey = query.query + query.body;
+  const queryKey = createOrderQueryKey(query, searchQuery);
 
   useEffect(() => {
     // Initialize with initialOrders if provided and not already in store
@@ -84,22 +96,22 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
   const loading = getStoreLoading(queryKey);
   const error = getStoreError(queryKey);
 
-  // Fetch orders when parameters change (force-refresh to always get fresh data from API)
+  // Re-fetch orders; honours the configurable `forceRefresh` flag (default: false)
   const refetchOrders = useCallback(async () => {
     try {
-      await storeFetchOrders(pageSize, pageNumber, filters, true);
+      await storeFetchOrders(pageSize, pageNumber, filters, forceRefresh, searchQuery);
     } catch (err) {
       // Error is already handled in the store
       getLogger().error({ err, pageSize, pageNumber }, 'Error in refetchOrders');
     }
-  }, [pageSize, pageNumber, filters, storeFetchOrders]);
+  }, [pageSize, pageNumber, filters, forceRefresh, searchQuery, storeFetchOrders]);
 
   // Auto-fetch when parameters change and we don't have data
   useEffect(() => {
     if (!orders && !loading) {
       refetchOrders();
     }
-  }, [pageSize, pageNumber, filters, orders, loading, refetchOrders]);
+  }, [pageSize, pageNumber, filters, searchQuery, orders, loading, refetchOrders]);
 
   return {
     orders,

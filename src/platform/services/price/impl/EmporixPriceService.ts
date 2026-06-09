@@ -1,4 +1,5 @@
 import { inject } from 'inversify';
+import { getPublicPriceMatchUseFallback } from '@/lib/common/public-default-env';
 import { injectable } from '@/platform/core/di/injectable';
 import type {
   EmporixMatchPricesRequest,
@@ -55,12 +56,13 @@ class EmporixPriceService implements PriceService {
           countryCode: params.country!,
         },
         items: [this.mapToMatchPriceItem(productId, quantity, unitCode)],
-        useFallback: true, //TODO: confirm if it should be true by default, or if it should be configurable via account settings, endpoint or ENVs
+        useFallback: getPublicPriceMatchUseFallback(),
       };
       matchedPrices = await this.priceApi.matchPrices(matchRequest);
     }
-    const price = matchedPrices.length > 0 ? this.mapper.mapToService(matchedPrices[0]) : null;
-    // TODO clarify, what to do when more prices match?
+    const requestedCurrency = params?.currency;
+    const preferredPrice = this.pickPreferredMatchedPrice(matchedPrices, requestedCurrency);
+    const price = preferredPrice ? this.mapper.mapToService(preferredPrice) : null;
     return price;
   }
 
@@ -105,24 +107,44 @@ class EmporixPriceService implements PriceService {
           siteCode: params.siteCode,
           targetLocation: { countryCode: params.country! },
           items,
-          useFallback: true,
+          useFallback: getPublicPriceMatchUseFallback(),
         });
       }
       allMatched.push(...matchedPrices);
     }
 
-    // Initialize all requested IDs to null
-    productIds.forEach((id) => result.set(id, null));
+    const requestedCurrency = params?.currency;
+    const matchesByProductId = new Map<string, EmporixMatchedPrice[]>();
 
-    // Map matched prices by product ID (first match wins)
     allMatched.forEach((matched) => {
       const productId = matched.itemId.id;
-      if (result.has(productId) && result.get(productId) === null) {
-        result.set(productId, this.mapper.mapToService(matched));
-      }
+      const productMatches = matchesByProductId.get(productId) ?? [];
+      productMatches.push(matched);
+      matchesByProductId.set(productId, productMatches);
+    });
+
+    productIds.forEach((productId) => {
+      const preferredPrice = this.pickPreferredMatchedPrice(matchesByProductId.get(productId) ?? [], requestedCurrency);
+      result.set(productId, preferredPrice ? this.mapper.mapToService(preferredPrice) : null);
     });
 
     return result;
+  }
+
+  private pickPreferredMatchedPrice(
+    matchedPrices: EmporixMatchedPrice[],
+    requestedCurrency?: string,
+  ): EmporixMatchedPrice | null {
+    if (matchedPrices.length === 0) {
+      return null;
+    }
+
+    if (!requestedCurrency) {
+      return matchedPrices[0];
+    }
+
+    const exactCurrencyMatch = matchedPrices.find((matchedPrice) => matchedPrice.currency === requestedCurrency);
+    return exactCurrencyMatch ?? matchedPrices[0];
   }
 
   private mapToMatchPriceItem(productId: string, quantity: number, unitCode?: string): EmporixPriceMatchItem {

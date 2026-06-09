@@ -259,6 +259,9 @@ A: All required envs listed above. Ensure `NEXT_PUBLIC_SERVER_URL` matches the p
 Q: What port should be exposed?
 A: `3000` when using `next start`.
 
+Q: Which HTTP version should Azure use?
+A: Use HTTP/2 instead of Azure's default HTTP/1.1 where this is configurable. HTTP/1.1 can introduce unnecessary redirects in front of the app, while HTTP/2 avoids that extra redirect hop.
+
 Q: Is readiness check safe if Emporix is down?
 A: Yes. `/api/ready` checks only local env presence, not upstream services.
 

@@ -239,6 +239,29 @@ function extractUsedKeys(): UsedKey[] {
     }
   }
 
+  // ── Step 4: Detect l10n('namespace.key') calls ─────────────────────────
+  // The l10n() helper uses fully-qualified keys like 'quick-order.search.noResults'
+  // where the first segment is the translation namespace.
+  const l10nRe = /\bl10n\s*\(\s*['"]([a-zA-Z][\w-]*(?:\.[a-zA-Z][\w-]*)+)['"]\s*\)/g;
+
+  for (const relFile of srcFiles) {
+    const absPath = path.join(SRC, relFile);
+    const content = fs.readFileSync(absPath, 'utf-8');
+
+    l10nRe.lastIndex = 0;
+    let lm: RegExpExecArray | null;
+    while ((lm = l10nRe.exec(content)) !== null) {
+      const fullKey = lm[1];
+      const dotIdx = fullKey.indexOf('.');
+      if (dotIdx < 0) continue;
+      const namespace = fullKey.substring(0, dotIdx);
+      const key = fullKey.substring(dotIdx + 1);
+      if (key.includes('${') || key.includes('+')) continue;
+      const lineNum = content.substring(0, lm.index).split('\n').length;
+      result.push({ namespace, subPath: '', key, file: relFile, line: lineNum });
+    }
+  }
+
   return result;
 }
 

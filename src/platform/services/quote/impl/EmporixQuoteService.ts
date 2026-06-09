@@ -18,6 +18,8 @@ import type { QuoteService } from '@/platform/services/quote/QuoteService';
 import type { SchemaService } from '@/platform/services/schema/SchemaService';
 import type { SearchParams, SearchResult } from '../../model/common';
 
+const DEFAULT_QUOTE_SORT = 'metadata.createdAt:desc';
+
 @injectable('QuoteService', 'Singleton')
 class EmporixQuoteService implements QuoteService {
   constructor(
@@ -38,6 +40,8 @@ class EmporixQuoteService implements QuoteService {
     if (!customer) {
       throw new Error('Customer not found');
     }
+    const sort = params.sort ?? DEFAULT_QUOTE_SORT;
+
     const searchResult: EmporixPaginatedResponse<EmporixQuote> = await this.quoteApi.getQuotes({
       page: (params.page || 0) + 1,
       size: params.size,
@@ -45,7 +49,7 @@ class EmporixQuoteService implements QuoteService {
       criteria: {
         'customer.customerId': customer.id,
       },
-      sort: params.sort,
+      sort,
     });
 
     // TODO fetch for quotes of subordinates
@@ -108,19 +112,19 @@ class EmporixQuoteService implements QuoteService {
     return emporixQuoteReason as QuoteReason;
   }
 
-  async createQuoteReason(quoteId: string, comment: string, locale: string, reasonType: string) {
-    const quoteId_current = `${quoteId}_${Date.now()}`;
-    const code = `${(comment || quoteId_current).toUpperCase().replace(/\s+/g, '_')}`;
+  async resolveQuoteReasonId(reasonType: string, reasonCode: string): Promise<string> {
+    const quoteReasons = await this.quoteApi.getQuoteReasons();
+    const normalizedReasonType = reasonType.toUpperCase();
+    const normalizedReasonCode = reasonCode.toUpperCase();
+    const quoteReason = quoteReasons.find(
+      ({ code, type }) => code === normalizedReasonCode && type === normalizedReasonType,
+    );
 
-    const message: Record<string, string> = {};
-    message[locale] = comment || 'Price too high';
+    if (!quoteReason) {
+      throw new Error(`Quote reason ${normalizedReasonType}:${normalizedReasonCode} not found`);
+    }
 
-    const response = await this.quoteApi.createQuoteReason({
-      code: code,
-      type: reasonType,
-      message: message,
-    });
-    return response.id;
+    return quoteReason.id;
   }
 
   async getQuoteHistory(quoteId: string): Promise<QuoteHistory> {

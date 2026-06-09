@@ -13,7 +13,9 @@
   },
   "Regions": {
     "label": "Site",
-    "switchFailed": "Der Standortwechsel ist fehlgeschlagen. Bitte versuche es erneut."
+    "switchFailed": "Der Standortwechsel ist fehlgeschlagen. Bitte versuche es erneut.",
+    "currencyFallback": "Währung von {from} auf {to} umgestellt — einige Artikel in deinem Warenkorb sind nicht in {from} bepreist.",
+    "currencySwitchCartBlocked": "Währung nicht von {fromCurrency} auf {toCurrency} gewechselt — einige Artikel in deinem Warenkorb sind nicht in {toCurrency} bepreist."
   },
   "Companies": {
     "label": "Unternehmen",

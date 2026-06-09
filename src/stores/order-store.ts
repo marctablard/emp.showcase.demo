@@ -32,11 +32,20 @@ interface OrderActions {
     pageNumber: number,
     filters?: Record<string, any>,
     forceRefresh?: boolean,
+    query?: string,
   ) => Promise<Order[]>;
 
   reset: () => void;
 }
 export type OrderStore = OrderState & OrderActions;
+
+function createOrderQueryKey(searchQuery: { query: string; body: unknown }, query?: string): string {
+  return JSON.stringify({
+    query: searchQuery.query,
+    body: searchQuery.body,
+    search: query ?? null,
+  });
+}
 
 const defaultState: OrderState = {
   orderQueries: {},
@@ -87,13 +96,14 @@ export const createOrderStore = () =>
       pageNumber: number,
       filters: Record<string, any> = {},
       forceRefresh: boolean = false,
+      query?: string,
     ) => {
-      const query = buildSearchQuery({
+      const searchQuery = buildSearchQuery({
         page: pageNumber,
         size: pageSize,
         criteria: filters,
       });
-      const queryKey = query.query + query.body;
+      const queryKey = createOrderQueryKey(searchQuery, query);
 
       // Check if we already have this data and it's not stale (skip when forceRefresh is true)
       if (!forceRefresh) {
@@ -117,7 +127,7 @@ export const createOrderStore = () =>
             error: { ...get().error, [queryKey]: null },
           });
 
-          const ordersData = await apiFetchOrders(pageSize, pageNumber);
+          const ordersData = await apiFetchOrders(pageSize, pageNumber, query);
 
           // Store the fetched orders
           get().setOrders(queryKey, ordersData);

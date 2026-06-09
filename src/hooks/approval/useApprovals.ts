@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   Approval,
   ApprovalCreateRequest,
@@ -25,68 +25,64 @@ interface UseApprovalsReturn {
  * Hook for interacting with approval lists and filtering
  * @param initialApprovals Optional initial approvals data
  * @param initialFilter Optional initial filter to apply
+ * @param query Optional search query string (e.g. "id:~(searchterm)")
  */
-export function useApprovals(initialApprovals?: Approval[], initialFilter?: Partial<Approval>): UseApprovalsReturn {
+export function useApprovals(
+  initialApprovals?: Approval[],
+  initialFilter?: Partial<Approval>,
+  query?: string,
+): UseApprovalsReturn {
   const [approvals, setApprovals] = useState<Approval[]>(initialApprovals || []);
   const [filter, setFilter] = useState<Partial<Approval> | undefined>(initialFilter);
   const [loading, setLoading] = useState<boolean>(!initialApprovals);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchApprovals = useCallback(async (filterParams?: Partial<Approval>) => {
-    try {
-      setLoading(true);
+  const fetchApprovals = useCallback(
+    async (filterParams?: Partial<Approval>) => {
+      try {
+        setLoading(true);
 
-      // Build URL with filter parameters if provided
-      let url = '/api/approval';
-      if (filterParams) {
-        const params = new URLSearchParams();
+        let url = '/api/approval';
+        const urlParams = new URLSearchParams();
 
-        if (filterParams.status) {
-          params.append('status', filterParams.status);
+        // Build q= DSL query from filter params and/or explicit query
+        const queryParts: string[] = [];
+
+        if (filterParams?.status) {
+          queryParts.push(`status:${filterParams.status}`);
         }
 
-        if (filterParams.resourceType) {
-          params.append('resourceType', filterParams.resourceType);
+        if (query) {
+          queryParts.push(query);
         }
 
-        if (filterParams.resource?.id) {
-          params.append('resourceId', filterParams.resource.id);
+        if (queryParts.length > 0) {
+          urlParams.append('query', queryParts.join(' '));
         }
 
-        if (filterParams.action) {
-          params.append('action', filterParams.action);
+        if (urlParams.toString()) {
+          url += `?${urlParams.toString()}`;
         }
 
-        if (filterParams.requestor?.userId) {
-          params.append('requestorId', filterParams.requestor.userId);
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.details || `Failed to fetch approvals: ${response.statusText}`);
         }
 
-        if (filterParams.approver?.userId) {
-          params.append('approverId', filterParams.approver.userId);
-        }
-
-        if (params.toString()) {
-          url += `?${params.toString()}`;
-        }
+        const data = await response.json();
+        setApprovals(data);
+        return data;
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error(String(err)));
+        return [];
+      } finally {
+        setLoading(false);
       }
-
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.details || `Failed to fetch approvals: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      setApprovals(data);
-      return data;
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error(String(err)));
-      return [];
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    [query],
+  );
 
   const filterApprovals = useCallback(
     async (newFilter: Partial<Approval>) => {
@@ -100,12 +96,15 @@ export function useApprovals(initialApprovals?: Approval[], initialFilter?: Part
     await fetchApprovals(filter);
   }, [fetchApprovals, filter]);
 
-  // Load approvals on initial render if not provided
+  // Load approvals on initial render if not provided, or re-fetch when query changes
+  const isFirstRender = useRef(!!initialApprovals && !query);
   useEffect(() => {
-    if (!initialApprovals) {
-      fetchApprovals(filter);
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
     }
-  }, [initialApprovals, filter, fetchApprovals]);
+    fetchApprovals(filter);
+  }, [fetchApprovals, filter]);
 
   const createApproval = useCallback(
     async (approvalData: ApprovalCreateRequest): Promise<ApprovalId> => {

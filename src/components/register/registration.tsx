@@ -87,6 +87,7 @@ export default function Registration() {
           zipCode: values.postalCode,
           country: values.country,
           tags: ['SHIPPING', 'BILLING'],
+          source: 'customer',
         },
       });
 

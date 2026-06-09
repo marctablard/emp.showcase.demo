@@ -230,13 +230,7 @@ class EmporixSessionContextApi implements IEmporixSessionContextApi {
 
     const data = (await response.json()) as EmporixSessionContext;
     this.logger.debug(
-      {
-        sessionId: data.sessionId,
-        siteCode: data.siteCode,
-        currency: data.currency,
-        targetLocation: data.targetLocation,
-      },
-      'getOwnSessionContext fetched',
+      `getOwnSessionContext fetched session=${data.sessionId} site=${data.siteCode} currency=${data.currency} location=${data.targetLocation}`,
     );
     this.pruneOwnContextCacheIfNeeded();
     this._ownBySessionId.set(cacheKey, {

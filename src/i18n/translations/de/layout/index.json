@@ -15,7 +15,7 @@
     "newsletter": "Newsletter",
     "offerRequest": "Angebot anfragen",
     "contact": "Kontakt",
-    "quickOrder": "Quick Order",
+    "quickOrder": "Schnellauftrag",
     "wishlists": "Wunschlisten",
     "allProducts": "Produkte",
     "products": "Produkte",
@@ -44,7 +44,11 @@
     "openSubcategoriesFor": "Unterkategorien für {name} öffnen",
     "navigation": {
       "meta": "Meta"
-    }
+    },
+    "compare": "Vergleichen",
+    "compareCount": "Vergleichen ({count})",
+    "compareTooltip": "Klicken, um {count} Artikel zu vergleichen",
+    "compareTooltipMinimum": "Mindestens 2 Produkte zum Vergleichen hinzufügen"
   },
   "footer": {
     "newsletterTitle": "Abonnieren Sie unseren Newsletter für exklusive Updates und mehr!",
@@ -67,7 +71,7 @@
     "sales": "Sales"
   },
   "footerLegal": {
-    "copyright": "© 2025 Emporix. Alle Rechte vorbehalten.",
+    "copyright": "© 2026 Emporix. Alle Rechte vorbehalten.",
     "termsAndConditions": "Geschäftsbedingungen",
     "imprint": "Impressum",
     "privacyPolicy": "Datenschutz"

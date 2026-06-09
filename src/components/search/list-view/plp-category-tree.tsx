@@ -36,25 +36,22 @@ interface PlpCategoryTreeProps {
 export function PlpCategoryTree({ categories, selectedCategoryId, locale, total }: PlpCategoryTreeProps) {
   const t = useTranslations('search.plpCategoryTree');
 
-  const allCategoryIds = useMemo(() => {
+  const allCategoryIdsKey = useMemo(() => {
     const ids: string[] = [];
     walkCategoryTree(categories, (node) => {
       ids.push(node.id);
     });
-    return ids;
+    return ids.join('|');
   }, [categories]);
 
-  const allCategoryIdsKey = allCategoryIds.join('|');
   const { counts, requestCounts } = useCategoryProductCounts();
 
   useEffect(() => {
-    if (allCategoryIds.length === 0) {
+    if (allCategoryIdsKey.length === 0) {
       return;
     }
-    requestCounts(allCategoryIds);
-    // `allCategoryIdsKey` keeps the effect stable when the forest identity changes but the id
-    // set stays the same (memoisation churn higher up).
-  }, [allCategoryIdsKey, allCategoryIds, requestCounts]);
+    requestCounts(allCategoryIdsKey.split('|'));
+  }, [allCategoryIdsKey, requestCounts]);
 
   const visibleCategories = useMemo(() => pruneEmptyBranches(categories, (id) => counts[id]), [categories, counts]);
 

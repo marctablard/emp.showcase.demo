@@ -28,6 +28,15 @@ export default function ProductAddToCartBar({
   const locale = useLocale();
   const t = useTranslations('product');
   const { l10n, l10nOrEmpty } = useL10n(locale);
+
+  const productImageAlt = product
+    ? product.images?.[0]?.altText
+      ? l10nOrEmpty(product.images[0].altText) ||
+        l10nOrEmpty(product.name) ||
+        t('primaryImageAltUnlabeled', { id: product.id })
+      : l10nOrEmpty(product.name) || t('primaryImageAltUnlabeled', { id: product.id })
+    : undefined;
+
   return (
     <div className={cn('fixed top-0 left-0 right-0 mt-20 pt-4 z-50 max-w-6xl mx-auto hidden md:block', className)}>
       <div className="bg-surface-action shadow-lg rounded-lg overflow-hidden relative flex justify-between mx-4 md:mx-9 h-16">
@@ -37,7 +46,7 @@ export default function ProductAddToCartBar({
               <div className="w-30 h-16 bg-surface-image-background p-2">
                 <Image
                   src={product.images[0].url}
-                  alt={product.images[0].altText ? l10nOrEmpty(product.images[0].altText) || '-' : '-'}
+                  alt={productImageAlt ?? ''}
                   width="120"
                   height="64"
                   className="object-center w-full h-auto"

@@ -2,7 +2,8 @@
 
 import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
-import { type QuoteStatusKey, dk } from '@/i18n/dynamic-key';
+import type { QuoteStatusKey } from '@/i18n/dynamic-key';
+import { QUOTE_STATUS_TO_MESSAGE_KEY } from '@/lib/common/quote-status-message-keys';
 import { getQuoteStatusVariant } from '@/lib/common/status-tag-variants';
 import type { QuoteStatus } from '@/platform/services/model/quote';
 
@@ -18,7 +19,7 @@ export function QuoteStatusBadge({ status }: QuoteStatusBadgeProps) {
 
   return (
     <Badge variant={getQuoteStatusVariant(status)} size="status">
-      {t(dk<QuoteStatusKey>(status.toLowerCase()))}
+      {t(QUOTE_STATUS_TO_MESSAGE_KEY[status] as QuoteStatusKey)}
     </Badge>
   );
 }

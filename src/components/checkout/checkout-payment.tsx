@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Check, NotebookText, Pencil, ReceiptText } from 'lucide-react';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
@@ -10,6 +10,7 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { H2 } from '../ui/h';
 import CheckoutAddress from './checkout-address';
+import { useRegisterSectionExpander } from './checkout-validation-registry';
 import PaymentMethodComponent from './payment-method';
 
 export function CheckoutPayment({ initialEdit }: { initialEdit: boolean }) {
@@ -19,6 +20,11 @@ export function CheckoutPayment({ initialEdit }: { initialEdit: boolean }) {
   const [isPaymentEdit, setIsPaymentEdit] = useState(
     initialEdit || !paymentMethod || !billingAddress || !shippingAddress,
   );
+
+  const expandPayment = useCallback(() => {
+    if (!isPaymentEdit) setIsPaymentEdit(true);
+  }, [isPaymentEdit]);
+  useRegisterSectionExpander('payment', expandPayment);
 
   const handleBillingAddressChange = (address: Address) => {
     submitBillingAddress({
@@ -75,7 +81,7 @@ export function CheckoutPayment({ initialEdit }: { initialEdit: boolean }) {
           <>
             {/* Addresses */}
             <AddressSelector
-              addressBook="companyAndCustomer"
+              addressBook="auto"
               addressType="BILLING"
               selectedAddressId={billingAddress?.id}
               onSelect={handleBillingAddressChange}

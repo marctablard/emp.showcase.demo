@@ -116,6 +116,15 @@ class EmporixSearchService implements SearchService {
     return session?.siteCode;
   }
 
+  private buildQueryCriteria(query?: string, field: 'name' | 'id' = 'name'): Record<string, string> {
+    const trimmedQuery = query?.trim();
+    if (!trimmedQuery) {
+      return {};
+    }
+
+    return { [field]: `~${trimmedQuery}` };
+  }
+
   /**
    * Builds product search `q` criteria: optional name match plus `categoryIds` when scoped.
    * Default `/browse` (no `filters.categoryIds`) uses **published navigation root** ids only — same trees as
@@ -125,6 +134,7 @@ class EmporixSearchService implements SearchService {
   private async buildSearchCriteria(
     params: SearchParams<Product>,
     effectiveSite?: string,
+    queryCriteria: Record<string, string> = {},
   ): Promise<Partial<EmporixProduct> | null> {
     const filterCategoryRaw = params.filters?.categoryIds;
     const filterCategoryIds =
@@ -164,7 +174,7 @@ class EmporixSearchService implements SearchService {
     }
 
     const criteriaRecord: Record<string, string> = {
-      ...(params.query ? { name: '~' + params.query } : {}),
+      ...queryCriteria,
       ...(categoryValue ? { categoryIds: categoryValue } : {}),
     };
 
@@ -181,7 +191,7 @@ class EmporixSearchService implements SearchService {
     const effectiveSite = params.site ?? positionalSite;
     void (params.locale ?? locale);
 
-    const criteria = await this.buildSearchCriteria(params, effectiveSite);
+    const criteria = await this.buildSearchCriteria(params, effectiveSite, this.buildQueryCriteria(params.query));
     if (criteria === null) {
       return this.emptySearchResult(page, requestedSize);
     }
@@ -190,13 +200,30 @@ class EmporixSearchService implements SearchService {
       return this.emptySearchResult(page, requestedSize);
     }
 
-    const searchResult: EmporixPaginatedResponse<EmporixProduct> = await this.productApi.searchProducts({
+    let searchResult: EmporixPaginatedResponse<EmporixProduct> = await this.productApi.searchProducts({
       page: page + 1,
       size: requestedSize,
       criteria,
       sort: params.sort,
       filters: undefined,
     });
+
+    if (params.query && searchResult.items.length === 0) {
+      const idCriteria = await this.buildSearchCriteria(
+        params,
+        effectiveSite,
+        this.buildQueryCriteria(params.query, 'id'),
+      );
+      if (idCriteria !== null) {
+        searchResult = await this.productApi.searchProducts({
+          page: page + 1,
+          size: requestedSize,
+          criteria: idCriteria,
+          sort: params.sort,
+          filters: undefined,
+        });
+      }
+    }
 
     const effectiveCurrency = await this.resolveSearchCurrency(params.currency);
     const enrichedProducts = await this.mapAndEnrichSearchResults(searchResult.items, {
@@ -215,7 +242,7 @@ class EmporixSearchService implements SearchService {
   }
 
   async getSuggestions(params: SearchParams<Product>): Promise<SearchSuggestions> {
-    const criteria = await this.buildSearchCriteria(params, params.site);
+    const criteria = await this.buildSearchCriteria(params, params.site, this.buildQueryCriteria(params.query));
     if (criteria === null) {
       return {
         queryCompletions: [],
@@ -232,13 +259,30 @@ class EmporixSearchService implements SearchService {
       };
     }
 
-    const searchResult: EmporixPaginatedResponse<EmporixProduct> = await this.productApi.searchProducts({
+    let searchResult: EmporixPaginatedResponse<EmporixProduct> = await this.productApi.searchProducts({
       page: 1,
       size: 12,
       criteria,
       sort: undefined,
       filters: undefined,
     });
+
+    if (params.query && searchResult.items.length === 0) {
+      const idCriteria = await this.buildSearchCriteria(
+        params,
+        params.site,
+        this.buildQueryCriteria(params.query, 'id'),
+      );
+      if (idCriteria !== null) {
+        searchResult = await this.productApi.searchProducts({
+          page: 1,
+          size: 12,
+          criteria: idCriteria,
+          sort: undefined,
+          filters: undefined,
+        });
+      }
+    }
 
     const effectiveCurrency = await this.resolveSearchCurrency(params.currency);
     const enrichedProducts = await this.mapAndEnrichSearchResults(searchResult.items, {

@@ -46,12 +46,11 @@ export interface EmporixCreateQuoteManualRequest {
 }
 
 // Create quote from an existing cart request
+// Mirrors `QuoteCreateFromCartRequest` in resources/emporix/quote.yml: only
+// `cartId` is required; `status` is an output field, not a create input.
 export interface EmporixCreateQuoteFromCartRequest {
-  employeeId?: string;
   cartId: string;
-  status: {
-    value: string;
-  };
+  employeeId?: string;
   billingAddressId?: string;
   shippingAddressId?: string;
   shipping?: {
@@ -152,6 +151,7 @@ export interface EmporixQuoteShipping {
  */
 export interface EmporixQuote {
   id: string;
+  orderId?: string;
   businessModel?: string;
   cartId?: string;
   customer: {
@@ -262,6 +262,7 @@ export type EmporixQuoteUpdatePath =
 
 export type EmporixQuoteStatus =
   | 'CREATING'
+  | 'AWAITING'
   | 'OPEN'
   | 'IN_PROGRESS'
   | 'DECLINED'

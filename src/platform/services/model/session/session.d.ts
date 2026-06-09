@@ -20,4 +20,6 @@ export interface Session {
   cartId?: string;
   legalEntityId?: string;
   attributes?: Record<string, SessionAttribute>;
+  /** Optimistic-locking hint forwarded as `expectedVersion` to skip the pre-PATCH read. */
+  metadata?: { version: number };
 }

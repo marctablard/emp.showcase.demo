@@ -74,9 +74,9 @@ class EmporixOrderService implements OrderService {
     }
   }
 
-  async getCustomerOrders(pageSize?: number, pageNumber?: number): Promise<Order[]> {
+  async getCustomerOrders(pageSize?: number, pageNumber?: number, sort?: string, query?: string): Promise<Order[]> {
     try {
-      const orders = await this.orderApi.getCustomerOrders(pageSize, pageNumber);
+      const orders = await this.orderApi.getCustomerOrders(pageSize, pageNumber, sort, query);
       return orders.map((order) => this.mapper.mapToService(order));
     } catch (error) {
       if (error instanceof Error) {
@@ -115,6 +115,20 @@ class EmporixOrderService implements OrderService {
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`Failed to get order status transitions: ${error.message}`);
+      }
+      throw error;
+    }
+  }
+
+  async applyCustomerOrderTransition(orderId: string, status: string): Promise<void> {
+    if (status !== 'DECLINED') {
+      throw new Error(`Unsupported customer order transition: status=${String(status)}`);
+    }
+    try {
+      await this.orderApi.postCustomerOrderTransition(orderId, { status });
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Failed to apply customer order transition: ${error.message}`);
       }
       throw error;
     }

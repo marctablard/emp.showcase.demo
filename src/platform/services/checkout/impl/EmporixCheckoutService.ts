@@ -49,19 +49,15 @@ class EmporixCheckoutService implements CheckoutService {
     return this.performCheckout(checkoutRequest, false);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async checkoutFromQuote(request: QuoteCheckoutRequest): Promise<CheckoutResponse> {
-    throw new Error('Not implemented');
-    /*
-    // Map service model to API model
-    const apiRequest = this.mapper.mapQuoteToApi(request);
-    
-    // Call the API
-    const apiResponse = await this.checkoutApi.checkoutFromQuote(apiRequest);
-    
-    // Map API response to service model
-    return this.mapper.mapToService(apiResponse);
-    */
+    const paymentMethods = [await this.getCheckoutPaymentMethod(request.paymentMethod)];
+    const apiResponse = await this.checkoutApi.checkoutFromQuote({
+      quoteId: request.quoteId,
+      paymentMethods,
+      currency: request.currency,
+    });
+
+    return apiResponse;
   }
 
   private async buildEmporixCustomer(

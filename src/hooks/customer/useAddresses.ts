@@ -7,7 +7,6 @@ import {
   updateCustomerAddress,
 } from '@/lib/client/customer';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import type { Address, AddressType } from '@/platform/services/model/common';
 import type { CustomerAddress } from '@/platform/services/model/customer/customer';
 import { useCustomerStore } from '@/providers/StoreProvider';
 import useCustomer from './useCustomer';
@@ -17,7 +16,6 @@ interface CustomerAddressesHook {
   loading: boolean;
   error: Error | null;
   fetchAddresses: () => Promise<void>;
-  getDefaultAddress: (type: AddressType) => Address | null;
   createAddress: (address: CustomerAddress) => Promise<CustomerAddress>;
   updateAddress: (id: string, address: CustomerAddress) => Promise<CustomerAddress>;
   deleteAddress: (id: string) => Promise<void>;
@@ -49,29 +47,6 @@ export const useAddresses = (initialAddresses?: CustomerAddress[] | undefined): 
       setAddressLoading(false);
     }
   }, [setAddressLoading, setAddresses]);
-
-  /**
-   * Get default address of specified tag
-   * @param tag Address tag (SHIPPING or BILLING)
-   * @returns Default address of specified tag or null if not found
-   */
-  const getDefaultAddress = useCallback(
-    (tag: AddressType): CustomerAddress | null => {
-      if ((addresses || []).length === 0) {
-        return null;
-      }
-
-      // If no default address of the specified tag is found, just return the first address of that tag
-      const firstTagAddress = (addresses || []).find((addr) => addr.tags.includes(tag));
-
-      if (firstTagAddress) {
-        return firstTagAddress;
-      }
-
-      return null;
-    },
-    [addresses],
-  );
 
   // Create a new address
   const createAddress = useCallback(
@@ -168,7 +143,6 @@ export const useAddresses = (initialAddresses?: CustomerAddress[] | undefined): 
     loading,
     error,
     fetchAddresses,
-    getDefaultAddress,
     createAddress,
     updateAddress,
     deleteAddress,

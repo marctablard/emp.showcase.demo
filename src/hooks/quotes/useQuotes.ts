@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { Quote } from '@/platform/services/model/quote';
@@ -33,36 +33,38 @@ export function useQuotes(initialQuotes?: Quote[], params?: SearchParams<Quote>)
     }>
   >([]);
 
+  const page = params?.page;
+  const size = params?.size;
+  const sort = params?.sort;
+  const searchQuery = params?.query;
+  const filters = params?.filters;
+
   const fetchQuotes = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Build query string from params
       const queryParams = new URLSearchParams();
-      if (params) {
-        if (params.page !== undefined) {
-          queryParams.append('page', params.page.toString());
-        }
-        if (params.size !== undefined) {
-          queryParams.append('size', params.size.toString());
-        }
-        if (params.sort !== undefined) {
-          queryParams.append('sort', params.sort);
-        }
-        if (params.query !== undefined) {
-          queryParams.append('q', params.query);
-        }
-        // Add criteria filters if present
-        if (params.filters) {
-          Object.entries(params.filters).forEach(([key, value]) => {
-            if (Array.isArray(value)) {
-              queryParams.append(key, value.join(','));
-            } else {
-              queryParams.append(key, value);
-            }
-          });
-        }
+      if (page !== undefined) {
+        queryParams.append('page', page.toString());
+      }
+      if (size !== undefined) {
+        queryParams.append('size', size.toString());
+      }
+      if (sort !== undefined) {
+        queryParams.append('sort', sort);
+      }
+      if (searchQuery !== undefined) {
+        queryParams.append('q', searchQuery);
+      }
+      if (filters) {
+        Object.entries(filters).forEach(([key, value]) => {
+          if (Array.isArray(value)) {
+            queryParams.append(key, value.join(','));
+          } else {
+            queryParams.append(key, value);
+          }
+        });
       }
 
       const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
@@ -75,11 +77,13 @@ export function useQuotes(initialQuotes?: Quote[], params?: SearchParams<Quote>)
       const response: SearchResult<Quote> = await res.json();
 
       setQuotes(response.items || []);
+      const totalItems = response.total >= 0 ? response.total : (response.items?.length ?? 0);
+      const pageSize = response.pageSize || size || 10;
       setPagination({
         pageNumber: response.page,
-        pageSize: response.pageSize,
-        totalPages: Math.ceil(response.total / response.pageSize),
-        totalItems: response.total,
+        pageSize,
+        totalPages: Math.ceil(totalItems / pageSize),
+        totalItems,
       });
       setAvailableFilters(response.availableFilters || []);
     } catch (err) {
@@ -88,17 +92,22 @@ export function useQuotes(initialQuotes?: Quote[], params?: SearchParams<Quote>)
     } finally {
       setLoading(false);
     }
-  }, [params]);
+  }, [page, size, sort, searchQuery, filters]);
 
   const refetchQuotes = useCallback(async () => {
     await fetchQuotes();
   }, [fetchQuotes]);
 
+  // Skip only the very first fetch when SSR data is available and no custom params override the defaults
+  const hasCustomParams = !!(params?.query || params?.page || params?.size || params?.sort || params?.filters);
+  const isFirstRender = useRef(!!initialQuotes && !hasCustomParams);
   useEffect(() => {
-    if (!initialQuotes) {
-      fetchQuotes();
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
     }
-  }, [initialQuotes, fetchQuotes]);
+    fetchQuotes();
+  }, [fetchQuotes]);
 
   return {
     loading,

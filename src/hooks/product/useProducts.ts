@@ -16,6 +16,18 @@ interface UseProductsResult {
 export function useProducts(productIds: Product['id'][] = [], fetchOptions?: ProductFetchOptions): UseProductsResult {
   const logger = useLogger();
   const { getProduct, addProducts, cacheGeneration } = useProductStore();
+  const fetchOptionsKey = JSON.stringify({
+    variants: fetchOptions?.variants ?? false,
+    categories: fetchOptions?.categories ?? false,
+    prices:
+      typeof fetchOptions?.prices === 'object' && fetchOptions.prices !== null
+        ? {
+            siteCode: fetchOptions.prices.siteCode,
+            currency: fetchOptions.prices.currency,
+            country: fetchOptions.prices.country,
+          }
+        : (fetchOptions?.prices ?? false),
+  });
 
   // Stabilize fetchOptions to prevent unnecessary re-renders
   const fetchOptionsRef = useRef<ProductFetchOptions | undefined>(fetchOptions);
@@ -37,10 +49,37 @@ export function useProducts(productIds: Product['id'][] = [], fetchOptions?: Pro
       setLoading(true);
       setError(null);
       try {
+        const pricesRequested = Boolean(fetchOptionsRef.current?.prices);
+        const requestedPriceCurrency =
+          typeof fetchOptionsRef.current?.prices === 'object' && fetchOptionsRef.current.prices !== null
+            ? fetchOptionsRef.current.prices.currency
+            : undefined;
+
         // Get products already in store (unless forceRefresh)
         const cachedProducts = forceRefresh
           ? []
-          : (productIds.map((id) => getProduct(id)).filter(Boolean) as Product[]);
+          : (productIds
+              .map((id) => {
+                const cachedProduct = getProduct(id);
+                if (!cachedProduct) {
+                  return null;
+                }
+
+                if (pricesRequested && !cachedProduct.price) {
+                  return null;
+                }
+
+                if (
+                  requestedPriceCurrency &&
+                  cachedProduct.price?.currency &&
+                  cachedProduct.price.currency !== requestedPriceCurrency
+                ) {
+                  return null;
+                }
+
+                return cachedProduct;
+              })
+              .filter(Boolean) as Product[]);
 
         // Find IDs that need to be fetched
         const cachedIds = new Set(cachedProducts.map((p) => p.id));
@@ -94,7 +133,7 @@ export function useProducts(productIds: Product['id'][] = [], fetchOptions?: Pro
       fetchProducts(generationChanged);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productIds.join(','), cacheGeneration]);
+  }, [productIds.join(','), cacheGeneration, fetchOptionsKey]);
 
   const refetch = useCallback(() => fetchProducts(true), [fetchProducts]);
 

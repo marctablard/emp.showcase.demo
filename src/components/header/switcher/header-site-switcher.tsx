@@ -14,6 +14,7 @@ import { getLogger } from '@/lib/logger/use-logger-client';
 import { CartStoreContext, SessionStoreContext, SiteStoreContext } from '@/providers/StoreProvider';
 import { Spinner } from '../../ui/spinner';
 import { ToastType, notify } from '../../ui/toast-notification';
+import { PENDING_CURRENCY_FALLBACK_KEY } from './currency-fallback-toast-bus';
 
 export function SiteSwitcher() {
   const t = useTranslations('common.Regions');
@@ -53,6 +54,26 @@ export function SiteSwitcher() {
 
       if (!result.success && result.reason !== 'same-site' && result.reason !== 'locked') {
         notify({ title: t('switchFailed'), type: ToastType.Error });
+      } else if (result.success && result.currencyFallback && typeof window !== 'undefined') {
+        // Queue the toast through `sessionStorage` so `CurrencyFallbackToastBus` can
+        // surface it *after* the route transition commits. Emitting the toast here
+        // would race `router.push` + `router.refresh` (both fired inside
+        // performSiteSwitch) and cause the toast to flicker as the `[site]/[locale]`
+        // subtree re-renders.
+        try {
+          window.sessionStorage.setItem(PENDING_CURRENCY_FALLBACK_KEY, JSON.stringify(result.currencyFallback));
+        } catch {
+          // sessionStorage may be unavailable (private mode / quota) — fall back to
+          // an inline toast; at worst it flickers like before.
+          notify({
+            title: t('currencyFallback', {
+              from: result.currencyFallback.from,
+              to: result.currencyFallback.to,
+            }),
+            type: ToastType.Info,
+            duration: 8000,
+          });
+        }
       }
     } finally {
       setIsSwitching(false);

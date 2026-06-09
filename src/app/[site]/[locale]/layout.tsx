@@ -9,6 +9,7 @@ import { notFound } from 'next/navigation';
 import '@/app/globals.css';
 import { CsrfProvider } from '@/components/csrf/CsrfProvider';
 import { ApiDebugPanel } from '@/components/debug/ApiDebugPanel';
+import { CurrencyFallbackToastBus } from '@/components/header/switcher/currency-fallback-toast-bus';
 import { Notification } from '@/components/notification/notification';
 import { Toaster } from '@/components/ui/sonner';
 import { redirect } from '@/i18n/edge/navigation';
@@ -155,6 +156,7 @@ export default async function LocaleLayout({ children, dialog, params }: Props) 
                   {children}
                   {dialog}
                   <Toaster />
+                  <CurrencyFallbackToastBus />
                   <Notification />
                 </StoryblokProvider>
               </StoreProvider>

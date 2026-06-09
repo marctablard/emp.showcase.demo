@@ -5,6 +5,8 @@ import type { Site } from '@/platform/services/model/common/site';
 import type { Session } from '@/platform/services/model/session';
 import { createAvailabilityStore } from '@/stores/availability-store';
 import { createCartStore } from '@/stores/cart-store';
+import { createCheckoutStore } from '@/stores/checkout-store';
+import { createComparisonStore } from '@/stores/comparison-store';
 import { createCustomerStore } from '@/stores/customer-store';
 import { createProductStore } from '@/stores/products-store';
 import { createSessionStore } from '@/stores/session-store-context';
@@ -82,6 +84,7 @@ describe('Store Synchronizer', () => {
   let customerStore: ReturnType<typeof createCustomerStore>;
   let productStore: ReturnType<typeof createProductStore>;
   let availabilityStore: ReturnType<typeof createAvailabilityStore>;
+  let checkoutStore: ReturnType<typeof createCheckoutStore>;
   let unsubscribers: (() => void)[];
 
   beforeEach(() => {
@@ -104,6 +107,7 @@ describe('Store Synchronizer', () => {
     customerStore = createCustomerStore();
     productStore = createProductStore();
     availabilityStore = createAvailabilityStore();
+    checkoutStore = createCheckoutStore();
   });
 
   afterEach(() => {
@@ -113,7 +117,7 @@ describe('Store Synchronizer', () => {
   });
 
   describe('setupStoreSynchronization', () => {
-    it('should return array of unsubscribe functions (6 reactive subscriptions; no reconciliation writers)', () => {
+    it('should return array of unsubscribe functions (7 reactive subscriptions; no reconciliation writers)', () => {
       unsubscribers = setupStoreSynchronization({
         sessionStore,
         cartStore,
@@ -121,11 +125,12 @@ describe('Store Synchronizer', () => {
         customerStore,
         productStore,
         availabilityStore,
+        checkoutStore,
       });
 
       expect(Array.isArray(unsubscribers)).toBe(true);
-      // shipping cache + product/availability cache + currency + site-validate + site-store-reset + legal-entity
-      expect(unsubscribers.length).toBe(6);
+      // shipping cache + checkout-reset + product/availability cache + currency + site-validate + site-store-reset + legal-entity
+      expect(unsubscribers.length).toBe(7);
       for (const unsub of unsubscribers) {
         expect(typeof unsub).toBe('function');
       }
@@ -139,6 +144,7 @@ describe('Store Synchronizer', () => {
         customerStore,
         productStore,
         availabilityStore,
+        checkoutStore,
       });
 
       // Simulate scenarios that previously triggered reconcileSiteWithSession:
@@ -172,6 +178,7 @@ describe('Store Synchronizer', () => {
         customerStore,
         productStore,
         availabilityStore,
+        checkoutStore,
       });
 
       await act(async () => {
@@ -195,6 +202,7 @@ describe('Store Synchronizer', () => {
         customerStore,
         productStore,
         availabilityStore,
+        checkoutStore,
       });
 
       await act(async () => {
@@ -218,6 +226,7 @@ describe('Store Synchronizer', () => {
         customerStore,
         productStore,
         availabilityStore,
+        checkoutStore,
       });
 
       await act(async () => {
@@ -241,6 +250,7 @@ describe('Store Synchronizer', () => {
         customerStore,
         productStore,
         availabilityStore,
+        checkoutStore,
       });
 
       await act(async () => {
@@ -264,6 +274,42 @@ describe('Store Synchronizer', () => {
       expect(validateLeSpy).toHaveBeenCalledWith('le-b');
     });
 
+    it('should clear comparison data when session legalEntityId changes', async () => {
+      const comparisonStore = createComparisonStore();
+      const clearComparisonSpy = jest.spyOn(comparisonStore.getState(), 'clearComparison');
+
+      unsubscribers = setupStoreSynchronization({
+        sessionStore,
+        cartStore,
+        siteStore,
+        customerStore,
+        productStore,
+        availabilityStore,
+        checkoutStore,
+        comparisonStore,
+      });
+
+      await act(async () => {
+        sessionStore.setState({
+          session: createMockSession({ legalEntityId: 'le-a' }),
+        });
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(clearComparisonSpy).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        sessionStore.setState({
+          session: createMockSession({ legalEntityId: 'le-b' }),
+        });
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(clearComparisonSpy).toHaveBeenCalledTimes(2);
+    });
+
     it('should cleanup subscriptions when unsubscribe functions are called', () => {
       unsubscribers = setupStoreSynchronization({
         sessionStore,
@@ -272,6 +318,7 @@ describe('Store Synchronizer', () => {
         customerStore,
         productStore,
         availabilityStore,
+        checkoutStore,
       });
 
       expect(() => {
@@ -289,6 +336,7 @@ describe('Store Synchronizer', () => {
         customerStore,
         productStore,
         availabilityStore,
+        checkoutStore,
       });
 
       await act(async () => {
@@ -310,6 +358,7 @@ describe('Store Synchronizer', () => {
         customerStore,
         productStore,
         availabilityStore,
+        checkoutStore,
       });
 
       await act(async () => {
@@ -339,6 +388,7 @@ describe('Store Synchronizer', () => {
         customerStore,
         productStore,
         availabilityStore,
+        checkoutStore,
       });
 
       await act(async () => {
@@ -368,6 +418,7 @@ describe('Store Synchronizer', () => {
         customerStore,
         productStore,
         availabilityStore,
+        checkoutStore,
       });
 
       await act(async () => {
@@ -397,6 +448,7 @@ describe('Store Synchronizer', () => {
         customerStore,
         productStore,
         availabilityStore,
+        checkoutStore,
       });
 
       await act(async () => {
@@ -434,6 +486,7 @@ describe('Store Synchronizer', () => {
         customerStore,
         productStore,
         availabilityStore,
+        checkoutStore,
       });
 
       await act(async () => {
@@ -462,6 +515,7 @@ describe('Store Synchronizer', () => {
         customerStore,
         productStore,
         availabilityStore,
+        checkoutStore,
       });
 
       await act(async () => {
@@ -499,6 +553,7 @@ describe('Store Synchronizer', () => {
         customerStore,
         productStore,
         availabilityStore,
+        checkoutStore,
       });
 
       await act(async () => {
@@ -527,6 +582,7 @@ describe('Store Synchronizer', () => {
         customerStore,
         productStore,
         availabilityStore,
+        checkoutStore,
       });
 
       await act(async () => {
@@ -555,6 +611,7 @@ describe('Store Synchronizer', () => {
         customerStore,
         productStore,
         availabilityStore,
+        checkoutStore,
       });
 
       await act(async () => {
@@ -568,6 +625,39 @@ describe('Store Synchronizer', () => {
       expect(validateSiteSpy).not.toHaveBeenCalled();
     });
 
+    it('should suppress validateLegalEntity while the session mutation lock is held (afterCommit is sole caller)', async () => {
+      const validateLeSpy = jest.spyOn(cartStore.getState(), 'validateLegalEntity');
+
+      unsubscribers = setupStoreSynchronization({
+        sessionStore,
+        cartStore,
+        siteStore,
+        customerStore,
+        productStore,
+        availabilityStore,
+        checkoutStore,
+      });
+
+      // Simulate the useSession.runSessionMutation window: lock is held while legalEntityId flips
+      // (store-synchronizer must NOT refetch the cart here; runSessionMutation.afterCommit owns it).
+      const acquired = sessionStore.getState().tryAcquireMutationLock();
+      expect(acquired).toBe(true);
+
+      try {
+        await act(async () => {
+          sessionStore.setState({
+            session: createMockSession({ legalEntityId: 'le-new' }),
+          });
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        expect(validateLeSpy).not.toHaveBeenCalled();
+      } finally {
+        sessionStore.getState().releaseMutationLock();
+      }
+    });
+
     it('should not call resetSite when session site matches site store', async () => {
       const resetSiteSpy = jest.spyOn(siteStore.getState(), 'resetSite');
 
@@ -578,6 +668,7 @@ describe('Store Synchronizer', () => {
         customerStore,
         productStore,
         availabilityStore,
+        checkoutStore,
       });
 
       await act(async () => {

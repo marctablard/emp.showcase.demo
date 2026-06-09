@@ -28,8 +28,18 @@ describe('mergeNavigationProductSubmenu', () => {
     });
   });
 
-  it('leaves all-products unchanged when API submenu is empty or null', () => {
-    expect(mergeNavigationProductSubmenu(allProductsItem, null)).toEqual(allProductsItem);
-    expect(mergeNavigationProductSubmenu(allProductsItem, [])).toEqual(allProductsItem);
+  it('falls back to a direct browse link when API submenu is empty or null', () => {
+    expect(mergeNavigationProductSubmenu(allProductsItem, null)).toEqual({
+      ...allProductsItem,
+      href: '/browse',
+      hasSubmenu: false,
+      submenuItems: [],
+    });
+    expect(mergeNavigationProductSubmenu(allProductsItem, [])).toEqual({
+      ...allProductsItem,
+      href: '/browse',
+      hasSubmenu: false,
+      submenuItems: [],
+    });
   });
 });

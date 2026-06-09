@@ -4,10 +4,10 @@ import { useCheckout } from './useCheckout';
 const mockUseCheckoutStore = jest.fn();
 const mockUseCart = jest.fn();
 const mockUseCustomer = jest.fn();
-const mockUseAddresses = jest.fn();
 const mockUseShippingMethods = jest.fn();
 const mockUseSite = jest.fn();
-const mockUseNextAuthSession = jest.fn();
+const mockUseAddresses = jest.fn();
+const mockUseShopSession = jest.fn();
 
 jest.mock('@/providers/StoreProvider', () => ({
   useCheckoutStore: () => mockUseCheckoutStore(),
@@ -27,16 +27,16 @@ jest.mock('../customer/useAddresses', () => ({
   useAddresses: () => mockUseAddresses(),
 }));
 
+jest.mock('../session/useSession', () => ({
+  useSession: () => mockUseShopSession(),
+}));
+
 jest.mock('../shipping/useShippingMethods', () => ({
   useShippingMethods: () => mockUseShippingMethods(),
 }));
 
 jest.mock('../site/useSite', () => ({
   useSite: () => mockUseSite(),
-}));
-
-jest.mock('next-auth/react', () => ({
-  useSession: () => mockUseNextAuthSession(),
 }));
 
 jest.mock('@/lib/client/checkout', () => ({
@@ -115,9 +115,9 @@ describe('useCheckout', () => {
 
   beforeEach(() => {
     mockUseCustomer.mockReturnValue({ customer: null });
-    mockUseAddresses.mockReturnValue({ getDefaultAddress: jest.fn(), loading: false });
     mockUseSite.mockReturnValue({ paymentModes: [], site: null });
-    mockUseNextAuthSession.mockReturnValue({ status: 'authenticated' });
+    mockUseAddresses.mockReturnValue({ addresses: [] });
+    mockUseShopSession.mockReturnValue({ session: null });
   });
 
   it('clears previous methods and selected method before fetching when country changes', () => {

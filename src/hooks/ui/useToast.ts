@@ -5,7 +5,8 @@ import { ToastType, toast as showToast } from '@/components/ui/toast-notificatio
 interface ToastOptions {
   title: string;
   description?: string;
-  variant?: 'default' | 'destructive' | 'success';
+  variant?: 'default' | 'destructive' | 'success' | 'warning';
+  persistent?: boolean;
   action?: {
     label: string;
     onClick: () => void;
@@ -14,7 +15,7 @@ interface ToastOptions {
 
 export function useToast() {
   const toast = (options: ToastOptions) => {
-    const { title, description = '', variant = 'default', action } = options;
+    const { title, description = '', variant = 'default', persistent = false, action } = options;
 
     let type = ToastType.Info;
 
@@ -24,6 +25,9 @@ export function useToast() {
         break;
       case 'success':
         type = ToastType.Success;
+        break;
+      case 'warning':
+        type = ToastType.Warning;
         break;
       default:
         type = ToastType.Info;
@@ -37,6 +41,7 @@ export function useToast() {
         label: action?.label || 'Close',
         onClick: action?.onClick || (() => {}),
       },
+      ...(persistent && { duration: Infinity }),
     });
   };
 

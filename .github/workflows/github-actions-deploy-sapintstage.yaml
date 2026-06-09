@@ -1,0 +1,68 @@
+name: Deploy sapintstage
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_SAPINTSTAGE_PROJECT_ID }}
+
+jobs:
+  build_and_deploy_sapintstage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Align npm with packageManager
+        run: npm install -g "$(node -p 'const packageManager = require("./package.json").packageManager; if (!packageManager?.startsWith("npm@")) throw new Error("Expected packageManager to start with npm@"); packageManager')"
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm i -g @aikidosec/safe-chain vercel
+
+      - name: Setup safe-chain
+        run: safe-chain setup-ci
+
+      - name: Pull Vercel environment
+        run: vercel env pull .env --environment=production --yes --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Generate files
+        run: npm run generate
+
+      - name: Run lint
+        run: npm run lint
+
+      # TODO tests should be prepared for showcasedev
+      # - name: Run tests
+      #   run: npm run jest
+      #   env:
+      #     DOTENV_CONFIG_PATH: .env
+      #     NEXT_EMPORIX_TEST_TENANT: ${{ vars.NEXT_EMPORIX_TEST_TENANT }}
+      #     NEXT_EMPORIX_TEST_CLIENT_ID: ${{ vars.NEXT_EMPORIX_TEST_CLIENT_ID }}
+      #     NEXT_EMPORIX_TEST_CLIENT_SECRET: ${{ secrets.NEXT_EMPORIX_TEST_CLIENT_SECRET }}
+      #     NEXT_PUBLIC_BATTERY_INCLUDED_API_KEY: ${{ secrets.NEXT_PUBLIC_BATTERY_INCLUDED_API_KEY }}
+      #     NEXT_PUBLIC_BATTERY_INCLUDED_COLLECTION: ${{ vars.NEXT_PUBLIC_BATTERY_INCLUDED_COLLECTION }}
+
+      - name: Deploy to Vercel
+        id: deploy
+        run: |
+          URL=$(vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$URL" >> $GITHUB_OUTPUT
+
+      - name: Deployment summary
+        run: |
+          echo "### 🚀 Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** ${{ steps.deploy.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY

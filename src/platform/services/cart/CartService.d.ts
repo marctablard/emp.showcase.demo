@@ -6,7 +6,7 @@ import type { CartCurrencyUpdateErrorCode } from './errors';
  * Address data for cart-level shipping/tax context.
  * Subset of Address — only the fields relevant for cart address resolution.
  */
-export type CartShippingAddress = Partial<Omit<Address, 'id' | 'isDefault' | 'geoLocation'>>;
+export type CartShippingAddress = Partial<Omit<Address, 'id' | 'geoLocation'>>;
 
 /**
  * Cart status enum for tracking cart item availability
@@ -126,13 +126,6 @@ export interface CartService {
    * @param currency The new currency code
    */
   updateCurrency(cartId: string, currency: string): Promise<void>;
-
-  /**
-   * Updates the site for a cart
-   * @param cartId The ID of the cart
-   * @param siteCode The new site code
-   */
-  updateSite(cartId: string, siteCode: string): Promise<void>;
 
   /**
    * Retrieves the saved carts for the current customer

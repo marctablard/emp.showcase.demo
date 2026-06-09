@@ -12,12 +12,16 @@ export async function GET(request: NextRequest) {
   try {
     const orderService = server.get<OrderService>('OrderService');
 
-    // Get query parameters for pagination
+    // Get query parameters for pagination, sorting, and search
     const searchParams = request.nextUrl.searchParams;
-    const pageSize = searchParams.get('pageSize') ? parseInt(searchParams.get('pageSize')!) : undefined;
-    const pageNumber = searchParams.get('pageNumber') ? parseInt(searchParams.get('pageNumber')!) : undefined;
+    const rawPageSize = searchParams.get('pageSize') ? parseInt(searchParams.get('pageSize')!, 10) : undefined;
+    const rawPageNumber = searchParams.get('pageNumber') ? parseInt(searchParams.get('pageNumber')!, 10) : undefined;
+    const pageSize = Number.isFinite(rawPageSize) && rawPageSize! > 0 ? rawPageSize : undefined;
+    const pageNumber = Number.isFinite(rawPageNumber) && rawPageNumber! >= 1 ? rawPageNumber : undefined;
+    const sort = searchParams.get('sort') || undefined;
+    const query = searchParams.get('query') || undefined;
 
-    const orders = await orderService.getCustomerOrders(pageSize, pageNumber);
+    const orders = await orderService.getCustomerOrders(pageSize, pageNumber, sort, query);
 
     return NextResponse.json(orders);
   } catch (error) {

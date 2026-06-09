@@ -312,11 +312,73 @@ NEXT_DEBUG_API_PAYLOAD=true
 # NEXT_PUBLIC_DEBUG_API_LEVEL=ALL
 ```
 
+### UI Behavior
+
+#### `NEXT_PUBLIC_DIALOGS_CLOSE_ON_OUTSIDE_CLICK`
+
+Controls whether dialog modals can be dismissed by clicking outside of them:
+
+- `true` — Clicking outside a dialog closes it (standard Radix UI behavior)
+- Not set / any other value — Outside-click close is disabled; users must use the X button, Cancel button, or Escape key (default)
+
+This affects all components using `DialogContent` from `src/components/ui/dialog.tsx`. Individual dialog instances can override this setting via the `closeOnOutsideClick` prop on `DialogContent`.
+
+**Example:**
+```env
+# Enable standard close-on-outside-click behavior
+NEXT_PUBLIC_DIALOGS_CLOSE_ON_OUTSIDE_CLICK=true
+
+# Disable (default when variable is not set)
+# NEXT_PUBLIC_DIALOGS_CLOSE_ON_OUTSIDE_CLICK=false
+```
+
+**Per-component override:**
+```tsx
+// Force-enable outside click for a specific dialog, regardless of the env variable
+<DialogContent closeOnOutsideClick={true}>...</DialogContent>
+
+// Force-disable outside click for a specific dialog
+<DialogContent closeOnOutsideClick={false}>...</DialogContent>
+```
+
+> **Note:** This does not affect DropdownMenus, Popovers, Sheets, or Drawers — only Dialog modals. Escape key remains functional regardless of this setting.
+
+### Application defaults (required `NEXT_PUBLIC_*`)
+
+Runtime defaults for **currency, site, language, country, region, and Emporix unit code** must not be hardcoded in application logic. They are read from public environment variables and exposed through [`src/lib/common/public-default-env.ts`](../src/lib/common/public-default-env.ts).
+
+#### Why the helpers exist
+
+- **Single source of truth:** Aligns storefront behavior with deploy-time configuration (see [`.env.template`](../.env.template) for example values).
+- **Next.js inlining:** Each getter passes a **static** `process.env.NEXT_PUBLIC_*` expression into the module. Next only inlines public env vars for direct property access; dynamic lookups such as `process.env[key]` stay `undefined` in the browser bundle and would break client components (for example `formatCurrency`).
+
+If any of these variables is missing or whitespace-only after trim, the corresponding getter throws `Missing required environment variable: <KEY>`. The same keys are part of Tier-1 startup / Jest validation ([`src/platform/healthcheck/env-validation.ts`](../src/platform/healthcheck/env-validation.ts)); see [Health checks](./health-checks.md).
+
+| Variable | Getter | Role |
+| --- | --- | --- |
+| `NEXT_PUBLIC_DEFAULT_CURRENCY` | `getPublicDefaultCurrency()` | ISO currency code used when session, site, or domain data does not supply a currency (cart totals, AI cards, product pricing fallbacks, auth flows, and similar). |
+| `NEXT_PUBLIC_DEFAULT_SITE` | `getPublicDefaultSite()` | Site code used when the request or session has no site (site resolution, session mapping, auth redirects, hooks). Also referenced elsewhere for routing; see [Site middleware](./site-middleware.md) for interaction with `NEXT_PUBLIC_AVAILABLE_SITES`. |
+| `NEXT_PUBLIC_DEFAULT_LANGUAGE` | `getPublicDefaultLanguage()` | BCP-47 language tag when no locale is in context (middleware, server context, product tiles, notifications, AI chat). Used as the **`Intl.NumberFormat` locale** in `formatCurrency` / `formatCurrencyCompact` in [`src/lib/utils.ts`](../src/lib/utils.ts) when the `locale` argument is omitted, so grouping, symbols, and spacing follow this default language. |
+| `NEXT_PUBLIC_DEFAULT_COUNTRY` | `getPublicDefaultCountry()` | Default country code; validated at startup. Session and OAuth layers also read `process.env.NEXT_PUBLIC_DEFAULT_COUNTRY` for defaults and token requests. |
+| `NEXT_PUBLIC_DEFAULT_REGION` | `getPublicDefaultRegion()` | Default region name; validated at startup and used alongside country in session / OAuth configuration. |
+| `NEXT_PUBLIC_EMPORIX_DEFAULT_UNIT_CODE` | `getPublicDefaultUnitCode()` | Default Emporix unit code for line items when the API needs a unit (for example quote creation in [`src/app/api/quote/route.ts`](../src/app/api/quote/route.ts)). |
+
+#### `NEXT_PUBLIC_FALLBACK_PRICES` (optional)
+
+Controls Emporix **price match** fallback for explicit `POST …/match-prices` calls (site + currency + country criteria) from [`EmporixPriceService`](../src/platform/services/price/impl/EmporixPriceService.ts).
+
+- **Unset, empty, or any value other than** `true` / `1` / `yes` (case-insensitive): sends `useFallback: false` — if no price exists for the requested `siteCode`, the API does not retry against the `main` site.
+- **`true` / `1` / `yes`:** sends `useFallback: true` — when no price matches the requested site, Emporix runs matching again for `main` (see [Price matching](https://developer.emporix.io/api-references/api-guides/prices-and-taxes/price-service/api-reference/price-matching)).
+
+Read via `getPublicPriceMatchUseFallback()` in [`src/lib/common/public-default-env.ts`](../src/lib/common/public-default-env.ts). Does **not** affect `match-prices-by-context` (session-driven matching has no `useFallback` in the request body).
+
+Some platform modules still read `process.env.NEXT_PUBLIC_DEFAULT_COUNTRY` or `NEXT_PUBLIC_DEFAULT_REGION` directly for historical reasons; new code should prefer the getters when on code paths that already use `public-default-env`, so values stay trim-validated and bundle-inlining stays correct.
+
 ### Multi-Site Support
 
 The application supports multiple sites/storefronts:
 
-- `NEXT_PUBLIC_DEFAULT_SITE` - Default site identifier
+- `NEXT_PUBLIC_DEFAULT_SITE` — default site identifier (see **Application defaults** above and [Site middleware](./site-middleware.md))
 - `NEXT_PUBLIC_AVAILABLE_SITES` - Comma-separated list of all sites
 - `NEXT_PUBLIC_STORYBLOK_MULTI_SITE` - Enable folder-based multi-site in Storyblok
 

@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { checkoutFromQuote } from '@/lib/client/checkout';
 import server from '@/platform/server';
+import type { CheckoutService } from '@/platform/services/checkout/CheckoutService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { QuoteCheckoutRequest } from '@/platform/services/model/checkout';
 
@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
   let quoteId: string | undefined;
 
   try {
+    const checkoutService = server.get<CheckoutService>('CheckoutService');
     // Parse the request body
     const quoteCheckoutData: QuoteCheckoutRequest = await request.json();
     quoteId = quoteCheckoutData.quoteId;
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Process the quote checkout
-    const response = await checkoutFromQuote(quoteCheckoutData);
+    const response = await checkoutService.checkoutFromQuote(quoteCheckoutData);
 
     // Return the response
     return NextResponse.json(response);

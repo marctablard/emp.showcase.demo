@@ -10,16 +10,25 @@ export async function register() {
   // Only initialize in Node.js runtime (not Edge Runtime)
   // The server container uses Node.js APIs that aren't available in Edge Runtime
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    // Raise the default listener cap so HTTP keep-alive sockets shared by
-    // concurrent SSE / long-poll / Playwright connections don't trigger the
-    // spurious MaxListenersExceededWarning. 20 is plenty for legitimate use
-    // while still catching real leaks (default 10 is too low for dev servers).
-    const { EventEmitter } = await import('events');
-    EventEmitter.defaultMaxListeners = 20;
     // Dynamic import to avoid loading Node.js modules in Edge Runtime
     const server = await import('@/platform/server');
     const logger = server.default.get<LoggerService>('LoggerService');
     logger.info('Server logger initialized');
+
+    // DEV-ONLY: pino-pretty transport workers (used only when NODE_ENV=development)
+    // each spawn a worker thread that pipes formatted output to process.stdout/stderr.
+    // Each pipe attaches 5 listeners (unpipe, error, close, finish, end).
+    // With 5 pino instances in dev (server _diLogger, ssr _diLogger,
+    // PinoLoggerServiceServer, PinoLoggerServiceSSR, _debugLogger) that's
+    // up to 25 listeners per stream — exceeding the Node.js default of 10
+    // (set in lib/events.js as EventEmitter.defaultMaxListeners = 10).
+    //
+    // In production, pino writes raw JSON directly to stdout without transport
+    // workers, so no extra listeners are created and the default of 10 is fine.
+    if (process.env.NODE_ENV === 'development') {
+      process.stdout.setMaxListeners(30);
+      process.stderr.setMaxListeners(30);
+    }
 
     const metricsService = server.default.get<MetricsService>('MetricsService');
     const { startMetricsServer } = await import('./metrics-server');

@@ -26,7 +26,7 @@ export function HeaderTopBanner() {
       onMouseEnter={dismissFlyout}
     >
       <div className="flex justify-between items-center self-stretch w-full">
-        <div className="flex grow basis-0 shrink-0 gap-4 items-center">
+        <div className="flex grow basis-auto shrink gap-4 items-center">
           <SiteSwitcher />
           <hr className="w-px h-6 bg-surface-page" />
           <LanguageSwitcher />
@@ -40,7 +40,7 @@ export function HeaderTopBanner() {
           </div>
         )}
         <nav
-          className="flex grow basis-0 shrink-0 justify-end items-center gap-6 text-nowrap"
+          className="flex grow basis-auto shrink-0 pl-6 justify-end items-center gap-6 text-nowrap"
           aria-label={t('navigation.meta')}
         >
           <Link href="/blog">{t('blog')}</Link>

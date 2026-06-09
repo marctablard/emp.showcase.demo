@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSession } from 'next-auth/react';
 import { isEqual } from 'lodash';
 import { checkout } from '@/lib/client/checkout';
+import { ADDRESS_TYPE } from '@/lib/common/address-type-constants';
+import { resolveLegalEntityIdFromSessionAndCustomer } from '@/lib/common/legal-entity-context';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { PaymentMode } from '@/platform/services/model';
 import type { Cart } from '@/platform/services/model/cart/cart';
@@ -15,11 +16,14 @@ import type {
   ContactData,
   OrderShipping,
 } from '@/platform/services/model/checkout';
+import type { AddressType } from '@/platform/services/model/common';
+import type { CustomerAddress } from '@/platform/services/model/customer/customer';
 import type { ShippingMethod } from '@/platform/services/model/shipping';
 import { useCheckoutStore } from '@/providers/StoreProvider';
 import { useCart } from '../cart/useCart';
 import { useAddresses } from '../customer/useAddresses';
 import useCustomer from '../customer/useCustomer';
+import { useSession as useShopSession } from '../session/useSession';
 import { useShippingMethods } from '../shipping/useShippingMethods';
 import { useSite } from '../site/useSite';
 
@@ -72,9 +76,10 @@ export const useCheckout = (): UseCheckout => {
   } = useCheckoutStore();
 
   // Get cart from cart store
-  const { cart: checkoutCart, loading: cartLoading, updateShippingInfo, clearCart } = useCart();
+  const { cart: checkoutCart, updateShippingInfo, clearCart } = useCart();
   const { customer } = useCustomer();
-  const { getDefaultAddress, loading: addressesLoading } = useAddresses();
+  const { addresses: customerAddresses } = useAddresses();
+  const { session: shopSession } = useShopSession();
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [orderResponse, setOrderResponse] = useState<CheckoutResponse | null>(null);
@@ -85,7 +90,6 @@ export const useCheckout = (): UseCheckout => {
     loading: shippingMethodsLoading,
   } = useShippingMethods();
   const { paymentModes } = useSite();
-  const { status } = useSession();
 
   const submitContactData = useCallback(
     (contactData: ContactData) => {
@@ -344,6 +348,82 @@ export const useCheckout = (): UseCheckout => {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- shippingMethod excluded: this effect SETS it, including it would cause an infinite loop
   }, [availableShippingMethods, checkoutCartId, submitShippingMethod]);
 
+  // B2C-only address prefill: when the user has a default customer address and
+  // no shipping/billing has been picked yet, seed it from the profile. B2B
+  // users (carrying a legalEntityId) must choose a legal-entity location
+  // explicitly — no prefill so the wrong company address never becomes the
+  // default silently.
+  const prefilledRef = useRef(false);
+  useEffect(() => {
+    if (prefilledRef.current) {
+      return;
+    }
+    if (!customer) {
+      return;
+    }
+    const hasLegalEntity = Boolean(resolveLegalEntityIdFromSessionAndCustomer(shopSession, customer));
+    const isB2B = customer.businessModel === 'B2B' || hasLegalEntity;
+    if (isB2B) {
+      return;
+    }
+    if (!customerAddresses || customerAddresses.length === 0) {
+      return;
+    }
+    const pickForTag = (tag: AddressType): CustomerAddress | undefined => {
+      const tagged = customerAddresses.filter((addr) => addr.tags.includes(tag));
+      if (tagged.length === 0) {
+        return undefined;
+      }
+      return tagged.find((addr) => addr.isDefault) ?? tagged[0];
+    };
+    const shippingSource = pickForTag(ADDRESS_TYPE.SHIPPING);
+    const billingSource = pickForTag(ADDRESS_TYPE.BILLING);
+    const applyIfEmpty = (
+      current: CheckoutAddress | null,
+      source: CustomerAddress | undefined,
+      type: 'SHIPPING' | 'BILLING',
+      submit: (addr: CheckoutAddress) => void,
+    ): boolean => {
+      if (!source || current) {
+        return false;
+      }
+      if (type === ADDRESS_TYPE.SHIPPING && !source.tags.includes(ADDRESS_TYPE.SHIPPING)) {
+        return false;
+      }
+      if (type === ADDRESS_TYPE.BILLING && !source.tags.includes(ADDRESS_TYPE.BILLING)) {
+        return false;
+      }
+      submit({
+        id: source.id,
+        contactName: source.contactName,
+        companyName: source.companyName,
+        street: source.street,
+        streetNumber: source.streetNumber,
+        streetAppendix: source.streetAppendix,
+        zipCode: source.zipCode,
+        city: source.city,
+        country: source.country,
+        state: source.state,
+        contactPhone: source.contactPhone,
+        type,
+      });
+      return true;
+    };
+    const appliedShipping = applyIfEmpty(shippingAddress, shippingSource, ADDRESS_TYPE.SHIPPING, submitShippingAddress);
+    const appliedBilling = applyIfEmpty(billingAddress, billingSource, ADDRESS_TYPE.BILLING, submitBillingAddress);
+    if (appliedShipping || appliedBilling) {
+      prefilledRef.current = true;
+    }
+  }, [
+    customer,
+    customerAddresses,
+    shopSession,
+    shippingAddress,
+    billingAddress,
+    submitShippingAddress,
+    submitBillingAddress,
+  ]);
+
   useEffect(() => {
     if (checkoutCart && paymentModes && paymentModes.length > 0) {
       let newPaymentMethod: PaymentMode | null = null;
@@ -360,40 +440,6 @@ export const useCheckout = (): UseCheckout => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentModes, checkoutCart, submitPaymentMethod]);
-
-  const submitShippingAddressRef = useRef(submitShippingAddress);
-  submitShippingAddressRef.current = submitShippingAddress;
-  const submitBillingAddressRef = useRef(submitBillingAddress);
-  submitBillingAddressRef.current = submitBillingAddress;
-
-  useEffect(() => {
-    // Only load default addresses if we're not on the logout page
-    // This prevents re-populating addresses after logout
-    // Also wait for cart to finish loading to avoid using stale cart data after login
-    if (!addressesLoading && !cartLoading && status === 'authenticated') {
-      if (!shippingAddress) {
-        const defaultShippingAddress = getDefaultAddress('SHIPPING');
-        if (defaultShippingAddress) {
-          submitShippingAddressRef.current({
-            ...defaultShippingAddress,
-            type: 'SHIPPING',
-          });
-        }
-      }
-      if (!billingAddress) {
-        const defaultBillingAddress = getDefaultAddress('BILLING');
-        if (defaultBillingAddress) {
-          submitBillingAddressRef.current({
-            ...defaultBillingAddress,
-            type: 'BILLING',
-          });
-        }
-      }
-      setLoading(false);
-    }
-    // Intentionally omit submitShippingAddress / submitBillingAddress — refs keep latest callbacks
-    // so this effect does not re-run when those identities change (avoids duplicate default hydration).
-  }, [addressesLoading, cartLoading, shippingAddress, billingAddress, getDefaultAddress, setLoading, status]);
 
   return {
     loading,

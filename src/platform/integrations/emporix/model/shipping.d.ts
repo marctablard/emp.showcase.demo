@@ -31,6 +31,7 @@ export interface EmporixShippingMethod {
   id: string;
   name: EmporixLocalizedString;
   maxOrderValue?: EmporixMonetaryAmount;
+  active?: boolean;
   fees: EmporixShippingFee[];
   shippingTaxCode?: string;
 }

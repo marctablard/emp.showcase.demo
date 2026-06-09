@@ -101,5 +101,18 @@
     "headline": "You might also be interested in"
   },
   "loadingVariants": "Loading variants...",
-  "variantSelectPlaceholder": "Select variant"
+  "variantSelectPlaceholder": "Select variant",
+  "addedToComparison": "{name} added to comparison list",
+  "removedFromComparison": "{name} removed from comparison list",
+  "comparisonFull": "Comparison list is full (max {max} products)",
+  "wishlistTooltip": "Add to Shopping List",
+  "shareTooltip": "Share",
+  "compareTooltipAdd": "Click to compare",
+  "compareTooltipRemove": "Click to remove from comparison",
+  "compareTooltipInList": "This item is in comparison list",
+  "compareTooltipMasterProduct": "Master product cannot be compared. Please select a specific variant.",
+  "cartTooltipMasterProduct": "Master product cannot be added to cart. Please select a specific variant.",
+  "cartTooltipNotPurchasable": "This product is not available for purchase.",
+  "cartTooltipNoPrice": "This product does not have a {currency} price defined and cannot be added to cart.",
+  "inComparisonList": "In comparison list"
 }

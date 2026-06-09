@@ -5,20 +5,17 @@ import { useTranslations } from 'next-intl';
 import { ArrowRight, Search } from 'lucide-react';
 import { MyOrdersTable } from '@/components/account/orders/my-orders-table';
 import { CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { H4 } from '@/components/ui/h';
 import { Input } from '@/components/ui/input';
 import UiLink from '@/components/ui/link';
+import { Spinner } from '@/components/ui/spinner';
+import { useDebouncedValue } from '@/hooks/common/useDebouncedValue';
 import { useOrders } from '@/hooks/order/useOrders';
-import { useValidator } from '@/hooks/validation/useValidator';
-import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
 import type { DashboardCardProps } from './dashboard-card';
 import { DashboardCard } from './dashboard-card';
 
-type OrderSearchFormData = {
-  searchQuery: string;
-};
+const SEARCH_DEBOUNCE_MS = 500;
 
 interface MyOrdersCardProps extends Omit<DashboardCardProps, 'children'> {
   className?: string;
@@ -28,17 +25,15 @@ interface MyOrdersCardProps extends Omit<DashboardCardProps, 'children'> {
 export function MyOrdersCard({ className, title, forceRefreshOnMount = false, ...props }: MyOrdersCardProps) {
   const t = useTranslations('orders');
 
-  const { form } = useValidator('OrderSearchValidationService', {
-    searchQuery: '',
-  });
-
-  const handleSearch = (data: OrderSearchFormData) => {
-    getLogger().debug({ searchQuery: data.searchQuery }, 'Searching for');
-    // Implement search functionality here
-  };
+  const [quickSearch, setQuickSearch] = useState('');
+  const normalizedSearch = useDebouncedValue(quickSearch, SEARCH_DEBOUNCE_MS).trim();
+  const apiQuery = normalizedSearch.length > 0 ? `id:~(${normalizedSearch})` : undefined;
 
   // Fetch orders from the hook
-  const { orders, loading, refetchOrders } = useOrders();
+  const { orders, loading, refetchOrders } = useOrders({
+    query: apiQuery,
+    forceRefresh: apiQuery !== undefined,
+  });
 
   useEffect(() => {
     if (!forceRefreshOnMount) {
@@ -49,9 +44,7 @@ export function MyOrdersCard({ className, title, forceRefreshOnMount = false, ..
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const ordersPerPage = 5; // Anzahl der Bestellungen pro Seite
-
-  // Pagination is now handled in the MyOrdersTable component
+  const ordersPerPage = 5;
 
   // Pagination handlers
   const handlePreviousPage = () => {
@@ -65,6 +58,8 @@ export function MyOrdersCard({ className, title, forceRefreshOnMount = false, ..
     }
   };
 
+  const isSearchLoading = loading && normalizedSearch.length > 0;
+
   return (
     <DashboardCard variant="default" className={cn('py-4 pb-0', className)} {...props}>
       <div className="flex items-center justify-between mb-4">
@@ -77,23 +72,33 @@ export function MyOrdersCard({ className, title, forceRefreshOnMount = false, ..
       </div>
       {/* search */}
       <div className="mb-4 w-full max-w-[380px]">
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSearch)} className="w-full">
-            <FormField
-              control={form.control}
-              name="searchQuery"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input placeholder={t('search.placeholder')} endIcon={Search} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+        <div className="relative w-full">
+          <Input
+            value={quickSearch}
+            onChange={(event) => {
+              setCurrentPage(1);
+              setQuickSearch(event.target.value);
+            }}
+            placeholder={t('search.placeholder')}
+            className="pr-10"
+            endIcon={isSearchLoading ? undefined : Search}
+            aria-label={t('search.placeholder')}
+          />
+          {isSearchLoading && (
+            <Spinner
+              variant="sm"
+              color="primary"
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
+              loadingText={t('loading')}
             />
-          </form>
-        </Form>
+          )}
+        </div>
       </div>
+      {!loading && orders?.length === 0 && normalizedSearch.length > 0 && (
+        <div className="rounded-md border border-border-primary p-4 text-sm text-text-on-disabled">
+          {t('noMatches')}
+        </div>
+      )}
       <div className="flex flex-col">
         <MyOrdersTable
           orders={orders || []}

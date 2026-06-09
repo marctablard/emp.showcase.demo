@@ -9,6 +9,7 @@ import { LocalizedString } from '../common';
  */
 export interface Quote {
   id: string;
+  orderId?: string;
   reference?: string;
   status: QuoteStatus;
   submittedDate: string;
@@ -76,6 +77,7 @@ export type QuoteScope = 'public' | 'session' | 'customer-saas' | 'service';
 
 export type QuoteStatus =
   | 'CREATING'
+  | 'AWAITING'
   | 'OPEN'
   | 'IN_PROGRESS'
   | 'DECLINED'
@@ -120,10 +122,13 @@ export interface QuoteUpdateRequest {
 export interface QuoteHistoryItem {
   id: string;
   userFullName: string;
+  userType?: QuoteUserType;
   comment: string;
   modifiedAt: string;
   rawModifiedAt?: string;
   fieldChanged: string;
+  statusValue?: string;
+  quoteReason?: string;
 }
 
 export type QuoteHistory = QuoteHistoryItem[];

@@ -58,4 +58,28 @@ export interface SessionService {
    * This will refresh the customer token with the new legal entity ID
    */
   setLegalEntity(legalEntityId: string): Promise<void>;
+
+  /**
+   * Clear the legal entity (company) reference from the current session context.
+   * Removes the 'legalEntityId' attribute and refreshes the customer token
+   * without a legal-entity scope. Safe to call even when no legal entity is set.
+   */
+  clearLegalEntity(): Promise<void>;
+
+  /**
+   * Update multiple first-class session fields in one upstream PATCH. Prefer over chaining
+   * `setX` calls. `expectedVersion` skips the pre-PATCH read on the happy path; conflicts
+   * fall back to one read + one retry. Does not mutate `currentCart` — cart resolution lives
+   * in the client-side site-switch orchestrator.
+   */
+  updateContext(
+    fields: {
+      siteCode?: string;
+      currency?: string;
+      language?: string;
+      country?: string;
+      region?: string;
+    },
+    opts?: { expectedVersion?: number },
+  ): Promise<Session | undefined>;
 }

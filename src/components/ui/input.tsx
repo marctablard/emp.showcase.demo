@@ -70,7 +70,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     return (
       <div
         className={cn(
-          'w-full h-full relative',
+          'w-full relative',
           'transition hover:text-text-action-hover hover:bg-surface-primary',
           dataSuccess && 'text-text-success border-border-success',
           props.disabled && 'text-text-on-disabled border-border-disabled hover:text-text-on-disabled',

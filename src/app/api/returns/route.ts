@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { normalizeReasonCode, normalizeReasonDetails } from '@/lib/common/returns/reason-normalization';
+import { mapReturnCreateError, mapReturnValidationError } from '@/lib/common/returns/return-api-error-mapping';
 import { computeOrderReturnability } from '@/lib/common/returns/returnability';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
@@ -135,11 +136,16 @@ export async function POST(request: NextRequest) {
       }
     } catch (validationError) {
       const logger = server.get<LoggerService>('LoggerService');
+      const mappedError = mapReturnValidationError(validationError);
       logger.error(
-        { error: validationError instanceof Error ? validationError.message : String(validationError), orderId },
+        {
+          error: validationError instanceof Error ? validationError.message : String(validationError),
+          orderId,
+          ...mappedError.logContext,
+        },
         'Returnability validation failed',
       );
-      return NextResponse.json({ error: 'Failed to validate return request' }, { status: 503 });
+      return NextResponse.json(mappedError.response, { status: mappedError.status });
     }
 
     const normalizedItems = items.map((item) => {
@@ -168,15 +174,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ id: returnId }, { status: 201 });
   } catch (error) {
     const logger = server.get<LoggerService>('LoggerService');
+    const mappedError = mapReturnCreateError(error);
     logger.error(
       {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
         path: '/api/returns',
         method: 'POST',
+        ...mappedError.logContext,
       },
       'Error creating return',
     );
-    return NextResponse.json({ error: 'Failed to create return' }, { status: 500 });
+    return NextResponse.json(mappedError.response, { status: mappedError.status });
   }
 }

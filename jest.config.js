@@ -114,7 +114,11 @@ const customJestConfig = {
       preset: 'ts-jest',
       displayName: 'React Tests',
       testEnvironment: 'jsdom',
-      testMatch: ['**/hooks/**/?(*.)+(spec|test).ts?(x)'],
+      testMatch: [
+        '**/hooks/**/?(*.)+(spec|test).ts?(x)',
+        '**/providers/**/?(*.)+(spec|test).ts?(x)',
+        '**/components/checkout/checkout-validation-registry*.test.ts?(x)',
+      ],
       setupFilesAfterEnv: ['<rootDir>/jest.react.setup.js'],
       moduleNameMapper: {
         '^@/(.*)$': '<rootDir>/src/$1',
@@ -205,6 +209,10 @@ const customJestConfig = {
         ],
       },
       ...commonJestConfig,
+      testPathIgnorePatterns: [
+        ...commonJestConfig.testPathIgnorePatterns,
+        'src/components/checkout/checkout-validation-registry.*\\.test\\.(ts|tsx)$',
+      ],
     },
     {
       preset: 'ts-jest',
@@ -247,7 +255,11 @@ const customJestConfig = {
       preset: 'ts-jest',
       displayName: 'Library Tests',
       testEnvironment: 'node',
-      testMatch: ['**/lib/**/?(*.)+(spec|test).ts?(x)', '**/stores/**/?(*.)+(spec|test).ts?(x)'],
+      testMatch: [
+        '**/lib/**/?(*.)+(spec|test).ts?(x)',
+        '**/stores/**/?(*.)+(spec|test).ts?(x)',
+        '**/app/api/**/?(*.)+(spec|test).ts?(x)',
+      ],
       setupFilesAfterEnv: ['<rootDir>/jest.platform.setup.js'],
       transformIgnorePatterns: ['/node_modules/(?!(next-intl|use-intl)/)'],
       transform: {

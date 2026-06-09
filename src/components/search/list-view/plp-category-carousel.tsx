@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   Carousel,
   CarouselContent,
@@ -39,18 +38,15 @@ export function PlpCategoryCarousel({ categories, locale }: PlpCategoryCarouselP
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
 
-  const categoryIds = useMemo(() => categories.map((c) => c.id), [categories]);
-  const categoryIdsKey = categoryIds.join('|');
+  const categoryIdsKey = useMemo(() => categories.map((c) => c.id).join('|'), [categories]);
   const { counts, requestCounts } = useCategoryProductCounts();
 
   useEffect(() => {
-    if (categoryIds.length === 0) {
+    if (categoryIdsKey.length === 0) {
       return;
     }
-    requestCounts(categoryIds);
-    // `categoryIdsKey` keeps the effect stable when parents hand us a new array identity with the
-    // same ids (e.g. re-memoised navigationRoots).
-  }, [categoryIdsKey, categoryIds, requestCounts]);
+    requestCounts(categoryIdsKey.split('|'));
+  }, [categoryIdsKey, requestCounts]);
 
   // Drop categories whose product count has resolved to 0. Unknown counts stay visible so the
   // carousel does not flicker while counts stream in.
@@ -91,12 +87,8 @@ export function PlpCategoryCarousel({ categories, locale }: PlpCategoryCarouselP
           <H4>{t('title')}</H4>
           {showControls ? (
             <div className="flex items-center gap-6">
-              <CarouselPrevious className="static translate-y-0">
-                <ChevronLeft className="h-6 w-6 text-icon-action" />
-              </CarouselPrevious>
-              <CarouselNext className="static translate-y-0">
-                <ChevronRight className="h-6 w-6 text-icon-action" />
-              </CarouselNext>
+              <CarouselPrevious className="static translate-y-0 [&_svg]:h-6 [&_svg]:w-6 [&_svg]:text-icon-action" />
+              <CarouselNext className="static translate-y-0 [&_svg]:h-6 [&_svg]:w-6 [&_svg]:text-icon-action" />
             </div>
           ) : null}
         </div>

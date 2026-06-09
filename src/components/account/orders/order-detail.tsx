@@ -7,13 +7,16 @@ import { Ban, RotateCcw, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { H2, H3 } from '@/components/ui/h';
+import UiLink from '@/components/ui/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ToastType, notify } from '@/components/ui/toast-notification';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useOrder } from '@/hooks/order/useOrder';
 import { type PaymentModeKey, dk } from '@/i18n/dynamic-key';
 import { useRouter } from '@/i18n/navigation';
 import { fetchReturnsForOrder } from '@/lib/client/returns';
+import { ORDER_CUSTOMER_DECLINE_NOT_ALLOWED_MESSAGE } from '@/lib/common/order-customer-decline-not-allowed';
 import { type OrderReturnability, computeOrderReturnability } from '@/lib/common/returns/returnability';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { Order, OrderStatus } from '@/platform/services/model/order/order';
@@ -22,16 +25,8 @@ import { CreateReturnDialog } from './create-return-dialog';
 import { OrderStatusBadge } from './order-status-badge';
 import { TrackingDialog } from './tracking-dialog';
 
-function shouldShowCancelButton(status: OrderStatus): boolean {
-  return (
-    [
-      ORDER_STATUS.COMPLETED,
-      ORDER_STATUS.PROCESSING,
-      ORDER_STATUS.READY_FOR_PICKUP,
-      ORDER_STATUS.READY_FOR_SHIPPING,
-      ORDER_STATUS.CREATED,
-    ] as OrderStatus[]
-  ).includes(status);
+function shouldShowCancelButton(status: OrderStatus, transitions: string[]): boolean {
+  return status === ORDER_STATUS.CREATED && transitions.includes('DECLINED');
 }
 
 function shouldShowReturnButton(status: OrderStatus): boolean {
@@ -50,7 +45,7 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
   const [returnability, setReturnability] = useState<OrderReturnability | null>(null);
   const router = useRouter();
 
-  const { order, loading, error, cancelOrder } = useOrder({ orderId, initialOrder });
+  const { order, loading, error, cancelOrder, statusTransitions } = useOrder({ orderId, initialOrder });
 
   useEffect(() => {
     if (!order || order.status !== ORDER_STATUS.COMPLETED) return;
@@ -147,6 +142,17 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
                   <p>{tPaymentModes(dk<PaymentModeKey>(order.payments[0].method.toLowerCase()))}</p>
                 </>
               )}
+
+              {order.quoteId ? (
+                <>
+                  <H3 variant="h5" className="mb-2 mt-4">
+                    {tOrder('relatedQuote')}
+                  </H3>
+                  <UiLink href={`/account/quotes/${order.quoteId}`} type="Link">
+                    #{order.quoteId}
+                  </UiLink>
+                </>
+              ) : null}
             </div>
 
             {order.shippingAddress && (
@@ -243,7 +249,7 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
           </div>
         </CardContent>
         {/* Order action buttons at the bottom */}
-        {(shouldShowCancelButton(order.status) ||
+        {(shouldShowCancelButton(order.status, statusTransitions) ||
           shouldShowReturnButton(order.status) ||
           (
             [
@@ -260,7 +266,7 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
               {tOrder('orderActions')}
             </H2>
             <div className="flex flex-wrap gap-2">
-              {shouldShowCancelButton(order.status) && cancelOrder && (
+              {shouldShowCancelButton(order.status, statusTransitions) && cancelOrder && (
                 <Button
                   variant="secondary"
                   size="small"
@@ -268,8 +274,17 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
                     try {
                       await cancelOrder();
                     } catch (err) {
-                      // Handle error, could show a toast notification
                       getLogger().error({ err }, 'Failed to cancel order');
+                      const message = err instanceof Error ? err.message : '';
+                      const description =
+                        message === ORDER_CUSTOMER_DECLINE_NOT_ALLOWED_MESSAGE
+                          ? tOrder('cancelOrderNotAllowed')
+                          : message || tOrder('cancelOrderFailedUnknown');
+                      notify({
+                        title: tOrder('cancelOrderFailed'),
+                        description,
+                        type: ToastType.Error,
+                      });
                     }
                   }}
                 >

@@ -26,6 +26,7 @@ describe('EmporixCartService', () => {
       | 'updateCart'
       | 'refreshCart'
       | 'changeCurrency'
+      | 'changeSite'
       | 'addItemToCart'
       | 'getCartByCriteria'
       | 'updateCartItemQuantity'
@@ -59,6 +60,7 @@ describe('EmporixCartService', () => {
       updateCart: jest.fn().mockResolvedValue(undefined),
       refreshCart: jest.fn().mockResolvedValue(undefined),
       changeCurrency: jest.fn().mockResolvedValue(undefined),
+      changeSite: jest.fn().mockResolvedValue(undefined),
       addItemToCart: jest.fn().mockResolvedValue('new-item-id'),
       getCartByCriteria: jest.fn().mockResolvedValue(null),
       updateCartItemQuantity: jest.fn().mockResolvedValue(undefined),

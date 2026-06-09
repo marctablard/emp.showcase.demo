@@ -61,6 +61,14 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
     return getProduct(id);
   });
 
+  // Seed the product store with an SSR-provided product so the cache-check effect below
+  // can reuse it instead of clearing local state and refetching once the session resolves.
+  useEffect(() => {
+    if (productOrId && typeof productOrId === 'object' && (productOrId as Product).id) {
+      addProduct(productOrId as Product);
+    }
+  }, [productOrId, addProduct]);
+
   const fetchProduct = useCallback(
     async (forceRefresh = false, clientDedupeScope = '') => {
       if (!id) return;

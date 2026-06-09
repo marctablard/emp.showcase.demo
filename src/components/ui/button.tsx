@@ -13,6 +13,10 @@ const buttonVariants = cva(
           'bg-surface-action text-text-on-action border-width-button border-transparent hover:bg-surface-action-hover rounded-button',
         secondary:
           'border-width-button border-border-secondary bg-transparent text-text-action disabled:border-border-disabled hover:border-border-action-hover hover:bg-surface-action-hover-2 hover:text-text-action-hover rounded-button',
+        outlineError:
+          'border-width-button border-border-error bg-transparent text-text-error disabled:border-border-disabled hover:bg-surface-error rounded-button',
+        outlineSuccess:
+          'border-width-button border-border-success bg-transparent text-text-success disabled:border-border-disabled hover:bg-surface-success rounded-button',
         neutral:
           'border-width-button border-border-black px-2 py-1 disabled:border-transparent hover:bg-surface-neutral hover:text-text-on-action rounded-button',
         // Todo: red button needs to be designed in figma

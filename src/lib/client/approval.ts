@@ -1,12 +1,45 @@
-import type { ApprovalCreateRequest, ApprovalId, ApprovalUser } from '@/platform/services/model/approval';
+import { ApprovalAlreadyExistsError } from '@/platform/services/approval/errors';
+import type {
+  ApprovalAction,
+  ApprovalCreateRequest,
+  ApprovalId,
+  ApprovalPermittedRequest,
+  ApprovalPermittedResponse,
+  ApprovalResourceType,
+  ApprovalUser,
+} from '@/platform/services/model/approval';
+
+export interface ApprovalRequirementRequest {
+  resourceId: string;
+  resourceType?: ApprovalResourceType;
+  action?: ApprovalAction;
+}
+
+function getApprovalApiErrorMessage(errorData: { details?: string; error?: string }, fallback: string): string {
+  return errorData.details || errorData.error || fallback;
+}
 
 /**
  * Check if a cart requires approval
- * @param cartId The ID of the cart to check
+ * @param input The resource to check
  * @returns Promise with boolean indicating if approval is required
  */
-export async function requiresApproval(cartId: string): Promise<boolean> {
-  const response = await fetch(`/api/approval/requires-approval?cartId=${cartId}`, {
+export async function requiresApproval(input: string | ApprovalRequirementRequest): Promise<boolean> {
+  const params = new URLSearchParams();
+
+  if (typeof input === 'string') {
+    params.set('cartId', input);
+  } else {
+    params.set('resourceId', input.resourceId);
+    if (input.resourceType) {
+      params.set('resourceType', input.resourceType);
+    }
+    if (input.action) {
+      params.set('action', input.action);
+    }
+  }
+
+  const response = await fetch(`/api/approval/requires-approval?${params.toString()}`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -15,11 +48,33 @@ export async function requiresApproval(cartId: string): Promise<boolean> {
 
   if (!response.ok) {
     const errorData = await response.json();
-    throw new Error(errorData.details || 'Failed to check approval requirements');
+    throw new Error(getApprovalApiErrorMessage(errorData, 'Failed to check approval requirements'));
   }
 
   const result = await response.json();
   return result === true;
+}
+
+/**
+ * Check whether an approval action is permitted and whether an existing approval is linked
+ * @param request The approval permission request context
+ * @returns Promise with approval permission details
+ */
+export async function checkApprovalPermitted(request: ApprovalPermittedRequest): Promise<ApprovalPermittedResponse> {
+  const response = await fetch('/api/approval/permitted', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(getApprovalApiErrorMessage(errorData, 'Failed to check approval permission'));
+  }
+
+  return response.json();
 }
 
 /**
@@ -30,12 +85,12 @@ export async function requiresApproval(cartId: string): Promise<boolean> {
  * @returns Promise with array of approval users
  */
 export async function searchApprovalUsers(
-  resourceType: string,
+  resourceType: ApprovalResourceType,
   resourceId: string,
-  action: string,
+  action: ApprovalAction,
 ): Promise<ApprovalUser[]> {
   const response = await fetch(
-    `/api/approval/users?resourceType=${resourceType}&resourceId=${resourceId}&action=${action}`,
+    `/api/approval/users?resourceType=${encodeURIComponent(resourceType)}&resourceId=${encodeURIComponent(resourceId)}&action=${encodeURIComponent(action)}`,
     {
       method: 'GET',
       headers: {
@@ -46,7 +101,7 @@ export async function searchApprovalUsers(
 
   if (!response.ok) {
     const errorData = await response.json();
-    throw new Error(errorData.details || 'Failed to search approval users');
+    throw new Error(getApprovalApiErrorMessage(errorData, 'Failed to search approval users'));
   }
 
   return response.json();
@@ -68,7 +123,12 @@ export async function createApproval(approval: ApprovalCreateRequest): Promise<A
 
   if (!response.ok) {
     const errorData = await response.json();
-    throw new Error(errorData.details || 'Failed to create approval request');
+
+    if (response.status === 409 && errorData.code === 'APPROVAL_ALREADY_EXISTS' && errorData.approvalId) {
+      throw new ApprovalAlreadyExistsError(errorData.approvalId, errorData.error);
+    }
+
+    throw new Error(getApprovalApiErrorMessage(errorData, 'Failed to create approval request'));
   }
 
   return response.json();

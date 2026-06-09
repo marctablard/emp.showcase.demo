@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Gauge, Menu, Pin, Search, User, UserCheck, X } from 'lucide-react';
 import { HeaderCartButton } from '@/components/header/cart/header-cart-button';
+import { HeaderCompareButton } from '@/components/header/common/header-compare-button';
 import { HeaderIconButton } from '@/components/header/common/header-icon-button';
 import { HeaderIconLink } from '@/components/header/common/header-icon-link';
 import { HeaderLogo } from '@/components/header/common/header-logo';
@@ -14,11 +15,11 @@ import { useHeaderDesktopNavigation } from '@/components/header/header-desktop-n
 import { useNavigationProductSubmenu } from '@/components/header/navigation-product-submenu-context';
 import { useHeaderSearch } from '@/components/header/search/search-context';
 import { TabletMenuFlyout } from '@/components/header/tablet/menu-flyout';
-import { mergeNavigationProductSubmenu } from '@/lib/navigation/merge-navigation-product-submenu';
 import useAuthentication from '@/hooks/authentication/useAuthentication';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useHeaderScroll } from '@/hooks/useHeaderScroll';
 import { usePathname } from '@/i18n/navigation';
+import { mergeNavigationProductSubmenu } from '@/lib/navigation/merge-navigation-product-submenu';
 import { cn } from '@/lib/utils';
 
 export function HeaderActionBar() {
@@ -116,10 +117,7 @@ export function HeaderActionBar() {
       )}
     >
       <div className={cn('flex items-center gap-5 w-full', !scrolled && 'md:justify-between md:flex-wrap')}>
-        <div
-          className="flex items-center gap-5 w-full md:justify-between"
-          onMouseEnter={dismissFlyout}
-        >
+        <div className="flex items-center gap-5 w-full md:justify-between" onMouseEnter={dismissFlyout}>
           <HeaderLogo scrolled={scrolled} className={cn('me-auto md:me-0', scrolled && 'lg:me-auto')} />
           <HeaderSearch show={showSearch} small={!isAboveLargeScreen || scrolled} />
           <div className={cn('flex items-center gap-5 text-nowrap', showSearch && 'sm:hidden')}>
@@ -149,8 +147,9 @@ export function HeaderActionBar() {
               </>
             )}
             <div className="hidden sm:flex gap-5">
-              <HeaderIconLink icon={Gauge} text={t('quickOrder')} href="/#" />
+              <HeaderIconLink icon={Gauge} text={t('quickOrder')} href="/quick-order" />
               <HeaderIconLink icon={Pin} text={t('wishlists')} href="/account/wishlists" />
+              <HeaderCompareButton />
             </div>
           </div>
         </div>

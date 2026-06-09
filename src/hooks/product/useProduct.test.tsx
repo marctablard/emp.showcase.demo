@@ -3,12 +3,14 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { fetchProductById } from '@/lib/client/products';
 import type { Session } from '@/platform/services/model/session/session';
 import {
+  CartStoreContext,
   HistoryStoreContext,
   ProductStoreContext,
   SessionStoreContext,
   StoreProvider,
   useProductStore,
 } from '@/providers/StoreProvider';
+import { createCartStore } from '@/stores/cart-store';
 import { createHistoryStore } from '@/stores/history-store';
 import { createProductStore } from '@/stores/products-store';
 import { createSessionStore } from '@/stores/session-store-context';
@@ -166,11 +168,14 @@ describe('useProduct hook', () => {
       session: { id: 'test-session', siteCode: 'main', currency: 'USD', customerId: 'ANONYMOUS' },
       loading: false,
     });
+    const cartStore = createCartStore();
     const customWrapper = ({ children }: { children: ReactNode }) => (
       <SessionStoreContext.Provider value={sessionStore}>
-        <HistoryStoreContext.Provider value={historyStore}>
-          <ProductStoreContext.Provider value={sharedStore}>{children}</ProductStoreContext.Provider>
-        </HistoryStoreContext.Provider>
+        <CartStoreContext.Provider value={cartStore}>
+          <HistoryStoreContext.Provider value={historyStore}>
+            <ProductStoreContext.Provider value={sharedStore}>{children}</ProductStoreContext.Provider>
+          </HistoryStoreContext.Provider>
+        </CartStoreContext.Provider>
       </SessionStoreContext.Provider>
     );
 
@@ -208,11 +213,14 @@ describe('useProduct hook', () => {
       session: { id: 'test-session', siteCode: 'main', currency: 'USD', customerId: 'ANONYMOUS' },
       loading: false,
     });
+    const cartStore = createCartStore();
     const customWrapper = ({ children }: { children: ReactNode }) => (
       <SessionStoreContext.Provider value={sessionStore}>
-        <HistoryStoreContext.Provider value={historyStore}>
-          <ProductStoreContext.Provider value={sharedStore}>{children}</ProductStoreContext.Provider>
-        </HistoryStoreContext.Provider>
+        <CartStoreContext.Provider value={cartStore}>
+          <HistoryStoreContext.Provider value={historyStore}>
+            <ProductStoreContext.Provider value={sharedStore}>{children}</ProductStoreContext.Provider>
+          </HistoryStoreContext.Provider>
+        </CartStoreContext.Provider>
       </SessionStoreContext.Provider>
     );
 
@@ -237,11 +245,14 @@ describe('useProduct hook', () => {
       session: null,
       loading: false,
     });
+    const cartStore = createCartStore();
     const customWrapper = ({ children }: { children: ReactNode }) => (
       <SessionStoreContext.Provider value={sessionStore}>
-        <HistoryStoreContext.Provider value={historyStore}>
-          <ProductStoreContext.Provider value={sharedStore}>{children}</ProductStoreContext.Provider>
-        </HistoryStoreContext.Provider>
+        <CartStoreContext.Provider value={cartStore}>
+          <HistoryStoreContext.Provider value={historyStore}>
+            <ProductStoreContext.Provider value={sharedStore}>{children}</ProductStoreContext.Provider>
+          </HistoryStoreContext.Provider>
+        </CartStoreContext.Provider>
       </SessionStoreContext.Provider>
     );
 
@@ -264,11 +275,14 @@ describe('useProduct hook', () => {
       session: { id: 'test-session', siteCode: 'main', currency: 'USD', customerId: 'ANONYMOUS' },
       loading: false,
     });
+    const cartStore = createCartStore();
     const customWrapper = ({ children }: { children: ReactNode }) => (
       <SessionStoreContext.Provider value={sessionStore}>
-        <HistoryStoreContext.Provider value={historyStore}>
-          <ProductStoreContext.Provider value={sharedStore}>{children}</ProductStoreContext.Provider>
-        </HistoryStoreContext.Provider>
+        <CartStoreContext.Provider value={cartStore}>
+          <HistoryStoreContext.Provider value={historyStore}>
+            <ProductStoreContext.Provider value={sharedStore}>{children}</ProductStoreContext.Provider>
+          </HistoryStoreContext.Provider>
+        </CartStoreContext.Provider>
       </SessionStoreContext.Provider>
     );
 

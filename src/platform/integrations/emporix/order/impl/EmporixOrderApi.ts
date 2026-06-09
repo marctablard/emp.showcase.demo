@@ -12,6 +12,7 @@ import type {
   EmporixUpdateOrderRequest,
 } from '../../model/order';
 import type { EmporixOrderApi as IEmporixOrderApi } from '../EmporixOrderApi';
+import { normalizeCustomerOrderTransitionsPayload } from '../normalize-customer-order-transitions';
 
 const createOrderMetrics = (route: string) => createFetchMetricsParams('order', route);
 
@@ -349,8 +350,40 @@ class EmporixOrderApi implements IEmporixOrderApi {
       throw new Error(`Failed to get customer order status transitions: ${response.statusText} ${errorDetails}`);
     }
 
-    const transitions = await response.json();
-    return transitions;
+    const raw = await response.json();
+    return normalizeCustomerOrderTransitionsPayload(raw);
+  }
+
+  /**
+   * Apply a customer order status transition (e.g. CREATED → DECLINED).
+   * @param orderId Order ID
+   * @param body Transition body `{ status: 'DECLINED' }` per customer-managed Order API
+   */
+  async postCustomerOrderTransition(orderId: string, body: { status: string }): Promise<void> {
+    const response = await this.apiClient.authenticatedFetch(
+      `/order-v2/${this.config.tenant}/orders/${orderId}/transitions`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(body),
+      },
+      'session',
+      undefined,
+      createOrderMetrics('/order-v2/{tenant}/orders/{id}/transitions'),
+    );
+
+    if (response.status === 204 || response.ok) {
+      if (response.status !== 204) {
+        await response.text().catch(() => undefined);
+      }
+      return;
+    }
+
+    const errorDetails = await response.text();
+    throw new Error(`Failed to post customer order transition: ${response.statusText} ${errorDetails}`);
   }
 }
 

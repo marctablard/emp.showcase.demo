@@ -46,10 +46,11 @@ class EmporixSessionService implements SessionService {
 
   async setLanguage(language: string): Promise<void> {
     // TODO propagate Language Switch via Event-System
-    this.sessionContextApi.addOwnSessionContextAttribute({
-      key: 'language',
-      value: language,
-    });
+    // Language is a top-level session-context field since the 2026-04-21 Emporix
+    // Session Context changelog; go through the combined PATCH helper so the
+    // write hits `PATCH /me/context` with the optimistic-lock + retry semantics
+    // shared by the other scalar setters.
+    await this.updateContext({ language });
   }
 
   async setCurrency(currency: string): Promise<void> {
@@ -80,101 +81,42 @@ class EmporixSessionService implements SessionService {
   }
 
   async setSite(site: string, defaultCurrency?: string): Promise<void> {
+    // Delegates to the combined updater so retry semantics live in one place. Does not touch
+    // `currentCart` — per-site cart resolution is the client orchestrator's responsibility.
     const initialSession = await this.sessionContextApi.getOwnSessionContext();
     if (!initialSession) {
       return;
     }
-
-    // Check if site is actually changing
-    const siteChanged = initialSession.siteCode && initialSession.siteCode !== site;
-    let session = initialSession;
-
-    // Step 1: Clear cart association FIRST when site is changing.
-    // This ensures that during the window between this call and the siteCode update,
-    // any concurrent getCart() reads OLD siteCode + NO cartId → falls back to
-    // criteria search with old siteCode → returns correct cart for old context.
-    if (siteChanged) {
-      await this.sessionContextApi.removeOwnSessionContextAttribute('currentCart');
-
-      // Refresh context to obtain the latest metadata.version after attribute mutation.
-      const refreshedSession = await this.sessionContextApi.getOwnSessionContext();
-      if (!refreshedSession) {
-        return;
-      }
-      session = refreshedSession;
+    const previousSiteCode = initialSession.siteCode;
+    const siteChanged = !!previousSiteCode && previousSiteCode !== site;
+    const fields: Partial<EmporixSessionContext> = { siteCode: site };
+    if (siteChanged && defaultCurrency) {
+      fields.currency = defaultCurrency;
     }
 
-    // Step 2: Update siteCode (and currency if applicable).
-    // After this, the session has new siteCode + no cartId → getCart() falls back to
-    // criteria search with new siteCode → creates/finds correct cart for new context.
-    const buildUpdatePayload = (context: EmporixSessionContext): Partial<EmporixSessionContext> => {
-      const updatePayload: Partial<EmporixSessionContext> = {
-        siteCode: site,
-        metadata: {
-          version: context.metadata?.version || 1,
-        },
-      };
-      // When switching sites, also reset currency to the target site's default.
-      // This aligns with Emporix's session initialization behavior where
-      // anonymous sessions get the site's default currency.
-      if (siteChanged && defaultCurrency) {
-        updatePayload.currency = defaultCurrency;
-      }
-      return updatePayload;
-    };
+    await this.updateSessionContextWithRetry(fields, {
+      initialSession,
+      // Abort the retry if another mutation already moved siteCode — retrying would clobber it.
+      abortOnConflict: (latest) =>
+        latest.siteCode === site
+          ? { reason: 'already-target', log: { site } }
+          : previousSiteCode && latest.siteCode !== previousSiteCode
+            ? {
+                reason: 'concurrent-site-change',
+                log: {
+                  targetSite: site,
+                  initialSiteCode: previousSiteCode,
+                  currentSiteCode: latest.siteCode,
+                },
+              }
+            : undefined,
+      retryLogLabel: 'Retrying session site update after version conflict',
+      retryLogContext: { site },
+    });
 
-    const updatePayload = buildUpdatePayload(session);
-    try {
-      await this.sessionContextApi.updateOwnSessionContext(updatePayload);
-    } catch (error) {
-      if (!this.isSessionContextVersionConflictError(error)) {
-        throw error;
-      }
-
-      // Bounded optimistic-lock retry: fetch latest version and retry exactly once.
-      const latestSession = await this.sessionContextApi.getOwnSessionContext();
-      if (!latestSession) {
-        throw error;
-      }
-
-      if (latestSession.siteCode === site) {
-        this.logger.info({ site }, 'Site already set to target — skipping retry');
-        return;
-      }
-
-      // Guard: if the siteCode changed between our initial read and the retry,
-      // a concurrent setSite() call already completed (e.g. site switcher vs.
-      // reconciliation race). Retrying would overwrite the newer intent.
-      if (latestSession.siteCode !== initialSession.siteCode) {
-        this.logger.info(
-          {
-            targetSite: site,
-            initialSiteCode: initialSession.siteCode,
-            currentSiteCode: latestSession.siteCode,
-          },
-          'Aborting setSite retry — siteCode was concurrently changed by another mutation',
-        );
-        return;
-      }
-
-      const retryPayload = buildUpdatePayload(latestSession);
-      this.logger.warn(
-        {
-          site,
-          previousVersion: session.metadata?.version || 1,
-          retryVersion: latestSession.metadata?.version || 1,
-        },
-        'Retrying session site update after version conflict',
-      );
-      await this.sessionContextApi.updateOwnSessionContext(retryPayload);
-    }
-
-    if (siteChanged) {
-      const previousSiteCode = initialSession.siteCode;
-      if (previousSiteCode) {
-        this.siteService.invalidateSiteCache(previousSiteCode);
-      }
-      this.siteService.invalidateSiteCache(site);
+    // Only invalidate the previous site's cache; the new site's cache was likely just warmed.
+    if (siteChanged && previousSiteCode) {
+      this.siteService.invalidateSiteCache(previousSiteCode);
     }
   }
 
@@ -206,12 +148,189 @@ class EmporixSessionService implements SessionService {
     });
   }
 
+  async clearLegalEntity(): Promise<void> {
+    try {
+      await this.sessionContextApi.removeOwnSessionContextAttribute('legalEntityId');
+    } catch (error) {
+      // 404 on removing a missing attribute is a no-op.
+      if (error instanceof Error && !error.message.includes('Not Found')) {
+        this.logger.error({ error: error.message }, 'Failed to clear legalEntityId from session context');
+      }
+    }
+    // Re-scope the customer token to drop the legalEntityId claim (no-op for anonymous sessions).
+    try {
+      await this.tokenManager.refreshCustomerTokenWithLegalEntity(this.config.tenant, '');
+    } catch (error) {
+      this.logger.error(
+        { error: error instanceof Error ? error.message : String(error) },
+        'Failed to refresh customer token after clearing legal entity',
+      );
+    }
+  }
+
+  async updateContext(
+    fields: {
+      siteCode?: string;
+      currency?: string;
+      language?: string;
+      country?: string;
+      region?: string;
+    },
+    opts?: { expectedVersion?: number },
+  ): Promise<Session | undefined> {
+    const payload: Partial<EmporixSessionContext> = {};
+    if (fields.siteCode !== undefined) payload.siteCode = fields.siteCode;
+    if (fields.currency !== undefined) payload.currency = fields.currency;
+    if (fields.country !== undefined) payload.targetLocation = fields.country;
+    // `language` is a first-class field on `EmporixSessionContext` since the
+    // 2026-04-21 BE changelog, so it goes in the top-level PATCH payload (no
+    // pre-fetch needed). Custom attributes like `region` still need to be
+    // merged into the full `context` object because PATCH replaces it.
+    if (fields.language !== undefined) payload.language = fields.language;
+    const contextPatch: Record<string, string> = {};
+    if (fields.region !== undefined) contextPatch.region = fields.region;
+    const hasContextPatch = Object.keys(contextPatch).length > 0;
+
+    const hasUpdates = Object.keys(payload).length > 0 || hasContextPatch;
+    if (!hasUpdates) {
+      return this.getCurrent();
+    }
+
+    const expectedVersion = opts?.expectedVersion;
+    let initialSession: EmporixSessionContext | undefined;
+    let baseVersion: number;
+
+    // `PATCH /me/context` replaces the whole `context` object, so a context patch must be
+    // pre-merged with the existing context (preserving `currentCart`, etc.). Force a pre-fetch
+    // in that case; otherwise trust `expectedVersion` and skip the read on the happy path.
+    if (hasContextPatch || !(typeof expectedVersion === 'number' && expectedVersion > 0)) {
+      initialSession = await this.sessionContextApi.getOwnSessionContext();
+      if (!initialSession) {
+        return undefined;
+      }
+      baseVersion = initialSession.metadata?.version || 1;
+    } else {
+      baseVersion = expectedVersion;
+    }
+
+    if (hasContextPatch) {
+      payload.context = { ...(initialSession?.context ?? {}), ...contextPatch };
+    }
+
+    const finalSession = await this.updateSessionContextWithRetry(payload, {
+      initialSession,
+      baseVersion,
+      retryLogLabel: 'Retrying session context update after version conflict',
+      retryLogContext: { fields: Object.keys(payload) },
+      returnContext: true,
+    });
+
+    return finalSession ? this.mapper.mapToService(finalSession) : undefined;
+  }
+
+  /**
+   * Shared optimistic-lock retry for `updateOwnSessionContext`. Happy path: one PATCH.
+   * On version conflict: re-read, apply `abortOnConflict` guard, retry once. Other errors
+   * rethrow. When `returnContext` is true, returns the merged post-PATCH context so callers
+   * can avoid an extra GET.
+   */
+  private async updateSessionContextWithRetry(
+    fields: Partial<EmporixSessionContext>,
+    opts: {
+      initialSession?: EmporixSessionContext;
+      baseVersion?: number;
+      abortOnConflict?: (latest: EmporixSessionContext) => { reason: string; log: Record<string, unknown> } | undefined;
+      retryLogLabel: string;
+      retryLogContext?: Record<string, unknown>;
+      returnContext?: boolean;
+    },
+  ): Promise<EmporixSessionContext | undefined> {
+    const baseVersion = opts.baseVersion ?? opts.initialSession?.metadata?.version ?? 1;
+    const firstPayload: Partial<EmporixSessionContext> = {
+      ...fields,
+      metadata: { version: baseVersion },
+    };
+
+    try {
+      await this.sessionContextApi.updateOwnSessionContext(firstPayload);
+      if (!opts.returnContext) {
+        return undefined;
+      }
+      // Locally merge to avoid a follow-up GET; the API does not echo the updated resource.
+      const baseline = opts.initialSession;
+      if (baseline) {
+        return this.mergeContextPatch(baseline, fields, baseVersion + 1);
+      }
+      // Pure expectedVersion path — fall back to a single GET for a canonical Session.
+      return (await this.sessionContextApi.getOwnSessionContext()) ?? undefined;
+    } catch (error) {
+      if (!this.isSessionContextVersionConflictError(error)) {
+        throw error;
+      }
+
+      const latestSession = await this.sessionContextApi.getOwnSessionContext();
+      if (!latestSession) {
+        throw error;
+      }
+
+      const abort = opts.abortOnConflict?.(latestSession);
+      if (abort) {
+        this.logger.info(
+          abort.log,
+          abort.reason === 'already-target'
+            ? 'Site already set to target — skipping retry'
+            : 'Aborting setSite retry — siteCode was concurrently changed by another mutation',
+        );
+        return opts.returnContext ? latestSession : undefined;
+      }
+
+      const retryVersion = latestSession.metadata?.version || 1;
+      this.logger.warn(
+        {
+          ...(opts.retryLogContext ?? {}),
+          previousVersion: baseVersion,
+          retryVersion,
+        },
+        opts.retryLogLabel,
+      );
+      // Re-merge any `context` patch against the freshly-read context so concurrently-added
+      // keys (e.g. `currentCart`) survive the full-object replacement that PATCH performs.
+      const retryFields: Partial<EmporixSessionContext> = fields.context
+        ? {
+            ...fields,
+            context: { ...(latestSession.context ?? {}), ...fields.context },
+          }
+        : fields;
+      await this.sessionContextApi.updateOwnSessionContext({
+        ...retryFields,
+        metadata: { version: retryVersion },
+      });
+      return opts.returnContext ? this.mergeContextPatch(latestSession, retryFields, retryVersion + 1) : undefined;
+    }
+  }
+
+  /** Shallow-merged copy of `base` with `patch` applied — synthesizes the post-PATCH context. */
+  private mergeContextPatch(
+    base: EmporixSessionContext,
+    patch: Partial<EmporixSessionContext>,
+    nextVersion: number,
+  ): EmporixSessionContext {
+    return {
+      ...base,
+      ...(patch.siteCode !== undefined ? { siteCode: patch.siteCode } : {}),
+      ...(patch.currency !== undefined ? { currency: patch.currency } : {}),
+      ...(patch.targetLocation !== undefined ? { targetLocation: patch.targetLocation } : {}),
+      ...(patch.language !== undefined ? { language: patch.language } : {}),
+      ...(patch.context ? { context: { ...(base.context ?? {}), ...patch.context } } : {}),
+      metadata: { version: nextVersion },
+    };
+  }
+
   async clearCart(): Promise<void> {
     try {
       await this.sessionContextApi.removeOwnSessionContextAttribute('currentCart');
     } catch (error) {
-      // Log but don't throw — clearing is best-effort. The cart attribute may
-      // not exist (e.g., new session, already cleared) which returns 404.
+      // Best-effort: 404 means the attribute was already missing.
       if (error instanceof Error && !error.message.includes('Not Found')) {
         this.logger.error({ error: error.message }, 'Failed to clear cart from session context');
       }
@@ -250,16 +369,9 @@ class EmporixSessionService implements SessionService {
       result.siteCode = resolvedDefaultSite;
     }
 
+    const needsAdjustment = Object.keys(updateDefaults).length > 0;
     this.logger.debug(
-      {
-        siteCode: result.siteCode,
-        currency: result.currency,
-        country: result.country,
-        language: result.language,
-        region: result.region,
-        needsAdjustment: Object.keys(updateDefaults).length > 0,
-      },
-      'adjustSessionsSettings entry',
+      `adjustSessionsSettings entry site=${result.siteCode} currency=${result.currency} country=${result.country} language=${result.language} region=${result.region} needsAdjustment=${needsAdjustment}`,
     );
 
     const site = await this.siteService.getSite(result.siteCode);
@@ -276,11 +388,10 @@ class EmporixSessionService implements SessionService {
       result.country = this.defaultCountry;
     }
     if (!result.language) {
-      if (updateDefaults.context) {
-        updateDefaults.context.language = this.defaultLanguage;
-      } else {
-        updateDefaults.context = { language: this.defaultLanguage };
-      }
+      // Top-level field since the 2026-04-21 BE changelog — write it at the
+      // root of the PATCH payload so we don't have to round-trip the full
+      // `context` object just to seed a default language.
+      updateDefaults.language = this.defaultLanguage;
       result.language = this.defaultLanguage;
     }
     if (!result.region) {
@@ -292,16 +403,19 @@ class EmporixSessionService implements SessionService {
       result.region = this.defaultRegion;
     }
     if (Object.keys(updateDefaults).length > 0) {
+      // Merge with existing `context` since PATCH replaces the whole object.
+      if (updateDefaults.context) {
+        updateDefaults.context = {
+          ...(sessionContext?.context ?? {}),
+          ...updateDefaults.context,
+        };
+      }
       this.logger.info({ updateDefaults }, 'Patching session defaults');
       updateDefaults.metadata = {
         version: sessionContext?.metadata?.version || 1,
       };
-      // Fire-and-forget: update session defaults in background.
-      // 404 errors are expected for newly created sessions due to eventual consistency
-      // in the Emporix backend - the session context may not be immediately available
-      // for updates after token creation.
+      // Fire-and-forget; 404s are expected for newly-created sessions (eventual consistency).
       this.sessionContextApi.updateOwnSessionContext(updateDefaults).catch((error: Error) => {
-        // Only log unexpected errors (not 404s which are expected for new sessions)
         if (!error.message.includes('Not Found')) {
           this.logger.error({ error: error.message }, 'Unexpected error updating session defaults');
         }

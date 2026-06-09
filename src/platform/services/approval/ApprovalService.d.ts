@@ -1,9 +1,11 @@
 import {
   Approval,
+  ApprovalAction,
   ApprovalCreateRequest,
   ApprovalId,
   ApprovalPermittedRequest,
   ApprovalPermittedResponse,
+  ApprovalResourceType,
   ApprovalStatus,
   ApprovalUser,
 } from '../model/approval';
@@ -82,12 +84,16 @@ export interface ApprovalService {
    * @param action The action to check
    * @returns Promise with array of users
    */
-  searchApprovalUsers(resourceType: string, resourceId: string, action: string): Promise<ApprovalUser[]>;
+  searchApprovalUsers(
+    resourceType: ApprovalResourceType,
+    resourceId: string,
+    action: ApprovalAction,
+  ): Promise<ApprovalUser[]>;
 
   /**
    * Requires Approval
-   * @param cartId The ID of the cart
+   * @param request The resource currently evaluated for approval requirements
    * @returns Promise with the requires approval result
    */
-  requiresApproval(cartId: string): Promise<boolean>;
+  requiresApproval(request: ApprovalPermittedRequest): Promise<boolean>;
 }

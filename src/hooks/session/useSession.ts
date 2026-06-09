@@ -10,15 +10,20 @@ import {
   updateSessionRegion,
   updateSessionSite,
 } from '@/lib/client/session';
+import { getLogger } from '@/lib/logger/use-logger-client';
+import type { Cart } from '@/platform/services/model/cart/cart';
 import type { Session } from '@/platform/services/model/session/session';
-import { useSessionStore } from '@/providers/StoreProvider';
+import { useCartStore, useSessionStore } from '@/providers/StoreProvider';
 
-/**
- * Hook for managing session data
- * Provides methods to get and update session information
- */
+export interface SetCurrencyResult {
+  success: boolean;
+  cartCurrencyBlocked?: boolean;
+}
+
+/** Hook for reading and mutating session data. */
 export function useSession() {
   const sessionStore = useSessionStore();
+  const cartStore = useCartStore();
   const session = sessionStore.session;
   const loading = sessionStore.loading;
   const hasAttemptedRecovery = useRef(false);
@@ -33,7 +38,10 @@ export function useSession() {
   }, []);
 
   const runSessionMutation = useCallback(
-    async (mutation: () => Promise<boolean>): Promise<boolean> => {
+    async (
+      mutation: () => Promise<boolean>,
+      afterCommit?: (updatedSession: Session | null) => Promise<void>,
+    ): Promise<boolean> => {
       if (!sessionStore.tryAcquireMutationLock()) {
         return false;
       }
@@ -46,6 +54,18 @@ export function useSession() {
             return false;
           }
           sessionStore.setSession(updatedSession);
+          if (afterCommit) {
+            // Runs while the mutation lock is still held so any cart writes here are treated as
+            // orchestrator-driven (mirroring `performSiteSwitch` → `validateSite`). Cross-store
+            // subscribers that gate on `isMutationInFlight()` stay suppressed; this hook is the
+            // single authoritative caller. afterCommit failures must not fail the mutation —
+            // the PUT already succeeded, so we log and continue so `finally` releases the lock.
+            try {
+              await afterCommit(updatedSession);
+            } catch (err) {
+              getLogger().error({ err }, 'Session mutation afterCommit failed');
+            }
+          }
         }
         return success;
       } finally {
@@ -79,8 +99,25 @@ export function useSession() {
     return runSessionMutation(() => updateSessionLanguage(language));
   };
 
-  const setCurrency = async (currency: string): Promise<boolean> => {
-    return runSessionMutation(() => updateSessionCurrency(currency));
+  const setCurrency = async (currency: string): Promise<SetCurrencyResult> => {
+    let reconciledCart: Cart | null | undefined;
+    let cartIncludedInResponse = false;
+    let cartCurrencyBlocked = false;
+    const success = await runSessionMutation(async () => {
+      const result = await updateSessionCurrency(currency);
+      if (result.success && 'cart' in result) {
+        reconciledCart = result.cart ?? null;
+        cartIncludedInResponse = true;
+      }
+      if (!result.success && result.cartCurrencyBlocked) {
+        cartCurrencyBlocked = true;
+      }
+      return result.success;
+    });
+    if (success && cartIncludedInResponse) {
+      cartStore.setCurrentCart(reconciledCart ?? null);
+    }
+    return { success, ...(cartCurrencyBlocked ? { cartCurrencyBlocked: true } : {}) };
   };
 
   const setCountry = async (country: string): Promise<boolean> => {
@@ -96,7 +133,18 @@ export function useSession() {
   };
 
   const setCompany = async (legalEntityId: string): Promise<boolean> => {
-    return runSessionMutation(() => updateSessionCompany(legalEntityId));
+    // `store-synchronizer`'s `unsubLegalEntity` subscriber is suppressed while the mutation lock
+    // is held, so the cart refetch that normally reacts to a `legalEntityId` change never runs
+    // during `setCompany`. Mirror `performSiteSwitch`'s pattern: explicitly drive the cart
+    // reconciliation here, under the lock, using the session-refetched (authoritative) value.
+    return runSessionMutation(
+      () => updateSessionCompany(legalEntityId),
+      async (updatedSession) => {
+        const rawLegalEntityId = updatedSession?.legalEntityId;
+        const normalized = typeof rawLegalEntityId === 'string' ? rawLegalEntityId.trim() : '';
+        await cartStore.validateLegalEntity(normalized === '' ? undefined : normalized);
+      },
+    );
   };
 
   const refreshSession = async (): Promise<Session | null | undefined> => {

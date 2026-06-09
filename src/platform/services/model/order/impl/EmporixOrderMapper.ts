@@ -29,6 +29,7 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
   mapToService(integrationModel: EmporixOrder): Order {
     return {
       id: integrationModel.id,
+      quoteId: integrationModel.quoteId,
       status: integrationModel.status as OrderStatus,
       createdAt: integrationModel.created,
       lastStatusChange: integrationModel.lastStatusChange,
@@ -66,6 +67,7 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
   mapToSource(serviceModel: Order): EmporixOrder {
     return {
       id: serviceModel.id,
+      quoteId: serviceModel.quoteId,
       status: serviceModel.status,
       lastStatusChange: serviceModel.lastStatusChange,
       creationDate: serviceModel.createdAt,

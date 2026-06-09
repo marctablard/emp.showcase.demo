@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { isApprovalAction, isApprovalResourceType } from '@/lib/approval/contracts';
 import server from '@/platform/server';
 import type { ApprovalService } from '@/platform/services/approval/ApprovalService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
@@ -17,6 +18,10 @@ export async function GET(request: NextRequest) {
   try {
     if (!resourceType || !resourceId || !action) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
+    }
+
+    if (!isApprovalResourceType(resourceType) || !isApprovalAction(action)) {
+      return NextResponse.json({ error: 'Invalid approval context' }, { status: 400 });
     }
 
     const approvalService = server.get<ApprovalService>('ApprovalService');
@@ -64,6 +69,10 @@ export async function POST(request: NextRequest) {
 
     if (!resourceType || !resourceId || !action) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
+    }
+
+    if (!isApprovalResourceType(resourceType) || !isApprovalAction(action)) {
+      return NextResponse.json({ error: 'Invalid approval context' }, { status: 400 });
     }
 
     // Search for approval users

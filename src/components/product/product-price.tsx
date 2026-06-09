@@ -155,3 +155,27 @@ export function ProductPriceSkeleton() {
     </div>
   );
 }
+
+/** Shown when the price request completed but match-prices returned no row for this product. */
+export function ProductPriceUnavailable() {
+  const t = useTranslations('product.price');
+  return (
+    <div
+      className="flex gap-6"
+      data-testid="product-price"
+      data-product-price-state="unavailable"
+      aria-label={t('priceNotAvailable')}
+    >
+      <div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">{t('yourPrice')}</span>
+        </div>
+        <div className="flex items-baseline gap-4">
+          <div className="font-bold font-headlines text-4xl text-text-heading" aria-hidden>
+            -
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

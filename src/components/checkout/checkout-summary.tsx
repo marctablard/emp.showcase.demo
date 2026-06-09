@@ -9,13 +9,16 @@ import { useCartTotal } from '@/hooks/cart/useCartTotal';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
 import { useElementScroll } from '@/hooks/ui/useElementScroll';
 import { useValidator } from '@/hooks/validation/useValidator';
+import { createCheckoutApprovalContext } from '@/lib/approval/contracts';
 import { cn, formatCurrency } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { Checkbox } from '../ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '../ui/form';
 import { H2 } from '../ui/h';
+import { ToastType, notify } from '../ui/toast-notification';
 import { ApprovalModal } from './approval-modal';
+import { focusFirstInvalid, useCheckoutValidation, useRegisterCheckoutForm } from './checkout-validation-registry';
 
 interface OrderSummaryProps {
   isReadOnly?: boolean;
@@ -28,30 +31,22 @@ interface OrderSummaryProps {
  * Displays cart items, subtotal, shipping, and total
  */
 const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, onSubmit }) => {
-  const {
-    checkoutCart: cart,
-    loading: checkoutLoading,
-    shippingMethod,
-    availableShippingMethods,
-    shippingMethodsLoading,
-  } = useCheckout();
+  const { checkoutCart: cart, loading: checkoutLoading } = useCheckout();
   const { requiresApproval, loading: approvalLoading, setCartId } = useApprovalCheckout(cart?.id?.toString());
   const loading = checkoutLoading || approvalLoading;
   const t = useTranslations('checkout.summary');
-  const [isSubmitting] = useState(false);
+  const tCheckout = useTranslations('checkout');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [disabled, setDisabled] = useState(true);
-  const hasShippingMethods = availableShippingMethods.length > 0;
-  const selectedMethodIsCurrent =
-    !!shippingMethod && availableShippingMethods.some((m) => m.id === shippingMethod.methodId);
-  const isShippingSelectionValid = hasShippingMethods && selectedMethodIsCurrent;
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
+  const { validateAll } = useCheckoutValidation();
 
   const onValidationSuccess = (data: any) => {
     setDisabled(!data.termsAndConditions);
   };
 
-  const approvalSubmit = (approverId: string, comment: string) => {
-    onSubmit({ approverId, comment });
+  const approvalSubmit = async (approverId: string, comment: string) => {
+    await onSubmit({ approverId, comment });
     setIsApprovalModalOpen(false);
   };
 
@@ -69,6 +64,9 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
     'onChange',
     onValidationSuccess,
   );
+
+  const summaryRootRef = useRef<HTMLDivElement>(null);
+  useRegisterCheckoutForm('summary-terms', form, summaryRootRef);
 
   const fixedContainer = useRef<HTMLDivElement>(null);
   const { isFixed, isFixedToTop, isContainerBottom } = useElementScroll(fixedContainer, 80, leftContent);
@@ -93,7 +91,7 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
       >
         <Card
           className={cn('bg-surface-action-hover-2 p-6 border-none gap-4 md:max-w-[438px] w-full')}
-          ref={fixedContainer}
+          ref={summaryRootRef}
         >
           <CardHeader className="p-0">
             <CardTitle>
@@ -158,22 +156,29 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
 
               <Button
                 type="submit"
-                onClick={(e) => {
-                  if (requiresApproval) {
-                    e.preventDefault();
-                    setIsApprovalModalOpen(true);
-                  } else {
-                    onSubmit();
+                onClick={async (e) => {
+                  e.preventDefault();
+                  if (isSubmitting || loading) {
+                    return;
+                  }
+                  setIsSubmitting(true);
+                  try {
+                    const { valid, firstInvalid } = await validateAll();
+                    if (!valid) {
+                      notify({ type: ToastType.Error, title: tCheckout('formErrors') });
+                      focusFirstInvalid(firstInvalid);
+                      return;
+                    }
+                    if (requiresApproval) {
+                      setIsApprovalModalOpen(true);
+                    } else {
+                      onSubmit();
+                    }
+                  } finally {
+                    setIsSubmitting(false);
                   }
                 }}
-                disabled={
-                  disabled ||
-                  isSubmitting ||
-                  loading ||
-                  approvalLoading ||
-                  shippingMethodsLoading ||
-                  !isShippingSelectionValid
-                }
+                disabled={disabled || isSubmitting || loading || approvalLoading}
                 className="w-full"
                 data-testid="checkout-submitOrder"
               >
@@ -196,7 +201,7 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
               <ApprovalModal
                 isOpen={isApprovalModalOpen}
                 onClose={() => setIsApprovalModalOpen(false)}
-                cartId={cart.id}
+                resourceContext={createCheckoutApprovalContext(cart.id)}
                 approvalSubmit={approvalSubmit}
               />
             )}

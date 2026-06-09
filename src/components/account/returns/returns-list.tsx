@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ArrowDown, ArrowRight, ArrowUp, ChevronsUpDown, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TablePagination } from '@/components/ui/table-pagination';
+import { useDebouncedValue } from '@/hooks/common/useDebouncedValue';
 import { useReturns } from '@/hooks/return/useReturns';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { Link } from '@/i18n/navigation';
@@ -34,12 +35,11 @@ export function ReturnsList({ initialReturns, forceRefreshOnMount = false }: Ret
   const t = useTranslations('account.returns');
   const locale = useLocale();
   const [quickSearch, setQuickSearch] = useState('');
-  const [debouncedQuickSearch, setDebouncedQuickSearch] = useState('');
   const [sortField, setSortField] = useState<ReturnSortField>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const isTabletUp = useBreakpoint('sm');
-  const normalizedSearch = debouncedQuickSearch.trim();
+  const normalizedSearch = useDebouncedValue(quickSearch, SEARCH_DEBOUNCE_MS).trim();
   const apiSort = `${RETURN_SORT_FIELD_MAP[sortField]}:${sortDirection === 'asc' ? 'ASC' : 'DESC'}`;
   const apiQuery = normalizedSearch.length > 0 ? `id:~(${normalizedSearch})` : undefined;
   const {
@@ -65,16 +65,6 @@ export function ReturnsList({ initialReturns, forceRefreshOnMount = false }: Ret
       : Math.max(currentPage, currentPage + (hasNextPage ? 1 : 0));
   const isInitialLoading = loading && visibleReturns.length === 0 && !quickSearch && currentPage === 1;
   const isTableReloading = loading && !isInitialLoading;
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setDebouncedQuickSearch(quickSearch);
-    }, SEARCH_DEBOUNCE_MS);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [quickSearch]);
 
   const toggleSort = (field: ReturnSortField) => {
     setCurrentPage(1);

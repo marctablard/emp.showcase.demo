@@ -4,6 +4,7 @@ import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCustomerApi } from '@/platform/integrations/emporix/customer/EmporixCustomerApi';
 import type { EmporixIamApi } from '@/platform/integrations/emporix/iam/EmporixIamApi';
 import type { EmporixAddress } from '@/platform/integrations/emporix/model';
+import type { EmporixCustomerAddress } from '@/platform/integrations/emporix/model/customer';
 import type { EmporixGroup } from '@/platform/integrations/emporix/model/iam';
 import type { EmporixSessionContextApi } from '@/platform/integrations/emporix/session/EmporixSessionContextApi';
 import type { LoggerService } from '../../logger/LoggerService';
@@ -247,11 +248,13 @@ export class EmporixCustomerService implements CustomerService {
     return emporixAddress;
   }
 
-  private mapToCustomerAddress(source: EmporixAddress): CustomerAddress {
+  private mapToCustomerAddress(source: EmporixCustomerAddress): CustomerAddress {
     const address = this.addressMapper.mapToService(source);
     const customerAddress: CustomerAddress = {
       ...address,
       tags: source?.tags || [],
+      source: 'customer',
+      isDefault: source?.isDefault,
     };
     return customerAddress;
   }

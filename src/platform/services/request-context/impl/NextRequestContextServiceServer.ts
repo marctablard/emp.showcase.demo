@@ -1,5 +1,6 @@
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
+import { getRequestCurrency, getRequestLanguage } from '@/site/server/RequestPreferences';
 import { getRequestSite } from '@/site/server/RequestSite';
 import type { RequestContextService } from '../RequestContextService';
 
@@ -7,6 +8,14 @@ import type { RequestContextService } from '../RequestContextService';
 class NextRequestContextServiceServer implements RequestContextService {
   async getSite(): Promise<string> {
     return getRequestSite();
+  }
+
+  async getCurrency(): Promise<string | undefined> {
+    return getRequestCurrency();
+  }
+
+  async getLanguage(): Promise<string | undefined> {
+    return getRequestLanguage();
   }
 }
 

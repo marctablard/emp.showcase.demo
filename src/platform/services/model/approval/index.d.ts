@@ -41,13 +41,15 @@ export interface ApprovalDeliveryWindow {
 export interface ApprovalResourceItem {
   quantity: number;
   itemPrice: ApprovalPrice;
-  itemYrn: string;
+  itemYrn?: string;
+  itemId?: string;
   productId?: string;
   productName?: string | LocalizedString;
 }
 
 export interface ApprovalResource {
   id: string;
+  orderId?: string;
   items?: ApprovalResourceItem[];
   totalPrice?: ApprovalPrice;
   subTotalPrice?: ApprovalPrice;
@@ -78,7 +80,7 @@ export interface ApprovalDetails {
   addresses?: CheckoutAddress[];
 }
 
-export type ApprovalResourceType = 'CART';
+export type ApprovalResourceType = 'CART' | 'QUOTE';
 export type ApprovalAction = 'CHECKOUT';
 export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'CLOSED' | 'EXPIRED' | 'DECLINED';
 
@@ -102,6 +104,7 @@ export interface Approval extends ApprovalBase {
   requestor: ApprovalRequestor;
   approver: ApprovalUser;
   createdAt: string;
+  modifiedAt?: string;
   updatedAt?: string;
   status: ApprovalStatus;
   expiryDate?: string;

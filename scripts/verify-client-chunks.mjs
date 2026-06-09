@@ -7,7 +7,14 @@ import fs from 'fs';
 import path from 'path';
 
 const chunksDir = path.join(process.cwd(), '.next', 'static', 'chunks');
-const forbidden = ['EmporixApiInvoker', 'EmporixOAuthApi', 'EmporixCartApi'];
+const forbidden = [
+  'EmporixApiInvokerServer',
+  'EmporixApiInvokerSSR',
+  'EmporixOAuthApiServer',
+  'EmporixOAuthApiSSR',
+  'EmporixCartApi',
+  'debug-utils',
+];
 
 function walk(dir, acc = []) {
   if (!fs.existsSync(dir)) return acc;

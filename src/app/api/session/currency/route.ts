@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { CURRENCY_COOKIE_NAME } from '@/lib/common/cookie-names';
 import server from '@/platform/server';
 import type { CartService } from '@/platform/services/cart';
 import {
@@ -67,7 +68,20 @@ export async function PUT(request: NextRequest) {
     const finalCurrency = updatedCart?.currency || currency;
     await sessionService.setCurrency(finalCurrency);
 
-    return NextResponse.json({ success: true, currency: finalCurrency, cart: updatedCart ?? null });
+    const response = NextResponse.json({ success: true, currency: finalCurrency, cart: updatedCart ?? null });
+    // Persist the shopper's currency choice in a parallel cookie so
+    // `EmporixTokenManagerServer.resolveSessionParams` can seed the next
+    // anonymous session context after logout / token expiry with the same
+    // preference (symmetric with NEXT_PUBLIC_SITE_COOKIE).
+    response.cookies.set({
+      name: CURRENCY_COOKIE_NAME,
+      value: finalCurrency,
+      maxAge: 365 * 24 * 60 * 60,
+      httpOnly: false,
+      sameSite: 'lax',
+      path: '/',
+    });
+    return response;
   } catch (error) {
     const logger = server.get<LoggerService>('LoggerService');
     logger.error(

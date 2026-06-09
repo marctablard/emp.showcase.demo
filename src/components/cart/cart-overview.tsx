@@ -26,11 +26,17 @@ export function CartOverview({ initialCart }: CartOverviewProps) {
   // `null` before navigating to the new site. Without gating on syncReady the user briefly sees
   // CartEmpty in the pre-switch locale/currency. Keep the page in the loading shell until the
   // session, site, and cart stores realign — then render the authoritative final state.
-  const { ready: syncReady } = useGlobalSyncReady();
+  const { ready: syncReady, reason: syncReason } = useGlobalSyncReady();
 
   const leftContent = useRef<HTMLDivElement>(null);
   const currentCart = cart !== undefined ? cart : initialCart;
-  const showLoadingShell = currentCart === undefined || !syncReady;
+  // Only show the full-page shell when we genuinely have nothing to render, or when the
+  // cross-store pipeline is not ready for a **structural** reason (site switch / session
+  // mutation / cart-site mismatch). A transient `cart-loading` on a resolved cart is a
+  // mid-flight item mutation on the same site — `CartItemRow` already renders a per-row
+  // spinner and disables +/-/remove controls for that, so hiding the whole page would be
+  // a regression.
+  const showLoadingShell = currentCart === undefined || (!syncReady && syncReason !== 'cart-loading');
 
   if (showLoadingShell) {
     return (

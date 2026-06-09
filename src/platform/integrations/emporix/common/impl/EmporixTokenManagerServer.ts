@@ -7,8 +7,13 @@ import { injectable } from '@/platform/core/di/injectable';
 import type { StoredToken } from '@/platform/integrations/types/auth';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { RequestContextService } from '@/platform/services/request-context/RequestContextService';
-import type { AnonymousTokenSessionParams, EmporixAccessTokenResponse } from '../../model/oauth';
+import type {
+  AnonymousTokenSessionParams,
+  EmporixAccessTokenResponse,
+  EmporixAnonymousTokenResponse,
+} from '../../model/oauth';
 import type { EmporixOAuthApi } from '../../oauth/EmporixOAuthApi';
+import { decryptOrDecodeLegacy, encryptTokenPayload } from '../util/token-encryption';
 import type { TokenStore } from './EmporixTokenManagerAbstract';
 import { EmporixTokenManagerAbstract } from './EmporixTokenManagerAbstract';
 
@@ -28,32 +33,80 @@ class EmporixTokenManagerServer extends EmporixTokenManagerAbstract {
     this.logger = logger;
   }
 
-  async getAnonymousToken(
+  /**
+   * Resolves session params lazily in the cache-miss/refresh path only. Overriding
+   * `fetchAnonymousToken` (instead of `getAnonymousToken`) keeps cached-token reads free of
+   * `resolveSessionParams` work.
+   */
+  protected async fetchAnonymousToken(
+    anonymousToken: StoredToken<EmporixAnonymousTokenResponse> | undefined,
     tenant: string,
     clientId: string,
     sessionParams?: AnonymousTokenSessionParams,
-  ): Promise<{ accessToken: string; sessionId: string }> {
+  ) {
     if (!sessionParams) {
       sessionParams = await this.resolveSessionParams();
     }
-    return super.getAnonymousToken(tenant, clientId, sessionParams);
+    return super.fetchAnonymousToken(anonymousToken, tenant, clientId, sessionParams);
   }
 
   private async resolveSessionParams(): Promise<AnonymousTokenSessionParams> {
+    // Per-field source tracking so the debug log makes it trivial to verify,
+    // in a production trace, that the cookies set by the auth/session routes
+    // are actually being picked up when a new anonymous token is issued
+    // (e.g. right after logout).
+    const fallback: Record<string, 'cookie' | 'request-context' | 'env-default'> = {
+      siteCode: 'env-default',
+      currency: 'env-default',
+      language: 'env-default',
+      targetLocation: 'env-default',
+      region: 'env-default',
+    };
+
     let siteCode: string | undefined;
     try {
       siteCode = await this.requestContext.getSite();
     } catch {
+      siteCode = undefined;
+    }
+    if (siteCode) {
+      fallback.siteCode = 'request-context';
+    } else {
       siteCode = process.env.NEXT_PUBLIC_DEFAULT_SITE;
     }
+
+    let currency: string | undefined;
+    try {
+      currency = await this.requestContext.getCurrency();
+    } catch {
+      currency = undefined;
+    }
+    if (currency) {
+      fallback.currency = 'cookie';
+    } else {
+      currency = process.env.NEXT_PUBLIC_DEFAULT_CURRENCY;
+    }
+
+    let language: string | undefined;
+    try {
+      language = await this.requestContext.getLanguage();
+    } catch {
+      language = undefined;
+    }
+    if (language) {
+      fallback.language = 'cookie';
+    } else {
+      language = process.env.NEXT_PUBLIC_DEFAULT_LANGUAGE;
+    }
+
     const params: AnonymousTokenSessionParams = {
-      siteCode: siteCode || process.env.NEXT_PUBLIC_DEFAULT_SITE,
-      currency: process.env.NEXT_PUBLIC_DEFAULT_CURRENCY,
-      language: process.env.NEXT_PUBLIC_DEFAULT_LANGUAGE,
+      siteCode,
+      currency,
+      language,
       targetLocation: process.env.NEXT_PUBLIC_DEFAULT_COUNTRY,
       region: process.env.NEXT_PUBLIC_DEFAULT_REGION,
     };
-    this.logger.debug({ ...params }, 'resolveSessionParams');
+    this.logger.debug({ ...params, fallback }, 'resolveSessionParams');
     return params;
   }
 
@@ -67,8 +120,14 @@ class EmporixTokenManagerServer extends EmporixTokenManagerAbstract {
     if (!tokenCookie) {
       return {};
     }
-    const b64Token = tokenCookie.value;
-    const tokens: TokenStore = JSON.parse(Buffer.from(b64Token, 'base64').toString('utf-8'));
+    let tokens: TokenStore;
+    try {
+      const decrypted = decryptOrDecodeLegacy(tokenCookie.value, process.env.NEXTAUTH_SECRET!);
+      tokens = JSON.parse(decrypted);
+    } catch (error) {
+      this.logger.warn({ error, tenant }, 'Failed to decrypt/decode token cookie, treating as empty');
+      return {};
+    }
     // we grab the service token from memory if possible because we don't want to store it in cookies for security reasons
     tokens.serviceToken = this.serviceToken;
     return tokens;
@@ -77,9 +136,9 @@ class EmporixTokenManagerServer extends EmporixTokenManagerAbstract {
   protected async writeTokens(tokens: TokenStore, tenant: string): Promise<void> {
     // omit service token from cookies so it doesn't get leaked to client-side code
     const clientTokens = omit(tokens, ['serviceToken']);
-    const b64Token = Buffer.from(JSON.stringify(clientTokens)).toString('base64');
+    const encryptedValue = encryptTokenPayload(JSON.stringify(clientTokens), process.env.NEXTAUTH_SECRET!);
     const cookieStore = await cookies();
-    cookieStore.set(this.buildStorageKey(tenant), b64Token, {
+    cookieStore.set(this.buildStorageKey(tenant), encryptedValue, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',

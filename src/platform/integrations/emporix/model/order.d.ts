@@ -139,6 +139,7 @@ export interface EmporixOrderCustomer {
  */
 export interface EmporixOrder {
   id: string;
+  quoteId?: string;
   created?: string;
   status: EmporixOrderStatus;
   lastStatusChange?: string;

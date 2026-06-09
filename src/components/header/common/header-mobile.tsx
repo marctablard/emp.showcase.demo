@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { Gauge, LayoutGrid, Menu, Pin, Search, X } from 'lucide-react';
+import { HeaderCompareButton } from '@/components/header/common/header-compare-button';
 import { HeaderIconButton } from '@/components/header/common/header-icon-button';
 import { HeaderIconLink } from '@/components/header/common/header-icon-link';
 import { HeaderSearch } from '@/components/header/common/header-search';
@@ -45,7 +46,7 @@ export function HeaderMobile() {
           )}
           {!showSearch && (
             <>
-              <HeaderIconLink icon={Gauge} text={t('quickOrder')} href="/#" />
+              <HeaderIconLink icon={Gauge} text={t('quickOrder')} href="/quick-order" />
               <HeaderIconButton
                 icon={Search}
                 text={t('shortSearch')}
@@ -75,6 +76,7 @@ export function HeaderMobile() {
                 </DrawerContent>
               </Drawer>
               <HeaderIconLink icon={LayoutGrid} text={t('products')} href="/browse" />
+              <HeaderCompareButton />
               <HeaderIconLink icon={Pin} text={t('wishlists')} href="/account/wishlists" />
             </>
           )}

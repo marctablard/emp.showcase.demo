@@ -149,8 +149,12 @@ class EmporixCartService implements CartService {
       await this.sessionService.setCart(cartId);
       return cartId;
     } catch (error) {
-      // only business error can be that it's a duplicate
-      if (error instanceof Error && error.message.includes('Duplicate key found for a unique index.')) {
+      // Cart already exists for this session — Emporix returns either
+      // 409 Conflict or a "Duplicate key found" error. Fall back to the existing cart.
+      if (
+        error instanceof Error &&
+        (error.message.includes('Conflict') || error.message.includes('Duplicate key found for a unique index.'))
+      ) {
         const existingCart = await this.getCart();
         if (!existingCart) {
           throw new Error('Failed to get session cart');
@@ -624,11 +628,6 @@ class EmporixCartService implements CartService {
         'Recovered stale cart id during currency update',
       );
     }
-  }
-
-  async updateSite(cartId: string, siteCode: string): Promise<void> {
-    await this.cartApi.changeSite(cartId, siteCode);
-    await this.refreshCartWithCleanup(cartId);
   }
 
   async getSavedCarts(pagination: PaginationQuery): Promise<Paginated<Cart>> {

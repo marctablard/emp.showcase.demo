@@ -109,7 +109,11 @@ describe('OrderStore', () => {
     await expect(store.getState().fetchOrders(10, 1, {})).rejects.toThrow('API Error');
 
     // Check that error state is set
-    const queryKey = 'page=1&size=10{}';
+    const queryKey = JSON.stringify({
+      query: 'page=1&size=10',
+      body: '{}',
+      search: null,
+    });
     expect(store.getState().getError(queryKey)).toEqual(error);
     expect(store.getState().getLoading(queryKey)).toBe(false);
 

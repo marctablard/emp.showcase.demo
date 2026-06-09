@@ -6,14 +6,18 @@ import type { SessionService } from '@/platform/services/session/SessionService'
 import type { SiteService } from '@/platform/services/site/SiteService';
 
 /**
- * PUT /api/session/site
- * Update session site
+ * PUT /api/session/site — legacy wrapper that delegates to combined `updateContext`.
+ *
+ * Validates the target site, preserves the current currency when supported (otherwise uses the
+ * site default), issues a single upstream PATCH, syncs the site cookie, and returns the
+ * canonical Session.
  */
 export async function PUT(request: NextRequest) {
+  const logger = server.get<LoggerService>('LoggerService');
+
   try {
     const sessionService = server.get<SessionService>('SessionService');
     const siteService = server.get<SiteService>('SiteService');
-    const logger = server.get<LoggerService>('LoggerService');
     const data = await request.json();
 
     if (!data.site) {
@@ -27,10 +31,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Unknown Site' }, { status: 400 });
     }
 
-    // Preserve the user's current currency if the target site supports it; only
-    // fall back to the target site's default when the current currency is not
-    // available on the new site. Passing `undefined` keeps the currency as-is
-    // in the session context.
+    // Preserve current currency if the target site supports it; otherwise use the site default.
     const currentSession = await sessionService.getCurrent();
     const currentCurrency = currentSession?.currency;
     const supportedCurrencyIds = new Set<string>();
@@ -45,7 +46,16 @@ export async function PUT(request: NextRequest) {
     const shouldPreserveCurrency = Boolean(currentCurrency && supportedCurrencyIds.has(currentCurrency));
     const targetCurrency = shouldPreserveCurrency ? undefined : newSite.defaultCurrency.id;
 
-    await sessionService.setSite(newSite.code, targetCurrency);
+    const updatedSession = await sessionService.updateContext(
+      {
+        siteCode: newSite.code,
+        ...(targetCurrency ? { currency: targetCurrency } : {}),
+      },
+      {
+        expectedVersion: currentSession?.metadata?.version,
+      },
+    );
+
     logger.info(
       {
         site: newSite.code,
@@ -56,10 +66,9 @@ export async function PUT(request: NextRequest) {
       'Session site updated successfully',
     );
 
-    const response = NextResponse.json({ success: true });
-    // Keep the site cookie in sync with the user's selected site so the edge middleware
-    // (which honours cookieOverridesDefault) does not redirect back to the previously
-    // selected non-default site on the next navigation to `/`.
+    const response = NextResponse.json(updatedSession ?? { success: true });
+    // Sync the site cookie so edge middleware does not redirect away on the next navigation.
+    // TODO: lift `NEXT_SITE` to `@/lib/common/public-default-env` to avoid inline default.
     const siteCookieName = process.env.NEXT_PUBLIC_SITE_COOKIE || 'NEXT_SITE';
     response.cookies.set({
       name: siteCookieName,
@@ -71,7 +80,6 @@ export async function PUT(request: NextRequest) {
     });
     return response;
   } catch (error) {
-    const logger = server.get<LoggerService>('LoggerService');
     const errorMessage = error instanceof Error ? error.message : String(error);
     const isVersionConflictError =
       errorMessage.includes('Failed to update own session context: Not Found') &&

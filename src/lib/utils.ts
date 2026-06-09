@@ -68,7 +68,7 @@ export function buildSearchQuery<T>(params: SearchParams<T>): { body: string; qu
  */
 export function formatCurrency(amount: number, currencyCode?: string, locale?: Session['language']): string {
   const code = currencyCode ?? getPublicDefaultCurrency();
-  const loc = locale ?? getPublicDefaultLanguage();
+  const loc = locale ?? getPublicDefaultLanguage(); // if locale is not provided it will set currency formatter to the default language from NEXT_PUBLIC_DEFAULT_LANGUAGE env
   return new Intl.NumberFormat(loc, {
     style: 'currency',
     currency: code,

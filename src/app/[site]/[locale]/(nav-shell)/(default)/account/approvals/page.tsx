@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import AccountLayout from '@/components/account/account-layout';
 import { ApprovalsList } from '@/components/account/approvals/approvals-list';
 import { getApprovals } from '@/lib/ssr/approvals';
+import { getCurrentCustomer } from '@/lib/ssr/customer';
 import { getPageTitle } from '@/lib/ssr/seo';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
@@ -21,10 +22,11 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 export default async function ApprovalsPage({ params }: { params: Promise<{ locale: string }> }) {
   // Fetch approvals data during SSR
   const { locale } = await params;
-  const [tAccount, tApproval, approvals] = await Promise.all([
+  const [tAccount, tApproval, approvals, customer] = await Promise.all([
     getTranslations({ locale, namespace: 'account' }),
     getTranslations({ locale, namespace: 'orders.Approval' }),
     getApprovals(),
+    getCurrentCustomer(),
   ]);
 
   const breadcrumbs = [
@@ -40,7 +42,7 @@ export default async function ApprovalsPage({ params }: { params: Promise<{ loca
 
   return (
     <AccountLayout breadcrumbs={breadcrumbs}>
-      <ApprovalsList initialApprovals={approvals} />
+      <ApprovalsList initialApprovals={approvals} currentUserId={customer?.id} />
     </AccountLayout>
   );
 }

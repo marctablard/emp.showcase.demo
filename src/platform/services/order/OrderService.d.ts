@@ -45,9 +45,11 @@ export interface OrderService {
    *
    * @param pageSize - Optional number of orders to retrieve per page
    * @param pageNumber - Optional page number to retrieve
+   * @param sort - Optional sort criteria (e.g. 'created:DESC')
+   * @param query - Optional query filter (e.g. 'id:~(partial)')
    * @returns A promise that resolves to an array of orders
    */
-  getCustomerOrders(pageSize?: number, pageNumber?: number): Promise<Order[]>;
+  getCustomerOrders(pageSize?: number, pageNumber?: number, sort?: string, query?: string): Promise<Order[]>;
 
   /**
    * Updates the status of an order.
@@ -73,6 +75,11 @@ export interface OrderService {
    * @returns A promise that resolves to an array of available status transitions
    */
   getCustomerOrderStatusTransitions(orderId: string): Promise<string[]>;
+
+  /**
+   * Applies a customer-managed order transition (e.g. decline: status `DECLINED`).
+   */
+  applyCustomerOrderTransition(orderId: string, status: string): Promise<void>;
 
   /**
    * Creates a new order from a quote.

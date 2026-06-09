@@ -47,6 +47,7 @@ describe('status-tag-variants', () => {
   describe('getQuoteStatusVariant', () => {
     const quoteStatuses = [
       'CREATING',
+      'AWAITING',
       'OPEN',
       'IN_PROGRESS',
       'DECLINED',
@@ -80,6 +81,10 @@ describe('status-tag-variants', () => {
 
     it('maps CREATING to information', () => {
       expect(getQuoteStatusVariant('CREATING')).toBe('information');
+    });
+
+    it('maps AWAITING to information (same family as creating/open per Figma)', () => {
+      expect(getQuoteStatusVariant('AWAITING')).toBe('information');
     });
 
     it('maps CHANGE to destructive', () => {

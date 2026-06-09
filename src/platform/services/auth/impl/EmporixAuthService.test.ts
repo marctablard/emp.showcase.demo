@@ -193,6 +193,8 @@ describe('EmporixAuthService', () => {
       setCart: jest.fn(),
       clearCart: jest.fn(),
       setLegalEntity: jest.fn(),
+      clearLegalEntity: jest.fn(),
+      updateContext: jest.fn(),
     };
 
     mockCartService = {
@@ -205,7 +207,6 @@ describe('EmporixAuthService', () => {
       deleteCart: jest.fn(),
       updateShippingInfo: jest.fn(),
       updateCurrency: jest.fn(),
-      updateSite: jest.fn(),
       getSavedCarts: jest.fn(),
       saveCart: jest.fn(),
       loadCart: jest.fn(),
@@ -395,10 +396,22 @@ describe('EmporixAuthService', () => {
       mockSuccessfulMerge();
       mockSessionService.setCart.mockResolvedValue(undefined);
 
+      mockSessionService.updateContext.mockResolvedValue({
+        id: 'customer-session-id',
+        siteCode: 'main',
+        currency: 'USD',
+      });
+
       const result = await authService.login(credentials);
 
       expect(mockCartService.updateCurrency).toHaveBeenCalledWith('customer-cart-id', 'USD');
-      expect(mockSessionService.setCurrency).toHaveBeenCalledWith('USD');
+      // The dedicated `setCurrency` call was absorbed into the combined `updateContext`
+      // PATCH; session currency realignment now flows through that single upstream write.
+      expect(mockSessionService.setCurrency).not.toHaveBeenCalled();
+      expect(mockSessionService.updateContext).toHaveBeenCalledWith(
+        expect.objectContaining({ currency: 'USD' }),
+        expect.any(Object),
+      );
       expect(result.currency).toBe('USD');
       expect(result.cartMergeStatus).toBe('MERGED');
     });
@@ -468,11 +481,21 @@ describe('EmporixAuthService', () => {
       mockSuccessfulMerge();
       mockSessionService.setCart.mockResolvedValue(undefined);
 
+      mockSessionService.updateContext.mockResolvedValue({
+        id: 'customer-session-id',
+        siteCode: 'main',
+        currency: 'USD',
+      });
+
       const result = await authService.login(credentials);
 
       expect(mockCartService.createCart).toHaveBeenCalledWith('USD', 'main');
       expect(mockCartMigrationService.mergeCarts).not.toHaveBeenCalled();
-      expect(mockSessionService.setCurrency).toHaveBeenCalledWith('USD');
+      expect(mockSessionService.setCurrency).not.toHaveBeenCalled();
+      expect(mockSessionService.updateContext).toHaveBeenCalledWith(
+        expect.objectContaining({ currency: 'USD' }),
+        expect.any(Object),
+      );
       expect(result.currency).toBe('USD');
       expect(result.cartMergeStatus).toBe('FALLBACK');
       expect(result.cartMergeReason).toBe('CURRENCY_ALIGNMENT_FAILED');
@@ -501,7 +524,11 @@ describe('EmporixAuthService', () => {
       mockSuccessfulCurrencyUpdate();
       mockSuccessfulMerge();
       mockSessionService.setCart.mockResolvedValue(undefined);
-      mockSessionService.setCurrency.mockRejectedValue(new Error('Session update failed'));
+      // The combined preference-alignment PATCH (introduced with
+      // `auth-preserve-site-currency-language`) is the only session-context
+      // write remaining in the post-merge tail; its failure must be swallowed
+      // and logged so the login still completes successfully.
+      mockSessionService.updateContext.mockRejectedValue(new Error('Session update failed'));
 
       const result = await authService.login(credentials);
 
@@ -510,14 +537,15 @@ describe('EmporixAuthService', () => {
         expect.objectContaining({
           err: expect.any(Error),
           customerId: 'customer-123',
-          cartId: 'customer-cart-id',
-          currentCurrency: 'EUR',
           targetCurrency: 'USD',
         }),
-        'Failed to sync session currency after login cart transition',
+        'Failed to realign session context with pre-login preferences',
       );
       expect(result.cartId).toBe('customer-cart-id');
-      expect(result.currency).toBe('EUR');
+      // When the preference-alignment PATCH fails, the in-memory `session`
+      // still carries the cart-aligned currency captured from the verified
+      // customer cart (USD in this scenario).
+      expect(result.currency).toBe('USD');
     });
 
     it('should fall back to customer currency when site resolution fails', async () => {
@@ -631,12 +659,14 @@ describe('EmporixAuthService', () => {
       const result = await authService.login(credentials);
 
       expect(mockCartService.createCart).toHaveBeenCalledWith('USD', 'main');
-      expect(mockCartService.updateCurrency).not.toHaveBeenCalledWith('new-customer-cart-id', 'EUR');
-      expect(mockCartMigrationService.mergeCarts).toHaveBeenCalledTimes(1);
+      expect(mockCartService.updateCurrency).toHaveBeenCalledWith('anon-cart-id', 'EUR');
+      expect(mockCartService.updateCurrency).toHaveBeenCalledWith('new-customer-cart-id', 'EUR');
+      expect(mockCartService.updateCurrency).toHaveBeenCalledWith('new-customer-cart-id', 'USD');
+      expect(mockCartMigrationService.mergeCarts).toHaveBeenCalledTimes(2);
       expect(result.cartId).toBe('new-customer-cart-id');
       expect(result.currency).toBe('USD');
-      expect(result.cartMergeStatus).toBe('FALLBACK');
-      expect(result.cartMergeReason).toBe('MERGE_FAILED');
+      expect(result.cartMergeStatus).toBe('MERGED');
+      expect(result.cartMergeReason).toBeUndefined();
     });
 
     it('should return correct cartId in session after merge', async () => {
@@ -705,14 +735,14 @@ describe('EmporixAuthService', () => {
       expect(mockCartService.updateCurrency).toHaveBeenCalledWith('customer-cart-id', 'USD');
       expect(mockCartMigrationService.mergeCarts).not.toHaveBeenCalled();
       expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ cartMergeReason: 'TRANSITION_FAILED', err: expect.any(Error) }),
-        'Cart transition failed during login, continuing without merge',
+        expect.objectContaining({ err: expect.any(Error) }),
+        'Failed to ensure customer cart binding',
       );
       expect(result.sessionId).toBe('customer-session-id');
       expect(result.customerId).toBe('customer-123');
       expect(result.cartId).toBeUndefined();
       expect(result.cartMergeStatus).toBe('FALLBACK');
-      expect(result.cartMergeReason).toBe('TRANSITION_FAILED');
+      expect(result.cartMergeReason).toBe('TARGET_CART_UNAVAILABLE');
     });
 
     it('should continue with merge when updateCurrency fails with legalEntityId refresh error', async () => {
@@ -959,7 +989,7 @@ describe('EmporixAuthService', () => {
 
       expect(mockLogger.error).toHaveBeenCalledWith(
         expect.objectContaining({ err: expect.any(Error) }),
-        'Cart transition failed during login, continuing without merge',
+        'Failed to ensure customer cart binding',
       );
       expect(mockCartMigrationService.mergeCarts).not.toHaveBeenCalled();
       expect(result.sessionId).toBe('customer-session-id');
@@ -1009,6 +1039,219 @@ describe('EmporixAuthService', () => {
       // Should use anonymousCart.currency ('EUR') as fallback
       expect(mockCartService.createCart).toHaveBeenCalledWith('EUR', 'main');
       expect(mockCartMigrationService.mergeCarts).toHaveBeenCalled();
+    });
+  });
+
+  describe('login - preference alignment (Phase 1.5)', () => {
+    // Covers the combined `sessionService.updateContext` PATCH that realigns
+    // `siteCode / currency / language / country / region` with pre-login
+    // anonymous-session preferences. See plan Task 2.1 for the scenarios.
+
+    const usSite: Site = {
+      ...mainSite,
+      code: 'us',
+      name: 'US Site',
+      defaultCurrency: { id: 'USD' },
+      currencies: [{ id: 'USD' }, { id: 'EUR' }],
+      languages: ['en'],
+      defaultLanguage: 'en',
+    };
+
+    beforeEach(() => {
+      // Default: the combined PATCH returns a canonical post-PATCH Session.
+      // Individual tests override this when they need a specific response or
+      // a rejection.
+      mockSessionService.updateContext.mockResolvedValue({
+        id: 'customer-session-id',
+        siteCode: 'us',
+        currency: 'USD',
+        language: 'en',
+      });
+    });
+
+    it('preserves the shopper site when oldSession.siteCode differs from the customer-migrated siteCode', async () => {
+      // Scenario 1: oldSession on `us`, customer migrates to `main`. Site must
+      // stay on `us` via a single combined PATCH that also pushes currency.
+      const shopperSession: ServiceSession = {
+        ...oldServiceSession,
+        siteCode: 'us',
+        currency: 'USD',
+        language: 'en',
+      };
+      mockSiteService.getSite.mockImplementation(async (code?: string) => (code === 'us' ? usSite : mainSite));
+      configureCartLookup({
+        [anonymousCart.id]: withCurrency(anonymousCart, 'USD'),
+      });
+      mockSessionService.getCurrent.mockResolvedValue(shopperSession);
+      mockCustomerApi.login.mockResolvedValue(loginSessionContext);
+      mockCartService.getCart.mockResolvedValue(customerCart);
+      mockSuccessfulCurrencyUpdate();
+      mockSuccessfulMerge();
+      mockSessionService.setCart.mockResolvedValue(undefined);
+
+      const result = await authService.login(credentials);
+
+      // Cart binding used the shopper-preferred site, not the customer default.
+      expect(mockCartService.createCart).not.toHaveBeenCalledWith(expect.any(String), 'main');
+      // Exactly one combined PATCH with `siteCode = 'us'` and `currency = 'USD'`.
+      expect(mockSessionService.updateContext).toHaveBeenCalledTimes(1);
+      expect(mockSessionService.updateContext).toHaveBeenCalledWith(
+        expect.objectContaining({ siteCode: 'us', currency: 'USD' }),
+        expect.objectContaining({ expectedVersion: undefined }),
+      );
+      // `setCurrency` was absorbed into the combined PATCH — no standalone call.
+      expect(mockSessionService.setCurrency).not.toHaveBeenCalled();
+      // Returned Session surfaces the post-PATCH canonical `siteCode`/`currency`.
+      expect(result.siteCode).toBe('us');
+      expect(result.currency).toBe('USD');
+    });
+
+    it('preserves currency on login via one combined PATCH, not a standalone setCurrency call', async () => {
+      // Scenario 2: verify exactly ONE upstream session-context write handles
+      // the currency sync (replacing the former `setCurrency` tail).
+      const shopperSession: ServiceSession = { ...oldServiceSession, currency: 'USD' };
+      configureCartLookup({
+        [anonymousCart.id]: withCurrency(anonymousCart, 'USD'),
+      });
+      mockSessionService.getCurrent.mockResolvedValue(shopperSession);
+      mockCustomerApi.login.mockResolvedValue(loginSessionContext);
+      mockCartService.getCart.mockResolvedValue(customerCart);
+      mockSuccessfulCurrencyUpdate();
+      mockSuccessfulMerge();
+      mockSessionService.setCart.mockResolvedValue(undefined);
+
+      await authService.login(credentials);
+
+      expect(mockSessionService.setCurrency).not.toHaveBeenCalled();
+      expect(mockSessionService.updateContext).toHaveBeenCalledTimes(1);
+      expect(mockSessionService.updateContext).toHaveBeenCalledWith(
+        expect.objectContaining({ currency: 'USD' }),
+        expect.any(Object),
+      );
+    });
+
+    it('preserves language / country / region in the combined PATCH when oldSession carries them', async () => {
+      // Scenario 3: oldSession has `de` + `DE` + `DACH` (all distinct from
+      // customer-migrated defaults). All three must reach the combined PATCH.
+      const shopperSession: ServiceSession = {
+        ...oldServiceSession,
+        siteCode: 'main',
+        currency: 'EUR',
+        language: 'de',
+        country: 'DE',
+        region: 'DACH',
+      };
+      const migratedContext: EmporixSessionContext = {
+        ...loginSessionContext,
+        siteCode: 'main',
+        currency: 'EUR',
+        language: 'en',
+        targetLocation: 'US',
+        context: { region: 'AMER' },
+      };
+      mockSessionService.getCurrent.mockResolvedValue(shopperSession);
+      mockCustomerApi.login.mockResolvedValue(migratedContext);
+      mockCartService.getCart.mockResolvedValue(customerCart);
+      mockSuccessfulMerge();
+      mockSessionService.setCart.mockResolvedValue(undefined);
+
+      await authService.login(credentials);
+
+      expect(mockSessionService.updateContext).toHaveBeenCalledTimes(1);
+      expect(mockSessionService.updateContext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          language: 'de',
+          country: 'DE',
+          region: 'DACH',
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('falls back to the site default currency when the shopper currency is unsupported on the target site', async () => {
+      // Scenario 4: shopper preferred `BOB` (unsupported on `main`). The
+      // combined PATCH must carry the site default (EUR), not `BOB`.
+      const shopperSession: ServiceSession = { ...oldServiceSession, currency: 'BOB' };
+      const bobAnonymousCart: Cart = {
+        ...anonymousCart,
+        currency: 'BOB',
+        shippingCosts: { amount: 0, currency: 'BOB' },
+        totalPrice: { amount: 20, currency: 'BOB' },
+        subTotalPrice: { amount: 20, currency: 'BOB' },
+        tax: { amount: 0, currency: 'BOB', netValue: 0, grossValue: 0 },
+      };
+      configureCartLookup({ [anonymousCart.id]: bobAnonymousCart });
+      mockSessionService.getCurrent.mockResolvedValue(shopperSession);
+      mockCustomerApi.login.mockResolvedValue(loginSessionContext);
+      mockCartService.getCart.mockResolvedValue(customerCart);
+      mockSuccessfulMerge();
+      mockSessionService.setCart.mockResolvedValue(undefined);
+
+      await authService.login(credentials);
+
+      // Combined PATCH was a no-op for currency because session already carries
+      // the cart-aligned EUR; assert the PATCH (when issued) never pushes BOB.
+      const currencyCalls = mockSessionService.updateContext.mock.calls.map((call) => call[0]?.currency);
+      expect(currencyCalls).not.toContain('BOB');
+    });
+
+    it('skips the combined PATCH entirely when all preferences already match the migrated session', async () => {
+      // Scenario 5: oldSession === migrated session → `needsPatch === false`,
+      // zero upstream writes for the alignment step.
+      const alignedSession: ServiceSession = {
+        id: 'anon-session-id',
+        siteCode: 'main',
+        currency: 'EUR',
+        language: undefined,
+        country: 'DE',
+        cartId: 'anon-cart-id',
+      };
+      const alignedMigrated: EmporixSessionContext = {
+        ...loginSessionContext,
+        siteCode: 'main',
+        currency: 'EUR',
+        language: undefined,
+        targetLocation: 'DE',
+      };
+      mockSessionService.getCurrent.mockResolvedValue(alignedSession);
+      mockCustomerApi.login.mockResolvedValue(alignedMigrated);
+      mockCartService.getCart.mockResolvedValue(customerCart);
+      mockSuccessfulMerge();
+      mockSessionService.setCart.mockResolvedValue(undefined);
+
+      await authService.login(credentials);
+
+      expect(mockSessionService.updateContext).not.toHaveBeenCalled();
+      expect(mockSessionService.setCurrency).not.toHaveBeenCalled();
+    });
+
+    it('swallows combined PATCH failures, logs them, and still returns a usable Session', async () => {
+      // Scenario 6: updateContext rejects → login result is still returned
+      // with the Emporix-migrated siteCode (so the redirect guard takes over),
+      // and the error is logged via LoggerService.
+      const shopperSession: ServiceSession = { ...oldServiceSession, siteCode: 'us' };
+      mockSiteService.getSite.mockImplementation(async (code?: string) => (code === 'us' ? usSite : mainSite));
+      mockSessionService.getCurrent.mockResolvedValue(shopperSession);
+      mockCustomerApi.login.mockResolvedValue(loginSessionContext);
+      mockCartService.getCart.mockResolvedValue(customerCart);
+      mockSuccessfulMerge();
+      mockSessionService.setCart.mockResolvedValue(undefined);
+      mockSessionService.updateContext.mockRejectedValue(new Error('Optimistic lock version conflict'));
+
+      const result = await authService.login(credentials);
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          err: expect.any(Error),
+          customerId: 'customer-123',
+          preferredSiteCode: 'us',
+        }),
+        'Failed to realign session context with pre-login preferences',
+      );
+      // Result still resolves; session.siteCode falls back to the migrated
+      // value so `getCanonicalSiteCode()` on the client handles the redirect.
+      expect(result.sessionId).toBe('customer-session-id');
+      expect(result.siteCode).toBe('main');
     });
   });
 });

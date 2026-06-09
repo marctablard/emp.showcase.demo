@@ -1,0 +1,20 @@
+{
+  "title": "Product Comparison",
+  "clear": "Clear comparison",
+  "noSharedAttributes": "The selected products have no shared attributes.",
+  "emptyState": "Your comparison list is empty.",
+  "emptyStateAction": "Browse products",
+  "addMoreProducts": "Add at least one more product to compare.",
+  "theDifferences": "The main differences",
+  "products": "Products",
+  "name": "Name",
+  "category": "Category",
+  "price": "Price",
+  "itemNumber": "Item No.",
+  "onlineAvailable": "Online available",
+  "canBeReserved": "Can be reserved",
+  "remove": "Remove",
+  "addToWishlist": "Add to wishlist",
+  "removeFromComparison": "Remove from comparison",
+  "productAttributes": "Product attributes"
+}

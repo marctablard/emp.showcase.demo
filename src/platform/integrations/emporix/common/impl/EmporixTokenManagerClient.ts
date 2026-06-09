@@ -1,5 +1,5 @@
-import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
+import { decryptOrParseLegacy, encryptClientPayload } from '../util/token-encryption-client';
 import type { TokenStore } from './EmporixTokenManagerAbstract';
 import { EmporixTokenManagerAbstract } from './EmporixTokenManagerAbstract';
 
@@ -14,16 +14,22 @@ class EmporixTokenManagerClient extends EmporixTokenManagerAbstract {
   }
 
   protected async readTokens(tenant: string): Promise<TokenStore> {
-    const tokenStoreString: string | null = this.buildStorageKey(tenant);
+    const tokenStoreString: string | null = localStorage.getItem(this.buildStorageKey(tenant));
     if (!tokenStoreString) {
-      return Promise.resolve({});
+      return {};
     }
-    const tokenStore: TokenStore = JSON.parse(tokenStoreString);
-    return tokenStore;
+    try {
+      const decrypted = await decryptOrParseLegacy(tokenStoreString, tenant);
+      const tokenStore: TokenStore = JSON.parse(decrypted);
+      return tokenStore;
+    } catch {
+      return {};
+    }
   }
 
   protected async writeTokens(tokens: TokenStore, tenant: string): Promise<void> {
-    localStorage.setItem(this.buildStorageKey(tenant), JSON.stringify(tokens));
+    const encrypted = await encryptClientPayload(JSON.stringify(tokens), tenant);
+    localStorage.setItem(this.buildStorageKey(tenant), encrypted);
   }
 
   /**

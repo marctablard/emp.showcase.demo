@@ -37,3 +37,12 @@ export function getPublicDefaultUnitCode(): string {
     process.env.NEXT_PUBLIC_EMPORIX_DEFAULT_UNIT_CODE,
   );
 }
+
+export function getPublicPriceMatchUseFallback(): boolean {
+  const raw = process.env.NEXT_PUBLIC_FALLBACK_PRICES;
+  if (typeof raw !== 'string') {
+    return false;
+  }
+  const normalized = raw.trim().toLowerCase();
+  return normalized === 'true' || normalized === '1' || normalized === 'yes';
+}

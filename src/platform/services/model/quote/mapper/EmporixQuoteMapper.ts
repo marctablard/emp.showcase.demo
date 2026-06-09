@@ -34,6 +34,7 @@ export class EmporixQuoteMapper implements QuoteMapper<EmporixQuote> {
 
     return {
       id: emporixQuote.id,
+      orderId: emporixQuote.orderId,
       status: status,
       cartId: emporixQuote.cartId,
       submittedDate: emporixQuote.metadata.createdAt,

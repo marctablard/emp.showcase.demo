@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { ApprovalSummary } from '@/components/account/approvals/approval-summary';
@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useApproval } from '@/hooks/approval/useApproval';
 import useCustomer from '@/hooks/customer/useCustomer';
 import { useToast } from '@/hooks/ui/useToast';
+import { Link } from '@/i18n/navigation';
 import { checkoutApproval as checkoutApi } from '@/lib/client/checkout';
 import type { Approval } from '@/platform/services/model/approval';
 import type { CheckoutRequest } from '@/platform/services/model/checkout';
@@ -26,6 +27,7 @@ interface ApprovalDetailsProps {
 }
 
 export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetailsProps) {
+  const locale = useLocale();
   const t = useTranslations('orders.Approval');
   const tStatus = useTranslations('orders.ApprovalStatus');
   const router = useRouter();
@@ -43,7 +45,6 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
     updateApprovalStatus,
     updateApproverComment,
     updateRequestorComment,
-    deleteApproval,
     refreshApproval,
   } = useApproval(approvalId, initialApproval);
 
@@ -110,18 +111,6 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
     }
   };
 
-  const handleDelete = async () => {
-    if (confirm(t('confirmDeleteApproval'))) {
-      try {
-        setActionError(null);
-        await deleteApproval();
-        setActionSuccess(t('approvalSuccessfullyDeleted'));
-      } catch (err) {
-        setActionError(err instanceof Error ? err.message : String(err));
-      }
-    }
-  };
-
   const handleSubmitOrder = async () => {
     if (!approval) return;
     try {
@@ -175,7 +164,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
   const formatDate = (dateString?: string) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-US', {
+    return new Intl.DateTimeFormat(locale, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -223,8 +212,6 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
   const isDesignatedApprover = approval.approver.userId === customer?.id;
   const canApprove = approval.status === 'PENDING' && isDesignatedApprover && !isRequestor;
   const canComment = approval.status === 'PENDING';
-  const canDelete = approval.status === 'PENDING' && isRequestor;
-
   return (
     <Card>
       <CardHeader>
@@ -268,7 +255,15 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
           </div>
           <div>
             <p className="text-sm font-medium text-text-placeholders">{t('resourceId')}</p>
-            <p className="text-base">{approval.resource.id}</p>
+            <p className="text-base">
+              {approval.resourceType === 'QUOTE' ? (
+                <Link href={`/account/quotes/${approval.resource.id}`} className="underline">
+                  {approval.resource.id}
+                </Link>
+              ) : (
+                approval.resource.id
+              )}
+            </p>
           </div>
           <div>
             <p className="text-sm font-medium text-text-placeholders">{t('action')}</p>
@@ -350,21 +345,6 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
           </>
         )}
 
-        {/* {canSubmitOrder && (
-          <>
-            <Separator />
-
-            <div>
-              <p className="text-sm font-medium mb-2">{t('approvalActions')}</p>
-              <div className="flex gap-2">
-                <Button onClick={handleSubmitOrder} disabled={isSubmitting} className="bg-surface-success hover:bg-surface-action-hover-2">
-                  {t('submitOrder')}
-                </Button>
-              </div>
-            </div>
-          </>
-        )} */}
-
         {canComment && (
           <>
             <Separator />
@@ -388,11 +368,6 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
         <Button variant="neutral" onClick={() => window.history.back()}>
           {t('back')}
         </Button>
-        {canDelete && (
-          <Button variant="secondary" onClick={handleDelete}>
-            {t('delete')}
-          </Button>
-        )}
       </CardFooter>
     </Card>
   );

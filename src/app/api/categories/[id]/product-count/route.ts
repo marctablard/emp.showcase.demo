@@ -20,8 +20,9 @@ export interface CategoryProductCountResponse {
  * GET /api/categories/{id}/product-count
  *
  * Returns the total number of products assigned to the given category (including subcategories).
- * Failures in the upstream Emporix call surface as a 500 with an error payload; the response
- * body otherwise always contains a non-negative `count`.
+ * `CategoryService.getProductCountForCategory` is best-effort and returns `0` for upstream lookup
+ * failures, so successful responses always contain a non-negative `count`. This route only returns
+ * a 5xx when something unexpected fails around that service call.
  */
 export async function GET(
   _request: NextRequest,

@@ -69,7 +69,9 @@ export default function ProductVariantSelectorSimple({
             return;
           }
 
-          const fetchedPrices = await Promise.all(fetchedVariants.map((variant) => fetchProductPrice(variant.id)));
+          const fetchedPrices = await Promise.all(
+            fetchedVariants.map((variant) => fetchProductPrice(variant.id, undefined, undefined, session?.currency)),
+          );
 
           if (isCancelled) {
             return;
@@ -78,7 +80,9 @@ export default function ProductVariantSelectorSimple({
           setVariantPrices(fetchedPrices.filter((price): price is ProductPrice => price !== null));
         } else if (variantPrices === undefined) {
           // Re-fetch only prices when currency changes (variants already loaded)
-          const fetchedPrices = await Promise.all(variants.map((variant) => fetchProductPrice(variant.id)));
+          const fetchedPrices = await Promise.all(
+            variants.map((variant) => fetchProductPrice(variant.id, undefined, undefined, session?.currency)),
+          );
 
           if (isCancelled) {
             return;
@@ -101,7 +105,7 @@ export default function ProductVariantSelectorSimple({
     return () => {
       isCancelled = true;
     };
-  }, [product.id, product.parentVariantId, soloVariant, variants, variantPrices]);
+  }, [product.id, product.parentVariantId, soloVariant, variants, variantPrices, session?.currency]);
 
   // Handle variant selection via tiles
   const handleVariantTileClick = (variant: Product) => {

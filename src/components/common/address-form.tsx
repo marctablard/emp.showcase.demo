@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
+import { useRegisterCheckoutForm } from '@/components/checkout/checkout-validation-registry';
 import { useSite } from '@/hooks/site/useSite';
 import { useL10n } from '@/hooks/useL10n';
 import { useValidator } from '@/hooks/validation/useValidator';
@@ -82,9 +83,12 @@ const AddressForm: React.FC<AddressFormProps> = ({
   }, [mergedInitial, form, alignAfterExternalReset]);
   const { countries, loading } = useSite();
 
+  const rootRef = useRef<HTMLDivElement>(null);
+  useRegisterCheckoutForm(`address-${testIdPrefix}`, form, rootRef, { testIdPrefix });
+
   return (
     <Form {...form}>
-      <div className="space-y-6">
+      <div className="space-y-6" ref={rootRef}>
         <div>
           <FormField
             control={form.control}

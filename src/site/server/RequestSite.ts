@@ -11,7 +11,6 @@ async function getSiteFromHeaderImpl(): Promise<string> {
 
   try {
     site = (await headers()).get(INTERNAL_SITE_HEADER) || undefined;
-    server.get<LoggerService>('LoggerService').debug({ site }, 'Request site resolved');
   } catch (error) {
     const logger = server.get<LoggerService>('LoggerService');
     const digest =

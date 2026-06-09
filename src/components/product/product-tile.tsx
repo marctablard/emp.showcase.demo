@@ -2,7 +2,18 @@ import React from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import type { LucideIcon } from 'lucide-react';
-import { Circle, DropletOff, Globe, MapPin, Pin, Shield, ShoppingCart, Trees, Truck } from 'lucide-react';
+import {
+  Circle,
+  DropletOff,
+  FlipHorizontal2,
+  Globe,
+  MapPin,
+  Pin,
+  Shield,
+  ShoppingCart,
+  Trees,
+  Truck,
+} from 'lucide-react';
 import { ProductCharacteristic } from '@/components/product/product-characteristic';
 import { ProductColorTile } from '@/components/product/product-color-tile';
 import { ProductTag } from '@/components/product/product-tag';
@@ -10,7 +21,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Heading } from '@/components/ui/h';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCart } from '@/hooks/cart/useCart';
+import { useValidateAddToCart } from '@/hooks/cart/useValidateAddToCart';
+import { useComparison } from '@/hooks/comparison/useComparison';
+import { useValidateAddToComparison } from '@/hooks/comparison/useValidateAddToComparison';
 import { useAvailableVariantValues } from '@/hooks/useAvailableVariantValues';
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll';
 import { useL10n } from '@/hooks/useL10n';
@@ -19,6 +34,7 @@ import { Link } from '@/i18n/navigation';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency, imageSizes } from '@/lib/utils';
 import type { Product } from '@/platform/services/model/product';
+import { MAX_COMPARISON_PRODUCTS } from '@/stores/comparison-store';
 import { ToastType, notify } from '../ui/toast-notification';
 
 interface ProductTileProps {
@@ -31,6 +47,9 @@ export function ProductTile({ product, locale, skipVariantFetch = false }: Produ
   const t = useTranslations('product');
   const { l10n, l10nOrEmpty } = useL10n(locale);
   const { addItem, loading: cartLoading } = useCart();
+  const { isInComparison, toggleProduct, isFull } = useComparison();
+  const { disabled: cartDisabled, tooltip: cartTooltip } = useValidateAddToCart(product);
+  const { disabled: compareDisabled, tooltip: compareTooltip } = useValidateAddToComparison(product);
   const horizontalScrollRef = useHorizontalScroll();
 
   const firstAttribute = product.variantAttributes?.[0];
@@ -78,6 +97,21 @@ export function ProductTile({ product, locale, skipVariantFetch = false }: Produ
     return Circle;
   }
 
+  const handleCompareClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    if (isInComparison(product.id)) {
+      toggleProduct(product.id);
+      notify({ title: t('removedFromComparison', { name: l10n(product.name) }), type: ToastType.Info });
+    } else if (isFull) {
+      notify({ title: t('comparisonFull', { max: MAX_COMPARISON_PRODUCTS }), type: ToastType.Warning });
+    } else {
+      toggleProduct(product.id);
+      notify({ title: t('addedToComparison', { name: l10n(product.name) }), type: ToastType.Success });
+    }
+  };
+
   return (
     <Link href={`/product/${product.id}`} className="block h-full">
       <Card shadow="default" rounded="md" className="flex h-full flex-col gap-4 border-0 transition hover:shadow-xl">
@@ -94,14 +128,31 @@ export function ProductTile({ product, locale, skipVariantFetch = false }: Produ
             <Heading variant="h6" as="div" className="hidden md:block">
               <p className="line-clamp-2">{l10n(product.name)}</p>
             </Heading>
-            <Button
-              variant="secondary"
-              size="icon"
-              title={t('addToWishlist')}
-              className="h-[50px] w-[50px] flex-shrink-0"
-            >
-              <Pin width="24" height="24" />
-            </Button>
+            <div className="flex flex-shrink-0 gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Button
+                      variant={isInComparison(product.id) ? 'primary' : 'secondary'}
+                      size="icon"
+                      aria-label={isInComparison(product.id) ? t('compareTooltipRemove') : t('compareTooltipAdd')}
+                      aria-pressed={isInComparison(product.id)}
+                      className="h-[50px] w-[50px]"
+                      onClick={handleCompareClick}
+                      disabled={compareDisabled}
+                    >
+                      <FlipHorizontal2 width="24" height="24" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {compareTooltip ?? (isInComparison(product.id) ? t('compareTooltipRemove') : t('compareTooltipAdd'))}
+                </TooltipContent>
+              </Tooltip>
+              <Button variant="secondary" size="icon" title={t('addToWishlist')} className="h-[50px] w-[50px]">
+                <Pin width="24" height="24" />
+              </Button>
+            </div>
           </CardTitle>
         </CardHeader>
 
@@ -234,15 +285,22 @@ export function ProductTile({ product, locale, skipVariantFetch = false }: Produ
                   <p className="text-lg font-bold">{t('price.priceNotAvailable')}</p>
                 )}
               </div>
-              <Button
-                size="icon"
-                className="h-[50px] w-[50px] self-end"
-                onClick={(e) => handleAddToCart(e)}
-                title={t('addToCart')}
-                disabled={cartLoading}
-              >
-                <ShoppingCart width="24" height="24" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex self-end">
+                    <Button
+                      size="icon"
+                      className="h-[50px] w-[50px]"
+                      onClick={(e) => handleAddToCart(e)}
+                      aria-label={t('addToCart')}
+                      disabled={cartLoading || cartDisabled}
+                    >
+                      <ShoppingCart width="24" height="24" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{cartTooltip ?? t('addToCart')}</TooltipContent>
+              </Tooltip>
             </div>
           </div>
         </CardFooter>

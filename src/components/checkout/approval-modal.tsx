@@ -10,25 +10,25 @@ import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { useApproverSearch } from '@/hooks/approval/useApproverSearch';
 import { useToast } from '@/hooks/ui/useToast';
+import type { ApprovalContext } from '@/lib/approval/contracts';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { ApprovalUser } from '@/platform/services/model/approval';
 
 interface ApprovalModalProps {
   isOpen: boolean;
   onClose: () => void;
-  cartId: string;
-  approvalSubmit: (approverId: string, comment: string) => void;
+  resourceContext: ApprovalContext;
+  approvalSubmit: (approverId: string, comment: string) => Promise<void>;
 }
 
-export function ApprovalModal({ isOpen, onClose, cartId, approvalSubmit }: ApprovalModalProps) {
+export function ApprovalModal({ isOpen, onClose, resourceContext, approvalSubmit }: ApprovalModalProps) {
   const t = useTranslations('checkout.approval');
   const { toast } = useToast();
 
-  // Use the new hook to fetch approvers
   const { approvers, loading, error, refetch } = useApproverSearch({
-    resourceType: 'CART',
-    resourceId: cartId,
-    action: 'CHECKOUT',
+    resourceType: resourceContext.resourceType,
+    resourceId: resourceContext.resourceId,
+    action: resourceContext.action,
   });
 
   const [selectedApprover, setSelectedApprover] = useState<ApprovalUser | null>(null);
@@ -51,7 +51,7 @@ export function ApprovalModal({ isOpen, onClose, cartId, approvalSubmit }: Appro
 
     setIsSubmitting(true);
     try {
-      approvalSubmit(selectedApprover.userId, comment);
+      await approvalSubmit(selectedApprover.userId, comment);
       onClose();
     } catch (error) {
       getLogger().error({ err: error }, 'Error creating approval request');
@@ -65,12 +65,11 @@ export function ApprovalModal({ isOpen, onClose, cartId, approvalSubmit }: Appro
     }
   };
 
-  // Fetch approvers when the component mounts or when cartId changes
   useEffect(() => {
-    if (isOpen && cartId && !loading && !approvers && !error) {
+    if (isOpen && resourceContext.resourceId && !loading && !approvers && !error) {
       refetch();
     }
-  }, [isOpen, cartId, refetch, loading, approvers, error]);
+  }, [isOpen, resourceContext.resourceId, refetch, loading, approvers, error]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

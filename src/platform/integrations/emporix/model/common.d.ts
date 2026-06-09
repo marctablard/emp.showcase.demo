@@ -18,7 +18,6 @@ export interface EmporixAddress {
   metadata?: EmporixMetadata;
   mixins?: EmporixMixins;
   id?: string;
-  isDefault?: boolean;
 }
 
 export interface EmporixLocalizedString {

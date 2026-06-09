@@ -6,6 +6,8 @@ import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Approval } from '@/platform/services/model/approval';
 import ssr from '@/platform/ssr';
 
+const DEFAULT_APPROVAL_SORT = 'metadata.modifiedAt:desc';
+
 /**
  * Get the approval service instance from the platform container
  */
@@ -33,10 +35,10 @@ export const getApprovalById = cache(async (approvalId: string): Promise<Approva
  * Get all approvals for the current customer with optional pagination
  * This function is cached to prevent multiple approval fetches in a single request
  */
-export const getApprovals = cache(async (pageSize?: number, pageNumber?: number): Promise<Approval[] | undefined> => {
+export const getApprovals = cache(async (pageNumber?: number, pageSize?: number): Promise<Approval[] | undefined> => {
   try {
     const approvalService = getApprovalService();
-    const approvals = await approvalService.getApprovals(pageSize, pageNumber);
+    const approvals = await approvalService.getApprovals(pageNumber, pageSize, DEFAULT_APPROVAL_SORT);
     return approvals;
   } catch (error) {
     getLogger().error(

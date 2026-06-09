@@ -101,5 +101,18 @@
     "headline": "Diese Produkte könnten auch interessant sein"
   },
   "loadingVariants": "Varianten werden geladen...",
-  "variantSelectPlaceholder": "Variante auswählen"
+  "variantSelectPlaceholder": "Variante auswählen",
+  "addedToComparison": "{name} wurde zur Vergleichsliste hinzugefügt",
+  "removedFromComparison": "{name} wurde aus der Vergleichsliste entfernt",
+  "comparisonFull": "Vergleichsliste ist voll (max. {max} Produkte)",
+  "wishlistTooltip": "Produkt merken",
+  "shareTooltip": "Teilen",
+  "compareTooltipAdd": "Zum Vergleich hinzufügen",
+  "compareTooltipRemove": "Aus Vergleich entfernen",
+  "compareTooltipInList": "Dieser Artikel ist auf der Vergleichsliste",
+  "compareTooltipMasterProduct": "Hauptprodukt kann nicht verglichen werden. Bitte wählen Sie eine bestimmte Variante.",
+  "cartTooltipMasterProduct": "Hauptprodukt kann nicht in den Warenkorb gelegt werden. Bitte wählen Sie eine bestimmte Variante.",
+  "cartTooltipNotPurchasable": "Dieses Produkt ist nicht zum Kauf verfügbar.",
+  "cartTooltipNoPrice": "Dieses Produkt hat keinen {currency}-Preis und kann nicht in den Warenkorb gelegt werden.",
+  "inComparisonList": "In der Vergleichsliste"
 }

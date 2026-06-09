@@ -13,7 +13,9 @@
   },
   "Regions": {
     "label": "Site",
-    "switchFailed": "Unable to switch site. Please try again."
+    "switchFailed": "Unable to switch site. Please try again.",
+    "currencyFallback": "Currency switched from {from} to {to} — your cart has items that are not priced in {from}.",
+    "currencySwitchCartBlocked": "Currency not switched from {fromCurrency} to {toCurrency} — your cart has items that are not priced in {toCurrency}."
   },
   "Companies": {
     "label": "Company",

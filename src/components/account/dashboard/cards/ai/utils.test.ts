@@ -160,6 +160,10 @@ describe('getQuoteStatusBadgeVariantForAi', () => {
     expect(getQuoteStatusBadgeVariantForAi('CREATING')).toBe('information');
   });
 
+  it('should return information for AWAITING', () => {
+    expect(getQuoteStatusBadgeVariantForAi('AWAITING')).toBe('information');
+  });
+
   it('should return muted for CLOSED', () => {
     expect(getQuoteStatusBadgeVariantForAi('CLOSED')).toBe('muted');
   });

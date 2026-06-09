@@ -185,22 +185,9 @@ export type PaymentModeKey =
 
 // ---------------------------------------------------------------------------
 // Namespace: account.quoteStatus
-// Used by: quote-status-badge.tsx
+// Used by: quote-status-badge.tsx, quote-status-message-keys
 // ---------------------------------------------------------------------------
-export type QuoteStatusKey =
-  | 'requested'
-  | 'available'
-  | 'in_progress'
-  | 'declined'
-  | 'accepted'
-  | 'order_created'
-  | 'creating'
-  | 'closed'
-  | 'open'
-  | 'change'
-  | 'decline'
-  | 'declined_by_merchant'
-  | 'expired';
+export type { QuoteStatusMessageKey as QuoteStatusKey } from '@/lib/common/quote-status-message-keys';
 
 // ---------------------------------------------------------------------------
 // Namespace: common.Languages

@@ -66,6 +66,9 @@ class EmporixShippingService implements ShippingService {
       for (const zone of site.zones) {
         if (zone.methods && zone.methods.length > 0) {
           for (const method of zone.methods) {
+            if (method.active !== true) {
+              continue;
+            }
             let cost: EmporixMonetaryAmount | undefined = undefined;
             if (orderValue) {
               const fee = method.fees

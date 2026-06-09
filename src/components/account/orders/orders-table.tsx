@@ -34,6 +34,14 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
               <UiLink href={`/account/orders/${order.id}`} type="Link">
                 #{order.id}
               </UiLink>
+              {order.quoteId ? (
+                <div className="mt-1 text-sm text-text-placeholders">
+                  {tOrder('relatedQuote')}{' '}
+                  <UiLink href={`/account/quotes/${order.quoteId}`} type="Link">
+                    #{order.quoteId}
+                  </UiLink>
+                </div>
+              ) : null}
             </TableCell>
             <TableCell>
               <OrderStatusBadge status={order.status} />

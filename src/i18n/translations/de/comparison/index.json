@@ -1,0 +1,20 @@
+{
+  "title": "Produktvergleich",
+  "clear": "Vergleich zurücksetzen",
+  "noSharedAttributes": "Die ausgewählten Produkte haben keine gemeinsamen Attribute.",
+  "emptyState": "Ihre Vergleichsliste ist leer.",
+  "emptyStateAction": "Produkte durchsuchen",
+  "addMoreProducts": "Fügen Sie mindestens ein weiteres Produkt zum Vergleichen hinzu.",
+  "theDifferences": "Die wichtigsten Unterschiede",
+  "products": "Produkte",
+  "name": "Name",
+  "category": "Kategorie",
+  "price": "Preis",
+  "itemNumber": "Art.-Nr.",
+  "onlineAvailable": "Online verfügbar",
+  "canBeReserved": "Reservierbar",
+  "remove": "Entfernen",
+  "addToWishlist": "Zur Merkliste hinzufügen",
+  "removeFromComparison": "Aus Vergleich entfernen",
+  "productAttributes": "Produktattribute"
+}

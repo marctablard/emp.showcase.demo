@@ -42,6 +42,7 @@ cypress/videos/**/*
 
 # testing
 /coverage
+/e2e/plan
 /e2e/local
 
 # next.js

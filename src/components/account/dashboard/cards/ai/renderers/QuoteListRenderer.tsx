@@ -4,6 +4,7 @@ import React from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
+import { getQuoteStatusDisplayLabel } from '@/lib/common/quote-status-message-keys';
 import type { QuoteData, QuoteListData, QuotePreviewItemData } from '../types';
 import { formatDate, formatPrice, getQuoteStatusBadgeVariantForAi, handleImageError } from '../utils';
 
@@ -13,6 +14,7 @@ interface QuoteListRendererProps {
 
 export const QuoteListRenderer: React.FC<QuoteListRendererProps> = ({ data }) => {
   const t = useTranslations('account.AiHelper');
+  const tQuoteStatus = useTranslations('account.quoteStatus');
 
   return (
     <div className="space-y-4">
@@ -34,7 +36,7 @@ export const QuoteListRenderer: React.FC<QuoteListRendererProps> = ({ data }) =>
                       {quote.reference || `#${quote.quoteId}`}
                     </a>
                     <Badge variant={getQuoteStatusBadgeVariantForAi(quote.status)} size="status">
-                      {quote.status}
+                      {getQuoteStatusDisplayLabel(quote.status, tQuoteStatus)}
                     </Badge>
                   </div>
                   <div className="grid grid-cols-2 gap-4 text-sm text-text-on-action/90">

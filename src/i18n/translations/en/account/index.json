@@ -98,7 +98,7 @@
         "invalid": "Please enter a valid email address."
       },
       "phone": {
-        "invalid": "Please enter a valid phone number."
+        "invalid": "Please enter a valid phone number (7–15 digits, e.g. +49 123 456 7890)."
       },
       "language": {
         "de": "German",
@@ -156,7 +156,7 @@
     "groups": {
       "selfService": "Self Service",
       "orderManagement": "Order Management",
-      "myOrganisation": "My Organisation",
+      "myOrganisation": "My Company",
       "myAccount": "My Account"
     },
     "items": {
@@ -350,8 +350,7 @@
   "quotesPageDescription": "View and manage your quotes",
   "quotesPagePlaceholder": "Quotes will be displayed here",
   "quoteStatus": {
-    "requested": "Requested",
-    "available": "Available",
+    "awaiting": "Awaiting approval",
     "in_progress": "In progress",
     "declined": "Declined",
     "accepted": "Accepted",
@@ -367,6 +366,9 @@
   "quoteDetails": {
     "title": "Quote Details",
     "status": "Status",
+    "product": "Product",
+    "quantity": "Quantity",
+    "price": "Price",
     "quotationDate": "Quotation Date",
     "totalAmount": "Total Amount",
     "editor": "Editor",
@@ -392,6 +394,7 @@
     "quoteReference": "Quote Reference",
     "approver": "Approver",
     "accept": "ACCEPT",
+    "inquireApproval": "INQUIRE APPROVAL",
     "reject": "REJECT",
     "requestChange": "REQUEST CHANGE",
     "confirmationTitle": "Do you want to accept the quote and create an order?",
@@ -406,6 +409,16 @@
     "creating": "CREATING...",
     "rejectConfirmationTitle": "Do you want to reject the quote?",
     "rejectConfirmationDescription": "If you wish, you can leave a comment to let us know why you are declining this quote. Your feedback helps us improve our offers.",
+    "decisionReasonLabel": "Reason",
+    "decisionReasonPlaceholder": "Select a reason",
+    "decisionReasons": {
+      "PRICE_TOO_HIGH": "Price too high",
+      "NO_LONGER_NEEDED": "No longer needed",
+      "DELIVERY_TIME_LATE": "Delivery time too late",
+      "OTHER": "Other",
+      "WRONG_MATERIAL": "Wrong material",
+      "PROVIDED_PRICE_TO_HIGH": "Provided price too high"
+    },
     "rejectCommentPlaceholder": "Please provide reasons for declining this quote...",
     "rejectQuote": "REJECT QUOTE",
     "rejecting": "REJECTING...",
@@ -415,8 +428,13 @@
     "requestingChange": "REQUESTING CHANGE...",
     "commentAdded": "Comment Added",
     "initialQuoteRequest": "Initial Quote Request",
+    "reason": "Reason",
+    "relatedApproval": "Related Approval",
     "statusChanged": "Status Changed to {currentStatus}",
-    "loadingHistory": "Loading history..."
+    "loadingHistory": "Loading history...",
+    "quoteActionFailedTitle": "We couldn't complete this action",
+    "quoteActionFailedDescription": "Please try again or contact support if the problem persists.",
+    "relatedOrder": "Related Order"
   },
   "quotesList": {
     "title": "Quotes",
@@ -424,6 +442,7 @@
     "latest": "Latest",
     "oldest": "Oldest",
     "filter": "Filter",
+    "quoteId": "Quote ID",
     "quoteReference": "Quote Reference",
     "status": "Status",
     "quotationDate": "Quotation Date",
@@ -432,7 +451,10 @@
     "totalAmount": "Total amount",
     "numberOfProducts": "Number of Products",
     "products": "Products",
+    "relatedOrder": "Related Order",
     "noQuotes": "You don't have any quotes yet",
+    "searchPlaceholder": "Search by quote ID or reference...",
+    "noMatches": "No quotes match your search",
     "viewQuote": "View quote",
     "next": "Next",
     "previous": "Previous",

@@ -44,7 +44,11 @@
     "openSubcategoriesFor": "Open subcategories for {name}",
     "navigation": {
       "meta": "Meta"
-    }
+    },
+    "compare": "Compare",
+    "compareCount": "Compare ({count})",
+    "compareTooltip": "Click to compare {count} item(s)",
+    "compareTooltipMinimum": "Add at least 2 products to compare"
   },
   "footer": {
     "newsletterTitle": "Join Our Newsletter for Exclusive Updates and More!",
@@ -67,7 +71,7 @@
     "sales": "Sales"
   },
   "footerLegal": {
-    "copyright": "© 2025 Emporix. All Rights Reserved.",
+    "copyright": "© 2026 Emporix. All Rights Reserved.",
     "termsAndConditions": "Terms and Conditions",
     "imprint": "Imprint",
     "privacyPolicy": "Privacy Policy"

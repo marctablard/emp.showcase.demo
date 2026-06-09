@@ -20,11 +20,13 @@ export interface ToastProps {
     onClick: () => void;
   };
   type: ToastType;
+  duration?: number;
 }
 
 export interface NotificationProps {
   id: string | number;
   title: string;
+  description?: string;
   duration?: number;
   button?: {
     label: string;
@@ -48,7 +50,7 @@ function toast(toast: Omit<ToastProps, 'id'>) {
       />
     ),
     {
-      duration: 4000,
+      duration: toast.duration ?? 4000,
       position: 'bottom-center',
       className: 'w-full pb-15 sm:pb-2 sm:px-4 sm:flex sm:justify-end sm:[&>div]:max-w-[300px]',
     },
@@ -57,7 +59,15 @@ function toast(toast: Omit<ToastProps, 'id'>) {
 
 function notify(toast: Omit<NotificationProps, 'id'>) {
   return sonnerToast.custom(
-    (id) => <Notification id={id} title={toast.title} duration={toast.duration || 5000} type={toast.type} />,
+    (id) => (
+      <Notification
+        id={id}
+        title={toast.title}
+        description={toast.description}
+        duration={toast.duration || 5000}
+        type={toast.type}
+      />
+    ),
     {
       position: 'top-center',
       duration: toast.duration || 5000,
@@ -97,6 +107,7 @@ function Toast(props: ToastProps) {
             <p className="text-base font-bold text-text-headings m-0">{title}</p>
           </div>
           <div
+            className="cursor-pointer"
             onClick={() => {
               button.onClick();
               sonnerToast.dismiss(id);
@@ -110,7 +121,7 @@ function Toast(props: ToastProps) {
         </div>
         <div className="flex">
           <div
-            className="rounded-sm border border-border-black bg-transparent px-2 py-1 text-text-headings font-bold"
+            className="cursor-pointer rounded-sm border border-border-black bg-transparent px-2 py-1 text-text-headings font-bold"
             onClick={() => {
               button.onClick();
               sonnerToast.dismiss(id);
@@ -125,7 +136,7 @@ function Toast(props: ToastProps) {
 }
 
 function Notification(props: NotificationProps) {
-  const { title, button, id, type } = props;
+  const { title, description, button, id, type } = props;
 
   const icon = {
     success: <CircleCheck />,
@@ -149,14 +160,17 @@ function Notification(props: NotificationProps) {
       )}
     >
       <div className="flex gap-2 w-full">
-        <div className="flex w-full justify-center items-center">
+        <div className="flex w-full flex-col justify-center items-center gap-1 px-1">
           <div className={cn('flex items-center gap-2', 'text-text-' + className[type])}>
             {icon[type]}
             <p className="text-base font-bold text-text-headings m-0">{title}</p>
           </div>
+          {description ? (
+            <p className="text-sm font-body text-text-headings m-0 text-center max-w-prose">{description}</p>
+          ) : null}
         </div>
         <div
-          className="flex justify-end items-center"
+          className="flex justify-end items-center cursor-pointer"
           onClick={() => {
             button?.onClick();
             sonnerToast.dismiss(id);

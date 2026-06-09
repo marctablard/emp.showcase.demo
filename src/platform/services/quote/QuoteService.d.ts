@@ -1,12 +1,5 @@
 import { SearchParams, SearchResult } from '../model/common';
-import type {
-  CreateQuoteInput,
-  QuoteHistory,
-  QuoteReason,
-  QuoteReasonCreationResponse,
-  QuoteScope,
-  QuoteUpdateRequest,
-} from '../model/quote';
+import type { CreateQuoteInput, QuoteHistory, QuoteReason, QuoteScope, QuoteUpdateRequest } from '../model/quote';
 import { Quote } from '../model/quote';
 
 export interface QuoteService {
@@ -51,14 +44,9 @@ export interface QuoteService {
   getQuoteReason(quoteReasonId: string): Promise<QuoteReason>;
 
   /**
-   * Create a new quote reason
-   * @param quoteId - The ID of the quote
-   * @param comment - The comment for the quote reason
-   * @param locale - The locale for the message
-   * @param reasonType - The type of reason ('DECLINE' or 'CHANGE')
-   * @returns Promise with the ID of the created quote reason
+   * Resolve an existing quote reason id by type and code
    */
-  createQuoteReason(quoteId: string, comment: string, locale: string, reasonType: string): Promise<string>;
+  resolveQuoteReasonId(reasonType: string, reasonCode: string): Promise<string>;
 
   /**
    * Get quote history for a specific quote
