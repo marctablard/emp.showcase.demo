@@ -22,15 +22,17 @@ class EmporixCatalogApi implements IEmporixCatalogApi {
 
   async getCatalogs(params: EmporixSearchParams<any>): Promise<EmporixPaginatedResponse<EmporixCatalog>> {
     const { body: _body, query } = buildSearchQuery(params, true);
-    this.logger.debug(
+    const path = `/catalog/${this.config.tenant}/catalogs`;
+    this.logger.info(
       {
-        path: `/catalog/${this.config.tenant}/catalogs`,
+        path,
         query,
+        criteria: params.criteria,
       },
       'Emporix catalogs request',
     );
     const response = await this.apiClient.authenticatedFetch(
-      `/catalog/${this.config.tenant}/catalogs?${query}`,
+      `${path}?${query}`,
       { method: 'GET', headers: { 'X-Total-Count': 'true' } },
       'public',
       undefined,
@@ -39,11 +41,13 @@ class EmporixCatalogApi implements IEmporixCatalogApi {
     );
 
     const result = await buildPaginatedResponse<EmporixCatalog>(params, response);
-    this.logger.debug(
+    this.logger.info(
       {
+        path,
         itemCount: result.items.length,
         total: result.total,
         page: result.page,
+        categoryIdPreview: result.items.flatMap((catalog) => catalog.categoryIds ?? []).slice(0, 20),
       },
       'Emporix catalogs response',
     );

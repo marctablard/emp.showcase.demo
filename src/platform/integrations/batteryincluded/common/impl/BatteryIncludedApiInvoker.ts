@@ -1,6 +1,13 @@
 import { inject } from 'inversify';
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
+import {
+  type DebugContext,
+  buildAndLogCurl,
+  getDebugLogger,
+  logRequestPayload,
+  logResponse,
+} from '@/platform/core/utils/debug-utils';
 import type { BatteryIncludedConfig } from '../../config';
 
 /**
@@ -30,10 +37,25 @@ class BatteryIncludedApiInvoker {
 
     // Make the authenticated request
     const fullUrl = `${this.config.baseUrl}${url}`;
-    return fetch(fullUrl, {
+    const requestOptions = {
       ...options,
       headers,
-    });
+    };
+
+    const ctx: DebugContext = { callType: 'external' };
+    const prefix = buildAndLogCurl(fullUrl, requestOptions, ctx);
+    logRequestPayload(fullUrl, requestOptions, prefix, ctx);
+
+    const responsePromise = fetch(fullUrl, requestOptions);
+    responsePromise.catch((err) =>
+      getDebugLogger().error(
+        { url: fullUrl, error: err instanceof Error ? err.message : String(err) },
+        `${prefix} [FETCH ERROR]`,
+      ),
+    );
+    responsePromise.then((response) => logResponse(response, fullUrl, requestOptions, prefix, ctx));
+
+    return responsePromise;
   }
 }
 

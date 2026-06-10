@@ -13,7 +13,10 @@ import type {
   BatteryIncludedSearchResponse,
   BatteryIncludedSuggestion,
 } from '../../model';
-import type { BatteryIncludedShopApi as IBatteryIncludedShopApi } from '../BatteryIncludedShopApi';
+import type {
+  BatteryIncludedCategoryTreeBootstrapParams,
+  BatteryIncludedShopApi as IBatteryIncludedShopApi,
+} from '../BatteryIncludedShopApi';
 
 @injectable('BatteryIncludedShopApi', 'Singleton')
 class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
@@ -41,6 +44,22 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
     }
 
     return await response.json();
+  }
+
+  async browseCategoryTreeBootstrap<T>(
+    params: BatteryIncludedCategoryTreeBootstrapParams,
+  ): Promise<BatteryIncludedSearchResponse<T>> {
+    return this.browse<T>({
+      query: '',
+      page: 0,
+      size: 0,
+      analyze: 1,
+      variables: {
+        locale: params.locale,
+        siteAware: params.siteCode,
+        countryAware: params.country,
+      },
+    });
   }
 
   /**

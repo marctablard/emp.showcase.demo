@@ -94,6 +94,20 @@ describe('BatteryIncludedShopApi', () => {
 
       expect(result.hits).toBeDefined();
     });
+
+    it('should call API with the grounded category-tree bootstrap request', async () => {
+      await shopApi.browseCategoryTreeBootstrap({
+        locale: 'en',
+        siteCode: 'main',
+        country: 'DE',
+      });
+
+      const url = (apiInvoker.apiFetch as jest.Mock).mock.calls[0][0];
+      expect(url).toContain('q=&page=0&per_page=0&analyze=1');
+      expect(url).toContain('v%5Blocale%5D=en');
+      expect(url).toContain('v%5BsiteAware%5D=main');
+      expect(url).toContain('v%5BcountryAware%5D=DE');
+    });
   });
 
   describe('suggest', () => {

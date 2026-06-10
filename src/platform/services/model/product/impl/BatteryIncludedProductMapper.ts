@@ -22,27 +22,210 @@ import { normalizeProductAttributeStringMap } from './normalizeProductAttributeS
 class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProduct>, SuggestionsMapper {
   constructor(@inject('EmporixProductMapper') private emporixMapper: EmporixProductMapper) {}
 
+  private toLocalizedString(value: unknown): LocalizedString {
+    if (Array.isArray(value)) {
+      return value.reduce<LocalizedString>((accumulator, item) => {
+        if (item && typeof item.language === 'string' && typeof item.value === 'string') {
+          accumulator[item.language] = item.value;
+        }
+        return accumulator;
+      }, {});
+    }
+
+    if (value && typeof value === 'object') {
+      return Object.entries(value as Record<string, unknown>).reduce<LocalizedString>((accumulator, [key, item]) => {
+        if (typeof item === 'string') {
+          accumulator[key] = item;
+        }
+        return accumulator;
+      }, {});
+    }
+
+    if (typeof value === 'string' && value.length > 0) {
+      return { en: value };
+    }
+
+    return {};
+  }
+
+  private getRootProduct(product: BatteryIncludedProduct): Record<string, any> {
+    return (product._product as Record<string, any> | undefined) ?? product;
+  }
+
+  private getLocalizedProduct(product: BatteryIncludedProduct): Record<string, any> {
+    return (product._product_i18n as Record<string, any> | undefined) ?? {};
+  }
+
+  private getSiteAwareProduct(product: BatteryIncludedProduct): Record<string, any> {
+    return (product._product_siteAware as Record<string, any> | undefined) ?? {};
+  }
+
+  private getMedia(product: BatteryIncludedProduct): any[] {
+    const rootProduct = this.getRootProduct(product);
+    const media = rootProduct.media ?? product.media ?? product.medias;
+    return Array.isArray(media) ? media : [];
+  }
+
+  private getPriceData(product: BatteryIncludedProduct): Record<string, any> | undefined {
+    const siteAwareProduct = this.getSiteAwareProduct(product);
+    const countryAware = siteAwareProduct.countryAware;
+
+    if (countryAware?.price) {
+      return countryAware.price as Record<string, any>;
+    }
+
+    if (countryAware && typeof countryAware === 'object') {
+      for (const value of Object.values(countryAware)) {
+        if (value && typeof value === 'object' && 'price' in value) {
+          return (value as Record<string, any>).price as Record<string, any>;
+        }
+      }
+    }
+
+    if (Array.isArray(product.prices) && product.prices.length > 0) {
+      return product.prices[0] as Record<string, any>;
+    }
+
+    return undefined;
+  }
+
+  private mapAvailability(product: BatteryIncludedProduct, productId: string): Product['availability'] {
+    const availability = this.getSiteAwareProduct(product).availability as Record<string, any> | undefined;
+    if (!availability) {
+      return undefined;
+    }
+
+    const stockLevel = Number(availability.stockLevel);
+    const availableQuantity = Number.isFinite(stockLevel) ? stockLevel : 0;
+
+    return {
+      productId,
+      availableQuantity,
+      availableInDays: null,
+      isAvailable: typeof availability.available === 'boolean' ? availability.available : availableQuantity > 0,
+    };
+  }
+
+  private mapBrand(product: BatteryIncludedProduct): Product['brand'] {
+    const rootProduct = this.getRootProduct(product);
+    const localizedBrand = this.getLocalizedProduct(product).brand as Record<string, any> | undefined;
+
+    const brandId = localizedBrand?.id ?? rootProduct.brandId;
+    if (!brandId) {
+      return undefined;
+    }
+
+    return {
+      id: String(brandId),
+      ...(localizedBrand?.name ? { name: localizedBrand.name } : {}),
+      ...(localizedBrand?.mediaUrl
+        ? {
+            logo: {
+              url: localizedBrand.mediaUrl,
+              altText: localizedBrand.name,
+            },
+          }
+        : {}),
+    };
+  }
+
+  private mapLabels(product: BatteryIncludedProduct): Product['labels'] {
+    const localizedLabels = this.getLocalizedProduct(product).labels;
+    if (Array.isArray(localizedLabels) && localizedLabels.length > 0) {
+      return localizedLabels
+        .filter((label): label is Record<string, any> => Boolean(label?.id))
+        .map((label) => ({
+          id: String(label.id),
+          ...(label.name ? { name: label.name } : {}),
+          ...(label.mediaUrl ? { image: label.mediaUrl } : {}),
+          ...(label.description ? { description: label.description } : {}),
+        }));
+    }
+
+    return undefined;
+  }
+
+  private mapHighlights(product: BatteryIncludedProduct): Product['highlights'] {
+    const highlights = this.getRootProduct(product).mixins?.highlights?.highlights;
+    if (!Array.isArray(highlights) || highlights.length === 0) {
+      return undefined;
+    }
+
+    const localizedHighlights = highlights.reduce<Record<string, string[]>>((accumulator, item) => {
+      if (!Array.isArray(item)) {
+        return accumulator;
+      }
+
+      item.forEach((entry) => {
+        if (!entry || typeof entry.language !== 'string' || typeof entry.value !== 'string') {
+          return;
+        }
+
+        if (!accumulator[entry.language]) {
+          accumulator[entry.language] = [];
+        }
+        accumulator[entry.language].push(entry.value);
+      });
+
+      return accumulator;
+    }, {});
+
+    return Object.keys(localizedHighlights).length > 0 ? localizedHighlights : undefined;
+  }
+
+  private normalizeEmporixSource(product: BatteryIncludedProduct): EmporixProduct {
+    const rootProduct = this.getRootProduct(product);
+    const localizedProduct = this.getLocalizedProduct(product);
+
+    return {
+      ...(rootProduct as EmporixProduct),
+      id: product.id ?? rootProduct.id ?? rootProduct.code,
+      code: rootProduct.code ?? product.code ?? product.id,
+      name: localizedProduct.name ?? rootProduct.name ?? '',
+      description: localizedProduct.description ?? rootProduct.description ?? '',
+      media: this.getMedia(product),
+      brandId: localizedProduct.brand?.id ?? rootProduct.brandId,
+      labelIds:
+        Array.isArray(localizedProduct.labels) && localizedProduct.labels.length > 0
+          ? localizedProduct.labels.map((label: Record<string, any>) => label.id).filter(Boolean)
+          : rootProduct.labelIds,
+    };
+  }
+
   /**
    * Maps a BatteryIncluded product to the internal Product model by delegating to EmporixProductMapper
    * @param product - The BatteryIncluded product data
    * @returns The internal Product model
    */
   mapToService(product: BatteryIncludedProduct): ServiceProduct {
-    // Since BatteryIncluded uses the same structure as Emporix, delegate to EmporixProductMapper
-    // custom modifications can be included here
-    const productData = this.emporixMapper.mapToService({
-      ...(product as EmporixProduct),
-      media: product.medias ? product.medias : [],
-    });
+    const rootProduct = this.getRootProduct(product);
+    const localizedProduct = this.getLocalizedProduct(product);
+    const normalizedSource = this.normalizeEmporixSource(product);
+    const productData = this.emporixMapper.mapToService(normalizedSource);
 
-    // Map price data if available - using mixins data as requested
-    // TODO clarify, what to do when more pricesare returned
-    if (product.prices) {
-      productData.price = this.mapPrice(product.prices[0]);
+    const mappedProduct: Product = {
+      ...productData,
+      id: String(product.id ?? rootProduct.id ?? rootProduct.code ?? productData.id),
+      name: localizedProduct.name ?? productData.name,
+      description: localizedProduct.description ?? productData.description,
+      brand: this.mapBrand(product) ?? productData.brand,
+      labels: this.mapLabels(product) ?? productData.labels,
+      highlights: this.mapHighlights(product) ?? productData.highlights,
+      availability: this.mapAvailability(
+        product,
+        String(product.id ?? rootProduct.id ?? rootProduct.code ?? productData.id),
+      ),
+      primaryImage: productData.primaryImage,
+      images: productData.images,
+    };
+
+    const priceData = this.getPriceData(product);
+    if (priceData) {
+      mappedProduct.price = this.mapPrice(priceData);
     }
 
-    // Map product mixins to the existing product data
-    const productDataWithMixins = this.mapProductMixins(product.mixins, productData);
+    const mixins = rootProduct.mixins ?? product.mixins;
+    const productDataWithMixins = this.mapProductMixins(mixins, mappedProduct);
 
     return productDataWithMixins;
   }
@@ -192,10 +375,7 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
     if (mixins.usp?.usp) {
       enhancedProduct.usps = mixins.usp.usp.map((usp: any) => ({
         icon: typeof usp.icon === 'string' ? usp.icon : usp.icon != null ? String(usp.icon) : '',
-        description: usp.description.reduce((acc: LocalizedString, item: any) => {
-          acc[item.language] = item.value;
-          return acc;
-        }, {} as any),
+        description: this.toLocalizedString(usp.description),
       }));
     }
 

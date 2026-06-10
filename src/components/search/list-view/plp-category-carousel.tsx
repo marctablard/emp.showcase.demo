@@ -17,6 +17,7 @@ import { Link } from '@/i18n/navigation';
 import { buildBrowseHrefForCategoryId } from '@/lib/navigation/build-browse-category-href';
 import { l10n, l10nOrEmpty } from '@/lib/utils';
 import type { Category } from '@/platform/services/model/category';
+import { getBatteryIncludedCategoryStaticCount } from '@/platform/services/model/category/batteryincluded-category';
 
 interface PlpCategoryCarouselProps {
   /** Categories to render as cards. Empty list renders nothing. */
@@ -38,6 +39,18 @@ export function PlpCategoryCarousel({ categories, locale }: PlpCategoryCarouselP
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
 
+  const staticCounts = useMemo(
+    () =>
+      categories.reduce<Record<string, number>>((acc, category) => {
+        const count = getBatteryIncludedCategoryStaticCount(category);
+        if (typeof count === 'number') {
+          acc[category.id] = count;
+        }
+        return acc;
+      }, {}),
+    [categories],
+  );
+
   const categoryIdsKey = useMemo(() => categories.map((c) => c.id).join('|'), [categories]);
   const { counts, requestCounts } = useCategoryProductCounts();
 
@@ -45,12 +58,17 @@ export function PlpCategoryCarousel({ categories, locale }: PlpCategoryCarouselP
     if (categoryIdsKey.length === 0) {
       return;
     }
-    requestCounts(categoryIdsKey.split('|'));
-  }, [categoryIdsKey, requestCounts]);
+    requestCounts(categoryIdsKey.split('|').filter((id) => staticCounts[id] === undefined));
+  }, [categoryIdsKey, requestCounts, staticCounts]);
+
+  const mergedCounts = useMemo(() => ({ ...counts, ...staticCounts }), [counts, staticCounts]);
 
   // Drop categories whose product count has resolved to 0. Unknown counts stay visible so the
   // carousel does not flicker while counts stream in.
-  const visibleCategories = useMemo(() => categories.filter((c) => counts[c.id] !== 0), [categories, counts]);
+  const visibleCategories = useMemo(
+    () => categories.filter((c) => mergedCounts[c.id] !== 0),
+    [categories, mergedCounts],
+  );
 
   useEffect(() => {
     if (!api) {
@@ -96,9 +114,9 @@ export function PlpCategoryCarousel({ categories, locale }: PlpCategoryCarouselP
         <CarouselContent className="py-6">
           {visibleCategories.map((category) => {
             const name = l10n(category.name, locale);
-            const href = buildBrowseHrefForCategoryId(category.id);
+            const href = buildBrowseHrefForCategoryId(category.id, category);
             const image = category.media?.[0];
-            const count = counts[category.id];
+            const count = mergedCounts[category.id];
             return (
               <CarouselItem key={category.id} size="basis-[260px] sm:basis-[300px] md:basis-[320px] lg:basis-[340px]">
                 <Link

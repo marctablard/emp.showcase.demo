@@ -1,22 +1,37 @@
 import { EmporixMedia } from '@/platform/integrations/emporix/model/common';
 
+export interface BatteryIncludedBrowseVariables {
+  locale?: string;
+  siteAware?: string;
+  countryAware?: string;
+}
+
 export interface BatteryIncludedSearchParams<T> {
   query?: string;
   page?: number;
   size?: number;
   sort?: string;
   locale?: string;
+  analyze?: 0 | 1;
   preset?: string;
-  filters?: Record<string, string | string[]>;
+  variables?: BatteryIncludedBrowseVariables;
+  filters?: Record<string, string | string[] | Record<string, string | number>>;
+}
+
+export interface BatteryIncludedFacetCountRowData {
+  displayPath?: string;
+  idPath?: string;
+  [key: string]: unknown;
+}
+
+export interface BatteryIncludedFacetCountRow {
+  count: number;
+  value: string;
+  data?: BatteryIncludedFacetCountRowData;
 }
 
 export interface BatteryIncludedFacetCount {
-  counts: [
-    {
-      count: number;
-      value: string;
-    },
-  ];
+  counts: BatteryIncludedFacetCountRow[];
   field_name: string;
   stats: {
     total_values: number;
@@ -25,11 +40,11 @@ export interface BatteryIncludedFacetCount {
 }
 
 export interface BatteryIncludedSearchResponse<T> {
-  hits: [{ document: T }];
+  hits: Array<{ document: T }>;
   found: number;
   page: number;
   size: number;
-  facet_counts: [BatteryIncludedFacetCount];
+  facet_counts: BatteryIncludedFacetCount[];
 }
 
 export interface BatteryIncludedMedia extends EmporixMedia {

@@ -28,6 +28,7 @@ export function createBrowseInitialSearch(
   rawParams: Record<string, string | string[]>,
   customerSegments: boolean,
   site: string,
+  locale: string,
 ): { initialSearch: SearchParams<Product>; q?: string } {
   const q = rawParams.q as string | undefined;
   const page = rawParams.page as string | undefined;
@@ -42,6 +43,7 @@ export function createBrowseInitialSearch(
     filters: Object.keys(filters).length > 0 ? filters : undefined,
     customerSegments,
     site,
+    locale,
   };
 
   return { initialSearch, q };
@@ -93,13 +95,13 @@ export default async function BrowsePage({
   const { locale, site } = await params;
   const rawParams = await searchParams;
 
-  const { initialSearch, q } = createBrowseInitialSearch(rawParams, false, site);
+  const { initialSearch, q } = createBrowseInitialSearch(rawParams, false, site, locale);
 
   // Fetch navigation forest in parallel with the SSR product search so the PLP has the full
   // category tree available without a second round-trip on first paint.
   const [initialResults, navigationRoots] = await Promise.all([
     isSearchSsrEnabled() ? searchProducts(initialSearch) : Promise.resolve(undefined),
-    getCachedNavigationCategoryTrees(site),
+    getCachedNavigationCategoryTrees(site, locale),
   ]);
 
   return renderBrowsePage({

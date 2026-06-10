@@ -67,7 +67,7 @@ export function PlpCategoryTreeNode({
 
   const isSelected = selectedCategoryId === node.id;
   const count = counts[node.id];
-  const href = buildBrowseHrefForCategoryId(node.id);
+  const href = buildBrowseHrefForCategoryId(node.id, node);
   const name = l10n(node.name, locale);
 
   const chevronButtonRef = useRef<HTMLButtonElement | null>(null);

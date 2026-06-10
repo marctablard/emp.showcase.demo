@@ -1,7 +1,7 @@
 'use client';
 
 import { PlpListLayout } from '@/components/search/list-view/plp-list-layout';
-import { parseCategoryIdsFilterValue } from '@/lib/search/parse-category-ids-filter';
+import { resolveSelectedCategoryIdFromFilters } from '@/lib/search/category-selection';
 import type { Category } from '@/platform/services/model/category';
 import type { Product } from '@/platform/services/model/product';
 
@@ -15,8 +15,7 @@ interface SearchResultsListProps {
   hasMore: boolean;
   loadingMore: boolean;
   loadMore: () => void | Promise<void>;
-  /** Active `filters[categoryIds]` from `useSearch`, used to highlight the selected tree node. */
-  activeCategoryIdsFilter?: string | string[] | Record<string, string>;
+  activeFilters?: Record<string, string | string[] | Record<string, string>>;
   /**
    * Site-scoped navigation root categories rendered in the PLP thumbnail carousel and left-column
    * tree. Optional so legacy call sites that do not plumb the forest keep rendering a slim layout.
@@ -34,11 +33,11 @@ export function SearchResultsList({
   hasMore,
   loadingMore,
   loadMore,
-  activeCategoryIdsFilter,
+  activeFilters,
   navigationRoots,
 }: SearchResultsListProps) {
   const rootCategories = navigationRoots ?? [];
-  const selectedCategoryId = parseCategoryIdsFilterValue(activeCategoryIdsFilter)[0];
+  const selectedCategoryId = resolveSelectedCategoryIdFromFilters(activeFilters ?? {}, rootCategories);
 
   return (
     <PlpListLayout

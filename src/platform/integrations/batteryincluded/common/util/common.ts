@@ -8,30 +8,35 @@ import type { BatteryIncludedSearchParams } from '../../model';
 export function buildSearchParams<T>(params: BatteryIncludedSearchParams<T>): string {
   const queryParams = new URLSearchParams();
 
-  // Add search query if provided
-  if (params.query) {
+  // Preserve the explicit empty bootstrap query (`q=`) while still omitting undefined.
+  if (params.query !== undefined) {
     queryParams.append('q', params.query);
   }
 
-  // Add pagination parameters
-  if (!params.page) {
-    params.page = 1;
-  }
-  queryParams.append('page', params.page.toString());
-  // we need size to determine total page count
-  if (!params.size) {
-    params.size = 10;
-  }
-  queryParams.append('per_page', params.size.toString());
+  const page = params.page ?? 1;
+  queryParams.append('page', page.toString());
+
+  // Preserve explicit `0` for the category-tree bootstrap contract.
+  const size = params.size ?? 10;
+  queryParams.append('per_page', size.toString());
 
   // Add sort parameter
   if (params.sort) {
     queryParams.append('sort', params.sort);
   }
 
-  // Add locale parameter
-  if (params.locale) {
-    queryParams.append('v[locale]', params.locale);
+  if (params.analyze !== undefined) {
+    queryParams.append('analyze', String(params.analyze));
+  }
+
+  const variables = {
+    ...(params.locale ? { locale: params.locale } : {}),
+    ...(params.variables ?? {}),
+  };
+  for (const [key, value] of Object.entries(variables)) {
+    if (value !== undefined && value !== '') {
+      queryParams.append(`v[${key}]`, value);
+    }
   }
 
   // Add preset parameter

@@ -20,11 +20,11 @@ export default async function AuthenticatedBrowsePage({
   const { locale, site } = await params;
   const rawParams = await searchParams;
 
-  const { initialSearch, q } = createBrowseInitialSearch(rawParams, true, site);
+  const { initialSearch, q } = createBrowseInitialSearch(rawParams, true, site, locale);
 
   const [initialResults, navigationRoots] = await Promise.all([
     searchProducts(initialSearch),
-    getCachedNavigationCategoryTrees(site),
+    getCachedNavigationCategoryTrees(site, locale),
   ]);
 
   return renderBrowsePage({ locale, q, initialSearch, initialResults, navigationRoots });

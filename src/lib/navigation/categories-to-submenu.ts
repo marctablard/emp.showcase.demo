@@ -18,7 +18,7 @@ function categoryToSubMenuItem(category: Category, locale: string): SubMenuItem 
   return {
     id: category.id,
     label: l10n(category.name, locale),
-    href: buildBrowseHrefForCategoryId(category.id),
+    href: buildBrowseHrefForCategoryId(category.id, category),
     hasSubmenu,
     submenuItems: hasSubmenu ? sortedChildren.map((c) => categoryToSubMenuItem(c, locale)) : [],
   };
@@ -28,5 +28,8 @@ function categoryToSubMenuItem(category: Category, locale: string): SubMenuItem 
  * Maps API category roots (with nested `children`) to header flyout / mobile menu shape.
  */
 export function categoriesToSubMenuItems(categories: Category[], locale: string): SubMenuItem[] {
-  return categories.slice().sort(sortByPosition).map((c) => categoryToSubMenuItem(c, locale));
+  return categories
+    .slice()
+    .sort(sortByPosition)
+    .map((c) => categoryToSubMenuItem(c, locale));
 }

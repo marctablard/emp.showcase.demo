@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { useCategoryDisplayLabelIndex } from '@/components/navigation/category-display-label-index-context';
@@ -12,7 +12,6 @@ import { SearchResultsList } from '@/components/search/search-results-list';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { USE_SEARCH_CLIENT_ERROR, useSearch } from '@/hooks/search/useSearch';
-import { parseCategoryIdsFilterValue } from '@/lib/search/parse-category-ids-filter';
 import type { Category } from '@/platform/services/model/category';
 import type { SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
@@ -70,16 +69,6 @@ export function SearchResultsComponent({
     error: searchError,
   } = useSearch<Product>(initialSearch, initialResults);
 
-  const categoryFilterLabelsById = useMemo(() => {
-    const ids = parseCategoryIdsFilterValue(activeFilters.categoryIds);
-    const out: Record<string, string> = {};
-    for (const id of ids) {
-      const label = navigationLabelIndex[id]?.trim();
-      out[id] = label && label.length > 0 ? label : id;
-    }
-    return out;
-  }, [navigationLabelIndex, activeFilters.categoryIds]);
-
   // Shared props for SearchFilter component (used in both mobile and desktop layouts)
   const searchFilterProps = {
     activeFilters,
@@ -97,7 +86,7 @@ export function SearchResultsComponent({
     resetFacet,
     resetAllFacets,
     resetLabel: t('resetFilter'),
-    categoryFilterLabelsById,
+    categoryFilterLabelsById: navigationLabelIndex,
   };
   const searchParamsKey = searchParams.toString();
 
@@ -217,7 +206,7 @@ export function SearchResultsComponent({
             hasMore={hasMore}
             loadingMore={loadingMore}
             loadMore={loadMore}
-            activeCategoryIdsFilter={activeFilters.categoryIds}
+            activeFilters={activeFilters}
             navigationRoots={navigationRoots}
           />
         )}

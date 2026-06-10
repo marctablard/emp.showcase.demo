@@ -4,8 +4,10 @@ import type { BatteryIncludedSearchResponse } from '@/platform/integrations/batt
 import type { BatteryIncludedProduct } from '@/platform/integrations/batteryincluded/model/product';
 import type { BatteryIncludedShopApi } from '@/platform/integrations/batteryincluded/shop/BatteryIncludedShopApi';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
+import { BATTERY_INCLUDED_BREADCRUMB_FILTER } from '@/platform/services/model/category/batteryincluded-category';
 import type { Filter, SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
+import type { BatteryIncludedCategoryTreeService } from '@/platform/services/search/BatteryIncludedCategoryTreeService';
 import type { SearchService } from '@/platform/services/search/SearchService';
 import type { CustomerService } from '../../customer/CustomerService';
 import type { ProductMapper } from '../../model/product/ProductMapper';
@@ -25,6 +27,7 @@ class BatteryIncludedSearchService implements SearchService {
   private sessionService: SessionService;
   private segmentFilterService: SegmentFilterService;
   private customerService: CustomerService;
+  private categoryTreeService: BatteryIncludedCategoryTreeService;
   private logger: LoggerService;
 
   constructor(
@@ -33,6 +36,7 @@ class BatteryIncludedSearchService implements SearchService {
     @inject('SessionService') sessionService: SessionService,
     @inject('SegmentFilterService') segmentFilterService: SegmentFilterService,
     @inject('CustomerService') customerService: CustomerService,
+    @inject('BatteryIncludedCategoryTreeService') categoryTreeService: BatteryIncludedCategoryTreeService,
     @inject('LoggerService') logger: LoggerService,
   ) {
     this.shopApi = shopApi;
@@ -42,7 +46,23 @@ class BatteryIncludedSearchService implements SearchService {
     this.sessionService = sessionService;
     this.segmentFilterService = segmentFilterService;
     this.customerService = customerService;
+    this.categoryTreeService = categoryTreeService;
     this.logger = logger;
+  }
+
+  private isFilterValueActive(
+    filters: SearchParams<Product>['filters'],
+    facetId: string,
+    candidateValue: string,
+  ): boolean {
+    const applied = filters?.[facetId];
+    if (applied === undefined) {
+      return false;
+    }
+    if (Array.isArray(applied)) {
+      return applied.includes(candidateValue);
+    }
+    return applied === candidateValue;
   }
 
   async searchProducts(params: SearchParams<Product>, locale?: string, site?: string): Promise<SearchResult<Product>> {
@@ -61,15 +81,37 @@ class BatteryIncludedSearchService implements SearchService {
       }
     }
 
-    if (!site) {
-      const session = await this.sessionService.getCurrent();
-      site = session?.siteCode;
-    }
-    if (site) {
-      filters = {
-        ...filters,
-        siteCode: site,
-      };
+    const session = await this.sessionService.getCurrent();
+    const resolvedLocale = locale ?? params.locale;
+    const resolvedSite = site ?? params.site ?? session?.siteCode;
+    const variables = {
+      ...(resolvedLocale ? { locale: resolvedLocale } : {}),
+      ...(resolvedSite ? { siteAware: resolvedSite } : {}),
+      ...(session?.country ? { countryAware: session.country } : {}),
+    };
+
+    const legacyCategoryIds = filters?.categoryIds;
+    if (legacyCategoryIds && resolvedSite && resolvedLocale) {
+      const snapshot = await this.categoryTreeService.getSnapshot({
+        siteCode: resolvedSite,
+        locale: resolvedLocale,
+        country: session?.country,
+        showUnpublished: false,
+      });
+      if (snapshot) {
+        const ids = Array.isArray(legacyCategoryIds) ? legacyCategoryIds : [legacyCategoryIds];
+        const translated = ids
+          .map((id) => snapshot.byId[String(id).trim()]?.facetValue)
+          .filter((value): value is string => Boolean(value));
+        if (translated.length === ids.length) {
+          filters = {
+            ...filters,
+            [BATTERY_INCLUDED_BREADCRUMB_FILTER]: translated.length === 1 ? translated[0] : translated,
+          };
+          const { categoryIds: _removedCategoryIds, ...rest } = filters;
+          filters = rest;
+        }
+      }
     }
 
     const searchResult: BatteryIncludedSearchResponse<BatteryIncludedProduct> = await this.shopApi.browse({
@@ -77,11 +119,12 @@ class BatteryIncludedSearchService implements SearchService {
       size: params.size,
       query: params.query,
       sort: params.sort,
+      variables,
       filters: filters,
     });
 
     const availableFilters = searchResult.facet_counts
-      .filter((facet) => facet.field_name !== 'segmentIds')
+      .filter((facet) => facet.field_name !== 'segmentIds' && facet.field_name !== BATTERY_INCLUDED_BREADCRUMB_FILTER)
       .map((facet) => {
         const filter: Filter = {
           id: facet.field_name,
@@ -91,7 +134,7 @@ class BatteryIncludedSearchService implements SearchService {
                 id: value.value,
                 name: value.value, // TODO l10n...
                 count: value.count,
-                active: params.filters ? params.filters[facet.field_name] == value.value : false,
+                active: this.isFilterValueActive(filters, facet.field_name, value.value),
               }))
             : [],
         };

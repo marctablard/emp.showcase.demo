@@ -57,6 +57,14 @@ class EmporixCategoryApi implements IEmporixCategoryApi {
 
     const url = `/category/${this.config.tenant}/categories?${queryParams}`;
 
+    this.logger.info(
+      {
+        path: `/category/${this.config.tenant}/categories`,
+        query: queryParams,
+      },
+      'Emporix categories request',
+    );
+
     const response = await this.apiInvoker.authenticatedFetch(
       url,
       { method: 'GET', headers: { 'X-Total-Count': 'true' } },
@@ -66,7 +74,19 @@ class EmporixCategoryApi implements IEmporixCategoryApi {
       DEFAULT_CACHE_REVALIDATE,
     );
 
-    return buildPaginatedResponse(params, response);
+    const result = await buildPaginatedResponse<EmporixCategory>(params, response);
+    this.logger.info(
+      {
+        path: `/category/${this.config.tenant}/categories`,
+        itemCount: result.items.length,
+        total: result.total,
+        page: result.page,
+        categoryIdPreview: result.items.map((item) => item.id).slice(0, 20),
+      },
+      'Emporix categories response',
+    );
+
+    return result;
   }
 
   async getCategoriesByIds(
@@ -360,6 +380,15 @@ class EmporixCategoryApi implements IEmporixCategoryApi {
 
     const path = `/category/${this.config.tenant}/category-trees?${params.toString()}`;
 
+    this.logger.info(
+      {
+        path: `/category/${this.config.tenant}/category-trees`,
+        categoryIds: trimmed,
+        showUnpublished: showUnpublished === true,
+      },
+      'Emporix category-trees request',
+    );
+
     const tokenType = showUnpublished ? 'service' : 'public';
     const authOptions = showUnpublished ? { scopes: ['category:read'] } : undefined;
 
@@ -388,7 +417,17 @@ class EmporixCategoryApi implements IEmporixCategoryApi {
       throw new Error(`Failed to get category trees: ${response.statusText}`);
     }
 
-    return (await response.json()) as EmporixCategoryTree[];
+    const trees = (await response.json()) as EmporixCategoryTree[];
+    this.logger.info(
+      {
+        path: `/category/${this.config.tenant}/category-trees`,
+        treeCount: trees.length,
+        rootIdPreview: trees.map((tree) => tree.id).slice(0, 20),
+      },
+      'Emporix category-trees response',
+    );
+
+    return trees;
   }
 
   /**
@@ -401,6 +440,15 @@ class EmporixCategoryApi implements IEmporixCategoryApi {
     }
     const qs = params.toString();
     const path = `/category/${this.config.tenant}/category-trees${qs ? `?${qs}` : ''}`;
+
+    this.logger.info(
+      {
+        path: `/category/${this.config.tenant}/category-trees`,
+        showUnpublished: showUnpublished === true,
+        scope: 'all',
+      },
+      'Emporix category-trees request',
+    );
 
     const tokenType = showUnpublished ? 'service' : 'public';
     const authOptions = showUnpublished ? { scopes: ['category:read'] } : undefined;
@@ -430,7 +478,18 @@ class EmporixCategoryApi implements IEmporixCategoryApi {
       throw new Error(`Failed to get category trees: ${response.statusText}`);
     }
 
-    return (await response.json()) as EmporixCategoryTree[];
+    const trees = (await response.json()) as EmporixCategoryTree[];
+    this.logger.info(
+      {
+        path: `/category/${this.config.tenant}/category-trees`,
+        scope: 'all',
+        treeCount: trees.length,
+        rootIdPreview: trees.map((tree) => tree.id).slice(0, 20),
+      },
+      'Emporix category-trees response',
+    );
+
+    return trees;
   }
 
   async searchCategoryTreesForCategoryIds(categoryIds: string[]): Promise<EmporixCategoryTree[]> {

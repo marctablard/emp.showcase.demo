@@ -11,7 +11,7 @@ import type { FilterValue as SearchFilterValue } from '@/hooks/search/useSearch'
 import { type ProductFilterKey, dk } from '@/i18n/dynamic-key';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { Filter } from '@/platform/services/model/common';
-import { getMinMaxValues, isNumberRange, isSelect } from './util/search';
+import { getFilterLabelFallback, getMinMaxValues, isNumberRange, isSelect } from './util/search';
 
 interface SearchFilterProps {
   availableFilters: Filter[];
@@ -152,7 +152,9 @@ function FilterMenu({ availableFilters, activeFilters, applyAllFacets, onSubmitC
 
           return (
             <div key={id} className="space-y-2">
-              <Label>{t(dk<ProductFilterKey>(`filters.${name}`))}</Label>
+              <Label>
+                {t(dk<ProductFilterKey>(`filters.${name}`), { defaultValue: getFilterLabelFallback(name || id) })}
+              </Label>
               <div className="grid grid-cols-2 gap-2">
                 {['min', 'max'].map((input) => {
                   const inputId = `${id}_${input}`;
@@ -194,7 +196,9 @@ function FilterMenu({ availableFilters, activeFilters, applyAllFacets, onSubmitC
         if (isSelect(name || '')) {
           return (
             <div key={id} className="space-y-2">
-              <Label>{t(dk<ProductFilterKey>(`filters.${name}`))}</Label>
+              <Label>
+                {t(dk<ProductFilterKey>(`filters.${name}`), { defaultValue: getFilterLabelFallback(name || id) })}
+              </Label>
               <Select
                 value={formValues[id] as string}
                 onValueChange={(value) => {
@@ -202,7 +206,11 @@ function FilterMenu({ availableFilters, activeFilters, applyAllFacets, onSubmitC
                 }}
               >
                 <SelectTrigger data-testid={`filter-${id}-select`}>
-                  <SelectValue placeholder={t(dk<ProductFilterKey>(`filters.${name}`))} />
+                  <SelectValue
+                    placeholder={t(dk<ProductFilterKey>(`filters.${name}`), {
+                      defaultValue: getFilterLabelFallback(name || id),
+                    })}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {values.map((value) => (

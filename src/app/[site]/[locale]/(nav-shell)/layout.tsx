@@ -26,7 +26,7 @@ export default async function NavShellLayout({ children, params }: Props) {
   setRequestSite(site);
   setRequestLocale(locale);
 
-  const navigationRoots = await getCachedNavigationCategoryTrees(site);
+  const navigationRoots = await getCachedNavigationCategoryTrees(site, locale);
   const allProductCategorySubmenu = categoriesToSubMenuItems(navigationRoots, locale);
   const rootCategoriesPageSize = getNavigationRootCategoriesPageSize();
   const {

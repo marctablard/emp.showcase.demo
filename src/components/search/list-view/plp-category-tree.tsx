@@ -8,6 +8,7 @@ import { H5 } from '@/components/ui/h';
 import { useCategoryProductCounts } from '@/hooks/category/useCategoryProductCounts';
 import { findCategoryPath, pruneEmptyBranches, walkCategoryTree } from '@/lib/category/category-tree-utils';
 import type { Category } from '@/platform/services/model/category';
+import { getBatteryIncludedCategoryStaticCount } from '@/platform/services/model/category/batteryincluded-category';
 
 interface PlpCategoryTreeProps {
   /** Site-scoped navigation forest. Empty forest renders nothing. */
@@ -36,13 +37,26 @@ interface PlpCategoryTreeProps {
 export function PlpCategoryTree({ categories, selectedCategoryId, locale, total }: PlpCategoryTreeProps) {
   const t = useTranslations('search.plpCategoryTree');
 
+  const staticCounts = useMemo(() => {
+    const out: Record<string, number> = {};
+    walkCategoryTree(categories, (node) => {
+      const count = getBatteryIncludedCategoryStaticCount(node);
+      if (typeof count === 'number') {
+        out[node.id] = count;
+      }
+    });
+    return out;
+  }, [categories]);
+
   const allCategoryIdsKey = useMemo(() => {
     const ids: string[] = [];
     walkCategoryTree(categories, (node) => {
-      ids.push(node.id);
+      if (staticCounts[node.id] === undefined) {
+        ids.push(node.id);
+      }
     });
     return ids.join('|');
-  }, [categories]);
+  }, [categories, staticCounts]);
 
   const { counts, requestCounts } = useCategoryProductCounts();
 
@@ -53,7 +67,12 @@ export function PlpCategoryTree({ categories, selectedCategoryId, locale, total 
     requestCounts(allCategoryIdsKey.split('|'));
   }, [allCategoryIdsKey, requestCounts]);
 
-  const visibleCategories = useMemo(() => pruneEmptyBranches(categories, (id) => counts[id]), [categories, counts]);
+  const mergedCounts = useMemo(() => ({ ...counts, ...staticCounts }), [counts, staticCounts]);
+
+  const visibleCategories = useMemo(
+    () => pruneEmptyBranches(categories, (id) => mergedCounts[id]),
+    [categories, mergedCounts],
+  );
 
   const selectedPathIds = useMemo(() => {
     if (!selectedCategoryId) {
@@ -95,7 +114,7 @@ export function PlpCategoryTree({ categories, selectedCategoryId, locale, total 
                 locale={locale}
                 selectedCategoryId={selectedCategoryId}
                 selectedPathIds={selectedPathIds}
-                counts={counts}
+                counts={mergedCounts}
                 selectedLabelRef={selectedLabelRef}
               />
             ))}
