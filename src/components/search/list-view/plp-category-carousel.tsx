@@ -11,7 +11,7 @@ import {
   CarouselPrevious,
   type CarouselType,
 } from '@/components/ui/carousel';
-import { H4, H5 } from '@/components/ui/h';
+import { H4, H5, H6 } from '@/components/ui/h';
 import { useCategoryProductCounts } from '@/hooks/category/useCategoryProductCounts';
 import { Link } from '@/i18n/navigation';
 import { buildBrowseHrefForCategoryId } from '@/lib/navigation/build-browse-category-href';
@@ -95,14 +95,14 @@ export function PlpCategoryCarousel({ categories, locale }: PlpCategoryCarouselP
 
   return (
     <section className="w-full" aria-label={t('title')} data-testid="plp-category-carousel">
+      {/* Desktop Layout: Horizontal Carousel */}
       <Carousel
-        className="w-full"
+        className="hidden w-full sm:block"
         orientation="horizontal"
         opts={{ align: 'start', containScroll: 'trimSnaps' }}
         setApi={setApi}
       >
         <div className="flex items-center justify-between gap-4">
-          <H4>{t('title')}</H4>
           {showControls ? (
             <div className="flex items-center gap-6">
               <CarouselPrevious className="static translate-y-0 [&_svg]:h-6 [&_svg]:w-6 [&_svg]:text-icon-action" />
@@ -121,7 +121,7 @@ export function PlpCategoryCarousel({ categories, locale }: PlpCategoryCarouselP
               <CarouselItem key={category.id} size="basis-[260px] sm:basis-[300px] md:basis-[320px] lg:basis-[340px]">
                 <Link
                   href={href}
-                  className="group flex h-full w-full flex-col overflow-hidden rounded-[4px] bg-surface-primary shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-border-focus"
+                  className="group flex h-[260px] w-full flex-col overflow-hidden rounded-[8px] bg-surface-primary shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-border-focus"
                   data-testid="plp-category-carousel-card"
                 >
                   <div className="relative flex h-[160px] w-full items-center justify-center bg-surface-image-background p-4">
@@ -138,7 +138,7 @@ export function PlpCategoryCarousel({ categories, locale }: PlpCategoryCarouselP
                   <div className="flex h-[100px] w-full flex-col items-center justify-center gap-1 px-4 py-3 text-center">
                     <H5 className="text-text-body">{name}</H5>
                     {typeof count === 'number' ? (
-                      <span className="font-headlines text-2xl font-bold text-text-on-disabled">{count}</span>
+                      <span className="text-sm font-bold text-text-on-disabled">{count}</span>
                     ) : null}
                   </div>
                 </Link>
@@ -147,6 +147,40 @@ export function PlpCategoryCarousel({ categories, locale }: PlpCategoryCarouselP
           })}
         </CarouselContent>
       </Carousel>
+
+      {/* Mobile Layout: Vertical List of Cards */}
+      <div className="flex w-full flex-col gap-6 sm:hidden">
+        {visibleCategories.map((category) => {
+          const name = l10n(category.name, locale);
+          const href = buildBrowseHrefForCategoryId(category.id, category);
+          const image = category.media?.[0];
+          const count = mergedCounts[category.id];
+          return (
+            <Link
+              key={category.id}
+              href={href}
+              className="group flex h-[80px] w-full items-center overflow-hidden rounded-[4px] bg-surface-primary shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-border-focus"
+              data-testid="plp-category-mobile-card"
+            >
+              <div className="relative flex h-[80px] w-[80px] shrink-0 items-center justify-center bg-surface-image-background p-2">
+                {image?.url ? (
+                  <Image
+                    src={image.url}
+                    alt={image.altText ? l10nOrEmpty(image.altText, locale) || name : name}
+                    fill
+                    sizes="80px"
+                    className="object-contain p-2"
+                  />
+                ) : null}
+              </div>
+              <div className="flex w-full flex-col justify-center px-4">
+                <H4 className="truncate text-text-headings">{name}</H4>
+                {typeof count === 'number' ? <H6 className="text-text-body">{count}</H6> : null}
+              </div>
+            </Link>
+          );
+        })}
+      </div>
     </section>
   );
 }

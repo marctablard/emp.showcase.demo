@@ -1,126 +1,141 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { PlpCategoryTreeNode } from '@/components/search/list-view/plp-category-tree-node';
+import { ChevronLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { H5 } from '@/components/ui/h';
-import { useCategoryProductCounts } from '@/hooks/category/useCategoryProductCounts';
-import { findCategoryPath, pruneEmptyBranches, walkCategoryTree } from '@/lib/category/category-tree-utils';
-import type { Category } from '@/platform/services/model/category';
-import { getBatteryIncludedCategoryStaticCount } from '@/platform/services/model/category/batteryincluded-category';
+import { Link } from '@/i18n/navigation';
+import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
+import { buildBrowseHrefForCategoryId } from '@/lib/navigation/build-browse-category-href';
+import { l10n } from '@/lib/utils';
 
 interface PlpCategoryTreeProps {
-  /** Site-scoped navigation forest. Empty forest renders nothing. */
-  categories: Category[];
-  /** Currently active category (from `filters[categoryIds]`). Drives `aria-current` and auto-expand. */
-  selectedCategoryId?: string;
+  plpCategoryContext: PlpCategoryContext;
   locale: string;
-  /** Total product count from the active search, shown next to the header. */
   total: number;
+  categoryCountsById: Record<string, number>;
+  className?: string;
+  isNested?: boolean;
 }
 
 /**
- * Collapsible category tree rendered in the PLP list-view left column.
- *
- * Interaction model:
- * - Chevron click toggles local open/closed state **without** navigating.
- * - Label click navigates to the category-scoped PLP (keeps the requirement "all category names
- *   clickable").
- * - On deep links (`filters[categoryIds]=<deep-id>`), every ancestor of the active node auto-expands
- *   and the selected label scrolls into view.
- *
- * Pruning: `pruneEmptyBranches` hides branches whose product counts are known and all zero. When
- * counts have not resolved yet (every id returns `undefined`), the util keeps all nodes, so there
- * is no flicker while counts stream in.
+ * Drill-down category tree rendered in the PLP list-view left column.
  */
-export function PlpCategoryTree({ categories, selectedCategoryId, locale, total }: PlpCategoryTreeProps) {
+export function PlpCategoryTree({
+  plpCategoryContext,
+  locale,
+  total,
+  categoryCountsById,
+  className,
+  isNested,
+}: PlpCategoryTreeProps) {
   const t = useTranslations('search.plpCategoryTree');
+  const tSearch = useTranslations('search.searchResults');
 
-  const staticCounts = useMemo(() => {
-    const out: Record<string, number> = {};
-    walkCategoryTree(categories, (node) => {
-      const count = getBatteryIncludedCategoryStaticCount(node);
-      if (typeof count === 'number') {
-        out[node.id] = count;
-      }
-    });
-    return out;
-  }, [categories]);
-
-  const allCategoryIdsKey = useMemo(() => {
-    const ids: string[] = [];
-    walkCategoryTree(categories, (node) => {
-      if (staticCounts[node.id] === undefined) {
-        ids.push(node.id);
-      }
-    });
-    return ids.join('|');
-  }, [categories, staticCounts]);
-
-  const { counts, requestCounts } = useCategoryProductCounts();
-
-  useEffect(() => {
-    if (allCategoryIdsKey.length === 0) {
-      return;
-    }
-    requestCounts(allCategoryIdsKey.split('|'));
-  }, [allCategoryIdsKey, requestCounts]);
-
-  const mergedCounts = useMemo(() => ({ ...counts, ...staticCounts }), [counts, staticCounts]);
-
-  const visibleCategories = useMemo(
-    () => pruneEmptyBranches(categories, (id) => mergedCounts[id]),
-    [categories, mergedCounts],
-  );
-
-  const selectedPathIds = useMemo(() => {
-    if (!selectedCategoryId) {
-      return new Set<string>();
-    }
-    const path = findCategoryPath(visibleCategories, selectedCategoryId);
-    return new Set(path.map((node) => node.id));
-  }, [visibleCategories, selectedCategoryId]);
+  const { ancestorTrail, currentCategory, currentChildren } = plpCategoryContext;
 
   const selectedLabelRef = useRef<HTMLAnchorElement | null>(null);
 
   useEffect(() => {
-    if (!selectedCategoryId || !selectedLabelRef.current) {
-      return;
+    if (selectedLabelRef.current) {
+      selectedLabelRef.current.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
-    selectedLabelRef.current.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, [selectedCategoryId]);
+  }, [currentCategory?.id]);
 
-  if (visibleCategories.length === 0) {
-    return null;
+  const treeContent = (
+    <nav aria-label={t('title')}>
+      {/* Ancestors Breadcrumbs */}
+      {ancestorTrail.length > 0 && (
+        <ul className="flex flex-col gap-2">
+          {ancestorTrail.map((ancestor) => {
+            if (ancestor.kind === 'virtual-all-products') {
+              return (
+                <li key="virtual-all-products">
+                  <Link
+                    href="/browse"
+                    className="group inline-flex min-h-[50px] items-center gap-2 text-text-action underline outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+                  >
+                    <ChevronLeft className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
+                    <span className="truncate">{tSearch('allProducts')}</span>
+                  </Link>
+                </li>
+              );
+            }
+            const cat = ancestor.category;
+            return (
+              <li key={cat.id}>
+                <Link
+                  href={buildBrowseHrefForCategoryId(cat.id, cat)}
+                  className="group inline-flex min-h-[50px] items-center gap-2 text-text-action underline outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+                >
+                  <ChevronLeft className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
+                  <span className="truncate">{l10n(cat.name, locale)}</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {/* Current Category Emphasized Row */}
+      <div className="pl-4">
+        <Link
+          href={currentCategory ? buildBrowseHrefForCategoryId(currentCategory.id, currentCategory) : '/browse'}
+          className="inline-flex min-h-[50px] w-full items-center justify-between font-bold text-text-headings outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+          aria-current="page"
+          ref={selectedLabelRef}
+        >
+          <span className="truncate">
+            {currentCategory ? l10n(currentCategory.name, locale) : tSearch('allProducts')}
+          </span>
+          <span className="shrink-0 text-text-on-disabled">
+            {currentCategory ? (categoryCountsById[currentCategory.id] ?? '') : total}
+          </span>
+        </Link>
+      </div>
+
+      {/* Children List */}
+      {currentChildren.length > 0 && (
+        <div className="pl-8">
+          <ul className="flex flex-col">
+            {currentChildren.map((child) => {
+              const childCount = categoryCountsById[child.id];
+              return (
+                <li key={child.id}>
+                  <Link
+                    href={buildBrowseHrefForCategoryId(child.id, child)}
+                    className="inline-flex min-h-[40px] w-full items-center justify-between text-text-body hover:text-text-headings hover:underline outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+                  >
+                    <span className="truncate">{l10n(child.name, locale)}</span>
+                    {childCount !== undefined && <span className="shrink-0 text-text-on-disabled">{childCount}</span>}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </nav>
+  );
+
+  if (isNested) {
+    return (
+      <div data-testid="plp-category-tree-nested" className={className}>
+        {treeContent}
+      </div>
+    );
   }
 
   return (
-    <Card data-testid="plp-category-tree" className="gap-0 py-4">
-      <CardHeader className="px-4">
-        <div className="flex items-baseline gap-2">
-          <H5>{t('title')}</H5>
-          <span className="text-sm text-text-placeholders">{t('totalProducts', { total })}</span>
-        </div>
+    <Card
+      data-testid="plp-category-tree"
+      className={className || 'gap-0 pt-4 pb-6 shadow-sm border-border-primary rounded-[8px]'}
+    >
+      <CardHeader className="px-6 pb-4 pt-0">
+        <H5>{t('title')}</H5>
       </CardHeader>
-      <CardContent className="px-2">
-        <nav aria-label={t('title')}>
-          <ul className="flex flex-col" role="tree">
-            {visibleCategories.map((root) => (
-              <PlpCategoryTreeNode
-                key={root.id}
-                node={root}
-                level={0}
-                locale={locale}
-                selectedCategoryId={selectedCategoryId}
-                selectedPathIds={selectedPathIds}
-                counts={mergedCounts}
-                selectedLabelRef={selectedLabelRef}
-              />
-            ))}
-          </ul>
-        </nav>
-      </CardContent>
+      <CardContent className="px-6 pb-0">{treeContent}</CardContent>
     </Card>
   );
 }

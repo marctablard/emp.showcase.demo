@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
+import { type ReactNode, createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import type { MenuItem } from '@/data/navigation-menu';
 
 type HeaderDesktopNavigationContextValue = {
@@ -58,9 +58,7 @@ export function HeaderDesktopNavigationProvider({ children }: { children: ReactN
     [activeDesktopMenu, handleMenuHover, scheduleFlyoutClose, dismissFlyout],
   );
 
-  return (
-    <HeaderDesktopNavigationContext.Provider value={value}>{children}</HeaderDesktopNavigationContext.Provider>
-  );
+  return <HeaderDesktopNavigationContext.Provider value={value}>{children}</HeaderDesktopNavigationContext.Provider>;
 }
 
 export function useHeaderDesktopNavigation(): HeaderDesktopNavigationContextValue {

@@ -4,11 +4,7 @@ import type { LocalizedString } from '@/platform/services/model/common';
 /** Shown when a localized object/array has no value for the session locale or `defaultLocale`. */
 export const L10N_MISSING_LABEL = '-';
 
-export type L10nInput =
-  | string
-  | LocalizedString
-  | Array<{ language: string; message: string }>
-  | unknown;
+export type L10nInput = string | LocalizedString | Array<{ language: string; message: string }> | unknown;
 
 function normalizedMessage(value: unknown): string {
   if (typeof value !== 'string') {
@@ -17,10 +13,7 @@ function normalizedMessage(value: unknown): string {
   return value.trim();
 }
 
-function pickFromArray(
-  input: Array<{ language: string; message: string }>,
-  lang: string,
-): string {
+function pickFromArray(input: Array<{ language: string; message: string }>, lang: string): string {
   const item = input.find((i) => i && typeof i === 'object' && i.language === lang);
   if (!item || typeof item.message !== 'string') {
     return '';
@@ -99,11 +92,7 @@ export function resolveLocalizedString(
 /**
  * @param defaultLocale Optional override; defaults to `routingConfig.defaultLocale`.
  */
-export function l10n(
-  input: L10nInput,
-  locale: string,
-  defaultLocale: string = routingConfig.defaultLocale,
-): string {
+export function l10n(input: L10nInput, locale: string, defaultLocale: string = routingConfig.defaultLocale): string {
   return resolveLocalizedString(input, locale, defaultLocale);
 }
 

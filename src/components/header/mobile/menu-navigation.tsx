@@ -296,7 +296,7 @@ export function MobileMenuNavigation({ onClose }: MobileMenuNavigationProps) {
                 <Link
                   href="/browse"
                   onClick={() => onClose?.()}
-                  className="flex items-center justify-between px-5 py-4 text-md font-bold text-text-action"
+                  className="flex items-center justify-between px-5 py-4 text-md font-bold text-text-action underline"
                 >
                   {t('seeAllCategories')}
                 </Link>

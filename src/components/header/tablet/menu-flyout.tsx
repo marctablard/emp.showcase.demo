@@ -228,7 +228,7 @@ export function TabletMenuFlyout({ onRequestClose }: TabletMenuFlyoutProps) {
               <li className="border-b border-border-subtle last:border-b-0">
                 <Link
                   href={tabletSeeAllHref}
-                  className="flex items-center justify-between py-2 text-md font-bold text-text-action"
+                  className="flex items-center justify-between py-2 text-md font-bold text-text-action underline"
                   onClick={closeAfterNavigate}
                 >
                   {t('seeAllCategories')}

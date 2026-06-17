@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getCachedNavigationCategoryTrees } from '@/lib/ssr/navigation-category-trees';
-import { searchProducts } from '@/lib/ssr/search';
+import { getSearchResultsLayout, searchProducts } from '@/lib/ssr/search';
 import { createBrowseInitialSearch, generateBrowsePageMetadata, renderBrowsePage } from '../page';
 
 export const dynamic = 'force-dynamic';
@@ -21,11 +21,12 @@ export default async function AuthenticatedBrowsePage({
   const rawParams = await searchParams;
 
   const { initialSearch, q } = createBrowseInitialSearch(rawParams, true, site, locale);
+  const initialLayout = getSearchResultsLayout();
 
   const [initialResults, navigationRoots] = await Promise.all([
     searchProducts(initialSearch),
     getCachedNavigationCategoryTrees(site, locale),
   ]);
 
-  return renderBrowsePage({ locale, q, initialSearch, initialResults, navigationRoots });
+  return renderBrowsePage({ locale, q, initialSearch, initialResults, navigationRoots, initialLayout });
 }

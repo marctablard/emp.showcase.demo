@@ -84,7 +84,7 @@ class BatteryIncludedCategoryTreeService implements BatteryIncludedCategoryTreeS
     if (built.validationWarnings.length > 0) {
       this.logger.warn(
         { siteCode: context.siteCode, validationWarnings: built.validationWarnings },
-        'BatteryIncluded category tree hierarchy validation mismatch',
+        'BatteryIncluded category tree categoryIds validation mismatch',
       );
     }
     if (!built.snapshot) {

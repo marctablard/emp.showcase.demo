@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { type ReactNode, createContext, useContext, useMemo } from 'react';
 import type { SubMenuItem } from '@/data/navigation-menu';
 import { getNavigationRootCategoriesPageSize } from '@/lib/navigation/navigation-root-categories-page-size';
 
@@ -32,9 +32,7 @@ export function NavigationProductSubmenuProvider({
     };
   }, [submenuItems, totalRootCategoryCount]);
 
-  return (
-    <NavigationProductSubmenuContext.Provider value={value}>{children}</NavigationProductSubmenuContext.Provider>
-  );
+  return <NavigationProductSubmenuContext.Provider value={value}>{children}</NavigationProductSubmenuContext.Provider>;
 }
 
 export function useNavigationProductSubmenu(): NavigationProductSubmenuState {

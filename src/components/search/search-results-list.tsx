@@ -21,6 +21,7 @@ interface SearchResultsListProps {
    * tree. Optional so legacy call sites that do not plumb the forest keep rendering a slim layout.
    */
   navigationRoots?: Category[];
+  topControlsNode?: React.ReactNode;
 }
 
 export function SearchResultsList({
@@ -35,6 +36,7 @@ export function SearchResultsList({
   loadMore,
   activeFilters,
   navigationRoots,
+  topControlsNode,
 }: SearchResultsListProps) {
   const rootCategories = navigationRoots ?? [];
   const selectedCategoryId = resolveSelectedCategoryIdFromFilters(activeFilters ?? {}, rootCategories);
@@ -51,6 +53,7 @@ export function SearchResultsList({
       hasMore={hasMore}
       loadingMore={loadingMore}
       loadMore={loadMore}
+      topControlsNode={topControlsNode}
     />
   );
 }

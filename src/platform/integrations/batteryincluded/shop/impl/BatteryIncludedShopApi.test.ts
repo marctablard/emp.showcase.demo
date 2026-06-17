@@ -111,9 +111,18 @@ describe('BatteryIncludedShopApi', () => {
   });
 
   describe('suggest', () => {
-    it('should call API with correct parameters', async () => {
+    it('should call API with the BI suggest variable context', async () => {
       // Execute
-      await shopApi.suggest('pho', 'en');
+      await shopApi.suggest({
+        query: 'pho',
+        variables: {
+          locale: 'en',
+          siteAware: 'main',
+          countryAware: 'DE',
+          currencyAware: 'EUR',
+        },
+        segmentIds: ['segment-a', 'segment-b'],
+      });
 
       // Verify
       expect(apiInvoker.apiFetch).toHaveBeenCalledWith(
@@ -130,6 +139,12 @@ describe('BatteryIncludedShopApi', () => {
       // Verify URL parameters
       expect(url).toContain('q=pho');
       expect(url).toContain('v%5Blocale%5D=en');
+      expect(url).toContain('v%5BsiteAware%5D=main');
+      expect(url).toContain('v%5BcountryAware%5D=DE');
+      expect(url).toContain('v%5BcurrencyAware%5D=EUR');
+      expect(url).toContain('f%5BsegmentIds%5D%5B%5D=segment-a');
+      expect(url).toContain('f%5BsegmentIds%5D%5B%5D=segment-b');
+      expect(url).not.toContain('f%5BsegmentIds%5D%5B%5D=segment-a%2Csegment-b');
     });
   });
 

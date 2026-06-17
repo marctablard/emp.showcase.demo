@@ -8,6 +8,8 @@ import { parseCategoryIdsFilterValue } from './parse-category-ids-filter';
 
 type CategoryFilterValue = string | string[] | Record<string, string> | undefined | null;
 
+const LEGACY_BATTERY_INCLUDED_BREADCRUMB_FILTER = '_product_i18n.categories.breadcrumbs.displayPath';
+
 export function parseFlatCategoryFilterValue(value: CategoryFilterValue): string[] {
   if (value === undefined || value === null) {
     return [];
@@ -44,7 +46,9 @@ export function resolveSelectedCategoryIdFromFilters(
     return categoryIds[0];
   }
 
-  const facetValues = parseFlatCategoryFilterValue(activeFilters[BATTERY_INCLUDED_BREADCRUMB_FILTER]);
+  const facetValues = parseFlatCategoryFilterValue(
+    activeFilters[BATTERY_INCLUDED_BREADCRUMB_FILTER] ?? activeFilters[LEGACY_BATTERY_INCLUDED_BREADCRUMB_FILTER],
+  );
   if (facetValues.length === 0) {
     return undefined;
   }

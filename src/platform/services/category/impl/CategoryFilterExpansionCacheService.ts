@@ -1,7 +1,7 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
-import { collectSubtreeIdsFromCategoryTrees } from '@/platform/integrations/emporix/category/collect-subtree-category-ids';
 import type { EmporixCategoryApi } from '@/platform/integrations/emporix/category/EmporixCategoryApi';
+import { collectSubtreeIdsFromCategoryTrees } from '@/platform/integrations/emporix/category/collect-subtree-category-ids';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 
 const DEFAULT_MAX_ENTRIES = 300;

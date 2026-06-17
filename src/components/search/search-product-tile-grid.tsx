@@ -70,7 +70,7 @@ export function SearchProductTileGrid({
       <div className={resolvedGridClass}>
         {products.map((product) => (
           <div key={product.id} className="h-full">
-            <ProductTile product={product} locale={locale} skipVariantFetch />
+            <ProductTile product={product} locale={locale} skipVariantFetch showParentVariantBadge />
           </div>
         ))}
       </div>

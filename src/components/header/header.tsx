@@ -1,12 +1,12 @@
 'use client';
 
-import type { SubMenuItem } from '@/data/navigation-menu';
 import { HeaderActionBar } from '@/components/header/common/header-action-bar';
-import { HeaderDesktopNavigationProvider } from '@/components/header/header-desktop-navigation-context';
 import { HeaderMobile } from '@/components/header/common/header-mobile';
 import { HeaderTopBanner } from '@/components/header/common/header-top-banner';
+import { HeaderDesktopNavigationProvider } from '@/components/header/header-desktop-navigation-context';
 import { NavigationProductSubmenuProvider } from '@/components/header/navigation-product-submenu-context';
 import { HeaderSearchProvider } from '@/components/header/search/search-context';
+import type { SubMenuItem } from '@/data/navigation-menu';
 
 export function Header({
   productCategorySubmenu,

@@ -1,11 +1,7 @@
 import type { Category } from '@/platform/services/model/category';
 import { buildCategoryDisplayLabelIndex } from './build-category-display-label-index';
 
-function cat(
-  id: string,
-  name: Record<string, string>,
-  children?: Category[],
-): Category {
+function cat(id: string, name: Record<string, string>, children?: Category[]): Category {
   return {
     id,
     name,
@@ -21,9 +17,7 @@ describe('buildCategoryDisplayLabelIndex', () => {
   });
 
   it('walks nested children', () => {
-    const roots = [
-      cat('root', { en: 'Root' }, [cat('child', { en: 'Child' }, [cat('leaf', { en: 'Leaf' })])]),
-    ];
+    const roots = [cat('root', { en: 'Root' }, [cat('child', { en: 'Child' }, [cat('leaf', { en: 'Leaf' })])])];
     expect(buildCategoryDisplayLabelIndex(roots, 'en')).toEqual({
       root: 'Root',
       child: 'Child',
@@ -32,10 +26,7 @@ describe('buildCategoryDisplayLabelIndex', () => {
   });
 
   it('first non-empty label wins for duplicate id', () => {
-    const roots = [
-      cat('dup', { en: 'First' }),
-      cat('dup', { en: 'Second' }),
-    ];
+    const roots = [cat('dup', { en: 'First' }), cat('dup', { en: 'Second' })];
     expect(buildCategoryDisplayLabelIndex(roots, 'en')).toEqual({ dup: 'First' });
   });
 

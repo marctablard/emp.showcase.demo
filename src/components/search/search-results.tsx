@@ -1,17 +1,21 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { useCategoryDisplayLabelIndex } from '@/components/navigation/category-display-label-index-context';
+import { MobileCategoryDrawer } from '@/components/search/mobile-category-drawer';
 import { SearchActiveFiltersWithReset } from '@/components/search/search-active-filters-with-reset';
 import { SearchFilter } from '@/components/search/search-filter';
 import { SearchLayoutToggle } from '@/components/search/search-layout-toggle';
 import { SearchResultsGrid } from '@/components/search/search-results-grid';
 import { SearchResultsList } from '@/components/search/search-results-list';
+import { SearchSort } from '@/components/search/search-sort';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { USE_SEARCH_CLIENT_ERROR, useSearch } from '@/hooks/search/useSearch';
+import { resolvePlpCategoryContext } from '@/lib/category/plp-category-context';
+import { resolveSelectedCategoryIdFromFilters } from '@/lib/search/category-selection';
 import type { Category } from '@/platform/services/model/category';
 import type { SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
@@ -22,15 +26,19 @@ import {
   urlSearchParamsToNextRecord,
 } from '@/utils/filterUtils';
 
+type SearchResultsLayout = 'list' | 'grid';
+
 interface SearchClientWrapperProps {
   initialSearch?: SearchParams<Product>;
   initialResults?: SearchResult<Product>;
+  initialLayout: SearchResultsLayout;
   locale: string;
   /**
    * Site-scoped navigation category forest (from `getCachedNavigationCategoryTrees`). Feeds the
    * list-view thumbnail carousel and later the expandable category tree.
    */
   navigationRoots?: Category[];
+  headingNode?: React.ReactNode;
 }
 
 /** Matches `createBrowseInitialSearch` default when `size` is omitted from the URL. */
@@ -39,14 +47,16 @@ const BROWSE_DEFAULT_PAGE_SIZE = 12;
 export function SearchResultsComponent({
   initialSearch,
   initialResults,
+  initialLayout,
   locale,
   navigationRoots,
+  headingNode,
 }: SearchClientWrapperProps) {
   const t = useTranslations('search.searchResults');
   const tSearch = useTranslations('search');
   const searchParams = useSearchParams();
   const navigationLabelIndex = useCategoryDisplayLabelIndex();
-  const [layout, setLayout] = useState<'list' | 'grid'>('grid');
+  const layout = initialLayout;
   // Initialize the search hook with Product type and initial results
   const {
     data: products,
@@ -68,6 +78,12 @@ export function SearchResultsComponent({
     syncBrowseSearchStateFromUrl,
     error: searchError,
   } = useSearch<Product>(initialSearch, initialResults);
+
+  const rootCategories = navigationRoots ?? [];
+  const selectedCategoryId = resolveSelectedCategoryIdFromFilters(activeFilters ?? {}, rootCategories);
+  const plpCategoryContext = navigationRoots
+    ? resolvePlpCategoryContext(navigationRoots, selectedCategoryId)
+    : undefined;
 
   // Shared props for SearchFilter component (used in both mobile and desktop layouts)
   const searchFilterProps = {
@@ -158,6 +174,40 @@ export function SearchResultsComponent({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- searchParams is read from the latest render whenever searchParamsKey changes
   }, [searchParamsKey, search, initialResults, initialSearch, syncBrowseSearchStateFromUrl]);
 
+  const topControlsNode = (
+    <div className="w-full">
+      {/* Row: SearchFilter controls on mobile and desktop. */}
+      <div className="flex w-full flex-col gap-4 sm:flex-row sm:justify-between">
+        {/* Mobile: Use MobileCategoryDrawer if PLP context exists (as a subset), otherwise generic SearchFilter */}
+        <div className="flex w-full flex-col items-stretch gap-[40px] sm:hidden">
+          {plpCategoryContext ? (
+            <MobileCategoryDrawer plpCategoryContext={plpCategoryContext} locale={locale} total={total} />
+          ) : (
+            <div className="flex w-full flex-col items-stretch [&>*]:w-full">
+              <SearchFilter {...searchFilterProps} />
+            </div>
+          )}
+          <div className="flex w-full flex-col items-stretch [&>*]:w-full">
+            <SearchSort />
+          </div>
+        </div>
+
+        {/* Desktop: SearchFilter + Active filters inline */}
+        <div className="hidden flex-wrap items-center gap-4 sm:flex">
+          <SearchFilter {...searchFilterProps} />
+          <SearchActiveFiltersWithReset {...activeFiltersProps} />
+        </div>
+
+        <SearchLayoutToggle active={layout} onSelectLayout={() => undefined} />
+      </div>
+
+      {/* Mobile: Active filters below, full width */}
+      <div className="mt-4 flex flex-col flex-wrap gap-4 sm:hidden">
+        <SearchActiveFiltersWithReset {...activeFiltersProps} />
+      </div>
+    </div>
+  );
+
   return (
     <>
       {searchError ? (
@@ -169,32 +219,9 @@ export function SearchResultsComponent({
           </AlertDescription>
         </Alert>
       ) : null}
-      {/* Top controls */}
+
+      {/* Main product view area takes the full width and handles its own layout, receiving topControls */}
       <div className="w-full">
-        {/* Row: SearchFilter + Layout toggle inline on mobile; desktop keeps toggle on the right */}
-        <div className="flex w-full justify-between gap-4">
-          {/* Mobile: SearchFilter only */}
-          <div className="flex sm:hidden">
-            <SearchFilter {...searchFilterProps} />
-          </div>
-
-          {/* Desktop: SearchFilter + Active filters inline */}
-          <div className="hidden flex-wrap items-center gap-4 sm:flex">
-            <SearchFilter {...searchFilterProps} />
-            <SearchActiveFiltersWithReset {...activeFiltersProps} />
-          </div>
-
-          <SearchLayoutToggle active={layout} onSelectLayout={(selectedLayout) => setLayout(selectedLayout)} />
-        </div>
-
-        {/* Mobile: Active filters below, full width */}
-        <div className="mt-4 flex flex-col flex-wrap gap-4 sm:hidden">
-          <SearchActiveFiltersWithReset {...activeFiltersProps} />
-        </div>
-      </div>
-
-      {/* Product List/Grid */}
-      <div className="mt-6 w-full">
         {layout === 'list' && (
           <SearchResultsList
             products={products}
@@ -208,25 +235,29 @@ export function SearchResultsComponent({
             loadMore={loadMore}
             activeFilters={activeFilters}
             navigationRoots={navigationRoots}
+            topControlsNode={topControlsNode}
           />
         )}
 
         {layout === 'grid' && (
-          <SearchResultsGrid
-            products={products}
-            locale={locale}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            total={total}
-            loading={loading}
-          />
-        )}
-
-        {layout === 'grid' && hasMore && (
-          <div className="mt-8 flex justify-center">
-            <Button variant="secondary" onClick={loadMore} disabled={loadingMore}>
-              {loadingMore ? t('loadingMore') : t('loadMore')}
-            </Button>
+          <div className="flex flex-col gap-6">
+            {headingNode}
+            {topControlsNode}
+            <SearchResultsGrid
+              products={products}
+              locale={locale}
+              currentPage={currentPage}
+              pageSize={pageSize}
+              total={total}
+              loading={loading}
+            />
+            {hasMore ? (
+              <div className="flex justify-center mt-8">
+                <Button variant="secondary" onClick={loadMore} disabled={loadingMore}>
+                  {loadingMore ? t('loadingMore') : t('loadMore')}
+                </Button>
+              </div>
+            ) : null}
           </div>
         )}
       </div>

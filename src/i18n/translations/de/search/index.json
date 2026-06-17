@@ -24,6 +24,7 @@
     "title": "Kategorien",
     "totalProducts": "— {total} Produkte",
     "expand": "{name} ausklappen",
-    "collapse": "{name} einklappen"
+    "collapse": "{name} einklappen",
+    "subcategoriesHeading": "Unterkategorien"
   }
 }

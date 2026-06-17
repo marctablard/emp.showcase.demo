@@ -6,7 +6,7 @@ import type {
 import type { Category } from '@/platform/services/model/category';
 import { withBatteryIncludedCategoryMetadata } from '@/platform/services/model/category/batteryincluded-category';
 
-export const BATTERY_INCLUDED_HIERARCHY_FILTER = '_product_i18n.categories.hierarchy.id';
+export const BATTERY_INCLUDED_CATEGORY_IDS_FILTER = '_product.categoryIds';
 const ID_PATH_DELIMITER = ' > ';
 
 export interface NavigationCategoryTreeRequestContext {
@@ -85,8 +85,8 @@ export function buildBatteryIncludedCategoryTree(
   }
 
   const publishedRootSet = new Set(publishedRootIds.map((id) => id.trim()).filter(Boolean));
-  const hierarchyFacet = getFacet(response, BATTERY_INCLUDED_HIERARCHY_FILTER);
-  const knownHierarchyIds = new Set((hierarchyFacet?.counts ?? []).map((row) => row.value?.trim()).filter(Boolean));
+  const categoryIdsFacet = getFacet(response, BATTERY_INCLUDED_CATEGORY_IDS_FILTER);
+  const knownCategoryIds = new Set((categoryIdsFacet?.counts ?? []).map((row) => row.value?.trim()).filter(Boolean));
 
   const discardedRows: string[] = [];
   const validationWarnings: string[] = [];
@@ -139,8 +139,8 @@ export function buildBatteryIncludedCategoryTree(
         parent.children.push(node);
       }
 
-      if (knownHierarchyIds.size > 0 && !knownHierarchyIds.has(id)) {
-        validationWarnings.push(`missing hierarchy id: ${id}`);
+      if (knownCategoryIds.size > 0 && !knownCategoryIds.has(id)) {
+        validationWarnings.push(`missing category id: ${id}`);
       }
 
       const entry: BatteryIncludedCategoryLookupEntry = {

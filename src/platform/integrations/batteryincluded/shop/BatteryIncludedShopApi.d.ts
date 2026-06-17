@@ -4,6 +4,7 @@ import type {
   BatteryIncludedProduct,
   BatteryIncludedSearchParams,
   BatteryIncludedSearchResponse,
+  BatteryIncludedSuggestParams,
   BatteryIncludedSuggestion,
 } from '../model';
 
@@ -35,11 +36,9 @@ export interface BatteryIncludedShopApi {
 
   /**
    * Get product suggestions based on a search query
-   * @param query Search query
-   * @param locale Locale for localized content
-   * @param segmentIds
+   * @param params Search query plus BI variable context
    */
-  suggest(query: string, locale?: string, segmentIds?: string): Promise<BatteryIncludedSuggestion[]>;
+  suggest(params: BatteryIncludedSuggestParams): Promise<BatteryIncludedSuggestion<BatteryIncludedProduct>[]>;
 
   /**
    * Get highlighted products

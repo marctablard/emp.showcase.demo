@@ -25,6 +25,10 @@ export function buildSearchParams<T>(params: BatteryIncludedSearchParams<T>): st
     queryParams.append('sort', params.sort);
   }
 
+  if (params.variants !== undefined) {
+    queryParams.append('variants', String(params.variants));
+  }
+
   if (params.analyze !== undefined) {
     queryParams.append('analyze', String(params.analyze));
   }

@@ -281,6 +281,9 @@ export type ProductFilterKey =
   | 'filters.categoryIds'
   | 'filters.categoryAssignments.name'
   | 'filters.filterButton'
+  | 'filters.close'
+  | 'filters.productCount'
+  | 'filters.showProducts'
   | 'filters.clearFilter'
   | 'filters.applyFilters'
   | ProductVariantAttributeKey

@@ -256,7 +256,8 @@ function SearchFilter({
   return (
     <div className="relative">
       {/* Filter Toggle Button */}
-      <Button variant="secondary" onClick={toggleFilterOffcanvas} data-testid="filter-toggleButton">
+      {/* Toggle hard-disabled per COP-4858; offcanvas and applyAllFacets kept intentionally */}
+      <Button variant="secondary" onClick={() => {}} disabled data-testid="filter-toggleButton">
         <ListFilter className="mr-2" /> Filter
       </Button>
 
@@ -293,4 +294,4 @@ function SearchFilter({
   );
 }
 
-export { SearchFilter };
+export { SearchFilter, FilterMenu };

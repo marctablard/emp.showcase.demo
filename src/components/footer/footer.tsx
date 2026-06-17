@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Instagram, Linkedin, Mail, Youtube } from 'lucide-react';
 import { useNewsletterForm } from '@/hooks/newsletter/useNewsletterForm';
 import { getNavigationRootCategoriesPageSize } from '@/lib/navigation/navigation-root-categories-page-size';
+import { takeRootCategoryPage } from '@/lib/navigation/take-root-category-page';
 import { cn } from '@/lib/utils';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '../ui/form';
 import { InputButton } from '../ui/input';
@@ -105,7 +106,10 @@ export function FooterLinks({
 }) {
   const t = useTranslations('layout.footerLinks');
   const categoryPreviewCount = getNavigationRootCategoriesPageSize();
-  const visibleTopProductCategories = topProductCategories?.slice(0, categoryPreviewCount) ?? [];
+  const { visible: visibleTopProductCategories } = takeRootCategoryPage(
+    topProductCategories ?? [],
+    categoryPreviewCount,
+  );
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 md:gap-6 ml-4 mr-4 md:ml-6 md:mr-6 py-4 md:py-6 border-b border-b-border-primary">
@@ -119,7 +123,13 @@ export function FooterLinks({
               </UiLink>
             ))}
             {showAllProductsBrowse ? (
-              <UiLink type="Link" href="/browse" variant="secondary" size="s">
+              <UiLink
+                type="Link"
+                href="/browse"
+                variant="text"
+                size="s"
+                className="underline font-bold text-text-action p-0 h-auto justify-start"
+              >
                 {t('showAllCategories')}
               </UiLink>
             ) : null}

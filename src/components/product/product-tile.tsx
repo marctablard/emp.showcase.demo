@@ -41,9 +41,15 @@ interface ProductTileProps {
   product: Product;
   locale?: string;
   skipVariantFetch?: boolean;
+  showParentVariantBadge?: boolean;
 }
 
-export function ProductTile({ product, locale, skipVariantFetch = false }: ProductTileProps) {
+export function ProductTile({
+  product,
+  locale,
+  skipVariantFetch = false,
+  showParentVariantBadge = false,
+}: ProductTileProps) {
   const t = useTranslations('product');
   const { l10n, l10nOrEmpty } = useL10n(locale);
   const { addItem, loading: cartLoading } = useCart();
@@ -158,6 +164,13 @@ export function ProductTile({ product, locale, skipVariantFetch = false }: Produ
 
         <CardContent className="flex flex-grow flex-col gap-4">
           <div className="bg-surface-image-background relative p-4">
+            {showParentVariantBadge && product.isParentVariant && (product.variantCount ?? 0) > 0 && (
+              <div className="absolute top-4 right-4 z-10">
+                <Badge data-testid="parent-variant-count-badge" variant="white" rounded="full">
+                  {product.variantCount}
+                </Badge>
+              </div>
+            )}
             <div className="relative aspect-square rounded-ss-md rounded-ee-md p-4">
               {product.primaryImage ? (
                 <div className="relative h-full w-full">

@@ -9,6 +9,7 @@ describe('Common Utilities', () => {
         page: 2,
         size: 15,
         sort: 'price:desc',
+        variants: 0,
         locale: 'en',
         analyze: 1,
         preset: 'popular-products',
@@ -29,6 +30,7 @@ describe('Common Utilities', () => {
       expect(result).toContain('page=2');
       expect(result).toContain('per_page=15');
       expect(result).toContain('sort=price%3Adesc');
+      expect(result).toContain('variants=0');
       expect(result).toContain('analyze=1');
       expect(result).toContain('v%5Blocale%5D=en');
       expect(result).toContain('v%5BsiteAware%5D=main');
@@ -68,6 +70,7 @@ describe('Common Utilities', () => {
         query: '',
         page: 0,
         size: 0,
+        variants: 0,
         analyze: 1,
         variables: {
           locale: 'en',
@@ -79,8 +82,19 @@ describe('Common Utilities', () => {
       const result = buildSearchParams(params);
 
       expect(result).toBe(
-        'q=&page=0&per_page=0&analyze=1&v%5Blocale%5D=en&v%5BsiteAware%5D=main&v%5BcountryAware%5D=DE',
+        'q=&page=0&per_page=0&variants=0&analyze=1&v%5Blocale%5D=en&v%5BsiteAware%5D=main&v%5BcountryAware%5D=DE',
       );
+    });
+
+    it('should serialize variants exactly once when explicitly requested', () => {
+      const params: BatteryIncludedSearchParams<any> = {
+        query: 'panel',
+        variants: 0,
+      };
+
+      const result = buildSearchParams(params);
+
+      expect(result.match(/variants=0/g)).toHaveLength(1);
     });
   });
 });

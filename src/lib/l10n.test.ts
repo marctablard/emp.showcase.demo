@@ -114,14 +114,7 @@ describe('l10n', () => {
     });
 
     it('returns missing label for array with no valid items', () => {
-      const invalidArray = [
-        null,
-        undefined,
-        { language: 'en' },
-        { message: 'No language' },
-        'string',
-        123,
-      ];
+      const invalidArray = [null, undefined, { language: 'en' }, { message: 'No language' }, 'string', 123];
 
       expect(l10n(invalidArray, 'en')).toBe(L10N_MISSING_LABEL);
     });

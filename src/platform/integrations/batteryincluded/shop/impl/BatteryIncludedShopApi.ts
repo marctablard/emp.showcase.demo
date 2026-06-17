@@ -11,6 +11,7 @@ import type {
   BatteryIncludedProduct,
   BatteryIncludedSearchParams,
   BatteryIncludedSearchResponse,
+  BatteryIncludedSuggestParams,
   BatteryIncludedSuggestion,
 } from '../../model';
 import type {
@@ -65,19 +66,24 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
   /**
    * Get product suggestions based on a search query
    */
-  async suggest(query: string, locale?: string, segmentIds?: string): Promise<BatteryIncludedSuggestion[]> {
-    const params = new URLSearchParams();
-    params.append('q', query);
+  async suggest(params: BatteryIncludedSuggestParams): Promise<BatteryIncludedSuggestion<BatteryIncludedProduct>[]> {
+    const { query, segmentIds, variables } = params;
+    const searchParams = new URLSearchParams();
+    searchParams.append('q', query);
 
-    if (locale) {
-      params.append('v[locale]', locale);
+    Object.entries(variables ?? {}).forEach(([key, value]) => {
+      if (value) {
+        searchParams.append(`v[${key}]`, value);
+      }
+    });
+
+    if (segmentIds?.length) {
+      segmentIds.forEach((segmentId) => {
+        searchParams.append('f[segmentIds][]', segmentId);
+      });
     }
 
-    if (segmentIds) {
-      params.append('f[segmentIds][]', segmentIds);
-    }
-
-    const url = `/api/v1/collections/${this.config.collection}/documents/suggest?${params.toString()}`;
+    const url = `/api/v1/collections/${this.config.collection}/documents/suggest?${searchParams.toString()}`;
 
     try {
       const response = await this.apiClient.apiFetch(url, {

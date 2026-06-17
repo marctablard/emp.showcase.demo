@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { SearchResultsComponent } from '@/components/search/search-results';
 import { Heading } from '@/components/ui/h';
 import { getCachedNavigationCategoryTrees } from '@/lib/ssr/navigation-category-trees';
-import { searchProducts } from '@/lib/ssr/search';
+import { getSearchResultsLayout, searchProducts } from '@/lib/ssr/search';
 import { getPageTitle } from '@/lib/ssr/seo';
 import { isSearchSsrEnabled } from '@/lib/ssr/ssr-config';
 import type { Category } from '@/platform/services/model/category';
@@ -55,26 +55,30 @@ export async function renderBrowsePage({
   initialSearch,
   initialResults,
   navigationRoots,
+  initialLayout,
 }: {
   locale: string;
   q?: string;
   initialSearch: SearchParams<Product>;
   initialResults?: Awaited<ReturnType<typeof searchProducts>>;
   navigationRoots?: Category[];
+  initialLayout: 'list' | 'grid';
 }) {
   const t = await getTranslations({ locale, namespace: 'search.searchResults' });
 
   return (
     <div className="max-w-6xl mx-auto px-4 lg:px-9 pb-32">
-      <Heading variant="h2" className="mb-6">
-        {q ? t('resultsFor', { query: q }) : t('allProducts')}
-      </Heading>
-
       <SearchResultsComponent
         initialSearch={initialSearch}
         initialResults={initialResults}
+        initialLayout={initialLayout}
         locale={locale}
         navigationRoots={navigationRoots}
+        headingNode={
+          <Heading variant="h2" className="mb-0">
+            {q ? t('resultsFor', { query: q }) : t('allProducts')}
+          </Heading>
+        }
       />
     </div>
   );
@@ -96,6 +100,7 @@ export default async function BrowsePage({
   const rawParams = await searchParams;
 
   const { initialSearch, q } = createBrowseInitialSearch(rawParams, false, site, locale);
+  const initialLayout = getSearchResultsLayout();
 
   // Fetch navigation forest in parallel with the SSR product search so the PLP has the full
   // category tree available without a second round-trip on first paint.
@@ -110,5 +115,6 @@ export default async function BrowsePage({
     initialSearch,
     initialResults,
     navigationRoots,
+    initialLayout,
   });
 }

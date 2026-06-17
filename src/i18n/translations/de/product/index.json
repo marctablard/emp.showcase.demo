@@ -87,6 +87,9 @@
     },
     "categoryIds": "Kategorie",
     "filterButton": "Filter",
+    "close": "Schließen",
+    "productCount": "({count} Produkte)",
+    "showProducts": "{count} Produkte anzeigen",
     "clearFilter": "Filter löschen",
     "applyFilters": "Filter anwenden"
   },

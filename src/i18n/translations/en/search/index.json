@@ -24,6 +24,7 @@
     "title": "Categories",
     "totalProducts": "— {total} Products",
     "expand": "Expand {name}",
-    "collapse": "Collapse {name}"
+    "collapse": "Collapse {name}",
+    "subcategoriesHeading": "Subcategories"
   }
 }

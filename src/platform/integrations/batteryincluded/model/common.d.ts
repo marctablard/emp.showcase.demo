@@ -4,6 +4,7 @@ export interface BatteryIncludedBrowseVariables {
   locale?: string;
   siteAware?: string;
   countryAware?: string;
+  currencyAware?: string;
 }
 
 export interface BatteryIncludedSearchParams<T> {
@@ -11,6 +12,7 @@ export interface BatteryIncludedSearchParams<T> {
   page?: number;
   size?: number;
   sort?: string;
+  variants?: 0 | 1;
   locale?: string;
   analyze?: 0 | 1;
   preset?: string;
@@ -67,7 +69,40 @@ export interface BatteryIncludedHighlight {
   products: string[];
 }
 
-export interface BatteryIncludedSuggestion {
-  text: string;
-  count: number;
+export interface BatteryIncludedSuggestParams {
+  query: string;
+  variables?: BatteryIncludedBrowseVariables;
+  segmentIds?: string[];
 }
+
+export interface BatteryIncludedSuggestionQueryCompletionHit {
+  value: string;
+  count?: number;
+}
+
+export interface BatteryIncludedSuggestionDocumentHit<T> {
+  highlighted: T;
+  [key: string]: unknown;
+}
+
+export interface BatteryIncludedSuggestionFacetHit extends BatteryIncludedFacetCountRow {}
+
+export interface BatteryIncludedSuggestionQueryCompletionGroup {
+  kind: 'query-completion';
+  hits: BatteryIncludedSuggestionQueryCompletionHit[];
+}
+
+export interface BatteryIncludedSuggestionDocumentGroup<T> {
+  kind: 'document';
+  hits: BatteryIncludedSuggestionDocumentHit<T>[];
+}
+
+export interface BatteryIncludedSuggestionFacetGroup {
+  kind: `facet.${string}`;
+  hits: BatteryIncludedSuggestionFacetHit[];
+}
+
+export type BatteryIncludedSuggestion<T> =
+  | BatteryIncludedSuggestionQueryCompletionGroup
+  | BatteryIncludedSuggestionDocumentGroup<T>
+  | BatteryIncludedSuggestionFacetGroup;

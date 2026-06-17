@@ -74,8 +74,6 @@ describe('mapListCategoryRowsToNavigationCategories', () => {
     const out = mapListCategoryRowsToNavigationCategories(listed, idMap);
     expect(out).toHaveLength(1);
     expect(out[0].id).toBe('38118');
-    expect(
-      out[0].children?.map((c) => (typeof c === 'string' ? c : c.id)).sort(),
-    ).toEqual(['38198', '38199']);
+    expect(out[0].children?.map((c) => (typeof c === 'string' ? c : c.id)).sort()).toEqual(['38198', '38199']);
   });
 });

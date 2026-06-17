@@ -10,7 +10,7 @@ describe('buildBatteryIncludedCategoryTree', () => {
       facet_counts: [
         {
           field_name: '_product_i18n.categories.breadcrumbs.displayPath',
-          type: 'select',
+          type: 'select' as const,
           stats: { total_values: 3 },
           counts: [
             {
@@ -40,8 +40,8 @@ describe('buildBatteryIncludedCategoryTree', () => {
           ],
         },
         {
-          field_name: '_product_i18n.categories.hierarchy.id',
-          type: 'select',
+          field_name: '_product.categoryIds',
+          type: 'select' as const,
           stats: { total_values: 4 },
           counts: [
             { count: 1, value: 'root-a' },
@@ -86,5 +86,49 @@ describe('buildBatteryIncludedCategoryTree', () => {
     );
 
     expect(result.snapshot).toBeNull();
+  });
+
+  it('emits validation warnings when breadcrumb ids are missing from _product.categoryIds facet', () => {
+    const response = {
+      hits: [],
+      found: 0,
+      page: 0,
+      size: 0,
+      facet_counts: [
+        {
+          field_name: '_product_i18n.categories.breadcrumbs.displayPath',
+          type: 'select' as const,
+          stats: { total_values: 1 },
+          counts: [
+            {
+              count: 2,
+              value: 'Cables > USB-C',
+              data: {
+                displayPath: 'Cables > USB-C',
+                idPath: 'root-a > child-a',
+              },
+            },
+          ],
+        },
+        {
+          field_name: '_product.categoryIds',
+          type: 'select' as const,
+          stats: { total_values: 1 },
+          counts: [
+            { count: 1, value: 'root-a' },
+            // "child-a" is intentionally missing to trigger the validation warning
+          ],
+        },
+      ],
+    };
+
+    const result = buildBatteryIncludedCategoryTree(
+      response,
+      ['root-a'],
+      'en',
+      '_product_i18n.categories.breadcrumbs.displayPath',
+    );
+
+    expect(result.validationWarnings).toContain('missing category id: child-a');
   });
 });
