@@ -75,7 +75,7 @@ jobs:
       - name: Deploy preview
         id: deploy
         run: |
-          DEPLOY_OUTPUT=$(vercel deploy --token=${{ secrets.VERCEL_TOKEN }})
+          DEPLOY_OUTPUT=$(vercel deploy --force --token=${{ secrets.VERCEL_TOKEN }})
           DEPLOY_STATUS=$?
           PREVIEW_URL=$(echo "$DEPLOY_OUTPUT" | grep -o 'https://.*vercel.app')
           echo "deploy_status=$DEPLOY_STATUS" >> $GITHUB_OUTPUT
