@@ -45,6 +45,27 @@ export function HeaderActionBar() {
   }, []);
 
   useEffect(() => {
+    if (!activeDesktopMenu && !showMenu) {
+      return;
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') {
+        return;
+      }
+
+      dismissFlyout();
+      setShowMenu(false);
+    };
+
+    window.addEventListener('keydown', handleEscape);
+
+    return () => {
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [activeDesktopMenu, dismissFlyout, showMenu]);
+
+  useEffect(() => {
     if (!showSearch || !isAboveSmallScreen || isAboveMediumScreen) {
       return;
     }
