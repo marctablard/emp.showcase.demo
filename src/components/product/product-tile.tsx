@@ -24,7 +24,7 @@ import { type ProductTemplateAttributeKey, dk } from '@/i18n/dynamic-key';
 import { Link } from '@/i18n/navigation';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency, imageSizes } from '@/lib/utils';
-import type { Product } from '@/platform/services/model/product';
+import type { Product, ProductUSP } from '@/platform/services/model/product';
 import { MAX_COMPARISON_PRODUCTS } from '@/stores/comparison-store';
 import { ToastType, notify } from '../ui/toast-notification';
 
@@ -33,6 +33,18 @@ interface ProductTileProps {
   locale?: string;
   skipVariantFetch?: boolean;
   showParentVariantBadge?: boolean;
+}
+
+function getProductUspKey(usp: ProductUSP, index: number): string {
+  const descriptionKey =
+    typeof usp.description === 'string'
+      ? usp.description
+      : Object.entries(usp.description ?? {})
+          .sort(([leftLocale], [rightLocale]) => leftLocale.localeCompare(rightLocale))
+          .map(([locale, value]) => `${locale}:${value}`)
+          .join('|');
+
+  return `${usp.icon}:${descriptionKey}:${index}`;
 }
 
 export function ProductTile({
@@ -268,8 +280,12 @@ export function ProductTile({
                 </div>
               )}
               <div ref={horizontalScrollRef} className="hide-scrollbar flex max-w-full gap-2 overflow-x-scroll">
-                {product.usps?.map((usp) => (
-                  <ProductTag icon={getIcon(usp.icon)} text={l10n(usp.description)} key={l10n(usp.description)} />
+                {product.usps?.map((usp, index) => (
+                  <ProductTag
+                    icon={getIcon(usp.icon)}
+                    text={l10n(usp.description)}
+                    key={getProductUspKey(usp, index)}
+                  />
                 ))}
               </div>
             </div>

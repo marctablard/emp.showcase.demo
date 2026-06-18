@@ -82,6 +82,11 @@ export interface Filter {
   values: FilterValue[];
 }
 
+export type SearchFilterLeafValue = string | string[];
+export type SearchFilterNestedValue = Record<string, SearchFilterLeafValue>;
+export type SearchFilterValue = SearchFilterLeafValue | SearchFilterNestedValue;
+export type SearchFilters = Record<string, SearchFilterValue>;
+
 export interface Paginated<T> {
   items: T[];
   total: number;
@@ -102,7 +107,7 @@ export interface SearchParams<T> extends PaginationQuery {
   query?: string;
   sort?: string;
   criteria?: Partial<T>;
-  filters?: Record<string, string | string[]>;
+  filters?: SearchFilters;
   customerSegments?: boolean;
   locale?: string;
   site?: string;

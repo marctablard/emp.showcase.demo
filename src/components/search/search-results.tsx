@@ -136,12 +136,12 @@ export function SearchResultsComponent({
   const pendingCursor = !loading && pendingCursorUrlSigRef.current === urlSig;
 
   useLayoutEffect(() => {
-    if (hasBrowseSearchParams && currentSearchSig !== urlSig) {
+    if (currentSearchSig !== urlSig) {
       return;
     }
 
-    releaseNavigationWaitCursorLease();
-  }, [currentSearchSig, hasBrowseSearchParams, urlSig]);
+    releaseNavigationWaitCursorLease({ targetSignature: urlSig });
+  }, [currentSearchSig, urlSig]);
 
   const rootCategories = navigationRoots ?? [];
   const selectedCategoryId = resolveSelectedCategoryIdFromFilters(activeFilters ?? {}, rootCategories);

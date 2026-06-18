@@ -11,6 +11,22 @@ import type { EmporixCatalog, EmporixPaginatedResponse, EmporixSearchParams } fr
 import type { EmporixCatalogApi as IEmporixCatalogApi } from '../EmporixCatalogApi';
 
 const createCatalogMetrics = (route: string) => createFetchMetricsParams('catalog', route);
+const CATEGORY_ID_PREVIEW_LIMIT = 20;
+
+function buildCategoryIdPreview(catalogs: EmporixCatalog[]): string[] {
+  const preview: string[] = [];
+
+  for (const catalog of catalogs) {
+    for (const categoryId of catalog.categoryIds ?? []) {
+      preview.push(categoryId);
+      if (preview.length >= CATEGORY_ID_PREVIEW_LIMIT) {
+        return preview;
+      }
+    }
+  }
+
+  return preview;
+}
 
 @injectable('EmporixCatalogApi', 'Singleton')
 class EmporixCatalogApi implements IEmporixCatalogApi {
@@ -47,7 +63,7 @@ class EmporixCatalogApi implements IEmporixCatalogApi {
         itemCount: result.items.length,
         total: result.total,
         page: result.page,
-        categoryIdPreview: result.items.flatMap((catalog) => catalog.categoryIds ?? []).slice(0, 20),
+        categoryIdPreview: buildCategoryIdPreview(result.items),
       },
       'Emporix catalogs response',
     );

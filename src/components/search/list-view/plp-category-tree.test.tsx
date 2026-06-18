@@ -23,6 +23,9 @@ jest.mock('@/i18n/navigation', () => ({
       </a>
     );
   }),
+  useRouter: () => ({
+    push: jest.fn(),
+  }),
 }));
 
 window.HTMLElement.prototype.scrollIntoView = jest.fn();

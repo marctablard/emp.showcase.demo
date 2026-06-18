@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { withApiRouteDebug } from '@/platform/core/utils/debug-utils';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
+import type { SearchFilters } from '@/platform/services/model/common';
 import type { SearchService } from '@/platform/services/search';
 import { extractFiltersFromUrlSearchParams } from '@/utils/filterUtils';
 
@@ -38,8 +39,7 @@ async function handleSearch(request: NextRequest): Promise<NextResponse> {
     }
 
     const filtersRecord = extractFiltersFromUrlSearchParams(url.searchParams);
-    const filters: Record<string, string | string[]> | undefined =
-      Object.keys(filtersRecord).length > 0 ? (filtersRecord as Record<string, string | string[]>) : undefined;
+    const filters: SearchFilters | undefined = Object.keys(filtersRecord).length > 0 ? filtersRecord : undefined;
 
     const searchResults = await searchService.searchProducts(
       {

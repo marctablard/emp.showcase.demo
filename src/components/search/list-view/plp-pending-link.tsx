@@ -4,6 +4,7 @@ import React, { useTransition } from 'react';
 import { acquireNavigationWaitCursorLease, useGlobalCursor } from '@/hooks/common/useGlobalCursor';
 import { useRouter } from '@/i18n/navigation';
 import { Link } from '@/i18n/navigation';
+import { getBrowseTargetSignature } from '@/utils/browseNavigation';
 
 export function PlpPendingLink({ href, children, className, ...props }: React.ComponentProps<typeof Link>) {
   const router = useRouter();
@@ -20,9 +21,9 @@ export function PlpPendingLink({ href, children, className, ...props }: React.Co
     // For standard clicks, use transition to show loading feedback
     if (e.defaultPrevented) return;
     e.preventDefault();
-    acquireNavigationWaitCursorLease();
+    acquireNavigationWaitCursorLease(typeof href === 'string' ? getBrowseTargetSignature(href) : null);
     startTransition(() => {
-      // @ts-ignore - router.push types might complain about string but it's fine for our navigation wrapper
+      // @ts-expect-error - router.push types might complain about string but it's fine for our navigation wrapper
       router.push(href);
     });
   };

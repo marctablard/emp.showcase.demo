@@ -17,10 +17,10 @@ test.describe('Navigation flyout and browse (desktop)', () => {
     await allProducts.hover();
     await page.waitForTimeout(300);
 
-    const categoryInFlyout = page.locator('header a[href*="_product_i18n.categories.breadcrumbs.displayPath"]').first();
+    const categoryInFlyout = page.locator('header a[href*="_product_i18n.categoryBreadcrumbs.displayPath"]').first();
     await expect(categoryInFlyout).toBeVisible({ timeout: 10_000 });
     await categoryInFlyout.click();
-    await page.waitForURL(/_product_i18n\.categories\.breadcrumbs\.displayPath/i, { timeout: 15_000 });
+    await page.waitForURL(/_product_i18n\.categoryBreadcrumbs\.displayPath/i, { timeout: 15_000 });
 
     const clearFilter = page.getByRole('button', { name: /clear filter/i });
     await expect(clearFilter).toBeVisible({ timeout: 10_000 });
@@ -28,7 +28,7 @@ test.describe('Navigation flyout and browse (desktop)', () => {
     await page.waitForURL(
       (url) =>
         url.pathname.includes('/browse') &&
-        !url.search.includes('_product_i18n.categories.breadcrumbs.displayPath') &&
+        !url.search.includes('_product_i18n.categoryBreadcrumbs.displayPath') &&
         !url.search.includes('categoryIds'),
       { timeout: 15_000 },
     );

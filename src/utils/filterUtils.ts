@@ -1,3 +1,5 @@
+import type { SearchFilterLeafValue, SearchFilterNestedValue, SearchFilters } from '@/platform/services/model/common';
+
 /**
  * Utility functions for handling search filter parameters
  */
@@ -9,9 +11,9 @@ function escapeRegexLiteral(s: string): string {
 }
 
 function mergeFilterParam(
-  filters: Record<string, unknown>,
+  filters: SearchFilters,
   param: string,
-  filterValue: string | string[],
+  filterValue: SearchFilterLeafValue,
   prefix: string,
 ): void {
   // Prefix is always `name[`; escape only `name` so the pattern is `^name\[(…)\]` not `^name\[\[(…)\]`.
@@ -24,7 +26,7 @@ function mergeFilterParam(
     if (!filters[mainKey]) {
       filters[mainKey] = {};
     }
-    const nested = filters[mainKey] as Record<string, string | string[]>;
+    const nested = filters[mainKey] as SearchFilterNestedValue;
     nested[subKey] = filterValue;
     return;
   }
@@ -59,8 +61,8 @@ function mergeFilterParam(
  * Extracts filter parameters from URL search params
  * Handles `f[...]` (legacy) and `filters[...]` (useSearch / browse URL), array filters, and range filters.
  */
-export function extractFiltersFromSearchParams(searchParams: Record<string, string | string[]>): Record<string, any> {
-  const filters: Record<string, unknown> = {};
+export function extractFiltersFromSearchParams(searchParams: Record<string, string | string[]>): SearchFilters {
+  const filters: SearchFilters = {};
 
   Object.keys(searchParams).forEach((param) => {
     const prefix = FILTER_PARAM_PREFIXES.find((p) => param.startsWith(p) && param.includes(']'));
@@ -70,7 +72,7 @@ export function extractFiltersFromSearchParams(searchParams: Record<string, stri
     mergeFilterParam(filters, param, searchParams[param], prefix);
   });
 
-  return filters as Record<string, any>;
+  return filters;
 }
 
 /**
@@ -95,11 +97,11 @@ export function urlSearchParamsToNextRecord(sp: URLSearchParams): Record<string,
  * Parses `filters[…]` / `f[…]` keys from a `URLSearchParams` instance using the same rules as
  * {@link extractFiltersFromSearchParams}, so `/api/search` and browse page parsing stay aligned.
  */
-export function extractFiltersFromUrlSearchParams(searchParams: URLSearchParams): Record<string, unknown> {
+export function extractFiltersFromUrlSearchParams(searchParams: URLSearchParams): SearchFilters {
   return extractFiltersFromSearchParams(urlSearchParamsToNextRecord(searchParams));
 }
 
-function normalizeFiltersForSignature(filters: Record<string, unknown> | undefined): unknown {
+function normalizeFiltersForSignature(filters: SearchFilters | undefined): unknown {
   if (!filters || Object.keys(filters).length === 0) {
     return {};
   }
@@ -110,9 +112,9 @@ function normalizeFiltersForSignature(filters: Record<string, unknown> | undefin
     if (Array.isArray(v)) {
       out[k] = [...v].map(String).sort();
     } else if (v && typeof v === 'object') {
-      const nested = v as Record<string, string>;
+      const nested = v as SearchFilterNestedValue;
       const nk = Object.keys(nested).sort();
-      out[k] = nk.reduce<Record<string, string>>((acc, key) => {
+      out[k] = nk.reduce<Record<string, SearchFilterLeafValue>>((acc, key) => {
         acc[key] = nested[key];
         return acc;
       }, {});
@@ -136,7 +138,7 @@ export function browseSearchStateSignature(state: {
   page: number;
   size: number;
   sort?: string;
-  filters?: Record<string, unknown>;
+  filters?: SearchFilters;
 }): string {
   return JSON.stringify({
     q: state.query ?? '',

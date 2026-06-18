@@ -6,7 +6,8 @@ import { ChevronRight } from 'lucide-react';
 import { PlpPendingLink } from '@/components/search/list-view/plp-pending-link';
 import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
 import { buildBrowseHrefForCategoryId } from '@/lib/navigation/build-browse-category-href';
-import { l10n } from '@/lib/utils';
+import type { L10nInput } from '@/lib/utils';
+import { l10nOrEmpty } from '@/lib/utils';
 
 interface PlpCategoryBreadcrumbsProps {
   plpCategoryContext: PlpCategoryContext;
@@ -16,6 +17,7 @@ interface PlpCategoryBreadcrumbsProps {
 export function PlpCategoryBreadcrumbs({ plpCategoryContext, locale }: PlpCategoryBreadcrumbsProps) {
   const tCommon = useTranslations('common.Breadcrumb');
   const tSearch = useTranslations('search.searchResults');
+  const getCategoryLabel = (name: L10nInput) => l10nOrEmpty(name, locale);
   const breadcrumbItems = plpCategoryContext.currentCategory
     ? [...plpCategoryContext.ancestorTrail, { kind: 'category' as const, category: plpCategoryContext.currentCategory }]
     : [];
@@ -61,14 +63,14 @@ export function PlpCategoryBreadcrumbs({ plpCategoryContext, locale }: PlpCatego
                   )
                 ) : isLast ? (
                   <span className="inline-flex items-center text-text-body" aria-current="page">
-                    {l10n(item.category.name, locale)}
+                    {getCategoryLabel(item.category.name)}
                   </span>
                 ) : (
                   <PlpPendingLink
                     href={buildBrowseHrefForCategoryId(item.category.id, item.category)}
                     className="inline-flex items-center font-bold text-text-action underline hover:text-text-action-hover"
                   >
-                    {l10n(item.category.name, locale)}
+                    {getCategoryLabel(item.category.name)}
                   </PlpPendingLink>
                 )}
               </li>

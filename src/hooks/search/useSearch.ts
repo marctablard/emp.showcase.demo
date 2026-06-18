@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import useHistory from '@/hooks/history/useHistory';
 import { useSiteCode } from '@/hooks/site/useSiteCode';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import type { SearchParams as BaseSearchParams, Filter, SearchResult } from '@/platform/services/model/common';
+import type { Filter, SearchFilterValue, SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { SearchSuggestions } from '@/platform/services/model/search/SearchSuggestions';
 import { useSessionStore } from '@/providers/StoreProvider';
 import { buildSearchPaginationUrl } from './build-search-pagination-url';
@@ -20,13 +20,6 @@ export const USE_SEARCH_CLIENT_ERROR = {
 
 export type UseSearchClientError = (typeof USE_SEARCH_CLIENT_ERROR)[keyof typeof USE_SEARCH_CLIENT_ERROR];
 
-// Extend the SearchParams type to support nested objects in filters
-export type FilterValue = string | string[] | Record<string, string>;
-
-type SearchParams<T> = Omit<BaseSearchParams<T>, 'filters'> & {
-  filters?: Record<string, FilterValue>;
-};
-
 export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: SearchResult<T>) {
   const { addSearchQuery } = useHistory();
   const router = useRouter();
@@ -39,7 +32,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   const [total, setTotal] = useState(initialResult?.total || 0);
   const [currentPage, setCurrentPage] = useState(initialResult?.page || DEFAULT_PAGE_INDEX);
   const [pageSize, setPageSize] = useState(initialResult?.pageSize || DEFAULT_PAGE_SIZE);
-  const [activeFilters, setActiveFilters] = useState<Record<string, FilterValue>>(initialSearch?.filters || {});
+  const [activeFilters, setActiveFilters] = useState<Record<string, SearchFilterValue>>(initialSearch?.filters || {});
   const [currentQuery, setCurrentQuery] = useState<string | undefined>(initialSearch?.query);
   const [currentSort, setCurrentSort] = useState<string | undefined>(initialSearch?.sort);
   // Suggestions state

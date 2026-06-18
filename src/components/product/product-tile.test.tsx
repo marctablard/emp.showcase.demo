@@ -63,7 +63,7 @@ jest.mock('@/hooks/useL10n', () => ({
       if (value && typeof value === 'object' && 'en' in value) {
         return (value as Record<string, string>).en;
       }
-      return '';
+      return '-';
     },
     l10nOrEmpty: (value: unknown) => {
       if (typeof value === 'string') {
@@ -74,6 +74,14 @@ jest.mock('@/hooks/useL10n', () => ({
       }
       return '';
     },
+  }),
+}));
+
+jest.mock('@/hooks/wishlist/useWishlistAddWithAuth', () => ({
+  useWishlistAddWithAuth: () => ({
+    addToWishlist: jest.fn(),
+    isAdding: false,
+    loginDialog: null,
   }),
 }));
 
@@ -144,5 +152,30 @@ describe('ProductTile', () => {
     );
 
     expect(screen.queryByTestId('parent-variant-count-badge')).not.toBeInTheDocument();
+  });
+
+  it('does not emit duplicate React key warnings when USP translations are missing for the active locale', () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(
+      <ProductTile
+        product={makeProduct({
+          usps: [
+            { icon: 'worldwide', description: { de: 'Weltweit' } },
+            { icon: 'waterproof', description: { de: 'Wasserfest' } },
+          ],
+        })}
+        locale="en"
+        skipVariantFetch
+      />,
+    );
+
+    const hasDuplicateKeyWarning = consoleErrorSpy.mock.calls.some((call) =>
+      call.some((arg) => typeof arg === 'string' && arg.includes('Encountered two children with the same key')),
+    );
+
+    expect(hasDuplicateKeyWarning).toBe(false);
+
+    consoleErrorSpy.mockRestore();
   });
 });

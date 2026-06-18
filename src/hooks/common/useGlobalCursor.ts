@@ -6,10 +6,20 @@ const GLOBAL_CURSOR_ATTRIBUTE = 'data-global-cursor';
 const GLOBAL_CURSOR_STYLE_ID = 'global-cursor-style';
 
 let waitCursorOwners = 0;
-let navigationWaitCursorLease: GlobalCursorLease | null = null;
+let navigationWaitCursorLease: NavigationWaitCursorLease | null = null;
 
 export interface GlobalCursorLease {
   release: () => void;
+}
+
+interface NavigationWaitCursorLease {
+  lease: GlobalCursorLease;
+  targetSignature: string | null;
+}
+
+interface ReleaseNavigationWaitCursorLeaseOptions {
+  force?: boolean;
+  targetSignature?: string | null;
 }
 
 function ensureGlobalCursorStyle(): void {
@@ -64,13 +74,30 @@ export function acquireGlobalCursorLease(): GlobalCursorLease {
   };
 }
 
-export function acquireNavigationWaitCursorLease(): void {
-  releaseNavigationWaitCursorLease();
-  navigationWaitCursorLease = acquireGlobalCursorLease();
+export function acquireNavigationWaitCursorLease(targetSignature?: string | null): void {
+  releaseNavigationWaitCursorLease({ force: true });
+  navigationWaitCursorLease = {
+    lease: acquireGlobalCursorLease(),
+    targetSignature: targetSignature ?? null,
+  };
 }
 
-export function releaseNavigationWaitCursorLease(): void {
-  navigationWaitCursorLease?.release();
+export function releaseNavigationWaitCursorLease(options: ReleaseNavigationWaitCursorLeaseOptions = {}): void {
+  if (!navigationWaitCursorLease) {
+    return;
+  }
+
+  const { force = false, targetSignature = null } = options;
+
+  if (
+    !force &&
+    navigationWaitCursorLease.targetSignature !== null &&
+    navigationWaitCursorLease.targetSignature !== targetSignature
+  ) {
+    return;
+  }
+
+  navigationWaitCursorLease.lease.release();
   navigationWaitCursorLease = null;
 }
 

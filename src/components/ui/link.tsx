@@ -2,8 +2,10 @@
 
 import type { VariantProps } from 'class-variance-authority';
 import { cva } from 'class-variance-authority';
+import { acquireNavigationWaitCursorLease, releaseNavigationWaitCursorLease } from '@/hooks/common/useGlobalCursor';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
+import { getBrowseTargetSignature } from '@/utils/browseNavigation';
 
 const linkVariants = cva(
   'outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2',
@@ -43,7 +45,7 @@ interface LinkProps {
   iconAfter?: React.ReactNode | undefined;
   children?: React.ReactNode | undefined;
   className?: string;
-  onClick?: () => void;
+  onClick?: React.MouseEventHandler<HTMLAnchorElement | HTMLButtonElement>;
   target?: string;
   replace?: boolean;
 }
@@ -52,6 +54,7 @@ export default function UiLink({
   variant,
   size,
   type,
+  disabled,
   iconBefore,
   iconAfter,
   href = '#',
@@ -65,10 +68,35 @@ export default function UiLink({
     asChild?: boolean;
   }) {
   const classes = linkVariants({ variant, size, className });
+
+  const handleLinkClick: React.MouseEventHandler<HTMLAnchorElement> = (event) => {
+    const browseTargetSignature =
+      !disabled &&
+      typeof href === 'string' &&
+      event.button === 0 &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.shiftKey &&
+      !event.altKey &&
+      !target
+        ? getBrowseTargetSignature(href)
+        : null;
+
+    if (browseTargetSignature) {
+      acquireNavigationWaitCursorLease(browseTargetSignature);
+    }
+
+    onClick?.(event);
+
+    if (browseTargetSignature && event.defaultPrevented) {
+      releaseNavigationWaitCursorLease({ force: true });
+    }
+  };
+
   switch (type) {
     case 'Link':
       return (
-        <Link href={href} target={target} className={classes} onClick={onClick} replace={replace} {...props}>
+        <Link href={href} target={target} className={classes} onClick={handleLinkClick} replace={replace} {...props}>
           {iconBefore}
           {props.children}
           {iconAfter}

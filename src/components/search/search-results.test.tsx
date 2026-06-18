@@ -6,6 +6,7 @@ import '@testing-library/jest-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { acquireNavigationWaitCursorLease, releaseNavigationWaitCursorLease } from '@/hooks/common/useGlobalCursor';
 import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
+import { browseSearchStateSignature } from '@/utils/filterUtils';
 import { MobileCategoryDrawer } from './mobile-category-drawer';
 import { SearchResultsComponent } from './search-results';
 
@@ -159,7 +160,7 @@ const mockPlpCategoryContext: PlpCategoryContext = {
 
 describe('SearchResultsComponent', () => {
   beforeEach(() => {
-    releaseNavigationWaitCursorLease();
+    releaseNavigationWaitCursorLease({ force: true });
     mockSearchParams = new URLSearchParams();
     mockSearch.mockClear();
     mockSyncBrowseSearchStateFromUrl.mockClear();
@@ -176,7 +177,7 @@ describe('SearchResultsComponent', () => {
   });
 
   afterEach(() => {
-    releaseNavigationWaitCursorLease();
+    releaseNavigationWaitCursorLease({ force: true });
   });
 
   it('renders list layout when configured by the server prop', () => {
@@ -235,14 +236,29 @@ describe('SearchResultsComponent', () => {
     expect(searchResultsListProps?.pendingCursor).toBe(false);
   });
 
-  it('keeps the global wait cursor through source unmount until browse state converges', async () => {
-    acquireNavigationWaitCursorLease();
-    mockSearchParams = new URLSearchParams('filters%5B_product_i18n.categoryBreadcrumbs.displayPath%5D=Smartphones');
+  it('keeps the global wait cursor from all-products through destination convergence for a targeted browse navigation', async () => {
+    const targetSignature = browseSearchStateSignature({
+      query: '',
+      page: 0,
+      size: 12,
+      sort: undefined,
+      filters: {
+        '_product_i18n.categoryBreadcrumbs.displayPath': 'Smartphones',
+      },
+    });
+
+    acquireNavigationWaitCursorLease(targetSignature);
+    mockSearchParams = new URLSearchParams('currency=USD');
 
     const { rerender } = render(<SearchResultsComponent locale="en" initialLayout="list" />);
 
     expect(document.documentElement).toHaveAttribute('data-global-cursor', 'wait');
 
+    rerender(<SearchResultsComponent locale="en" initialLayout="list" />);
+
+    expect(document.documentElement).toHaveAttribute('data-global-cursor', 'wait');
+
+    mockSearchParams = new URLSearchParams('filters%5B_product_i18n.categoryBreadcrumbs.displayPath%5D=Smartphones');
     rerender(<SearchResultsComponent locale="en" initialLayout="list" />);
 
     expect(document.documentElement).toHaveAttribute('data-global-cursor', 'wait');

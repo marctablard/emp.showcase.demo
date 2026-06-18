@@ -12,6 +12,9 @@ jest.mock('next-intl', () => ({
 }));
 
 jest.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+  }),
   Link: React.forwardRef<HTMLAnchorElement, React.AnchorHTMLAttributes<HTMLAnchorElement>>(function MockLink(
     { children, ...props },
     ref,
@@ -61,5 +64,21 @@ describe('PlpCategoryBreadcrumbs', () => {
 
     expect(screen.getByRole('link', { name: 'homeLink' })).toHaveAttribute('href', '/');
     expect(screen.getByText('allProducts').closest('li')).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('does not render the missing-label placeholder for category breadcrumbs', () => {
+    const parent = { id: 'parent-1', name: { de: 'Eltern' }, children: [] };
+    const child = { id: 'child-1', name: { de: 'Kind' }, children: [] };
+    const plpCategoryContext: PlpCategoryContext = {
+      ancestorTrail: [{ kind: 'category', category: parent }],
+      currentCategory: child,
+      currentChildren: [],
+      ribbonCategories: [],
+      sidebarCountCategoryIds: [],
+    };
+
+    render(<PlpCategoryBreadcrumbs plpCategoryContext={plpCategoryContext} locale="en" />);
+
+    expect(screen.queryByText('-')).not.toBeInTheDocument();
   });
 });

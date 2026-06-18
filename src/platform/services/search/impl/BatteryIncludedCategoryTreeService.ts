@@ -16,7 +16,7 @@ import {
 const COUNTRY_NONE_BUCKET = '__none__';
 
 function buildCacheKey(context: NavigationCategoryTreeRequestContext): string {
-  return `${context.siteCode}:${context.locale}:${context.country ?? COUNTRY_NONE_BUCKET}`;
+  return `${context.siteCode}:${context.locale}:${context.country ?? COUNTRY_NONE_BUCKET}:${context.showUnpublished ? '1' : '0'}`;
 }
 
 @injectable('BatteryIncludedCategoryTreeService', 'Singleton')

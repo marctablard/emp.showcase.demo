@@ -127,4 +127,37 @@ describe('BatteryIncludedCategoryTreeService', () => {
     expect(root.children[0].description).toBeUndefined();
     expect(root.children[0].id).toBe('child1');
   });
+
+  it('separates cached snapshots by showUnpublished flag', async () => {
+    catalogPublishedRootCategoryService.getRootCategoryIdsForSite.mockResolvedValue(['root1']);
+    shopApi.browseCategoryTreeBootstrap.mockResolvedValue({
+      hits: [],
+      found: 0,
+      page: 0,
+      size: 0,
+      facet_counts: [
+        {
+          field_name: '_product_i18n.categoryBreadcrumbs.displayPath',
+          type: 'select',
+          stats: { total_values: 1 },
+          counts: [
+            {
+              count: 10,
+              value: 'Root 1',
+              data: {
+                displayPath: 'Root 1',
+                idPath: 'root1',
+              },
+            },
+          ],
+        },
+      ],
+    });
+    categoryService.getCategoriesByIds.mockResolvedValue([]);
+
+    await service.getSnapshot({ siteCode: 'TEST', locale: 'en', country: 'none', showUnpublished: false });
+    await service.getSnapshot({ siteCode: 'TEST', locale: 'en', country: 'none', showUnpublished: true });
+
+    expect(shopApi.browseCategoryTreeBootstrap).toHaveBeenCalledTimes(2);
+  });
 });
