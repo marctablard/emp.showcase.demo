@@ -41,14 +41,14 @@ export function SearchProductTileGrid({
 
   if (loading) {
     return (
-      <>
+      <div className="!cursor-progress [&_*]:!cursor-progress">
         <Skeleton className="mb-4 h-5 w-[180px]" />
         <div className={resolvedGridClass}>
           {Array.from({ length: Math.min(pageSize, products.length) }).map((_, i) => (
             <ProductTileSkeleton key={i} />
           ))}
         </div>
-      </>
+      </div>
     );
   }
 

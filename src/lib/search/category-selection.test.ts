@@ -13,6 +13,23 @@ describe('resolveSelectedCategoryIdFromFilters', () => {
             {
               id: 'child-a',
               name: { en: 'USB-C' },
+              children: [
+                withBatteryIncludedCategoryMetadata(
+                  {
+                    id: 'leaf-a',
+                    name: { en: 'USB-C Gen 2' },
+                  },
+                  {
+                    source: 'batteryincluded',
+                    facetValue: 'Cables > USB-C > USB-C Gen 2',
+                    labelPath: 'Cables > USB-C > USB-C Gen 2',
+                    leafLabel: 'USB-C Gen 2',
+                    publicationAnchorId: 'root-a',
+                    count: 1,
+                    idPath: ['root-a', 'child-a', 'leaf-a'],
+                  },
+                ),
+              ],
             },
             {
               source: 'batteryincluded',
@@ -59,5 +76,27 @@ describe('resolveSelectedCategoryIdFromFilters', () => {
         navigationRoots,
       ),
     ).toBe('child-a');
+  });
+
+  it('prefers the deepest matching id when categoryIds contains an expanded path', () => {
+    expect(
+      resolveSelectedCategoryIdFromFilters(
+        {
+          categoryIds: ['root-a', 'child-a', 'leaf-a'],
+        },
+        navigationRoots,
+      ),
+    ).toBe('leaf-a');
+  });
+
+  it('prefers the deepest matching node when BI breadcrumb filters include progressive paths', () => {
+    expect(
+      resolveSelectedCategoryIdFromFilters(
+        {
+          '_product_i18n.categoryBreadcrumbs.displayPath': ['Cables', 'Cables > USB-C', 'Cables > USB-C > USB-C Gen 2'],
+        },
+        navigationRoots,
+      ),
+    ).toBe('leaf-a');
   });
 });

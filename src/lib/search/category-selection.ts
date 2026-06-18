@@ -37,13 +37,47 @@ export function buildBatteryIncludedFacetValueIdIndex(
   return out;
 }
 
+function buildCategoryDepthIndex(navigationRoots: readonly Category[] | undefined): Record<string, number> {
+  const out: Record<string, number> = {};
+  walkCategoryTree(navigationRoots, (node, ancestors) => {
+    out[node.id] = ancestors.length + 1;
+  });
+  return out;
+}
+
+function resolveDeepestCategoryId(
+  candidateIds: readonly string[],
+  navigationRoots: readonly Category[] | undefined,
+): string | undefined {
+  if (candidateIds.length === 0) {
+    return undefined;
+  }
+
+  const depthById = buildCategoryDepthIndex(navigationRoots);
+  let bestId: string | undefined;
+  let bestDepth = -1;
+
+  for (const candidateId of candidateIds) {
+    const depth = depthById[candidateId];
+    if (depth === undefined) {
+      continue;
+    }
+    if (depth > bestDepth) {
+      bestId = candidateId;
+      bestDepth = depth;
+    }
+  }
+
+  return bestId ?? candidateIds[0];
+}
+
 export function resolveSelectedCategoryIdFromFilters(
   activeFilters: Record<string, CategoryFilterValue>,
   navigationRoots: readonly Category[] | undefined,
 ): string | undefined {
   const categoryIds = parseCategoryIdsFilterValue(activeFilters.categoryIds);
   if (categoryIds.length > 0) {
-    return categoryIds[0];
+    return resolveDeepestCategoryId(categoryIds, navigationRoots);
   }
 
   const facetValues = parseFlatCategoryFilterValue(
@@ -54,7 +88,10 @@ export function resolveSelectedCategoryIdFromFilters(
   }
 
   const idIndex = buildBatteryIncludedFacetValueIdIndex(navigationRoots);
-  return facetValues.map((value) => idIndex[value]).find(Boolean);
+  return resolveDeepestCategoryId(
+    facetValues.map((value) => idIndex[value]).filter((value): value is string => Boolean(value)),
+    navigationRoots,
+  );
 }
 
 export function isDedicatedCategorySelectionFilter(facetId: string): boolean {
