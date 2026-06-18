@@ -1,11 +1,14 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { ProductTile } from '@/components/product/product-tile';
 import { ProductTileSkeleton } from '@/components/product/product-tile-skeleton';
 import { SearchNoResults } from '@/components/search/search-no-results';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Product } from '@/platform/services/model/product';
+
+const GLOBAL_LOADING_CURSOR_STYLE_ID = 'search-product-tile-grid-loading-cursor';
 
 interface SearchProductTileGridProps {
   products: Product[];
@@ -39,9 +42,28 @@ export function SearchProductTileGrid({
   const t = useTranslations('search');
   const resolvedGridClass = gridClassName ?? DEFAULT_GRID_CLASSES;
 
+  useEffect(() => {
+    if (!loading) {
+      return;
+    }
+
+    let styleElement = document.getElementById(GLOBAL_LOADING_CURSOR_STYLE_ID) as HTMLStyleElement | null;
+
+    if (!styleElement) {
+      styleElement = document.createElement('style');
+      styleElement.id = GLOBAL_LOADING_CURSOR_STYLE_ID;
+      styleElement.textContent = 'html, body, body *, body *::before, body *::after { cursor: progress !important; }';
+      document.head.appendChild(styleElement);
+    }
+
+    return () => {
+      styleElement?.remove();
+    };
+  }, [loading]);
+
   if (loading) {
     return (
-      <div className="!cursor-progress [&_*]:!cursor-progress">
+      <div>
         <Skeleton className="mb-4 h-5 w-[180px]" />
         <div className={resolvedGridClass}>
           {Array.from({ length: Math.min(pageSize, products.length) }).map((_, i) => (

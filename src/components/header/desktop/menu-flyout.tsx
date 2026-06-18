@@ -31,10 +31,12 @@ function subMenuItemKey(item: SubMenuItem, index: number): string {
 
 export function DesktopMenuFlyout({ menuItem, onMouseLeave }: DesktopMenuFlyoutProps) {
   const t = useTranslations('layout.header');
+  const tFooterLinks = useTranslations('layout.footerLinks');
   const { showSeeAllBrowse } = useNavigationProductSubmenu();
   const [hoveredPath, setHoveredPath] = useState<SubMenuItem[]>([]);
   const categoryPreviewCount = getNavigationRootCategoriesPageSize();
   const browseAllLabel = t('allProducts');
+  const lowerCtaBrowseAllLabel = tFooterLinks('showAllCategories');
 
   const submenuItems = menuItem.submenuItems ?? [];
 
@@ -184,7 +186,7 @@ export function DesktopMenuFlyout({ menuItem, onMouseLeave }: DesktopMenuFlyoutP
                     className={cn('mt-1 flex items-center px-4 py-2', FLYOUT_LOWER_CTA_LINK_CLASS_NAME)}
                     onMouseEnter={() => setHoveredPath([])}
                   >
-                    {browseAllLabel}
+                    {lowerCtaBrowseAllLabel}
                   </Link>
                 </li>
               ) : null}

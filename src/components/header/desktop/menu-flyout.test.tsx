@@ -16,7 +16,7 @@ jest.mock('next-intl', () => ({
     if (key === 'allFromCategory') {
       return `All from ${values?.name ?? ''}`;
     }
-    if (key === 'seeAllCategories') {
+    if (key === 'showAllCategories') {
       return 'Show all';
     }
     return key;
@@ -104,12 +104,13 @@ describe('DesktopMenuFlyout', () => {
 
     renderFlyout(menuItem, 7);
 
-    const allProductsLinks = screen.getAllByRole('link', { name: 'All Products' });
+    const allProductsLinks = screen.queryAllByRole('link', { name: 'All Products' });
+    const showAllLinks = screen.getAllByRole('link', { name: 'Show all' });
 
-    expect(allProductsLinks).toHaveLength(1);
-    expect(allProductsLinks[0]).toHaveAttribute('href', '/browse');
-    expectLowerCtaLinkStyles(allProductsLinks[0]);
-    expect(screen.queryByRole('link', { name: 'Show all' })).not.toBeInTheDocument();
+    expect(allProductsLinks).toHaveLength(0);
+    expect(showAllLinks).toHaveLength(1);
+    expect(showAllLinks[0]).toHaveAttribute('href', '/browse');
+    expectLowerCtaLinkStyles(showAllLinks[0]);
   });
 
   it('links the child-column All from header to the hovered parent href and removes the duplicate truncated CTA', () => {
