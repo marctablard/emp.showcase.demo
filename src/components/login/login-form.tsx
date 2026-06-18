@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
-import { Eye, EyeOff, Loader2, LockKeyhole, User } from 'lucide-react';
+import { Eye, EyeOff, Loader2, LockKeyhole, User, XCircle } from 'lucide-react';
 import { providerOptions } from '@/auth/auth.config';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Heading } from '@/components/ui/h';
@@ -130,12 +131,11 @@ export function LoginForm({
           </Heading>
 
           {error && (
-            <div className="flex flex-col gap-2">
-              <Heading variant="h5" as="div" className="text-text-error">
-                {t('loginFailed')}
-              </Heading>
-              <span className="text-text-error">{error}</span>
-            </div>
+            <Alert variant="destructive" data-testid="login-error">
+              <XCircle />
+              <AlertTitle>{t('loginFailed')}</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
 
           <FormField

@@ -77,13 +77,13 @@ export default function ProductAddToCartBar({
           </div>
 
           <div className="flex justify-center gap-2">
-            <Button size="icon" variant="primary" aria-label={t('compare')} className="border-white">
+            <Button size="icon" variant="primary" aria-label={t('compare')} className="border-surface-page">
               <FlipHorizontal2 />
             </Button>
-            <Button size="icon" variant="primary" aria-label={t('addToWishlist')} className="border-white">
+            <Button size="icon" variant="primary" aria-label={t('addToWishlist')} className="border-surface-page">
               <Pin />
             </Button>
-            <Button size="icon" variant="primary" aria-label={t('share')} className="border-white">
+            <Button size="icon" variant="primary" aria-label={t('share')} className="border-surface-page">
               <Share2 />
             </Button>
           </div>

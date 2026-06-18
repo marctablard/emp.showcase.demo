@@ -1,7 +1,7 @@
 {
   "addToCart": "Add to cart",
   "updatingSite": "Updating site…",
-  "addToWishlist": "Add to Shopping List",
+  "addToWishlist": "Add to Wishlist",
   "share": "Share",
   "compare": "Compare",
   "noImage": "No image available",
@@ -33,6 +33,13 @@
     "saveCart": "Save Cart",
     "productAdded": "Your selected product",
     "quantityAdded": "Added Quantity"
+  },
+  "addToWishlistResult": {
+    "title": "Added to wishlist",
+    "itemNumber": "Item number",
+    "quantityAdded": "{count, plural, one {# Product added to wishlist} other {# Products added to wishlist}}",
+    "ok": "OK",
+    "close": "Close"
   },
   "shipping": {
     "deliveryDetails": "Delivery Details",
@@ -115,7 +122,9 @@
   "compareTooltipInList": "This item is in comparison list",
   "compareTooltipMasterProduct": "Master product cannot be compared. Please select a specific variant.",
   "cartTooltipMasterProduct": "Master product cannot be added to cart. Please select a specific variant.",
+  "wishlistTooltipMasterProduct": "Master product cannot be added to wishlist. Please select a specific variant.",
   "cartTooltipNotPurchasable": "This product is not available for purchase.",
   "cartTooltipNoPrice": "This product does not have a {currency} price defined and cannot be added to cart.",
+  "wishlistTooltipNoPrice": "This product does not have a {currency} price defined and cannot be added to the wishlist.",
   "inComparisonList": "In comparison list"
 }

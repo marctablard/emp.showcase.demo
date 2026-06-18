@@ -38,7 +38,7 @@ const QuickEntryElement = ({ title, link, link_name, icon }: QuickEntryElementPr
       </div>
       <div className="flex flex-col justify-center bg-surface-page ">
         <p className="sm:text-lg font-bold font-headlines">{title}</p>
-        <p className="text-base inline-flex items-center gap-1 text-text-action font-bold underline transition group-hover:text-text-action-hover outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-white">
+        <p className="text-base inline-flex items-center gap-1 text-text-action font-bold underline transition group-hover:text-text-action-hover outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2">
           {link_name}
           <ArrowRight />
         </p>

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Gauge, Menu, Pin, Search, User, UserCheck, X } from 'lucide-react';
+import { Gauge, Menu, Search, User, UserCheck, X } from 'lucide-react';
 import { HeaderCartButton } from '@/components/header/cart/header-cart-button';
 import { HeaderCompareButton } from '@/components/header/common/header-compare-button';
 import { HeaderIconButton } from '@/components/header/common/header-icon-button';
@@ -15,6 +15,7 @@ import { useHeaderDesktopNavigation } from '@/components/header/header-desktop-n
 import { useNavigationProductSubmenu } from '@/components/header/navigation-product-submenu-context';
 import { useHeaderSearch } from '@/components/header/search/search-context';
 import { TabletMenuFlyout } from '@/components/header/tablet/menu-flyout';
+import { HeaderWishlistButton } from '@/components/header/wishlist/header-wishlist-button';
 import useAuthentication from '@/hooks/authentication/useAuthentication';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useHeaderScroll } from '@/hooks/useHeaderScroll';
@@ -169,7 +170,7 @@ export function HeaderActionBar() {
             )}
             <div className="hidden sm:flex gap-5">
               <HeaderIconLink icon={Gauge} text={t('quickOrder')} href="/quick-order" />
-              <HeaderIconLink icon={Pin} text={t('wishlists')} href="/account/wishlists" />
+              <HeaderWishlistButton />
               <HeaderCompareButton />
             </div>
           </div>

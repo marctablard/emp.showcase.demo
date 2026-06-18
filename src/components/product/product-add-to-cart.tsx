@@ -20,16 +20,23 @@ export default function ProductAddToCart({
   className,
   availability,
   availabilityLoading = false,
+  quantity: controlledQuantity,
+  onQuantityChange,
 }: {
   product?: Product;
   price?: ProductPrice | null;
   className?: string;
   availability?: StockAvailability | null;
   availabilityLoading?: boolean;
+  quantity?: number;
+  onQuantityChange?: (quantity: number) => void;
 }) {
   const t = useTranslations('product');
   const { product, loading: productLoading, error: productError } = useProduct(initialProduct);
-  const [quantity, setQuantity] = useState(1);
+  const [internalQuantity, setInternalQuantity] = useState(1);
+  const isControlled = controlledQuantity !== undefined && onQuantityChange !== undefined;
+  const quantity = isControlled ? (controlledQuantity as number) : internalQuantity;
+  const setQuantity = isControlled ? (onQuantityChange as (q: number) => void) : setInternalQuantity;
 
   if (productLoading) {
     return (

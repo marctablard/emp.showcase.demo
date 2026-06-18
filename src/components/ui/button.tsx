@@ -5,7 +5,7 @@ import { ChevronsUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  'cursor-pointer uppercase inline-flex items-center justify-center gap-3 whitespace-nowrap px-4 py-3 text-action-button tracking-widest font-bold transition-all disabled:pointer-events-none disabled:bg-surface-disabled disabled:text-text-on-disabled [&_svg]:pointer-events-none shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+  'cursor-pointer uppercase inline-flex items-center justify-center gap-3 whitespace-nowrap px-4 py-3 text-action-button tracking-widest font-bold transition-all disabled:pointer-events-none disabled:bg-surface-disabled disabled:text-text-on-disabled [&_svg]:pointer-events-none shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2',
   {
     variants: {
       variant: {
@@ -65,7 +65,7 @@ function BackToTopButton({
   return (
     <button
       className={cn(
-        'text-icon-on-action from-gradient-secondary-end to-gradient-secondary-start hover:to-surface-action-hover disabled:bg-surface-disabled-selected focus-visible:ring-border-focus shrink-0 cursor-pointer rounded-full bg-linear-to-t p-2 transition outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:pointer-events-none disabled:bg-none [&_svg]:shrink-0 [&>svg]:size-8',
+        'text-icon-on-action from-gradient-secondary-end to-gradient-secondary-start hover:to-surface-action-hover disabled:bg-surface-disabled-selected focus-visible:ring-border-focus shrink-0 cursor-pointer rounded-full bg-linear-to-t p-2 transition outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:bg-none [&_svg]:shrink-0 [&>svg]:size-8',
         className,
       )}
       {...props}

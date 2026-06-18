@@ -1,5 +1,6 @@
 import { inject } from 'inversify';
 import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
+import { baseUrl } from '@/lib/utils';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCartApi } from '@/platform/integrations/emporix/cart/EmporixCartApi';
 import type EmporixCommonUtil from '@/platform/integrations/emporix/common/util/EmporixCommonUtil';
@@ -137,7 +138,7 @@ class EmporixCartService implements CartService {
       type: 'shopping',
       channel: {
         name: 'storefront',
-        source: process.env.NEXT_PUBLIC_SERVER_URL || 'https://showcase.emporix.io',
+        source: baseUrl,
       },
       sessionValidated: true,
     };

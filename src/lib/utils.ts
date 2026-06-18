@@ -8,7 +8,7 @@ export { L10N_MISSING_LABEL, l10n, l10nOrEmpty, resolveLocalizedString } from '.
 export type { L10nInput } from './l10n';
 
 function buildBaseUrl() {
-  const envUrl = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_SERVER_URL || 'emporix-showcase.com';
+  const envUrl = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000';
   if (envUrl.startsWith('http://') || envUrl.startsWith('https://')) {
     return envUrl;
   }

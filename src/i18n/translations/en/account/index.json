@@ -172,7 +172,7 @@
       "addressManagement": "Address Management",
       "userManagement": "User Management",
       "paymentOptions": "Payment Options",
-      "wishlists": "Wishlists",
+      "wishlists": "Wishlist",
       "productsMaintenance": "Products & Maintenance",
       "contractsAgreements": "Contracts & Agreements",
       "personalData": "Personal Data",
@@ -681,5 +681,55 @@
   "unknownError": "An unknown error occurred.",
   "Invoices": {
     "title": "Invoice Details"
+  },
+  "wishlist": {
+    "title": "Wishlist",
+    "breadcrumb": "Wishlist",
+    "empty": "Your wishlist is empty.",
+    "itemNumber": "Item number",
+    "net": "Net",
+    "priceUnavailable": "-",
+    "quantity": "Quantity",
+    "decrement": "Decrement",
+    "increment": "Increment",
+    "columns": {
+      "product": "Product",
+      "quantity": "Quantity",
+      "unitPrice": "Unit price"
+    },
+    "statuses": {
+      "unavailable": "Deactivated",
+      "noPrice": "No price",
+      "onlineAvailable": "Online Available"
+    },
+    "actions": {
+      "removeFromList": "Remove from list",
+      "addToCart": "Add to cart",
+      "compare": "Compare",
+      "addAllToCart": "Add all to cart"
+    },
+    "totalValue": {
+      "title": "Total Value",
+      "label": "Total value"
+    },
+    "bulkMoveResult": {
+      "success": {
+        "title": "Added to cart",
+        "description": "All products were added to your shopping cart."
+      },
+      "warning": {
+        "title": "Limited stock availability",
+        "description": "All products were added to your shopping cart. One or more products are not available in the requested quantity."
+      }
+    },
+    "notifications": {
+      "removeSuccess": "{product} was removed from your wishlist",
+      "removeError": "Failed to remove {product} from your wishlist",
+      "moveToCartError": "Failed to add {product} to your cart",
+      "moveToCartPartialFailure": "{product} was added to your cart, but removing it from the wishlist failed",
+      "addError": "Failed to add product to your wishlist",
+      "updateQuantityError": "Failed to update quantity for {product}"
+    },
+    "noPriceTooltip": "This product does not have a price and cannot be added to the wishlist."
   }
 }

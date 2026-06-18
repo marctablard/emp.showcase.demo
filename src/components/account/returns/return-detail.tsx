@@ -407,7 +407,7 @@ function ProductDetailCard({ item, locale: _locale, t }: ProductDetailCardProps)
                 </div>
               ))}
 
-              <div className="aspect-[3/2] relative bg-white rounded-lg border border-action flex flex-col items-center justify-center cursor-pointer hover:bg-surface-muted transition-colors">
+              <div className="aspect-[3/2] relative bg-surface-page rounded-lg border border-action flex flex-col items-center justify-center cursor-pointer hover:bg-surface-muted transition-colors">
                 <Plus className="w-6 h-6 text-action mb-1" />
                 <span className="text-sm text-action font-bold underline">{t('uploadPhotos')}</span>
               </div>

@@ -3,6 +3,7 @@ import { H1 } from '@/components/ui/h';
 import ColorStyleGuide from './atoms/color';
 import ShadowStyleGuide from './atoms/shadow';
 import TextStyleGuide from './atoms/text';
+import AlertStyleGuide from './ui/alert';
 import BadgeStyleGuide from './ui/badge';
 import BreadcrumbStyleGuide from './ui/breadcrumb';
 import ButtonStyleGuide from './ui/button';
@@ -41,6 +42,7 @@ export default function StyleGuide() {
       <PaginationStyleGuide />
       <FormFieldStyleguide />
       <NotificationStyleguide />
+      <AlertStyleGuide />
       <DialogStyleguide />
     </main>
   );

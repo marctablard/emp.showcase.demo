@@ -119,7 +119,7 @@
       "addressManagement": "Adressverwaltung",
       "userManagement": "Benutzerverwaltung",
       "paymentOptions": "Zahlungsoptionen",
-      "wishlists": "Wunschlisten",
+      "wishlists": "Wunschliste",
       "productsMaintenance": "Produkte & Wartung",
       "contractsAgreements": "Verträge & Vereinbarungen",
       "personalData": "Persönliche Daten",
@@ -688,5 +688,55 @@
   "unknownError": "Ein unbekannter Fehler ist aufgetreten.",
   "Invoices": {
     "title": "Rechnungsdetails"
+  },
+  "wishlist": {
+    "title": "Wunschliste",
+    "breadcrumb": "Wunschliste",
+    "empty": "Ihre Wunschliste ist leer.",
+    "itemNumber": "Artikelnummer",
+    "net": "Netto",
+    "priceUnavailable": "-",
+    "quantity": "Menge",
+    "decrement": "Verringern",
+    "increment": "Erhöhen",
+    "columns": {
+      "product": "Produkt",
+      "quantity": "Menge",
+      "unitPrice": "Einheitspreis"
+    },
+    "statuses": {
+      "unavailable": "Deaktiviert",
+      "noPrice": "Kein Preis",
+      "onlineAvailable": "Online verfügbar"
+    },
+    "actions": {
+      "removeFromList": "Von Liste entfernen",
+      "addToCart": "In den Warenkorb",
+      "compare": "Vergleichen",
+      "addAllToCart": "Alles in den Warenkorb"
+    },
+    "totalValue": {
+      "title": "Gesamtwert",
+      "label": "Gesamtwert"
+    },
+    "bulkMoveResult": {
+      "success": {
+        "title": "Zum Warenkorb hinzugefügt",
+        "description": "Alle Produkte wurden zum Warenkorb hinzugefügt."
+      },
+      "warning": {
+        "title": "Eingeschränkte Verfügbarkeit",
+        "description": "Alle Produkte wurden zum Warenkorb hinzugefügt. Ein oder mehrere Produkte sind nicht in der gewünschten Menge verfügbar."
+      }
+    },
+    "notifications": {
+      "removeSuccess": "{product} wurde von der Wunschliste entfernt",
+      "removeError": "{product} konnte nicht von der Wunschliste entfernt werden",
+      "moveToCartError": "{product} konnte nicht in den Warenkorb gelegt werden",
+      "moveToCartPartialFailure": "{product} wurde in den Warenkorb gelegt, das Entfernen aus der Wunschliste schlug fehl",
+      "addError": "Produkt konnte nicht zur Wunschliste hinzugefügt werden",
+      "updateQuantityError": "Die Menge für {product} konnte nicht aktualisiert werden"
+    },
+    "noPriceTooltip": "Dieses Produkt hat keinen Preis und kann nicht zur Wunschliste hinzugefügt werden."
   }
 }

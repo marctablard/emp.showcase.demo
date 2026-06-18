@@ -12,7 +12,14 @@
     "productAdded": "Ihr gewähltes Produkt",
     "quantityAdded": "Hinzugefügte Menge"
   },
-  "addToWishlist": "Produkt Merken",
+  "addToWishlistResult": {
+    "title": "Zur Wunschliste hinzugefügt",
+    "itemNumber": "Artikelnummer",
+    "quantityAdded": "{count, plural, one {# Produkt zur Wunschliste hinzugefügt} other {# Produkte zur Wunschliste hinzugefügt}}",
+    "ok": "OK",
+    "close": "Schließen"
+  },
+  "addToWishlist": "Zur Wunschliste hinzufügen",
   "share": "Teilen",
   "compare": "Vergleichen",
   "noImage": "Kein Bild verfügbar",
@@ -115,7 +122,9 @@
   "compareTooltipInList": "Dieser Artikel ist auf der Vergleichsliste",
   "compareTooltipMasterProduct": "Hauptprodukt kann nicht verglichen werden. Bitte wählen Sie eine bestimmte Variante.",
   "cartTooltipMasterProduct": "Hauptprodukt kann nicht in den Warenkorb gelegt werden. Bitte wählen Sie eine bestimmte Variante.",
+  "wishlistTooltipMasterProduct": "Hauptprodukt kann nicht zur Wunschliste hinzugefügt werden. Bitte wählen Sie eine bestimmte Variante.",
   "cartTooltipNotPurchasable": "Dieses Produkt ist nicht zum Kauf verfügbar.",
   "cartTooltipNoPrice": "Dieses Produkt hat keinen {currency}-Preis und kann nicht in den Warenkorb gelegt werden.",
+  "wishlistTooltipNoPrice": "Dieses Produkt hat keinen {currency}-Preis und kann nicht zur Wunschliste hinzugefügt werden.",
   "inComparisonList": "In der Vergleichsliste"
 }

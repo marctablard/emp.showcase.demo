@@ -139,13 +139,19 @@ function HeaderCartButtonContent({ initialCart, showSum = true }: HeaderCartButt
     </UiLink>
   );
 
+  // Marker so the wishlist-added notification can anchor itself to the cart button via
+  // `getBoundingClientRect()` — see `wishlist-added-notification.tsx`.
+  const anchoredButton = (
+    <span data-anchor="header-cart-button" className="inline-flex">
+      {renderButton()}
+    </span>
+  );
+
   return (
     <Tooltip onOpenChange={openChange}>
       {isAboveMediumScreen ? (
         <>
-          <TooltipTrigger asChild>
-            <span className="inline-flex">{renderButton()}</span>
-          </TooltipTrigger>
+          <TooltipTrigger asChild>{anchoredButton}</TooltipTrigger>
           <TooltipPrimitive.Portal>
             <TooltipPrimitive.Content
               data-slot="tooltip-content"
@@ -165,7 +171,7 @@ function HeaderCartButtonContent({ initialCart, showSum = true }: HeaderCartButt
           </TooltipPrimitive.Portal>
         </>
       ) : (
-        renderButton()
+        anchoredButton
       )}
     </Tooltip>
   );
