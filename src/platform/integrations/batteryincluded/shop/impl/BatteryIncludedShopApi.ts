@@ -54,6 +54,7 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
       query: '',
       page: 0,
       size: 0,
+      variants: 0,
       analyze: 1,
       variables: {
         locale: params.locale,
