@@ -4,7 +4,19 @@ import type { Category } from '@/platform/services/model/category';
 import { buildBrowseHrefForCategoryId } from './build-browse-category-href';
 
 function sortByPosition(a: Category, b: Category): number {
-  return (a.position ?? 0) - (b.position ?? 0);
+  const aPosition = typeof a.position === 'number' ? a.position : undefined;
+  const bPosition = typeof b.position === 'number' ? b.position : undefined;
+
+  if (aPosition === undefined && bPosition === undefined) {
+    return 0;
+  }
+  if (aPosition === undefined) {
+    return 1;
+  }
+  if (bPosition === undefined) {
+    return -1;
+  }
+  return aPosition - bPosition;
 }
 
 function categoryToSubMenuItem(category: Category, locale: string): SubMenuItem {

@@ -188,6 +188,98 @@ describe('buildBatteryIncludedCategoryTree', () => {
     expect(child111112).toMatchObject({ id: 'child-111112' });
   });
 
+  it('sorts roots and siblings by the breadcrumb position of each row leaf', () => {
+    const response = {
+      hits: [],
+      found: 2,
+      page: 1,
+      size: 24,
+      facet_counts: [
+        {
+          field_name: '_product_i18n.categoryBreadcrumbs.displayPath',
+          type: 'select' as const,
+          stats: { total_values: 5 },
+          counts: [
+            {
+              count: 1,
+              value: 'Root B',
+              data: {
+                displayPath: 'Root B',
+                idPath: 'root-b',
+                position: 3,
+              },
+            },
+            {
+              count: 1,
+              value: 'Root A > Child A2',
+              data: {
+                displayPath: 'Root A > Child A2',
+                idPath: 'root-a > child-a2',
+                position: 5,
+              },
+            },
+            {
+              count: 1,
+              value: 'Root A',
+              data: {
+                displayPath: 'Root A',
+                idPath: 'root-a',
+                position: 1,
+              },
+            },
+            {
+              count: 1,
+              value: 'Root A > Child A1',
+              data: {
+                displayPath: 'Root A > Child A1',
+                idPath: 'root-a > child-a1',
+                position: 2,
+              },
+            },
+            {
+              count: 1,
+              value: 'Root B > Child B1',
+              data: {
+                displayPath: 'Root B > Child B1',
+                idPath: 'root-b > child-b1',
+                position: 0,
+              },
+            },
+          ],
+        },
+        {
+          field_name: '_product.categoryIds',
+          type: 'select' as const,
+          stats: { total_values: 5 },
+          counts: [
+            { count: 1, value: 'root-a' },
+            { count: 1, value: 'child-a1' },
+            { count: 1, value: 'child-a2' },
+            { count: 1, value: 'root-b' },
+            { count: 1, value: 'child-b1' },
+          ],
+        },
+      ],
+    };
+
+    const result = buildBatteryIncludedCategoryTree(
+      response,
+      ['root-b', 'root-a'],
+      'en',
+      '_product_i18n.categoryBreadcrumbs.displayPath',
+    );
+
+    expect(result.snapshot?.roots.map((root) => root.id)).toEqual(['root-a', 'root-b']);
+    expect(result.snapshot?.roots.map((root) => root.position)).toEqual([1, 3]);
+    expect(
+      getCategoryChildren(result.snapshot?.roots[0] ?? ({ id: '', name: {}, children: [] } as never)).map(
+        (child) => child.id,
+      ),
+    ).toEqual(['child-a1', 'child-a2']);
+    expect(result.snapshot?.byId['child-a1']).toMatchObject({ position: 2 });
+    expect(result.snapshot?.byId['child-a2']).toMatchObject({ position: 5 });
+  });
+
   it('returns null when the breadcrumb facet is missing', () => {
     const result = buildBatteryIncludedCategoryTree(
       {

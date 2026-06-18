@@ -107,7 +107,7 @@ export function SearchResultsComponent({
   const searchParamsKey = searchParams.toString();
 
   useEffect(() => {
-    const isApiOnlyBrowseParam = (key: string) => key === 'site' || key === 'locale';
+    const isApiOnlyBrowseParam = (key: string) => key === 'site' || key === 'locale' || key === 'currency';
     const meaningfulKeys = Array.from(searchParams.keys()).filter((k) => !isApiOnlyBrowseParam(k));
     const hasSearchParams = meaningfulKeys.some(isBrowseUrlSearchParamKey);
     // Ignore tracking params etc.; still run when URL only had site/locale (legacy bad URLs from old client sync).

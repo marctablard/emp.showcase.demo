@@ -24,6 +24,7 @@ export interface BatteryIncludedCategoryLookupEntry {
   publicationAnchorId: string;
   count: number;
   idPath: string[];
+  position?: number;
 }
 
 export interface BatteryIncludedCategoryTreeSnapshot {
@@ -69,6 +70,22 @@ function createNode(id: string, locale: string, label: string): MutableCategory 
   };
 }
 
+function compareCategoryPositions(a: Category, b: Category): number {
+  const aPosition = typeof a.position === 'number' ? a.position : undefined;
+  const bPosition = typeof b.position === 'number' ? b.position : undefined;
+
+  if (aPosition === undefined && bPosition === undefined) {
+    return 0;
+  }
+  if (aPosition === undefined) {
+    return 1;
+  }
+  if (bPosition === undefined) {
+    return -1;
+  }
+  return aPosition - bPosition;
+}
+
 export function buildBatteryIncludedCategoryTree(
   response: BatteryIncludedSearchResponse<unknown>,
   publishedRootIds: readonly string[],
@@ -91,6 +108,7 @@ export function buildBatteryIncludedCategoryTree(
   const discardedRows: string[] = [];
   const validationWarnings: string[] = [];
   const nodesById = new Map<string, MutableCategory>();
+  const publishedRootOrder = new Map(publishedRootIds.map((id, index) => [id, index]));
   const countsById: Record<string, number> = {};
   const explicitCountsById: Record<string, number> = {};
   const byId: Record<string, BatteryIncludedCategoryLookupEntry> = {};
@@ -110,6 +128,7 @@ export function buildBatteryIncludedCategoryTree(
     const facetValue = row.value?.trim();
     const fullDisplayPath = row.data?.displayPath?.trim();
     const rawIdPath = row.data?.idPath?.trim();
+    const position = typeof row.data?.position === 'number' ? row.data.position : undefined;
     const idPath = splitPath(rawIdPath);
     const labelPath = splitPath(fullDisplayPath);
 
@@ -135,6 +154,10 @@ export function buildBatteryIncludedCategoryTree(
 
       const node = ensureNode(id, label);
 
+      if (index === scopedIdPath.length - 1 && position !== undefined) {
+        node.position = position;
+      }
+
       if (parent && !parent.children.some((child) => child.id === node.id)) {
         parent.children.push(node);
       }
@@ -151,6 +174,7 @@ export function buildBatteryIncludedCategoryTree(
         publicationAnchorId,
         count: byId[id]?.count ?? 0,
         idPath: scopedIdPath.slice(0, index + 1),
+        position: index === scopedIdPath.length - 1 ? position : byId[id]?.position,
       };
 
       if (index === scopedIdPath.length - 1) {
@@ -203,21 +227,39 @@ export function buildBatteryIncludedCategoryTree(
     return count;
   };
 
-  // Root order follows the Emporix-published root order so BI never overrides publication authority.
+  const sortChildrenByPosition = (node: MutableCategory): void => {
+    node.children.sort(compareCategoryPositions);
+    node.children.forEach(sortChildrenByPosition);
+  };
+
+  const compareRootOrder = (a: Category, b: Category): number => {
+    const positionOrder = compareCategoryPositions(a, b);
+    if (positionOrder !== 0) {
+      return positionOrder;
+    }
+
+    return (
+      (publishedRootOrder.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+      (publishedRootOrder.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+    );
+  };
+
   const roots = publishedRootIds
     .map((id) => nodesById.get(id))
-    .filter((root): root is MutableCategory => Boolean(root));
+    .filter((root): root is MutableCategory => Boolean(root))
+    .sort(compareRootOrder);
   if (roots.length === 0) {
     return { snapshot: null, discardedRows, validationWarnings };
   }
 
   roots.forEach((root) => {
     finalizeCounts(root);
+    sortChildrenByPosition(root);
   });
 
   return {
     snapshot: {
-      roots: publishedRootIds.map((id) => nodesById.get(id)).filter((root): root is MutableCategory => Boolean(root)),
+      roots,
       byId,
       byFacetValue,
       countsById,

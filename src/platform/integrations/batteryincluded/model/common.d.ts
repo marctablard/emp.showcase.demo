@@ -23,6 +23,7 @@ export interface BatteryIncludedSearchParams<T> {
 export interface BatteryIncludedFacetCountRowData {
   displayPath?: string;
   idPath?: string;
+  position?: number;
   [key: string]: unknown;
 }
 

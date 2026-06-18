@@ -3,17 +3,21 @@
  */
 import React from 'react';
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
 import { MobileCategoryDrawer } from './mobile-category-drawer';
 import { SearchResultsComponent } from './search-results';
+
+const mockSearch = jest.fn();
+const mockSyncBrowseSearchStateFromUrl = jest.fn();
+let mockSearchParams = new URLSearchParams();
 
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
 jest.mock('next/navigation', () => ({
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockSearchParams,
 }));
 
 jest.mock('@/hooks/search/useSearch', () => ({
@@ -26,7 +30,7 @@ jest.mock('@/hooks/search/useSearch', () => ({
     facets: {},
     currentPage: 1,
     pageSize: 12,
-    search: jest.fn(),
+    search: mockSearch,
     loadMore: jest.fn(),
     applyFacet: jest.fn(),
     applyRangeFacet: jest.fn(),
@@ -34,7 +38,7 @@ jest.mock('@/hooks/search/useSearch', () => ({
     resetFacet: jest.fn(),
     resetAllFacets: jest.fn(),
     activeFilters: {},
-    syncBrowseSearchStateFromUrl: jest.fn(),
+    syncBrowseSearchStateFromUrl: mockSyncBrowseSearchStateFromUrl,
     error: undefined,
   }),
 }));
@@ -132,6 +136,12 @@ const mockPlpCategoryContext: PlpCategoryContext = {
 };
 
 describe('SearchResultsComponent', () => {
+  beforeEach(() => {
+    mockSearchParams = new URLSearchParams();
+    mockSearch.mockClear();
+    mockSyncBrowseSearchStateFromUrl.mockClear();
+  });
+
   it('renders list layout when configured by the server prop', () => {
     render(<SearchResultsComponent locale="en" initialLayout="list" />);
 
@@ -144,6 +154,23 @@ describe('SearchResultsComponent', () => {
 
     expect(screen.getByTestId('SearchResultsGrid')).toBeInTheDocument();
     expect(screen.queryByTestId('SearchResultsList')).not.toBeInTheDocument();
+  });
+
+  it('still triggers a browse fetch when the URL only contains currency context', async () => {
+    mockSearchParams = new URLSearchParams('currency=EUR');
+
+    render(<SearchResultsComponent locale="en" initialLayout="list" />);
+
+    await waitFor(() => {
+      expect(mockSearch).toHaveBeenCalledWith({
+        query: '',
+        page: 0,
+        size: 12,
+        sort: undefined,
+        filters: undefined,
+      });
+    });
+    expect(mockSyncBrowseSearchStateFromUrl).not.toHaveBeenCalled();
   });
 });
 
