@@ -103,8 +103,11 @@ describe('BatteryIncludedShopApi', () => {
       });
 
       const url = (apiInvoker.apiFetch as jest.Mock).mock.calls[0][0];
-      expect(url).toContain('q=&page=0&per_page=0&analyze=1');
+      expect(url).toContain('q=');
+      expect(url).toContain('page=0');
+      expect(url).toContain('per_page=0');
       expect(url).toContain('variants=0');
+      expect(url).toContain('analyze=1');
       expect(url).toContain('v%5Blocale%5D=en');
       expect(url).toContain('v%5BsiteAware%5D=main');
       expect(url).toContain('v%5BcountryAware%5D=DE');

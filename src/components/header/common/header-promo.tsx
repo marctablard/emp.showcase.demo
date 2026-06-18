@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 import UiLink from '@/components/ui/link';
 import { cn } from '@/lib/utils';
@@ -25,7 +26,9 @@ export function HeaderPromo({ className }: HeaderPromoProps) {
           key={index}
           className="flex w-full flex-col items-center justify-between rounded-sm bg-surface-image-background p-2 sm:p-4"
         >
-          <div className="w-full aspect-square bg-surface-action-hover-2 mb-2 sm:mb-4">{/* Image Placeholder */}</div>
+          <div className="relative mb-2 aspect-square w-full overflow-hidden rounded-sm bg-surface-action-hover-2 sm:mb-4">
+            <Image src="/images/img_placeholder.png" alt={promo.title} fill className="object-cover" />
+          </div>
           <div className="flex w-full flex-wrap gap-2 justify-between">
             <p className="text-text-body font-bold" id={`${baseId}-promo-${index}`}>
               {promo.title}

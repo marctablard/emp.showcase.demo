@@ -29,7 +29,7 @@ export function HeaderActionBar() {
   const { scrolled } = useHeaderScroll();
   const isAboveSmallScreen = useBreakpoint('sm');
   const isAboveMediumScreen = useBreakpoint('md');
-  const isAboveLargeScreen = useBreakpoint('lg');
+  const isAboveDesktopFlyoutBreakpoint = useBreakpoint('md');
   const pathname = usePathname();
   const isOnAuthPage = pathname === '/login' || pathname === '/password-reset';
   const [showMenu, setShowMenu] = useState(false);
@@ -140,7 +140,7 @@ export function HeaderActionBar() {
       <div className={cn('flex items-center gap-5 w-full', !scrolled && 'md:justify-between md:flex-wrap')}>
         <div className="flex items-center gap-5 w-full md:justify-between" onMouseEnter={dismissFlyout}>
           <HeaderLogo scrolled={scrolled} className={cn('me-auto md:me-0', scrolled && 'lg:me-auto')} />
-          <HeaderSearch show={showSearch} small={!isAboveLargeScreen || scrolled} />
+          <HeaderSearch show={showSearch} small={!isAboveDesktopFlyoutBreakpoint || scrolled} />
           <div className={cn('flex items-center gap-5 text-nowrap', showSearch && 'sm:hidden')}>
             {activateSearch && (
               <HeaderIconButton

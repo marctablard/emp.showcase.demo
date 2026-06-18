@@ -76,7 +76,7 @@ export function DesktopMenuFlyout({ menuItem, onMouseLeave }: DesktopMenuFlyoutP
       className={cn(
         'backdrop-active pt-6 -mb-2 pb-6 -mx-6 px-6',
         'flex flex-col gap-4',
-        'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,3fr)] lg:gap-x-0 lg:gap-y-4',
+        'md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,3fr)] md:gap-x-0 md:gap-y-4',
       )}
       onMouseLeave={onMouseLeave}
     >
@@ -106,8 +106,8 @@ export function DesktopMenuFlyout({ menuItem, onMouseLeave }: DesktopMenuFlyoutP
           <div
             key={colIndex}
             className={cn(
-              'min-h-[12rem] min-w-0 border-border-subtle py-1 lg:w-full',
-              colIndex > 0 && 'lg:border-s lg:ps-2',
+              'min-h-[12rem] min-w-0 border-border-subtle py-1 md:w-full',
+              colIndex > 0 && 'md:border-s md:ps-2',
             )}
           >
             {showRootBrowseHeader ? (
@@ -194,7 +194,7 @@ export function DesktopMenuFlyout({ menuItem, onMouseLeave }: DesktopMenuFlyoutP
           </div>
         );
       })}
-      <HeaderPromo className="min-w-0 max-lg:w-full" />
+      <HeaderPromo className="min-w-0 max-md:w-full" />
     </div>
   );
 }

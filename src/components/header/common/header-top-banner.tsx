@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 export function HeaderTopBanner() {
   const t = useTranslations('layout.header');
   const { scrolled } = useHeaderScroll();
-  const isAboveLargeScreen = useBreakpoint('lg');
+  const isAboveDesktopFlyoutBreakpoint = useBreakpoint('md');
   const { dismissFlyout } = useHeaderDesktopNavigation();
   return (
     <div
@@ -34,7 +34,7 @@ export function HeaderTopBanner() {
           <CurrencySwitcher />
           <CompanySwitcher />
         </div>
-        {isAboveLargeScreen && (
+        {isAboveDesktopFlyoutBreakpoint && (
           <div className="justify-center items-center font-bold">
             <TopBannerAnnouncement />
           </div>
