@@ -32,7 +32,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   const router = useRouter();
   const pathname = usePathname();
   const [data, setData] = useState<T[]>(initialResult?.items || []);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!initialResult);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<UseSearchClientError | null>(null);
   const [facets, setFacets] = useState<Filter[]>([]);

@@ -1,14 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { ProductTile } from '@/components/product/product-tile';
 import { ProductTileSkeleton } from '@/components/product/product-tile-skeleton';
 import { SearchNoResults } from '@/components/search/search-no-results';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useGlobalCursor } from '@/hooks/common/useGlobalCursor';
 import type { Product } from '@/platform/services/model/product';
-
-const GLOBAL_LOADING_CURSOR_STYLE_ID = 'search-product-tile-grid-loading-cursor';
 
 interface SearchProductTileGridProps {
   products: Product[];
@@ -16,6 +14,7 @@ interface SearchProductTileGridProps {
   pageSize: number;
   total: number;
   loading: boolean;
+  pendingCursor?: boolean;
   /**
    * Override the grid template so the list view (narrower right column) can downsize the columns.
    * Defaults match the full-width grid layout used by `SearchResultsGrid`.
@@ -37,40 +36,30 @@ export function SearchProductTileGrid({
   pageSize,
   total,
   loading,
+  pendingCursor,
   gridClassName,
 }: SearchProductTileGridProps) {
   const t = useTranslations('search');
   const resolvedGridClass = gridClassName ?? DEFAULT_GRID_CLASSES;
+  const shouldLockCursor = loading || pendingCursor;
 
-  useEffect(() => {
-    if (!loading) {
-      return;
-    }
-
-    let styleElement = document.getElementById(GLOBAL_LOADING_CURSOR_STYLE_ID) as HTMLStyleElement | null;
-
-    if (!styleElement) {
-      styleElement = document.createElement('style');
-      styleElement.id = GLOBAL_LOADING_CURSOR_STYLE_ID;
-      styleElement.textContent = 'html, body, body *, body *::before, body *::after { cursor: progress !important; }';
-      document.head.appendChild(styleElement);
-    }
-
-    return () => {
-      styleElement?.remove();
-    };
-  }, [loading]);
+  useGlobalCursor(shouldLockCursor);
 
   if (loading) {
     return (
-      <div>
-        <Skeleton className="mb-4 h-5 w-[180px]" />
-        <div className={resolvedGridClass}>
-          {Array.from({ length: Math.min(pageSize, products.length) }).map((_, i) => (
-            <ProductTileSkeleton key={i} />
-          ))}
+      <>
+        <div className="fixed inset-0 z-[99999]" aria-hidden="true" />
+        <div>
+          <Skeleton className="mb-4 h-5 w-[180px]" />
+          <div className={resolvedGridClass}>
+            {Array.from({
+              length: Math.max(1, products.length > 0 ? Math.min(pageSize, products.length) : pageSize),
+            }).map((_, i) => (
+              <ProductTileSkeleton key={i} />
+            ))}
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -80,7 +69,8 @@ export function SearchProductTileGrid({
 
   return (
     <>
-      <div className="mb-4">
+      {shouldLockCursor ? <div className="fixed inset-0 z-[99999]" aria-hidden="true" /> : null}
+      <div>
         <p className="text-sm text-text-placeholders">
           {t('searchResults.showing', {
             start: 1,

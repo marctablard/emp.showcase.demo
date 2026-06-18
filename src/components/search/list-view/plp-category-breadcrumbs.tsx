@@ -2,7 +2,8 @@
 
 import { useTranslations } from 'next-intl';
 import { ChevronRight } from 'lucide-react';
-import { Link } from '@/i18n/navigation';
+// import { Link } from '@/i18n/navigation';
+import { PlpPendingLink } from '@/components/search/list-view/plp-pending-link';
 import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
 import { buildBrowseHrefForCategoryId } from '@/lib/navigation/build-browse-category-href';
 import { l10n } from '@/lib/utils';
@@ -20,12 +21,12 @@ export function PlpCategoryBreadcrumbs({ plpCategoryContext, locale }: PlpCatego
     : [];
 
   return (
-    <nav aria-label={tSearch('allProducts')} className="w-full py-4" data-testid="plp-category-breadcrumbs">
-      <ol className="flex flex-wrap items-center gap-1 text-sm text-text-body">
+    <nav aria-label={tSearch('allProducts')} className="w-full" data-testid="plp-category-breadcrumbs">
+      <ol className="flex flex-wrap items-center gap-1 text-base text-text-body">
         <li className="inline-flex items-center">
-          <Link href="/" className="font-bold text-text-action underline hover:text-text-action-hover">
+          <PlpPendingLink href="/" className="font-bold text-text-action underline hover:text-text-action-hover">
             {tCommon('homeLink')}
-          </Link>
+          </PlpPendingLink>
         </li>
         {breadcrumbItems.length === 0 ? (
           <>
@@ -51,24 +52,24 @@ export function PlpCategoryBreadcrumbs({ plpCategoryContext, locale }: PlpCatego
                       {tSearch('allProducts')}
                     </span>
                   ) : (
-                    <Link
+                    <PlpPendingLink
                       href="/browse"
                       className="inline-flex items-center font-bold text-text-action underline hover:text-text-action-hover"
                     >
                       {tSearch('allProducts')}
-                    </Link>
+                    </PlpPendingLink>
                   )
                 ) : isLast ? (
                   <span className="inline-flex items-center text-text-body" aria-current="page">
                     {l10n(item.category.name, locale)}
                   </span>
                 ) : (
-                  <Link
+                  <PlpPendingLink
                     href={buildBrowseHrefForCategoryId(item.category.id, item.category)}
                     className="inline-flex items-center font-bold text-text-action underline hover:text-text-action-hover"
                   >
                     {l10n(item.category.name, locale)}
-                  </Link>
+                  </PlpPendingLink>
                 )}
               </li>
             );

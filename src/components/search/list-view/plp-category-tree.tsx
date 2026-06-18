@@ -3,9 +3,9 @@
 import { useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronLeft } from 'lucide-react';
+import { PlpPendingLink } from '@/components/search/list-view/plp-pending-link';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { H5 } from '@/components/ui/h';
-import { Link } from '@/i18n/navigation';
 import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
 import { buildBrowseHrefForCategoryId } from '@/lib/navigation/build-browse-category-href';
 import { l10n } from '@/lib/utils';
@@ -52,26 +52,26 @@ export function PlpCategoryTree({
             if (ancestor.kind === 'virtual-all-products') {
               return (
                 <li key="virtual-all-products">
-                  <Link
+                  <PlpPendingLink
                     href="/browse"
                     className="group inline-flex min-h-[50px] items-center gap-2 text-text-action underline outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
                   >
                     <ChevronLeft className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
                     <span className="truncate">{tSearch('allProducts')}</span>
-                  </Link>
+                  </PlpPendingLink>
                 </li>
               );
             }
             const cat = ancestor.category;
             return (
               <li key={cat.id}>
-                <Link
+                <PlpPendingLink
                   href={buildBrowseHrefForCategoryId(cat.id, cat)}
                   className="group inline-flex min-h-[50px] items-center gap-2 text-text-action underline outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
                 >
                   <ChevronLeft className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
                   <span className="truncate">{l10n(cat.name, locale)}</span>
-                </Link>
+                </PlpPendingLink>
               </li>
             );
           })}
@@ -80,7 +80,7 @@ export function PlpCategoryTree({
 
       {/* Current Category Emphasized Row */}
       <div className="pl-4">
-        <Link
+        <PlpPendingLink
           href={currentCategory ? buildBrowseHrefForCategoryId(currentCategory.id, currentCategory) : '/browse'}
           className="inline-flex min-h-[50px] w-full items-center justify-between font-bold text-text-headings outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
           aria-current="page"
@@ -92,7 +92,7 @@ export function PlpCategoryTree({
           <span className="shrink-0 text-text-on-disabled">
             {currentCategory ? (categoryCountsById[currentCategory.id] ?? '') : total}
           </span>
-        </Link>
+        </PlpPendingLink>
       </div>
 
       {/* Children List */}
@@ -103,13 +103,13 @@ export function PlpCategoryTree({
               const childCount = categoryCountsById[child.id];
               return (
                 <li key={child.id}>
-                  <Link
+                  <PlpPendingLink
                     href={buildBrowseHrefForCategoryId(child.id, child)}
                     className="inline-flex min-h-[40px] w-full items-center justify-between text-text-body hover:text-text-headings hover:underline outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
                   >
                     <span className="truncate">{l10n(child.name, locale)}</span>
                     {childCount !== undefined && <span className="shrink-0 text-text-on-disabled">{childCount}</span>}
-                  </Link>
+                  </PlpPendingLink>
                 </li>
               );
             })}

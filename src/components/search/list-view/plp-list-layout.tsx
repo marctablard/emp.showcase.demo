@@ -20,6 +20,7 @@ interface PlpListLayoutProps {
   pageSize: number;
   total: number;
   loading: boolean;
+  pendingCursor?: boolean;
   navigationRoots: Category[];
   selectedCategoryId?: string;
   hasMore: boolean;
@@ -41,6 +42,7 @@ export function PlpListLayout({
   pageSize,
   total,
   loading,
+  pendingCursor,
   navigationRoots,
   selectedCategoryId,
   hasMore,
@@ -88,14 +90,16 @@ export function PlpListLayout({
     : '';
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       {/* <PlpCategoryCarousel categories={plpContext.ribbonCategories} locale={locale} /> */}
       <PlpCategoryBreadcrumbs plpCategoryContext={plpContext} locale={locale} />
-      <section className="flex flex-col gap-3" aria-label={summaryTitle} data-testid="plp-category-summary">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:gap-3">
+      <section className="flex flex-col gap-4" aria-label={summaryTitle} data-testid="plp-category-summary">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-4">
           <H2 className="mb-0">{summaryTitle}</H2>
           {typeof summaryCount === 'number' && !loading ? (
-            <span className="text-text-body text-sm font-bold">{tFilter('productCount', { count: summaryCount })}</span>
+            <span className="text-text-secondary text-lg font-normal">
+              {tFilter('productCount', { count: summaryCount })}
+            </span>
           ) : null}
         </div>
         {summaryDescription ? <p className="text-base text-text-body">{summaryDescription}</p> : null}
@@ -119,6 +123,7 @@ export function PlpListLayout({
             pageSize={pageSize}
             total={total}
             loading={loading}
+            pendingCursor={pendingCursor}
             gridClassName="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 md:gap-6"
           />
           {hasMore ? (

@@ -1,7 +1,9 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
 import type { BatteryIncludedShopApi } from '@/platform/integrations/batteryincluded/shop/BatteryIncludedShopApi';
+import type { CategoryService } from '@/platform/services/category/CategoryService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
+import type { Category } from '@/platform/services/model/category';
 import type { BatteryIncludedCategoryTreeService as BatteryIncludedCategoryTreeServiceContract } from '@/platform/services/search/BatteryIncludedCategoryTreeService';
 import type { CatalogPublishedRootCategoryService } from '../../catalog/impl/CatalogPublishedRootCategoryService';
 import { BATTERY_INCLUDED_BREADCRUMB_FILTER } from '../../model/category/batteryincluded-category';
@@ -25,6 +27,7 @@ class BatteryIncludedCategoryTreeService implements BatteryIncludedCategoryTreeS
     @inject('BatteryIncludedShopApi') private readonly shopApi: BatteryIncludedShopApi,
     @inject('CatalogPublishedRootCategoryService')
     private readonly catalogPublishedRootCategoryService: CatalogPublishedRootCategoryService,
+    @inject('CategoryService') private readonly categoryService: CategoryService,
     @inject('LoggerService') private readonly logger: LoggerService,
   ) {}
 
@@ -90,6 +93,40 @@ class BatteryIncludedCategoryTreeService implements BatteryIncludedCategoryTreeS
     if (!built.snapshot) {
       this.logger.warn({ siteCode: context.siteCode }, 'BatteryIncluded category tree bootstrap unusable');
       return null;
+    }
+
+    const allIds = Object.keys(built.snapshot.byId);
+    if (allIds.length > 0) {
+      try {
+        const enrichedCategories = await this.categoryService.getCategoriesByIds(allIds, {
+          showRoots: false,
+          showUnpublished: false,
+        });
+        const descriptionsById = new Map<string, any>();
+        enrichedCategories.forEach((c) => {
+          if (c.description) {
+            descriptionsById.set(c.id, c.description);
+          }
+        });
+
+        const enrichNode = (node: Category | string) => {
+          if (typeof node === 'string') return;
+          const desc = descriptionsById.get(node.id);
+          if (desc) {
+            node.description = desc;
+          }
+          if (node.children) {
+            node.children.forEach(enrichNode);
+          }
+        };
+
+        built.snapshot.roots.forEach(enrichNode);
+      } catch (err) {
+        this.logger.warn(
+          { err, siteCode: context.siteCode },
+          'Failed to enrich BatteryIncluded category trees with descriptions',
+        );
+      }
     }
 
     return built.snapshot;

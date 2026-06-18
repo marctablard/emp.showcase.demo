@@ -3,8 +3,7 @@
 import { useMemo } from 'react';
 import { useLocale } from 'next-intl';
 import { routingConfig } from '@/i18n/routing';
-import { l10nOrEmpty as utilL10nOrEmpty, l10n as utill10n } from '@/lib/l10n';
-import type { LocalizedString } from '@/platform/services/model/common';
+import { type L10nInput, l10nOrEmpty as utilL10nOrEmpty, l10n as utill10n } from '@/lib/l10n';
 import { useSiteStore } from '@/providers/StoreProvider';
 
 /**
@@ -23,8 +22,8 @@ export function useL10n(locale?: string, defaultLocale?: string) {
 
   return useMemo(
     () => ({
-      l10n: (input: string | LocalizedString) => utill10n(input, resolvedLocale, effectiveDefault),
-      l10nOrEmpty: (input: string | LocalizedString) => utilL10nOrEmpty(input, resolvedLocale, effectiveDefault),
+      l10n: (input: L10nInput) => utill10n(input, resolvedLocale, effectiveDefault),
+      l10nOrEmpty: (input: L10nInput) => utilL10nOrEmpty(input, resolvedLocale, effectiveDefault),
     }),
     [resolvedLocale, effectiveDefault],
   );

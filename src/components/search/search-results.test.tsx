@@ -4,6 +4,7 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { acquireNavigationWaitCursorLease, releaseNavigationWaitCursorLease } from '@/hooks/common/useGlobalCursor';
 import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
 import { MobileCategoryDrawer } from './mobile-category-drawer';
 import { SearchResultsComponent } from './search-results';
@@ -11,6 +12,19 @@ import { SearchResultsComponent } from './search-results';
 const mockSearch = jest.fn();
 const mockSyncBrowseSearchStateFromUrl = jest.fn();
 let mockSearchParams = new URLSearchParams();
+let searchResultsGridProps: { pendingCursor?: boolean } | null = null;
+let searchResultsListProps: { pendingCursor?: boolean } | null = null;
+
+interface MockUseSearchState {
+  loading: boolean;
+  currentPage: number;
+  pageSize: number;
+  currentQuery?: string;
+  currentSort?: string;
+  activeFilters: Record<string, unknown>;
+}
+
+let mockUseSearchState: MockUseSearchState;
 
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -23,13 +37,15 @@ jest.mock('next/navigation', () => ({
 jest.mock('@/hooks/search/useSearch', () => ({
   useSearch: () => ({
     data: [],
-    loading: false,
+    loading: mockUseSearchState.loading,
     loadingMore: false,
     hasMore: false,
     total: 0,
     facets: {},
-    currentPage: 1,
-    pageSize: 12,
+    currentPage: mockUseSearchState.currentPage,
+    pageSize: mockUseSearchState.pageSize,
+    currentQuery: mockUseSearchState.currentQuery,
+    currentSort: mockUseSearchState.currentSort,
     search: mockSearch,
     loadMore: jest.fn(),
     applyFacet: jest.fn(),
@@ -37,7 +53,7 @@ jest.mock('@/hooks/search/useSearch', () => ({
     applyAllFacets: jest.fn(),
     resetFacet: jest.fn(),
     resetAllFacets: jest.fn(),
-    activeFilters: {},
+    activeFilters: mockUseSearchState.activeFilters,
     syncBrowseSearchStateFromUrl: mockSyncBrowseSearchStateFromUrl,
     error: undefined,
   }),
@@ -56,10 +72,16 @@ jest.mock('@/components/search/search-layout-toggle', () => ({
   SearchLayoutToggle: () => null,
 }));
 jest.mock('@/components/search/search-results-grid', () => ({
-  SearchResultsGrid: () => <div data-testid="SearchResultsGrid" />,
+  SearchResultsGrid: (props: any) => {
+    searchResultsGridProps = props;
+    return <div data-testid="SearchResultsGrid" />;
+  },
 }));
 jest.mock('@/components/search/search-results-list', () => ({
-  SearchResultsList: ({ topControlsNode }: any) => <div data-testid="SearchResultsList">{topControlsNode}</div>,
+  SearchResultsList: (props: any) => {
+    searchResultsListProps = props;
+    return <div data-testid="SearchResultsList">{props.topControlsNode}</div>;
+  },
 }));
 
 jest.mock('@/components/search/list-view/plp-category-tree', () => ({
@@ -137,9 +159,24 @@ const mockPlpCategoryContext: PlpCategoryContext = {
 
 describe('SearchResultsComponent', () => {
   beforeEach(() => {
+    releaseNavigationWaitCursorLease();
     mockSearchParams = new URLSearchParams();
     mockSearch.mockClear();
     mockSyncBrowseSearchStateFromUrl.mockClear();
+    mockUseSearchState = {
+      loading: false,
+      currentPage: 0,
+      pageSize: 12,
+      currentQuery: undefined,
+      currentSort: undefined,
+      activeFilters: {},
+    };
+    searchResultsGridProps = null;
+    searchResultsListProps = null;
+  });
+
+  afterEach(() => {
+    releaseNavigationWaitCursorLease();
   });
 
   it('renders list layout when configured by the server prop', () => {
@@ -171,6 +208,56 @@ describe('SearchResultsComponent', () => {
       });
     });
     expect(mockSyncBrowseSearchStateFromUrl).not.toHaveBeenCalled();
+  });
+
+  it('keeps the cursor bridge active across repeated stale renders until hook state catches up', () => {
+    const { rerender } = render(<SearchResultsComponent locale="en" initialLayout="list" />);
+
+    expect(searchResultsListProps?.pendingCursor).toBeFalsy();
+
+    mockSearchParams = new URLSearchParams('filters%5B_product_i18n.categoryBreadcrumbs.displayPath%5D=Smartphones');
+    rerender(<SearchResultsComponent locale="en" initialLayout="list" />);
+
+    expect(searchResultsListProps?.pendingCursor).toBe(true);
+
+    rerender(<SearchResultsComponent locale="en" initialLayout="list" />);
+
+    expect(searchResultsListProps?.pendingCursor).toBe(true);
+
+    mockUseSearchState = {
+      ...mockUseSearchState,
+      activeFilters: {
+        '_product_i18n.categoryBreadcrumbs.displayPath': 'Smartphones',
+      },
+    };
+    rerender(<SearchResultsComponent locale="en" initialLayout="list" />);
+
+    expect(searchResultsListProps?.pendingCursor).toBe(false);
+  });
+
+  it('keeps the global wait cursor through source unmount until browse state converges', async () => {
+    acquireNavigationWaitCursorLease();
+    mockSearchParams = new URLSearchParams('filters%5B_product_i18n.categoryBreadcrumbs.displayPath%5D=Smartphones');
+
+    const { rerender } = render(<SearchResultsComponent locale="en" initialLayout="list" />);
+
+    expect(document.documentElement).toHaveAttribute('data-global-cursor', 'wait');
+
+    rerender(<SearchResultsComponent locale="en" initialLayout="list" />);
+
+    expect(document.documentElement).toHaveAttribute('data-global-cursor', 'wait');
+
+    mockUseSearchState = {
+      ...mockUseSearchState,
+      activeFilters: {
+        '_product_i18n.categoryBreadcrumbs.displayPath': 'Smartphones',
+      },
+    };
+    rerender(<SearchResultsComponent locale="en" initialLayout="list" />);
+
+    await waitFor(() => {
+      expect(document.documentElement).not.toHaveAttribute('data-global-cursor');
+    });
   });
 });
 

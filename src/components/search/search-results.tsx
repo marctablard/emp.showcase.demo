@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { useCategoryDisplayLabelIndex } from '@/components/navigation/category-display-label-index-context';
@@ -13,6 +13,7 @@ import { SearchResultsList } from '@/components/search/search-results-list';
 import { SearchSort } from '@/components/search/search-sort';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { releaseNavigationWaitCursorLease } from '@/hooks/common/useGlobalCursor';
 import { USE_SEARCH_CLIENT_ERROR, useSearch } from '@/hooks/search/useSearch';
 import { resolvePlpCategoryContext } from '@/lib/category/plp-category-context';
 import { resolveSelectedCategoryIdFromFilters } from '@/lib/search/category-selection';
@@ -57,6 +58,7 @@ export function SearchResultsComponent({
   const searchParams = useSearchParams();
   const navigationLabelIndex = useCategoryDisplayLabelIndex();
   const layout = initialLayout;
+  const pendingCursorUrlSigRef = useRef<string | null>(null);
   // Initialize the search hook with Product type and initial results
   const {
     data: products,
@@ -67,6 +69,8 @@ export function SearchResultsComponent({
     facets: availableFilters,
     currentPage,
     pageSize,
+    currentQuery,
+    currentSort,
     search,
     loadMore,
     applyFacet,
@@ -78,6 +82,66 @@ export function SearchResultsComponent({
     syncBrowseSearchStateFromUrl,
     error: searchError,
   } = useSearch<Product>(initialSearch, initialResults);
+
+  const searchParamsKey = searchParams.toString();
+  const previousSearchParamsKeyRef = useRef(searchParamsKey);
+  const searchParamsChanged = previousSearchParamsKeyRef.current !== searchParamsKey;
+
+  useEffect(() => {
+    previousSearchParamsKeyRef.current = searchParamsKey;
+  }, [searchParamsKey]);
+
+  const isApiOnlyBrowseParam = (key: string) => key === 'site' || key === 'locale' || key === 'currency';
+  const meaningfulKeys = Array.from(searchParams.keys()).filter((k) => !isApiOnlyBrowseParam(k));
+  const hasBrowseSearchParams = meaningfulKeys.some(isBrowseUrlSearchParamKey);
+  const raw = urlSearchParamsToNextRecord(searchParams);
+  const filtersRecord = extractFiltersFromSearchParams(raw) as Record<string, unknown>;
+
+  const qVal = raw.q;
+  const query = (Array.isArray(qVal) ? qVal[0] : qVal) ?? '';
+  const pageRaw = raw.page;
+  const page = pageRaw !== undefined ? parseInt(Array.isArray(pageRaw) ? pageRaw[0] : pageRaw, 10) : 0;
+  const sizeRaw = raw.size;
+  const defaultSize = initialSearch?.size ?? BROWSE_DEFAULT_PAGE_SIZE;
+  const parsedSize = sizeRaw !== undefined ? parseInt(Array.isArray(sizeRaw) ? sizeRaw[0] : sizeRaw, 10) : defaultSize;
+  const size = Number.isFinite(parsedSize) ? parsedSize : defaultSize;
+  const sortRaw = raw.sort;
+  const sort = sortRaw !== undefined ? (Array.isArray(sortRaw) ? sortRaw[0] : sortRaw) : undefined;
+  const urlSig = browseSearchStateSignature({
+    query,
+    page: Number.isFinite(page) ? page : 0,
+    size,
+    sort,
+    filters: Object.keys(filtersRecord).length > 0 ? filtersRecord : undefined,
+  });
+  const currentSearchSig = browseSearchStateSignature({
+    query: currentQuery ?? '',
+    page: currentPage,
+    size: pageSize,
+    sort: currentSort,
+    filters: activeFilters as Record<string, unknown> | undefined,
+  });
+
+  if (
+    pendingCursorUrlSigRef.current !== null &&
+    (!hasBrowseSearchParams || currentSearchSig === pendingCursorUrlSigRef.current)
+  ) {
+    pendingCursorUrlSigRef.current = null;
+  }
+
+  if (searchParamsChanged && hasBrowseSearchParams && !loading && urlSig !== currentSearchSig) {
+    pendingCursorUrlSigRef.current = urlSig;
+  }
+
+  const pendingCursor = !loading && pendingCursorUrlSigRef.current === urlSig;
+
+  useLayoutEffect(() => {
+    if (hasBrowseSearchParams && currentSearchSig !== urlSig) {
+      return;
+    }
+
+    releaseNavigationWaitCursorLease();
+  }, [currentSearchSig, hasBrowseSearchParams, urlSig]);
 
   const rootCategories = navigationRoots ?? [];
   const selectedCategoryId = resolveSelectedCategoryIdFromFilters(activeFilters ?? {}, rootCategories);
@@ -104,39 +168,13 @@ export function SearchResultsComponent({
     resetLabel: t('resetFilter'),
     categoryFilterLabelsById: navigationLabelIndex,
   };
-  const searchParamsKey = searchParams.toString();
 
   useEffect(() => {
-    const isApiOnlyBrowseParam = (key: string) => key === 'site' || key === 'locale' || key === 'currency';
-    const meaningfulKeys = Array.from(searchParams.keys()).filter((k) => !isApiOnlyBrowseParam(k));
     const hasSearchParams = meaningfulKeys.some(isBrowseUrlSearchParamKey);
     // Ignore tracking params etc.; still run when URL only had site/locale (legacy bad URLs from old client sync).
     if (!hasSearchParams && meaningfulKeys.length > 0) {
       return;
     }
-
-    const raw = urlSearchParamsToNextRecord(searchParams);
-    const filtersRecord = extractFiltersFromSearchParams(raw) as Record<string, unknown>;
-
-    const qVal = raw.q;
-    const query = (Array.isArray(qVal) ? qVal[0] : qVal) ?? '';
-    const pageRaw = raw.page;
-    const page = pageRaw !== undefined ? parseInt(Array.isArray(pageRaw) ? pageRaw[0] : pageRaw, 10) : 0;
-    const sizeRaw = raw.size;
-    const defaultSize = initialSearch?.size ?? BROWSE_DEFAULT_PAGE_SIZE;
-    const parsedSize =
-      sizeRaw !== undefined ? parseInt(Array.isArray(sizeRaw) ? sizeRaw[0] : sizeRaw, 10) : defaultSize;
-    const size = Number.isFinite(parsedSize) ? parsedSize : defaultSize;
-    const sortRaw = raw.sort;
-    const sort = sortRaw !== undefined ? (Array.isArray(sortRaw) ? sortRaw[0] : sortRaw) : undefined;
-
-    const urlSig = browseSearchStateSignature({
-      query,
-      page: Number.isFinite(page) ? page : 0,
-      size,
-      sort,
-      filters: Object.keys(filtersRecord).length > 0 ? filtersRecord : undefined,
-    });
 
     const initSig = browseSearchStateSignature({
       query: initialSearch?.query ?? '',
@@ -230,6 +268,7 @@ export function SearchResultsComponent({
             pageSize={pageSize}
             total={total}
             loading={loading}
+            pendingCursor={pendingCursor}
             hasMore={hasMore}
             loadingMore={loadingMore}
             loadMore={loadMore}
@@ -250,6 +289,7 @@ export function SearchResultsComponent({
               pageSize={pageSize}
               total={total}
               loading={loading}
+              pendingCursor={pendingCursor}
             />
             {hasMore ? (
               <div className="flex justify-center mt-8">

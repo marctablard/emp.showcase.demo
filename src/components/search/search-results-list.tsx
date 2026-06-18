@@ -12,6 +12,7 @@ interface SearchResultsListProps {
   pageSize: number;
   total: number;
   loading: boolean;
+  pendingCursor?: boolean;
   hasMore: boolean;
   loadingMore: boolean;
   loadMore: () => void | Promise<void>;
@@ -31,6 +32,7 @@ export function SearchResultsList({
   pageSize,
   total,
   loading,
+  pendingCursor,
   hasMore,
   loadingMore,
   loadMore,
@@ -48,6 +50,7 @@ export function SearchResultsList({
       pageSize={pageSize}
       total={total}
       loading={loading}
+      pendingCursor={pendingCursor}
       navigationRoots={rootCategories}
       selectedCategoryId={selectedCategoryId}
       hasMore={hasMore}

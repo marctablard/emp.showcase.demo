@@ -10,6 +10,7 @@ interface SearchResultsGridProps {
   pageSize: number;
   total: number;
   loading: boolean;
+  pendingCursor?: boolean;
 }
 
 export function SearchResultsGrid({
@@ -19,8 +20,16 @@ export function SearchResultsGrid({
   pageSize,
   total,
   loading,
+  pendingCursor,
 }: SearchResultsGridProps) {
   return (
-    <SearchProductTileGrid products={products} locale={locale} pageSize={pageSize} total={total} loading={loading} />
+    <SearchProductTileGrid
+      products={products}
+      locale={locale}
+      pageSize={pageSize}
+      total={total}
+      loading={loading}
+      pendingCursor={pendingCursor}
+    />
   );
 }

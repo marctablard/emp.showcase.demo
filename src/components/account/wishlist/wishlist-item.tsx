@@ -46,7 +46,7 @@ export function WishlistItem({ item, onMovedToCart }: WishlistItemProps) {
   // Minimal Product shape so `useValidateAddToComparison` can apply its master-product check.
   const productForComparison: Product = {
     id: item.productId,
-    name: item.name ?? item.productId,
+    name: item.name! ?? item.productId,
     description: '',
     purchasable: item.isPurchasable,
     ...(item.sku ? { sku: item.sku } : {}),
