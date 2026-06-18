@@ -41,7 +41,7 @@ export function SearchProductTileGrid({
 }: SearchProductTileGridProps) {
   const t = useTranslations('search');
   const resolvedGridClass = gridClassName ?? DEFAULT_GRID_CLASSES;
-  const shouldLockCursor = loading || pendingCursor;
+  const shouldLockCursor = loading || !!pendingCursor;
 
   useGlobalCursor(shouldLockCursor);
 

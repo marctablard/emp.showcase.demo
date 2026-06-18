@@ -1,6 +1,7 @@
 import { Container } from 'inversify';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import BatteryIncludedApiInvoker from '../../common/impl/BatteryIncludedApiInvoker';
+import BatteryIncludedApiInvokerServer from '../../common/impl/BatteryIncludedApiInvokerServer';
 import type { BatteryIncludedConfig } from '../../config';
 import { BatteryIncludedSearchResponse } from '../../model';
 import BatteryIncludedShopApi from './BatteryIncludedShopApi';
@@ -24,7 +25,7 @@ describe('BatteryIncludedShopApi', () => {
     // Set up the container with our test config
     container = new Container();
     container.bind<BatteryIncludedConfig>('BatteryIncludedConfig').to(TestBatteryIncludedConfig);
-    container.bind<BatteryIncludedApiInvoker>('BatteryIncludedApiInvoker').to(BatteryIncludedApiInvoker);
+    container.bind<BatteryIncludedApiInvoker>('BatteryIncludedApiInvoker').to(BatteryIncludedApiInvokerServer);
     container.bind<LoggerService>('LoggerService').toConstantValue({
       trace: jest.fn(),
       debug: jest.fn(),

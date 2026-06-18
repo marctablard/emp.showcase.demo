@@ -201,7 +201,7 @@ class BatteryIncludedSearchService implements SearchService {
       sort: params.sort,
       variants: 0,
       variables,
-      filters: filters,
+      filters: this.mapBrowseFilters(filters),
     });
     const variantCountByParentId = this.buildVariantCountByParentId(searchResult.hits);
 

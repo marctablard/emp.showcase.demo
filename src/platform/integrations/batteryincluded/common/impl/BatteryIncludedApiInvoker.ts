@@ -1,6 +1,4 @@
-import { inject } from 'inversify';
 import 'server-only';
-import { injectable } from '@/platform/core/di/injectable';
 import {
   type DebugContext,
   buildAndLogCurl,
@@ -14,12 +12,13 @@ import type { BatteryIncludedConfig } from '../../config';
  * Main client for interacting with Battery Included APIs
  * Handles API key authentication and provides access to API endpoints
  */
-@injectable('BatteryIncludedApiInvoker', 'Singleton')
 class BatteryIncludedApiInvoker {
   private config: BatteryIncludedConfig;
+  private source: NonNullable<DebugContext['source']>;
 
-  constructor(@inject('BatteryIncludedConfig') config: BatteryIncludedConfig) {
+  constructor(config: BatteryIncludedConfig, source: NonNullable<DebugContext['source']> = 'unknown') {
     this.config = config;
+    this.source = source;
   }
 
   /**
@@ -42,7 +41,7 @@ class BatteryIncludedApiInvoker {
       headers,
     };
 
-    const ctx: DebugContext = { callType: 'external' };
+    const ctx: DebugContext = { callType: 'external', source: this.source };
     const prefix = buildAndLogCurl(fullUrl, requestOptions, ctx);
     logRequestPayload(fullUrl, requestOptions, prefix, ctx);
 

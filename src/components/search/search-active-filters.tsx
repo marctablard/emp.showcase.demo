@@ -8,6 +8,16 @@ import { parseCategoryIdsFilterValue } from '@/lib/search/parse-category-ids-fil
 import { BATTERY_INCLUDED_BREADCRUMB_FILTER } from '@/platform/services/model/category/batteryincluded-category';
 import { getFilterLabelFallback } from './util/search';
 
+type CategorySelectionFilterValue = string | string[] | Record<string, string>;
+
+function isCategorySelectionFilterValue(value: SearchFilterValue): value is CategorySelectionFilterValue {
+  if (typeof value === 'string' || Array.isArray(value)) {
+    return true;
+  }
+
+  return Object.values(value).every((entry) => typeof entry === 'string');
+}
+
 interface SearchActiveFiltersProps {
   activeFilters: Record<string, SearchFilterValue>;
   resetFacet: (facetId: string) => void;
@@ -21,6 +31,10 @@ export function SearchActiveFilters({ activeFilters, resetFacet, categoryFilterL
 
   const formatFilterValue = (facetId: string, value: SearchFilterValue): string => {
     if (facetId === 'categoryIds') {
+      if (!isCategorySelectionFilterValue(value)) {
+        return '';
+      }
+
       const ids = parseCategoryIdsFilterValue(value);
       if (ids.length === 0) {
         return '';
@@ -28,6 +42,10 @@ export function SearchActiveFilters({ activeFilters, resetFacet, categoryFilterL
       return ids.map((id) => categoryFilterLabelsById?.[id] ?? id).join(', ');
     }
     if (facetId === BATTERY_INCLUDED_BREADCRUMB_FILTER) {
+      if (!isCategorySelectionFilterValue(value)) {
+        return '';
+      }
+
       const values = parseFlatCategoryFilterValue(value);
       if (values.length === 0) {
         return '';

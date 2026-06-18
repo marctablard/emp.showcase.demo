@@ -9,6 +9,8 @@ import type { SearchSuggestions } from '@/platform/services/model/search/SearchS
 import { useSessionStore } from '@/providers/StoreProvider';
 import { buildSearchPaginationUrl } from './build-search-pagination-url';
 
+export type { SearchFilterValue as FilterValue } from '@/platform/services/model/common';
+
 const DEFAULT_PAGE_INDEX = 0;
 const DEFAULT_PAGE_SIZE = 12;
 
@@ -451,7 +453,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
       setError(null);
       const filters =
         slice.filtersRecord && Object.keys(slice.filtersRecord).length > 0
-          ? (slice.filtersRecord as Record<string, FilterValue>)
+          ? (slice.filtersRecord as Record<string, SearchFilterValue>)
           : undefined;
       const q = slice.query.trim() ? slice.query : undefined;
 

@@ -1,5 +1,20 @@
 import { BatteryIncludedConfig } from '../../config';
 import BatteryIncludedApiInvoker from './BatteryIncludedApiInvoker';
+import BatteryIncludedApiInvokerSSR from './BatteryIncludedApiInvokerSSR';
+import BatteryIncludedApiInvokerServer from './BatteryIncludedApiInvokerServer';
+
+jest.mock('@/platform/core/utils/debug-utils', () => ({
+  buildAndLogCurl: jest.fn(() => '[BI]'),
+  getDebugLogger: jest.fn(() => ({ error: jest.fn() })),
+  logRequestPayload: jest.fn(),
+  logResponse: jest.fn(),
+}));
+
+const { buildAndLogCurl, logRequestPayload, logResponse } = jest.requireMock('@/platform/core/utils/debug-utils') as {
+  buildAndLogCurl: jest.Mock;
+  logRequestPayload: jest.Mock;
+  logResponse: jest.Mock;
+};
 
 // Mock fetch
 global.fetch = jest.fn();
@@ -11,6 +26,9 @@ describe('BatteryIncludedApiInvoker', () => {
   beforeEach(() => {
     // Reset mocks
     (global.fetch as jest.Mock).mockReset();
+    buildAndLogCurl.mockClear();
+    logRequestPayload.mockClear();
+    logResponse.mockClear();
 
     // Create mock config
     mockConfig = {
@@ -82,6 +100,42 @@ describe('BatteryIncludedApiInvoker', () => {
 
       // Check result
       expect(result).toBe(mockResponse);
+    });
+
+    it('uses client debug source for the server container invoker', async () => {
+      const mockResponse = { status: 200, ok: true, json: jest.fn() } as Response;
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      const serverInvoker = new BatteryIncludedApiInvokerServer(mockConfig);
+
+      await serverInvoker.apiFetch('/api/v1/test');
+
+      expect(buildAndLogCurl).toHaveBeenCalledWith(
+        'https://api.batteryincluded.com/api/v1/test',
+        expect.any(Object),
+        expect.objectContaining({ callType: 'external', source: 'client' }),
+      );
+      expect(logRequestPayload.mock.calls[0]?.[3]).toEqual(
+        expect.objectContaining({ callType: 'external', source: 'client' }),
+      );
+      expect(logResponse.mock.calls[0]?.[4]).toEqual(
+        expect.objectContaining({ callType: 'external', source: 'client' }),
+      );
+    });
+
+    it('uses ssr debug source for the SSR container invoker', async () => {
+      const mockResponse = { status: 200, ok: true, json: jest.fn() } as Response;
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      const ssrInvoker = new BatteryIncludedApiInvokerSSR(mockConfig);
+
+      await ssrInvoker.apiFetch('/api/v1/test');
+
+      expect(buildAndLogCurl).toHaveBeenCalledWith(
+        'https://api.batteryincluded.com/api/v1/test',
+        expect.any(Object),
+        expect.objectContaining({ callType: 'external', source: 'ssr' }),
+      );
     });
   });
 });
