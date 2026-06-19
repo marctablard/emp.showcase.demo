@@ -6,6 +6,7 @@ import * as ts from 'typescript';
 import type { Decorator } from 'typescript';
 import * as glob from 'glob';
 import * as chokidar from 'chokidar';
+import { generateGeneratorAliasBindings } from '../src/platform/core/di/search-service-alias';
 
 type DependencyAliasConfig = {
   Services?: Record<string, string> | Array<Record<string, string>>;
@@ -493,42 +494,12 @@ async function generateContainerFile(
   // Generate the module array string
   const moduleArray = `const modules : any[] = [${allModuleNames.join(', ')}];`;
 
-  /**
-   * Helper function to generate alias binding code.
-   * Checks if target is bound before creating the alias.
-   */
-  function generateAliasBindings(aliasMap: Record<string, string>, comment: string): string {
-    const entries = Object.entries(aliasMap);
-    if (entries.length === 0) return '';
-
-    const aliasLines = entries.map(([alias, target]) => {
-      // Skip if alias === target (no-op)
-      if (alias === target) return null;
-
-      return [
-        `  // ${comment}: ${alias} -> ${target}`,
-        `  if (container.isBound('${target}')) {`,
-        `    if (container.isBound('${alias}')) {`,
-        `      container.unbind('${alias}');`,
-        `    }`,
-        `    container.bind('${alias}').toService('${target}');`,
-        `  }`,
-      ].join('\n');
-    }).filter(Boolean);
-
-    return aliasLines.length > 0 ? '\n' + aliasLines.join('\n\n') + '\n' : '';
-  }
-
-  // Combine extension aliases and dependency aliases into a single map
-  const dependencyAliasMap = dependencyAliases.reduce((acc, { alias, target }) => {
-    acc[alias] = target;
-    return acc;
-  }, {} as Record<string, string>);
-  
-  const allAliases = { ...dependencyAliasMap, ...aliases };
-  
-  // Generate all alias bindings using the helper function
-  const aliasBindings = generateAliasBindings(allAliases, 'Alias');
+  const aliasBindings = generateGeneratorAliasBindings({
+    dependencyAliases,
+    extensionAliases: aliases,
+    searchServiceOverride: process.env.DI_SEARCH_SERVICE,
+    comment: 'Alias',
+  });
   
   // Read the template file
   const templatePath = path.join(process.cwd(), 'scripts/templates/container.ts.tmpl');

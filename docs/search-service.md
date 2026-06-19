@@ -13,7 +13,7 @@ Both implementations conform to the `SearchService` interface, making them inter
 
 ## How to Switch Search Service Implementations
 
-The active implementation is resolved through DI aliases from `src/platform/depency.yml` (and optional environment overrides), not by changing decorators in service classes.
+The active implementation is resolved during DI generation through aliases from `src/platform/depency.yml` plus an optional build-time environment override. It is not selected at request time and it is not controlled by changing decorators in service classes.
 
 ### Option 1 (default): Use `EmporixSearchService`
 
@@ -33,9 +33,9 @@ Services:
   SearchService: BatteryIncludedSearchService
 ```
 
-### Option 3: Use environment variable override
+### Option 3: Use build-time environment variable override
 
-You can override only the search alias via `.env` without editing `depency.yml`:
+You can override only the search alias via the environment seen by the build that runs `npm run generate` without editing `depency.yml`:
 
 ```env
 DI_SEARCH_SERVICE=EmporixSearchService
@@ -47,7 +47,7 @@ Supported values:
 - `EmporixSearchService`
 - `BatteryIncludedSearchService`
 
-If `DI_SEARCH_SERVICE` is not set, the generator defaults to `EmporixSearchService`.
+If `DI_SEARCH_SERVICE` is not set, `SearchService` falls back to the alias resolved from the dependency alias source in use. In the default repository setup, that is typically `src/platform/depency.yml`.
 
 ### Environment-specific alias files
 
@@ -81,9 +81,11 @@ DI_DEPENDENCY_FILE=src/platform/depency.local.yml
 
 ## Important Notes
 
-1. After changing alias configuration, run `npm run generate` to regenerate DI containers
-2. Restart the application after regeneration
-3. `SearchService` is consumed through DI in API/SSR paths, so no feature code changes are required
+1. `DI_SEARCH_SERVICE` is a build-time override. Changing it requires regeneration and a rebuild or redeploy.
+2. The authoritative `DI_SEARCH_SERVICE` value is the one present in the target build environment that runs `npm run generate`.
+3. After changing alias configuration, run `npm run generate` to regenerate DI containers.
+4. Restart the application after regeneration for local development, or trigger a new deployment in hosted environments.
+5. `SearchService` is consumed through DI in API/SSR paths, so no feature code changes are required.
 
 ## Troubleshooting
 
@@ -91,5 +93,5 @@ If you encounter issues after switching implementations:
 
 1. Verify the active alias in `src/platform/depency.yml` or `DI_SEARCH_SERVICE`
 2. Ensure `npm run generate` was executed after config changes
-3. Ensure the app was restarted
+3. Ensure the app was restarted locally or rebuilt remotely after the config change
 4. Check server logs for DI warnings about missing alias targets
