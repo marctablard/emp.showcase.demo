@@ -1,5 +1,4 @@
-import type { ChangeEvent, FormEvent } from 'react';
-import { useState } from 'react';
+import { type ChangeEvent, type FormEvent, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ListFilter, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,10 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
-import type { FilterValue as SearchFilterValue } from '@/hooks/search/useSearch';
 import { type ProductFilterKey, dk } from '@/i18n/dynamic-key';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import type { Filter } from '@/platform/services/model/common';
+import type { Filter, SearchFilterValue } from '@/platform/services/model/common';
 import { getFilterLabelFallback, getMinMaxValues, isNumberRange, isSelect } from './util/search';
 
 interface SearchFilterProps {
@@ -256,8 +254,7 @@ function SearchFilter({
   return (
     <div className="relative">
       {/* Filter Toggle Button */}
-      {/* Toggle hard-disabled per COP-4858; offcanvas and applyAllFacets kept intentionally */}
-      <Button variant="secondary" onClick={() => {}} disabled data-testid="filter-toggleButton">
+      <Button variant="secondary" disabled data-testid="filter-toggleButton">
         <ListFilter className="mr-2" /> Filter
       </Button>
 
@@ -294,4 +291,4 @@ function SearchFilter({
   );
 }
 
-export { SearchFilter, FilterMenu };
+export { SearchFilter };

@@ -4,12 +4,16 @@ import { usePathname, useRouter } from 'next/navigation';
 import useHistory from '@/hooks/history/useHistory';
 import { useSiteCode } from '@/hooks/site/useSiteCode';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import type { Filter, SearchFilterValue, SearchParams, SearchResult } from '@/platform/services/model/common';
+import type {
+  Filter,
+  SearchFilterValue,
+  SearchFilters,
+  SearchParams,
+  SearchResult,
+} from '@/platform/services/model/common';
 import type { SearchSuggestions } from '@/platform/services/model/search/SearchSuggestions';
 import { useSessionStore } from '@/providers/StoreProvider';
 import { buildSearchPaginationUrl } from './build-search-pagination-url';
-
-export type { SearchFilterValue as FilterValue } from '@/platform/services/model/common';
 
 const DEFAULT_PAGE_INDEX = 0;
 const DEFAULT_PAGE_SIZE = 12;
@@ -449,12 +453,9 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
    * filter chips, category label resolution, and pagination refs stay correct after client navigation.
    */
   const syncBrowseSearchStateFromUrl = useCallback(
-    (slice: { query: string; page: number; size: number; sort?: string; filtersRecord: Record<string, unknown> }) => {
+    (slice: { query: string; page: number; size: number; sort?: string; filtersRecord: SearchFilters }) => {
       setError(null);
-      const filters =
-        slice.filtersRecord && Object.keys(slice.filtersRecord).length > 0
-          ? (slice.filtersRecord as Record<string, SearchFilterValue>)
-          : undefined;
+      const filters = Object.keys(slice.filtersRecord).length > 0 ? slice.filtersRecord : undefined;
       const q = slice.query.trim() ? slice.query : undefined;
 
       setActiveFilters(filters ?? {});

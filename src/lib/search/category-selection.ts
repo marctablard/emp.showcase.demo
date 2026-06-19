@@ -4,9 +4,10 @@ import {
   BATTERY_INCLUDED_BREADCRUMB_FILTER,
   getBatteryIncludedCategoryMetadata,
 } from '@/platform/services/model/category/batteryincluded-category';
+import type { SearchFilterValue } from '@/platform/services/model/common';
 import { parseCategoryIdsFilterValue } from './parse-category-ids-filter';
 
-type CategoryFilterValue = string | string[] | Record<string, string> | undefined | null;
+type CategoryFilterValue = SearchFilterValue | undefined | null;
 
 const LEGACY_BATTERY_INCLUDED_BREADCRUMB_FILTER = '_product_i18n.categories.breadcrumbs.displayPath';
 

@@ -1,9 +1,9 @@
+import type { SearchFilterValue } from '@/platform/services/model/common';
+
 /**
  * Normalizes active filter `categoryIds` to unique id strings (browse URL / search state).
  */
-export function parseCategoryIdsFilterValue(
-  value: string | string[] | Record<string, string> | undefined | null,
-): string[] {
+export function parseCategoryIdsFilterValue(value: SearchFilterValue | undefined | null): string[] {
   if (value === undefined || value === null) {
     return [];
   }

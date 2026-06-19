@@ -1,9 +1,10 @@
 import { Trash2 } from 'lucide-react';
 import { SearchActiveFilters } from '@/components/search/search-active-filters';
 import { Pill } from '@/components/ui/pill';
+import type { SearchFilterValue } from '@/platform/services/model/common';
 
 interface SearchActiveFiltersWithResetProps {
-  activeFilters: Record<string, string | string[] | Record<string, string>>;
+  activeFilters: Record<string, SearchFilterValue>;
   resetFacet: (key: string) => void;
   resetAllFacets: () => void;
   resetLabel: string;

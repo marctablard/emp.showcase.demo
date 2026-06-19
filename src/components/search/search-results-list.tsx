@@ -3,6 +3,7 @@
 import { PlpListLayout } from '@/components/search/list-view/plp-list-layout';
 import { resolveSelectedCategoryIdFromFilters } from '@/lib/search/category-selection';
 import type { Category } from '@/platform/services/model/category';
+import type { SearchFilterValue } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
 
 interface SearchResultsListProps {
@@ -16,7 +17,7 @@ interface SearchResultsListProps {
   hasMore: boolean;
   loadingMore: boolean;
   loadMore: () => void | Promise<void>;
-  activeFilters?: Record<string, string | string[] | Record<string, string>>;
+  activeFilters?: Record<string, SearchFilterValue>;
   /**
    * Site-scoped navigation root categories rendered in the PLP thumbnail carousel and left-column
    * tree. Optional so legacy call sites that do not plumb the forest keep rendering a slim layout.
