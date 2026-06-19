@@ -69,23 +69,17 @@ const hasEmporixTestConfig = Boolean(
     process.env.NEXT_EMPORIX_TEST_CLIENT_ID &&
     process.env.NEXT_EMPORIX_TEST_CLIENT_SECRET,
 );
-const hasBatteryIncludedConfig = Boolean(
-  process.env.NEXT_PUBLIC_BATTERY_INCLUDED_API_KEY && process.env.NEXT_PUBLIC_BATTERY_INCLUDED_COLLECTION,
-);
 const runIntegrationTests = isCi || process.env.RUN_INTEGRATION_TESTS === 'true';
 const skipEmporixIntegrationTests = !runIntegrationTests || !hasEmporixTestConfig;
-const skipBatteryIncludedTests = !runIntegrationTests || !hasBatteryIncludedConfig;
 
 console.log('[jest] RUN_INTEGRATION_TESTS:', process.env.RUN_INTEGRATION_TESTS);
 console.log('[jest] Emporix config present:', hasEmporixTestConfig);
-console.log('[jest] BatteryIncluded config present:', hasBatteryIncludedConfig);
 if (!isCi) {
   console.log('[jest] env file source:', envPath);
 }
 
 const integrationTestIgnorePatterns = [
   ...(skipEmporixIntegrationTests ? ['src/platform/integrations/emporix/.*/impl/.*\\.test\\.(ts|tsx)$'] : []),
-  ...(skipBatteryIncludedTests ? ['src/platform/integrations/batteryincluded/.*/impl/.*\\.test\\.(ts|tsx)$'] : []),
 ];
 
 const commonJestConfig = {

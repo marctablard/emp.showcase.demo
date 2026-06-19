@@ -6,7 +6,7 @@ import {
   logRequestPayload,
   logResponse,
 } from '@/platform/core/utils/debug-utils';
-import type { BatteryIncludedConfig } from '../../config';
+import type { BatteryIncludedConfig, BatteryIncludedRuntimeConfig } from '../../config';
 
 /**
  * Main client for interacting with Battery Included APIs
@@ -27,11 +27,17 @@ class BatteryIncludedApiInvoker {
    * @param options Fetch options
    * @returns Promise with the fetch response
    */
-  async apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  async apiFetch(
+    url: string,
+    options: RequestInit = {},
+    runtimeConfig?: BatteryIncludedRuntimeConfig,
+  ): Promise<Response> {
+    const resolvedRuntimeConfig = runtimeConfig ?? (await this.config.getRuntimeConfig());
+
     // Add authorization header to the request
     const headers = {
       ...options.headers,
-      'X-BI-API-KEY': this.config.apiKey,
+      'X-BI-API-KEY': resolvedRuntimeConfig.apiKey,
     };
 
     // Make the authenticated request

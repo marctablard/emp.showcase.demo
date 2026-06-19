@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 import { SearchActiveFiltersWithReset } from '@/components/search/search-active-filters-with-reset';
@@ -146,20 +146,20 @@ function useCollapsibleFacetOptions(optionCount: number, facetLabel: string): Co
   const canToggle = optionCount > collapseSize;
   const [isExpanded, setIsExpanded] = useState(false);
 
-  useEffect(() => {
-    if (!canToggle) {
-      setIsExpanded(false);
-    }
-  }, [canToggle]);
+  const resolvedIsExpanded = canToggle && isExpanded;
 
   return {
     canToggle,
-    isExpanded,
-    visibleCount: canToggle && !isExpanded ? collapseSize : optionCount,
-    collapseButtonLabel: isExpanded
+    isExpanded: resolvedIsExpanded,
+    visibleCount: canToggle && !resolvedIsExpanded ? collapseSize : optionCount,
+    collapseButtonLabel: resolvedIsExpanded
       ? tFacetToggle('collapse', { name: facetLabel })
       : tFacetToggle('expand', { name: facetLabel }),
     toggleExpanded: () => {
+      if (!canToggle) {
+        return;
+      }
+
       setIsExpanded((currentValue) => !currentValue);
     },
   };
@@ -212,7 +212,7 @@ function PlpFacetCheckboxRow({
   const inputId = `${facetId}-${option.id}`;
 
   return (
-    <label htmlFor={inputId} className={cn('flex cursor-pointer items-center gap-3', className)}>
+    <label htmlFor={inputId} className={cn('flex cursor-pointer items-center gap-3 pl-1', className)}>
       <Checkbox id={inputId} checked={checked} onCheckedChange={onToggle} aria-label={option.label} />
       <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
         <div
@@ -247,7 +247,7 @@ function SelectFacetRenderer({
 
   return (
     <div className="flex flex-col gap-4">
-      <ul id={optionListId} className="flex flex-col gap-3" role="list">
+      <ul id={optionListId} className="flex flex-col gap-3 py-1" role="list">
         {visibleOptions.map((option) => {
           const checked = getActiveFacetValues(activeFilters[facet.id]).includes(option.id);
 
@@ -293,7 +293,7 @@ function TreeFacetBranch({
   nodes,
 }: FacetToggleRendererProps & { nodes: TreeNode[] }) {
   return (
-    <ul className="flex flex-col gap-3" role="list">
+    <ul className="flex flex-col gap-3 py-1" role="list">
       {nodes.map((node) => {
         const option = node.option;
         const checked = option ? getActiveFacetValues(activeFilters[facetId]).includes(option.id) : false;
@@ -404,7 +404,7 @@ function RatingFacetRenderer({
 
   return (
     <div className="flex flex-col gap-4">
-      <ul id={optionListId} className="flex flex-col gap-3" role="list">
+      <ul id={optionListId} className="flex flex-col gap-3 py-1" role="list">
         {visibleOptions.map((option) => {
           const checked = getActiveFacetValues(activeFilters[facet.id]).includes(option.id);
           const filledCount = Number(option.id);
@@ -456,20 +456,38 @@ function RangeFacetRenderer({
   applyRangeFacet: (facetId: string, min: string, max: string) => void;
   resetFacet: (facetId: string) => void;
 }) {
+  const activeRange = getRangeFacetValue(activeFilters[facet.id]);
+
+  return (
+    <RangeFacetDraftForm
+      key={`${facet.id}:${activeRange?.from ?? ''}:${activeRange?.till ?? ''}`}
+      facet={facet}
+      activeRange={activeRange}
+      applyRangeFacet={applyRangeFacet}
+      resetFacet={resetFacet}
+    />
+  );
+}
+
+function RangeFacetDraftForm({
+  facet,
+  activeRange,
+  applyRangeFacet,
+  resetFacet,
+}: {
+  facet: Extract<BatteryIncludedFacet, { kind: 'range' }>;
+  activeRange: { from?: string; till?: string } | undefined;
+  applyRangeFacet: (facetId: string, min: string, max: string) => void;
+  resetFacet: (facetId: string) => void;
+}) {
   const t = useTranslations('product');
   const rangeLabel = facet.label || getFilterLabelFallback(facet.id);
   const minPlaceholder = 'min';
   const maxPlaceholder = 'max';
-  const activeRange = getRangeFacetValue(activeFilters[facet.id]);
   const [draftFrom, setDraftFrom] = useState(activeRange?.from ?? '');
   const [draftTill, setDraftTill] = useState(activeRange?.till ?? '');
   const minValue = Number(facet.min);
   const maxValue = Number(facet.max);
-
-  useEffect(() => {
-    setDraftFrom(activeRange?.from ?? '');
-    setDraftTill(activeRange?.till ?? '');
-  }, [activeRange?.from, activeRange?.till, facet.id]);
 
   const normalizeRangeInput = (value: string): string => {
     const trimmedValue = value.trim();
@@ -727,7 +745,7 @@ export function PlpFacetPanel({
     return null;
   }
 
-  const panelLabel = t('filters.filterButton', { defaultValue: 'Filter' });
+  const panelLabel = t('filters.filterButton', { defaultValue: 'Filters' });
 
   return (
     <section
@@ -738,8 +756,8 @@ export function PlpFacetPanel({
       aria-label={panelLabel}
       data-testid="plp-facet-panel"
     >
-      <div className="flex items-center justify-between border-b border-border-primary pb-4">
-        <h3 className="text-base font-bold text-text-headings">{panelLabel}</h3>
+      <div className="flex items-center justify-between">
+        <h5 className="font-bold text-text-headings text-3xl">{panelLabel}</h5>
         {onClose ? (
           <button
             type="button"

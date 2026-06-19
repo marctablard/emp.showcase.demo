@@ -1,62 +1,63 @@
-import { Container } from 'inversify';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import BatteryIncludedApiInvoker from '../../common/impl/BatteryIncludedApiInvoker';
-import BatteryIncludedApiInvokerServer from '../../common/impl/BatteryIncludedApiInvokerServer';
-import type { BatteryIncludedConfig } from '../../config';
+import type BatteryIncludedApiInvoker from '../../common/impl/BatteryIncludedApiInvoker';
+import type { BatteryIncludedConfig, BatteryIncludedRuntimeConfig } from '../../config';
 import { BatteryIncludedSearchResponse } from '../../model';
 import BatteryIncludedShopApi from './BatteryIncludedShopApi';
 
-// Create a test config implementation using environment variables
-class TestBatteryIncludedConfig implements BatteryIncludedConfig {
-  baseUrl: string = process.env.NEXT_PUBLIC_BATTERY_INCLUDED_BASE_URL || 'https://api.batteryincluded.com';
-  apiKey: string = process.env.NEXT_PUBLIC_BATTERY_INCLUDED_API_KEY || '';
-  collection: string = process.env.NEXT_PUBLIC_BATTERY_INCLUDED_COLLECTION || '';
-}
-
 describe('BatteryIncludedShopApi', () => {
-  let container: Container;
   let shopApi: BatteryIncludedShopApi;
-  let apiInvoker: BatteryIncludedApiInvoker;
+  let apiInvoker: jest.Mocked<Pick<BatteryIncludedApiInvoker, 'apiFetch'>>;
   let config: BatteryIncludedConfig;
+  let runtimeConfig: BatteryIncludedRuntimeConfig;
+  let logger: LoggerService;
+
+  const createJsonResponse = (body: unknown, status: number = 200): Response =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    });
 
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // Set up the container with our test config
-    container = new Container();
-    container.bind<BatteryIncludedConfig>('BatteryIncludedConfig').to(TestBatteryIncludedConfig);
-    container.bind<BatteryIncludedApiInvoker>('BatteryIncludedApiInvoker').to(BatteryIncludedApiInvokerServer);
-    container.bind<LoggerService>('LoggerService').toConstantValue({
+    runtimeConfig = {
+      apiKey: 'test-api-key',
+      collection: 'test-collection',
+    };
+    apiInvoker = {
+      apiFetch: jest.fn(),
+    };
+    config = {
+      baseUrl: 'https://api.batteryincluded.com',
+      getRuntimeConfig: jest.fn().mockResolvedValue(runtimeConfig),
+    };
+    logger = {
       trace: jest.fn(),
       debug: jest.fn(),
       info: jest.fn(),
       warn: jest.fn(),
       error: jest.fn(),
       fatal: jest.fn(),
-    });
-    container.bind<BatteryIncludedShopApi>('BatteryIncludedShopApi').to(BatteryIncludedShopApi);
+    };
 
-    // Get instances from the container
-    apiInvoker = container.get<BatteryIncludedApiInvoker>('BatteryIncludedApiInvoker');
-    shopApi = container.get<BatteryIncludedShopApi>('BatteryIncludedShopApi');
-    config = container.get<BatteryIncludedConfig>('BatteryIncludedConfig');
-
-    // Mock the apiFetch method on the real apiInvoker
-    jest.spyOn(apiInvoker, 'apiFetch');
+    shopApi = new BatteryIncludedShopApi(apiInvoker as unknown as BatteryIncludedApiInvoker, config, logger);
   });
 
   describe('browse', () => {
     it('should call API with default parameters', async () => {
+      apiInvoker.apiFetch.mockResolvedValue(createJsonResponse({ hits: [], found: 0, page: 1, facet_counts: [] }));
+
       // Execute
       const result: BatteryIncludedSearchResponse<any> = await shopApi.browse({ query: 'power' });
 
       // Verify
       expect(apiInvoker.apiFetch).toHaveBeenCalledWith(
-        expect.stringContaining(`/api/v1/collections/${config.collection}/documents/browse`),
+        expect.stringContaining(`/api/v1/collections/${runtimeConfig.collection}/documents/browse`),
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({ Accept: 'application/json' }),
         }),
+        runtimeConfig,
       );
 
       expect(result.hits).toBeDefined();
@@ -65,6 +66,8 @@ describe('BatteryIncludedShopApi', () => {
     });
 
     it('should call API with custom parameters', async () => {
+      apiInvoker.apiFetch.mockResolvedValue(createJsonResponse({ hits: [], found: 0, page: 1, facet_counts: [] }));
+
       // Execute
       const result = await shopApi.browse({
         query: 'power',
@@ -76,15 +79,16 @@ describe('BatteryIncludedShopApi', () => {
 
       // Verify
       expect(apiInvoker.apiFetch).toHaveBeenCalledWith(
-        expect.stringContaining(`/api/v1/collections/${config.collection}/documents/browse`),
+        expect.stringContaining(`/api/v1/collections/${runtimeConfig.collection}/documents/browse`),
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({ Accept: 'application/json' }),
         }),
+        runtimeConfig,
       );
 
       // Get the URL from the call
-      const url = (apiInvoker.apiFetch as jest.Mock).mock.calls[0][0];
+      const url = apiInvoker.apiFetch.mock.calls[0][0];
 
       // Verify URL parameters
       expect(url).toContain('page=1');
@@ -97,13 +101,15 @@ describe('BatteryIncludedShopApi', () => {
     });
 
     it('should call API with the grounded category-tree bootstrap request', async () => {
+      apiInvoker.apiFetch.mockResolvedValue(createJsonResponse({ hits: [], found: 0, page: 0, facet_counts: [] }));
+
       await shopApi.browseCategoryTreeBootstrap({
         locale: 'en',
         siteCode: 'main',
         country: 'DE',
       });
 
-      const url = (apiInvoker.apiFetch as jest.Mock).mock.calls[0][0];
+      const url = apiInvoker.apiFetch.mock.calls[0][0];
       expect(url).toContain('q=');
       expect(url).toContain('page=0');
       expect(url).toContain('per_page=0');
@@ -117,6 +123,8 @@ describe('BatteryIncludedShopApi', () => {
 
   describe('suggest', () => {
     it('should call API with the BI suggest variable context', async () => {
+      apiInvoker.apiFetch.mockResolvedValue(createJsonResponse([]));
+
       // Execute
       await shopApi.suggest({
         query: 'pho',
@@ -131,15 +139,16 @@ describe('BatteryIncludedShopApi', () => {
 
       // Verify
       expect(apiInvoker.apiFetch).toHaveBeenCalledWith(
-        expect.stringContaining(`/api/v1/collections/${config.collection}/documents/suggest`),
+        expect.stringContaining(`/api/v1/collections/${runtimeConfig.collection}/documents/suggest`),
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({ Accept: 'application/json' }),
         }),
+        runtimeConfig,
       );
 
       // Get the URL from the call
-      const url = (apiInvoker.apiFetch as jest.Mock).mock.calls[0][0];
+      const url = apiInvoker.apiFetch.mock.calls[0][0];
 
       // Verify URL parameters
       expect(url).toContain('q=pho');
@@ -155,57 +164,57 @@ describe('BatteryIncludedShopApi', () => {
 
   describe('getHighlights', () => {
     it('should call API with correct parameters', async () => {
+      apiInvoker.apiFetch.mockResolvedValue(createJsonResponse({ highlights: [] }));
+
       // Execute
       await shopApi.getHighlights();
 
       // Verify
       expect(apiInvoker.apiFetch).toHaveBeenCalledWith(
-        `/api/v1/collections/${config.collection}/documents/highlights`,
+        `/api/v1/collections/${runtimeConfig.collection}/documents/highlights`,
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({ Accept: 'application/json' }),
         }),
+        runtimeConfig,
       );
     });
   });
 
   describe('getRecommendations', () => {
-    it('should call API with product ID', async () => {
-      /*
-      TODO need to clarify required ID, it's not the product code
-      // Execute
-      await shopApi.getRecommendations('product1');
-      
-      // Verify
+    it('should build recommendations URL from runtime config and forward the runtime config to apiFetch', async () => {
+      const recommendationId = 'product/sku 1';
+      const expectedQuery = new URLSearchParams({ id: recommendationId }).toString();
+      apiInvoker.apiFetch.mockResolvedValue(createJsonResponse([]));
+
+      await shopApi.getRecommendations(recommendationId);
+
       expect(apiInvoker.apiFetch).toHaveBeenCalledWith(
-        expect.stringContaining(`/api/v1/collections/${config.collection}/documents/recommendations`),
+        `/api/v1/collections/${runtimeConfig.collection}/documents/recommendations?${expectedQuery}`,
         expect.objectContaining({
           method: 'GET',
-          headers: expect.objectContaining({ 'Accept': 'application/json' })
-        })
+          headers: expect.objectContaining({ Accept: 'application/json' }),
+        }),
+        runtimeConfig,
       );
-      
-      // Get the URL from the call
-      const url = (apiInvoker.apiFetch as jest.Mock).mock.calls[0][0];
-      
-      // Verify URL parameters
-      expect(url).toContain('id=product1');
-      */
     });
   });
 
   describe('getPresets', () => {
     it('should call API with correct parameters', async () => {
+      apiInvoker.apiFetch.mockResolvedValue(createJsonResponse({ presets: [] }));
+
       // Execute
       await shopApi.getPresets();
 
       // Verify
       expect(apiInvoker.apiFetch).toHaveBeenCalledWith(
-        `/api/v1/collections/${config.collection}/documents/presets`,
+        `/api/v1/collections/${runtimeConfig.collection}/documents/presets`,
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({ Accept: 'application/json' }),
         }),
+        runtimeConfig,
       );
     });
   });

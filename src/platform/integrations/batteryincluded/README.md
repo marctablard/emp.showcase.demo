@@ -17,8 +17,16 @@ This integration provides a client for interacting with the Battery Included API
 The integration requires the following environment variables:
 
 - `NEXT_PUBLIC_BATTERY_INCLUDED_BASE_URL`: Base URL for the Battery Included API
-- `NEXT_PUBLIC_BATTERY_INCLUDED_API_KEY`: API Key for authentication
-- `NEXT_PUBLIC_BATTERY_INCLUDED_COLLECTION`: Collection name to use for queries
+
+Battery Included runtime credentials and index selection are resolved on the server from the Emporix indexing public configuration provider `BATTERY_INCLUDED`:
+
+- `GET /indexing/{tenant}/public/configurations/BATTERY_INCLUDED`
+- `searchKey` is used as the BI API key
+- `indexName` is used as the BI collection name
+
+This keeps the storefront switchable after deploy by updating Emporix configuration instead of rebuilding with new BI key or collection env vars.
+
+Runtime configuration is cached process-locally on the server for 60 seconds with in-flight request deduplication. This avoids reloading Emporix indexing config on every BI request while still allowing post-deploy key or collection changes to roll out shortly after the TTL expires.
 
 ## Category Tree Bootstrap
 

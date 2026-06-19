@@ -1,4 +1,4 @@
-import { BatteryIncludedConfig } from '../../config';
+import type { BatteryIncludedConfig, BatteryIncludedRuntimeConfig } from '../../config';
 import BatteryIncludedApiInvoker from './BatteryIncludedApiInvoker';
 import BatteryIncludedApiInvokerSSR from './BatteryIncludedApiInvokerSSR';
 import BatteryIncludedApiInvokerServer from './BatteryIncludedApiInvokerServer';
@@ -22,6 +22,7 @@ global.fetch = jest.fn();
 describe('BatteryIncludedApiInvoker', () => {
   let apiInvoker: BatteryIncludedApiInvoker;
   let mockConfig: BatteryIncludedConfig;
+  let runtimeConfig: BatteryIncludedRuntimeConfig;
 
   beforeEach(() => {
     // Reset mocks
@@ -31,10 +32,14 @@ describe('BatteryIncludedApiInvoker', () => {
     logResponse.mockClear();
 
     // Create mock config
-    mockConfig = {
-      baseUrl: 'https://api.batteryincluded.com',
+    runtimeConfig = {
       apiKey: 'test-api-key',
       collection: 'test-collection',
+    };
+
+    mockConfig = {
+      baseUrl: 'https://api.batteryincluded.com',
+      getRuntimeConfig: jest.fn().mockResolvedValue(runtimeConfig),
     };
 
     // Create API invoker instance
@@ -100,6 +105,23 @@ describe('BatteryIncludedApiInvoker', () => {
 
       // Check result
       expect(result).toBe(mockResponse);
+    });
+
+    it('uses the provided runtime config without reloading it', async () => {
+      const mockResponse = { status: 200, json: jest.fn() };
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      await apiInvoker.apiFetch('/api/v1/collections/test-collection/documents/browse', undefined, runtimeConfig);
+
+      expect(mockConfig.getRuntimeConfig).not.toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://api.batteryincluded.com/api/v1/collections/test-collection/documents/browse',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'X-BI-API-KEY': 'test-api-key',
+          }),
+        }),
+      );
     });
 
     it('uses client debug source for the server container invoker', async () => {

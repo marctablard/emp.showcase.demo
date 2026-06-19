@@ -93,13 +93,15 @@
       "name": "Category name"
     },
     "categoryIds": "Category",
-    "filterButton": "Filter",
+    "filterButton": "Filters",
     "close": "Close",
+    "activeFiltersTitle": "Active filters",
     "productCount": "({count} Products)",
     "showProducts": "Show {count} products",
     "from": "From",
     "till": "Till",
-    "clearFilter": "Clear Filter",
+    "clearFilter": "Clear Filters",
+    "clearAllFilters": "Clear filters",
     "applyFilters": "Apply Filters"
   },
   "tabs": {

@@ -4,7 +4,7 @@ import { injectable } from '@/platform/core/di/injectable';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type BatteryIncludedApiInvoker from '../../common/impl/BatteryIncludedApiInvoker';
 import { buildSearchParams } from '../../common/util/common';
-import type { BatteryIncludedConfig } from '../../config';
+import type { BatteryIncludedConfig, BatteryIncludedRuntimeConfig } from '../../config';
 import type {
   BatteryIncludedHighlight,
   BatteryIncludedPreset,
@@ -27,17 +27,26 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
     @inject('LoggerService') private logger: LoggerService,
   ) {}
 
+  private async getCollectionRuntimeConfig(): Promise<BatteryIncludedRuntimeConfig> {
+    return this.config.getRuntimeConfig();
+  }
+
   /**
    * Browse products with optional search query and filters
    */
   async browse<T>(params: BatteryIncludedSearchParams<T>): Promise<BatteryIncludedSearchResponse<T>> {
+    const runtimeConfig = await this.getCollectionRuntimeConfig();
     const queryString = buildSearchParams(params);
-    const url = `/api/v1/collections/${this.config.collection}/documents/browse?${queryString}`;
+    const url = `/api/v1/collections/${runtimeConfig.collection}/documents/browse?${queryString}`;
 
-    const response = await this.apiClient.apiFetch(url, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-    });
+    const response = await this.apiClient.apiFetch(
+      url,
+      {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      },
+      runtimeConfig,
+    );
 
     if (!response.ok) {
       const data = await response.text();
@@ -68,6 +77,7 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
    * Get product suggestions based on a search query
    */
   async suggest(params: BatteryIncludedSuggestParams): Promise<BatteryIncludedSuggestion<BatteryIncludedProduct>[]> {
+    const runtimeConfig = await this.getCollectionRuntimeConfig();
     const { query, segmentIds, variables } = params;
     const searchParams = new URLSearchParams();
     searchParams.append('q', query);
@@ -84,13 +94,17 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
       });
     }
 
-    const url = `/api/v1/collections/${this.config.collection}/documents/suggest?${searchParams.toString()}`;
+    const url = `/api/v1/collections/${runtimeConfig.collection}/documents/suggest?${searchParams.toString()}`;
 
     try {
-      const response = await this.apiClient.apiFetch(url, {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-      });
+      const response = await this.apiClient.apiFetch(
+        url,
+        {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+        },
+        runtimeConfig,
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -112,12 +126,17 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
    * Get highlighted products
    */
   async getHighlights(): Promise<BatteryIncludedHighlight[]> {
-    const url = `/api/v1/collections/${this.config.collection}/documents/highlights`;
+    const runtimeConfig = await this.getCollectionRuntimeConfig();
+    const url = `/api/v1/collections/${runtimeConfig.collection}/documents/highlights`;
 
-    const response = await this.apiClient.apiFetch(url, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-    });
+    const response = await this.apiClient.apiFetch(
+      url,
+      {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      },
+      runtimeConfig,
+    );
 
     const data = await response.json();
     return data.highlights || [];
@@ -127,15 +146,20 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
    * Get product recommendations based on a product ID
    */
   async getRecommendations(id: string): Promise<BatteryIncludedProduct[]> {
+    const runtimeConfig = await this.getCollectionRuntimeConfig();
     const params = new URLSearchParams();
     params.append('id', id);
 
-    const url = `/api/v1/collections/${this.config.collection}/documents/recommendations?${params.toString()}`;
+    const url = `/api/v1/collections/${runtimeConfig.collection}/documents/recommendations?${params.toString()}`;
 
-    const response = await this.apiClient.apiFetch(url, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-    });
+    const response = await this.apiClient.apiFetch(
+      url,
+      {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      },
+      runtimeConfig,
+    );
 
     return await response.json();
   }
@@ -144,12 +168,17 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
    * Get available presets
    */
   async getPresets(): Promise<BatteryIncludedPreset[]> {
-    const url = `/api/v1/collections/${this.config.collection}/documents/presets`;
+    const runtimeConfig = await this.getCollectionRuntimeConfig();
+    const url = `/api/v1/collections/${runtimeConfig.collection}/documents/presets`;
 
-    const response = await this.apiClient.apiFetch(url, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-    });
+    const response = await this.apiClient.apiFetch(
+      url,
+      {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      },
+      runtimeConfig,
+    );
 
     const data = await response.json();
     return data.presets || [];

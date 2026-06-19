@@ -1,6 +1,7 @@
 import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 import { Pill } from '@/components/ui/pill';
+import { type ProductFilterKey, dk } from '@/i18n/dynamic-key';
 import { isDedicatedCategorySelectionFilter, parseFlatCategoryFilterValue } from '@/lib/search/category-selection';
 import { parseCategoryIdsFilterValue } from '@/lib/search/parse-category-ids-filter';
 import { BATTERY_INCLUDED_BREADCRUMB_FILTER } from '@/platform/services/model/category/batteryincluded-category';
@@ -62,7 +63,7 @@ export function SearchActiveFilters({
     }
 
     const labelId = isDedicatedCategorySelectionFilter(facetId) ? 'categoryIds' : facetId;
-    return t(`filters.${labelId}`, {
+    return t(dk<ProductFilterKey>(`filters.${labelId}`), {
       defaultValue: getFilterLabelFallback(labelId),
     });
   };

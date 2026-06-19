@@ -26,7 +26,7 @@ interface SearchFilterProps {
 
 type FilterFormValues = Record<string, string | number>;
 
-type ProductTranslator = (key: string, values?: { defaultValue?: string }) => string;
+type ProductTranslator = (key: ProductFilterKey, values?: { defaultValue?: string }) => string;
 
 export function getSearchFilterLabel(
   filter: Pick<Filter, 'id' | 'name' | 'labelIsPlainText'>,

@@ -94,7 +94,7 @@ describe('PlpFacetPanel', () => {
     );
 
     expect(screen.getByTestId('plp-facet-panel')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Filter' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Filters' })).toBeInTheDocument();
     expect(screen.getByTestId('plp-facet-panel-active-filters')).not.toHaveTextContent('Active filters');
     expect(screen.getByRole('button', { name: /^Color$/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Category tree$/ })).toBeInTheDocument();
@@ -123,6 +123,23 @@ describe('PlpFacetPanel', () => {
 
     fireEvent.click(screen.getByLabelText('Phones'));
     expect(applyFacet).toHaveBeenCalledWith('categoryTree', 'phones');
+  });
+
+  it('adds inset around checkbox rows so the focus treatment stays visible inside the facet panel', () => {
+    render(
+      <PlpFacetPanel
+        facets={facets}
+        activeFilters={{}}
+        applyFacet={applyFacet}
+        applyRangeFacet={applyRangeFacet}
+        resetFacet={resetFacet}
+      />,
+    );
+
+    expect(screen.getByLabelText('Red').closest('label')).toHaveClass('pl-1');
+    expect(screen.getByLabelText('Phones').closest('label')).toHaveClass('pl-1');
+    expect(screen.getByLabelText('Red').closest('ul')).toHaveClass('py-1');
+    expect(screen.getByLabelText('Phones').closest('ul')).toHaveClass('py-1');
   });
 
   it('submits the nested range contract without local CTA buttons and reuses rating rows as checkbox filters', () => {
