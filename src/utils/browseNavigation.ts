@@ -3,7 +3,7 @@ import { browseSearchStateSignature, extractFiltersFromUrlSearchParams } from '@
 const BROWSE_DEFAULT_PAGE_SIZE = 12;
 
 export function getBrowseTargetSignature(href: string): string | null {
-  if (!href.startsWith('/')) {
+  if (href.startsWith('//') || !href.startsWith('/')) {
     return null;
   }
 

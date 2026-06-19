@@ -21,7 +21,12 @@ export function PlpPendingLink({ href, children, className, ...props }: React.Co
     // For standard clicks, use transition to show loading feedback
     if (e.defaultPrevented) return;
     e.preventDefault();
-    acquireNavigationWaitCursorLease(typeof href === 'string' ? getBrowseTargetSignature(href) : null);
+    const browseTargetSignature = typeof href === 'string' ? getBrowseTargetSignature(href) : null;
+
+    if (browseTargetSignature) {
+      acquireNavigationWaitCursorLease(browseTargetSignature);
+    }
+
     startTransition(() => {
       // @ts-expect-error - router.push types might complain about string but it's fine for our navigation wrapper
       router.push(href);

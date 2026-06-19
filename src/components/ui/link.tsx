@@ -70,8 +70,13 @@ export default function UiLink({
   const classes = linkVariants({ variant, size, className });
 
   const handleLinkClick: React.MouseEventHandler<HTMLAnchorElement> = (event) => {
+    if (disabled) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
     const browseTargetSignature =
-      !disabled &&
       typeof href === 'string' &&
       event.button === 0 &&
       !event.metaKey &&
