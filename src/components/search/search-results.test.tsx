@@ -3,11 +3,9 @@
  */
 import React from 'react';
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { acquireNavigationWaitCursorLease, releaseNavigationWaitCursorLease } from '@/hooks/common/useGlobalCursor';
-import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
 import { browseSearchStateSignature } from '@/utils/filterUtils';
-import { MobileCategoryDrawer } from './mobile-category-drawer';
 import { SearchResultsComponent } from './search-results';
 
 const mockSearch = jest.fn();
@@ -15,6 +13,8 @@ const mockSyncBrowseSearchStateFromUrl = jest.fn();
 let mockSearchParams = new URLSearchParams();
 let searchResultsGridProps: { pendingCursor?: boolean } | null = null;
 let searchResultsListProps: { pendingCursor?: boolean } | null = null;
+let activeFiltersWithResetProps: Record<string, unknown> | null = null;
+let mobileCategoryDrawerProps: Record<string, unknown> | null = null;
 
 interface MockUseSearchState {
   loading: boolean;
@@ -35,6 +35,13 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
 }));
 
+jest.mock('@/components/search/mobile-category-drawer', () => ({
+  MobileCategoryDrawer: (props: any) => {
+    mobileCategoryDrawerProps = props;
+    return <div data-testid="MobileCategoryDrawer" />;
+  },
+}));
+
 jest.mock('@/hooks/search/useSearch', () => ({
   useSearch: () => ({
     data: [],
@@ -42,7 +49,15 @@ jest.mock('@/hooks/search/useSearch', () => ({
     loadingMore: false,
     hasMore: false,
     total: 0,
-    facets: {},
+    facets: [],
+    batteryIncludedFacets: [
+      {
+        id: 'color',
+        label: 'color',
+        kind: 'select',
+        options: [],
+      },
+    ],
     currentPage: mockUseSearchState.currentPage,
     pageSize: mockUseSearchState.pageSize,
     currentQuery: mockUseSearchState.currentQuery,
@@ -64,7 +79,10 @@ jest.mock('@/components/navigation/category-display-label-index-context', () => 
   useCategoryDisplayLabelIndex: () => ({}),
 }));
 jest.mock('@/components/search/search-active-filters-with-reset', () => ({
-  SearchActiveFiltersWithReset: () => <div data-testid="SearchActiveFiltersWithReset" />,
+  SearchActiveFiltersWithReset: (props: any) => {
+    activeFiltersWithResetProps = props;
+    return <div data-testid="SearchActiveFiltersWithReset" />;
+  },
 }));
 jest.mock('@/components/search/search-filter', () => ({
   SearchFilter: () => <div data-testid="SearchFilter" />,
@@ -89,75 +107,6 @@ jest.mock('@/components/search/list-view/plp-category-tree', () => ({
   PlpCategoryTree: () => <div data-testid="PlpCategoryTree" />,
 }));
 
-jest.mock('@/components/ui/drawer', () => {
-  const React = require('react');
-  const DrawerContext = React.createContext({
-    open: false,
-    onOpenChange: (_nextOpen: boolean) => {},
-  });
-
-  const Drawer = ({ open, onOpenChange, children }: any) => (
-    <DrawerContext.Provider value={{ open, onOpenChange }}>{children}</DrawerContext.Provider>
-  );
-
-  const DrawerTrigger = ({ asChild, children }: any) => {
-    const { onOpenChange } = React.useContext(DrawerContext);
-    if (asChild && React.isValidElement(children)) {
-      return React.cloneElement(children, {
-        onClick: (event: React.MouseEvent) => {
-          children.props.onClick?.(event);
-          onOpenChange(true);
-        },
-      });
-    }
-    return <button onClick={() => onOpenChange(true)}>{children}</button>;
-  };
-
-  const DrawerClose = ({ asChild, children }: any) => {
-    const { onOpenChange } = React.useContext(DrawerContext);
-    if (asChild && React.isValidElement(children)) {
-      return React.cloneElement(children, {
-        onClick: (event: React.MouseEvent) => {
-          children.props.onClick?.(event);
-          onOpenChange(false);
-        },
-      });
-    }
-    return <button onClick={() => onOpenChange(false)}>{children}</button>;
-  };
-
-  const DrawerContent = ({ children }: any) => {
-    const { open } = React.useContext(DrawerContext);
-    if (!open) {
-      return null;
-    }
-    return <div role="dialog">{children}</div>;
-  };
-
-  const DrawerTitle = ({ asChild, children }: any) => {
-    if (asChild && React.isValidElement(children)) {
-      return children;
-    }
-    return <h2>{children}</h2>;
-  };
-
-  return {
-    Drawer,
-    DrawerTrigger,
-    DrawerClose,
-    DrawerContent,
-    DrawerTitle,
-  };
-});
-
-const mockPlpCategoryContext: PlpCategoryContext = {
-  ancestorTrail: [],
-  currentCategory: undefined,
-  currentChildren: [],
-  ribbonCategories: [],
-  sidebarCountCategoryIds: [],
-};
-
 describe('SearchResultsComponent', () => {
   beforeEach(() => {
     releaseNavigationWaitCursorLease({ force: true });
@@ -174,6 +123,8 @@ describe('SearchResultsComponent', () => {
     };
     searchResultsGridProps = null;
     searchResultsListProps = null;
+    activeFiltersWithResetProps = null;
+    mobileCategoryDrawerProps = null;
   });
 
   afterEach(() => {
@@ -275,32 +226,59 @@ describe('SearchResultsComponent', () => {
       expect(document.documentElement).not.toHaveAttribute('data-global-cursor');
     });
   });
-});
 
-describe('MobileCategoryDrawer', () => {
-  it('opens a drawer dialog with heading via trigger', async () => {
-    render(<MobileCategoryDrawer plpCategoryContext={mockPlpCategoryContext} locale="en" total={12} />);
+  it('passes BatteryIncluded typed facets into active-filter chips', () => {
+    render(<SearchResultsComponent locale="en" initialLayout="list" />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'filterButton' }));
-
-    expect(await screen.findByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'filterButton' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'showProducts' })).toBeInTheDocument();
+    expect(activeFiltersWithResetProps).toMatchObject({
+      batteryIncludedFacets: [
+        {
+          id: 'color',
+          kind: 'select',
+        },
+      ],
+    });
   });
 
-  it('closes the drawer via close action', async () => {
-    render(<MobileCategoryDrawer plpCategoryContext={mockPlpCategoryContext} locale="en" total={12} />);
+  it('uses the mobile PLP drawer instead of the generic filter when a PLP category context exists', () => {
+    mockUseSearchState = {
+      ...mockUseSearchState,
+      activeFilters: {
+        '_product_i18n.categoryBreadcrumbs.displayPath': 'Smartphones',
+      },
+    };
 
-    fireEvent.click(screen.getByRole('button', { name: 'filterButton' }));
-    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    render(
+      <SearchResultsComponent
+        locale="en"
+        initialLayout="list"
+        navigationRoots={[
+          {
+            id: 'root',
+            name: { en: 'Root' },
+            children: [{ id: 'child', name: { en: 'Smartphones' }, children: [] }],
+          },
+        ]}
+      />,
+    );
 
-    fireEvent.click(screen.getByRole('button', { name: 'close' }));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByTestId('MobileCategoryDrawer')).toBeInTheDocument();
+    expect(screen.queryByTestId('SearchFilter')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('SearchActiveFiltersWithReset')).not.toBeInTheDocument();
+    expect(mobileCategoryDrawerProps).toMatchObject({
+      facets: [
+        {
+          id: 'color',
+          kind: 'select',
+        },
+      ],
+    });
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: 'filterButton' }));
-    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  it('keeps the generic desktop filter surface for non-PLP search results', () => {
+    render(<SearchResultsComponent locale="en" initialLayout="list" />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'showProducts' }));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getAllByTestId('SearchFilter')).toHaveLength(2);
+    expect(screen.queryByTestId('MobileCategoryDrawer')).not.toBeInTheDocument();
   });
 });

@@ -226,6 +226,207 @@ describe('BatteryIncludedSearchService', () => {
     });
   });
 
+  it('returns typed BatteryIncluded facets alongside legacy availableFilters and falls back to select when rating classification does not match', async () => {
+    const shopApi = {
+      browse: jest.fn().mockResolvedValue({
+        hits: [{ document: { id: 'product-1' } }],
+        found: 1,
+        page: 1,
+        size: 12,
+        facet_counts: [
+          {
+            field_name: '_product_i18n.categoryBreadcrumbs.displayPath',
+            type: 'select',
+            stats: { total_values: 1 },
+            counts: [
+              {
+                count: 1,
+                value: 'Cables > USB-C',
+                data: {
+                  displayPath: 'Cables > USB-C',
+                  idPath: 'root-a > child-a',
+                },
+              },
+            ],
+          },
+          {
+            field_name: 'color',
+            field_label: 'Finish',
+            type: 'select',
+            stats: { total_values: 2 },
+            counts: [
+              { count: 4, value: 'red' },
+              { count: 2, value: 'blue' },
+            ],
+          },
+          {
+            field_name: 'brandTree',
+            type: 'select',
+            stats: { total_values: 1 },
+            counts: [
+              {
+                count: 3,
+                value: 'Power Tools > Drills',
+                data: {
+                  displayPath: 'Power Tools > Drills',
+                  idPath: 'power-tools > drills',
+                },
+              },
+            ],
+          },
+          {
+            field_name: 'price',
+            field_label: 'Net price',
+            type: 'range',
+            stats: { total_values: 2 },
+            counts: [
+              { count: 10, value: 'from' },
+              { count: 20, value: 'till' },
+            ],
+          },
+          {
+            field_name: 'rating',
+            type: 'select',
+            stats: { total_values: 2 },
+            counts: [
+              { count: 6, value: '4' },
+              { count: 3, value: '5' },
+            ],
+          },
+          {
+            field_name: 'customerRating',
+            type: 'select',
+            stats: { total_values: 1 },
+            counts: [{ count: 1, value: '4' }],
+          },
+        ],
+      }),
+      suggest: jest.fn(),
+      getHighlights: jest.fn(),
+      getRecommendations: jest.fn(),
+      getPresets: jest.fn(),
+    };
+
+    const service = new BatteryIncludedSearchService(
+      shopApi as never,
+      { mapToService: jest.fn().mockReturnValue({ id: 'mapped-product-1' }) } as never,
+      { getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'DE', currency: 'EUR' }) } as never,
+      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
+      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
+      { getSnapshot: jest.fn() } as never,
+      { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }) } as never,
+      {
+        trace: jest.fn(),
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        fatal: jest.fn(),
+      } as never,
+    );
+
+    const result = await service.searchProducts(
+      {
+        page: 0,
+        size: 12,
+        filters: {
+          color: ['red'],
+          brandTree: 'Power Tools > Drills',
+          price: { from: '10', till: '20' },
+          rating: '4',
+          customerRating: '4',
+        },
+      },
+      'en',
+      'main',
+    );
+
+    expect(result.availableFilters).toEqual([
+      {
+        id: 'color',
+        name: 'Finish',
+        values: [
+          { id: 'red', name: 'red', active: true, count: 4 },
+          { id: 'blue', name: 'blue', active: false, count: 2 },
+        ],
+      },
+      {
+        id: 'brandTree',
+        name: 'brandTree',
+        values: [{ id: 'Power Tools > Drills', name: 'Power Tools > Drills', active: true, count: 3 }],
+      },
+      {
+        id: 'price',
+        name: 'Net price',
+        values: [
+          { id: '10', name: '10', active: false },
+          { id: '20', name: '20', active: false },
+        ],
+      },
+      {
+        id: 'rating',
+        name: 'rating',
+        values: [
+          { id: '4', name: '4 stars & up', active: true, count: 6 },
+          { id: '5', name: '5 stars & up', active: false, count: 3 },
+        ],
+      },
+      {
+        id: 'customerRating',
+        name: 'customerRating',
+        values: [{ id: '4', name: '4', active: true, count: 1 }],
+      },
+    ]);
+    expect(result.batteryIncludedFacets).toEqual([
+      {
+        id: 'color',
+        label: 'Finish',
+        kind: 'select',
+        options: [
+          { id: 'red', label: 'red', active: true, count: 4 },
+          { id: 'blue', label: 'blue', active: false, count: 2 },
+        ],
+      },
+      {
+        id: 'brandTree',
+        label: 'brandTree',
+        kind: 'tree',
+        options: [
+          {
+            id: 'Power Tools > Drills',
+            label: 'Power Tools > Drills',
+            active: true,
+            count: 3,
+            idPath: ['power-tools', 'drills'],
+            labelPath: ['Power Tools', 'Drills'],
+          },
+        ],
+      },
+      {
+        id: 'price',
+        label: 'Net price',
+        kind: 'range',
+        min: '10',
+        max: '20',
+      },
+      {
+        id: 'rating',
+        label: 'rating',
+        kind: 'rating',
+        options: [
+          { id: '4', label: '4 stars & up', active: true, count: 6 },
+          { id: '5', label: '5 stars & up', active: false, count: 3 },
+        ],
+      },
+      {
+        id: 'customerRating',
+        label: 'customerRating',
+        kind: 'select',
+        options: [{ id: '4', label: '4', active: true, count: 1 }],
+      },
+    ]);
+  });
+
   it('keeps categoryIds when the BI snapshot is unavailable', async () => {
     const shopApi = {
       browse: jest.fn().mockResolvedValue({

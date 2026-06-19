@@ -37,6 +37,21 @@ describe('useSearch', () => {
         page: 0,
         pageSize: 12,
         availableFilters: [],
+        batteryIncludedFacets: [
+          {
+            id: 'color',
+            label: 'color',
+            kind: 'select',
+            options: [
+              {
+                id: 'red',
+                label: 'Red',
+                active: true,
+                count: 1,
+              },
+            ],
+          },
+        ],
       }),
     });
   });
@@ -62,5 +77,30 @@ describe('useSearch', () => {
 
     expect(global.fetch).toHaveBeenCalled();
     expect(result.current.error).toBeNull();
+  });
+
+  it('stores BatteryIncluded typed facets separately from legacy availableFilters', async () => {
+    const { result } = renderHook(() => useSearch());
+
+    await act(async () => {
+      await result.current.search({ page: 0, size: 12 });
+    });
+
+    expect(result.current.facets).toEqual([]);
+    expect(result.current.batteryIncludedFacets).toEqual([
+      {
+        id: 'color',
+        label: 'color',
+        kind: 'select',
+        options: [
+          {
+            id: 'red',
+            label: 'Red',
+            active: true,
+            count: 1,
+          },
+        ],
+      },
+    ]);
   });
 });

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
+import { PlpFacetPanel } from '@/components/search/facets';
 import { PlpCategoryBreadcrumbs } from '@/components/search/list-view/plp-category-breadcrumbs';
 import { PlpCategoryTree } from '@/components/search/list-view/plp-category-tree';
 import { SearchProductTileGrid } from '@/components/search/search-product-tile-grid';
@@ -12,6 +13,7 @@ import { resolvePlpCategoryContext } from '@/lib/category/plp-category-context';
 import { l10nOrEmpty } from '@/lib/utils';
 import type { Category } from '@/platform/services/model/category';
 import { getBatteryIncludedCategoryStaticCount } from '@/platform/services/model/category/batteryincluded-category';
+import type { BatteryIncludedFacet, SearchFilterValue } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
 
 interface PlpListLayoutProps {
@@ -26,6 +28,13 @@ interface PlpListLayoutProps {
   hasMore: boolean;
   loadingMore: boolean;
   loadMore: () => void | Promise<void>;
+  batteryIncludedFacets?: BatteryIncludedFacet[];
+  activeFilters: Record<string, SearchFilterValue>;
+  applyFacet: (facetId: string, value: string | string[]) => void;
+  applyRangeFacet: (facetId: string, min: string, max: string) => void;
+  resetFacet: (facetId: string) => void;
+  resetAllFacets?: () => void;
+  categoryFilterLabelsById?: Record<string, string>;
   topControlsNode?: React.ReactNode;
 }
 
@@ -48,6 +57,13 @@ export function PlpListLayout({
   hasMore,
   loadingMore,
   loadMore,
+  batteryIncludedFacets,
+  activeFilters,
+  applyFacet,
+  applyRangeFacet,
+  resetFacet,
+  resetAllFacets,
+  categoryFilterLabelsById,
   topControlsNode,
 }: PlpListLayoutProps) {
   const t = useTranslations('search.searchResults');
@@ -113,9 +129,19 @@ export function PlpListLayout({
             total={total}
             categoryCountsById={categoryCountsById}
           />
+          <PlpFacetPanel
+            facets={batteryIncludedFacets}
+            activeFilters={activeFilters}
+            applyFacet={applyFacet}
+            applyRangeFacet={applyRangeFacet}
+            resetFacet={resetFacet}
+            resetAllFacets={resetAllFacets}
+            categoryFilterLabelsById={categoryFilterLabelsById}
+            className="mt-6"
+          />
         </aside>
 
-        <div className="flex min-w-0 flex-col gap-6">
+        <div className="flex min-w-0 flex-col gap-2">
           {topControlsNode}
           <SearchProductTileGrid
             products={products}
@@ -127,7 +153,7 @@ export function PlpListLayout({
             gridClassName="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 md:gap-6"
           />
           {hasMore ? (
-            <div className="flex justify-center">
+            <div className="flex justify-center pt-3">
               <Button variant="secondary" onClick={() => void loadMore()} disabled={loadingMore}>
                 {loadingMore ? t('loadingMore') : t('loadMore')}
               </Button>

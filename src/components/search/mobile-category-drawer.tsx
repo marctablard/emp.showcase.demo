@@ -2,22 +2,41 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ChevronDown, ListFilter, X } from 'lucide-react';
+import { ChevronDown, ListFilter } from 'lucide-react';
+import { PlpFacetPanel } from '@/components/search/facets';
 import { PlpCategoryTree } from '@/components/search/list-view/plp-category-tree';
 import { Button } from '@/components/ui/button';
-import { Drawer, DrawerClose, DrawerContent, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
-import { H4 } from '@/components/ui/h';
+import { Drawer, DrawerClose, DrawerContent, DrawerTrigger } from '@/components/ui/drawer';
 import { useCategoryProductCounts } from '@/hooks/category/useCategoryProductCounts';
 import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
 import { getBatteryIncludedCategoryStaticCount } from '@/platform/services/model/category/batteryincluded-category';
+import type { BatteryIncludedFacet, SearchFilterValue } from '@/platform/services/model/common';
 
 interface MobileCategoryDrawerProps {
   plpCategoryContext: PlpCategoryContext;
   locale: string;
   total: number;
+  facets?: BatteryIncludedFacet[];
+  activeFilters: Record<string, SearchFilterValue>;
+  applyFacet: (facetId: string, value: string | string[]) => void;
+  applyRangeFacet: (facetId: string, min: string, max: string) => void;
+  resetFacet: (facetId: string) => void;
+  resetAllFacets?: () => void;
+  categoryFilterLabelsById?: Record<string, string>;
 }
 
-export function MobileCategoryDrawer({ plpCategoryContext, locale, total }: MobileCategoryDrawerProps) {
+export function MobileCategoryDrawer({
+  plpCategoryContext,
+  locale,
+  total,
+  facets,
+  activeFilters,
+  applyFacet,
+  applyRangeFacet,
+  resetFacet,
+  resetAllFacets,
+  categoryFilterLabelsById,
+}: MobileCategoryDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const tFilter = useTranslations('product.filters');
   const staticCounts = useMemo(() => {
@@ -60,21 +79,6 @@ export function MobileCategoryDrawer({ plpCategoryContext, locale, total }: Mobi
         </DrawerTrigger>
         <DrawerContent className="h-[85vh] overflow-y-auto rounded-t-[8px] border-none shadow-lg [&>div:first-child]:hidden data-[vaul-drawer-direction=bottom]:max-h-[85vh] data-[vaul-drawer-direction=bottom]:rounded-t-[8px]">
           <div className="flex flex-col gap-[40px] p-[24px]">
-            <div className="flex items-center justify-between">
-              <DrawerTitle asChild>
-                <H4 className="text-text-headings">{tFilter('filterButton')}</H4>
-              </DrawerTitle>
-              <DrawerClose asChild>
-                <button
-                  type="button"
-                  className="flex h-6 w-6 items-center justify-center text-icon-action"
-                  aria-label={tFilter('close')}
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </DrawerClose>
-            </div>
-
             <div className="flex items-center justify-between border-b border-border-primary pb-4">
               <div className="flex items-center gap-2">
                 <span className="text-base font-bold text-text-headings">{tFilter('categoryIds')}</span>
@@ -94,6 +98,18 @@ export function MobileCategoryDrawer({ plpCategoryContext, locale, total }: Mobi
                 total={total}
                 categoryCountsById={categoryCountsById}
                 isNested={true}
+              />
+              <PlpFacetPanel
+                facets={facets}
+                activeFilters={activeFilters}
+                applyFacet={applyFacet}
+                applyRangeFacet={applyRangeFacet}
+                resetFacet={resetFacet}
+                resetAllFacets={resetAllFacets}
+                categoryFilterLabelsById={categoryFilterLabelsById}
+                onClose={() => {
+                  setIsOpen(false);
+                }}
               />
               <DrawerClose asChild>
                 <Button variant="secondary" className="w-full">

@@ -107,7 +107,7 @@ export const QuickOrderSearchDropdown = forwardRef<HTMLDivElement, QuickOrderSea
                 <div className="flex-shrink-0 text-right self-end">
                   {product.price && (
                     <>
-                      {product.price.originalAmount && product.price.originalAmount > product.price.amount && (
+                      {product.price.originalAmount != null && product.price.originalAmount > product.price.amount && (
                         <p className="text-sm text-text-placeholders line-through">
                           {formatCurrency(product.price.originalAmount, product.price.currency)}
                         </p>

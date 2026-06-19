@@ -97,6 +97,8 @@
     "close": "Close",
     "productCount": "({count} Products)",
     "showProducts": "Show {count} products",
+    "from": "From",
+    "till": "Till",
     "clearFilter": "Clear Filter",
     "applyFilters": "Apply Filters"
   },

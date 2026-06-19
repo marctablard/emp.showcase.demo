@@ -79,8 +79,53 @@ export interface FilterValue {
 export interface Filter {
   id: string;
   name?: string;
+  labelIsPlainText?: boolean;
   values: FilterValue[];
 }
+
+export interface BatteryIncludedFacetOption {
+  id: string;
+  label: string;
+  count?: number;
+  active: boolean;
+}
+
+export interface BatteryIncludedTreeFacetOption extends BatteryIncludedFacetOption {
+  idPath: string[];
+  labelPath: string[];
+}
+
+interface BatteryIncludedFacetBase {
+  id: string;
+  label: string;
+}
+
+export interface BatteryIncludedSelectFacet extends BatteryIncludedFacetBase {
+  kind: 'select';
+  options: BatteryIncludedFacetOption[];
+}
+
+export interface BatteryIncludedTreeFacet extends BatteryIncludedFacetBase {
+  kind: 'tree';
+  options: BatteryIncludedTreeFacetOption[];
+}
+
+export interface BatteryIncludedRangeFacet extends BatteryIncludedFacetBase {
+  kind: 'range';
+  min?: string;
+  max?: string;
+}
+
+export interface BatteryIncludedRatingFacet extends BatteryIncludedFacetBase {
+  kind: 'rating';
+  options: BatteryIncludedFacetOption[];
+}
+
+export type BatteryIncludedFacet =
+  | BatteryIncludedSelectFacet
+  | BatteryIncludedTreeFacet
+  | BatteryIncludedRangeFacet
+  | BatteryIncludedRatingFacet;
 
 export type SearchFilterLeafValue = string | string[];
 export type SearchFilterNestedValue = Record<string, SearchFilterLeafValue>;
@@ -96,6 +141,11 @@ export interface Paginated<T> {
 
 export interface SearchResult<T> extends Paginated<T> {
   availableFilters: Filter[];
+  /**
+   * BatteryIncluded-only typed facets for PLP rendering and chip readability.
+   * Shared and legacy search consumers should continue using availableFilters.
+   */
+  batteryIncludedFacets?: BatteryIncludedFacet[];
 }
 
 export interface PaginationQuery {

@@ -26,6 +26,27 @@ interface SearchFilterProps {
 
 type FilterFormValues = Record<string, string | number>;
 
+type ProductTranslator = (key: string, values?: { defaultValue?: string }) => string;
+
+export function getSearchFilterLabel(
+  filter: Pick<Filter, 'id' | 'name' | 'labelIsPlainText'>,
+  t: ProductTranslator,
+): string {
+  const name = filter.name?.trim();
+
+  if (!name) {
+    return getFilterLabelFallback(filter.id);
+  }
+
+  if (filter.labelIsPlainText) {
+    return name;
+  }
+
+  return t(dk<ProductFilterKey>(`filters.${name}`), {
+    defaultValue: getFilterLabelFallback(name),
+  });
+}
+
 function FilterMenu({ availableFilters, activeFilters, applyAllFacets, onSubmitComplete }: SearchFilterProps) {
   const t = useTranslations('product');
 
@@ -142,7 +163,10 @@ function FilterMenu({ availableFilters, activeFilters, applyAllFacets, onSubmitC
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {availableFilters.map(({ id, values, name }) => {
+      {availableFilters.map((filter) => {
+        const { id, values, name } = filter;
+        const filterLabel = getSearchFilterLabel(filter, t);
+
         if (!isSelect(name || '')) {
           const [min, max] = getMinMaxValues(values);
           const minValue = formValues[`${id}_min`] !== undefined ? Number(formValues[`${id}_min`]) : min;
@@ -150,9 +174,7 @@ function FilterMenu({ availableFilters, activeFilters, applyAllFacets, onSubmitC
 
           return (
             <div key={id} className="space-y-2">
-              <Label>
-                {t(dk<ProductFilterKey>(`filters.${name}`), { defaultValue: getFilterLabelFallback(name || id) })}
-              </Label>
+              <Label>{filterLabel}</Label>
               <div className="grid grid-cols-2 gap-2">
                 {['min', 'max'].map((input) => {
                   const inputId = `${id}_${input}`;
@@ -194,9 +216,7 @@ function FilterMenu({ availableFilters, activeFilters, applyAllFacets, onSubmitC
         if (isSelect(name || '')) {
           return (
             <div key={id} className="space-y-2">
-              <Label>
-                {t(dk<ProductFilterKey>(`filters.${name}`), { defaultValue: getFilterLabelFallback(name || id) })}
-              </Label>
+              <Label>{filterLabel}</Label>
               <Select
                 value={formValues[id] as string}
                 onValueChange={(value) => {
@@ -204,11 +224,7 @@ function FilterMenu({ availableFilters, activeFilters, applyAllFacets, onSubmitC
                 }}
               >
                 <SelectTrigger data-testid={`filter-${id}-select`}>
-                  <SelectValue
-                    placeholder={t(dk<ProductFilterKey>(`filters.${name}`), {
-                      defaultValue: getFilterLabelFallback(name || id),
-                    })}
-                  />
+                  <SelectValue placeholder={filterLabel} />
                 </SelectTrigger>
                 <SelectContent>
                   {values.map((value) => (

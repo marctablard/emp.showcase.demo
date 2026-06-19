@@ -35,6 +35,7 @@ export interface BatteryIncludedFacetCountRow {
 
 export interface BatteryIncludedFacetCount {
   counts: BatteryIncludedFacetCountRow[];
+  field_label?: string;
   field_name: string;
   stats: {
     total_values: number;

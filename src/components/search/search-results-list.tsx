@@ -3,7 +3,7 @@
 import { PlpListLayout } from '@/components/search/list-view/plp-list-layout';
 import { resolveSelectedCategoryIdFromFilters } from '@/lib/search/category-selection';
 import type { Category } from '@/platform/services/model/category';
-import type { SearchFilterValue } from '@/platform/services/model/common';
+import type { BatteryIncludedFacet, SearchFilterValue } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
 
 interface SearchResultsListProps {
@@ -18,6 +18,12 @@ interface SearchResultsListProps {
   loadingMore: boolean;
   loadMore: () => void | Promise<void>;
   activeFilters?: Record<string, SearchFilterValue>;
+  batteryIncludedFacets?: BatteryIncludedFacet[];
+  applyFacet: (facetId: string, value: string | string[]) => void;
+  applyRangeFacet: (facetId: string, min: string, max: string) => void;
+  resetFacet: (facetId: string) => void;
+  resetAllFacets?: () => void;
+  categoryFilterLabelsById?: Record<string, string>;
   /**
    * Site-scoped navigation root categories rendered in the PLP thumbnail carousel and left-column
    * tree. Optional so legacy call sites that do not plumb the forest keep rendering a slim layout.
@@ -38,6 +44,12 @@ export function SearchResultsList({
   loadingMore,
   loadMore,
   activeFilters,
+  batteryIncludedFacets,
+  applyFacet,
+  applyRangeFacet,
+  resetFacet,
+  resetAllFacets,
+  categoryFilterLabelsById,
   navigationRoots,
   topControlsNode,
 }: SearchResultsListProps) {
@@ -57,6 +69,13 @@ export function SearchResultsList({
       hasMore={hasMore}
       loadingMore={loadingMore}
       loadMore={loadMore}
+      batteryIncludedFacets={batteryIncludedFacets}
+      activeFilters={activeFilters ?? {}}
+      applyFacet={applyFacet}
+      applyRangeFacet={applyRangeFacet}
+      resetFacet={resetFacet}
+      resetAllFacets={resetAllFacets}
+      categoryFilterLabelsById={categoryFilterLabelsById}
       topControlsNode={topControlsNode}
     />
   );

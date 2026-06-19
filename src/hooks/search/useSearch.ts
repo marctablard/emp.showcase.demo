@@ -5,6 +5,7 @@ import useHistory from '@/hooks/history/useHistory';
 import { useSiteCode } from '@/hooks/site/useSiteCode';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type {
+  BatteryIncludedFacet,
   Filter,
   SearchFilterValue,
   SearchFilters,
@@ -35,6 +36,9 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<UseSearchClientError | null>(null);
   const [facets, setFacets] = useState<Filter[]>([]);
+  const [batteryIncludedFacets, setBatteryIncludedFacets] = useState<BatteryIncludedFacet[] | undefined>(
+    initialResult?.batteryIncludedFacets,
+  );
   const [total, setTotal] = useState(initialResult?.total || 0);
   const [currentPage, setCurrentPage] = useState(initialResult?.page || DEFAULT_PAGE_INDEX);
   const [pageSize, setPageSize] = useState(initialResult?.pageSize || DEFAULT_PAGE_SIZE);
@@ -203,6 +207,8 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         if (data.availableFilters) {
           setFacets(data.availableFilters);
         }
+
+        setBatteryIncludedFacets(data.batteryIncludedFacets);
       } catch (err) {
         if (gen === searchGeneration.current) {
           getLogger().error({ err, event: 'search_request_failed' }, 'Product search request failed');
@@ -383,6 +389,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
       setData((prev) => [...prev, ...result.items]);
       setCurrentPage(nextPage);
       setTotal(result.total);
+      setBatteryIncludedFacets(result.batteryIncludedFacets);
 
       lastSearchParams.current = { ...lastSearchParams.current, page: nextPage };
     } catch (err) {
@@ -489,6 +496,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     error,
     hasMore,
     facets,
+    batteryIncludedFacets,
     total,
     currentPage,
     pageSize,

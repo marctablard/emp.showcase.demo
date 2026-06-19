@@ -97,6 +97,8 @@
     "close": "Schließen",
     "productCount": "({count} Produkte)",
     "showProducts": "{count} Produkte anzeigen",
+    "from": "Von",
+    "till": "Bis",
     "clearFilter": "Filter löschen",
     "applyFilters": "Filter anwenden"
   },

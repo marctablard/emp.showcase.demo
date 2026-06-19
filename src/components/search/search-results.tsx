@@ -67,6 +67,7 @@ export function SearchResultsComponent({
     hasMore,
     total,
     facets: availableFilters,
+    batteryIncludedFacets,
     currentPage,
     pageSize,
     currentQuery,
@@ -148,6 +149,18 @@ export function SearchResultsComponent({
   const plpCategoryContext = navigationRoots
     ? resolvePlpCategoryContext(navigationRoots, selectedCategoryId)
     : undefined;
+  const showDesktopSearchFilter = !plpCategoryContext || layout !== 'list';
+  const showStandaloneActiveFilters = !plpCategoryContext || layout !== 'list';
+
+  const plpFacetPanelProps = {
+    facets: batteryIncludedFacets,
+    activeFilters,
+    applyFacet,
+    applyRangeFacet,
+    resetFacet,
+    resetAllFacets,
+    categoryFilterLabelsById: navigationLabelIndex,
+  };
 
   // Shared props for SearchFilter component (used in both mobile and desktop layouts)
   const searchFilterProps = {
@@ -167,6 +180,7 @@ export function SearchResultsComponent({
     resetAllFacets,
     resetLabel: t('resetFilter'),
     categoryFilterLabelsById: navigationLabelIndex,
+    batteryIncludedFacets,
   };
 
   useEffect(() => {
@@ -216,7 +230,12 @@ export function SearchResultsComponent({
         {/* Mobile: Use MobileCategoryDrawer if PLP context exists (as a subset), otherwise generic SearchFilter */}
         <div className="flex w-full flex-col items-stretch gap-[40px] sm:hidden">
           {plpCategoryContext ? (
-            <MobileCategoryDrawer plpCategoryContext={plpCategoryContext} locale={locale} total={total} />
+            <MobileCategoryDrawer
+              plpCategoryContext={plpCategoryContext}
+              locale={locale}
+              total={total}
+              {...plpFacetPanelProps}
+            />
           ) : (
             <div className="flex w-full flex-col items-stretch [&>*]:w-full">
               <SearchFilter {...searchFilterProps} />
@@ -229,17 +248,19 @@ export function SearchResultsComponent({
 
         {/* Desktop: SearchFilter + Active filters inline */}
         <div className="hidden flex-wrap items-center gap-4 sm:flex">
-          <SearchFilter {...searchFilterProps} />
-          <SearchActiveFiltersWithReset {...activeFiltersProps} />
+          {showDesktopSearchFilter ? <SearchFilter {...searchFilterProps} /> : null}
+          {showStandaloneActiveFilters ? <SearchActiveFiltersWithReset {...activeFiltersProps} /> : null}
         </div>
 
         <SearchLayoutToggle active={layout} onSelectLayout={() => undefined} />
       </div>
 
       {/* Mobile: Active filters below, full width */}
-      <div className="mt-4 flex flex-col flex-wrap gap-4 sm:hidden">
-        <SearchActiveFiltersWithReset {...activeFiltersProps} />
-      </div>
+      {showStandaloneActiveFilters ? (
+        <div className="mt-4 flex flex-col flex-wrap gap-4 sm:hidden">
+          <SearchActiveFiltersWithReset {...activeFiltersProps} />
+        </div>
+      ) : null}
     </div>
   );
 
@@ -271,6 +292,10 @@ export function SearchResultsComponent({
             loadMore={loadMore}
             activeFilters={activeFilters}
             navigationRoots={navigationRoots}
+            batteryIncludedFacets={batteryIncludedFacets}
+            applyFacet={applyFacet}
+            applyRangeFacet={applyRangeFacet}
+            resetFacet={resetFacet}
             topControlsNode={topControlsNode}
           />
         )}

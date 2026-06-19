@@ -1,6 +1,8 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
 import type {
+  BatteryIncludedFacetCount,
+  BatteryIncludedFacetCountRow,
   BatteryIncludedSearchParams,
   BatteryIncludedSearchResponse,
   BatteryIncludedSuggestion,
@@ -9,7 +11,15 @@ import type { BatteryIncludedProduct } from '@/platform/integrations/batteryincl
 import type { BatteryIncludedShopApi } from '@/platform/integrations/batteryincluded/shop/BatteryIncludedShopApi';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import { BATTERY_INCLUDED_BREADCRUMB_FILTER } from '@/platform/services/model/category/batteryincluded-category';
-import type { Filter, SearchFilters, SearchParams, SearchResult } from '@/platform/services/model/common';
+import type {
+  BatteryIncludedFacet,
+  BatteryIncludedFacetOption,
+  BatteryIncludedTreeFacetOption,
+  Filter,
+  SearchFilters,
+  SearchParams,
+  SearchResult,
+} from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
 import type { BatteryIncludedCategoryTreeService } from '@/platform/services/search/BatteryIncludedCategoryTreeService';
 import type { SearchService } from '@/platform/services/search/SearchService';
@@ -18,9 +28,12 @@ import type { CustomerService } from '../../customer/CustomerService';
 import type { ProductMapper } from '../../model/product/ProductMapper';
 import type { SearchSuggestions, SuggestionsMapper } from '../../model/search';
 import type { SessionService } from '../../session';
+import { BatteryIncludedFacetsQueryBuilder } from './BatteryIncludedFacetsQueryBuilder';
 import type SegmentFilterService from './SegmentFilterService';
 
 const BATTERY_INCLUDED_SELECTION_CONTEXT_KEY = '__batteryIncludedSelection';
+// TODO: Replace this with the authoritative BI rating facet field id once a production sample is captured in-repo.
+const BATTERY_INCLUDED_RATING_FACET_IDS = new Set(['rating']);
 
 /**
  * Implementation of SearchService for BatteryIncluded product data.
@@ -133,30 +146,185 @@ class BatteryIncludedSearchService implements SearchService {
       };
     });
   }
-  private mapBrowseFilters(
+
+  private mapFacetOption(
+    facetId: string,
+    row: BatteryIncludedFacetCountRow,
     filters?: SearchFilters,
-  ): NonNullable<BatteryIncludedSearchParams<BatteryIncludedProduct>['filters']> | undefined {
-    if (!filters) {
-      return undefined;
+  ): BatteryIncludedFacetOption {
+    return {
+      id: row.value,
+      label: row.data?.displayPath?.trim() || row.value,
+      count: row.count,
+      active: this.isFilterValueActive(filters, facetId, row.value),
+    };
+  }
+
+  private mapTreeFacetOption(
+    facetId: string,
+    row: BatteryIncludedFacetCountRow,
+    labelPath: string[],
+    idPath: string[],
+    filters?: SearchFilters,
+  ): BatteryIncludedTreeFacetOption {
+    return {
+      ...this.mapFacetOption(facetId, row, filters),
+      labelPath,
+      idPath,
+    };
+  }
+
+  private splitFacetPath(value?: string): string[] {
+    if (!value) {
+      return [];
     }
 
-    return Object.fromEntries(
-      Object.entries(filters).map(([key, value]) => {
-        if (typeof value === 'string' || Array.isArray(value)) {
-          return [key, value];
-        }
+    return value
+      .split('>')
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
+  }
 
-        return [
-          key,
-          Object.fromEntries(
-            Object.entries(value).map(([nestedKey, nestedValue]) => [
-              nestedKey,
-              Array.isArray(nestedValue) ? nestedValue.join(',') : nestedValue,
-            ]),
-          ),
-        ];
-      }),
-    );
+  private resolveFacetLabel(facet: BatteryIncludedFacetCount): string {
+    const fieldLabel = facet.field_label?.trim();
+
+    return fieldLabel && fieldLabel.length > 0 ? fieldLabel : facet.field_name;
+  }
+
+  private classifyFacetKind(facet: BatteryIncludedFacetCount): BatteryIncludedFacet['kind'] {
+    if (facet.type === 'range') {
+      return 'range';
+    }
+
+    if (this.isRatingFacet(facet)) {
+      return 'rating';
+    }
+
+    if (this.isTreeFacet(facet)) {
+      return 'tree';
+    }
+
+    return 'select';
+  }
+
+  private isTreeFacet(facet: BatteryIncludedFacetCount): boolean {
+    if (facet.type !== 'select' || facet.counts.length === 0) {
+      return false;
+    }
+
+    return facet.counts.every((row) => {
+      const labelPath = this.splitFacetPath(row.data?.displayPath?.trim());
+      const idPath = this.splitFacetPath(row.data?.idPath?.trim());
+
+      return labelPath.length > 1 && labelPath.length === idPath.length;
+    });
+  }
+
+  private isRatingFacet(facet: BatteryIncludedFacetCount): boolean {
+    if (!BATTERY_INCLUDED_RATING_FACET_IDS.has(facet.field_name)) {
+      return false;
+    }
+
+    return facet.counts.every((row) => {
+      const rating = Number(row.value);
+      return Number.isInteger(rating) && rating >= 1 && rating <= 5;
+    });
+  }
+
+  private mapRangeFacet(facet: BatteryIncludedFacetCount): Extract<BatteryIncludedFacet, { kind: 'range' }> {
+    const bounds = facet.counts.reduce<{ min?: string; max?: string }>((accumulator, row) => {
+      if (row.value === 'from') {
+        accumulator.min = String(row.count);
+      }
+      if (row.value === 'till') {
+        accumulator.max = String(row.count);
+      }
+      return accumulator;
+    }, {});
+
+    return {
+      id: facet.field_name,
+      label: this.resolveFacetLabel(facet),
+      kind: 'range',
+      min: bounds.min,
+      max: bounds.max,
+    };
+  }
+
+  private mapRatingLabel(value: string): string {
+    const rating = Number(value);
+    if (!Number.isInteger(rating)) {
+      return value;
+    }
+
+    return `${rating} star${rating === 1 ? '' : 's'} & up`;
+  }
+
+  private mapBatteryIncludedFacet(facet: BatteryIncludedFacetCount, filters?: SearchFilters): BatteryIncludedFacet {
+    const kind = this.classifyFacetKind(facet);
+    const label = this.resolveFacetLabel(facet);
+
+    if (kind === 'range') {
+      return this.mapRangeFacet(facet);
+    }
+
+    if (kind === 'tree') {
+      return {
+        id: facet.field_name,
+        label,
+        kind,
+        options: facet.counts.map((row) => {
+          const labelPath = this.splitFacetPath(row.data?.displayPath?.trim());
+          const idPath = this.splitFacetPath(row.data?.idPath?.trim());
+          return this.mapTreeFacetOption(facet.field_name, row, labelPath, idPath, filters);
+        }),
+      };
+    }
+
+    if (kind === 'rating') {
+      return {
+        id: facet.field_name,
+        label,
+        kind,
+        options: facet.counts.map((row) => ({
+          ...this.mapFacetOption(facet.field_name, row, filters),
+          label: this.mapRatingLabel(row.value),
+        })),
+      };
+    }
+
+    return {
+      id: facet.field_name,
+      label,
+      kind,
+      options: facet.counts.map((row) => this.mapFacetOption(facet.field_name, row, filters)),
+    };
+  }
+
+  private toLegacyFilter(facet: BatteryIncludedFacet): Filter {
+    if (facet.kind === 'range') {
+      return {
+        id: facet.id,
+        name: facet.label,
+        labelIsPlainText: true,
+        values: [
+          ...(facet.min ? [{ id: facet.min, name: facet.min, active: false }] : []),
+          ...(facet.max ? [{ id: facet.max, name: facet.max, active: false }] : []),
+        ],
+      };
+    }
+
+    return {
+      id: facet.id,
+      name: facet.label,
+      labelIsPlainText: true,
+      values: facet.options.map((option) => ({
+        id: option.id,
+        name: option.label,
+        count: option.count,
+        active: option.active,
+      })),
+    };
   }
 
   async searchProducts(params: SearchParams<Product>, locale?: string, site?: string): Promise<SearchResult<Product>> {
@@ -227,27 +395,16 @@ class BatteryIncludedSearchService implements SearchService {
       sort: params.sort,
       variants: 0,
       variables,
-      filters: this.mapBrowseFilters(filters),
+      filters: BatteryIncludedFacetsQueryBuilder.build(filters) as
+        | NonNullable<BatteryIncludedSearchParams<BatteryIncludedProduct>['filters']>
+        | undefined,
     });
     const variantCountByParentId = this.buildVariantCountByParentId(searchResult.hits);
 
-    const availableFilters = searchResult.facet_counts
+    const batteryIncludedFacets = searchResult.facet_counts
       .filter((facet) => facet.field_name !== 'segmentIds' && facet.field_name !== BATTERY_INCLUDED_BREADCRUMB_FILTER)
-      .map((facet) => {
-        const filter: Filter = {
-          id: facet.field_name,
-          name: facet.field_name, // TODO handle l10n when we have a representative Dataset
-          values: facet.counts
-            ? facet.counts.map((value) => ({
-                id: value.value,
-                name: value.value, // TODO l10n...
-                count: value.count,
-                active: this.isFilterValueActive(filters, facet.field_name, value.value),
-              }))
-            : [],
-        };
-        return filter;
-      });
+      .map((facet) => this.mapBatteryIncludedFacet(facet, filters));
+    const availableFilters = batteryIncludedFacets.map((facet) => this.toLegacyFilter(facet));
     return {
       items: searchResult.hits.map((hit) => {
         const product = this.productMapper.mapToService(
@@ -267,6 +424,7 @@ class BatteryIncludedSearchService implements SearchService {
       pageSize: params.size || 10, // default
       total: searchResult.found,
       availableFilters: availableFilters,
+      batteryIncludedFacets,
     };
   }
 
