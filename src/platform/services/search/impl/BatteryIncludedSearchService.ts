@@ -1,6 +1,7 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
 import type {
+  BatteryIncludedSearchParams,
   BatteryIncludedSearchResponse,
   BatteryIncludedSuggestion,
 } from '@/platform/integrations/batteryincluded/model';
@@ -8,7 +9,7 @@ import type { BatteryIncludedProduct } from '@/platform/integrations/batteryincl
 import type { BatteryIncludedShopApi } from '@/platform/integrations/batteryincluded/shop/BatteryIncludedShopApi';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import { BATTERY_INCLUDED_BREADCRUMB_FILTER } from '@/platform/services/model/category/batteryincluded-category';
-import type { Filter, SearchParams, SearchResult } from '@/platform/services/model/common';
+import type { Filter, SearchFilters, SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
 import type { BatteryIncludedCategoryTreeService } from '@/platform/services/search/BatteryIncludedCategoryTreeService';
 import type { SearchService } from '@/platform/services/search/SearchService';
@@ -131,6 +132,31 @@ class BatteryIncludedSearchService implements SearchService {
         })),
       };
     });
+  }
+  private mapBrowseFilters(
+    filters?: SearchFilters,
+  ): NonNullable<BatteryIncludedSearchParams<BatteryIncludedProduct>['filters']> | undefined {
+    if (!filters) {
+      return undefined;
+    }
+
+    return Object.fromEntries(
+      Object.entries(filters).map(([key, value]) => {
+        if (typeof value === 'string' || Array.isArray(value)) {
+          return [key, value];
+        }
+
+        return [
+          key,
+          Object.fromEntries(
+            Object.entries(value).map(([nestedKey, nestedValue]) => [
+              nestedKey,
+              Array.isArray(nestedValue) ? nestedValue.join(',') : nestedValue,
+            ]),
+          ),
+        ];
+      }),
+    );
   }
 
   async searchProducts(params: SearchParams<Product>, locale?: string, site?: string): Promise<SearchResult<Product>> {
