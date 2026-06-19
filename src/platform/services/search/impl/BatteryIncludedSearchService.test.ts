@@ -345,6 +345,7 @@ describe('BatteryIncludedSearchService', () => {
       {
         id: 'color',
         name: 'Finish',
+        labelIsPlainText: true,
         values: [
           { id: 'red', name: 'red', active: true, count: 4 },
           { id: 'blue', name: 'blue', active: false, count: 2 },
@@ -353,11 +354,13 @@ describe('BatteryIncludedSearchService', () => {
       {
         id: 'brandTree',
         name: 'brandTree',
+        labelIsPlainText: true,
         values: [{ id: 'Power Tools > Drills', name: 'Power Tools > Drills', active: true, count: 3 }],
       },
       {
         id: 'price',
         name: 'Net price',
+        labelIsPlainText: true,
         values: [
           { id: '10', name: '10', active: false },
           { id: '20', name: '20', active: false },
@@ -366,6 +369,7 @@ describe('BatteryIncludedSearchService', () => {
       {
         id: 'rating',
         name: 'rating',
+        labelIsPlainText: true,
         values: [
           { id: '4', name: '4 stars & up', active: true, count: 6 },
           { id: '5', name: '5 stars & up', active: false, count: 3 },
@@ -374,6 +378,7 @@ describe('BatteryIncludedSearchService', () => {
       {
         id: 'customerRating',
         name: 'customerRating',
+        labelIsPlainText: true,
         values: [{ id: '4', name: '4', active: true, count: 1 }],
       },
     ]);
