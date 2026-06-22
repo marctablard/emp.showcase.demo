@@ -56,7 +56,7 @@ export default function CmsHeader({
       <div className="mx-auto flex w-full max-w-7xl items-center gap-6 px-6 py-4 md:px-12">
         <Link href="/" className="flex shrink-0 items-center gap-3">
           {logoSrc ? (
-            <span className="relative h-10 w-32 shrink-0">
+            <span data-cms-field="logo" className="relative h-10 w-32 shrink-0">
               <Image
                 src={logoSrc}
                 alt={logo?.alt ?? logoText ?? 'Home'}
@@ -66,7 +66,11 @@ export default function CmsHeader({
               />
             </span>
           ) : null}
-          {logoText ? <span className="font-headlines text-xl">{logoText}</span> : null}
+          {logoText ? (
+            <span data-cms-field="logo_text" className="font-headlines text-xl">
+              {logoText}
+            </span>
+          ) : null}
         </Link>
 
         <nav className="hidden items-center gap-6 md:flex">
@@ -80,7 +84,7 @@ export default function CmsHeader({
                 target={item.newTab ? '_blank' : undefined}
                 className="text-base text-text-body transition-colors hover:text-text-action"
               >
-                {item.label ?? href}
+                <span data-cms-field={`nav_items.${i}.label`}>{item.label ?? href}</span>
               </Link>
             );
           })}
@@ -101,7 +105,7 @@ export default function CmsHeader({
               target={cta?.newTab ? '_blank' : undefined}
               className="rounded-button bg-surface-action px-4 py-2 text-text-on-action transition-colors hover:bg-surface-action-hover"
             >
-              {cta?.label ?? 'Get started'}
+              <span data-cms-field="cta.label">{cta?.label ?? 'Get started'}</span>
             </Link>
           ) : null}
           {showLanguageSwitcher ? <LanguageSwitcher /> : null}
@@ -128,7 +132,7 @@ export default function CmsHeader({
                   target={item.newTab ? '_blank' : undefined}
                   className="text-base text-text-body hover:text-text-action"
                 >
-                  {item.label ?? href}
+                  <span>{item.label ?? href}</span>
                 </Link>
               );
             })}
@@ -138,7 +142,7 @@ export default function CmsHeader({
                 target={cta?.newTab ? '_blank' : undefined}
                 className="mt-2 rounded-button bg-surface-action px-4 py-2 text-center text-text-on-action"
               >
-                {cta?.label ?? 'Get started'}
+                <span>{cta?.label ?? 'Get started'}</span>
               </Link>
             ) : null}
             {(showAccount || showCart || showLanguageSwitcher) && (

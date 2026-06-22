@@ -31,7 +31,7 @@ export default function CtaButton({
     <div data-cms="cta-button" className={cn('flex w-full px-6 md:px-12', justifyClass(alignment))}>
       <Button asChild variant={variant} className={cn(sizeClass(size), fullWidth && 'w-full')}>
         <Link href={href} target={link?.newTab ? '_blank' : undefined}>
-          {link?.label ?? 'Learn more'}
+          <span data-cms-field="link.label">{link?.label ?? 'Learn more'}</span>
         </Link>
       </Button>
     </div>

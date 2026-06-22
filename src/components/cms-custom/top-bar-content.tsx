@@ -22,7 +22,15 @@ const linkHref = (link?: SharedLink): string | undefined =>
   (link as { href?: string; url?: string } | undefined)?.href ??
   (link as { href?: string; url?: string } | undefined)?.url;
 
-function NavList({ items, justify }: { items: SharedLink[]; justify: 'center' | 'end' }) {
+function NavList({
+  items,
+  justify,
+  pathPrefix,
+}: {
+  items: SharedLink[];
+  justify: 'center' | 'end';
+  pathPrefix: string;
+}) {
   if (!items.length) return null;
   return (
     <nav
@@ -36,7 +44,7 @@ function NavList({ items, justify }: { items: SharedLink[]; justify: 'center' | 
         if (!href) return null;
         return (
           <Link key={i} href={href} target={item.newTab ? '_blank' : undefined} className="hover:underline">
-            {item.label ?? href}
+            <span data-cms-field={`${pathPrefix}.${i}.label`}>{item.label ?? href}</span>
           </Link>
         );
       })}
@@ -70,8 +78,8 @@ export default function CmsTopBar({
             </div>
           ))}
         </div>
-        <NavList items={centerNavItems} justify="center" />
-        <NavList items={rightNavItems} justify="end" />
+        <NavList items={centerNavItems} justify="center" pathPrefix="center_nav_items" />
+        <NavList items={rightNavItems} justify="end" pathPrefix="right_nav_items" />
       </div>
     </div>
   );

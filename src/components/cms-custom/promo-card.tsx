@@ -48,7 +48,7 @@ export default function PromoCard({
         <div>
           <Button asChild variant={isInverted ? 'secondary' : 'primary'}>
             <Link href={cta.url} target={cta.newTab ? '_blank' : undefined}>
-              {cta.label ?? 'Learn more'}
+              <span data-cms-field="cta.label">{cta.label ?? 'Learn more'}</span>
             </Link>
           </Button>
         </div>
@@ -71,6 +71,7 @@ export default function PromoCard({
         {imageSrc ? (
           <>
             <Image
+              data-cms-field="image"
               src={imageSrc}
               alt={image?.alt ?? ''}
               fill
@@ -101,6 +102,7 @@ export default function PromoCard({
       >
         {imageSrc ? (
           <div
+            data-cms-field="image"
             className={cn(
               'relative w-full overflow-hidden rounded-md bg-surface-image-background',
               imagePosition === 'top' ? 'aspect-[16/9]' : 'aspect-square md:w-1/2',

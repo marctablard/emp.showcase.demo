@@ -41,9 +41,11 @@ export default function Gallery({
   aspect = 'square',
 }: GalleryProps) {
   const [active, setActive] = useState<number | null>(null);
+  // Track the original index so `data-cms-field` paths still point at the
+  // editor's source array even after we drop entries with no resolvable src.
   const validImages = images
-    .map((img) => ({ ...img, _src: resolveImageSrc(img) }))
-    .filter((img): img is SharedImage & { _src: string } => Boolean(img._src));
+    .map((img, originalIndex) => ({ ...img, _src: resolveImageSrc(img), _idx: originalIndex }))
+    .filter((img): img is SharedImage & { _src: string; _idx: number } => Boolean(img._src));
   if (validImages.length === 0) return null;
 
   return (
@@ -53,6 +55,7 @@ export default function Gallery({
           <button
             type="button"
             key={i}
+            data-cms-field={`images.${img._idx}`}
             onClick={lightbox ? () => setActive(i) : undefined}
             className={cn(
               'relative w-full overflow-hidden rounded-md bg-surface-image-background',

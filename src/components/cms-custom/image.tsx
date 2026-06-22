@@ -45,6 +45,7 @@ export default function ImageBlock({
   return (
     <figure data-cms="image" className={cn('flex flex-col gap-2 px-6 md:px-12', maxWidthClass(maxWidth))}>
       <div
+        data-cms-field="image"
         className={cn(
           'relative w-full overflow-hidden bg-surface-image-background',
           aspectClass(aspect),

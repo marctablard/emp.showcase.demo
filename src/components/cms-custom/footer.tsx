@@ -67,7 +67,7 @@ export default function CmsFooter({
           <div className="grid grid-cols-1 gap-8 md:grid-cols-[1fr_2fr] md:gap-12">
             <div className="flex flex-col gap-3">
               {logoSrc ? (
-                <span className="relative h-12 w-32">
+                <span data-cms-field="logo" className="relative h-12 w-32">
                   <Image
                     src={logoSrc}
                     alt={logo?.alt ?? ''}
@@ -77,14 +77,23 @@ export default function CmsFooter({
                   />
                 </span>
               ) : null}
-              {tagline ? <p className="max-w-prose whitespace-pre-line text-base">{tagline}</p> : null}
+              {tagline ? (
+                <p data-cms-field="tagline" className="max-w-prose whitespace-pre-line text-base">
+                  {tagline}
+                </p>
+              ) : null}
             </div>
             {columns.length > 0 ? (
               <div className="grid grid-cols-2 gap-8 md:grid-cols-4 md:gap-12">
                 {columns.map((col, i) => (
                   <div key={i} className="flex flex-col gap-3">
                     {col.heading ? (
-                      <span className="text-sm font-semibold uppercase tracking-widest opacity-80">{col.heading}</span>
+                      <span
+                        data-cms-field={`columns.${i}.heading`}
+                        className="text-sm font-semibold uppercase tracking-widest opacity-80"
+                      >
+                        {col.heading}
+                      </span>
                     ) : null}
                     <ul className="flex flex-col gap-2">
                       {(col.links ?? []).map((link, j) => {
@@ -97,7 +106,7 @@ export default function CmsFooter({
                               target={link.newTab ? '_blank' : undefined}
                               className="text-base hover:opacity-80"
                             >
-                              {link.label ?? href}
+                              <span data-cms-field={`columns.${i}.links.${j}.label`}>{link.label ?? href}</span>
                             </Link>
                           </li>
                         );
@@ -117,7 +126,13 @@ export default function CmsFooter({
               hasTopRow && 'border-t border-current/20',
             )}
           >
-            {bottomText ? <span className="text-sm opacity-80">{bottomText}</span> : <span />}
+            {bottomText ? (
+              <span data-cms-field="bottom_text" className="text-sm opacity-80">
+                {bottomText}
+              </span>
+            ) : (
+              <span />
+            )}
 
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
               {bottomLinks.map((link, i) => {
@@ -130,7 +145,7 @@ export default function CmsFooter({
                     target={link.newTab ? '_blank' : undefined}
                     className="text-sm hover:opacity-80"
                   >
-                    {link.label ?? href}
+                    <span data-cms-field={`bottom_links.${i}.label`}>{link.label ?? href}</span>
                   </Link>
                 );
               })}
@@ -143,6 +158,7 @@ export default function CmsFooter({
                     return (
                       <a
                         key={i}
+                        data-cms-field={`social_links.${i}.href`}
                         href={href}
                         target="_blank"
                         rel="noopener noreferrer"

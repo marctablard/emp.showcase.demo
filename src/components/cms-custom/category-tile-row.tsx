@@ -66,7 +66,7 @@ export default function CategoryTileRow({
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 md:px-12">
         {headline ? <H2>{headline}</H2> : null}
         <ul className={cn('grid gap-4', colClass(columns))}>
-          {categories.map((c) => {
+          {categories.map((c, idx) => {
             const href = c.path ?? (c.slug ? `/category/${c.slug}` : `/category/${c.id}`);
             const label = c.name ?? c.id;
             const tileImageSrc = resolveImageSrc(c.image);
@@ -98,7 +98,7 @@ export default function CategoryTileRow({
             );
             return (
               <li key={c.id}>
-                <Link href={href} className="group flex flex-col gap-2">
+                <Link href={href} data-cms-field={`category_ids.${idx}`} className="group flex flex-col gap-2">
                   {tile}
                   {tileStyle === 'card' ? <H4>{label}</H4> : null}
                 </Link>
