@@ -64,7 +64,7 @@ export default function EmporixContentSlot({
   return (
     <div data-slot={slot} className={cn(editorClasses, className)} {...htmlAttributes}>
       {hasComponents ? (
-        <EmporixCMSComponentRenderer components={components} theme={theme} />
+        <EmporixCMSComponentRenderer components={components} slotId={slot} theme={theme} />
       ) : isEditorMode ? (
         <div className="p-4 text-center text-gray-400 text-sm">
           {isLayoutSlot ? `Layout Slot: ${slot}` : `Page Slot: ${slot}`}

@@ -4,7 +4,7 @@ import type { EmporixCustomEntity } from '@/platform/integrations/emporix/model/
 import type { EmporixSchemaApi } from '@/platform/integrations/emporix/schema/EmporixSchemaApi';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { CMSComponent } from '@/platform/services/model/cms';
-import { buildEntityId, parseVersionedId } from '../../lib/version-utils';
+import { buildEntityId, canonicalUrl, parseVersionedId } from '../../lib/version-utils';
 import type { CMSLayout, CMSPage } from '../../types';
 import type { GetLayoutOptions, GetPageOptions, EmporixCmsApi as IEmporixCmsApi } from '../EmporixCmsApi';
 
@@ -61,14 +61,16 @@ class EmporixCmsApi implements IEmporixCmsApi {
     const loadLayout = options?.loadLayout !== false;
     const cacheSeconds = isLiveVersion(version) ? livePageCacheSeconds() : undefined;
     try {
-      // Build entity ID using slug + URL hash (matches editor-side convention)
-      const entityId = buildEntityId('page', slug, locale, site, version);
+      // Build entity ID using canonical URL hash (matches editor-side convention)
+      const url = canonicalUrl(slug);
+      const entityId = buildEntityId('page', url, locale, site, version);
       let entity = await this.schemaApi.getCustomEntity(this.PAGE_ENTITY_TYPE, entityId, cacheSeconds);
       if (!entity) {
-        // Fallback: search by mixin attributes
+        // Fallback: search by mixin attributes. Lookup is by canonical `url`
+        // (not `slug`) so storefront and editor agree on a single key.
         const searchResult = await this.schemaApi.searchCustomEntities(this.PAGE_ENTITY_TYPE, {
           criteria: {
-            [`mixins.${this.PAGE_MIXIN_KEY}.slug`]: slug,
+            [`mixins.${this.PAGE_MIXIN_KEY}.url`]: url,
             [`mixins.${this.PAGE_MIXIN_KEY}.locale`]: locale,
             [`mixins.${this.PAGE_MIXIN_KEY}.site`]: site,
             [`mixins.${this.PAGE_MIXIN_KEY}.version`]: version,

@@ -346,6 +346,87 @@ export interface NavigationResponseMessage {
 }
 
 // ---------------------------------------------------------------------------
+// Inline Editing Messages
+// ---------------------------------------------------------------------------
+
+/**
+ * Storefront → Editor. The user clicked a component **in the preview**; the
+ * editor should select / highlight that component in its sidebar (the mirror
+ * of {@link HighlightComponentMessage}, which goes the other way). The editor
+ * typically replies with `HIGHLIGHT_COMPONENT` to draw the ring in the preview,
+ * closing the loop.
+ *
+ * An **empty payload** (`componentId: ''`, `slotId: ''`) is the clean inverse:
+ * the user clicked empty preview canvas, so the editor should clear its
+ * selection (close the property panel, collapse groups) and reply with
+ * `HIGHLIGHT_COMPONENT(null)` to clear the preview ring.
+ */
+export interface ComponentSelectedMessage {
+  type: 'COMPONENT_SELECTED';
+  /** Id of the clicked component (matches `CMSComponent.id`); `''` = deselect. */
+  componentId: string;
+  /** Slot the component lives in — helps the editor locate it; `''` = deselect. */
+  slotId: string;
+}
+
+/**
+ * Dot-notation path into a component's props, used by the inline-editing
+ * messages to address a single field. Nested objects and arrays use numeric
+ * indices, e.g. `headline`, `cta.label`, `items.0.title`.
+ */
+export type CMSFieldPath = string;
+
+/**
+ * Storefront → Editor. The user edited a field **in place** in the preview and
+ * the storefront already knows the new value (text / textarea / url / select).
+ *
+ * The storefront does NOT mutate its own overlay — the editor is the single
+ * source of truth. The expected reaction is: set `value` at `fieldPath` on the
+ * component identified by `componentId` (inside `slotId`) in the editor's model,
+ * then re-broadcast the change via {@link UpdateSlotMessage} (the "loopback")
+ * so the preview re-renders from the canonical model.
+ */
+export interface InlineEditCommitMessage {
+  type: 'INLINE_EDIT_COMMIT';
+  /** Unique id of the component being edited (matches `CMSComponent.id`). */
+  componentId: string;
+  /** Slot the component lives in — lets the editor locate it quickly. */
+  slotId: string;
+  /** Dot-notation path of the edited field (see {@link CMSFieldPath}). */
+  fieldPath: CMSFieldPath;
+  /** Declared field type of the edited field, for editor-side validation. */
+  fieldType: CMSFieldType;
+  /** The new value the storefront committed (string for text/url/select). */
+  value: unknown;
+}
+
+/**
+ * Storefront → Editor. The user clicked a field whose value can only be chosen
+ * through one of the editor's own dialogs (media / product / category). The
+ * storefront cannot resolve these itself, so it asks the editor to open the
+ * matching selector.
+ *
+ * The editor opens the relevant dialog pre-scoped by `allowedTypes` /
+ * `multiple`, and once the user picks a value it writes it at `fieldPath` and
+ * re-broadcasts via {@link UpdateSlotMessage} (the loopback). No dedicated
+ * response message exists — the change arrives like any other slot update.
+ */
+export interface InlineEditRequestMessage {
+  type: 'INLINE_EDIT_REQUEST';
+  componentId: string;
+  slotId: string;
+  fieldPath: CMSFieldPath;
+  /** Which selector to open: `media`, `product`, or `category`. */
+  fieldType: Extract<CMSFieldType, 'media' | 'product' | 'category'>;
+  /** For `media`: allowed MIME types (e.g. `['image/*']`). */
+  allowedTypes?: string[];
+  /** For `category` (and multi-media): whether multiple values are allowed. */
+  multiple?: boolean;
+  /** Current value, so the editor can preselect / seed its dialog. */
+  currentValue?: unknown;
+}
+
+// ---------------------------------------------------------------------------
 // Theme LiveEditor Messages
 // ---------------------------------------------------------------------------
 
@@ -493,6 +574,9 @@ export type CMSEditorMessage =
   | HighlightSlotMessage
   | NavigationInterceptedMessage
   | NavigationResponseMessage
+  | InlineEditCommitMessage
+  | InlineEditRequestMessage
+  | ComponentSelectedMessage
   | RequestThemeMessage
   | ThemeResponseMessage
   | UpdateThemeVariablesMessage
