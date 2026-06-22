@@ -59,3 +59,10 @@ Thanks to cva and Tailwind, you can easily extend or customize components by pas
 ---
 
 For more details, explore the source files in `src/components/ui` or reach out to the maintainers.
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Styling & Theming](./styling-and-theming.md)
+- [Project Structure](./project-structure.md)
+- [Testing Guide](./testing-guide.md)

@@ -93,3 +93,10 @@ If you encounter issues after switching implementations:
 2. Ensure `npm run generate` was executed after config changes
 3. Ensure the app was restarted
 4. Check server logs for DI warnings about missing alias targets
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Dependency Injection](./dependency-injection.md)
+- [Environment Variables](./environment-variables.md)
+- [Layered Architecture](./layered-architecture.md)

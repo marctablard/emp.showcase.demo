@@ -224,3 +224,10 @@ Both Jest and Playwright tests are configured to run in the CI pipeline. The con
 The testing strategy implemented in the Emporix Showcase project provides comprehensive coverage from unit testing through end-to-end testing. By using Jest for component and logic testing and Playwright for E2E testing, we ensure the application works correctly at all levels.
 
 For more information about the dependency injection system used in tests, refer to the [Dependency Injection Documentation](./dependency-injection.md).
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Testing Guide](./testing-guide.md)
+- [Dependency Injection](./dependency-injection.md)
+- [Deployment Process](./deployment-process.md)

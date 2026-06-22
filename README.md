@@ -2,6 +2,10 @@
 
 Journey Aware Storefront is a journey-aware storefront that provides a seamless shopping experience for customers. It is built on top of the React/Next.js framework that provides the basis for modern composable web applications.
 
+## Documentation
+
+Full technical documentation lives in [`docs/`](./docs/README.md) — start there for setup guides, architecture, integrations, and task-based guided paths (Frontend Integration / Operations).
+
 ## Features
 
 An overview of the key features of Journey Aware Storefront.
