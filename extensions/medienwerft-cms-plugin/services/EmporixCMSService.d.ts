@@ -16,6 +16,12 @@ export interface GetPageOptions {
    * Defaults to `true`.
    */
   loadLayout?: boolean;
+  /**
+   * When `true`, bypass the live-read cache and always fetch fresh. Set this
+   * for editor-mode previews so a just-published change is visible immediately
+   * (the live cache otherwise serves the pre-publish version until it revalidates).
+   */
+  noCache?: boolean;
 }
 
 /**
@@ -24,6 +30,8 @@ export interface GetPageOptions {
 export interface GetLayoutOptions {
   /** Optional fallback site/locale used when the primary lookup yields nothing. */
   fallback?: CMSSiteFallback;
+  /** When `true`, bypass the live-read cache (see {@link GetPageOptions.noCache}). */
+  noCache?: boolean;
 }
 
 /**

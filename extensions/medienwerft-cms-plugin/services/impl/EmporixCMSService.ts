@@ -52,8 +52,8 @@ export class EmporixCMSService implements IEmporixCMSService {
     version?: 'draft' | 'live' | string,
     fallbackOrOptions?: CMSSiteFallback | GetPageOptions,
   ): Promise<CMSPage | CMSNoResult> {
-    const { fallback, loadLayout } = normalizeGetPageArgs(fallbackOrOptions);
-    const apiOptions = { loadLayout };
+    const { fallback, loadLayout, noCache } = normalizeGetPageArgs(fallbackOrOptions);
+    const apiOptions = { loadLayout, noCache };
     try {
       const normalizedSlug = slug.replace(/[^a-zA-Z0-9\-_/]/g, '').toLowerCase();
       const normalizedLocale = locale.toLowerCase();
@@ -101,12 +101,15 @@ export class EmporixCMSService implements IEmporixCMSService {
   ): Promise<CMSLayout | CMSNoResult> {
     try {
       const normalizedLocale = locale.toLowerCase();
-      const layout = await tryLoadWithFallbacks<CMSLayout>((loc, s, v) => this.cmsApi.getLayout(layoutId, loc, s, v), {
-        locale: normalizedLocale,
-        site,
-        version,
-        fallback: options?.fallback,
-      });
+      const layout = await tryLoadWithFallbacks<CMSLayout>(
+        (loc, s, v) => this.cmsApi.getLayout(layoutId, loc, s, v, { noCache: options?.noCache }),
+        {
+          locale: normalizedLocale,
+          site,
+          version,
+          fallback: options?.fallback,
+        },
+      );
 
       if (!layout) {
         return {
@@ -192,11 +195,12 @@ export class EmporixCMSService implements IEmporixCMSService {
 function normalizeGetPageArgs(arg: CMSSiteFallback | GetPageOptions | undefined): {
   fallback?: CMSSiteFallback;
   loadLayout?: boolean;
+  noCache?: boolean;
 } {
   if (!arg) return {};
-  if ('loadLayout' in arg || 'fallback' in arg) {
+  if ('loadLayout' in arg || 'fallback' in arg || 'noCache' in arg) {
     const opts = arg as GetPageOptions;
-    return { fallback: opts.fallback, loadLayout: opts.loadLayout };
+    return { fallback: opts.fallback, loadLayout: opts.loadLayout, noCache: opts.noCache };
   }
   return { fallback: arg as CMSSiteFallback };
 }

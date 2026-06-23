@@ -11,6 +11,11 @@ export interface GetPageOptions {
    * the layout slots. Defaults to `true` for backwards compatibility.
    */
   loadLayout?: boolean;
+  /**
+   * When `true`, bypass the live-read cache and always fetch fresh. Used for
+   * editor-mode previews so just-published changes appear immediately.
+   */
+  noCache?: boolean;
 }
 
 /**
@@ -19,11 +24,10 @@ export interface GetPageOptions {
  */
 export interface GetLayoutOptions {
   /**
-   * Reserved for future layout-specific switches. Currently unused; kept
-   * so the public `getLayout` signature can evolve without another
-   * breaking change.
+   * When `true`, bypass the live-read cache and always fetch fresh. Used for
+   * editor-mode previews so just-published changes appear immediately.
    */
-  // no fields yet
+  noCache?: boolean;
 }
 
 /**

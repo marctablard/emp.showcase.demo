@@ -59,7 +59,7 @@ class EmporixCmsApi implements IEmporixCmsApi {
     options?: GetPageOptions,
   ): Promise<CMSPage | null> {
     const loadLayout = options?.loadLayout !== false;
-    const cacheSeconds = isLiveVersion(version) ? livePageCacheSeconds() : undefined;
+    const cacheSeconds = !options?.noCache && isLiveVersion(version) ? livePageCacheSeconds() : undefined;
     try {
       // Build entity ID using canonical URL hash (matches editor-side convention)
       const url = canonicalUrl(slug);
@@ -86,7 +86,9 @@ class EmporixCmsApi implements IEmporixCmsApi {
         const mixin = entity.mixins?.[this.PAGE_MIXIN_KEY] as PageMixinPayload | undefined;
         const layoutId = mixin?.layout_id;
         const layout =
-          loadLayout && layoutId ? ((await this.getLayout(layoutId, locale, site, version)) ?? undefined) : undefined;
+          loadLayout && layoutId
+            ? ((await this.getLayout(layoutId, locale, site, version, { noCache: options?.noCache })) ?? undefined)
+            : undefined;
         return this.mapEntityToPage(entity, layout);
       }
 
@@ -102,9 +104,9 @@ class EmporixCmsApi implements IEmporixCmsApi {
     locale: string,
     site: string,
     version?: 'draft' | 'live' | string,
-    _options?: GetLayoutOptions,
+    options?: GetLayoutOptions,
   ): Promise<CMSLayout | null> {
-    const cacheSeconds = isLiveVersion(version) ? liveLayoutCacheSeconds() : undefined;
+    const cacheSeconds = !options?.noCache && isLiveVersion(version) ? liveLayoutCacheSeconds() : undefined;
     try {
       // Try versioned/site-scoped id first (matches editor-side convention),
       // then fall back to the bare id for legacy entities.
