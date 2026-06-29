@@ -58,4 +58,49 @@ describe('UiLink', () => {
 
     expect(document.documentElement).not.toHaveAttribute('data-global-cursor');
   });
+
+  it('marks disabled link variants as non-interactive and does not call the click handler', () => {
+    const onClick = jest.fn();
+
+    render(
+      <>
+        <UiLink type="Link" href="/browse" variant="secondary" disabled onClick={onClick}>
+          Browse
+        </UiLink>
+        <UiLink type="A" href="/external" variant="buttonPrimary" disabled onClick={onClick}>
+          External
+        </UiLink>
+      </>,
+    );
+
+    const link = screen.getByRole('link', { name: 'Browse' });
+    const anchor = screen.getByRole('link', { name: 'External' });
+
+    expect(link).toHaveAttribute('aria-disabled', 'true');
+    expect(link).toHaveAttribute('tabindex', '-1');
+    expect(anchor).toHaveAttribute('aria-disabled', 'true');
+    expect(anchor).toHaveAttribute('tabindex', '-1');
+
+    fireEvent.click(link);
+    fireEvent.click(anchor);
+
+    expect(onClick).not.toHaveBeenCalled();
+    expect(document.documentElement).not.toHaveAttribute('data-global-cursor');
+  });
+
+  it('passes the disabled attribute to button links', () => {
+    const onClick = jest.fn();
+
+    render(
+      <UiLink type="Button" variant="buttonPrimary" disabled onClick={onClick}>
+        Submit
+      </UiLink>,
+    );
+
+    const button = screen.getByRole('button', { name: 'Submit' });
+
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(onClick).not.toHaveBeenCalled();
+  });
 });

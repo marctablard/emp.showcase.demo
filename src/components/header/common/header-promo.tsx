@@ -27,7 +27,7 @@ export function HeaderPromo({ className }: HeaderPromoProps) {
           className="flex w-full flex-col items-center justify-between rounded-sm bg-surface-image-background p-2 sm:p-4"
         >
           <div className="relative mb-2 aspect-square w-full overflow-hidden rounded-sm bg-surface-action-hover-2 sm:mb-4">
-            <Image src="/images/img_placeholder.png" alt={promo.title} fill className="object-cover" />
+            <Image src="/images/img_placeholder.png" alt={promo.title} fill sizes="50vw" className="object-cover" />
           </div>
           <div className="flex w-full flex-wrap gap-2 justify-between">
             <p className="text-text-body font-bold" id={`${baseId}-promo-${index}`}>
