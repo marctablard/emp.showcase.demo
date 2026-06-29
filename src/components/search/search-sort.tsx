@@ -20,7 +20,7 @@ export function SearchSort({ availableSorts = [], currentSort, onChangeSort, cha
 
   const options = useMemo(() => {
     return availableSorts.map((sort) => {
-      const label = sort.label || (sort.labelKey ? t(sort.labelKey) : sort.id);
+      const label = sort.label || (sort.labelKey ? t(sort.labelKey as any) : sort.id);
       return { ...sort, displayLabel: label };
     });
   }, [availableSorts, t]);
@@ -76,7 +76,7 @@ export function SearchSort({ availableSorts = [], currentSort, onChangeSort, cha
       </Select>
       {hasActiveSort && (
         <Button
-          variant="outline"
+          variant="secondary"
           size="icon"
           onClick={handleDirectionToggle}
           aria-label={isAscending ? t('direction.asc') : t('direction.desc')}
