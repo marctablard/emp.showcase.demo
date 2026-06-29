@@ -2,8 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test.describe('Login dialog → registration', () => {
   test('Create account from intercepted login navigates to /register', async ({ page }) => {
-    await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     await page.getByRole('button', { name: /^login$/i }).click();
 

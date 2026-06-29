@@ -62,9 +62,15 @@ Unit and integration tests are located alongside the code they test, following a
 
 ### End-to-End Tests (Playwright)
 
-E2E tests are located in the `/e2e` directory at the root of the project. Each test file focuses on a specific feature or user flow:
+E2E tests are located in the `/e2e` directory at the root of the project.
+
+- Root-level specs in `/e2e` are the default environment-agnostic suite and must not depend on tenant-specific env vars or seeded data.
+- Specs in `/e2e/local` are opt-in local tests for tenant/data-dependent scenarios and are excluded from `npm run e2e` by default.
+
+Current default-suite examples:
 
 - `e2e/homepage.spec.ts` - Tests for homepage functionality and locale redirects
+- `e2e/login-dialog-register.spec.ts` - Tests the login dialog to registration flow
 
 ## Dependency Injection in Tests
 
@@ -590,8 +596,11 @@ npm run test -- -t="test name pattern"
 To run Playwright tests, use the following commands:
 
 ```bash
-# Run all Playwright tests
-npx playwright test
+# Run the default environment-agnostic Playwright suite
+npm run e2e
+
+# Run local tenant/data-dependent Playwright tests
+npm run e2e:local
 
 # Run tests in a specific browser
 npx playwright test --project=chromium

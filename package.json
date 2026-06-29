@@ -28,6 +28,7 @@
     "jest:watch": "node scripts/run-jest.cjs --watch",
     "jest:coverage": "node scripts/run-jest.cjs --coverage",
     "e2e": "playwright test",
+    "e2e:local": "playwright test e2e/local",
     "e2e:ui": "playwright test --ui",
     "e2e:debug": "playwright test --debug",
     "e2e:report": "playwright show-report",

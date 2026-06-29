@@ -30,6 +30,7 @@ function stringEnvOnly(env: NodeJS.ProcessEnv): Record<string, string> {
  */
 export default defineConfig({
   testDir: './e2e',
+  testIgnore: ['**/local/**', '**/auth-site-sync.spec.ts'],
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */

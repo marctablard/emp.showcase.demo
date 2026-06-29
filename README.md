@@ -129,7 +129,8 @@ The build process:
 - `npm run jest` - Run unit tests
 - `npm run jest:watch` - Run unit tests in watch mode
 - `npm run jest:coverage` - Run unit tests with coverage
-- `npm run e2e` - Run Playwright E2E tests
+- `npm run e2e` - Run environment-agnostic Playwright E2E tests
+- `npm run e2e:local` - Run local tenant/data-dependent Playwright tests in `e2e/local`
 - `npm run e2e:ui` - Run Playwright in UI mode
 - `npm run e2e:debug` - Run Playwright in debug mode
 - `npm run e2e:report` - Show Playwright HTML report

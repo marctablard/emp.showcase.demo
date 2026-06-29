@@ -9,7 +9,7 @@ test.describe('Homepage Tests', () => {
 
   test('German homepage (/de) loads correctly', async ({ page }) => {
     // Navigate to the German homepage
-    await page.goto('/de');
+    await page.goto('/de', { waitUntil: 'domcontentloaded' });
 
     // Verify the page has loaded by checking for expected elements
     // The header element contains fixed-positioned children, so we check for the first visible child div
@@ -25,7 +25,7 @@ test.describe('Homepage Tests', () => {
 
   test('Default locale (/en) redirects to root (/)', async ({ page }) => {
     // Navigate to the English homepage
-    await page.goto('/en');
+    await page.goto('/en', { waitUntil: 'domcontentloaded' });
 
     // Wait for any redirects to complete
     await page.waitForURL('/');
@@ -40,7 +40,7 @@ test.describe('Homepage Tests', () => {
 
   test('Root URL (/) loads the default English locale', async ({ page }) => {
     // Navigate to the root URL
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     // Verify the page has loaded by checking for the fixed header container
     await expect(page.locator('header > div').first()).toBeVisible();
