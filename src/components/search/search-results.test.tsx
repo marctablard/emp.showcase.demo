@@ -15,6 +15,7 @@ let searchResultsGridProps: { pendingCursor?: boolean } | null = null;
 let searchResultsListProps: { pendingCursor?: boolean } | null = null;
 let activeFiltersWithResetProps: Record<string, unknown> | null = null;
 let mobileCategoryDrawerProps: Record<string, unknown> | null = null;
+let searchSortProps: Record<string, unknown>[] = [];
 
 interface MockUseSearchState {
   loading: boolean;
@@ -50,6 +51,14 @@ jest.mock('@/hooks/search/useSearch', () => ({
     hasMore: false,
     total: 0,
     facets: [],
+    availableSorts: [
+      {
+        id: 'name',
+        label: 'Name',
+        directions: ['asc', 'desc'],
+        defaultDirection: 'asc',
+      },
+    ],
     batteryIncludedFacets: [
       {
         id: 'color',
@@ -64,6 +73,7 @@ jest.mock('@/hooks/search/useSearch', () => ({
     currentSort: mockUseSearchState.currentSort,
     search: mockSearch,
     loadMore: jest.fn(),
+    changeSort: jest.fn(),
     applyFacet: jest.fn(),
     applyRangeFacet: jest.fn(),
     applyAllFacets: jest.fn(),
@@ -86,6 +96,12 @@ jest.mock('@/components/search/search-active-filters-with-reset', () => ({
 }));
 jest.mock('@/components/search/search-filter', () => ({
   SearchFilter: () => <div data-testid="SearchFilter" />,
+}));
+jest.mock('@/components/search/search-sort', () => ({
+  SearchSort: (props: any) => {
+    searchSortProps.push(props);
+    return <div data-testid="SearchSort" />;
+  },
 }));
 jest.mock('@/components/search/search-layout-toggle', () => ({
   SearchLayoutToggle: () => null,
@@ -125,6 +141,7 @@ describe('SearchResultsComponent', () => {
     searchResultsListProps = null;
     activeFiltersWithResetProps = null;
     mobileCategoryDrawerProps = null;
+    searchSortProps = [];
   });
 
   afterEach(() => {
@@ -227,6 +244,48 @@ describe('SearchResultsComponent', () => {
     });
   });
 
+  it('releases the navigation wait cursor after category navigation clears a stale sort selection', async () => {
+    const targetSignature = browseSearchStateSignature({
+      query: '',
+      page: 0,
+      size: 12,
+      sort: undefined,
+      filters: {
+        '_product_i18n.categoryBreadcrumbs.displayPath': 'Solar panels',
+      },
+    });
+
+    mockUseSearchState = {
+      ...mockUseSearchState,
+      currentSort: 'name:asc',
+    };
+
+    acquireNavigationWaitCursorLease(targetSignature);
+    mockSearchParams = new URLSearchParams('currency=USD');
+
+    const { rerender } = render(<SearchResultsComponent locale="en" initialLayout="list" />);
+
+    mockSearchParams = new URLSearchParams('filters%5B_product_i18n.categoryBreadcrumbs.displayPath%5D=Solar+panels');
+    rerender(<SearchResultsComponent locale="en" initialLayout="list" />);
+
+    expect(document.documentElement).toHaveAttribute('data-global-cursor', 'wait');
+    expect(searchResultsListProps?.pendingCursor).toBe(true);
+
+    mockUseSearchState = {
+      ...mockUseSearchState,
+      currentSort: undefined,
+      activeFilters: {
+        '_product_i18n.categoryBreadcrumbs.displayPath': 'Solar panels',
+      },
+    };
+    rerender(<SearchResultsComponent locale="en" initialLayout="list" />);
+
+    await waitFor(() => {
+      expect(document.documentElement).not.toHaveAttribute('data-global-cursor');
+    });
+    expect(searchResultsListProps?.pendingCursor).toBe(false);
+  });
+
   it('passes BatteryIncluded typed facets into active-filter chips', () => {
     render(<SearchResultsComponent locale="en" initialLayout="list" />);
 
@@ -273,12 +332,38 @@ describe('SearchResultsComponent', () => {
         },
       ],
     });
+    expect(searchSortProps.at(-1)).toMatchObject({
+      availableSorts: [
+        {
+          id: 'name',
+          label: 'Name',
+        },
+      ],
+      currentSort: undefined,
+      changeSort: expect.any(Function),
+    });
   });
 
   it('keeps the generic desktop filter surface for non-PLP search results', () => {
     render(<SearchResultsComponent locale="en" initialLayout="list" />);
 
     expect(screen.getAllByTestId('SearchFilter')).toHaveLength(2);
+    expect(screen.getAllByTestId('SearchSort')).toHaveLength(2);
     expect(screen.queryByTestId('MobileCategoryDrawer')).not.toBeInTheDocument();
+  });
+
+  it('passes sort state and handler through to the list view for desktop PLP placement', () => {
+    render(<SearchResultsComponent locale="en" initialLayout="list" />);
+
+    expect(searchResultsListProps).toMatchObject({
+      availableSorts: [
+        {
+          id: 'name',
+          label: 'Name',
+        },
+      ],
+      currentSort: undefined,
+      changeSort: expect.any(Function),
+    });
   });
 });

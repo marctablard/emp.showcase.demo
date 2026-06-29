@@ -17,6 +17,14 @@
     "list": "List view",
     "grid": "Grid view"
   },
+  "sort": {
+    "placeholder": "Sort by",
+    "clear": "Clear sort",
+    "direction": {
+      "asc": "Ascending",
+      "desc": "Descending"
+    }
+  },
   "plpCategoryCarousel": {
     "title": "Categories"
   },

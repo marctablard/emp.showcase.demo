@@ -6,6 +6,7 @@ import { PlpFacetPanel } from '@/components/search/facets';
 import { PlpCategoryBreadcrumbs } from '@/components/search/list-view/plp-category-breadcrumbs';
 import { PlpCategoryTree } from '@/components/search/list-view/plp-category-tree';
 import { SearchProductTileGrid } from '@/components/search/search-product-tile-grid';
+import { SearchSort } from '@/components/search/search-sort';
 import { Button } from '@/components/ui/button';
 import { H2 } from '@/components/ui/h';
 import { useCategoryProductCounts } from '@/hooks/category/useCategoryProductCounts';
@@ -13,7 +14,7 @@ import { resolvePlpCategoryContext } from '@/lib/category/plp-category-context';
 import { l10nOrEmpty } from '@/lib/utils';
 import type { Category } from '@/platform/services/model/category';
 import { getBatteryIncludedCategoryStaticCount } from '@/platform/services/model/category/batteryincluded-category';
-import type { BatteryIncludedFacet, SearchFilterValue } from '@/platform/services/model/common';
+import type { BatteryIncludedFacet, SearchFilterValue, SearchSortOption } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
 
 interface PlpListLayoutProps {
@@ -28,10 +29,13 @@ interface PlpListLayoutProps {
   hasMore: boolean;
   loadingMore: boolean;
   loadMore: () => void | Promise<void>;
+  availableSorts?: SearchSortOption[];
   batteryIncludedFacets?: BatteryIncludedFacet[];
   activeFilters: Record<string, SearchFilterValue>;
+  currentSort?: string;
   applyFacet: (facetId: string, value: string | string[]) => void;
   applyRangeFacet: (facetId: string, min: string, max: string) => void;
+  changeSort: (sort?: string) => void;
   resetFacet: (facetId: string) => void;
   resetAllFacets?: () => void;
   categoryFilterLabelsById?: Record<string, string>;
@@ -57,10 +61,13 @@ export function PlpListLayout({
   hasMore,
   loadingMore,
   loadMore,
+  availableSorts,
   batteryIncludedFacets,
   activeFilters,
+  currentSort,
   applyFacet,
   applyRangeFacet,
+  changeSort,
   resetFacet,
   resetAllFacets,
   categoryFilterLabelsById,
@@ -129,6 +136,9 @@ export function PlpListLayout({
             total={total}
             categoryCountsById={categoryCountsById}
           />
+          <div className="mt-6">
+            <SearchSort availableSorts={availableSorts} currentSort={currentSort} changeSort={changeSort} />
+          </div>
           <PlpFacetPanel
             facets={batteryIncludedFacets}
             activeFilters={activeFilters}

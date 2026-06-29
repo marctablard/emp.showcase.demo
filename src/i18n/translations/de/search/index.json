@@ -17,6 +17,14 @@
     "list": "Listenansicht",
     "grid": "Rasteransicht"
   },
+  "sort": {
+    "placeholder": "Sortieren nach",
+    "clear": "Sortierung entfernen",
+    "direction": {
+      "asc": "Aufsteigend",
+      "desc": "Absteigend"
+    }
+  },
   "plpCategoryCarousel": {
     "title": "Kategorien"
   },

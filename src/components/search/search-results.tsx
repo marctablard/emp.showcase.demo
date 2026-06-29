@@ -67,6 +67,7 @@ export function SearchResultsComponent({
     hasMore,
     total,
     facets: availableFilters,
+    availableSorts,
     batteryIncludedFacets,
     currentPage,
     pageSize,
@@ -74,6 +75,7 @@ export function SearchResultsComponent({
     currentSort,
     search,
     loadMore,
+    changeSort: handleSortChange,
     applyFacet,
     applyRangeFacet,
     applyAllFacets,
@@ -162,6 +164,12 @@ export function SearchResultsComponent({
     categoryFilterLabelsById: navigationLabelIndex,
   };
 
+  const searchSortProps = {
+    availableSorts,
+    currentSort,
+    changeSort: handleSortChange,
+  };
+
   // Shared props for SearchFilter component (used in both mobile and desktop layouts)
   const searchFilterProps = {
     activeFilters,
@@ -242,7 +250,7 @@ export function SearchResultsComponent({
             </div>
           )}
           <div className="flex w-full flex-col items-stretch [&>*]:w-full">
-            <SearchSort />
+            <SearchSort {...searchSortProps} />
           </div>
         </div>
 
@@ -250,6 +258,7 @@ export function SearchResultsComponent({
         <div className="hidden flex-wrap items-center gap-4 sm:flex">
           {showDesktopSearchFilter ? <SearchFilter {...searchFilterProps} /> : null}
           {showStandaloneActiveFilters ? <SearchActiveFiltersWithReset {...activeFiltersProps} /> : null}
+          {showDesktopSearchFilter ? <SearchSort {...searchSortProps} /> : null}
         </div>
 
         <SearchLayoutToggle active={layout} onSelectLayout={() => undefined} />
@@ -292,9 +301,12 @@ export function SearchResultsComponent({
             loadMore={loadMore}
             activeFilters={activeFilters}
             navigationRoots={navigationRoots}
+            availableSorts={availableSorts}
             batteryIncludedFacets={batteryIncludedFacets}
+            currentSort={currentSort}
             applyFacet={applyFacet}
             applyRangeFacet={applyRangeFacet}
+            changeSort={handleSortChange}
             resetFacet={resetFacet}
             topControlsNode={topControlsNode}
           />

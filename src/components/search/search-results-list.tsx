@@ -3,7 +3,7 @@
 import { PlpListLayout } from '@/components/search/list-view/plp-list-layout';
 import { resolveSelectedCategoryIdFromFilters } from '@/lib/search/category-selection';
 import type { Category } from '@/platform/services/model/category';
-import type { BatteryIncludedFacet, SearchFilterValue } from '@/platform/services/model/common';
+import type { BatteryIncludedFacet, SearchFilterValue, SearchSortOption } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
 
 interface SearchResultsListProps {
@@ -18,9 +18,12 @@ interface SearchResultsListProps {
   loadingMore: boolean;
   loadMore: () => void | Promise<void>;
   activeFilters?: Record<string, SearchFilterValue>;
+  availableSorts?: SearchSortOption[];
   batteryIncludedFacets?: BatteryIncludedFacet[];
+  currentSort?: string;
   applyFacet: (facetId: string, value: string | string[]) => void;
   applyRangeFacet: (facetId: string, min: string, max: string) => void;
+  changeSort: (sort?: string) => void;
   resetFacet: (facetId: string) => void;
   resetAllFacets?: () => void;
   categoryFilterLabelsById?: Record<string, string>;
@@ -44,9 +47,12 @@ export function SearchResultsList({
   loadingMore,
   loadMore,
   activeFilters,
+  availableSorts,
   batteryIncludedFacets,
+  currentSort,
   applyFacet,
   applyRangeFacet,
+  changeSort,
   resetFacet,
   resetAllFacets,
   categoryFilterLabelsById,
@@ -69,10 +75,13 @@ export function SearchResultsList({
       hasMore={hasMore}
       loadingMore={loadingMore}
       loadMore={loadMore}
+      availableSorts={availableSorts}
       batteryIncludedFacets={batteryIncludedFacets}
       activeFilters={activeFilters ?? {}}
+      currentSort={currentSort}
       applyFacet={applyFacet}
       applyRangeFacet={applyRangeFacet}
+      changeSort={changeSort}
       resetFacet={resetFacet}
       resetAllFacets={resetAllFacets}
       categoryFilterLabelsById={categoryFilterLabelsById}

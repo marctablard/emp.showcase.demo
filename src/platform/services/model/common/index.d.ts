@@ -127,6 +127,16 @@ export type BatteryIncludedFacet =
   | BatteryIncludedRangeFacet
   | BatteryIncludedRatingFacet;
 
+export type SearchSortDirection = 'asc' | 'desc';
+
+export interface SearchSortOption {
+  id: string;
+  label?: string;
+  labelKey?: string;
+  directions: SearchSortDirection[];
+  defaultDirection: SearchSortDirection;
+}
+
 export type SearchFilterLeafValue = string | string[];
 export type SearchFilterNestedValue = Record<string, SearchFilterLeafValue>;
 export type SearchFilterValue = SearchFilterLeafValue | SearchFilterNestedValue;
@@ -141,6 +151,7 @@ export interface Paginated<T> {
 
 export interface SearchResult<T> extends Paginated<T> {
   availableFilters: Filter[];
+  availableSorts?: SearchSortOption[];
   /**
    * BatteryIncluded-only typed facets for PLP rendering and chip readability.
    * Shared and legacy search consumers should continue using availableFilters.

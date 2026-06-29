@@ -29,6 +29,8 @@ import type { ProductMapper } from '../../model/product/ProductMapper';
 import type { SearchSuggestions, SuggestionsMapper } from '../../model/search';
 import type { SessionService } from '../../session';
 import { BatteryIncludedFacetsQueryBuilder } from './BatteryIncludedFacetsQueryBuilder';
+import { isBatteryIncludedSortFacet } from './BatteryIncludedSortContract';
+import { resolveBatteryIncludedAvailableSorts, resolveBatteryIncludedSort } from './BatteryIncludedSortResolver';
 import type SegmentFilterService from './SegmentFilterService';
 
 const BATTERY_INCLUDED_SELECTION_CONTEXT_KEY = '__batteryIncludedSelection';
@@ -191,6 +193,10 @@ class BatteryIncludedSearchService implements SearchService {
     return fieldLabel && fieldLabel.length > 0 ? fieldLabel : facet.field_name;
   }
 
+  private getFacetCounts(facet: BatteryIncludedFacetCount): BatteryIncludedFacetCountRow[] {
+    return facet.counts ?? [];
+  }
+
   private classifyFacetKind(facet: BatteryIncludedFacetCount): BatteryIncludedFacet['kind'] {
     if (facet.type === 'range') {
       return 'range';
@@ -208,11 +214,13 @@ class BatteryIncludedSearchService implements SearchService {
   }
 
   private isTreeFacet(facet: BatteryIncludedFacetCount): boolean {
-    if (facet.type !== 'select' || facet.counts.length === 0) {
+    const counts = this.getFacetCounts(facet);
+
+    if (facet.type !== 'select' || counts.length === 0) {
       return false;
     }
 
-    return facet.counts.every((row) => {
+    return counts.every((row) => {
       const labelPath = this.splitFacetPath(row.data?.displayPath?.trim());
       const idPath = this.splitFacetPath(row.data?.idPath?.trim());
 
@@ -225,14 +233,17 @@ class BatteryIncludedSearchService implements SearchService {
       return false;
     }
 
-    return facet.counts.every((row) => {
+    return this.getFacetCounts(facet).every((row) => {
       const rating = Number(row.value);
       return Number.isInteger(rating) && rating >= 1 && rating <= 5;
     });
   }
 
   private mapRangeFacet(facet: BatteryIncludedFacetCount): Extract<BatteryIncludedFacet, { kind: 'range' }> {
-    const bounds = facet.counts.reduce<{ min?: string; max?: string }>((accumulator, row) => {
+    const counts = this.getFacetCounts(facet);
+    const statsMin = facet.stats?.min;
+    const statsMax = facet.stats?.max;
+    const legacyBounds = counts.reduce<{ min?: string; max?: string }>((accumulator, row) => {
       if (row.value === 'from') {
         accumulator.min = String(row.count);
       }
@@ -246,8 +257,8 @@ class BatteryIncludedSearchService implements SearchService {
       id: facet.field_name,
       label: this.resolveFacetLabel(facet),
       kind: 'range',
-      min: bounds.min,
-      max: bounds.max,
+      min: statsMin !== undefined ? String(statsMin) : legacyBounds.min,
+      max: statsMax !== undefined ? String(statsMax) : legacyBounds.max,
     };
   }
 
@@ -263,6 +274,7 @@ class BatteryIncludedSearchService implements SearchService {
   private mapBatteryIncludedFacet(facet: BatteryIncludedFacetCount, filters?: SearchFilters): BatteryIncludedFacet {
     const kind = this.classifyFacetKind(facet);
     const label = this.resolveFacetLabel(facet);
+    const counts = this.getFacetCounts(facet);
 
     if (kind === 'range') {
       return this.mapRangeFacet(facet);
@@ -273,7 +285,7 @@ class BatteryIncludedSearchService implements SearchService {
         id: facet.field_name,
         label,
         kind,
-        options: facet.counts.map((row) => {
+        options: counts.map((row) => {
           const labelPath = this.splitFacetPath(row.data?.displayPath?.trim());
           const idPath = this.splitFacetPath(row.data?.idPath?.trim());
           return this.mapTreeFacetOption(facet.field_name, row, labelPath, idPath, filters);
@@ -286,7 +298,7 @@ class BatteryIncludedSearchService implements SearchService {
         id: facet.field_name,
         label,
         kind,
-        options: facet.counts.map((row) => ({
+        options: counts.map((row) => ({
           ...this.mapFacetOption(facet.field_name, row, filters),
           label: this.mapRatingLabel(row.value),
         })),
@@ -297,7 +309,7 @@ class BatteryIncludedSearchService implements SearchService {
       id: facet.field_name,
       label,
       kind,
-      options: facet.counts.map((row) => this.mapFacetOption(facet.field_name, row, filters)),
+      options: counts.map((row) => this.mapFacetOption(facet.field_name, row, filters)),
     };
   }
 
@@ -388,12 +400,15 @@ class BatteryIncludedSearchService implements SearchService {
       }
     }
 
+    const requestSort = resolveBatteryIncludedSort(params.sort, resolveBatteryIncludedAvailableSorts());
+
     const searchResult: BatteryIncludedSearchResponse<BatteryIncludedProduct> = await this.shopApi.browse({
       page: (params.page || 0) + 1, // normalize page
       size: params.size,
       query: params.query,
-      sort: params.sort,
+      sort: requestSort?.upstreamSort,
       variants: 0,
+      analyze: 1,
       variables,
       filters: BatteryIncludedFacetsQueryBuilder.build(filters) as
         | NonNullable<BatteryIncludedSearchParams<BatteryIncludedProduct>['filters']>
@@ -401,8 +416,14 @@ class BatteryIncludedSearchService implements SearchService {
     });
     const variantCountByParentId = this.buildVariantCountByParentId(searchResult.hits);
 
+    const availableSorts = resolveBatteryIncludedAvailableSorts(searchResult.facet_counts);
     const batteryIncludedFacets = searchResult.facet_counts
-      .filter((facet) => facet.field_name !== 'segmentIds' && facet.field_name !== BATTERY_INCLUDED_BREADCRUMB_FILTER)
+      .filter(
+        (facet) =>
+          facet.field_name !== 'segmentIds' &&
+          facet.field_name !== BATTERY_INCLUDED_BREADCRUMB_FILTER &&
+          !isBatteryIncludedSortFacet(facet),
+      )
       .map((facet) => this.mapBatteryIncludedFacet(facet, filters));
     const availableFilters = batteryIncludedFacets.map((facet) => this.toLegacyFilter(facet));
     return {
@@ -424,6 +445,7 @@ class BatteryIncludedSearchService implements SearchService {
       pageSize: params.size || 10, // default
       total: searchResult.found,
       availableFilters: availableFilters,
+      availableSorts,
       batteryIncludedFacets,
     };
   }

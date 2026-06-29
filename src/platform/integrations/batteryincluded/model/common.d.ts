@@ -33,13 +33,18 @@ export interface BatteryIncludedFacetCountRow {
   data?: BatteryIncludedFacetCountRowData;
 }
 
+export interface BatteryIncludedFacetStats {
+  total_values?: number;
+  min?: number;
+  max?: number;
+  [key: string]: unknown;
+}
+
 export interface BatteryIncludedFacetCount {
-  counts: BatteryIncludedFacetCountRow[];
+  counts?: BatteryIncludedFacetCountRow[];
   field_label?: string;
   field_name: string;
-  stats: {
-    total_values: number;
-  };
+  stats?: BatteryIncludedFacetStats;
   type: 'select' | 'range';
 }
 

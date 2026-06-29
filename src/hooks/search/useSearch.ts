@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import useHistory from '@/hooks/history/useHistory';
 import { useSiteCode } from '@/hooks/site/useSiteCode';
 import { getLogger } from '@/lib/logger/use-logger-client';
+import { isDedicatedCategorySelectionFilter } from '@/lib/search/category-selection';
 import type {
   BatteryIncludedFacet,
   Filter,
@@ -11,6 +12,7 @@ import type {
   SearchFilters,
   SearchParams,
   SearchResult,
+  SearchSortOption,
 } from '@/platform/services/model/common';
 import type { SearchSuggestions } from '@/platform/services/model/search/SearchSuggestions';
 import { useSessionStore } from '@/providers/StoreProvider';
@@ -27,6 +29,15 @@ export const USE_SEARCH_CLIENT_ERROR = {
 
 export type UseSearchClientError = (typeof USE_SEARCH_CLIENT_ERROR)[keyof typeof USE_SEARCH_CLIENT_ERROR];
 
+const clearNonCategoryFilters = (filters: SearchFilters): SearchFilters => {
+  return Object.fromEntries(Object.entries(filters).filter(([facetId]) => isDedicatedCategorySelectionFilter(facetId)));
+};
+
+const normalizeFiltersForCategorySelection = (filters: SearchFilters): SearchFilters => {
+  const nextCategoryFilters = Object.keys(filters).filter((facetId) => isDedicatedCategorySelectionFilter(facetId));
+  return nextCategoryFilters.length > 0 ? clearNonCategoryFilters(filters) : filters;
+};
+
 export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: SearchResult<T>) {
   const { addSearchQuery } = useHistory();
   const router = useRouter();
@@ -36,6 +47,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<UseSearchClientError | null>(null);
   const [facets, setFacets] = useState<Filter[]>([]);
+  const [availableSorts, setAvailableSorts] = useState<SearchSortOption[]>(initialResult?.availableSorts || []);
   const [batteryIncludedFacets, setBatteryIncludedFacets] = useState<BatteryIncludedFacet[] | undefined>(
     initialResult?.batteryIncludedFacets,
   );
@@ -137,10 +149,13 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         const url = new URL('/api/search', window.location.origin);
 
         // Add basic parameters
-        if (params.query) {
-          url.searchParams.append('query', params.query);
-          setCurrentQuery(params.query);
+        const normalizedQuery = params.query?.trim() ? params.query : undefined;
+
+        if (normalizedQuery) {
+          url.searchParams.append('query', normalizedQuery);
         }
+
+        setCurrentQuery(normalizedQuery);
 
         if (params.page !== undefined) {
           url.searchParams.append('page', params.page.toString());
@@ -154,8 +169,9 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
 
         if (params.sort) {
           url.searchParams.append('sort', params.sort);
-          setCurrentSort(params.sort);
         }
+
+        setCurrentSort(params.sort);
         url.searchParams.append('site', resolvedSite);
         url.searchParams.append('locale', locale);
         if (sessionCurrency) {
@@ -180,7 +196,11 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         }
         setActiveFilters(filtersToApply ?? {});
 
-        const paramsForRef: SearchParams<T> = { ...params, filters: filtersToApply };
+        const paramsForRef: SearchParams<T> = {
+          ...params,
+          query: normalizedQuery,
+          filters: filtersToApply,
+        };
         lastSearchParams.current = paramsForRef;
 
         // Update browser URL with the same parameters (but with 'q' instead of 'query')
@@ -208,6 +228,8 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
           setFacets(data.availableFilters);
         }
 
+        setAvailableSorts(data.availableSorts || []);
+
         setBatteryIncludedFacets(data.batteryIncludedFacets);
       } catch (err) {
         if (gen === searchGeneration.current) {
@@ -228,7 +250,10 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
    */
   const applyFacet = useCallback(
     (facetId: string, value: string | string[]) => {
-      const newFilters = { ...activeFilters, [facetId]: value };
+      const mergedFilters = { ...activeFilters, [facetId]: value };
+      const newFilters = isDedicatedCategorySelectionFilter(facetId)
+        ? normalizeFiltersForCategorySelection(mergedFilters)
+        : mergedFilters;
 
       // Reset to first page when applying a filter
       search({
@@ -269,7 +294,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   const applyAllFacets = useCallback(
     (facets: Array<{ facetId: string; value: string | string[] } | { facetId: string; min: string; max: string }>) => {
       // Start with current active filters
-      const newFilters = { ...activeFilters };
+      const newFilters: SearchFilters = { ...activeFilters };
 
       // Apply each facet to build up the filters object
       facets.forEach((facet) => {
@@ -285,11 +310,13 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         }
       });
 
+      const normalizedFilters = normalizeFiltersForCategorySelection(newFilters);
+
       // Reset to first page when applying filters
       search({
         ...lastSearchParams.current,
         page: 0,
-        filters: newFilters,
+        filters: normalizedFilters,
       });
     },
     [activeFilters, search],
@@ -389,6 +416,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
       setData((prev) => [...prev, ...result.items]);
       setCurrentPage(nextPage);
       setTotal(result.total);
+      setAvailableSorts(result.availableSorts || []);
       setBatteryIncludedFacets(result.batteryIncludedFacets);
 
       lastSearchParams.current = { ...lastSearchParams.current, page: nextPage };
@@ -445,7 +473,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   );
 
   const changeSort = useCallback(
-    (sort: string) => {
+    (sort?: string) => {
       search({
         ...lastSearchParams.current,
         sort,
@@ -496,6 +524,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     error,
     hasMore,
     facets,
+    availableSorts,
     batteryIncludedFacets,
     total,
     currentPage,

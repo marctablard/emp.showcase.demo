@@ -226,7 +226,7 @@ describe('BatteryIncludedSearchService', () => {
     });
   });
 
-  it('returns typed BatteryIncluded facets alongside legacy availableFilters and falls back to select when rating classification does not match', async () => {
+  it('returns explicit BI sort facets alongside typed BatteryIncluded facets and legacy availableFilters', async () => {
     const shopApi = {
       browse: jest.fn().mockResolvedValue({
         hits: [{ document: { id: 'product-1' } }],
@@ -272,6 +272,16 @@ describe('BatteryIncludedSearchService', () => {
                   idPath: 'power-tools > drills',
                 },
               },
+            ],
+          },
+          {
+            field_name: 'name',
+            field_label: 'Name',
+            type: 'select',
+            stats: { total_values: 2 },
+            counts: [
+              { count: 0, value: 'name:asc' },
+              { count: 0, value: 'name:desc' },
             ],
           },
           {
@@ -341,6 +351,12 @@ describe('BatteryIncludedSearchService', () => {
       'main',
     );
 
+    expect(shopApi.browse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        analyze: 1,
+      }),
+    );
+
     expect(result.availableFilters).toEqual([
       {
         id: 'color',
@@ -380,6 +396,14 @@ describe('BatteryIncludedSearchService', () => {
         name: 'customerRating',
         labelIsPlainText: true,
         values: [{ id: '4', name: '4', active: true, count: 1 }],
+      },
+    ]);
+    expect(result.availableSorts).toEqual([
+      {
+        id: 'name',
+        label: 'Name',
+        directions: ['asc', 'desc'],
+        defaultDirection: 'asc',
       },
     ]);
     expect(result.batteryIncludedFacets).toEqual([
@@ -428,6 +452,418 @@ describe('BatteryIncludedSearchService', () => {
         label: 'customerRating',
         kind: 'select',
         options: [{ id: '4', label: '4', active: true, count: 1 }],
+      },
+    ]);
+  });
+
+  it.each([
+    '_product_i18n.mixins.highlights.highlights:asc',
+    '_product_siteAware.currencyAware.countryAware.prices.effectiveAmount:desc',
+  ])('drops curated-fallback unsafe sort token %s instead of forwarding it upstream', async (sort) => {
+    const shopApi = {
+      browse: jest.fn().mockResolvedValue({
+        hits: [{ document: { id: 'product-1' } }],
+        found: 1,
+        page: 1,
+        size: 12,
+        facet_counts: [],
+      }),
+      suggest: jest.fn(),
+      getHighlights: jest.fn(),
+      getRecommendations: jest.fn(),
+      getPresets: jest.fn(),
+    };
+
+    const service = new BatteryIncludedSearchService(
+      shopApi as never,
+      { mapToService: jest.fn().mockReturnValue({ id: 'mapped-product-1' }) } as never,
+      { getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'US', currency: 'USD' }) } as never,
+      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
+      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
+      { getSnapshot: jest.fn() } as never,
+      { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'US' }) } as never,
+      {
+        trace: jest.fn(),
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        fatal: jest.fn(),
+      } as never,
+    );
+
+    await service.searchProducts(
+      {
+        page: 0,
+        size: 12,
+        sort,
+      },
+      'en',
+      'main',
+    );
+
+    expect(shopApi.browse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sort: undefined,
+      }),
+    );
+  });
+
+  it('forwards a supported response-driven BI sort token upstream on the next browse request', async () => {
+    const shopApi = {
+      browse: jest.fn().mockResolvedValue({
+        hits: [{ document: { id: 'product-1' } }],
+        found: 1,
+        page: 1,
+        size: 12,
+        facet_counts: [
+          {
+            field_name: 'name',
+            field_label: 'Name',
+            type: 'select',
+            stats: { total_values: 2 },
+            counts: [
+              { count: 0, value: 'name:asc' },
+              { count: 0, value: 'name:desc' },
+            ],
+          },
+        ],
+      }),
+      suggest: jest.fn(),
+      getHighlights: jest.fn(),
+      getRecommendations: jest.fn(),
+      getPresets: jest.fn(),
+    };
+
+    const service = new BatteryIncludedSearchService(
+      shopApi as never,
+      { mapToService: jest.fn().mockReturnValue({ id: 'mapped-product-1' }) } as never,
+      { getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'US', currency: 'USD' }) } as never,
+      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
+      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
+      { getSnapshot: jest.fn() } as never,
+      { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'US' }) } as never,
+      {
+        trace: jest.fn(),
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        fatal: jest.fn(),
+      } as never,
+    );
+
+    await service.searchProducts(
+      {
+        page: 0,
+        size: 12,
+        sort: 'name:desc',
+      },
+      'en',
+      'main',
+    );
+
+    expect(shopApi.browse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sort: 'name:desc',
+      }),
+    );
+  });
+
+  it('exposes only curated safe fallback availableSorts when BI does not expose dedicated sort facets', async () => {
+    const shopApi = {
+      browse: jest.fn().mockResolvedValue({
+        hits: [{ document: { id: 'product-1' } }],
+        found: 1,
+        page: 1,
+        size: 12,
+        facet_counts: [
+          {
+            field_name: '_product_i18n.brand.name',
+            field_label: 'EN Brand Name',
+            type: 'select',
+            stats: { total_values: 2 },
+            counts: [
+              { count: 4, value: 'Acme' },
+              { count: 2, value: 'Bravo' },
+            ],
+          },
+          {
+            field_name: '_product_siteAware.currencyAware.countryAware.prices.effectiveAmount',
+            field_label: 'Netto Price USD',
+            type: 'range',
+            stats: { min: 11, max: 99 },
+          },
+          {
+            field_name: '_product_i18n.mixins.highlights.highlights',
+            field_label: 'Highlights',
+            type: 'select',
+            stats: { total_values: 1 },
+            counts: [{ count: 3, value: 'Fast charging' }],
+          },
+          {
+            field_name: 'segmentIds',
+            field_label: 'Segments',
+            type: 'select',
+            stats: { total_values: 1 },
+            counts: [{ count: 1, value: 'vip' }],
+          },
+          {
+            field_name: '_product_i18n.categoryBreadcrumbs.displayPath',
+            field_label: 'Breadcrumb',
+            type: 'select',
+            stats: { total_values: 1 },
+            counts: [
+              {
+                count: 1,
+                value: 'Cables > USB-C',
+                data: {
+                  displayPath: 'Cables > USB-C',
+                  idPath: 'root-a > child-a',
+                },
+              },
+            ],
+          },
+        ],
+      }),
+      suggest: jest.fn(),
+      getHighlights: jest.fn(),
+      getRecommendations: jest.fn(),
+      getPresets: jest.fn(),
+    };
+
+    const service = new BatteryIncludedSearchService(
+      shopApi as never,
+      { mapToService: jest.fn().mockReturnValue({ id: 'mapped-product-1' }) } as never,
+      { getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'US', currency: 'USD' }) } as never,
+      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
+      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
+      { getSnapshot: jest.fn() } as never,
+      { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'US' }) } as never,
+      {
+        trace: jest.fn(),
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        fatal: jest.fn(),
+      } as never,
+    );
+
+    const result = await service.searchProducts({ page: 0, size: 12 }, 'en', 'main');
+
+    expect(result.availableSorts).toEqual([
+      {
+        id: '_product_i18n.brand.name',
+        label: 'Brand',
+        directions: ['asc', 'desc'],
+        defaultDirection: 'asc',
+      },
+    ]);
+    expect(result.availableSorts?.some((sort) => sort.id === '_product_i18n.mixins.highlights.highlights')).toBe(false);
+    expect(
+      result.availableSorts?.some(
+        (sort) => sort.id === '_product_siteAware.currencyAware.countryAware.prices.effectiveAmount',
+      ),
+    ).toBe(false);
+  });
+
+  it('maps stats-only BI range facets without crashing and preserves min/max in typed and legacy filters', async () => {
+    const shopApi = {
+      browse: jest.fn().mockResolvedValue({
+        hits: [{ document: { id: 'product-1' } }],
+        found: 1,
+        page: 1,
+        size: 12,
+        facet_counts: [
+          {
+            field_name: '_product_siteAware.currencyAware.countryAware.prices.effectiveAmount',
+            field_label: 'Netto Price DE',
+            field_unit: '',
+            type: 'range',
+            stats: { min: 21, max: 69 },
+          },
+        ],
+      }),
+      suggest: jest.fn(),
+      getHighlights: jest.fn(),
+      getRecommendations: jest.fn(),
+      getPresets: jest.fn(),
+    };
+
+    const service = new BatteryIncludedSearchService(
+      shopApi as never,
+      { mapToService: jest.fn().mockReturnValue({ id: 'mapped-product-1' }) } as never,
+      { getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'DE', currency: 'EUR' }) } as never,
+      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
+      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
+      { getSnapshot: jest.fn() } as never,
+      { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }) } as never,
+      {
+        trace: jest.fn(),
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        fatal: jest.fn(),
+      } as never,
+    );
+
+    const result = await service.searchProducts({ page: 0, size: 12 }, 'en', 'main');
+
+    expect(result.batteryIncludedFacets).toEqual([
+      {
+        id: '_product_siteAware.currencyAware.countryAware.prices.effectiveAmount',
+        label: 'Netto Price DE',
+        kind: 'range',
+        min: '21',
+        max: '69',
+      },
+    ]);
+    expect(result.availableFilters).toEqual([
+      {
+        id: '_product_siteAware.currencyAware.countryAware.prices.effectiveAmount',
+        name: 'Netto Price DE',
+        labelIsPlainText: true,
+        values: [
+          { id: '21', name: '21', active: false },
+          { id: '69', name: '69', active: false },
+        ],
+      },
+    ]);
+  });
+
+  it('does not crash on browse-like mixed select, tree, and stats-only range facets', async () => {
+    const shopApi = {
+      browse: jest.fn().mockResolvedValue({
+        hits: [{ document: { id: 'product-1' } }],
+        found: 1,
+        page: 1,
+        size: 12,
+        facet_counts: [
+          {
+            field_name: 'brand',
+            field_label: 'Brand',
+            type: 'select',
+            stats: { total_values: 2 },
+            counts: [
+              { count: 1, value: 'EcoFlow' },
+              { count: 2, value: 'Victron Energy' },
+            ],
+          },
+          {
+            field_name: 'categoryTree',
+            type: 'select',
+            stats: { total_values: 1 },
+            counts: [
+              {
+                count: 3,
+                value: 'Electrical supplies > Power generation',
+                data: {
+                  displayPath: 'Electrical supplies > Power generation',
+                  idPath: 'electrical-supplies > power-generation',
+                },
+              },
+            ],
+          },
+          {
+            field_name: '_product_siteAware.currencyAware.countryAware.prices.effectiveAmount',
+            field_label: 'Netto Price DE',
+            type: 'range',
+            stats: { min: 21, max: 69 },
+          },
+        ],
+      }),
+      suggest: jest.fn(),
+      getHighlights: jest.fn(),
+      getRecommendations: jest.fn(),
+      getPresets: jest.fn(),
+    };
+
+    const service = new BatteryIncludedSearchService(
+      shopApi as never,
+      { mapToService: jest.fn().mockReturnValue({ id: 'mapped-product-1' }) } as never,
+      { getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'DE', currency: 'EUR' }) } as never,
+      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
+      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
+      { getSnapshot: jest.fn() } as never,
+      { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }) } as never,
+      {
+        trace: jest.fn(),
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        fatal: jest.fn(),
+      } as never,
+    );
+
+    const result = await service.searchProducts({ page: 0, size: 12 }, 'en', 'main');
+
+    expect(result.batteryIncludedFacets).toEqual([
+      {
+        id: 'brand',
+        label: 'Brand',
+        kind: 'select',
+        options: [
+          { id: 'EcoFlow', label: 'EcoFlow', active: false, count: 1 },
+          { id: 'Victron Energy', label: 'Victron Energy', active: false, count: 2 },
+        ],
+      },
+      {
+        id: 'categoryTree',
+        label: 'categoryTree',
+        kind: 'tree',
+        options: [
+          {
+            id: 'Electrical supplies > Power generation',
+            label: 'Electrical supplies > Power generation',
+            active: false,
+            count: 3,
+            labelPath: ['Electrical supplies', 'Power generation'],
+            idPath: ['electrical-supplies', 'power-generation'],
+          },
+        ],
+      },
+      {
+        id: '_product_siteAware.currencyAware.countryAware.prices.effectiveAmount',
+        label: 'Netto Price DE',
+        kind: 'range',
+        min: '21',
+        max: '69',
+      },
+    ]);
+    expect(result.availableFilters).toEqual([
+      {
+        id: 'brand',
+        name: 'Brand',
+        labelIsPlainText: true,
+        values: [
+          { id: 'EcoFlow', name: 'EcoFlow', active: false, count: 1 },
+          { id: 'Victron Energy', name: 'Victron Energy', active: false, count: 2 },
+        ],
+      },
+      {
+        id: 'categoryTree',
+        name: 'categoryTree',
+        labelIsPlainText: true,
+        values: [
+          {
+            id: 'Electrical supplies > Power generation',
+            name: 'Electrical supplies > Power generation',
+            active: false,
+            count: 3,
+          },
+        ],
+      },
+      {
+        id: '_product_siteAware.currencyAware.countryAware.prices.effectiveAmount',
+        name: 'Netto Price DE',
+        labelIsPlainText: true,
+        values: [
+          { id: '21', name: '21', active: false },
+          { id: '69', name: '69', active: false },
+        ],
       },
     ]);
   });

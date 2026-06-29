@@ -207,7 +207,7 @@ export function FooterWrapper({ className, ...props }: React.ComponentProps<'div
         <div
           data-slot="footer"
           className={cn(
-            'pb-1 sm:mx-4 lg:mx-9 shadow-xl rounded-ss-lg rounded-se-lg  bg-[url("/images/footer-bg.svg")] bg-no-repeat bg-right-bottom',
+            "pb-1 sm:mx-4 lg:mx-9 shadow-xl rounded-ss-lg rounded-se-lg bg-[url('/images/footer-bg.svg')] bg-no-repeat bg-right-bottom",
             className,
           )}
           {...props}
