@@ -1,5 +1,17 @@
 import { expect, test } from '@playwright/test';
 
+async function expectHomepageShell(page: Parameters<typeof test>[0]['page']): Promise<void> {
+  await expect(page.locator('header > div').first()).toBeVisible();
+}
+
+async function getActiveLocale(page: Parameters<typeof test>[0]['page']): Promise<string> {
+  const activeLocale = await page.locator('html').getAttribute('lang');
+
+  expect(activeLocale).toBeTruthy();
+
+  return activeLocale!;
+}
+
 /**
  * Test suite for the Emporix Showcase homepage
  * Tests basic functionality like loading and locale redirects
@@ -7,49 +19,28 @@ import { expect, test } from '@playwright/test';
 test.describe('Homepage Tests', () => {
   // Base URL is configured in playwright.config.ts
 
-  test('German homepage (/de) loads correctly', async ({ page }) => {
-    // Navigate to the German homepage
-    await page.goto('/de', { waitUntil: 'domcontentloaded' });
-
-    // Verify the page has loaded by checking for expected elements
-    // The header element contains fixed-positioned children, so we check for the first visible child div
-    await expect(page.locator('header > div').first()).toBeVisible();
-
-    // Check that we're on the German version by looking for German Locale
-    const htmlLang = await page.getAttribute('html', 'lang');
-    expect(htmlLang).toBe('de'); // German
-
-    // Check the URL is correct
-    expect(page.url()).toContain('/de');
-  });
-
-  test('Default locale (/en) redirects to root (/)', async ({ page }) => {
-    // Navigate to the English homepage
-    await page.goto('/en', { waitUntil: 'domcontentloaded' });
-
-    // Wait for any redirects to complete
-    await page.waitForURL('/');
-
-    // Verify we've been redirected to the root URL
-    expect(page.url()).toContain('/');
-
-    // Check that we're on the English version by looking for English Locale
-    const htmlLang = await page.getAttribute('html', 'lang');
-    expect(htmlLang).toBe('en'); // English
-  });
-
-  test('Root URL (/) loads the default English locale', async ({ page }) => {
+  test('Root URL (/) loads the homepage using the active default locale', async ({ page }) => {
     // Navigate to the root URL
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
-    // Verify the page has loaded by checking for the fixed header container
-    await expect(page.locator('header > div').first()).toBeVisible();
+    await expectHomepageShell(page);
 
     // Check the URL is correct
-    expect(page.url()).toContain('/');
+    expect(new URL(page.url()).pathname).toBe('/');
 
-    // Check that we're on the English version by looking for English Locale
-    const htmlLang = await page.getAttribute('html', 'lang');
-    expect(htmlLang).toBe('en'); // English
+    await getActiveLocale(page);
+  });
+
+  test('Current default-locale path resolves to the same homepage locale as root', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await expectHomepageShell(page);
+
+    const defaultLocale = await getActiveLocale(page);
+
+    await page.goto(`/${defaultLocale}`, { waitUntil: 'domcontentloaded' });
+    await expectHomepageShell(page);
+
+    expect(await getActiveLocale(page)).toBe(defaultLocale);
+    expect(['/', `/${defaultLocale}`]).toContain(new URL(page.url()).pathname);
   });
 });

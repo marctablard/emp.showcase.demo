@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ArrowLeft } from 'lucide-react';
 import { QuoteStatusBadge } from '@/components/account/quotes/quote-status-badge';
@@ -58,6 +58,15 @@ const QUOTE_DECISION_REASON_OPTIONS = {
   DECLINE: ['PRICE_TOO_HIGH', 'NO_LONGER_NEEDED', 'DELIVERY_TIME_LATE', 'OTHER'],
 } as const;
 
+function getApproverSortValue(approver: {
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+  userId: string;
+}): string {
+  return approver.firstName?.trim() || approver.fullName?.trim() || approver.lastName?.trim() || approver.userId;
+}
+
 type QuoteDecisionMode = keyof typeof QUOTE_DECISION_REASON_OPTIONS;
 
 export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
@@ -92,6 +101,24 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
     resourceId: quoteId,
     action: QUOTE_APPROVAL_ACTION,
   });
+
+  const sortedApprovers = useMemo(() => {
+    if (!approvers) {
+      return undefined;
+    }
+
+    return [...approvers].sort((left, right) => {
+      const firstNameComparison = getApproverSortValue(left).localeCompare(getApproverSortValue(right), locale, {
+        sensitivity: 'base',
+      });
+
+      if (firstNameComparison !== 0) {
+        return firstNameComparison;
+      }
+
+      return left.userId.localeCompare(right.userId, locale, { sensitivity: 'base' });
+    });
+  }, [approvers, locale]);
 
   const updateQuoteStatus = async (
     quoteId: string,
@@ -425,9 +452,9 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
             <DialogDescription>{tApproval('selectApproverRequired')}</DialogDescription>
           </DialogHeader>
 
-          {approvers && approvers.length > 0 && (
+          {sortedApprovers && sortedApprovers.length > 0 && (
             <div className="space-y-2 max-h-[200px] overflow-y-auto rounded-md border p-2">
-              {approvers.map((approver) => (
+              {sortedApprovers.map((approver) => (
                 <button
                   type="button"
                   key={approver.userId}

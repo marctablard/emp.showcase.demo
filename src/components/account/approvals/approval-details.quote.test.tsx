@@ -125,16 +125,25 @@ describe('Company quote approval details', () => {
     });
   });
 
-  it('keeps the initial accept action UI-only and reveals the create-order state', async () => {
+  it('keeps the initial accept action UI-only and reveals the create-quote state', async () => {
     render(<ApprovalDetails approvalId="approval-1" currentUserId="approver-1" />);
+
+    fireEvent.change(screen.getByPlaceholderText('enterApproverComment'), {
+      target: { value: 'Ready for review' },
+    });
+
+    expect(screen.getByText('saveApproverComment')).not.toBeDisabled();
 
     fireEvent.click(screen.getByText('approve'));
 
     expect(updateApprovalStatus).not.toHaveBeenCalled();
     expect(global.fetch).not.toHaveBeenCalled();
-    expect(screen.getByText('createOrderAfterApprovalTitle')).toBeInTheDocument();
-    expect(screen.getByLabelText('yourComment')).toBeInTheDocument();
-    expect(screen.getByText('createOrder')).toBeInTheDocument();
+    expect(screen.getByText('createQuoteAfterApprovalTitle')).toBeInTheDocument();
+    expect(screen.getByLabelText('yourComment')).toHaveFocus();
+    expect(screen.getByText('createQuoteAfterApprovalAction')).toBeInTheDocument();
+    expect(screen.getByText('approve')).toBeDisabled();
+    expect(screen.getByText('decline')).toBeDisabled();
+    expect(screen.getByText('saveApproverComment')).toBeDisabled();
   });
 
   it('disables approval actions while the decline flow is in progress', async () => {
@@ -161,15 +170,15 @@ describe('Company quote approval details', () => {
     });
   });
 
-  it('shows a create-order form after a quote approval is approved', async () => {
+  it('shows a create-quote form after a quote approval is approved', async () => {
     render(<ApprovalDetails approvalId="approval-1" currentUserId="approver-1" />);
 
     fireEvent.click(screen.getByText('approve'));
 
     await waitFor(() => {
-      expect(screen.getByText('createOrderAfterApprovalTitle')).toBeInTheDocument();
+      expect(screen.getByText('createQuoteAfterApprovalTitle')).toBeInTheDocument();
       expect(screen.getByLabelText('yourComment')).toBeInTheDocument();
-      expect(screen.getByText('createOrder')).toBeInTheDocument();
+      expect(screen.getByText('createQuoteAfterApprovalAction')).toBeInTheDocument();
     });
   });
 
@@ -180,7 +189,7 @@ describe('Company quote approval details', () => {
     fireEvent.change(screen.getByLabelText('yourComment'), {
       target: { value: 'Please ship fast' },
     });
-    fireEvent.click(screen.getByText('createOrder'));
+    fireEvent.click(screen.getByText('createQuoteAfterApprovalAction'));
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
@@ -218,7 +227,7 @@ describe('Company quote approval details', () => {
     render(<ApprovalDetails approvalId="approval-1" currentUserId="approver-1" />);
 
     fireEvent.click(screen.getByText('approve'));
-    fireEvent.click(screen.getByText('createOrder'));
+    fireEvent.click(screen.getByText('createQuoteAfterApprovalAction'));
 
     await waitFor(() => {
       expect(screen.getByText('create order failed')).toBeInTheDocument();
@@ -325,6 +334,17 @@ describe('Company quote approval details', () => {
     render(<ApprovalDetails approvalId="approval-1" currentUserId="approver-1" />);
 
     expect(screen.getByText('addApproverComment')).toBeInTheDocument();
+    expect(screen.queryByText('addRequestorComment')).not.toBeInTheDocument();
+  });
+
+  it('hides comment actions once the approval flow is finished', () => {
+    mockApproval = buildApproval({
+      status: 'APPROVED',
+    });
+
+    render(<ApprovalDetails approvalId="approval-1" currentUserId="approver-1" />);
+
+    expect(screen.queryByText('addApproverComment')).not.toBeInTheDocument();
     expect(screen.queryByText('addRequestorComment')).not.toBeInTheDocument();
   });
 

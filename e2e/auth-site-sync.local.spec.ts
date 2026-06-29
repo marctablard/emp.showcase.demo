@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test';
 
-const LOGIN_EMAIL = process.env.E2E_LOGIN_EMAIL;
-const LOGIN_PASSWORD = process.env.E2E_LOGIN_PASSWORD;
 const DEFAULT_SITE_CODE = process.env.NEXT_PUBLIC_DEFAULT_SITE || 'main';
+const BOOTSTRAP_ROUTE = '/api/test/auth/bootstrap';
+const BOOTSTRAP_HEADER_NAME = 'x-emporix-local-auth-bootstrap';
+const BOOTSTRAP_HEADER_VALUE = 'auth-site-sync';
 const SITE_LABEL_BY_CODE: Record<string, string> = {
   main: 'Showcase',
   'us-branch': 'US',
@@ -20,37 +21,33 @@ function getSiteCodeFromPath(pathname: string): string {
   return firstSegment;
 }
 
-test.describe('Auth + Site synchronization', () => {
-  test.skip(!LOGIN_EMAIL || !LOGIN_PASSWORD, 'Set E2E_LOGIN_EMAIL and E2E_LOGIN_PASSWORD to run auth sync tests.');
+function getAlternateSiteCode(currentSiteCode: string): string {
+  return currentSiteCode === 'us-branch' ? 'main' : 'us-branch';
+}
 
-  test('post-login URL site segment matches session site and header stays consistent after post-login switch', async ({
+test.describe('Auth + Site synchronization', () => {
+  test('bootstrap-authenticated /api/session state stays aligned with URL and header after a site switch', async ({
     page,
   }) => {
     await page.goto('/');
 
-    // Pre-login: switch to US to reproduce canonicalization handoff path.
+    // Start on US before bootstrap so the request-scoped shopper session is created against the
+    // same site/currency handoff this scenario has historically asserted via `/api/session`.
     await page.evaluate(() => window.scrollTo({ top: 0 }));
     await expect(page.locator('button[aria-label="Site"]')).toBeVisible({ timeout: 10_000 });
     await page.locator('button[aria-label="Site"]').click();
     await page.getByRole('menuitem', { name: 'US' }).click();
     await expect(page).toHaveURL(/\/us-branch/);
 
-    await page.goto('/us-branch/login');
+    const bootstrapResponse = await page.request.post(BOOTSTRAP_ROUTE, {
+      headers: {
+        [BOOTSTRAP_HEADER_NAME]: BOOTSTRAP_HEADER_VALUE,
+      },
+    });
+    expect(bootstrapResponse.ok()).toBeTruthy();
 
-    // Wait for the form to be fully hydrated before interacting.
-    // Playwright's fill() can race with React hydration on controlled inputs,
-    // causing the filled values to be overwritten by the default empty state.
-    const usernameInput = page.getByTestId('login-username');
-    await expect(usernameInput).toBeVisible({ timeout: 15_000 });
+    await page.reload();
 
-    await usernameInput.fill(LOGIN_EMAIL!);
-    await page.getByTestId('login-password').fill(LOGIN_PASSWORD!);
-
-    const submitButton = page.getByTestId('login-submitButton');
-    await expect(submitButton).toBeEnabled({ timeout: 10_000 });
-    await submitButton.click();
-
-    // Wait for authenticated landing to settle.
     await expect
       .poll(async () => {
         const sessionResponse = await page.request.get('/api/session');
@@ -65,11 +62,13 @@ test.describe('Auth + Site synchronization', () => {
     const urlSiteCode = getSiteCodeFromPath(new URL(page.url()).pathname);
     expect(urlSiteCode).toBe(session.siteCode);
 
-    // Post-login: switch site and assert header/site/currency consistency.
+    const targetSiteCode = getAlternateSiteCode(session.siteCode);
+    const targetSiteLabel = SITE_LABEL_BY_CODE[targetSiteCode] || targetSiteCode;
+
     await page.evaluate(() => window.scrollTo({ top: 0 }));
     await expect(page.locator('button[aria-label="Site"]')).toBeVisible({ timeout: 10_000 });
     await page.locator('button[aria-label="Site"]').click();
-    await page.getByRole('menuitem', { name: 'US' }).click();
+    await page.getByRole('menuitem', { name: targetSiteLabel }).click();
 
     await expect
       .poll(async () => {

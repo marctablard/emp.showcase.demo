@@ -164,6 +164,12 @@ describe('QuoteDetails approval flow', () => {
     });
     searchApprovalUsers.mockResolvedValue([
       {
+        userId: 'approver-2',
+        firstName: 'Zoe',
+        lastName: 'Washburne',
+        fullName: 'Zoe Washburne',
+      },
+      {
         userId: 'approver-1',
         firstName: 'Ada',
         lastName: 'Lovelace',
@@ -182,6 +188,10 @@ describe('QuoteDetails approval flow', () => {
     });
 
     expect(screen.getByText('checkout.approval.selectApprover')).toBeInTheDocument();
+
+    const approverButtons = screen.getAllByTestId(/quote-approval-approver-/);
+    expect(approverButtons[0]).toHaveTextContent('Ada Lovelace');
+    expect(approverButtons[1]).toHaveTextContent('Zoe Washburne');
 
     const submitButton = screen.getByTestId('quote-approval-submitButton');
     expect(submitButton).toBeDisabled();

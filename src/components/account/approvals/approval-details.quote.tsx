@@ -18,6 +18,8 @@ import { formatCurrency } from '@/lib/utils';
 import type { Approval } from '@/platform/services/model/approval';
 import type { QuoteUpdateRequest } from '@/platform/services/model/quote';
 
+const NON_COMMENTABLE_APPROVAL_STATUSES: Approval['status'][] = ['APPROVED', 'DECLINED', 'CLOSED', 'EXPIRED'];
+
 interface ApprovalDetailsProps {
   approvalId: string;
   initialApproval?: Approval;
@@ -227,7 +229,9 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
   const quoteItemCount = quoteResource?.items?.reduce((total, item) => total + item.quantity, 0) ?? 0;
   const isRequestor = !!approval && currentUserId === approval.requestor.userId;
   const isApprover = !!approval && currentUserId === approval.approver.userId;
-  const canComment = approval?.status !== 'CLOSED' && approval?.status !== 'EXPIRED' && (isRequestor || isApprover);
+  const isApprovalActionLocked = isCreateOrderStepOpen || isApprovalActionPending || isOrderCreationPending;
+  const canComment =
+    !!approval && !NON_COMMENTABLE_APPROVAL_STATUSES.includes(approval.status) && (isRequestor || isApprover);
   const canApprovalAction = canApprove && isApprover;
   const canCreateOrder =
     approval?.status === 'PENDING' && approval?.resourceType === 'QUOTE' && isApprover && isCreateOrderStepOpen;
@@ -328,8 +332,8 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
             <div className="grid grid-cols-1 gap-6">
               <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm">
                 <div className="rounded-md bg-surface-page p-6">
-                  <p className="mb-2 text-sm font-medium">{t('createOrderAfterApprovalTitle')}</p>
-                  <p className="mb-4 text-sm text-text-placeholders">{t('createOrderAfterApprovalDescription')}</p>
+                  <p className="mb-2 text-sm font-medium">{t('createQuoteAfterApprovalTitle')}</p>
+                  <p className="mb-4 text-sm text-text-placeholders">{t('createQuoteAfterApprovalDescription')}</p>
 
                   <div className="mb-4">
                     <label htmlFor="approval-order-comment" className="mb-1 block text-sm font-medium">
@@ -337,11 +341,13 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
                     </label>
                     <Textarea
                       id="approval-order-comment"
+                      autoFocus
                       placeholder={tQuote('commentPlaceholder')}
                       className="h-32 w-full resize-none"
                       value={orderComment}
                       onChange={(event) => setOrderComment(event.target.value.slice(0, maxCommentLength))}
                       maxLength={maxCommentLength}
+                      disabled={isOrderCreationPending}
                     />
                   </div>
 
@@ -362,7 +368,9 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
                         void handleCreateOrder();
                       }}
                     >
-                      {isOrderCreationPending ? tQuote('creating') : tQuote('createOrder')}
+                      {isOrderCreationPending
+                        ? t('creatingQuoteAfterApprovalAction')
+                        : t('createQuoteAfterApprovalAction')}
                     </Button>
                   </div>
                 </div>
@@ -552,11 +560,11 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
                   variant="outlineSuccess"
                   onClick={handleApprove}
                   className="hover:bg-surface-action-hover-2"
-                  disabled={isApprovalActionPending}
+                  disabled={isApprovalActionLocked}
                 >
                   {t('approve')}
                 </Button>
-                <Button onClick={handleDecline} variant="secondary" disabled={isApprovalActionPending}>
+                <Button onClick={handleDecline} variant="secondary" disabled={isApprovalActionLocked}>
                   {t('decline')}
                 </Button>
               </div>
@@ -577,8 +585,12 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
                   placeholder={t('enterApproverComment')}
                   className="mb-2"
                   maxLength={maxCommentLength}
+                  disabled={isApprovalActionLocked}
                 />
-                <Button onClick={handleUpdateApproverComment} disabled={!approverComment.trim()}>
+                <Button
+                  onClick={handleUpdateApproverComment}
+                  disabled={!approverComment.trim() || isApprovalActionLocked}
+                >
                   {t('saveApproverComment')}
                 </Button>
               </div>
@@ -593,8 +605,12 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
                   placeholder={t('enterRequestorComment')}
                   className="mb-2"
                   maxLength={maxCommentLength}
+                  disabled={isApprovalActionLocked}
                 />
-                <Button onClick={handleUpdateRequestorComment} disabled={!requestorComment.trim()}>
+                <Button
+                  onClick={handleUpdateRequestorComment}
+                  disabled={!requestorComment.trim() || isApprovalActionLocked}
+                >
                   {t('saveRequestorComment')}
                 </Button>
               </div>

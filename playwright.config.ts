@@ -4,6 +4,14 @@ import path from 'path';
 
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
+const includeLocalSpecs = process.env.NEXT_E2E_LOCAL_AUTH_BOOTSTRAP_ENABLED === 'true';
+const localOnlyPort = process.env.PLAYWRIGHT_LOCAL_PORT || '3100';
+const playwrightPort = includeLocalSpecs ? localOnlyPort : '3000';
+const baseURL = process.env.PLAYWRIGHT_BASE_URL || `http://localhost:${playwrightPort}`;
+const webServerCommand = includeLocalSpecs
+  ? `npm run build:next && npx next start --port ${playwrightPort}`
+  : 'npm run dev';
+
 /** Strip broken Node flags that trigger stderr noise in dev subprocesses (e.g. empty `--localstorage-file`). */
 function sanitizedNodeOptionsPatch(): Record<string, string> | undefined {
   const raw = process.env.NODE_OPTIONS;
@@ -30,7 +38,7 @@ function stringEnvOnly(env: NodeJS.ProcessEnv): Record<string, string> {
  */
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: ['**/local/**', '**/auth-site-sync.spec.ts'],
+  testIgnore: ['**/local/**', ...(includeLocalSpecs ? [] : ['**/*.local.spec.ts'])],
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
@@ -44,7 +52,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:3000',
+    baseURL,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -90,13 +98,16 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'npm run dev',
+    command: webServerCommand,
     /** Use liveness endpoint so readiness polling does not hit `/` (site middleware health-check shortcut). */
-    url: 'http://localhost:3000/api/health',
-    reuseExistingServer: !process.env.CI,
+    url: `${baseURL}/api/health`,
+    reuseExistingServer: !process.env.CI && !includeLocalSpecs,
     timeout: 120 * 1000, // 2 minutes to allow for Next.js to build
     env: {
       ...stringEnvOnly(process.env),
+      PORT: playwrightPort,
+      NEXTAUTH_URL: baseURL,
+      NEXT_PUBLIC_SERVER_URL: baseURL,
       ...(sanitizedNodeOptionsPatch() ?? {}),
     },
   },
