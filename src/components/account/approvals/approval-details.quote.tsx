@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { AlertCircle, CheckCircle2, List, ReceiptText } from 'lucide-react';
 import { ApprovalStatusBadge } from '@/components/account/approvals/approval-status-badge';
@@ -13,10 +13,14 @@ import { Spinner } from '@/components/ui/spinner';
 import { SummaryCard, SummaryRow } from '@/components/ui/summary-card';
 import { Textarea } from '@/components/ui/textarea';
 import { useApproval } from '@/hooks/approval/useApproval';
+import { useToast } from '@/hooks/ui/useToast';
 import { Link } from '@/i18n/navigation';
 import { formatCurrency } from '@/lib/utils';
 import type { Approval } from '@/platform/services/model/approval';
 import type { QuoteUpdateRequest } from '@/platform/services/model/quote';
+
+const NON_COMMENTABLE_APPROVAL_STATUSES: Approval['status'][] = ['APPROVED', 'DECLINED', 'CLOSED', 'EXPIRED'];
+const CREATE_ORDER_ERROR_PREFIX = /^Failed to update quote\b.*?:\s*/i;
 
 interface ApprovalDetailsProps {
   approvalId: string;
@@ -59,11 +63,16 @@ interface ApprovalCreateOrderResult {
   quoteId: string;
 }
 
+function getCreateOrderErrorMessage(message: string): string {
+  return message.replace(CREATE_ORDER_ERROR_PREFIX, '').trim();
+}
+
 export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: ApprovalDetailsProps) {
   const t = useTranslations('orders.Approval');
   const tStatus = useTranslations('orders.ApprovalStatus');
   const tQuote = useTranslations('account.quoteDetails');
   const locale = useLocale();
+  const { toast } = useToast();
   const maxCommentLength = 250;
   const [approverComment, setApproverComment] = useState<string>('');
   const [requestorComment, setRequestorComment] = useState<string>('');
@@ -74,6 +83,7 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
   const [actionError, setActionError] = useState<string | null>(null);
   const [isApprovalActionPending, setIsApprovalActionPending] = useState(false);
   const [isOrderCreationPending, setIsOrderCreationPending] = useState(false);
+  const orderCommentRef = useRef<HTMLTextAreaElement | null>(null);
 
   const {
     approval,
@@ -84,6 +94,20 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
     updateRequestorComment,
     refreshApproval,
   } = useApproval(approvalId, initialApproval);
+
+  useEffect(() => {
+    if (!isCreateOrderStepOpen) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      orderCommentRef.current?.focus();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [isCreateOrderStepOpen]);
 
   const updateQuoteStatus = async (quoteId: string, comment?: string, linkedApprovalId?: string): Promise<void> => {
     const operations: QuoteUpdateRequest[] = [
@@ -195,7 +219,12 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
       void refreshApproval();
     } catch (err) {
       setCreateOrderResult(null);
-      setActionError(err instanceof Error ? err.message : String(err));
+      const message = getCreateOrderErrorMessage(err instanceof Error ? err.message : String(err));
+      toast({
+        title: t('error'),
+        description: message,
+        variant: 'destructive',
+      });
     } finally {
       setIsOrderCreationPending(false);
     }
@@ -227,10 +256,13 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
   const quoteItemCount = quoteResource?.items?.reduce((total, item) => total + item.quantity, 0) ?? 0;
   const isRequestor = !!approval && currentUserId === approval.requestor.userId;
   const isApprover = !!approval && currentUserId === approval.approver.userId;
-  const canComment = approval?.status !== 'CLOSED' && approval?.status !== 'EXPIRED' && (isRequestor || isApprover);
+  const isApprovalActionLocked = isCreateOrderStepOpen || isApprovalActionPending || isOrderCreationPending;
+  const canComment =
+    !!approval && !NON_COMMENTABLE_APPROVAL_STATUSES.includes(approval.status) && (isRequestor || isApprover);
   const canApprovalAction = canApprove && isApprover;
   const canCreateOrder =
     approval?.status === 'PENDING' && approval?.resourceType === 'QUOTE' && isApprover && isCreateOrderStepOpen;
+  const shouldShowActionError = !!actionError && !isCreateOrderStepOpen;
 
   if (loading) {
     return (
@@ -313,7 +345,7 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
           </Alert>
         )}
 
-        {actionError && (
+        {shouldShowActionError && (
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>{t('error')}</AlertTitle>
@@ -328,20 +360,22 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
             <div className="grid grid-cols-1 gap-6">
               <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm">
                 <div className="rounded-md bg-surface-page p-6">
-                  <p className="mb-2 text-sm font-medium">{t('createOrderAfterApprovalTitle')}</p>
-                  <p className="mb-4 text-sm text-text-placeholders">{t('createOrderAfterApprovalDescription')}</p>
+                  <p className="mb-2 text-sm font-medium">{t('acceptQuoteAfterApprovalTitle')}</p>
+                  <p className="mb-4 text-sm text-text-placeholders">{t('acceptQuoteAfterApprovalDescription')}</p>
 
                   <div className="mb-4">
                     <label htmlFor="approval-order-comment" className="mb-1 block text-sm font-medium">
                       {tQuote('yourComment')}
                     </label>
                     <Textarea
+                      ref={orderCommentRef}
                       id="approval-order-comment"
                       placeholder={tQuote('commentPlaceholder')}
                       className="h-32 w-full resize-none"
                       value={orderComment}
                       onChange={(event) => setOrderComment(event.target.value.slice(0, maxCommentLength))}
                       maxLength={maxCommentLength}
+                      disabled={isOrderCreationPending}
                     />
                   </div>
 
@@ -362,7 +396,9 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
                         void handleCreateOrder();
                       }}
                     >
-                      {isOrderCreationPending ? tQuote('creating') : tQuote('createOrder')}
+                      {isOrderCreationPending
+                        ? t('acceptingQuoteAfterApprovalAction')
+                        : t('acceptQuoteAfterApprovalAction')}
                     </Button>
                   </div>
                 </div>
@@ -552,11 +588,11 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
                   variant="outlineSuccess"
                   onClick={handleApprove}
                   className="hover:bg-surface-action-hover-2"
-                  disabled={isApprovalActionPending}
+                  disabled={isApprovalActionLocked}
                 >
                   {t('approve')}
                 </Button>
-                <Button onClick={handleDecline} variant="secondary" disabled={isApprovalActionPending}>
+                <Button onClick={handleDecline} variant="secondary" disabled={isApprovalActionLocked}>
                   {t('decline')}
                 </Button>
               </div>
@@ -577,8 +613,12 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
                   placeholder={t('enterApproverComment')}
                   className="mb-2"
                   maxLength={maxCommentLength}
+                  disabled={isApprovalActionLocked}
                 />
-                <Button onClick={handleUpdateApproverComment} disabled={!approverComment.trim()}>
+                <Button
+                  onClick={handleUpdateApproverComment}
+                  disabled={!approverComment.trim() || isApprovalActionLocked}
+                >
                   {t('saveApproverComment')}
                 </Button>
               </div>
@@ -593,8 +633,12 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
                   placeholder={t('enterRequestorComment')}
                   className="mb-2"
                   maxLength={maxCommentLength}
+                  disabled={isApprovalActionLocked}
                 />
-                <Button onClick={handleUpdateRequestorComment} disabled={!requestorComment.trim()}>
+                <Button
+                  onClick={handleUpdateRequestorComment}
+                  disabled={!requestorComment.trim() || isApprovalActionLocked}
+                >
                   {t('saveRequestorComment')}
                 </Button>
               </div>

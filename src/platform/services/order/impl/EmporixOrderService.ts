@@ -7,6 +7,17 @@ import type { OrderService } from '@/platform/services/order/OrderService';
 import type { SessionService } from '@/platform/services/session/SessionService';
 import type { OrderMapper } from '../../model/order/OrderMapper';
 
+function wrapOrderError(message: string, error: Error): Error & { upstreamStatus?: number } {
+  const wrappedError = new Error(message) as Error & { upstreamStatus?: number };
+  const upstreamStatus = (error as Error & { upstreamStatus?: number }).upstreamStatus;
+
+  if (typeof upstreamStatus === 'number') {
+    wrappedError.upstreamStatus = upstreamStatus;
+  }
+
+  return wrappedError;
+}
+
 /**
  * Implementation of OrderService for Emporix order data.
  * Maps between Emporix API order format and internal Order model.
@@ -56,7 +67,7 @@ class EmporixOrderService implements OrderService {
       return order ? this.mapper.mapToService(order) : null;
     } catch (error) {
       if (error instanceof Error) {
-        throw new Error(`Failed to get order: ${error.message}`);
+        throw wrapOrderError(`Failed to get order: ${error.message}`, error);
       }
       throw error;
     }
@@ -114,7 +125,7 @@ class EmporixOrderService implements OrderService {
       return await this.orderApi.getCustomerOrderStatusTransitions(orderId);
     } catch (error) {
       if (error instanceof Error) {
-        throw new Error(`Failed to get order status transitions: ${error.message}`);
+        throw wrapOrderError(`Failed to get order status transitions: ${error.message}`, error);
       }
       throw error;
     }
