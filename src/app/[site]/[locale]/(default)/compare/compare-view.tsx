@@ -104,7 +104,7 @@ export function CompareView() {
 
   if (count === 0) {
     return (
-      <div className="w-full max-w-[1848px] mx-auto px-9 py-12 text-center">
+      <div className="w-full content-container py-12 text-center">
         <H4>{t('title')}</H4>
         <p className="mt-4 text-text-on-disabled">{t('emptyState')}</p>
         <Link
@@ -119,14 +119,14 @@ export function CompareView() {
 
   if (loading && products.length === 0) {
     return (
-      <div className="w-full max-w-[1848px] mx-auto px-9 py-12 flex justify-center">
+      <div className="w-full content-container py-12 flex justify-center">
         <Spinner variant="lg" />
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-[1848px] mx-auto px-9 py-8">
+    <div className="w-full content-container py-8">
       {/* Sticky header bar */}
       <div className="sticky top-4 z-10 flex h-[72px] items-center justify-between rounded-2xl bg-white/95 px-12 shadow-lg backdrop-blur-sm">
         <div className="flex items-center gap-4">

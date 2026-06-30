@@ -781,8 +781,8 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         </div>
 
         {/* Quote History Section */}
-        <div className="space-y-4">
-          <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr] gap-4">
+        <div className="space-y-4 overflow-x-auto">
+          <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr] gap-4 min-w-[640px]">
             <p className="col-start-1 font-bold font-headlines">{t('editor')}</p>
             <p className="col-start-2 font-bold font-headlines">{t('action')}</p>
             <p className="col-start-3 font-bold font-headlines">{t('comment')}</p>
@@ -791,7 +791,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
           </div>
 
           {/* Always show initial quote request as first entry */}
-          <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr] gap-4 py-4 border-t border-border-primary">
+          <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr] gap-4 min-w-[640px] py-4 border-t border-border-primary">
             <p className="col-start-1">{quote.customerName || 'Unknown User'}</p>
             <p className="col-start-2">{t('initialQuoteRequest')}</p>
             <p className="col-start-3">{'-'}</p>
@@ -800,14 +800,14 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
           </div>
 
           {historyLoading ? (
-            <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr] gap-4 py-4 border-t border-border-primary">
+            <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr] gap-4 min-w-[640px] py-4 border-t border-border-primary">
               <p className="col-start-1">{t('loadingHistory')}</p>
             </div>
           ) : (
             quoteHistory.map((historyItem) => (
               <div
                 key={historyItem.id}
-                className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr] gap-4 py-4 border-t border-border-primary"
+                className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr] gap-4 min-w-[640px] py-4 border-t border-border-primary"
               >
                 <p className="col-start-1">{getHistoryUserName(historyItem)}</p>
                 <p className="col-start-2">{getHistoryAction(historyItem)}</p>

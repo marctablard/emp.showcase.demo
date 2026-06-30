@@ -115,23 +115,13 @@ export async function renderProductPage(id: string, locale: string, options: Pro
       <>
         <JsonLd jsonLd={jsonLd} />
         <div>
-          <UiBreadcrumb
-            items={breadcrumbs}
-            className="max-w-6xl mx-auto px-4 lg:px-9 sm:gap-x-6"
-            disabledCategories={true}
-          />
-          <ProductDetail
-            className="max-w-6xl mx-auto px-4 lg:px-9 sm:gap-x-6 lg:pr-38"
-            product={product}
-            options={options}
-          />
+          <UiBreadcrumb items={breadcrumbs} className="content-container sm:gap-x-6" disabledCategories={true} />
+          <ProductDetail className="content-container sm:gap-x-6" product={product} options={options} />
         </div>
       </>
     );
   } else {
-    return (
-      <ProductDetail className="max-w-6xl mx-auto px-4 lg:px-9 sm:gap-x-6 lg:pr-38" product={id} options={options} />
-    );
+    return <ProductDetail className="content-container sm:gap-x-6" product={id} options={options} />;
   }
 }
 

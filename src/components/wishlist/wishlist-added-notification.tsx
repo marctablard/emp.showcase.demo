@@ -9,6 +9,7 @@ import { toast as sonnerToast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { H4, H6 } from '@/components/ui/h';
 import { useL10n } from '@/hooks/useL10n';
+import { breakpoints } from '@/lib/breakpoints';
 import type { WishlistItem } from '@/platform/services/model/wishlist/wishlist';
 
 interface WishlistAddedNotificationProps {
@@ -20,7 +21,7 @@ interface WishlistAddedNotificationProps {
 const CART_BUTTON_ANCHOR_SELECTOR = '[data-anchor="header-cart-button"]';
 const ANCHOR_OFFSET_TOP = 8;
 const ANCHOR_OFFSET_RIGHT = 8;
-const DESKTOP_ANCHOR_MIN_WIDTH = 1024;
+const DESKTOP_ANCHOR_MIN_WIDTH = breakpoints.md;
 
 function WishlistAddedNotification({ id, item, quantity }: WishlistAddedNotificationProps) {
   const t = useTranslations('product.addToWishlistResult');

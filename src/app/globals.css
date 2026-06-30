@@ -296,6 +296,23 @@
   border-width: --value(--border-width-*);
 }
 
+/*
+ * Shared page container (SHOW-320) — encodes the Figma grid contract in one place.
+ * max-width 1920 (6xl token) + auto side margins + 16px side padding below lg / 36px from
+ * lg (1280px) up. At a 1920px viewport this yields 1920 − 2×36 = 1848px of content
+ * (Figma "Maximum 1848px total width"); beyond 1920 the box is capped and centered, so the
+ * outer margin grows while the content stays at 1848. The padding uses the same
+ * `--spacing` scale as `px-4` / `px-9`, so it is identical to the previous ad-hoc usage.
+ */
+@utility content-container {
+  margin-inline: auto;
+  max-width: var(--theme-container-6xl);
+  padding-inline: calc(var(--spacing) * 4);
+  @media (width >= 80rem) {
+    padding-inline: calc(var(--spacing) * 9);
+  }
+}
+
 @layer base {
   * {
     @apply border-border-primary outline-border-focus font-body;

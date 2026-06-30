@@ -23,7 +23,7 @@ export const QuoteSummary: React.FC<QuoteSummaryProps> = ({ quote }) => {
   const fmt = (amount: number) => `${amount.toFixed(2)} ${currency}`;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 @lg:grid-cols-2 @5xl:grid-cols-4 gap-6">
       {/* Details Card */}
       <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
         <SummaryCard

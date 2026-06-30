@@ -192,7 +192,7 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
 
   return (
     <div className="lg:mx-9">
-      {breadcrumbs && <UiBreadcrumb items={breadcrumbs} className="max-w-6xl mx-auto px-4 lg:px-9 md:gap-x-6" />}
+      {breadcrumbs && <UiBreadcrumb items={breadcrumbs} className="content-container md:gap-x-6" />}
 
       {/* Mobile Menu Button - only visible on mobile */}
       {!isDesktop && (
@@ -226,7 +226,7 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
           </>
         )}
 
-        <main className={`w-full min-w-0 px-4 ${isDesktop ? 'px-0 ml-4' : ''}`}>{children}</main>
+        <main className={`@container w-full min-w-0 px-4 ${isDesktop ? 'px-0 ml-4' : ''}`}>{children}</main>
       </div>
     </div>
   );

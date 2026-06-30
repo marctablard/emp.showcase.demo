@@ -421,7 +421,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
             className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 md:grid-cols-3 lg:grid-cols-4"
             ref={addToCartButton}
           >
-            <div className="col-start-1 sm:row-start-1 md:col-end-4 xl-col-end-5">
+            <div className="col-start-1 sm:row-start-1 md:col-end-4 lg:col-end-5">
               {price === undefined ? (
                 <ProductPriceSkeleton />
               ) : price === null ? (

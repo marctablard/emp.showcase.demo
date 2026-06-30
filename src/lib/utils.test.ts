@@ -1,8 +1,20 @@
 import { getPublicDefaultLanguage } from '@/lib/common/public-default-env';
 import { LocalizedString } from '@/platform/services/model/common';
-import { L10N_PLACEHOLDER, formatCurrency, formatCurrencyToParts, l10n } from './utils';
+import { breakpoints } from './breakpoints';
+import { L10N_PLACEHOLDER, formatCurrency, formatCurrencyToParts, imageSizes, l10n } from './utils';
 
 const envDefault = getPublicDefaultLanguage();
+
+describe('imageSizes', () => {
+  it('references only defined breakpoint widths — no ad-hoc 1200px', () => {
+    const widths = [...imageSizes.matchAll(/max-width:\s*(\d+)px/g)].map((m) => Number(m[1]));
+    const allowed = Object.values(breakpoints) as number[];
+    expect(widths.length).toBeGreaterThan(0);
+    for (const w of widths) {
+      expect(allowed).toContain(w);
+    }
+  });
+});
 
 describe('l10n function', () => {
   describe('null and undefined handling', () => {

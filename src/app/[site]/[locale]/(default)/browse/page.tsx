@@ -59,7 +59,7 @@ export async function renderBrowsePage({
   const t = await getTranslations({ locale, namespace: 'search.searchResults' });
 
   return (
-    <div className="max-w-6xl mx-auto px-4 lg:px-9 pb-32">
+    <div className="content-container pb-32">
       <Heading variant="h2" className="mb-6">
         {q ? t('resultsFor', { query: q }) : t('allProducts')}
       </Heading>

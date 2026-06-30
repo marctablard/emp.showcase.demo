@@ -1,5 +1,6 @@
 import type { RefObject } from 'react';
 import { useEffect, useState } from 'react';
+import { breakpoints } from '@/lib/breakpoints';
 
 export const useElementScroll = (
   fixedContainer: RefObject<HTMLElement | null>,
@@ -40,7 +41,7 @@ export const useElementScroll = (
         contentHeight &&
         containerHeight <= contentHeight &&
         windowHeight - containerHeight > 0 &&
-        window.innerWidth >= 1024
+        window.innerWidth >= breakpoints.md
       ) {
         if (containerBottom && contentBottom && containerBottom < contentBottom) {
           if (containerTop && containerTop <= topPosition) {

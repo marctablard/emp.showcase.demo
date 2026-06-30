@@ -64,7 +64,7 @@ const Hero = ({ headline, text, main_button, image, video }: HeroProps) => {
       className={cn(
         'relative mb-10 sm:mb-20 md:mb-10',
         'lg:bg-[url("/images/hero-pattern.svg")] bg-no-repeat bg-left-top',
-        'max-w-[2500px] mx-auto',
+        'max-w-7xl mx-auto',
       )}
     >
       <div className="w-full flex justify-end">
