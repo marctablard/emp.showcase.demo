@@ -7,12 +7,19 @@ import type {
 } from '@/platform/services/auth/LocalAuthSyncBootstrapService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 
+export const runtime = 'nodejs';
+
 const LOCAL_AUTH_BOOTSTRAP_ENABLED_ENV = 'NEXT_E2E_LOCAL_AUTH_BOOTSTRAP_ENABLED';
 const LOCAL_AUTH_BOOTSTRAP_HEADER = 'x-emporix-local-auth-bootstrap';
 const LOCAL_AUTH_BOOTSTRAP_HEADER_VALUE = 'auth-site-sync';
 const LOCAL_AUTH_BOOTSTRAP_TOKEN_ENV = 'NEXT_E2E_LOCAL_AUTH_BOOTSTRAP_TOKEN';
 const LOCAL_AUTH_BOOTSTRAP_TOKEN_HEADER = 'x-emporix-local-auth-bootstrap-token';
+const CONFIGURED_LOCAL_SERVER_URL_ENVS = ['NEXT_PUBLIC_SERVER_URL', 'NEXTAUTH_URL'] as const;
 const LOCALHOST_NAMES = new Set(['localhost', '127.0.0.1', '::1']);
+
+function normalizeHostname(hostname: string): string {
+  return hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
+}
 
 function isBootstrapEnabled(): boolean {
   return process.env[LOCAL_AUTH_BOOTSTRAP_ENABLED_ENV] === 'true';
@@ -21,6 +28,28 @@ function isBootstrapEnabled(): boolean {
 function getBootstrapToken(): string | null {
   const value = process.env[LOCAL_AUTH_BOOTSTRAP_TOKEN_ENV]?.trim();
   return value ? value : null;
+}
+
+function normalizeConfiguredServerUrl(value: string): string {
+  return value.startsWith('http://') || value.startsWith('https://') ? value : `https://${value}`;
+}
+
+function hasAllowedConfiguredServerUrl(): boolean {
+  const configuredUrls = CONFIGURED_LOCAL_SERVER_URL_ENVS.map((envName) => process.env[envName]?.trim()).filter(
+    (value): value is string => Boolean(value),
+  );
+
+  if (configuredUrls.length === 0) {
+    return false;
+  }
+
+  return configuredUrls.every((value) => {
+    try {
+      return LOCALHOST_NAMES.has(normalizeHostname(new URL(normalizeConfiguredServerUrl(value)).hostname));
+    } catch {
+      return false;
+    }
+  });
 }
 
 function isAllowedBootstrapRequest(request: NextRequest): boolean {
@@ -32,7 +61,8 @@ function isAllowedBootstrapRequest(request: NextRequest): boolean {
     headerValue === LOCAL_AUTH_BOOTSTRAP_HEADER_VALUE &&
     token !== null &&
     tokenHeaderValue === token &&
-    LOCALHOST_NAMES.has(request.nextUrl.hostname)
+    LOCALHOST_NAMES.has(normalizeHostname(request.nextUrl.hostname)) &&
+    hasAllowedConfiguredServerUrl()
   );
 }
 
@@ -42,9 +72,10 @@ function isAllowedBootstrapRequest(request: NextRequest): boolean {
  * Local Playwright seam for the auth/site-sync scenario. This route only bootstraps the
  * shopper session observed through `/api/session`; it intentionally does not mint
  * NextAuth/Auth.js browser state because the scenario never enters account-protected pages.
- * The route stays local-only through the explicit env flag plus localhost/header request
- * guards, which lets the dedicated Playwright lane run under `next start` on a separate
- * localhost port without exposing the bootstrap surface to production traffic.
+ * The route stays local-only through the explicit env flag, localhost/header request guards,
+ * and localhost-only configured server URLs, which lets the dedicated Playwright lane run
+ * under `next start` on a separate localhost port without exposing the bootstrap surface to
+ * production traffic.
  * The browser context itself provides cleanup isolation between runs, and this handler
  * resets the current request-scoped shopper session before bootstrapping.
  */
@@ -62,6 +93,7 @@ export async function POST(request: NextRequest) {
         hasExpectedHeader: request.headers.get(LOCAL_AUTH_BOOTSTRAP_HEADER) === LOCAL_AUTH_BOOTSTRAP_HEADER_VALUE,
         hasExpectedTokenHeader:
           request.headers.get(LOCAL_AUTH_BOOTSTRAP_TOKEN_HEADER) === (getBootstrapToken() ?? '__missing__'),
+        hasAllowedConfiguredServerUrl: hasAllowedConfiguredServerUrl(),
         path: '/api/test/auth/bootstrap',
       },
       'Rejected local auth bootstrap request',

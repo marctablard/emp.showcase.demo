@@ -1,10 +1,11 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
-async function expectHomepageShell(page: Parameters<typeof test>[0]['page']): Promise<void> {
+async function expectHomepageShell(page: Page): Promise<void> {
   await expect(page.locator('header > div').first()).toBeVisible();
 }
 
-async function getActiveLocale(page: Parameters<typeof test>[0]['page']): Promise<string> {
+async function getActiveLocale(page: Page): Promise<string> {
   const activeLocale = await page.locator('html').getAttribute('lang');
 
   expect(activeLocale).toBeTruthy();

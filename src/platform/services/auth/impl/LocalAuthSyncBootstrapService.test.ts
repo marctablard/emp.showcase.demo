@@ -30,6 +30,11 @@ describe('LocalAuthSyncBootstrapService', () => {
   });
 
   afterEach(() => {
+    if (originalSecret === undefined) {
+      delete process.env.NEXT_SSO_PASSWORD_SECRET;
+      return;
+    }
+
     process.env.NEXT_SSO_PASSWORD_SECRET = originalSecret;
   });
 
