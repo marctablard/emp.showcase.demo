@@ -6,6 +6,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { Approval } from '@/platform/services/model/approval';
 import { ApprovalDetails } from './approval-details.quote';
 
+const toastMock = jest.fn();
 const updateApprovalStatus = jest.fn();
 const updateApproverComment = jest.fn();
 const updateRequestorComment = jest.fn();
@@ -58,8 +59,15 @@ jest.mock('@/hooks/approval/useApproval', () => ({
   }),
 }));
 
+jest.mock('@/hooks/ui/useToast', () => ({
+  useToast: () => ({
+    toast: toastMock,
+  }),
+}));
+
 describe('Company quote approval details', () => {
   beforeEach(() => {
+    toastMock.mockReset();
     productListResolverMock.mockReset();
     mockApproval = buildApproval({
       details: {
@@ -139,7 +147,9 @@ describe('Company quote approval details', () => {
     expect(updateApprovalStatus).not.toHaveBeenCalled();
     expect(global.fetch).not.toHaveBeenCalled();
     expect(screen.getByText('acceptQuoteAfterApprovalTitle')).toBeInTheDocument();
-    expect(screen.getByLabelText('yourComment')).toHaveFocus();
+    await waitFor(() => {
+      expect(screen.getByLabelText('yourComment')).toHaveFocus();
+    });
     expect(screen.getByText('acceptQuoteAfterApprovalAction')).toBeInTheDocument();
     expect(screen.getByText('approve')).toBeDisabled();
     expect(screen.getByText('decline')).toBeDisabled();
@@ -218,10 +228,15 @@ describe('Company quote approval details', () => {
     });
   });
 
-  it('shows an error without leaving a fake success state when create order fails', async () => {
+  it('trims the transport prefix from create-order toast errors and leaves no inline error state', async () => {
+    const rawCreateOrderError =
+      'Failed to update quote Q1000396 (/status) failed with upstream status 400 Bad Request: Cannot create an order based on the quote: Q1000396 and tenant: showcasedev. Invalid information provided while trying to checkout. cart id is Q1000396';
+    const trimmedCreateOrderError =
+      'Cannot create an order based on the quote: Q1000396 and tenant: showcasedev. Invalid information provided while trying to checkout. cart id is Q1000396';
+
     global.fetch = jest.fn().mockResolvedValueOnce({
       ok: false,
-      json: jest.fn().mockResolvedValue({ error: 'create order failed' }),
+      json: jest.fn().mockResolvedValue({ error: rawCreateOrderError }),
     });
 
     render(<ApprovalDetails approvalId="approval-1" currentUserId="approver-1" />);
@@ -230,13 +245,42 @@ describe('Company quote approval details', () => {
     fireEvent.click(screen.getByText('acceptQuoteAfterApprovalAction'));
 
     await waitFor(() => {
-      expect(screen.getByText('create order failed')).toBeInTheDocument();
+      expect(toastMock).toHaveBeenCalledWith({
+        title: 'error',
+        description: trimmedCreateOrderError,
+        variant: 'destructive',
+      });
     });
 
+    expect(screen.queryByText(rawCreateOrderError)).not.toBeInTheDocument();
+    expect(screen.queryByText(trimmedCreateOrderError)).not.toBeInTheDocument();
     expect(screen.queryByText('quoteSuccessfullyAcceptedOrderAutomaticallyCreated')).not.toBeInTheDocument();
     expect(screen.queryByText('viewRelatedQuote')).not.toBeInTheDocument();
     expect(screen.queryByText('viewCreatedOrder')).not.toBeInTheDocument();
     expect(updateApprovalStatus).not.toHaveBeenCalled();
+  });
+
+  it('hides existing inline action errors while the create-order panel is open', async () => {
+    updateApproverComment.mockRejectedValueOnce(new Error('comment update failed'));
+
+    render(<ApprovalDetails approvalId="approval-1" currentUserId="approver-1" />);
+
+    fireEvent.change(screen.getByPlaceholderText('enterApproverComment'), {
+      target: { value: 'Needs more detail' },
+    });
+    fireEvent.click(screen.getByText('saveApproverComment'));
+
+    await waitFor(() => {
+      expect(screen.getByText('comment update failed')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('approve'));
+
+    await waitFor(() => {
+      expect(screen.getByText('acceptQuoteAfterApprovalTitle')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('comment update failed')).not.toBeInTheDocument();
   });
 
   it('declines a quote approval from the canonical company approval route', async () => {

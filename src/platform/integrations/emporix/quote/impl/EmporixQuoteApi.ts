@@ -19,6 +19,36 @@ import type { EmporixQuoteApi as IEmporixQuoteApi } from '../EmporixQuoteApi';
 
 const createQuoteMetrics = (route: string) => createFetchMetricsParams('quote', route);
 
+function formatQuotePatchErrorBody(rawBody: string): string {
+  const body = rawBody.trim();
+
+  if (!body) {
+    return body;
+  }
+
+  try {
+    const parsedBody = JSON.parse(body) as {
+      message?: unknown;
+      reason?: unknown;
+    };
+
+    if (typeof parsedBody.message !== 'string' || !parsedBody.message.trim()) {
+      return body;
+    }
+
+    const message = parsedBody.message.trim().replace(/\.\s+Reason:\s+/i, '. ');
+
+    if (typeof parsedBody.reason !== 'string' || !parsedBody.reason.trim()) {
+      return message;
+    }
+
+    const reason = parsedBody.reason.trim();
+    return message.includes(reason) ? message : `${message}. ${reason}`;
+  } catch {
+    return body;
+  }
+}
+
 @injectable('EmporixQuoteApi', 'Singleton')
 class EmporixQuoteApi implements IEmporixQuoteApi {
   constructor(
@@ -58,6 +88,7 @@ class EmporixQuoteApi implements IEmporixQuoteApi {
 
     if (!response.ok) {
       const responseBody = await response.text();
+      const formattedResponseBody = formatQuotePatchErrorBody(responseBody);
 
       this.logger.error(
         {
@@ -77,7 +108,7 @@ class EmporixQuoteApi implements IEmporixQuoteApi {
 
       throw await createEmporixApiError(
         `Failed to update quote ${quoteId}${firstOpPath ? ` (${firstOpPath})` : ''}`,
-        new Response(responseBody, {
+        new Response(formattedResponseBody, {
           status: response.status,
           statusText: response.statusText,
         }),
