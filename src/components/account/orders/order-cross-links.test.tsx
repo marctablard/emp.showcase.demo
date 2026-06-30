@@ -4,6 +4,7 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
+import { OrderAccessDeniedError } from '@/lib/client/orders';
 import type { Order } from '@/platform/services/model/order/order';
 import { OrderDetail } from './order-detail';
 import { OrdersTable } from './orders-table';
@@ -120,5 +121,19 @@ describe('Order cross-links', () => {
 
     expect(screen.queryByText('relatedQuote')).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: '#Q-1000' })).not.toBeInTheDocument();
+  });
+
+  it('shows a permission-specific message when the order cannot be viewed', () => {
+    useOrderMock.mockReturnValue({
+      order: null,
+      loading: false,
+      error: new OrderAccessDeniedError(403),
+      cancelOrder: undefined,
+      statusTransitions: [],
+    });
+
+    render(<OrderDetail orderId="order-1" />);
+
+    expect(screen.getByText('orderAccessDenied')).toBeInTheDocument();
   });
 });

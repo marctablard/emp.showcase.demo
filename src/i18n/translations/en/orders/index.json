@@ -249,6 +249,7 @@
     "inTransitCarrierFacility": "Arrived at carrier facility",
     "exceptionNoRecipient": "Delivery attempted - no recipient available"
   },
+  "orderAccessDenied": "You don't have permission to view this order.",
   "errorFetchingOrder": "Error fetching order details",
   "viewOrders": "View Orders"
 }

@@ -246,6 +246,7 @@
     "inTransitCarrierFacility": "Im Verteilzentrum eingetroffen",
     "exceptionNoRecipient": "Zustellung versucht - niemand angetroffen"
   },
+  "orderAccessDenied": "Sie haben keine Berechtigung, diese Bestellung anzuzeigen.",
   "errorFetchingOrder": "Fehler beim Laden der Bestelldetails",
   "viewOrders": "Bestellungen anzeigen",
   "deliveryDate": "Lieferdatum",

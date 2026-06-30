@@ -1,4 +1,40 @@
+import { ORDER_ACCESS_DENIED_MESSAGE, isOrderAccessDeniedStatus } from '@/lib/common/order-access-denied';
 import type { Order } from '@/platform/services/model/order/order';
+
+export class OrderAccessDeniedError extends Error {
+  readonly status: number;
+
+  constructor(status: number) {
+    super(ORDER_ACCESS_DENIED_MESSAGE);
+    this.name = 'OrderAccessDeniedError';
+    this.status = status;
+  }
+}
+
+export function isOrderAccessDeniedError(error: unknown): error is OrderAccessDeniedError {
+  return error instanceof OrderAccessDeniedError || (error instanceof Error && error.name === 'OrderAccessDeniedError');
+}
+
+async function getOrderApiError(response: Response): Promise<Error> {
+  const rawBody = await response.text();
+  let errorMessage = rawBody || response.statusText;
+
+  try {
+    const errorData = JSON.parse(rawBody) as { error?: string };
+
+    if (typeof errorData?.error === 'string' && errorData.error.length > 0) {
+      errorMessage = errorData.error;
+    }
+  } catch {
+    // Keep the raw body or status text when the response is not JSON.
+  }
+
+  if (isOrderAccessDeniedStatus(response.status)) {
+    return new OrderAccessDeniedError(response.status);
+  }
+
+  return new Error(errorMessage || `Failed to fetch order: ${response.statusText}`);
+}
 
 /**
  * Fetch all orders for the current customer with optional pagination
@@ -35,7 +71,7 @@ export async function fetchOrderById(orderId: string): Promise<Order> {
   const response = await fetch(`/api/orders/${orderId}`);
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch order: ${response.statusText}`);
+    throw await getOrderApiError(response);
   }
 
   const order = await response.json();
@@ -51,7 +87,7 @@ export async function fetchOrderStatusTransitions(orderId: string): Promise<stri
   const response = await fetch(`/api/orders/${orderId}/status-transitions`);
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch status transitions: ${response.statusText}`);
+    throw await getOrderApiError(response);
   }
 
   const statusTransitions = await response.json();

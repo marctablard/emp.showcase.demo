@@ -17,6 +17,7 @@ import { useOrder } from '@/hooks/order/useOrder';
 import { useOrders } from '@/hooks/order/useOrders';
 import { type PaymentModeKey, dk } from '@/i18n/dynamic-key';
 import { Link } from '@/i18n/navigation';
+import { isOrderAccessDeniedError } from '@/lib/client/orders';
 import type { Order } from '@/platform/services/model/order/order';
 import type { DashboardCardProps } from './dashboard-card';
 import { DashboardCard } from './dashboard-card';
@@ -185,6 +186,8 @@ function OrderDetail({ orderId }: { orderId: string }) {
   const tOrder = useTranslations('orders');
   const tPaymentModes = useTranslations('checkout.PaymentModes');
   const { order, loading, error } = useOrder({ orderId });
+  const orderErrorMessage =
+    error && isOrderAccessDeniedError(error) ? tOrder('orderAccessDenied') : tOrder('errorFetchingOrder');
 
   if (loading) {
     return (
@@ -213,7 +216,7 @@ function OrderDetail({ orderId }: { orderId: string }) {
       <Card>
         <CardContent className="pt-6">
           <div className="text-center">
-            <p className="text-text-error">{tOrder('errorFetchingOrder')}</p>
+            <p className="text-text-error">{orderErrorMessage}</p>
             <Button variant="secondary" className="mt-4" asChild>
               <Link href="/account/orders">
                 <ArrowLeft className="h-4 w-4 mr-2" />

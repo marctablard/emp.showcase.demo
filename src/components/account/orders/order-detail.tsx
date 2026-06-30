@@ -15,6 +15,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useOrder } from '@/hooks/order/useOrder';
 import { type PaymentModeKey, dk } from '@/i18n/dynamic-key';
 import { useRouter } from '@/i18n/navigation';
+import { isOrderAccessDeniedError } from '@/lib/client/orders';
 import { fetchReturnsForOrder } from '@/lib/client/returns';
 import { ORDER_CUSTOMER_DECLINE_NOT_ALLOWED_MESSAGE } from '@/lib/common/order-customer-decline-not-allowed';
 import { type OrderReturnability, computeOrderReturnability } from '@/lib/common/returns/returnability';
@@ -46,6 +47,8 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
   const router = useRouter();
 
   const { order, loading, error, cancelOrder, statusTransitions } = useOrder({ orderId, initialOrder });
+  const orderErrorMessage =
+    error && isOrderAccessDeniedError(error) ? tOrder('orderAccessDenied') : tOrder('errorFetchingOrder');
 
   useEffect(() => {
     if (!order || order.status !== ORDER_STATUS.COMPLETED) return;
@@ -92,7 +95,7 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
       <Card>
         <CardContent className="pt-6">
           <div className="text-center">
-            <p className="text-text-error">{tOrder('errorFetchingOrder')}</p>
+            <p className="text-text-error">{orderErrorMessage}</p>
           </div>
         </CardContent>
       </Card>

@@ -16,6 +16,12 @@ import { normalizeCustomerOrderTransitionsPayload } from '../normalize-customer-
 
 const createOrderMetrics = (route: string) => createFetchMetricsParams('order', route);
 
+function createUpstreamOrderError(message: string, status: number): Error & { upstreamStatus: number } {
+  const error = new Error(message) as Error & { upstreamStatus: number };
+  error.upstreamStatus = status;
+  return error;
+}
+
 // Customer-managed endpoints use '/orders' while tenant-managed endpoints use '/salesorders'
 
 @injectable('EmporixOrderApi', 'Singleton')
@@ -131,7 +137,10 @@ class EmporixOrderApi implements IEmporixOrderApi {
         return null;
       }
       const errorDetails = await response.text();
-      throw new Error(`Failed to get customer order: ${response.statusText} ${errorDetails}`);
+      throw createUpstreamOrderError(
+        `Failed to get customer order: ${response.statusText} ${errorDetails}`,
+        response.status,
+      );
     }
 
     return await response.json();
@@ -347,7 +356,10 @@ class EmporixOrderApi implements IEmporixOrderApi {
 
     if (!response.ok) {
       const errorDetails = await response.text();
-      throw new Error(`Failed to get customer order status transitions: ${response.statusText} ${errorDetails}`);
+      throw createUpstreamOrderError(
+        `Failed to get customer order status transitions: ${response.statusText} ${errorDetails}`,
+        response.status,
+      );
     }
 
     const raw = await response.json();
