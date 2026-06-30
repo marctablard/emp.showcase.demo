@@ -4,6 +4,8 @@ const DEFAULT_SITE_CODE = process.env.NEXT_PUBLIC_DEFAULT_SITE || 'main';
 const BOOTSTRAP_ROUTE = '/api/test/auth/bootstrap';
 const BOOTSTRAP_HEADER_NAME = 'x-emporix-local-auth-bootstrap';
 const BOOTSTRAP_HEADER_VALUE = 'auth-site-sync';
+const BOOTSTRAP_TOKEN_HEADER_NAME = 'x-emporix-local-auth-bootstrap-token';
+const BOOTSTRAP_TOKEN = process.env.NEXT_E2E_LOCAL_AUTH_BOOTSTRAP_TOKEN;
 const SITE_LABEL_BY_CODE: Record<string, string> = {
   main: 'Showcase',
   'us-branch': 'US',
@@ -29,6 +31,11 @@ test.describe('Auth + Site synchronization', () => {
   test('bootstrap-authenticated /api/session state stays aligned with URL and header after a site switch', async ({
     page,
   }) => {
+    expect(
+      BOOTSTRAP_TOKEN,
+      'Set NEXT_E2E_LOCAL_AUTH_BOOTSTRAP_TOKEN in .env before running local auth bootstrap specs',
+    ).toBeTruthy();
+
     await page.goto('/');
 
     // Start on US before bootstrap so the request-scoped shopper session is created against the
@@ -42,6 +49,7 @@ test.describe('Auth + Site synchronization', () => {
     const bootstrapResponse = await page.request.post(BOOTSTRAP_ROUTE, {
       headers: {
         [BOOTSTRAP_HEADER_NAME]: BOOTSTRAP_HEADER_VALUE,
+        [BOOTSTRAP_TOKEN_HEADER_NAME]: BOOTSTRAP_TOKEN ?? '',
       },
     });
     expect(bootstrapResponse.ok()).toBeTruthy();

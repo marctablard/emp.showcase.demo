@@ -66,7 +66,7 @@ E2E tests are located in the `/e2e` directory at the root of the project.
 
 - Root-level specs in `/e2e` are the default environment-agnostic suite and must not depend on tenant-specific env vars or seeded data.
 - Specs in `/e2e/local` are opt-in local tests for tenant/data-dependent scenarios and are excluded from `npm run e2e` by default.
-- Tracked `*.local.spec.ts` files are committed local-only scenarios that stay out of `npm run e2e`; `e2e/auth-site-sync.local.spec.ts` uses a guarded local bootstrap route instead of real login secrets and runs on a dedicated localhost lane so it can coexist with a normal dev server on port 3000.
+- Tracked `*.local.spec.ts` files are committed local-only scenarios that stay out of `npm run e2e`; `e2e/auth-site-sync.local.spec.ts` uses a guarded local bootstrap route instead of real login secrets, requires `NEXT_E2E_LOCAL_AUTH_BOOTSTRAP_TOKEN`, and runs on a dedicated localhost lane so it can coexist with a normal dev server on port 3000.
 
 Current default-suite examples:
 
@@ -600,7 +600,7 @@ To run Playwright tests, use the following commands:
 # Run the default environment-agnostic Playwright suite
 npm run e2e
 
-# Run tracked local-only Playwright tests (`*.local.spec.ts`)
+# Run tracked local-only Playwright tests (`*.local.spec.ts`). Set `NEXT_E2E_LOCAL_AUTH_BOOTSTRAP_TOKEN` in `.env` first for the auth bootstrap scenario.
 npm run e2e:local
 
 # Run the credential-free local auth/site sync spec explicitly.

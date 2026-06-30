@@ -332,8 +332,8 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
             <div className="grid grid-cols-1 gap-6">
               <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm">
                 <div className="rounded-md bg-surface-page p-6">
-                  <p className="mb-2 text-sm font-medium">{t('createQuoteAfterApprovalTitle')}</p>
-                  <p className="mb-4 text-sm text-text-placeholders">{t('createQuoteAfterApprovalDescription')}</p>
+                  <p className="mb-2 text-sm font-medium">{t('acceptQuoteAfterApprovalTitle')}</p>
+                  <p className="mb-4 text-sm text-text-placeholders">{t('acceptQuoteAfterApprovalDescription')}</p>
 
                   <div className="mb-4">
                     <label htmlFor="approval-order-comment" className="mb-1 block text-sm font-medium">
@@ -369,8 +369,8 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
                       }}
                     >
                       {isOrderCreationPending
-                        ? t('creatingQuoteAfterApprovalAction')
-                        : t('createQuoteAfterApprovalAction')}
+                        ? t('acceptingQuoteAfterApprovalAction')
+                        : t('acceptQuoteAfterApprovalAction')}
                     </Button>
                   </div>
                 </div>

@@ -38,7 +38,7 @@ function stringEnvOnly(env: NodeJS.ProcessEnv): Record<string, string> {
  */
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: ['**/local/**', ...(includeLocalSpecs ? [] : ['**/*.local.spec.ts'])],
+  testIgnore: includeLocalSpecs ? [] : ['**/local/**', '**/*.local.spec.ts'],
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */

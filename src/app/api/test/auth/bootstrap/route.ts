@@ -10,15 +10,30 @@ import type { LoggerService } from '@/platform/services/logger/LoggerService';
 const LOCAL_AUTH_BOOTSTRAP_ENABLED_ENV = 'NEXT_E2E_LOCAL_AUTH_BOOTSTRAP_ENABLED';
 const LOCAL_AUTH_BOOTSTRAP_HEADER = 'x-emporix-local-auth-bootstrap';
 const LOCAL_AUTH_BOOTSTRAP_HEADER_VALUE = 'auth-site-sync';
-const LOCALHOST_NAMES = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
+const LOCAL_AUTH_BOOTSTRAP_TOKEN_ENV = 'NEXT_E2E_LOCAL_AUTH_BOOTSTRAP_TOKEN';
+const LOCAL_AUTH_BOOTSTRAP_TOKEN_HEADER = 'x-emporix-local-auth-bootstrap-token';
+const LOCALHOST_NAMES = new Set(['localhost', '127.0.0.1', '::1']);
 
 function isBootstrapEnabled(): boolean {
   return process.env[LOCAL_AUTH_BOOTSTRAP_ENABLED_ENV] === 'true';
 }
 
+function getBootstrapToken(): string | null {
+  const value = process.env[LOCAL_AUTH_BOOTSTRAP_TOKEN_ENV]?.trim();
+  return value ? value : null;
+}
+
 function isAllowedBootstrapRequest(request: NextRequest): boolean {
   const headerValue = request.headers.get(LOCAL_AUTH_BOOTSTRAP_HEADER);
-  return headerValue === LOCAL_AUTH_BOOTSTRAP_HEADER_VALUE && LOCALHOST_NAMES.has(request.nextUrl.hostname);
+  const token = getBootstrapToken();
+  const tokenHeaderValue = request.headers.get(LOCAL_AUTH_BOOTSTRAP_TOKEN_HEADER);
+
+  return (
+    headerValue === LOCAL_AUTH_BOOTSTRAP_HEADER_VALUE &&
+    token !== null &&
+    tokenHeaderValue === token &&
+    LOCALHOST_NAMES.has(request.nextUrl.hostname)
+  );
 }
 
 /**
@@ -45,6 +60,8 @@ export async function POST(request: NextRequest) {
       {
         hostname: request.nextUrl.hostname,
         hasExpectedHeader: request.headers.get(LOCAL_AUTH_BOOTSTRAP_HEADER) === LOCAL_AUTH_BOOTSTRAP_HEADER_VALUE,
+        hasExpectedTokenHeader:
+          request.headers.get(LOCAL_AUTH_BOOTSTRAP_TOKEN_HEADER) === (getBootstrapToken() ?? '__missing__'),
         path: '/api/test/auth/bootstrap',
       },
       'Rejected local auth bootstrap request',
