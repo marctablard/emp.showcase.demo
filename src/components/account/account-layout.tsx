@@ -38,7 +38,8 @@ interface AccountLayoutProps {
 export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
   const t = useTranslations('account');
   const [showSidebarOffcanvas, setShowSidebarOffcanvas] = useState(false);
-  const isDesktop = useBreakpoint('lg');
+  // Figma: the persistent sidebar appears from tablet (768) up; only below that a drawer is used.
+  const isDesktop = useBreakpoint('sm');
 
   // Toggle sidebar offcanvas visibility
   const toggleSidebarOffcanvas = () => {
@@ -191,7 +192,7 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
   ];
 
   return (
-    <div className="lg:mx-9">
+    <div className="max-w-6xl mx-auto">
       {breadcrumbs && <UiBreadcrumb items={breadcrumbs} className="content-container md:gap-x-6" />}
 
       {/* Mobile Menu Button - only visible on mobile */}
@@ -203,12 +204,12 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
         </div>
       )}
 
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen sm:mx-4 lg:mx-9">
         {/* Desktop Sidebar - always visible on desktop */}
         {isDesktop && <AccountSidebar items={sidebarItems} groups={sidebarGroups} />}
 
         {/* Mobile Off-canvas Sidebar */}
-        {showSidebarOffcanvas && (
+        {!isDesktop && showSidebarOffcanvas && (
           <>
             {/* Backdrop - closes the sidebar when clicked */}
             <div className="fixed inset-0 z-40 bg-black/20" onClick={toggleSidebarOffcanvas} aria-hidden="true" />
@@ -226,7 +227,7 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
           </>
         )}
 
-        <main className={`@container w-full min-w-0 px-4 ${isDesktop ? 'px-0 ml-4' : ''}`}>{children}</main>
+        <main className="@container w-full min-w-0 px-4 sm:px-0 sm:ml-4">{children}</main>
       </div>
     </div>
   );

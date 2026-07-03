@@ -74,9 +74,11 @@ describe('breakpoints — no ad-hoc duplication outside the SSOT', () => {
   });
 
   it('no xl:/2xl: responsive variants and no xl- typos survive (xl is not a defined breakpoint)', () => {
+    // `@xl:` (container query, 36rem container scale) is a different, valid mechanism and
+    // deliberately excluded — only viewport variants `xl:`/`2xl:` are effect-less here.
     const offenders = sourceFiles.filter((f) => {
       const src = read(f);
-      return /\b2?xl:(?=[a-z[])/.test(src) || /\bxl-col-/.test(src);
+      return /(?<![@\w])2?xl:(?=[a-z[])/.test(src) || /\bxl-col-/.test(src);
     });
     expect(offenders).toEqual([]);
   });

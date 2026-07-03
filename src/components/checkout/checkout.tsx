@@ -109,7 +109,7 @@ const Checkout: React.FC<CheckoutProps> = ({ onComplete }) => {
   // If no customer is available, show a message
   if (!checkoutCart) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="content-container py-8">
         <div className="text-center">
           <H1 variant="h6" className="text-text-heading mb-4">
             {t('title')}
@@ -127,15 +127,15 @@ const Checkout: React.FC<CheckoutProps> = ({ onComplete }) => {
           <div className="flex gap-3 align-end mb-8">
             <H1 variant="h3">{t('title')}</H1>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8">
-            <div className="col-span-1 md:col-span-2 lg:col-span-3" ref={leftContent}>
+          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_340px] lg:grid-cols-[minmax(0,1fr)_444px] gap-4 md:gap-6">
+            <div className="min-w-0" ref={leftContent}>
               {!customer && <ContactData />}
               <CheckoutShipping initialEdit={false} />
               <CheckoutPayment initialEdit={false} />
               {/*<CheckoutNotes />*/}
               <CheckoutItemlist />
             </div>
-            <div className="col-span-1 mb-6 flex">
+            <div className="mb-6 flex">
               <CheckoutSummary leftContent={leftContent} onSubmit={onSubmit} />
             </div>
           </div>

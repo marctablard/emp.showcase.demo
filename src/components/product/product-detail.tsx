@@ -249,6 +249,12 @@ export default function ProductDetail({ product: initialProduct, options, classN
     return notFound();
   }
 
+  // Column-wise fill (lg:grid-flow-col) needs an explicit row count: with a fixed
+  // grid-rows-3, a 7th key spec would create implicit extra columns and overflow the card.
+  const keySpecCount =
+    (product?.variantAttributes?.length ?? 0) + Object.keys(product?.templateAttributes ?? {}).length;
+  const keySpecRows = Math.max(3, Math.ceil(keySpecCount / 2));
+
   return (
     <>
       <div className={cn('grid grid-cols-1 gap-x-4 md:gap-x-12 lg:gap-x-20 md:grid-cols-2 mb-6', className)}>
@@ -288,7 +294,12 @@ export default function ProductDetail({ product: initialProduct, options, classN
                   <H2 variant="h4" className="text-text-on-action">
                     {t('keySpecs')}
                   </H2>
-                  <div className="grid grid-cols-1 grid-rows-3 lg:grid-cols-2 gap-y-6 gap-x-12">
+                  <div
+                    className="grid grid-cols-1 grid-rows-3 lg:grid-cols-2 lg:grid-flow-col lg:grid-rows-[var(--key-spec-rows)] gap-y-6 gap-x-12"
+                    style={
+                      { '--key-spec-rows': `repeat(${keySpecRows}, minmax(0, max-content))` } as React.CSSProperties
+                    }
+                  >
                     {product.variantAttributes?.map((attribute: ProductVariantAttribute) => (
                       <BulletPoint
                         key={attribute.key}
@@ -421,7 +432,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
             className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 md:grid-cols-3 lg:grid-cols-4"
             ref={addToCartButton}
           >
-            <div className="col-start-1 sm:row-start-1 md:col-end-4 lg:col-end-5">
+            <div className="col-start-1 sm:row-start-1 sm:col-end-3 md:col-end-4 lg:col-end-5">
               {price === undefined ? (
                 <ProductPriceSkeleton />
               ) : price === null ? (
@@ -523,7 +534,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
             {' '}
             {t('technicalInformation')}
           </H2>
-          <div className="grid grid-cols-1 gap-y-6 md:gap-y-16 gap-x-6 md:grid-cols-2 lg:grid-cols-4 mb-16">
+          <div className="grid grid-cols-1 gap-y-6 lg:gap-y-16 gap-x-6 md:grid-cols-2 lg:grid-cols-4 mb-16">
             {product.groupedSpecifications.map((spec: GroupedSpecification, index) => {
               return (
                 <div className="flex flex-col" key={index}>

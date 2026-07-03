@@ -70,7 +70,7 @@ const ColumnTeaser = ({ main_image, side_images }: ColumnTeaserProps) => {
   const sideImgs = side_images || [];
 
   return (
-    <div className="w-full max-w-6xl mx-auto mb-10">
+    <div className="content-container mb-10">
       <div className="grid grid-cols-2 gap-4 h-auto ">
         {/* Main image - left side */}
         {mainImg && (
