@@ -61,3 +61,10 @@ Below is a categorization of API endpoints based on their security requirements:
 - `/api/auth/login` - Should implement rate limiting
 - `/api/password-reset` - Should implement rate limiting
 - `/api/contact` - Should implement rate limiting
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [SSO Authentication](./sso-authentication.md)
+- [Environment Variables](./environment-variables.md)
+- [Logging Guide](./logging-guide.md)

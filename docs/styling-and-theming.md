@@ -101,3 +101,10 @@ Follow these steps when adding or updating tokens:
 - **Tailwind CSS Documentation**: https://tailwindcss.com/docs
 - **Design Tokens**: `src/app/styles/brand.css`, `src/app/styles/alias.css`, `src/app/styles/mapped.css`, `src/app/globals.css`
 - **Design Source**: Figma storefront design system (context tokens mirror Figma naming)
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [UI Components](./ui-components.md)
+- [Rendering: SSR / SSG / ISR](./rendering-ssr-ssg-isr.md)
+- [Project Structure](./project-structure.md)

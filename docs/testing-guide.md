@@ -714,3 +714,10 @@ The testing strategy implemented in the Emporix Showcase project provides compre
 By following the best practices outlined in this guide, particularly around context sharing, proper use of `act()`, and handling asynchronous operations, you can create reliable, maintainable tests that accurately verify your application's behavior.
 
 For more information about the dependency injection system used in tests, refer to the [Dependency Injection Documentation](./dependency-injection.md).
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Testing Strategy](./testing-strategy.md)
+- [Dependency Injection](./dependency-injection.md)
+- [ESLint: exhaustive-deps](./eslint-exhaustive-deps.md)

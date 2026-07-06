@@ -363,3 +363,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 ## Conclusion
 
 Our Dependency Injection framework always covers **server** and **SSR** Node runtimes. **By default** the browser stays free of the Inversify integration/service graph for smaller bundles and safer defaults. Use `server.get` / `ssr.get` on the server and thin `lib/client` helpers plus `/api/*` in the browser. Forks that need a browser container can enable `NEXT_PUBLIC_ENABLE_DI_GENERATE_CLIENT`, regenerate, and use the emitted `client.ts` with appropriate security review.
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Layered Architecture](./layered-architecture.md)
+- [Naming Conventions](./naming-conventions.md)
+- [Search Service](./search-service.md)
