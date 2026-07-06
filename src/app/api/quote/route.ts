@@ -61,7 +61,10 @@ export async function POST(request: NextRequest) {
     const hasReference = reference !== undefined && reference !== '';
     const hasUserComment = userComment !== undefined && userComment !== '';
 
-    const createPayload: any = {
+    // Derive the payload type from the service contract (the from-cart variant)
+    // so field names/types stay aligned with `QuoteService.createQuote` without
+    // adding new imports.
+    const createPayload: Extract<Parameters<QuoteService['createQuote']>[0], { cartId: string }> = {
       cartId,
       billingAddressId,
       shippingAddressId,

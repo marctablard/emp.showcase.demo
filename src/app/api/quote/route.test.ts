@@ -6,13 +6,11 @@ import { POST } from './route';
  * Contract under test:
  * - Body accepts from-cart fields (`cartId`, `billingAddressId`, `shippingAddressId`,
  *   `shipping`) plus metadata (`reference`, `userComment`, `comment`).
- * - Only the Emporix `QuoteCreateFromCartRequest` shape is forwarded to
- *   `QuoteService.createQuote` — metadata is persisted by the route via a second
- *   chained patch.
+ * - `reference`/`userComment` are mapped to Emporix `customerReference`/`customerComment`
+ *   and forwarded in a single `QuoteService.createQuote` call (no chained metadata patch).
  * - Missing `cartId` returns 400 without calling Emporix.
- * - Empty metadata does not trigger any quote update helper.
- * - Non-empty metadata fields are applied through a direct `updateQuote` call in
- *   the `service` scope, while internal employee comments still use `/comment`.
+ * - The internal employee `comment` is applied via a `/comment` patch in the
+ *   `session` scope; when it is absent/empty no `updateQuote` call is made.
  */
 
 jest.mock('@/platform/server', () => {
@@ -138,7 +136,7 @@ describe('POST /api/quote', () => {
     expect(schemaService.getSchema).not.toHaveBeenCalled();
   });
 
-  it('does NOT patch /shipping (shipping is sent in the create body per Emporix docs) and applies only comment plus metadata updates', async () => {
+  it('does NOT patch /shipping (shipping is sent in the create body per Emporix docs) and applies only the internal /comment patch', async () => {
     await POST(
       createRequest({
         cartId: 'cart-1',
