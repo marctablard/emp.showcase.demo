@@ -2,64 +2,47 @@
 
 ## Overview
 
-This is a Next.js e-commerce showcase application for the Emporix platform. When assisting with this codebase, follow these architectural guidelines and patterns.
+Next.js e-commerce showcase (BFF) for the Emporix platform. Follow the architecture and rules below.
 
-## Critical: Emporix API Documentation
+## Emporix APIs, MCP tools & documentation sync
 
-**ALWAYS use the Emporix MCP documentation tool (`mcp_emporixdocs_searchDocumentation`) when:**
+### Verify every API call against live docs (mandatory)
 
-- Answering questions about any Emporix API endpoints
-- Implementing features that interact with Emporix services (Cart, Product, Order, Customer, Checkout, etc.)
-- Debugging API integration issues
-- Understanding request/response formats for Emporix services
-- **Touching any API endpoint, integration, or service that calls an external API** — always verify endpoint paths, query parameters, request/response payload types, and field names against the latest documentation to ensure alignment and avoid using obsolete models
+Whenever you **write, change, or review** code that sends or receives data from an external API (`lib/client`, `lib/ssr`, `src/platform/integrations/**`, `src/platform/services/**`, `src/app/api/**/route.ts`), query **`mcp_emporixdocs_searchDocumentation`** first and confirm endpoint paths, query params, request/response shapes, field names, and scopes against the current contract ([developer.emporix.io](https://developer.emporix.io)). Never guess or rely on memory. Flag and update obsolete models, renamed fields, or deprecated endpoints. Applies to new **and** existing code you touch.
 
-The Emporix documentation is available at https://developer.emporix.io and provides authoritative information about:
+### Use only raw API fields in upstream queries
 
-- Cart Service, Product Service, Order Service, Customer Service
-- Checkout flows, pricing calculations, inventory management
-- Authentication and authorization scopes
-- API request/response schemas
+BFF mappers add computed/joined fields (e.g. `approver.fullName`) that do **not** exist in the raw API response. When building `q=` filters, query params, or sort keys sent upstream, use **only** fields documented in the raw response schema — mapper-only fields silently return zero results. Trace the relevant `*Mapper` to separate raw fields from locally computed ones.
 
-### Validate API types against documentation (mandatory)
+### Minimize upstream HTTP calls
 
-- When **adding, modifying, or reviewing** code that touches Emporix API endpoints (platform integrations, services, route handlers, `lib/client`, `lib/ssr`), **always query `mcp_emporixdocs_searchDocumentation`** to confirm that TypeScript interfaces, DTOs, and mapper logic match the current API contract.
-- **Validate payload and response types** — check that request bodies, query parameters, response shapes, and field names are aligned with the newest documentation version. Flag and update any obsolete models, renamed fields, or deprecated endpoints.
-- This applies to both **new code** and **existing code being changed** — if you touch a file that sends or receives data from an external API, verify the types are still current.
+Prefer the fewest requests. If the API supports multi-id/batch loading (e.g. `q=id:(id1 id2 id3)`), use one request via a shared helper instead of `Promise.all` per-id loops. Fall back to per-id calls only when no batch option is documented.
 
-### Verify API response shapes before using fields (mandatory)
+### Research service interactions with AIBuddy (bigger tasks)
 
-- **BFF mappers transform API responses** — the fields available on a mapped client/service model may **not** exist in the upstream Emporix API. Before implementing search, filter, sort, or query-parameter logic that targets an external API, **always confirm the actual API response shape** via `mcp_emporixdocs_searchDocumentation` (or https://developer.emporix.io).
-- **Common failure pattern**: a mapper adds a computed/joined field (e.g. `approver.fullName`) to the service model that does **not** exist in the raw API response. Code that passes that field as a `q=` query parameter or sort key to the upstream API will silently return zero results or error — because the field is only present after mapping, not in the backend index.
-- **Rule**: when building query strings, filter expressions, or sort parameters sent to an external API, only use fields that are documented in the **API response schema** — never fields that only exist in the mapped TypeScript model. Cross-check by:
-  1. Querying the Emporix docs for the resource endpoint (e.g. `GET /approvals`).
-  2. Identifying which fields are returned in the **raw** API response (before any BFF mapping).
-  3. Using **only** those raw fields in query params, `q=` filters, and sort expressions sent upstream.
-- **When in doubt**: open the relevant `*Mapper` class, trace which fields come from the API and which are computed/joined locally, and ensure upstream queries reference only the former.
+For larger tasks or research, use the **Emporix AIBuddy MCP** to learn how Emporix services talk to each other (flows, dependencies, orchestration) before designing changes.
 
-### Minimize Emporix HTTP calls (prefer one bulk request)
+### Keep `/docs` in sync (mandatory)
 
-- **Default to the smallest number of upstream requests.** If the API supports loading many entities in one call, use that instead of N separate calls.
-- When **creating or modifying** Emporix fetch code: if the service exposes **list/search/filter by multiple IDs** (or another batch input), **implement and use the batch path**; extract or reuse a shared helper (e.g. in the relevant `*Api` or service layer) so callers do not reintroduce per-id loops.
-- **Do not** use `Promise.all` (or sequential loops) of per-id `GET …/{id}` when a **single** Emporix request can return **all** requested resources — for example, prefer **one** list/search request with a filter such as **`q=id:(id1 id2 id3)`** (or the documented equivalent for that resource) over multiple category/product/order fetches.
-- **Couple of IDs** still warrants **one** combined HTTP request when the API supports it; only fall back to per-id calls when the documentation shows no batch or multi-id option.
+The `docs/*.md` files document this codebase. When a change affects behavior covered by a doc (architecture, logging, i18n, DI, testing, middleware, styling, deployment, rendering, caching, etc.), update the matching `docs/*.md` in the **same change** so documentation never drifts from code. If a new subsystem has no doc, add one.
 
 ---
 
 ## Tech Stack
 
-| Category                 | Technology                                   |
-| ------------------------ | -------------------------------------------- |
-| **Framework**            | Next.js 16 with App Router                   |
-| **Language**             | TypeScript (strict mode, decorators enabled) |
-| **State Management**     | Zustand with React Context                   |
-| **Styling**              | Tailwind CSS 4 + shadcn/ui                   |
-| **Internationalization** | next-intl 4.x with custom site routing       |
-| **Testing**              | Jest (4 projects) + Playwright               |
-| **Architecture**         | Inversify-based Dependency Injection         |
-| **Authentication**       | NextAuth.js v5 (Auth.js) beta.30             |
-| **Multi-tenancy**        | Custom site middleware                       |
-| **React**                | React 19 with Radix UI primitives            |
+| Category                 | Technology                                        |
+| ------------------------ | ------------------------------------------------- |
+| **Framework**            | Next.js 16.2 (App Router)                         |
+| **Language**             | TypeScript strict, decorators enabled             |
+| **React**                | React 19.2 + Radix UI primitives                  |
+| **State Management**     | Zustand 5 + React Context                         |
+| **Styling**              | Tailwind CSS 4 + shadcn/ui                         |
+| **Internationalization** | next-intl 4.4 with custom site routing            |
+| **Dependency Injection** | Inversify 7 (generated containers)                |
+| **Authentication**       | NextAuth.js v5 / Auth.js (beta.30)                |
+| **Multi-tenancy**        | Custom site middleware                            |
+| **Testing**              | Jest (multi-project) + Playwright                 |
+| **Logging**              | Pino via `LoggerService`                          |
 
 ---
 
@@ -137,29 +120,6 @@ export const { getPathname: getI18nPathname } = createIntlNavigation(routing);
 export const { Link, redirect, usePathname, useRouter, getPathname } = createNavigation(siteRouting, routing);
 ```
 
-**Key Navigation Functions:**
-
-```typescript
-// Link component - automatically includes site and locale
-import { Link } from '@/i18n/navigation';
-<Link href="/products">Products</Link>
-// Renders as: /site-code/locale/products (if needed)
-
-// Programmatic navigation
-import { redirect, useRouter } from '@/i18n/navigation';
-
-// In Server Components
-redirect({ href: '/login', locale: 'en', site: 'main' });
-
-// In Client Components
-const router = useRouter();
-router.push('/products');
-
-// Get current pathname
-import { usePathname } from '@/i18n/navigation';
-const pathname = usePathname(); // Without site/locale prefix
-```
-
 ### Using Site Context
 
 ```typescript
@@ -182,222 +142,37 @@ export function Component() {
 }
 ```
 
-### ✅ DO: Navigation Import Rules
-
-```typescript
-// ✅ Internal app routes: always use site-aware navigation helpers
-import { Link, redirect, useRouter, usePathname, getPathname } from '@/i18n/navigation';
-
-// ✅ External URLs: use plain anchor
-<a href="https://developer.emporix.io" target="_blank" rel="noreferrer">Docs</a>
-```
-
 ### ❌ DON'T: Navigation Anti-patterns
 
 ```typescript
 // ❌ Never import Link from next/link for internal app routes
 import Link from 'next/link';
 
-// ❌ Don't hardcode site in URLs
+// ❌ Don't hardcode site/locale in URLs
 <Link href="/main/en/products">Products</Link>
 
-// ❌ Don't access site without middleware context
-const site = process.env.SITE_CODE; // Won't work for multi-site
-
-// ❌ Don't forget to set request site in layouts
-export default async function Layout({ children }) {
-  // Missing setRequestSite(site) - child layouts won't have site context
-  return <>{children}</>;
-}
+// ❌ Don't read site from env (breaks multi-site)
+const site = process.env.SITE_CODE;
 ```
 
 ---
 
 ## Routing Architecture
 
-The app uses a sophisticated multi-tenant routing structure with dynamic segments and route groups:
+Routes live under `src/app/[site]/[locale]/` in three layout groups: `(default)` (full header/footer), `(reduced)` (checkout), `(no-margin)` (full-width CMS). API routes are under `src/app/api/`.
 
-```
-src/app/
-├── [site]/                    # Dynamic site segment (multi-tenant support)
-│   └── [locale]/              # Dynamic locale segment (i18n)
-│       ├── (default)/         # Route group - full header/footer layout
-│       │   ├── account/       # Protected account pages (extensive sub-routes)
-│       │   │   ├── orders/    # Order management
-│       │   │   ├── quotes/    # Quote management
-│       │   │   ├── addresses/ # Address management
-│       │   │   ├── approvals/ # B2B approval workflows
-│       │   │   └── ...        # Many more account features
-│       │   ├── product/[id]/  # Product detail pages
-│       │   ├── cart/          # Shopping cart
-│       │   ├── browse/        # Product browsing/search
-│       │   ├── register/      # Registration page
-│       │   └── layout.tsx     # Header + Footer wrapper
-│       ├── (reduced)/         # Route group - minimal layout (no heavy header/footer)
-│       │   ├── checkout/      # Checkout flow
-│       │   ├── confirmation/[orderId]/ # Order confirmation
-│       │   └── layout.tsx     # Reduced layout
-│       ├── (no-margin)/       # Route group - full-width CMS pages
-│       │   ├── [...slug]/     # Catch-all for CMS pages
-│       │   ├── page.tsx       # Homepage (CMS)
-│       │   └── layout.tsx     # No-margin layout
-│       ├── layout.tsx         # Root locale layout with all providers
-│       └── not-found.tsx      # 404 page
-└── api/                       # API routes (67+ routes)
-    ├── auth/                  # Authentication endpoints
-    ├── cart/                  # Cart operations
-    ├── checkout/              # Checkout operations
-    ├── products/              # Product operations
-    ├── customer/              # Customer operations
-    └── ...                    # Many more API routes
-```
-
-### ✅ DO: Routing Patterns
-
-```typescript
-// page.tsx - Server Component by default
-export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const product = await getProduct(id);
-  return <ProductDetail product={product} />;
-}
-
-// Protect pages by checking authentication in Server Component
-export default async function AccountPage({ params }: { params: Promise<{ locale: string }> }) {
-  const { locale } = await params;
-  const customer = await getCurrentCustomer();
-  if (!customer) {
-    redirect({ href: '/login', locale });
-    return;
-  }
-  return <AccountDashboard customer={customer} />;
-}
-
-// Generate metadata for SEO
-export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
-  const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: 'account' });
-  return {
-    title: await getPageTitle(t('title'), locale),
-    description: t('description'),
-  };
-}
-```
-
-### ❌ DON'T: Routing Anti-patterns
-
-```typescript
-// ❌ Don't use client-side protection in page components
-'use client';
-export default function AccountPage() {
-  const { status } = useSession();
-  if (status !== 'authenticated') {
-    router.push('/login'); // Flashes content before redirect
-  }
-}
-
-// ❌ Don't hardcode locales in routes
-<Link href="/en/product/123">Product</Link>
-
-// ✅ DO use the i18n navigation utilities
-import { Link } from '@/i18n/navigation';
-<Link href="/product/123">Product</Link>
-```
+- Pages are **Server Components** by default; `await params` (it is a `Promise`).
+- **Protect pages server-side** — check auth and `redirect(...)` in the Server Component, never with a client `useSession` guard (it flashes content before redirect).
+- Add SEO via `generateMetadata` using `getTranslations`.
 
 ---
 
 ## Layout Architecture
 
-### Layout Hierarchy
-
-```typescript
-// src/app/[site]/[locale]/layout.tsx - Root layout with all providers
-export default async function LocaleLayout({ children, params }: Props) {
-  const { locale, site: siteCode } = await params;
-  // Validate locale, fetch auth/session, set request context
-  setRequestSite(siteCode);
-  setRequestLocale(locale);
-  return (
-    <html lang={locale}>
-      <body>
-        <AuthSessionProvider>
-          <SiteProvider siteCode={siteCode}>
-            <NextIntlClientProvider locale={locale}>
-              <StoreProvider>{children}</StoreProvider>
-            </NextIntlClientProvider>
-          </SiteProvider>
-        </AuthSessionProvider>
-      </body>
-    </html>
-  );
-}
-
-// src/app/[site]/[locale]/(default)/layout.tsx - Page layout with navigation
-export default async function DefaultLayout({ children, params }: Props) {
-  const { locale, site } = await params;
-  setRequestSite(site);
-  setRequestLocale(locale);
-  return (
-    <>
-      <Header />
-      <main>{children}</main>
-      <Footer />
-    </>
-  );
-}
-
-// src/app/[site]/[locale]/(reduced)/layout.tsx - Minimal layout for checkout
-export default async function LocaleLayout({ children }: Props) {
-  return (
-    <>
-      <HeaderCheckout />
-      <main>{children}</main>
-      <Footer reduced />
-    </>
-  );
-}
-```
-
-### ✅ DO: Layout Patterns
-
-```typescript
-// Use route groups for different layouts
-// (default) - full navigation
-// (reduced) - minimal header for checkout
-// (no-margin) - full-width CMS content
-
-// Fetch data in Server Component layouts
-export default async function Layout({ children }: Props) {
-  const categories = await getCategories();
-  return (
-    <>
-      <Header categories={categories} />
-      {children}
-    </>
-  );
-}
-```
-
-### ❌ DON'T: Layout Anti-patterns
-
-```typescript
-// ❌ Don't add 'use client' to layouts unless absolutely necessary
-'use client';
-export default function Layout({ children }) { ... }
-
-// ❌ Don't fetch data in client layouts
-'use client';
-export default function Layout({ children }) {
-  const { data } = useSWR('/api/categories', fetcher);
-}
-
-// ❌ Don't call request context setters in client components
-'use client';
-export default function Header() {
-  setRequestSite('main'); // Not available in client
-  return null;
-}
-```
+- Root layout `[site]/[locale]/layout.tsx` wires all providers in order: `AuthSessionProvider` → `SiteProvider` → `NextIntlClientProvider` → `StoreProvider`.
+- **Every layout** must call `setRequestSite(site)` and `setRequestLocale(locale)` after `await params` so child layouts inherit context.
+- Route groups pick the chrome: `(default)` = Header + Footer, `(reduced)` = checkout header, `(no-margin)` = full-width CMS.
+- Fetch data in Server Component layouts. Never `'use client'` a layout, fetch via SWR/`fetch('/api/...')` there, or call request-context setters in client code.
 
 ---
 
@@ -468,35 +243,7 @@ The platform split in `src/platform/` must stay strict so HTTP route handlers an
 
 **Anti-pattern:** A route that does `server.get<EmporixReturnApi>(…)` plus `EmporixReturnMapper` to build the JSON response — that orchestration and mapping belongs inside `ReturnService` (or the appropriate domain service), and the route should call only that service.
 
-### Library Structure
-
-The `src/lib/` directory contains shared utilities organized by usage context:
-
-```
-src/lib/
-├── client/              # Client-side API calls (use in Client Components)
-│   ├── carts.ts        # Cart operations API
-│   ├── checkout.ts     # Checkout API
-│   ├── customer.ts     # Customer API
-│   ├── orders.ts       # Orders API
-│   ├── products.ts     # Product API
-│   ├── csrf-fetch.ts   # CSRF-protected fetch wrapper
-│   └── ...             # 20+ client API modules
-├── ssr/                # Server-side data fetching (use in Server Components)
-│   ├── carts.ts        # Cart data fetching
-│   ├── customer.ts     # Customer data fetching
-│   ├── orders.ts       # Orders data fetching
-│   ├── products.ts     # Product data fetching
-│   ├── session.ts      # Session management
-│   ├── site.ts         # Site configuration
-│   └── ...             # More SSR modules
-├── server/             # Server utilities (middleware, API routes)
-│   ├── context.ts      # Request context utilities
-│   └── url-utils.ts    # URL manipulation utilities
-├── common/             # Shared utilities (both client and server)
-│   └── cache.ts        # Caching utilities
-└── utils.ts            # General utilities
-```
+### Library Structure (`src/lib/`)
 
 | Context | Use | Example |
 |---------|-----|--------|
@@ -765,37 +512,7 @@ When implementing, refactoring, or reviewing UI, treat the Figma design system a
 
 ### shadcn/ui Components
 
-This project uses shadcn/ui components. The **shadcn MCP server** is available for browsing, searching, and installing components.
-
-**Use the shadcn MCP tools when:**
-
-- Adding new UI components to the project
-- Searching for specific component patterns (forms, dialogs, etc.)
-- Installing components with proper dependencies
-
-**Example prompts:**
-
-- "Add the accordion component from shadcn"
-- "Show me all available form components in shadcn registry"
-- "Install a date picker component"
-
-Existing components are in `src/components/ui/`:
-
-```typescript
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-```
-
-Use Tailwind CSS utilities for styling:
-
-```typescript
-// ✅ Correct
-<div className="flex mt-4 gap-2">
-
-// ❌ Wrong
-<div style={{ display: 'flex', marginTop: '16px' }}>
-```
+Base components live in `src/components/ui/` (`import { Button } from '@/components/ui/button'`). Use the **shadcn MCP server** to browse, search, or install new components. Style with Tailwind utility classes, never inline `style={{...}}`.
 
 ---
 
@@ -866,34 +583,7 @@ logger.error('Operation failed', { error: err.message });
 
 ### API Debug Tooling (Dev Only)
 
-The project includes a dual-output API debug system that logs upstream API calls to **both** the server terminal and the browser DevTools console.
-
-**Key files:**
-
-| File                                         | Purpose                                                              |
-| -------------------------------------------- | -------------------------------------------------------------------- |
-| `src/platform/core/utils/debug-utils.ts`     | Request/response logging, curl generation, colorized terminal output |
-| `src/platform/core/utils/debug-event-bus.ts` | `globalThis`-based singleton event bus with replay buffer            |
-| `src/app/api/debug/stream/route.ts`          | SSE endpoint that streams events to the browser                      |
-| `src/components/debug/ApiDebugPanel.tsx`     | Invisible client component that renders events in browser Console    |
-
-**Environment variables for API debugging:**
-
-| Variable                          | Values                                                                      | Description                                         |
-| --------------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------- |
-| `NEXT_PUBLIC_DEBUG_API_CURL`      | `true`/`false`                                                              | Log curl commands for every upstream API call       |
-| `NEXT_PUBLIC_DEBUG_API_RESPONSE`  | `OFF`, `STATUS`, `STATUS-HEADERS`, `STATUS-BODY`, `STATUS-BODY-{n}`, `FULL` | Response logging verbosity                          |
-| `NEXT_PUBLIC_DEBUG_API_ENDPOINTS` | Comma-separated substrings                                                  | Filter to specific URL paths (e.g., `order,return`) |
-| `NEXT_PUBLIC_DEBUG_API_VERBOSE`   | `true`/`false`                                                              | Show unmasked sensitive data (tokens, secrets)      |
-| `NEXT_DEBUG_API_PAYLOAD`          | `true`/`false`                                                              | Log POST/PUT/PATCH request bodies                   |
-
-**Architecture note:** The `debugEventBus` uses `globalThis` to share a single instance across Next.js RSC and API Route module scopes (they run in separate contexts in dev mode). Events are buffered in a ring buffer (50 events) so SSR calls that happen before the browser connects are replayed when the EventSource opens.
-
-**Terminal output** uses ANSI color-coded pretty-printing: keys in cyan, string values in yellow, numbers in magenta, booleans/null in green. This is powered by `pino-pretty` + a custom `colorizeJson()` function in `debug-utils.ts`.
-
-**Browser Console output** uses `console.groupCollapsed` with CSS styling: green for 2xx, orange for 4xx, red for 5xx. Response bodies are displayed via `console.dir` for full object expansion. Headers are shown via `console.table`.
-
-See [docs/logging-guide.md](../docs/logging-guide.md) for the full reference.
+A dual-output debug system logs upstream API calls to the server terminal and the browser console, controlled by `NEXT_PUBLIC_DEBUG_API_*` and `NEXT_DEBUG_API_PAYLOAD` env vars. See [docs/logging-guide.md](../docs/logging-guide.md) for the full reference.
 
 ---
 
@@ -972,14 +662,3 @@ const t = useTranslations('account.returns');
 
 - Top-level namespace: `useTranslations('orders')` → `orders/index.json`
 - Nested namespace: `useTranslations('account.returns')` → `account/index.json` → `returns: { ... }`
-
----
-
-## Reminder: Emporix API Documentation
-
-When working with any Emporix API integrations:
-
-1. **ALWAYS** query `mcp_emporixdocs_searchDocumentation` first
-2. Use the official documentation at https://developer.emporix.io
-3. Never guess API endpoints, request/response formats, or scopes
-4. The Emporix Cart, Product, Order, Customer, Checkout, Price, and Inventory services all have comprehensive documentation available through the MCP tool
