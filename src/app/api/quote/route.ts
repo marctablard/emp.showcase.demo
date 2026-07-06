@@ -3,9 +3,7 @@ import { NextResponse } from 'next/server';
 import server from '@/platform/server';
 import type { CustomerService } from '@/platform/services/customer/CustomerService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import type { QuoteUpdateRequest } from '@/platform/services/model/quote';
 import type { QuoteService } from '@/platform/services/quote/QuoteService';
-import type { SchemaService } from '@/platform/services/schema/SchemaService';
 import type { SessionService } from '@/platform/services/session/SessionService';
 
 export async function POST(request: NextRequest) {
@@ -14,7 +12,6 @@ export async function POST(request: NextRequest) {
     const { cartId, billingAddressId, shippingAddressId, shipping, reference, userComment, comment } = body ?? {};
 
     const quoteService = server.get<QuoteService>('QuoteService');
-    const schemaService = server.get<SchemaService>('SchemaService');
     const sessionService = server.get<SessionService>('SessionService');
     const logger = server.get<LoggerService>('LoggerService');
 
@@ -61,44 +58,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await quoteService.createQuote({
+    const hasReference = reference !== undefined && reference !== '';
+    const hasUserComment = userComment !== undefined && userComment !== '';
+
+    const createPayload: any = {
       cartId,
       billingAddressId,
       shippingAddressId,
       shipping,
-    });
+    };
+
+    if (hasReference) {
+      createPayload.customerReference = reference;
+    }
+    if (hasUserComment) {
+      createPayload.customerComment = userComment;
+    }
+
+    const result = await quoteService.createQuote(createPayload);
 
     if (result.quoteId) {
       try {
-        const updateList: QuoteUpdateRequest[] = [];
-
         if (comment !== undefined && comment !== '') {
-          updateList.push({ op: 'REPLACE', path: '/comment', value: comment });
-        }
-
-        const hasReference = reference !== undefined && reference !== '';
-        const hasUserComment = userComment !== undefined && userComment !== '';
-        if (hasReference || hasUserComment) {
-          const quoteMixinSchema = await schemaService.getSchema('additionalInfo');
-          updateList.push({
-            op: 'ADD',
-            path: '/mixins/additionalInfo',
-            value: {
-              ...(hasReference ? { reference } : {}),
-              ...(hasUserComment ? { userComment } : {}),
-            },
-          });
-          if (quoteMixinSchema?.metadata?.url) {
-            updateList.push({
-              op: 'ADD',
-              path: '/metadata/mixins/additionalInfo',
-              value: quoteMixinSchema.metadata.url,
-            });
-          }
-        }
-
-        if (updateList.length > 0) {
-          await quoteService.updateQuote(result.quoteId, updateList, 'session');
+          await quoteService.updateQuote(result.quoteId, [{ op: 'REPLACE', path: '/comment', value: comment }], 'session');
         }
       } catch (updateError) {
         logger.error(

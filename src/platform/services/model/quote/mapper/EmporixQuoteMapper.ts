@@ -74,8 +74,8 @@ export class EmporixQuoteMapper implements QuoteMapper<EmporixQuote> {
       },
       shippingCost: emporixQuote.shipping?.value || 0,
       shippingMethod: emporixQuote.shipping?.methodId || '',
-      reference: emporixQuote.mixins?.additionalInfo?.reference,
-      userComment: emporixQuote.mixins?.additionalInfo?.userComment,
+      reference: emporixQuote.customerReference ?? emporixQuote.mixins?.additionalInfo?.reference,
+      userComment: emporixQuote.customerComment ?? emporixQuote.mixins?.additionalInfo?.userComment,
     };
   }
 }

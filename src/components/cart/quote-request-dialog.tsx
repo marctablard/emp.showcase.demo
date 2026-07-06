@@ -53,10 +53,9 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
     submitBillingAddress({ ...address, type: 'BILLING' });
   };
 
-  // Build the Emporix QuoteCreateFromCartRequest fields. The BFF accepts
-  // additional top-level fields (reference, userComment, comment) and applies
-  // them via PATCH after the quote id is returned — they are intentionally not
-  // part of the Emporix wire shape here.
+  // Build the Emporix QuoteCreateFromCartRequest fields. Reference and userComment
+  // are passed down from here to /api/quote which pushes them natively in the body
+  // to the Emporix upstream.
   const createFromCartPayload = () => {
     if (!checkoutCart?.id) {
       throw new Error('Cart ID is required for quote from cart');

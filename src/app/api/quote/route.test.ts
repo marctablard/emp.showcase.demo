@@ -7,11 +7,12 @@ import { POST } from './route';
  * - Body accepts from-cart fields (`cartId`, `billingAddressId`, `shippingAddressId`,
  *   `shipping`) plus metadata (`reference`, `userComment`, `comment`).
  * - Only the Emporix `QuoteCreateFromCartRequest` shape is forwarded to
- *   `QuoteService.createQuote` — metadata is stripped and re-applied via PATCH.
+ *   `QuoteService.createQuote` — metadata is persisted by the route via a second
+ *   chained patch.
  * - Missing `cartId` returns 400 without calling Emporix.
- * - Empty metadata does not trigger a PATCH (no schema read, no updateQuote).
- * - Non-empty metadata fields are applied via one `updateQuote` call with the
- *   expected op list.
+ * - Empty metadata does not trigger any quote update helper.
+ * - Non-empty metadata fields are applied through a direct `updateQuote` call in
+ *   the `service` scope, while internal employee comments still use `/comment`.
  */
 
 jest.mock('@/platform/server', () => {
@@ -48,6 +49,7 @@ describe('POST /api/quote', () => {
     quoteService = {
       createQuote: jest.fn().mockResolvedValue({ quoteId: 'Q-1000' }),
       updateQuote: jest.fn().mockResolvedValue(undefined),
+      addQuoteUserComment: jest.fn().mockResolvedValue(undefined),
     };
     schemaService = {
       getSchema: jest.fn().mockResolvedValue({ metadata: { url: 'https://schemas/additionalInfo' } }),
@@ -84,7 +86,7 @@ describe('POST /api/quote', () => {
     expect(quoteService.updateQuote).not.toHaveBeenCalled();
   });
 
-  it('forwards only the cart-shape body to QuoteService.createQuote (strips metadata)', async () => {
+  it('forwards the cart-shape body along with new top-level metadata fields to QuoteService.createQuote (single call)', async () => {
     const response = await POST(
       createRequest({
         cartId: 'cart-1',
@@ -110,10 +112,20 @@ describe('POST /api/quote', () => {
       billingAddressId: 'le-loc-1',
       shippingAddressId: 'le-loc-1',
       shipping: { value: 0, methodId: 'm1', zoneId: 'z1', shippingTaxCode: 'STANDARD' },
+      customerReference: 'PO-42',
+      customerComment: 'please hurry',
     });
+    expect(schemaService.getSchema).not.toHaveBeenCalled();
+    expect(quoteService.updateQuote).toHaveBeenCalledTimes(1);
+    expect(quoteService.updateQuote).toHaveBeenNthCalledWith(
+      1,
+      'Q-1000',
+      [{ op: 'REPLACE', path: '/comment', value: 'internal note' }],
+      'session',
+    );
   });
 
-  it('skips PATCH entirely when all metadata fields are absent/empty', async () => {
+  it('skips quote metadata updates entirely when all metadata fields are absent/empty', async () => {
     await POST(
       createRequest({
         cartId: 'cart-1',
@@ -122,10 +134,11 @@ describe('POST /api/quote', () => {
 
     expect(quoteService.createQuote).toHaveBeenCalledTimes(1);
     expect(quoteService.updateQuote).not.toHaveBeenCalled();
+    expect(quoteService.addQuoteUserComment).not.toHaveBeenCalled();
     expect(schemaService.getSchema).not.toHaveBeenCalled();
   });
 
-  it('does NOT patch /shipping (shipping is sent in the create body per Emporix docs) and applies only comment/mixin ops', async () => {
+  it('does NOT patch /shipping (shipping is sent in the create body per Emporix docs) and applies only comment plus metadata updates', async () => {
     await POST(
       createRequest({
         cartId: 'cart-1',
@@ -141,14 +154,11 @@ describe('POST /api/quote', () => {
     expect(quoteId).toBe('Q-1000');
     expect(scope).toBe('session');
     // No /shipping entry — shipping is already on the quote via the create body.
-    expect(ops).toEqual([
-      { op: 'REPLACE', path: '/comment', value: 'internal note' },
-      { op: 'ADD', path: '/mixins/additionalInfo', value: { reference: 'PO-42', userComment: 'please hurry' } },
-      { op: 'ADD', path: '/metadata/mixins/additionalInfo', value: 'https://schemas/additionalInfo' },
-    ]);
+    expect(ops).toEqual([{ op: 'REPLACE', path: '/comment', value: 'internal note' }]);
+    expect(schemaService.getSchema).not.toHaveBeenCalled();
   });
 
-  it('does not fetch the mixin schema when reference/userComment are both empty', async () => {
+  it('does not look up the schema or patch metadata when reference/userComment are both empty', async () => {
     await POST(
       createRequest({
         cartId: 'cart-1',
@@ -159,11 +169,12 @@ describe('POST /api/quote', () => {
       }) as never,
     );
 
-    expect(schemaService.getSchema).not.toHaveBeenCalled();
     expect(quoteService.updateQuote).toHaveBeenCalledTimes(1);
+    expect(quoteService.addQuoteUserComment).not.toHaveBeenCalled();
     const [, ops] = quoteService.updateQuote.mock.calls[0];
     // Only `/comment` is patched — `/shipping` is covered by the create body.
     expect(ops).toEqual([{ op: 'REPLACE', path: '/comment', value: 'note' }]);
+    expect(schemaService.getSchema).not.toHaveBeenCalled();
   });
 
   it('skips PATCH entirely when only shipping is provided (shipping is covered by the create body)', async () => {
@@ -176,16 +187,17 @@ describe('POST /api/quote', () => {
 
     expect(quoteService.createQuote).toHaveBeenCalledTimes(1);
     expect(quoteService.updateQuote).not.toHaveBeenCalled();
+    expect(quoteService.addQuoteUserComment).not.toHaveBeenCalled();
     expect(schemaService.getSchema).not.toHaveBeenCalled();
   });
 
-  it('still returns 201 when PATCH fails (create succeeded)', async () => {
+  it('still returns 201 when the session comment patch fails (create succeeded)', async () => {
     quoteService.updateQuote.mockRejectedValueOnce(new Error('patch boom'));
 
     const response = await POST(
       createRequest({
         cartId: 'cart-1',
-        reference: 'PO-42',
+        comment: 'internal note',
       }) as never,
     );
 
@@ -209,7 +221,10 @@ describe('POST /api/quote', () => {
       billingAddressId: undefined,
       shippingAddressId: undefined,
       shipping: undefined,
+      customerComment: 'approval note',
     });
+    expect(schemaService.getSchema).not.toHaveBeenCalled();
+    expect(quoteService.updateQuote).not.toHaveBeenCalled();
     await expect(response.json()).resolves.toEqual({ quoteId: 'Q-1000' });
   });
 
