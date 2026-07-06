@@ -139,7 +139,7 @@ describe('POST /api/quote', () => {
     expect(quoteService.updateQuote).toHaveBeenCalledTimes(1);
     const [quoteId, ops, scope] = quoteService.updateQuote.mock.calls[0];
     expect(quoteId).toBe('Q-1000');
-    expect(scope).toBe('service');
+    expect(scope).toBe('session');
     // No /shipping entry — shipping is already on the quote via the create body.
     expect(ops).toEqual([
       { op: 'REPLACE', path: '/comment', value: 'internal note' },
