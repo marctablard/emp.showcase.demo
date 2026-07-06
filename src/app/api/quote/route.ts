@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
         }
 
         if (updateList.length > 0) {
-          await quoteService.updateQuote(result.quoteId, updateList, 'service');
+          await quoteService.updateQuote(result.quoteId, updateList, 'session');
         }
       } catch (updateError) {
         logger.error(

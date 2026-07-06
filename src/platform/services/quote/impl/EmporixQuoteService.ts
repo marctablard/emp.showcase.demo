@@ -104,7 +104,7 @@ class EmporixQuoteService implements QuoteService {
       }
     }
 
-    await this.updateQuote(quoteId, updateList, 'service');
+    await this.updateQuote(quoteId, updateList, 'session');
   }
 
   async getQuoteReason(quoteReasonId: string): Promise<QuoteReason> {
