@@ -583,7 +583,7 @@ logger.error('Operation failed', { error: err.message });
 
 ### API Debug Tooling (Dev Only)
 
-A dual-output debug system logs upstream API calls to the server terminal and the browser console, controlled by `NEXT_PUBLIC_DEBUG_API_*` and `NEXT_DEBUG_API_PAYLOAD` env vars. See [docs/logging-guide.md](../docs/logging-guide.md) for the full reference.
+A dual-output debug system logs upstream API calls to the server terminal and the browser console, controlled by `NEXT_PUBLIC_DEBUG_API_*` and `NEXT_DEBUG_API_PAYLOAD` env vars. See [docs/logging-guide.md](../../docs/logging-guide.md) for the full reference.
 
 ---
 
