@@ -1,12 +1,11 @@
-import type {
-  BatteryIncludedFacetCount,
-  BatteryIncludedFacetCountRow,
-  BatteryIncludedSearchResponse,
-} from '@/platform/integrations/batteryincluded/model';
+import type { BatteryIncludedFacetCount, BatteryIncludedFacetCountRow, BatteryIncludedSearchResponse } from '@/platform/integrations/batteryincluded/model';
 import type { Category } from '@/platform/services/model/category';
-import { withBatteryIncludedCategoryMetadata } from '@/platform/services/model/category/batteryincluded-category';
+import {
+  BATTERY_INCLUDED_CATEGORY_IDS_FILTER,
+  withBatteryIncludedCategoryMetadata,
+} from '@/platform/services/model/category/batteryincluded-category';
 
-export const BATTERY_INCLUDED_CATEGORY_IDS_FILTER = '_product.categoryIds';
+
 const ID_PATH_DELIMITER = ' > ';
 
 export interface NavigationCategoryTreeRequestContext {
@@ -18,6 +17,7 @@ export interface NavigationCategoryTreeRequestContext {
 
 export interface BatteryIncludedCategoryLookupEntry {
   id: string;
+  displayPath?: string;
   facetValue?: string;
   labelPath: string;
   leafLabel: string;
@@ -168,6 +168,7 @@ export function buildBatteryIncludedCategoryTree(
 
       const entry: BatteryIncludedCategoryLookupEntry = {
         id,
+        displayPath: index === scopedIdPath.length - 1 ? fullDisplayPath : byId[id]?.displayPath,
         facetValue: index === scopedIdPath.length - 1 ? facetValue : byId[id]?.facetValue,
         labelPath: scopedLabelPath.slice(0, index + 1).join(ID_PATH_DELIMITER),
         leafLabel: label,
@@ -189,6 +190,7 @@ export function buildBatteryIncludedCategoryTree(
 
       const withMetadata = withBatteryIncludedCategoryMetadata(node, {
         source: 'batteryincluded',
+        displayPath: entry.displayPath,
         facetValue: entry.facetValue,
         labelPath: entry.labelPath,
         leafLabel: entry.leafLabel,
@@ -214,6 +216,7 @@ export function buildBatteryIncludedCategoryTree(
       entry.count = count;
       const withMetadata = withBatteryIncludedCategoryMetadata(node, {
         source: 'batteryincluded',
+        displayPath: entry.displayPath,
         facetValue: entry.facetValue,
         labelPath: entry.labelPath,
         leafLabel: entry.leafLabel,

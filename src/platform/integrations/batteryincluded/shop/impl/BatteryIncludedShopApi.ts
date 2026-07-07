@@ -3,9 +3,10 @@ import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type BatteryIncludedApiInvoker from '../../common/impl/BatteryIncludedApiInvoker';
-import { buildSearchParams } from '../../common/util/common';
+import { appendBatteryIncludedVisibility, buildSearchParams } from '../../common/util/common';
 import type { BatteryIncludedConfig, BatteryIncludedRuntimeConfig } from '../../config';
 import type {
+  BatteryIncludedBrowseVariables,
   BatteryIncludedHighlight,
   BatteryIncludedPreset,
   BatteryIncludedProduct,
@@ -13,6 +14,7 @@ import type {
   BatteryIncludedSearchResponse,
   BatteryIncludedSuggestParams,
   BatteryIncludedSuggestion,
+  BatteryIncludedVisibilityContext,
 } from '../../model';
 import type {
   BatteryIncludedCategoryTreeBootstrapParams,
@@ -59,17 +61,24 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
   async browseCategoryTreeBootstrap<T>(
     params: BatteryIncludedCategoryTreeBootstrapParams,
   ): Promise<BatteryIncludedSearchResponse<T>> {
+    const visibility: BatteryIncludedVisibilityContext = {
+      variables: {
+        locale: params.locale,
+        siteAware: params.siteCode,
+        countryAware: params.country,
+        ...(params.variables ?? {}),
+        ...(params.visibility?.variables ?? {}),
+      },
+      ...(params.visibility?.filters ? { filters: params.visibility.filters } : {}),
+    };
+
     return this.browse<T>({
       query: '',
       page: 0,
       size: 0,
       variants: 0,
       analyze: 1,
-      variables: {
-        locale: params.locale,
-        siteAware: params.siteCode,
-        countryAware: params.country,
-      },
+      visibility,
     });
   }
 
@@ -78,15 +87,11 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
    */
   async suggest(params: BatteryIncludedSuggestParams): Promise<BatteryIncludedSuggestion<BatteryIncludedProduct>[]> {
     const runtimeConfig = await this.getCollectionRuntimeConfig();
-    const { query, segmentIds, variables } = params;
+    const { query, segmentIds, variables, visibility } = params;
     const searchParams = new URLSearchParams();
     searchParams.append('q', query);
 
-    Object.entries(variables ?? {}).forEach(([key, value]) => {
-      if (value) {
-        searchParams.append(`v[${key}]`, value);
-      }
-    });
+    appendBatteryIncludedVisibility(searchParams, visibility ?? variables);
 
     if (segmentIds?.length) {
       segmentIds.forEach((segmentId) => {
@@ -125,9 +130,14 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
   /**
    * Get highlighted products
    */
-  async getHighlights(): Promise<BatteryIncludedHighlight[]> {
+  async getHighlights(variables?: BatteryIncludedBrowseVariables | BatteryIncludedVisibilityContext): Promise<BatteryIncludedHighlight[]> {
     const runtimeConfig = await this.getCollectionRuntimeConfig();
-    const url = `/api/v1/collections/${runtimeConfig.collection}/documents/highlights`;
+    const searchParams = new URLSearchParams();
+    appendBatteryIncludedVisibility(searchParams, variables);
+    const queryString = searchParams.toString();
+    const url = queryString
+      ? `/api/v1/collections/${runtimeConfig.collection}/documents/highlights?${queryString}`
+      : `/api/v1/collections/${runtimeConfig.collection}/documents/highlights`;
 
     const response = await this.apiClient.apiFetch(
       url,
@@ -145,10 +155,14 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
   /**
    * Get product recommendations based on a product ID
    */
-  async getRecommendations(id: string): Promise<BatteryIncludedProduct[]> {
+  async getRecommendations(
+    id: string,
+    variables?: BatteryIncludedBrowseVariables | BatteryIncludedVisibilityContext,
+  ): Promise<BatteryIncludedProduct[]> {
     const runtimeConfig = await this.getCollectionRuntimeConfig();
     const params = new URLSearchParams();
     params.append('id', id);
+    appendBatteryIncludedVisibility(params, variables);
 
     const url = `/api/v1/collections/${runtimeConfig.collection}/documents/recommendations?${params.toString()}`;
 
@@ -167,9 +181,14 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
   /**
    * Get available presets
    */
-  async getPresets(): Promise<BatteryIncludedPreset[]> {
+  async getPresets(variables?: BatteryIncludedBrowseVariables | BatteryIncludedVisibilityContext): Promise<BatteryIncludedPreset[]> {
     const runtimeConfig = await this.getCollectionRuntimeConfig();
-    const url = `/api/v1/collections/${runtimeConfig.collection}/documents/presets`;
+    const searchParams = new URLSearchParams();
+    appendBatteryIncludedVisibility(searchParams, variables);
+    const queryString = searchParams.toString();
+    const url = queryString
+      ? `/api/v1/collections/${runtimeConfig.collection}/documents/presets?${queryString}`
+      : `/api/v1/collections/${runtimeConfig.collection}/documents/presets`;
 
     const response = await this.apiClient.apiFetch(
       url,

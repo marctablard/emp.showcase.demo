@@ -1,4 +1,63 @@
-import type { BatteryIncludedSearchParams } from '../../model';
+import type {
+  BatteryIncludedBrowseVariables,
+  BatteryIncludedSearchParams,
+  BatteryIncludedVisibilityContext,
+} from '../../model';
+
+type SerializableBatteryIncludedFilters = Record<
+  string,
+  string | string[] | Record<string, string | number | string[]>
+>;
+
+function appendFilters(queryParams: URLSearchParams, filters: SerializableBatteryIncludedFilters | undefined): void {
+  if (!filters) {
+    return;
+  }
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      value.forEach((entry) => {
+        queryParams.append(`f[${key}][]`, entry);
+      });
+      return;
+    }
+
+    if (typeof value === 'object' && value !== null) {
+      Object.entries(value).forEach(([subKey, subValue]) => {
+        queryParams.append(`f[${key}][${subKey}]`, String(subValue));
+      });
+      return;
+    }
+
+    queryParams.append(`f[${key}]`, String(value));
+  });
+}
+
+function isVisibilityContext(
+  visibility: BatteryIncludedBrowseVariables | BatteryIncludedVisibilityContext,
+): visibility is BatteryIncludedVisibilityContext {
+  return 'variables' in visibility || 'filters' in visibility;
+}
+
+export function appendBatteryIncludedVisibility(
+  queryParams: URLSearchParams,
+  visibility?: BatteryIncludedBrowseVariables | BatteryIncludedVisibilityContext,
+): void {
+  if (!visibility) {
+    return;
+  }
+
+  const variables = isVisibilityContext(visibility) ? visibility.variables : visibility;
+  Object.entries(variables ?? {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== '') {
+      queryParams.append(`v[${key}]`, value);
+    }
+  });
+
+  if (isVisibilityContext(visibility)) {
+    appendFilters(queryParams, visibility.filters);
+  }
+}
 
 /**
  * Builds search parameters for Battery Included API
@@ -33,14 +92,13 @@ export function buildSearchParams<T>(params: BatteryIncludedSearchParams<T>): st
     queryParams.append('analyze', String(params.analyze));
   }
 
-  const variables = {
-    ...(params.locale ? { locale: params.locale } : {}),
-    ...(params.variables ?? {}),
-  };
-  for (const [key, value] of Object.entries(variables)) {
-    if (value !== undefined && value !== '') {
-      queryParams.append(`v[${key}]`, value);
-    }
+  if (params.visibility) {
+    appendBatteryIncludedVisibility(queryParams, params.visibility);
+  } else {
+    appendBatteryIncludedVisibility(queryParams, {
+      ...(params.locale ? { locale: params.locale } : {}),
+      ...(params.variables ?? {}),
+    });
   }
 
   // Add preset parameter
@@ -49,24 +107,7 @@ export function buildSearchParams<T>(params: BatteryIncludedSearchParams<T>): st
   }
 
   // Add filters
-  if (params.filters) {
-    Object.entries(params.filters).forEach(([key, value]) => {
-      if (Array.isArray(value)) {
-        // Handle array values
-        value.forEach((v) => {
-          queryParams.append(`f[${key}][]`, v);
-        });
-      } else if (typeof value === 'object' && value !== null) {
-        // Handle nested filter objects like price ranges
-        Object.entries(value).forEach(([subKey, subValue]) => {
-          queryParams.append(`f[${key}][${subKey}]`, String(subValue));
-        });
-      } else {
-        // Handle simple string values
-        queryParams.append(`f[${key}]`, String(value));
-      }
-    });
-  }
+  appendFilters(queryParams, params.visibility ? undefined : params.filters);
 
   return queryParams.toString();
 }

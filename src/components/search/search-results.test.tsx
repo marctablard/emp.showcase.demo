@@ -8,6 +8,15 @@ import { acquireNavigationWaitCursorLease, releaseNavigationWaitCursorLease } fr
 import { browseSearchStateSignature } from '@/utils/filterUtils';
 import { SearchResultsComponent } from './search-results';
 
+
+
+
+
+
+
+
+
+
 const mockSearch = jest.fn();
 const mockSyncBrowseSearchStateFromUrl = jest.fn();
 let mockSearchParams = new URLSearchParams();
@@ -54,7 +63,7 @@ jest.mock('@/hooks/search/useSearch', () => ({
     availableSorts: [
       {
         id: 'name',
-        label: 'Name',
+        label: 'Product name',
         directions: ['asc', 'desc'],
         defaultDirection: 'asc',
       },
@@ -336,7 +345,7 @@ describe('SearchResultsComponent', () => {
       availableSorts: [
         {
           id: 'name',
-          label: 'Name',
+          label: 'Product name',
         },
       ],
       currentSort: undefined,
@@ -359,7 +368,7 @@ describe('SearchResultsComponent', () => {
       availableSorts: [
         {
           id: 'name',
-          label: 'Name',
+          label: 'Product name',
         },
       ],
       currentSort: undefined,

@@ -12,16 +12,28 @@ import { routing } from '@/i18n/routing';
 import { updateSessionLanguage } from '@/lib/client/session';
 import { getLogger } from '@/lib/logger/use-logger-client';
 
+const LOCALIZED_BREADCRUMB_FILTER_PARAMS = [
+  'filters[_product_i18n.categoryBreadcrumbs.displayPath]',
+  'filters[_product_i18n.categories.breadcrumbs.displayPath]',
+];
+
+export const stripLocalizedBreadcrumbFilter = (search: string): string => {
+  const normalizedSearch = search.startsWith('?') ? search.slice(1) : search;
+  const searchParams = new URLSearchParams(normalizedSearch);
+
+  for (const paramName of LOCALIZED_BREADCRUMB_FILTER_PARAMS) {
+    searchParams.delete(paramName);
+  }
+
+  return searchParams.toString();
+};
+
 export function LanguageSwitcher() {
   const t = useTranslations('common.Languages');
 
   const currentLocale = useLocale();
   const { site, loading: siteLoading } = useSite();
   const pathname = usePathname();
-
-  // Get the current search parameters to preserve them when switching languages
-  const searchParams =
-    typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
 
   // Memoize the language options to avoid recreating objects on each render
   const languageOptions = useMemo(() => {
@@ -55,9 +67,13 @@ export function LanguageSwitcher() {
         'updateSessionLanguage failed during language switch',
       );
     }
-    const searchParamsString = searchParams.toString();
-    const queryString = searchParamsString ? `?${searchParamsString}` : '';
-    redirect({ href: pathname + queryString, locale: newLocale, site: site.code, forcePrefix: true });
+    const sanitizedSearch = stripLocalizedBreadcrumbFilter(window.location.search);
+    const href = sanitizedSearch
+      ? `${pathname}?${sanitizedSearch}`
+      : pathname.endsWith('/browse')
+        ? '/browse'
+        : pathname;
+    redirect({ href, locale: newLocale, site: site.code, forcePrefix: true });
   };
 
   if (siteLoading) {

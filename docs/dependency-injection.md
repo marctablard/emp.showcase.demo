@@ -16,6 +16,8 @@ Our Dependency Injection (DI) framework provides a robust, type-safe way to mana
 
 5. **Centralized Configuration**: All service registrations are managed in one place, making it easier to understand and modify the application's architecture.
 
+6. **Explicit request context**: Services that need request-scoped visibility or site scoping should resolve it in the service layer and pass it down as a value object. The BatteryIncluded search stack follows this rule so unpublished catalogs are filtered without hidden mutable state.
+
 ## Technical Foundation
 
 Our DI framework is built on [InversifyJS](https://inversify.io/), a powerful inversion of control container for TypeScript & JavaScript applications. We've extended Inversify with custom functionality to support:

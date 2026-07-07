@@ -2,6 +2,7 @@
 import { SearchParams, SearchResult } from '../model/common';
 import { Product } from '../model/product';
 import { SearchSuggestions } from '../model/search';
+import type { BatteryIncludedBrowseVariables } from '@/platform/integrations/batteryincluded/model';
 
 export interface SearchService {
   /**
@@ -20,10 +21,16 @@ export interface SearchService {
   /**
    * Get highlighted products
    */
-  getHighlights(): Promise<Product[]>;
+  getHighlights(visibility?: BatteryIncludedBrowseVariables): Promise<Product[]>;
 
   /**
    * Get product recommendations based on a product ID
    */
-  getRecommendations(productId: string, locale?: string, site?: string, limit?: number): Promise<Product[]>;
+  getRecommendations(
+    productId: string,
+    locale?: string,
+    site?: string,
+    limit?: number,
+    visibility?: BatteryIncludedBrowseVariables,
+  ): Promise<Product[]>;
 }

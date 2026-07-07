@@ -1,10 +1,16 @@
 import type { Category } from '@/platform/services/model/category';
 
+
+
+
 export const BATTERY_INCLUDED_CATEGORY_METADATA_KEY = 'batteryIncludedCategory';
 export const BATTERY_INCLUDED_BREADCRUMB_FILTER = '_product_i18n.categoryBreadcrumbs.displayPath';
+export const BATTERY_INCLUDED_PUBLISHED_FILTER = '_product.published';
+export const BATTERY_INCLUDED_CATEGORY_IDS_FILTER = '_product.categoryIds';
 
 export interface BatteryIncludedCategoryMetadata {
   source: 'batteryincluded';
+  displayPath?: string;
   facetValue?: string;
   labelPath: string;
   leafLabel: string;

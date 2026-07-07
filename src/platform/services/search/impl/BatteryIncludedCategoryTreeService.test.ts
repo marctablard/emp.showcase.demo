@@ -78,6 +78,27 @@ describe('BatteryIncludedCategoryTreeService', () => {
       showRoots: false,
       showUnpublished: false,
     });
+    expect(shopApi.browseCategoryTreeBootstrap).toHaveBeenCalledWith({
+      locale: 'en',
+      siteCode: 'TEST',
+      country: 'none',
+      variables: {
+        locale: 'en',
+        siteAware: 'TEST',
+        countryAware: 'none',
+      },
+      visibility: {
+        variables: {
+          locale: 'en',
+          siteAware: 'TEST',
+          countryAware: 'none',
+        },
+        filters: {
+          '_product.published': 'true',
+          '_product.categoryIds': ['root1'],
+        },
+      },
+    });
 
     const root = snapshot!.roots[0];
     expect(root.description).toBe('Enriched Root Description');
@@ -159,5 +180,14 @@ describe('BatteryIncludedCategoryTreeService', () => {
     await service.getSnapshot({ siteCode: 'TEST', locale: 'en', country: 'none', showUnpublished: true });
 
     expect(shopApi.browseCategoryTreeBootstrap).toHaveBeenCalledTimes(2);
+  });
+
+  it('short-circuits bootstrap when no published roots exist', async () => {
+    catalogPublishedRootCategoryService.getRootCategoryIdsForSite.mockResolvedValue([]);
+
+    const snapshot = await service.getSnapshot({ siteCode: 'TEST', locale: 'en', country: 'none' });
+
+    expect(snapshot).toBeNull();
+    expect(shopApi.browseCategoryTreeBootstrap).not.toHaveBeenCalled();
   });
 });

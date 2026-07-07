@@ -4,6 +4,11 @@ import type { BatteryIncludedConfig, BatteryIncludedRuntimeConfig } from '../../
 import { BatteryIncludedSearchResponse } from '../../model';
 import BatteryIncludedShopApi from './BatteryIncludedShopApi';
 
+const visibilityFilters = {
+  '_product.published': 'true',
+  '_product.categoryIds': ['root-a', 'root-b'],
+};
+
 describe('BatteryIncludedShopApi', () => {
   let shopApi: BatteryIncludedShopApi;
   let apiInvoker: jest.Mocked<Pick<BatteryIncludedApiInvoker, 'apiFetch'>>;
@@ -48,7 +53,16 @@ describe('BatteryIncludedShopApi', () => {
       apiInvoker.apiFetch.mockResolvedValue(createJsonResponse({ hits: [], found: 0, page: 1, facet_counts: [] }));
 
       // Execute
-      const result: BatteryIncludedSearchResponse<any> = await shopApi.browse({ query: 'power' });
+      const result: BatteryIncludedSearchResponse<any> = await shopApi.browse({
+        query: 'power',
+        visibility: {
+          variables: {
+            locale: 'en',
+            siteAware: 'main',
+          },
+          filters: visibilityFilters,
+        },
+      });
 
       // Verify
       expect(apiInvoker.apiFetch).toHaveBeenCalledWith(
@@ -107,17 +121,36 @@ describe('BatteryIncludedShopApi', () => {
         locale: 'en',
         siteCode: 'main',
         country: 'DE',
+        visibility: {
+          variables: {
+            locale: 'en',
+            siteAware: 'main',
+            countryAware: 'DE',
+          },
+          filters: visibilityFilters,
+        },
+        variables: {
+          locale: 'en',
+          siteAware: 'main',
+          countryAware: 'DE',
+        },
       });
 
       const url = apiInvoker.apiFetch.mock.calls[0][0];
+      expect(url.match(/f%5B_product.published%5D=true/g)).toHaveLength(1);
+      expect(url.match(/f%5B_product.categoryIds%5D%5B%5D=root-a/g)).toHaveLength(1);
+      expect(url.match(/f%5B_product.categoryIds%5D%5B%5D=root-b/g)).toHaveLength(1);
       expect(url).toContain('q=');
       expect(url).toContain('page=0');
       expect(url).toContain('per_page=0');
       expect(url).toContain('variants=0');
       expect(url).toContain('analyze=1');
-      expect(url).toContain('v%5Blocale%5D=en');
-      expect(url).toContain('v%5BsiteAware%5D=main');
-      expect(url).toContain('v%5BcountryAware%5D=DE');
+      expect(url.match(/f%5B_product.published%5D=true/g)).toHaveLength(1);
+      expect(url.match(/f%5B_product.categoryIds%5D%5B%5D=root-a/g)).toHaveLength(1);
+      expect(url.match(/f%5B_product.categoryIds%5D%5B%5D=root-b/g)).toHaveLength(1);
+      expect(url).toContain('f%5B_product.published%5D=true');
+      expect(url).toContain('f%5B_product.categoryIds%5D%5B%5D=root-a');
+      expect(url).toContain('f%5B_product.categoryIds%5D%5B%5D=root-b');
     });
   });
 
@@ -128,6 +161,15 @@ describe('BatteryIncludedShopApi', () => {
       // Execute
       await shopApi.suggest({
         query: 'pho',
+        visibility: {
+          variables: {
+            locale: 'en',
+            siteAware: 'main',
+            countryAware: 'DE',
+            currencyAware: 'EUR',
+          },
+          filters: visibilityFilters,
+        },
         variables: {
           locale: 'en',
           siteAware: 'main',
@@ -156,6 +198,9 @@ describe('BatteryIncludedShopApi', () => {
       expect(url).toContain('v%5BsiteAware%5D=main');
       expect(url).toContain('v%5BcountryAware%5D=DE');
       expect(url).toContain('v%5BcurrencyAware%5D=EUR');
+      expect(url).toContain('f%5B_product.published%5D=true');
+      expect(url).toContain('f%5B_product.categoryIds%5D%5B%5D=root-a');
+      expect(url).toContain('f%5B_product.categoryIds%5D%5B%5D=root-b');
       expect(url).toContain('f%5BsegmentIds%5D%5B%5D=segment-a');
       expect(url).toContain('f%5BsegmentIds%5D%5B%5D=segment-b');
       expect(url).not.toContain('f%5BsegmentIds%5D%5B%5D=segment-a%2Csegment-b');
@@ -167,17 +212,29 @@ describe('BatteryIncludedShopApi', () => {
       apiInvoker.apiFetch.mockResolvedValue(createJsonResponse({ highlights: [] }));
 
       // Execute
-      await shopApi.getHighlights();
+      await shopApi.getHighlights({
+        variables: { locale: 'en', siteAware: 'main', countryAware: 'DE', currencyAware: 'EUR' },
+        filters: visibilityFilters,
+      });
 
       // Verify
       expect(apiInvoker.apiFetch).toHaveBeenCalledWith(
-        `/api/v1/collections/${runtimeConfig.collection}/documents/highlights`,
+        expect.stringContaining(`/api/v1/collections/${runtimeConfig.collection}/documents/highlights`),
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({ Accept: 'application/json' }),
         }),
         runtimeConfig,
       );
+
+      const url = apiInvoker.apiFetch.mock.calls[0][0];
+      expect(url).toContain('v%5Blocale%5D=en');
+      expect(url).toContain('v%5BsiteAware%5D=main');
+      expect(url).toContain('v%5BcountryAware%5D=DE');
+      expect(url).toContain('v%5BcurrencyAware%5D=EUR');
+      expect(url).toContain('f%5B_product.published%5D=true');
+      expect(url).toContain('f%5B_product.categoryIds%5D%5B%5D=root-a');
+      expect(url).toContain('f%5B_product.categoryIds%5D%5B%5D=root-b');
     });
   });
 
@@ -187,16 +244,32 @@ describe('BatteryIncludedShopApi', () => {
       const expectedQuery = new URLSearchParams({ id: recommendationId }).toString();
       apiInvoker.apiFetch.mockResolvedValue(createJsonResponse([]));
 
-      await shopApi.getRecommendations(recommendationId);
+      await shopApi.getRecommendations(recommendationId, {
+        variables: {
+          locale: 'en',
+          siteAware: 'main',
+          countryAware: 'DE',
+        },
+        filters: visibilityFilters,
+      });
 
       expect(apiInvoker.apiFetch).toHaveBeenCalledWith(
-        `/api/v1/collections/${runtimeConfig.collection}/documents/recommendations?${expectedQuery}`,
+        expect.stringContaining(`/api/v1/collections/${runtimeConfig.collection}/documents/recommendations?`),
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({ Accept: 'application/json' }),
         }),
         runtimeConfig,
       );
+
+      const url = apiInvoker.apiFetch.mock.calls[0][0];
+      expect(url).toContain(expectedQuery);
+      expect(url).toContain('v%5Blocale%5D=en');
+      expect(url).toContain('v%5BsiteAware%5D=main');
+      expect(url).toContain('v%5BcountryAware%5D=DE');
+      expect(url.match(/f%5B_product.published%5D=true/g)).toHaveLength(1);
+      expect(url.match(/f%5B_product.categoryIds%5D%5B%5D=root-a/g)).toHaveLength(1);
+      expect(url.match(/f%5B_product.categoryIds%5D%5B%5D=root-b/g)).toHaveLength(1);
     });
   });
 
@@ -205,17 +278,27 @@ describe('BatteryIncludedShopApi', () => {
       apiInvoker.apiFetch.mockResolvedValue(createJsonResponse({ presets: [] }));
 
       // Execute
-      await shopApi.getPresets();
+      await shopApi.getPresets({
+        variables: { locale: 'en', siteAware: 'main' },
+        filters: visibilityFilters,
+      });
 
       // Verify
       expect(apiInvoker.apiFetch).toHaveBeenCalledWith(
-        `/api/v1/collections/${runtimeConfig.collection}/documents/presets`,
+        expect.stringContaining(`/api/v1/collections/${runtimeConfig.collection}/documents/presets`),
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({ Accept: 'application/json' }),
         }),
         runtimeConfig,
       );
+
+      const url = apiInvoker.apiFetch.mock.calls[0][0];
+      expect(url).toContain('v%5Blocale%5D=en');
+      expect(url).toContain('v%5BsiteAware%5D=main');
+      expect(url.match(/f%5B_product.published%5D=true/g)).toHaveLength(1);
+      expect(url.match(/f%5B_product.categoryIds%5D%5B%5D=root-a/g)).toHaveLength(1);
+      expect(url.match(/f%5B_product.categoryIds%5D%5B%5D=root-b/g)).toHaveLength(1);
     });
   });
 });

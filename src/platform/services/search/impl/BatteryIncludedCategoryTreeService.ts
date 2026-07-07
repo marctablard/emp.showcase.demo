@@ -12,6 +12,7 @@ import {
   type NavigationCategoryTreeRequestContext,
   buildBatteryIncludedCategoryTree,
 } from './batteryincluded-category-tree';
+import { buildBatteryIncludedVisibilityFilters, buildBatteryIncludedVisibilityVariables } from './batteryincluded-visibility';
 
 const COUNTRY_NONE_BUCKET = '__none__';
 
@@ -69,6 +70,19 @@ class BatteryIncludedCategoryTreeService implements BatteryIncludedCategoryTreeS
       locale: context.locale,
       siteCode: context.siteCode,
       country: context.country,
+      visibility: {
+        variables: buildBatteryIncludedVisibilityVariables({
+          locale: context.locale,
+          site: context.siteCode,
+          country: context.country,
+        }),
+        filters: buildBatteryIncludedVisibilityFilters(publishedRootIds) ?? undefined,
+      },
+      variables: buildBatteryIncludedVisibilityVariables({
+        locale: context.locale,
+        site: context.siteCode,
+        country: context.country,
+      }),
     });
 
     const built = buildBatteryIncludedCategoryTree(

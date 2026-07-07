@@ -2,6 +2,11 @@ import type { Category } from '@/platform/services/model/category';
 import { withBatteryIncludedCategoryMetadata } from '@/platform/services/model/category/batteryincluded-category';
 import { resolveSelectedCategoryIdFromFilters } from './category-selection';
 
+
+
+
+
+
 describe('resolveSelectedCategoryIdFromFilters', () => {
   const navigationRoots: Category[] = [
     withBatteryIncludedCategoryMetadata(
@@ -21,6 +26,7 @@ describe('resolveSelectedCategoryIdFromFilters', () => {
                   },
                   {
                     source: 'batteryincluded',
+                    displayPath: 'Cables > USB-C > USB-C Gen 2',
                     facetValue: 'Cables > USB-C > USB-C Gen 2',
                     labelPath: 'Cables > USB-C > USB-C Gen 2',
                     leafLabel: 'USB-C Gen 2',
@@ -33,6 +39,7 @@ describe('resolveSelectedCategoryIdFromFilters', () => {
             },
             {
               source: 'batteryincluded',
+              displayPath: 'Cables > USB-C',
               facetValue: 'Cables > USB-C',
               labelPath: 'Cables > USB-C',
               leafLabel: 'USB-C',
@@ -45,6 +52,7 @@ describe('resolveSelectedCategoryIdFromFilters', () => {
       },
       {
         source: 'batteryincluded',
+        displayPath: undefined,
         facetValue: undefined,
         labelPath: 'Cables',
         leafLabel: 'Cables',

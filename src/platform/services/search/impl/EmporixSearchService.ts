@@ -1,11 +1,12 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
+import type { BatteryIncludedBrowseVariables } from '@/platform/integrations/batteryincluded/model';
 import type { EmporixPaginatedResponse, EmporixProduct } from '@/platform/integrations/emporix/model';
 import type { EmporixProductApi } from '@/platform/integrations/emporix/product/EmporixProductApi';
 import { buildProductCategoryIdsCriteriaValue } from '@/platform/integrations/emporix/product/buildProductCatalogScopeQ';
 import type { CategoryService } from '@/platform/services/category/CategoryService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import type { SearchParams, SearchResult } from '@/platform/services/model/common';
+import type { SearchParams, SearchResult, SearchSortOption } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
 import type { PriceFetchOptions } from '@/platform/services/price/PriceService';
 import type { ProductFetchOptions, ProductService } from '@/platform/services/product/ProductService';
@@ -26,6 +27,15 @@ function isUnscopedProductSearch(params: SearchParams<Product>): boolean {
   }
   return process.env.NEXT_PUBLIC_SEARCH_OMIT_CATALOG_CATALOG_FILTER === 'true';
 }
+
+const EMPORIX_AVAILABLE_SORTS: SearchSortOption[] = [
+  {
+    id: 'name',
+    labelKey: 'name',
+    directions: ['asc', 'desc'],
+    defaultDirection: 'asc',
+  },
+];
 
 /**
  * Implementation of SearchService for Emporix product data.
@@ -66,6 +76,7 @@ class EmporixSearchService implements SearchService {
       pageSize,
       total: 0,
       availableFilters: [],
+      availableSorts: EMPORIX_AVAILABLE_SORTS,
     };
   }
 
@@ -238,6 +249,7 @@ class EmporixSearchService implements SearchService {
       pageSize: requestedSize,
       total: searchResult.total,
       availableFilters: [],
+      availableSorts: EMPORIX_AVAILABLE_SORTS,
     };
   }
 
@@ -298,11 +310,17 @@ class EmporixSearchService implements SearchService {
     };
   }
 
-  async getHighlights(): Promise<Product[]> {
+  async getHighlights(_visibility?: BatteryIncludedBrowseVariables): Promise<Product[]> {
     return [];
   }
 
-  async getRecommendations(_productId: string, _locale?: string, _site?: string, _limit?: number): Promise<Product[]> {
+  async getRecommendations(
+    _productId: string,
+    _locale?: string,
+    _site?: string,
+    _limit?: number,
+    _visibility?: BatteryIncludedBrowseVariables,
+  ): Promise<Product[]> {
     return [];
   }
 }

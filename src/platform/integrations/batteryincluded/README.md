@@ -10,6 +10,19 @@ This integration provides a client for interacting with the Battery Included API
 - Product recommendations
 - Presets for predefined searches
 
+Presets are enforced at the adapter boundary only. There is no current SearchService consumer, so the visibility contract is applied in `BatteryIncludedShopApi` instead of a service-level preset method.
+
+## Default Visibility Contract
+
+Every BI request is scoped to published products only. The BFF applies two hard defaults on the server side before the request is serialized:
+
+- `_product.published=true`
+- `_product.categoryIds` restricted to the published root ids for the current site
+
+The current site roots come from `CatalogPublishedRootCategoryService.getRootCategoryIdsForSite(site)`. The integration keeps the existing GET query-string contract and serializes the hard defaults as `f[_product.published]=true` plus repeated `f[_product.categoryIds][]=<rootId>` entries.
+
+User filters can narrow the scope further, but they cannot widen it beyond the published roots. If the site has no published roots, the BFF fails closed and returns empty BI results or a null category-tree snapshot.
+
 ## Usage
 
 ### Configuration
@@ -31,7 +44,7 @@ Runtime configuration is cached process-locally on the server for 60 seconds wit
 ## Category Tree Bootstrap
 
 - The navigation-tree strategy is binding-driven: when the generated `SearchService` alias resolves to `BatteryIncludedSearchService`, SSR category loading uses the BatteryIncluded bootstrap path; when the alias resolves to Emporix, the existing Emporix category-tree path is preserved unchanged.
-- The grounded BatteryIncluded bootstrap request is `/browse?q=&page=0&per_page=0&analyze=1&v[countryAware]=<country>&v[siteAware]=<site>&v[locale]=<locale>`.
+- The grounded BatteryIncluded bootstrap request is `/browse?q=&page=0&per_page=0&analyze=1&v[countryAware]=<country>&v[siteAware]=<site>&v[locale]=<locale>&f[_product.published]=true&f[_product.categoryIds][]=<rootId>...`.
 - `_product_i18n.categoryBreadcrumbs.displayPath` is the primary category facet for BatteryIncluded navigation, and `counts[].data.idPath` is the primary ancestry/id source.
 - Breadcrumb rows whose `idPath` does not contain any published Emporix catalog root id are pruned before the BI tree is built, because Emporix remains the publication authority for visible category roots.
 - BatteryIncluded trees are cached process-locally by `siteCode + locale + countryBucket`; the preserved Emporix path keeps the existing `unstable_cache()` behavior.

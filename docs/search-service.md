@@ -72,12 +72,22 @@ DI_DEPENDENCY_FILE=src/platform/depency.local.yml
 
 ### BatteryIncludedSearchService
 
-- Uses `BatteryIncludedShopApi` for product data
-- Maps products using `BatteryIncludedProductMapper`
-- Provides enhanced search capabilities including:
-  - Faceted search with filters
-  - Advanced suggestions
-  - Product recommendations
+- Uses `BatteryIncludedProductMapper` and BI-specific search facets
+- Faceted search with filters
+- Always exposes the guaranteed sort options for product name and price, then appends any valid BI response-driven sort facets without duplicate ids.
+- Advanced suggestions
+- Product recommendations
+- Resolves request-scoped visibility explicitly and threads it through search, suggestions, highlights, recommendations, presets, and category-tree bootstrap so unpublished catalogs cannot leak into results.
+- Applies the BI hard defaults on every query: `_product.published=true` and `_product.categoryIds` constrained to the published root ids returned by `CatalogPublishedRootCategoryService.getRootCategoryIdsForSite(site)`.
+- Keeps the filter transport on the existing BI GET query contract; the default scope is serialized as `f[_product.published]=true` and repeated `f[_product.categoryIds][]=<rootId>` entries.
+- Merges user-selected filters by intersection, so callers can narrow scope but cannot broaden it beyond the published roots.
+- Fails closed only when the site has no published roots, returning empty BI results or a null category-tree bootstrap snapshot.
+
+### BatteryIncluded visibility contract
+
+BatteryIncluded search calls do not rely on hidden request state. The service layer resolves the visibility variables once per request, resolves the published root ids once per request, and passes both into the BI adapter as explicit visibility metadata. That keeps the scope policy in the service layer and the shop API layer as a stateless serializer.
+
+When the BI search request includes same-field category selection, the service narrows it to the published roots before the request is sent upstream. That preserves pagination and total counts without any client-side post-filtering.
 
 ## Important Notes
 

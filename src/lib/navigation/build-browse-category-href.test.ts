@@ -1,5 +1,8 @@
 import { buildBrowseHrefForCategoryId } from './build-browse-category-href';
 
+
+
+
 describe('buildBrowseHrefForCategoryId', () => {
   it('returns a category-scoped browse URL without carrying unrelated filters', () => {
     expect(
@@ -9,6 +12,7 @@ describe('buildBrowseHrefForCategoryId', () => {
         customAttributes: {
           batteryIncludedCategory: {
             source: 'batteryincluded',
+            displayPath: 'Cables > USB-C',
             facetValue: 'Cables > USB-C',
             labelPath: 'Cables > USB-C',
             leafLabel: 'USB-C',

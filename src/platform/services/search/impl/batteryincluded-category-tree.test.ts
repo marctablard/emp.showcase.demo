@@ -1,6 +1,10 @@
 import { getCategoryChildren } from '@/lib/category/category-tree-utils';
 import { buildBatteryIncludedCategoryTree } from './batteryincluded-category-tree';
 
+
+
+
+
 describe('buildBatteryIncludedCategoryTree', () => {
   it('builds a BI tree from breadcrumb rows filtered by published roots and ordered by published root order', () => {
     const response = {
@@ -63,6 +67,7 @@ describe('buildBatteryIncludedCategoryTree', () => {
 
     expect(result.snapshot?.roots.map((root) => root.id)).toEqual(['root-a', 'root-b']);
     expect(result.snapshot?.byId['child-a']).toMatchObject({
+      displayPath: 'Cables > USB-C',
       facetValue: 'Cables > USB-C',
       publicationAnchorId: 'root-a',
       leafLabel: 'USB-C',
@@ -176,6 +181,7 @@ describe('buildBatteryIncludedCategoryTree', () => {
 
     expect(root?.id).toBe('root');
     expect(result.snapshot?.byId['child-111112']).toMatchObject({
+      displayPath: 'zRoot Two > rt-child1 > rt-child11 > rt-child111 > rt-child1111 > rt-child11111 > rt-child111112',
       facetValue: 'zRoot Two > rt-child1 > rt-child11 > rt-child111 > rt-child1111 > rt-child11111 > rt-child111112',
       labelPath: 'zRoot Two > rt-child1 > rt-child11 > rt-child111 > rt-child1111 > rt-child11111 > rt-child111112',
       idPath: ['root', 'child-1', 'child-11', 'child-111', 'child-1111', 'child-11111', 'child-111112'],

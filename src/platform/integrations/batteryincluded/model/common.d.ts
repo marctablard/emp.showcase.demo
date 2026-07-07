@@ -1,10 +1,17 @@
 import { EmporixMedia } from '@/platform/integrations/emporix/model/common';
-
+import type { SearchFilters } from '@/platform/services/model/common';
 export interface BatteryIncludedBrowseVariables {
   locale?: string;
   siteAware?: string;
   countryAware?: string;
   currencyAware?: string;
+}
+
+export type BatteryIncludedVisibilityFilters = SearchFilters;
+
+export interface BatteryIncludedVisibilityContext {
+  variables?: BatteryIncludedBrowseVariables;
+  filters?: BatteryIncludedVisibilityFilters;
 }
 
 export interface BatteryIncludedSearchParams<T> {
@@ -17,6 +24,7 @@ export interface BatteryIncludedSearchParams<T> {
   analyze?: 0 | 1;
   preset?: string;
   variables?: BatteryIncludedBrowseVariables;
+  visibility?: BatteryIncludedVisibilityContext;
   filters?: Record<string, string | string[] | Record<string, string | number>>;
 }
 
@@ -79,6 +87,7 @@ export interface BatteryIncludedHighlight {
 export interface BatteryIncludedSuggestParams {
   query: string;
   variables?: BatteryIncludedBrowseVariables;
+  visibility?: BatteryIncludedVisibilityContext;
   segmentIds?: string[];
 }
 

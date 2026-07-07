@@ -20,6 +20,8 @@
   "sort": {
     "placeholder": "Sort by",
     "clear": "Clear sort",
+    "name": "Product name",
+    "price": "Price",
     "direction": {
       "asc": "Ascending",
       "desc": "Descending"

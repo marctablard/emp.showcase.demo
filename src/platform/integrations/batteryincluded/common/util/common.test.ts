@@ -96,5 +96,50 @@ describe('Common Utilities', () => {
 
       expect(result.match(/variants=0/g)).toHaveLength(1);
     });
+
+    it('should serialize the explicit BI visibility hard filters in the existing GET shape', () => {
+      const params = {
+        filters: {
+          '_product.published': true,
+          '_product.categoryIds': ['root-a', 'root-b'],
+        },
+      } as BatteryIncludedSearchParams<any>;
+
+      const result = buildSearchParams(params);
+
+      expect(result).toContain('f%5B_product.published%5D=true');
+      expect(result).toContain('f%5B_product.categoryIds%5D%5B%5D=root-a');
+      expect(result).toContain('f%5B_product.categoryIds%5D%5B%5D=root-b');
+    });
+
+    it('should serialize the explicit visibility contract once without duplicating legacy filters', () => {
+      const params = {
+        query: 'phone',
+        variables: {
+          siteAware: 'legacy-site',
+        },
+        filters: {
+          brand: 'legacy-brand',
+        },
+        visibility: {
+          variables: {
+            locale: 'en',
+            siteAware: 'main',
+          },
+          filters: {
+            '_product.published': 'true',
+            '_product.categoryIds': ['root-a', 'root-b'],
+          },
+        },
+      } as BatteryIncludedSearchParams<any>;
+
+      const result = buildSearchParams(params);
+
+      expect(result.match(/v%5BsiteAware%5D=main/g)).toHaveLength(1);
+      expect(result.match(/f%5B_product.published%5D=true/g)).toHaveLength(1);
+      expect(result.match(/f%5B_product.categoryIds%5D%5B%5D=root-a/g)).toHaveLength(1);
+      expect(result.match(/f%5B_product.categoryIds%5D%5B%5D=root-b/g)).toHaveLength(1);
+      expect(result).not.toContain('legacy-brand');
+    });
   });
 });

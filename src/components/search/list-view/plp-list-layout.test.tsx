@@ -8,6 +8,15 @@ import type { Category } from '@/platform/services/model/category';
 import type { BatteryIncludedFacet, SearchSortOption } from '@/platform/services/model/common';
 import { PlpListLayout } from './plp-list-layout';
 
+
+
+
+
+
+
+
+
+
 const mockChangeSort = jest.fn();
 
 jest.mock('next-intl', () => ({
@@ -55,7 +64,7 @@ const batteryIncludedFacets: BatteryIncludedFacet[] = [
 const availableSorts: SearchSortOption[] = [
   {
     id: 'name',
-    label: 'Name',
+    label: 'Product name',
     directions: ['asc', 'desc'],
     defaultDirection: 'asc',
   },
@@ -137,6 +146,6 @@ describe('PlpListLayout', () => {
     expect(aside).toContainElement(facetPanel);
     expect(tree.compareDocumentPosition(sort) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(sort.compareDocumentPosition(facetPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(sort).toHaveTextContent('Name');
+    expect(sort).toHaveTextContent('Product name');
   });
 });

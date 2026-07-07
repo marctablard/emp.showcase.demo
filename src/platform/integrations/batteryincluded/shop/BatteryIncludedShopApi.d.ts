@@ -1,4 +1,5 @@
 import type {
+  BatteryIncludedBrowseVariables,
   BatteryIncludedHighlight,
   BatteryIncludedPreset,
   BatteryIncludedProduct,
@@ -6,12 +7,15 @@ import type {
   BatteryIncludedSearchResponse,
   BatteryIncludedSuggestParams,
   BatteryIncludedSuggestion,
+  BatteryIncludedVisibilityContext,
 } from '../model';
 
 export interface BatteryIncludedCategoryTreeBootstrapParams {
   locale: string;
   siteCode: string;
   country?: string;
+  variables?: BatteryIncludedBrowseVariables;
+  visibility?: BatteryIncludedVisibilityContext;
 }
 
 export interface BatteryIncludedShopApi {
@@ -43,16 +47,21 @@ export interface BatteryIncludedShopApi {
   /**
    * Get highlighted products
    */
-  getHighlights(): Promise<BatteryIncludedHighlight[]>;
+  getHighlights(
+    visibility?: BatteryIncludedBrowseVariables | BatteryIncludedVisibilityContext,
+  ): Promise<BatteryIncludedHighlight[]>;
 
   /**
    * Get product recommendations based on a product ID
    * @param id Product ID
    */
-  getRecommendations(id: string): Promise<BatteryIncludedProduct[]>;
+  getRecommendations(
+    id: string,
+    visibility?: BatteryIncludedBrowseVariables | BatteryIncludedVisibilityContext,
+  ): Promise<BatteryIncludedProduct[]>;
 
   /**
    * Get available presets
    */
-  getPresets(): Promise<BatteryIncludedPreset[]>;
+  getPresets(visibility?: BatteryIncludedBrowseVariables | BatteryIncludedVisibilityContext): Promise<BatteryIncludedPreset[]>;
 }

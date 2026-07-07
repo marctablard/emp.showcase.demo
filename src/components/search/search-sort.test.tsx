@@ -7,6 +7,14 @@ import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { SearchSort } from './search-sort';
 
+
+
+
+
+
+
+
+
 window.HTMLElement.prototype.scrollIntoView = jest.fn();
 window.HTMLElement.prototype.releasePointerCapture = jest.fn();
 window.HTMLElement.prototype.hasPointerCapture = () => false;
@@ -39,6 +47,7 @@ const mockChangeSort = jest.fn();
 const availableSorts = [
   { id: 'price', labelKey: 'price', directions: ['asc', 'desc'] as any, defaultDirection: 'asc' as any },
   { id: 'popularity', label: 'Popularity (BI)', directions: ['desc'] as any, defaultDirection: 'desc' as any },
+  { id: 'name', label: 'Product name', directions: ['asc', 'desc'] as any, defaultDirection: 'asc' as any },
 ];
 
 describe('SearchSort', () => {
@@ -71,6 +80,7 @@ describe('SearchSort', () => {
     renderComponent();
     const trigger = screen.getByRole('combobox');
     fireEvent.click(trigger);
+    expect(await screen.findByText('Product name')).toBeInTheDocument();
     expect(await screen.findByText(/Popularity \(BI\)/)).toBeInTheDocument();
   });
 
@@ -78,9 +88,9 @@ describe('SearchSort', () => {
     renderComponent();
     const trigger = screen.getByRole('combobox');
     fireEvent.click(trigger);
-    const option = await screen.findByText(/Popularity \(BI\)/);
+    const option = await screen.findByText('Product name');
     fireEvent.click(option);
-    expect(mockChangeSort).toHaveBeenCalledWith('popularity:desc');
+    expect(mockChangeSort).toHaveBeenCalledWith('name:asc');
   });
 
   it('clears the active sort from query state', async () => {
