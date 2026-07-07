@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useL10n } from '@/hooks/useL10n';
 import { type ProductAttributeKey, dk } from '@/i18n/dynamic-key';
 import { Link } from '@/i18n/navigation';
+import { clearMarkHighlights } from '@/lib/common/clear-mark-highlights';
 import { formatCurrency } from '@/lib/utils';
 import type { Product } from '@/platform/services/model/product';
 
@@ -120,7 +121,7 @@ export function ProductTileFlyOut({ product, onProductClick, keyword }: ProductT
   const t = useTranslations('product');
   const { l10n } = useL10n();
   const [image] = product.images || [];
-  const clickable_id = product.id ? product.id.replaceAll(/<\/?mark>/g, '') : '';
+  const clickable_id = clearMarkHighlights(product.id);
   return (
     <Link href={`/product/${clickable_id}`} onClick={onProductClick}>
       <div className="flex">

@@ -5,13 +5,10 @@ import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Spinner } from '@/components/ui/spinner';
 import { useL10n } from '@/hooks/useL10n';
+import { clearMarkHighlights } from '@/lib/common/clear-mark-highlights';
 import { formatCurrency } from '@/lib/utils';
 import type { Product } from '@/platform/services/model/product';
 import { HighlightedText } from './highlighted-text';
-
-function stripHighlightMarkup(value: string | undefined): string {
-  return (value ?? '').replace(/<[^>]+>/g, '').trim();
-}
 
 interface QuickOrderSearchDropdownProps {
   products: Product[];
@@ -58,27 +55,34 @@ export const QuickOrderSearchDropdown = forwardRef<HTMLDivElement, QuickOrderSea
             const image = product.images?.[0];
             const brandName = l10n(product.brand?.name || '');
             const productName = l10n(product.name);
-            const plainProductName = stripHighlightMarkup(productName);
-            const itemNumber = product.sku || product.id;
+            const plainProductId = clearMarkHighlights(product.id);
+            const plainProductSku = clearMarkHighlights(product.sku ?? '');
+            const plainProductName = clearMarkHighlights(productName);
+            const itemNumber = plainProductSku || plainProductId;
             const isHighlighted = index === highlightedIndex;
+            const selectedProduct = {
+              ...product,
+              id: plainProductId,
+              sku: plainProductSku || product.sku,
+            };
 
             return (
               <button
-                key={product.id}
+                key={plainProductId}
                 type="button"
                 role="option"
                 aria-selected={isHighlighted}
                 className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors border-b border-border-primary last:border-b-0 cursor-pointer ${
                   isHighlighted ? 'bg-surface-action-hover-2' : 'hover:bg-surface-action-hover-2'
                 }`}
-                onClick={() => handleSelect(product)}
-                data-testid={`search-result-${product.id}`}
+                onClick={() => handleSelect(selectedProduct)}
+                data-testid={`search-result-${plainProductId}`}
               >
                 <div className="flex-shrink-0 w-[60px] h-[39px] rounded-sm overflow-hidden bg-surface-image-background flex items-center justify-center">
                   {image?.url ? (
                     <Image
                       src={image.url}
-                      alt={stripHighlightMarkup(l10n(image.altText || '')) || plainProductName}
+                      alt={clearMarkHighlights(l10n(image.altText || '')) || plainProductName}
                       width={60}
                       height={39}
                       className="object-contain w-[60px] h-[39px]"
