@@ -60,7 +60,7 @@ describe('EmporixQuoteApi.createQuote', () => {
     expect(tokenType).toBe('session');
   });
 
-  it('forwards only the cart-shape body to Emporix', async () => {
+  it('forwards only the cart-shape body along with new top level metadata fields to Emporix', async () => {
     await quoteApi.createQuote({
       cartId: 'cart-1',
       billingAddressId: 'le-loc-123',
@@ -71,6 +71,8 @@ describe('EmporixQuoteApi.createQuote', () => {
         zoneId: 'de-shipping-zone',
         shippingTaxCode: 'STANDARD',
       },
+      customerReference: 'PO-42',
+      customerComment: 'please hurry',
     });
 
     const [, options] = mockApiClient.authenticatedFetch.mock.calls[0];
@@ -86,6 +88,8 @@ describe('EmporixQuoteApi.createQuote', () => {
         zoneId: 'de-shipping-zone',
         shippingTaxCode: 'STANDARD',
       },
+      customerReference: 'PO-42',
+      customerComment: 'please hurry',
     });
   });
 });

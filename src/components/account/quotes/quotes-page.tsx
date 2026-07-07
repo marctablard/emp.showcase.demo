@@ -27,7 +27,7 @@ export default function QuotesPageContent({ initialQuotes }: QuotesPageContentPr
   const normalizedSearch = useDebouncedValue(quickSearch, SEARCH_DEBOUNCE_MS).trim();
   const apiQuery =
     normalizedSearch.length > 0
-      ? `compoundLogicalQuery:((status.value:~(${normalizedSearch.toUpperCase()})) OR (id:~(${normalizedSearch})) OR (mixins.additionalInfo.reference:~(${normalizedSearch})) OR (customer.firstName:~(${normalizedSearch})) OR (customer.lastName:~(${normalizedSearch})) OR (employee.firstName:~(${normalizedSearch})) OR (employee.lastName:~(${normalizedSearch})))`
+      ? `compoundLogicalQuery:((status.value:~(${normalizedSearch.toUpperCase()})) OR (id:~(${normalizedSearch})) OR (customerReference:~(${normalizedSearch})) OR (customer.firstName:~(${normalizedSearch})) OR (customer.lastName:~(${normalizedSearch})) OR (employee.firstName:~(${normalizedSearch})) OR (employee.lastName:~(${normalizedSearch})))`
       : undefined;
 
   const { quotes, loading, error, pagination } = useQuotes(initialQuotes, {

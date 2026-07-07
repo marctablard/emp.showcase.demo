@@ -2217,6 +2217,12 @@ components:
           description: For B2B customers, it represents the location which should specify the shipping address. For B2C customers, it represents identifier of customer's shipping address.
         shipping:
           $ref: '#/components/schemas/QuoteShipping'
+        customerReference:
+          type: string
+          description: Custom customer reference number or text.
+        customerComment:
+          type: string
+          description: Custom customer comment provided during quote creation.
   securitySchemes:
     OAuth2:
       type: oauth2

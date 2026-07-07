@@ -844,7 +844,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
           <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr] gap-4 py-4 border-t border-border-primary">
             <p className="col-start-1">{quote.customerName || 'Unknown User'}</p>
             <p className="col-start-2">{t('initialQuoteRequest')}</p>
-            <p className="col-start-3">{'-'}</p>
+            <p className="col-start-3">{quote.userComment || '-'}</p>
             <p className="col-start-4">{'-'}</p>
             <p className="col-start-5">{formatDate(quote.submittedDate)}</p>
           </div>
