@@ -89,6 +89,7 @@ jest.mock('@/lib/logger/use-logger-client', () => ({
 }));
 
 describe('QuoteDetails approval flow', () => {
+  const originalFetch = global.fetch;
   const { ApprovalAlreadyExistsError } = jest.requireMock('@/platform/services/approval/errors') as {
     ApprovalAlreadyExistsError: new (approvalId: string, message?: string) => Error & { approvalId: string };
   };
@@ -97,6 +98,7 @@ describe('QuoteDetails approval flow', () => {
     createApproval: jest.Mock;
     searchApprovalUsers: jest.Mock;
   };
+  const fetchMock = jest.fn();
 
   const initialQuote = {
     id: 'Q-1000',
@@ -125,10 +127,16 @@ describe('QuoteDetails approval flow', () => {
     searchApprovalUsers.mockReset();
     notifyMock.mockReset();
     pushMock.mockReset();
+    fetchMock.mockReset();
+    global.fetch = fetchMock as unknown as typeof fetch;
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  afterAll(() => {
+    global.fetch = originalFetch;
   });
 
   it('routes to the linked approval when direct quote acceptance is not permitted', async () => {
@@ -164,6 +172,12 @@ describe('QuoteDetails approval flow', () => {
     });
     searchApprovalUsers.mockResolvedValue([
       {
+        userId: 'approver-2',
+        firstName: 'Zoe',
+        lastName: 'Washburne',
+        fullName: 'Zoe Washburne',
+      },
+      {
         userId: 'approver-1',
         firstName: 'Ada',
         lastName: 'Lovelace',
@@ -182,6 +196,10 @@ describe('QuoteDetails approval flow', () => {
     });
 
     expect(screen.getByText('checkout.approval.selectApprover')).toBeInTheDocument();
+
+    const approverButtons = screen.getAllByTestId(/quote-approval-approver-/);
+    expect(approverButtons[0]).toHaveTextContent('Ada Lovelace');
+    expect(approverButtons[1]).toHaveTextContent('Zoe Washburne');
 
     const submitButton = screen.getByTestId('quote-approval-submitButton');
     expect(submitButton).toBeDisabled();
@@ -340,6 +358,67 @@ describe('QuoteDetails approval flow', () => {
     await waitFor(() => {
       expect(screen.getByText('account.quoteDetails.confirmationTitle')).toBeInTheDocument();
     });
+  });
+
+  it('focuses the accept comment textarea when the create-order panel opens', async () => {
+    checkApprovalPermitted.mockResolvedValue({
+      action: 'CHECKOUT',
+      permitted: true,
+    });
+
+    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+
+    const acceptButton = await screen.findByRole('button', { name: 'account.quoteDetails.accept' });
+
+    await waitFor(() => {
+      expect(acceptButton).not.toBeDisabled();
+    });
+
+    fireEvent.click(acceptButton);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('account.quoteDetails.yourComment')).toHaveFocus();
+    });
+  });
+
+  it('shows a trimmed toast error and no inline alert when create-order fails', async () => {
+    checkApprovalPermitted.mockResolvedValue({
+      action: 'CHECKOUT',
+      permitted: true,
+    });
+    fetchMock.mockResolvedValue({
+      ok: false,
+      json: async () => ({
+        error:
+          'Failed to update quote Q1000396 (/status) failed with upstream status 400 Bad Request: Cannot create an order based on the quote: Q1000396 and tenant: showcasedev. Invalid information provided while trying to checkout. cart id is Q1000396',
+      }),
+    });
+
+    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+
+    const acceptButton = await screen.findByRole('button', { name: 'account.quoteDetails.accept' });
+
+    await waitFor(() => {
+      expect(acceptButton).not.toBeDisabled();
+    });
+
+    fireEvent.click(acceptButton);
+    fireEvent.click(await screen.findByRole('button', { name: 'account.quoteDetails.createOrder' }));
+
+    const trimmedMessage =
+      'Cannot create an order based on the quote: Q1000396 and tenant: showcasedev. Invalid information provided while trying to checkout. cart id is Q1000396';
+
+    await waitFor(() => {
+      expect(notifyMock).toHaveBeenCalledWith({
+        title: 'account.quoteDetails.quoteActionFailedTitle',
+        description: trimmedMessage,
+        type: 'error',
+      });
+    });
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText(trimmedMessage)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Failed to update quote Q1000396/)).not.toBeInTheDocument();
   });
 
   it('opens a decline dialog with a required reason selector and comment field', async () => {

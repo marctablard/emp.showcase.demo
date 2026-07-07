@@ -169,6 +169,10 @@
     "approvalSuccessfullyDeclined": "Freigabe erfolgreich abgelehnt",
     "createOrderAfterApprovalTitle": "Bestellung erstellen",
     "createOrderAfterApprovalDescription": "Fügen Sie optional einen Kommentar hinzu und erstellen Sie die Bestellung. Das Angebot wird in diesem Schritt akzeptiert.",
+    "acceptQuoteAfterApprovalTitle": "Angebot annehmen",
+    "acceptQuoteAfterApprovalDescription": "Fügen Sie optional einen Kommentar hinzu und nehmen Sie das Angebot an. In diesem Schritt wird automatisch eine Bestellung erstellt.",
+    "acceptQuoteAfterApprovalAction": "ANGEBOT ANNEHMEN",
+    "acceptingQuoteAfterApprovalAction": "ANGEBOT WIRD ANGENOMMEN...",
     "quoteSuccessfullyAcceptedOrderAutomaticallyCreated": "Angebot erfolgreich angenommen, Bestellung automatisch erstellt",
     "viewCreatedOrder": "Erstellte Bestellung anzeigen",
     "viewRelatedQuote": "Zugehöriges Angebot anzeigen",
@@ -242,6 +246,7 @@
     "inTransitCarrierFacility": "Im Verteilzentrum eingetroffen",
     "exceptionNoRecipient": "Zustellung versucht - niemand angetroffen"
   },
+  "orderAccessDenied": "Sie haben keine Berechtigung, diese Bestellung anzuzeigen.",
   "errorFetchingOrder": "Fehler beim Laden der Bestelldetails",
   "viewOrders": "Bestellungen anzeigen",
   "deliveryDate": "Lieferdatum",

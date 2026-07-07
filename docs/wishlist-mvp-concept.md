@@ -387,3 +387,11 @@ The exact unit, component and E2E tests should be selected during implementation
    - Add wishlist item counter in the header.
    - Add English and German translations.
    - Add targeted tests and run the existing checks.
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Dependency Injection](./dependency-injection.md)
+- [Zustand State Management](./zustand-state-management.md)
+- [Internationalization (i18n)](./i18n-implementation.md)
+- [API Security](./api-security.md)

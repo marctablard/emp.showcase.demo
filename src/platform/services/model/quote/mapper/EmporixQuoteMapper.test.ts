@@ -65,4 +65,42 @@ describe('EmporixQuoteMapper', () => {
 
     expect(result.orderId).toBeUndefined();
   });
+
+  it('maps reference and userComment from top-level fields (customerReference/customerComment)', async () => {
+    const mapper = new EmporixQuoteMapper(siteService as never);
+
+    const result = await mapper.mapToService(
+      buildQuote({
+        customerReference: 'TOP-123',
+        customerComment: 'top-level comment',
+        mixins: {
+          additionalInfo: {
+            reference: 'MIXIN-123',
+            userComment: 'mixin comment',
+          },
+        },
+      }),
+    );
+
+    expect(result.reference).toBe('TOP-123');
+    expect(result.userComment).toBe('top-level comment');
+  });
+
+  it('falls back to mixins for reference and userComment if top-level fields are missing', async () => {
+    const mapper = new EmporixQuoteMapper(siteService as never);
+
+    const result = await mapper.mapToService(
+      buildQuote({
+        mixins: {
+          additionalInfo: {
+            reference: 'MIXIN-123',
+            userComment: 'mixin comment',
+          },
+        },
+      }),
+    );
+
+    expect(result.reference).toBe('MIXIN-123');
+    expect(result.userComment).toBe('mixin comment');
+  });
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ArrowLeft } from 'lucide-react';
 import { QuoteStatusBadge } from '@/components/account/quotes/quote-status-badge';
@@ -49,6 +49,7 @@ interface ApprovalPermissionState {
 
 const QUOTE_APPROVAL_ACTION = 'CHECKOUT';
 const QUOTE_APPROVAL_RESOURCE_TYPE = 'QUOTE';
+const QUOTE_STATUS_ERROR_MARKER = 'failed with upstream status';
 const QUOTE_DECISION_STATUS = {
   CHANGE: 'IN_PROGRESS',
   DECLINE: 'DECLINED',
@@ -57,6 +58,31 @@ const QUOTE_DECISION_REASON_OPTIONS = {
   CHANGE: ['WRONG_MATERIAL', 'PROVIDED_PRICE_TO_HIGH', 'DELIVERY_TIME_LATE', 'OTHER'],
   DECLINE: ['PRICE_TOO_HIGH', 'NO_LONGER_NEEDED', 'DELIVERY_TIME_LATE', 'OTHER'],
 } as const;
+
+function getApproverSortValue(approver: {
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+  userId: string;
+}): string {
+  return approver.firstName?.trim() || approver.fullName?.trim() || approver.lastName?.trim() || approver.userId;
+}
+
+function trimQuoteStatusErrorMessage(message: string): string {
+  const markerIndex = message.toLowerCase().indexOf(QUOTE_STATUS_ERROR_MARKER);
+
+  if (markerIndex === -1) {
+    return message.trim();
+  }
+
+  const descriptionStartIndex = message.indexOf(':', markerIndex);
+
+  if (descriptionStartIndex === -1) {
+    return message.trim();
+  }
+
+  return message.slice(descriptionStartIndex + 1).trim();
+}
 
 type QuoteDecisionMode = keyof typeof QUOTE_DECISION_REASON_OPTIONS;
 
@@ -81,6 +107,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   const [showApprovalInquiryDialog, setShowApprovalInquiryDialog] = useState(false);
   const [selectedApproverId, setSelectedApproverId] = useState<string | null>(null);
   const [approvalInquiryComment, setApprovalInquiryComment] = useState('');
+  const acceptCommentRef = useRef<HTMLTextAreaElement | null>(null);
 
   const {
     approvers,
@@ -92,6 +119,24 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
     resourceId: quoteId,
     action: QUOTE_APPROVAL_ACTION,
   });
+
+  const sortedApprovers = useMemo(() => {
+    if (!approvers) {
+      return undefined;
+    }
+
+    return [...approvers].sort((left, right) => {
+      const firstNameComparison = getApproverSortValue(left).localeCompare(getApproverSortValue(right), locale, {
+        sensitivity: 'base',
+      });
+
+      if (firstNameComparison !== 0) {
+        return firstNameComparison;
+      }
+
+      return left.userId.localeCompare(right.userId, locale, { sensitivity: 'base' });
+    });
+  }, [approvers, locale]);
 
   const updateQuoteStatus = async (
     quoteId: string,
@@ -181,6 +226,14 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
 
     void refetchApprovers();
   }, [showApprovalInquiryDialog, approvers, approverSearchLoading, approverSearchError, refetchApprovers]);
+
+  useEffect(() => {
+    if (!showAcceptConfirmation) {
+      return;
+    }
+
+    acceptCommentRef.current?.focus();
+  }, [showAcceptConfirmation]);
 
   const handleApprovalInquiryDialogChange = (open: boolean): void => {
     setShowApprovalInquiryDialog(open);
@@ -425,9 +478,9 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
             <DialogDescription>{tApproval('selectApproverRequired')}</DialogDescription>
           </DialogHeader>
 
-          {approvers && approvers.length > 0 && (
+          {sortedApprovers && sortedApprovers.length > 0 && (
             <div className="space-y-2 max-h-[200px] overflow-y-auto rounded-md border p-2">
-              {approvers.map((approver) => (
+              {sortedApprovers.map((approver) => (
                 <button
                   type="button"
                   key={approver.userId}
@@ -662,6 +715,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                   </label>
                   <Textarea
                     id="accept-comment"
+                    ref={acceptCommentRef}
                     placeholder={t('commentPlaceholder')}
                     className="w-full h-32 resize-none"
                     value={acceptComment}
@@ -680,12 +734,6 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                     {t('termsOfUse')}
                   </UiLink>
                 </div>
-
-                {processError ? (
-                  <Alert variant="destructive" className="mb-4" role="alert">
-                    <AlertDescription>{processError}</AlertDescription>
-                  </Alert>
-                ) : null}
 
                 <div className="flex space-x-3">
                   <Button
@@ -712,8 +760,10 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                         setAcceptComment('');
                       } catch (error) {
                         getLogger().error({ err: error }, 'Failed to process quote');
-                        const msg = error instanceof Error ? error.message : t('quoteActionFailedDescription');
-                        setProcessError(msg);
+                        const msg =
+                          error instanceof Error
+                            ? trimQuoteStatusErrorMessage(error.message)
+                            : t('quoteActionFailedDescription');
                         notify({
                           title: t('quoteActionFailedTitle'),
                           description: msg,
@@ -794,7 +844,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
           <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr] gap-4 py-4 border-t border-border-primary">
             <p className="col-start-1">{quote.customerName || 'Unknown User'}</p>
             <p className="col-start-2">{t('initialQuoteRequest')}</p>
-            <p className="col-start-3">{'-'}</p>
+            <p className="col-start-3">{quote.userComment || '-'}</p>
             <p className="col-start-4">{'-'}</p>
             <p className="col-start-5">{formatDate(quote.submittedDate)}</p>
           </div>

@@ -483,6 +483,7 @@ System-managed attributes:
 
 ## Related Documentation
 
+- [Documentation index](./README.md)
 - Emporix Schema API: https://docs.emporix.io/
 - Custom Entities: https://docs.emporix.io/schema/custom-entities
 - Schema Management: https://docs.emporix.io/schema/schemas

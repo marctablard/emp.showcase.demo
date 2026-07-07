@@ -822,6 +822,7 @@ The logger supports both patterns for convenience:
 
 ## Related Documentation
 
+- [Documentation index](./README.md)
 - [Dependency Injection](./dependency-injection.md)
 - [Layered Architecture](./layered-architecture.md)
 - [Environment Variables](./environment-variables.md)

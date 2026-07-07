@@ -173,6 +173,10 @@
     "orderSuccessfullySubmitted": "Order successfully submitted",
     "createOrderAfterApprovalTitle": "Create order",
     "createOrderAfterApprovalDescription": "Add an optional comment and create the order. The quote will be accepted as part of this step.",
+    "acceptQuoteAfterApprovalTitle": "Accept quote",
+    "acceptQuoteAfterApprovalDescription": "Add an optional comment and accept the quote. An order will be created automatically as part of this step.",
+    "acceptQuoteAfterApprovalAction": "ACCEPT QUOTE",
+    "acceptingQuoteAfterApprovalAction": "ACCEPTING QUOTE...",
     "quoteSuccessfullyAcceptedOrderAutomaticallyCreated": "Quote successfully accepted, order automatically created",
     "viewCreatedOrder": "View created order",
     "viewRelatedQuote": "View related quote",
@@ -245,6 +249,7 @@
     "inTransitCarrierFacility": "Arrived at carrier facility",
     "exceptionNoRecipient": "Delivery attempted - no recipient available"
   },
+  "orderAccessDenied": "You don't have permission to view this order.",
   "errorFetchingOrder": "Error fetching order details",
   "viewOrders": "View Orders"
 }

@@ -313,3 +313,10 @@ The service layer returns raw data that can be translated or formatted at the UI
 ## Conclusion
 
 Our next-intl implementation provides a robust, type-safe, and performant solution for internationalization. By following the patterns and practices outlined in this documentation, we can create a consistent multilingual experience across our application.
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Site Middleware](./site-middleware.md)
+- [Project Structure](./project-structure.md)
+- [Rendering: SSR / SSG / ISR](./rendering-ssr-ssg-isr.md)

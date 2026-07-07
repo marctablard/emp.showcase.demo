@@ -577,6 +577,7 @@ The `/api/ready` readiness probe shares the same `REQUIRED_ENV_VARS` constant as
 
 ## Related Documentation
 
+- [Documentation index](./README.md) - Overview of all docs and guided paths
 - [Deployment Process](./deployment-process.md) - General deployment information
 - [Environment Variables](./environment-variables.md) - Required environment variables
 - [Site Middleware](./site-middleware.md) - How site routing works
