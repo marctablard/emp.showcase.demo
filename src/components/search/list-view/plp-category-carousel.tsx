@@ -97,7 +97,7 @@ export function PlpCategoryCarousel({ categories, locale }: PlpCategoryCarouselP
     <section className="w-full" aria-label={t('title')} data-testid="plp-category-carousel">
       {/* Desktop Layout: Horizontal Carousel */}
       <Carousel
-        className="hidden w-full sm:block"
+        className="hidden w-full md:block"
         orientation="horizontal"
         opts={{ align: 'start', containScroll: 'trimSnaps' }}
         setApi={setApi}
@@ -118,7 +118,7 @@ export function PlpCategoryCarousel({ categories, locale }: PlpCategoryCarouselP
             const image = category.media?.[0];
             const count = mergedCounts[category.id];
             return (
-              <CarouselItem key={category.id} size="basis-[260px] sm:basis-[300px] md:basis-[320px] lg:basis-[340px]">
+              <CarouselItem key={category.id} size="basis-[260px] md:basis-[300px] md:basis-[320px] lg:basis-[340px]">
                 <Link
                   href={href}
                   className="group flex h-[260px] w-full flex-col overflow-hidden rounded-[8px] bg-surface-primary shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-border-focus"
@@ -149,7 +149,7 @@ export function PlpCategoryCarousel({ categories, locale }: PlpCategoryCarouselP
       </Carousel>
 
       {/* Mobile Layout: Vertical List of Cards */}
-      <div className="flex w-full flex-col gap-6 sm:hidden">
+      <div className="flex w-full flex-col gap-6 md:hidden">
         {visibleCategories.map((category) => {
           const name = l10n(category.name, locale);
           const href = buildBrowseHrefForCategoryId(category.id, category);

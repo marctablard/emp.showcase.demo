@@ -12,7 +12,7 @@ export function SearchLayoutToggle(_: SearchLayoutToggleProps) {
         Intentionally hidden until search layout switching is re-enabled.
         Layout selection now follows the configured SearchService on the server.
 
-        <div className="hidden gap-1 sm:flex">
+        <div className="hidden gap-1 md:flex">
           <Button
             variant="iconSelector"
             data-active={active === 'list'}
@@ -31,7 +31,7 @@ export function SearchLayoutToggle(_: SearchLayoutToggleProps) {
           </Button>
         </div>
 
-        <div className="flex sm:hidden">
+        <div className="flex md:hidden">
           <Select
             defaultValue={active}
             value={active}

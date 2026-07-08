@@ -234,9 +234,9 @@ export function SearchResultsComponent({
   const topControlsNode = (
     <div className="w-full">
       {/* Row: SearchFilter controls on mobile and desktop. */}
-      <div className="flex w-full flex-col gap-4 sm:flex-row sm:justify-between">
+      <div className="flex w-full flex-col gap-4 md:flex-row md:justify-between">
         {/* Mobile: Use MobileCategoryDrawer if PLP context exists (as a subset), otherwise generic SearchFilter */}
-        <div className="flex w-full flex-col items-stretch gap-[40px] sm:hidden">
+        <div className="flex w-full flex-col items-stretch gap-[40px] md:hidden">
           {plpCategoryContext ? (
             <MobileCategoryDrawer
               plpCategoryContext={plpCategoryContext}
@@ -255,7 +255,7 @@ export function SearchResultsComponent({
         </div>
 
         {/* Desktop: SearchFilter + Active filters inline */}
-        <div className="hidden flex-wrap items-center gap-4 sm:flex">
+        <div className="hidden flex-wrap items-center gap-4 md:flex">
           {showDesktopSearchFilter ? <SearchFilter {...searchFilterProps} /> : null}
           {showStandaloneActiveFilters ? <SearchActiveFiltersWithReset {...activeFiltersProps} /> : null}
           {showDesktopSearchFilter ? <SearchSort {...searchSortProps} /> : null}
@@ -266,7 +266,7 @@ export function SearchResultsComponent({
 
       {/* Mobile: Active filters below, full width */}
       {showStandaloneActiveFilters ? (
-        <div className="mt-4 flex flex-col flex-wrap gap-4 sm:hidden">
+        <div className="mt-4 flex flex-col flex-wrap gap-4 md:hidden">
           <SearchActiveFiltersWithReset {...activeFiltersProps} />
         </div>
       ) : null}

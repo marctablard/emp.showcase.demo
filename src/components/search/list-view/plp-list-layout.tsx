@@ -117,7 +117,7 @@ export function PlpListLayout({
       {/* <PlpCategoryCarousel categories={plpContext.ribbonCategories} locale={locale} /> */}
       <PlpCategoryBreadcrumbs plpCategoryContext={plpContext} locale={locale} />
       <section className="flex flex-col gap-4" aria-label={summaryTitle} data-testid="plp-category-summary">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-4">
+        <div className="flex flex-col gap-1 md:flex-row md:items-baseline md:gap-4">
           <H2 className="mb-0">{summaryTitle}</H2>
           {typeof summaryCount === 'number' && !loading ? (
             <span className="text-text-secondary text-lg font-normal">
@@ -128,8 +128,8 @@ export function PlpListLayout({
         {summaryDescription ? <p className="text-base text-text-body">{summaryDescription}</p> : null}
       </section>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-[minmax(0,444px)_minmax(0,1fr)]">
-        <aside className="hidden sm:block" aria-label={t('allProducts')}>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,444px)_minmax(0,1fr)]">
+        <aside className="hidden md:block" aria-label={t('allProducts')}>
           <PlpCategoryTree
             plpCategoryContext={plpContext}
             locale={locale}
@@ -160,7 +160,7 @@ export function PlpListLayout({
             total={total}
             loading={loading}
             pendingCursor={pendingCursor}
-            gridClassName="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 md:gap-6"
+            gridClassName="grid auto-rows-fr grid-cols-1 gap-4 md:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 md:gap-6"
           />
           {hasMore ? (
             <div className="flex justify-center pt-3">
