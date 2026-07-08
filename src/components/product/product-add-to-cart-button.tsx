@@ -22,15 +22,15 @@ export default function ProductAddToCartButton({
   price,
   quantity = 1,
   className,
-  availability,
-  availabilityLoading = false,
+  availability: _availability,
+  availabilityLoading: _availabilityLoading = false,
   compact = false,
 }: {
   product: Product;
   price?: ProductPrice | null;
   quantity?: number;
   className?: string;
-  /** When set, block add while loading or when stock is not available for the current shop context. */
+  /** Reserved for stock display; cart add validates availability server-side. */
   availability?: StockAvailability | null;
   availabilityLoading?: boolean;
   /** Avoid full-width flex layout (e.g. variant table rows). */
@@ -89,13 +89,7 @@ export default function ProductAddToCartButton({
     }
   };
 
-  const isDisabled =
-    cart === undefined ||
-    cartDisabled ||
-    adding ||
-    availabilityLoading ||
-    (availability != null && !availability.isAvailable) ||
-    !syncReady;
+  const isDisabled = cart === undefined || cartDisabled || adding || !syncReady;
 
   return (
     <>
