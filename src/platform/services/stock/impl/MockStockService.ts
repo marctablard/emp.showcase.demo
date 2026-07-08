@@ -6,7 +6,7 @@ import type { StockService } from '../StockService';
  * Mock implementation of StockService
  * Always returns 40 as available quantity and +28 days for availability
  */
-@injectable('StockService', 'Singleton')
+@injectable('MockStockService', 'Singleton')
 export class MockStockService implements StockService {
   /**
    * Get stock availability for a product
@@ -21,6 +21,13 @@ export class MockStockService implements StockService {
       availableInDays: 28,
       isAvailable: true,
     };
+  }
+
+  async getStockAvailabilities(site: string, productIds: string[]): Promise<Record<string, StockAvailability>> {
+    const entries = await Promise.all(
+      productIds.map(async (productId) => [productId, await this.getStockAvailability(site, productId)]),
+    );
+    return Object.fromEntries(entries);
   }
 
   /**

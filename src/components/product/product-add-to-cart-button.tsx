@@ -22,16 +22,19 @@ export default function ProductAddToCartButton({
   price,
   quantity = 1,
   className,
-  availability,
-  availabilityLoading = false,
+  availability: _availability,
+  availabilityLoading: _availabilityLoading = false,
+  compact = false,
 }: {
   product: Product;
   price?: ProductPrice | null;
   quantity?: number;
   className?: string;
-  /** When set, block add while loading or when stock is not available for the current shop context. */
+  /** Reserved for stock display; cart add validates availability server-side. */
   availability?: StockAvailability | null;
   availabilityLoading?: boolean;
+  /** Avoid full-width flex layout (e.g. variant table rows). */
+  compact?: boolean;
 }) {
   const t = useTranslations('product');
   const { addItem, cart } = useCart();
@@ -86,28 +89,30 @@ export default function ProductAddToCartButton({
     }
   };
 
-  const isDisabled =
-    cart === undefined ||
-    cartDisabled ||
-    adding ||
-    availabilityLoading ||
-    (availability != null && !availability.isAvailable) ||
-    !syncReady;
+  const isDisabled = cart === undefined || cartDisabled || adding || !syncReady;
 
   return (
     <>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="inline-flex flex-1 w-full">
+          <span className={cn('inline-flex', !compact && 'flex-1 w-full')}>
             <Button
-              className={cn('flex-1 w-full', className)}
+              className={cn(!compact && 'flex-1 w-full', compact && 'h-8 w-8 px-0', className)}
+              size={compact ? 'icon' : undefined}
               onClick={handleAddToCart}
               disabled={isDisabled}
               title={syncTitle}
+              aria-label={compact ? t('addToCart') : undefined}
               data-testid="product-addToCartButton"
             >
-              {t('addToCart')}
-              <ShoppingCart className="hidden sm:inline" />
+              {compact ? (
+                <ShoppingCart className="h-4 w-4" />
+              ) : (
+                <>
+                  {t('addToCart')}
+                  <ShoppingCart className="hidden sm:inline" />
+                </>
+              )}
             </Button>
           </span>
         </TooltipTrigger>

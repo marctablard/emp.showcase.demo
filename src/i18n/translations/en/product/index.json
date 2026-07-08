@@ -20,6 +20,8 @@
   "productHighlights": "Product Highlights",
   "keySpecs": "Key specifications",
   "more": "More product features",
+  "viewMore": "View more",
+  "viewLess": "View less",
   "technicalInformation": "Technical Information",
   "otherVariants": "Other variants",
   "addToCartResult": {
@@ -73,7 +75,11 @@
         "ampere": "Ampere",
         "length": "Length",
         "farbe": "Color",
-        "format": "Format"
+        "format": "Format",
+        "Breite": "Width",
+        "Thickness": "Thickness",
+        "Länge": "Length",
+        "COREVariante": "Core variant"
       },
       "productTemplateAttributes": {
         "length": "Product Length",
@@ -136,6 +142,26 @@
   },
   "loadingVariants": "Loading variants...",
   "variantSelectPlaceholder": "Select variant",
+  "variantConfigurator": {
+    "title": "Configure your product",
+    "reset": "Reset",
+    "matchingCount": "{count, plural, =0 {No matching variants} =1 {1 matching variant} other {# matching variants}}",
+    "availableVariants": "Configurations",
+    "noMatches": "No variants match the current selection.",
+    "code": "Code / SKU",
+    "variant": "Variant",
+    "stock": "Stock",
+    "price": "Price (excl. VAT)",
+    "readyToShipLabel": "Ready to ship",
+    "readyToShip": "{min}–{max} days",
+    "shipsInDays": "Ships in {days} days",
+    "quantity": "Quantity",
+    "inStock": "In stock",
+    "outOfStock": "Out of stock",
+    "removeFilter": "Remove {filter} filter",
+    "decreaseQuantity": "Decrease quantity",
+    "increaseQuantity": "Increase quantity"
+  },
   "addedToComparison": "{name} added to comparison list",
   "removedFromComparison": "{name} removed from comparison list",
   "comparisonFull": "Comparison list is full (max {max} products)",

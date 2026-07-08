@@ -38,6 +38,8 @@
   "productHighlights": "Produkt-Highlights",
   "keySpecs": "Schlüssel-Spezifikationen",
   "more": "Mehr Produktfunktionen",
+  "viewMore": "Mehr anzeigen",
+  "viewLess": "Weniger anzeigen",
   "technicalInformation": "Technische Informationen",
   "otherVariants": "Andere Varianten",
   "shipping": {
@@ -73,7 +75,11 @@
         "ampere": "Ampere",
         "length": "Länge",
         "farbe": "Farbe",
-        "format": "Format"
+        "format": "Format",
+        "Breite": "Breite",
+        "Thickness": "Dicke",
+        "Länge": "Länge",
+        "COREVariante": "Kernvariante"
       },
       "productTemplateAttributes": {
         "length": "Produktlänge",
@@ -136,6 +142,26 @@
   },
   "loadingVariants": "Varianten werden geladen...",
   "variantSelectPlaceholder": "Variante auswählen",
+  "variantConfigurator": {
+    "title": "Produkt konfigurieren",
+    "reset": "Zurücksetzen",
+    "matchingCount": "{count, plural, =0 {Keine passenden Varianten} =1 {1 passende Variante} other {# passende Varianten}}",
+    "availableVariants": "Konfigurationen",
+    "noMatches": "Keine Varianten entsprechen der aktuellen Auswahl.",
+    "code": "Artikelnummer / SKU",
+    "variant": "Variante",
+    "stock": "Bestand",
+    "price": "Preis (exkl. MwSt.)",
+    "readyToShipLabel": "Versandbereit",
+    "readyToShip": "{min}–{max} Tage",
+    "shipsInDays": "Versand in {days} Tagen",
+    "quantity": "Menge",
+    "inStock": "Auf Lager",
+    "outOfStock": "Nicht auf Lager",
+    "removeFilter": "{filter}-Filter entfernen",
+    "decreaseQuantity": "Menge verringern",
+    "increaseQuantity": "Menge erhöhen"
+  },
   "addedToComparison": "{name} wurde zur Vergleichsliste hinzugefügt",
   "removedFromComparison": "{name} wurde aus der Vergleichsliste entfernt",
   "comparisonFull": "Vergleichsliste ist voll (max. {max} Produkte)",

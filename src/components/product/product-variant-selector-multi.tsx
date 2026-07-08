@@ -5,10 +5,10 @@ import { useTranslations } from 'next-intl';
 import { CheckCircle2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useL10n } from '@/hooks/useL10n';
-import { type ProductVariantAttributeKey, dk } from '@/i18n/dynamic-key';
 import { useRouter } from '@/i18n/navigation';
 import { fetchProductVariants } from '@/lib/client/products';
 import { getLogger } from '@/lib/logger/use-logger-client';
+import { resolveProductVariantAttributeLabel } from '@/lib/product/variant-attribute-label';
 import { cn } from '@/lib/utils';
 import type { Product } from '@/platform/services/model/product';
 import { useProductStore } from '@/providers/StoreProvider';
@@ -232,11 +232,7 @@ export default function ProductVariantSelectorMulti({ product, className }: Prod
           <div key={variantAttribute.key}>
             <div className="flex flex-col gap-1">
               <label className="text-base font-medium">
-                {l10n(
-                  t(dk<ProductVariantAttributeKey>(`filters.mixins.productVariantAttributes.${variantAttribute.key}`), {
-                    defaultValue: variantAttribute.key,
-                  }),
-                )}
+                {resolveProductVariantAttributeLabel(variantAttribute, t, l10n)}
               </label>
               {variantAttribute.key === 'color' || variantAttribute.key === 'farbe' ? (
                 <div className="flex flex-wrap gap-2">

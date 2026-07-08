@@ -1,14 +1,26 @@
 import { inject } from 'inversify';
+import { createUnavailableStock } from '@/lib/common/stock-availability';
+import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixAvailabilityApi } from '@/platform/integrations/emporix/availability/EmporixAvailabilityApi';
+import type { EmporixAvailability } from '@/platform/integrations/emporix/model/availability';
 import type { StockAvailability } from '../../model/common';
 import type { StockService } from '../StockService';
 
 /**
  * Implementation of StockService using Emporix Availability API
  */
-//@injectable('StockService', 'Singleton')
+@injectable('EmporixStockService', 'Singleton')
 class EmporixStockService implements StockService {
   constructor(@inject('EmporixAvailabilityApi') private availabilityApi: EmporixAvailabilityApi) {}
+
+  private mapAvailability(availability: EmporixAvailability): StockAvailability {
+    return {
+      productId: availability.productId,
+      availableQuantity: availability.stockLevel,
+      availableInDays: null,
+      isAvailable: availability.available,
+    };
+  }
 
   /**
    * Get stock availability for a product
@@ -19,23 +31,41 @@ class EmporixStockService implements StockService {
   async getStockAvailability(site: string, productId: string): Promise<StockAvailability> {
     const availability = await this.availabilityApi.getProductAvailability(productId, site);
 
-    // Default availability if product is not found
     if (!availability) {
-      return {
-        productId,
-        availableQuantity: 0,
-        availableInDays: null,
-        isAvailable: false,
-      };
+      return createUnavailableStock(productId);
     }
 
-    // Map Emporix availability to StockAvailability
-    return {
-      productId: availability.productId,
-      availableQuantity: availability.stockLevel,
-      availableInDays: null,
-      isAvailable: availability.available,
-    };
+    return this.mapAvailability(availability);
+  }
+
+  async getStockAvailabilities(site: string, productIds: string[]): Promise<Record<string, StockAvailability>> {
+    const uniqueIds = [...new Set(productIds.filter(Boolean))];
+    const result = Object.fromEntries(uniqueIds.map((productId) => [productId, createUnavailableStock(productId)]));
+
+    if (uniqueIds.length === 0) {
+      return result;
+    }
+
+    const paginated = await this.availabilityApi.searchProductAvailabilities(
+      site,
+      uniqueIds,
+      1,
+      Math.max(uniqueIds.length, 20),
+    );
+
+    paginated.items.forEach((availability) => {
+      const mapped = this.mapAvailability(availability);
+      result[mapped.productId] = mapped;
+
+      const requestedId = uniqueIds.find(
+        (productId) => productId === availability.productId || productId === availability.id,
+      );
+      if (requestedId && requestedId !== mapped.productId) {
+        result[requestedId] = { ...mapped, productId: requestedId };
+      }
+    });
+
+    return result;
   }
 
   /**

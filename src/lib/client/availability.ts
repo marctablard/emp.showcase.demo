@@ -22,3 +22,31 @@ export async function fetchProductAvailability(id: string): Promise<StockAvailab
     throw error;
   }
 }
+
+export async function fetchProductAvailabilities(productIds: string[]): Promise<Record<string, StockAvailability>> {
+  const uniqueIds = [...new Set(productIds.filter(Boolean))];
+  if (uniqueIds.length === 0) {
+    return {};
+  }
+
+  try {
+    const response = await fetch('/api/products/availability/batch', {
+      method: 'POST',
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ productIds: uniqueIds }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch product availabilities: ${response.statusText}`);
+    }
+
+    const data = (await response.json()) as { availabilities?: Record<string, StockAvailability> };
+    return data.availabilities ?? {};
+  } catch (error) {
+    getLogger().error({ err: error, productIds: uniqueIds }, 'Error fetching batch product availability');
+    throw error;
+  }
+}

@@ -7,10 +7,10 @@ import { CheckCircle2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useSession } from '@/hooks/session/useSession';
 import { useL10n } from '@/hooks/useL10n';
-import { type ProductVariantAttributeKey, dk } from '@/i18n/dynamic-key';
 import { useRouter } from '@/i18n/navigation';
 import { fetchProductPrice } from '@/lib/client/prices';
 import { fetchProductVariants } from '@/lib/client/products';
+import { resolveProductVariantAttributeLabel } from '@/lib/product/variant-attribute-label';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { ProductPrice } from '@/platform/services/model/price';
 import type { Product } from '@/platform/services/model/product';
@@ -186,9 +186,7 @@ export default function ProductVariantSelectorSimple({
                 <p>
                   {soloVariant.name
                     ? l10n(soloVariant.name)
-                    : t(dk<ProductVariantAttributeKey>(`filters.mixins.productVariantAttributes.${soloVariant?.key}`), {
-                        defaultValue: soloVariant?.key,
-                      })}
+                    : resolveProductVariantAttributeLabel(soloVariant, t, l10n)}
                 </p>
               </div>
               <div className="flex gap-2 items-center font-bold">

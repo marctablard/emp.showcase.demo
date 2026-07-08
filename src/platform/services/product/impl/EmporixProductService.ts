@@ -1,4 +1,9 @@
 import { inject } from 'inversify';
+import {
+  applyInferredVariantAttributes,
+  enrichProductsWithInferredVariantAttributes,
+  inferVariantAttributes,
+} from '@/lib/product/variant-name-parser';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixLabel } from '@/platform/integrations/emporix/model';
 import type { EmporixProduct } from '@/platform/integrations/emporix/model/product';
@@ -44,7 +49,9 @@ class EmporixProductService implements ProductService {
     }
 
     // Map the base product
-    const mappedProduct = this.productMapper.mapToService(product);
+    let mappedProduct = this.productMapper.mapToService(product);
+
+    mappedProduct = await this.enrichProductVariantAttributes(mappedProduct);
 
     // Add additional data
     const [enhancedProduct] = await this.addAdditionalData([mappedProduct], options);
@@ -52,31 +59,136 @@ class EmporixProductService implements ProductService {
     return enhancedProduct;
   }
 
+  private async fetchVariantItems(parentId: string, referenceProduct?: EmporixProduct): Promise<EmporixProduct[]> {
+    const searchConfigs: Array<{ criteria: Record<string, string> }> = [
+      { criteria: { id: `${parentId}-*` } },
+      { criteria: { parentVariantId: parentId } },
+      { criteria: { code: `${parentId}-*` } },
+    ];
+
+    if (referenceProduct?.name) {
+      const nameValue =
+        typeof referenceProduct.name === 'string'
+          ? referenceProduct.name
+          : referenceProduct.name.en || referenceProduct.name.de || Object.values(referenceProduct.name)[0];
+      const namePrefix = nameValue?.split('/')?.[0];
+      if (namePrefix) {
+        searchConfigs.push({ criteria: { name: `~${namePrefix}/` } });
+      }
+    }
+
+    const results = await Promise.all(
+      searchConfigs.map((config) =>
+        this.productApi
+          .searchProducts({
+            expand: ['parentVariant', 'template'],
+            page: 0,
+            size: 100,
+            ...config,
+          })
+          .catch(() => ({ items: [] as EmporixProduct[] })),
+      ),
+    );
+
+    for (const paginated of results) {
+      const filtered = paginated.items.filter(
+        (item: EmporixProduct) =>
+          !!item.id &&
+          (item.parentVariantId === parentId || item.id === parentId || item.id.startsWith(`${parentId}-`)),
+      );
+      if (filtered.length > 0) {
+        return filtered;
+      }
+    }
+
+    return [];
+  }
+
+  private async enrichProductVariantAttributes(product: Product): Promise<Product> {
+    if (product.variantAttributes && product.variantAttributes.length > 0) {
+      return product;
+    }
+
+    if (product.productType === 'BASIC' || product.productType === 'BUNDLE') {
+      return product;
+    }
+
+    if (
+      product.productType &&
+      product.productType !== 'DYNAMIC_VARIANT' &&
+      product.productType !== 'VARIANT' &&
+      product.productType !== 'PARENT_VARIANT'
+    ) {
+      return product;
+    }
+
+    if (!product.parentVariantId && !product.id.includes('-')) {
+      return product;
+    }
+
+    const parentId = product.parentVariantId || product.id;
+    const rawProduct = await this.productApi.getProduct(product.id);
+    const siblings = await this.fetchVariantItems(parentId, rawProduct);
+    if (siblings.length === 0) {
+      return product;
+    }
+
+    const mappedSiblings = siblings.map((item) => this.productMapper.mapToService(item));
+    const variantsForInference = mappedSiblings.some((item) => item.id === product.id)
+      ? mappedSiblings
+      : [product, ...mappedSiblings];
+    const enrichedVariants = enrichProductsWithInferredVariantAttributes(variantsForInference, product.id);
+    const currentProduct = enrichedVariants.find((item) => item.id === product.id);
+
+    if (currentProduct?.variantAttributes?.length) {
+      return currentProduct;
+    }
+
+    const { attributeDefinitions, attributeMaps } = inferVariantAttributes(variantsForInference, product.id);
+    return applyInferredVariantAttributes(product, attributeDefinitions, attributeMaps);
+  }
+
   async getVariantProducts(parentId: string, options?: ProductFetchOptions): Promise<Product[]> {
-    const paginated = await this.productApi.searchProducts({
-      expand: ['parentVariant', 'template'],
-      criteria: { parentVariantId: parentId },
-      page: 0,
-      size: 100,
-    });
+    const probe = await this.productApi.getProduct(parentId);
+    const resolvedParentId = probe?.parentVariantId || parentId;
+    let items = await this.fetchVariantItems(resolvedParentId, probe ?? undefined);
+
+    if (items.length === 0 && resolvedParentId !== parentId) {
+      items = await this.fetchVariantItems(parentId, probe ?? undefined);
+    }
 
     // Filter by customer segments before mapping
-    let items: EmporixProduct[] = [];
     if (options?.customerSegments) {
-      items = (await this.segmentFilterService.filterByCustomerSegments(
-        paginated.items.filter((item: EmporixProduct) => !!item.id),
-      )) as EmporixProduct[];
-    } else {
-      items = paginated.items;
+      items = (await this.segmentFilterService.filterByCustomerSegments(items)) as EmporixProduct[];
     }
 
     // Map all variant products first
     const mappedProducts = items.map((product: EmporixProduct) => this.productMapper.mapToService(product));
-    if (mappedProducts.length > 0) {
-      return await this.addAdditionalData(mappedProducts, options);
-    } else {
+    if (mappedProducts.length === 0) {
       return [];
     }
+
+    const enrichedProducts = enrichProductsWithInferredVariantAttributes(mappedProducts);
+    const parentProduct = await this.productApi.getProduct(resolvedParentId);
+    if (parentProduct) {
+      const mappedParent = this.productMapper.mapToService(parentProduct);
+      const variantsForInference = mappedProducts.some((item) => item.id === mappedParent.id)
+        ? mappedProducts
+        : [mappedParent, ...mappedProducts];
+      const { attributeDefinitions, attributeMaps } = inferVariantAttributes(variantsForInference);
+      enrichedProducts.forEach((variant, index) => {
+        enrichedProducts[index] = applyInferredVariantAttributes(variant, attributeDefinitions, attributeMaps);
+      });
+
+      if (!mappedParent.variantAttributes || mappedParent.variantAttributes.length === 0) {
+        mappedParent.variantAttributes = attributeDefinitions.map((attribute) => ({
+          ...attribute,
+          values: attribute.values.map((value) => ({ ...value, selected: false })),
+        }));
+      }
+    }
+
+    return await this.addAdditionalData(enrichedProducts, options);
   }
 
   async getProducts(page?: number, pageSize?: number, options?: ProductFetchOptions): Promise<Paginated<Product>> {
@@ -275,12 +387,20 @@ class EmporixProductService implements ProductService {
     });
 
     const variantMap = new Map<string, Product[]>();
-    variantArray
-      .filter(Boolean)
-      .forEach(
-        (variants: Product[]) =>
-          variants?.length > 0 && variants[0].parentVariantId && variantMap.set(variants[0].parentVariantId, variants),
-      );
+    variantArray.filter(Boolean).forEach((variants: Product[]) => {
+      if (!variants?.length) {
+        return;
+      }
+
+      const parentKey = variants[0].parentVariantId || variants[0].id;
+      variantMap.set(parentKey, variants);
+
+      products.forEach((product) => {
+        if (product.id === parentKey || product.parentVariantId === parentKey) {
+          variantMap.set(product.id, variants);
+        }
+      });
+    });
 
     return { brandMap, labelMap, productCategoriesMap, priceMap, variantMap };
   }

@@ -322,7 +322,11 @@ export type ProductVariantAttributeKey =
   | 'filters.mixins.productVariantAttributes.ampere'
   | 'filters.mixins.productVariantAttributes.length'
   | 'filters.mixins.productVariantAttributes.farbe'
-  | 'filters.mixins.productVariantAttributes.format';
+  | 'filters.mixins.productVariantAttributes.format'
+  | 'filters.mixins.productVariantAttributes.Breite'
+  | 'filters.mixins.productVariantAttributes.Thickness'
+  | 'filters.mixins.productVariantAttributes.Länge'
+  | 'filters.mixins.productVariantAttributes.COREVariante';
 
 // ---------------------------------------------------------------------------
 // Namespace: product (sub-path: filters.mixins.productTemplateAttributes.*)

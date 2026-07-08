@@ -48,6 +48,7 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
       : source.mixins?.specifications?.specifications.map((spec: any) => ({
           key: spec.key,
           group: spec.group,
+          highlight: spec.highlight === true,
           groupLabel: spec.groupLabel
             ? spec.groupLabel.reduce((acc: LocalizedString, item: any) => {
                 acc[item.language] = item.value;
@@ -88,6 +89,8 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
       labels: source.labelIds ? source.labelIds.map((id) => ({ id })) : undefined,
       name,
       description,
+      productType: source.productType,
+      sku: source.code,
       primaryImage,
       images,
       specifications: mappedSpecs,

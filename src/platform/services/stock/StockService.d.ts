@@ -13,6 +13,11 @@ export interface StockService {
   getStockAvailability(site: string, productId: string): Promise<StockAvailability>;
 
   /**
+   * Get stock availability for multiple products in a single availability service request.
+   */
+  getStockAvailabilities(site: string, productIds: string[]): Promise<Record<string, StockAvailability>>;
+
+  /**
    * Check if a product has sufficient stock for the requested quantity
    * @param site Site code
    * @param productId Product ID
