@@ -51,6 +51,7 @@ export default function VideoBlock({
       className={cn('flex flex-col gap-2', coverMode ? 'w-full' : 'mx-auto w-full max-w-5xl px-6 md:px-12')}
     >
       <div
+        data-cms-field="src"
         className={cn(
           'relative w-full overflow-hidden bg-surface-image-background',
           coverMode ? 'h-screen' : aspectClass(aspect),

@@ -79,6 +79,9 @@ export default async function EmporixCmsPage(props: EmporixCmsPageProps) {
     const pageData = await fetchCMSPage(slug, effectiveLocale, effectiveSite, cmsVersion, {
       fallback,
       loadLayout: !effectiveLayout,
+      // Editor previews must bypass the live cache so a just-published change
+      // is visible immediately instead of the pre-publish cached version.
+      noCache: isEditorMode,
     });
     if ('notfound' in pageData) {
       if (!emptyOnNoResult) {
@@ -98,13 +101,10 @@ export default async function EmporixCmsPage(props: EmporixCmsPageProps) {
     const layoutData =
       effectiveLayout == page?.layout?.id
         ? page.layout
-        : await fetchCMSLayout(
-            effectiveLayout,
-            effectiveLocale,
-            effectiveSite,
-            cmsVersion,
-            fallback ? { fallback } : undefined,
-          );
+        : await fetchCMSLayout(effectiveLayout, effectiveLocale, effectiveSite, cmsVersion, {
+            ...(fallback ? { fallback } : {}),
+            noCache: isEditorMode,
+          });
     if (!('notfound' in layoutData)) {
       layout = layoutData as CMSLayout;
     }

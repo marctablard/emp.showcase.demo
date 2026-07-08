@@ -53,14 +53,16 @@ export default function ProductGrid({
             {headline ? <H2>{headline}</H2> : <span />}
             {viewAllLink?.url ? (
               <Button asChild variant="link">
-                <Link href={viewAllLink.url}>{viewAllLink.label ?? 'View all'}</Link>
+                <Link href={viewAllLink.url}>
+                  <span data-cms-field="view_all_link.label">{viewAllLink.label ?? 'View all'}</span>
+                </Link>
               </Button>
             ) : null}
           </div>
         )}
         <ul className={cn('grid', colClass(columns), densityClass(density))}>
-          {skus.map((sku) => (
-            <li key={sku}>
+          {skus.map((sku, i) => (
+            <li key={sku} data-cms-field={`skus.${i}`}>
               <CmsProductTile sku={sku} showPrice={showPrice} showRating={showRating} />
             </li>
           ))}

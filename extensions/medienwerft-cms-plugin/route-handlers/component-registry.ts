@@ -10,10 +10,13 @@ import type { CMSComponentService } from '../services/CMSComponentService';
  * GET handler for the storefront's component registry.
  *
  * Designed to be re-exported from `app/api/cms/component-registry/route.ts`
- * as a one-liner:
+ * together with the preflight handler:
  *
  * ```ts
- * export { componentRegistryGET as GET } from '@extensions/medienwerft-cms-plugin/route-handlers';
+ * export {
+ *   componentRegistryGET as GET,
+ *   componentRegistryOPTIONS as OPTIONS,
+ * } from '@extensions/medienwerft-cms-plugin/route-handlers';
  * ```
  *
  * Publishes the storefront's CMS component catalogue in the wire format
@@ -44,12 +47,28 @@ import type { CMSComponentService } from '../services/CMSComponentService';
  *    any caller — same dev-friendly posture as the live-editor iframe
  *    handshake.
  *
+ * CORS:
+ *
+ *  - The CMS plugin calls this endpoint directly from the browser
+ *    (Copy-to-Locale, site-clone). Missing CORS surfaces in the browser
+ *    as "Failed to fetch" — not 4xx — because the response is rejected
+ *    before JS ever sees it. The MCP server-side path is unaffected
+ *    because it doesn't run in a browser.
+ *  - Allowed origins come from `CMS_EDITOR_ORIGINS` (comma-separated,
+ *    defaults to `https://app.emporix.io`), matching the convention
+ *    used by the rest of the editor surface in `next.config.ts`.
+ *  - `componentRegistryOPTIONS` answers the preflight; every GET
+ *    response (including 401/500) carries the same CORS headers so the
+ *    browser surfaces real status codes instead of "Failed to fetch".
+ *
  * Caching:
  *
  *  - Responds with `Cache-Control: public, max-age=300`. The MCP server
  *    additionally caches in-process for 5 minutes per `(site, url)`,
  *    so editor changes to the component registry surface within ~5
- *    minutes without a deploy.
+ *    minutes without a deploy. `Vary: Origin` is set so shared caches
+ *    don't serve a response with the wrong CORS headers to a different
+ *    origin.
  *
  * Query params:
  *
@@ -61,10 +80,11 @@ import type { CMSComponentService } from '../services/CMSComponentService';
  */
 export async function componentRegistryGET(request: NextRequest): Promise<NextResponse> {
   const logger = server.get<LoggerService>('LoggerService');
+  const corsHeaders = buildCorsHeaders(request);
 
   try {
     if (!authorize(request)) {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: corsHeaders });
     }
 
     const componentService = server.get<CMSComponentService>('EmporixCMSComponentService');
@@ -75,6 +95,7 @@ export async function componentRegistryGET(request: NextRequest): Promise<NextRe
 
     return NextResponse.json(body, {
       headers: {
+        ...corsHeaders,
         // Server-side recommended cache; the MCP server also caches
         // in-memory per (site, url) for the same window.
         'Cache-Control': 'public, max-age=300',
@@ -90,8 +111,17 @@ export async function componentRegistryGET(request: NextRequest): Promise<NextRe
       },
       'Error building CMS component registry',
     );
-    return NextResponse.json({ error: 'Failed to build component registry' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to build component registry' }, { status: 500, headers: corsHeaders });
   }
+}
+
+/**
+ * OPTIONS preflight handler. Answers the browser's preflight probe
+ * with the same CORS headers as the GET response. See `componentRegistryGET`
+ * for the CORS contract.
+ */
+export function componentRegistryOPTIONS(request: NextRequest): NextResponse {
+  return new NextResponse(null, { status: 204, headers: buildCorsHeaders(request) });
 }
 
 /**
@@ -115,4 +145,33 @@ function authorize(request: NextRequest): boolean {
   const suppliedBuf = Buffer.from(supplied, 'utf8');
   if (expectedBuf.length !== suppliedBuf.length) return false;
   return timingSafeEqual(expectedBuf, suppliedBuf);
+}
+
+/**
+ * Build CORS response headers for a request.
+ *
+ * Allowed origins come from `CMS_EDITOR_ORIGINS` (comma-separated,
+ * defaults to `https://app.emporix.io`). The request's `Origin` is
+ * echoed back when it is in the allowlist; otherwise the first
+ * configured origin is returned so the browser correctly rejects the
+ * response on the request side rather than silently succeeding.
+ *
+ * `Vary: Origin` is set so shared caches do not serve a response with
+ * the wrong CORS headers to a different origin.
+ */
+function buildCorsHeaders(request: NextRequest): Record<string, string> {
+  const allowed = (process.env.CMS_EDITOR_ORIGINS ?? 'https://app.emporix.io')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+  const requestOrigin = request.headers.get('origin');
+  const allowOrigin = requestOrigin && allowed.includes(requestOrigin) ? requestOrigin : allowed[0];
+
+  return {
+    'Access-Control-Allow-Origin': allowOrigin ?? '',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Emporix-API-Key',
+    'Access-Control-Max-Age': '86400',
+    Vary: 'Origin',
+  };
 }

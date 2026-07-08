@@ -66,6 +66,7 @@ export default function ImageText({
   const imageSrc = resolveImageSrc(image);
   const imageEl = imageSrc ? (
     <div
+      data-cms-field="image"
       className={cn(
         'relative aspect-[4/3] w-full overflow-hidden rounded-md bg-surface-image-background',
         widthClass(imageWidth),
@@ -89,7 +90,7 @@ export default function ImageText({
         <div>
           <Button asChild variant="primary">
             <Link href={cta.url} target={cta.newTab ? '_blank' : undefined}>
-              {cta.label ?? 'Learn more'}
+              <span data-cms-field="cta.label">{cta.label ?? 'Learn more'}</span>
             </Link>
           </Button>
         </div>

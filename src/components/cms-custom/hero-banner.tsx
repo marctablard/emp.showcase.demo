@@ -78,7 +78,15 @@ export default function HeroBanner({
       )}
     >
       {imageSrc ? (
-        <Image src={imageSrc} alt={image?.alt ?? ''} fill priority sizes="100vw" className="object-cover -z-20" />
+        <Image
+          data-cms-field="image"
+          src={imageSrc}
+          alt={image?.alt ?? ''}
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover -z-20"
+        />
       ) : null}
       {overlay !== 'none' ? (
         <span
@@ -125,7 +133,7 @@ export default function HeroBanner({
               {primaryHref ? (
                 <Button asChild variant="primary">
                   <Link href={primaryHref} target={primaryCta?.newTab ? '_blank' : undefined}>
-                    {primaryCta?.label ?? 'Learn more'}
+                    <span data-cms-field="primary_cta.label">{primaryCta?.label ?? 'Learn more'}</span>
                   </Link>
                 </Button>
               ) : null}
@@ -139,7 +147,7 @@ export default function HeroBanner({
                   )}
                 >
                   <Link href={secondaryHref} target={secondaryCta?.newTab ? '_blank' : undefined}>
-                    {secondaryCta?.label ?? 'See more'}
+                    <span data-cms-field="secondary_cta.label">{secondaryCta?.label ?? 'See more'}</span>
                   </Link>
                 </Button>
               ) : null}

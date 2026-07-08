@@ -2,15 +2,17 @@
 
 import { useContext, useMemo } from 'react';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { cn } from '@/lib/utils';
 import client from '@/platform/client';
 import type { CMSComponent } from '@/platform/services/model/cms';
 import { EmporixCMSContext } from '../context/emporix-cms-context';
 import type { CMSComponentService } from '../services/CMSComponentService';
 import CMSSetupMissingDialog from './cms-setup-missing-banner';
+import EmporixInlineEditable from './emporix-inline-editable';
 
 interface EmporixCMSComponentRendererProps {
   components: CMSComponent[];
+  /** Slot the components belong to — forwarded to inline-editing messages. */
+  slotId?: string;
   theme?: string;
 }
 
@@ -18,7 +20,7 @@ interface EmporixCMSComponentRendererProps {
  * Renders CMS components based on their type.
  * Applies highlight styling when a component is selected in the editor.
  */
-export default function EmporixCMSComponentRenderer({ components, theme }: EmporixCMSComponentRendererProps) {
+export default function EmporixCMSComponentRenderer({ components, slotId, theme }: EmporixCMSComponentRendererProps) {
   const context = useContext(EmporixCMSContext);
   const highlightedComponentId = context?.highlightedComponentId ?? null;
   const isEditorMode = context?.isEditorMode ?? false;
@@ -47,17 +49,16 @@ export default function EmporixCMSComponentRenderer({ components, theme }: Empor
 
     if (isEditorMode) {
       return (
-        <div
+        <EmporixInlineEditable
           key={component.id}
-          className={
-            highlightedComponentId === component.id
-              ? cn('ring-2 ring-offset-2 [--tw-ring-color:var(--color-cms-highlight)]')
-              : ''
-          }
-          data-component-id={component.id}
+          componentId={component.id}
+          slotId={slotId ?? ''}
+          props={component.props}
+          definition={entry.definition}
+          highlighted={highlightedComponentId === component.id}
         >
           <Component {...mappedProps} />
-        </div>
+        </EmporixInlineEditable>
       );
     }
 

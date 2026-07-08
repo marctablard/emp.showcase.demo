@@ -10,6 +10,36 @@ export function generateUrlHash(url: string): string {
 }
 
 /**
+ * Normalize a slug: lowercase, alphanumeric + hyphens, trimmed.
+ * Must stay in sync with the editor-side implementation.
+ */
+export function normalizeSlug(slug: string): string {
+  return slug
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/**
+ * Canonicalize a page identifier (slug-form or URL-form) to the canonical
+ * URL form used for both entity-ID hashing and mixin lookups.
+ *
+ *  - `""`, `"/"`, `"home"` → `"/"` (homepage)
+ *  - `"products/shoes"` → `"/products/shoes"`
+ *  - `"/products/shoes"` → `"/products/shoes"` (idempotent)
+ *  - `"/home"` → `"/home"` (an explicit URL path, distinct from homepage)
+ *
+ * Storefront and editor MUST use this canonical form when reading/writing
+ * `mixins.CMS_PAGE_DATA.url`.
+ */
+export function canonicalUrl(slugOrUrl: string): string {
+  if (slugOrUrl === '' || slugOrUrl === '/' || slugOrUrl === 'home') {
+    return '/';
+  }
+  return slugOrUrl.startsWith('/') ? slugOrUrl : `/${slugOrUrl}`;
+}
+
+/**
  * Build a deterministic entity ID from slug/id, locale, and site.
  *
  * Matches the editor-side buildEntityId convention:
@@ -53,10 +83,12 @@ export function buildEntityId(
     if (idOrSlug.startsWith('cms-page-')) {
       baseId = idOrSlug;
     } else {
-      const urlParts = idOrSlug.split('/').filter((p) => p.length > 0);
+      const url = canonicalUrl(idOrSlug);
+      const hashInput = url === '/' ? 'home' : url;
+      const urlParts = url.split('/').filter((p) => p.length > 0);
       const lastSegment = urlParts[urlParts.length - 1] || 'home';
-      const urlHash = generateUrlHash(idOrSlug);
-      baseId = `cms-page-${lastSegment}-${urlHash}-${locale}-${site}`;
+      const urlHash = generateUrlHash(hashInput);
+      baseId = `cms-page-${normalizeSlug(lastSegment)}-${urlHash}-${locale}-${site}`;
     }
   } else {
     throw new Error('Invalid Type', type);

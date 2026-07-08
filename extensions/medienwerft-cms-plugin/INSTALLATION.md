@@ -137,7 +137,7 @@ EMPORIX_API_URL=https://api.emporix.io
 
 # Editor origins allowed to embed the storefront iframe.
 # Comma-separated; consumed by next.config.ts (see Cross-Origin Configuration).
-CMS_EDITOR_ORIGINS=https://app.emporix.io
+CMS_EDITOR_ORIGINS=https://admin.emporix.io
 
 # Generate client-side DI containers. Required for live-editing — the
 # editor iframe instantiates CMS services in the browser, so the DI
@@ -871,12 +871,25 @@ Supported messages (all typed in [`types.d.ts`](./types.d.ts)):
 | `CATEGORY_TREE_RESPONSE`  | Storefront → Editor    | Reply to `REQUEST_CATEGORY_TREE`.            |
 | `NAVIGATION_INTERCEPTED`  | Storefront → Editor    | Internal link click caught in preview.       |
 | `NAVIGATION_RESPONSE`     | Editor → Storefront    | Allow the previously intercepted navigation. |
+| `INLINE_EDIT_COMMIT`      | Storefront → Editor    | Inline edit of a text/select value.          |
+| `INLINE_EDIT_REQUEST`     | Storefront → Editor    | Ask editor to open a media/product/category selector. |
+| `COMPONENT_SELECTED`      | Storefront → Editor    | A component was clicked in the preview — select it in the sidebar. |
 | `REQUEST_THEME`           | Editor → Storefront    | Request the currently applied theme.         |
 | `THEME_RESPONSE`          | Storefront → Editor    | Reply with applied theme variables.          |
 | `UPDATE_THEME_VARIABLES`  | Editor → Storefront    | Live-preview theme CSS variables.            |
 | `RESET_THEME_VARIABLES`   | Editor → Storefront    | Restore the server-rendered theme.           |
 | `REQUEST_THEME_TOKENS`    | Editor → Storefront    | Request the manifest of overridable tokens.  |
 | `THEME_TOKENS_RESPONSE`   | Storefront → Editor    | Reply with the resolved token manifest.      |
+
+### Inline editing
+
+When the preview runs with `editMode=true`, every rendered component is wrapped
+so its fields can be edited **in place**: text/url fields become editable, select
+fields get an inline dropdown, and media/product/category fields trigger the
+editor's own selector dialogs. The storefront emits `INLINE_EDIT_COMMIT` /
+`INLINE_EDIT_REQUEST`; the editor mutates its model and loops the result back via
+`UPDATE_SLOT`. The full protocol and the editor-side handler contract live in
+[`INLINE_EDITING.md`](./INLINE_EDITING.md).
 
 ---
 
@@ -1046,7 +1059,7 @@ import type { NextConfig } from 'next';
 
 // Comma-separated list of editor origins, e.g.
 //   CMS_EDITOR_ORIGINS=https://app.emporix.io,https://staging-app.emporix.io
-const editorOrigins = (process.env.CMS_EDITOR_ORIGINS ?? 'https://app.emporix.io')
+const editorOrigins = (process.env.CMS_EDITOR_ORIGINS ?? 'https://admin.emporix.io')
   .split(',')
   .map((o) => o.trim())
   .filter(Boolean);

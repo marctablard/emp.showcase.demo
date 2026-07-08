@@ -54,6 +54,7 @@ export default function CtaBanner({
       {pattern === 'image' && backgroundImageSrc ? (
         <>
           <Image
+            data-cms-field="background_image"
             src={backgroundImageSrc}
             alt={backgroundImage?.alt ?? ''}
             fill
@@ -85,14 +86,14 @@ export default function CtaBanner({
             {primaryCta?.url ? (
               <Button asChild variant="primary">
                 <Link href={primaryCta.url} target={primaryCta.newTab ? '_blank' : undefined}>
-                  {primaryCta.label ?? 'Learn more'}
+                  <span data-cms-field="primary_cta.label">{primaryCta.label ?? 'Learn more'}</span>
                 </Link>
               </Button>
             ) : null}
             {secondaryCta?.url ? (
               <Button asChild variant="secondary">
                 <Link href={secondaryCta.url} target={secondaryCta.newTab ? '_blank' : undefined}>
-                  {secondaryCta.label ?? 'See more'}
+                  <span data-cms-field="secondary_cta.label">{secondaryCta.label ?? 'See more'}</span>
                 </Link>
               </Button>
             ) : null}

@@ -69,6 +69,7 @@ export default function FeatureList({
               <li key={i} className={cn('flex flex-col gap-3', alignClass(alignment))}>
                 <div className="flex items-center gap-3">
                   <span
+                    data-cms-field={`features.${i}.icon`}
                     data-icon-style={iconStyle}
                     className={cn(
                       'flex size-12 shrink-0 items-center justify-center text-icon-action',
@@ -78,9 +79,20 @@ export default function FeatureList({
                   >
                     <Icon size={24} strokeWidth={iconStyle === 'filled' ? 2.5 : 2} />
                   </span>
-                  {f.title ? <H4 className="text-text-headings">{f.title}</H4> : null}
+                  {f.title ? (
+                    <H4 data-cms-field={`features.${i}.title`} className="text-text-headings">
+                      {f.title}
+                    </H4>
+                  ) : null}
                 </div>
-                {f.description ? <p className="whitespace-pre-line text-base text-text-body">{f.description}</p> : null}
+                {f.description ? (
+                  <p
+                    data-cms-field={`features.${i}.description`}
+                    className="whitespace-pre-line text-base text-text-body"
+                  >
+                    {f.description}
+                  </p>
+                ) : null}
               </li>
             );
           })}

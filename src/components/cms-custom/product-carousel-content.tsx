@@ -54,7 +54,9 @@ export default function ProductCarousel({
             {headline ? <H2>{headline}</H2> : <span />}
             {viewAllLink?.url ? (
               <Button asChild variant="link">
-                <Link href={viewAllLink.url}>{viewAllLink.label ?? 'View all'}</Link>
+                <Link href={viewAllLink.url}>
+                  <span data-cms-field="view_all_link.label">{viewAllLink.label ?? 'View all'}</span>
+                </Link>
               </Button>
             ) : null}
           </div>
@@ -62,8 +64,8 @@ export default function ProductCarousel({
 
         <Carousel className="relative" orientation="horizontal" opts={{ loop, align: 'start' }}>
           <CarouselContent className="-ml-4">
-            {skus.map((sku) => (
-              <CarouselItem key={sku} className={cn('pl-4', slideBasis(slidesPerView))}>
+            {skus.map((sku, i) => (
+              <CarouselItem key={sku} data-cms-field={`skus.${i}`} className={cn('pl-4', slideBasis(slidesPerView))}>
                 <CmsProductTile sku={sku} showPrice={showPrice} showRating={showRating} />
               </CarouselItem>
             ))}

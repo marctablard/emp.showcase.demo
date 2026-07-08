@@ -1,6 +1,6 @@
 import { cache } from 'react';
-import type { CMSTheme, GetThemeOptions } from '../services/CMSThemeService';
-import { getThemeForSite } from './cms-theme-access';
+import ssr from '@/platform/ssr';
+import type { CMSTheme, CMSThemeService, GetThemeOptions } from '../services/CMSThemeService';
 
 /**
  * Per-request cached theme fetch.
@@ -11,12 +11,22 @@ import { getThemeForSite } from './cms-theme-access';
  *  - Single fetch per (site, version) within one render tree (React).
  *  - Single Emporix round-trip across requests within the TTL window.
  *
- * Falls back to `null` when no override is configured; the caller
- * renders the base theme only in that case.
+ * Returns `null` when no `CMSThemeService` is bound (e.g. the extension
+ * ships the interface but the host has not registered the implementation)
+ * or when no override is configured for the site; the caller renders the
+ * base theme only in that case.
+ *
+ * TODO: If this extension ever ships non-React component variants, split
+ * the React `cache()` wrapper out of this file into a framework-neutral
+ * accessor + a thin `fetch-*` wrapper. Today every consumer is a React
+ * Server Component, so the inline one-file shape matches the rest of the
+ * `fetch-*` helpers in `lib/`.
  */
 export const fetchCMSTheme = cache(
   async (site: string, version?: 'draft' | 'live' | string): Promise<CMSTheme | null> => {
+    if (!ssr.isBound('CMSThemeService')) return null;
+    const service = ssr.get<CMSThemeService>('CMSThemeService');
     const options: GetThemeOptions | undefined = version ? { version } : undefined;
-    return getThemeForSite(site, options);
+    return service.getThemeForSite(site, options);
   },
 );
