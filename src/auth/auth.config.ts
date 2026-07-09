@@ -8,6 +8,7 @@ const providers: Provider[] = [
     credentials: {
       username: { label: 'Username', type: 'text' },
       password: { label: 'Password', type: 'password' },
+      assistedBuying: { label: 'Assisted Buying', type: 'text' },
     },
   }),
 ];

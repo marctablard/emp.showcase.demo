@@ -65,6 +65,8 @@ function buildServiceTokenCacheKey(tenant: string, clientId: string, clientSecre
 export abstract class EmporixTokenManagerAbstract implements IEmporixTokenManager {
   private static readonly ANON_TOKEN_DEDUP_GRACE_MS = 2_000;
   private _anonymousTokenInflight = new Map<string, Promise<StoredToken<EmporixAnonymousTokenResponse>>>();
+  /** Same-request cache: Next.js may not expose freshly-set cookies until the next request. */
+  private assistedBuyingCustomerTokenCache = new Map<string, StoredToken<EmporixCustomerTokenResponse>>();
 
   constructor(@inject('EmporixOAuthApi') protected oauthApi: EmporixOAuthApi) {}
   abstract clearTokens(tenant: string): void;
@@ -215,12 +217,15 @@ export abstract class EmporixTokenManagerAbstract implements IEmporixTokenManage
       );
       // Check if token is expired or about to expire (within 5 minutes)
       if (!this.checkAccessToken(customerToken)) {
-        customerToken = await this.refreshCustomerToken(customerToken, tenant);
-        await this.writeToken<StoredToken<EmporixCustomerTokenResponse>, EmporixCustomerTokenResponse>(
-          EMPORIX_TOKEN_TYPE.CUSTOMER,
-          customerToken,
-          tenant,
-        );
+        const refreshedToken = await this.refreshCustomerToken(customerToken, tenant);
+        if (refreshedToken) {
+          customerToken = refreshedToken;
+          await this.writeToken<StoredToken<EmporixCustomerTokenResponse>, EmporixCustomerTokenResponse>(
+            EMPORIX_TOKEN_TYPE.CUSTOMER,
+            customerToken,
+            tenant,
+          );
+        }
       }
     }
     if (customerToken?.token) {
@@ -291,7 +296,57 @@ export abstract class EmporixTokenManagerAbstract implements IEmporixTokenManage
   }
 
   public async clearCustomerToken(tenant: string): Promise<void> {
+    this.assistedBuyingCustomerTokenCache.delete(tenant);
     return this.writeToken(EMPORIX_TOKEN_TYPE.CUSTOMER, undefined, tenant);
+  }
+
+  public async setAssistedBuyingCustomerToken(
+    tenant: string,
+    tokens: { accessToken: string; expiresIn: number; saasToken: string; sessionId?: string },
+  ): Promise<void> {
+    const now = Date.now();
+    const storedToken: StoredToken<EmporixCustomerTokenResponse> = {
+      token: {
+        access_token: tokens.accessToken,
+        token_type: 'Bearer',
+        expires_in: tokens.expiresIn,
+        scope: 'customer',
+        saas_token: tokens.saasToken,
+        session_id: tokens.sessionId ?? '',
+      },
+      expiryAt: now + tokens.expiresIn * 1000,
+    };
+    this.assistedBuyingCustomerTokenCache.set(tenant, storedToken);
+    await this.writeToken<StoredToken<EmporixCustomerTokenResponse>, EmporixCustomerTokenResponse>(
+      EMPORIX_TOKEN_TYPE.CUSTOMER,
+      storedToken,
+      tenant,
+    );
+  }
+
+  public clearAssistedBuyingCustomerTokenCache(tenant: string): void {
+    this.assistedBuyingCustomerTokenCache.delete(tenant);
+  }
+
+  public async updateCustomerTokenSessionId(tenant: string, sessionId: string): Promise<void> {
+    const cached = this.assistedBuyingCustomerTokenCache.get(tenant);
+    if (cached) {
+      cached.token.session_id = sessionId;
+      this.assistedBuyingCustomerTokenCache.set(tenant, cached);
+    }
+    const customerToken = await this.readToken<StoredToken<EmporixCustomerTokenResponse>, EmporixCustomerTokenResponse>(
+      EMPORIX_TOKEN_TYPE.CUSTOMER,
+      tenant,
+    );
+    if (!customerToken) {
+      return;
+    }
+    customerToken.token.session_id = sessionId;
+    await this.writeToken<StoredToken<EmporixCustomerTokenResponse>, EmporixCustomerTokenResponse>(
+      EMPORIX_TOKEN_TYPE.CUSTOMER,
+      customerToken,
+      tenant,
+    );
   }
 
   public async refreshCustomerTokenWithLegalEntity(
@@ -378,6 +433,13 @@ export abstract class EmporixTokenManagerAbstract implements IEmporixTokenManage
     type: EmporixTokenType,
     tenant: string,
   ): Promise<T | undefined> {
+    if (type === EMPORIX_TOKEN_TYPE.CUSTOMER) {
+      const cached = this.assistedBuyingCustomerTokenCache.get(tenant);
+      if (cached) {
+        return cached as T;
+      }
+    }
+
     const tokens = await this.readTokens(tenant);
     switch (type) {
       case EMPORIX_TOKEN_TYPE.ANONYMOUS:

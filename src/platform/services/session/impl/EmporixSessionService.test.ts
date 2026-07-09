@@ -100,6 +100,8 @@ describe('EmporixSessionService', () => {
       clearAnonymousToken: jest.fn(),
       getCustomerToken: jest.fn(),
       clearCustomerToken: jest.fn(),
+      setAssistedBuyingCustomerToken: jest.fn(),
+      updateCustomerTokenSessionId: jest.fn(),
       getServiceAccessToken: jest.fn(),
       getSessionToken: jest.fn(),
       refreshCustomerTokenWithLegalEntity: jest.fn(),

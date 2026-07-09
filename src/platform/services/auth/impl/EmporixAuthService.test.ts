@@ -236,6 +236,12 @@ describe('EmporixAuthService', () => {
     container.bind('CartService').toConstantValue(mockCartService);
     container.bind('SiteService').toConstantValue(mockSiteService);
     container.bind('LoggerService').toConstantValue(mockLogger);
+    container.bind('EmporixTokenManager').toConstantValue({
+      setAssistedBuyingCustomerToken: jest.fn(),
+      updateCustomerTokenSessionId: jest.fn(),
+      clearCustomerToken: jest.fn(),
+    });
+    container.bind('EmporixConfig').toConstantValue({ tenant: 'test-tenant' });
     container.bind<EmporixAuthService>('AuthService').to(EmporixAuthService);
 
     configureCartLookup();
@@ -1252,6 +1258,50 @@ describe('EmporixAuthService', () => {
       // value so `getCanonicalSiteCode()` on the client handles the redirect.
       expect(result.sessionId).toBe('customer-session-id');
       expect(result.siteCode).toBe('main');
+    });
+  });
+
+  describe('loginWithAssistedBuying', () => {
+    it('stores tokens, binds the customer cart, and returns the session', async () => {
+      const tokenManager = container.get<{
+        setAssistedBuyingCustomerToken: jest.Mock;
+        updateCustomerTokenSessionId: jest.Mock;
+        clearCustomerToken: jest.Mock;
+      }>('EmporixTokenManager');
+
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValue(loginSessionContext);
+      mockCartService.getCart.mockResolvedValue(customerCart);
+      mockSessionService.setCart.mockResolvedValue(undefined);
+
+      const tokens = {
+        accessToken: 'assisted-access-token',
+        expiresIn: 3600,
+        saasToken: 'assisted-saas-token',
+      };
+
+      const result = await authService.loginWithAssistedBuying(tokens);
+
+      expect(tokenManager.setAssistedBuyingCustomerToken).toHaveBeenCalledWith('test-tenant', tokens);
+      expect(tokenManager.updateCustomerTokenSessionId).toHaveBeenCalledWith('test-tenant', 'customer-session-id');
+      expect(mockSessionService.setCart).toHaveBeenCalledWith('customer-cart-id');
+      expect(result.customerId).toBe('customer-123');
+      expect(result.cartId).toBe('customer-cart-id');
+      expect(result.cartMergeStatus).toBe('NOT_APPLICABLE');
+    });
+
+    it('clears the customer token when session context cannot be resolved', async () => {
+      const tokenManager = container.get<{ clearCustomerToken: jest.Mock }>('EmporixTokenManager');
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValue(undefined);
+
+      await expect(
+        authService.loginWithAssistedBuying({
+          accessToken: 'assisted-access-token',
+          expiresIn: 3600,
+          saasToken: 'assisted-saas-token',
+        }),
+      ).rejects.toThrow('Failed to establish assisted buying session');
+
+      expect(tokenManager.clearCustomerToken).toHaveBeenCalledWith('test-tenant');
     });
   });
 });

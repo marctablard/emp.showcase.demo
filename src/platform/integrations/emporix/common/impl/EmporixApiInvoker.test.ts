@@ -35,6 +35,8 @@ describe('EmporixApiInvoker', () => {
       clearAnonymousToken: jest.fn(),
       getCustomerToken: jest.fn().mockResolvedValue({ accessToken: 'customer-token-123', sessionId: 'session-2' }),
       clearCustomerToken: jest.fn(),
+      setAssistedBuyingCustomerToken: jest.fn(),
+      updateCustomerTokenSessionId: jest.fn(),
       getSessionToken: jest
         .fn()
         .mockResolvedValue({ accessToken: 'session-token-123', saasToken: undefined, sessionId: 'session-3' }),

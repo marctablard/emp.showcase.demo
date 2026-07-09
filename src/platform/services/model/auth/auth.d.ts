@@ -12,6 +12,16 @@ export interface Credentials {
 }
 
 /**
+ * Tokens passed from Management Dashboard assisted buying via storefront URL query params.
+ * @see https://developer.emporix.io/ce/core-commerce/customer-management/assisted-buying
+ */
+export interface AssistedBuyingTokens {
+  accessToken: string;
+  expiresIn: number;
+  saasToken: string;
+}
+
+/**
  * Registration data
  */
 export interface Registration {

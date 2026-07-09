@@ -2,7 +2,14 @@ import NextAuth from 'next-auth';
 import type { User } from 'next-auth';
 import 'next-auth/jwt';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import { cookies } from 'next/headers';
 import { headers } from 'next/headers';
+import {
+  ASSISTED_BUYING_CREDENTIAL_FLAG,
+  ASSISTED_BUYING_PENDING_COOKIE,
+  consumeAssistedBuyingSignInPending,
+  isAssistedBuyingSignInPending,
+} from '@/lib/common/assisted-buying';
 import { getBaseUrlFromHeaders } from '@/lib/server/url-utils';
 import server from '@/platform/server';
 import type { CustomerNamingService } from '@/platform/services/customer/CustomerNamingService';
@@ -16,6 +23,47 @@ const enrichedProviders = config.providers.map((provider) => {
     return CredentialsProvider({
       ...provider.options,
       authorize: async (credentials) => {
+        if (credentials?.assistedBuying === ASSISTED_BUYING_CREDENTIAL_FLAG) {
+          const cookieStore = await cookies();
+          const hasPendingCookie = !!cookieStore.get(ASSISTED_BUYING_PENDING_COOKIE)?.value;
+          const hasPendingMemory = isAssistedBuyingSignInPending();
+          if (!hasPendingCookie && !hasPendingMemory) {
+            return null;
+          }
+
+          const authService = server.get<AuthService>('AuthService');
+          const session = await authService.getCurrentSession();
+          if (!session?.customerId) {
+            return null;
+          }
+
+          try {
+            const customerService = server.get<CustomerService>('CustomerService');
+            const customer = await customerService.getCustomer();
+            if (!customer?.email) {
+              return null;
+            }
+
+            if (hasPendingMemory) {
+              consumeAssistedBuyingSignInPending();
+            }
+            cookieStore.delete(ASSISTED_BUYING_PENDING_COOKIE);
+
+            const customerNamingService = server.get<CustomerNamingService>('CustomerNamingService');
+            return {
+              id: session.customerId,
+              name: customerNamingService.getFullName(customer),
+              email: customer.email,
+              businessModel: customer.businessModel,
+              cartMergeStatus: session.cartMergeStatus,
+              cartMergeReason: session.cartMergeReason,
+              roles: [],
+            };
+          } catch (_error) {
+            throw new Error('Failed to authorize assisted buying session');
+          }
+        }
+
         if (!credentials?.username || !credentials?.password) {
           return null;
         }

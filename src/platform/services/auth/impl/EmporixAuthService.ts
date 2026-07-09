@@ -6,13 +6,15 @@ import {
   getPublicDefaultSite,
 } from '@/lib/common/public-default-env';
 import { injectable } from '@/platform/core/di/injectable';
+import type { EmporixTokenManager } from '@/platform/integrations/emporix/common/EmporixTokenManager';
+import type { EmporixConfig } from '@/platform/integrations/emporix/config';
 import type EmporixCustomerApi from '@/platform/integrations/emporix/customer/impl/EmporixCustomerApi';
 import type { EmporixAddress } from '@/platform/integrations/emporix/model';
 import type { EmporixCustomer } from '@/platform/integrations/emporix/model/customer';
 import type { EmporixSessionContext } from '@/platform/integrations/emporix/model/session-context';
 import type EmporixSessionContextApi from '@/platform/integrations/emporix/session/impl/EmporixSessionContextApi';
 import { CART_CURRENCY_UPDATE_ERROR_CODE, CartCurrencyUpdateError } from '@/platform/services/cart/errors';
-import type { Credentials, Registration, Session } from '@/platform/services/model/auth/auth';
+import type { AssistedBuyingTokens, Credentials, Registration, Session } from '@/platform/services/model/auth/auth';
 import type { Cart } from '@/platform/services/model/cart/cart';
 import type { Site } from '@/platform/services/model/common/site';
 import type { CartMigrationService } from '../../cart/CartMigrationService';
@@ -71,6 +73,10 @@ export class EmporixAuthService implements AuthService {
     private readonly siteService: SiteService,
     @inject('LoggerService')
     private readonly logger: LoggerService,
+    @inject('EmporixTokenManager')
+    private readonly tokenManager: EmporixTokenManager,
+    @inject('EmporixConfig')
+    private readonly config: EmporixConfig,
   ) {}
 
   async login(credentials: Credentials): Promise<Session> {
@@ -389,6 +395,42 @@ export class EmporixAuthService implements AuthService {
     }
 
     return this.buildLoginResult(session, customerCartId, cartMergeStatus, cartMergeReason);
+  }
+
+  async loginWithAssistedBuying(tokens: AssistedBuyingTokens): Promise<Session> {
+    await this.tokenManager.setAssistedBuyingCustomerToken(this.config.tenant, tokens);
+
+    const session = await this.emporixSessionContextApi.getOwnSessionContext();
+    if (!session?.customerId) {
+      await this.tokenManager.clearCustomerToken(this.config.tenant);
+      throw new Error('Failed to establish assisted buying session');
+    }
+
+    if (session.sessionId) {
+      await this.tokenManager.updateCustomerTokenSessionId(this.config.tenant, session.sessionId);
+    }
+
+    const targetSiteCode = session.siteCode || getPublicDefaultSite();
+    let customerCartId: string | undefined;
+
+    try {
+      const customerCartBinding = await this.safeEnsureCustomerCartBinding(
+        session.customerId,
+        targetSiteCode,
+        session.currency,
+      );
+      customerCartId = customerCartBinding.cartId;
+      if (customerCartId) {
+        await this.sessionService.setCart(customerCartId);
+      }
+    } catch (error) {
+      this.logger.error(
+        { err: error instanceof Error ? error : String(error), customerId: session.customerId },
+        'Failed to bind customer cart during assisted buying login',
+      );
+    }
+
+    return this.buildLoginResult(session, customerCartId, this.CART_MERGE_STATUS.NOT_APPLICABLE);
   }
 
   async logout(): Promise<void> {

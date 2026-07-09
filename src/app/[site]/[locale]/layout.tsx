@@ -7,6 +7,7 @@ import { Open_Sans, Ubuntu } from 'next/font/google';
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import '@/app/globals.css';
+import { AssistedBuyingHandler } from '@/components/auth/AssistedBuyingHandler';
 import { CsrfProvider } from '@/components/csrf/CsrfProvider';
 import { ApiDebugPanel } from '@/components/debug/ApiDebugPanel';
 import { CurrencyFallbackToastBus } from '@/components/header/switcher/currency-fallback-toast-bus';
@@ -151,6 +152,7 @@ export default async function LocaleLayout({ children, dialog, params }: Props) 
               <StoreProvider shopSession={shopSession} site={site} availableSites={availableSites}>
                 <StoryblokProvider>
                   <CsrfProvider />
+                  <AssistedBuyingHandler />
                   <SiteSessionAligner />
                   {isDebugApiEnabled() && isBrowserDebugOutputEnabled() && <ApiDebugPanel />}
                   {children}

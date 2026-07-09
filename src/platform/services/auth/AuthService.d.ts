@@ -1,4 +1,4 @@
-import { Credentials, Registration, Session } from '../model/auth';
+import { AssistedBuyingTokens, Credentials, Registration, Session } from '../model/auth';
 
 /**
  * Service for authentication-related operations
@@ -10,6 +10,12 @@ export interface AuthService {
    * @returns Promise with the authentication session
    */
   login(credentials: Credentials): Promise<Session>;
+
+  /**
+   * Establish a customer session from assisted buying URL tokens.
+   * @param tokens Customer token payload from Management Dashboard
+   */
+  loginWithAssistedBuying(tokens: AssistedBuyingTokens): Promise<Session>;
 
   /**
    * Logout the current customer

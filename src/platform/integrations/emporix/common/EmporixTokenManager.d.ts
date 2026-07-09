@@ -48,6 +48,24 @@ export interface EmporixTokenManager {
   clearCustomerToken(tenant: string): Promise<void>;
 
   /**
+   * Store a customer token issued by Management Dashboard assisted buying.
+   * @param tenant The tenant ID
+   * @param tokens Assisted buying token payload from the storefront URL
+   */
+  setAssistedBuyingCustomerToken(
+    tenant: string,
+    tokens: { accessToken: string; expiresIn: number; saasToken: string; sessionId?: string },
+  ): Promise<void>;
+
+  /**
+   * Patch the stored customer token with the resolved Emporix session id.
+   */
+  updateCustomerTokenSessionId(tenant: string, sessionId: string): Promise<void>;
+
+  /** Drop the in-memory assisted-buying customer token cache for this tenant. */
+  clearAssistedBuyingCustomerTokenCache(tenant: string): void;
+
+  /**
    * Get a Session Token, either the current Anonymous Token or a Customer Token
    * - A new one is created if credentials are being supplied
    * @param tenant The tenant ID
