@@ -24,9 +24,41 @@ import { cn } from '@/lib/utils';
 interface UiBreadcrumbProps extends React.ComponentProps<'nav'> {
   items: BreadcrumbContent[];
   maxItems?: number;
+  disabledCategories?: boolean;
 }
 
-export function UiBreadcrumb({ items, maxItems = 2, className, ...props }: UiBreadcrumbProps) {
+function BreadcrumbLabel({
+  item,
+  isLast,
+  disabledCategories,
+}: {
+  item: BreadcrumbContent;
+  isLast: boolean;
+  disabledCategories: boolean;
+}) {
+  if (isLast) {
+    return <BreadcrumbPage>{item.label}</BreadcrumbPage>;
+  }
+
+  if (disabledCategories) {
+    return (
+      <span className="inline-flex items-center gap-1 whitespace-nowrap text-text-body">
+        {item.label}
+        <ChevronRight className="h-4 w-4 text-text-placeholders" aria-hidden="true" />
+      </span>
+    );
+  }
+
+  return <BreadcrumbLink href={item.href}>{item.label}</BreadcrumbLink>;
+}
+
+export function UiBreadcrumb({
+  items,
+  maxItems = 2,
+  className,
+  disabledCategories = false,
+  ...props
+}: UiBreadcrumbProps) {
   const t = useTranslations('common.Breadcrumb');
 
   // If items array is empty, don't render anything
@@ -61,13 +93,17 @@ export function UiBreadcrumb({ items, maxItems = 2, className, ...props }: UiBre
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 {hiddenItems.map((hiddenItem, index) => (
-                  <DropdownMenuItem key={index} asChild>
-                    <Link
-                      href={hiddenItem.href}
-                      className="cursor-pointer w-full font-bold underline text-text-action hover:text-text-action-hover"
-                    >
-                      {hiddenItem.label}
-                    </Link>
+                  <DropdownMenuItem key={index} asChild={!disabledCategories}>
+                    {disabledCategories ? (
+                      <span className="w-full px-2 py-1.5 text-sm text-text-body">{hiddenItem.label}</span>
+                    ) : (
+                      <Link
+                        href={hiddenItem.href}
+                        className="cursor-pointer w-full font-bold underline text-text-action hover:text-text-action-hover"
+                      >
+                        {hiddenItem.label}
+                      </Link>
+                    )}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -78,18 +114,14 @@ export function UiBreadcrumb({ items, maxItems = 2, className, ...props }: UiBre
         {/* Breadcrumb items */}
         {hiddenItems.map((item, index) => (
           <BreadcrumbItem key={index} className="hidden sm:block">
-            <BreadcrumbLink href={item.href}>{item.label}</BreadcrumbLink>
+            <BreadcrumbLabel item={item} isLast={false} disabledCategories={disabledCategories} />
           </BreadcrumbItem>
         ))}
         {itemsToShow.map((item, index) => {
           const isLastItem = index === itemsToShow.length - 1;
           return (
             <BreadcrumbItem key={index}>
-              {isLastItem ? (
-                <BreadcrumbPage>{item.label}</BreadcrumbPage>
-              ) : (
-                <BreadcrumbLink href={item.href}>{item.label}</BreadcrumbLink>
-              )}
+              <BreadcrumbLabel item={item} isLast={isLastItem} disabledCategories={disabledCategories} />
             </BreadcrumbItem>
           );
         })}
