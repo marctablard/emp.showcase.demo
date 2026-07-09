@@ -81,6 +81,12 @@ class EmporixCustomerSegmentApi implements IEmporixCustomerSegmentApi {
       if (params.legalEntityId) {
         queryParams.append('legalEntityId', params.legalEntityId);
       }
+      if (params.siteCode) {
+        queryParams.append('siteCode', params.siteCode);
+      }
+      if (params.onlyActive !== undefined) {
+        queryParams.append('onlyActive', String(params.onlyActive));
+      }
     }
     return queryParams.toString();
   }

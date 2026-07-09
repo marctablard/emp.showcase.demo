@@ -252,9 +252,22 @@ export class EmporixCategoryService implements CategoryService {
   /**
    * Get the product IDs assigned to a category.
    */
+  async getSiteRootCategoryIds(siteCode: string): Promise<Set<string>> {
+    try {
+      const catalogResponse = await this.catalogApi.getCatalogs({
+        size: 100,
+        criteria: { publishedSite: siteCode },
+      });
+      return new Set((catalogResponse.items ?? []).flatMap((c) => c.categoryIds ?? []));
+    } catch (error) {
+      this.logger.error({ err: error, siteCode }, 'Error fetching site root category IDs');
+      return new Set();
+    }
+  }
+
   async getProductIdsForCategory(
     categoryId: string,
-    options?: { page?: number; pageSize?: number },
+    options?: { page?: number; pageSize?: number; withSubcategories?: boolean; segmentsIds?: string },
   ): Promise<{ ids: string[]; total: number; page: number; pageSize: number }> {
     try {
       const page = options?.page ?? 0;
@@ -262,9 +275,13 @@ export class EmporixCategoryService implements CategoryService {
       const response = await this.categoryApi.getCategoryAssignments(categoryId, {
         page,
         size: pageSize,
-        criteria: { assignmentType: 'product' },
+        criteria: {
+          assignmentType: 'PRODUCT',
+          withSubcategories: options?.withSubcategories ?? true,
+          ...(options?.segmentsIds ? { segmentsIds: options.segmentsIds } : {}),
+        },
       });
-      const ids = (response.items ?? []).filter((a) => a.ref?.type === 'product').map((a) => a.ref.id);
+      const ids = (response.items ?? []).filter((a) => a.ref?.type?.toLowerCase() === 'product').map((a) => a.ref.id);
       return { ids, total: response.total ?? 0, page, pageSize };
     } catch (error) {
       this.logger.error({ err: error, categoryId }, 'Error fetching product IDs for category');

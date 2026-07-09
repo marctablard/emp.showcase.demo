@@ -1,11 +1,11 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCustomerSegmentApi } from '@/platform/integrations/emporix/customer-segment/EmporixCustomerSegmentApi';
-import type { CategoryTreeItemResponse, ItemAssignmentResponse } from '@/platform/integrations/emporix/model';
+import type { ItemAssignmentResponse } from '@/platform/integrations/emporix/model';
 import type { CustomerService } from '../../customer/CustomerService';
 import type { LoggerService } from '../../logger/LoggerService';
 import type { Category } from '../../model/category';
-import type { CustomerSegmentQueryOptions, ItemAssignment } from '../../model/customer-segment';
+import type { CategoryTreeNode, CustomerSegmentQueryOptions, ItemAssignment } from '../../model/customer-segment';
 import type { CustomerSegmentMapper } from '../../model/customer-segment/CustomerSegmentMapper';
 import type { SessionService } from '../../session';
 import type { CustomerSegmentService } from '../CustomerSegmentService';
@@ -56,22 +56,18 @@ export class EmporixCustomerSegmentService implements CustomerSegmentService {
   }
 
   async getCategoryTrees(options?: CustomerSegmentQueryOptions): Promise<Category[]> {
+    const session = await this.sessionService.getCurrent();
+    const customer = await this.customerService.getCustomer();
     try {
       const params = {
-        legalEntityId: options?.legalEntityId,
+        legalEntityId: options?.legalEntityId ?? customer?.legalEntityId,
+        siteCode: options?.siteCode ?? session?.siteCode,
       };
 
       const response = await this.customerSegmentApi.getCategoryTrees(params);
-
-      return response.map(
-        (item: CategoryTreeItemResponse): Category => ({
-          id: item.id,
-          code: item.code,
-          name: item.name,
-          description: item.localizedDescription,
-          slug: item.localizedSlug,
-        }),
-      );
+      const trees = this.customerSegmentMapper.mapCategoryTrees(response);
+      const prunedTrees = this.pruneSegmentCategoryTree(trees);
+      return prunedTrees.map((tree) => this.mapCategoryTreeNodeToCategory(tree));
     } catch (error) {
       this.logger.error(
         {
@@ -83,6 +79,31 @@ export class EmporixCustomerSegmentService implements CustomerSegmentService {
         `Failed to retrieve customer segment category trees: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
     }
+  }
+
+  private mapCategoryTreeNodeToCategory(node: CategoryTreeNode): Category {
+    return {
+      id: node.id,
+      name: node.name,
+      description: node.description,
+      published: node.published,
+      position: node.position,
+      parent: node.parentId,
+      children: node.subcategories.map((child) => this.mapCategoryTreeNodeToCategory(child)),
+    };
+  }
+
+  /**
+   * Keeps categories that are segment-assigned or contain segment-assigned descendants.
+   */
+  private pruneSegmentCategoryTree(nodes: CategoryTreeNode[]): CategoryTreeNode[] {
+    return nodes.flatMap((node) => {
+      const prunedChildren = this.pruneSegmentCategoryTree(node.subcategories);
+      if (node.assignedToSegment || prunedChildren.length > 0) {
+        return [{ ...node, subcategories: prunedChildren }];
+      }
+      return [];
+    });
   }
 }
 

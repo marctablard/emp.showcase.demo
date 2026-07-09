@@ -39,7 +39,7 @@ class EmporixCustomerSegmentMapper implements CustomerSegmentMapper {
       description: source.localizedDescription || {},
       position: source.position || 0,
       published: source.published || false,
-      assignedToSegment: source.assignedToSegment || false,
+      assignedToSegment: source.isSegmentAssigned ?? source.assignedToSegment ?? false,
       subcategories: source.subcategories ? source.subcategories.map((sub: any) => this.mapCategoryTreeNode(sub)) : [],
     };
   }

@@ -115,11 +115,7 @@ export async function renderProductPage(id: string, locale: string, options: Pro
       <>
         <JsonLd jsonLd={jsonLd} />
         <div>
-          <UiBreadcrumb
-            items={breadcrumbs}
-            className="max-w-6xl mx-auto px-4 lg:px-9 sm:gap-x-6"
-            disabledCategories={true}
-          />
+          <UiBreadcrumb items={breadcrumbs} className="max-w-6xl mx-auto px-4 lg:px-9 sm:gap-x-6" />
           <ProductDetail
             className="max-w-6xl mx-auto px-4 lg:px-9 sm:gap-x-6 lg:pr-38"
             product={product}

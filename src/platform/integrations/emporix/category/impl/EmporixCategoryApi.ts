@@ -322,22 +322,59 @@ class EmporixCategoryApi implements IEmporixCategoryApi {
     const { body: _body, query: baseQuery } = buildSearchQuery(params, true);
 
     const url = `/category/${this.config.tenant}/categories/${categoryId}/assignments?${baseQuery}`;
+    const useSessionToken = !!params?.criteria?.segmentsIds;
 
     try {
-      const response = await this.apiInvoker.authenticatedFetch(
-        url,
-        {
-          method: 'GET',
-          headers: {
-            'X-Total-Count': 'true',
-            'X-Version': 'v2', // Required for this endpoint as per API docs
+      let response: Response;
+      const assignmentMetrics = createCategoryMetrics('/category/{tenant}/categories/{id}/assignments');
+      if (useSessionToken) {
+        try {
+          response = await this.apiInvoker.authenticatedFetch(
+            url,
+            {
+              method: 'GET',
+              headers: {
+                'X-Total-Count': 'true',
+                'X-Version': 'v2',
+              },
+            },
+            'session',
+            undefined,
+            assignmentMetrics,
+            DEFAULT_CACHE_REVALIDATE,
+          );
+        } catch {
+          response = await this.apiInvoker.authenticatedFetch(
+            url,
+            {
+              method: 'GET',
+              headers: {
+                'X-Total-Count': 'true',
+                'X-Version': 'v2',
+              },
+            },
+            'public',
+            undefined,
+            assignmentMetrics,
+            DEFAULT_CACHE_REVALIDATE,
+          );
+        }
+      } else {
+        response = await this.apiInvoker.authenticatedFetch(
+          url,
+          {
+            method: 'GET',
+            headers: {
+              'X-Total-Count': 'true',
+              'X-Version': 'v2', // Required for this endpoint as per API docs
+            },
           },
-        },
-        'public',
-        undefined,
-        createCategoryMetrics('/category/{tenant}/categories/{id}/assignments'),
-        DEFAULT_CACHE_REVALIDATE,
-      );
+          'public',
+          undefined,
+          assignmentMetrics,
+          DEFAULT_CACHE_REVALIDATE,
+        );
+      }
       return buildPaginatedResponse(params, response);
     } catch (error: any) {
       if (error.status === 404) {

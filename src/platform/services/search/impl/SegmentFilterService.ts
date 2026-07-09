@@ -122,7 +122,8 @@ class SegmentFilterService {
             size: 9999,
             criteria: {
               assignmentType: 'PRODUCT',
-              segmentIds: segmentItem.segmentId,
+              withSubcategories: true,
+              segmentsIds: segmentItem.segmentId,
             },
           });
 

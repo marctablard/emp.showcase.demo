@@ -21,6 +21,11 @@ export interface CategoryTreeItemResponse {
   name: EmporixLocalizedString;
   localizedDescription?: EmporixLocalizedString;
   localizedSlug?: EmporixLocalizedString;
+  parentId?: string;
+  position?: number;
+  published?: boolean;
+  isSegmentAssigned?: boolean;
+  subcategories?: CategoryTreeItemResponse[];
 }
 
 export interface CustomerSegmentQueryParams {

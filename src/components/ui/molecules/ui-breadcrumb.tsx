@@ -17,16 +17,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Link } from '@/i18n/navigation';
 import type { BreadcrumbContent } from '@/lib/breadcrumb';
 import { cn } from '@/lib/utils';
 
 interface UiBreadcrumbProps extends React.ComponentProps<'nav'> {
   items: BreadcrumbContent[];
   maxItems?: number;
-  disabledCategories?: boolean;
 }
 
-export function UiBreadcrumb({ items, maxItems = 2, className, disabledCategories, ...props }: UiBreadcrumbProps) {
+export function UiBreadcrumb({ items, maxItems = 2, className, ...props }: UiBreadcrumbProps) {
   const t = useTranslations('common.Breadcrumb');
 
   // If items array is empty, don't render anything
@@ -62,12 +62,12 @@ export function UiBreadcrumb({ items, maxItems = 2, className, disabledCategorie
               <DropdownMenuContent align="start">
                 {hiddenItems.map((hiddenItem, index) => (
                   <DropdownMenuItem key={index} asChild>
-                    <a
+                    <Link
                       href={hiddenItem.href}
                       className="cursor-pointer w-full font-bold underline text-text-action hover:text-text-action-hover"
                     >
                       {hiddenItem.label}
-                    </a>
+                    </Link>
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -76,20 +76,11 @@ export function UiBreadcrumb({ items, maxItems = 2, className, disabledCategorie
           </BreadcrumbItem>
         )}
         {/* Breadcrumb items */}
-        {hiddenItems.map((item, index) => {
-          return (
-            <BreadcrumbItem key={index} className="hidden sm:block">
-              {disabledCategories ? (
-                <BreadcrumbPage className="inline-flex items-center whitespace-nowrap text-text-action [&>svg]:size-4 md:[&>svg]:size-6 font-bold underline px-0 md:px-0">
-                  {item.label}
-                  <ChevronRight className="size-4" />
-                </BreadcrumbPage>
-              ) : (
-                <BreadcrumbLink href={item.href}>{item.label}</BreadcrumbLink>
-              )}
-            </BreadcrumbItem>
-          );
-        })}
+        {hiddenItems.map((item, index) => (
+          <BreadcrumbItem key={index} className="hidden sm:block">
+            <BreadcrumbLink href={item.href}>{item.label}</BreadcrumbLink>
+          </BreadcrumbItem>
+        ))}
         {itemsToShow.map((item, index) => {
           const isLastItem = index === itemsToShow.length - 1;
           return (

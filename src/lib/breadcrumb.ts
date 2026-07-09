@@ -7,14 +7,8 @@ export interface BreadcrumbContent {
   label: string;
 }
 
-function getCategorySlug(category: Category, locale: string): string {
-  if (category.slug) {
-    return l10n(category.slug, locale);
-  }
-  if (category.code) {
-    return '/category/' + category.code;
-  }
-  return `/category/?id=${category.id}`;
+function getCategoryHref(category: Category): string {
+  return `/browse/${category.id}`;
 }
 
 /**
@@ -35,7 +29,7 @@ function buildCategoryBreadcrumbs(
 
   // Add current category to breadcrumbs at the beginning
   breadcrumbs.unshift({
-    href: getCategorySlug(category, locale),
+    href: getCategoryHref(category),
     label: l10n(category.name, locale),
   });
 
@@ -44,6 +38,27 @@ function buildCategoryBreadcrumbs(
     return buildCategoryBreadcrumbs(category.parent, locale, breadcrumbs);
   }
   return breadcrumbs;
+}
+
+/**
+ * Links a category to its parent chain (parents sorted root → leaf from the API).
+ */
+export function attachCategoryParentChain(category: Category, parents: Category[]): Category {
+  const categoryWithParents = { ...category };
+  if (parents.length === 0) {
+    return categoryWithParents;
+  }
+
+  let linkedParent: Category = { ...parents[0] };
+  for (let i = 1; i < parents.length; i++) {
+    linkedParent = { ...parents[i], parent: linkedParent };
+  }
+  categoryWithParents.parent = linkedParent;
+  return categoryWithParents;
+}
+
+export function generateBreadcrumbForCategory(category: Category, locale: string): BreadcrumbContent[] {
+  return buildCategoryBreadcrumbs(category, locale, []);
 }
 
 export function generateBreadcrumbForProduct(product: Product, locale: string): BreadcrumbContent[] {

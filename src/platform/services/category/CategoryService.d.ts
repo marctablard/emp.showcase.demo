@@ -49,6 +49,11 @@ export interface CategoryService {
    */
   getProductIdsForCategory(
     categoryId: string,
-    options?: { page?: number; pageSize?: number },
+    options?: { page?: number; pageSize?: number; withSubcategories?: boolean; segmentsIds?: string },
   ): Promise<{ ids: string[]; total: number; page: number; pageSize: number }>;
+
+  /**
+   * Returns the root category IDs published for a site (from its catalogs).
+   */
+  getSiteRootCategoryIds(siteCode: string): Promise<Set<string>>;
 }
