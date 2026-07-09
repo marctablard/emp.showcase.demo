@@ -37,7 +37,7 @@ export default async function ShippingAddressesPage({ params }: { params: Promis
 
   return (
     <AccountLayout breadcrumbs={breadcrumbs}>
-      <div className="container mx-auto py-6">
+      <div>
         <H1 variant="h6" className="mb-6">
           {tAccount('shippingAddresses')}
         </H1>

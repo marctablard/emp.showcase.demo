@@ -1,8 +1,5 @@
-import { useTranslations } from 'next-intl';
-import PlaceholderPage from '@/components/account/placeholder-page';
+import AccountPreviewPage from '@/components/account/previews/account-preview-page';
 
 export default function NotificationsPage() {
-  const t = useTranslations('account.Notifications');
-
-  return <PlaceholderPage title={t('title')} />;
+  return <AccountPreviewPage category="messages" />;
 }

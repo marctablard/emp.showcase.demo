@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ArrowDown, ArrowRight, ArrowUp, ChevronsUpDown, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -14,6 +13,8 @@ import { useReturns } from '@/hooks/return/useReturns';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { Link } from '@/i18n/navigation';
 import type { Return } from '@/platform/services/model/return';
+import { AccountListContainer, shortenId } from '../shared/account-list';
+import { AccountPageHeader } from '../shared/account-page-header';
 import { formatReturnCurrency, formatReturnDate, getFirstOrderId, getRequestorEmail } from './helpers';
 import { ReturnStatusBadge } from './return-status-badge';
 
@@ -33,6 +34,7 @@ interface ReturnsListProps {
 
 export function ReturnsList({ initialReturns, forceRefreshOnMount = false }: ReturnsListProps) {
   const t = useTranslations('account.returns');
+  const tGroups = useTranslations('account.sidebar.groups');
   const locale = useLocale();
   const [quickSearch, setQuickSearch] = useState('');
   const [sortField, setSortField] = useState<ReturnSortField>('date');
@@ -102,103 +104,90 @@ export function ReturnsList({ initialReturns, forceRefreshOnMount = false }: Ret
       returnItem.orders[0]?.items[0]?.unitPrice?.currency,
   });
 
+  const header = (
+    <AccountPageHeader eyebrow={tGroups('orderManagement')} title={t('title')} description={t('description')} />
+  );
+
   if (isInitialLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-[48px] font-bold leading-[52px]">{t('title')}</CardTitle>
-          <CardDescription>{t('description')}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-center py-8">
+      <div className="space-y-6">
+        {header}
+        <AccountListContainer className="flex justify-center py-8">
           <div className="flex flex-col items-center space-y-2">
             <Spinner color="primary" variant="md" />
             <div>{t('loading')}</div>
           </div>
-        </CardContent>
-      </Card>
+        </AccountListContainer>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-[48px] font-bold leading-[52px]">{t('title')}</CardTitle>
-          <CardDescription>{t('description')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="bg-surface-error p-4 rounded-md text-text-error">
+      <div className="space-y-6">
+        {header}
+        <AccountListContainer className="space-y-4 p-4 sm:p-6">
+          <div className="bg-surface-error p-4 text-text-error">
             {t('errorLoading')}: {error.message}
           </div>
-        </CardContent>
-        <CardFooter>
           <Button onClick={() => refreshReturns()}>{t('tryAgain')}</Button>
-        </CardFooter>
-      </Card>
+        </AccountListContainer>
+      </div>
     );
   }
 
   if (visibleReturns.length === 0 && !quickSearch) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-[48px] font-bold leading-[52px]">{t('title')}</CardTitle>
-          <CardDescription>{t('description')}</CardDescription>
-        </CardHeader>
-        <CardContent className="text-center py-8">
+      <div className="space-y-6">
+        {header}
+        <AccountListContainer className="py-8 text-center">
           <p className="text-text-placeholders">{t('noReturns')}</p>
-        </CardContent>
-      </Card>
+        </AccountListContainer>
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-[40px] leading-[44px] lg:text-[52px] lg:leading-[56px] font-bold text-text-headings font-primary">
-        {t('title')}
-      </h1>
+      {header}
 
-      <div className="bg-surface-primary border border-border-primary rounded-md p-4 min-[768px]:p-6 shadow-sm">
-        <div className="mb-4">
-          <div className="relative w-full max-w-[380px]">
-            <Input
-              value={quickSearch}
-              onChange={(event) => {
-                setCurrentPage(1);
-                setQuickSearch(event.target.value);
-              }}
-              placeholder={t('searchPlaceholder')}
-              className="pr-10"
-              endIcon={isTableReloading ? undefined : Search}
-              aria-label={t('searchPlaceholder')}
-            />
-            {isTableReloading && (
-              <Spinner
-                variant="sm"
-                color="primary"
-                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
-                loadingText={t('loading')}
-              />
-            )}
-          </div>
-        </div>
-
-        {!loading && visibleReturns.length === 0 && quickSearch && (
-          <div className="rounded-md border border-border-primary p-4 text-sm text-text-on-disabled">
-            {t('noMatches')}
-          </div>
+      <div className="relative w-full max-w-[380px]">
+        <Input
+          value={quickSearch}
+          onChange={(event) => {
+            setCurrentPage(1);
+            setQuickSearch(event.target.value);
+          }}
+          placeholder={t('searchPlaceholder')}
+          className="pr-10"
+          endIcon={isTableReloading ? undefined : Search}
+          aria-label={t('searchPlaceholder')}
+        />
+        {isTableReloading && (
+          <Spinner
+            variant="sm"
+            color="primary"
+            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
+            loadingText={t('loading')}
+          />
         )}
+      </div>
 
+      {!loading && visibleReturns.length === 0 && quickSearch && (
+        <div className="border border-border-primary p-4 text-sm text-text-on-disabled">{t('noMatches')}</div>
+      )}
+
+      <AccountListContainer>
         {isTabletUp && (
           <div className={`transition-opacity ${isTableReloading ? 'opacity-70' : 'opacity-100'}`}>
-            <Table>
+            <Table className="xl:text-base">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="font-bold text-base leading-5 font-primary text-text-headings">
+                  <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
                     {t('returnNumber')}
                   </TableHead>
                   <TableHead
-                    className="font-bold text-base leading-5 font-primary text-text-headings"
+                    className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings"
                     aria-sort={getSortAriaSort('date')}
                   >
                     <button
@@ -209,14 +198,14 @@ export function ReturnsList({ initialReturns, forceRefreshOnMount = false }: Ret
                       {getSortIcon('date')}
                     </button>
                   </TableHead>
-                  <TableHead className="font-bold text-base leading-5 font-primary text-text-headings">
+                  <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
                     {t('orderNumber')}
                   </TableHead>
-                  <TableHead className="hidden min-[1280px]:table-cell font-bold text-base leading-5 font-primary text-text-headings">
+                  <TableHead className="hidden min-[1280px]:table-cell !h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
                     {t('email')}
                   </TableHead>
                   <TableHead
-                    className="font-bold text-base leading-5 font-primary text-text-headings"
+                    className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings"
                     aria-sort={getSortAriaSort('value')}
                   >
                     <button
@@ -228,7 +217,7 @@ export function ReturnsList({ initialReturns, forceRefreshOnMount = false }: Ret
                     </button>
                   </TableHead>
                   <TableHead
-                    className="font-bold text-base leading-5 font-primary text-text-headings"
+                    className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings"
                     aria-sort={getSortAriaSort('status')}
                   >
                     <button
@@ -239,7 +228,7 @@ export function ReturnsList({ initialReturns, forceRefreshOnMount = false }: Ret
                       {getSortIcon('status')}
                     </button>
                   </TableHead>
-                  <TableHead className="font-bold text-base leading-5 font-primary text-text-headings text-right">
+                  <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings text-right">
                     {t('view')}
                   </TableHead>
                 </TableRow>
@@ -249,22 +238,27 @@ export function ReturnsList({ initialReturns, forceRefreshOnMount = false }: Ret
                   const displayAmount = getDisplayReturnAmount(returnItem);
                   return (
                     <TableRow key={returnItem.id} className="border-t border-border-primary">
-                      <TableCell>
+                      <TableCell className="px-2 py-4">
                         <Link
                           href={`/account/returns/${returnItem.id}`}
+                          title={returnItem.id}
                           className="text-text-action underline decoration-solid font-bold hover:text-text-action/80"
                         >
-                          {returnItem.id}
+                          {shortenId(returnItem.id)}
                         </Link>
                       </TableCell>
-                      <TableCell>{formatReturnDate(returnItem.createdAt, locale)}</TableCell>
-                      <TableCell>{getFirstOrderId(returnItem)}</TableCell>
-                      <TableCell className="hidden min-[1280px]:table-cell">{getRequestorEmail(returnItem)}</TableCell>
-                      <TableCell>{formatReturnCurrency(displayAmount.value, displayAmount.currency, locale)}</TableCell>
-                      <TableCell>
+                      <TableCell className="px-2 py-4">{formatReturnDate(returnItem.createdAt, locale)}</TableCell>
+                      <TableCell className="px-2 py-4">{getFirstOrderId(returnItem)}</TableCell>
+                      <TableCell className="hidden min-[1280px]:table-cell px-2 py-4">
+                        {getRequestorEmail(returnItem)}
+                      </TableCell>
+                      <TableCell className="px-2 py-4">
+                        {formatReturnCurrency(displayAmount.value, displayAmount.currency, locale)}
+                      </TableCell>
+                      <TableCell className="px-2 py-4">
                         <ReturnStatusBadge status={returnItem.status} isExpired={returnItem.isExpired} />
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="px-2 py-4 text-right">
                         <Link
                           href={`/account/returns/${returnItem.id}`}
                           className="inline-flex items-center justify-end"
@@ -281,19 +275,20 @@ export function ReturnsList({ initialReturns, forceRefreshOnMount = false }: Ret
         )}
 
         {!isTabletUp && (
-          <div className={`space-y-3 transition-opacity ${isTableReloading ? 'opacity-70' : 'opacity-100'}`}>
+          <div className={`space-y-3 p-4 transition-opacity ${isTableReloading ? 'opacity-70' : 'opacity-100'}`}>
             {visibleReturns.map((returnItem) => {
               const displayAmount = getDisplayReturnAmount(returnItem);
               return (
-                <Card key={returnItem.id} className="border border-border-primary shadow-none">
-                  <CardContent className="p-4 space-y-3">
+                <div key={returnItem.id} className="border border-border-primary bg-surface-page">
+                  <div className="space-y-3 p-4">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <Link
                           href={`/account/returns/${returnItem.id}`}
+                          title={returnItem.id}
                           className="text-text-action underline decoration-solid font-bold hover:text-text-action/80 break-all"
                         >
-                          {returnItem.id}
+                          {shortenId(returnItem.id)}
                         </Link>
                         <div className="text-xs text-text-on-disabled mt-1">
                           {formatReturnDate(returnItem.createdAt, locale)}
@@ -320,14 +315,14 @@ export function ReturnsList({ initialReturns, forceRefreshOnMount = false }: Ret
                         <ArrowRight className="h-6 w-6 text-text-headings hover:text-text-action" />
                       </Link>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               );
             })}
           </div>
         )}
         <TablePagination
-          className="px-3"
+          className="border-t border-border-primary px-4 py-3 sm:px-6"
           currentPage={currentPage}
           totalPages={totalPages}
           pageIndicator={t('pageIndicator', { current: currentPage, total: totalPages })}
@@ -336,7 +331,7 @@ export function ReturnsList({ initialReturns, forceRefreshOnMount = false }: Ret
           onPreviousPage={handlePreviousPage}
           onNextPage={handleNextPage}
         />
-      </div>
+      </AccountListContainer>
     </div>
   );
 }

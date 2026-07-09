@@ -43,13 +43,13 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="font-semibold text-text-headings truncate">{name}</h3>
-          {project.comment && <p className="text-sm text-text-secondary line-clamp-2 mt-0.5">{project.comment}</p>}
+          {project.comment && <p className="text-sm text-text-placeholders line-clamp-2 mt-0.5">{project.comment}</p>}
         </div>
         <ProjectStatusBadge status={project.status} />
       </div>
 
       {/* Dates */}
-      <div className="flex gap-4 text-sm text-text-secondary">
+      <div className="flex gap-4 text-sm text-text-placeholders">
         {project.startDate && (
           <span>
             {t('startDate')}: {format(new Date(project.startDate), 'dd MMM yyyy')}
@@ -87,7 +87,7 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
           <Button
             variant="neutral"
             size="icon"
-            className="text-text-secondary hover:text-text-error"
+            className="text-text-placeholders hover:text-text-error"
             onClick={handleDelete}
             disabled={deleting}
             title={t('deleteProject')}

@@ -214,7 +214,7 @@ export function WishlistItem({ item, onMovedToCart }: WishlistItemProps) {
       {hasPriceToShow ? (
         <>
           {hasDiscount && (
-            <p className="text-sm text-text-secondary line-through tabular-nums">
+            <p className="text-sm text-text-placeholders line-through tabular-nums">
               {formatCurrency(grossOriginalAmount, currency)}
             </p>
           )}
@@ -222,7 +222,7 @@ export function WishlistItem({ item, onMovedToCart }: WishlistItemProps) {
             {formatCurrency(grossAmount, currency)}
           </p>
           {netAmount !== undefined && (
-            <p className="text-sm text-text-secondary tabular-nums">
+            <p className="text-sm text-text-placeholders tabular-nums">
               {t('net')} {formatCurrency(netAmount, currency)}
             </p>
           )}
@@ -230,7 +230,7 @@ export function WishlistItem({ item, onMovedToCart }: WishlistItemProps) {
       ) : (
         <>
           <p className="font-bold">{t('priceUnavailable')}</p>
-          <p className="text-sm text-text-secondary">
+          <p className="text-sm text-text-placeholders">
             {t('net')} {t('priceUnavailable')}
           </p>
         </>
@@ -239,7 +239,7 @@ export function WishlistItem({ item, onMovedToCart }: WishlistItemProps) {
   );
 
   const itemNumberLine = (
-    <p className="text-sm text-text-secondary">
+    <p className="text-sm text-text-placeholders">
       {t('itemNumber')}: {item.sku || item.productId}
     </p>
   );

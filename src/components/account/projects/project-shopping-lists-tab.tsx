@@ -14,6 +14,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
+import { accountTableHeadClass } from '@/components/account/shared/account-list';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -172,9 +173,9 @@ function AddProductDialog({
   ) : searchError ? (
     <p className="text-sm text-text-error text-center">{searchError}</p>
   ) : !query.trim() ? (
-    <p className="text-sm text-text-secondary text-center">{t('searchProducts')}</p>
+    <p className="text-sm text-text-placeholders text-center">{t('searchProducts')}</p>
   ) : results.length === 0 ? (
-    <p className="text-sm text-text-secondary text-center">{t('noResults')}</p>
+    <p className="text-sm text-text-placeholders text-center">{t('noResults')}</p>
   ) : null;
 
   return (
@@ -191,7 +192,7 @@ function AddProductDialog({
         />
         {statusSlot}
         {results.length > 0 && (
-          <div className="border border-border-primary rounded-md divide-y divide-border-primary max-h-[360px] overflow-y-auto">
+          <div className="border border-border-primary divide-y divide-border-primary max-h-[360px] overflow-y-auto">
             {results.map((p) => {
               const price = priceMap[p.id];
               const added = addedIds.has(p.id);
@@ -206,9 +207,9 @@ function AddProductDialog({
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    {p.brand && <p className="text-xs text-text-secondary truncate">{p.brand}</p>}
+                    {p.brand && <p className="text-xs text-text-placeholders truncate">{p.brand}</p>}
                     <p className="text-sm font-medium truncate">{p.name}</p>
-                    {p.sku && <p className="text-xs text-text-secondary">SKU: {p.sku}</p>}
+                    {p.sku && <p className="text-xs text-text-placeholders">SKU: {p.sku}</p>}
                     {price ? (
                       <p className="text-sm font-semibold text-text-action">
                         {formatCurrency(price.amount, price.currency)}
@@ -375,7 +376,7 @@ function ListItemsPanel({
   };
 
   if (items.length === 0) {
-    return <p className="text-base text-text-secondary text-center py-6">{t('emptyList')}</p>;
+    return <p className="text-sm text-text-placeholders text-center py-6">{t('emptyList')}</p>;
   }
 
   return (
@@ -388,7 +389,10 @@ function ListItemsPanel({
             return (
               <TableRow
                 key={itemKey}
-                className={cn('text-base', idx % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background')}
+                className={cn(
+                  'text-sm xl:text-base',
+                  idx % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
+                )}
               >
                 {/* Thumbnail */}
                 <TableCell className="pl-4 py-3">
@@ -437,7 +441,7 @@ function ListItemsPanel({
                         <Button
                           size="icon"
                           variant="neutral"
-                          className="text-text-secondary"
+                          className="text-text-placeholders"
                           title={t('requiresVariant')}
                           asChild
                         >
@@ -459,7 +463,7 @@ function ListItemsPanel({
                       <Button
                         size="icon"
                         variant="neutral"
-                        className="text-text-secondary"
+                        className="text-text-placeholders"
                         disabled={cs === 'loading'}
                         onClick={() => handleAddOneToCart(item, itemKey)}
                       >
@@ -469,7 +473,7 @@ function ListItemsPanel({
                     <Button
                       size="icon"
                       variant="neutral"
-                      className="text-text-secondary hover:text-text-error"
+                      className="text-text-placeholders hover:text-text-error"
                       onClick={() => onRemoveItem(list.id, item.productId)}
                     >
                       <X className="h-4 w-4" />
@@ -543,9 +547,9 @@ export function ProjectShoppingListsTab({
   };
 
   return (
-    <div className="space-y-4">
+    <div>
       {/* Toolbar */}
-      <div className="flex justify-end">
+      <div className="flex justify-end border-b border-border-primary px-4 py-3 sm:px-6">
         <Button size="small" className="gap-2" onClick={() => setShowCreate(true)}>
           <Plus className="h-4 w-4" />
           {t('newList')}
@@ -554,7 +558,7 @@ export function ProjectShoppingListsTab({
 
       {/* Inline create form */}
       {showCreate && (
-        <div className="border border-border-primary rounded-md p-4 bg-surface-image-background flex gap-3 items-end">
+        <div className="flex items-end gap-3 border-b border-border-primary bg-surface-image-background px-4 py-4 sm:px-6">
           <div className="flex-1 grid gap-1.5">
             <Label>{t('listName')}</Label>
             <Input
@@ -575,18 +579,18 @@ export function ProjectShoppingListsTab({
       )}
 
       {lists.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed border-border-primary rounded-md gap-3">
+        <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
           <List className="h-10 w-10 text-text-on-disabled" />
           <p className="font-medium">{t('noLists')}</p>
-          <p className="text-sm text-text-secondary">{t('noListsDescription')}</p>
+          <p className="text-sm text-text-placeholders">{t('noListsDescription')}</p>
         </div>
       ) : (
         <Table>
           <TableHeader>
-            <TableRow className="text-base">
-              <TableHead className="!h-14 font-bold">{t('listName')}</TableHead>
-              <TableHead className="!h-14 font-bold w-32">{t('quantity')}</TableHead>
-              <TableHead className="!h-14 font-bold w-56 text-right">{t('actions')}</TableHead>
+            <TableRow className="text-sm xl:text-base">
+              <TableHead className={accountTableHeadClass}>{t('listName')}</TableHead>
+              <TableHead className={cn(accountTableHeadClass, 'w-32')}>{t('quantity')}</TableHead>
+              <TableHead className={cn(accountTableHeadClass, 'w-56 text-right')}>{t('actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -600,7 +604,7 @@ export function ProjectShoppingListsTab({
                   <TableRow
                     key={list.id}
                     className={cn(
-                      'cursor-pointer hover:bg-surface-image-background text-base',
+                      'cursor-pointer hover:bg-surface-image-background text-sm xl:text-base',
                       index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
                     )}
                     onClick={() => setExpandedId(isExpanded ? null : list.id)}
@@ -608,14 +612,14 @@ export function ProjectShoppingListsTab({
                     <TableCell className="px-2 py-4 font-medium">
                       <span className="inline-flex items-center gap-2">
                         {isExpanded ? (
-                          <ChevronDown className="h-4 w-4 shrink-0 text-text-secondary" />
+                          <ChevronDown className="h-4 w-4 shrink-0 text-text-placeholders" />
                         ) : (
-                          <ChevronRight className="h-4 w-4 shrink-0 text-text-secondary" />
+                          <ChevronRight className="h-4 w-4 shrink-0 text-text-placeholders" />
                         )}
                         {list.name || list.id}
                       </span>
                     </TableCell>
-                    <TableCell className="px-2 py-4 text-text-secondary">
+                    <TableCell className="px-2 py-4 text-text-placeholders">
                       {t('items', { count: list.items.length })}
                     </TableCell>
                     <TableCell className="px-2 py-4 text-right">
@@ -635,7 +639,7 @@ export function ProjectShoppingListsTab({
                         <Button
                           size="icon"
                           variant="neutral"
-                          className="h-8 w-8 text-text-secondary hover:text-text-error"
+                          className="h-8 w-8 text-text-placeholders hover:text-text-error"
                           disabled={isDeletingThis}
                           onClick={() => handleDelete(list.id)}
                         >

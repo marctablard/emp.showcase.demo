@@ -6,6 +6,13 @@ import { useRouter } from 'next/navigation';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { ApprovalSummary } from '@/components/account/approvals/approval-summary';
 import {
+  AccountDetailContainer,
+  AccountDetailHeader,
+  AccountDetailStatus,
+  AccountSectionBar,
+  AccountSectionLabel,
+} from '@/components/account/shared/account-detail';
+import {
   AccountSpecTable,
   SpecFullWidthRow,
   SpecRow,
@@ -223,21 +230,16 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
   const canComment = approval.status === 'PENDING';
 
   return (
-    <article className="border border-border-primary bg-surface-page">
-      <header className="border-b border-border-primary px-4 py-4 sm:px-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.08em] text-text-placeholders">
-              {t('approvalDetails')}
-            </p>
-            <h1 className="mt-1 text-2xl font-bold text-text-headings">#{approval.id}</h1>
-          </div>
-          <div className="flex items-center gap-3 border-l-0 border-border-primary sm:border-l sm:pl-6">
-            <span className="text-sm font-medium text-text-placeholders">{t('status')}</span>
+    <AccountDetailContainer>
+      <AccountDetailHeader
+        eyebrow={t('approvalDetails')}
+        title={`#${approval.id}`}
+        aside={
+          <AccountDetailStatus label={t('status')}>
             <ApprovalStatusBadge status={approval.status} emphasized />
-          </div>
-        </div>
-      </header>
+          </AccountDetailStatus>
+        }
+      />
 
       {(actionSuccess || actionError) && (
         <div className="space-y-4 border-b border-border-primary px-4 py-4 sm:px-6">
@@ -297,9 +299,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
 
       {approval.resource.items && approval.resource.items.length > 0 ? (
         <section className="border-b border-border-primary">
-          <div className="border-b border-border-primary bg-surface-image-background px-4 py-2 sm:px-6">
-            <h2 className="text-xs font-bold uppercase tracking-[0.08em] text-text-headings">{t('orderItems')}</h2>
-          </div>
+          <AccountSectionBar>{t('orderItems')}</AccountSectionBar>
           <ProductListResolver
             items={approval.resource.items.map((it) => ({
               productId: it.productId,
@@ -333,7 +333,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
 
       {canComment ? (
         <section className="border-b border-border-primary px-4 py-4 sm:px-6">
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.08em] text-text-headings">{t('addComment')}</p>
+          <AccountSectionLabel className="mb-2">{t('addComment')}</AccountSectionLabel>
           <Textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
@@ -348,9 +348,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
 
       {canApprove ? (
         <footer className="border-b border-border-primary px-4 py-4 sm:px-6">
-          <p className="mb-3 text-xs font-bold uppercase tracking-[0.08em] text-text-headings">
-            {t('approvalActions')}
-          </p>
+          <AccountSectionLabel className="mb-3">{t('approvalActions')}</AccountSectionLabel>
           <div className="flex flex-wrap gap-2">
             <Button
               onClick={handleApprove}
@@ -372,6 +370,6 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
           {t('back')}
         </Button>
       </footer>
-    </article>
+    </AccountDetailContainer>
   );
 }

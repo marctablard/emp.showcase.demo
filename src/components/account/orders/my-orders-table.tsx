@@ -21,6 +21,7 @@ import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { Order, OrderStatus } from '@/platform/services/model/order/order';
 import { ORDER_STATUS } from '@/platform/services/model/order/order-status';
+import { shortenId } from '../shared/account-list';
 import { CreateReturnDialog } from './create-return-dialog';
 
 function isReturnEnabled(status: OrderStatus): boolean {
@@ -30,20 +31,6 @@ function isReturnEnabled(status: OrderStatus): boolean {
 function formatOrderValue(value: number | undefined, currency: string | undefined): string {
   if (value === undefined || !currency) return '-';
   return formatCurrency(value, currency);
-}
-
-function formatAddress(order: Order): string {
-  const address = order.shippingAddress;
-  if (!address) return '-';
-
-  const parts = [
-    [address.street, address.streetNumber].filter(Boolean).join(' ').trim(),
-    address.zipCode,
-    address.city,
-    address.country,
-  ].filter(Boolean);
-
-  return parts.length > 0 ? parts.join(', ') : '-';
 }
 
 function formatPaymentMethod(order: Order, t: ReturnType<typeof useTranslations<'orders'>>): string {
@@ -184,15 +171,9 @@ export function MyOrdersTable({
     <div className={className}>
       <Table>
         <TableHeader>
-          <TableRow className="text-base">
+          <TableRow className="text-sm xl:text-base">
             <TableHead className="!h-14 w-[204px] font-bold">
               <span className="inline-flex items-center gap-1">{t('columns.orderNumber')}</span>
-            </TableHead>
-            <TableHead className="!h-14 w-[204px] font-bold">
-              <span className="inline-flex items-center gap-1">{t('columns.status')}</span>
-            </TableHead>
-            <TableHead className="!h-14 w-[200px] font-bold">
-              <span className="inline-flex items-center gap-1">{t('columns.orderValue')}</span>
             </TableHead>
             <TableHead className="!h-14 w-[200px] font-bold">
               <span className="inline-flex items-center gap-1">{t('columns.customer')}</span>
@@ -203,8 +184,8 @@ export function MyOrdersTable({
             <TableHead className="!h-14 w-[180px] font-bold">
               <span className="inline-flex items-center gap-1">{t('columns.channel')}</span>
             </TableHead>
-            <TableHead className="!h-14 w-[240px] font-bold">
-              <span className="inline-flex items-center gap-1">{t('columns.deliveryAddress')}</span>
+            <TableHead className="!h-14 w-[200px] font-bold">
+              <span className="inline-flex items-center gap-1">{t('columns.orderValue')}</span>
             </TableHead>
             <TableHead className="!h-14 w-[200px] font-bold">
               <span className="inline-flex items-center gap-1">{t('columns.totalShippingCost')}</span>
@@ -212,19 +193,22 @@ export function MyOrdersTable({
             <TableHead className="!h-14 w-[200px] font-bold">
               <span className="inline-flex items-center gap-1">{t('columns.payment')}</span>
             </TableHead>
+            <TableHead className="!h-14 w-[204px] font-bold">
+              <span className="inline-flex items-center gap-1">{t('columns.status')}</span>
+            </TableHead>
             <TableHead className="!h-14 w-[160px] font-bold text-center">{t('columns.action')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={10} className="text-center py-4">
+              <TableCell colSpan={9} className="text-center py-4">
                 {t('loading')}
               </TableCell>
             </TableRow>
           ) : visibleOrders.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={10} className="text-center py-4">
+              <TableCell colSpan={9} className="text-center py-4">
                 {t('noOrders')}
               </TableCell>
             </TableRow>
@@ -233,40 +217,43 @@ export function MyOrdersTable({
               <TableRow
                 key={order.id}
                 className={cn(
-                  'hover:bg-surface-image-background cursor-pointer text-base',
+                  'hover:bg-surface-image-background cursor-pointer text-sm xl:text-base',
                   index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
                 )}
                 onClick={() => router.push(`/account/orders/${order.id}`)}
               >
                 <TableCell className="px-2 py-4 font-medium">
-                  <UiLink type="Link" href={`/account/orders/${order.id}`} variant="primary" size="m">
-                    #{order.id}
-                  </UiLink>
+                  <span title={`#${order.id}`}>
+                    <UiLink type="Link" href={`/account/orders/${order.id}`} variant="primary" size="m">
+                      #{shortenId(order.id)}
+                    </UiLink>
+                  </span>
                   {order.quoteId ? (
                     <div className="mt-1 text-sm text-text-placeholders" onClick={(event) => event.stopPropagation()}>
                       {t('relatedQuote')}{' '}
-                      <UiLink type="Link" href={`/account/quotes/${order.quoteId}`} variant="text">
-                        #{order.quoteId}
-                      </UiLink>
+                      <span title={`#${order.quoteId}`}>
+                        <UiLink type="Link" href={`/account/quotes/${order.quoteId}`} variant="text">
+                          #{shortenId(order.quoteId)}
+                        </UiLink>
+                      </span>
                     </div>
                   ) : null}
-                </TableCell>
-                <TableCell className="px-2 py-4">
-                  <OrderStatusBadge status={order.status} />
-                </TableCell>
-                <TableCell className="py-4 font-medium">
-                  {formatOrderValue(order.price?.total?.gross, order.price?.total?.currency || order.currency)}
                 </TableCell>
                 <TableCell className="px-2 py-4">
                   {order.customer?.name || order.customer?.firstName || order.customer?.lastName}
                 </TableCell>
                 <TableCell className="px-2 py-4">{formatDate(order.createdAt)}</TableCell>
                 <TableCell className="px-2 py-4">{formatChannel(order)}</TableCell>
-                <TableCell className="px-2 py-4">{formatAddress(order)}</TableCell>
+                <TableCell className="py-4 font-medium">
+                  {formatOrderValue(order.price?.total?.gross, order.price?.total?.currency || order.currency)}
+                </TableCell>
                 <TableCell className="py-4 font-medium">
                   {formatOrderValue(order.shipping?.total.value, order.shipping?.total.currency)}
                 </TableCell>
                 <TableCell className="px-2 py-4">{formatPaymentMethod(order, t)}</TableCell>
+                <TableCell className="px-2 py-4">
+                  <OrderStatusBadge status={order.status} />
+                </TableCell>
                 <TableCell className="px-2 py-4 text-center">
                   <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
                     {canReorder(order) ? (

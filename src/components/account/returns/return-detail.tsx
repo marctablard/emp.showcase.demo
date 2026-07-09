@@ -1,28 +1,26 @@
 'use client';
 
-import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { AlertCircle, Minus, Plus, ReceiptText, Trash2 } from 'lucide-react';
+import { AlertCircle, Package } from 'lucide-react';
+import {
+  AccountDetailContainer,
+  AccountDetailHeader,
+  AccountDetailStatus,
+  AccountSectionBar,
+} from '@/components/account/shared/account-detail';
+import { AccountSpecTable, SpecRow } from '@/components/account/shared/account-spec-table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { H1, H4, H5 } from '@/components/ui/h';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Spinner } from '@/components/ui/spinner';
-import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useReturn } from '@/hooks/return/useReturn';
-import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { Link } from '@/i18n/navigation';
 import type { Return } from '@/platform/services/model/return';
-import { formatReturnCurrency } from './helpers';
-import { RETURN_REASON_LABEL_KEYS, getReturnReasonLabel, getReturnReasonTranslationKey } from './reason-labels';
+import { formatReturnCurrency, formatReturnDate, getFirstOrderId, getRequestorEmail } from './helpers';
+import { getReturnReasonLabel, getReturnReasonTranslationKey } from './reason-labels';
 import { ReturnStatusBadge } from './return-status-badge';
-
-const MAX_DESCRIPTION_CHARACTERS = 500;
 
 interface ExtendedReturnItem {
   id: string;
@@ -67,33 +65,14 @@ interface ExtendedReturn extends Omit<Return, 'orders'> {
   }[];
 }
 
-const claimReasonValues = Object.keys(RETURN_REASON_LABEL_KEYS) as (keyof typeof RETURN_REASON_LABEL_KEYS)[];
+type ReturnsTranslations = ReturnType<typeof useTranslations<'account.returns'>>;
 
 interface ReturnDetailProps {
   returnId: string;
   initialReturn?: Return | null;
 }
 
-interface ProductDetailCardProps {
-  item: ExtendedReturnItem;
-  locale: string;
-  t: ReturnType<typeof useTranslations<'account.returns'>>;
-}
-
-interface ReturnOverviewProps {
-  returnItem: ExtendedReturn;
-  locale: string;
-  t: ReturnType<typeof useTranslations<'account.returns'>>;
-}
-
-interface ReturnItemsListProps {
-  items: ExtendedReturnItem[];
-  locale: string;
-  t: ReturnType<typeof useTranslations<'account.returns'>>;
-  generalReasonCode?: string;
-}
-
-function renderReturnReasonLabel(t: ReturnType<typeof useTranslations<'account.returns'>>, code: string): string {
+function renderReturnReasonLabel(t: ReturnsTranslations, code: string): string {
   const translationKey = getReturnReasonTranslationKey(code);
   if (translationKey) {
     return t(translationKey);
@@ -102,403 +81,85 @@ function renderReturnReasonLabel(t: ReturnType<typeof useTranslations<'account.r
   return getReturnReasonLabel(code);
 }
 
-function ReturnOverview({ returnItem, locale, t }: ReturnOverviewProps) {
-  const totalGrossValue = returnItem.calculatedPrice?.finalPrice?.grossValue;
-  const totalNetValue = returnItem.calculatedPrice?.finalPrice?.netValue ?? returnItem.total?.value;
-  const totalCurrency = returnItem.calculatedPrice?.finalPrice?.currency ?? returnItem.total?.currency;
-
-  return (
-    <div className="bg-surface-action-hover-2 p-6 rounded-lg shadow-sm">
-      <div className="bg-surface-page p-4 rounded-lg space-y-4">
-        <div className="flex items-center gap-2">
-          <ReceiptText className="h-6 w-6 shrink-0 text-text-action" />
-          <H4 variant="h5" className="text-[20px] leading-[24px] lg:text-[28px] lg:leading-[36px] font-bold">
-            {t('returnOverview')}
-          </H4>
-        </div>
-        <div className="flex items-start gap-4">
-          <H5 className="flex-1 text-text-body">{t('totalReturnValue')}</H5>
-          <H5 className="flex-1 text-right text-text-body">
-            {totalGrossValue !== undefined ? formatReturnCurrency(totalGrossValue, totalCurrency, locale) : '-'}
-          </H5>
-        </div>
-        <div className="flex items-start gap-4">
-          <span className="flex-1 text-[12px] leading-[20px] lg:text-[14px] lg:leading-[20px] font-medium text-text-on-disabled font-secondary">
-            {t('net')}
-          </span>
-          <span className="flex-1 text-right text-[12px] leading-[20px] lg:text-[14px] lg:leading-[20px] text-text-on-disabled font-secondary">
-            {formatReturnCurrency(totalNetValue, totalCurrency, locale)}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
+function getItemRefund(item: ExtendedReturnItem) {
+  if (item.calculatedPrice?.finalPrice?.grossValue !== undefined) {
+    return {
+      value: item.calculatedPrice.finalPrice.grossValue,
+      currency: item.calculatedPrice.finalPrice.currency ?? item.total?.currency ?? item.unitPrice?.currency,
+    };
+  }
+  if (item.grossUnitPrice?.value !== undefined && item.grossUnitPrice?.currency) {
+    return { value: item.grossUnitPrice.value * item.quantity, currency: item.grossUnitPrice.currency };
+  }
+  if (item.unitPrice?.value !== undefined && item.unitPrice?.currency) {
+    return { value: item.unitPrice.value * item.quantity, currency: item.unitPrice.currency };
+  }
+  if (item.total?.value !== undefined && item.total?.currency) {
+    return { value: item.total.value, currency: item.total.currency };
+  }
+  return { value: undefined, currency: undefined };
 }
 
-function ReturnItemsList({ items, locale, t, generalReasonCode }: ReturnItemsListProps) {
-  const isTabletUp = useBreakpoint('sm');
-  const reasonBadgeClassName =
-    'inline-flex h-7 !p-1 !text-[12px] !leading-[20px] font-bold normal-case !tracking-normal rounded-[4px] text-text-headings border bg-surface-warning border-border-warning font-secondary';
-  const generalReasonBadgeClassName =
-    'inline-flex h-7 !p-1 !text-[12px] !leading-[20px] font-bold normal-case !tracking-normal rounded-[4px] text-text-headings border bg-surface-disabled border-border-primary font-secondary';
-
-  const getItemRefund = (item: ExtendedReturnItem) => {
-    if (item.calculatedPrice?.finalPrice?.grossValue !== undefined) {
-      return {
-        value: item.calculatedPrice.finalPrice.grossValue,
-        currency: item.calculatedPrice.finalPrice.currency ?? item.total?.currency ?? item.unitPrice?.currency,
-      };
-    }
-    if (item.grossUnitPrice?.value !== undefined && item.grossUnitPrice?.currency) {
-      return { value: item.grossUnitPrice.value * item.quantity, currency: item.grossUnitPrice.currency };
-    }
-    if (item.unitPrice?.value !== undefined && item.unitPrice?.currency) {
-      return { value: item.unitPrice.value * item.quantity, currency: item.unitPrice.currency };
-    }
-    if (item.total?.value !== undefined && item.total?.currency) {
-      return { value: item.total.value, currency: item.total.currency };
-    }
-    return { value: undefined, currency: undefined };
-  };
-
-  const getItemUnitPrice = (item: ExtendedReturnItem) => ({
+function getItemUnitPrice(item: ExtendedReturnItem) {
+  return {
     grossValue: item.calculatedUnitPrice?.grossValue ?? item.grossUnitPrice?.value ?? item.unitPrice?.value,
-    netValue: item.calculatedUnitPrice?.netValue ?? item.netPrice?.value ?? item.unitPrice?.value,
     currency:
       item.calculatedUnitPrice?.currency ??
       item.grossUnitPrice?.currency ??
       item.netPrice?.currency ??
       item.unitPrice?.currency,
-  });
-
-  const getItemRefundNet = (item: ExtendedReturnItem) => {
-    if (item.calculatedPrice?.finalPrice?.netValue !== undefined) {
-      return {
-        value: item.calculatedPrice.finalPrice.netValue,
-        currency: item.calculatedPrice.finalPrice.currency ?? item.total?.currency ?? item.unitPrice?.currency,
-      };
-    }
-
-    return {
-      value: (item.netPrice?.value ?? item.unitPrice?.value ?? 0) * item.quantity,
-      currency: item.netPrice?.currency ?? item.unitPrice?.currency,
-    };
   };
-
-  return (
-    <Card className="border border-border-primary shadow-sm">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between gap-3 pb-4 border-b border-border-primary">
-          <H4 variant="h5" className="text-[32px] leading-[40px] font-bold text-text-headings font-primary">
-            {t('returnedProducts')}
-          </H4>
-          {generalReasonCode && (
-            <Badge className={generalReasonBadgeClassName}>{renderReturnReasonLabel(t, generalReasonCode)}</Badge>
-          )}
-        </div>
-
-        {isTabletUp && (
-          <div className="overflow-x-auto">
-            <div className="grid grid-cols-[minmax(280px,1.6fr)_minmax(120px,1fr)_80px_minmax(140px,1fr)] gap-6 items-start pt-4 pb-4 border-b border-border-primary text-[16px] leading-[20px] font-bold text-text-headings font-primary min-w-[760px]">
-              <div>{t('product')}</div>
-              <div>{t('price')}</div>
-              <div>{t('quantity')}</div>
-              <div className="text-right">{t('refundAmount')}</div>
-            </div>
-
-            {items.map((item) => {
-              const refund = getItemRefund(item);
-              const refundNet = getItemRefundNet(item);
-              const unitPrice = getItemUnitPrice(item);
-              const firstImage = item.images?.[0];
-              return (
-                <div
-                  key={item.id}
-                  className="grid grid-cols-[minmax(280px,1.6fr)_minmax(120px,1fr)_80px_minmax(140px,1fr)] gap-6 items-center pb-6 pt-6 border-b border-border-primary last:border-b-0 min-w-[760px]"
-                >
-                  <div className="flex gap-4 items-start min-w-0">
-                    <div className="bg-surface-image-background w-[80px] h-[52px] shrink-0 rounded-tl-lg rounded-br-lg overflow-hidden flex items-center justify-center">
-                      {firstImage ? (
-                        <Image
-                          src={firstImage}
-                          alt={item.name}
-                          width={80}
-                          height={52}
-                          className="object-contain w-full h-full"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-surface-image-background" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0 flex flex-col gap-2 justify-center">
-                      <div className="flex flex-col gap-1">
-                        {item.vendorName && (
-                          <span className="text-[12px] leading-[20px] text-text-body font-secondary">
-                            {item.vendorName}
-                          </span>
-                        )}
-                        {item.productId ? (
-                          <Link
-                            href={`/product/${item.productId}`}
-                            className="text-[16px] leading-[20px] font-bold text-text-headings hover:underline font-primary break-words"
-                          >
-                            {item.name}
-                          </Link>
-                        ) : (
-                          <span className="text-[16px] leading-[20px] font-bold text-text-headings font-primary break-words">
-                            {item.name}
-                          </span>
-                        )}
-                      </div>
-                      {item.itemNumber && (
-                        <span className="text-[12px] leading-[20px] text-text-body font-secondary">
-                          {t('itemNumberLabel')}: {item.itemNumber}
-                        </span>
-                      )}
-                      <div className="mt-1 flex flex-wrap items-center gap-2">
-                        {item.reason?.code && (
-                          <Badge className={reasonBadgeClassName}>{renderReturnReasonLabel(t, item.reason.code)}</Badge>
-                        )}
-                      </div>
-                      {item.reason?.details && (
-                        <p className="text-[12px] leading-[20px] text-text-body font-secondary">
-                          {item.reason.details}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="min-w-0 flex flex-col gap-1">
-                    <span className="text-[16px] leading-[20px] font-bold text-text-headings font-primary">
-                      {formatReturnCurrency(unitPrice.grossValue, unitPrice.currency, locale)}
-                    </span>
-                    {unitPrice.netValue !== undefined && (
-                      <span className="text-[12px] leading-[20px] text-text-on-disabled font-secondary">
-                        {t('net')} {formatReturnCurrency(unitPrice.netValue, unitPrice.currency, locale)}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[16px] leading-[24px] text-text-body font-secondary">{item.quantity}</div>
-                  <div className="min-w-0 flex flex-col gap-1 items-end text-right">
-                    <span className="text-[16px] leading-[20px] font-bold text-text-headings font-primary">
-                      {formatReturnCurrency(refund.value, refund.currency, locale)}
-                    </span>
-                    {(item.calculatedPrice?.finalPrice?.netValue !== undefined || item.netPrice || item.unitPrice) && (
-                      <span className="text-[12px] leading-[20px] text-text-on-disabled font-secondary">
-                        {t('net')} {formatReturnCurrency(refundNet.value, refundNet.currency, locale)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {!isTabletUp && (
-          <div className="space-y-4">
-            {items.map((item) => {
-              const refund = getItemRefund(item);
-              const refundNet = getItemRefundNet(item);
-              const firstImage = item.images?.[0];
-              return (
-                <div key={item.id} className="border-b border-border-primary pb-4 last:border-b-0">
-                  <div className="flex gap-3 items-start">
-                    <div className="bg-surface-image-background w-[64px] h-[42px] shrink-0 rounded-tl-lg rounded-br-lg overflow-hidden flex items-center justify-center">
-                      {firstImage ? (
-                        <Image
-                          src={firstImage}
-                          alt={item.name}
-                          width={64}
-                          height={42}
-                          className="object-contain w-full h-full"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-surface-image-background" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      {item.vendorName && (
-                        <span className="text-[12px] leading-[20px] text-text-body font-secondary block">
-                          {item.vendorName}
-                        </span>
-                      )}
-                      {item.productId ? (
-                        <Link
-                          href={`/product/${item.productId}`}
-                          className="text-[14px] leading-[18px] font-bold text-text-headings hover:underline font-primary break-words"
-                        >
-                          {item.name}
-                        </Link>
-                      ) : (
-                        <span className="text-[14px] leading-[18px] font-bold text-text-headings font-primary break-words">
-                          {item.name}
-                        </span>
-                      )}
-                      {item.itemNumber && (
-                        <span className="text-[12px] leading-[20px] text-text-body font-secondary block mt-1">
-                          {t('itemNumberLabel')}: {item.itemNumber}
-                        </span>
-                      )}
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        {item.reason?.code && (
-                          <Badge className={reasonBadgeClassName}>{renderReturnReasonLabel(t, item.reason.code)}</Badge>
-                        )}
-                      </div>
-                      {item.reason?.details && (
-                        <p className="mt-1 text-[12px] leading-[20px] text-text-body font-secondary">
-                          {t('reason')}: {item.reason.details}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between text-sm">
-                    <div className="text-text-body">
-                      <span className="font-semibold">{t('quantity')}:</span> {item.quantity}
-                    </div>
-                    <div className="text-right">
-                      <div className="font-bold text-text-headings">
-                        {formatReturnCurrency(refund.value, refund.currency, locale)}
-                      </div>
-                      {(item.calculatedPrice?.finalPrice?.netValue !== undefined ||
-                        item.netPrice ||
-                        item.unitPrice) && (
-                        <div className="text-[12px] text-text-on-disabled">
-                          {t('net')} {formatReturnCurrency(refundNet.value, refundNet.currency, locale)}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
 }
 
-function ProductDetailCard({ item, locale: _locale, t }: ProductDetailCardProps) {
-  const [quantity, setQuantity] = useState(item.quantity);
-  const [itemName, setItemName] = useState(item.name);
-  const [claimReason, setClaimReason] = useState(item.reason?.code || '');
-  const [description, setDescription] = useState(item.reason?.details || '');
-
-  const images = item.images || [];
+function ReturnItemRow({ item, locale, t }: { item: ExtendedReturnItem; locale: string; t: ReturnsTranslations }) {
+  const refund = getItemRefund(item);
+  const unitPrice = getItemUnitPrice(item);
+  const imageUrl = item.images?.[0];
 
   return (
-    <Card className="mb-6">
-      <CardContent className="p-6">
-        <h2 className="text-4xl font-bold mb-6">{t('productDetails')}</h2>
-
-        <div className="flex flex-col lg:flex-row gap-8">
-          <div className="lg:w-[45%]">
-            <Label className="text-base font-bold mb-3 block">{t('photos')}</Label>
-            <div className="grid grid-cols-2 gap-3">
-              {images.slice(0, 3).map((imageUrl, index) => (
-                <div key={index} className="aspect-[3/2] relative bg-surface-muted overflow-hidden">
-                  <Image
-                    src={imageUrl}
-                    alt={`${item.name} - ${index + 1}`}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 50vw, 25vw"
-                  />
-                </div>
-              ))}
-
-              <div className="aspect-[3/2] relative bg-surface-page rounded-lg border border-action flex flex-col items-center justify-center cursor-pointer hover:bg-surface-muted transition-colors">
-                <Plus className="w-6 h-6 text-action mb-1" />
-                <span className="text-sm text-action font-bold underline">{t('uploadPhotos')}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="lg:w-[55%] space-y-4">
-            <div className="flex gap-4">
-              <div className="w-40 flex items-end">
-                <div className="flex items-center border rounded-md">
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    className="h-12 w-12 rounded-r-none border-r"
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  >
-                    {quantity === 1 ? <Trash2 className="h-4 w-4 text-action" /> : <Minus className="h-4 w-4" />}
-                  </Button>
-                  <Input
-                    type="number"
-                    value={quantity}
-                    onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="h-12 w-15 text-center border-0 rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    className="h-12 w-12 rounded-l-none border-l"
-                    onClick={() => setQuantity(quantity + 1)}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex-1">
-                <Label htmlFor={`itemName-${item.id}`} className="text-base font-bold text-text-headings mb-1 block">
-                  {t('itemName')}
-                </Label>
-                <Input
-                  id={`itemName-${item.id}`}
-                  value={itemName}
-                  onChange={(e) => setItemName(e.target.value)}
-                  className="h-12"
-                  placeholder={t('itemName')}
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor={`claimReason-${item.id}`} className="text-sm font-bold text-text-headings mb-1 block">
-                {t('claimReason')}
-              </Label>
-              <Select value={claimReason} onValueChange={setClaimReason}>
-                <SelectTrigger className="h-12">
-                  <SelectValue placeholder={t('selectReason')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {claimReasonValues.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {t(RETURN_REASON_LABEL_KEYS[value])}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor={`description-${item.id}`} className="text-sm font-bold text-text-headings mb-1 block">
-                {t('descriptionLabel')}
-              </Label>
-              <Textarea
-                id={`description-${item.id}`}
-                value={description}
-                onChange={(e) => setDescription(e.target.value.slice(0, MAX_DESCRIPTION_CHARACTERS))}
-                className="min-h-[120px] resize-none"
-                placeholder={t('descriptionPlaceholder')}
-                maxLength={MAX_DESCRIPTION_CHARACTERS}
-              />
-            </div>
-          </div>
+    <TableRow className="hover:bg-surface-image-background">
+      <TableCell className="w-[88px] px-4 py-3 align-middle">
+        <div className="flex h-[52px] w-20 items-center justify-center border border-border-primary bg-surface-image-background">
+          {imageUrl ? (
+            <Image src={imageUrl} alt={item.name} width={80} height={52} className="h-full w-full object-contain" />
+          ) : (
+            <Package className="h-5 w-5 text-icon-secondary opacity-40" aria-hidden="true" />
+          )}
         </div>
-
-        <div className="flex justify-end gap-3 mt-6">
-          <Button variant="secondary" className="uppercase">
-            {t('cancel')}
-          </Button>
-          <Button className="uppercase">{t('save')}</Button>
-        </div>
-      </CardContent>
-    </Card>
+      </TableCell>
+      <TableCell className="px-4 py-3 align-middle">
+        {item.vendorName ? <p className="text-xs text-text-placeholders">{item.vendorName}</p> : null}
+        {item.productId ? (
+          <Link href={`/product/${item.productId}`} className="text-sm font-bold text-text-headings hover:underline">
+            {item.name}
+          </Link>
+        ) : (
+          <p className="text-sm font-bold text-text-headings">{item.name}</p>
+        )}
+        {item.itemNumber ? (
+          <p className="mt-0.5 text-xs text-text-placeholders">
+            {t('itemNumberLabel')}: {item.itemNumber}
+          </p>
+        ) : null}
+        {item.reason?.code ? (
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <Badge variant="warning" rounded="default">
+              {renderReturnReasonLabel(t, item.reason.code)}
+            </Badge>
+          </div>
+        ) : null}
+        {item.reason?.details ? <p className="mt-1 text-xs text-text-placeholders">{item.reason.details}</p> : null}
+      </TableCell>
+      <TableCell className="px-4 py-3 text-right align-middle text-sm font-medium tabular-nums">
+        {formatReturnCurrency(unitPrice.grossValue, unitPrice.currency, locale)}
+      </TableCell>
+      <TableCell className="px-4 py-3 text-center align-middle text-sm font-medium tabular-nums">
+        {item.quantity}
+      </TableCell>
+      <TableCell className="px-4 py-3 text-right align-middle text-sm font-bold tabular-nums">
+        {formatReturnCurrency(refund.value, refund.currency, locale)}
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -511,20 +172,10 @@ export function ReturnDetail({ returnId, initialReturn }: ReturnDetailProps) {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <H1 variant="h3">
-            {t('title')}: {returnId}
-          </H1>
-        </div>
-        <Card>
-          <CardContent className="flex justify-center py-12">
-            <div className="flex flex-col items-center space-y-2">
-              <Spinner color="primary" variant="md" />
-              <div className="text-text-placeholders">{t('loading')}</div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="border border-border-primary bg-surface-page p-6">
+        <Skeleton className="h-8 w-72" />
+        <Skeleton className="mt-4 h-5 w-40" />
+        <Skeleton className="mt-6 h-40 w-full" />
       </div>
     );
   }
@@ -532,11 +183,6 @@ export function ReturnDetail({ returnId, initialReturn }: ReturnDetailProps) {
   if (error || !returnItem) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <H1 variant="h3">
-            {t('title')}: {returnId}
-          </H1>
-        </div>
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>{t('error')}</AlertTitle>
@@ -553,27 +199,82 @@ export function ReturnDetail({ returnId, initialReturn }: ReturnDetailProps) {
   }
 
   const allItems: ExtendedReturnItem[] = returnItem.orders.flatMap((order) => order.items);
-  const editMode = false;
+  const generalReasonCode = returnItem.reason?.code;
+
+  const totalGrossValue = returnItem.calculatedPrice?.finalPrice?.grossValue;
+  const totalNetValue = returnItem.calculatedPrice?.finalPrice?.netValue ?? returnItem.total?.value;
+  const totalCurrency = returnItem.calculatedPrice?.finalPrice?.currency ?? returnItem.total?.currency;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4 flex-wrap">
-        <H1 variant="h3">
-          {t('title')}: {returnItem.id}
-        </H1>
-        <ReturnStatusBadge status={returnItem.status} isExpired={returnItem.isExpired} />
+    <AccountDetailContainer>
+      <AccountDetailHeader
+        eyebrow={t('returnDetails')}
+        title={returnItem.id}
+        aside={
+          <AccountDetailStatus label={t('statusLabel')}>
+            <ReturnStatusBadge status={returnItem.status} isExpired={returnItem.isExpired} />
+          </AccountDetailStatus>
+        }
+      />
+
+      <div className="border-b border-border-primary">
+        <AccountSpecTable>
+          <SpecRow
+            left={{ label: t('returnDate'), value: formatReturnDate(returnItem.createdAt, locale) }}
+            right={{ label: t('orderNumber'), value: getFirstOrderId(returnItem) }}
+          />
+          <SpecRow
+            left={{ label: t('email'), value: getRequestorEmail(returnItem) }}
+            right={
+              generalReasonCode
+                ? { label: t('reason'), value: renderReturnReasonLabel(t, generalReasonCode) }
+                : undefined
+            }
+          />
+        </AccountSpecTable>
       </div>
 
-      <div className="grid gap-6 min-[1920px]:grid-cols-[minmax(0,1fr)_444px]">
-        <div className="space-y-6 order-1">
-          <ReturnItemsList items={allItems} locale={locale} t={t} generalReasonCode={returnItem.reason?.code} />
+      <section className="border-b border-border-primary">
+        <AccountSectionBar>{t('returnedProducts')}</AccountSectionBar>
 
-          {editMode && allItems.map((item) => <ProductDetailCard key={item.id} item={item} locale={locale} t={t} />)}
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="w-[88px] px-4 font-bold">{t('product')}</TableHead>
+              <TableHead className="px-4 font-bold" />
+              <TableHead className="w-36 px-4 text-right font-bold">{t('price')}</TableHead>
+              <TableHead className="w-24 px-4 text-center font-bold">{t('quantity')}</TableHead>
+              <TableHead className="w-40 px-4 text-right font-bold">{t('refundAmount')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {allItems.map((item) => (
+              <ReturnItemRow key={item.id} item={item} locale={locale} t={t} />
+            ))}
+          </TableBody>
+        </Table>
+
+        <div className="border-t border-border-primary px-4 py-4 sm:px-6">
+          <table className="ml-auto w-full max-w-sm border-collapse text-sm">
+            <tbody>
+              <tr className="border-t border-border-primary">
+                <td className="pt-3 pr-8 font-bold text-text-headings">{t('totalReturnValue')}</td>
+                <td className="pt-3 text-right font-bold tabular-nums text-text-headings">
+                  {totalGrossValue !== undefined ? formatReturnCurrency(totalGrossValue, totalCurrency, locale) : '-'}
+                </td>
+              </tr>
+              {totalNetValue !== undefined ? (
+                <tr>
+                  <td className="py-1 pr-8 text-text-placeholders">{t('net')}</td>
+                  <td className="py-1 text-right tabular-nums text-text-placeholders">
+                    {formatReturnCurrency(totalNetValue, totalCurrency, locale)}
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
         </div>
-        <div className="order-2 min-[1920px]:sticky min-[1920px]:top-6 h-fit">
-          <ReturnOverview returnItem={returnItem} locale={locale} t={t} />
-        </div>
-      </div>
-    </div>
+      </section>
+    </AccountDetailContainer>
   );
 }

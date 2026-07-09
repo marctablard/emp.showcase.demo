@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { AccountPageHeader } from '@/components/account/shared/account-page-header';
 import { AddToCartModal } from '@/components/cart/add-to-cart-modal';
-import { H2 } from '@/components/ui/h';
 import { Spinner } from '@/components/ui/spinner';
 import { useWishlist } from '@/hooks/wishlist/useWishlist';
 import type { MoveWishlistItemToCartResult } from '@/lib/client/wishlist';
@@ -28,6 +28,7 @@ interface BulkResultState {
 
 export function WishlistView() {
   const t = useTranslations('account.wishlist');
+  const tGroups = useTranslations('account.sidebar.groups');
   const { wishlist, loading } = useWishlist();
   const [movedToCart, setMovedToCart] = useState<MovedToCartState | null>(null);
   const [bulkResult, setBulkResult] = useState<BulkResultState | null>(null);
@@ -71,21 +72,21 @@ export function WishlistView() {
   } else if (wishlist === null || wishlist.items.length === 0) {
     content = (
       <div className="flex flex-col gap-6">
-        <H2>{t('title')}</H2>
-        <p className="text-text-secondary">{t('empty')}</p>
+        <AccountPageHeader eyebrow={tGroups('myOrganisation')} title={t('title')} />
+        <p className="text-text-placeholders">{t('empty')}</p>
       </div>
     );
   } else {
     content = (
       <div className="flex flex-col gap-6 pb-12">
-        <H2>{t('title')}</H2>
+        <AccountPageHeader eyebrow={tGroups('myOrganisation')} title={t('title')} />
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(min-content,444px)] gap-6 items-start">
           <section
             aria-label={t('title')}
             aria-busy={loading || undefined}
-            className="rounded-md shadow-sm bg-surface-primary p-6"
+            className="border border-border-primary bg-surface-page p-6"
           >
-            <div className="hidden sm:grid grid-cols-[56px_1.5fr_1fr_1.6fr] gap-x-4 border-b border-border-primary pb-3 mb-2 font-headlines text-2xl text-text-headings">
+            <div className="hidden sm:grid grid-cols-[56px_1.5fr_1fr_1.6fr] gap-x-4 border-b border-border-primary pb-3 mb-2 text-xs font-bold uppercase tracking-[0.06em] text-text-headings">
               <span className="col-span-2">{t('columns.product')}</span>
               <span>{t('columns.quantity')}</span>
               <span className="sm:text-end">{t('columns.unitPrice')}</span>

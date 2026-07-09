@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { format } from 'date-fns';
 import { Download, Eye, File, FileImage, FileText, FileVideo, Trash2, Upload, X } from 'lucide-react';
+import { accountTableHeadClass } from '@/components/account/shared/account-list';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -19,7 +20,7 @@ interface ProjectDocumentsTabProps {
 }
 
 function FileTypeIcon({ contentType }: { contentType: string }) {
-  const cls = 'h-4 w-4 shrink-0 text-text-secondary';
+  const cls = 'h-4 w-4 shrink-0 text-text-placeholders';
   if (contentType.startsWith('image/')) return <FileImage className={cls} />;
   if (contentType === 'application/pdf') return <FileText className={cls} />;
   if (contentType.startsWith('video/')) return <FileVideo className={cls} />;
@@ -54,7 +55,7 @@ function PreviewModal({ asset, onClose }: { asset: ProjectMediaAsset; onClose: (
             </Button>
           </div>
         </DialogHeader>
-        <div className="mt-2 rounded overflow-hidden bg-surface-image-background" style={{ minHeight: '60vh' }}>
+        <div className="mt-2 overflow-hidden bg-surface-image-background" style={{ minHeight: '60vh' }}>
           {isImage ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={asset.url} alt={asset.fileName} className="w-full h-auto object-contain max-h-[75vh]" />
@@ -113,9 +114,9 @@ export function ProjectDocumentsTab({ media, onUpload, onDelete }: ProjectDocume
     <>
       {previewAsset && <PreviewModal asset={previewAsset} onClose={() => setPreviewAsset(null)} />}
 
-      <div className="space-y-4">
+      <div>
         {/* Toolbar */}
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center justify-between gap-4 border-b border-border-primary px-4 py-3 sm:px-6">
           <div className="flex-1">
             {uploadSuccess && (
               <Alert className="bg-surface-success border-border-success">
@@ -149,24 +150,18 @@ export function ProjectDocumentsTab({ media, onUpload, onDelete }: ProjectDocume
 
         <Table>
           <TableHeader>
-            <TableRow className="text-base">
-              <TableHead className="!h-14 font-bold">
-                <span className="inline-flex items-center gap-1">{t('fileName')}</span>
-              </TableHead>
-              <TableHead className="!h-14 w-40 font-bold">
-                <span className="inline-flex items-center gap-1">{t('type')}</span>
-              </TableHead>
-              <TableHead className="!h-14 w-36 font-bold">
-                <span className="inline-flex items-center gap-1">{t('uploaded')}</span>
-              </TableHead>
-              <TableHead className="!h-14 w-28 text-right font-bold" />
+            <TableRow className="text-sm xl:text-base">
+              <TableHead className={accountTableHeadClass}>{t('fileName')}</TableHead>
+              <TableHead className={cn(accountTableHeadClass, 'w-40')}>{t('type')}</TableHead>
+              <TableHead className={cn(accountTableHeadClass, 'w-36')}>{t('uploaded')}</TableHead>
+              <TableHead className={cn(accountTableHeadClass, 'w-28 text-center')} />
             </TableRow>
           </TableHeader>
           <TableBody>
             {media.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={4} className="h-40 text-center">
-                  <div className="flex flex-col items-center justify-center gap-3 text-text-secondary">
+                  <div className="flex flex-col items-center justify-center gap-3 text-text-placeholders">
                     <FileText className="h-10 w-10 text-text-on-disabled" />
                     <p className="font-medium text-text-headings">{t('noDocuments')}</p>
                     <p className="text-sm">{t('noDocumentsDescription')}</p>
@@ -188,7 +183,7 @@ export function ProjectDocumentsTab({ media, onUpload, onDelete }: ProjectDocume
                 <TableRow
                   key={asset.id}
                   className={cn(
-                    'hover:bg-surface-image-background text-base',
+                    'hover:bg-surface-image-background text-sm xl:text-base',
                     index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
                   )}
                 >
@@ -198,13 +193,13 @@ export function ProjectDocumentsTab({ media, onUpload, onDelete }: ProjectDocume
                       <div className="min-w-0">
                         <span className="font-medium truncate block max-w-xs">{asset.fileName}</span>
                         {asset.bytes != null && (
-                          <span className="text-xs text-text-secondary">{formatBytes(asset.bytes)}</span>
+                          <span className="text-xs text-text-placeholders">{formatBytes(asset.bytes)}</span>
                         )}
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="px-2 py-4 text-text-secondary">{asset.contentType}</TableCell>
-                  <TableCell className="px-2 py-4 text-text-secondary">
+                  <TableCell className="px-2 py-4 text-text-placeholders">{asset.contentType}</TableCell>
+                  <TableCell className="px-2 py-4 text-text-placeholders">
                     {asset.createdAt ? format(new Date(asset.createdAt), 'dd.MM.yyyy') : '–'}
                   </TableCell>
                   <TableCell className="px-2 py-4">
@@ -230,7 +225,9 @@ export function ProjectDocumentsTab({ media, onUpload, onDelete }: ProjectDocume
                         variant="neutral"
                         size="icon"
                         className={cn(
-                          deleteConfirm === asset.id ? 'text-text-error' : 'text-text-secondary hover:text-text-error',
+                          deleteConfirm === asset.id
+                            ? 'text-text-error'
+                            : 'text-text-placeholders hover:text-text-error',
                         )}
                         disabled={deleting === asset.id}
                         onClick={() => handleDelete(asset.id)}

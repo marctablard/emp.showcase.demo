@@ -4,6 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Ban, Package, RotateCcw, ShoppingCart, Truck } from 'lucide-react';
+import {
+  AccountDetailContainer,
+  AccountDetailHeader,
+  AccountDetailStatus,
+  AccountSectionBar,
+  AccountSectionLabel,
+} from '@/components/account/shared/account-detail';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
@@ -181,30 +188,23 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
     shouldShowTrackingButton(order.status);
 
   return (
-    <article className="border border-border-primary bg-surface-page">
-      <header className="border-b border-border-primary px-4 py-4 sm:px-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.08em] text-text-placeholders">
-              {tOrder('orderDetails')}
-            </p>
-            <h1 className="mt-1 text-2xl font-bold text-text-headings">#{order.id}</h1>
-          </div>
-          <div className="flex items-center gap-3 border-l-0 border-border-primary sm:border-l sm:pl-6">
-            <span className="text-sm font-medium text-text-placeholders">{tOrder('columns.status')}</span>
+    <AccountDetailContainer>
+      <AccountDetailHeader
+        eyebrow={tOrder('orderDetails')}
+        title={`#${order.id}`}
+        aside={
+          <AccountDetailStatus label={tOrder('columns.status')}>
             <OrderStatusBadge status={order.status} emphasized />
-          </div>
-        </div>
-      </header>
+          </AccountDetailStatus>
+        }
+      />
 
       <div className="border-b border-border-primary">
         <OrderSummarySection order={order} siteName={siteName} />
       </div>
 
       <section className="border-b border-border-primary">
-        <div className="border-b border-border-primary bg-surface-image-background px-4 py-2 sm:px-6">
-          <h2 className="text-xs font-bold uppercase tracking-[0.08em] text-text-headings">{tOrder('orderItems')}</h2>
-        </div>
+        <AccountSectionBar>{tOrder('orderItems')}</AccountSectionBar>
 
         <Table>
           <TableHeader>
@@ -270,9 +270,7 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
 
       {showActions ? (
         <footer className="px-4 py-4 sm:px-6">
-          <p className="mb-3 text-xs font-bold uppercase tracking-[0.08em] text-text-headings">
-            {tOrder('orderActions')}
-          </p>
+          <AccountSectionLabel className="mb-3">{tOrder('orderActions')}</AccountSectionLabel>
           <div className="flex flex-wrap gap-2">
             {canReorder(order) ? (
               <Button variant="secondary" size="small" disabled={isReordering} onClick={() => void handleReorder()}>
@@ -363,6 +361,6 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
         onOpenChange={setReturnDialogOpen}
         returnability={returnability ?? undefined}
       />
-    </article>
+    </AccountDetailContainer>
   );
 }

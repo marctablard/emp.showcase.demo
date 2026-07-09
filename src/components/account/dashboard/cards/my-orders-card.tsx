@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowRight, Search } from 'lucide-react';
 import { MyOrdersTable } from '@/components/account/orders/my-orders-table';
+import { AccountListContainer } from '@/components/account/shared/account-list';
 import { CardTitle } from '@/components/ui/card';
 import { H4 } from '@/components/ui/h';
 import { Input } from '@/components/ui/input';
@@ -20,9 +21,20 @@ const SEARCH_DEBOUNCE_MS = 500;
 interface MyOrdersCardProps extends Omit<DashboardCardProps, 'children'> {
   className?: string;
   forceRefreshOnMount?: boolean;
+  /** Hide the in-card title + "show all" row (used when a page header is shown above). */
+  showHeader?: boolean;
+  /** Render as a flat, bordered list container (matching detail pages) instead of a rounded dashboard card. */
+  flat?: boolean;
 }
 
-export function MyOrdersCard({ className, title, forceRefreshOnMount = false, ...props }: MyOrdersCardProps) {
+export function MyOrdersCard({
+  className,
+  title,
+  forceRefreshOnMount = false,
+  showHeader = true,
+  flat = false,
+  ...props
+}: MyOrdersCardProps) {
   const t = useTranslations('orders');
 
   const [quickSearch, setQuickSearch] = useState('');
@@ -59,56 +71,75 @@ export function MyOrdersCard({ className, title, forceRefreshOnMount = false, ..
   };
 
   const isSearchLoading = loading && normalizedSearch.length > 0;
+  const showNoMatches = !loading && orders?.length === 0 && normalizedSearch.length > 0;
+
+  const searchField = (
+    <div className="relative w-full max-w-[380px]">
+      <Input
+        value={quickSearch}
+        onChange={(event) => {
+          setCurrentPage(1);
+          setQuickSearch(event.target.value);
+        }}
+        placeholder={t('search.placeholder')}
+        className="pr-10"
+        endIcon={isSearchLoading ? undefined : Search}
+        aria-label={t('search.placeholder')}
+      />
+      {isSearchLoading && (
+        <Spinner
+          variant="sm"
+          color="primary"
+          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
+          loadingText={t('loading')}
+        />
+      )}
+    </div>
+  );
+
+  const table = (
+    <MyOrdersTable
+      orders={orders || []}
+      currentPage={currentPage}
+      ordersPerPage={ordersPerPage}
+      loading={loading}
+      onPreviousPage={handlePreviousPage}
+      onNextPage={handleNextPage}
+    />
+  );
+
+  if (flat) {
+    return (
+      <div className={cn('space-y-6', className)}>
+        {searchField}
+        {showNoMatches && (
+          <div className="border border-border-primary p-4 text-sm text-text-on-disabled">{t('noMatches')}</div>
+        )}
+        <AccountListContainer>{table}</AccountListContainer>
+      </div>
+    );
+  }
 
   return (
     <DashboardCard variant="default" className={cn('py-4 pb-0', className)} {...props}>
-      <div className="flex items-center justify-between mb-4">
-        <CardTitle>
-          <H4>{title || t('myOrders')}</H4>
-        </CardTitle>
-        <UiLink type="Link" href="/account/orders" variant="primary" size="m" iconAfter={<ArrowRight />}>
-          {t('showAllOrders')}
-        </UiLink>
-      </div>
-      {/* search */}
-      <div className="mb-4 w-full max-w-[380px]">
-        <div className="relative w-full">
-          <Input
-            value={quickSearch}
-            onChange={(event) => {
-              setCurrentPage(1);
-              setQuickSearch(event.target.value);
-            }}
-            placeholder={t('search.placeholder')}
-            className="pr-10"
-            endIcon={isSearchLoading ? undefined : Search}
-            aria-label={t('search.placeholder')}
-          />
-          {isSearchLoading && (
-            <Spinner
-              variant="sm"
-              color="primary"
-              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
-              loadingText={t('loading')}
-            />
-          )}
+      {showHeader && (
+        <div className="flex items-center justify-between mb-4">
+          <CardTitle>
+            <H4>{title || t('myOrders')}</H4>
+          </CardTitle>
+          <UiLink type="Link" href="/account/orders" variant="primary" size="m" iconAfter={<ArrowRight />}>
+            {t('showAllOrders')}
+          </UiLink>
         </div>
-      </div>
-      {!loading && orders?.length === 0 && normalizedSearch.length > 0 && (
+      )}
+      {/* search */}
+      <div className="mb-4">{searchField}</div>
+      {showNoMatches && (
         <div className="rounded-md border border-border-primary p-4 text-sm text-text-on-disabled">
           {t('noMatches')}
         </div>
       )}
-      <div className="flex flex-col">
-        <MyOrdersTable
-          orders={orders || []}
-          currentPage={currentPage}
-          ordersPerPage={ordersPerPage}
-          loading={loading}
-          onPreviousPage={handlePreviousPage}
-          onNextPage={handleNextPage}
-        />
-      </div>
+      <div className="flex flex-col">{table}</div>
     </DashboardCard>
   );
 }

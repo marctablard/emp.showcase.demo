@@ -60,7 +60,7 @@
   "columns": {
     "orderNumber": "Order #",
     "status": "Status",
-    "totalShippingCost": "Total Shipping Cost",
+    "totalShippingCost": "Shipping",
     "customer": "Customer",
     "orderDate": "Order Date",
     "channel": "Channel",

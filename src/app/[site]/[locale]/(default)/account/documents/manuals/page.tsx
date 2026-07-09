@@ -1,8 +1,5 @@
-import { useTranslations } from 'next-intl';
-import PlaceholderPage from '@/components/account/placeholder-page';
+import AccountPreviewPage from '@/components/account/previews/account-preview-page';
 
 export default function ManualsPage() {
-  const t = useTranslations('account.Documents');
-
-  return <PlaceholderPage title={t('categories.manuals')} />;
+  return <AccountPreviewPage category="documents" />;
 }

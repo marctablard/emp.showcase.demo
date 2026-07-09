@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { format } from 'date-fns';
 import { ArrowRight, ShoppingBag } from 'lucide-react';
 import { OrderStatusBadge } from '@/components/account/orders/order-status-badge';
+import { accountTableHeadClass, shortenId } from '@/components/account/shared/account-list';
 import { Button } from '@/components/ui/button';
 import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
@@ -43,12 +44,12 @@ export function ProjectOrdersTab({ projectId }: ProjectOrdersTabProps) {
   return (
     <Table>
       <TableHeader>
-        <TableRow>
-          <TableHead className="font-bold">{t('orderNumber')}</TableHead>
-          <TableHead className="font-bold">{t('date')}</TableHead>
-          <TableHead className="font-bold">{t('status')}</TableHead>
-          <TableHead className="font-bold text-right">{t('total')}</TableHead>
-          <TableHead className="w-12" />
+        <TableRow className="text-sm xl:text-base">
+          <TableHead className={accountTableHeadClass}>{t('orderNumber')}</TableHead>
+          <TableHead className={accountTableHeadClass}>{t('date')}</TableHead>
+          <TableHead className={cn(accountTableHeadClass, 'text-right')}>{t('total')}</TableHead>
+          <TableHead className={accountTableHeadClass}>{t('status')}</TableHead>
+          <TableHead className={cn(accountTableHeadClass, 'w-16 text-center')} />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -72,7 +73,7 @@ export function ProjectOrdersTab({ projectId }: ProjectOrdersTabProps) {
         ) : orders.length === 0 ? (
           <TableRow>
             <TableCell colSpan={5} className="h-40 text-center">
-              <div className="flex flex-col items-center justify-center gap-3 text-text-secondary">
+              <div className="flex flex-col items-center justify-center gap-3 text-text-placeholders">
                 <ShoppingBag className="h-10 w-10 text-text-on-disabled" />
                 <p className="font-medium text-text-headings">{t('noOrders')}</p>
               </div>
@@ -83,25 +84,27 @@ export function ProjectOrdersTab({ projectId }: ProjectOrdersTabProps) {
             <TableRow
               key={order.id}
               className={cn(
-                'hover:bg-surface-image-background cursor-pointer text-base',
+                'hover:bg-surface-image-background cursor-pointer text-sm xl:text-base',
                 index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
               )}
             >
               <TableCell className="px-2 py-4 font-medium">
-                <UiLink type="Link" href={`/account/orders/${order.id}`} variant="primary" size="m">
-                  {order.id}
-                </UiLink>
+                <span title={`#${order.id}`}>
+                  <UiLink type="Link" href={`/account/orders/${order.id}`} variant="primary" size="m">
+                    #{shortenId(order.id)}
+                  </UiLink>
+                </span>
               </TableCell>
               <TableCell className="px-2 py-4">
                 {order.createdAt ? format(new Date(order.createdAt), 'dd.MM.yyyy') : '–'}
-              </TableCell>
-              <TableCell className="px-2 py-4">
-                <OrderStatusBadge status={order.status} />
               </TableCell>
               <TableCell className="px-2 py-4 text-right font-medium">
                 {order.price?.total ? formatCurrency(order.price.total.gross, order.price.total.currency) : '–'}
               </TableCell>
               <TableCell className="px-2 py-4">
+                <OrderStatusBadge status={order.status} />
+              </TableCell>
+              <TableCell className="px-2 py-4 text-center">
                 <UiLink type="Link" href={`/account/orders/${order.id}`} variant="primary" size="m">
                   <ArrowRight className="h-5 w-5" />
                 </UiLink>

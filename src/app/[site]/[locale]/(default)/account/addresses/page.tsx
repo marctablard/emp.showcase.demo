@@ -1,8 +1,11 @@
 import { getTranslations } from 'next-intl/server';
 import AccountLayout from '@/components/account/account-layout';
 import { AddressesList } from '@/components/account/addresses/address-card';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { H1 } from '@/components/ui/h';
+import {
+  AccountDetailContainer,
+  AccountDetailHeader,
+  AccountSectionBar,
+} from '@/components/account/shared/account-detail';
 import { getPageTitle } from '@/lib/ssr/seo';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
@@ -38,36 +41,27 @@ export default async function AddressesPage({ params }: { params: Promise<{ loca
 
   return (
     <AccountLayout breadcrumbs={breadcrumbs}>
-      <div className="container mx-auto py-6">
-        <H1 variant="h6" className="mb-6">
-          {tAccount('Address.title')}
-        </H1>
-        <p className="text-text-placeholders mb-8">{tAccount('Address.description')}</p>
+      <AccountDetailContainer>
+        <AccountDetailHeader eyebrow={tAccount('sidebar.groups.myOrganisation')} title={tAccount('Address.title')} />
 
-        <div className="grid gap-8">
-          {/* Billing Addresses Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{tAccount('Address.billingAddresses')}</CardTitle>
-              <p className="text-text-placeholders">{tAccount('Address.manageBillingAddresses')}</p>
-            </CardHeader>
-            <CardContent>
-              <AddressesList type="BILLING" />
-            </CardContent>
-          </Card>
+        {/* Billing Addresses Section */}
+        <section className="border-b border-border-primary">
+          <AccountSectionBar>{tAccount('Address.billingAddresses')}</AccountSectionBar>
+          <div className="px-4 py-4 sm:px-6">
+            <p className="mb-4 text-sm text-text-placeholders">{tAccount('Address.manageBillingAddresses')}</p>
+            <AddressesList type="BILLING" />
+          </div>
+        </section>
 
-          {/* Shipping Addresses Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{tAccount('Address.shippingAddresses')}</CardTitle>
-              <p className="text-text-placeholders">{tAccount('Address.manageShippingAddresses')}</p>
-            </CardHeader>
-            <CardContent>
-              <AddressesList type="SHIPPING" />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+        {/* Shipping Addresses Section */}
+        <section>
+          <AccountSectionBar>{tAccount('Address.shippingAddresses')}</AccountSectionBar>
+          <div className="px-4 py-4 sm:px-6">
+            <p className="mb-4 text-sm text-text-placeholders">{tAccount('Address.manageShippingAddresses')}</p>
+            <AddressesList type="SHIPPING" />
+          </div>
+        </section>
+      </AccountDetailContainer>
     </AccountLayout>
   );
 }

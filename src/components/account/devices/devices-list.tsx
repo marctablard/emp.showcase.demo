@@ -4,11 +4,10 @@ import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Activity, ChevronsUpDown, Layers, Search } from 'lucide-react';
-import { DashboardCard } from '@/components/account/dashboard/cards/dashboard-card';
+import { AccountListContainer } from '@/components/account/shared/account-list';
+import { AccountPageHeader } from '@/components/account/shared/account-page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CardTitle } from '@/components/ui/card';
-import { H4 } from '@/components/ui/h';
 import { Input } from '@/components/ui/input';
 import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
@@ -37,6 +36,7 @@ function getHealthBadgeVariant(health: string): 'success' | 'warning' | 'default
 
 export function DevicesList({ initialDevices }: DevicesListProps) {
   const t = useTranslations('account.devices');
+  const tGroups = useTranslations('account.sidebar.groups');
   const locale = useLocale();
   const { l10n } = useL10n(locale);
   const [sortField, setSortField] = useState<DeviceSortField | null>(null);
@@ -125,14 +125,9 @@ export function DevicesList({ initialDevices }: DevicesListProps) {
 
   return (
     <>
-      <DashboardCard variant="default" className="py-4 pb-0">
-        <div className="flex items-center justify-between mb-4">
-          <CardTitle>
-            <H4>{t('title')}</H4>
-          </CardTitle>
-        </div>
-
-        <div className="mb-4 w-[60%]">
+      <div className="space-y-6">
+        <AccountPageHeader eyebrow={tGroups('myOrganisation')} title={t('title')} description={t('description')} />
+        <div className="relative w-full max-w-[380px]">
           <Input
             placeholder={t('searchPlaceholder')}
             endIcon={Search}
@@ -140,142 +135,143 @@ export function DevicesList({ initialDevices }: DevicesListProps) {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-
-        <div className="flex flex-col">
-          <Table>
-            <TableHeader>
-              <TableRow className="text-base">
-                <TableHead className="font-bold">
-                  <button
-                    onClick={() => toggleSort('productName')}
-                    className="flex items-center gap-1 hover:text-text-action"
-                  >
-                    {t('columnProductName')}
-                    <ChevronsUpDown className="h-4 w-4" />
-                  </button>
-                </TableHead>
-                <TableHead className="font-bold">
-                  <button
-                    onClick={() => toggleSort('serialNumber')}
-                    className="flex items-center gap-1 hover:text-text-action"
-                  >
-                    {t('columnSerialNumber')}
-                    <ChevronsUpDown className="h-4 w-4" />
-                  </button>
-                </TableHead>
-                <TableHead className="font-bold">
-                  <button
-                    onClick={() => toggleSort('health')}
-                    className="flex items-center gap-1 hover:text-text-action"
-                  >
-                    {t('columnHealth')}
-                    <ChevronsUpDown className="h-4 w-4" />
-                  </button>
-                </TableHead>
-                <TableHead className="font-bold text-right">{t('columnActions')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading || productsLoading ? (
-                <TableRow>
-                  <TableCell colSpan={colSpan} className="text-center py-8">
-                    <div className="flex flex-col items-center gap-2">
-                      <Spinner color="primary" variant="md" />
-                      <span>{t('loading')}</span>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : error ? (
-                <TableRow>
-                  <TableCell colSpan={colSpan} className="text-center py-6">
-                    <div className="text-text-error mb-2">
-                      {t('errorLoading')}: {error.message}
-                    </div>
-                    <Button variant="neutral" size="small" onClick={() => refreshDevices()}>
-                      {t('tryAgain')}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ) : sortedDevices.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={colSpan} className="text-center py-6 text-text-placeholders">
-                    {t('noDevices')}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                sortedDevices.map((device, index) => {
-                  const product = productMap.get(device.productId);
-                  const hasRelatedProducts = product?.relatedItems && product.relatedItems.length > 0;
-
-                  return (
-                    <TableRow
-                      key={device.id}
-                      className={cn(
-                        'hover:bg-surface-image-background text-base',
-                        index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
-                      )}
+        <AccountListContainer>
+          <div className="flex flex-col">
+            <Table>
+              <TableHeader>
+                <TableRow className="text-sm xl:text-base">
+                  <TableHead className="font-bold">
+                    <button
+                      onClick={() => toggleSort('productName')}
+                      className="flex items-center gap-1 hover:text-text-action"
                     >
-                      <TableCell className="px-2 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-sm bg-surface-image-background">
-                            {product?.images && product.images.length > 0 ? (
-                              <Image
-                                src={product.images[0].url}
-                                alt={product.images[0].altText ? l10n(product.images[0].altText) : l10n(product.name)}
-                                fill
-                                className="object-contain"
-                              />
+                      {t('columnProductName')}
+                      <ChevronsUpDown className="h-4 w-4" />
+                    </button>
+                  </TableHead>
+                  <TableHead className="font-bold">
+                    <button
+                      onClick={() => toggleSort('serialNumber')}
+                      className="flex items-center gap-1 hover:text-text-action"
+                    >
+                      {t('columnSerialNumber')}
+                      <ChevronsUpDown className="h-4 w-4" />
+                    </button>
+                  </TableHead>
+                  <TableHead className="font-bold">
+                    <button
+                      onClick={() => toggleSort('health')}
+                      className="flex items-center gap-1 hover:text-text-action"
+                    >
+                      {t('columnHealth')}
+                      <ChevronsUpDown className="h-4 w-4" />
+                    </button>
+                  </TableHead>
+                  <TableHead className="font-bold text-right">{t('columnActions')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading || productsLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={colSpan} className="text-center py-8">
+                      <div className="flex flex-col items-center gap-2">
+                        <Spinner color="primary" variant="md" />
+                        <span>{t('loading')}</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : error ? (
+                  <TableRow>
+                    <TableCell colSpan={colSpan} className="text-center py-6">
+                      <div className="text-text-error mb-2">
+                        {t('errorLoading')}: {error.message}
+                      </div>
+                      <Button variant="neutral" size="small" onClick={() => refreshDevices()}>
+                        {t('tryAgain')}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ) : sortedDevices.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={colSpan} className="text-center py-6 text-text-placeholders">
+                      {t('noDevices')}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  sortedDevices.map((device, index) => {
+                    const product = productMap.get(device.productId);
+                    const hasRelatedProducts = product?.relatedItems && product.relatedItems.length > 0;
+
+                    return (
+                      <TableRow
+                        key={device.id}
+                        className={cn(
+                          'hover:bg-surface-image-background text-sm xl:text-base',
+                          index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
+                        )}
+                      >
+                        <TableCell className="px-2 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-sm bg-surface-image-background">
+                              {product?.images && product.images.length > 0 ? (
+                                <Image
+                                  src={product.images[0].url}
+                                  alt={product.images[0].altText ? l10n(product.images[0].altText) : l10n(product.name)}
+                                  fill
+                                  className="object-contain"
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center">
+                                  <Image src="/images/no_image_alt.png" alt="" width={24} height={24} />
+                                </div>
+                              )}
+                            </div>
+                            {product ? (
+                              <UiLink type="Link" href={`/product/${device.productId}`} variant="primary" size="m">
+                                {l10n(product.name)}
+                              </UiLink>
                             ) : (
-                              <div className="flex h-full w-full items-center justify-center">
-                                <Image src="/images/no_image_alt.png" alt="" width={24} height={24} />
-                              </div>
+                              <span className="text-text-placeholders">{device.productId || t('unknownProduct')}</span>
                             )}
                           </div>
-                          {product ? (
-                            <UiLink type="Link" href={`/product/${device.productId}`} variant="primary" size="m">
-                              {l10n(product.name)}
-                            </UiLink>
-                          ) : (
-                            <span className="text-text-placeholders">{device.productId || t('unknownProduct')}</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="px-2 py-4">{device.serialNumber}</TableCell>
-                      <TableCell className="px-2 py-4">
-                        <Badge variant={getHealthBadgeVariant(device.health)}>{device.health}%</Badge>
-                      </TableCell>
-                      <TableCell className="px-2 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {hasRelatedProducts ? (
+                        </TableCell>
+                        <TableCell className="px-2 py-4">{device.serialNumber}</TableCell>
+                        <TableCell className="px-2 py-4">
+                          <Badge variant={getHealthBadgeVariant(device.health)}>{device.health}%</Badge>
+                        </TableCell>
+                        <TableCell className="px-2 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {hasRelatedProducts ? (
+                              <Button
+                                variant="link"
+                                size="icon"
+                                onClick={() => handleViewRelatedProducts(device)}
+                                title={t('viewRelatedProducts')}
+                              >
+                                <Layers className="h-5 w-5" />
+                              </Button>
+                            ) : (
+                              <span className="text-text-placeholders text-sm mr-2">{t('noRelatedProducts')}</span>
+                            )}
                             <Button
                               variant="link"
                               size="icon"
-                              onClick={() => handleViewRelatedProducts(device)}
-                              title={t('viewRelatedProducts')}
+                              onClick={() => handleOpenHealthMonitor(device)}
+                              title={t('viewHealthMonitor')}
                             >
-                              <Layers className="h-5 w-5" />
+                              <Activity className="h-5 w-5" />
                             </Button>
-                          ) : (
-                            <span className="text-text-placeholders text-sm mr-2">{t('noRelatedProducts')}</span>
-                          )}
-                          <Button
-                            variant="link"
-                            size="icon"
-                            onClick={() => handleOpenHealthMonitor(device)}
-                            title={t('viewHealthMonitor')}
-                          >
-                            <Activity className="h-5 w-5" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </DashboardCard>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </AccountListContainer>
+      </div>
 
       {selectedDevice && selectedProduct?.relatedItems && (
         <RelatedProductsModal

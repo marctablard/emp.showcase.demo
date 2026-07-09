@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import AccountLayout from '@/components/account/account-layout';
 import { ApprovalsList } from '@/components/account/approvals/approvals-list';
+import { AccountPageHeader } from '@/components/account/shared/account-page-header';
 import { getApprovals } from '@/lib/ssr/approvals';
 import { getCurrentCustomer } from '@/lib/ssr/customer';
 import { getPageTitle } from '@/lib/ssr/seo';
@@ -42,7 +43,14 @@ export default async function ApprovalsPage({ params }: { params: Promise<{ loca
 
   return (
     <AccountLayout breadcrumbs={breadcrumbs}>
-      <ApprovalsList initialApprovals={approvals} currentUserId={customer?.id} />
+      <div className="space-y-6">
+        <AccountPageHeader
+          eyebrow={tAccount('sidebar.groups.orderManagement')}
+          title={tApproval('approvals')}
+          description={tApproval('approvalsListDescription')}
+        />
+        <ApprovalsList initialApprovals={approvals} currentUserId={customer?.id} />
+      </div>
     </AccountLayout>
   );
 }

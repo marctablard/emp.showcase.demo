@@ -4,6 +4,13 @@ import React, { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { QuoteStatusBadge } from '@/components/account/quotes/quote-status-badge';
 import { QuoteSummary } from '@/components/account/quotes/quote-summary';
+import {
+  AccountDetailContainer,
+  AccountDetailHeader,
+  AccountDetailStatus,
+  AccountSectionBar,
+  AccountSectionLabel,
+} from '@/components/account/shared/account-detail';
 import { ProductListResolver } from '@/components/product/product-list-resolver';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar } from '@/components/ui/avatar';
@@ -564,23 +571,20 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         </DialogContent>
       </Dialog>
 
-      <article className="border border-border-primary bg-surface-page">
-        <header className="border-b border-border-primary px-4 py-4 sm:px-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.08em] text-text-placeholders">{t('title')}</p>
-              <h1 className="mt-1 text-2xl font-bold text-text-headings">{quote.reference || `#${quoteId}`}</h1>
-            </div>
-            <div className="flex items-center gap-3 border-l-0 border-border-primary sm:border-l sm:pl-6">
-              <span className="text-sm font-medium text-text-placeholders">{t('status')}</span>
+      <AccountDetailContainer>
+        <AccountDetailHeader
+          eyebrow={t('title')}
+          title={quote.reference || `#${quoteId}`}
+          aside={
+            <AccountDetailStatus label={t('status')}>
               <QuoteStatusBadge status={quote.status} emphasized />
-            </div>
-          </div>
-        </header>
+            </AccountDetailStatus>
+          }
+        />
 
         {showAcceptConfirmation ? (
           <section className="border-b border-border-primary px-4 py-4 sm:px-6">
-            <p className="text-xs font-bold uppercase tracking-[0.08em] text-text-headings">{t('confirmationTitle')}</p>
+            <AccountSectionLabel>{t('confirmationTitle')}</AccountSectionLabel>
             <p className="mt-2 text-sm text-text-body">{t('confirmationDescription')}</p>
 
             <div className="mt-4">
@@ -662,9 +666,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         </div>
 
         <section className="border-b border-border-primary">
-          <div className="border-b border-border-primary bg-surface-image-background px-4 py-2 sm:px-6">
-            <h2 className="text-xs font-bold uppercase tracking-[0.08em] text-text-headings">{t('quotedProducts')}</h2>
-          </div>
+          <AccountSectionBar>{t('quotedProducts')}</AccountSectionBar>
           <ProductListResolver
             items={quote.items.map((it) => ({
               productId: it.product.id,
@@ -676,9 +678,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         </section>
 
         <section className="border-b border-border-primary">
-          <div className="border-b border-border-primary bg-surface-image-background px-4 py-2 sm:px-6">
-            <h2 className="text-xs font-bold uppercase tracking-[0.08em] text-text-headings">{t('history')}</h2>
-          </div>
+          <AccountSectionBar>{t('history')}</AccountSectionBar>
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
@@ -725,7 +725,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         quote.status !== 'ACCEPTED' &&
         quote.status !== 'DECLINED' ? (
           <footer className="border-b border-border-primary px-4 py-4 sm:px-6">
-            <p className="mb-3 text-xs font-bold uppercase tracking-[0.08em] text-text-headings">{t('quoteActions')}</p>
+            <AccountSectionLabel className="mb-3">{t('quoteActions')}</AccountSectionLabel>
             <div className="flex flex-wrap gap-2">
               <Button
                 variant="outlineError"
@@ -765,7 +765,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
             </div>
           </footer>
         ) : null}
-      </article>
+      </AccountDetailContainer>
     </div>
   );
 }

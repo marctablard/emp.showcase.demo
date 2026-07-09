@@ -288,7 +288,7 @@ describe('Company quote approval details', () => {
 
     render(<ApprovalDetails approvalId="approval-1" currentUserId="approver-1" />);
 
-    expect(screen.getByText('approval-1')).toBeInTheDocument();
+    expect(screen.getByText('#approval-1')).toBeInTheDocument();
     expect(screen.getByText('QUOTE')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Q-1000' })).toHaveAttribute('href', '/account/quotes/Q-1000');
     expect(screen.getByText('ProductListResolver')).toBeInTheDocument();

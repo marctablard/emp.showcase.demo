@@ -37,7 +37,7 @@ export default async function BillingAddressesPage({ params }: { params: Promise
 
   return (
     <AccountLayout breadcrumbs={breadcrumbs}>
-      <div className="container mx-auto py-6">
+      <div>
         <H1 variant="h6" className="mb-6">
           {tAccount('billingAddresses')}
         </H1>

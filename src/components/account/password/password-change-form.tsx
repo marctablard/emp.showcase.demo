@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useValidator } from '@/hooks/validation/useValidator';
@@ -96,100 +95,95 @@ export default function PasswordChangeForm({ customer, className }: PasswordChan
   }
 
   return (
-    <Card className={cn('', className)}>
-      <CardContent className="py-6">
-        {success ? (
-          <Alert className="bg-surface-success border-border-success">
-            <AlertDescription className="text-text-body">
-              {t('passwordChangeSuccess') ||
-                'Ihr Passwort wurde erfolgreich geändert. Sie werden zur Kontoübersicht weitergeleitet...'}
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+    <div className={cn('border border-border-primary bg-surface-page p-6', className)}>
+      {success ? (
+        <Alert className="bg-surface-success border-border-success">
+          <AlertDescription className="text-text-body">
+            {t('passwordChangeSuccess') ||
+              'Ihr Passwort wurde erfolgreich geändert. Sie werden zur Kontoübersicht weitergeleitet...'}
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="currentPassword">{t('Password.form.currentPasswordLabel') || 'Current Password'}</Label>
+            <Input
+              id="currentPassword"
+              type="password"
+              {...form.register('currentPassword')}
+              className={form.formState.errors.currentPassword ? 'border-border-error' : ''}
+              data-testid="passwordChange-currentPassword"
+            />
+            {form.formState.errors.currentPassword && (
+              <p className="text-sm text-text-error mt-1">
+                {t('Password.form.currentPassword.required') || 'Bitte geben Sie Ihr aktuelles Passwort ein.'}
+              </p>
             )}
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="currentPassword">{t('Password.form.currentPasswordLabel') || 'Current Password'}</Label>
-              <Input
-                id="currentPassword"
-                type="password"
-                {...form.register('currentPassword')}
-                className={form.formState.errors.currentPassword ? 'border-border-error' : ''}
-                data-testid="passwordChange-currentPassword"
-              />
-              {form.formState.errors.currentPassword && (
-                <p className="text-sm text-text-error mt-1">
-                  {t('Password.form.currentPassword.required') || 'Bitte geben Sie Ihr aktuelles Passwort ein.'}
-                </p>
-              )}
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="newPassword">{t('Password.form.newPasswordLabel') || 'New Password'}</Label>
+            <Input
+              id="newPassword"
+              type="password"
+              {...form.register('newPassword')}
+              className={form.formState.errors.newPassword ? 'border-border-error' : ''}
+              data-testid="passwordChange-newPassword"
+            />
+            {form.formState.errors.newPassword && (
+              <p className="text-sm text-text-error mt-1">
+                {form.formState.errors.newPassword.message === 'password.newPassword.minLength'
+                  ? t('Password.form.newPassword.minLength') || 'Das Passwort muss mindestens 8 Zeichen lang sein.'
+                  : form.formState.errors.newPassword.message === 'password.newPassword.lowercase'
+                    ? t('Password.form.newPassword.lowercase') ||
+                      'Das Passwort muss mindestens einen Kleinbuchstaben enthalten.'
+                    : form.formState.errors.newPassword.message === 'password.newPassword.uppercase'
+                      ? t('Password.form.newPassword.uppercase') ||
+                        'Das Passwort muss mindestens einen Großbuchstaben enthalten.'
+                      : form.formState.errors.newPassword.message === 'password.newPassword.number'
+                        ? t('Password.form.newPassword.number') || 'Das Passwort muss mindestens eine Ziffer enthalten.'
+                        : t('Password.form.newPassword.required') || 'Bitte geben Sie ein neues Passwort ein.'}
+              </p>
+            )}
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="newPassword">{t('Password.form.newPasswordLabel') || 'New Password'}</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                {...form.register('newPassword')}
-                className={form.formState.errors.newPassword ? 'border-border-error' : ''}
-                data-testid="passwordChange-newPassword"
-              />
-              {form.formState.errors.newPassword && (
-                <p className="text-sm text-text-error mt-1">
-                  {form.formState.errors.newPassword.message === 'password.newPassword.minLength'
-                    ? t('Password.form.newPassword.minLength') || 'Das Passwort muss mindestens 8 Zeichen lang sein.'
-                    : form.formState.errors.newPassword.message === 'password.newPassword.lowercase'
-                      ? t('Password.form.newPassword.lowercase') ||
-                        'Das Passwort muss mindestens einen Kleinbuchstaben enthalten.'
-                      : form.formState.errors.newPassword.message === 'password.newPassword.uppercase'
-                        ? t('Password.form.newPassword.uppercase') ||
-                          'Das Passwort muss mindestens einen Großbuchstaben enthalten.'
-                        : form.formState.errors.newPassword.message === 'password.newPassword.number'
-                          ? t('Password.form.newPassword.number') ||
-                            'Das Passwort muss mindestens eine Ziffer enthalten.'
-                          : t('Password.form.newPassword.required') || 'Bitte geben Sie ein neues Passwort ein.'}
-                </p>
-              )}
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">{t('Password.form.confirmPasswordLabel') || 'Confirm New Password'}</Label>
+            <Input
+              id="confirmPassword"
+              type="password"
+              {...form.register('confirmPassword')}
+              className={form.formState.errors.confirmPassword ? 'border-border-error' : ''}
+              data-testid="passwordChange-confirmPassword"
+            />
+            {form.formState.errors.confirmPassword && (
+              <p className="text-sm text-text-error mt-1">
+                {form.formState.errors.confirmPassword.message === 'Password.form.confirmPassword.mismatch'
+                  ? t('Password.form.confirmPassword.mismatch') || 'The passwords do not match.'
+                  : t('Password.form.confirmPassword.required') || 'Please confirm your password.'}
+              </p>
+            )}
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">
-                {t('Password.form.confirmPasswordLabel') || 'Confirm New Password'}
-              </Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                {...form.register('confirmPassword')}
-                className={form.formState.errors.confirmPassword ? 'border-border-error' : ''}
-                data-testid="passwordChange-confirmPassword"
-              />
-              {form.formState.errors.confirmPassword && (
-                <p className="text-sm text-text-error mt-1">
-                  {form.formState.errors.confirmPassword.message === 'Password.form.confirmPassword.mismatch'
-                    ? t('Password.form.confirmPassword.mismatch') || 'The passwords do not match.'
-                    : t('Password.form.confirmPassword.required') || 'Please confirm your password.'}
-                </p>
-              )}
-            </div>
-
-            <div className="flex justify-end pt-4">
-              <Button
-                type="submit"
-                disabled={isLoading || Object.keys(form.formState.errors).length > 0}
-                data-testid="passwordChange-submitButton"
-              >
-                {isLoading
-                  ? t('Password.form.saving') || 'Wird gespeichert...'
-                  : t('Password.form.changePasswordLabel') || 'Passwort ändern'}
-              </Button>
-            </div>
-          </form>
-        )}
-      </CardContent>
-    </Card>
+          <div className="flex justify-end pt-4">
+            <Button
+              type="submit"
+              disabled={isLoading || Object.keys(form.formState.errors).length > 0}
+              data-testid="passwordChange-submitButton"
+            >
+              {isLoading
+                ? t('Password.form.saving') || 'Wird gespeichert...'
+                : t('Password.form.changePasswordLabel') || 'Passwort ändern'}
+            </Button>
+          </div>
+        </form>
+      )}
+    </div>
   );
 }

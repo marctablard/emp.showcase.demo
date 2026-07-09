@@ -11,8 +11,11 @@ import { useTeam } from '@/hooks/company/useTeam';
 import useCustomer from '@/hooks/customer/useCustomer';
 import { useToast } from '@/hooks/ui/useToast';
 import { getLogger } from '@/lib/logger/use-logger-client';
+import { cn } from '@/lib/utils';
 import { CustomerRole } from '@/platform/services/model/customer/roles';
 import type { CompanyGroup, CompanyRole, TeamMember } from '@/platform/services/model/team/team';
+import { AccountListContainer, accountTableHeadClass } from '../shared/account-list';
+import { AccountPageHeader } from '../shared/account-page-header';
 import { MemberRoleDialog } from './member-role-dialog';
 import { TeamMemberDialog } from './team-member-dialog';
 
@@ -29,6 +32,7 @@ const ROLE_PRIORITY: CompanyRole[] = ['ADMIN', 'BUYER', 'REQUESTER', 'CONTACT', 
 
 export function TeamManagement() {
   const t = useTranslations('account.Team');
+  const tGroups = useTranslations('account.sidebar.groups');
   const { toast } = useToast();
   const { members, groups, loading, error, refresh, createMember, changeGroups, removeMember } = useTeam();
   const { customer } = useCustomer();
@@ -66,74 +70,74 @@ export function TeamManagement() {
     }
   };
 
-  if (loading && members.length === 0) {
-    return (
-      <div className="flex justify-center py-12">
-        <Spinner />
-      </div>
-    );
-  }
+  const renderBody = () => {
+    if (loading && members.length === 0) {
+      return (
+        <AccountListContainer className="flex justify-center py-12">
+          <Spinner />
+        </AccountListContainer>
+      );
+    }
 
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-text-error">{t('errorLoading')}</p>
-        <Button variant="secondary" onClick={() => refresh()} className="mt-4">
-          {t('tryAgain')}
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
-        <p className="text-text-placeholders max-w-2xl">{t('description')}</p>
-        {isAdmin && (
-          <Button onClick={() => setIsCreateOpen(true)} data-testid="team-addMember">
-            <UserPlus className="mr-2 h-4 w-4" />
-            {t('addMember')}
+    if (error) {
+      return (
+        <AccountListContainer className="space-y-4 py-12 text-center">
+          <p className="text-text-error">{t('errorLoading')}</p>
+          <Button variant="secondary" onClick={() => refresh()}>
+            {t('tryAgain')}
           </Button>
-        )}
-      </div>
+        </AccountListContainer>
+      );
+    }
 
-      {!isAdmin && <p className="text-sm text-text-placeholders mb-4">{t('adminOnlyNotice')}</p>}
-
-      {members.length === 0 ? (
-        <div className="text-center py-12">
+    if (members.length === 0) {
+      return (
+        <AccountListContainer className="py-12 text-center">
           <p className="text-text-placeholders">{t('noMembers')}</p>
-        </div>
-      ) : (
+        </AccountListContainer>
+      );
+    }
+
+    return (
+      <AccountListContainer>
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>{t('name')}</TableHead>
-              <TableHead>{t('email')}</TableHead>
-              <TableHead>{t('role')}</TableHead>
-              {isAdmin && <TableHead className="text-right">{t('actions')}</TableHead>}
+            <TableRow className="text-sm xl:text-base">
+              <TableHead className={accountTableHeadClass}>{t('name')}</TableHead>
+              <TableHead className={accountTableHeadClass}>{t('email')}</TableHead>
+              <TableHead className={accountTableHeadClass}>{t('role')}</TableHead>
+              {isAdmin && (
+                <TableHead className={cn(accountTableHeadClass, 'w-[120px] text-center')}>{t('actions')}</TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {members.map((member) => (
-              <TableRow key={member.customerId}>
-                <TableCell className="font-medium">
+            {members.map((member, index) => (
+              <TableRow
+                key={member.customerId}
+                className={cn(
+                  'text-sm xl:text-base hover:bg-surface-image-background',
+                  index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
+                )}
+              >
+                <TableCell className="px-2 py-4 font-medium">
                   <div className="flex items-center gap-2">
                     {memberName(member)}
                     {member.primary && (
-                      <Badge variant="outline" rounded="default">
+                      <Badge variant="outline" size="status">
                         {t('primary')}
                       </Badge>
                     )}
                   </div>
                 </TableCell>
-                <TableCell>{member.email ?? '—'}</TableCell>
-                <TableCell>
+                <TableCell className="px-2 py-4">{member.email ?? '—'}</TableCell>
+                <TableCell className="px-2 py-4">
                   <div className="flex flex-wrap gap-1">
                     {memberGroups(member).length === 0 ? (
                       <span className="text-text-placeholders">—</span>
                     ) : (
                       memberGroups(member).map((group) => (
-                        <Badge key={group.id} variant={ROLE_BADGE_VARIANT[group.role]} rounded="default">
+                        <Badge key={group.id} variant={ROLE_BADGE_VARIANT[group.role]} size="status">
                           {group.role === 'OTHER' ? (group.name ?? group.id) : t(`roleLabels.${group.role}`)}
                         </Badge>
                       ))
@@ -141,23 +145,23 @@ export function TeamManagement() {
                   </div>
                 </TableCell>
                 {isAdmin && (
-                  <TableCell>
-                    <div className="flex justify-end gap-2">
+                  <TableCell className="px-2 py-4 text-center">
+                    <div className="flex items-center justify-center gap-1">
                       <Button
-                        variant="secondary"
+                        variant="neutral"
                         size="icon"
-                        className="h-8 w-8"
                         onClick={() => setRoleDialogMember(member)}
+                        title={t('manageGroups')}
                         aria-label={t('manageGroups')}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
-                        variant="secondary"
+                        variant="neutral"
                         size="icon"
-                        className="h-8 w-8"
                         onClick={() => handleRemove(member)}
                         disabled={removingId === member.customerId}
+                        title={t('removeMember')}
                         aria-label={t('removeMember')}
                       >
                         {removingId === member.customerId ? <Spinner variant="sm" /> : <Trash className="h-4 w-4" />}
@@ -169,7 +173,29 @@ export function TeamManagement() {
             ))}
           </TableBody>
         </Table>
-      )}
+      </AccountListContainer>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <AccountPageHeader
+        eyebrow={tGroups('myOrganisation')}
+        title={t('title')}
+        description={t('description')}
+        actions={
+          isAdmin ? (
+            <Button onClick={() => setIsCreateOpen(true)} data-testid="team-addMember">
+              <UserPlus className="mr-2 h-4 w-4" />
+              {t('addMember')}
+            </Button>
+          ) : undefined
+        }
+      />
+
+      {!isAdmin && <p className="text-sm text-text-placeholders">{t('adminOnlyNotice')}</p>}
+
+      {renderBody()}
 
       <TeamMemberDialog isOpen={isCreateOpen} onOpenChange={setIsCreateOpen} groups={groups} onCreate={createMember} />
       <MemberRoleDialog

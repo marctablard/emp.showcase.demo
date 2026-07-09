@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import AccountLayout from '@/components/account/account-layout';
 import { MyOrdersCard } from '@/components/account/dashboard/cards/my-orders-card';
+import { AccountPageHeader } from '@/components/account/shared/account-page-header';
 import { getPageTitle } from '@/lib/ssr/seo';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
@@ -33,7 +34,14 @@ export default async function OrdersPage({ params }: { params: Promise<{ locale:
   ];
   return (
     <AccountLayout breadcrumbs={breadcrumbs}>
-      <MyOrdersCard forceRefreshOnMount />
+      <div className="space-y-6">
+        <AccountPageHeader
+          eyebrow={tAccount('sidebar.groups.orderManagement')}
+          title={tAccount('sidebar.items.orderHistory')}
+          description={tAccount('ordersPageDescription')}
+        />
+        <MyOrdersCard forceRefreshOnMount showHeader={false} flat />
+      </div>
     </AccountLayout>
   );
 }

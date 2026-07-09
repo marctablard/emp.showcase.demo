@@ -2,15 +2,25 @@
 
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { AlertCircle, CheckCircle2, List, ReceiptText } from 'lucide-react';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { ApprovalStatusBadge } from '@/components/account/approvals/approval-status-badge';
+import {
+  AccountDetailContainer,
+  AccountDetailHeader,
+  AccountDetailStatus,
+  AccountSectionBar,
+  AccountSectionLabel,
+} from '@/components/account/shared/account-detail';
+import {
+  AccountSpecTable,
+  SpecFullWidthRow,
+  SpecRow,
+  SpecSection,
+} from '@/components/account/shared/account-spec-table';
 import { ProductListResolver } from '@/components/product/product-list-resolver';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { Spinner } from '@/components/ui/spinner';
-import { SummaryCard, SummaryRow } from '@/components/ui/summary-card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useApproval } from '@/hooks/approval/useApproval';
 import { Link } from '@/i18n/navigation';
@@ -61,7 +71,6 @@ interface ApprovalCreateOrderResult {
 
 export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: ApprovalDetailsProps) {
   const t = useTranslations('orders.Approval');
-  const tStatus = useTranslations('orders.ApprovalStatus');
   const tQuote = useTranslations('account.quoteDetails');
   const locale = useLocale();
   const maxCommentLength = 250;
@@ -234,379 +243,296 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('approvalDetails')}</CardTitle>
-          <CardDescription>{t('approvalDetailsDescription')}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-center py-8">
-          <div className="flex flex-col items-center space-y-2">
-            <Spinner color="primary" variant="md" />
-            <div>{t('loading')}</div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="border border-border-primary bg-surface-page p-6">
+        <Skeleton className="h-8 w-72" />
+        <Skeleton className="mt-4 h-5 w-40" />
+        <Skeleton className="mt-6 h-40 w-full" />
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('approvalDetails')}</CardTitle>
-          <CardDescription>{t('approvalDetailsDescription')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="bg-surface-error p-4 rounded-md text-text-error">
-            {t('errorLoadingApproval')}: {error.message}
-          </div>
-        </CardContent>
-        <CardFooter>
-          <Button onClick={() => refreshApproval()}>{t('tryAgain')}</Button>
-        </CardFooter>
-      </Card>
+      <div className="border border-border-primary bg-surface-page p-6">
+        <div className="bg-surface-error p-4 text-text-error">
+          {t('errorLoadingApproval')}: {error.message}
+        </div>
+        <Button className="mt-4" onClick={() => refreshApproval()}>
+          {t('tryAgain')}
+        </Button>
+      </div>
     );
   }
 
   if (!approval) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('approvalDetails')}</CardTitle>
-          <CardDescription>{t('approvalDetailsDescription')}</CardDescription>
-        </CardHeader>
-        <CardContent className="text-center py-8">
-          <p className="text-text-placeholders">{t('approvalNotFound')}</p>
-        </CardContent>
-      </Card>
+      <div className="border border-border-primary bg-surface-page p-6 text-center">
+        <p className="text-text-placeholders">{t('approvalNotFound')}</p>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle>{t('approvalDetails')}</CardTitle>
-            <CardDescription>{t('approvalDetailsDescription')}</CardDescription>
-          </div>
-          <ApprovalStatusBadge status={approval.status} />
+    <AccountDetailContainer>
+      <AccountDetailHeader
+        eyebrow={t('approvalDetails')}
+        title={`#${approval.id}`}
+        aside={
+          <AccountDetailStatus label={t('status')}>
+            <ApprovalStatusBadge status={approval.status} emphasized />
+          </AccountDetailStatus>
+        }
+      />
+
+      {(actionSuccess || actionError) && (
+        <div className="space-y-4 border-b border-border-primary px-4 py-4 sm:px-6">
+          {actionSuccess ? (
+            <Alert variant="default">
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertTitle>{t('success')}</AlertTitle>
+              <AlertDescription>
+                <div className="space-y-2">
+                  <p>{actionSuccess}</p>
+                  {createOrderResult && (
+                    <div className="flex flex-wrap gap-4 text-sm">
+                      <Link href={`/account/quotes/${createOrderResult.quoteId}`} className="font-bold underline">
+                        {t('viewRelatedQuote')}
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          {actionError ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>{t('error')}</AlertTitle>
+              <AlertDescription>{actionError}</AlertDescription>
+            </Alert>
+          ) : null}
         </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {actionSuccess && (
-          <Alert variant="default" className="mb-4">
-            <CheckCircle2 className="h-4 w-4" />
-            <AlertTitle>{t('success')}</AlertTitle>
-            <AlertDescription>
-              <div className="space-y-2">
-                <p>{actionSuccess}</p>
-                {createOrderResult && (
-                  <div className="flex flex-wrap gap-4 text-sm">
-                    <Link href={`/account/quotes/${createOrderResult.quoteId}`} className="font-bold underline">
-                      {t('viewRelatedQuote')}
+      )}
+
+      {canCreateOrder && quoteResource && (
+        <section className="border-b border-border-primary px-4 py-4 sm:px-6">
+          <AccountSectionLabel className="mb-1">{t('createOrderAfterApprovalTitle')}</AccountSectionLabel>
+          <p className="mb-4 text-sm text-text-placeholders">{t('createOrderAfterApprovalDescription')}</p>
+
+          <div className="mb-4">
+            <label htmlFor="approval-order-comment" className="mb-1 block text-sm font-medium">
+              {tQuote('yourComment')}
+            </label>
+            <Textarea
+              id="approval-order-comment"
+              placeholder={tQuote('commentPlaceholder')}
+              className="h-32 w-full resize-none"
+              value={orderComment}
+              onChange={(event) => setOrderComment(event.target.value.slice(0, maxCommentLength))}
+              maxLength={maxCommentLength}
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              size="small"
+              disabled={isOrderCreationPending}
+              onClick={() => {
+                setOrderComment('');
+                setIsCreateOrderStepOpen(false);
+              }}
+            >
+              {tQuote('cancel')}
+            </Button>
+            <Button
+              size="small"
+              disabled={isOrderCreationPending}
+              onClick={() => {
+                void handleCreateOrder();
+              }}
+            >
+              {isOrderCreationPending ? tQuote('creating') : tQuote('createOrder')}
+            </Button>
+          </div>
+        </section>
+      )}
+
+      <div className="border-b border-border-primary">
+        <AccountSpecTable>
+          <SpecSection title={t('approvalInformation')}>
+            <SpecRow
+              left={{ label: t('resourceType'), value: approval.resourceType }}
+              right={{ label: t('action'), value: approval.action }}
+            />
+            <SpecRow
+              left={{
+                label: t('resourceId'),
+                value:
+                  approval.resourceType === 'QUOTE' ? (
+                    <Link href={`/account/quotes/${approval.resource.id}`} className="text-text-action underline">
+                      {approval.resource.id}
                     </Link>
-                  </div>
-                )}
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
+                  ) : (
+                    approval.resource.id
+                  ),
+              }}
+              right={{ label: t('createdAt'), value: formatDate(approval.createdAt) }}
+            />
+            <SpecRow
+              left={{ label: t('requestorId'), value: approval.requestor.userId }}
+              right={{ label: t('approverId'), value: approval.approver.userId }}
+            />
+            {approval.updatedAt ? (
+              <SpecRow left={{ label: t('updatedAt'), value: formatDate(approval.updatedAt) }} />
+            ) : null}
+          </SpecSection>
+        </AccountSpecTable>
+      </div>
 
-        {actionError && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>{t('error')}</AlertTitle>
-            <AlertDescription>{actionError}</AlertDescription>
-          </Alert>
-        )}
+      <div className="border-b border-border-primary">
+        <AccountSpecTable>
+          <SpecFullWidthRow label={t('requestorComment')}>
+            {approval.comment ? (
+              <span>{approval.comment}</span>
+            ) : (
+              <span className="text-text-placeholders">{t('noRequestorComment')}</span>
+            )}
+          </SpecFullWidthRow>
+          <SpecFullWidthRow label={t('approverComment')}>
+            {approval.approverComment ? (
+              <span>{approval.approverComment}</span>
+            ) : (
+              <span className="text-text-placeholders">{t('noApproverComment')}</span>
+            )}
+          </SpecFullWidthRow>
+        </AccountSpecTable>
+      </div>
 
-        {canCreateOrder && quoteResource && (
-          <>
-            <Separator />
-
-            <div className="grid grid-cols-1 gap-6">
-              <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm">
-                <div className="rounded-md bg-surface-page p-6">
-                  <p className="mb-2 text-sm font-medium">{t('createOrderAfterApprovalTitle')}</p>
-                  <p className="mb-4 text-sm text-text-placeholders">{t('createOrderAfterApprovalDescription')}</p>
-
-                  <div className="mb-4">
-                    <label htmlFor="approval-order-comment" className="mb-1 block text-sm font-medium">
-                      {tQuote('yourComment')}
-                    </label>
-                    <Textarea
-                      id="approval-order-comment"
-                      placeholder={tQuote('commentPlaceholder')}
-                      className="h-32 w-full resize-none"
-                      value={orderComment}
-                      onChange={(event) => setOrderComment(event.target.value.slice(0, maxCommentLength))}
-                      maxLength={maxCommentLength}
-                    />
-                  </div>
-
-                  <div className="flex gap-3">
-                    <Button
-                      variant="secondary"
-                      disabled={isOrderCreationPending}
-                      onClick={() => {
-                        setOrderComment('');
-                        setIsCreateOrderStepOpen(false);
-                      }}
-                    >
-                      {tQuote('cancel')}
-                    </Button>
-                    <Button
-                      disabled={isOrderCreationPending}
-                      onClick={() => {
-                        void handleCreateOrder();
-                      }}
-                    >
-                      {isOrderCreationPending ? tQuote('creating') : tQuote('createOrder')}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm font-medium text-text-placeholders">{t('id')}</p>
-            <p className="text-base">{approval.id}</p>
+      {quoteResource && (
+        <>
+          <div className="border-b border-border-primary">
+            <AccountSpecTable>
+              <SpecSection title={tQuote('details')}>
+                <SpecRow
+                  left={{ label: tQuote('quoteReference'), value: quoteResource.id }}
+                  right={{ label: tQuote('numberOfProducts'), value: quoteItemCount }}
+                />
+                {quoteResource.siteCode ? (
+                  <SpecRow left={{ label: t('siteCode'), value: quoteResource.siteCode }} />
+                ) : null}
+              </SpecSection>
+            </AccountSpecTable>
           </div>
-          <div>
-            <p className="text-sm font-medium text-text-placeholders">{t('status')}</p>
-            <p className="text-base">{tStatus(approval.status)}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-text-placeholders">{t('resourceType')}</p>
-            <p className="text-base">{approval.resourceType}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-text-placeholders">{t('resourceId')}</p>
-            <p className="text-base">
-              {approval.resourceType === 'QUOTE' ? (
-                <Link href={`/account/quotes/${approval.resource.id}`} className="underline">
-                  {approval.resource.id}
-                </Link>
-              ) : (
-                approval.resource.id
-              )}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-text-placeholders">{t('action')}</p>
-            <p className="text-base">{approval.action}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-text-placeholders">{t('createdAt')}</p>
-            <p className="text-base">{formatDate(approval.createdAt)}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-text-placeholders">{t('requestorId')}</p>
-            <p className="text-base">{approval.requestor.userId}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-text-placeholders">{t('approverId')}</p>
-            <p className="text-base">{approval.approver.userId}</p>
-          </div>
-          {approval.updatedAt && (
-            <div>
-              <p className="text-sm font-medium text-text-placeholders">{t('updatedAt')}</p>
-              <p className="text-base">{formatDate(approval.updatedAt)}</p>
-            </div>
-          )}
-        </div>
 
-        <Separator />
+          <section className="border-b border-border-primary">
+            <AccountSectionBar>{tQuote('quotedProducts')}</AccountSectionBar>
 
-        <div>
-          <p className="text-sm font-medium mb-2">{t('requestorComment')}</p>
-          {approval.comment ? (
-            <div className="bg-surface-disabled p-3 rounded-md">{approval.comment}</div>
-          ) : (
-            <p className="text-text-placeholders">{t('noRequestorComment')}</p>
-          )}
-        </div>
+            {quoteItems && quoteItems.length > 0 && (
+              <ProductListResolver
+                items={quoteItems.map((item) => ({
+                  productId: item.productId,
+                  itemYrn: item.itemYrn,
+                  quantity: item.quantity,
+                  unitPrice: item.itemPrice.newUnitPrice ?? item.itemPrice.unitPrice ?? item.itemPrice.amount ?? 0,
+                  currency: item.itemPrice.currency,
+                }))}
+              />
+            )}
 
-        <div>
-          <p className="text-sm font-medium mb-2">{t('approverComment')}</p>
-          {approval.approverComment ? (
-            <div className="bg-surface-disabled p-3 rounded-md">{approval.approverComment}</div>
-          ) : (
-            <p className="text-text-placeholders">{t('noApproverComment')}</p>
-          )}
-        </div>
-
-        {quoteResource && (
-          <div>
-            <p className="text-sm font-medium mb-4">{t('resource')}</p>
-
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm">
-                  <SummaryCard
-                    heading={tQuote('details')}
-                    className="h-full gap-2 rounded-md py-4 shadow-none"
-                    icon={<ReceiptText className="h-8 w-8 text-text-action" />}
-                    hasHeadline
-                  >
-                    <div className="space-y-3">
-                      <div>
-                        <div className="text-lg font-bold">{tQuote('quoteReference')}</div>
-                        <div className="text-base">{quoteResource.id}</div>
-                      </div>
-
-                      <div>
-                        <div className="text-lg font-bold">{tQuote('numberOfProducts')}</div>
-                        <div className="text-base">{quoteItemCount}</div>
-                      </div>
-
-                      {quoteResource.siteCode && (
-                        <div>
-                          <div className="text-lg font-bold">{t('siteCode')}</div>
-                          <div className="text-base">{quoteResource.siteCode}</div>
-                        </div>
+            <div className="border-t border-border-primary px-4 py-4 sm:px-6">
+              <table className="ml-auto w-full max-w-sm border-collapse text-sm">
+                <tbody>
+                  <tr>
+                    <td className="py-1 pr-8 text-text-body">{tQuote('basePrice')}</td>
+                    <td className="py-1 text-right font-medium tabular-nums">
+                      {formatPrice(
+                        quoteResource.subtotalAggregate?.grossValue ?? quoteResource.subTotalPrice?.grossValue,
+                        quoteResource.subtotalAggregate?.currency ?? quoteResource.subTotalPrice?.currency,
                       )}
-                    </div>
-                  </SummaryCard>
-                </div>
-
-                <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm">
-                  <SummaryCard
-                    heading={tQuote('basePrice')}
-                    className="h-full gap-2 rounded-md py-4 shadow-none"
-                    icon={<List className="h-8 w-8 text-text-action" />}
-                    hasHeadline
-                  >
-                    <div className="space-y-3">
-                      <SummaryRow label={tQuote('netValue')} className="text-base">
-                        {formatPrice(
-                          quoteResource.subtotalAggregate?.netValue,
-                          quoteResource.subtotalAggregate?.currency,
-                        )}
-                      </SummaryRow>
-                      <SummaryRow label={tQuote('vat')} className="text-base">
-                        {formatPrice(
-                          quoteResource.subtotalAggregate?.taxValue,
-                          quoteResource.subtotalAggregate?.currency,
-                        )}
-                      </SummaryRow>
-                      <SummaryRow label={tQuote('baseTotal')} strong className="text-base">
-                        {formatPrice(
-                          quoteResource.subtotalAggregate?.grossValue ?? quoteResource.subTotalPrice?.grossValue,
-                          quoteResource.subtotalAggregate?.currency ?? quoteResource.subTotalPrice?.currency,
-                        )}
-                      </SummaryRow>
-                    </div>
-                  </SummaryCard>
-                </div>
-
-                <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm">
-                  <SummaryCard
-                    heading={tQuote('quotedPrice')}
-                    className="h-full gap-2 rounded-md py-4 shadow-none"
-                    icon={<ReceiptText className="h-8 w-8 text-text-action" />}
-                    hasHeadline
-                  >
-                    <div className="space-y-3">
-                      <SummaryRow label={tQuote('netValue')} className="text-base">
-                        {formatPrice(quoteResource.totalPrice?.netValue, quoteResource.totalPrice?.currency)}
-                      </SummaryRow>
-                      <SummaryRow label={tQuote('vat')} className="text-base">
-                        {formatPrice(quoteResource.totalPrice?.taxValue, quoteResource.totalPrice?.currency)}
-                      </SummaryRow>
-                      <SummaryRow label={tQuote('quotedTotal')} strong className="text-base">
-                        {formatPrice(quoteResource.totalPrice?.grossValue, quoteResource.totalPrice?.currency)}
-                      </SummaryRow>
-                    </div>
-                  </SummaryCard>
-                </div>
-              </div>
-
-              {quoteItems && quoteItems.length > 0 && (
-                <ProductListResolver
-                  items={quoteItems.map((item) => ({
-                    productId: item.productId,
-                    itemYrn: item.itemYrn,
-                    quantity: item.quantity,
-                    unitPrice: item.itemPrice.newUnitPrice ?? item.itemPrice.unitPrice ?? item.itemPrice.amount ?? 0,
-                    currency: item.itemPrice.currency,
-                  }))}
-                />
-              )}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-1 pr-8 text-text-body">{tQuote('vat')}</td>
+                    <td className="py-1 text-right font-medium tabular-nums">
+                      {formatPrice(quoteResource.totalPrice?.taxValue, quoteResource.totalPrice?.currency)}
+                    </td>
+                  </tr>
+                  <tr className="border-t border-border-primary">
+                    <td className="pt-3 pr-8 font-bold text-text-headings">{tQuote('quotedTotal')}</td>
+                    <td className="pt-3 text-right font-bold tabular-nums text-text-headings">
+                      {formatPrice(quoteResource.totalPrice?.grossValue, quoteResource.totalPrice?.currency)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
+          </section>
+        </>
+      )}
+
+      {canApprovalAction && (
+        <footer className="border-b border-border-primary px-4 py-4 sm:px-6">
+          <AccountSectionLabel className="mb-3">{t('approvalActions')}</AccountSectionLabel>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outlineSuccess"
+              size="small"
+              onClick={handleApprove}
+              className="hover:bg-surface-action-hover-2"
+              disabled={isApprovalActionPending}
+            >
+              {t('approve')}
+            </Button>
+            <Button onClick={handleDecline} variant="secondary" size="small" disabled={isApprovalActionPending}>
+              {t('decline')}
+            </Button>
           </div>
-        )}
+        </footer>
+      )}
 
-        {canApprovalAction && (
-          <>
-            <Separator />
-
+      {canComment && (
+        <section className="border-b border-border-primary px-4 py-4 sm:px-6">
+          {isApprover && (
             <div>
-              <p className="text-sm font-medium mb-2">{t('approvalActions')}</p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outlineSuccess"
-                  onClick={handleApprove}
-                  className="hover:bg-surface-action-hover-2"
-                  disabled={isApprovalActionPending}
-                >
-                  {t('approve')}
-                </Button>
-                <Button onClick={handleDecline} variant="secondary" disabled={isApprovalActionPending}>
-                  {t('decline')}
-                </Button>
-              </div>
+              <AccountSectionLabel className="mb-2">{t('addApproverComment')}</AccountSectionLabel>
+              <Textarea
+                value={approverComment}
+                onChange={(e) => setApproverComment(e.target.value.slice(0, maxCommentLength))}
+                placeholder={t('enterApproverComment')}
+                className="mb-2"
+                maxLength={maxCommentLength}
+              />
+              <Button size="small" onClick={handleUpdateApproverComment} disabled={!approverComment.trim()}>
+                {t('saveApproverComment')}
+              </Button>
             </div>
-          </>
-        )}
+          )}
 
-        {canComment && (
-          <>
-            <Separator />
+          {isRequestor && (
+            <div className={isApprover ? 'mt-6' : undefined}>
+              <AccountSectionLabel className="mb-2">{t('addRequestorComment')}</AccountSectionLabel>
+              <Textarea
+                value={requestorComment}
+                onChange={(e) => setRequestorComment(e.target.value.slice(0, maxCommentLength))}
+                placeholder={t('enterRequestorComment')}
+                className="mb-2"
+                maxLength={maxCommentLength}
+              />
+              <Button size="small" onClick={handleUpdateRequestorComment} disabled={!requestorComment.trim()}>
+                {t('saveRequestorComment')}
+              </Button>
+            </div>
+          )}
+        </section>
+      )}
 
-            {isApprover && (
-              <div>
-                <p className="text-sm font-medium mb-2">{t('addApproverComment')}</p>
-                <Textarea
-                  value={approverComment}
-                  onChange={(e) => setApproverComment(e.target.value.slice(0, maxCommentLength))}
-                  placeholder={t('enterApproverComment')}
-                  className="mb-2"
-                  maxLength={maxCommentLength}
-                />
-                <Button onClick={handleUpdateApproverComment} disabled={!approverComment.trim()}>
-                  {t('saveApproverComment')}
-                </Button>
-              </div>
-            )}
-
-            {isRequestor && (
-              <div>
-                <p className="text-sm font-medium mb-2">{t('addRequestorComment')}</p>
-                <Textarea
-                  value={requestorComment}
-                  onChange={(e) => setRequestorComment(e.target.value.slice(0, maxCommentLength))}
-                  placeholder={t('enterRequestorComment')}
-                  className="mb-2"
-                  maxLength={maxCommentLength}
-                />
-                <Button onClick={handleUpdateRequestorComment} disabled={!requestorComment.trim()}>
-                  {t('saveRequestorComment')}
-                </Button>
-              </div>
-            )}
-          </>
-        )}
-      </CardContent>
-      <CardFooter className="flex justify-between">
+      <footer className="px-4 py-4 sm:px-6">
         <Button variant="neutral" onClick={() => window.history.back()}>
           {t('back')}
         </Button>
-      </CardFooter>
-    </Card>
+      </footer>
+    </AccountDetailContainer>
   );
 }

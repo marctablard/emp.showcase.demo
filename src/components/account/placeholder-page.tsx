@@ -1,28 +1,15 @@
 import type { FC } from 'react';
-import { useTranslations } from 'next-intl';
-import { FileQuestion } from 'lucide-react';
-import { H2 } from '@/components/ui/h';
-import AccountLayout from './account-layout';
+import AccountPreviewPage from './previews/account-preview-page';
 
 interface PlaceholderPageProps {
+  /** Retained for backwards compatibility; the preview derives its own title. */
   title?: string;
 }
 
-export const PlaceholderPage: FC<PlaceholderPageProps> = ({ title }) => {
-  const t = useTranslations('account.placeholder');
-
-  return (
-    <AccountLayout>
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 px-4">
-        <FileQuestion className="w-24 h-24 text-text-placeholders" />
-        <div className="space-y-3 max-w-2xl">
-          <H2>{title || t('title')}</H2>
-          <p className="text-lg text-text-secondary">{t('description')}</p>
-          <p className="text-base text-text-placeholders">{t('details')}</p>
-        </div>
-      </div>
-    </AccountLayout>
-  );
-};
+/**
+ * Backwards-compatible wrapper for routes not yet mapped to a dedicated preview
+ * category. Renders the generic on-brand account preview.
+ */
+export const PlaceholderPage: FC<PlaceholderPageProps> = () => <AccountPreviewPage category="default" />;
 
 export default PlaceholderPage;

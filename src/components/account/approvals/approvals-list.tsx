@@ -16,6 +16,7 @@ import { useDebouncedValue } from '@/hooks/common/useDebouncedValue';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import type { Approval, ApprovalStatus } from '@/platform/services/model/approval';
+import { AccountListContainer, shortenId } from '../shared/account-list';
 import { ApprovalStatusBadge } from './approval-status-badge';
 
 const SEARCH_DEBOUNCE_MS = 500;
@@ -205,88 +206,120 @@ export function ApprovalsList({ initialApprovals, currentUserId }: ApprovalsList
         <div className="border border-border-primary p-4 text-sm text-text-on-disabled">{t('noMatches')}</div>
       )}
 
-      <Table>
-        <TableHeader>
-          <TableRow className="text-base">
-            <TableHead className="!h-14 font-bold">{t('id')}</TableHead>
-            <TableHead className="!h-14 font-bold">{t('resourceType')}</TableHead>
-            <TableHead className="!h-14 font-bold">{t('quoteId')}</TableHead>
-            <TableHead className="!h-14 font-bold">{t('orderId')}</TableHead>
-            <TableHead className="!h-14 font-bold">{t('action')}</TableHead>
-            <TableHead className="!h-14 font-bold">{t('status')}</TableHead>
-            <TableHead className="!h-14 font-bold">{t('requestor')}</TableHead>
-            <TableHead className="!h-14 font-bold">{t('approver')}</TableHead>
-            <TableHead className="!h-14 font-bold">{t('createdAt')}</TableHead>
-            <TableHead className="!h-14 w-[160px] font-bold text-center">{t('actions')}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {visibleApprovals.map((approval, index) => {
-            const href = getApprovalHref(approval, currentUserId);
+      <AccountListContainer>
+        <Table>
+          <TableHeader>
+            <TableRow className="text-sm xl:text-base">
+              <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
+                {t('id')}
+              </TableHead>
+              <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
+                {t('resourceType')}
+              </TableHead>
+              <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
+                {t('quoteId')}
+              </TableHead>
+              <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
+                {t('orderId')}
+              </TableHead>
+              <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
+                {t('action')}
+              </TableHead>
+              <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
+                {t('requestor')}
+              </TableHead>
+              <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
+                {t('approver')}
+              </TableHead>
+              <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
+                {t('createdAt')}
+              </TableHead>
+              <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
+                {t('status')}
+              </TableHead>
+              <TableHead className="!h-14 w-[160px] whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings text-center">
+                {t('actions')}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {visibleApprovals.map((approval, index) => {
+              const href = getApprovalHref(approval, currentUserId);
 
-            return (
-              <TableRow
-                key={approval.id}
-                className={cn(
-                  'hover:bg-surface-image-background cursor-pointer text-base',
-                  index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
-                )}
-                onClick={() => router.push(href)}
-              >
-                <TableCell className="px-2 py-4 font-medium">{approval.id}</TableCell>
-                <TableCell className="px-2 py-4">{approval.resourceType}</TableCell>
-                <TableCell className="px-2 py-4">
-                  {approval.resourceType === 'QUOTE' ? (
-                    <UiLink type="Link" href={`/account/quotes/${approval.resource.id}`} variant="primary" size="m">
-                      {approval.resource.id}
-                    </UiLink>
-                  ) : (
-                    '-'
+              return (
+                <TableRow
+                  key={approval.id}
+                  className={cn(
+                    'hover:bg-surface-image-background cursor-pointer text-sm xl:text-base',
+                    index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
                   )}
-                </TableCell>
-                <TableCell className="px-2 py-4">
-                  {approval.resource.orderId ? (
-                    <UiLink type="Link" href={`/account/orders/${approval.resource.orderId}`} variant="text">
-                      {approval.resource.orderId}
-                    </UiLink>
-                  ) : (
-                    '-'
-                  )}
-                </TableCell>
-                <TableCell className="px-2 py-4">{tAction(approval.action)}</TableCell>
-                <TableCell className="px-2 py-4">
-                  <ApprovalStatusBadge status={approval.status} />
-                </TableCell>
-                <TableCell className="px-2 py-4">{formatApprovalUserName(approval.requestor)}</TableCell>
-                <TableCell className="px-2 py-4">{formatApprovalUserName(approval.approver)}</TableCell>
-                <TableCell className="px-2 py-4">{formatDate(approval.createdAt)}</TableCell>
-                <TableCell className="px-2 py-4 text-center" onClick={(event) => event.stopPropagation()}>
-                  <Button
-                    variant="neutral"
-                    size="icon"
-                    title={t('view')}
-                    aria-label={t('view')}
-                    onClick={() => router.push(href)}
-                  >
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+                  onClick={() => router.push(href)}
+                >
+                  <TableCell className="px-2 py-4 font-medium">
+                    <span title={approval.id}>
+                      <UiLink type="Link" href={href} variant="primary" size="m">
+                        {shortenId(approval.id)}
+                      </UiLink>
+                    </span>
+                  </TableCell>
+                  <TableCell className="px-2 py-4">{approval.resourceType}</TableCell>
+                  <TableCell className="px-2 py-4">
+                    {approval.resourceType === 'QUOTE' ? (
+                      <span title={approval.resource.id}>
+                        <UiLink type="Link" href={`/account/quotes/${approval.resource.id}`} variant="primary" size="m">
+                          {shortenId(approval.resource.id)}
+                        </UiLink>
+                      </span>
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
+                  <TableCell className="px-2 py-4">
+                    {approval.resource.orderId ? (
+                      <span title={approval.resource.orderId}>
+                        <UiLink type="Link" href={`/account/orders/${approval.resource.orderId}`} variant="text">
+                          {shortenId(approval.resource.orderId)}
+                        </UiLink>
+                      </span>
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
+                  <TableCell className="px-2 py-4">{tAction(approval.action)}</TableCell>
+                  <TableCell className="px-2 py-4">{formatApprovalUserName(approval.requestor)}</TableCell>
+                  <TableCell className="px-2 py-4">{formatApprovalUserName(approval.approver)}</TableCell>
+                  <TableCell className="px-2 py-4">{formatDate(approval.createdAt)}</TableCell>
+                  <TableCell className="px-2 py-4">
+                    <ApprovalStatusBadge status={approval.status} />
+                  </TableCell>
+                  <TableCell className="px-2 py-4 text-center" onClick={(event) => event.stopPropagation()}>
+                    <Button
+                      variant="neutral"
+                      size="icon"
+                      title={t('view')}
+                      aria-label={t('view')}
+                      onClick={() => router.push(href)}
+                    >
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
 
-      <TablePagination
-        className="px-3"
-        currentPage={safeCurrentPage}
-        totalPages={totalPages}
-        pageIndicator={t('pageIndicator', { current: safeCurrentPage, total: totalPages })}
-        previousLabel={t('previous')}
-        nextLabel={t('next')}
-        onPreviousPage={() => setCurrentPage((p) => Math.max(1, Math.min(p, totalPages) - 1))}
-        onNextPage={() => setCurrentPage((p) => Math.min(totalPages, Math.min(p, totalPages) + 1))}
-      />
+        <TablePagination
+          className="px-3"
+          currentPage={safeCurrentPage}
+          totalPages={totalPages}
+          pageIndicator={t('pageIndicator', { current: safeCurrentPage, total: totalPages })}
+          previousLabel={t('previous')}
+          nextLabel={t('next')}
+          onPreviousPage={() => setCurrentPage((p) => Math.max(1, Math.min(p, totalPages) - 1))}
+          onNextPage={() => setCurrentPage((p) => Math.min(totalPages, Math.min(p, totalPages) + 1))}
+        />
+      </AccountListContainer>
     </div>
   );
 }

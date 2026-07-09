@@ -201,12 +201,12 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
   ];
 
   return (
-    <div className="lg:mx-9">
-      {breadcrumbs && <UiBreadcrumb items={breadcrumbs} className="max-w-6xl mx-auto px-4 lg:px-9 md:gap-x-6" />}
+    <div className="mx-auto w-full max-w-6xl px-4 lg:px-9">
+      {breadcrumbs && <UiBreadcrumb items={breadcrumbs} className="md:gap-x-6" />}
 
       {/* Mobile Menu Button - only visible on mobile */}
       {!isDesktop && (
-        <div className="px-4 py-4">
+        <div className="py-4">
           <Button variant="secondary" onClick={toggleSidebarOffcanvas} className="w-full justify-start">
             <LayoutDashboard className="h-6 w-6" /> {t('sidebar.menu')}
           </Button>
@@ -236,7 +236,7 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
           </>
         )}
 
-        <main className={`w-full min-w-0 px-4 ${isDesktop ? 'px-0 ml-4' : ''}`}>{children}</main>
+        <main className={`w-full min-w-0 ${isDesktop ? 'ml-4' : ''}`}>{children}</main>
       </div>
     </div>
   );

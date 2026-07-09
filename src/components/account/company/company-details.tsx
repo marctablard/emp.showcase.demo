@@ -3,10 +3,16 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Building2, MapPin, Pencil } from 'lucide-react';
+import {
+  AccountDetailContainer,
+  AccountDetailHeader,
+  AccountDetailStatus,
+  AccountSectionBar,
+  AccountSectionLabel,
+} from '@/components/account/shared/account-detail';
 import { AddressDisplay } from '@/components/common/address-display';
 import { Badge, type BadgeVariant } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
@@ -121,103 +127,72 @@ export function CompanyDetails() {
 
   const readField = (label: string, value?: string | null) => (
     <div className="space-y-1">
-      <p className="text-sm text-text-placeholders">{label}</p>
-      <p className="font-medium break-words">{value && value.trim() !== '' ? value : '—'}</p>
+      <p className="text-sm font-medium text-text-placeholders">{label}</p>
+      <p className="break-words text-sm text-text-body">{value && value.trim() !== '' ? value : '—'}</p>
+    </div>
+  );
+
+  const showEditAction = isAdmin && !isEditing;
+
+  const editField = (id: string, label: string, key: keyof CompanyFormState) => (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <Input id={id} value={form[key]} onChange={(e) => setField(key, e.target.value)} />
     </div>
   );
 
   return (
-    <div className="grid gap-8">
-      {/* General information */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <CardTitle>{t('generalInfo')}</CardTitle>
-            <div className="flex items-center gap-2">
-              {company.onboarding && (
-                <Badge variant={ONBOARDING_BADGE[company.onboarding.status]} rounded="default">
-                  {t(`status.${company.onboarding.status}`)}
-                </Badge>
-              )}
-              {isAdmin && !isEditing && (
-                <Button variant="secondary" size="small" onClick={() => setIsEditing(true)} data-testid="company-edit">
-                  <Pencil className="mr-2 h-4 w-4" />
-                  {t('edit')}
-                </Button>
-              )}
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {company.type === 'SUBSIDIARY' && <p className="text-sm text-text-placeholders">{t('subsidiaryNote')}</p>}
+    <AccountDetailContainer>
+      <AccountDetailHeader
+        eyebrow={t('title')}
+        title={company.name?.trim() || t('title')}
+        aside={
+          company.onboarding ? (
+            <AccountDetailStatus label={t('onboardingStatus')}>
+              <Badge
+                variant={ONBOARDING_BADGE[company.onboarding.status]}
+                size="status"
+                className="h-10 min-h-10 px-6 text-sm tracking-[1.5px] shadow-sm"
+              >
+                {t(`status.${company.onboarding.status}`)}
+              </Badge>
+            </AccountDetailStatus>
+          ) : undefined
+        }
+      />
 
+      {/* General information */}
+      <section className="border-b border-border-primary">
+        <AccountSectionBar>{t('generalInfo')}</AccountSectionBar>
+        <div className="space-y-5 px-4 py-4 sm:px-6">
+          {company.type === 'SUBSIDIARY' && <p className="text-sm text-text-placeholders">{t('subsidiaryNote')}</p>}
           {isEditing ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="company-name">{t('companyName')}</Label>
-                <Input id="company-name" value={form.name} onChange={(e) => setField('name', e.target.value)} />
-              </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">{editField('company-name', t('companyName'), 'name')}</div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
               {readField(t('companyName'), company.name)}
               {readField(t('type'), company.type ? t(`types.${company.type}`) : undefined)}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
       {/* Legal information */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('legalInfo')}</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <section className="border-b border-border-primary">
+        <AccountSectionBar>{t('legalInfo')}</AccountSectionBar>
+        <div className="px-4 py-4 sm:px-6">
           {isEditing ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="company-legalName">{t('legalName')}</Label>
-                <Input
-                  id="company-legalName"
-                  value={form.legalName}
-                  onChange={(e) => setField('legalName', e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="company-tax">{t('taxRegistrationNumber')}</Label>
-                <Input
-                  id="company-tax"
-                  value={form.taxRegistrationNumber}
-                  onChange={(e) => setField('taxRegistrationNumber', e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="company-regId">{t('registrationId')}</Label>
-                <Input
-                  id="company-regId"
-                  value={form.registrationId}
-                  onChange={(e) => setField('registrationId', e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="company-regAgency">{t('registrationAgency')}</Label>
-                <Input
-                  id="company-regAgency"
-                  value={form.registrationAgency}
-                  onChange={(e) => setField('registrationAgency', e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="company-country">{t('countryOfRegistration')}</Label>
-                <Input
-                  id="company-country"
-                  value={form.countryOfRegistration}
-                  onChange={(e) => setField('countryOfRegistration', e.target.value)}
-                />
-              </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {editField('company-legalName', t('legalName'), 'legalName')}
+              {editField('company-tax', t('taxRegistrationNumber'), 'taxRegistrationNumber')}
+              {editField('company-regId', t('registrationId'), 'registrationId')}
+              {editField('company-regAgency', t('registrationAgency'), 'registrationAgency')}
+              {editField('company-country', t('countryOfRegistration'), 'countryOfRegistration')}
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
               {readField(t('legalName'), company.legalInfo?.legalName)}
               {readField(t('taxRegistrationNumber'), company.legalInfo?.taxRegistrationNumber)}
               {readField(t('registrationId'), company.legalInfo?.registrationId)}
@@ -226,50 +201,44 @@ export function CompanyDetails() {
               {readField(t('registrationDate'), company.legalInfo?.registrationDate)}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
       {/* Purchasing limit */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('accountLimit')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {readField(
-              t('limitValue'),
-              company.accountLimit?.value != null
-                ? `${company.accountLimit.value} ${company.accountLimit.currency ?? ''}`.trim()
-                : undefined,
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <section className="border-b border-border-primary">
+        <AccountSectionBar>{t('accountLimit')}</AccountSectionBar>
+        <div className="grid grid-cols-1 gap-x-8 gap-y-5 px-4 py-4 sm:grid-cols-2 sm:px-6">
+          {readField(
+            t('limitValue'),
+            company.accountLimit?.value != null
+              ? `${company.accountLimit.value} ${company.accountLimit.currency ?? ''}`.trim()
+              : undefined,
+          )}
+        </div>
+      </section>
 
       {/* Locations */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <CardTitle>{t('addresses')}</CardTitle>
-            <Button variant="secondary" size="small" asChild>
-              <Link href="/account/addresses" data-testid="company-manageAddresses">
-                <MapPin className="mr-2 h-4 w-4" />
-                {t('manageAddresses')}
-              </Link>
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
+      <section className={isEditing || showEditAction ? 'border-b border-border-primary' : undefined}>
+        <AccountSectionBar>{t('addresses')}</AccountSectionBar>
+        <div className="px-4 py-4 sm:px-6">
           {company.addresses && company.addresses.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-              {company.addresses.map((address, index) => (
-                <Card key={address.id ?? index} className="h-full">
-                  <CardContent className="pt-6">
+            <>
+              <div className="mb-4 flex justify-end">
+                <Button variant="secondary" size="small" asChild>
+                  <Link href="/account/addresses" data-testid="company-manageAddresses">
+                    <MapPin className="mr-2 h-4 w-4" />
+                    {t('manageAddresses')}
+                  </Link>
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                {company.addresses.map((address, index) => (
+                  <div key={address.id ?? index} className="border border-border-primary bg-surface-page p-4">
                     <AddressDisplay address={address} />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                  </div>
+                ))}
+              </div>
+            </>
           ) : (
             <div className="flex flex-col items-start gap-4">
               <p className="text-text-placeholders">{t('noAddresses')}</p>
@@ -281,11 +250,23 @@ export function CompanyDetails() {
               </Button>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
+
+      {showEditAction && (
+        <footer className="px-4 py-4 sm:px-6">
+          <AccountSectionLabel className="mb-3">{t('actions')}</AccountSectionLabel>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" size="small" onClick={() => setIsEditing(true)} data-testid="company-edit">
+              <Pencil className="mr-2 h-4 w-4" />
+              {t('edit')}
+            </Button>
+          </div>
+        </footer>
+      )}
 
       {isEditing && (
-        <div className="flex justify-end gap-2">
+        <footer className="flex justify-end gap-2 px-4 py-4 sm:px-6">
           <Button
             variant="secondary"
             onClick={() => {
@@ -299,9 +280,9 @@ export function CompanyDetails() {
           <Button onClick={handleSave} disabled={isSaving} data-testid="company-save">
             {isSaving ? t('saving') : t('save')}
           </Button>
-        </div>
+        </footer>
       )}
-    </div>
+    </AccountDetailContainer>
   );
 }
 

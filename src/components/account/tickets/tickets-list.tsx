@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { ChevronRight, Inbox, Search } from 'lucide-react';
+import { ArrowRight, Inbox, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { type ServiceTicketPriorityKey, dk } from '@/i18n/dynamic-key';
 import { Link } from '@/i18n/navigation';
@@ -14,6 +16,8 @@ import { fetchServiceTickets } from '@/lib/client/servicetickets';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
 import type { ServiceTicket, ServiceTicketType } from '@/platform/services/model/serviceticket';
+import { AccountListContainer, accountTableHeadClass, shortenId } from '../shared/account-list';
+import { AccountPageHeader } from '../shared/account-page-header';
 import { CreateTicketDialog } from './create-ticket-dialog';
 import { formatTicketDate, getPriorityBadgeVariant, isElevatedPriority } from './helpers';
 import { TicketStatusBadge } from './ticket-status-badge';
@@ -28,6 +32,7 @@ interface TicketsListProps {
 
 export function TicketsList({ initialTickets, types }: TicketsListProps) {
   const t = useTranslations('account.serviceTickets');
+  const tGroups = useTranslations('account.sidebar.groups');
   const locale = useLocale();
   const router = useRouter();
 
@@ -84,16 +89,13 @@ export function TicketsList({ initialTickets, types }: TicketsListProps) {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-2">
-          <h1 className="font-primary text-[32px] leading-[36px] font-bold text-text-headings lg:text-[40px] lg:leading-[44px]">
-            {t('title')}
-          </h1>
-          <p className="max-w-2xl text-text-on-disabled">{t('description')}</p>
-        </div>
-        <CreateTicketDialog types={types} onCreated={handleCreated} />
-      </div>
+    <div className="space-y-6">
+      <AccountPageHeader
+        eyebrow={tGroups('selfService')}
+        title={t('title')}
+        description={t('description')}
+        actions={<CreateTicketDialog types={types} onCreated={handleCreated} />}
+      />
 
       <div className="flex flex-col gap-3 min-[768px]:flex-row min-[768px]:items-center min-[768px]:justify-between">
         <div className="inline-flex gap-1 rounded-md bg-surface-image-background p-1">
@@ -132,61 +134,90 @@ export function TicketsList({ initialTickets, types }: TicketsListProps) {
       </div>
 
       {pageTickets.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-md border border-dashed border-border-primary bg-surface-primary px-6 py-16 text-center">
+        <AccountListContainer className="flex flex-col items-center gap-3 border-dashed px-6 py-16 text-center">
           <span className="flex h-12 w-12 items-center justify-center rounded-full bg-ticket-accent-soft text-ticket-accent">
             <Inbox className="h-6 w-6" />
           </span>
           <p className="text-text-on-disabled">{tickets.length === 0 ? t('empty') : t('noMatches')}</p>
-        </div>
+        </AccountListContainer>
       ) : (
-        <div className="overflow-hidden rounded-md border border-border-primary bg-surface-primary shadow-sm">
-          <ul className="divide-y divide-border-primary">
-            {pageTickets.map((ticket) => (
-              <li key={ticket.id}>
-                <Link
-                  href={`/account/tickets/${ticket.id}`}
-                  className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-surface-image-background"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-base font-semibold text-text-headings">{ticket.subject}</p>
-                    <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-on-disabled">
-                      <span className="font-mono">#{ticket.id}</span>
-                      {ticket.typeName && (
-                        <>
-                          <span aria-hidden>·</span>
-                          <span>{ticket.typeName}</span>
-                        </>
+        <AccountListContainer>
+          <Table>
+            <TableHeader>
+              <TableRow className="text-sm xl:text-base">
+                <TableHead className={accountTableHeadClass}>{t('columns.id')}</TableHead>
+                <TableHead className={accountTableHeadClass}>{t('columns.subject')}</TableHead>
+                <TableHead className={accountTableHeadClass}>{t('columns.type')}</TableHead>
+                <TableHead className={accountTableHeadClass}>{t('columns.updated')}</TableHead>
+                <TableHead className={accountTableHeadClass}>{t('columns.priority')}</TableHead>
+                <TableHead className={accountTableHeadClass}>{t('columns.status')}</TableHead>
+                <TableHead className={cn(accountTableHeadClass, 'w-[80px] text-center')}>
+                  {t('columns.action')}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pageTickets.map((ticket, index) => {
+                const priorityKey = ticket.priority
+                  ? dk<ServiceTicketPriorityKey>(`priorities.${ticket.priority.toLowerCase()}`)
+                  : null;
+                return (
+                  <TableRow
+                    key={ticket.id}
+                    className={cn(
+                      'cursor-pointer text-sm xl:text-base hover:bg-surface-image-background',
+                      index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
+                    )}
+                    onClick={() => router.push(`/account/tickets/${ticket.id}`)}
+                  >
+                    <TableCell className="px-2 py-4 font-medium">
+                      <span title={ticket.id}>
+                        <Link
+                          href={`/account/tickets/${ticket.id}`}
+                          className="font-bold text-text-action underline hover:text-text-action-hover"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          #{shortenId(ticket.id, 4, 4)}
+                        </Link>
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-2 py-4 text-text-headings">{ticket.subject}</TableCell>
+                    <TableCell className="px-2 py-4">{ticket.typeName || '–'}</TableCell>
+                    <TableCell className="whitespace-nowrap px-2 py-4">
+                      {formatTicketDate(ticket.updatedAt ?? ticket.createdAt, locale)}
+                    </TableCell>
+                    <TableCell className="px-2 py-4">
+                      {ticket.priority && isElevatedPriority(ticket.priority) && priorityKey ? (
+                        <Badge variant={getPriorityBadgeVariant(ticket.priority)} size="status">
+                          {t.has(priorityKey) ? t(priorityKey) : ticket.priority}
+                        </Badge>
+                      ) : (
+                        <span className="text-text-placeholders">–</span>
                       )}
-                      <span aria-hidden>·</span>
-                      <span>{formatTicketDate(ticket.updatedAt ?? ticket.createdAt, locale)}</span>
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    <div className="flex flex-row items-center gap-2">
+                    </TableCell>
+                    <TableCell className="px-2 py-4">
                       <TicketStatusBadge ticket={ticket} />
-                      {ticket.priority &&
-                        isElevatedPriority(ticket.priority) &&
-                        (() => {
-                          const priorityKey = dk<ServiceTicketPriorityKey>(
-                            `priorities.${ticket.priority.toLowerCase()}`,
-                          );
-                          return (
-                            <Badge variant={getPriorityBadgeVariant(ticket.priority)} size="status">
-                              {t.has(priorityKey) ? t(priorityKey) : ticket.priority}
-                            </Badge>
-                          );
-                        })()}
-                    </div>
-                    <ChevronRight className="h-5 w-5 shrink-0 text-text-on-disabled transition-transform group-hover:translate-x-0.5 group-hover:text-ticket-accent" />
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
+                    </TableCell>
+                    <TableCell className="px-2 py-4 text-center" onClick={(event) => event.stopPropagation()}>
+                      <Button
+                        variant="neutral"
+                        size="icon"
+                        title={t('columns.action')}
+                        aria-label={t('columns.action')}
+                        onClick={() => router.push(`/account/tickets/${ticket.id}`)}
+                      >
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
 
           {filteredTickets.length > TICKETS_PER_PAGE && (
             <TablePagination
-              className="border-t border-border-primary px-5 py-3"
+              className="border-t border-border-primary px-4 py-3 sm:px-6"
               currentPage={currentPage}
               totalPages={totalPages}
               pageIndicator={t('pageIndicator', { current: currentPage, total: totalPages })}
@@ -196,7 +227,7 @@ export function TicketsList({ initialTickets, types }: TicketsListProps) {
               onNextPage={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
             />
           )}
-        </div>
+        </AccountListContainer>
       )}
     </div>
   );

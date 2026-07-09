@@ -5,7 +5,8 @@ import { useTranslations } from 'next-intl';
 import { Search } from 'lucide-react';
 import AccountLayout from '@/components/account/account-layout';
 import { QuotesTable } from '@/components/account/quotes/quotes-table';
-import { H1 } from '@/components/ui/h';
+import { AccountListContainer } from '@/components/account/shared/account-list';
+import { AccountPageHeader } from '@/components/account/shared/account-page-header';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { useDebouncedValue } from '@/hooks/common/useDebouncedValue';
@@ -20,6 +21,7 @@ interface QuotesPageContentProps {
 
 export default function QuotesPageContent({ initialQuotes }: QuotesPageContentProps) {
   const t = useTranslations('account.quotesList');
+  const tGroups = useTranslations('account.sidebar.groups');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const quotesPerPage = 5;
 
@@ -50,9 +52,9 @@ export default function QuotesPageContent({ initialQuotes }: QuotesPageContentPr
   return (
     <AccountLayout>
       <div className="space-y-6">
-        <H1>{t('title')}</H1>
+        <AccountPageHeader eyebrow={tGroups('orderManagement')} title={t('title')} description={t('description')} />
 
-        <div className="mb-4 w-full max-w-[380px]">
+        <div className="w-full max-w-[380px]">
           <div className="relative w-full">
             <Input
               value={quickSearch}
@@ -77,24 +79,22 @@ export default function QuotesPageContent({ initialQuotes }: QuotesPageContentPr
         </div>
 
         {!loading && quotes.length === 0 && normalizedSearch.length > 0 && (
-          <div className="rounded-md border border-border-primary p-4 text-sm text-text-on-disabled">
-            {t('noMatches')}
-          </div>
+          <div className="border border-border-primary p-4 text-sm text-text-on-disabled">{t('noMatches')}</div>
         )}
 
         {error ? (
-          <div className="bg-surface-error border border-border-error text-text-error px-4 py-3 rounded">
-            {error.message}
-          </div>
+          <div className="bg-surface-error border border-border-error text-text-error px-4 py-3">{error.message}</div>
         ) : (
-          <QuotesTable
-            quotes={quotes}
-            loading={loading}
-            currentPage={currentPage}
-            totalPages={pagination?.totalPages ?? 1}
-            onPreviousPage={handlePreviousPage}
-            onNextPage={handleNextPage}
-          />
+          <AccountListContainer>
+            <QuotesTable
+              quotes={quotes}
+              loading={loading}
+              currentPage={currentPage}
+              totalPages={pagination?.totalPages ?? 1}
+              onPreviousPage={handlePreviousPage}
+              onNextPage={handleNextPage}
+            />
+          </AccountListContainer>
         )}
       </div>
     </AccountLayout>

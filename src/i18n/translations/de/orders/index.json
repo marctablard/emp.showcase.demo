@@ -51,7 +51,7 @@
   "columns": {
     "orderNumber": "Bestell-Nr.",
     "status": "Status",
-    "totalShippingCost": "Gesamtversandkosten",
+    "totalShippingCost": "Versand",
     "customer": "Kunde",
     "orderDate": "Bestelldatum",
     "channel": "Kanal",

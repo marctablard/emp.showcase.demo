@@ -11,6 +11,7 @@ import { useRouter } from '@/i18n/navigation';
 import { formatDate } from '@/lib/date-utils';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { Quote } from '@/platform/services/model/quote';
+import { shortenId } from '../shared/account-list';
 import { QuoteStatusBadge } from './quote-status-badge';
 
 interface QuotesTableProps {
@@ -38,15 +39,15 @@ export function QuotesTable({
     <div className="w-full">
       <Table>
         <TableHeader>
-          <TableRow className="text-base">
+          <TableRow className="text-sm xl:text-base">
             <TableHead className="!h-14 font-bold whitespace-nowrap">{t('quoteId')}</TableHead>
             <TableHead className="!h-14 font-bold whitespace-nowrap">{t('quoteReference')}</TableHead>
-            <TableHead className="!h-14 font-bold whitespace-nowrap">{t('status')}</TableHead>
             <TableHead className="!h-14 font-bold whitespace-nowrap">{t('quotationDate')}</TableHead>
             <TableHead className="!h-14 font-bold whitespace-nowrap">{t('requestedBy')}</TableHead>
             <TableHead className="!h-14 font-bold whitespace-nowrap">{t('authorization')}</TableHead>
             <TableHead className="!h-14 font-bold whitespace-nowrap text-right">{t('totalAmount')}</TableHead>
             <TableHead className="!h-14 font-bold whitespace-nowrap text-right">{t('numberOfProducts')}</TableHead>
+            <TableHead className="!h-14 font-bold whitespace-nowrap">{t('status')}</TableHead>
             <TableHead className="!h-14 w-[160px] font-bold text-center">{tOrders('columns.action')}</TableHead>
           </TableRow>
         </TableHeader>
@@ -70,28 +71,29 @@ export function QuotesTable({
               <TableRow
                 key={quote.id}
                 className={cn(
-                  'hover:bg-surface-image-background cursor-pointer text-base',
+                  'hover:bg-surface-image-background cursor-pointer text-sm xl:text-base',
                   index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
                 )}
                 onClick={() => router.push(`/account/quotes/${quote.id}`)}
               >
                 <TableCell className="px-2 py-4 font-medium">
-                  <UiLink type="Link" href={`/account/quotes/${quote.id}`} variant="primary" size="m">
-                    {quote.id}
-                  </UiLink>
+                  <span title={quote.id}>
+                    <UiLink type="Link" href={`/account/quotes/${quote.id}`} variant="primary" size="m">
+                      {shortenId(quote.id)}
+                    </UiLink>
+                  </span>
                   {quote.orderId ? (
                     <div className="mt-1 text-sm text-text-placeholders" onClick={(event) => event.stopPropagation()}>
                       {t('relatedOrder')}{' '}
-                      <UiLink type="Link" href={`/account/orders/${quote.orderId}`} variant="text">
-                        #{quote.orderId}
-                      </UiLink>
+                      <span title={`#${quote.orderId}`}>
+                        <UiLink type="Link" href={`/account/orders/${quote.orderId}`} variant="text">
+                          #{shortenId(quote.orderId)}
+                        </UiLink>
+                      </span>
                     </div>
                   ) : null}
                 </TableCell>
                 <TableCell className="px-2 py-4">{quote.reference || '-'}</TableCell>
-                <TableCell className="px-2 py-4">
-                  <QuoteStatusBadge status={quote.status} />
-                </TableCell>
                 <TableCell className="px-2 py-4">{formatDate(quote.submittedDate)}</TableCell>
                 <TableCell className="px-2 py-4">{quote.customerName || quote.customerId}</TableCell>
                 <TableCell className="px-2 py-4">{quote.approverName || '-'}</TableCell>
@@ -100,6 +102,9 @@ export function QuotesTable({
                 </TableCell>
                 <TableCell className="px-2 py-4 text-right">
                   {quote.items?.reduce((total, item) => total + (item.quantity.quantity || 0), 0) || 0} {t('products')}
+                </TableCell>
+                <TableCell className="px-2 py-4">
+                  <QuoteStatusBadge status={quote.status} />
                 </TableCell>
                 <TableCell className="px-2 py-4 text-center" onClick={(event) => event.stopPropagation()}>
                   <Button

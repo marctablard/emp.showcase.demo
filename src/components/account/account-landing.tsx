@@ -44,7 +44,7 @@ export function AccountLanding() {
         <Heading variant="h1" className="mb-4">
           {t('title')}
         </Heading>
-        <p className="text-lg md:text-xl text-text-secondary max-w-3xl mx-auto">{t('subtitle')}</p>
+        <p className="text-lg md:text-xl text-text-placeholders max-w-3xl mx-auto">{t('subtitle')}</p>
       </div>
       {/* CTA Section */}
       <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl py-8 md:p-12 text-center">

@@ -1,8 +1,5 @@
-import { useTranslations } from 'next-intl';
-import PlaceholderPage from '@/components/account/placeholder-page';
+import AccountPreviewPage from '@/components/account/previews/account-preview-page';
 
 export default function TrainingPage() {
-  const t = useTranslations('account.sidebar.items');
-
-  return <PlaceholderPage title={t('trainingMaterial')} />;
+  return <AccountPreviewPage category="training" />;
 }

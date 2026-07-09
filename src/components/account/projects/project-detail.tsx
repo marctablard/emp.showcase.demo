@@ -4,8 +4,11 @@ import { useEffect } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { FileText, List, Receipt, Settings } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { H2 } from '@/components/ui/h';
+import {
+  AccountDetailContainer,
+  AccountDetailHeader,
+  AccountDetailStatus,
+} from '@/components/account/shared/account-detail';
 import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -53,7 +56,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-[300px]">
+      <div className="flex min-h-[300px] items-center justify-center border border-border-primary bg-surface-page">
         <Spinner color="primary" variant="md" />
       </div>
     );
@@ -61,14 +64,12 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
 
   if (error || !project) {
     return (
-      <Card>
-        <CardContent className="pt-6 text-center">
-          <p className="text-text-error">{error?.message ?? t('notFound')}</p>
-          <UiLink type="Link" href="/account/projects" variant="primary" size="m" className="mt-4 inline-block">
-            {t('backToProjects')}
-          </UiLink>
-        </CardContent>
-      </Card>
+      <div className="border border-border-primary bg-surface-page p-6 text-center">
+        <p className="text-text-error">{error?.message ?? t('notFound')}</p>
+        <UiLink type="Link" href="/account/projects" variant="primary" size="m" className="mt-4 inline-block">
+          {t('backToProjects')}
+        </UiLink>
+      </div>
     );
   }
 
@@ -76,20 +77,19 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
     (project.name as Record<string, string>)?.[locale] ?? (project.name as Record<string, string>)?.en ?? project.id;
 
   return (
-    <div className="space-y-6">
-      {/* Page header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-3 flex-wrap">
-            <H2 variant="h4">{name}</H2>
+    <AccountDetailContainer>
+      <AccountDetailHeader
+        eyebrow={t('projectDetails')}
+        title={name}
+        aside={
+          <AccountDetailStatus label={t('status')}>
             <ProjectStatusBadge status={project.status} />
-          </div>
-        </div>
-      </div>
+          </AccountDetailStatus>
+        }
+      />
 
-      {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="w-full h-auto p-0 bg-transparent rounded-none border-b border-border-primary grid grid-cols-4">
+        <TabsList className="grid h-auto w-full grid-cols-4 rounded-none border-b border-border-primary bg-surface-image-background p-0">
           {(
             [
               { value: 'overview', icon: <Settings className="h-5 w-5" />, label: t('tabs.overview') },
@@ -101,45 +101,43 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
             <TabsTrigger
               key={value}
               value={value}
-              className="gap-2 rounded-none px-4 py-3 bg-transparent shadow-none
-                text-text-secondary font-medium text-base
-                data-[state=active]:bg-transparent data-[state=active]:shadow-none
-                data-[state=active]:text-text-headings data-[state=active]:font-semibold
-                [&_svg]:data-[state=active]:opacity-100 [&_svg]:opacity-50
-                hover:text-text-body hover:bg-transparent transition-colors"
+              className="gap-2 rounded-none border-b-2 border-transparent bg-transparent px-4 py-3 text-sm font-medium
+                text-text-placeholders shadow-none transition-colors
+                data-[state=active]:border-border-action data-[state=active]:bg-surface-page
+                data-[state=active]:font-semibold data-[state=active]:text-text-headings data-[state=active]:shadow-none
+                [&_svg]:opacity-50 [&_svg]:data-[state=active]:opacity-100
+                hover:bg-surface-page/60 hover:text-text-body"
             >
               {icon}
-              {label}
+              <span className="hidden sm:inline">{label}</span>
             </TabsTrigger>
           ))}
         </TabsList>
 
-        <div className="mt-6">
-          <TabsContent value="overview">
-            <ProjectOverviewTab project={project} onSave={updateProject} />
-          </TabsContent>
+        <TabsContent value="overview" className="mt-0">
+          <ProjectOverviewTab project={project} onSave={updateProject} />
+        </TabsContent>
 
-          <TabsContent value="shoppingLists">
-            <ProjectShoppingListsTab
-              projectId={projectId}
-              lists={shoppingLists}
-              onCreateList={createShoppingList}
-              onDeleteList={deleteShoppingList}
-              onAddItem={addItemToList}
-              onRemoveItem={removeItemFromList}
-              onAddToCart={addListToCart}
-            />
-          </TabsContent>
+        <TabsContent value="shoppingLists" className="mt-0">
+          <ProjectShoppingListsTab
+            projectId={projectId}
+            lists={shoppingLists}
+            onCreateList={createShoppingList}
+            onDeleteList={deleteShoppingList}
+            onAddItem={addItemToList}
+            onRemoveItem={removeItemFromList}
+            onAddToCart={addListToCart}
+          />
+        </TabsContent>
 
-          <TabsContent value="orders">
-            <ProjectOrdersTab projectId={projectId} />
-          </TabsContent>
+        <TabsContent value="orders" className="mt-0">
+          <ProjectOrdersTab projectId={projectId} />
+        </TabsContent>
 
-          <TabsContent value="documents">
-            <ProjectDocumentsTab media={media} onUpload={uploadMedia} onDelete={deleteMedia} />
-          </TabsContent>
-        </div>
+        <TabsContent value="documents" className="mt-0">
+          <ProjectDocumentsTab media={media} onUpload={uploadMedia} onDelete={deleteMedia} />
+        </TabsContent>
       </Tabs>
-    </div>
+    </AccountDetailContainer>
   );
 }

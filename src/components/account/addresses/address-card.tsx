@@ -6,8 +6,6 @@ import { Edit, Plus, Trash } from 'lucide-react';
 import { AddressDisplay } from '@/components/common/address-display';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { H1 } from '@/components/ui/h';
 import { Spinner } from '@/components/ui/spinner';
 import { useAddresses } from '@/hooks/customer/useAddresses';
 import { useToast } from '@/hooks/ui/useToast';
@@ -30,48 +28,46 @@ export function AddressCard({ address, isDeleting = false, onEdit, onDelete }: A
   const t = useTranslations('account');
 
   return (
-    <Card className="h-full">
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-start">
-          <div className="flex items-center gap-2">
-            <CardTitle className="text-lg font-medium">{address.contactName}</CardTitle>
-            {address.source === 'customer' && address.isDefault ? (
-              <Badge variant="outline" rounded="default" className="bg-surface-success text-text-success">
-                {t('Address.default')}
-              </Badge>
-            ) : null}
-          </div>
-          <div className="flex space-x-2">
-            {onEdit && (
-              <Button
-                variant="secondary"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => onEdit(address)}
-                aria-label={t('Address.editAddress')}
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-            )}
-            {onDelete && (
-              <Button
-                variant="secondary"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => onDelete(address)}
-                disabled={isDeleting}
-                aria-label={t('Address.deleteAddress')}
-              >
-                {isDeleting ? <Spinner variant="sm" /> : <Trash className="h-4 w-4" />}
-              </Button>
-            )}
-          </div>
+    <div className="flex h-full flex-col border border-border-primary bg-surface-page">
+      <div className="flex items-start justify-between gap-2 border-b border-border-primary px-4 py-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <p className="truncate text-base font-bold text-text-headings">{address.contactName}</p>
+          {address.source === 'customer' && address.isDefault ? (
+            <Badge variant="outline" rounded="default" className="bg-surface-success text-text-success">
+              {t('Address.default')}
+            </Badge>
+          ) : null}
         </div>
-      </CardHeader>
-      <CardContent>
+        <div className="flex shrink-0 gap-2">
+          {onEdit && (
+            <Button
+              variant="secondary"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => onEdit(address)}
+              aria-label={t('Address.editAddress')}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              variant="secondary"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => onDelete(address)}
+              disabled={isDeleting}
+              aria-label={t('Address.deleteAddress')}
+            >
+              {isDeleting ? <Spinner variant="sm" /> : <Trash className="h-4 w-4" />}
+            </Button>
+          )}
+        </div>
+      </div>
+      <div className="px-4 py-4">
         <AddressDisplay address={address} />
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -120,16 +116,15 @@ export function AddressesList({ type = 'SHIPPING' as AddressType }) {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <H1>{type === 'SHIPPING' ? t('Address.shippingAddresses') : t('Address.billingAddresses')}</H1>
-        <Button onClick={() => setIsDialogOpen(true)}>
+      <div className="mb-4 flex justify-end">
+        <Button variant="secondary" size="small" onClick={() => setIsDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           {t('Address.addNewAddress')}
         </Button>
       </div>
 
       {addresses.filter((address) => address.tags.includes(type)).length === 0 ? (
-        <div className="text-center py-8">
+        <div className="py-8 text-center">
           <p className="text-text-placeholders">
             {type === 'SHIPPING' ? t('Address.noShippingAddresses') : t('Address.noBillingAddresses')}
           </p>
@@ -139,7 +134,7 @@ export function AddressesList({ type = 'SHIPPING' as AddressType }) {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
           {addresses
             .filter((address) => address.tags.includes(type))
             .map((address: CustomerAddress) => {
