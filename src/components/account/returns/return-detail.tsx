@@ -118,7 +118,7 @@ function ReturnItemRow({ item, locale, t }: { item: ExtendedReturnItem; locale: 
 
   return (
     <TableRow className="hover:bg-surface-image-background">
-      <TableCell className="w-[88px] px-4 py-3 align-middle">
+      <TableCell className="w-[88px] py-4 pl-6 pr-3 align-middle sm:pl-8">
         <div className="flex h-[52px] w-20 items-center justify-center border border-border-primary bg-surface-image-background">
           {imageUrl ? (
             <Image src={imageUrl} alt={item.name} width={80} height={52} className="h-full w-full object-contain" />
@@ -127,7 +127,7 @@ function ReturnItemRow({ item, locale, t }: { item: ExtendedReturnItem; locale: 
           )}
         </div>
       </TableCell>
-      <TableCell className="px-4 py-3 align-middle">
+      <TableCell className="px-4 py-4 align-middle">
         {item.vendorName ? <p className="text-xs text-text-placeholders">{item.vendorName}</p> : null}
         {item.productId ? (
           <Link href={`/product/${item.productId}`} className="text-sm font-bold text-text-headings hover:underline">
@@ -150,13 +150,13 @@ function ReturnItemRow({ item, locale, t }: { item: ExtendedReturnItem; locale: 
         ) : null}
         {item.reason?.details ? <p className="mt-1 text-xs text-text-placeholders">{item.reason.details}</p> : null}
       </TableCell>
-      <TableCell className="px-4 py-3 text-right align-middle text-sm font-medium tabular-nums">
+      <TableCell className="px-4 py-4 text-right align-middle text-sm font-medium tabular-nums">
         {formatReturnCurrency(unitPrice.grossValue, unitPrice.currency, locale)}
       </TableCell>
-      <TableCell className="px-4 py-3 text-center align-middle text-sm font-medium tabular-nums">
+      <TableCell className="px-4 py-4 text-center align-middle text-sm font-medium tabular-nums">
         {item.quantity}
       </TableCell>
-      <TableCell className="px-4 py-3 text-right align-middle text-sm font-bold tabular-nums">
+      <TableCell className="py-4 pl-4 pr-6 text-right align-middle text-sm font-bold tabular-nums sm:pr-8">
         {formatReturnCurrency(refund.value, refund.currency, locale)}
       </TableCell>
     </TableRow>
@@ -240,11 +240,11 @@ export function ReturnDetail({ returnId, initialReturn }: ReturnDetailProps) {
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className="w-[88px] px-4 font-bold">{t('product')}</TableHead>
-              <TableHead className="px-4 font-bold" />
-              <TableHead className="w-36 px-4 text-right font-bold">{t('price')}</TableHead>
-              <TableHead className="w-24 px-4 text-center font-bold">{t('quantity')}</TableHead>
-              <TableHead className="w-40 px-4 text-right font-bold">{t('refundAmount')}</TableHead>
+              <TableHead className="w-[88px] py-4 pl-6 pr-3 font-bold sm:pl-8">{t('product')}</TableHead>
+              <TableHead className="px-4 py-4 font-bold" />
+              <TableHead className="w-36 px-4 py-4 text-right font-bold">{t('price')}</TableHead>
+              <TableHead className="w-24 px-4 py-4 text-center font-bold">{t('quantity')}</TableHead>
+              <TableHead className="w-40 py-4 pl-4 pr-6 text-right font-bold sm:pr-8">{t('refundAmount')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -254,7 +254,7 @@ export function ReturnDetail({ returnId, initialReturn }: ReturnDetailProps) {
           </TableBody>
         </Table>
 
-        <div className="border-t border-border-primary px-4 py-4 sm:px-6">
+        <div className="border-t border-border-primary px-6 py-6 sm:px-8">
           <table className="ml-auto w-full max-w-sm border-collapse text-sm">
             <tbody>
               <tr className="border-t border-border-primary">

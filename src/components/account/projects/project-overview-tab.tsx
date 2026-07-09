@@ -79,7 +79,7 @@ export function ProjectOverviewTab({ project, onSave }: ProjectOverviewTabProps)
     return (
       <>
         {saveResult === 'success' && (
-          <div className="border-b border-border-primary px-4 py-4 sm:px-6">
+          <div className="border-b border-border-primary px-6 py-6 sm:px-8">
             <Alert className="bg-surface-success border-border-success">
               <AlertDescription className="text-text-body">{t('overview.saveSuccess')}</AlertDescription>
             </Alert>
@@ -115,7 +115,7 @@ export function ProjectOverviewTab({ project, onSave }: ProjectOverviewTabProps)
           {project.comment ? <SpecNoteRow title={t('comment')}>{project.comment}</SpecNoteRow> : null}
         </AccountSpecTable>
 
-        <footer className="flex justify-end px-4 py-4 sm:px-6">
+        <footer className="flex justify-end px-6 py-6 sm:px-8">
           <Button
             variant="secondary"
             size="small"
@@ -137,14 +137,14 @@ export function ProjectOverviewTab({ project, onSave }: ProjectOverviewTabProps)
   return (
     <>
       {saveResult === 'error' && (
-        <div className="border-b border-border-primary px-4 py-4 sm:px-6">
+        <div className="border-b border-border-primary px-6 py-6 sm:px-8">
           <Alert className="bg-surface-error border-border-error">
             <AlertDescription className="text-text-error">{t('overview.saveError')}</AlertDescription>
           </Alert>
         </div>
       )}
 
-      <div className="grid gap-5 px-4 py-4 sm:px-6">
+      <div className="grid gap-5 px-6 py-6 sm:px-8">
         <div className="grid gap-1.5">
           <Label>{t('status')}</Label>
           <Select value={status} onValueChange={(v) => setStatus(v as ProjectStatus)}>
@@ -186,7 +186,7 @@ export function ProjectOverviewTab({ project, onSave }: ProjectOverviewTabProps)
         </div>
       </div>
 
-      <footer className="flex items-center gap-3 border-t border-border-primary px-4 py-4 sm:px-6">
+      <footer className="flex items-center gap-3 border-t border-border-primary px-6 py-6 sm:px-8">
         <Button onClick={handleSave} disabled={saving}>
           {saving ? t('overview.saving') : t('overview.saveChanges')}
         </Button>

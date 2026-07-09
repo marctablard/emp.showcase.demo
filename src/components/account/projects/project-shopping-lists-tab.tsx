@@ -14,7 +14,12 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { accountTableHeadClass } from '@/components/account/shared/account-list';
+import { ProjectTabHeader } from '@/components/account/projects/project-tab-header';
+import {
+  accountTableHeadClass,
+  accountTableHeadRowClass,
+  accountTableRowClass,
+} from '@/components/account/shared/account-list';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -519,6 +524,7 @@ export function ProjectShoppingListsTab({
   const [showCreate, setShowCreate] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [creating, setCreating] = useState(false);
+  const [query, setQuery] = useState('');
 
   const handleCreate = async () => {
     if (!newListName.trim()) return;
@@ -546,15 +552,25 @@ export function ProjectShoppingListsTab({
     }
   };
 
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredLists = normalizedQuery
+    ? lists.filter((list) => (list.name || list.id).toLowerCase().includes(normalizedQuery))
+    : lists;
+
   return (
     <div>
-      {/* Toolbar */}
-      <div className="flex justify-end border-b border-border-primary px-4 py-3 sm:px-6">
-        <Button size="small" className="gap-2" onClick={() => setShowCreate(true)}>
-          <Plus className="h-4 w-4" />
-          {t('newList')}
-        </Button>
-      </div>
+      <ProjectTabHeader
+        title={t('title')}
+        searchValue={query}
+        onSearchChange={setQuery}
+        searchPlaceholder={t('searchListsPlaceholder')}
+        actions={
+          <Button size="small" className="gap-2" onClick={() => setShowCreate(true)}>
+            <Plus className="h-4 w-4" />
+            {t('newList')}
+          </Button>
+        }
+      />
 
       {/* Inline create form */}
       {showCreate && (
@@ -587,79 +603,87 @@ export function ProjectShoppingListsTab({
       ) : (
         <Table>
           <TableHeader>
-            <TableRow className="text-sm xl:text-base">
+            <TableRow className={accountTableHeadRowClass}>
               <TableHead className={accountTableHeadClass}>{t('listName')}</TableHead>
               <TableHead className={cn(accountTableHeadClass, 'w-32')}>{t('quantity')}</TableHead>
               <TableHead className={cn(accountTableHeadClass, 'w-56 text-right')}>{t('actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {lists.map((list, index) => {
-              const isExpanded = expandedId === list.id;
-              const isDeletingThis = deleting === list.id;
+            {filteredLists.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={3} className="h-40 text-center">
+                  <div className="flex flex-col items-center justify-center gap-3 text-text-placeholders">
+                    <List className="h-10 w-10 text-text-on-disabled" />
+                    <p className="font-medium text-text-headings">{t('noListResults')}</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredLists.map((list, index) => {
+                const isExpanded = expandedId === list.id;
+                const isDeletingThis = deleting === list.id;
 
-              return (
-                <>
-                  {/* List header row — same style as order rows */}
-                  <TableRow
-                    key={list.id}
-                    className={cn(
-                      'cursor-pointer hover:bg-surface-image-background text-sm xl:text-base',
-                      index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
-                    )}
-                    onClick={() => setExpandedId(isExpanded ? null : list.id)}
-                  >
-                    <TableCell className="px-2 py-4 font-medium">
-                      <span className="inline-flex items-center gap-2">
-                        {isExpanded ? (
-                          <ChevronDown className="h-4 w-4 shrink-0 text-text-placeholders" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 shrink-0 text-text-placeholders" />
-                        )}
-                        {list.name || list.id}
-                      </span>
-                    </TableCell>
-                    <TableCell className="px-2 py-4 text-text-placeholders">
-                      {t('items', { count: list.items.length })}
-                    </TableCell>
-                    <TableCell className="px-2 py-4 text-right">
-                      <div className="flex justify-end gap-2 items-center" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          size="small"
-                          variant="secondary"
-                          className="gap-1.5"
-                          onClick={() => setAddProductListId(list.id)}
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          {t('addProduct')}
-                        </Button>
-                        {deleteConfirmId === list.id && (
-                          <span className="text-xs text-text-error whitespace-nowrap">{t('confirmDeleteList')}</span>
-                        )}
-                        <Button
-                          size="icon"
-                          variant="neutral"
-                          className="h-8 w-8 text-text-placeholders hover:text-text-error"
-                          disabled={isDeletingThis}
-                          onClick={() => handleDelete(list.id)}
-                        >
-                          {isDeletingThis ? <Spinner /> : <Trash2 className="h-3.5 w-3.5" />}
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-
-                  {/* Expanded items — inline, no extra border/card */}
-                  {isExpanded && (
-                    <TableRow key={`${list.id}-items`} className="hover:bg-transparent">
-                      <TableCell colSpan={3} className="p-0 pb-4 border-t border-border-primary">
-                        <ListItemsPanel items={list.items} list={list} onRemoveItem={onRemoveItem} />
+                return (
+                  <>
+                    {/* List header row — same style as order rows */}
+                    <TableRow
+                      key={list.id}
+                      className={accountTableRowClass(index, { clickable: true })}
+                      onClick={() => setExpandedId(isExpanded ? null : list.id)}
+                    >
+                      <TableCell className="px-2 py-4 font-medium">
+                        <span className="inline-flex items-center gap-2">
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4 shrink-0 text-text-placeholders" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 shrink-0 text-text-placeholders" />
+                          )}
+                          {list.name || list.id}
+                        </span>
+                      </TableCell>
+                      <TableCell className="px-2 py-4 text-text-placeholders">
+                        {t('items', { count: list.items.length })}
+                      </TableCell>
+                      <TableCell className="px-2 py-4 text-right">
+                        <div className="flex justify-end gap-2 items-center" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            size="small"
+                            variant="secondary"
+                            className="gap-1.5"
+                            onClick={() => setAddProductListId(list.id)}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            {t('addProduct')}
+                          </Button>
+                          {deleteConfirmId === list.id && (
+                            <span className="text-xs text-text-error whitespace-nowrap">{t('confirmDeleteList')}</span>
+                          )}
+                          <Button
+                            size="icon"
+                            variant="neutral"
+                            className="h-8 w-8 text-text-placeholders hover:text-text-error"
+                            disabled={isDeletingThis}
+                            onClick={() => handleDelete(list.id)}
+                          >
+                            {isDeletingThis ? <Spinner /> : <Trash2 className="h-3.5 w-3.5" />}
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
-                  )}
-                </>
-              );
-            })}
+
+                    {/* Expanded items — inline, no extra border/card */}
+                    {isExpanded && (
+                      <TableRow key={`${list.id}-items`} className="hover:bg-transparent">
+                        <TableCell colSpan={3} className="p-0 pb-4 border-t border-border-primary">
+                          <ListItemsPanel items={list.items} list={list} onRemoveItem={onRemoveItem} />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
+                );
+              })
+            )}
           </TableBody>
         </Table>
       )}

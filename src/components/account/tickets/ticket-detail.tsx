@@ -3,6 +3,18 @@
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ArrowLeft, LifeBuoy, RotateCcw, Star, User } from 'lucide-react';
+import {
+  AccountDetailContainer,
+  AccountDetailHeader,
+  AccountDetailStatus,
+  AccountSectionBar,
+} from '@/components/account/shared/account-detail';
+import {
+  AccountSpecTable,
+  SpecFullWidthRow,
+  SpecNoteRow,
+  SpecRow,
+} from '@/components/account/shared/account-spec-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -91,6 +103,22 @@ export function TicketDetail({ ticket }: TicketDetailProps) {
     }
   };
 
+  const priorityBadge =
+    ticket.priority && isElevatedPriority(ticket.priority)
+      ? (() => {
+          const priorityKey = dk<ServiceTicketPriorityKey>(`priorities.${ticket.priority.toLowerCase()}`);
+          return (
+            <Badge
+              variant={getPriorityBadgeVariant(ticket.priority)}
+              size="status"
+              className="h-10 min-h-10 px-6 text-sm tracking-[1.5px] shadow-sm"
+            >
+              {t.has(priorityKey) ? t(priorityKey) : ticket.priority}
+            </Badge>
+          );
+        })()
+      : null;
+
   return (
     <div className="space-y-6">
       <Link
@@ -101,62 +129,47 @@ export function TicketDetail({ ticket }: TicketDetailProps) {
         {t('detail.back')}
       </Link>
 
-      {/* Header */}
-      <div className="rounded-xl border border-border-primary bg-surface-primary p-6 shadow-xs lg:p-8">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
-            {ticket.typeName && (
-              <span className="text-xs font-medium uppercase tracking-wide text-text-on-disabled">
-                {ticket.typeName}
-              </span>
-            )}
-            <h1 className="mt-1 text-2xl font-bold text-text-headings lg:text-3xl">{ticket.subject}</h1>
-            <p className="mt-2 flex flex-wrap items-center gap-x-2 text-xs text-text-on-disabled">
-              <span className="font-mono">#{ticket.id}</span>
-              <span aria-hidden>·</span>
-              <span>
-                {t('detail.created')}: {formatTicketDate(ticket.createdAt, locale)}
-              </span>
-              {ticket.updatedAt && (
-                <>
-                  <span aria-hidden>·</span>
-                  <span>
-                    {t('updatedAt')}: {formatTicketDate(ticket.updatedAt, locale)}
-                  </span>
-                </>
-              )}
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end">
-            <TicketStatusBadge ticket={ticket} />
-            {ticket.priority &&
-              isElevatedPriority(ticket.priority) &&
-              (() => {
-                const priorityKey = dk<ServiceTicketPriorityKey>(`priorities.${ticket.priority.toLowerCase()}`);
-                return (
-                  <Badge variant={getPriorityBadgeVariant(ticket.priority)} size="status">
-                    {t.has(priorityKey) ? t(priorityKey) : ticket.priority}
-                  </Badge>
-                );
-              })()}
-          </div>
-        </div>
+      <AccountDetailContainer>
+        <AccountDetailHeader
+          eyebrow={ticket.typeName || undefined}
+          title={ticket.subject}
+          aside={
+            <>
+              <AccountDetailStatus label={t('columns.status')}>
+                <TicketStatusBadge ticket={ticket} emphasized />
+              </AccountDetailStatus>
+              {priorityBadge}
+            </>
+          }
+        />
 
-        {ticket.isReopenable && (
-          <div className="mt-5 border-t border-border-primary pt-5">
-            <Button variant="secondary" size="small" onClick={handleReopen} disabled={reopening}>
-              {reopening ? <Spinner variant="sm" color="primary" /> : <RotateCcw className="mr-2 h-4 w-4" />}
-              {t('detail.reopen')}
-            </Button>
-          </div>
-        )}
-      </div>
+        {/* Request details */}
+        <section className="border-b border-border-primary">
+          <AccountSectionBar>{t('detail.requestDetails')}</AccountSectionBar>
+          <AccountSpecTable>
+            <SpecRow
+              left={{ label: t('columns.id'), value: <span className="font-mono">#{ticket.id}</span> }}
+              right={{ label: t('detail.created'), value: formatTicketDate(ticket.createdAt, locale) }}
+            />
+            {ticket.updatedAt ? (
+              <SpecRow left={{ label: t('updatedAt'), value: formatTicketDate(ticket.updatedAt, locale) }} />
+            ) : null}
+            {ticket.properties.map((property) => (
+              <SpecFullWidthRow key={property.id} label={property.label}>
+                {property.productName ?? property.value}
+              </SpecFullWidthRow>
+            ))}
+            {ticket.businessImpact ? (
+              <SpecFullWidthRow label={t('detail.businessImpact')}>{ticket.businessImpact}</SpecFullWidthRow>
+            ) : null}
+            {ticket.summary ? <SpecNoteRow title={t('detail.description')}>{ticket.summary}</SpecNoteRow> : null}
+          </AccountSpecTable>
+        </section>
 
-      <div className="grid gap-6 lg:grid-cols-3">
         {/* Conversation */}
-        <div className="space-y-4 lg:col-span-2">
-          <div className="rounded-xl border border-border-primary bg-surface-primary p-6 shadow-xs lg:p-8">
-            <h2 className="mb-6 text-lg font-bold text-text-headings">{t('detail.conversation')}</h2>
+        <section className="border-b border-border-primary">
+          <AccountSectionBar>{t('detail.conversation')}</AccountSectionBar>
+          <div className="px-6 py-6 sm:px-8">
             {ticket.messages.length === 0 ? (
               <p className="text-sm text-text-placeholders">{t('detail.noMessages')}</p>
             ) : (
@@ -216,39 +229,13 @@ export function TicketDetail({ ticket }: TicketDetailProps) {
               </div>
             )}
           </div>
-        </div>
+        </section>
 
-        {/* Sidebar: request details + feedback */}
-        <div className="space-y-6">
-          <div className="rounded-xl border border-border-primary bg-surface-primary p-6 shadow-xs">
-            <h2 className="mb-4 text-lg font-bold text-text-headings">{t('detail.requestDetails')}</h2>
-            <dl className="divide-y divide-border-primary text-sm">
-              {ticket.businessImpact && (
-                <div className="flex flex-col gap-0.5 py-3 first:pt-0 last:pb-0">
-                  <dt className="text-xs uppercase tracking-wide text-text-on-disabled">
-                    {t('detail.businessImpact')}
-                  </dt>
-                  <dd className="text-text-headings">{ticket.businessImpact}</dd>
-                </div>
-              )}
-              {ticket.summary && (
-                <div className="flex flex-col gap-0.5 py-3 first:pt-0 last:pb-0">
-                  <dt className="text-xs uppercase tracking-wide text-text-on-disabled">{t('detail.description')}</dt>
-                  <dd className="whitespace-pre-line text-text-headings">{ticket.summary}</dd>
-                </div>
-              )}
-              {ticket.properties.map((property) => (
-                <div key={property.id} className="flex flex-col gap-0.5 py-3 first:pt-0 last:pb-0">
-                  <dt className="text-xs uppercase tracking-wide text-text-on-disabled">{property.label}</dt>
-                  <dd className="text-text-headings">{property.productName ?? property.value}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-
-          {canShowFeedback && (
-            <div className="rounded-xl border border-border-primary bg-surface-primary p-6 shadow-xs">
-              <h2 className="mb-2 text-lg font-bold text-text-headings">{t('detail.feedbackTitle')}</h2>
+        {/* Feedback */}
+        {canShowFeedback && (
+          <section className="border-b border-border-primary">
+            <AccountSectionBar>{t('detail.feedbackTitle')}</AccountSectionBar>
+            <div className="px-6 py-6 sm:px-8">
               <p className="mb-3 text-sm text-text-on-disabled">
                 {hasFeedback ? t('detail.feedbackGiven') : t('detail.feedbackPrompt')}
               </p>
@@ -274,9 +261,19 @@ export function TicketDetail({ ticket }: TicketDetailProps) {
                 ))}
               </div>
             </div>
-          )}
-        </div>
-      </div>
+          </section>
+        )}
+
+        {/* Actions */}
+        {ticket.isReopenable && (
+          <footer className="px-6 py-6 sm:px-8">
+            <Button variant="secondary" size="small" onClick={handleReopen} disabled={reopening}>
+              {reopening ? <Spinner variant="sm" color="primary" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+              {t('detail.reopen')}
+            </Button>
+          </footer>
+        )}
+      </AccountDetailContainer>
     </div>
   );
 }

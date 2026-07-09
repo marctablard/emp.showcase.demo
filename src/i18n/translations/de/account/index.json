@@ -181,7 +181,9 @@
       "close": "Schließen",
       "price": "Preis",
       "actions": "Aktionen",
-      "requiresVariant": "Variantenauswahl erforderlich"
+      "requiresVariant": "Variantenauswahl erforderlich",
+      "searchListsPlaceholder": "Listen suchen...",
+      "noListResults": "Keine Listen entsprechen Ihrer Suche"
     },
     "orders": {
       "title": "Zugehörige Aufträge",
@@ -191,7 +193,9 @@
       "status": "Status",
       "total": "Gesamt",
       "viewOrder": "Auftrag anzeigen",
-      "retry": "Erneut versuchen"
+      "retry": "Erneut versuchen",
+      "searchPlaceholder": "Aufträge suchen...",
+      "noResults": "Keine Aufträge entsprechen Ihrer Suche"
     },
     "documents": {
       "title": "Dokumente",
@@ -209,7 +213,9 @@
       "fileName": "Dateiname",
       "type": "Typ",
       "uploaded": "Hochgeladen",
-      "preview": "Vorschau"
+      "preview": "Vorschau",
+      "searchPlaceholder": "Dokumente suchen...",
+      "noResults": "Keine Dokumente entsprechen Ihrer Suche"
     },
     "projectSelector": {
       "label": "Projekt zuweisen",

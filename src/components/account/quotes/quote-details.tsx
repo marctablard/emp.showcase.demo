@@ -583,7 +583,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         />
 
         {showAcceptConfirmation ? (
-          <section className="border-b border-border-primary px-4 py-4 sm:px-6">
+          <section className="border-b border-border-primary px-6 py-6 sm:px-8">
             <AccountSectionLabel>{t('confirmationTitle')}</AccountSectionLabel>
             <p className="mt-2 text-sm text-text-body">{t('confirmationDescription')}</p>
 
@@ -682,35 +682,35 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="px-4 font-bold">{t('editor')}</TableHead>
-                <TableHead className="px-4 font-bold">{t('action')}</TableHead>
-                <TableHead className="px-4 font-bold">{t('comment')}</TableHead>
-                <TableHead className="px-4 font-bold">{t('reason')}</TableHead>
-                <TableHead className="px-4 font-bold">{t('date')}</TableHead>
+                <TableHead className="py-4 pl-6 pr-4 font-bold sm:pl-8">{t('editor')}</TableHead>
+                <TableHead className="px-4 py-4 font-bold">{t('action')}</TableHead>
+                <TableHead className="px-4 py-4 font-bold">{t('comment')}</TableHead>
+                <TableHead className="px-4 py-4 font-bold">{t('reason')}</TableHead>
+                <TableHead className="py-4 pl-4 pr-6 font-bold sm:pr-8">{t('date')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               <TableRow>
-                <TableCell className="px-4 py-3">{quote.customerName || 'Unknown User'}</TableCell>
-                <TableCell className="px-4 py-3">{t('initialQuoteRequest')}</TableCell>
-                <TableCell className="px-4 py-3">-</TableCell>
-                <TableCell className="px-4 py-3">-</TableCell>
-                <TableCell className="px-4 py-3">{formatDate(quote.submittedDate)}</TableCell>
+                <TableCell className="py-4 pl-6 pr-4 sm:pl-8">{quote.customerName || 'Unknown User'}</TableCell>
+                <TableCell className="px-4 py-4">{t('initialQuoteRequest')}</TableCell>
+                <TableCell className="px-4 py-4">-</TableCell>
+                <TableCell className="px-4 py-4">-</TableCell>
+                <TableCell className="py-4 pl-4 pr-6 sm:pr-8">{formatDate(quote.submittedDate)}</TableCell>
               </TableRow>
               {historyLoading ? (
                 <TableRow>
-                  <TableCell className="px-4 py-3" colSpan={5}>
+                  <TableCell className="px-6 py-4 sm:px-8" colSpan={5}>
                     {t('loadingHistory')}
                   </TableCell>
                 </TableRow>
               ) : (
                 quoteHistory.map((historyItem) => (
                   <TableRow key={historyItem.id}>
-                    <TableCell className="px-4 py-3">{getHistoryUserName(historyItem)}</TableCell>
-                    <TableCell className="px-4 py-3">{getHistoryAction(historyItem)}</TableCell>
-                    <TableCell className="px-4 py-3">{getHistoryComment(historyItem)}</TableCell>
-                    <TableCell className="px-4 py-3">{getHistoryReason(historyItem.quoteReason) || '-'}</TableCell>
-                    <TableCell className="px-4 py-3">
+                    <TableCell className="py-4 pl-6 pr-4 sm:pl-8">{getHistoryUserName(historyItem)}</TableCell>
+                    <TableCell className="px-4 py-4">{getHistoryAction(historyItem)}</TableCell>
+                    <TableCell className="px-4 py-4">{getHistoryComment(historyItem)}</TableCell>
+                    <TableCell className="px-4 py-4">{getHistoryReason(historyItem.quoteReason) || '-'}</TableCell>
+                    <TableCell className="py-4 pl-4 pr-6 sm:pr-8">
                       {formatHistoryDate(historyItem.rawModifiedAt || historyItem.modifiedAt)}
                     </TableCell>
                   </TableRow>
@@ -724,7 +724,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         !activeDecisionDialog &&
         quote.status !== 'ACCEPTED' &&
         quote.status !== 'DECLINED' ? (
-          <footer className="border-b border-border-primary px-4 py-4 sm:px-6">
+          <footer className="border-b border-border-primary px-6 py-6 sm:px-8">
             <AccountSectionLabel className="mb-3">{t('quoteActions')}</AccountSectionLabel>
             <div className="flex flex-wrap gap-2">
               <Button

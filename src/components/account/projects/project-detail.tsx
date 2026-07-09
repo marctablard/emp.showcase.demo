@@ -83,13 +83,13 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         title={name}
         aside={
           <AccountDetailStatus label={t('status')}>
-            <ProjectStatusBadge status={project.status} />
+            <ProjectStatusBadge status={project.status} emphasized />
           </AccountDetailStatus>
         }
       />
 
       <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="grid h-auto w-full grid-cols-4 rounded-none border-b border-border-primary bg-surface-image-background p-0">
+        <TabsList className="grid h-auto w-full grid-cols-4 rounded-none border-b-2 border-border-primary bg-surface-image-background p-0">
           {(
             [
               { value: 'overview', icon: <Settings className="h-5 w-5" />, label: t('tabs.overview') },
@@ -101,12 +101,13 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
             <TabsTrigger
               key={value}
               value={value}
-              className="gap-2 rounded-none border-b-2 border-transparent bg-transparent px-4 py-3 text-sm font-medium
-                text-text-placeholders shadow-none transition-colors
-                data-[state=active]:border-border-action data-[state=active]:bg-surface-page
-                data-[state=active]:font-semibold data-[state=active]:text-text-headings data-[state=active]:shadow-none
+              className="-mb-0.5 gap-2 rounded-none border-r border-b-2 border-r-border-primary border-b-transparent
+                bg-transparent px-4 py-3.5 text-sm font-medium text-text-placeholders shadow-none transition-colors
+                last:border-r-0
+                data-[state=active]:border-b-border-action data-[state=active]:font-semibold
+                data-[state=active]:text-text-headings data-[state=active]:shadow-none
                 [&_svg]:opacity-50 [&_svg]:data-[state=active]:opacity-100
-                hover:bg-surface-page/60 hover:text-text-body"
+                hover:bg-surface-page/50 hover:text-text-body"
             >
               {icon}
               <span className="hidden sm:inline">{label}</span>

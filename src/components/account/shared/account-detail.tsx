@@ -2,6 +2,17 @@ import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 /**
+ * Horizontal padding shared by every detail-page block — headers, section
+ * bars, content sections, footers and embedded tables. Kept in one place so
+ * detail pages stay aligned edge-to-edge; change the gutter here and it
+ * applies across all account detail pages.
+ */
+export const accountDetailPaddingX = 'px-6 sm:px-8';
+
+/** Standard padded content block inside a detail container (section body / footer). */
+export const accountDetailBlockClass = cn(accountDetailPaddingX, 'py-6');
+
+/**
  * Bordered detail container used by order / quote / approval / return detail
  * pages. A single framed surface whose child sections are separated by
  * horizontal dividers — the shared "detail" language of the account area.
@@ -27,7 +38,7 @@ interface AccountDetailHeaderProps {
  */
 export function AccountDetailHeader({ eyebrow, title, aside, className }: AccountDetailHeaderProps) {
   return (
-    <header className={cn('border-b border-border-primary px-4 py-4 sm:px-6', className)}>
+    <header className={cn('border-b border-border-primary', accountDetailPaddingX, 'py-6', className)}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           {eyebrow ? (
@@ -36,7 +47,7 @@ export function AccountDetailHeader({ eyebrow, title, aside, className }: Accoun
           <h1 className="mt-1 text-3xl font-bold text-text-headings">{title}</h1>
         </div>
         {aside ? (
-          <div className="flex items-center gap-3 border-l-0 border-border-primary sm:border-l sm:pl-6">{aside}</div>
+          <div className="flex items-center gap-3 border-l-0 border-border-primary sm:border-l sm:pl-8">{aside}</div>
         ) : null}
       </div>
     </header>
@@ -59,7 +70,14 @@ export function AccountDetailStatus({ label, children }: { label: ReactNode; chi
  */
 export function AccountSectionBar({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn('border-b border-border-primary bg-surface-image-background px-4 py-2 sm:px-6', className)}>
+    <div
+      className={cn(
+        'border-b border-border-primary bg-surface-image-background',
+        accountDetailPaddingX,
+        'py-3',
+        className,
+      )}
+    >
       <h2 className="text-xs font-bold uppercase tracking-[0.08em] text-text-headings">{children}</h2>
     </div>
   );
@@ -79,7 +97,7 @@ export function AccountDetailSection({
   children: ReactNode;
 }) {
   return (
-    <section className={cn(divider && 'border-b border-border-primary', 'px-4 py-4 sm:px-6', className)}>
+    <section className={cn(divider && 'border-b border-border-primary', accountDetailPaddingX, 'py-6', className)}>
       {children}
     </section>
   );

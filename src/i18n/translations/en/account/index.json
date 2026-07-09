@@ -374,7 +374,9 @@
       "close": "Close",
       "price": "Price",
       "actions": "Actions",
-      "requiresVariant": "Requires variant selection"
+      "requiresVariant": "Requires variant selection",
+      "searchListsPlaceholder": "Search lists...",
+      "noListResults": "No lists match your search"
     },
     "orders": {
       "title": "Associated Orders",
@@ -384,7 +386,9 @@
       "status": "Status",
       "total": "Total",
       "viewOrder": "View Order",
-      "retry": "Retry"
+      "retry": "Retry",
+      "searchPlaceholder": "Search orders...",
+      "noResults": "No orders match your search"
     },
     "documents": {
       "title": "Documents",
@@ -402,7 +406,9 @@
       "fileName": "File Name",
       "type": "Type",
       "uploaded": "Uploaded",
-      "preview": "Preview"
+      "preview": "Preview",
+      "searchPlaceholder": "Search documents...",
+      "noResults": "No documents match your search"
     },
     "projectSelector": {
       "label": "Assign to Project",

@@ -32,8 +32,51 @@ export function AccountListToolbar({ className, children }: { className?: string
  */
 export const accountTableHeadClass = '!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings';
 
+/**
+ * Canonical class for the `<TableRow>` inside a `<TableHeader>`. Drives the
+ * shared font scale that head cells inherit. Pair with `accountTableHeadClass`
+ * on each `<TableHead>`.
+ */
+export const accountTableHeadRowClass = 'text-sm xl:text-base';
+
 /** Canonical body-cell class for account list tables. */
 export const accountTableCellClass = 'px-2 py-4 align-middle text-sm xl:text-base text-text-body';
+
+/**
+ * Head cell for a centered "vignette" column — status / priority / health
+ * badges. Centers the column title above the centered badge cell.
+ */
+export const accountTableBadgeHeadClass = cn(accountTableHeadClass, 'text-center');
+
+/**
+ * Body cell for a centered "vignette" column (status / priority / health).
+ *
+ * `Badge` renders as a `display:flex` block with `w-fit`, so `text-center`
+ * alone does NOT center it — `[&>*]:mx-auto` centers the block-level child,
+ * while `text-center` handles inline fallbacks (e.g. an em-dash). Change
+ * badge-column alignment here and it applies to every account list table.
+ */
+export const accountTableBadgeCellClass = 'px-2 py-4 text-center [&>*]:mx-auto';
+
+/** Zebra-stripe background for a body row at the given index. */
+export function accountTableRowStripe(index: number): string {
+  return index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background';
+}
+
+/**
+ * Canonical body-row class for account list tables — shared font scale, hover
+ * treatment and zebra striping in one place. Change the row look here and it
+ * propagates to every account list/detail table that uses it.
+ *
+ * @example <TableRow className={accountTableRowClass(index, { clickable: true })} />
+ */
+export function accountTableRowClass(index: number, options?: { clickable?: boolean }): string {
+  return cn(
+    'text-sm xl:text-base transition-colors hover:bg-surface-image-background',
+    accountTableRowStripe(index),
+    options?.clickable && 'cursor-pointer',
+  );
+}
 
 /**
  * Middle-truncate a long identifier for list display (e.g. long ticket / return

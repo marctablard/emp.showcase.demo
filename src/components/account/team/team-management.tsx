@@ -14,7 +14,14 @@ import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
 import { CustomerRole } from '@/platform/services/model/customer/roles';
 import type { CompanyGroup, CompanyRole, TeamMember } from '@/platform/services/model/team/team';
-import { AccountListContainer, accountTableHeadClass } from '../shared/account-list';
+import {
+  AccountListContainer,
+  accountTableBadgeCellClass,
+  accountTableBadgeHeadClass,
+  accountTableHeadClass,
+  accountTableHeadRowClass,
+  accountTableRowClass,
+} from '../shared/account-list';
 import { AccountPageHeader } from '../shared/account-page-header';
 import { MemberRoleDialog } from './member-role-dialog';
 import { TeamMemberDialog } from './team-member-dialog';
@@ -102,10 +109,10 @@ export function TeamManagement() {
       <AccountListContainer>
         <Table>
           <TableHeader>
-            <TableRow className="text-sm xl:text-base">
+            <TableRow className={accountTableHeadRowClass}>
               <TableHead className={accountTableHeadClass}>{t('name')}</TableHead>
               <TableHead className={accountTableHeadClass}>{t('email')}</TableHead>
-              <TableHead className={accountTableHeadClass}>{t('role')}</TableHead>
+              <TableHead className={accountTableBadgeHeadClass}>{t('role')}</TableHead>
               {isAdmin && (
                 <TableHead className={cn(accountTableHeadClass, 'w-[120px] text-center')}>{t('actions')}</TableHead>
               )}
@@ -113,13 +120,7 @@ export function TeamManagement() {
           </TableHeader>
           <TableBody>
             {members.map((member, index) => (
-              <TableRow
-                key={member.customerId}
-                className={cn(
-                  'text-sm xl:text-base hover:bg-surface-image-background',
-                  index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
-                )}
-              >
+              <TableRow key={member.customerId} className={accountTableRowClass(index)}>
                 <TableCell className="px-2 py-4 font-medium">
                   <div className="flex items-center gap-2">
                     {memberName(member)}
@@ -131,8 +132,8 @@ export function TeamManagement() {
                   </div>
                 </TableCell>
                 <TableCell className="px-2 py-4">{member.email ?? '—'}</TableCell>
-                <TableCell className="px-2 py-4">
-                  <div className="flex flex-wrap gap-1">
+                <TableCell className={accountTableBadgeCellClass}>
+                  <div className="flex flex-wrap justify-center gap-1">
                     {memberGroups(member).length === 0 ? (
                       <span className="text-text-placeholders">—</span>
                     ) : (

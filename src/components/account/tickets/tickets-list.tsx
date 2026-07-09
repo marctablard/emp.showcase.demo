@@ -16,7 +16,15 @@ import { fetchServiceTickets } from '@/lib/client/servicetickets';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
 import type { ServiceTicket, ServiceTicketType } from '@/platform/services/model/serviceticket';
-import { AccountListContainer, accountTableHeadClass, shortenId } from '../shared/account-list';
+import {
+  AccountListContainer,
+  accountTableBadgeCellClass,
+  accountTableBadgeHeadClass,
+  accountTableHeadClass,
+  accountTableHeadRowClass,
+  accountTableRowClass,
+  shortenId,
+} from '../shared/account-list';
 import { AccountPageHeader } from '../shared/account-page-header';
 import { CreateTicketDialog } from './create-ticket-dialog';
 import { formatTicketDate, getPriorityBadgeVariant, isElevatedPriority } from './helpers';
@@ -144,13 +152,13 @@ export function TicketsList({ initialTickets, types }: TicketsListProps) {
         <AccountListContainer>
           <Table>
             <TableHeader>
-              <TableRow className="text-sm xl:text-base">
+              <TableRow className={accountTableHeadRowClass}>
                 <TableHead className={accountTableHeadClass}>{t('columns.id')}</TableHead>
                 <TableHead className={accountTableHeadClass}>{t('columns.subject')}</TableHead>
                 <TableHead className={accountTableHeadClass}>{t('columns.type')}</TableHead>
                 <TableHead className={accountTableHeadClass}>{t('columns.updated')}</TableHead>
-                <TableHead className={accountTableHeadClass}>{t('columns.priority')}</TableHead>
-                <TableHead className={accountTableHeadClass}>{t('columns.status')}</TableHead>
+                <TableHead className={accountTableBadgeHeadClass}>{t('columns.priority')}</TableHead>
+                <TableHead className={accountTableBadgeHeadClass}>{t('columns.status')}</TableHead>
                 <TableHead className={cn(accountTableHeadClass, 'w-[80px] text-center')}>
                   {t('columns.action')}
                 </TableHead>
@@ -164,10 +172,7 @@ export function TicketsList({ initialTickets, types }: TicketsListProps) {
                 return (
                   <TableRow
                     key={ticket.id}
-                    className={cn(
-                      'cursor-pointer text-sm xl:text-base hover:bg-surface-image-background',
-                      index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
-                    )}
+                    className={accountTableRowClass(index, { clickable: true })}
                     onClick={() => router.push(`/account/tickets/${ticket.id}`)}
                   >
                     <TableCell className="px-2 py-4 font-medium">
@@ -186,7 +191,7 @@ export function TicketsList({ initialTickets, types }: TicketsListProps) {
                     <TableCell className="whitespace-nowrap px-2 py-4">
                       {formatTicketDate(ticket.updatedAt ?? ticket.createdAt, locale)}
                     </TableCell>
-                    <TableCell className="px-2 py-4">
+                    <TableCell className={accountTableBadgeCellClass}>
                       {ticket.priority && isElevatedPriority(ticket.priority) && priorityKey ? (
                         <Badge variant={getPriorityBadgeVariant(ticket.priority)} size="status">
                           {t.has(priorityKey) ? t(priorityKey) : ticket.priority}
@@ -195,7 +200,7 @@ export function TicketsList({ initialTickets, types }: TicketsListProps) {
                         <span className="text-text-placeholders">–</span>
                       )}
                     </TableCell>
-                    <TableCell className="px-2 py-4">
+                    <TableCell className={accountTableBadgeCellClass}>
                       <TicketStatusBadge ticket={ticket} />
                     </TableCell>
                     <TableCell className="px-2 py-4 text-center" onClick={(event) => event.stopPropagation()}>

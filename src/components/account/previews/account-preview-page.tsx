@@ -5,7 +5,13 @@ import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import AccountLayout from '../account-layout';
-import { AccountListContainer, accountTableHeadClass } from '../shared/account-list';
+import {
+  AccountListContainer,
+  accountTableBadgeCellClass,
+  accountTableHeadClass,
+  accountTableHeadRowClass,
+  accountTableRowClass,
+} from '../shared/account-list';
 import { AccountPageHeader } from '../shared/account-page-header';
 import { PREVIEW_CONFIGS, type PreviewCategory } from './preview-configs';
 
@@ -50,11 +56,15 @@ export const AccountPreviewPage: FC<AccountPreviewPageProps> = ({ category = 'de
         <AccountListContainer>
           <Table>
             <TableHeader>
-              <TableRow className="hover:bg-transparent">
+              <TableRow className={accountTableHeadRowClass}>
                 {config.columns.map((column) => (
                   <TableHead
                     key={column.key}
-                    className={cn(accountTableHeadClass, column.align === 'right' && 'text-right')}
+                    className={cn(
+                      accountTableHeadClass,
+                      column.align === 'right' && 'text-right',
+                      column.kind === 'status' && 'text-center',
+                    )}
                   >
                     {t(`previews.columns.${column.labelKey}`)}
                   </TableHead>
@@ -63,17 +73,11 @@ export const AccountPreviewPage: FC<AccountPreviewPageProps> = ({ category = 'de
             </TableHeader>
             <TableBody>
               {config.rows.map((row, index) => (
-                <TableRow
-                  key={row.id}
-                  className={cn(
-                    'border-t border-border-primary',
-                    index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
-                  )}
-                >
+                <TableRow key={row.id} className={accountTableRowClass(index)}>
                   {config.columns.map((column) => {
                     if (column.kind === 'status') {
                       return (
-                        <TableCell key={column.key} className="px-2 py-4">
+                        <TableCell key={column.key} className={accountTableBadgeCellClass}>
                           <Badge variant={row.statusVariant} size="status">
                             {t(`previews.status.${row.statusKey}`)}
                           </Badge>

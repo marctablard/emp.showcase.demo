@@ -4,7 +4,15 @@ import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { format } from 'date-fns';
 import { FileText, FolderKanban, Plus, Receipt, ShoppingCart, Trash2 } from 'lucide-react';
-import { AccountListContainer, shortenId } from '@/components/account/shared/account-list';
+import {
+  AccountListContainer,
+  accountTableBadgeCellClass,
+  accountTableBadgeHeadClass,
+  accountTableHeadClass,
+  accountTableHeadRowClass,
+  accountTableRowClass,
+  shortenId,
+} from '@/components/account/shared/account-list';
 import { AccountPageHeader } from '@/components/account/shared/account-page-header';
 import { Button } from '@/components/ui/button';
 import UiLink from '@/components/ui/link';
@@ -65,13 +73,13 @@ export function ProjectsList() {
         <AccountListContainer>
           <Table>
             <TableHeader>
-              <TableRow className="text-sm xl:text-base">
-                <TableHead className="font-bold">{t('projectId')}</TableHead>
-                <TableHead className="font-bold">{t('projectName')}</TableHead>
-                <TableHead className="font-bold">{t('startDate')}</TableHead>
-                <TableHead className="font-bold">{t('endDate')}</TableHead>
-                <TableHead className="font-bold">{t('status')}</TableHead>
-                <TableHead className="font-bold text-center">{t('actions')}</TableHead>
+              <TableRow className={accountTableHeadRowClass}>
+                <TableHead className={accountTableHeadClass}>{t('projectId')}</TableHead>
+                <TableHead className={accountTableHeadClass}>{t('projectName')}</TableHead>
+                <TableHead className={accountTableHeadClass}>{t('startDate')}</TableHead>
+                <TableHead className={accountTableHeadClass}>{t('endDate')}</TableHead>
+                <TableHead className={accountTableBadgeHeadClass}>{t('status')}</TableHead>
+                <TableHead className={cn(accountTableHeadClass, 'text-center')}>{t('actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -107,22 +115,15 @@ export function ProjectsList() {
                   return (
                     <TableRow
                       key={project.id}
-                      className={cn(
-                        'hover:bg-surface-image-background cursor-pointer text-sm xl:text-base',
-                        index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
-                      )}
+                      className={accountTableRowClass(index, { clickable: true })}
                       onClick={() => router.push(`/account/projects/${project.id}`)}
                     >
                       <TableCell className="px-2 py-4 font-medium" onClick={(e) => e.stopPropagation()}>
-                        <UiLink
-                          type="Link"
-                          href={`/account/projects/${project.id}`}
-                          variant="primary"
-                          size="m"
-                          onClick={() => {}}
-                        >
-                          <span title={project.id}>{shortenId(project.id)}</span>
-                        </UiLink>
+                        <span title={project.id}>
+                          <UiLink type="Link" href={`/account/projects/${project.id}`} variant="primary">
+                            {shortenId(project.id)}
+                          </UiLink>
+                        </span>
                       </TableCell>
                       <TableCell className="px-2 py-4">{name}</TableCell>
                       <TableCell className="px-2 py-4">
@@ -131,7 +132,7 @@ export function ProjectsList() {
                       <TableCell className="px-2 py-4">
                         {project.endDate ? format(new Date(project.endDate), 'dd.MM.yyyy') : '–'}
                       </TableCell>
-                      <TableCell className="px-2 py-4">
+                      <TableCell className={accountTableBadgeCellClass}>
                         <ProjectStatusBadge status={project.status} />
                       </TableCell>
                       <TableCell className="px-2 py-4" onClick={(e) => e.stopPropagation()}>

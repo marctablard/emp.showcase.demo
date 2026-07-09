@@ -61,7 +61,7 @@ function OrderItemRow({ item, onNavigate }: { item: OrderItem; onNavigate: (prod
 
   return (
     <TableRow className="cursor-pointer hover:bg-surface-image-background" onClick={() => onNavigate(item.productId)}>
-      <TableCell className="w-[88px] px-4 py-3 align-middle">
+      <TableCell className="w-[88px] py-4 pl-6 pr-3 align-middle sm:pl-8">
         <div className="flex h-[52px] w-20 items-center justify-center border border-border-primary bg-surface-image-background">
           {imageUrl ? (
             <Image
@@ -76,15 +76,15 @@ function OrderItemRow({ item, onNavigate }: { item: OrderItem; onNavigate: (prod
           )}
         </div>
       </TableCell>
-      <TableCell className="px-4 py-3 align-middle">
+      <TableCell className="px-4 py-4 align-middle">
         {item.vendorName ? <p className="text-xs text-text-placeholders">{item.vendorName}</p> : null}
         <p className="text-sm font-bold text-text-headings">{item.name || item.productId}</p>
         {item.sku ? <p className="mt-0.5 text-xs text-text-placeholders">SKU: {item.sku}</p> : null}
       </TableCell>
-      <TableCell className="px-4 py-3 text-center align-middle text-sm font-medium tabular-nums">
+      <TableCell className="px-4 py-4 text-center align-middle text-sm font-medium tabular-nums">
         {item.quantity}
       </TableCell>
-      <TableCell className="px-4 py-3 text-right align-middle text-sm font-bold tabular-nums">
+      <TableCell className="py-4 pl-4 pr-6 text-right align-middle text-sm font-bold tabular-nums sm:pr-8">
         {item.price ? formatCurrency(item.price.value, item.price.currency) : '-'}
       </TableCell>
     </TableRow>
@@ -209,10 +209,10 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className="w-[88px] px-4 font-bold">{tOrder('product')}</TableHead>
-              <TableHead className="px-4 font-bold" />
-              <TableHead className="w-28 px-4 text-center font-bold">{tOrder('quantity')}</TableHead>
-              <TableHead className="w-36 px-4 text-right font-bold">{tOrder('price')}</TableHead>
+              <TableHead className="w-[88px] py-4 pl-6 pr-3 font-bold sm:pl-8">{tOrder('product')}</TableHead>
+              <TableHead className="px-4 py-4 font-bold" />
+              <TableHead className="w-28 px-4 py-4 text-center font-bold">{tOrder('quantity')}</TableHead>
+              <TableHead className="w-36 py-4 pl-4 pr-6 text-right font-bold sm:pr-8">{tOrder('price')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -226,7 +226,7 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
           </TableBody>
         </Table>
 
-        <div className="border-t border-border-primary px-4 py-4 sm:px-6">
+        <div className="border-t border-border-primary px-6 py-6 sm:px-8">
           <table className="ml-auto w-full max-w-sm border-collapse text-sm">
             <tbody>
               <tr>
@@ -269,7 +269,7 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
       </section>
 
       {showActions ? (
-        <footer className="px-4 py-4 sm:px-6">
+        <footer className="px-6 py-6 sm:px-8">
           <AccountSectionLabel className="mb-3">{tOrder('orderActions')}</AccountSectionLabel>
           <div className="flex flex-wrap gap-2">
             {canReorder(order) ? (

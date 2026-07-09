@@ -4,7 +4,12 @@ import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { format } from 'date-fns';
 import { Download, Eye, File, FileImage, FileText, FileVideo, Trash2, Upload, X } from 'lucide-react';
-import { accountTableHeadClass } from '@/components/account/shared/account-list';
+import { ProjectTabHeader } from '@/components/account/projects/project-tab-header';
+import {
+  accountTableHeadClass,
+  accountTableHeadRowClass,
+  accountTableRowClass,
+} from '@/components/account/shared/account-list';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -77,6 +82,7 @@ export function ProjectDocumentsTab({ media, onUpload, onDelete }: ProjectDocume
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [previewAsset, setPreviewAsset] = useState<ProjectMediaAsset | null>(null);
+  const [query, setQuery] = useState('');
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -110,14 +116,44 @@ export function ProjectDocumentsTab({ media, onUpload, onDelete }: ProjectDocume
     }
   };
 
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredMedia = normalizedQuery
+    ? media.filter((asset) => asset.fileName.toLowerCase().includes(normalizedQuery))
+    : media;
+
   return (
     <>
       {previewAsset && <PreviewModal asset={previewAsset} onClose={() => setPreviewAsset(null)} />}
 
       <div>
-        {/* Toolbar */}
-        <div className="flex items-center justify-between gap-4 border-b border-border-primary px-4 py-3 sm:px-6">
-          <div className="flex-1">
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          onChange={handleFileChange}
+          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.zip,.txt"
+        />
+        <ProjectTabHeader
+          title={t('title')}
+          searchValue={query}
+          onSearchChange={setQuery}
+          searchPlaceholder={t('searchPlaceholder')}
+          actions={
+            <Button
+              variant="secondary"
+              size="small"
+              className="gap-2 shrink-0"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              {uploading ? <Spinner /> : <Upload className="h-4 w-4" />}
+              {uploading ? t('uploading') : t('upload')}
+            </Button>
+          }
+        />
+
+        {(uploadSuccess || uploadError) && (
+          <div className="border-b border-border-primary px-6 py-4 sm:px-8">
             {uploadSuccess && (
               <Alert className="bg-surface-success border-border-success">
                 <AlertDescription className="text-text-body">{t('uploadSuccess')}</AlertDescription>
@@ -129,28 +165,11 @@ export function ProjectDocumentsTab({ media, onUpload, onDelete }: ProjectDocume
               </Alert>
             )}
           </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            className="hidden"
-            onChange={handleFileChange}
-            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.zip,.txt"
-          />
-          <Button
-            variant="secondary"
-            size="small"
-            className="gap-2 shrink-0"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-          >
-            {uploading ? <Spinner /> : <Upload className="h-4 w-4" />}
-            {uploading ? t('uploading') : t('upload')}
-          </Button>
-        </div>
+        )}
 
         <Table>
           <TableHeader>
-            <TableRow className="text-sm xl:text-base">
+            <TableRow className={accountTableHeadRowClass}>
               <TableHead className={accountTableHeadClass}>{t('fileName')}</TableHead>
               <TableHead className={cn(accountTableHeadClass, 'w-40')}>{t('type')}</TableHead>
               <TableHead className={cn(accountTableHeadClass, 'w-36')}>{t('uploaded')}</TableHead>
@@ -178,15 +197,18 @@ export function ProjectDocumentsTab({ media, onUpload, onDelete }: ProjectDocume
                   </div>
                 </TableCell>
               </TableRow>
+            ) : filteredMedia.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="h-40 text-center">
+                  <div className="flex flex-col items-center justify-center gap-3 text-text-placeholders">
+                    <FileText className="h-10 w-10 text-text-on-disabled" />
+                    <p className="font-medium text-text-headings">{t('noResults')}</p>
+                  </div>
+                </TableCell>
+              </TableRow>
             ) : (
-              media.map((asset, index) => (
-                <TableRow
-                  key={asset.id}
-                  className={cn(
-                    'hover:bg-surface-image-background text-sm xl:text-base',
-                    index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
-                  )}
-                >
+              filteredMedia.map((asset, index) => (
+                <TableRow key={asset.id} className={accountTableRowClass(index)}>
                   <TableCell className="px-2 py-4">
                     <div className="flex items-center gap-2">
                       <FileTypeIcon contentType={asset.contentType} />

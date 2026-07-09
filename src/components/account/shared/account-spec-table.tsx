@@ -16,7 +16,7 @@ export function SpecSection({ title, children }: { title: string; children: Reac
       <tr className="border-b border-border-primary bg-surface-image-background">
         <th
           colSpan={4}
-          className="px-4 py-2 text-left text-xs font-bold uppercase tracking-[0.08em] text-text-headings"
+          className="px-6 py-3 text-left text-xs font-bold uppercase tracking-[0.08em] text-text-headings sm:px-8"
         >
           {title}
         </th>
@@ -29,10 +29,12 @@ export function SpecSection({ title, children }: { title: string; children: Reac
 function SpecPair({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <>
-      <td className="w-[18%] border-b border-border-primary px-4 py-2.5 align-top text-sm font-medium text-text-placeholders">
+      <td className="w-[18%] border-b border-border-primary px-6 py-3.5 align-top text-sm font-medium text-text-placeholders sm:px-8">
         {label}
       </td>
-      <td className="w-[32%] border-b border-border-primary px-4 py-2.5 align-top text-sm text-text-body">{value}</td>
+      <td className="w-[32%] border-b border-border-primary px-6 py-3.5 align-top text-sm text-text-body sm:px-8">
+        {value}
+      </td>
     </>
   );
 }
@@ -62,10 +64,10 @@ export function SpecRow({
 export function SpecFullWidthRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <tr>
-      <td className="w-[18%] border-b border-border-primary px-4 py-2.5 align-top text-sm font-medium text-text-placeholders">
+      <td className="w-[18%] border-b border-border-primary px-6 py-3.5 align-top text-sm font-medium text-text-placeholders sm:px-8">
         {label}
       </td>
-      <td colSpan={3} className="border-b border-border-primary px-4 py-2.5 align-top text-sm text-text-body">
+      <td colSpan={3} className="border-b border-border-primary px-6 py-3.5 align-top text-sm text-text-body sm:px-8">
         {children}
       </td>
     </tr>
@@ -78,13 +80,13 @@ export function SpecNoteRow({ title, children }: { title: string; children: Reac
       <tr className="border-b border-border-primary bg-surface-image-background">
         <th
           colSpan={4}
-          className="px-4 py-2 text-left text-xs font-bold uppercase tracking-[0.08em] text-text-headings"
+          className="px-6 py-3 text-left text-xs font-bold uppercase tracking-[0.08em] text-text-headings sm:px-8"
         >
           {title}
         </th>
       </tr>
       <tr>
-        <td colSpan={4} className="px-4 py-3 text-sm text-text-body leading-relaxed whitespace-pre-wrap">
+        <td colSpan={4} className="px-6 py-4 text-sm text-text-body leading-relaxed whitespace-pre-wrap sm:px-8">
           {children}
         </td>
       </tr>

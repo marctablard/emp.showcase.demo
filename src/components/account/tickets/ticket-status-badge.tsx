@@ -8,6 +8,8 @@ import { getStatusBadgeVariant } from './helpers';
 
 interface TicketStatusBadgeProps {
   ticket: Pick<ServiceTicket, 'statusId' | 'statusName' | 'statusVisibleToCustomer' | 'isTerminal'>;
+  /** Larger treatment for detail-page headers, matching the order detail status. */
+  emphasized?: boolean;
 }
 
 /**
@@ -15,7 +17,7 @@ interface TicketStatusBadgeProps {
  * visible for the customer (an internal/working state), a neutral generic label
  * is shown instead of the raw status name.
  */
-export function TicketStatusBadge({ ticket }: TicketStatusBadgeProps) {
+export function TicketStatusBadge({ ticket, emphasized = false }: TicketStatusBadgeProps) {
   const t = useTranslations('account.serviceTickets');
 
   const statusKey = dk<ServiceTicketStatusKey>(`statuses.${ticket.statusId}`);
@@ -26,7 +28,11 @@ export function TicketStatusBadge({ ticket }: TicketStatusBadgeProps) {
       : ticket.statusName;
 
   return (
-    <Badge variant={getStatusBadgeVariant(ticket)} size="status">
+    <Badge
+      variant={getStatusBadgeVariant(ticket)}
+      size="status"
+      className={emphasized ? 'h-10 min-h-10 px-6 text-sm tracking-[1.5px] shadow-sm' : undefined}
+    >
       {label}
     </Badge>
   );

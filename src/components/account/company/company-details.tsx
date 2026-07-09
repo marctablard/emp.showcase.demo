@@ -164,7 +164,7 @@ export function CompanyDetails() {
       {/* General information */}
       <section className="border-b border-border-primary">
         <AccountSectionBar>{t('generalInfo')}</AccountSectionBar>
-        <div className="space-y-5 px-4 py-4 sm:px-6">
+        <div className="space-y-5 px-6 py-6 sm:px-8">
           {company.type === 'SUBSIDIARY' && <p className="text-sm text-text-placeholders">{t('subsidiaryNote')}</p>}
           {isEditing ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -182,7 +182,7 @@ export function CompanyDetails() {
       {/* Legal information */}
       <section className="border-b border-border-primary">
         <AccountSectionBar>{t('legalInfo')}</AccountSectionBar>
-        <div className="px-4 py-4 sm:px-6">
+        <div className="px-6 py-6 sm:px-8">
           {isEditing ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {editField('company-legalName', t('legalName'), 'legalName')}
@@ -207,7 +207,7 @@ export function CompanyDetails() {
       {/* Purchasing limit */}
       <section className="border-b border-border-primary">
         <AccountSectionBar>{t('accountLimit')}</AccountSectionBar>
-        <div className="grid grid-cols-1 gap-x-8 gap-y-5 px-4 py-4 sm:grid-cols-2 sm:px-6">
+        <div className="grid grid-cols-1 gap-x-8 gap-y-5 px-6 py-6 sm:grid-cols-2 sm:px-8">
           {readField(
             t('limitValue'),
             company.accountLimit?.value != null
@@ -220,7 +220,7 @@ export function CompanyDetails() {
       {/* Locations */}
       <section className={isEditing || showEditAction ? 'border-b border-border-primary' : undefined}>
         <AccountSectionBar>{t('addresses')}</AccountSectionBar>
-        <div className="px-4 py-4 sm:px-6">
+        <div className="px-6 py-6 sm:px-8">
           {company.addresses && company.addresses.length > 0 ? (
             <>
               <div className="mb-4 flex justify-end">
@@ -254,7 +254,7 @@ export function CompanyDetails() {
       </section>
 
       {showEditAction && (
-        <footer className="px-4 py-4 sm:px-6">
+        <footer className="px-6 py-6 sm:px-8">
           <AccountSectionLabel className="mb-3">{t('actions')}</AccountSectionLabel>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" size="small" onClick={() => setIsEditing(true)} data-testid="company-edit">
@@ -266,7 +266,7 @@ export function CompanyDetails() {
       )}
 
       {isEditing && (
-        <footer className="flex justify-end gap-2 px-4 py-4 sm:px-6">
+        <footer className="flex justify-end gap-2 px-6 py-6 sm:px-8">
           <Button
             variant="secondary"
             onClick={() => {

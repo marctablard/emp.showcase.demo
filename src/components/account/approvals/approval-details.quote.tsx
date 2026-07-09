@@ -285,7 +285,7 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
       />
 
       {(actionSuccess || actionError) && (
-        <div className="space-y-4 border-b border-border-primary px-4 py-4 sm:px-6">
+        <div className="space-y-4 border-b border-border-primary px-6 py-6 sm:px-8">
           {actionSuccess ? (
             <Alert variant="default">
               <CheckCircle2 className="h-4 w-4" />
@@ -316,7 +316,7 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
       )}
 
       {canCreateOrder && quoteResource && (
-        <section className="border-b border-border-primary px-4 py-4 sm:px-6">
+        <section className="border-b border-border-primary px-6 py-6 sm:px-8">
           <AccountSectionLabel className="mb-1">{t('createOrderAfterApprovalTitle')}</AccountSectionLabel>
           <p className="mb-4 text-sm text-text-placeholders">{t('createOrderAfterApprovalDescription')}</p>
 
@@ -441,7 +441,7 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
               />
             )}
 
-            <div className="border-t border-border-primary px-4 py-4 sm:px-6">
+            <div className="border-t border-border-primary px-6 py-6 sm:px-8">
               <table className="ml-auto w-full max-w-sm border-collapse text-sm">
                 <tbody>
                   <tr>
@@ -473,7 +473,7 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
       )}
 
       {canApprovalAction && (
-        <footer className="border-b border-border-primary px-4 py-4 sm:px-6">
+        <footer className="border-b border-border-primary px-6 py-6 sm:px-8">
           <AccountSectionLabel className="mb-3">{t('approvalActions')}</AccountSectionLabel>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -493,7 +493,7 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
       )}
 
       {canComment && (
-        <section className="border-b border-border-primary px-4 py-4 sm:px-6">
+        <section className="border-b border-border-primary px-6 py-6 sm:px-8">
           {isApprover && (
             <div>
               <AccountSectionLabel className="mb-2">{t('addApproverComment')}</AccountSectionLabel>
@@ -528,7 +528,7 @@ export function ApprovalDetails({ approvalId, initialApproval, currentUserId }: 
         </section>
       )}
 
-      <footer className="px-4 py-4 sm:px-6">
+      <footer className="px-6 py-6 sm:px-8">
         <Button variant="neutral" onClick={() => window.history.back()}>
           {t('back')}
         </Button>

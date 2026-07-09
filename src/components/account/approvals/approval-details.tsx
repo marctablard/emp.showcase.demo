@@ -242,7 +242,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
       />
 
       {(actionSuccess || actionError) && (
-        <div className="space-y-4 border-b border-border-primary px-4 py-4 sm:px-6">
+        <div className="space-y-4 border-b border-border-primary px-6 py-6 sm:px-8">
           {actionSuccess ? (
             <Alert variant="default">
               <CheckCircle2 className="h-4 w-4" />
@@ -332,7 +332,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
       </div>
 
       {canComment ? (
-        <section className="border-b border-border-primary px-4 py-4 sm:px-6">
+        <section className="border-b border-border-primary px-6 py-6 sm:px-8">
           <AccountSectionLabel className="mb-2">{t('addComment')}</AccountSectionLabel>
           <Textarea
             value={comment}
@@ -347,7 +347,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
       ) : null}
 
       {canApprove ? (
-        <footer className="border-b border-border-primary px-4 py-4 sm:px-6">
+        <footer className="border-b border-border-primary px-6 py-6 sm:px-8">
           <AccountSectionLabel className="mb-3">{t('approvalActions')}</AccountSectionLabel>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -365,7 +365,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
         </footer>
       ) : null}
 
-      <footer className="px-4 py-4 sm:px-6">
+      <footer className="px-6 py-6 sm:px-8">
         <Button variant="neutral" onClick={() => window.history.back()}>
           {t('back')}
         </Button>

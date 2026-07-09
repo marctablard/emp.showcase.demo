@@ -4,7 +4,14 @@ import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Activity, ChevronsUpDown, Layers, Search } from 'lucide-react';
-import { AccountListContainer } from '@/components/account/shared/account-list';
+import {
+  AccountListContainer,
+  accountTableBadgeCellClass,
+  accountTableBadgeHeadClass,
+  accountTableHeadClass,
+  accountTableHeadRowClass,
+  accountTableRowClass,
+} from '@/components/account/shared/account-list';
 import { AccountPageHeader } from '@/components/account/shared/account-page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -139,8 +146,8 @@ export function DevicesList({ initialDevices }: DevicesListProps) {
           <div className="flex flex-col">
             <Table>
               <TableHeader>
-                <TableRow className="text-sm xl:text-base">
-                  <TableHead className="font-bold">
+                <TableRow className={accountTableHeadRowClass}>
+                  <TableHead className={accountTableHeadClass}>
                     <button
                       onClick={() => toggleSort('productName')}
                       className="flex items-center gap-1 hover:text-text-action"
@@ -149,7 +156,7 @@ export function DevicesList({ initialDevices }: DevicesListProps) {
                       <ChevronsUpDown className="h-4 w-4" />
                     </button>
                   </TableHead>
-                  <TableHead className="font-bold">
+                  <TableHead className={accountTableHeadClass}>
                     <button
                       onClick={() => toggleSort('serialNumber')}
                       className="flex items-center gap-1 hover:text-text-action"
@@ -158,16 +165,16 @@ export function DevicesList({ initialDevices }: DevicesListProps) {
                       <ChevronsUpDown className="h-4 w-4" />
                     </button>
                   </TableHead>
-                  <TableHead className="font-bold">
+                  <TableHead className={accountTableBadgeHeadClass}>
                     <button
                       onClick={() => toggleSort('health')}
-                      className="flex items-center gap-1 hover:text-text-action"
+                      className="mx-auto flex items-center gap-1 hover:text-text-action"
                     >
                       {t('columnHealth')}
                       <ChevronsUpDown className="h-4 w-4" />
                     </button>
                   </TableHead>
-                  <TableHead className="font-bold text-right">{t('columnActions')}</TableHead>
+                  <TableHead className={cn(accountTableHeadClass, 'text-right')}>{t('columnActions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -203,13 +210,7 @@ export function DevicesList({ initialDevices }: DevicesListProps) {
                     const hasRelatedProducts = product?.relatedItems && product.relatedItems.length > 0;
 
                     return (
-                      <TableRow
-                        key={device.id}
-                        className={cn(
-                          'hover:bg-surface-image-background text-sm xl:text-base',
-                          index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
-                        )}
-                      >
+                      <TableRow key={device.id} className={accountTableRowClass(index)}>
                         <TableCell className="px-2 py-4">
                           <div className="flex items-center gap-3">
                             <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-sm bg-surface-image-background">
@@ -236,7 +237,7 @@ export function DevicesList({ initialDevices }: DevicesListProps) {
                           </div>
                         </TableCell>
                         <TableCell className="px-2 py-4">{device.serialNumber}</TableCell>
-                        <TableCell className="px-2 py-4">
+                        <TableCell className={accountTableBadgeCellClass}>
                           <Badge variant={getHealthBadgeVariant(device.health)}>{device.health}%</Badge>
                         </TableCell>
                         <TableCell className="px-2 py-4 text-right">

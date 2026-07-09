@@ -21,7 +21,14 @@ import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { Order, OrderStatus } from '@/platform/services/model/order/order';
 import { ORDER_STATUS } from '@/platform/services/model/order/order-status';
-import { shortenId } from '../shared/account-list';
+import {
+  accountTableBadgeCellClass,
+  accountTableBadgeHeadClass,
+  accountTableHeadClass,
+  accountTableHeadRowClass,
+  accountTableRowClass,
+  shortenId,
+} from '../shared/account-list';
 import { CreateReturnDialog } from './create-return-dialog';
 
 function isReturnEnabled(status: OrderStatus): boolean {
@@ -171,32 +178,16 @@ export function MyOrdersTable({
     <div className={className}>
       <Table>
         <TableHeader>
-          <TableRow className="text-sm xl:text-base">
-            <TableHead className="!h-14 w-[204px] font-bold">
-              <span className="inline-flex items-center gap-1">{t('columns.orderNumber')}</span>
-            </TableHead>
-            <TableHead className="!h-14 w-[200px] font-bold">
-              <span className="inline-flex items-center gap-1">{t('columns.customer')}</span>
-            </TableHead>
-            <TableHead className="!h-14 w-[200px] font-bold">
-              <span className="inline-flex items-center gap-1">{t('columns.orderDate')}</span>
-            </TableHead>
-            <TableHead className="!h-14 w-[180px] font-bold">
-              <span className="inline-flex items-center gap-1">{t('columns.channel')}</span>
-            </TableHead>
-            <TableHead className="!h-14 w-[200px] font-bold">
-              <span className="inline-flex items-center gap-1">{t('columns.orderValue')}</span>
-            </TableHead>
-            <TableHead className="!h-14 w-[200px] font-bold">
-              <span className="inline-flex items-center gap-1">{t('columns.totalShippingCost')}</span>
-            </TableHead>
-            <TableHead className="!h-14 w-[200px] font-bold">
-              <span className="inline-flex items-center gap-1">{t('columns.payment')}</span>
-            </TableHead>
-            <TableHead className="!h-14 w-[204px] font-bold">
-              <span className="inline-flex items-center gap-1">{t('columns.status')}</span>
-            </TableHead>
-            <TableHead className="!h-14 w-[160px] font-bold text-center">{t('columns.action')}</TableHead>
+          <TableRow className={accountTableHeadRowClass}>
+            <TableHead className={cn(accountTableHeadClass, 'w-[204px]')}>{t('columns.orderNumber')}</TableHead>
+            <TableHead className={cn(accountTableHeadClass, 'w-[200px]')}>{t('columns.customer')}</TableHead>
+            <TableHead className={cn(accountTableHeadClass, 'w-[200px]')}>{t('columns.orderDate')}</TableHead>
+            <TableHead className={cn(accountTableHeadClass, 'w-[180px]')}>{t('columns.channel')}</TableHead>
+            <TableHead className={cn(accountTableHeadClass, 'w-[200px]')}>{t('columns.orderValue')}</TableHead>
+            <TableHead className={cn(accountTableHeadClass, 'w-[200px]')}>{t('columns.totalShippingCost')}</TableHead>
+            <TableHead className={cn(accountTableHeadClass, 'w-[200px]')}>{t('columns.payment')}</TableHead>
+            <TableHead className={cn(accountTableBadgeHeadClass, 'w-[204px]')}>{t('columns.status')}</TableHead>
+            <TableHead className={cn(accountTableHeadClass, 'w-[160px] text-center')}>{t('columns.action')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -216,15 +207,12 @@ export function MyOrdersTable({
             visibleOrders.map((order, index) => (
               <TableRow
                 key={order.id}
-                className={cn(
-                  'hover:bg-surface-image-background cursor-pointer text-sm xl:text-base',
-                  index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
-                )}
+                className={accountTableRowClass(index, { clickable: true })}
                 onClick={() => router.push(`/account/orders/${order.id}`)}
               >
                 <TableCell className="px-2 py-4 font-medium">
                   <span title={`#${order.id}`}>
-                    <UiLink type="Link" href={`/account/orders/${order.id}`} variant="primary" size="m">
+                    <UiLink type="Link" href={`/account/orders/${order.id}`} variant="primary">
                       #{shortenId(order.id)}
                     </UiLink>
                   </span>
@@ -251,7 +239,7 @@ export function MyOrdersTable({
                   {formatOrderValue(order.shipping?.total.value, order.shipping?.total.currency)}
                 </TableCell>
                 <TableCell className="px-2 py-4">{formatPaymentMethod(order, t)}</TableCell>
-                <TableCell className="px-2 py-4">
+                <TableCell className={accountTableBadgeCellClass}>
                   <OrderStatusBadge status={order.status} />
                 </TableCell>
                 <TableCell className="px-2 py-4 text-center">

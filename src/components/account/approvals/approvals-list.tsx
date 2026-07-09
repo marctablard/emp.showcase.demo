@@ -16,7 +16,15 @@ import { useDebouncedValue } from '@/hooks/common/useDebouncedValue';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import type { Approval, ApprovalStatus } from '@/platform/services/model/approval';
-import { AccountListContainer, shortenId } from '../shared/account-list';
+import {
+  AccountListContainer,
+  accountTableBadgeCellClass,
+  accountTableBadgeHeadClass,
+  accountTableHeadClass,
+  accountTableHeadRowClass,
+  accountTableRowClass,
+  shortenId,
+} from '../shared/account-list';
 import { ApprovalStatusBadge } from './approval-status-badge';
 
 const SEARCH_DEBOUNCE_MS = 500;
@@ -209,37 +217,17 @@ export function ApprovalsList({ initialApprovals, currentUserId }: ApprovalsList
       <AccountListContainer>
         <Table>
           <TableHeader>
-            <TableRow className="text-sm xl:text-base">
-              <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
-                {t('id')}
-              </TableHead>
-              <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
-                {t('resourceType')}
-              </TableHead>
-              <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
-                {t('quoteId')}
-              </TableHead>
-              <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
-                {t('orderId')}
-              </TableHead>
-              <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
-                {t('action')}
-              </TableHead>
-              <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
-                {t('requestor')}
-              </TableHead>
-              <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
-                {t('approver')}
-              </TableHead>
-              <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
-                {t('createdAt')}
-              </TableHead>
-              <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
-                {t('status')}
-              </TableHead>
-              <TableHead className="!h-14 w-[160px] whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings text-center">
-                {t('actions')}
-              </TableHead>
+            <TableRow className={accountTableHeadRowClass}>
+              <TableHead className={accountTableHeadClass}>{t('id')}</TableHead>
+              <TableHead className={accountTableHeadClass}>{t('resourceType')}</TableHead>
+              <TableHead className={accountTableHeadClass}>{t('quoteId')}</TableHead>
+              <TableHead className={accountTableHeadClass}>{t('orderId')}</TableHead>
+              <TableHead className={accountTableHeadClass}>{t('action')}</TableHead>
+              <TableHead className={accountTableHeadClass}>{t('requestor')}</TableHead>
+              <TableHead className={accountTableHeadClass}>{t('approver')}</TableHead>
+              <TableHead className={accountTableHeadClass}>{t('createdAt')}</TableHead>
+              <TableHead className={accountTableBadgeHeadClass}>{t('status')}</TableHead>
+              <TableHead className={cn(accountTableHeadClass, 'w-[160px] text-center')}>{t('actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -249,15 +237,12 @@ export function ApprovalsList({ initialApprovals, currentUserId }: ApprovalsList
               return (
                 <TableRow
                   key={approval.id}
-                  className={cn(
-                    'hover:bg-surface-image-background cursor-pointer text-sm xl:text-base',
-                    index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
-                  )}
+                  className={accountTableRowClass(index, { clickable: true })}
                   onClick={() => router.push(href)}
                 >
                   <TableCell className="px-2 py-4 font-medium">
                     <span title={approval.id}>
-                      <UiLink type="Link" href={href} variant="primary" size="m">
+                      <UiLink type="Link" href={href} variant="primary">
                         {shortenId(approval.id)}
                       </UiLink>
                     </span>
@@ -266,7 +251,7 @@ export function ApprovalsList({ initialApprovals, currentUserId }: ApprovalsList
                   <TableCell className="px-2 py-4">
                     {approval.resourceType === 'QUOTE' ? (
                       <span title={approval.resource.id}>
-                        <UiLink type="Link" href={`/account/quotes/${approval.resource.id}`} variant="primary" size="m">
+                        <UiLink type="Link" href={`/account/quotes/${approval.resource.id}`} variant="primary">
                           {shortenId(approval.resource.id)}
                         </UiLink>
                       </span>
@@ -289,7 +274,7 @@ export function ApprovalsList({ initialApprovals, currentUserId }: ApprovalsList
                   <TableCell className="px-2 py-4">{formatApprovalUserName(approval.requestor)}</TableCell>
                   <TableCell className="px-2 py-4">{formatApprovalUserName(approval.approver)}</TableCell>
                   <TableCell className="px-2 py-4">{formatDate(approval.createdAt)}</TableCell>
-                  <TableCell className="px-2 py-4">
+                  <TableCell className={accountTableBadgeCellClass}>
                     <ApprovalStatusBadge status={approval.status} />
                   </TableCell>
                   <TableCell className="px-2 py-4 text-center" onClick={(event) => event.stopPropagation()}>

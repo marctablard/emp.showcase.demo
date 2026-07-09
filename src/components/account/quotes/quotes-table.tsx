@@ -11,7 +11,14 @@ import { useRouter } from '@/i18n/navigation';
 import { formatDate } from '@/lib/date-utils';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { Quote } from '@/platform/services/model/quote';
-import { shortenId } from '../shared/account-list';
+import {
+  accountTableBadgeCellClass,
+  accountTableBadgeHeadClass,
+  accountTableHeadClass,
+  accountTableHeadRowClass,
+  accountTableRowClass,
+  shortenId,
+} from '../shared/account-list';
 import { QuoteStatusBadge } from './quote-status-badge';
 
 interface QuotesTableProps {
@@ -39,16 +46,18 @@ export function QuotesTable({
     <div className="w-full">
       <Table>
         <TableHeader>
-          <TableRow className="text-sm xl:text-base">
-            <TableHead className="!h-14 font-bold whitespace-nowrap">{t('quoteId')}</TableHead>
-            <TableHead className="!h-14 font-bold whitespace-nowrap">{t('quoteReference')}</TableHead>
-            <TableHead className="!h-14 font-bold whitespace-nowrap">{t('quotationDate')}</TableHead>
-            <TableHead className="!h-14 font-bold whitespace-nowrap">{t('requestedBy')}</TableHead>
-            <TableHead className="!h-14 font-bold whitespace-nowrap">{t('authorization')}</TableHead>
-            <TableHead className="!h-14 font-bold whitespace-nowrap text-right">{t('totalAmount')}</TableHead>
-            <TableHead className="!h-14 font-bold whitespace-nowrap text-right">{t('numberOfProducts')}</TableHead>
-            <TableHead className="!h-14 font-bold whitespace-nowrap">{t('status')}</TableHead>
-            <TableHead className="!h-14 w-[160px] font-bold text-center">{tOrders('columns.action')}</TableHead>
+          <TableRow className={accountTableHeadRowClass}>
+            <TableHead className={accountTableHeadClass}>{t('quoteId')}</TableHead>
+            <TableHead className={accountTableHeadClass}>{t('quoteReference')}</TableHead>
+            <TableHead className={accountTableHeadClass}>{t('quotationDate')}</TableHead>
+            <TableHead className={accountTableHeadClass}>{t('requestedBy')}</TableHead>
+            <TableHead className={accountTableHeadClass}>{t('authorization')}</TableHead>
+            <TableHead className={cn(accountTableHeadClass, 'text-right')}>{t('totalAmount')}</TableHead>
+            <TableHead className={cn(accountTableHeadClass, 'text-right')}>{t('numberOfProducts')}</TableHead>
+            <TableHead className={accountTableBadgeHeadClass}>{t('status')}</TableHead>
+            <TableHead className={cn(accountTableHeadClass, 'w-[160px] text-center')}>
+              {tOrders('columns.action')}
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -70,15 +79,12 @@ export function QuotesTable({
             quotes.map((quote, index) => (
               <TableRow
                 key={quote.id}
-                className={cn(
-                  'hover:bg-surface-image-background cursor-pointer text-sm xl:text-base',
-                  index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
-                )}
+                className={accountTableRowClass(index, { clickable: true })}
                 onClick={() => router.push(`/account/quotes/${quote.id}`)}
               >
                 <TableCell className="px-2 py-4 font-medium">
                   <span title={quote.id}>
-                    <UiLink type="Link" href={`/account/quotes/${quote.id}`} variant="primary" size="m">
+                    <UiLink type="Link" href={`/account/quotes/${quote.id}`} variant="primary">
                       {shortenId(quote.id)}
                     </UiLink>
                   </span>
@@ -103,7 +109,7 @@ export function QuotesTable({
                 <TableCell className="px-2 py-4 text-right">
                   {quote.items?.reduce((total, item) => total + (item.quantity.quantity || 0), 0) || 0} {t('products')}
                 </TableCell>
-                <TableCell className="px-2 py-4">
+                <TableCell className={accountTableBadgeCellClass}>
                   <QuoteStatusBadge status={quote.status} />
                 </TableCell>
                 <TableCell className="px-2 py-4 text-center" onClick={(event) => event.stopPropagation()}>

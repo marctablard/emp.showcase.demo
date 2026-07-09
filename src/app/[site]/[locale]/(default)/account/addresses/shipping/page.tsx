@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import AccountLayout from '@/components/account/account-layout';
 import { AddressesList } from '@/components/account/addresses/address-card';
-import { H1 } from '@/components/ui/h';
+import { AccountPageHeader } from '@/components/account/shared/account-page-header';
 import { getPageTitle } from '@/lib/ssr/seo';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
@@ -37,11 +37,8 @@ export default async function ShippingAddressesPage({ params }: { params: Promis
 
   return (
     <AccountLayout breadcrumbs={breadcrumbs}>
-      <div>
-        <H1 variant="h6" className="mb-6">
-          {tAccount('shippingAddresses')}
-        </H1>
-        <p className="text-text-placeholders mb-8">{tAccount('manageShippingAddresses')}</p>
+      <div className="space-y-6">
+        <AccountPageHeader title={tAccount('shippingAddresses')} description={tAccount('manageShippingAddresses')} />
 
         {/* Client-side component for displaying and managing addresses */}
         <AddressesList type="SHIPPING" />

@@ -12,8 +12,17 @@ import { useDebouncedValue } from '@/hooks/common/useDebouncedValue';
 import { useReturns } from '@/hooks/return/useReturns';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { Link } from '@/i18n/navigation';
+import { cn } from '@/lib/utils';
 import type { Return } from '@/platform/services/model/return';
-import { AccountListContainer, shortenId } from '../shared/account-list';
+import {
+  AccountListContainer,
+  accountTableBadgeCellClass,
+  accountTableBadgeHeadClass,
+  accountTableHeadClass,
+  accountTableHeadRowClass,
+  accountTableRowClass,
+  shortenId,
+} from '../shared/account-list';
 import { AccountPageHeader } from '../shared/account-page-header';
 import { formatReturnCurrency, formatReturnDate, getFirstOrderId, getRequestorEmail } from './helpers';
 import { ReturnStatusBadge } from './return-status-badge';
@@ -182,14 +191,9 @@ export function ReturnsList({ initialReturns, forceRefreshOnMount = false }: Ret
           <div className={`transition-opacity ${isTableReloading ? 'opacity-70' : 'opacity-100'}`}>
             <Table className="xl:text-base">
               <TableHeader>
-                <TableRow>
-                  <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
-                    {t('returnNumber')}
-                  </TableHead>
-                  <TableHead
-                    className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings"
-                    aria-sort={getSortAriaSort('date')}
-                  >
+                <TableRow className={accountTableHeadRowClass}>
+                  <TableHead className={accountTableHeadClass}>{t('returnNumber')}</TableHead>
+                  <TableHead className={accountTableHeadClass} aria-sort={getSortAriaSort('date')}>
                     <button
                       onClick={() => toggleSort('date')}
                       className="flex items-center gap-2 hover:text-text-action"
@@ -198,16 +202,11 @@ export function ReturnsList({ initialReturns, forceRefreshOnMount = false }: Ret
                       {getSortIcon('date')}
                     </button>
                   </TableHead>
-                  <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
-                    {t('orderNumber')}
-                  </TableHead>
-                  <TableHead className="hidden min-[1280px]:table-cell !h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings">
+                  <TableHead className={accountTableHeadClass}>{t('orderNumber')}</TableHead>
+                  <TableHead className={cn(accountTableHeadClass, 'hidden min-[1280px]:table-cell')}>
                     {t('email')}
                   </TableHead>
-                  <TableHead
-                    className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings"
-                    aria-sort={getSortAriaSort('value')}
-                  >
+                  <TableHead className={accountTableHeadClass} aria-sort={getSortAriaSort('value')}>
                     <button
                       onClick={() => toggleSort('value')}
                       className="flex items-center gap-2 hover:text-text-action"
@@ -216,28 +215,23 @@ export function ReturnsList({ initialReturns, forceRefreshOnMount = false }: Ret
                       {getSortIcon('value')}
                     </button>
                   </TableHead>
-                  <TableHead
-                    className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings"
-                    aria-sort={getSortAriaSort('status')}
-                  >
+                  <TableHead className={accountTableBadgeHeadClass} aria-sort={getSortAriaSort('status')}>
                     <button
                       onClick={() => toggleSort('status')}
-                      className="flex items-center gap-2 hover:text-text-action"
+                      className="mx-auto flex items-center gap-2 hover:text-text-action"
                     >
                       {t('statusLabel')}
                       {getSortIcon('status')}
                     </button>
                   </TableHead>
-                  <TableHead className="!h-14 whitespace-nowrap px-2 text-sm xl:text-base font-bold text-text-headings text-right">
-                    {t('view')}
-                  </TableHead>
+                  <TableHead className={cn(accountTableHeadClass, 'text-right')}>{t('view')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visibleReturns.map((returnItem) => {
+                {visibleReturns.map((returnItem, index) => {
                   const displayAmount = getDisplayReturnAmount(returnItem);
                   return (
-                    <TableRow key={returnItem.id} className="border-t border-border-primary">
+                    <TableRow key={returnItem.id} className={accountTableRowClass(index)}>
                       <TableCell className="px-2 py-4">
                         <Link
                           href={`/account/returns/${returnItem.id}`}
@@ -255,7 +249,7 @@ export function ReturnsList({ initialReturns, forceRefreshOnMount = false }: Ret
                       <TableCell className="px-2 py-4">
                         {formatReturnCurrency(displayAmount.value, displayAmount.currency, locale)}
                       </TableCell>
-                      <TableCell className="px-2 py-4">
+                      <TableCell className={accountTableBadgeCellClass}>
                         <ReturnStatusBadge status={returnItem.status} isExpired={returnItem.isExpired} />
                       </TableCell>
                       <TableCell className="px-2 py-4 text-right">
