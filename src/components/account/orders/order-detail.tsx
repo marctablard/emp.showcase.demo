@@ -109,7 +109,7 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
   const siteName = useMemo(() => {
     if (!order?.siteCode) return null;
     return availableSites?.find((site) => site.code === order.siteCode)?.name ?? order.siteCode;
-  }, [availableSites, order?.siteCode]);
+  }, [availableSites, order]);
 
   useEffect(() => {
     if (!order || order.status !== ORDER_STATUS.COMPLETED) return;

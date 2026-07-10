@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Minus, Package, Plus } from 'lucide-react';
@@ -29,12 +29,9 @@ interface ReorderDialogProps {
   addItem: (productId: string, quantity: number) => Promise<unknown>;
 }
 
-interface RowState {
-  selected: boolean;
-  quantity: number;
-}
-
 const MAX_QUANTITY = 999;
+
+const defaultQuantity = (item: OrderItem) => (item.quantity > 0 ? item.quantity : 1);
 
 /**
  * Reorder dialog — lets the customer pick which products (and quantities) from a
@@ -48,43 +45,50 @@ export function ReorderDialog({ open, onOpenChange, order, addItem }: ReorderDia
   const { toast } = useToast();
 
   const items = useMemo(() => getReorderableItems(order), [order]);
-  const [rows, setRows] = useState<Record<string, RowState>>({});
+  // Selection/quantity are stored as sparse overrides on top of the defaults
+  // (all selected, ordered quantity) so we never need to seed state in an effect.
+  const [selectedOverrides, setSelectedOverrides] = useState<Record<string, boolean>>({});
+  const [quantityOverrides, setQuantityOverrides] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (open) {
-      const initial: Record<string, RowState> = {};
-      for (const item of items) {
-        initial[item.id] = { selected: true, quantity: item.quantity > 0 ? item.quantity : 1 };
-      }
-      setRows(initial);
-    }
-  }, [open, items]);
+  const isSelected = (item: OrderItem) => selectedOverrides[item.id] ?? true;
+  const getQuantity = (item: OrderItem) => quantityOverrides[item.id] ?? defaultQuantity(item);
 
-  const selectedItems = items.filter((item) => rows[item.id]?.selected && (rows[item.id]?.quantity ?? 0) > 0);
-  const allSelected = items.length > 0 && selectedItems.length === items.length;
+  const selectedItems = items.filter((item) => isSelected(item) && getQuantity(item) > 0);
+  const allSelected = items.length > 0 && items.every((item) => isSelected(item));
   const selectedCurrency = selectedItems.find((item) => item.price?.currency)?.price?.currency;
   const selectedTotal = selectedCurrency
-    ? selectedItems.reduce((sum, item) => sum + (item.price?.value ?? 0) * (rows[item.id]?.quantity ?? 0), 0)
+    ? selectedItems.reduce((sum, item) => sum + (item.price?.value ?? 0) * getQuantity(item), 0)
     : undefined;
 
+  const resetOverrides = () => {
+    setSelectedOverrides({});
+    setQuantityOverrides({});
+  };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      resetOverrides();
+      setLoading(false);
+    }
+    onOpenChange(nextOpen);
+  };
+
   const toggleAll = (checked: boolean) => {
-    setRows((prev) => {
-      const next: Record<string, RowState> = {};
-      for (const item of items) {
-        next[item.id] = { selected: checked, quantity: prev[item.id]?.quantity ?? item.quantity };
-      }
-      return next;
-    });
+    const next: Record<string, boolean> = {};
+    for (const item of items) {
+      next[item.id] = checked;
+    }
+    setSelectedOverrides(next);
   };
 
   const toggleItem = (itemId: string, checked: boolean) => {
-    setRows((prev) => ({ ...prev, [itemId]: { ...prev[itemId], selected: checked } }));
+    setSelectedOverrides((prev) => ({ ...prev, [itemId]: checked }));
   };
 
   const setQuantity = (itemId: string, quantity: number) => {
     const clamped = Math.max(1, Math.min(quantity, MAX_QUANTITY));
-    setRows((prev) => ({ ...prev, [itemId]: { ...prev[itemId], quantity: clamped } }));
+    setQuantityOverrides((prev) => ({ ...prev, [itemId]: clamped }));
   };
 
   const handleConfirm = async () => {
@@ -95,7 +99,7 @@ export function ReorderDialog({ open, onOpenChange, order, addItem }: ReorderDia
 
     for (const item of selectedItems) {
       try {
-        await addItem(item.productId, rows[item.id].quantity);
+        await addItem(item.productId, getQuantity(item));
       } catch {
         failed.push(item);
         logger.error({ productId: item.productId, orderId: order.id }, 'Failed to reorder item');
@@ -106,17 +110,17 @@ export function ReorderDialog({ open, onOpenChange, order, addItem }: ReorderDia
 
     if (failed.length === 0) {
       toast({ title: t('reorderAddedToCart'), variant: 'success' });
-      onOpenChange(false);
+      handleOpenChange(false);
     } else if (failed.length < selectedItems.length) {
       toast({ title: t('reorderPartialFailure', { failed: failed.length }), variant: 'destructive', persistent: true });
-      onOpenChange(false);
+      handleOpenChange(false);
     } else {
       toast({ title: t('reorderFailed'), variant: 'destructive', persistent: true });
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="flex max-h-[85vh] w-[calc(100vw-32px)] max-w-[860px] flex-col gap-0 overflow-hidden p-0 sm:p-0">
         <DialogHeader className="shrink-0 p-4 pr-12 sm:p-6 sm:pr-12">
           <DialogTitle className="text-2xl font-bold md:text-3xl">{tDialog('title')}</DialogTitle>
@@ -138,14 +142,15 @@ export function ReorderDialog({ open, onOpenChange, order, addItem }: ReorderDia
 
         <div className="min-h-0 flex-1 divide-y divide-border-primary overflow-y-auto">
           {items.map((item) => {
-            const row = rows[item.id] ?? { selected: false, quantity: item.quantity };
+            const selected = isSelected(item);
+            const quantity = getQuantity(item);
             const imageUrl = item.images?.[0];
             const unitPrice = item.price?.value;
             const currency = item.price?.currency;
-            const lineTotal = unitPrice != null ? unitPrice * row.quantity : undefined;
+            const lineTotal = unitPrice != null ? unitPrice * quantity : undefined;
 
             return (
-              <div key={item.id} className={cn('px-4 py-4 sm:px-6', !row.selected && 'opacity-55')}>
+              <div key={item.id} className={cn('px-4 py-4 sm:px-6', !selected && 'opacity-55')}>
                 {/* Name + SKU: full width, above everything */}
                 <div className="min-w-0">
                   <p className="line-clamp-2 font-medium text-text-headings" title={item.name || item.productId}>
@@ -161,7 +166,7 @@ export function ReorderDialog({ open, onOpenChange, order, addItem }: ReorderDia
                 {/* Controls: checkbox + vignette on the left, stepper + price on the right */}
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-3">
                   <Checkbox
-                    checked={row.selected}
+                    checked={selected}
                     onCheckedChange={(checked) => toggleItem(item.id, Boolean(checked))}
                     disabled={loading}
                     aria-label={item.name || item.productId}
@@ -188,22 +193,22 @@ export function ReorderDialog({ open, onOpenChange, order, addItem }: ReorderDia
                         variant="secondary"
                         size="icon"
                         className="h-9 w-9 rounded-none border-none"
-                        onClick={() => setQuantity(item.id, row.quantity - 1)}
-                        disabled={loading || !row.selected || row.quantity <= 1}
+                        onClick={() => setQuantity(item.id, quantity - 1)}
+                        disabled={loading || !selected || quantity <= 1}
                         aria-label={tDialog('decrease')}
                       >
                         <Minus className="h-4 w-4" />
                       </Button>
                       <span className="flex h-9 w-12 items-center justify-center border-x border-border-primary bg-surface-page text-sm font-medium tabular-nums">
-                        {row.quantity}
+                        {quantity}
                       </span>
                       <Button
                         type="button"
                         variant="secondary"
                         size="icon"
                         className="h-9 w-9 rounded-none border-none"
-                        onClick={() => setQuantity(item.id, row.quantity + 1)}
-                        disabled={loading || !row.selected || row.quantity >= MAX_QUANTITY}
+                        onClick={() => setQuantity(item.id, quantity + 1)}
+                        disabled={loading || !selected || quantity >= MAX_QUANTITY}
                         aria-label={tDialog('increase')}
                       >
                         <Plus className="h-4 w-4" />
@@ -216,7 +221,7 @@ export function ReorderDialog({ open, onOpenChange, order, addItem }: ReorderDia
                       </p>
                       {unitPrice != null && currency ? (
                         <p className="text-xs tabular-nums text-text-placeholders">
-                          {row.quantity} × {formatCurrency(unitPrice, currency)}
+                          {quantity} × {formatCurrency(unitPrice, currency)}
                         </p>
                       ) : null}
                     </div>
