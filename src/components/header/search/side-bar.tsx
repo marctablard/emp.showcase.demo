@@ -2,7 +2,7 @@ import React from 'react';
 import { MarkedText } from '@/components/header/search/marked-text';
 import { Heading } from '@/components/ui/h';
 import UiLink from '@/components/ui/link';
-import { BATTERY_INCLUDED_BREADCRUMB_FILTER } from '@/platform/services/model/category/batteryincluded-category';
+import { buildBrowseHrefForBreadcrumbDisplayPath } from '@/lib/navigation/build-browse-category-href';
 import type { SearchSuggestions } from '@/platform/services/model/search';
 
 export interface SideBarProps {
@@ -40,18 +40,12 @@ export function SideBar({ categories, query }: SideBarProps) {
           </Heading>
           {categories.map(({ name, highlighted, count }) => {
             const params = new URLSearchParams();
-            params.set(`filters[${BATTERY_INCLUDED_BREADCRUMB_FILTER}]`, name);
             if (query) {
               params.set('q', query);
             }
+            const href = buildBrowseHrefForBreadcrumbDisplayPath(name, params);
             return (
-              <UiLink
-                className="mb-3"
-                key={name + count}
-                type="Link"
-                href={`/browse?${params.toString()}`}
-                variant="secondary"
-              >
+              <UiLink className="mb-3" key={name + count} type="Link" href={href} variant="secondary">
                 <span>
                   <MarkedText text={highlighted ?? name} keyword="" />
                 </span>

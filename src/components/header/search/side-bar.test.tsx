@@ -48,11 +48,11 @@ describe('SideBar', () => {
 
     // Check href format
     const expectedParams = new URLSearchParams();
+    expectedParams.set('q', 'solar');
     expectedParams.set(
       `filters[${BATTERY_INCLUDED_BREADCRUMB_FILTER}]`,
       'Electrical supplies > Power generation > Solar panels',
     );
-    expectedParams.set('q', 'solar');
 
     expect(link).toHaveAttribute('href', `/browse?${expectedParams.toString()}`);
 

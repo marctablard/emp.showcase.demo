@@ -22,6 +22,32 @@ async function loadBatteryIncludedNavigationCategoryTrees(
   return snapshot?.roots ?? null;
 }
 
+/**
+ * Exposes the full BI category tree snapshot for SSR consumers (e.g. for breadcrumbs).
+ * Returns null if the active search engine is not BatteryIncluded or snapshot bootstrap fails.
+ */
+export const getCachedBatteryIncludedCategorySnapshot = cache(
+  async (siteCode: string, locale: string, showUnpublished?: boolean) => {
+    const pub = showUnpublished === true;
+    const searchService = ssr.get<SearchService>('SearchService');
+
+    if (!(searchService instanceof BatteryIncludedSearchService)) {
+      return null;
+    }
+
+    const session = await getSessionForSite(siteCode);
+    const context: NavigationCategoryTreeRequestContext = {
+      siteCode,
+      locale,
+      country: session?.country,
+      showUnpublished: pub,
+    };
+
+    const treeService = ssr.get<BatteryIncludedCategoryTreeService>('BatteryIncludedCategoryTreeService');
+    return treeService.getSnapshot(context);
+  },
+);
+
 function navigationTreesCacheTags(siteCode: string, showUnpublished: boolean): string[] {
   const pub = showUnpublished ? '1' : '0';
   return [`navigation-category-trees:${siteCode}:${pub}`];

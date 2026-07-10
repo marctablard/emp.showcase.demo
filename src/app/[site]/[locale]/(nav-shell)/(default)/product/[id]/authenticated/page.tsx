@@ -31,5 +31,5 @@ export async function generateMetadata(
 export default async function AuthenticatedProductPage({ params }: { params: Promise<AuthenticatedProductPageProps> }) {
   const { id, locale, site } = await params;
   const { ssr, options } = createProductOptions(AUTHENTICATED_PRODUCT_OPTIONS, true, site);
-  return renderProductPage(id, locale, options, ssr);
+  return renderProductPage(id, locale, options, ssr, site);
 }

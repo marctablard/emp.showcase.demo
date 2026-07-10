@@ -4,8 +4,10 @@ import ProductDetail from '@/components/product/product-detail';
 import { JsonLd } from '@/components/seo/json-ld';
 import { UiBreadcrumb } from '@/components/ui/molecules/ui-breadcrumb';
 import { routingConfig } from '@/i18n/routing';
-import { generateBreadcrumbForProduct } from '@/lib/breadcrumb';
+import { generateVisibleBreadcrumbForPdp } from '@/lib/breadcrumb';
+import { getCachedBatteryIncludedCategorySnapshot } from '@/lib/ssr/navigation-category-trees';
 import { getProductById, getProducts } from '@/lib/ssr/products';
+import { getActiveSearchEngine } from '@/lib/ssr/search-engine';
 import { generateProductJsonLd, generateProductMetadata } from '@/lib/ssr/seo';
 import { getAvailableSites } from '@/lib/ssr/site';
 import { isProductSsrEnabled } from '@/lib/ssr/ssr-config';
@@ -99,8 +101,21 @@ export async function generateProductPageMetadata(
   return generateProductMetadata(locale, product, product.price);
 }
 
-export async function renderProductPage(id: string, locale: string, options: ProductFetchOptions, ssr: boolean) {
+export async function renderProductPage(
+  id: string,
+  locale: string,
+  options: ProductFetchOptions,
+  ssr: boolean,
+  siteCode?: string,
+) {
   if (ssr) {
+    const engine = getActiveSearchEngine();
+
+    // For public PDP, if Emporix is active, we need categories: true to get ancestry.
+    if (engine === 'emporix' && options.categories === false) {
+      options.categories = true;
+    }
+
     // Fetch product data
     const product = await getProductById(id, options);
 
@@ -108,18 +123,20 @@ export async function renderProductPage(id: string, locale: string, options: Pro
     if (!product) {
       notFound();
     }
+
+    const biSnapshot =
+      engine === 'batteryincluded' && siteCode
+        ? await getCachedBatteryIncludedCategorySnapshot(siteCode, locale)
+        : null;
+
     const jsonLd = await generateProductJsonLd(product, locale);
-    const breadcrumbs = generateBreadcrumbForProduct(product, locale);
+    const breadcrumbs = generateVisibleBreadcrumbForPdp(product, locale, engine, biSnapshot);
 
     return (
       <>
         <JsonLd jsonLd={jsonLd} />
         <div>
-          <UiBreadcrumb
-            items={breadcrumbs}
-            className="max-w-6xl mx-auto px-4 lg:px-9 sm:gap-x-6"
-            disabledCategories={true}
-          />
+          <UiBreadcrumb items={breadcrumbs} className="max-w-6xl mx-auto px-4 lg:px-9 sm:gap-x-6" />
           <ProductDetail
             className="max-w-6xl mx-auto px-4 lg:px-9 sm:gap-x-6 lg:pr-38"
             product={product}
@@ -130,6 +147,7 @@ export async function renderProductPage(id: string, locale: string, options: Pro
     );
   } else {
     return (
+      // Non-SSR breadcrumbs are intentionally out of scope for this task
       <ProductDetail className="max-w-6xl mx-auto px-4 lg:px-9 sm:gap-x-6 lg:pr-38" product={id} options={options} />
     );
   }
@@ -148,5 +166,5 @@ export async function generateMetadata(
 export default async function ProductPage({ params }: { params: Promise<ProductPageProps> }) {
   const { id, locale, site } = await params;
   const { ssr, options } = createProductOptions(PUBLIC_PRODUCT_OPTIONS, false, site);
-  return renderProductPage(id, locale, options, ssr);
+  return renderProductPage(id, locale, options, ssr, site);
 }

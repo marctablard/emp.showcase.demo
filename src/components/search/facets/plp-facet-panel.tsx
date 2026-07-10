@@ -13,7 +13,7 @@ import { Slider } from '@/components/ui/slider';
 import { getPublicFacetsDefaultCollapseSize } from '@/lib/common/public-default-env';
 import { cn } from '@/lib/utils';
 import { BATTERY_INCLUDED_BREADCRUMB_FILTER } from '@/platform/services/model/category/batteryincluded-category';
-import {
+import type {
   BatteryIncludedFacet,
   BatteryIncludedTreeFacetOption,
   SearchFilterValue,
@@ -458,14 +458,31 @@ function RangeFacetRenderer({
   resetFacet: (facetId: string) => void;
 }) {
   const activeRange = getRangeFacetValue(activeFilters[facet.id]);
-  const rememberedMaxRef = React.useRef<Record<string, number>>({});
   const rawMax = Number(facet.max);
+  const [rememberedMaxById, setRememberedMaxById] = React.useState<Record<string, number>>(() =>
+    Number.isFinite(rawMax) ? { [facet.id]: rawMax } : {},
+  );
 
-  if (Number.isFinite(rawMax)) {
-    const prev = rememberedMaxRef.current[facet.id];
-    rememberedMaxRef.current[facet.id] = prev === undefined ? rawMax : Math.max(prev, rawMax);
-  }
-  const effectiveMax = rememberedMaxRef.current[facet.id] ?? rawMax;
+  React.useEffect(() => {
+    if (!Number.isFinite(rawMax)) {
+      return;
+    }
+    setRememberedMaxById((prev) => {
+      const existing = prev[facet.id];
+      const next = existing === undefined ? rawMax : Math.max(existing, rawMax);
+      if (next === existing) {
+        return prev;
+      }
+      return { ...prev, [facet.id]: next };
+    });
+  }, [facet.id, rawMax]);
+
+  const storedMax = rememberedMaxById[facet.id];
+  const effectiveMax = Number.isFinite(rawMax)
+    ? storedMax === undefined
+      ? rawMax
+      : Math.max(storedMax, rawMax)
+    : (storedMax ?? rawMax);
 
   return (
     <RangeFacetDraftForm

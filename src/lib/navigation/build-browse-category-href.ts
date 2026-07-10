@@ -5,6 +5,29 @@ import {
 } from '@/platform/services/model/category/batteryincluded-category';
 
 /**
+ * Browse PLP URL scoped to a BatteryIncluded display path.
+ * Clears existing category filters and page, preserving search query and other facets.
+ */
+export function buildBrowseHrefForBreadcrumbDisplayPath(
+  displayPath: string,
+  searchParams?: URLSearchParams | null,
+): string {
+  const params = new URLSearchParams(searchParams || undefined);
+
+  // Remove existing category filters and pagination
+  params.delete(`filters[${BATTERY_INCLUDED_BREADCRUMB_FILTER}]`);
+  params.delete('filters[categoryIds]');
+  params.delete('page');
+
+  if (displayPath) {
+    params.append(`filters[${BATTERY_INCLUDED_BREADCRUMB_FILTER}]`, displayPath);
+  }
+
+  const queryString = params.toString();
+  return queryString ? `/browse?${queryString}` : '/browse';
+}
+
+/**
  * Browse PLP URL scoped to a category (product search `filters[categoryIds]`).
  * Extends the given URLSearchParams (or creates new ones) to preserve user searches.
  */

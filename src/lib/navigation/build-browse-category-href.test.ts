@@ -1,8 +1,26 @@
 import {
   buildBrowseHrefClearCategory,
+  buildBrowseHrefForBreadcrumbDisplayPath,
   buildBrowseHrefForCategoryId,
   buildBrowseHrefResetAll,
 } from './build-browse-category-href';
+
+describe('buildBrowseHrefForBreadcrumbDisplayPath', () => {
+  it('returns a category-scoped browse URL using displayPath', () => {
+    expect(buildBrowseHrefForBreadcrumbDisplayPath('Cables > USB-C')).toBe(
+      '/browse?filters%5B_product_i18n.categoryBreadcrumbs.displayPath%5D=Cables+%3E+USB-C',
+    );
+  });
+
+  it('drops existing category filters and page but keeps q and other facets', () => {
+    const searchParams = new URLSearchParams(
+      'q=tubes&currency=EUR&filters[brand]=X&filters[_product_i18n.categoryBreadcrumbs.displayPath]=Metals&page=2&sort=price',
+    );
+    expect(buildBrowseHrefForBreadcrumbDisplayPath('Cables > USB-C', searchParams)).toBe(
+      '/browse?q=tubes&currency=EUR&filters%5Bbrand%5D=X&sort=price&filters%5B_product_i18n.categoryBreadcrumbs.displayPath%5D=Cables+%3E+USB-C',
+    );
+  });
+});
 
 describe('buildBrowseHrefForCategoryId', () => {
   it('returns a category-scoped browse URL without carrying unrelated filters', () => {

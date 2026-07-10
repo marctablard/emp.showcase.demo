@@ -159,7 +159,11 @@ export function resolvePlpCategoryTreeFacetContext(
     (facet) => (facet.kind === 'tree' || facet.kind === 'select') && facet.id === BATTERY_INCLUDED_BREADCRUMB_FILTER,
   );
 
-  if (!breadcrumbFacet || breadcrumbFacet.options.length === 0) {
+  if (
+    !breadcrumbFacet ||
+    (breadcrumbFacet.kind !== 'tree' && breadcrumbFacet.kind !== 'select') ||
+    breadcrumbFacet.options.length === 0
+  ) {
     return undefined;
   }
 
@@ -186,19 +190,21 @@ export function resolvePlpCategoryTreeFacetContext(
       }
     });
 
-    normalizedOptions = (breadcrumbFacet as PlpCategorySelectFacet).options
-      .map((opt) => {
+    normalizedOptions = (breadcrumbFacet as PlpCategorySelectFacet).options.reduce<NormalizedFacetOption[]>(
+      (acc, opt) => {
         const displayPathValue = opt.id; // or opt.label, they represent the same display path in this case
         const mapped = categoryByDisplayPath.get(displayPathValue);
-        if (!mapped) return undefined;
+        if (!mapped) return acc;
 
-        return {
+        acc.push({
           idPath: mapped.idPath,
           labelPath: mapped.labelPath.split(' > ').map((s) => s.trim()),
           count: opt.count,
-        };
-      })
-      .filter((opt): opt is NormalizedFacetOption => opt !== undefined);
+        });
+        return acc;
+      },
+      [],
+    );
 
     if (normalizedOptions.length === 0) {
       return undefined;

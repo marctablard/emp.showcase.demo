@@ -128,6 +128,12 @@ export async function generateProductJsonLd(product: Product, locale: string): P
     productPrice = product.price?.amount || null;
     productCurrency = product.price?.currency || null;
   }
+
+  // NOTE: SEO JSON-LD explicitly continues to use generateBreadcrumbForProduct.
+  // The visible PDP breadcrumb strategy (generateVisibleBreadcrumbForPdp) is decoupled
+  // because BI JSON-LD alignment is not implemented in this task.
+  // Empowering categories: true for Emporix search might enrich JSON-LD output here,
+  // which is an accepted side effect for Emporix mode.
   const breadcrumb = generateBreadcrumbForProduct(product, locale);
   breadcrumb.pop(); // remove product part
   const category =

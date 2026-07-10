@@ -89,6 +89,19 @@ BatteryIncluded search calls do not rely on hidden request state. The service la
 
 When the BI search request includes same-field category selection, the service narrows it to the published roots before the request is sent upstream. That preserves pagination and total counts without any client-side post-filtering.
 
+## PDP Breadcrumb Strategy
+
+The active `SearchService` binding also determines the breadcrumb-generation strategy on the Product Detail Page (PDP):
+
+- **BatteryIncludedSearchService**: BI PDP breadcrumbs resolve from the cached BI category snapshot. The product's `categoryId` is matched against the snapshot to generate a cumulative hierarchy of localized `displayPath` browse links. That keeps PDP breadcrumbs perfectly aligned with BI search facets.
+- **EmporixSearchService**: Emporix PDP breadcrumbs use the product's Emporix parent-category ancestry to generate category-id browse links.
+
+**Fallback behavior:** If BI search is active but the snapshot resolution fails, breadcrumbs fall back gracefully to the Emporix parent chain. If no parent chain exists, they fall back to a `Home > product` default instead of generating malformed URLs.
+
+**Limitations**:
+- The non-SSR browser-rendered PDP variant currently does not support category breadcrumbs; that is a known out-of-scope limitation.
+- The existing `Back` link preserves current component behavior and does not represent browser-history navigation.
+
 ## Important Notes
 
 1. `DI_SEARCH_SERVICE` is a build-time override. Changing it requires regeneration and a rebuild or redeploy.
