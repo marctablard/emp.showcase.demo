@@ -700,6 +700,13 @@
     "previous": "Previous",
     "pageIndicator": "Page {current} / {total}"
   },
+  "productBreakdown": {
+    "product": "Product",
+    "quantity": "Quantity",
+    "unitPrice": "Unit Price",
+    "totalPrice": "Total Price",
+    "empty": "No products to display"
+  },
   "shoppingListsPageDescription": "View and manage your shopping lists",
   "shoppingListsPagePlaceholder": "Shopping lists will be displayed here",
   "Notifications": {

@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { Package } from 'lucide-react';
+import { ChevronDown, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface ProductThumbnailItem {
@@ -14,6 +14,12 @@ interface AccountProductThumbnailsProps {
   /** Max thumbnails rendered before collapsing the rest into a "+N" chip. */
   max?: number;
   className?: string;
+  /** When provided, the vignettes become a button that toggles an expandable products panel. */
+  onToggle?: () => void;
+  /** Reflects the open/closed state of the linked panel (rotates the chevron). */
+  expanded?: boolean;
+  /** Accessible label for the toggle button. */
+  toggleLabel?: string;
 }
 
 /**
@@ -22,8 +28,18 @@ interface AccountProductThumbnailsProps {
  * there are more products. Square corners + `bg-surface-image-background`
  * fallback mirror the detail-page product cells (`Package` placeholder when a
  * product has no image).
+ *
+ * When `onToggle` is passed the whole cluster becomes a button (with a chevron)
+ * that opens/closes an inline product breakdown row.
  */
-export function AccountProductThumbnails({ items, max = 3, className }: AccountProductThumbnailsProps) {
+export function AccountProductThumbnails({
+  items,
+  max = 3,
+  className,
+  onToggle,
+  expanded = false,
+  toggleLabel,
+}: AccountProductThumbnailsProps) {
   if (!items || items.length === 0) {
     return <span className="text-text-placeholders">–</span>;
   }
@@ -35,10 +51,10 @@ export function AccountProductThumbnails({ items, max = 3, className }: AccountP
     .filter(Boolean)
     .join(', ');
 
-  return (
-    <div className={cn('flex items-center gap-1', className)} title={title || undefined}>
+  const vignettes = (
+    <>
       {shown.map((item, index) => (
-        <div
+        <span
           key={index}
           className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden border border-border-primary bg-surface-image-background"
         >
@@ -53,13 +69,47 @@ export function AccountProductThumbnails({ items, max = 3, className }: AccountP
           ) : (
             <Package className="h-4 w-4 text-icon-secondary opacity-40" aria-hidden="true" />
           )}
-        </div>
+        </span>
       ))}
       {remaining > 0 ? (
-        <div className="flex h-9 min-w-9 shrink-0 items-center justify-center border border-border-primary bg-surface-page px-1 text-xs font-bold text-text-body">
+        <span className="flex h-9 min-w-9 shrink-0 items-center justify-center border border-border-primary bg-surface-page px-1 text-xs font-bold text-text-body">
           +{remaining}
-        </div>
+        </span>
       ) : null}
+    </>
+  );
+
+  if (onToggle) {
+    return (
+      <button
+        type="button"
+        aria-label={toggleLabel}
+        aria-expanded={expanded}
+        title={title || toggleLabel}
+        onClick={(event) => {
+          event.stopPropagation();
+          onToggle();
+        }}
+        className={cn(
+          'group flex items-center gap-1 rounded-none outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
+          className,
+        )}
+      >
+        {vignettes}
+        <ChevronDown
+          className={cn(
+            'ml-0.5 h-4 w-4 shrink-0 text-text-placeholders transition-transform group-hover:text-text-body',
+            expanded && 'rotate-180',
+          )}
+          aria-hidden="true"
+        />
+      </button>
+    );
+  }
+
+  return (
+    <div className={cn('flex items-center gap-1', className)} title={title || undefined}>
+      {vignettes}
     </div>
   );
 }

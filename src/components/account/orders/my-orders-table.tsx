@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { format } from 'date-fns';
 import { ArrowRight, RotateCcw, ShoppingCart } from 'lucide-react';
@@ -29,6 +29,7 @@ import {
   accountTableRowClass,
   shortenId,
 } from '../shared/account-list';
+import { AccountProductLines } from '../shared/account-product-lines';
 import { AccountProductThumbnails } from '../shared/account-product-thumbnails';
 import { CreateReturnDialog } from './create-return-dialog';
 
@@ -82,6 +83,7 @@ export function MyOrdersTable({
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [returnabilityMap, setReturnabilityMap] = useState<Record<string, OrderReturnability>>({});
   const [reorderingOrderId, setReorderingOrderId] = useState<string | null>(null);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
   const formatChannel = useCallback((order: Order): string => order.siteCode || '-', []);
 
@@ -206,150 +208,177 @@ export function MyOrdersTable({
               </TableCell>
             </TableRow>
           ) : (
-            visibleOrders.map((order, index) => (
-              <TableRow
-                key={order.id}
-                className={accountTableRowClass(index, { clickable: true })}
-                onClick={() => router.push(`/account/orders/${order.id}`)}
-              >
-                <TableCell className="px-2 py-4 font-medium">
-                  <span title={`#${order.id}`}>
-                    <UiLink type="Link" href={`/account/orders/${order.id}`} variant="primary">
-                      #{shortenId(order.id)}
-                    </UiLink>
-                  </span>
-                  {order.quoteId ? (
-                    <div className="mt-1 text-sm text-text-placeholders" onClick={(event) => event.stopPropagation()}>
-                      {t('relatedQuote')}{' '}
-                      <span title={`#${order.quoteId}`}>
-                        <UiLink type="Link" href={`/account/quotes/${order.quoteId}`} variant="text">
-                          #{shortenId(order.quoteId)}
+            visibleOrders.map((order, index) => {
+              const expanded = expandedOrderId === order.id;
+
+              return (
+                <Fragment key={order.id}>
+                  <TableRow
+                    className={accountTableRowClass(index, { clickable: true })}
+                    onClick={() => router.push(`/account/orders/${order.id}`)}
+                  >
+                    <TableCell className="px-2 py-4 font-medium">
+                      <span title={`#${order.id}`}>
+                        <UiLink type="Link" href={`/account/orders/${order.id}`} variant="primary">
+                          #{shortenId(order.id)}
                         </UiLink>
                       </span>
-                    </div>
-                  ) : null}
-                </TableCell>
-                <TableCell className="px-2 py-4">
-                  {order.customer?.name || order.customer?.firstName || order.customer?.lastName}
-                </TableCell>
-                <TableCell className="px-2 py-4">{formatDate(order.createdAt)}</TableCell>
-                <TableCell className="px-2 py-4">{formatChannel(order)}</TableCell>
-                <TableCell className="py-4 font-medium">
-                  {formatOrderValue(order.price?.total?.gross, order.price?.total?.currency || order.currency)}
-                </TableCell>
-                <TableCell className="py-4 font-medium">
-                  {formatOrderValue(order.shipping?.total.value, order.shipping?.total.currency)}
-                </TableCell>
-                <TableCell className="px-2 py-4">{formatPaymentMethod(order, t)}</TableCell>
-                <TableCell className="px-2 py-4">
-                  <AccountProductThumbnails
-                    items={(order.items ?? []).map((item) => ({ imageUrl: item.images?.[0], name: item.name }))}
-                  />
-                </TableCell>
-                <TableCell className={accountTableBadgeCellClass}>
-                  <OrderStatusBadge status={order.status} />
-                </TableCell>
-                <TableCell className="px-2 py-4 text-center">
-                  <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
-                    {canReorder(order) ? (
-                      <Button
-                        variant="neutral"
-                        size="icon"
-                        title={t('reorderLink')}
-                        aria-label={t('reorderLink')}
-                        disabled={reorderingOrderId === order.id}
-                        onClick={() => void handleReorderClick(order)}
-                      >
-                        {reorderingOrderId === order.id ? (
-                          <Spinner variant="sm" />
-                        ) : (
-                          <ShoppingCart className="h-4 w-4" />
-                        )}
-                      </Button>
-                    ) : (
-                      <Tooltip delayDuration={200}>
-                        <TooltipTrigger asChild>
-                          <span>
-                            <Button
-                              variant="neutral"
-                              size="icon"
-                              disabled
-                              title={t('reorderLink')}
-                              aria-label={t('reorderLink')}
-                            >
-                              <ShoppingCart className="h-4 w-4" />
-                            </Button>
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent className="w-[22rem] max-w-[calc(100vw-2rem)] text-wrap">
-                          {t('reorderDisabledTooltip')}
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                    {isReturnEnabled(order.status) ? (
-                      returnabilityMap[order.id]?.hasAnyReturnableItem === false ? (
-                        <Tooltip delayDuration={200}>
-                          <TooltipTrigger asChild>
-                            <span>
-                              <Button
-                                variant="neutral"
-                                size="icon"
-                                disabled
-                                title={t('returnLink')}
-                                aria-label={t('returnLink')}
-                              >
-                                <RotateCcw className="h-4 w-4" />
-                              </Button>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent className="w-[22rem] max-w-[calc(100vw-2rem)] text-wrap">
-                            {t('noRemainingItems')}
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <Button
-                          variant="neutral"
-                          size="icon"
-                          title={t('returnLink')}
-                          aria-label={t('returnLink')}
-                          onClick={() => handleReturnClick(order)}
+                      {order.quoteId ? (
+                        <div
+                          className="mt-1 text-sm text-text-placeholders"
+                          onClick={(event) => event.stopPropagation()}
                         >
-                          <RotateCcw className="h-4 w-4" />
-                        </Button>
-                      )
-                    ) : (
-                      <Tooltip delayDuration={200}>
-                        <TooltipTrigger asChild>
-                          <span>
+                          {t('relatedQuote')}{' '}
+                          <span title={`#${order.quoteId}`}>
+                            <UiLink type="Link" href={`/account/quotes/${order.quoteId}`} variant="text">
+                              #{shortenId(order.quoteId)}
+                            </UiLink>
+                          </span>
+                        </div>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="px-2 py-4">
+                      {order.customer?.name || order.customer?.firstName || order.customer?.lastName}
+                    </TableCell>
+                    <TableCell className="px-2 py-4">{formatDate(order.createdAt)}</TableCell>
+                    <TableCell className="px-2 py-4">{formatChannel(order)}</TableCell>
+                    <TableCell className="py-4 font-medium">
+                      {formatOrderValue(order.price?.total?.gross, order.price?.total?.currency || order.currency)}
+                    </TableCell>
+                    <TableCell className="py-4 font-medium">
+                      {formatOrderValue(order.shipping?.total.value, order.shipping?.total.currency)}
+                    </TableCell>
+                    <TableCell className="px-2 py-4">{formatPaymentMethod(order, t)}</TableCell>
+                    <TableCell className="px-2 py-4" onClick={(event) => event.stopPropagation()}>
+                      <AccountProductThumbnails
+                        items={(order.items ?? []).map((item) => ({ imageUrl: item.images?.[0], name: item.name }))}
+                        onToggle={() => setExpandedOrderId(expanded ? null : order.id)}
+                        expanded={expanded}
+                        toggleLabel={t('columns.products')}
+                      />
+                    </TableCell>
+                    <TableCell className={accountTableBadgeCellClass}>
+                      <OrderStatusBadge status={order.status} />
+                    </TableCell>
+                    <TableCell className="px-2 py-4 text-center">
+                      <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        {canReorder(order) ? (
+                          <Button
+                            variant="neutral"
+                            size="icon"
+                            title={t('reorderLink')}
+                            aria-label={t('reorderLink')}
+                            disabled={reorderingOrderId === order.id}
+                            onClick={() => void handleReorderClick(order)}
+                          >
+                            {reorderingOrderId === order.id ? (
+                              <Spinner variant="sm" />
+                            ) : (
+                              <ShoppingCart className="h-4 w-4" />
+                            )}
+                          </Button>
+                        ) : (
+                          <Tooltip delayDuration={200}>
+                            <TooltipTrigger asChild>
+                              <span>
+                                <Button
+                                  variant="neutral"
+                                  size="icon"
+                                  disabled
+                                  title={t('reorderLink')}
+                                  aria-label={t('reorderLink')}
+                                >
+                                  <ShoppingCart className="h-4 w-4" />
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent className="w-[22rem] max-w-[calc(100vw-2rem)] text-wrap">
+                              {t('reorderDisabledTooltip')}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {isReturnEnabled(order.status) ? (
+                          returnabilityMap[order.id]?.hasAnyReturnableItem === false ? (
+                            <Tooltip delayDuration={200}>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    variant="neutral"
+                                    size="icon"
+                                    disabled
+                                    title={t('returnLink')}
+                                    aria-label={t('returnLink')}
+                                  >
+                                    <RotateCcw className="h-4 w-4" />
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent className="w-[22rem] max-w-[calc(100vw-2rem)] text-wrap">
+                                {t('noRemainingItems')}
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
                             <Button
                               variant="neutral"
                               size="icon"
-                              disabled
                               title={t('returnLink')}
                               aria-label={t('returnLink')}
+                              onClick={() => handleReturnClick(order)}
                             >
                               <RotateCcw className="h-4 w-4" />
                             </Button>
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent className="w-[22rem] max-w-[calc(100vw-2rem)] text-wrap">
-                          {t('returnDisabledTooltip')}
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                    <Button
-                      variant="neutral"
-                      size="icon"
-                      title={t('columns.view')}
-                      aria-label={t('columns.view')}
-                      onClick={() => router.push(`/account/orders/${order.id}`)}
-                    >
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))
+                          )
+                        ) : (
+                          <Tooltip delayDuration={200}>
+                            <TooltipTrigger asChild>
+                              <span>
+                                <Button
+                                  variant="neutral"
+                                  size="icon"
+                                  disabled
+                                  title={t('returnLink')}
+                                  aria-label={t('returnLink')}
+                                >
+                                  <RotateCcw className="h-4 w-4" />
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent className="w-[22rem] max-w-[calc(100vw-2rem)] text-wrap">
+                              {t('returnDisabledTooltip')}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        <Button
+                          variant="neutral"
+                          size="icon"
+                          title={t('columns.view')}
+                          aria-label={t('columns.view')}
+                          onClick={() => router.push(`/account/orders/${order.id}`)}
+                        >
+                          <ArrowRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  {expanded ? (
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell colSpan={10} className="border-t border-border-primary p-0">
+                        <AccountProductLines
+                          lines={(order.items ?? []).map((item) => ({
+                            id: item.productId,
+                            imageUrl: item.images?.[0],
+                            name: item.name,
+                            quantity: item.quantity,
+                            unitPrice: item.price?.value,
+                            currency: item.price?.currency,
+                          }))}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                </Fragment>
+              );
+            })
           )}
         </TableBody>
       </Table>

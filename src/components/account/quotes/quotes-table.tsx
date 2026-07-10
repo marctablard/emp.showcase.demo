@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import {
   accountTableRowClass,
   shortenId,
 } from '../shared/account-list';
+import { AccountProductLines } from '../shared/account-product-lines';
 import { AccountProductThumbnails } from '../shared/account-product-thumbnails';
 import { QuoteStatusBadge } from './quote-status-badge';
 
@@ -45,6 +46,7 @@ export function QuotesTable({
   const tOrders = useTranslations('orders');
   const locale = useLocale();
   const router = useRouter();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const productIds = useMemo(
     () => Array.from(new Set(quotes.flatMap((quote) => quote.items?.map((item) => item.product.id) ?? []))),
@@ -94,63 +96,91 @@ export function QuotesTable({
               </TableCell>
             </TableRow>
           ) : (
-            quotes.map((quote, index) => (
-              <TableRow
-                key={quote.id}
-                className={accountTableRowClass(index, { clickable: true })}
-                onClick={() => router.push(`/account/quotes/${quote.id}`)}
-              >
-                <TableCell className="px-2 py-4 font-medium">
-                  <span title={quote.id}>
-                    <UiLink type="Link" href={`/account/quotes/${quote.id}`} variant="primary">
-                      {shortenId(quote.id)}
-                    </UiLink>
-                  </span>
-                  {quote.orderId ? (
-                    <div className="mt-1 text-sm text-text-placeholders" onClick={(event) => event.stopPropagation()}>
-                      {t('relatedOrder')}{' '}
-                      <span title={`#${quote.orderId}`}>
-                        <UiLink type="Link" href={`/account/orders/${quote.orderId}`} variant="text">
-                          #{shortenId(quote.orderId)}
-                        </UiLink>
-                      </span>
-                    </div>
-                  ) : null}
-                </TableCell>
-                <TableCell className="px-2 py-4">{quote.reference || '-'}</TableCell>
-                <TableCell className="px-2 py-4">{formatDate(quote.submittedDate)}</TableCell>
-                <TableCell className="px-2 py-4">{quote.customerName || quote.customerId}</TableCell>
-                <TableCell className="px-2 py-4">{quote.approverName || '-'}</TableCell>
-                <TableCell className="px-2 py-4 text-right font-medium">
-                  {formatCurrency(quote.totalGross, quote.currency)}
-                </TableCell>
-                <TableCell className="px-2 py-4 text-right">
-                  {quote.items?.reduce((total, item) => total + (item.quantity.quantity || 0), 0) || 0} {t('products')}
-                </TableCell>
-                <TableCell className="px-2 py-4">
-                  <AccountProductThumbnails
-                    items={(quote.items ?? []).map((item) => ({
-                      imageUrl: productImages[item.product.id],
-                      name: l10n(item.product.name, locale),
-                    }))}
-                  />
-                </TableCell>
-                <TableCell className={accountTableBadgeCellClass}>
-                  <QuoteStatusBadge status={quote.status} />
-                </TableCell>
-                <TableCell className="px-2 py-4 text-center" onClick={(event) => event.stopPropagation()}>
-                  <Button
-                    variant="neutral"
-                    size="icon"
-                    title={t('viewQuote')}
-                    aria-label={t('viewQuote')}
+            quotes.map((quote, index) => {
+              const expanded = expandedId === quote.id;
+
+              return (
+                <Fragment key={quote.id}>
+                  <TableRow
+                    className={accountTableRowClass(index, { clickable: true })}
                     onClick={() => router.push(`/account/quotes/${quote.id}`)}
                   >
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))
+                    <TableCell className="px-2 py-4 font-medium">
+                      <span title={quote.id}>
+                        <UiLink type="Link" href={`/account/quotes/${quote.id}`} variant="primary">
+                          {shortenId(quote.id)}
+                        </UiLink>
+                      </span>
+                      {quote.orderId ? (
+                        <div
+                          className="mt-1 text-sm text-text-placeholders"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          {t('relatedOrder')}{' '}
+                          <span title={`#${quote.orderId}`}>
+                            <UiLink type="Link" href={`/account/orders/${quote.orderId}`} variant="text">
+                              #{shortenId(quote.orderId)}
+                            </UiLink>
+                          </span>
+                        </div>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="px-2 py-4">{quote.reference || '-'}</TableCell>
+                    <TableCell className="px-2 py-4">{formatDate(quote.submittedDate)}</TableCell>
+                    <TableCell className="px-2 py-4">{quote.customerName || quote.customerId}</TableCell>
+                    <TableCell className="px-2 py-4">{quote.approverName || '-'}</TableCell>
+                    <TableCell className="px-2 py-4 text-right font-medium">
+                      {formatCurrency(quote.totalGross, quote.currency)}
+                    </TableCell>
+                    <TableCell className="px-2 py-4 text-right">
+                      {quote.items?.reduce((total, item) => total + (item.quantity.quantity || 0), 0) || 0}{' '}
+                      {t('products')}
+                    </TableCell>
+                    <TableCell className="px-2 py-4" onClick={(event) => event.stopPropagation()}>
+                      <AccountProductThumbnails
+                        items={(quote.items ?? []).map((item) => ({
+                          imageUrl: productImages[item.product.id],
+                          name: l10n(item.product.name, locale),
+                        }))}
+                        onToggle={() => setExpandedId(expanded ? null : quote.id)}
+                        expanded={expanded}
+                        toggleLabel={t('products')}
+                      />
+                    </TableCell>
+                    <TableCell className={accountTableBadgeCellClass}>
+                      <QuoteStatusBadge status={quote.status} />
+                    </TableCell>
+                    <TableCell className="px-2 py-4 text-center" onClick={(event) => event.stopPropagation()}>
+                      <Button
+                        variant="neutral"
+                        size="icon"
+                        title={t('viewQuote')}
+                        aria-label={t('viewQuote')}
+                        onClick={() => router.push(`/account/quotes/${quote.id}`)}
+                      >
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                  {expanded ? (
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell colSpan={10} className="border-t border-border-primary p-0">
+                        <AccountProductLines
+                          lines={(quote.items ?? []).map((item) => ({
+                            id: item.product.id,
+                            imageUrl: productImages[item.product.id],
+                            name: l10n(item.product.name, locale),
+                            quantity: item.quantity.quantity,
+                            unitPrice: item.product.itemPrice?.amount,
+                            currency: item.product.itemPrice?.currency,
+                          }))}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                </Fragment>
+              );
+            })
           )}
         </TableBody>
       </Table>

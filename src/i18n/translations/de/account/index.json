@@ -656,6 +656,13 @@
     "previous": "Zurück",
     "pageIndicator": "Seite {current} / {total}"
   },
+  "productBreakdown": {
+    "product": "Produkt",
+    "quantity": "Menge",
+    "unitPrice": "Stückpreis",
+    "totalPrice": "Gesamtpreis",
+    "empty": "Keine Produkte zum Anzeigen"
+  },
   "shoppingListsPageDescription": "Einkaufslisten anzeigen und verwalten",
   "shoppingListsPagePlaceholder": "Einkaufslisten werden hier angezeigt",
   "Address": {

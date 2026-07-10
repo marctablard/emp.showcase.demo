@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ArrowRight, Search } from 'lucide-react';
 import { APPROVALS_PER_PAGE } from '@/components/account/account-table-constants';
@@ -26,6 +26,7 @@ import {
   accountTableRowClass,
   shortenId,
 } from '../shared/account-list';
+import { AccountProductLines } from '../shared/account-product-lines';
 import { AccountProductThumbnails } from '../shared/account-product-thumbnails';
 import { ApprovalStatusBadge } from './approval-status-badge';
 
@@ -90,6 +91,7 @@ export function ApprovalsList({ initialApprovals, currentUserId }: ApprovalsList
   const tAction = useTranslations('orders.ApprovalAction');
   const [filterStatus, setFilterStatus] = useState<ApprovalStatus | '_ALL_'>('_ALL_');
   const [currentPage, setCurrentPage] = useState(1);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [quickSearch, setQuickSearch] = useState('');
   const normalizedSearch = useDebouncedValue(quickSearch, SEARCH_DEBOUNCE_MS).trim();
@@ -257,70 +259,91 @@ export function ApprovalsList({ initialApprovals, currentUserId }: ApprovalsList
           <TableBody>
             {visibleApprovals.map((approval, index) => {
               const href = getApprovalHref(approval, currentUserId);
+              const expanded = expandedId === approval.id;
 
               return (
-                <TableRow
-                  key={approval.id}
-                  className={accountTableRowClass(index, { clickable: true })}
-                  onClick={() => router.push(href)}
-                >
-                  <TableCell className="px-2 py-4 font-medium">
-                    <span title={approval.id}>
-                      <UiLink type="Link" href={href} variant="primary">
-                        {shortenId(approval.id)}
-                      </UiLink>
-                    </span>
-                  </TableCell>
-                  <TableCell className="px-2 py-4">{approval.resourceType}</TableCell>
-                  <TableCell className="px-2 py-4">
-                    {approval.resourceType === 'QUOTE' ? (
-                      <span title={approval.resource.id}>
-                        <UiLink type="Link" href={`/account/quotes/${approval.resource.id}`} variant="primary">
-                          {shortenId(approval.resource.id)}
+                <Fragment key={approval.id}>
+                  <TableRow
+                    className={accountTableRowClass(index, { clickable: true })}
+                    onClick={() => router.push(href)}
+                  >
+                    <TableCell className="px-2 py-4 font-medium">
+                      <span title={approval.id}>
+                        <UiLink type="Link" href={href} variant="primary">
+                          {shortenId(approval.id)}
                         </UiLink>
                       </span>
-                    ) : (
-                      '-'
-                    )}
-                  </TableCell>
-                  <TableCell className="px-2 py-4">
-                    {approval.resource.orderId ? (
-                      <span title={approval.resource.orderId}>
-                        <UiLink type="Link" href={`/account/orders/${approval.resource.orderId}`} variant="text">
-                          {shortenId(approval.resource.orderId)}
-                        </UiLink>
-                      </span>
-                    ) : (
-                      '-'
-                    )}
-                  </TableCell>
-                  <TableCell className="px-2 py-4">{tAction(approval.action)}</TableCell>
-                  <TableCell className="px-2 py-4">{formatApprovalUserName(approval.requestor)}</TableCell>
-                  <TableCell className="px-2 py-4">{formatApprovalUserName(approval.approver)}</TableCell>
-                  <TableCell className="px-2 py-4">{formatDate(approval.createdAt)}</TableCell>
-                  <TableCell className="px-2 py-4">
-                    <AccountProductThumbnails
-                      items={(approval.resource.items ?? []).map((item) => ({
-                        imageUrl: item.productId ? productImages[item.productId] : undefined,
-                        name: l10n(item.productName, locale),
-                      }))}
-                    />
-                  </TableCell>
-                  <TableCell className={accountTableBadgeCellClass}>
-                    <ApprovalStatusBadge status={approval.status} />
-                  </TableCell>
-                  <TableCell className="px-2 py-4 text-center" onClick={(event) => event.stopPropagation()}>
-                    <Button
-                      variant="neutral"
-                      size="icon"
-                      title={t('view')}
-                      aria-label={t('view')}
-                      onClick={() => router.push(href)}
-                    >
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
+                    </TableCell>
+                    <TableCell className="px-2 py-4">{approval.resourceType}</TableCell>
+                    <TableCell className="px-2 py-4">
+                      {approval.resourceType === 'QUOTE' ? (
+                        <span title={approval.resource.id}>
+                          <UiLink type="Link" href={`/account/quotes/${approval.resource.id}`} variant="primary">
+                            {shortenId(approval.resource.id)}
+                          </UiLink>
+                        </span>
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell className="px-2 py-4">
+                      {approval.resource.orderId ? (
+                        <span title={approval.resource.orderId}>
+                          <UiLink type="Link" href={`/account/orders/${approval.resource.orderId}`} variant="text">
+                            {shortenId(approval.resource.orderId)}
+                          </UiLink>
+                        </span>
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell className="px-2 py-4">{tAction(approval.action)}</TableCell>
+                    <TableCell className="px-2 py-4">{formatApprovalUserName(approval.requestor)}</TableCell>
+                    <TableCell className="px-2 py-4">{formatApprovalUserName(approval.approver)}</TableCell>
+                    <TableCell className="px-2 py-4">{formatDate(approval.createdAt)}</TableCell>
+                    <TableCell className="px-2 py-4" onClick={(event) => event.stopPropagation()}>
+                      <AccountProductThumbnails
+                        items={(approval.resource.items ?? []).map((item) => ({
+                          imageUrl: item.productId ? productImages[item.productId] : undefined,
+                          name: l10n(item.productName, locale),
+                        }))}
+                        onToggle={() => setExpandedId(expanded ? null : approval.id)}
+                        expanded={expanded}
+                        toggleLabel={t('products')}
+                      />
+                    </TableCell>
+                    <TableCell className={accountTableBadgeCellClass}>
+                      <ApprovalStatusBadge status={approval.status} />
+                    </TableCell>
+                    <TableCell className="px-2 py-4 text-center" onClick={(event) => event.stopPropagation()}>
+                      <Button
+                        variant="neutral"
+                        size="icon"
+                        title={t('view')}
+                        aria-label={t('view')}
+                        onClick={() => router.push(href)}
+                      >
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                  {expanded ? (
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell colSpan={11} className="border-t border-border-primary p-0">
+                        <AccountProductLines
+                          lines={(approval.resource.items ?? []).map((item, itemIndex) => ({
+                            id: item.productId ?? item.itemId ?? String(itemIndex),
+                            imageUrl: item.productId ? productImages[item.productId] : undefined,
+                            name: l10n(item.productName, locale),
+                            quantity: item.quantity,
+                            unitPrice: item.itemPrice?.amount,
+                            currency: item.itemPrice?.currency,
+                          }))}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                </Fragment>
               );
             })}
           </TableBody>
