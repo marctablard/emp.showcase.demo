@@ -60,6 +60,7 @@
     "deliveryAddress": "Lieferadresse",
     "payment": "Zahlungsart",
     "orderValue": "Bestellwert",
+    "products": "Produkte",
     "action": "Aktion",
     "view": "Ansicht"
   },
@@ -157,6 +158,7 @@
     "resourceId": "Ressourcen-ID",
     "quoteId": "Angebots-ID",
     "orderId": "Bestell-ID",
+    "products": "Produkte",
     "action": "Aktion",
     "status": "Status",
     "requestor": "Anforderer",

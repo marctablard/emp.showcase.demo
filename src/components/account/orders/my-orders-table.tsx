@@ -29,6 +29,7 @@ import {
   accountTableRowClass,
   shortenId,
 } from '../shared/account-list';
+import { AccountProductThumbnails } from '../shared/account-product-thumbnails';
 import { CreateReturnDialog } from './create-return-dialog';
 
 function isReturnEnabled(status: OrderStatus): boolean {
@@ -186,6 +187,7 @@ export function MyOrdersTable({
             <TableHead className={cn(accountTableHeadClass, 'w-[200px]')}>{t('columns.orderValue')}</TableHead>
             <TableHead className={cn(accountTableHeadClass, 'w-[200px]')}>{t('columns.totalShippingCost')}</TableHead>
             <TableHead className={cn(accountTableHeadClass, 'w-[200px]')}>{t('columns.payment')}</TableHead>
+            <TableHead className={cn(accountTableHeadClass, 'w-[160px]')}>{t('columns.products')}</TableHead>
             <TableHead className={cn(accountTableBadgeHeadClass, 'w-[204px]')}>{t('columns.status')}</TableHead>
             <TableHead className={cn(accountTableHeadClass, 'w-[160px] text-center')}>{t('columns.action')}</TableHead>
           </TableRow>
@@ -193,13 +195,13 @@ export function MyOrdersTable({
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={9} className="text-center py-4">
+              <TableCell colSpan={10} className="text-center py-4">
                 {t('loading')}
               </TableCell>
             </TableRow>
           ) : visibleOrders.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} className="text-center py-4">
+              <TableCell colSpan={10} className="text-center py-4">
                 {t('noOrders')}
               </TableCell>
             </TableRow>
@@ -239,6 +241,11 @@ export function MyOrdersTable({
                   {formatOrderValue(order.shipping?.total.value, order.shipping?.total.currency)}
                 </TableCell>
                 <TableCell className="px-2 py-4">{formatPaymentMethod(order, t)}</TableCell>
+                <TableCell className="px-2 py-4">
+                  <AccountProductThumbnails
+                    items={(order.items ?? []).map((item) => ({ imageUrl: item.images?.[0], name: item.name }))}
+                  />
+                </TableCell>
                 <TableCell className={accountTableBadgeCellClass}>
                   <OrderStatusBadge status={order.status} />
                 </TableCell>

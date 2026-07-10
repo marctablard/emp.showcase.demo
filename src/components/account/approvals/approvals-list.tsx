@@ -13,8 +13,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { TablePagination } from '@/components/ui/table-pagination';
 import { useApprovals } from '@/hooks/approval/useApprovals';
 import { useDebouncedValue } from '@/hooks/common/useDebouncedValue';
+import { useProducts } from '@/hooks/product/useProducts';
 import { useRouter } from '@/i18n/navigation';
-import { cn } from '@/lib/utils';
+import { cn, l10n } from '@/lib/utils';
 import type { Approval, ApprovalStatus } from '@/platform/services/model/approval';
 import {
   AccountListContainer,
@@ -25,6 +26,7 @@ import {
   accountTableRowClass,
   shortenId,
 } from '../shared/account-list';
+import { AccountProductThumbnails } from '../shared/account-product-thumbnails';
 import { ApprovalStatusBadge } from './approval-status-badge';
 
 const SEARCH_DEBOUNCE_MS = 500;
@@ -118,6 +120,27 @@ export function ApprovalsList({ initialApprovals, currentUserId }: ApprovalsList
     () => sortedApprovals.slice((safeCurrentPage - 1) * APPROVALS_PER_PAGE, safeCurrentPage * APPROVALS_PER_PAGE),
     [safeCurrentPage, sortedApprovals],
   );
+
+  const productIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          visibleApprovals.flatMap(
+            (approval) =>
+              approval.resource.items?.map((item) => item.productId).filter((id): id is string => Boolean(id)) ?? [],
+          ),
+        ),
+      ),
+    [visibleApprovals],
+  );
+  const { products } = useProducts(productIds);
+  const productImages = useMemo(() => {
+    const map: Record<string, string | undefined> = {};
+    for (const product of products) {
+      map[product.id] = product.primaryImage?.url ?? product.images?.[0]?.url;
+    }
+    return map;
+  }, [products]);
 
   const handleFilter = (status: ApprovalStatus | '_ALL_') => {
     setFilterStatus(status);
@@ -226,6 +249,7 @@ export function ApprovalsList({ initialApprovals, currentUserId }: ApprovalsList
               <TableHead className={accountTableHeadClass}>{t('requestor')}</TableHead>
               <TableHead className={accountTableHeadClass}>{t('approver')}</TableHead>
               <TableHead className={accountTableHeadClass}>{t('createdAt')}</TableHead>
+              <TableHead className={cn(accountTableHeadClass, 'w-[160px]')}>{t('products')}</TableHead>
               <TableHead className={accountTableBadgeHeadClass}>{t('status')}</TableHead>
               <TableHead className={cn(accountTableHeadClass, 'w-[160px] text-center')}>{t('actions')}</TableHead>
             </TableRow>
@@ -274,6 +298,14 @@ export function ApprovalsList({ initialApprovals, currentUserId }: ApprovalsList
                   <TableCell className="px-2 py-4">{formatApprovalUserName(approval.requestor)}</TableCell>
                   <TableCell className="px-2 py-4">{formatApprovalUserName(approval.approver)}</TableCell>
                   <TableCell className="px-2 py-4">{formatDate(approval.createdAt)}</TableCell>
+                  <TableCell className="px-2 py-4">
+                    <AccountProductThumbnails
+                      items={(approval.resource.items ?? []).map((item) => ({
+                        imageUrl: item.productId ? productImages[item.productId] : undefined,
+                        name: l10n(item.productName, locale),
+                      }))}
+                    />
+                  </TableCell>
                   <TableCell className={accountTableBadgeCellClass}>
                     <ApprovalStatusBadge status={approval.status} />
                   </TableCell>

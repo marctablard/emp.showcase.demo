@@ -1,15 +1,17 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useMemo } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TablePagination } from '@/components/ui/table-pagination';
+import { useProducts } from '@/hooks/product/useProducts';
 import { useRouter } from '@/i18n/navigation';
 import { formatDate } from '@/lib/date-utils';
-import { cn, formatCurrency } from '@/lib/utils';
+import { cn, formatCurrency, l10n } from '@/lib/utils';
 import type { Quote } from '@/platform/services/model/quote';
 import {
   accountTableBadgeCellClass,
@@ -19,6 +21,7 @@ import {
   accountTableRowClass,
   shortenId,
 } from '../shared/account-list';
+import { AccountProductThumbnails } from '../shared/account-product-thumbnails';
 import { QuoteStatusBadge } from './quote-status-badge';
 
 interface QuotesTableProps {
@@ -40,7 +43,21 @@ export function QuotesTable({
 }: QuotesTableProps) {
   const t = useTranslations('account.quotesList');
   const tOrders = useTranslations('orders');
+  const locale = useLocale();
   const router = useRouter();
+
+  const productIds = useMemo(
+    () => Array.from(new Set(quotes.flatMap((quote) => quote.items?.map((item) => item.product.id) ?? []))),
+    [quotes],
+  );
+  const { products } = useProducts(productIds);
+  const productImages = useMemo(() => {
+    const map: Record<string, string | undefined> = {};
+    for (const product of products) {
+      map[product.id] = product.primaryImage?.url ?? product.images?.[0]?.url;
+    }
+    return map;
+  }, [products]);
 
   return (
     <div className="w-full">
@@ -54,6 +71,7 @@ export function QuotesTable({
             <TableHead className={accountTableHeadClass}>{t('authorization')}</TableHead>
             <TableHead className={cn(accountTableHeadClass, 'text-right')}>{t('totalAmount')}</TableHead>
             <TableHead className={cn(accountTableHeadClass, 'text-right')}>{t('numberOfProducts')}</TableHead>
+            <TableHead className={cn(accountTableHeadClass, 'w-[160px]')}>{t('products')}</TableHead>
             <TableHead className={accountTableBadgeHeadClass}>{t('status')}</TableHead>
             <TableHead className={cn(accountTableHeadClass, 'w-[160px] text-center')}>
               {tOrders('columns.action')}
@@ -63,7 +81,7 @@ export function QuotesTable({
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={9} className="h-24 text-center">
+              <TableCell colSpan={10} className="h-24 text-center">
                 <div className="flex items-center justify-center">
                   <Spinner color="primary" variant="md" />
                 </div>
@@ -71,7 +89,7 @@ export function QuotesTable({
             </TableRow>
           ) : quotes.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} className="h-24 text-center">
+              <TableCell colSpan={10} className="h-24 text-center">
                 {t('noQuotes')}
               </TableCell>
             </TableRow>
@@ -108,6 +126,14 @@ export function QuotesTable({
                 </TableCell>
                 <TableCell className="px-2 py-4 text-right">
                   {quote.items?.reduce((total, item) => total + (item.quantity.quantity || 0), 0) || 0} {t('products')}
+                </TableCell>
+                <TableCell className="px-2 py-4">
+                  <AccountProductThumbnails
+                    items={(quote.items ?? []).map((item) => ({
+                      imageUrl: productImages[item.product.id],
+                      name: l10n(item.product.name, locale),
+                    }))}
+                  />
                 </TableCell>
                 <TableCell className={accountTableBadgeCellClass}>
                   <QuoteStatusBadge status={quote.status} />
