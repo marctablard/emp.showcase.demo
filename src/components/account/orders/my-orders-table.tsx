@@ -56,6 +56,8 @@ export interface MyOrdersTableProps {
   className?: string;
   onPreviousPage: () => void;
   onNextPage: () => void;
+  /** When true, each row's product sub-list is expanded by default (used during search). */
+  expandAll?: boolean;
 }
 
 /**
@@ -70,6 +72,7 @@ export function MyOrdersTable({
   className,
   onPreviousPage,
   onNextPage,
+  expandAll = false,
 }: MyOrdersTableProps) {
   const t = useTranslations('orders');
   const router = useRouter();
@@ -79,7 +82,13 @@ export function MyOrdersTable({
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [returnabilityMap, setReturnabilityMap] = useState<Record<string, OrderReturnability>>({});
   const [reorderOrder, setReorderOrder] = useState<Order | null>(null);
-  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  // Per-row expansion overrides on top of the `expandAll` default (so search
+  // results open by default while individual rows can still be toggled).
+  const [expandOverrides, setExpandOverrides] = useState<Record<string, boolean>>({});
+
+  const isExpanded = (orderId: string) => expandOverrides[orderId] ?? expandAll;
+  const toggleExpanded = (orderId: string) =>
+    setExpandOverrides((prev) => ({ ...prev, [orderId]: !(prev[orderId] ?? expandAll) }));
 
   const formatChannel = useCallback((order: Order): string => order.siteCode || '-', []);
 
@@ -177,7 +186,7 @@ export function MyOrdersTable({
             </TableRow>
           ) : (
             visibleOrders.map((order, index) => {
-              const expanded = expandedOrderId === order.id;
+              const expanded = isExpanded(order.id);
 
               return (
                 <Fragment key={order.id}>
@@ -220,7 +229,7 @@ export function MyOrdersTable({
                     <TableCell className="px-2 py-4" onClick={(event) => event.stopPropagation()}>
                       <AccountProductThumbnails
                         items={(order.items ?? []).map((item) => ({ imageUrl: item.images?.[0], name: item.name }))}
-                        onToggle={() => setExpandedOrderId(expanded ? null : order.id)}
+                        onToggle={() => toggleExpanded(order.id)}
                         expanded={expanded}
                         toggleLabel={t('columns.products')}
                       />

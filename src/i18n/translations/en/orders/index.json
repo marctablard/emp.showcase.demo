@@ -64,7 +64,7 @@
   "cancelOrderNotAllowed": "This order cannot be declined in its current state.",
   "cancelOrderFailedUnknown": "Something went wrong. Please try again.",
   "search": {
-    "placeholder": "Search orders..."
+    "placeholder": "Search by order number, product name or SKU..."
   },
   "columns": {
     "orderNumber": "Order #",

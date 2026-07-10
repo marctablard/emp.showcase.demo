@@ -55,7 +55,7 @@
   "billingAddress": "Rechnungsadresse",
   "shippingAddress": "Lieferadresse",
   "search": {
-    "placeholder": "Bestellungen durchsuchen..."
+    "placeholder": "Nach Bestellnummer, Produktname oder SKU suchen..."
   },
   "columns": {
     "orderNumber": "Bestell-Nr.",
