@@ -14,6 +14,15 @@
   "reorderAddedToCart": "Bestellartikel wurden in den Warenkorb gelegt",
   "reorderPartialFailure": "{failed, plural, one {# Artikel konnte nicht in den Warenkorb gelegt werden} other {# Artikel konnten nicht in den Warenkorb gelegt werden}}",
   "reorderFailed": "Bestellartikel konnten nicht in den Warenkorb gelegt werden",
+  "reorderDialog": {
+    "title": "Produkte erneut bestellen",
+    "description": "Wählen Sie die Produkte und Mengen aus Bestellung {orderId}, die in den Warenkorb gelegt werden sollen.",
+    "selectAll": "Alle auswählen",
+    "decrease": "Menge verringern",
+    "increase": "Menge erhöhen",
+    "cancel": "Abbrechen",
+    "confirm": "{count, plural, =0 {In den Warenkorb} one {# Artikel in den Warenkorb} other {# Artikel in den Warenkorb}}"
+  },
   "returnDisabledTooltip": "Retouren können nur für abgeschlossene Bestellungen erstellt werden",
   "noRemainingItems": "Für alle Artikel dieser Bestellung liegt bereits eine Retouranfrage vor.",
   "orderDate": "Bestelldatum",

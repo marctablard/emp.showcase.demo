@@ -13,18 +13,16 @@ import {
 } from '@/components/account/shared/account-detail';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ToastType, notify } from '@/components/ui/toast-notification';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCart } from '@/hooks/cart/useCart';
 import { useOrder } from '@/hooks/order/useOrder';
 import { useSite } from '@/hooks/site/useSite';
-import { useToast } from '@/hooks/ui/useToast';
 import { useRouter } from '@/i18n/navigation';
 import { fetchReturnsForOrder } from '@/lib/client/returns';
 import { ORDER_CUSTOMER_DECLINE_NOT_ALLOWED_MESSAGE } from '@/lib/common/order-customer-decline-not-allowed';
-import { canReorder, reorderOrderItems } from '@/lib/common/orders/reorder';
+import { canReorder } from '@/lib/common/orders/reorder';
 import { type OrderReturnability, computeOrderReturnability } from '@/lib/common/returns/returnability';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency } from '@/lib/utils';
@@ -33,6 +31,7 @@ import { ORDER_STATUS } from '@/platform/services/model/order/order-status';
 import { CreateReturnDialog } from './create-return-dialog';
 import { OrderStatusBadge } from './order-status-badge';
 import { OrderSummarySection } from './order-summary-section';
+import { ReorderDialog } from './reorder-dialog';
 import { TrackingDialog } from './tracking-dialog';
 
 function shouldShowCancelButton(status: OrderStatus, transitions: string[]): boolean {
@@ -100,12 +99,10 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
   const [trackingDialogOpen, setTrackingDialogOpen] = useState(false);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [returnability, setReturnability] = useState<OrderReturnability | null>(null);
-  const [isReordering, setIsReordering] = useState(false);
+  const [reorderDialogOpen, setReorderDialogOpen] = useState(false);
   const router = useRouter();
   const { addItem } = useCart();
   const { availableSites } = useSite();
-  const { toast } = useToast();
-  const logger = getLogger();
 
   const { order, loading, error, cancelOrder, statusTransitions } = useOrder({ orderId, initialOrder });
 
@@ -132,36 +129,12 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
     };
   }, [order]);
 
-  const handleReorder = useCallback(async () => {
+  const handleReorder = useCallback(() => {
     if (!order || !canReorder(order)) {
       return;
     }
-
-    setIsReordering(true);
-    try {
-      const { total, failed } = await reorderOrderItems(order, addItem);
-
-      if (failed.length > 0) {
-        for (const item of failed) {
-          logger.error({ productId: item.productId, orderId: order.id }, 'Failed to reorder item');
-        }
-      }
-
-      if (failed.length === 0) {
-        toast({ title: tOrder('reorderAddedToCart'), variant: 'success' });
-      } else if (failed.length < total) {
-        toast({
-          title: tOrder('reorderPartialFailure', { failed: failed.length }),
-          variant: 'destructive',
-          persistent: true,
-        });
-      } else {
-        toast({ title: tOrder('reorderFailed'), variant: 'destructive', persistent: true });
-      }
-    } finally {
-      setIsReordering(false);
-    }
-  }, [addItem, logger, order, tOrder, toast]);
+    setReorderDialogOpen(true);
+  }, [order]);
 
   if (loading) {
     return (
@@ -273,8 +246,8 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
           <AccountSectionLabel className="mb-3">{tOrder('orderActions')}</AccountSectionLabel>
           <div className="flex flex-wrap gap-2">
             {canReorder(order) ? (
-              <Button variant="secondary" size="small" disabled={isReordering} onClick={() => void handleReorder()}>
-                {isReordering ? <Spinner variant="sm" className="mr-2" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
+              <Button variant="secondary" size="small" onClick={handleReorder}>
+                <ShoppingCart className="mr-2 h-4 w-4" />
                 {tOrder('reorderLink')}
               </Button>
             ) : (
@@ -361,6 +334,8 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
         onOpenChange={setReturnDialogOpen}
         returnability={returnability ?? undefined}
       />
+
+      <ReorderDialog order={order} open={reorderDialogOpen} onOpenChange={setReorderDialogOpen} addItem={addItem} />
     </AccountDetailContainer>
   );
 }
