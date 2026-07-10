@@ -68,6 +68,7 @@ export async function renderBrowsePage({
 
   return (
     <div className="max-w-6xl mx-auto px-4 lg:px-9 pb-32">
+      {/** When a search phrase is present, the PLP heading should read Search Results rather than All Products. */}
       <SearchResultsComponent
         initialSearch={initialSearch}
         initialResults={initialResults}
@@ -76,7 +77,7 @@ export async function renderBrowsePage({
         navigationRoots={navigationRoots}
         headingNode={
           <Heading variant="h2" className="mb-0">
-            {q ? t('resultsFor', { query: q }) : t('allProducts')}
+            {q?.trim() ? 'Search Results' : t('allProducts')}
           </Heading>
         }
       />

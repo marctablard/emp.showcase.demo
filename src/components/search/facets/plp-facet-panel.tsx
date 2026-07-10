@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 import { SearchActiveFiltersWithReset } from '@/components/search/search-active-filters-with-reset';
@@ -12,7 +12,8 @@ import { RatingStar } from '@/components/ui/rating';
 import { Slider } from '@/components/ui/slider';
 import { getPublicFacetsDefaultCollapseSize } from '@/lib/common/public-default-env';
 import { cn } from '@/lib/utils';
-import type {
+import { BATTERY_INCLUDED_BREADCRUMB_FILTER } from '@/platform/services/model/category/batteryincluded-category';
+import {
   BatteryIncludedFacet,
   BatteryIncludedTreeFacetOption,
   SearchFilterValue,
@@ -457,12 +458,21 @@ function RangeFacetRenderer({
   resetFacet: (facetId: string) => void;
 }) {
   const activeRange = getRangeFacetValue(activeFilters[facet.id]);
+  const rememberedMaxRef = React.useRef<Record<string, number>>({});
+  const rawMax = Number(facet.max);
+
+  if (Number.isFinite(rawMax)) {
+    const prev = rememberedMaxRef.current[facet.id];
+    rememberedMaxRef.current[facet.id] = prev === undefined ? rawMax : Math.max(prev, rawMax);
+  }
+  const effectiveMax = rememberedMaxRef.current[facet.id] ?? rawMax;
 
   return (
     <RangeFacetDraftForm
-      key={`${facet.id}:${activeRange?.from ?? ''}:${activeRange?.till ?? ''}`}
+      key={`${facet.id}:${activeRange?.from ?? ''}:${activeRange?.till ?? ''}:${effectiveMax}`}
       facet={facet}
       activeRange={activeRange}
+      boundsMax={effectiveMax}
       applyRangeFacet={applyRangeFacet}
       resetFacet={resetFacet}
     />
@@ -472,11 +482,13 @@ function RangeFacetRenderer({
 function RangeFacetDraftForm({
   facet,
   activeRange,
+  boundsMax,
   applyRangeFacet,
   resetFacet,
 }: {
   facet: Extract<BatteryIncludedFacet, { kind: 'range' }>;
   activeRange: { from?: string; till?: string } | undefined;
+  boundsMax: number;
   applyRangeFacet: (facetId: string, min: string, max: string) => void;
   resetFacet: (facetId: string) => void;
 }) {
@@ -484,10 +496,10 @@ function RangeFacetDraftForm({
   const rangeLabel = facet.label || getFilterLabelFallback(facet.id);
   const minPlaceholder = 'min';
   const maxPlaceholder = 'max';
-  const [draftFrom, setDraftFrom] = useState(activeRange?.from ?? '');
-  const [draftTill, setDraftTill] = useState(activeRange?.till ?? '');
-  const minValue = Number(facet.min);
-  const maxValue = Number(facet.max);
+  const minValue = 0;
+  const maxValue = Number.isFinite(boundsMax) ? Math.ceil(boundsMax / 100) * 100 : boundsMax;
+  const [draftFrom, setDraftFrom] = useState(activeRange?.from ?? String(minValue));
+  const [draftTill, setDraftTill] = useState(activeRange?.till ?? String(maxValue));
 
   const normalizeRangeInput = (value: string): string => {
     const trimmedValue = value.trim();
@@ -528,6 +540,11 @@ function RangeFacetDraftForm({
     setDraftTill(nextTill);
 
     if (nextFrom === '' && nextTill === '') {
+      resetFacet(facet.id);
+      return;
+    }
+
+    if (Number(nextFrom) <= minValue && Number(nextTill) >= maxValue) {
       resetFacet(facet.id);
       return;
     }
@@ -577,8 +594,8 @@ function RangeFacetDraftForm({
             name="from"
             type="number"
             inputMode="numeric"
-            min={facet.min}
-            max={facet.max}
+            min={minValue}
+            max={maxValue}
             value={draftFrom}
             placeholder={minPlaceholder}
             onChange={(event) => {
@@ -595,8 +612,8 @@ function RangeFacetDraftForm({
             name="till"
             type="number"
             inputMode="numeric"
-            min={facet.min}
-            max={facet.max}
+            min={minValue}
+            max={maxValue}
             value={draftTill}
             placeholder={maxPlaceholder}
             onChange={(event) => {
@@ -745,6 +762,12 @@ export function PlpFacetPanel({
     return null;
   }
 
+  const sectionFacets = facets.filter((f) => f.id !== BATTERY_INCLUDED_BREADCRUMB_FILTER);
+
+  if (sectionFacets.length === 0 && Object.keys(activeFilters).length === 0) {
+    return null;
+  }
+
   const panelLabel = t('filters.filterButton', { defaultValue: 'Filters' });
 
   return (
@@ -776,18 +799,24 @@ export function PlpFacetPanel({
         categoryFilterLabelsById={categoryFilterLabelsById}
         batteryIncludedFacets={facets}
       />
-      <Accordion type="multiple" defaultValue={facets.map((facet) => facet.id)} className="flex flex-col gap-0">
-        {facets.map((facet) => (
-          <PlpFacetSection
-            key={facet.id}
-            facet={facet}
-            activeFilters={activeFilters}
-            applyFacet={applyFacet}
-            applyRangeFacet={applyRangeFacet}
-            resetFacet={resetFacet}
-          />
-        ))}
-      </Accordion>
+      {sectionFacets.length > 0 ? (
+        <Accordion
+          type="multiple"
+          defaultValue={sectionFacets.map((facet) => facet.id)}
+          className="flex flex-col gap-0"
+        >
+          {sectionFacets.map((facet) => (
+            <PlpFacetSection
+              key={facet.id}
+              facet={facet}
+              activeFilters={activeFilters}
+              applyFacet={applyFacet}
+              applyRangeFacet={applyRangeFacet}
+              resetFacet={resetFacet}
+            />
+          ))}
+        </Accordion>
+      ) : null}
     </section>
   );
 }

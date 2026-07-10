@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { H2 } from '@/components/ui/h';
 import { useCategoryProductCounts } from '@/hooks/category/useCategoryProductCounts';
 import { resolvePlpCategoryContext } from '@/lib/category/plp-category-context';
+import { resolvePlpCategoryTreeFacetContext } from '@/lib/category/plp-category-tree-facet';
 import { l10nOrEmpty } from '@/lib/utils';
 import type { Category } from '@/platform/services/model/category';
 import { getBatteryIncludedCategoryStaticCount } from '@/platform/services/model/category/batteryincluded-category';
@@ -40,6 +41,7 @@ interface PlpListLayoutProps {
   resetAllFacets?: () => void;
   categoryFilterLabelsById?: Record<string, string>;
   topControlsNode?: React.ReactNode;
+  searchQuery?: string;
 }
 
 /**
@@ -72,14 +74,25 @@ export function PlpListLayout({
   resetAllFacets,
   categoryFilterLabelsById,
   topControlsNode,
+  searchQuery,
 }: PlpListLayoutProps) {
   const t = useTranslations('search.searchResults');
   const tFilter = useTranslations('product.filters');
-  const plpContext = resolvePlpCategoryContext(navigationRoots, selectedCategoryId);
+  const staticPlpContext = resolvePlpCategoryContext(navigationRoots, selectedCategoryId);
+  const liveCategoryTreeContext = useMemo(
+    () => resolvePlpCategoryTreeFacetContext(batteryIncludedFacets, navigationRoots, selectedCategoryId, locale),
+    [batteryIncludedFacets, navigationRoots, selectedCategoryId, locale],
+  );
+  const useLiveCategoryTree =
+    liveCategoryTreeContext !== undefined &&
+    (selectedCategoryId === undefined || liveCategoryTreeContext.selectedCategoryFound);
+  const resolvedCategoryContext =
+    useLiveCategoryTree && liveCategoryTreeContext ? liveCategoryTreeContext.plpCategoryContext : staticPlpContext;
+
   const staticCounts = useMemo(() => {
     const out: Record<string, number> = {};
 
-    for (const category of [plpContext.currentCategory, ...plpContext.currentChildren]) {
+    for (const category of [resolvedCategoryContext.currentCategory, ...resolvedCategoryContext.currentChildren]) {
       if (!category) {
         continue;
       }
@@ -91,11 +104,16 @@ export function PlpListLayout({
     }
 
     return out;
-  }, [plpContext.currentCategory, plpContext.currentChildren]);
+  }, [resolvedCategoryContext.currentCategory, resolvedCategoryContext.currentChildren]);
+
   const idsToRequest = useMemo(
-    () => plpContext.sidebarCountCategoryIds.filter((id) => staticCounts[id] === undefined),
-    [plpContext.sidebarCountCategoryIds, staticCounts],
+    () =>
+      useLiveCategoryTree
+        ? []
+        : resolvedCategoryContext.sidebarCountCategoryIds.filter((id) => staticCounts[id] === undefined),
+    [resolvedCategoryContext.sidebarCountCategoryIds, staticCounts, useLiveCategoryTree],
   );
+
   const { counts, requestCounts } = useCategoryProductCounts();
 
   useEffect(() => {
@@ -104,18 +122,29 @@ export function PlpListLayout({
     }
   }, [idsToRequest, requestCounts]);
 
-  const categoryCountsById = useMemo(() => ({ ...counts, ...staticCounts }), [counts, staticCounts]);
-  const currentCategoryName = plpContext.currentCategory ? l10nOrEmpty(plpContext.currentCategory.name, locale) : '';
-  const summaryTitle = currentCategoryName || t('allProducts');
-  const summaryCount = plpContext.currentCategory ? categoryCountsById[plpContext.currentCategory.id] : total;
-  const summaryDescription = plpContext.currentCategory
-    ? l10nOrEmpty(plpContext.currentCategory.description, locale)
+  const categoryCountsById = useMemo(() => {
+    if (useLiveCategoryTree && liveCategoryTreeContext) {
+      return { ...staticCounts, ...liveCategoryTreeContext.categoryCountsById };
+    }
+
+    return { ...counts, ...staticCounts };
+  }, [counts, liveCategoryTreeContext, staticCounts, useLiveCategoryTree]);
+
+  const currentCategoryName = resolvedCategoryContext.currentCategory
+    ? l10nOrEmpty(resolvedCategoryContext.currentCategory.name, locale)
+    : '';
+  const summaryTitle = searchQuery?.trim() ? 'Search Results' : currentCategoryName || t('allProducts');
+  const summaryCount = resolvedCategoryContext.currentCategory
+    ? categoryCountsById[resolvedCategoryContext.currentCategory.id]
+    : total;
+  const summaryDescription = resolvedCategoryContext.currentCategory
+    ? l10nOrEmpty(resolvedCategoryContext.currentCategory.description, locale)
     : '';
 
   return (
     <div className="flex flex-col gap-4">
-      {/* <PlpCategoryCarousel categories={plpContext.ribbonCategories} locale={locale} /> */}
-      <PlpCategoryBreadcrumbs plpCategoryContext={plpContext} locale={locale} />
+      {/* <PlpCategoryCarousel categories={resolvedCategoryContext.ribbonCategories} locale={locale} /> */}
+      <PlpCategoryBreadcrumbs plpCategoryContext={resolvedCategoryContext} locale={locale} />
       <section className="flex flex-col gap-4" aria-label={summaryTitle} data-testid="plp-category-summary">
         <div className="flex flex-col gap-1 md:flex-row md:items-baseline md:gap-4">
           <H2 className="mb-0">{summaryTitle}</H2>
@@ -131,7 +160,7 @@ export function PlpListLayout({
       <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,444px)_minmax(0,1fr)]">
         <aside className="hidden md:block" aria-label={t('allProducts')}>
           <PlpCategoryTree
-            plpCategoryContext={plpContext}
+            plpCategoryContext={resolvedCategoryContext}
             locale={locale}
             total={total}
             categoryCountsById={categoryCountsById}

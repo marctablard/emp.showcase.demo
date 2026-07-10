@@ -27,6 +27,7 @@ interface SearchResultsListProps {
   resetFacet: (facetId: string) => void;
   resetAllFacets?: () => void;
   categoryFilterLabelsById?: Record<string, string>;
+  searchQuery?: string;
   /**
    * Site-scoped navigation root categories rendered in the PLP thumbnail carousel and left-column
    * tree. Optional so legacy call sites that do not plumb the forest keep rendering a slim layout.
@@ -58,6 +59,7 @@ export function SearchResultsList({
   categoryFilterLabelsById,
   navigationRoots,
   topControlsNode,
+  searchQuery,
 }: SearchResultsListProps) {
   const rootCategories = navigationRoots ?? [];
   const selectedCategoryId = resolveSelectedCategoryIdFromFilters(activeFilters ?? {}, rootCategories);
@@ -86,6 +88,7 @@ export function SearchResultsList({
       resetAllFacets={resetAllFacets}
       categoryFilterLabelsById={categoryFilterLabelsById}
       topControlsNode={topControlsNode}
+      searchQuery={searchQuery}
     />
   );
 }

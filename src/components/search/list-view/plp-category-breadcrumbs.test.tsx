@@ -7,8 +7,14 @@ import { render, screen } from '@testing-library/react';
 import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
 import { PlpCategoryBreadcrumbs } from './plp-category-breadcrumbs';
 
+let mockSearchParams = new URLSearchParams('currency=EUR&q=solar&filters[brand]=X');
+
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+}));
+
+jest.mock('next/navigation', () => ({
+  useSearchParams: () => mockSearchParams,
 }));
 
 jest.mock('@/i18n/navigation', () => ({
@@ -28,6 +34,10 @@ jest.mock('@/i18n/navigation', () => ({
 }));
 
 describe('PlpCategoryBreadcrumbs', () => {
+  beforeEach(() => {
+    mockSearchParams = new URLSearchParams('currency=EUR&q=solar&filters[brand]=X');
+  });
+
   it('renders a dynamic category trail with matching category browse links', () => {
     const parent = { id: 'parent-1', name: { en: 'Parent 1' }, children: [] };
     const child = { id: 'child-1', name: { en: 'Child 1' }, children: [] };
@@ -45,13 +55,19 @@ describe('PlpCategoryBreadcrumbs', () => {
     expect(links[0]).toHaveTextContent('homeLink');
     expect(links[0]).toHaveAttribute('href', '/');
     expect(links[1]).toHaveTextContent('allProducts');
-    expect(links[1]).toHaveAttribute('href', '/browse');
-    expect(links[2]).toHaveTextContent('Parent 1');
-    expect(links[2]).toHaveAttribute('href', expect.stringContaining('/browse?filters%5BcategoryIds%5D=parent-1'));
+    expect(links[1]).toHaveAttribute('href', '/browse?currency=EUR');
+    expect(links[2]).toHaveTextContent('searchResults');
+    expect(links[2]).toHaveAttribute('href', '/browse?currency=EUR&q=solar&filters%5Bbrand%5D=X');
+    expect(links[3]).toHaveTextContent('Parent 1');
+    expect(links[3]).toHaveAttribute(
+      'href',
+      expect.stringContaining('/browse?currency=EUR&q=solar&filters%5Bbrand%5D=X&filters%5BcategoryIds%5D=parent-1'),
+    );
     expect(screen.getByText('Child 1')).toHaveAttribute('aria-current', 'page');
   });
 
-  it('falls back to Home -> All Products at the root level', () => {
+  it('falls back to Home -> All Products at the root level when there are NO resettable params', () => {
+    mockSearchParams = new URLSearchParams('currency=EUR');
     const plpCategoryContext: PlpCategoryContext = {
       ancestorTrail: [],
       currentCategory: undefined,
@@ -64,6 +80,24 @@ describe('PlpCategoryBreadcrumbs', () => {
 
     expect(screen.getByRole('link', { name: 'homeLink' })).toHaveAttribute('href', '/');
     expect(screen.getByText('allProducts').closest('li')).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('renders a clickable All Products reset link at the root level when there are resettable params', () => {
+    mockSearchParams = new URLSearchParams('currency=EUR&sort=x&filters[brand]=Victron');
+    const plpCategoryContext: PlpCategoryContext = {
+      ancestorTrail: [],
+      currentCategory: undefined,
+      currentChildren: [],
+      ribbonCategories: [],
+      sidebarCountCategoryIds: [],
+    };
+
+    render(<PlpCategoryBreadcrumbs plpCategoryContext={plpCategoryContext} locale="en" />);
+
+    expect(screen.getByRole('link', { name: 'homeLink' })).toHaveAttribute('href', '/');
+    const allProductsLink = screen.getByRole('link', { name: 'allProducts' });
+    expect(allProductsLink).toHaveAttribute('href', '/browse?currency=EUR');
+    expect(allProductsLink.closest('li')).not.toHaveAttribute('aria-current');
   });
 
   it('does not render the missing-label placeholder for category breadcrumbs', () => {

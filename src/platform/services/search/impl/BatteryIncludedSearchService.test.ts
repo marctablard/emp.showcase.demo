@@ -335,7 +335,8 @@ describe('BatteryIncludedSearchService', () => {
         size: 12,
         facet_counts: [
           {
-            field_name: '_product_siteAware.{siteAware}.currencyAware.{currencyAware}.countryAware.{countryAware}.price.effectiveAmount',
+            field_name:
+              '_product_siteAware.{siteAware}.currencyAware.{currencyAware}.countryAware.{countryAware}.price.effectiveAmount',
             field_label: 'Net price',
             type: 'select',
             stats: { total_values: 2 },
@@ -357,7 +358,8 @@ describe('BatteryIncludedSearchService', () => {
             ],
           },
           {
-            field_name: '_product_siteAware.{siteAware}.currencyAware.{currencyAware}.countryAware.{countryAware}.price.effectiveAmount',
+            field_name:
+              '_product_siteAware.{siteAware}.currencyAware.{currencyAware}.countryAware.{countryAware}.price.effectiveAmount',
             field_label: 'Net price',
             type: 'range',
             stats: { min: 10, max: 20 },
@@ -517,6 +519,21 @@ describe('BatteryIncludedSearchService', () => {
           },
         ],
       },
+      {
+        id: '_product_i18n.categoryBreadcrumbs.displayPath',
+        label: 'Breadcrumb',
+        kind: 'tree',
+        options: [
+          {
+            id: 'Cables > USB-C',
+            label: 'Cables > USB-C',
+            active: false,
+            count: 1,
+            idPath: ['root-a', 'child-a'],
+            labelPath: ['Cables', 'USB-C'],
+          },
+        ],
+      },
     ]);
   });
 
@@ -618,6 +635,21 @@ describe('BatteryIncludedSearchService', () => {
     expect(result.availableSorts).toEqual(BATTERY_INCLUDED_DEFAULT_SORTS);
     expect(result.batteryIncludedFacets).toEqual([
       {
+        id: '_product_i18n.categoryBreadcrumbs.displayPath',
+        label: 'Breadcrumb',
+        kind: 'tree',
+        options: [
+          {
+            id: 'Cables > USB-C',
+            label: 'Cables > USB-C',
+            active: false,
+            count: 1,
+            idPath: ['root-a', 'child-a'],
+            labelPath: ['Cables', 'USB-C'],
+          },
+        ],
+      },
+      {
         id: 'brandTree',
         label: 'brandTree',
         kind: 'tree',
@@ -644,7 +676,8 @@ describe('BatteryIncludedSearchService', () => {
         size: 12,
         facet_counts: [
           {
-            field_name: '_product_siteAware.{siteAware}.currencyAware.{currencyAware}.countryAware.{countryAware}.price.effectiveAmount',
+            field_name:
+              '_product_siteAware.{siteAware}.currencyAware.{currencyAware}.countryAware.{countryAware}.price.effectiveAmount',
             field_label: 'Net price',
             type: 'select',
             stats: { total_values: 2 },
@@ -1517,7 +1550,9 @@ describe('BatteryIncludedSearchService', () => {
     });
 
     await expect(service.getHighlights({ locale: 'en', siteAware: 'main' })).resolves.toEqual([]);
-    await expect(service.getRecommendations('product-1', 'en', 'main', 5, { locale: 'en', siteAware: 'main' })).resolves.toEqual([]);
+    await expect(
+      service.getRecommendations('product-1', 'en', 'main', 5, { locale: 'en', siteAware: 'main' }),
+    ).resolves.toEqual([]);
 
     expect(shopApi.browse).not.toHaveBeenCalled();
     expect(shopApi.suggest).not.toHaveBeenCalled();

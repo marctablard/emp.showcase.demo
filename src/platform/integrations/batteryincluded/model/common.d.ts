@@ -1,5 +1,6 @@
 import { EmporixMedia } from '@/platform/integrations/emporix/model/common';
 import type { SearchFilters } from '@/platform/services/model/common';
+
 export interface BatteryIncludedBrowseVariables {
   locale?: string;
   siteAware?: string;
@@ -101,7 +102,9 @@ export interface BatteryIncludedSuggestionDocumentHit<T> {
   [key: string]: unknown;
 }
 
-export interface BatteryIncludedSuggestionFacetHit extends BatteryIncludedFacetCountRow {}
+export interface BatteryIncludedSuggestionFacetHit extends BatteryIncludedFacetCountRow {
+  highlighted?: string;
+}
 
 export interface BatteryIncludedSuggestionQueryCompletionGroup {
   kind: 'query-completion';

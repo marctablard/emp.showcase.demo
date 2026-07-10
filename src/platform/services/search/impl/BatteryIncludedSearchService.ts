@@ -6,12 +6,11 @@ import type {
   BatteryIncludedSearchResponse,
   BatteryIncludedSuggestion,
 } from '@/platform/integrations/batteryincluded/model';
+import type { BatteryIncludedVisibilityFilters } from '@/platform/integrations/batteryincluded/model';
 import type { BatteryIncludedProduct } from '@/platform/integrations/batteryincluded/model/product';
 import type { BatteryIncludedShopApi } from '@/platform/integrations/batteryincluded/shop/BatteryIncludedShopApi';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import {
-  BATTERY_INCLUDED_BREADCRUMB_FILTER,
-} from '@/platform/services/model/category/batteryincluded-category';
+import { BATTERY_INCLUDED_BREADCRUMB_FILTER } from '@/platform/services/model/category/batteryincluded-category';
 import type {
   BatteryIncludedFacet,
   BatteryIncludedFacetOption,
@@ -32,11 +31,14 @@ import type { ProductMapper } from '../../model/product/ProductMapper';
 import type { SearchSuggestions, SuggestionsMapper } from '../../model/search';
 import type { SessionService } from '../../session';
 import { BatteryIncludedFacetsQueryBuilder } from './BatteryIncludedFacetsQueryBuilder';
-import { BATTERY_INCLUDED_DEFAULT_SORTS, resolveBatteryIncludedSort } from './BatteryIncludedSortResolver';
 import { parseBatteryIncludedSortToken } from './BatteryIncludedSortContract';
-import type { BatteryIncludedVisibilityFilters } from '@/platform/integrations/batteryincluded/model';
-import { buildBatteryIncludedVisibilityFilters, buildBatteryIncludedVisibilityVariables, mergeBatteryIncludedVisibilityFilters } from './batteryincluded-visibility';
+import { BATTERY_INCLUDED_DEFAULT_SORTS, resolveBatteryIncludedSort } from './BatteryIncludedSortResolver';
 import type SegmentFilterService from './SegmentFilterService';
+import {
+  buildBatteryIncludedVisibilityFilters,
+  buildBatteryIncludedVisibilityVariables,
+  mergeBatteryIncludedVisibilityFilters,
+} from './batteryincluded-visibility';
 
 const BATTERY_INCLUDED_SELECTION_CONTEXT_KEY = '__batteryIncludedSelection';
 // TODO: Replace this with the authoritative BI rating facet field id once a production sample is captured in-repo.
@@ -128,11 +130,7 @@ class BatteryIncludedSearchService implements SearchService {
     return variantCountByParentId;
   }
 
-  private async resolveBatteryIncludedContext(params: {
-    locale?: string;
-    site?: string;
-    currency?: string;
-  }): Promise<{
+  private async resolveBatteryIncludedContext(params: { locale?: string; site?: string; currency?: string }): Promise<{
     resolvedLocale?: string;
     resolvedSite?: string;
     currentCountry?: string;
@@ -409,12 +407,14 @@ class BatteryIncludedSearchService implements SearchService {
     const responseDrivenSorts: SearchSortOption[] = facets
       .filter((facet): facet is Extract<BatteryIncludedFacet, { kind: 'select' }> => facet.kind === 'select')
       .filter((facet) => this.isExplicitResponseDrivenSortFacet(facet))
-      .map((facet): SearchSortOption => ({
-        id: facet.id,
-        label: facet.label,
-        directions: ['asc', 'desc'],
-        defaultDirection: 'asc',
-      }));
+      .map(
+        (facet): SearchSortOption => ({
+          id: facet.id,
+          label: facet.label,
+          directions: ['asc', 'desc'],
+          defaultDirection: 'asc',
+        }),
+      );
 
     const dedupedSorts = new Map<string, SearchSortOption>();
     [...BATTERY_INCLUDED_DEFAULT_SORTS, ...responseDrivenSorts].forEach((sort) => {
@@ -518,10 +518,12 @@ class BatteryIncludedSearchService implements SearchService {
     const variantCountByParentId = this.buildVariantCountByParentId(searchResult.hits);
 
     const batteryIncludedFacets = searchResult.facet_counts
-      .filter((facet) => facet.field_name !== 'segmentIds' && facet.field_name !== BATTERY_INCLUDED_BREADCRUMB_FILTER)
+      .filter((facet) => facet.field_name !== 'segmentIds')
       .map((facet) => this.mapBatteryIncludedFacet(facet, filters));
     const availableSorts = this.resolveAvailableSorts(batteryIncludedFacets);
-    const availableFilters = batteryIncludedFacets.map((facet) => this.toLegacyFilter(facet));
+    const availableFilters = batteryIncludedFacets
+      .filter((facet) => facet.id !== BATTERY_INCLUDED_BREADCRUMB_FILTER)
+      .map((facet) => this.toLegacyFilter(facet));
     return {
       items: searchResult.hits.map((hit) => {
         const product = this.productMapper.mapToService(
@@ -555,11 +557,12 @@ class BatteryIncludedSearchService implements SearchService {
           segmentIds = await this.segmentFilterService.getSegmentIds();
         }
       }
-      const { resolvedSite, currentCurrency, visibilityVariables, publishedRootIds } = await this.resolveBatteryIncludedContext({
-        locale: params.locale,
-        site: params.site,
-        currency: params.currency,
-      });
+      const { resolvedSite, currentCurrency, visibilityVariables, publishedRootIds } =
+        await this.resolveBatteryIncludedContext({
+          locale: params.locale,
+          site: params.site,
+          currency: params.currency,
+        });
 
       if (publishedRootIds.length === 0) {
         return {

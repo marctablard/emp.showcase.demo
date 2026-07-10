@@ -4,6 +4,7 @@ import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import { injectable } from '@/platform/core/di/injectable';
 import type { BatteryIncludedProduct } from '@/platform/integrations/batteryincluded/model/product';
 import type { EmporixProduct } from '@/platform/integrations/emporix/model';
+import { BATTERY_INCLUDED_BREADCRUMB_FILTER } from '@/platform/services/model/category/batteryincluded-category';
 import type { Product as ServiceProduct } from '@/platform/services/model/product';
 import type { LocalizedString, Price } from '../../common';
 import type { CategorySuggestion, SearchSuggestions } from '../../search/SearchSuggestions';
@@ -273,7 +274,7 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
     }
 
     const branch = value as Record<string, unknown>;
-    const directPrice = this.getPriceFromPriceArray(branch.prices ?? branch.price, currency);
+    const directPrice = this.getDirectBranchPrice(branch.price) ?? this.getPriceFromPriceArray(branch.prices, currency);
     if (directPrice) {
       return directPrice;
     }
@@ -283,10 +284,10 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
         continue;
       }
 
-      const nestedPrice = this.getPriceFromPriceArray(
-        (nestedBranch as Record<string, unknown>).prices ?? (nestedBranch as Record<string, unknown>).price,
-        currency,
-      );
+      const nestedBranchObj = nestedBranch as Record<string, unknown>;
+      const nestedPrice =
+        this.getDirectBranchPrice(nestedBranchObj.price) ??
+        this.getPriceFromPriceArray(nestedBranchObj.prices, currency);
       if (nestedPrice) {
         return nestedPrice;
       }
@@ -301,7 +302,7 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
     }
 
     const branch = value as Record<string, unknown>;
-    const directPrice = this.getDirectBranchPrice(branch.prices ?? branch.price);
+    const directPrice = this.getDirectBranchPrice(branch.price) ?? this.getDirectBranchPrice(branch.prices);
     if (directPrice) {
       return directPrice;
     }
@@ -311,9 +312,9 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
         continue;
       }
 
-      const nestedPrice = this.getDirectBranchPrice(
-        (nestedBranch as Record<string, unknown>).prices ?? (nestedBranch as Record<string, unknown>).price,
-      );
+      const nestedBranchObj = nestedBranch as Record<string, unknown>;
+      const nestedPrice =
+        this.getDirectBranchPrice(nestedBranchObj.price) ?? this.getDirectBranchPrice(nestedBranchObj.prices);
       if (nestedPrice) {
         return nestedPrice;
       }
@@ -481,6 +482,10 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
       if (legacyBranchPrice) {
         return legacyBranchPrice;
       }
+    }
+
+    if (rootProduct.price) {
+      return rootProduct.price;
     }
 
     if (Array.isArray(rootProduct.prices) && rootProduct.prices.length > 0) {
@@ -687,12 +692,19 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
   mapCategorySuggestions(item: any): CategorySuggestion[] {
     const categories: CategorySuggestion[] = [];
 
-    if (item && item.kind?.startsWith('facet.categoryAssignments') && Array.isArray(item.hits)) {
+    if (
+      item &&
+      (item.field_name === BATTERY_INCLUDED_BREADCRUMB_FILTER ||
+        item.kind === `facet.${BATTERY_INCLUDED_BREADCRUMB_FILTER}`) &&
+      Array.isArray(item.hits)
+    ) {
       item.hits.forEach((hit: any) => {
         if (hit && hit.value) {
           categories.push({
             name: hit.value,
-            count: hit.count || 1,
+            highlighted: hit.highlighted ?? hit.value,
+            count: hit.count ?? 1,
+            idPath: hit.data?.idPath,
           });
         }
       });
@@ -743,9 +755,14 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
           const product = this.mapToService(suggestionSource);
           const rootProduct = this.getRootProduct(suggestionSource);
 
-          if (!product.price && Array.isArray(rootProduct.prices)) {
+          if (!product.price) {
             const { currencyAware } = this.getSelectionContext(suggestionSource);
-            const fallbackPrice = this.getPriceFromPriceArray(rootProduct.prices, currencyAware);
+            let fallbackPrice = undefined;
+            if (rootProduct.price) {
+              fallbackPrice = rootProduct.price;
+            } else if (Array.isArray(rootProduct.prices)) {
+              fallbackPrice = this.getPriceFromPriceArray(rootProduct.prices, currencyAware);
+            }
             if (fallbackPrice) {
               product.price = this.mapPrice(fallbackPrice);
             }
@@ -779,7 +796,11 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
         result.queryCompletions = [...result.queryCompletions, ...this.mapQueryCompletions(item)];
       } else if (item.kind === 'document') {
         result.products = [...result.products, ...this.mapProductSuggestions(item)];
-      } else if (item.kind?.startsWith('facet.categoryAssignments')) {
+      } else if (
+        item.kind?.startsWith('facet.') &&
+        (item.field_name === BATTERY_INCLUDED_BREADCRUMB_FILTER ||
+          item.kind === `facet.${BATTERY_INCLUDED_BREADCRUMB_FILTER}`)
+      ) {
         result.categories = [...result.categories, ...this.mapCategorySuggestions(item)];
       }
     });

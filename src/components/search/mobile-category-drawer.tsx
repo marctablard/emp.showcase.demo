@@ -9,11 +9,15 @@ import { Button } from '@/components/ui/button';
 import { Drawer, DrawerClose, DrawerContent, DrawerTrigger } from '@/components/ui/drawer';
 import { useCategoryProductCounts } from '@/hooks/category/useCategoryProductCounts';
 import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
+import { resolvePlpCategoryTreeFacetContext } from '@/lib/category/plp-category-tree-facet';
+import type { Category } from '@/platform/services/model/category';
 import { getBatteryIncludedCategoryStaticCount } from '@/platform/services/model/category/batteryincluded-category';
 import type { BatteryIncludedFacet, SearchFilterValue } from '@/platform/services/model/common';
 
 interface MobileCategoryDrawerProps {
   plpCategoryContext: PlpCategoryContext;
+  navigationRoots?: Category[];
+  selectedCategoryId?: string;
   locale: string;
   total: number;
   facets?: BatteryIncludedFacet[];
@@ -27,6 +31,8 @@ interface MobileCategoryDrawerProps {
 
 export function MobileCategoryDrawer({
   plpCategoryContext,
+  navigationRoots,
+  selectedCategoryId,
   locale,
   total,
   facets,
@@ -39,10 +45,19 @@ export function MobileCategoryDrawer({
 }: MobileCategoryDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const tFilter = useTranslations('product.filters');
+  const liveCategoryTreeContext = useMemo(
+    () => resolvePlpCategoryTreeFacetContext(facets, navigationRoots, selectedCategoryId, locale),
+    [facets, navigationRoots, selectedCategoryId, locale],
+  );
+  const useLiveCategoryTree =
+    liveCategoryTreeContext !== undefined &&
+    (selectedCategoryId === undefined || liveCategoryTreeContext.selectedCategoryFound);
+  const resolvedCategoryContext =
+    useLiveCategoryTree && liveCategoryTreeContext ? liveCategoryTreeContext.plpCategoryContext : plpCategoryContext;
   const staticCounts = useMemo(() => {
     const out: Record<string, number> = {};
 
-    for (const category of [plpCategoryContext.currentCategory, ...plpCategoryContext.currentChildren]) {
+    for (const category of [resolvedCategoryContext.currentCategory, ...resolvedCategoryContext.currentChildren]) {
       if (!category) {
         continue;
       }
@@ -54,10 +69,13 @@ export function MobileCategoryDrawer({
     }
 
     return out;
-  }, [plpCategoryContext.currentCategory, plpCategoryContext.currentChildren]);
+  }, [resolvedCategoryContext.currentCategory, resolvedCategoryContext.currentChildren]);
   const idsToRequest = useMemo(
-    () => plpCategoryContext.sidebarCountCategoryIds.filter((id) => staticCounts[id] === undefined),
-    [plpCategoryContext.sidebarCountCategoryIds, staticCounts],
+    () =>
+      useLiveCategoryTree
+        ? []
+        : resolvedCategoryContext.sidebarCountCategoryIds.filter((id) => staticCounts[id] === undefined),
+    [resolvedCategoryContext.sidebarCountCategoryIds, staticCounts, useLiveCategoryTree],
   );
   const { counts, requestCounts } = useCategoryProductCounts();
 
@@ -67,7 +85,13 @@ export function MobileCategoryDrawer({
     }
   }, [idsToRequest, requestCounts]);
 
-  const categoryCountsById = useMemo(() => ({ ...counts, ...staticCounts }), [counts, staticCounts]);
+  const categoryCountsById = useMemo(() => {
+    if (useLiveCategoryTree && liveCategoryTreeContext) {
+      return { ...staticCounts, ...liveCategoryTreeContext.categoryCountsById };
+    }
+
+    return { ...counts, ...staticCounts };
+  }, [counts, liveCategoryTreeContext, staticCounts, useLiveCategoryTree]);
 
   return (
     <div className="relative w-full">
@@ -93,7 +117,7 @@ export function MobileCategoryDrawer({
 
             <div className="flex flex-col gap-6">
               <PlpCategoryTree
-                plpCategoryContext={plpCategoryContext}
+                plpCategoryContext={resolvedCategoryContext}
                 locale={locale}
                 total={total}
                 categoryCountsById={categoryCountsById}

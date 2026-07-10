@@ -309,6 +309,7 @@ export function SearchResultsComponent({
             changeSort={handleSortChange}
             resetFacet={resetFacet}
             topControlsNode={topControlsNode}
+            searchQuery={query}
           />
         )}
 

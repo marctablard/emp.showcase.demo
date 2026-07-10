@@ -1,11 +1,16 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { ChevronRight } from 'lucide-react';
 // import { Link } from '@/i18n/navigation';
 import { PlpPendingLink } from '@/components/search/list-view/plp-pending-link';
 import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
-import { buildBrowseHrefForCategoryId } from '@/lib/navigation/build-browse-category-href';
+import {
+  buildBrowseHrefClearCategory,
+  buildBrowseHrefForCategoryId,
+  buildBrowseHrefResetAll,
+} from '@/lib/navigation/build-browse-category-href';
 import type { L10nInput } from '@/lib/utils';
 import { l10nOrEmpty } from '@/lib/utils';
 
@@ -17,10 +22,15 @@ interface PlpCategoryBreadcrumbsProps {
 export function PlpCategoryBreadcrumbs({ plpCategoryContext, locale }: PlpCategoryBreadcrumbsProps) {
   const tCommon = useTranslations('common.Breadcrumb');
   const tSearch = useTranslations('search.searchResults');
+  const searchParams = useSearchParams();
   const getCategoryLabel = (name: L10nInput) => l10nOrEmpty(name, locale);
   const breadcrumbItems = plpCategoryContext.currentCategory
     ? [...plpCategoryContext.ancestorTrail, { kind: 'category' as const, category: plpCategoryContext.currentCategory }]
     : [];
+
+  const hasResettableParams = Array.from(searchParams?.keys() ?? []).some(
+    (key) => key.startsWith('filters[') || key.startsWith('f[') || key === 'sort' || key === 'q',
+  );
 
   return (
     <nav aria-label={tSearch('allProducts')} className="w-full" data-testid="plp-category-breadcrumbs">
@@ -35,9 +45,20 @@ export function PlpCategoryBreadcrumbs({ plpCategoryContext, locale }: PlpCatego
             <li className="inline-flex items-center text-text-placeholders" aria-hidden="true">
               <ChevronRight className="size-4" />
             </li>
-            <li className="inline-flex items-center" aria-current="page">
-              <span className="text-text-body">{tSearch('allProducts')}</span>
-            </li>
+            {hasResettableParams ? (
+              <li className="inline-flex items-center">
+                <PlpPendingLink
+                  href={buildBrowseHrefResetAll(searchParams)}
+                  className="font-bold text-text-action underline hover:text-text-action-hover"
+                >
+                  {tSearch('allProducts')}
+                </PlpPendingLink>
+              </li>
+            ) : (
+              <li className="inline-flex items-center" aria-current="page">
+                <span className="text-text-body">{tSearch('allProducts')}</span>
+              </li>
+            )}
           </>
         ) : (
           breadcrumbItems.map((item, index) => {
@@ -54,12 +75,23 @@ export function PlpCategoryBreadcrumbs({ plpCategoryContext, locale }: PlpCatego
                       {tSearch('allProducts')}
                     </span>
                   ) : (
-                    <PlpPendingLink
-                      href="/browse"
-                      className="inline-flex items-center font-bold text-text-action underline hover:text-text-action-hover"
-                    >
-                      {tSearch('allProducts')}
-                    </PlpPendingLink>
+                    <>
+                      <PlpPendingLink
+                        href={buildBrowseHrefResetAll(searchParams)}
+                        className="inline-flex items-center font-bold text-text-action underline hover:text-text-action-hover"
+                      >
+                        {tSearch('allProducts')}
+                      </PlpPendingLink>
+                      <span className="inline-flex items-center text-text-placeholders" aria-hidden="true">
+                        <ChevronRight className="size-4" />
+                      </span>
+                      <PlpPendingLink
+                        href={buildBrowseHrefClearCategory(searchParams)}
+                        className="inline-flex items-center font-bold text-text-action underline hover:text-text-action-hover"
+                      >
+                        {tSearch('searchResults')}
+                      </PlpPendingLink>
+                    </>
                   )
                 ) : isLast ? (
                   <span className="inline-flex items-center text-text-body" aria-current="page">
@@ -67,7 +99,7 @@ export function PlpCategoryBreadcrumbs({ plpCategoryContext, locale }: PlpCatego
                   </span>
                 ) : (
                   <PlpPendingLink
-                    href={buildBrowseHrefForCategoryId(item.category.id, item.category)}
+                    href={buildBrowseHrefForCategoryId(item.category.id, item.category, searchParams)}
                     className="inline-flex items-center font-bold text-text-action underline hover:text-text-action-hover"
                   >
                     {getCategoryLabel(item.category.name)}

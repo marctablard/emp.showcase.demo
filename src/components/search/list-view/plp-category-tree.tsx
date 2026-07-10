@@ -2,12 +2,17 @@
 
 import { useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { PlpPendingLink } from '@/components/search/list-view/plp-pending-link';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { H5 } from '@/components/ui/h';
 import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
-import { buildBrowseHrefForCategoryId } from '@/lib/navigation/build-browse-category-href';
+import {
+  buildBrowseHrefClearCategory,
+  buildBrowseHrefForCategoryId,
+  buildBrowseHrefResetAll,
+} from '@/lib/navigation/build-browse-category-href';
 import { l10n } from '@/lib/utils';
 
 interface PlpCategoryTreeProps {
@@ -25,13 +30,13 @@ interface PlpCategoryTreeProps {
 export function PlpCategoryTree({
   plpCategoryContext,
   locale,
-  total,
   categoryCountsById,
   className,
   isNested,
 }: PlpCategoryTreeProps) {
   const t = useTranslations('search.plpCategoryTree');
   const tSearch = useTranslations('search.searchResults');
+  const searchParams = useSearchParams();
 
   const { ancestorTrail, currentCategory, currentChildren } = plpCategoryContext;
 
@@ -53,11 +58,11 @@ export function PlpCategoryTree({
               return (
                 <li key="virtual-all-products">
                   <PlpPendingLink
-                    href="/browse"
+                    href={buildBrowseHrefClearCategory(searchParams)}
                     className="group inline-flex min-h-[50px] items-center gap-2 text-text-action underline outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
                   >
                     <ChevronLeft className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
-                    <span className="truncate">{tSearch('allProducts')}</span>
+                    <span className="truncate">{tSearch('allCategories')}</span>
                   </PlpPendingLink>
                 </li>
               );
@@ -66,7 +71,7 @@ export function PlpCategoryTree({
             return (
               <li key={cat.id}>
                 <PlpPendingLink
-                  href={buildBrowseHrefForCategoryId(cat.id, cat)}
+                  href={buildBrowseHrefForCategoryId(cat.id, cat, searchParams)}
                   className="group inline-flex min-h-[50px] items-center gap-2 text-text-action underline outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
                 >
                   <ChevronLeft className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
@@ -81,16 +86,17 @@ export function PlpCategoryTree({
       {/* Current Category Emphasized Row */}
       <div className="pl-4">
         <PlpPendingLink
-          href={currentCategory ? buildBrowseHrefForCategoryId(currentCategory.id, currentCategory) : '/browse'}
+          href={
+            currentCategory
+              ? buildBrowseHrefForCategoryId(currentCategory.id, currentCategory, searchParams)
+              : buildBrowseHrefResetAll(searchParams)
+          }
           className="inline-flex min-h-[50px] w-full items-center justify-between font-bold text-text-headings outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
           aria-current="page"
           ref={selectedLabelRef}
         >
           <span className="truncate">
             {currentCategory ? l10n(currentCategory.name, locale) : tSearch('allProducts')}
-          </span>
-          <span className="shrink-0 text-text-on-disabled">
-            {currentCategory ? (categoryCountsById[currentCategory.id] ?? '') : total}
           </span>
         </PlpPendingLink>
       </div>
@@ -104,7 +110,7 @@ export function PlpCategoryTree({
               return (
                 <li key={child.id}>
                   <PlpPendingLink
-                    href={buildBrowseHrefForCategoryId(child.id, child)}
+                    href={buildBrowseHrefForCategoryId(child.id, child, searchParams)}
                     className="inline-flex min-h-[40px] w-full items-center justify-between text-text-body hover:text-text-headings hover:underline outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
                   >
                     <span className="truncate">{l10n(child.name, locale)}</span>

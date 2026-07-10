@@ -40,6 +40,7 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
     const runtimeConfig = await this.getCollectionRuntimeConfig();
     const queryString = buildSearchParams(params);
     const url = `/api/v1/collections/${runtimeConfig.collection}/documents/browse?${queryString}`;
+    this.logger.debug({ url, queryString }, 'BatteryIncluded outgoing browse query');
 
     const response = await this.apiClient.apiFetch(
       url,
@@ -130,7 +131,9 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
   /**
    * Get highlighted products
    */
-  async getHighlights(variables?: BatteryIncludedBrowseVariables | BatteryIncludedVisibilityContext): Promise<BatteryIncludedHighlight[]> {
+  async getHighlights(
+    variables?: BatteryIncludedBrowseVariables | BatteryIncludedVisibilityContext,
+  ): Promise<BatteryIncludedHighlight[]> {
     const runtimeConfig = await this.getCollectionRuntimeConfig();
     const searchParams = new URLSearchParams();
     appendBatteryIncludedVisibility(searchParams, variables);
@@ -181,7 +184,9 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
   /**
    * Get available presets
    */
-  async getPresets(variables?: BatteryIncludedBrowseVariables | BatteryIncludedVisibilityContext): Promise<BatteryIncludedPreset[]> {
+  async getPresets(
+    variables?: BatteryIncludedBrowseVariables | BatteryIncludedVisibilityContext,
+  ): Promise<BatteryIncludedPreset[]> {
     const runtimeConfig = await this.getCollectionRuntimeConfig();
     const searchParams = new URLSearchParams();
     appendBatteryIncludedVisibility(searchParams, variables);

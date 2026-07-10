@@ -8,6 +8,18 @@ import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
 import type { BatteryIncludedFacet } from '@/platform/services/model/common';
 import { MobileCategoryDrawer } from './mobile-category-drawer';
 
+jest.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+  }),
+  Link: ({ children, href, className, onClick }: any) => (
+    <a href={href} className={className} onClick={onClick}>
+      {children}
+    </a>
+  ),
+  usePathname: () => '/',
+}));
+
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, string | number>) => {
     if (values && 'count' in values) {
@@ -23,10 +35,6 @@ jest.mock('@/hooks/category/useCategoryProductCounts', () => ({
     counts: {},
     requestCounts: jest.fn(),
   }),
-}));
-
-jest.mock('@/components/search/list-view/plp-category-tree', () => ({
-  PlpCategoryTree: () => <div data-testid="plp-category-tree" />,
 }));
 
 jest.mock('@/components/search/facets', () => ({
@@ -142,11 +150,10 @@ describe('MobileCategoryDrawer', () => {
 
     const dialog = await screen.findByRole('dialog');
     expect(dialog).toBeInTheDocument();
-    expect(screen.getByTestId('plp-category-tree')).toBeInTheDocument();
+    expect(screen.getByTestId('plp-category-tree-nested')).toBeInTheDocument();
     expect(screen.getByTestId('plp-facet-panel')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'showProducts:12' })).toBeInTheDocument();
-
-    const tree = screen.getByTestId('plp-category-tree');
+    const tree = screen.getByTestId('plp-category-tree-nested');
     const facetPanel = screen.getByTestId('plp-facet-panel');
     const cta = screen.getByRole('button', { name: 'showProducts:12' });
 

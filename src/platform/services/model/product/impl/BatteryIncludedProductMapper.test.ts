@@ -956,6 +956,43 @@ describe('BatteryIncludedProductMapper', () => {
     expect(result.variantAttributes).toEqual([]);
   });
 
+  it('maps category suggestions from the breadcrumb display path facet', () => {
+    const result = mapper.mapSearchSuggestions([
+      {
+        kind: 'facet._product_i18n.categoryBreadcrumbs.displayPath',
+        hits: [
+          {
+            value: 'Electrical supplies > Power generation > Solar panels',
+            count: 25,
+            highlighted: 'Electrical supplies > Power generation > <mark>Solar</mark> panels',
+            data: {
+              idPath: '123 > 456 > 789',
+            },
+          },
+          {
+            value: 'Without Highlights',
+            count: 5,
+          },
+        ],
+      },
+    ]);
+
+    expect(result.categories).toEqual([
+      {
+        name: 'Electrical supplies > Power generation > Solar panels',
+        highlighted: 'Electrical supplies > Power generation > <mark>Solar</mark> panels',
+        count: 25,
+        idPath: '123 > 456 > 789',
+      },
+      {
+        name: 'Without Highlights',
+        highlighted: 'Without Highlights',
+        count: 5,
+        idPath: undefined,
+      },
+    ]);
+  });
+
   it('maps highlighted BI document suggestions that use nested site and currency aware branches', () => {
     const result = mapper.mapSearchSuggestions([
       {

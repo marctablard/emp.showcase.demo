@@ -8,15 +8,6 @@ import { acquireNavigationWaitCursorLease, releaseNavigationWaitCursorLease } fr
 import { browseSearchStateSignature } from '@/utils/filterUtils';
 import { SearchResultsComponent } from './search-results';
 
-
-
-
-
-
-
-
-
-
 const mockSearch = jest.fn();
 const mockSyncBrowseSearchStateFromUrl = jest.fn();
 let mockSearchParams = new URLSearchParams();
@@ -362,9 +353,16 @@ describe('SearchResultsComponent', () => {
   });
 
   it('passes sort state and handler through to the list view for desktop PLP placement', () => {
+    mockSearchParams = new URLSearchParams('q=tubes');
+    mockUseSearchState = {
+      ...mockUseSearchState,
+      currentQuery: 'tubes',
+    };
+
     render(<SearchResultsComponent locale="en" initialLayout="list" />);
 
     expect(searchResultsListProps).toMatchObject({
+      searchQuery: 'tubes',
       availableSorts: [
         {
           id: 'name',

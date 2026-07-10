@@ -341,4 +341,215 @@ describe('PlpFacetPanel', () => {
     expect(screen.getByText('Tools')).toBeInTheDocument();
     expect(screen.getByText('Drills')).toBeInTheDocument();
   });
+
+  describe('range facet display bounds', () => {
+    it('presents the range slider and input min/max using ceil to nearest 100 for proper display', () => {
+      render(
+        <PlpFacetPanel
+          facets={[
+            {
+              id: 'price',
+              label: 'Price',
+              kind: 'range',
+              min: '15',
+              max: '5900',
+            },
+          ]}
+          activeFilters={{}}
+          applyFacet={applyFacet}
+          applyRangeFacet={applyRangeFacet}
+          resetFacet={resetFacet}
+        />,
+      );
+
+      const fromInput = screen.getByLabelText('From');
+      const tillInput = screen.getByLabelText('Till');
+
+      expect(fromInput).toHaveAttribute('min', '0');
+      expect(fromInput).toHaveAttribute('max', '5900');
+      expect(tillInput).toHaveAttribute('min', '0');
+      expect(tillInput).toHaveAttribute('max', '5900');
+    });
+
+    it('rounds max up when using ceil to nearest 100 on fractional boundary', () => {
+      render(
+        <PlpFacetPanel
+          facets={[
+            {
+              id: 'price',
+              label: 'Price',
+              kind: 'range',
+              min: '15',
+              max: '5901',
+            },
+          ]}
+          activeFilters={{}}
+          applyFacet={applyFacet}
+          applyRangeFacet={applyRangeFacet}
+          resetFacet={resetFacet}
+        />,
+      );
+
+      const tillInput = screen.getByLabelText('Till');
+      expect(tillInput).toHaveAttribute('max', '6000');
+    });
+
+    it('persists the initial max bound so the slider does not shrink when a filter is active', () => {
+      const { rerender } = render(
+        <PlpFacetPanel
+          facets={[
+            {
+              id: 'price',
+              label: 'Price',
+              kind: 'range',
+              min: '15',
+              max: '5900',
+            },
+          ]}
+          activeFilters={{}}
+          applyFacet={applyFacet}
+          applyRangeFacet={applyRangeFacet}
+          resetFacet={resetFacet}
+        />,
+      );
+
+      const fromInput = screen.getByLabelText('From');
+      const tillInput = screen.getByLabelText('Till');
+      expect(fromInput).toHaveAttribute('max', '5900');
+      expect(tillInput).toHaveAttribute('max', '5900');
+
+      rerender(
+        <PlpFacetPanel
+          facets={[
+            {
+              id: 'price',
+              label: 'Price',
+              kind: 'range',
+              min: '200',
+              max: '800',
+            },
+          ]}
+          activeFilters={{ price: { from: '200', till: '800' } }}
+          applyFacet={applyFacet}
+          applyRangeFacet={applyRangeFacet}
+          resetFacet={resetFacet}
+        />,
+      );
+
+      expect(screen.getByLabelText('From')).toHaveAttribute('max', '5900');
+      expect(screen.getByLabelText('Till')).toHaveAttribute('max', '5900');
+    });
+
+    it('prefills inputs with max bound when no filter is active, and shows selected values when filtered', () => {
+      const { rerender } = render(
+        <PlpFacetPanel
+          facets={[
+            {
+              id: 'price',
+              label: 'Price',
+              kind: 'range',
+              min: '0',
+              max: '5900',
+            },
+          ]}
+          activeFilters={{}}
+          applyFacet={applyFacet}
+          applyRangeFacet={applyRangeFacet}
+          resetFacet={resetFacet}
+        />,
+      );
+
+      expect(screen.getByLabelText('From')).toHaveValue(0);
+      expect(screen.getByLabelText('Till')).toHaveValue(5900);
+
+      rerender(
+        <PlpFacetPanel
+          facets={[
+            {
+              id: 'price',
+              label: 'Price',
+              kind: 'range',
+              min: '0',
+              max: '5900',
+            },
+          ]}
+          activeFilters={{ price: { from: '200', till: '800' } }}
+          applyFacet={applyFacet}
+          applyRangeFacet={applyRangeFacet}
+          resetFacet={resetFacet}
+        />,
+      );
+
+      expect(screen.getByLabelText('From')).toHaveValue(200);
+      expect(screen.getByLabelText('Till')).toHaveValue(800);
+    });
+
+    it('re-seeds max bounds completely when an active filter is removed simulating transient state after reset', () => {
+      const { rerender } = render(
+        <PlpFacetPanel
+          facets={[
+            {
+              id: 'price',
+              label: 'Price',
+              kind: 'range',
+              min: '15',
+              max: '5900',
+            },
+          ]}
+          activeFilters={{}}
+          applyFacet={applyFacet}
+          applyRangeFacet={applyRangeFacet}
+          resetFacet={resetFacet}
+        />,
+      );
+
+      expect(screen.getByLabelText('Till')).toHaveAttribute('max', '5900');
+      expect(screen.getByLabelText('Till')).toHaveValue(5900);
+
+      // Narrow filter applied: backend returns a smaller max 4800.9. Slider should retain 5900 bounds.
+      rerender(
+        <PlpFacetPanel
+          facets={[
+            {
+              id: 'price',
+              label: 'Price',
+              kind: 'range',
+              min: '100',
+              max: '4800.9',
+            },
+          ]}
+          activeFilters={{ price: { from: '100', till: '5000' } }}
+          applyFacet={applyFacet}
+          applyRangeFacet={applyRangeFacet}
+          resetFacet={resetFacet}
+        />,
+      );
+
+      expect(screen.getByLabelText('Till')).toHaveAttribute('max', '5900');
+      expect(screen.getByLabelText('Till')).toHaveValue(5000);
+
+      // Filter cleared via 'All Products': backend hasn't re-fetched yet (still has stale 4800.9), but filter is gone
+      rerender(
+        <PlpFacetPanel
+          facets={[
+            {
+              id: 'price',
+              label: 'Price',
+              kind: 'range',
+              min: '100',
+              max: '4800.9',
+            },
+          ]}
+          activeFilters={{}}
+          applyFacet={applyFacet}
+          applyRangeFacet={applyRangeFacet}
+          resetFacet={resetFacet}
+        />,
+      );
+
+      // Bound and value should be full 5900, not 4900/4800
+      expect(screen.getByLabelText('Till')).toHaveAttribute('max', '5900');
+      expect(screen.getByLabelText('Till')).toHaveValue(5900);
+    });
+  });
 });

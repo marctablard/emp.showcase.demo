@@ -8,6 +8,8 @@
     "noProductsFound": "No products found",
     "tryAdjusting": "Try adjusting your search or filters",
     "allProducts": "All Products",
+    "searchResults": "Search Results",
+    "allCategories": "All categories",
     "resultsFor": "Results for \"{query}\"",
     "resetFilter": "Clear filter",
     "loadMore": "Load more",
