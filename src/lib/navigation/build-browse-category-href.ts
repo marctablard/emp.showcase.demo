@@ -58,6 +58,42 @@ export function buildBrowseHrefForCategoryId(
 }
 
 /**
+ * Browse PLP URL scoped to a category while dropping search phrases, facets, sort, and page.
+ * Use this for flyout/header/footer category navigation where the user expects a fresh category page.
+ */
+export function buildBrowseHrefForPureCategoryId(
+  categoryId: string | null | undefined,
+  category?: Category,
+  searchParams?: URLSearchParams | null,
+): string {
+  const params = new URLSearchParams(searchParams || undefined);
+
+  const keysToDelete: string[] = [];
+  params.forEach((_, key) => {
+    if (key.startsWith('filters[') || key.startsWith('f[') || key === 'sort' || key === 'page' || key === 'q') {
+      keysToDelete.push(key);
+    }
+  });
+
+  for (const key of keysToDelete) {
+    params.delete(key);
+  }
+
+  if (categoryId) {
+    const metadata = category ? getBatteryIncludedCategoryMetadata(category) : undefined;
+    const displayPath = metadata?.displayPath ?? metadata?.facetValue;
+    if (displayPath) {
+      params.append(`filters[${BATTERY_INCLUDED_BREADCRUMB_FILTER}]`, displayPath);
+    } else {
+      params.append('filters[categoryIds]', categoryId.trim());
+    }
+  }
+
+  const queryString = params.toString();
+  return queryString ? `/browse?${queryString}` : '/browse';
+}
+
+/**
  * Browse PLP URL that clears only the category scope.
  * Drops category filters and page, keeps the search query, sort, currency, and other facets.
  */

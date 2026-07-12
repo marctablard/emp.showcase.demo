@@ -1,7 +1,7 @@
 import type { SubMenuItem } from '@/data/navigation-menu';
 import { l10n } from '@/lib/utils';
 import type { Category } from '@/platform/services/model/category';
-import { buildBrowseHrefForCategoryId } from './build-browse-category-href';
+import { buildBrowseHrefForPureCategoryId } from './build-browse-category-href';
 
 function sortByPosition(a: Category, b: Category): number {
   const aPosition = typeof a.position === 'number' ? a.position : undefined;
@@ -30,7 +30,7 @@ function categoryToSubMenuItem(category: Category, locale: string): SubMenuItem 
   return {
     id: category.id,
     label: l10n(category.name, locale),
-    href: buildBrowseHrefForCategoryId(category.id, category),
+    href: buildBrowseHrefForPureCategoryId(category.id, category),
     hasSubmenu,
     submenuItems: hasSubmenu ? sortedChildren.map((c) => categoryToSubMenuItem(c, locale)) : [],
   };

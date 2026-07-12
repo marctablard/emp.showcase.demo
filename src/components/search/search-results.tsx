@@ -26,6 +26,7 @@ import {
   isBrowseUrlSearchParamKey,
   urlSearchParamsToNextRecord,
 } from '@/utils/filterUtils';
+import { mergeActiveFilterFacetOptions } from './util/merge-active-filter-facet-options';
 
 type SearchResultsLayout = 'list' | 'grid';
 
@@ -85,6 +86,17 @@ export function SearchResultsComponent({
     syncBrowseSearchStateFromUrl,
     error: searchError,
   } = useSearch<Product>(initialSearch, initialResults);
+
+  const previousFacetsRef = useRef(batteryIncludedFacets);
+  if (batteryIncludedFacets && batteryIncludedFacets.length > 0) {
+    previousFacetsRef.current = batteryIncludedFacets;
+  }
+  const baseFacets =
+    batteryIncludedFacets && batteryIncludedFacets.length > 0
+      ? batteryIncludedFacets
+      : (previousFacetsRef.current ?? []);
+
+  const displayFacets = mergeActiveFilterFacetOptions(baseFacets, activeFilters);
 
   const searchParamsKey = searchParams.toString();
   const previousSearchParamsKeyRef = useRef(searchParamsKey);
@@ -155,7 +167,7 @@ export function SearchResultsComponent({
   const showStandaloneActiveFilters = !plpCategoryContext || layout !== 'list';
 
   const plpFacetPanelProps = {
-    facets: batteryIncludedFacets,
+    facets: displayFacets,
     activeFilters,
     applyFacet,
     applyRangeFacet,
@@ -188,7 +200,7 @@ export function SearchResultsComponent({
     resetAllFacets,
     resetLabel: t('resetFilter'),
     categoryFilterLabelsById: navigationLabelIndex,
-    batteryIncludedFacets,
+    batteryIncludedFacets: displayFacets,
   };
 
   useEffect(() => {
@@ -302,7 +314,7 @@ export function SearchResultsComponent({
             activeFilters={activeFilters}
             navigationRoots={navigationRoots}
             availableSorts={availableSorts}
-            batteryIncludedFacets={batteryIncludedFacets}
+            batteryIncludedFacets={displayFacets}
             currentSort={currentSort}
             applyFacet={applyFacet}
             applyRangeFacet={applyRangeFacet}

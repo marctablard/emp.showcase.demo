@@ -4,6 +4,72 @@ import EmporixProductMapper from './EmporixProductMapper';
 describe('BatteryIncludedProductMapper', () => {
   const mapper = new BatteryIncludedProductMapper(new EmporixProductMapper());
 
+  it('maps suggest document with value-only specifications into product.specifications', () => {
+    const result = mapper.mapToService({
+      id: '1',
+      _product: {
+        id: '1',
+        productType: 'BASIC',
+        mixins: {
+          productVariantAttributes: {
+            'nominal-power': '160W',
+          },
+        },
+      },
+      _product_i18n: {
+        mixins: {
+          specifications: {
+            specifications: [{ value: 'Victron' }, { value: 'Black' }],
+          },
+        },
+      },
+    });
+
+    // Check specification mapping (String -> Array shape normalization worked)
+    expect(result.specifications).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ value: { en: 'Victron' } }),
+        expect.objectContaining({ value: { en: 'Black' } }),
+      ]),
+    );
+    // Group is normally 'other' for unassigned specs by EmporixProductMapper if label or group is assigned. Without it will be undefined for raw emporix mapper but group is 'other' in grouped specifications
+    const mappedSpec = result.specifications?.find((s) => s.value?.en === 'Victron');
+    expect(mappedSpec?.group).toBeUndefined();
+
+    // Check variant mapping remains intact
+    expect(result.variantAttributeValues).toEqual({
+      'nominal-power': '160W',
+    });
+  });
+
+  it('maps full-product with array-shaped specifications without modifying them', () => {
+    const result = mapper.mapToService({
+      id: '1',
+      _product: { id: '1', productType: 'BASIC' },
+      _product_i18n: {
+        mixins: {
+          specifications: {
+            specifications: [
+              {
+                key: 'brand',
+                label: [{ language: 'en', value: 'Brand' }],
+                value: [{ language: 'en', value: 'FullArray' }],
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    expect(result.specifications).toEqual([
+      expect.objectContaining({
+        key: 'brand',
+        label: { en: 'Brand' },
+        value: { en: 'FullArray' },
+      }),
+    ]);
+  });
+
   it('maps current BI product fields from _product, _product_i18n, and _product_siteAware', () => {
     const result = mapper.mapToService({
       id: '10554915',

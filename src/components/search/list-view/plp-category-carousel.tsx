@@ -14,7 +14,7 @@ import {
 import { H4, H5, H6 } from '@/components/ui/h';
 import { useCategoryProductCounts } from '@/hooks/category/useCategoryProductCounts';
 import { Link } from '@/i18n/navigation';
-import { buildBrowseHrefForCategoryId } from '@/lib/navigation/build-browse-category-href';
+import { buildBrowseHrefForPureCategoryId } from '@/lib/navigation/build-browse-category-href';
 import { l10n, l10nOrEmpty } from '@/lib/utils';
 import type { Category } from '@/platform/services/model/category';
 import { getBatteryIncludedCategoryStaticCount } from '@/platform/services/model/category/batteryincluded-category';
@@ -29,11 +29,17 @@ interface PlpCategoryCarouselProps {
  * Root-level category thumbnail carousel that sits above the PLP list layout.
  * Figma: `B2B-New-Showcase` node `10254:165716` (Category Thumbnail).
  *
- * Step 2a scope: render the supplied categories as horizontal cards with name and best-effort
- * product count. Each card links to the category-scoped PLP; URL sync and tree selection come in
+ * Product count. Each card links to the category-scoped PLP; URL sync and tree selection come in
  * later steps. Hidden entirely when `categories` is empty to avoid an orphan header.
  */
 export function PlpCategoryCarousel({ categories, locale }: PlpCategoryCarouselProps) {
+  /**
+   * Root-level category thumbnail carousel that sits above the PLP list layout.
+   * Figma: `B2B-New-Showcase` node `10254:165716` (Category Thumbnail).
+   *
+   * Product count. Each card links to the category-scoped PLP; URL sync and tree selection come in
+   * later steps. Hidden entirely when `categories` is empty to avoid an orphan header.
+   */
   const t = useTranslations('search.plpCategoryCarousel');
   const [api, setApi] = useState<CarouselType>();
   const [canScrollPrev, setCanScrollPrev] = useState(false);
@@ -114,7 +120,7 @@ export function PlpCategoryCarousel({ categories, locale }: PlpCategoryCarouselP
         <CarouselContent className="py-6">
           {visibleCategories.map((category) => {
             const name = l10n(category.name, locale);
-            const href = buildBrowseHrefForCategoryId(category.id, category);
+            const href = buildBrowseHrefForPureCategoryId(category.id, category);
             const image = category.media?.[0];
             const count = mergedCounts[category.id];
             return (
@@ -152,7 +158,7 @@ export function PlpCategoryCarousel({ categories, locale }: PlpCategoryCarouselP
       <div className="flex w-full flex-col gap-6 md:hidden">
         {visibleCategories.map((category) => {
           const name = l10n(category.name, locale);
-          const href = buildBrowseHrefForCategoryId(category.id, category);
+          const href = buildBrowseHrefForPureCategoryId(category.id, category);
           const image = category.media?.[0];
           const count = mergedCounts[category.id];
           return (

@@ -178,6 +178,12 @@ export function ProductTileFlyOut({ product, onProductClick, keyword }: ProductT
             // Calculate how many template attributes we can show (excluding dimensions which will be shown separately)
             const templateCount = Math.max(0, maxTotalAttributes - variantCount - (dimensionsLine ? 1 : 0));
 
+            // Extract unlabelled specifications from the normalized suggest specs to show values directly
+            const specsWithoutLabel =
+              product.specifications
+                ?.filter((spec) => !spec.label?.en && spec.value?.en)
+                ?.map((spec) => spec.value.en) || [];
+
             return (
               <>
                 {variantAttributes &&
@@ -189,6 +195,11 @@ export function ProductTileFlyOut({ product, onProductClick, keyword }: ProductT
                     false,
                     keyword,
                   )}
+                {specsWithoutLabel.slice(0, 3).map((val, idx) => (
+                  <p key={`spec-${idx}`} className="text-sm text-text-muted">
+                    {markText(val, keyword)}
+                  </p>
+                ))}
                 {dimensionsLine && <p className="text-sm">{markText(dimensionsLine, keyword)}</p>}
                 {filteredTemplateAttributes &&
                   Object.keys(filteredTemplateAttributes).length > 0 &&

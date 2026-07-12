@@ -105,6 +105,85 @@ describe('useSearch', () => {
     ]);
   });
 
+  it('retains the last known BatteryIncluded facets when a search response omits them', async () => {
+    const { result } = renderHook(() => useSearch());
+
+    await act(async () => {
+      await result.current.search({ page: 0, size: 12 });
+    });
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        items: [],
+        total: 0,
+        page: 0,
+        pageSize: 12,
+        availableFilters: [],
+        availableSorts: [],
+      }),
+    });
+
+    await act(async () => {
+      await result.current.search({ page: 0, size: 12, query: 'solar' });
+    });
+
+    expect(result.current.batteryIncludedFacets).toEqual([
+      {
+        id: 'color',
+        label: 'color',
+        kind: 'select',
+        options: [
+          {
+            id: 'red',
+            label: 'Red',
+            active: true,
+            count: 1,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('retains the last known BatteryIncluded facets when loadMore omits them', async () => {
+    const { result } = renderHook(() => useSearch());
+
+    await act(async () => {
+      await result.current.search({ page: 0, size: 12 });
+    });
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        items: [],
+        total: 0,
+        page: 1,
+        pageSize: 12,
+        availableSorts: [],
+      }),
+    });
+
+    await act(async () => {
+      await result.current.loadMore();
+    });
+
+    expect(result.current.batteryIncludedFacets).toEqual([
+      {
+        id: 'color',
+        label: 'color',
+        kind: 'select',
+        options: [
+          {
+            id: 'red',
+            label: 'Red',
+            active: true,
+            count: 1,
+          },
+        ],
+      },
+    ]);
+  });
+
   it('clears non-category filters when applying a category selection filter', async () => {
     const { result } = renderHook(() =>
       useSearch(

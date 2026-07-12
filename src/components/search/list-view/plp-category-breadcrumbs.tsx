@@ -46,13 +46,17 @@ export function PlpCategoryBreadcrumbs({ plpCategoryContext, locale }: PlpCatego
               <ChevronRight className="size-4" />
             </li>
             {hasResettableParams ? (
-              <li className="inline-flex items-center">
+              <li className="contents">
                 <PlpPendingLink
                   href={buildBrowseHrefResetAll(searchParams)}
                   className="font-bold text-text-action underline hover:text-text-action-hover"
                 >
                   {tSearch('allProducts')}
                 </PlpPendingLink>
+                <span className="inline-flex items-center text-text-placeholders" aria-hidden="true">
+                  <ChevronRight className="size-4" />
+                </span>
+                <span className="inline-flex items-center text-text-body">{tSearch('searchResults')}</span>
               </li>
             ) : (
               <li className="inline-flex items-center" aria-current="page">

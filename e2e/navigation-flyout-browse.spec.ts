@@ -9,7 +9,7 @@ import { expect, test } from '@playwright/test';
 test.describe('Navigation flyout and browse (desktop)', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
-  test('browse → category from flyout uses breadcrumb filter → clear filter returns to browse', async ({ page }) => {
+  test('browse → category from flyout uses breadcrumb filter → clear filters returns to browse', async ({ page }) => {
     await page.goto('/browse', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: /all products/i })).toBeVisible({ timeout: 30_000 });
 
@@ -22,7 +22,7 @@ test.describe('Navigation flyout and browse (desktop)', () => {
     await categoryInFlyout.click();
     await page.waitForURL(/_product_i18n\.categoryBreadcrumbs\.displayPath/i, { timeout: 15_000 });
 
-    const clearFilter = page.getByRole('button', { name: /clear filter/i });
+    const clearFilter = page.getByRole('button', { name: /clear filters/i });
     await expect(clearFilter).toBeVisible({ timeout: 10_000 });
     await clearFilter.click();
     await page.waitForURL(

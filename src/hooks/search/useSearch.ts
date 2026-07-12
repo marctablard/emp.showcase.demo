@@ -230,7 +230,9 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
 
         setAvailableSorts(data.availableSorts || []);
 
-        setBatteryIncludedFacets(data.batteryIncludedFacets);
+        if (data.batteryIncludedFacets && data.batteryIncludedFacets.length > 0) {
+          setBatteryIncludedFacets(data.batteryIncludedFacets);
+        }
       } catch (err) {
         if (gen === searchGeneration.current) {
           getLogger().error({ err, event: 'search_request_failed' }, 'Product search request failed');
@@ -417,7 +419,9 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
       setCurrentPage(nextPage);
       setTotal(result.total);
       setAvailableSorts(result.availableSorts || []);
-      setBatteryIncludedFacets(result.batteryIncludedFacets);
+      if (result.batteryIncludedFacets && result.batteryIncludedFacets.length > 0) {
+        setBatteryIncludedFacets(result.batteryIncludedFacets);
+      }
 
       lastSearchParams.current = { ...lastSearchParams.current, page: nextPage };
     } catch (err) {

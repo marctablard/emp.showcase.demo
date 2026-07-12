@@ -96,7 +96,7 @@ describe('PlpFacetPanel', () => {
     expect(screen.getByTestId('plp-facet-panel')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Filters' })).toBeInTheDocument();
     expect(screen.getByTestId('plp-facet-panel-active-filters')).not.toHaveTextContent('Active filters');
-    expect(screen.getByRole('button', { name: /^Color$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Color \(1 selected\)$/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Category tree$/ })).toBeInTheDocument();
     expect(screen.getByText('Red')).toBeInTheDocument();
     expect(screen.getByText('Electronics')).toBeInTheDocument();
@@ -105,6 +105,22 @@ describe('PlpFacetPanel', () => {
     expect(screen.getByPlaceholderText('max')).toBeInTheDocument();
     expect(screen.getByText('Price', { selector: 'p' })).toBeInTheDocument();
     expect(screen.getByText('4 stars & up')).toBeInTheDocument();
+  });
+
+  it('shows the selected-choice count in multi-choice facet headers', () => {
+    render(
+      <PlpFacetPanel
+        facets={facets}
+        activeFilters={{ color: ['red', 'blue'] }}
+        applyFacet={applyFacet}
+        applyRangeFacet={applyRangeFacet}
+        resetFacet={resetFacet}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Color (2 selected)' })).toHaveTextContent('Color (2 selected)');
+    expect(screen.getByRole('button', { name: 'Category tree' })).toHaveTextContent('Category tree');
+    expect(screen.getByRole('button', { name: 'Rating' })).not.toHaveTextContent('selected');
   });
 
   it('applies checkbox-based select and tree filters through existing mutation handlers', () => {

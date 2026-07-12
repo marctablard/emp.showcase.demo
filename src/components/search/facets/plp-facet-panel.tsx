@@ -18,6 +18,7 @@ import type {
   BatteryIncludedTreeFacetOption,
   SearchFilterValue,
 } from '@/platform/services/model/common';
+import { getActiveFacetValues } from '../util/merge-active-filter-facet-options';
 import { getFilterLabelFallback } from '../util/search';
 
 interface PlpFacetPanelProps {
@@ -55,16 +56,12 @@ interface CollapsibleFacetOptionsState {
   toggleExpanded: () => void;
 }
 
-function getActiveFacetValues(value: SearchFilterValue | undefined): string[] {
-  if (typeof value === 'string') {
-    return [value];
+function getSelectedChoiceCount(facet: BatteryIncludedFacet, activeFilters: Record<string, SearchFilterValue>): number {
+  if (facet.kind === 'range') {
+    return 0;
   }
 
-  if (Array.isArray(value)) {
-    return value;
-  }
-
-  return [];
+  return getActiveFacetValues(activeFilters[facet.id]).length;
 }
 
 function getRangeFacetValue(value: SearchFilterValue | undefined): { from?: string; till?: string } | undefined {
@@ -715,11 +712,20 @@ function PlpFacetSection({
   resetFacet: (facetId: string) => void;
 }) {
   const label = facet.label || getFilterLabelFallback(facet.id);
+  const selectedChoiceCount = getSelectedChoiceCount(facet, activeFilters);
 
   return (
     <AccordionItem value={facet.id} className="border-border-primary">
       <AccordionTrigger className="min-h-[50px] items-center py-0 text-base font-bold text-text-headings hover:no-underline">
-        <span>{label}</span>
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="truncate">{label}</span>
+          {selectedChoiceCount > 0 ? (
+            <span className="whitespace-nowrap text-sm font-normal text-text-secondary">
+              {' '}
+              ({selectedChoiceCount} selected)
+            </span>
+          ) : null}
+        </span>
       </AccordionTrigger>
       <AccordionContent className="pb-5">
         {facet.kind === 'select' ? (

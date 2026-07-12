@@ -82,6 +82,23 @@ describe('PlpCategoryBreadcrumbs', () => {
     expect(screen.getByText('allProducts').closest('li')).toHaveAttribute('aria-current', 'page');
   });
 
+  it('renders Search Results as the terminal breadcrumb for query-only searches', () => {
+    mockSearchParams = new URLSearchParams('currency=EUR&q=solar');
+    const plpCategoryContext: PlpCategoryContext = {
+      ancestorTrail: [],
+      currentCategory: undefined,
+      currentChildren: [],
+      ribbonCategories: [],
+      sidebarCountCategoryIds: [],
+    };
+
+    render(<PlpCategoryBreadcrumbs plpCategoryContext={plpCategoryContext} locale="en" />);
+
+    expect(screen.getByRole('link', { name: 'homeLink' })).toHaveAttribute('href', '/');
+    expect(screen.getByText('searchResults').closest('span')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'allProducts' })).toBeInTheDocument();
+  });
+
   it('renders a clickable All Products reset link at the root level when there are resettable params', () => {
     mockSearchParams = new URLSearchParams('currency=EUR&sort=x&filters[brand]=Victron');
     const plpCategoryContext: PlpCategoryContext = {
