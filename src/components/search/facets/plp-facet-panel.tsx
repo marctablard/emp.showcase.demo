@@ -804,7 +804,6 @@ export function PlpFacetPanel({
             activeFilters={activeFilters}
             resetFacet={resetFacet}
             resetAllFacets={resetAllFacets ?? (() => {})}
-            resetLabel={t('filters.clearAllFilters')}
           />
         ) : null}
 

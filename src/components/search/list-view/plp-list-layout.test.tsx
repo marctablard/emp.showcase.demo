@@ -19,6 +19,12 @@ let lastPlpCategoryTreeProps:
       categoryCountsById: Record<string, number>;
     }
   | undefined;
+let lastSearchProductTileGridProps:
+  | {
+      gridClassName?: string;
+      headerContent?: React.ReactNode;
+    }
+  | undefined;
 
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, string | number>) => {
@@ -57,9 +63,15 @@ jest.mock('@/components/search/search-sort', () => ({
 }));
 
 jest.mock('@/components/search/search-product-tile-grid', () => ({
-  SearchProductTileGrid: (props: { headerContent?: React.ReactNode }) => (
-    <div data-testid="search-product-tile-grid">{props.headerContent}</div>
-  ),
+  SearchProductTileGrid: (props: { gridClassName?: string; headerContent?: React.ReactNode }) => {
+    lastSearchProductTileGridProps = props;
+
+    return (
+      <div data-testid="search-product-tile-grid" className={props.gridClassName}>
+        {props.headerContent}
+      </div>
+    );
+  },
 }));
 
 const batteryIncludedFacets: BatteryIncludedFacet[] = [
@@ -186,6 +198,7 @@ describe('PlpListLayout', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     lastPlpCategoryTreeProps = undefined;
+    lastSearchProductTileGridProps = undefined;
   });
 
   it('uses the live facet-driven category tree and counts when the selected category is present', () => {
@@ -246,6 +259,23 @@ describe('PlpListLayout', () => {
     expect(aside).toContainElement(facetPanel);
     expect(aside).not.toContainElement(sort);
     expect(summary).not.toContainElement(sort);
+    expect(aside).toHaveClass('hidden', 'min-[1024px]:block');
+    expect(screen.getByTestId('search-product-tile-grid')).toHaveClass(
+      'grid-cols-1',
+      'min-[770px]:grid-cols-2',
+      'min-[1440px]:grid-cols-3',
+      'items-start',
+    );
+    expect(lastSearchProductTileGridProps?.gridClassName).toContain('min-[770px]:grid-cols-2');
+    expect(lastSearchProductTileGridProps?.gridClassName).toContain('min-[1440px]:grid-cols-3');
+    expect(lastSearchProductTileGridProps?.gridClassName).toContain('items-start');
+    expect(lastSearchProductTileGridProps?.gridClassName).not.toContain('auto-rows-fr');
+    expect(sort.parentElement).toHaveClass(
+      'hidden',
+      'min-[1025px]:flex',
+      'min-[1025px]:w-[261px]',
+      'min-[1025px]:shrink-0',
+    );
     expect(screen.getByTestId('search-product-tile-grid')).toContainElement(sort);
   });
 });

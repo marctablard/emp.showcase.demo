@@ -137,7 +137,7 @@ export function PlpListLayout({
     ? l10nOrEmpty(resolvedCategoryContext.currentCategory.description, locale)
     : '';
   const productGridHeaderNode = (
-    <div className="flex w-full justify-end md:max-w-sm">
+    <div className="hidden w-full justify-end min-[1025px]:flex min-[1025px]:w-[261px] min-[1025px]:shrink-0">
       <SearchSort availableSorts={availableSorts} currentSort={currentSort} changeSort={changeSort} />
     </div>
   );
@@ -153,8 +153,8 @@ export function PlpListLayout({
         </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,444px)_minmax(0,1fr)]">
-        <aside className="hidden md:block" aria-label={t('allProducts')}>
+      <div className="grid grid-cols-1 gap-6 min-[1024px]:grid-cols-[minmax(0,444px)_minmax(0,1fr)]">
+        <aside className="hidden min-[1024px]:block" aria-label={t('allProducts')}>
           <PlpCategoryTree
             plpCategoryContext={resolvedCategoryContext}
             locale={locale}
@@ -183,7 +183,7 @@ export function PlpListLayout({
             loading={loading}
             pendingCursor={pendingCursor}
             headerContent={productGridHeaderNode}
-            gridClassName="grid auto-rows-fr grid-cols-1 gap-4 md:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 md:gap-6"
+            gridClassName="grid grid-cols-1 gap-4 items-start min-[770px]:grid-cols-2 min-[1440px]:grid-cols-3 md:gap-6"
           />
           {hasMore ? (
             <div className="flex justify-center pt-3">

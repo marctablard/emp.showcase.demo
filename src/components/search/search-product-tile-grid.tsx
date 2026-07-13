@@ -23,8 +23,7 @@ interface SearchProductTileGridProps {
   gridClassName?: string;
 }
 
-const DEFAULT_GRID_CLASSES =
-  'grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 md:gap-6 lg:grid-cols-4';
+const DEFAULT_GRID_CLASSES = 'grid auto-rows-fr grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3';
 
 /**
  * Shared product tile grid: loading skeletons, empty state, "Showing X of Y" header, and the
@@ -72,17 +71,15 @@ export function SearchProductTileGrid({
   return (
     <>
       {shouldLockCursor ? <div className="fixed inset-0 z-[99999]" aria-hidden="true" /> : null}
-      <div>
-        {headerContent ?? (
-          <p className="text-sm text-text-placeholders">
-            {t('searchResults.showing', {
-              start: 1,
-              end: products.length,
-              total: total,
-            })}
-          </p>
-        )}
-      </div>
+      {headerContent ?? (
+        <p className="text-sm text-text-placeholders">
+          {t('searchResults.showing', {
+            start: 1,
+            end: products.length,
+            total: total,
+          })}
+        </p>
+      )}
       <div className={resolvedGridClass}>
         {products.map((product) => (
           <div key={product.id} className="h-full">

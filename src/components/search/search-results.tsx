@@ -17,6 +17,7 @@ import { releaseNavigationWaitCursorLease } from '@/hooks/common/useGlobalCursor
 import { USE_SEARCH_CLIENT_ERROR, useSearch } from '@/hooks/search/useSearch';
 import { resolvePlpCategoryContext } from '@/lib/category/plp-category-context';
 import { resolveSelectedCategoryIdFromFilters } from '@/lib/search/category-selection';
+import { cn } from '@/lib/utils';
 import type { Category } from '@/platform/services/model/category';
 import type { SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
@@ -165,7 +166,6 @@ export function SearchResultsComponent({
     : undefined;
   const showDesktopSearchFilter = !plpCategoryContext || layout !== 'list';
   const showStandaloneActiveFilters = !plpCategoryContext || layout !== 'list';
-  const showTopControls = !plpCategoryContext || layout !== 'list';
 
   const plpFacetPanelProps = {
     facets: displayFacets,
@@ -244,42 +244,50 @@ export function SearchResultsComponent({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- searchParams is read from the latest render whenever searchParamsKey changes
   }, [searchParamsKey, search, initialResults, initialSearch, syncBrowseSearchStateFromUrl]);
 
+  // When the desktop filter row would have no content (PLP list view), hide the whole
+  // wrapper above 1025px so it does not produce an empty flex item with a gap.
+  const hideTopControlsOnDesktop = !showDesktopSearchFilter && !showStandaloneActiveFilters;
+
   const topControlsNode = (
-    <div className="w-full">
+    <div className={cn('w-full', hideTopControlsOnDesktop && 'min-[1025px]:hidden')}>
       {/* Row: SearchFilter controls on mobile and desktop. */}
-      <div className="flex w-full flex-col gap-4 md:flex-row md:justify-between">
-        {/* Mobile: Use MobileCategoryDrawer if PLP context exists (as a subset), otherwise generic SearchFilter */}
-        <div className="flex w-full flex-col items-stretch gap-4 md:hidden">
+      {/* Search Layout Top Bar */}
+      <div className="flex w-full flex-col gap-4 lg:justify-between">
+        {/* Mobile / Tablet Filter + Sort */}
+        <div className="flex w-full items-center gap-3 min-[1025px]:hidden">
           {plpCategoryContext ? (
-            <MobileCategoryDrawer
-              plpCategoryContext={plpCategoryContext}
-              locale={locale}
-              total={total}
-              {...plpFacetPanelProps}
-            />
+            <div className="shrink-0">
+              <MobileCategoryDrawer
+                plpCategoryContext={plpCategoryContext}
+                locale={locale}
+                total={total}
+                {...plpFacetPanelProps}
+              />
+            </div>
           ) : (
-            <div className="flex w-full flex-col items-stretch [&>*]:w-full">
+            <div className="shrink-0">
               <SearchFilter {...searchFilterProps} />
             </div>
           )}
-          <div className="flex w-full flex-col items-stretch [&>*]:w-full">
-            {showTopControls ? <SearchSort {...searchSortProps} /> : null}
+
+          <div className="w-[261px] shrink-0">
+            <SearchSort {...searchSortProps} />
           </div>
         </div>
 
-        {/* Desktop: SearchFilter + Active filters inline */}
-        <div className="hidden flex-wrap items-center gap-2 md:flex">
+        {/* Desktop Filter + Active Filters */}
+        <div className="hidden flex-wrap items-center gap-2 min-[1025px]:flex">
           {showDesktopSearchFilter ? <SearchFilter {...searchFilterProps} /> : null}
           {showStandaloneActiveFilters ? <SearchActiveFiltersWithReset {...activeFiltersProps} /> : null}
-          {showDesktopSearchFilter && showTopControls ? <SearchSort {...searchSortProps} /> : null}
+          {showDesktopSearchFilter ? <SearchSort {...searchSortProps} /> : null}
         </div>
 
         <SearchLayoutToggle active={layout} onSelectLayout={() => undefined} />
       </div>
 
-      {/* Mobile: Active filters below, full width */}
+      {/* Mobile / Tablet: Active filters below, full width */}
       {showStandaloneActiveFilters ? (
-        <div className="mt-4 flex flex-col flex-wrap gap-2 md:hidden">
+        <div className="mt-4 flex flex-col flex-wrap gap-2 min-[1025px]:hidden">
           <SearchActiveFiltersWithReset {...activeFiltersProps} />
         </div>
       ) : null}
@@ -321,7 +329,7 @@ export function SearchResultsComponent({
             applyRangeFacet={applyRangeFacet}
             changeSort={handleSortChange}
             resetFacet={resetFacet}
-            topControlsNode={showTopControls ? topControlsNode : undefined}
+            topControlsNode={topControlsNode}
             searchQuery={query}
           />
         )}

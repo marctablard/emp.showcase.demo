@@ -94,12 +94,17 @@ export function MobileCategoryDrawer({
   }, [counts, liveCategoryTreeContext, staticCounts, useLiveCategoryTree]);
 
   return (
-    <div className="relative w-full">
+    <div className="relative shrink-0">
       <Drawer open={isOpen} onOpenChange={setIsOpen}>
         <DrawerTrigger asChild>
-          <Button variant="secondary" className="w-full" data-testid="mobile-category-drawer-toggle">
-            <ListFilter className="mr-2" /> {tFilter('filterButton')}
-          </Button>
+          <button
+            type="button"
+            className="inline-flex cursor-pointer items-center gap-2 whitespace-nowrap text-base font-normal normal-case text-text-action outline-none hover:text-text-action-hover focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2"
+            data-testid="mobile-category-drawer-toggle"
+          >
+            <ListFilter className="h-5 w-5" aria-hidden="true" />
+            {tFilter('filterButton')}
+          </button>
         </DrawerTrigger>
         <DrawerContent className="h-[85vh] rounded-t-[8px] border-none shadow-lg [&>div:first-child]:hidden data-[vaul-drawer-direction=bottom]:max-h-[85vh] data-[vaul-drawer-direction=bottom]:rounded-t-[8px]">
           <div className="flex h-full flex-col overflow-y-auto pb-[90px]">

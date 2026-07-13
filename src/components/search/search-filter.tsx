@@ -268,9 +268,9 @@ function SearchFilter({
   };
 
   return (
-    <div className="relative">
+    <div className="relative w-auto shrink-0">
       {/* Filter Toggle Button */}
-      <Button variant="secondary" disabled data-testid="filter-toggleButton">
+      <Button variant="secondary" disabled className="whitespace-nowrap" data-testid="filter-toggleButton">
         <ListFilter className="mr-2" /> Filter
       </Button>
 

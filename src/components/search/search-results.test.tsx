@@ -36,13 +36,6 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
 }));
 
-jest.mock('@/components/search/mobile-category-drawer', () => ({
-  MobileCategoryDrawer: (props: any) => {
-    mobileCategoryDrawerProps = props;
-    return <div data-testid="MobileCategoryDrawer" />;
-  },
-}));
-
 jest.mock('@/hooks/search/useSearch', () => ({
   useSearch: () => ({
     data: [],
@@ -101,6 +94,12 @@ jest.mock('@/components/search/search-sort', () => ({
   SearchSort: (props: any) => {
     searchSortProps.push(props);
     return <div data-testid="SearchSort" />;
+  },
+}));
+jest.mock('@/components/search/mobile-category-drawer', () => ({
+  MobileCategoryDrawer: (props: any) => {
+    mobileCategoryDrawerProps = props;
+    return <div data-testid="MobileCategoryDrawer" />;
   },
 }));
 jest.mock('@/components/search/search-layout-toggle', () => ({
@@ -321,11 +320,13 @@ describe('SearchResultsComponent', () => {
       />,
     );
 
-    expect(screen.queryByTestId('MobileCategoryDrawer')).not.toBeInTheDocument();
+    expect(screen.getByTestId('MobileCategoryDrawer')).toBeInTheDocument();
     expect(screen.queryByTestId('SearchFilter')).not.toBeInTheDocument();
     expect(screen.queryByTestId('SearchActiveFiltersWithReset')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('SearchSort')).not.toBeInTheDocument();
+    expect(screen.getByTestId('SearchSort')).toBeInTheDocument();
     expect(screen.queryByTestId('SearchResultsList')).toBeInTheDocument();
+    expect(screen.getByTestId('MobileCategoryDrawer').parentElement).toHaveClass('shrink-0');
+    expect(screen.getByTestId('SearchSort').parentElement).toHaveClass('w-[261px]', 'shrink-0');
   });
 
   it('keeps the generic desktop filter surface for non-PLP search results', () => {
