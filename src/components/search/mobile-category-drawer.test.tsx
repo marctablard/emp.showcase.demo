@@ -41,7 +41,7 @@ jest.mock('@/components/search/facets', () => ({
   PlpFacetPanel: ({ onClose }: { onClose?: () => void }) => (
     <div data-testid="plp-facet-panel">
       {onClose ? (
-        <button type="button" aria-label="close" onClick={onClose}>
+        <button type="button" aria-label="facet-panel-close" onClick={onClose}>
           close
         </button>
       ) : null}

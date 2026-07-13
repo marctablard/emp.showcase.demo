@@ -31,6 +31,7 @@ interface PlpFacetPanelProps {
   categoryFilterLabelsById?: Record<string, string>;
   className?: string;
   onClose?: () => void;
+  variant?: 'card' | 'list';
 }
 
 interface FacetToggleRendererProps {
@@ -684,7 +685,7 @@ function PlpFacetActiveFilters({
       aria-label={t('filters.activeFiltersTitle', { defaultValue: 'Active filters' })}
       data-testid="plp-facet-panel-active-filters"
     >
-      <div className="flex flex-wrap gap-4">
+      <div className="flex flex-wrap gap-2">
         <SearchActiveFiltersWithReset
           activeFilters={activeFilters}
           resetFacet={resetFacet}
@@ -777,7 +778,7 @@ export function PlpFacetPanel({
   resetAllFacets,
   categoryFilterLabelsById,
   className,
-  onClose,
+  variant = 'card',
 }: PlpFacetPanelProps) {
   const t = useTranslations('product');
 
@@ -793,6 +794,40 @@ export function PlpFacetPanel({
 
   const panelLabel = t('filters.filterButton', { defaultValue: 'Filters' });
 
+  if (variant === 'list') {
+    return (
+      <div className={cn('flex flex-col gap-6 w-full', className)}>
+        {Object.keys(activeFilters).length > 0 ? (
+          <SearchActiveFiltersWithReset
+            activeFilters={activeFilters}
+            resetFacet={resetFacet}
+            resetAllFacets={resetAllFacets ?? (() => {})}
+            resetLabel={t('filters.clearAllFilters')}
+          />
+        ) : null}
+
+        {sectionFacets.length > 0 && (
+          <Accordion
+            type="multiple"
+            defaultValue={sectionFacets.map((f) => `facet-${f.id}`)}
+            className="flex w-full flex-col gap-4"
+          >
+            {sectionFacets.map((facet) => (
+              <PlpFacetSection
+                key={facet.id}
+                facet={facet}
+                activeFilters={activeFilters}
+                applyFacet={applyFacet}
+                applyRangeFacet={applyRangeFacet}
+                resetFacet={resetFacet}
+              />
+            ))}
+          </Accordion>
+        )}
+      </div>
+    );
+  }
+
   return (
     <section
       className={cn(
@@ -802,18 +837,22 @@ export function PlpFacetPanel({
       aria-label={panelLabel}
       data-testid="plp-facet-panel"
     >
-      <div className="flex items-center justify-between">
+      <div className="hidden md:flex items-center justify-between mb-4 md:mb-6">
         <h5 className="font-bold text-text-headings text-3xl">{panelLabel}</h5>
-        {onClose ? (
-          <button
-            type="button"
-            className="focus:ring-border-focus rounded-sm text-icon-action outline-none transition hover:text-icon-action-hover focus:ring-2 focus:ring-offset-2"
-            onClick={onClose}
-            aria-label={t('filters.close', { defaultValue: 'Close' })}
-          >
-            <X className="h-6 w-6" />
-          </button>
-        ) : null}
+        <div className="flex items-center gap-4">
+          {Object.keys(activeFilters).length > 0 && (
+            <button
+              type="button"
+              className="group inline-flex min-h-[50px] items-center gap-2 text-text-action outline-none hover:underline focus-visible:ring-2 focus-visible:ring-border-focus"
+              onClick={resetAllFacets}
+              aria-label={t('filters.clearAllFilters', { defaultValue: 'Clear filters' })}
+            >
+              <X className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
+              <span className="truncate">{t('filters.clearAllFilters', { defaultValue: 'Clear filters' })}</span>
+            </button>
+          )}
+          {/* Remove close button because it's now living in mobile-category-drawer.tsx */}
+        </div>
       </div>
       <PlpFacetActiveFilters
         activeFilters={activeFilters}

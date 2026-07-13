@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ChevronDown, ListFilter } from 'lucide-react';
+import { ListFilter, X } from 'lucide-react';
 import { PlpFacetPanel } from '@/components/search/facets';
 import { PlpCategoryTree } from '@/components/search/list-view/plp-category-tree';
 import { Button } from '@/components/ui/button';
@@ -101,21 +101,30 @@ export function MobileCategoryDrawer({
             <ListFilter className="mr-2" /> {tFilter('filterButton')}
           </Button>
         </DrawerTrigger>
-        <DrawerContent className="h-[85vh] overflow-y-auto rounded-t-[8px] border-none shadow-lg [&>div:first-child]:hidden data-[vaul-drawer-direction=bottom]:max-h-[85vh] data-[vaul-drawer-direction=bottom]:rounded-t-[8px]">
-          <div className="flex flex-col gap-[40px] p-[24px]">
-            <div className="flex items-center justify-between border-b border-border-primary pb-4">
-              <div className="flex items-center gap-2">
-                <span className="text-base font-bold text-text-headings">{tFilter('categoryIds')}</span>
+        <DrawerContent className="h-[85vh] rounded-t-[8px] border-none shadow-lg [&>div:first-child]:hidden data-[vaul-drawer-direction=bottom]:max-h-[85vh] data-[vaul-drawer-direction=bottom]:rounded-t-[8px]">
+          <div className="flex h-full flex-col overflow-y-auto pb-[90px]">
+            <div className="flex items-center justify-between border-b border-border-primary px-6 py-4">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="text-base font-bold text-text-headings">Category</span>
                 {typeof total === 'number' ? (
                   <span className="text-base font-normal text-text-body">
                     {tFilter('productCount', { count: total })}
                   </span>
                 ) : null}
               </div>
-              <ChevronDown className="h-5 w-5 text-icon-action" />
+              <DrawerClose asChild>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="h-8 w-8 bg-transparent hover:bg-surface-secondary text-icon-action"
+                  aria-label={tFilter('close')}
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </DrawerClose>
             </div>
 
-            <div className="flex flex-col gap-6">
+            <div className="px-6 py-4">
               <PlpCategoryTree
                 plpCategoryContext={resolvedCategoryContext}
                 locale={locale}
@@ -123,18 +132,38 @@ export function MobileCategoryDrawer({
                 categoryCountsById={categoryCountsById}
                 isNested={true}
               />
-              <PlpFacetPanel
-                facets={facets}
-                activeFilters={activeFilters}
-                applyFacet={applyFacet}
-                applyRangeFacet={applyRangeFacet}
-                resetFacet={resetFacet}
-                resetAllFacets={resetAllFacets}
-                categoryFilterLabelsById={categoryFilterLabelsById}
-                onClose={() => {
-                  setIsOpen(false);
-                }}
-              />
+            </div>
+
+            <hr className="border-border-primary" />
+
+            <div className="px-6 py-4">
+              <div className="flex items-center justify-between border-b border-border-primary pb-4">
+                <span className="text-base font-bold text-text-headings">{tFilter('filterButton')}</span>
+                {Object.keys(activeFilters).length > 0 && (
+                  <button
+                    type="button"
+                    onClick={resetAllFacets}
+                    className="text-sm font-bold text-text-action underline-offset-4 hover:underline focus-visible:outline-none"
+                  >
+                    {tFilter('clearAllFilters', { defaultValue: 'Clear filters' })}
+                  </button>
+                )}
+              </div>
+
+              <div className="mt-6">
+                <PlpFacetPanel
+                  facets={facets}
+                  activeFilters={activeFilters}
+                  applyFacet={applyFacet}
+                  applyRangeFacet={applyRangeFacet}
+                  resetFacet={resetFacet}
+                  categoryFilterLabelsById={categoryFilterLabelsById}
+                  variant="list"
+                />
+              </div>
+            </div>
+
+            <div className="px-6 pb-6 pt-0">
               <DrawerClose asChild>
                 <Button variant="secondary" className="w-full">
                   {tFilter('showProducts', { count: total })}

@@ -267,7 +267,7 @@ export function SearchResultsComponent({
         </div>
 
         {/* Desktop: SearchFilter + Active filters inline */}
-        <div className="hidden flex-wrap items-center gap-4 md:flex">
+        <div className="hidden flex-wrap items-center gap-2 md:flex">
           {showDesktopSearchFilter ? <SearchFilter {...searchFilterProps} /> : null}
           {showStandaloneActiveFilters ? <SearchActiveFiltersWithReset {...activeFiltersProps} /> : null}
           {showDesktopSearchFilter ? <SearchSort {...searchSortProps} /> : null}
@@ -278,7 +278,7 @@ export function SearchResultsComponent({
 
       {/* Mobile: Active filters below, full width */}
       {showStandaloneActiveFilters ? (
-        <div className="mt-4 flex flex-col flex-wrap gap-4 md:hidden">
+        <div className="mt-4 flex flex-col flex-wrap gap-2 md:hidden">
           <SearchActiveFiltersWithReset {...activeFiltersProps} />
         </div>
       ) : null}

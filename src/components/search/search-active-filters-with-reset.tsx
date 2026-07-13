@@ -30,7 +30,9 @@ export function SearchActiveFiltersWithReset({
         batteryIncludedFacets={batteryIncludedFacets}
       />
       {Object.keys(activeFilters).length > 0 && (
-        <Pill variant="reset" leadingIcon={<Trash2 />} label={resetLabel} onClick={resetAllFacets} />
+        <span className="hidden md:block">
+          <Pill variant="reset" leadingIcon={<Trash2 />} label={resetLabel} onClick={resetAllFacets} />
+        </span>
       )}
     </>
   );

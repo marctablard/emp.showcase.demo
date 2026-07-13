@@ -98,6 +98,11 @@ export function PlpCategoryTree({
           <span className="truncate">
             {currentCategory ? l10n(currentCategory.name, locale) : tSearch('allProducts')}
           </span>
+          {currentCategory && categoryCountsById[currentCategory.id] !== undefined && (
+            <span className="shrink-0 text-text-on-disabled font-normal ml-2">
+              {categoryCountsById[currentCategory.id]}
+            </span>
+          )}
         </PlpPendingLink>
       </div>
 

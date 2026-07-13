@@ -1,12 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowDownAZ, ArrowDownZA } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { SearchSortOption } from '@/platform/services/model/common';
-import { resolveNextSortForOption, resolveSearchSortSelection, resolveToggledSort } from './search-sort.helpers';
-
-const CLEAR_SORT_VALUE = '__clear_sort__';
 
 interface SearchSortProps {
   availableSorts?: SearchSortOption[];
@@ -19,23 +14,19 @@ export function SearchSort({ availableSorts = [], currentSort, onChangeSort, cha
   const t = useTranslations('search.sort');
 
   const options = useMemo(() => {
-    return availableSorts.map((sort) => {
+    return availableSorts.flatMap((sort) => {
       const label = sort.label || (sort.labelKey ? t(sort.labelKey as any) : sort.id);
-      return { ...sort, displayLabel: label };
+
+      return sort.directions.map((dir) => ({
+        id: `${sort.id}:${dir}`,
+        displayLabel: `${label} ${t(`direction.${dir}`)}`,
+      }));
     });
   }, [availableSorts, t]);
 
   if (!options || options.length === 0) return null;
 
-  const selection = resolveSearchSortSelection(currentSort);
-  const activeOption = selection
-    ? options.find(
-        (option) => option.id === selection.id && option.directions.includes(selection.direction as 'asc' | 'desc'),
-      )
-    : undefined;
-  const selectedOptionId = activeOption?.id ?? '';
-  const isAscending = selection?.direction === 'asc';
-  const hasActiveSort = !!selection && !!activeOption;
+  const selectedOptionId = options.some((opt) => opt.id === currentSort) ? (currentSort as string) : '';
 
   const fireChange = (sort?: string) => {
     if (onChangeSort) onChangeSort(sort);
@@ -43,19 +34,7 @@ export function SearchSort({ availableSorts = [], currentSort, onChangeSort, cha
   };
 
   const handleSelectChange = (value: string) => {
-    if (value === CLEAR_SORT_VALUE) {
-      fireChange(undefined);
-      return;
-    }
-
-    const selectedOption = options.find((opt) => opt.id === value);
-    if (!selectedOption) return;
-    fireChange(resolveNextSortForOption(selectedOption, currentSort));
-  };
-
-  const handleDirectionToggle = () => {
-    const newSort = resolveToggledSort(currentSort);
-    if (newSort) fireChange(newSort);
+    fireChange(value);
   };
 
   return (
@@ -65,8 +44,6 @@ export function SearchSort({ availableSorts = [], currentSort, onChangeSort, cha
           <SelectValue placeholder={t('placeholder')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={CLEAR_SORT_VALUE}>{t('clear')}</SelectItem>
-          <SelectSeparator />
           {options.map((opt) => (
             <SelectItem key={opt.id} value={opt.id}>
               {opt.displayLabel}
@@ -74,16 +51,6 @@ export function SearchSort({ availableSorts = [], currentSort, onChangeSort, cha
           ))}
         </SelectContent>
       </Select>
-      {hasActiveSort && (
-        <Button
-          variant="secondary"
-          size="icon"
-          onClick={handleDirectionToggle}
-          aria-label={isAscending ? t('direction.asc') : t('direction.desc')}
-        >
-          {isAscending ? <ArrowDownAZ className="h-4 w-4" /> : <ArrowDownZA className="h-4 w-4" />}
-        </Button>
-      )}
     </div>
   );
 }

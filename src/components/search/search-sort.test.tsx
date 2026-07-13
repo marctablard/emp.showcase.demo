@@ -7,32 +7,22 @@ import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { SearchSort } from './search-sort';
 
-
-
-
-
-
-
-
-
 window.HTMLElement.prototype.scrollIntoView = jest.fn();
 window.HTMLElement.prototype.releasePointerCapture = jest.fn();
 window.HTMLElement.prototype.hasPointerCapture = () => false;
 
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: jest
-    .fn()
-    .mockImplementation((query) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: jest.fn(),
-      removeListener: jest.fn(),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-      dispatchEvent: jest.fn(),
-    })),
+  value: jest.fn().mockImplementation((query) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  })),
 });
 
 class ResizeObserverMock {
@@ -63,7 +53,6 @@ describe('SearchSort', () => {
           search: {
             sort: {
               placeholder: 'Sort by',
-              clear: 'Clear sort',
               price: 'Price',
               popularity: 'Popularity',
               direction: { asc: 'Ascending', desc: 'Descending' },
@@ -80,46 +69,36 @@ describe('SearchSort', () => {
     renderComponent();
     const trigger = screen.getByRole('combobox');
     fireEvent.click(trigger);
-    expect(await screen.findByText('Product name')).toBeInTheDocument();
-    expect(await screen.findByText(/Popularity \(BI\)/)).toBeInTheDocument();
+    expect(await screen.findByText('Product name Ascending')).toBeInTheDocument();
+    expect(await screen.findByText('Popularity (BI) Descending')).toBeInTheDocument();
   });
 
   it('calls changeSort with correct value', async () => {
     renderComponent();
     const trigger = screen.getByRole('combobox');
     fireEvent.click(trigger);
-    const option = await screen.findByText('Product name');
+    const option = await screen.findByText('Product name Ascending');
     fireEvent.click(option);
     expect(mockChangeSort).toHaveBeenCalledWith('name:asc');
   });
 
-  it('clears the active sort from query state', async () => {
+  it('does not render a clear item', async () => {
     renderComponent();
 
     fireEvent.click(screen.getByRole('combobox'));
-    fireEvent.click(await screen.findByText('Clear sort'));
-
-    expect(mockChangeSort).toHaveBeenCalledWith(undefined);
+    expect(screen.queryByText('Clear sort')).not.toBeInTheDocument();
   });
 
-  it('uses the search.sort namespace keys for placeholder and direction labels', () => {
+  it('uses the search.sort namespace keys for placeholder', () => {
     renderComponent({ currentSort: undefined });
 
     expect(screen.getByText('Sort by')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Ascending' })).not.toBeInTheDocument();
-  });
-
-  it('uses the direction translation keys for the toggle button label', () => {
-    renderComponent();
-
-    expect(screen.getByRole('button', { name: 'Ascending' })).toBeInTheDocument();
   });
 
   it('resets the select display when the current sort is no longer valid', () => {
     const { rerender } = renderComponent();
 
-    expect(screen.getByRole('button', { name: 'Ascending' })).toBeInTheDocument();
-    expect(screen.getByRole('combobox')).toHaveTextContent('Price');
+    expect(screen.getByRole('combobox')).toHaveTextContent('Price Ascending');
 
     rerender(
       <NextIntlClientProvider
@@ -128,7 +107,6 @@ describe('SearchSort', () => {
           search: {
             sort: {
               placeholder: 'Sort by',
-              clear: 'Clear sort',
               price: 'Price',
               popularity: 'Popularity',
               direction: { asc: 'Ascending', desc: 'Descending' },
@@ -140,8 +118,7 @@ describe('SearchSort', () => {
       </NextIntlClientProvider>,
     );
 
-    expect(screen.queryByRole('button', { name: 'Ascending' })).not.toBeInTheDocument();
     expect(screen.getByRole('combobox')).toHaveTextContent('Sort by');
-    expect(screen.getByRole('combobox')).not.toHaveTextContent('Price');
+    expect(screen.getByRole('combobox')).not.toHaveTextContent('Price Ascending');
   });
 });

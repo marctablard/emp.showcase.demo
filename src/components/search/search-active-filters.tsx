@@ -126,6 +126,7 @@ export function SearchActiveFilters({
         filters.map(([id, value]) => {
           return (
             <Pill
+              className="max-w-full h-auto"
               trailingIcon={<X />}
               key={id}
               label={getFilterTitle(id)}
