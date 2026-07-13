@@ -321,27 +321,11 @@ describe('SearchResultsComponent', () => {
       />,
     );
 
-    expect(screen.getByTestId('MobileCategoryDrawer')).toBeInTheDocument();
+    expect(screen.queryByTestId('MobileCategoryDrawer')).not.toBeInTheDocument();
     expect(screen.queryByTestId('SearchFilter')).not.toBeInTheDocument();
     expect(screen.queryByTestId('SearchActiveFiltersWithReset')).not.toBeInTheDocument();
-    expect(mobileCategoryDrawerProps).toMatchObject({
-      facets: [
-        {
-          id: 'color',
-          kind: 'select',
-        },
-      ],
-    });
-    expect(searchSortProps.at(-1)).toMatchObject({
-      availableSorts: [
-        {
-          id: 'name',
-          label: 'Product name',
-        },
-      ],
-      currentSort: undefined,
-      changeSort: expect.any(Function),
-    });
+    expect(screen.queryByTestId('SearchSort')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('SearchResultsList')).toBeInTheDocument();
   });
 
   it('keeps the generic desktop filter surface for non-PLP search results', () => {
@@ -352,11 +336,12 @@ describe('SearchResultsComponent', () => {
     expect(screen.queryByTestId('MobileCategoryDrawer')).not.toBeInTheDocument();
   });
 
-  it('passes sort state and handler through to the list view for desktop PLP placement', () => {
+  it('passes sort state through to the list layout header placement', () => {
     mockSearchParams = new URLSearchParams('q=tubes');
     mockUseSearchState = {
       ...mockUseSearchState,
       currentQuery: 'tubes',
+      currentSort: 'name:asc',
     };
 
     render(<SearchResultsComponent locale="en" initialLayout="list" />);
@@ -369,7 +354,7 @@ describe('SearchResultsComponent', () => {
           label: 'Product name',
         },
       ],
-      currentSort: undefined,
+      currentSort: 'name:asc',
       changeSort: expect.any(Function),
     });
   });

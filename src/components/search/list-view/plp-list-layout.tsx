@@ -77,7 +77,6 @@ export function PlpListLayout({
   searchQuery,
 }: PlpListLayoutProps) {
   const t = useTranslations('search.searchResults');
-  const tFilter = useTranslations('product.filters');
   const staticPlpContext = resolvePlpCategoryContext(navigationRoots, selectedCategoryId);
   const liveCategoryTreeContext = useMemo(
     () => resolvePlpCategoryTreeFacetContext(batteryIncludedFacets, navigationRoots, selectedCategoryId, locale),
@@ -134,27 +133,24 @@ export function PlpListLayout({
     ? l10nOrEmpty(resolvedCategoryContext.currentCategory.name, locale)
     : '';
   const summaryTitle = searchQuery?.trim() ? 'Search Results' : currentCategoryName || t('allProducts');
-  const summaryCount = resolvedCategoryContext.currentCategory
-    ? categoryCountsById[resolvedCategoryContext.currentCategory.id]
-    : total;
   const summaryDescription = resolvedCategoryContext.currentCategory
     ? l10nOrEmpty(resolvedCategoryContext.currentCategory.description, locale)
     : '';
+  const productGridHeaderNode = (
+    <div className="flex w-full justify-end md:max-w-sm">
+      <SearchSort availableSorts={availableSorts} currentSort={currentSort} changeSort={changeSort} />
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-4">
       {/* <PlpCategoryCarousel categories={resolvedCategoryContext.ribbonCategories} locale={locale} /> */}
       <PlpCategoryBreadcrumbs plpCategoryContext={resolvedCategoryContext} locale={locale} />
       <section className="flex flex-col gap-4" aria-label={summaryTitle} data-testid="plp-category-summary">
-        <div className="flex flex-col gap-1 md:flex-row md:items-baseline md:gap-4">
+        <div className="flex flex-col gap-1">
           <H2 className="mb-0">{summaryTitle}</H2>
-          {typeof summaryCount === 'number' && !loading ? (
-            <span className="text-text-secondary text-lg font-normal">
-              {tFilter('productCount', { count: summaryCount })}
-            </span>
-          ) : null}
+          {summaryDescription ? <p className="text-base text-text-body">{summaryDescription}</p> : null}
         </div>
-        {summaryDescription ? <p className="text-base text-text-body">{summaryDescription}</p> : null}
       </section>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,444px)_minmax(0,1fr)]">
@@ -165,9 +161,6 @@ export function PlpListLayout({
             total={total}
             categoryCountsById={categoryCountsById}
           />
-          <div className="mt-6">
-            <SearchSort availableSorts={availableSorts} currentSort={currentSort} changeSort={changeSort} />
-          </div>
           <PlpFacetPanel
             facets={batteryIncludedFacets}
             activeFilters={activeFilters}
@@ -189,6 +182,7 @@ export function PlpListLayout({
             total={total}
             loading={loading}
             pendingCursor={pendingCursor}
+            headerContent={productGridHeaderNode}
             gridClassName="grid auto-rows-fr grid-cols-1 gap-4 md:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 md:gap-6"
           />
           {hasMore ? (

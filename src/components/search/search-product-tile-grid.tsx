@@ -15,6 +15,7 @@ interface SearchProductTileGridProps {
   total: number;
   loading: boolean;
   pendingCursor?: boolean;
+  headerContent?: React.ReactNode;
   /**
    * Override the grid template so the list view (narrower right column) can downsize the columns.
    * Defaults match the full-width grid layout used by `SearchResultsGrid`.
@@ -37,6 +38,7 @@ export function SearchProductTileGrid({
   total,
   loading,
   pendingCursor,
+  headerContent,
   gridClassName,
 }: SearchProductTileGridProps) {
   const t = useTranslations('search');
@@ -71,13 +73,15 @@ export function SearchProductTileGrid({
     <>
       {shouldLockCursor ? <div className="fixed inset-0 z-[99999]" aria-hidden="true" /> : null}
       <div>
-        <p className="text-sm text-text-placeholders">
-          {t('searchResults.showing', {
-            start: 1,
-            end: products.length,
-            total: total,
-          })}
-        </p>
+        {headerContent ?? (
+          <p className="text-sm text-text-placeholders">
+            {t('searchResults.showing', {
+              start: 1,
+              end: products.length,
+              total: total,
+            })}
+          </p>
+        )}
       </div>
       <div className={resolvedGridClass}>
         {products.map((product) => (

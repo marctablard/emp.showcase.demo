@@ -165,6 +165,7 @@ export function SearchResultsComponent({
     : undefined;
   const showDesktopSearchFilter = !plpCategoryContext || layout !== 'list';
   const showStandaloneActiveFilters = !plpCategoryContext || layout !== 'list';
+  const showTopControls = !plpCategoryContext || layout !== 'list';
 
   const plpFacetPanelProps = {
     facets: displayFacets,
@@ -248,7 +249,7 @@ export function SearchResultsComponent({
       {/* Row: SearchFilter controls on mobile and desktop. */}
       <div className="flex w-full flex-col gap-4 md:flex-row md:justify-between">
         {/* Mobile: Use MobileCategoryDrawer if PLP context exists (as a subset), otherwise generic SearchFilter */}
-        <div className="flex w-full flex-col items-stretch gap-[40px] md:hidden">
+        <div className="flex w-full flex-col items-stretch gap-4 md:hidden">
           {plpCategoryContext ? (
             <MobileCategoryDrawer
               plpCategoryContext={plpCategoryContext}
@@ -262,7 +263,7 @@ export function SearchResultsComponent({
             </div>
           )}
           <div className="flex w-full flex-col items-stretch [&>*]:w-full">
-            <SearchSort {...searchSortProps} />
+            {showTopControls ? <SearchSort {...searchSortProps} /> : null}
           </div>
         </div>
 
@@ -270,7 +271,7 @@ export function SearchResultsComponent({
         <div className="hidden flex-wrap items-center gap-2 md:flex">
           {showDesktopSearchFilter ? <SearchFilter {...searchFilterProps} /> : null}
           {showStandaloneActiveFilters ? <SearchActiveFiltersWithReset {...activeFiltersProps} /> : null}
-          {showDesktopSearchFilter ? <SearchSort {...searchSortProps} /> : null}
+          {showDesktopSearchFilter && showTopControls ? <SearchSort {...searchSortProps} /> : null}
         </div>
 
         <SearchLayoutToggle active={layout} onSelectLayout={() => undefined} />
@@ -320,7 +321,7 @@ export function SearchResultsComponent({
             applyRangeFacet={applyRangeFacet}
             changeSort={handleSortChange}
             resetFacet={resetFacet}
-            topControlsNode={topControlsNode}
+            topControlsNode={showTopControls ? topControlsNode : undefined}
             searchQuery={query}
           />
         )}

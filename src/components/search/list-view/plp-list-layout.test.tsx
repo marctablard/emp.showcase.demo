@@ -7,7 +7,7 @@ import { render, screen } from '@testing-library/react';
 import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
 import type { Category } from '@/platform/services/model/category';
 import { BATTERY_INCLUDED_BREADCRUMB_FILTER } from '@/platform/services/model/category/batteryincluded-category';
-import type { BatteryIncludedFacet, SearchSortOption } from '@/platform/services/model/common';
+import type { BatteryIncludedFacet } from '@/platform/services/model/common';
 import { PlpListLayout } from './plp-list-layout';
 
 const mockChangeSort = jest.fn();
@@ -52,8 +52,14 @@ jest.mock('@/components/search/facets', () => ({
   PlpFacetPanel: () => <div data-testid="plp-facet-panel" />,
 }));
 
+jest.mock('@/components/search/search-sort', () => ({
+  SearchSort: () => <div data-testid="search-sort" />,
+}));
+
 jest.mock('@/components/search/search-product-tile-grid', () => ({
-  SearchProductTileGrid: () => <div data-testid="search-product-tile-grid" />,
+  SearchProductTileGrid: (props: { headerContent?: React.ReactNode }) => (
+    <div data-testid="search-product-tile-grid">{props.headerContent}</div>
+  ),
 }));
 
 const batteryIncludedFacets: BatteryIncludedFacet[] = [
@@ -117,15 +123,6 @@ const unrelatedTreeFacets: BatteryIncludedFacet[] = [
   },
 ];
 
-const availableSorts: SearchSortOption[] = [
-  {
-    id: 'name',
-    label: 'Product name',
-    directions: ['asc', 'desc'],
-    defaultDirection: 'asc',
-  },
-];
-
 const child: Category = {
   id: 'child-1',
   name: { en: 'Current Category' },
@@ -175,13 +172,10 @@ const renderLayout = (options?: {
       hasMore={false}
       loadingMore={false}
       loadMore={jest.fn()}
-      availableSorts={availableSorts}
       batteryIncludedFacets={options?.facets ?? batteryIncludedFacets}
       activeFilters={{}}
-      currentSort="name:asc"
       applyFacet={jest.fn()}
       applyRangeFacet={jest.fn()}
-      changeSort={mockChangeSort}
       resetFacet={jest.fn()}
       searchQuery={options?.searchQuery}
     />,
@@ -200,7 +194,6 @@ describe('PlpListLayout', () => {
     const summary = screen.getByTestId('plp-category-summary');
 
     expect(summary).toHaveTextContent('Electronics');
-    expect(summary).toHaveTextContent('productCount:5'); // Count comes from categoryCountsById[child.id] -> no, wait this is the main list layout. In the new logic electronics has count 5 from the live facet tree
     expect(mockRequestCounts).not.toHaveBeenCalled();
     expect(lastPlpCategoryTreeProps?.plpCategoryContext.currentCategory?.id).toBe('electronics');
     expect(lastPlpCategoryTreeProps?.plpCategoryContext.currentChildren.map((category) => category.id)).toEqual([
@@ -216,7 +209,6 @@ describe('PlpListLayout', () => {
     const summary = screen.getByTestId('plp-category-summary');
 
     expect(summary).toHaveTextContent('Current Category');
-    expect(summary).toHaveTextContent('productCount:7');
     expect(summary).toHaveTextContent('Current category description');
     expect(mockRequestCounts).toHaveBeenCalledWith(['child-1']);
     expect(lastPlpCategoryTreeProps?.plpCategoryContext.currentCategory?.id).toBe('child-1');
@@ -229,7 +221,6 @@ describe('PlpListLayout', () => {
     const summary = screen.getByTestId('plp-category-summary');
 
     expect(summary).toHaveTextContent('allProducts');
-    expect(summary).toHaveTextContent('productCount:42');
     expect(summary).not.toHaveTextContent('Current category description');
   });
 
@@ -239,23 +230,22 @@ describe('PlpListLayout', () => {
     const summary = screen.getByTestId('plp-category-summary');
 
     expect(summary).toHaveTextContent('Search Results');
-    expect(summary).toHaveTextContent('productCount:42');
     expect(summary).not.toHaveTextContent('allProducts');
   });
 
-  it('renders the sort control between the desktop category tree and facet panel', () => {
+  it('renders the desktop sort control above the product grid instead of in the sidebar', () => {
     renderLayout({ selectedCategoryId: 'child-1' });
 
     const aside = screen.getByLabelText('allProducts');
     const tree = screen.getByTestId('plp-category-tree');
-    const sort = screen.getByRole('combobox');
     const facetPanel = screen.getByTestId('plp-facet-panel');
+    const summary = screen.getByTestId('plp-category-summary');
+    const sort = screen.getByTestId('search-sort');
 
     expect(aside).toContainElement(tree);
-    expect(aside).toContainElement(sort);
     expect(aside).toContainElement(facetPanel);
-    expect(tree.compareDocumentPosition(sort) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(sort.compareDocumentPosition(facetPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(sort).toHaveTextContent('Product name');
+    expect(aside).not.toContainElement(sort);
+    expect(summary).not.toContainElement(sort);
+    expect(screen.getByTestId('search-product-tile-grid')).toContainElement(sort);
   });
 });

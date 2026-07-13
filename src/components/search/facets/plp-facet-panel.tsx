@@ -691,6 +691,7 @@ function PlpFacetActiveFilters({
         <SearchActiveFilters
           activeFilters={activeFilters}
           resetFacet={resetFacet}
+          resetAllFacets={resetAllFacets}
           categoryFilterLabelsById={categoryFilterLabelsById}
           batteryIncludedFacets={batteryIncludedFacets}
         />

@@ -1,4 +1,3 @@
-import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 import { Pill } from '@/components/ui/pill';
 import { isDedicatedCategorySelectionFilter, parseFlatCategoryFilterValue } from '@/lib/search/category-selection';
@@ -50,7 +49,6 @@ export function SearchActiveFilters({
   categoryFilterLabelsById,
   batteryIncludedFacets,
 }: SearchActiveFiltersProps) {
-  const t = useTranslations('product');
   const filters = Object.entries(activeFilters);
   const batteryIncludedFacetsById = new Map(batteryIncludedFacets?.map((facet) => [facet.id, facet]) ?? []);
 
