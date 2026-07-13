@@ -203,6 +203,41 @@ describe('PlpFacetPanel', () => {
     expect(screen.getByText('Industrial Drills')).toBeInTheDocument();
   });
 
+  it('tightens the empty desktop spacing and keeps the clear-filters control as a trailing-icon button when active filters exist', () => {
+    const { rerender } = render(
+      <PlpFacetPanel
+        facets={facets}
+        activeFilters={{}}
+        applyFacet={applyFacet}
+        applyRangeFacet={applyRangeFacet}
+        resetFacet={resetFacet}
+        resetAllFacets={resetAllFacets}
+      />,
+    );
+
+    expect(screen.getByTestId('plp-facet-panel')).toHaveClass('md:gap-3');
+    expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument();
+
+    rerender(
+      <PlpFacetPanel
+        facets={facets}
+        activeFilters={{ color: 'red' }}
+        applyFacet={applyFacet}
+        applyRangeFacet={applyRangeFacet}
+        resetFacet={resetFacet}
+        resetAllFacets={resetAllFacets}
+      />,
+    );
+
+    const clearFiltersButton = screen
+      .getAllByRole('button', { name: 'Clear filters' })
+      .find((button) => button.lastElementChild?.tagName.toLowerCase() === 'svg');
+
+    expect(clearFiltersButton).toBeDefined();
+    expect(clearFiltersButton).toBeEnabled();
+    expect(clearFiltersButton?.lastElementChild?.tagName.toLowerCase()).toBe('svg');
+  });
+
   it('defaults to showing only the first 5 select options, then expands and compacts back to 5', () => {
     render(
       <PlpFacetPanel

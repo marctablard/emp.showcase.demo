@@ -2,9 +2,10 @@
 
 import React, { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { X } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { SearchActiveFiltersWithReset } from '@/components/search/search-active-filters-with-reset';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -793,11 +794,12 @@ export function PlpFacetPanel({
   }
 
   const panelLabel = t('filters.filterButton', { defaultValue: 'Filters' });
+  const hasActiveFilters = Object.keys(activeFilters).length > 0;
 
   if (variant === 'list') {
     return (
       <div className={cn('flex flex-col gap-6 w-full', className)}>
-        {Object.keys(activeFilters).length > 0 ? (
+        {hasActiveFilters ? (
           <SearchActiveFiltersWithReset
             activeFilters={activeFilters}
             resetFacet={resetFacet}
@@ -831,25 +833,27 @@ export function PlpFacetPanel({
   return (
     <section
       className={cn(
-        'flex flex-col gap-6 rounded-[8px] border border-border-primary bg-surface-page p-6 shadow-sm',
+        'flex flex-col gap-6 rounded-[8px] border border-border-primary bg-surface-page p-6 shadow-sm md:gap-6',
+        !hasActiveFilters && 'md:gap-3',
         className,
       )}
       aria-label={panelLabel}
       data-testid="plp-facet-panel"
     >
-      <div className="hidden md:flex items-center justify-between mb-4 md:mb-6">
-        <h5 className="font-bold text-text-headings text-3xl">{panelLabel}</h5>
+      <div className={cn('hidden items-center justify-between md:flex', hasActiveFilters ? 'md:mb-6' : 'md:mb-2')}>
+        <h5 className="text-3xl font-bold text-text-headings">{panelLabel}</h5>
         <div className="flex items-center gap-4">
-          {Object.keys(activeFilters).length > 0 && (
-            <button
+          {hasActiveFilters && (
+            <Button
               type="button"
-              className="group inline-flex min-h-[50px] items-center gap-2 text-text-action outline-none hover:underline focus-visible:ring-2 focus-visible:ring-border-focus"
+              variant="link"
+              className="group h-auto min-h-0 justify-start gap-2 p-0 text-sm font-normal normal-case tracking-normal text-text-action hover:underline focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2"
               onClick={resetAllFacets}
               aria-label={t('filters.clearAllFilters', { defaultValue: 'Clear filters' })}
             >
-              <X className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
               <span className="truncate">{t('filters.clearAllFilters', { defaultValue: 'Clear filters' })}</span>
-            </button>
+              <Trash2 className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" aria-hidden />
+            </Button>
           )}
           {/* Remove close button because it's now living in mobile-category-drawer.tsx */}
         </div>
