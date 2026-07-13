@@ -19,6 +19,7 @@ export function SearchSort({ availableSorts = [], currentSort, onChangeSort, cha
 
       return sort.directions.map((dir) => ({
         id: `${sort.id}:${dir}`,
+        testId: `${sort.id}-${dir}`,
         displayLabel: `${label} ${t(`direction.${dir}`)}`,
       }));
     });
@@ -45,7 +46,7 @@ export function SearchSort({ availableSorts = [], currentSort, onChangeSort, cha
         </SelectTrigger>
         <SelectContent data-testid="search-sort-content">
           {options.map((opt) => (
-            <SelectItem key={opt.id} value={opt.id} data-testid={`search-sort-option-${opt.id}`}>
+            <SelectItem key={opt.id} value={opt.id} data-testid={`search-sort-option-${opt.testId}`}>
               {opt.displayLabel}
             </SelectItem>
           ))}

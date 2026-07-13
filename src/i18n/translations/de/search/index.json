@@ -5,6 +5,7 @@
   },
   "searchResults": {
     "showing": "Zeige {start}-{end} von {total} Produkten",
+    "productCount": "({count, plural, one {# Produkt} other {# Produkte}})",
     "noProductsFound": "Keine Produkte gefunden",
     "tryAdjusting": "Versuchen Sie, Ihre Suche oder Filter anzupassen",
     "allProducts": "Alle Produkte",

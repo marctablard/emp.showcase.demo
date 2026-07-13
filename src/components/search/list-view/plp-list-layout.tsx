@@ -147,9 +147,11 @@ export function PlpListLayout({
       {/* <PlpCategoryCarousel categories={resolvedCategoryContext.ribbonCategories} locale={locale} /> */}
       <PlpCategoryBreadcrumbs plpCategoryContext={resolvedCategoryContext} locale={locale} />
       <section className="flex flex-col gap-4" aria-label={summaryTitle} data-testid="plp-category-summary">
-        <div className="flex items-end gap-4 whitespace-nowrap">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:gap-4">
           <H2 className="mb-0">{summaryTitle}</H2>
-          <p className="font-secondary text-[20px] font-normal leading-8 text-text-body">({total} Products)</p>
+          <p className="whitespace-nowrap font-secondary text-[20px] font-normal leading-8 text-text-body">
+            {t('productCount', { count: total })}
+          </p>
         </div>
         {summaryDescription ? <p className="text-base text-text-body">{summaryDescription}</p> : null}
       </section>
