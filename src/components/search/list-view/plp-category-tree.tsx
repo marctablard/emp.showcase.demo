@@ -77,6 +77,7 @@ export function PlpCategoryTree({
                   href={buildBrowseHrefForCategoryId(cat.id, cat, searchParams)}
                   className="group inline-flex min-h-[50px] items-center gap-2 text-text-action underline outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
                   title={l10n(cat.name, locale)}
+                  data-testid={`plp-category-tree-ancestor-${cat.id}`}
                 >
                   <ChevronLeft className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
                   <span className="truncate" title={l10n(cat.name, locale)}>
@@ -101,6 +102,7 @@ export function PlpCategoryTree({
           aria-current="page"
           ref={selectedLabelRef}
           title={currentCategory ? l10n(currentCategory.name, locale) : tSearch('allProducts')}
+          data-testid="plp-category-tree-current"
         >
           <span
             className="truncate"
@@ -128,6 +130,7 @@ export function PlpCategoryTree({
                     href={buildBrowseHrefForCategoryId(child.id, child, searchParams)}
                     className="inline-flex min-h-[40px] w-full items-center justify-between text-text-body hover:text-text-headings hover:underline outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
                     title={l10n(child.name, locale)}
+                    data-testid={`plp-category-tree-child-${child.id}`}
                   >
                     <span className="truncate" title={l10n(child.name, locale)}>
                       {l10n(child.name, locale)}

@@ -38,14 +38,14 @@ export function SearchSort({ availableSorts = [], currentSort, onChangeSort, cha
   };
 
   return (
-    <div className="flex w-full items-center gap-2">
+    <div className="flex w-full items-center gap-2" data-testid="search-sort-container">
       <Select value={selectedOptionId} onValueChange={handleSelectChange}>
-        <SelectTrigger>
+        <SelectTrigger data-testid="search-sort-trigger">
           <SelectValue placeholder={t('placeholder')} />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent data-testid="search-sort-content">
           {options.map((opt) => (
-            <SelectItem key={opt.id} value={opt.id}>
+            <SelectItem key={opt.id} value={opt.id} data-testid={`search-sort-option-${opt.id}`}>
               {opt.displayLabel}
             </SelectItem>
           ))}

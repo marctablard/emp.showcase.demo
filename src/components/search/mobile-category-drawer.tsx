@@ -135,6 +135,7 @@ export function MobileCategoryDrawer({
                   size="icon"
                   className="h-8 w-8 bg-transparent hover:bg-surface-secondary text-icon-action"
                   aria-label={tFilter('close')}
+                  data-testid="mobile-category-drawer-close"
                 >
                   <X className="h-5 w-5" />
                 </Button>
@@ -183,7 +184,7 @@ export function MobileCategoryDrawer({
 
             <div className="px-6 pb-6 pt-0">
               <DrawerClose asChild>
-                <Button variant="secondary" className="w-full">
+                <Button variant="secondary" className="w-full" data-testid="mobile-category-drawer-show-products">
                   {tFilter('showProducts', { count: total })}
                 </Button>
               </DrawerClose>

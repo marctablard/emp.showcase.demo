@@ -127,6 +127,7 @@ export function SearchActiveFilters({
               label={getFilterTitle(id)}
               value={formatFilterValue(id, value)}
               onClick={() => resetFacet(id)}
+              data-testid={`active-filter-pill-${id}`}
             />
           );
         })}

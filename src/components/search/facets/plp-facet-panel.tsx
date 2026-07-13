@@ -873,6 +873,7 @@ export function PlpFacetPanel({
               className="h-auto min-h-0 justify-start gap-2 p-0 text-sm font-normal normal-case tracking-normal text-text-action hover:underline focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2"
               onClick={resetAllFacets}
               aria-label={t('filters.clearAllFilters', { defaultValue: 'Clear filters' })}
+              data-testid="plp-facet-clear-all"
             >
               <span className="truncate" title={t('filters.clearAllFilters', { defaultValue: 'Clear filters' })}>
                 {t('filters.clearAllFilters', { defaultValue: 'Clear filters' })}
