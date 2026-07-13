@@ -82,6 +82,7 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
 
     return {
       id: source.id || source.code,
+      isParentVariant: source.productType === 'PARENT_VARIANT',
       parentVariantId: source.parentVariantId,
       categoryIds: source.categoryIds,
       brand: source.brandId ? { id: source.brandId } : undefined,

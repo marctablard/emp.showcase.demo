@@ -4,7 +4,16 @@ import { usePathname, useRouter } from 'next/navigation';
 import useHistory from '@/hooks/history/useHistory';
 import { useSiteCode } from '@/hooks/site/useSiteCode';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import type { SearchParams as BaseSearchParams, Filter, SearchResult } from '@/platform/services/model/common';
+import { isDedicatedCategorySelectionFilter } from '@/lib/search/category-selection';
+import type {
+  BatteryIncludedFacet,
+  Filter,
+  SearchFilterValue,
+  SearchFilters,
+  SearchParams,
+  SearchResult,
+  SearchSortOption,
+} from '@/platform/services/model/common';
 import type { SearchSuggestions } from '@/platform/services/model/search/SearchSuggestions';
 import { useSessionStore } from '@/providers/StoreProvider';
 import { buildSearchPaginationUrl } from './build-search-pagination-url';
@@ -12,11 +21,20 @@ import { buildSearchPaginationUrl } from './build-search-pagination-url';
 const DEFAULT_PAGE_INDEX = 0;
 const DEFAULT_PAGE_SIZE = 12;
 
-// Extend the SearchParams type to support nested objects in filters
-export type FilterValue = string | string[] | Record<string, string>;
+/** Returned on {@link useSearch}; map to `search.errors.*` in next-intl. */
+export const USE_SEARCH_CLIENT_ERROR = {
+  MISSING_SITE: 'MISSING_SITE',
+  GENERIC: 'GENERIC',
+} as const;
 
-type SearchParams<T> = Omit<BaseSearchParams<T>, 'filters'> & {
-  filters?: Record<string, FilterValue>;
+export type UseSearchClientError = (typeof USE_SEARCH_CLIENT_ERROR)[keyof typeof USE_SEARCH_CLIENT_ERROR];
+
+const normalizeFiltersForCategorySelection = (filters: SearchFilters, selectedFacetId: string): SearchFilters => {
+  return Object.fromEntries(
+    Object.entries(filters).filter(
+      ([facetId]) => !isDedicatedCategorySelectionFilter(facetId) || facetId === selectedFacetId,
+    ),
+  );
 };
 
 export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: SearchResult<T>) {
@@ -24,15 +42,18 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   const router = useRouter();
   const pathname = usePathname();
   const [data, setData] = useState<T[]>(initialResult?.items || []);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!initialResult);
   const [loadingMore, setLoadingMore] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<UseSearchClientError | null>(null);
   const [facets, setFacets] = useState<Filter[]>([]);
+  const [availableSorts, setAvailableSorts] = useState<SearchSortOption[]>(initialResult?.availableSorts || []);
+  const [batteryIncludedFacets, setBatteryIncludedFacets] = useState<BatteryIncludedFacet[] | undefined>(
+    initialResult?.batteryIncludedFacets,
+  );
   const [total, setTotal] = useState(initialResult?.total || 0);
   const [currentPage, setCurrentPage] = useState(initialResult?.page || DEFAULT_PAGE_INDEX);
   const [pageSize, setPageSize] = useState(initialResult?.pageSize || DEFAULT_PAGE_SIZE);
-  const [activeFilters, setActiveFilters] = useState<Record<string, FilterValue>>(initialSearch?.filters || {});
+  const [activeFilters, setActiveFilters] = useState<Record<string, SearchFilterValue>>(initialSearch?.filters || {});
   const [currentQuery, setCurrentQuery] = useState<string | undefined>(initialSearch?.query);
   const [currentSort, setCurrentSort] = useState<string | undefined>(initialSearch?.sort);
   // Suggestions state
@@ -50,6 +71,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     page: DEFAULT_PAGE_INDEX,
     size: DEFAULT_PAGE_SIZE,
   });
+  const searchGeneration = useRef(0);
 
   /**
    * Updates the browser URL to reflect current search parameters without reloading.
@@ -67,6 +89,10 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
       const normalize = (src: URLSearchParams, mapQuery: boolean) => {
         const out = new URLSearchParams();
         src.forEach((value, key) => {
+          // Only for /api/search — never mirror onto the storefront URL (path already encodes site/locale).
+          if (key === 'site' || key === 'locale') {
+            return;
+          }
           // Replace 'query' with 'q' in the browser URL for consistency
           const k = mapQuery && key === 'query' ? 'q' : key;
           // Omit empty search terms so /browse?q= is treated as /browse
@@ -105,18 +131,30 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
    */
   const search = useCallback(
     async (params: SearchParams<T>) => {
+      const gen = ++searchGeneration.current;
       try {
         setLoading(true);
         setError(null);
+
+        const resolvedSite = siteCode?.trim();
+        if (!resolvedSite) {
+          getLogger().warn({ event: 'search_missing_site' }, 'Product search skipped: no site context');
+          setError(USE_SEARCH_CLIENT_ERROR.MISSING_SITE);
+          setLoading(false);
+          return;
+        }
 
         // Build the URL with query parameters
         const url = new URL('/api/search', window.location.origin);
 
         // Add basic parameters
-        if (params.query) {
-          url.searchParams.append('query', params.query);
-          setCurrentQuery(params.query);
+        const normalizedQuery = params.query?.trim() ? params.query : undefined;
+
+        if (normalizedQuery) {
+          url.searchParams.append('query', normalizedQuery);
         }
+
+        setCurrentQuery(normalizedQuery);
 
         if (params.page !== undefined) {
           url.searchParams.append('page', params.page.toString());
@@ -130,23 +168,23 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
 
         if (params.sort) {
           url.searchParams.append('sort', params.sort);
-          setCurrentSort(params.sort);
         }
-        url.searchParams.append('site', siteCode);
+
+        setCurrentSort(params.sort);
+        url.searchParams.append('site', resolvedSite);
         url.searchParams.append('locale', locale);
         if (sessionCurrency) {
           url.searchParams.append('currency', sessionCurrency);
         }
 
-        // Add filters if present
-        if (params.filters) {
-          Object.entries(params.filters).forEach(([key, value]) => {
+        const filtersToApply = params.filters && Object.keys(params.filters).length > 0 ? params.filters : undefined;
+        if (filtersToApply) {
+          Object.entries(filtersToApply).forEach(([key, value]) => {
             if (Array.isArray(value)) {
               value.forEach((val) => {
                 url.searchParams.append(`filters[${key}][]`, val);
               });
             } else if (typeof value === 'object' && value !== null) {
-              // Handle nested objects like range filters
               Object.entries(value).forEach(([nestedKey, nestedValue]) => {
                 url.searchParams.append(`filters[${key}][${nestedKey}]`, String(nestedValue));
               });
@@ -154,11 +192,15 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
               url.searchParams.append(`filters[${key}]`, String(value));
             }
           });
-          setActiveFilters(params.filters);
         }
+        setActiveFilters(filtersToApply ?? {});
 
-        // Save the search params for pagination
-        lastSearchParams.current = params;
+        const paramsForRef: SearchParams<T> = {
+          ...params,
+          query: normalizedQuery,
+          filters: filtersToApply,
+        };
+        lastSearchParams.current = paramsForRef;
 
         // Update browser URL with the same parameters (but with 'q' instead of 'query')
         updateBrowserUrl(url.searchParams);
@@ -171,6 +213,10 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
 
         const data: SearchResult<T> = await response.json();
 
+        if (gen !== searchGeneration.current) {
+          return;
+        }
+
         // Update state with the search results
         setData(data.items);
         setTotal(data.total);
@@ -180,10 +226,21 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         if (data.availableFilters) {
           setFacets(data.availableFilters);
         }
+
+        setAvailableSorts(data.availableSorts || []);
+
+        if (data.batteryIncludedFacets && data.batteryIncludedFacets.length > 0) {
+          setBatteryIncludedFacets(data.batteryIncludedFacets);
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
+        if (gen === searchGeneration.current) {
+          getLogger().error({ err, event: 'search_request_failed' }, 'Product search request failed');
+          setError(USE_SEARCH_CLIENT_ERROR.GENERIC);
+        }
       } finally {
-        setLoading(false);
+        if (gen === searchGeneration.current) {
+          setLoading(false);
+        }
       }
     },
     [updateBrowserUrl, locale, siteCode, sessionCurrency],
@@ -194,7 +251,10 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
    */
   const applyFacet = useCallback(
     (facetId: string, value: string | string[]) => {
-      const newFilters = { ...activeFilters, [facetId]: value };
+      const mergedFilters = { ...activeFilters, [facetId]: value };
+      const newFilters = isDedicatedCategorySelectionFilter(facetId)
+        ? normalizeFiltersForCategorySelection(mergedFilters, facetId)
+        : mergedFilters;
 
       // Reset to first page when applying a filter
       search({
@@ -235,7 +295,8 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   const applyAllFacets = useCallback(
     (facets: Array<{ facetId: string; value: string | string[] } | { facetId: string; min: string; max: string }>) => {
       // Start with current active filters
-      const newFilters = { ...activeFilters };
+      const newFilters: SearchFilters = { ...activeFilters };
+      let selectedCategorySelectionFacetId: string | undefined;
 
       // Apply each facet to build up the filters object
       facets.forEach((facet) => {
@@ -249,13 +310,22 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
             till: facet.max,
           };
         }
+
+        if (isDedicatedCategorySelectionFilter(facet.facetId)) {
+          selectedCategorySelectionFacetId = facet.facetId;
+        }
       });
+
+      const normalizedFilters =
+        selectedCategorySelectionFacetId !== undefined
+          ? normalizeFiltersForCategorySelection(newFilters, selectedCategorySelectionFacetId)
+          : newFilters;
 
       // Reset to first page when applying filters
       search({
         ...lastSearchParams.current,
         page: 0,
-        filters: newFilters,
+        filters: normalizedFilters,
       });
     },
     [activeFilters, search],
@@ -289,8 +359,6 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
       page: 0,
       filters: undefined,
     });
-
-    setActiveFilters({});
   }, [search]);
 
   /**
@@ -314,6 +382,9 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   const loadMore = useCallback(async () => {
     if (!hasMore || loadingMore || loading) return;
 
+    const resolvedSite = siteCode?.trim();
+    if (!resolvedSite) return;
+
     const nextPage = currentPage + 1;
     try {
       setLoadingMore(true);
@@ -323,7 +394,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         origin: window.location.origin,
         nextPage,
         pageSize,
-        siteCode,
+        siteCode: resolvedSite,
         locale,
         query: lastSearchParams.current.query,
         sort: lastSearchParams.current.sort,
@@ -352,10 +423,15 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
       setData((prev) => [...prev, ...result.items]);
       setCurrentPage(nextPage);
       setTotal(result.total);
+      setAvailableSorts(result.availableSorts || []);
+      if (result.batteryIncludedFacets && result.batteryIncludedFacets.length > 0) {
+        setBatteryIncludedFacets(result.batteryIncludedFacets);
+      }
 
       lastSearchParams.current = { ...lastSearchParams.current, page: nextPage };
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      getLogger().error({ err, event: 'search_load_more_failed' }, 'Product search load-more failed');
+      setError(USE_SEARCH_CLIENT_ERROR.GENERIC);
     } finally {
       setLoadingMore(false);
     }
@@ -373,10 +449,15 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         setLoading(false);
         return;
       }
+      const resolvedSite = siteCode?.trim();
+      if (!resolvedSite) {
+        setLoading(false);
+        return;
+      }
       try {
         const url = new URL('/api/search/suggestions', window.location.origin);
         url.searchParams.append('query', query);
-        url.searchParams.append('site', siteCode);
+        url.searchParams.append('site', resolvedSite);
         if (locale) {
           url.searchParams.append('locale', locale);
         }
@@ -401,7 +482,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   );
 
   const changeSort = useCallback(
-    (sort: string) => {
+    (sort?: string) => {
       search({
         ...lastSearchParams.current,
         sort,
@@ -409,6 +490,33 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
       });
     },
     [search],
+  );
+
+  /**
+   * When browse URL matches SSR (redundant /api/search skipped), keep hook state aligned with the URL so
+   * filter chips, category label resolution, and pagination refs stay correct after client navigation.
+   */
+  const syncBrowseSearchStateFromUrl = useCallback(
+    (slice: { query: string; page: number; size: number; sort?: string; filtersRecord: SearchFilters }) => {
+      setError(null);
+      const filters = Object.keys(slice.filtersRecord).length > 0 ? slice.filtersRecord : undefined;
+      const q = slice.query.trim() ? slice.query : undefined;
+
+      setActiveFilters(filters ?? {});
+      setCurrentPage(slice.page);
+      setPageSize(slice.size);
+      setCurrentQuery(q);
+      setCurrentSort(slice.sort);
+
+      lastSearchParams.current = {
+        page: slice.page,
+        size: slice.size,
+        query: q,
+        sort: slice.sort,
+        filters,
+      };
+    },
+    [],
   );
 
   useEffect(() => {
@@ -422,8 +530,11 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     data,
     loading,
     loadingMore,
+    error,
     hasMore,
     facets,
+    availableSorts,
+    batteryIncludedFacets,
     total,
     currentPage,
     pageSize,
@@ -444,6 +555,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     suggestions,
     getSuggestions,
     setPage: changePage,
+    syncBrowseSearchStateFromUrl,
   };
 }
 

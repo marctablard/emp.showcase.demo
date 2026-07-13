@@ -1,26 +1,28 @@
-import { Trash2 } from 'lucide-react';
 import { SearchActiveFilters } from '@/components/search/search-active-filters';
-import { Pill } from '@/components/ui/pill';
+import type { BatteryIncludedFacet, SearchFilterValue } from '@/platform/services/model/common';
 
 interface SearchActiveFiltersWithResetProps {
-  activeFilters: Record<string, string | string[] | Record<string, string>>;
+  activeFilters: Record<string, SearchFilterValue>;
   resetFacet: (key: string) => void;
   resetAllFacets: () => void;
-  resetLabel: string;
+  categoryFilterLabelsById?: Record<string, string>;
+  batteryIncludedFacets?: BatteryIncludedFacet[];
 }
 
 export function SearchActiveFiltersWithReset({
   activeFilters,
   resetFacet,
   resetAllFacets,
-  resetLabel,
-}: Omit<SearchActiveFiltersWithResetProps, 'className'>) {
+  categoryFilterLabelsById,
+  batteryIncludedFacets,
+}: SearchActiveFiltersWithResetProps) {
   return (
-    <>
-      <SearchActiveFilters activeFilters={activeFilters} resetFacet={resetFacet} resetAllFacets={resetAllFacets} />
-      {Object.keys(activeFilters).length > 0 && (
-        <Pill variant="reset" leadingIcon={<Trash2 />} label={resetLabel} onClick={resetAllFacets} />
-      )}
-    </>
+    <SearchActiveFilters
+      activeFilters={activeFilters}
+      resetFacet={resetFacet}
+      resetAllFacets={resetAllFacets}
+      categoryFilterLabelsById={categoryFilterLabelsById}
+      batteryIncludedFacets={batteryIncludedFacets}
+    />
   );
 }

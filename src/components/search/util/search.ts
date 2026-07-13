@@ -23,7 +23,39 @@ export function isNumberRange(values: FilterValue[]): boolean {
  * Checks if filter is a pricing filter
  */
 export function isSelect(name: string): boolean {
-  return name !== 'prices.effectiveAmount';
+  return !/(^|\.)(prices|price)\.effectiveAmount$/i.test(name);
+}
+
+export function getFilterLabelFallback(name: string): string {
+  if (/(^|\.)(prices|price)\.effectiveAmount$/i.test(name)) {
+    return 'Price';
+  }
+
+  if (/category/i.test(name)) {
+    return 'Category';
+  }
+
+  if (/brand\.name$/i.test(name)) {
+    return 'Brand';
+  }
+
+  if (/availability\.available$/i.test(name)) {
+    return 'Availability';
+  }
+
+  const normalized = name
+    .split('.')
+    .filter(Boolean)
+    .filter((segment) => !/^_[a-z]/i.test(segment))
+    .filter((segment) => !/^[a-z]{2}(-[a-z]+)?$/i.test(segment))
+    .filter((segment) => !/^[A-Z]{2}$/.test(segment))
+    .filter((segment) => !/^[a-z]+-branch$/i.test(segment));
+
+  const source = normalized.length > 0 ? normalized[normalized.length - 1] : name;
+  return source
+    .replace(/[-_]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/^./, (character) => character.toUpperCase());
 }
 
 /**

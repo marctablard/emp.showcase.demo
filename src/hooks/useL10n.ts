@@ -2,29 +2,29 @@
 
 import { useMemo } from 'react';
 import { useLocale } from 'next-intl';
-import { l10n as utill10n } from '@/lib/utils';
-import type { LocalizedString } from '@/platform/services/model/common';
+import { routingConfig } from '@/i18n/routing';
+import { type L10nInput, l10nOrEmpty as utilL10nOrEmpty, l10n as utill10n } from '@/lib/l10n';
 import { useSiteStore } from '@/providers/StoreProvider';
 
-type L10nInput = string | LocalizedString | Array<{ language: string; message: string }> | unknown;
-
 /**
- * Client hook returning an `l10n` function with the deterministic fallback
- * chain `[currentLocale, site.defaultLanguage, NEXT_PUBLIC_DEFAULT_LANGUAGE]`.
+ * Hook for localizing content based on the current locale.
  *
- * `useLocale()` supplies the current UI locale when `locale` is omitted, and
- * `site.defaultLanguage` is read from `useSiteStore` so every caller inherits
- * the same fallback without threading the site through props.
+ * Resolution order:
+ *   1. `locale` argument (or `useLocale()` from next-intl when omitted)
+ *   2. `defaultLocale` argument, or — when not provided — `site.defaultLanguage`
+ *      from `useSiteStore`, falling back to `routingConfig.defaultLocale`
  */
-export function useL10n(locale?: string) {
+export function useL10n(locale?: string, defaultLocale?: string) {
   const intlLocale = useLocale();
-  const effectiveLocale = locale ?? intlLocale;
+  const resolvedLocale = locale ?? intlLocale;
   const siteDefaultLanguage = useSiteStore().site?.defaultLanguage;
+  const effectiveDefault = defaultLocale ?? siteDefaultLanguage ?? routingConfig.defaultLocale;
 
-  const l10n = useMemo(() => {
-    const fallbacks = siteDefaultLanguage ? [siteDefaultLanguage] : undefined;
-    return (input: L10nInput) => utill10n(input, effectiveLocale, fallbacks);
-  }, [effectiveLocale, siteDefaultLanguage]);
-
-  return { l10n };
+  return useMemo(
+    () => ({
+      l10n: (input: L10nInput) => utill10n(input, resolvedLocale, effectiveDefault),
+      l10nOrEmpty: (input: L10nInput) => utilL10nOrEmpty(input, resolvedLocale, effectiveDefault),
+    }),
+    [resolvedLocale, effectiveDefault],
+  );
 }

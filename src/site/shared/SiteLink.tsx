@@ -13,7 +13,7 @@ interface SiteLinkOwnProps {
   href: string | UrlObject;
   site?: string;
   I18nLink: React.ElementType;
-  getSite: () => string;
+  getSite: () => string | undefined;
   siteRouting: SiteRoutingConfig;
   getI18nPathname: (args: { href: string; locale: string }) => string;
 }

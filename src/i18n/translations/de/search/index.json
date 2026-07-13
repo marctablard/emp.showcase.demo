@@ -1,9 +1,15 @@
 {
+  "errors": {
+    "missingSite": "Produkte können nicht geladen werden, da der Shop-Kontext fehlt. Laden Sie die Seite neu oder wählen Sie einen Shop im Menü.",
+    "generic": "Produkte konnten nicht geladen werden. Bitte versuchen Sie es erneut."
+  },
   "searchResults": {
     "showing": "Zeige {start}-{end} von {total} Produkten",
     "noProductsFound": "Keine Produkte gefunden",
     "tryAdjusting": "Versuchen Sie, Ihre Suche oder Filter anzupassen",
     "allProducts": "Alle Produkte",
+    "searchResults": "Suchergebnisse",
+    "allCategories": "Alle Kategorien",
     "resultsFor": "Ergebnisse für \"{query}\"",
     "resetFilter": "Filter löschen",
     "loadMore": "Mehr laden",
@@ -12,5 +18,25 @@
   "layoutToggle": {
     "list": "Listenansicht",
     "grid": "Rasteransicht"
+  },
+  "sort": {
+    "placeholder": "Sortieren nach",
+    "clear": "Sortierung entfernen",
+    "name": "Produktname",
+    "price": "Preis",
+    "direction": {
+      "asc": "Aufsteigend",
+      "desc": "Absteigend"
+    }
+  },
+  "plpCategoryCarousel": {
+    "title": "Kategorien"
+  },
+  "plpCategoryTree": {
+    "title": "Kategorien",
+    "totalProducts": "— {total} Produkte",
+    "expand": "{name} ausklappen",
+    "collapse": "{name} einklappen",
+    "subcategoriesHeading": "Unterkategorien"
   }
 }

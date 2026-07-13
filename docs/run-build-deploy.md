@@ -131,9 +131,8 @@ Integration tests are gated and will only run when:
   - `NEXT_EMPORIX_TEST_TENANT`
   - `NEXT_EMPORIX_TEST_CLIENT_ID`
   - `NEXT_EMPORIX_TEST_CLIENT_SECRET`
-- BatteryIncluded integration envs are set:
-  - `NEXT_PUBLIC_BATTERY_INCLUDED_API_KEY`
-  - `NEXT_PUBLIC_BATTERY_INCLUDED_COLLECTION`
+
+BatteryIncluded search runtime credentials are not taken from storefront env vars. The server resolves BI `searchKey` and `indexName` from Emporix indexing provider `BATTERY_INCLUDED`, while `NEXT_PUBLIC_BATTERY_INCLUDED_BASE_URL` remains the BI API base URL.
 
 ## Deployment (Vercel + GitHub Actions)
 Deployment is automated using Vercel and GitHub Actions.

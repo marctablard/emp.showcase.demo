@@ -65,7 +65,8 @@ class EmporixProductApi implements IEmporixProductApi {
       DEFAULT_CACHE_REVALIDATE,
     );
     if (!response.ok) {
-      if (response.status == 404) {
+      if (response.status === 404 || response.status === 403) {
+        // Public product reads return 403 for unpublished or otherwise non-visible products; surface them as not found.
         return undefined;
       } else {
         throw new Error(`Failed to get product: ${response.statusText}`);

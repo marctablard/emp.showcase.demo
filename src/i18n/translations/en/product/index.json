@@ -5,6 +5,7 @@
   "share": "Share",
   "compare": "Compare",
   "noImage": "No image available",
+  "primaryImageAltUnlabeled": "Product view (ID: {id})",
   "noDescription": "No description available.",
   "productId": "Product ID",
   "quantity": "Quantity",
@@ -91,8 +92,16 @@
     "categoryAssignments": {
       "name": "Category name"
     },
-    "filterButton": "Filter",
-    "clearFilter": "Clear Filter",
+    "categoryIds": "Category",
+    "filterButton": "Filters",
+    "close": "Close",
+    "activeFiltersTitle": "Active filters",
+    "productCount": "({count} Products)",
+    "showProducts": "Show {count} products",
+    "from": "From",
+    "till": "Till",
+    "clearFilter": "Clear Filters",
+    "clearAllFilters": "Clear filters",
     "applyFilters": "Apply Filters"
   },
   "tabs": {

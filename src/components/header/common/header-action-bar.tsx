@@ -11,14 +11,16 @@ import { HeaderLogo } from '@/components/header/common/header-logo';
 import { HeaderSearch } from '@/components/header/common/header-search';
 import { DesktopMenuFlyout } from '@/components/header/desktop/menu-flyout';
 import { MenuLevel1 } from '@/components/header/desktop/menu-level-1';
+import { useHeaderDesktopNavigation } from '@/components/header/header-desktop-navigation-context';
+import { useNavigationProductSubmenu } from '@/components/header/navigation-product-submenu-context';
 import { useHeaderSearch } from '@/components/header/search/search-context';
 import { TabletMenuFlyout } from '@/components/header/tablet/menu-flyout';
 import { HeaderWishlistButton } from '@/components/header/wishlist/header-wishlist-button';
-import type { MenuItem } from '@/data/navigation-menu';
 import useAuthentication from '@/hooks/authentication/useAuthentication';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useHeaderScroll } from '@/hooks/useHeaderScroll';
 import { usePathname } from '@/i18n/navigation';
+import { mergeNavigationProductSubmenu } from '@/lib/navigation/merge-navigation-product-submenu';
 import { cn } from '@/lib/utils';
 
 export function HeaderActionBar() {
@@ -28,39 +30,49 @@ export function HeaderActionBar() {
   const { scrolled } = useHeaderScroll();
   const isAboveSmallScreen = useBreakpoint('sm');
   const isAboveMediumScreen = useBreakpoint('md');
-  const isAboveLargeScreen = useBreakpoint('lg');
+  const isAboveDesktopFlyoutBreakpoint = useBreakpoint('md');
   const pathname = usePathname();
   const isOnAuthPage = pathname === '/login' || pathname === '/password-reset';
   const [showMenu, setShowMenu] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const [activeDesktopMenu, setActiveDesktopMenu] = useState<MenuItem | null>(null);
   const actionBarRef = useRef<HTMLDivElement>(null);
-  const menuLeaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  const handleMenuLeave = () => {
-    menuLeaveTimeoutRef.current = setTimeout(() => {
-      setActiveDesktopMenu(null);
-    }, 150);
-  };
-
-  const handleMenuHover = (item: MenuItem | null) => {
-    if (menuLeaveTimeoutRef.current) {
-      clearTimeout(menuLeaveTimeoutRef.current);
-      menuLeaveTimeoutRef.current = null;
-    }
-    // Close flyout immediately when hovering items without submenu
-    if (item && !item.hasSubmenu) {
-      setActiveDesktopMenu(null);
-      return;
-    }
-    setActiveDesktopMenu(item);
-  };
+  const { activeDesktopMenu, handleMenuHover, scheduleFlyoutClose, dismissFlyout } = useHeaderDesktopNavigation();
+  const { submenuItems: productCategorySubmenu } = useNavigationProductSubmenu();
 
   useEffect(() => {
     // @see https://react.dev/reference/react-dom/client/hydrateRoot#handling-different-client-and-server-content
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsClient(true);
   }, []);
+
+  useEffect(() => {
+    if (!activeDesktopMenu && !showMenu) {
+      return;
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') {
+        return;
+      }
+
+      dismissFlyout();
+      setShowMenu(false);
+    };
+
+    window.addEventListener('keydown', handleEscape);
+
+    return () => {
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [activeDesktopMenu, dismissFlyout, showMenu]);
+
+  useEffect(() => {
+    if (!showSearch || !isAboveSmallScreen || isAboveMediumScreen) {
+      return;
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- close tablet menu when search UI opens (any entry path)
+    setShowMenu(false);
+  }, [showSearch, isAboveSmallScreen, isAboveMediumScreen]);
 
   useEffect(() => {
     const shouldLockScroll = showMenu && isAboveSmallScreen && !isAboveMediumScreen;
@@ -100,7 +112,6 @@ export function HeaderActionBar() {
 
     const updateDialogSafeTop = () => {
       const headerHeight = Math.ceil(fixedHeaderContainer.getBoundingClientRect().height);
-      // Keep a small visual gap between fixed header and dialog.
       const safeTop = headerHeight + 16;
       document.documentElement.style.setProperty('--dialog-safe-top', `${safeTop}px`);
     };
@@ -128,9 +139,9 @@ export function HeaderActionBar() {
       )}
     >
       <div className={cn('flex items-center gap-5 w-full', !scrolled && 'md:justify-between md:flex-wrap')}>
-        <div className="flex items-center gap-5 w-full md:justify-between">
+        <div className="flex items-center gap-5 w-full md:justify-between" onMouseEnter={dismissFlyout}>
           <HeaderLogo scrolled={scrolled} className={cn('me-auto md:me-0', scrolled && 'lg:me-auto')} />
-          <HeaderSearch show={showSearch} small={!isAboveLargeScreen || scrolled} />
+          <HeaderSearch show={showSearch} small={!isAboveDesktopFlyoutBreakpoint || scrolled} />
           <div className={cn('flex items-center gap-5 text-nowrap', showSearch && 'sm:hidden')}>
             {activateSearch && (
               <HeaderIconButton
@@ -143,7 +154,6 @@ export function HeaderActionBar() {
 
             {loading ? (
               <div className="p-0.5">
-                {/* Skeleton */}
                 <div className="w-8 h-8" />
                 <p className="text-sm font-bold -mt-1">&nbsp;</p>
               </div>
@@ -175,26 +185,33 @@ export function HeaderActionBar() {
           <div className={cn('hidden md:block', (showSearch || scrolled) && 'md:hidden')}>
             <MenuLevel1 onMenuHover={handleMenuHover} activeMenuId={activeDesktopMenu?.id} />
           </div>
-          <HeaderCartButton />
-          <HeaderIconButton
-            className={cn('hidden sm:flex', !scrolled && 'md:hidden', !isClient && 'invisible')}
-            icon={showMenu ? X : Menu}
-            text={t('menu')}
-            ariaLabel={showMenu ? t('close') : t('menu')}
-            onClick={() => setShowMenu(!showMenu)}
-          />
+          <div className="flex items-center gap-5" onMouseEnter={dismissFlyout}>
+            <HeaderCartButton />
+            <HeaderIconButton
+              className={cn('hidden sm:flex', !scrolled && 'md:hidden', !isClient && 'invisible')}
+              icon={showMenu ? X : Menu}
+              text={t('menu')}
+              ariaLabel={showMenu ? t('close') : t('menu')}
+              onClick={() => setShowMenu(!showMenu)}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Navigation Menu */}
-      {!showSearch && showMenu && isAboveSmallScreen && !isAboveMediumScreen && <TabletMenuFlyout />}
+      {!showSearch && showMenu && isAboveSmallScreen && !isAboveMediumScreen && (
+        <TabletMenuFlyout onRequestClose={() => setShowMenu(false)} />
+      )}
       {!showSearch && scrolled && showMenu && isAboveMediumScreen && (
         <div className="flex mt-5">
           <MenuLevel1 onMenuHover={handleMenuHover} activeMenuId={activeDesktopMenu?.id} />
         </div>
       )}
       {!showSearch && activeDesktopMenu && isAboveMediumScreen && (!scrolled || showMenu) && (
-        <DesktopMenuFlyout menuItem={activeDesktopMenu} onMouseLeave={handleMenuLeave} />
+        <DesktopMenuFlyout
+          key={activeDesktopMenu.id}
+          menuItem={mergeNavigationProductSubmenu(activeDesktopMenu, productCategorySubmenu)}
+          onMouseLeave={scheduleFlyoutClose}
+        />
       )}
     </div>
   );

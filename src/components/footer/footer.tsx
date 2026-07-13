@@ -4,6 +4,8 @@ import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Instagram, Linkedin, Mail, Youtube } from 'lucide-react';
 import { useNewsletterForm } from '@/hooks/newsletter/useNewsletterForm';
+import { getNavigationRootCategoriesPageSize } from '@/lib/navigation/navigation-root-categories-page-size';
+import { takeRootCategoryPage } from '@/lib/navigation/take-root-category-page';
 import { cn } from '@/lib/utils';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '../ui/form';
 import { InputButton } from '../ui/input';
@@ -93,28 +95,64 @@ export default function Footer({ reduced = false }: { reduced?: boolean }) {
   );
 }
 
-export function FooterLinks() {
+export type FooterTopProductCategoryLink = { label: string; href: string };
+
+export function FooterLinks({
+  topProductCategories,
+  showAllProductsBrowse = false,
+}: {
+  topProductCategories?: FooterTopProductCategoryLink[];
+  showAllProductsBrowse?: boolean;
+}) {
   const t = useTranslations('layout.footerLinks');
+  const categoryPreviewCount = getNavigationRootCategoriesPageSize();
+  const { visible: visibleTopProductCategories } = takeRootCategoryPage(
+    topProductCategories ?? [],
+    categoryPreviewCount,
+  );
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 md:gap-6 ml-4 mr-4 md:ml-6 md:mr-6 py-4 md:py-6 border-b border-b-border-primary">
       <div className="flex flex-col gap-2">
         <p className="text-lg mb-1">{t('products')}</p>
-        <UiLink type="Link" href="#" variant="secondary" size="s">
-          {t('solarPanels')}
-        </UiLink>
-        <UiLink type="Link" href="#" variant="secondary" size="s">
-          {t('inverters')}
-        </UiLink>
-        <UiLink type="Link" href="#" variant="secondary" size="s">
-          {t('batterySolutions')}
-        </UiLink>
-        <UiLink type="Link" href="#" variant="secondary" size="s">
-          {t('wiringSolutions')}
-        </UiLink>
-        <UiLink type="Link" href="#" variant="secondary" size="s">
-          {t('solarAccessories')}
-        </UiLink>
+        {topProductCategories && topProductCategories.length > 0 ? (
+          <>
+            {visibleTopProductCategories.map((link) => (
+              <UiLink key={link.href + link.label} type="Link" href={link.href} variant="secondary" size="s">
+                {link.label}
+              </UiLink>
+            ))}
+            {showAllProductsBrowse ? (
+              <UiLink
+                type="Link"
+                href="/browse"
+                variant="text"
+                size="s"
+                className="underline font-bold text-text-action p-0 h-auto justify-start"
+              >
+                {t('showAllCategories')}
+              </UiLink>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <UiLink type="Link" href="#" variant="secondary" size="s">
+              {t('solarPanels')}
+            </UiLink>
+            <UiLink type="Link" href="#" variant="secondary" size="s">
+              {t('inverters')}
+            </UiLink>
+            <UiLink type="Link" href="#" variant="secondary" size="s">
+              {t('batterySolutions')}
+            </UiLink>
+            <UiLink type="Link" href="#" variant="secondary" size="s">
+              {t('wiringSolutions')}
+            </UiLink>
+            <UiLink type="Link" href="#" variant="secondary" size="s">
+              {t('solarAccessories')}
+            </UiLink>
+          </>
+        )}
       </div>
       <div className="flex flex-col gap-2">
         <p className="text-lg mb-1">{t('services')}</p>
@@ -169,7 +207,7 @@ export function FooterWrapper({ className, ...props }: React.ComponentProps<'div
         <div
           data-slot="footer"
           className={cn(
-            'pb-1 sm:mx-4 lg:mx-9 shadow-xl rounded-ss-lg rounded-se-lg  bg-[url("/images/footer-bg.svg")] bg-no-repeat bg-right-bottom',
+            "pb-1 sm:mx-4 lg:mx-9 shadow-xl rounded-ss-lg rounded-se-lg bg-[url('/images/footer-bg.svg')] bg-no-repeat bg-right-bottom",
             className,
           )}
           {...props}

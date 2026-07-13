@@ -7,6 +7,7 @@ import { QuantityStepper } from '@/components/ui/molecules/quantity-stepper';
 import { useAvailability } from '@/hooks/product/useAvailability';
 import { useL10n } from '@/hooks/useL10n';
 import { Link } from '@/i18n/navigation';
+import { clearMarkHighlights } from '@/lib/common/clear-mark-highlights';
 import { formatCurrency } from '@/lib/utils';
 import type { Product } from '@/platform/services/model/product';
 import { HighlightedText } from './highlighted-text';
@@ -22,21 +23,24 @@ export function QuickOrderProductRow({ product, quantity, onRemove, onUpdateQuan
   const { l10n } = useL10n();
   const tCart = useTranslations('cart');
   const tA11y = useTranslations('quick-order.accessibility');
-  const { availability } = useAvailability(product.id);
+  const productId = clearMarkHighlights(product.id);
+  const productSku = clearMarkHighlights(product.sku ?? '');
+  const { availability } = useAvailability(productId);
   const image = product.images?.[0];
   const brandName = l10n(product.brand?.name || '');
   const productName = l10n(product.name) || '';
-  const itemNumber = product.sku || product.id;
+  const plainProductName = clearMarkHighlights(productName);
+  const itemNumber = productSku || productId;
 
   return (
-    <tr className="border-b border-border-primary" data-testid={`product-row-${product.id}`}>
+    <tr className="border-b border-border-primary" data-testid={`product-row-${productId}`}>
       <td className="py-4 pr-4">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0 w-[80px] h-[52px] rounded-ss-md rounded-ee-md overflow-hidden bg-surface-image-background flex items-center justify-center">
             {image?.url ? (
               <Image
                 src={image.url}
-                alt={l10n(image.altText || '') || productName}
+                alt={clearMarkHighlights(l10n(image.altText || '')) || plainProductName}
                 width={80}
                 height={52}
                 className="object-contain w-[80px] h-[52px]"
@@ -44,7 +48,7 @@ export function QuickOrderProductRow({ product, quantity, onRemove, onUpdateQuan
             ) : (
               <Image
                 src="/images/no_image_alt.png"
-                alt={productName}
+                alt={plainProductName}
                 width={80}
                 height={52}
                 className="object-contain"
@@ -58,7 +62,7 @@ export function QuickOrderProductRow({ product, quantity, onRemove, onUpdateQuan
               </p>
             )}
             <Link
-              href={`/product/${product.id}`}
+              href={`/product/${productId}`}
               className="font-bold text-base font-headlines text-text-body hover:underline line-clamp-2"
             >
               <HighlightedText text={productName} />

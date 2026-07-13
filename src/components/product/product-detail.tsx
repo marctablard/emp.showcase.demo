@@ -62,7 +62,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
   const [price, setPrice] = useState<ProductPrice | null | undefined>(product?.price);
   const [availability, setAvailability] = useState<StockAvailability | undefined>(product?.availability);
   const locale = useLocale();
-  const { l10n } = useL10n(locale);
+  const { l10n, l10nOrEmpty } = useL10n(locale);
   const t = useTranslations('product');
   const isAboveMediumScreen = useBreakpoint('md');
   const { isInComparison, toggleProduct, isFull } = useComparison();
@@ -264,7 +264,13 @@ export default function ProductDetail({ product: initialProduct, options, classN
                   <div className="relative aspect-square">
                     <Image
                       src={product.images[0].url}
-                      alt={product.images[0].altText ? l10n(product.images[0].altText) : l10n(product.name)}
+                      alt={
+                        product.images[0].altText
+                          ? l10nOrEmpty(product.images[0].altText) ||
+                            l10nOrEmpty(product.name) ||
+                            t('primaryImageAltUnlabeled', { id: product.id })
+                          : l10nOrEmpty(product.name) || t('primaryImageAltUnlabeled', { id: product.id })
+                      }
                       fill
                       className="object-contain object-center"
                     />
@@ -274,7 +280,12 @@ export default function ProductDetail({ product: initialProduct, options, classN
                 )
               ) : (
                 <div className="bg-surface-image-background flex items-center justify-center">
-                  <Image src={'/images/no_image_alt.png'} alt={l10n(product.name)} width={90} height={90} />
+                  <Image
+                    src={'/images/no_image_alt.png'}
+                    alt={l10nOrEmpty(product.name) || ''}
+                    width={90}
+                    height={90}
+                  />
                 </div>
               )}
             </div>
@@ -401,7 +412,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
               {product.brand.logo?.url && (
                 <Image
                   src={product.brand.logo?.url}
-                  alt={product.brand.name ? l10n(product.brand.name) : ''}
+                  alt={product.brand.name ? l10nOrEmpty(product.brand.name) : ''}
                   height={70}
                   width={70}
                 />

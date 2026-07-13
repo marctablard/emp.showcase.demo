@@ -2,8 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import type { SearchParams, SearchResult } from '@/platform/services/model/common';
+import type { SearchFilterLeafValue, SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { Quote } from '@/platform/services/model/quote';
+
+function appendQuoteFilterParam(queryParams: URLSearchParams, key: string, value: SearchFilterLeafValue): void {
+  if (Array.isArray(value)) {
+    queryParams.append(key, value.join(','));
+    return;
+  }
+
+  queryParams.append(key, value);
+}
 
 /**
  * Hook for fetching quotes
@@ -60,9 +69,13 @@ export function useQuotes(initialQuotes?: Quote[], params?: SearchParams<Quote>)
       if (filters) {
         Object.entries(filters).forEach(([key, value]) => {
           if (Array.isArray(value)) {
-            queryParams.append(key, value.join(','));
+            appendQuoteFilterParam(queryParams, key, value);
+          } else if (typeof value === 'object' && value !== null) {
+            Object.entries(value).forEach(([nestedKey, nestedValue]) => {
+              appendQuoteFilterParam(queryParams, `${key}[${nestedKey}]`, nestedValue);
+            });
           } else {
-            queryParams.append(key, value);
+            appendQuoteFilterParam(queryParams, key, value);
           }
         });
       }

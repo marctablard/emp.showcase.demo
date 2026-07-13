@@ -1,49 +1,56 @@
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, User } from 'lucide-react';
-import z from 'zod';
-import { Form, FormControl, FormField, FormItem, FormMessage } from '../ui/form';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import type { SearchSortOption } from '@/platform/services/model/common';
 
-function SearchSort() {
-  const FormSchemaInput = z.object({
-    select: z.string().optional(),
-  });
-
-  const form = useForm<z.infer<typeof FormSchemaInput>>({
-    resolver: zodResolver(FormSchemaInput),
-    defaultValues: {
-      select: 'low',
-    },
-  });
-  return (
-    <Form {...form}>
-      <FormField
-        name="select"
-        control={form.control}
-        render={({ field }) => (
-          <FormItem>
-            <Select onValueChange={field.onChange} value={field.value}>
-              <FormControl>
-                <SelectTrigger startIcon={User}>
-                  <SelectValue placeholder="Placeholder" />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                <SelectItem value="low" startIcon={User} endIcon={Eye}>
-                  Price, low to high
-                </SelectItem>
-                <SelectItem value="high" startIcon={User} endIcon={Eye}>
-                  Price, high to low
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-    </Form>
-  );
+interface SearchSortProps {
+  availableSorts?: SearchSortOption[];
+  currentSort?: string;
+  onChangeSort?: (sort?: string) => void;
+  changeSort?: (sort?: string) => void;
 }
 
-export { SearchSort };
+export function SearchSort({ availableSorts = [], currentSort, onChangeSort, changeSort }: SearchSortProps) {
+  const t = useTranslations('search.sort');
+
+  const options = useMemo(() => {
+    return availableSorts.flatMap((sort) => {
+      const label = sort.label || (sort.labelKey ? t(sort.labelKey as any) : sort.id);
+
+      return sort.directions.map((dir) => ({
+        id: `${sort.id}:${dir}`,
+        displayLabel: `${label} ${t(`direction.${dir}`)}`,
+      }));
+    });
+  }, [availableSorts, t]);
+
+  if (!options || options.length === 0) return null;
+
+  const selectedOptionId = options.some((opt) => opt.id === currentSort) ? (currentSort as string) : '';
+
+  const fireChange = (sort?: string) => {
+    if (onChangeSort) onChangeSort(sort);
+    else if (changeSort) changeSort(sort);
+  };
+
+  const handleSelectChange = (value: string) => {
+    fireChange(value);
+  };
+
+  return (
+    <div className="flex w-full items-center gap-2">
+      <Select value={selectedOptionId} onValueChange={handleSelectChange}>
+        <SelectTrigger>
+          <SelectValue placeholder={t('placeholder')} />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((opt) => (
+            <SelectItem key={opt.id} value={opt.id}>
+              {opt.displayLabel}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}

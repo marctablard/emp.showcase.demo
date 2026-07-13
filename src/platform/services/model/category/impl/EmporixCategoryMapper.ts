@@ -1,7 +1,32 @@
 import { injectable } from '@/platform/core/di/injectable';
-import type { EmporixCategory } from '@/platform/integrations/emporix/model';
+import type { EmporixCategory, EmporixCategoryTree } from '@/platform/integrations/emporix/model';
 import type { Category } from '@/platform/services/model/category';
 import type { CategoryMapper } from '../CategoryMapper';
+
+function sortCategoryTreeByPosition(a: EmporixCategoryTree, b: EmporixCategoryTree): number {
+  return (a.position ?? 0) - (b.position ?? 0);
+}
+
+/**
+ * Maps GET /category-trees nodes (localized* + subcategories) to domain {@link Category}.
+ */
+export function mapEmporixCategoryTreeToCategory(node: EmporixCategoryTree): Category {
+  const sortedSubs = (node.subcategories ?? []).slice().sort(sortCategoryTreeByPosition);
+  const children =
+    sortedSubs.length > 0 ? sortedSubs.map((child) => mapEmporixCategoryTreeToCategory(child)) : undefined;
+
+  return {
+    id: node.id,
+    code: node.code,
+    name: node.localizedName,
+    description: node.localizedDescription,
+    slug: node.localizedSlug,
+    published: node.published,
+    parent: node.parentId,
+    position: node.position,
+    ...(children && children.length > 0 ? { children } : {}),
+  };
+}
 
 /**
  * Specialized mapper for transforming Emporix category data to internal Category model.
