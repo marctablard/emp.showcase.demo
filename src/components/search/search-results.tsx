@@ -17,6 +17,7 @@ import { releaseNavigationWaitCursorLease } from '@/hooks/common/useGlobalCursor
 import { USE_SEARCH_CLIENT_ERROR, useSearch } from '@/hooks/search/useSearch';
 import { resolvePlpCategoryContext } from '@/lib/category/plp-category-context';
 import { resolveSelectedCategoryIdFromFilters } from '@/lib/search/category-selection';
+import { getAppliedFilterCount } from '@/lib/search/get-applied-filter-count';
 import { cn } from '@/lib/utils';
 import type { Category } from '@/platform/services/model/category';
 import type { SearchParams, SearchResult } from '@/platform/services/model/common';
@@ -98,6 +99,7 @@ export function SearchResultsComponent({
       : (previousFacetsRef.current ?? []);
 
   const displayFacets = mergeActiveFilterFacetOptions(baseFacets, activeFilters);
+  const appliedFilterCount = getAppliedFilterCount(activeFilters);
 
   const searchParamsKey = searchParams.toString();
   const previousSearchParamsKeyRef = useRef(searchParamsKey);
@@ -175,6 +177,7 @@ export function SearchResultsComponent({
     resetFacet,
     resetAllFacets,
     categoryFilterLabelsById: navigationLabelIndex,
+    appliedFilterCount,
   };
 
   const searchSortProps = {
@@ -192,6 +195,7 @@ export function SearchResultsComponent({
     applyFacet,
     applyRangeFacet,
     applyAllFacets,
+    appliedFilterCount,
   };
 
   // Shared props for ActiveFiltersWithReset component
@@ -245,16 +249,16 @@ export function SearchResultsComponent({
   }, [searchParamsKey, search, initialResults, initialSearch, syncBrowseSearchStateFromUrl]);
 
   // When the desktop filter row would have no content (PLP list view), hide the whole
-  // wrapper above 1025px so it does not produce an empty flex item with a gap.
+  // wrapper above 1024px so it does not produce an empty flex item with a gap.
   const hideTopControlsOnDesktop = !showDesktopSearchFilter && !showStandaloneActiveFilters;
 
   const topControlsNode = (
-    <div className={cn('w-full', hideTopControlsOnDesktop && 'min-[1025px]:hidden')}>
+    <div className={cn('w-full', hideTopControlsOnDesktop && 'min-[1024px]:hidden')}>
       {/* Row: SearchFilter controls on mobile and desktop. */}
       {/* Search Layout Top Bar */}
       <div className="flex w-full flex-col gap-4 lg:justify-between">
         {/* Mobile / Tablet Filter + Sort */}
-        <div className="flex w-full items-center gap-3 min-[1025px]:hidden">
+        <div className="flex w-full items-center gap-3 min-[1024px]:hidden">
           {plpCategoryContext ? (
             <div className="shrink-0">
               <MobileCategoryDrawer
@@ -276,7 +280,7 @@ export function SearchResultsComponent({
         </div>
 
         {/* Desktop Filter + Active Filters */}
-        <div className="hidden flex-wrap items-center gap-2 min-[1025px]:flex">
+        <div className="hidden flex-wrap items-center gap-2 min-[1024px]:flex">
           {showDesktopSearchFilter ? <SearchFilter {...searchFilterProps} /> : null}
           {showStandaloneActiveFilters ? <SearchActiveFiltersWithReset {...activeFiltersProps} /> : null}
           {showDesktopSearchFilter ? <SearchSort {...searchSortProps} /> : null}
@@ -287,7 +291,7 @@ export function SearchResultsComponent({
 
       {/* Mobile / Tablet: Active filters below, full width */}
       {showStandaloneActiveFilters ? (
-        <div className="mt-4 flex flex-col flex-wrap gap-2 min-[1025px]:hidden">
+        <div className="mt-4 flex flex-col flex-wrap gap-2 min-[1024px]:hidden">
           <SearchActiveFiltersWithReset {...activeFiltersProps} />
         </div>
       ) : null}
@@ -329,6 +333,8 @@ export function SearchResultsComponent({
             applyRangeFacet={applyRangeFacet}
             changeSort={handleSortChange}
             resetFacet={resetFacet}
+            resetAllFacets={resetAllFacets}
+            categoryFilterLabelsById={navigationLabelIndex}
             topControlsNode={topControlsNode}
             searchQuery={query}
           />

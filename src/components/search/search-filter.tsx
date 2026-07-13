@@ -22,6 +22,7 @@ interface SearchFilterProps {
   resetFacet: (facetId: string) => void;
   resetAllFacets: () => void;
   onSubmitComplete?: () => void;
+  appliedFilterCount?: number;
 }
 
 type FilterFormValues = Record<string, string | number>;
@@ -257,6 +258,7 @@ function SearchFilter({
   resetFacet,
   resetAllFacets,
   activeFilters,
+  appliedFilterCount,
 }: SearchFilterProps) {
   // Check if there are any active filters
   // State to control if the filter offcanvas is visible
@@ -271,7 +273,18 @@ function SearchFilter({
     <div className="relative w-auto shrink-0">
       {/* Filter Toggle Button */}
       <Button variant="secondary" disabled className="whitespace-nowrap" data-testid="filter-toggleButton">
-        <ListFilter className="mr-2" /> Filter
+        <span className="relative mr-2">
+          <ListFilter />
+          {typeof appliedFilterCount === 'number' && appliedFilterCount > 0 ? (
+            <span
+              aria-hidden="true"
+              className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-[3px] rounded-full bg-surface-success text-[10px] font-bold leading-[14px] text-center tabular-nums text-text-body"
+            >
+              {appliedFilterCount}
+            </span>
+          ) : null}
+        </span>
+        Filter
       </Button>
 
       {/* Offcanvas Filter Menu - shown when toggled */}

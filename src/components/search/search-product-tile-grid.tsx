@@ -1,6 +1,6 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+// import { useTranslations } from 'next-intl';
 import { ProductTile } from '@/components/product/product-tile';
 import { ProductTileSkeleton } from '@/components/product/product-tile-skeleton';
 import { SearchNoResults } from '@/components/search/search-no-results';
@@ -34,13 +34,13 @@ export function SearchProductTileGrid({
   products,
   locale,
   pageSize,
-  total,
+  // total,
   loading,
   pendingCursor,
   headerContent,
   gridClassName,
 }: SearchProductTileGridProps) {
-  const t = useTranslations('search');
+  // const t = useTranslations('search');
   const resolvedGridClass = gridClassName ?? DEFAULT_GRID_CLASSES;
   const shouldLockCursor = loading || !!pendingCursor;
 
@@ -71,15 +71,7 @@ export function SearchProductTileGrid({
   return (
     <>
       {shouldLockCursor ? <div className="fixed inset-0 z-[99999]" aria-hidden="true" /> : null}
-      {headerContent ?? (
-        <p className="text-sm text-text-placeholders">
-          {t('searchResults.showing', {
-            start: 1,
-            end: products.length,
-            total: total,
-          })}
-        </p>
-      )}
+      {headerContent ?? null}
       <div className={resolvedGridClass}>
         {products.map((product) => (
           <div key={product.id} className="h-full">

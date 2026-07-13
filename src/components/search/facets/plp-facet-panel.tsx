@@ -223,7 +223,9 @@ function PlpFacetCheckboxRow({
           )}
         >
           {leadingContent}
-          <span className="text-base font-normal text-text-body">{option.label}</span>
+          <span className="truncate text-base font-normal text-text-body" title={option.label}>
+            {option.label}
+          </span>
         </div>
         {typeof option.count === 'number' ? (
           <span className="shrink-0 text-sm text-text-secondary">({option.count})</span>
@@ -517,6 +519,7 @@ function RangeFacetDraftForm({
   const maxValue = Number.isFinite(boundsMax) ? Math.ceil(boundsMax / 100) * 100 : boundsMax;
   const [draftFrom, setDraftFrom] = useState(activeRange?.from ?? String(minValue));
   const [draftTill, setDraftTill] = useState(activeRange?.till ?? String(maxValue));
+  const lastCommittedRangeRef = React.useRef<string | null>(null);
 
   const normalizeRangeInput = (value: string): string => {
     const trimmedValue = value.trim();
@@ -566,8 +569,19 @@ function RangeFacetDraftForm({
       return;
     }
 
+    const nextSignature = `${nextFrom}__${nextTill}`;
+    if (lastCommittedRangeRef.current === nextSignature) {
+      return;
+    }
+
+    lastCommittedRangeRef.current = nextSignature;
+
     applyRangeFacet(facet.id, nextFrom, nextTill);
   };
+
+  React.useEffect(() => {
+    lastCommittedRangeRef.current = `${activeRange?.from ?? ''}__${activeRange?.till ?? ''}`;
+  }, [activeRange?.from, activeRange?.till]);
 
   const sliderValue = useMemo(() => {
     if (!Number.isFinite(minValue) || !Number.isFinite(maxValue)) {
@@ -588,6 +602,14 @@ function RangeFacetDraftForm({
     <form
       className="flex flex-col gap-4"
       onSubmit={(event) => {
+        event.preventDefault();
+        commitRange(draftFrom, draftTill);
+      }}
+      onKeyDownCapture={(event) => {
+        if (event.key !== 'Enter') {
+          return;
+        }
+
         event.preventDefault();
         commitRange(draftFrom, draftTill);
       }}
@@ -720,7 +742,9 @@ function PlpFacetSection({
     <AccordionItem value={facet.id} className="border-border-primary">
       <AccordionTrigger className="min-h-[50px] items-center py-0 text-base font-bold text-text-headings hover:no-underline">
         <span className="flex min-w-0 items-center gap-2">
-          <span className="truncate">{label}</span>
+          <span className="truncate" title={label}>
+            {label}
+          </span>
           {selectedChoiceCount > 0 ? (
             <span className="whitespace-nowrap text-sm font-normal text-text-secondary">
               {' '}
@@ -850,7 +874,9 @@ export function PlpFacetPanel({
               onClick={resetAllFacets}
               aria-label={t('filters.clearAllFilters', { defaultValue: 'Clear filters' })}
             >
-              <span className="truncate">{t('filters.clearAllFilters', { defaultValue: 'Clear filters' })}</span>
+              <span className="truncate" title={t('filters.clearAllFilters', { defaultValue: 'Clear filters' })}>
+                {t('filters.clearAllFilters', { defaultValue: 'Clear filters' })}
+              </span>
               <Trash2 className="h-4 w-4 shrink-0" aria-hidden />
             </Button>
           )}

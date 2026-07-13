@@ -29,13 +29,12 @@ export const USE_SEARCH_CLIENT_ERROR = {
 
 export type UseSearchClientError = (typeof USE_SEARCH_CLIENT_ERROR)[keyof typeof USE_SEARCH_CLIENT_ERROR];
 
-const clearNonCategoryFilters = (filters: SearchFilters): SearchFilters => {
-  return Object.fromEntries(Object.entries(filters).filter(([facetId]) => isDedicatedCategorySelectionFilter(facetId)));
-};
-
-const normalizeFiltersForCategorySelection = (filters: SearchFilters): SearchFilters => {
-  const nextCategoryFilters = Object.keys(filters).filter((facetId) => isDedicatedCategorySelectionFilter(facetId));
-  return nextCategoryFilters.length > 0 ? clearNonCategoryFilters(filters) : filters;
+const normalizeFiltersForCategorySelection = (filters: SearchFilters, selectedFacetId: string): SearchFilters => {
+  return Object.fromEntries(
+    Object.entries(filters).filter(
+      ([facetId]) => !isDedicatedCategorySelectionFilter(facetId) || facetId === selectedFacetId,
+    ),
+  );
 };
 
 export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: SearchResult<T>) {
@@ -254,7 +253,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     (facetId: string, value: string | string[]) => {
       const mergedFilters = { ...activeFilters, [facetId]: value };
       const newFilters = isDedicatedCategorySelectionFilter(facetId)
-        ? normalizeFiltersForCategorySelection(mergedFilters)
+        ? normalizeFiltersForCategorySelection(mergedFilters, facetId)
         : mergedFilters;
 
       // Reset to first page when applying a filter
@@ -297,6 +296,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     (facets: Array<{ facetId: string; value: string | string[] } | { facetId: string; min: string; max: string }>) => {
       // Start with current active filters
       const newFilters: SearchFilters = { ...activeFilters };
+      let selectedCategorySelectionFacetId: string | undefined;
 
       // Apply each facet to build up the filters object
       facets.forEach((facet) => {
@@ -310,9 +310,16 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
             till: facet.max,
           };
         }
+
+        if (isDedicatedCategorySelectionFilter(facet.facetId)) {
+          selectedCategorySelectionFacetId = facet.facetId;
+        }
       });
 
-      const normalizedFilters = normalizeFiltersForCategorySelection(newFilters);
+      const normalizedFilters =
+        selectedCategorySelectionFacetId !== undefined
+          ? normalizeFiltersForCategorySelection(newFilters, selectedCategorySelectionFacetId)
+          : newFilters;
 
       // Reset to first page when applying filters
       search({
@@ -352,8 +359,6 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
       page: 0,
       filters: undefined,
     });
-
-    setActiveFilters({});
   }, [search]);
 
   /**

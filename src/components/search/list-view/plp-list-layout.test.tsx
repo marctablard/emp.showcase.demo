@@ -272,10 +272,18 @@ describe('PlpListLayout', () => {
     expect(lastSearchProductTileGridProps?.gridClassName).not.toContain('auto-rows-fr');
     expect(sort.parentElement).toHaveClass(
       'hidden',
-      'min-[1025px]:flex',
-      'min-[1025px]:w-[261px]',
-      'min-[1025px]:shrink-0',
+      'min-[1024px]:flex',
+      'min-[1024px]:w-[261px]',
+      'min-[1024px]:shrink-0',
     );
     expect(screen.getByTestId('search-product-tile-grid')).toContainElement(sort);
+    expect(lastSearchProductTileGridProps?.gridClassName).toContain('min-[770px]:grid-cols-2');
+    expect(screen.getByTestId('plp-category-tree').parentElement).toHaveClass('hidden', 'min-[1024px]:block');
+    expect(screen.getByTestId('plp-category-tree').parentElement?.parentElement).toHaveClass(
+      'grid',
+      'grid-cols-1',
+      'min-[1024px]:grid-cols-[minmax(0,274px)_minmax(0,1fr)]',
+      'min-[1440px]:grid-cols-[minmax(0,444px)_minmax(0,1fr)]',
+    );
   });
 });

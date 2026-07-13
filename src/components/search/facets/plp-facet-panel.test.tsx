@@ -74,6 +74,37 @@ describe('PlpFacetPanel', () => {
     },
   ];
 
+  const longLabelFacets: BatteryIncludedFacet[] = [
+    {
+      id: 'color',
+      label: 'Color',
+      kind: 'select',
+      options: [
+        {
+          id: 'ultra-vivid-cerulean',
+          label: 'Ultra vivid cerulean with a very long descriptive label',
+          count: 4,
+          active: false,
+        },
+      ],
+    },
+    {
+      id: 'categoryTree',
+      label: 'Category tree',
+      kind: 'tree',
+      options: [
+        {
+          id: 'phones',
+          label: 'Phones with a very long category name for tooltip coverage',
+          count: 3,
+          active: false,
+          idPath: ['electronics', 'phones'],
+          labelPath: ['Electronics with a long name', 'Phones with a very long category name for tooltip coverage'],
+        },
+      ],
+    },
+  ];
+
   beforeEach(() => {
     applyFacet.mockReset();
     applyRangeFacet.mockReset();
@@ -142,6 +173,28 @@ describe('PlpFacetPanel', () => {
     expect(applyFacet).toHaveBeenCalledWith('categoryTree', 'phones');
   });
 
+  it('adds browser tooltips for truncated category tree names and facet labels', () => {
+    render(
+      <PlpFacetPanel
+        facets={longLabelFacets}
+        activeFilters={{}}
+        applyFacet={applyFacet}
+        applyRangeFacet={applyRangeFacet}
+        resetFacet={resetFacet}
+      />,
+    );
+
+    expect(screen.getByText('Ultra vivid cerulean with a very long descriptive label')).toHaveAttribute(
+      'title',
+      'Ultra vivid cerulean with a very long descriptive label',
+    );
+    expect(screen.getByText('Phones with a very long category name for tooltip coverage')).toHaveAttribute(
+      'title',
+      'Phones with a very long category name for tooltip coverage',
+    );
+    expect(screen.getByText('Category tree')).toHaveAttribute('title', 'Category tree');
+  });
+
   it('adds inset around checkbox rows so the focus treatment stays visible inside the facet panel', () => {
     render(
       <PlpFacetPanel
@@ -180,6 +233,31 @@ describe('PlpFacetPanel', () => {
 
     fireEvent.click(screen.getByLabelText('4 stars & up'));
     expect(applyFacet).toHaveBeenCalledWith('rating', '4');
+  });
+
+  it('applies range filters immediately on Enter without double-committing on blur', () => {
+    render(
+      <PlpFacetPanel
+        facets={facets}
+        activeFilters={{}}
+        applyFacet={applyFacet}
+        applyRangeFacet={applyRangeFacet}
+        resetFacet={resetFacet}
+      />,
+    );
+
+    const fromInput = screen.getByLabelText('From');
+    const tillInput = screen.getByLabelText('Till');
+
+    fireEvent.change(fromInput, { target: { value: '10' } });
+    fireEvent.change(tillInput, { target: { value: '50' } });
+    fireEvent.keyDown(tillInput, { key: 'Enter', code: 'Enter', charCode: 13 });
+
+    expect(applyRangeFacet).toHaveBeenCalledTimes(1);
+    expect(applyRangeFacet).toHaveBeenCalledWith('price', '10', '50');
+
+    fireEvent.blur(tillInput);
+    expect(applyRangeFacet).toHaveBeenCalledTimes(1);
   });
 
   it('renders identifier-like BatteryIncluded facet labels without translation lookup', () => {
@@ -238,6 +316,23 @@ describe('PlpFacetPanel', () => {
     expect(within(activeFiltersSection).queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument();
     expect(clearFiltersButton).toBeEnabled();
     expect(clearFiltersButton?.lastElementChild?.tagName.toLowerCase()).toBe('svg');
+  });
+
+  it('renders the desktop clear-all action when a resetAllFacets callback is provided', () => {
+    render(
+      <PlpFacetPanel
+        facets={facets}
+        activeFilters={{ color: 'red' }}
+        applyFacet={applyFacet}
+        applyRangeFacet={applyRangeFacet}
+        resetFacet={resetFacet}
+        resetAllFacets={resetAllFacets}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+
+    expect(resetAllFacets).toHaveBeenCalledTimes(1);
   });
 
   it('defaults to showing only the first 5 select options, then expands and compacts back to 5', () => {

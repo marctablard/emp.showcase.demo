@@ -27,6 +27,7 @@ interface MobileCategoryDrawerProps {
   resetFacet: (facetId: string) => void;
   resetAllFacets?: () => void;
   categoryFilterLabelsById?: Record<string, string>;
+  appliedFilterCount?: number;
 }
 
 export function MobileCategoryDrawer({
@@ -42,6 +43,7 @@ export function MobileCategoryDrawer({
   resetFacet,
   resetAllFacets,
   categoryFilterLabelsById,
+  appliedFilterCount,
 }: MobileCategoryDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const tFilter = useTranslations('product.filters');
@@ -102,8 +104,18 @@ export function MobileCategoryDrawer({
             className="inline-flex cursor-pointer items-center gap-2 whitespace-nowrap text-base font-normal normal-case text-text-action outline-none hover:text-text-action-hover focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2"
             data-testid="mobile-category-drawer-toggle"
           >
-            <ListFilter className="h-5 w-5" aria-hidden="true" />
-            {tFilter('filterButton')}
+            <span className="relative">
+              <ListFilter className="h-5 w-5" aria-hidden="true" />
+              {typeof appliedFilterCount === 'number' && appliedFilterCount > 0 ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-[3px] rounded-full bg-surface-success text-[10px] font-bold leading-[14px] text-center tabular-nums text-text-body"
+                >
+                  {appliedFilterCount}
+                </span>
+              ) : null}
+            </span>
+            <span>{tFilter('filterButton')}</span>
           </button>
         </DrawerTrigger>
         <DrawerContent className="h-[85vh] rounded-t-[8px] border-none shadow-lg [&>div:first-child]:hidden data-[vaul-drawer-direction=bottom]:max-h-[85vh] data-[vaul-drawer-direction=bottom]:rounded-t-[8px]">

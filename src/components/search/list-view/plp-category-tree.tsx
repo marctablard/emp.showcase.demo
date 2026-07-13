@@ -60,9 +60,12 @@ export function PlpCategoryTree({
                   <PlpPendingLink
                     href={buildBrowseHrefClearCategory(searchParams)}
                     className="group inline-flex min-h-[50px] items-center gap-2 text-text-action underline outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+                    title={tSearch('allCategories')}
                   >
                     <ChevronLeft className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
-                    <span className="truncate">{tSearch('allCategories')}</span>
+                    <span className="truncate" title={tSearch('allCategories')}>
+                      {tSearch('allCategories')}
+                    </span>
                   </PlpPendingLink>
                 </li>
               );
@@ -73,9 +76,12 @@ export function PlpCategoryTree({
                 <PlpPendingLink
                   href={buildBrowseHrefForCategoryId(cat.id, cat, searchParams)}
                   className="group inline-flex min-h-[50px] items-center gap-2 text-text-action underline outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+                  title={l10n(cat.name, locale)}
                 >
                   <ChevronLeft className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
-                  <span className="truncate">{l10n(cat.name, locale)}</span>
+                  <span className="truncate" title={l10n(cat.name, locale)}>
+                    {l10n(cat.name, locale)}
+                  </span>
                 </PlpPendingLink>
               </li>
             );
@@ -94,8 +100,12 @@ export function PlpCategoryTree({
           className="inline-flex min-h-[50px] w-full items-center justify-between font-bold text-text-headings outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
           aria-current="page"
           ref={selectedLabelRef}
+          title={currentCategory ? l10n(currentCategory.name, locale) : tSearch('allProducts')}
         >
-          <span className="truncate">
+          <span
+            className="truncate"
+            title={currentCategory ? l10n(currentCategory.name, locale) : tSearch('allProducts')}
+          >
             {currentCategory ? l10n(currentCategory.name, locale) : tSearch('allProducts')}
           </span>
           {currentCategory && categoryCountsById[currentCategory.id] !== undefined && (
@@ -117,8 +127,11 @@ export function PlpCategoryTree({
                   <PlpPendingLink
                     href={buildBrowseHrefForCategoryId(child.id, child, searchParams)}
                     className="inline-flex min-h-[40px] w-full items-center justify-between text-text-body hover:text-text-headings hover:underline outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+                    title={l10n(child.name, locale)}
                   >
-                    <span className="truncate">{l10n(child.name, locale)}</span>
+                    <span className="truncate" title={l10n(child.name, locale)}>
+                      {l10n(child.name, locale)}
+                    </span>
                     {childCount !== undefined && <span className="shrink-0 text-text-on-disabled">{childCount}</span>}
                   </PlpPendingLink>
                 </li>

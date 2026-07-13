@@ -81,17 +81,20 @@ describe('PlpCategoryTree', () => {
 
     // Assert that 'All Categories' is at index 0 of the breadcrumb stack
     expect(breadcrumbLinks[0]).toHaveTextContent('allCategories');
+    expect(breadcrumbLinks[0]).toHaveAttribute('title', 'allCategories');
     // Check that 'All Categories' drops the category filter but preserves search and brand filter
     expect(breadcrumbLinks[0]).toHaveAttribute('href', expect.stringContaining('q=tubes'));
     expect(breadcrumbLinks[0]).toHaveAttribute('href', expect.stringContaining('filters%5Bbrand%5D=X'));
 
     // Assert that 'Parent 1' is at index 1 of the breadcrumb stack
     expect(breadcrumbLinks[1]).toHaveTextContent('Parent 1');
+    expect(breadcrumbLinks[1]).toHaveAttribute('title', 'Parent 1');
 
     // Current row
     expect(screen.getByText('Category 1')).toBeInTheDocument();
     const currLink = screen.getByText('Category 1').closest('a');
     expect(currLink).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByText('Category 1')).toHaveAttribute('title', 'Category 1');
     expect(currLink).toHaveAttribute(
       'href',
       expect.stringContaining('/browse?q=tubes&filters%5Bbrand%5D=X&filters%5BcategoryIds%5D=cat-1'),
@@ -99,11 +102,13 @@ describe('PlpCategoryTree', () => {
 
     // Children row
     expect(screen.getByText('Child 1')).toBeInTheDocument();
+    expect(screen.getByText('Child 1')).toHaveAttribute('title', 'Child 1');
     // Verify count appears for child 1 (5 was added in mock)
     expect(screen.getByText('Child 1').parentElement).toHaveTextContent('Child 15');
 
     // Children row with 0 count still renders
     expect(screen.getByText('Child 2')).toBeInTheDocument();
+    expect(screen.getByText('Child 2')).toHaveAttribute('title', 'Child 2');
     expect(screen.getByText('Child 2').parentElement).toHaveTextContent('Child 20');
   });
 

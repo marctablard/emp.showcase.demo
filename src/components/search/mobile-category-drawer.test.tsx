@@ -143,16 +143,18 @@ describe('MobileCategoryDrawer', () => {
         applyFacet={jest.fn()}
         applyRangeFacet={jest.fn()}
         resetFacet={jest.fn()}
+        appliedFilterCount={2}
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'filterButton' }));
+    fireEvent.click(screen.getByTestId('mobile-category-drawer-toggle'));
 
     const dialog = await screen.findByRole('dialog');
     expect(dialog).toBeInTheDocument();
     expect(screen.getByTestId('plp-category-tree-nested')).toBeInTheDocument();
     expect(screen.getByTestId('plp-facet-panel')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'showProducts:12' })).toBeInTheDocument();
+    expect(screen.getByTestId('mobile-category-drawer-toggle')).toHaveTextContent('2');
     const tree = screen.getByTestId('plp-category-tree-nested');
     const facetPanel = screen.getByTestId('plp-facet-panel');
     const cta = screen.getByRole('button', { name: 'showProducts:12' });
@@ -172,16 +174,17 @@ describe('MobileCategoryDrawer', () => {
         applyFacet={jest.fn()}
         applyRangeFacet={jest.fn()}
         resetFacet={jest.fn()}
+        appliedFilterCount={1}
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'filterButton' }));
+    fireEvent.click(screen.getByTestId('mobile-category-drawer-toggle'));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'close' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'filterButton' }));
+    fireEvent.click(screen.getByTestId('mobile-category-drawer-toggle'));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'showProducts:12' }));

@@ -117,5 +117,75 @@ describe('merge-active-filter-facet-options', () => {
       const result = mergeActiveFilterFacetOptions(facets, activeFilters);
       expect(result).toEqual(facets);
     });
+
+    it('synthesizes a select facet for an applied filter missing from the response', () => {
+      const activeFilters: Record<string, SearchFilterValue> = {
+        '_product_i18n.brand.name': 'Victron Energy',
+      };
+
+      const result = mergeActiveFilterFacetOptions([], activeFilters);
+
+      expect(result).toEqual([
+        {
+          kind: 'select',
+          id: '_product_i18n.brand.name',
+          label: 'Brand',
+          options: [{ id: 'Victron Energy', label: 'Victron Energy', active: true, count: undefined }],
+        },
+      ]);
+    });
+
+    it('synthesizes a range facet for an applied price range missing from the response', () => {
+      const activeFilters: Record<string, SearchFilterValue> = {
+        '_product_siteAware.currencyAware.countryAware.price.effectiveAmount': { from: '2112', till: '5900' },
+      };
+
+      const result = mergeActiveFilterFacetOptions([], activeFilters);
+
+      expect(result).toEqual([
+        {
+          kind: 'range',
+          id: '_product_siteAware.currencyAware.countryAware.price.effectiveAmount',
+          label: 'Price',
+          min: '0',
+          max: '5900',
+        },
+      ]);
+    });
+
+    it('keeps returned facets and only synthesizes the applied filters they omit', () => {
+      const facets: BatteryIncludedFacet[] = [
+        {
+          kind: 'select',
+          id: 'highlights',
+          label: 'Highlights',
+          options: [{ id: 'Flexible', label: 'Flexible', active: true, count: 1 }],
+        },
+      ];
+      const activeFilters: Record<string, SearchFilterValue> = {
+        highlights: 'Flexible',
+        '_product_i18n.brand.name': 'Victron Energy',
+      };
+
+      const result = mergeActiveFilterFacetOptions(facets, activeFilters);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe('highlights');
+      expect(result[1]).toEqual({
+        kind: 'select',
+        id: '_product_i18n.brand.name',
+        label: 'Brand',
+        options: [{ id: 'Victron Energy', label: 'Victron Energy', active: true, count: undefined }],
+      });
+    });
+
+    it('does not synthesize facet sections for category-selection filters', () => {
+      const activeFilters: Record<string, SearchFilterValue> = {
+        categoryIds: ['cat-1'],
+        '_product_i18n.categoryBreadcrumbs.displayPath': 'Electrical supplies > Power generation',
+      };
+
+      expect(mergeActiveFilterFacetOptions([], activeFilters)).toEqual([]);
+    });
   });
 });

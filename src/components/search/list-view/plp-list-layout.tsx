@@ -137,7 +137,7 @@ export function PlpListLayout({
     ? l10nOrEmpty(resolvedCategoryContext.currentCategory.description, locale)
     : '';
   const productGridHeaderNode = (
-    <div className="hidden w-full justify-end min-[1025px]:flex min-[1025px]:w-[261px] min-[1025px]:shrink-0">
+    <div className="hidden w-full justify-end min-[1024px]:flex min-[1024px]:w-[261px] min-[1024px]:shrink-0">
       <SearchSort availableSorts={availableSorts} currentSort={currentSort} changeSort={changeSort} />
     </div>
   );
@@ -153,7 +153,7 @@ export function PlpListLayout({
         </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-6 min-[1024px]:grid-cols-[minmax(0,444px)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-6 min-[1024px]:grid-cols-[minmax(0,274px)_minmax(0,1fr)] min-[1440px]:grid-cols-[minmax(0,444px)_minmax(0,1fr)]">
         <aside className="hidden min-[1024px]:block" aria-label={t('allProducts')}>
           <PlpCategoryTree
             plpCategoryContext={resolvedCategoryContext}

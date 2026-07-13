@@ -15,6 +15,7 @@ let searchResultsGridProps: { pendingCursor?: boolean } | null = null;
 let searchResultsListProps: { pendingCursor?: boolean } | null = null;
 let activeFiltersWithResetProps: Record<string, unknown> | null = null;
 let mobileCategoryDrawerProps: Record<string, unknown> | null = null;
+let searchFilterProps: Record<string, unknown>[] = [];
 let searchSortProps: Record<string, unknown>[] = [];
 
 interface MockUseSearchState {
@@ -88,7 +89,10 @@ jest.mock('@/components/search/search-active-filters-with-reset', () => ({
   },
 }));
 jest.mock('@/components/search/search-filter', () => ({
-  SearchFilter: () => <div data-testid="SearchFilter" />,
+  SearchFilter: (props: any) => {
+    searchFilterProps.push(props);
+    return <div data-testid="SearchFilter" />;
+  },
 }));
 jest.mock('@/components/search/search-sort', () => ({
   SearchSort: (props: any) => {
@@ -140,6 +144,7 @@ describe('SearchResultsComponent', () => {
     searchResultsListProps = null;
     activeFiltersWithResetProps = null;
     mobileCategoryDrawerProps = null;
+    searchFilterProps = [];
     searchSortProps = [];
   });
 
@@ -327,6 +332,7 @@ describe('SearchResultsComponent', () => {
     expect(screen.queryByTestId('SearchResultsList')).toBeInTheDocument();
     expect(screen.getByTestId('MobileCategoryDrawer').parentElement).toHaveClass('shrink-0');
     expect(screen.getByTestId('SearchSort').parentElement).toHaveClass('w-[261px]', 'shrink-0');
+    expect(mobileCategoryDrawerProps).toMatchObject({ appliedFilterCount: 0 });
   });
 
   it('keeps the generic desktop filter surface for non-PLP search results', () => {
@@ -335,6 +341,33 @@ describe('SearchResultsComponent', () => {
     expect(screen.getAllByTestId('SearchFilter')).toHaveLength(2);
     expect(screen.getAllByTestId('SearchSort')).toHaveLength(2);
     expect(screen.queryByTestId('MobileCategoryDrawer')).not.toBeInTheDocument();
+    expect(searchFilterProps[0]).toMatchObject({ appliedFilterCount: 0 });
+  });
+
+  it('counts only non-category active filters for the mobile trigger badge', () => {
+    mockUseSearchState = {
+      ...mockUseSearchState,
+      activeFilters: {
+        color: 'red',
+        '_product_i18n.categoryBreadcrumbs.displayPath': 'Smartphones',
+      },
+    };
+
+    render(
+      <SearchResultsComponent
+        locale="en"
+        initialLayout="list"
+        navigationRoots={[
+          {
+            id: 'root',
+            name: { en: 'Root' },
+            children: [{ id: 'child', name: { en: 'Smartphones' }, children: [] }],
+          },
+        ]}
+      />,
+    );
+
+    expect(mobileCategoryDrawerProps).toMatchObject({ appliedFilterCount: 1 });
   });
 
   it('passes sort state through to the list layout header placement', () => {
