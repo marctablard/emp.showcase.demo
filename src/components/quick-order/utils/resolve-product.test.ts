@@ -10,15 +10,21 @@ jest.mock('@/lib/common/clear-mark-highlights', () => ({
   clearMarkHighlights: (value: string | undefined | null) => String(value ?? '').replace(/<\/?mark>/g, ''),
 }));
 
+const SITE = 'main';
+
 describe('resolveProductByCode', () => {
+  const originalFetch = global.fetch;
+  const hadWindow = typeof window !== 'undefined';
+  const originalWindow = hadWindow ? window : undefined;
+
   beforeEach(() => {
     fetchMock.mockReset();
     global.fetch = fetchMock as unknown as typeof fetch;
-    if (typeof window !== 'undefined') {
+    if (hadWindow) {
       window.fetch = fetchMock as unknown as typeof fetch;
     } else {
-      // Mock window for tests running in restricted environment without jsdom
-      (global as any).window = {
+      // Provide a minimal window for environments running without jsdom.
+      (global as unknown as { window: unknown }).window = {
         location: {
           origin: 'http://localhost',
         },
@@ -26,7 +32,18 @@ describe('resolveProductByCode', () => {
     }
   });
 
-  it('matches exact product id even when the API response contains highlighted markup', async () => {
+  afterEach(() => {
+    global.fetch = originalFetch;
+    if (hadWindow) {
+      if (originalWindow) {
+        window.fetch = originalWindow.fetch;
+      }
+    } else {
+      delete (global as unknown as { window?: unknown }).window;
+    }
+  });
+
+  it('matches exact product id and returns identifiers with highlight markup stripped', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -40,15 +57,15 @@ describe('resolveProductByCode', () => {
       }),
     });
 
-    await expect(resolveProductByCode('product-1', 'en')).resolves.toEqual(
+    await expect(resolveProductByCode('product-1', 'en', SITE)).resolves.toEqual(
       expect.objectContaining({
-        id: '<mark>product-1</mark>',
-        sku: '<mark>sku-1</mark>',
+        id: 'product-1',
+        sku: 'sku-1',
       }),
     );
   });
 
-  it('matches exact product sku even when the API response contains highlighted markup', async () => {
+  it('matches exact product sku and returns identifiers with highlight markup stripped', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -62,10 +79,10 @@ describe('resolveProductByCode', () => {
       }),
     });
 
-    await expect(resolveProductByCode('sku-1', 'en')).resolves.toEqual(
+    await expect(resolveProductByCode('sku-1', 'en', SITE)).resolves.toEqual(
       expect.objectContaining({
-        id: '<mark>product-1</mark>',
-        sku: '<mark>sku-1</mark>',
+        id: 'product-1',
+        sku: 'sku-1',
       }),
     );
   });
@@ -84,6 +101,25 @@ describe('resolveProductByCode', () => {
       }),
     });
 
-    await expect(resolveProductByCode('Solar Panel', 'en')).resolves.toBeNull();
+    await expect(resolveProductByCode('Solar Panel', 'en', SITE)).resolves.toBeNull();
+  });
+
+  it('appends the trimmed site to the search request', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ items: [] }),
+    });
+
+    await resolveProductByCode('product-1', 'en', '  main  ');
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const requestedUrl = String(fetchMock.mock.calls[0][0]);
+    expect(requestedUrl).toContain('site=main');
+  });
+
+  it('bails out without a request when no site is available', async () => {
+    await expect(resolveProductByCode('product-1', 'en')).resolves.toBeNull();
+    await expect(resolveProductByCode('product-1', 'en', '   ')).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

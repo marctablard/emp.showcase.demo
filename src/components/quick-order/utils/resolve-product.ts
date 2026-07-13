@@ -14,13 +14,18 @@ export async function resolveProductByCode(
   site?: string,
   logger?: ResolveLogger,
 ): Promise<Product | null> {
+  const trimmedSite = site?.trim();
+  // `/api/search` requires a site for scoped search (unscoped search is gated behind an env flag),
+  // mirroring `useSearch`. Bail out early rather than issue a request that would silently return nothing.
+  if (!trimmedSite) {
+    return null;
+  }
+
   try {
     const url = new URL('/api/search', window.location.origin);
     url.searchParams.append('query', code);
     url.searchParams.append('locale', locale);
-    if (site) {
-      url.searchParams.append('site', site);
-    }
+    url.searchParams.append('site', trimmedSite);
     url.searchParams.append('size', '10');
     url.searchParams.append('allProducts', '1');
 
@@ -31,14 +36,25 @@ export async function resolveProductByCode(
     const data = await response.json();
     const products: Product[] = data.items ?? [];
     const normalizedCode = clearMarkHighlights(code).toLowerCase();
-    return (
-      products.find((p) => {
-        const productId = clearMarkHighlights(p.id).toLowerCase();
-        const productSku = clearMarkHighlights(p.sku).toLowerCase();
+    const match = products.find((p) => {
+      const productId = clearMarkHighlights(p.id).toLowerCase();
+      const productSku = clearMarkHighlights(p.sku).toLowerCase();
 
-        return productId === normalizedCode || productSku === normalizedCode;
-      }) ?? null
-    );
+      return productId === normalizedCode || productSku === normalizedCode;
+    });
+    if (!match) {
+      return null;
+    }
+
+    // Strip any `<mark>` highlight markup from the identifiers so downstream price/availability
+    // lookups (which use `product.id`/`product.sku` directly) receive clean values.
+    const plainId = clearMarkHighlights(match.id);
+    const plainSku = clearMarkHighlights(match.sku);
+    return {
+      ...match,
+      id: plainId,
+      sku: plainSku || match.sku,
+    };
   } catch (err) {
     logger?.error({ err, code }, 'Failed to resolve product code');
     return null;
