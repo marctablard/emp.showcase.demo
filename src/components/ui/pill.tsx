@@ -54,7 +54,7 @@ const Pill = React.forwardRef<HTMLButtonElement, PillProps>(
           <span className="min-w-0 break-words">{label}</span>
           {value && <span className="text-text-secondary">({value})</span>}
         </span>
-        {trailingIcon && <span className="flex shrink-0 items-center self-start">{trailingIcon}</span>}
+        {trailingIcon && <span className="flex shrink-0 items-center justify-center self-center">{trailingIcon}</span>}
       </Button>
     );
   },

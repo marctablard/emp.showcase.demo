@@ -705,7 +705,7 @@ function PlpFacetActiveFilters({
 
   return (
     <section
-      className="flex flex-col gap-4 border-b border-border-primary pb-6"
+      className="flex flex-col gap-2 border-b border-border-primary pb-6"
       aria-label={t('filters.activeFiltersTitle', { defaultValue: 'Active filters' })}
       data-testid="plp-facet-panel-active-filters"
     >
@@ -870,7 +870,7 @@ export function PlpFacetPanel({
             <Button
               type="button"
               variant="link"
-              className="h-auto min-h-0 justify-start gap-2 p-0 text-sm font-normal normal-case tracking-normal text-text-action hover:underline focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2"
+              className="h-auto min-h-0 justify-start gap-1 p-0 text-base font-bold normal-case tracking-normal text-text-action hover:underline focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2"
               onClick={resetAllFacets}
               aria-label={t('filters.clearAllFilters', { defaultValue: 'Clear filters' })}
               data-testid="plp-facet-clear-all"
@@ -878,7 +878,7 @@ export function PlpFacetPanel({
               <span className="truncate" title={t('filters.clearAllFilters', { defaultValue: 'Clear filters' })}>
                 {t('filters.clearAllFilters', { defaultValue: 'Clear filters' })}
               </span>
-              <Trash2 className="h-4 w-4 shrink-0" aria-hidden />
+              <Trash2 className="h-6 w-6 shrink-0" aria-hidden />
             </Button>
           )}
           {/* Remove close button because it's now living in mobile-category-drawer.tsx */}
