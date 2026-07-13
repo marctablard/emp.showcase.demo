@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 const pillVariants = cva(
-  'flex items-center gap-2 normal-case h-auto min-h-[48px] py-1 whitespace-normal break-words text-left !whitespace-normal',
+  'flex min-w-0 items-center gap-2 normal-case h-auto min-h-[48px] py-1 whitespace-normal break-words text-left !whitespace-normal',
   {
     variants: {
       variant: {
@@ -49,12 +49,12 @@ const Pill = React.forwardRef<HTMLButtonElement, PillProps>(
   ({ label, value, variant = 'default', className, leadingIcon, trailingIcon, ...props }, ref) => {
     return (
       <Button ref={ref} className={cn(pillVariants({ variant }), className)} {...props}>
-        {leadingIcon && <span className="flex-shrink-0 flex items-center">{leadingIcon}</span>}
-        <span className="flex flex-wrap items-start gap-1 flex-1 break-words text-left">
-          <span className="break-words max-w-full">{label}</span>
+        {leadingIcon && <span className="flex shrink-0 items-center self-start">{leadingIcon}</span>}
+        <span className="flex min-w-0 flex-1 flex-wrap items-start gap-x-1 gap-y-0.5 break-words text-left">
+          <span className="min-w-0 break-words">{label}</span>
           {value && <span className="text-text-secondary">({value})</span>}
         </span>
-        {trailingIcon && <span className="flex-shrink-0 flex items-center">{trailingIcon}</span>}
+        {trailingIcon && <span className="flex shrink-0 items-center self-start">{trailingIcon}</span>}
       </Button>
     );
   },

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ListFilter, X } from 'lucide-react';
+import { ListFilter, Trash2, X } from 'lucide-react';
 import { PlpFacetPanel } from '@/components/search/facets';
 import { PlpCategoryTree } from '@/components/search/list-view/plp-category-tree';
 import { Button } from '@/components/ui/button';
@@ -143,9 +143,10 @@ export function MobileCategoryDrawer({
                   <button
                     type="button"
                     onClick={resetAllFacets}
-                    className="text-sm font-bold text-text-action underline-offset-4 hover:underline focus-visible:outline-none"
+                    className="inline-flex items-center gap-2 text-sm font-bold text-text-action underline-offset-4 hover:underline focus-visible:outline-none"
                   >
-                    {tFilter('clearAllFilters', { defaultValue: 'Clear filters' })}
+                    <span>{tFilter('clearAllFilters', { defaultValue: 'Clear Filters' })}</span>
+                    <Trash2 className="h-4 w-4 shrink-0" aria-hidden="true" />
                   </button>
                 )}
               </div>

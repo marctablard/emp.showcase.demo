@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react';
+import { within } from '@testing-library/dom';
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { BatteryIncludedFacet } from '@/platform/services/model/common';
@@ -203,7 +204,7 @@ describe('PlpFacetPanel', () => {
     expect(screen.getByText('Industrial Drills')).toBeInTheDocument();
   });
 
-  it('tightens the empty desktop spacing and keeps the clear-filters control as a trailing-icon button when active filters exist', () => {
+  it('tightens the empty desktop spacing and keeps the clear-filters control in the header only', () => {
     const { rerender } = render(
       <PlpFacetPanel
         facets={facets}
@@ -229,11 +230,12 @@ describe('PlpFacetPanel', () => {
       />,
     );
 
-    const clearFiltersButton = screen
-      .getAllByRole('button', { name: 'Clear filters' })
-      .find((button) => button.lastElementChild?.tagName.toLowerCase() === 'svg');
+    const activeFiltersSection = screen.getByTestId('plp-facet-panel-active-filters');
+    const clearFiltersButtons = screen.getAllByRole('button', { name: 'Clear filters' });
+    const clearFiltersButton = clearFiltersButtons[0];
 
-    expect(clearFiltersButton).toBeDefined();
+    expect(clearFiltersButtons).toHaveLength(1);
+    expect(within(activeFiltersSection).queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument();
     expect(clearFiltersButton).toBeEnabled();
     expect(clearFiltersButton?.lastElementChild?.tagName.toLowerCase()).toBe('svg');
   });

@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Trash2 } from 'lucide-react';
+import { SearchActiveFilters } from '@/components/search/search-active-filters';
 import { SearchActiveFiltersWithReset } from '@/components/search/search-active-filters-with-reset';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
@@ -687,11 +688,9 @@ function PlpFacetActiveFilters({
       data-testid="plp-facet-panel-active-filters"
     >
       <div className="flex flex-wrap gap-2">
-        <SearchActiveFiltersWithReset
+        <SearchActiveFilters
           activeFilters={activeFilters}
           resetFacet={resetFacet}
-          resetAllFacets={resetAllFacets}
-          resetLabel={t('filters.clearAllFilters', { defaultValue: 'Clear filters' })}
           categoryFilterLabelsById={categoryFilterLabelsById}
           batteryIncludedFacets={batteryIncludedFacets}
         />
@@ -847,12 +846,12 @@ export function PlpFacetPanel({
             <Button
               type="button"
               variant="link"
-              className="group h-auto min-h-0 justify-start gap-2 p-0 text-sm font-normal normal-case tracking-normal text-text-action hover:underline focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2"
+              className="h-auto min-h-0 justify-start gap-2 p-0 text-sm font-normal normal-case tracking-normal text-text-action hover:underline focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2"
               onClick={resetAllFacets}
               aria-label={t('filters.clearAllFilters', { defaultValue: 'Clear filters' })}
             >
               <span className="truncate">{t('filters.clearAllFilters', { defaultValue: 'Clear filters' })}</span>
-              <Trash2 className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" aria-hidden />
+              <Trash2 className="h-4 w-4 shrink-0" aria-hidden />
             </Button>
           )}
           {/* Remove close button because it's now living in mobile-category-drawer.tsx */}
