@@ -1,4 +1,5 @@
 import { fetchProductAvailability } from '@/lib/client/availability';
+import { clearMarkHighlights } from '@/lib/common/clear-mark-highlights';
 import type { Product } from '@/platform/services/model/product';
 
 interface ResolveLogger {
@@ -13,18 +14,26 @@ export async function resolveProductByCode(
   logger?: ResolveLogger,
 ): Promise<Product | null> {
   try {
-    const url = new URL('/api/search/suggestions', window.location.origin);
+    const url = new URL('/api/search', window.location.origin);
     url.searchParams.append('query', code);
     url.searchParams.append('locale', locale);
+    url.searchParams.append('size', '10');
+    url.searchParams.append('allProducts', '1');
+
     const response = await fetch(url.toString());
     if (!response.ok) {
       return null;
     }
     const data = await response.json();
-    const products: Product[] = data.products ?? [];
+    const products: Product[] = data.items ?? [];
+    const normalizedCode = clearMarkHighlights(code).toLowerCase();
     return (
-      products.find((p) => p.sku?.toLowerCase() === code.toLowerCase() || p.id?.toLowerCase() === code.toLowerCase()) ??
-      null
+      products.find((p) => {
+        const productId = clearMarkHighlights(p.id).toLowerCase();
+        const productSku = clearMarkHighlights(p.sku).toLowerCase();
+
+        return productId === normalizedCode || productSku === normalizedCode;
+      }) ?? null
     );
   } catch (err) {
     logger?.error({ err, code }, 'Failed to resolve product code');
