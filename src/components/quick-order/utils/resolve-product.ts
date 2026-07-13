@@ -11,12 +11,16 @@ const BATCH_SIZE = 5;
 export async function resolveProductByCode(
   code: string,
   locale: string,
+  site?: string,
   logger?: ResolveLogger,
 ): Promise<Product | null> {
   try {
     const url = new URL('/api/search', window.location.origin);
     url.searchParams.append('query', code);
     url.searchParams.append('locale', locale);
+    if (site) {
+      url.searchParams.append('site', site);
+    }
     url.searchParams.append('size', '10');
     url.searchParams.append('allProducts', '1');
 
@@ -44,6 +48,7 @@ export async function resolveProductByCode(
 export async function resolveProductsBatch(
   entries: Array<{ code: string; quantity: number }>,
   locale: string,
+  site?: string,
   logger?: ResolveLogger,
 ): Promise<{
   resolved: Array<{ product: Product; quantity: number; code: string }>;
@@ -57,7 +62,7 @@ export async function resolveProductsBatch(
     const results = await Promise.all(
       batch.map(async (entry) => ({
         entry,
-        product: await resolveProductByCode(entry.code, locale, logger),
+        product: await resolveProductByCode(entry.code, locale, site, logger),
       })),
     );
     for (const { entry, product } of results) {

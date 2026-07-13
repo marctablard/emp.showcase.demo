@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { FileDown, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import { useSiteCode } from '@/hooks/site/useSiteCode';
 import { useToast } from '@/hooks/ui/useToast';
 import { fetchProductPrices } from '@/lib/client/prices';
 import { getLogger } from '@/lib/logger/use-logger-client';
@@ -20,6 +21,7 @@ interface QuickOrderFileUploadProps {
 export function QuickOrderFileUpload({ onAddProducts }: QuickOrderFileUploadProps) {
   const t = useTranslations('quick-order');
   const locale = useLocale();
+  const siteCode = useSiteCode();
   const { toast } = useToast();
   const logger = getLogger();
   const sessionCurrency = useSessionStore().session?.currency;
@@ -41,7 +43,7 @@ export function QuickOrderFileUpload({ onAddProducts }: QuickOrderFileUploadProp
       try {
         const entries = await parseUploadedFile(file);
 
-        const { resolved, notFound } = await resolveProductsBatch(entries, locale, logger);
+        const { resolved, notFound } = await resolveProductsBatch(entries, locale, siteCode, logger);
         const notFoundCodes = notFound.map((e) => e.code);
 
         // Check prices for resolved products
@@ -160,7 +162,7 @@ export function QuickOrderFileUpload({ onAddProducts }: QuickOrderFileUploadProp
         }
       }
     },
-    [locale, onAddProducts, toast, t, logger, sessionCurrency],
+    [locale, siteCode, onAddProducts, toast, t, logger, sessionCurrency],
   );
 
   const handleUploadClick = useCallback(() => {
