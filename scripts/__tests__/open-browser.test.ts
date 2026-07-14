@@ -1,4 +1,4 @@
-import { execFile, spawn } from 'child_process';
+import { execFile, spawn } from 'node:child_process';
 import { openBrowser } from '../open-browser';
 
 jest.mock('child_process', () => ({
@@ -50,7 +50,8 @@ describe('openBrowser', () => {
     });
 
     openBrowser('http://localhost:3000');
-    const expectedCmdPath = process.env.ComSpec || `${process.env.SystemRoot || 'C:\\Windows'}\\System32\\cmd.exe`;
+    const systemRoot = process.env.SystemRoot || String.raw`C:\Windows`;
+    const expectedCmdPath = process.env.ComSpec || String.raw`${systemRoot}\System32\cmd.exe`;
     expect(mockSpawn).toHaveBeenCalledWith(expectedCmdPath, ['/c', 'start', '""', 'http://localhost:3000'], {
       windowsVerbatimArguments: true,
       detached: true

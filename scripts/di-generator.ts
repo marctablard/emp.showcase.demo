@@ -8,6 +8,15 @@ import * as glob from 'glob';
 import * as chokidar from 'chokidar';
 import { generateGeneratorAliasBindings } from '../src/platform/core/di/search-service-alias';
 
+/** Strip leading and trailing underscores without a backtracking-prone regex. */
+function stripEdgeUnderscores(value: string): string {
+  let start = 0;
+  let end = value.length;
+  while (start < end && value[start] === '_') start++;
+  while (end > start && value[end - 1] === '_') end--;
+  return value.slice(start, end);
+}
+
 type DependencyAliasConfig = {
   Services?: Record<string, string> | Array<Record<string, string>>;
   Integrations?: Record<string, string> | Array<Record<string, string>>;
@@ -414,10 +423,7 @@ async function generateContainerFile(
   const dependencyAliases = tryParseDependencyAliases();
 
   const toModuleName = (relativePath: string): string =>
-    path.basename(relativePath)
-      .replaceAll(/\W/g, '_')
-      .replace(/^_+/, '')
-      .replace(/_+$/, '');
+    stripEdgeUnderscores(path.basename(relativePath).replaceAll(/\W/g, '_'));
 
   // Fail fast if two injectables produce the same import identifier.
   const seenModuleNames = new Map<string, string>();
@@ -467,10 +473,9 @@ async function generateContainerFile(
       }
 
       // Build a unique module name prefixed by extension name
-      const baseName = path.basename(extInjectable.relativePath)
-        .replaceAll(/\W/g, '_')
-        .replace(/^_+/, '')
-        .replace(/_+$/, '');
+      const baseName = stripEdgeUnderscores(
+        path.basename(extInjectable.relativePath).replaceAll(/\W/g, '_')
+      );
       const uniqueName = `ext_${ext.name.replaceAll(/\W/g, '_')}_${baseName}`;
 
       // Build the import path relative to the output file
