@@ -238,12 +238,13 @@ describe('PlpListLayout', () => {
   });
 
   it('shows Search Results when a search query is present', () => {
-    renderLayout({ searchQuery: 'tubes' });
+    renderLayout({ selectedCategoryId: 'child-1', facets: unrelatedTreeFacets, searchQuery: 'tubes' });
 
     const summary = screen.getByTestId('plp-category-summary');
 
-    expect(summary).toHaveTextContent('Search Results');
+    expect(summary).toHaveTextContent('searchResults');
     expect(summary).not.toHaveTextContent('allProducts');
+    expect(summary).not.toHaveTextContent('Current category description');
   });
 
   it('renders the desktop sort control above the product grid instead of in the sidebar', () => {

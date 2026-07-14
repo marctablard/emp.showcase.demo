@@ -77,7 +77,7 @@ export async function renderBrowsePage({
         navigationRoots={navigationRoots}
         headingNode={
           <Heading variant="h2" className="mb-0">
-            {q?.trim() ? 'Search Results' : t('allProducts')}
+            {q?.trim() ? t('searchResults') : t('allProducts')}
           </Heading>
         }
       />

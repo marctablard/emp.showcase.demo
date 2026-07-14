@@ -26,8 +26,8 @@
     "name": "Produktname",
     "price": "Preis",
     "direction": {
-      "asc": "Aufsteigend",
-      "desc": "Absteigend"
+      "asc": "aufsteigend",
+      "desc": "absteigend"
     }
   },
   "plpCategoryCarousel": {
