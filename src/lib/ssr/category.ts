@@ -36,31 +36,27 @@ export function resolveLocalizedName(name: LocalizedString | string | undefined,
 }
 
 /**
- * Converts a list of Category objects into SubMenuItems (two levels deep).
- * Each category becomes a level-1 nav item; its children become level-2 items.
+ * Converts a Category tree into SubMenuItems with unlimited nesting depth.
  */
+function categoryToNavItem(cat: Category, locale: string): SubMenuItem {
+  const children = (cat.children as Category[] | undefined) ?? [];
+  const publishedChildren = children
+    .filter((c) => c.published !== false)
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+
+  return {
+    label: resolveLocalizedName(cat.name as LocalizedString | string, locale),
+    href: `/category/${cat.id}`,
+    hasSubmenu: publishedChildren.length > 0,
+    submenuItems: publishedChildren.map((child) => categoryToNavItem(child, locale)),
+  };
+}
+
 function categoriesToNavItems(categories: Category[], locale: string): SubMenuItem[] {
   return categories
     .filter((cat) => cat.published !== false)
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-    .map((cat) => {
-      const children = (cat.children as Category[] | undefined) ?? [];
-      const publishedChildren = children
-        .filter((c) => c.published !== false)
-        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-
-      return {
-        label: resolveLocalizedName(cat.name as LocalizedString | string, locale),
-        href: `/browse/${cat.id}`,
-        hasSubmenu: publishedChildren.length > 0,
-        submenuItems: publishedChildren.map((child) => ({
-          label: resolveLocalizedName(child.name as LocalizedString | string, locale),
-          href: `/browse/${child.id}`,
-          hasSubmenu: false,
-          submenuItems: [],
-        })),
-      } satisfies SubMenuItem;
-    });
+    .map((cat) => categoryToNavItem(cat, locale));
 }
 
 function filterTreesToSiteRoots(trees: Category[], rootIds: Set<string>): Category[] {
@@ -202,6 +198,64 @@ export function getCategoryWithParents(id: string): Promise<Category | null> {
   return _getCategoryWithParents(id);
 }
 
+const _getCategorySubcategories = cache(async (categoryId: string): Promise<Category[]> => {
+  try {
+    const subcategories = await getCategoryService().getCategorySubcategories(categoryId);
+    return subcategories.filter((cat) => cat.published !== false).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  } catch (error) {
+    getLogger().error(
+      { error: error instanceof Error ? error.message : String(error), categoryId },
+      'SSR getCategorySubcategories failed',
+    );
+    return [];
+  }
+});
+
+export function getCategorySubcategories(categoryId: string): Promise<Category[]> {
+  return _getCategorySubcategories(categoryId);
+}
+
+function sanitizeFilterCategories(categories: Category[]): Category[] {
+  return categories
+    .filter((cat) => cat.published !== false)
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+    .map((cat) => ({
+      ...cat,
+      children: sanitizeFilterCategories((cat.children as Category[] | undefined) ?? []),
+    }));
+}
+
+const _getCategoryFilterTree = cache(async (categoryId: string): Promise<Category[]> => {
+  try {
+    const tree = await getCategoryService().getCategoryTree(categoryId);
+    if (!tree) {
+      return getCategorySubcategories(categoryId);
+    }
+    const children = sanitizeFilterCategories((tree.children as Category[] | undefined) ?? []);
+    // Never include the page category itself as a filter option.
+    return children.filter((cat) => cat.id !== categoryId);
+  } catch (error) {
+    getLogger().error(
+      { error: error instanceof Error ? error.message : String(error), categoryId },
+      'SSR getCategoryFilterTree failed',
+    );
+    return [];
+  }
+});
+
+export function getCategoryFilterTree(categoryId: string): Promise<Category[]> {
+  return _getCategoryFilterTree(categoryId);
+}
+
+export function flattenCategoryIds(categories: Category[]): string[] {
+  const ids: string[] = [];
+  for (const category of categories) {
+    ids.push(category.id);
+    ids.push(...flattenCategoryIds((category.children as Category[] | undefined) ?? []));
+  }
+  return ids;
+}
+
 // ---------------------------------------------------------------------------
 // Products for a category (used by the category PLP)
 // ---------------------------------------------------------------------------
@@ -262,4 +316,29 @@ export function getProductsForCategory(
   pageSize = 12,
 ): Promise<{ products: Product[]; total: number }> {
   return _getProductsForCategory(categoryId, page, pageSize);
+}
+
+export async function getProductsForCategories(
+  categoryIds: string[],
+  page = 0,
+  pageSize = 12,
+): Promise<{ products: Product[]; total: number }> {
+  const uniqueIds = [...new Set(categoryIds.filter(Boolean))];
+  if (uniqueIds.length === 0) {
+    return { products: [], total: 0 };
+  }
+  if (uniqueIds.length === 1) {
+    return getProductsForCategory(uniqueIds[0], page, pageSize);
+  }
+
+  const results = await Promise.all(uniqueIds.map((id) => getProductsForCategory(id, 0, pageSize)));
+  const productsById = new Map<string, Product>();
+  for (const result of results) {
+    for (const product of result.products) {
+      productsById.set(product.id, product);
+    }
+  }
+
+  const products = [...productsById.values()];
+  return { products, total: products.length };
 }

@@ -41,7 +41,7 @@ interface CategoryCardProps {
 
 const CategoryCard = ({ category, index }: CategoryCardProps) => {
   const { l10n } = useL10n();
-  const categoryUrl = `/browse/${category.id}`;
+  const categoryUrl = `/category/${category.id}`;
   const categoryName = l10n(category.name) || 'Category';
   const categoryDescription = l10n(category.shortDescription || category.description || '');
 

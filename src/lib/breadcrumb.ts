@@ -8,7 +8,7 @@ export interface BreadcrumbContent {
 }
 
 function getCategoryHref(category: Category): string {
-  return `/browse/${category.id}`;
+  return `/category/${category.id}`;
 }
 
 /**

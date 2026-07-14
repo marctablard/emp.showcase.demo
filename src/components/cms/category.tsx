@@ -25,7 +25,7 @@ interface CategoryProps {
 
 const Category = ({ blok }: CategoryProps) => {
   // Generate URL for the category
-  const categoryUrl = blok.emporix_category_id ? `/browse/${blok.emporix_category_id}` : '#';
+  const categoryUrl = blok.emporix_category_id ? `/category/${blok.emporix_category_id}` : '#';
 
   return (
     <div

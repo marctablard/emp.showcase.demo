@@ -6,6 +6,7 @@
     "allProducts": "All Products",
     "resultsFor": "Results for \"{query}\"",
     "resetFilter": "Clear filter",
+    "categoryFilter": "Category",
     "loadMore": "Load more",
     "loadingMore": "Loading…"
   },

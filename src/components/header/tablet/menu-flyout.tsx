@@ -3,10 +3,15 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
-import { HeaderPromo } from '@/components/header/common/header-promo';
-import type { MenuItem } from '@/data/navigation-menu';
+import type { MenuItem, SubMenuItem } from '@/data/navigation-menu';
 import { navigationMenuItems } from '@/data/navigation-menu';
 import { Link } from '@/i18n/navigation';
+
+interface NavStackEntry {
+  label: string;
+  href?: string;
+  items: SubMenuItem[];
+}
 
 interface TabletMenuFlyoutProps {
   menuItems?: MenuItem[];
@@ -15,44 +20,55 @@ interface TabletMenuFlyoutProps {
 export function TabletMenuFlyout({ menuItems: menuItemsProp = navigationMenuItems }: TabletMenuFlyoutProps) {
   const t = useTranslations('layout.header');
 
-  // Transform menu items with translations
   const menuItems = menuItemsProp.map((item) => ({
     ...item,
     label: t(item.labelKey as any),
   }));
 
-  const [currentView, setCurrentView] = useState<'main' | string>('main');
-  const [selectedItem, setSelectedItem] = useState<(typeof menuItems)[0] | null>(null);
+  const [navStack, setNavStack] = useState<NavStackEntry[]>([]);
 
-  const handleItemClick = (item: (typeof menuItems)[0]) => {
-    if (item.hasSubmenu) {
-      setSelectedItem(item);
-      setCurrentView(item.id);
+  const currentItems = navStack.length > 0 ? navStack[navStack.length - 1].items : null;
+  const currentEntry = navStack.length > 0 ? navStack[navStack.length - 1] : null;
+
+  const openSubmenu = (label: string, href: string | undefined, items: SubMenuItem[]) => {
+    setNavStack((prev) => [...prev, { label, href, items }]);
+  };
+
+  const handleTopLevelDrill = (item: (typeof menuItems)[0]) => {
+    if (item.hasSubmenu && item.submenuItems) {
+      openSubmenu(item.label, item.href, item.submenuItems);
+    }
+  };
+
+  const handleSubmenuDrill = (item: SubMenuItem) => {
+    if (item.hasSubmenu && item.submenuItems) {
+      openSubmenu(item.label, item.href, item.submenuItems);
     }
   };
 
   const handleBack = () => {
-    setCurrentView('main');
-    setSelectedItem(null);
+    setNavStack((prev) => prev.slice(0, -1));
   };
 
   return (
-    <div className="backdrop-active grid mt-6 mb-4">
-      {/* 1st level view */}
-      <div
-        className={`col-start-1 row-start-1 grid grid-cols-3 gap-2 transition-opacity duration-300 ${currentView !== 'main' ? 'opacity-0 invisible' : 'opacity-100 visible'}`}
-      >
+    <div className="backdrop-active mt-6 mb-4">
+      {navStack.length === 0 ? (
         <ul>
           {menuItems.map((item) => (
             <li key={item.id}>
               {item.hasSubmenu ? (
                 <>
                   <div className="flex items-center justify-between py-4 text-lg">
-                    <Link href={item.href ?? '#'} className="flex-1">
-                      {item.label}
-                    </Link>
+                    {item.href ? (
+                      <Link href={item.href} className="flex-1">
+                        {item.label}
+                      </Link>
+                    ) : (
+                      <span className="flex-1">{item.label}</span>
+                    )}
                     <button
-                      onClick={() => handleItemClick(item)}
+                      type="button"
+                      onClick={() => handleTopLevelDrill(item)}
                       className="cursor-pointer ps-2"
                       aria-label={`Open ${item.label} subcategories`}
                     >
@@ -72,42 +88,50 @@ export function TabletMenuFlyout({ menuItems: menuItemsProp = navigationMenuItem
             </li>
           ))}
         </ul>
-        <HeaderPromo className="col-span-2" />
-      </div>
-
-      {/* 2nd level view */}
-      <div
-        className={`col-start-1 row-start-1 grid grid-cols-3 gap-2 gap-y-6 transition-opacity duration-300 ${currentView === 'main' ? 'opacity-0 invisible' : 'opacity-100 visible'}`}
-      >
-        {/* Back button */}
-        <div className="col-span-3 flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <button onClick={handleBack} className="flex items-center gap-2">
-              <ArrowLeft className="w-5 h-5 text-text-action" />
-            </button>
-            {selectedItem?.href ? (
-              <Link href={selectedItem.href} className="text-lg font-medium">
-                {selectedItem.label}
-              </Link>
-            ) : (
-              <span className="text-lg font-medium">{selectedItem?.label}</span>
-            )}
-          </div>
-          <hr className="border-border-subtle" />
-        </div>
-        <ul>
-          {selectedItem?.submenuItems?.map((item, index) => (
-            <li key={index}>
-              {item.href && (
-                <Link href={item.href} className="flex items-center justify-between py-2 text-md">
-                  {item.label}
+      ) : (
+        <>
+          <div className="flex flex-col gap-3 mb-4">
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={handleBack} className="flex items-center gap-2">
+                <ArrowLeft className="w-5 h-5 text-text-action" />
+              </button>
+              {currentEntry?.href ? (
+                <Link href={currentEntry.href} className="text-lg font-medium">
+                  {currentEntry.label}
                 </Link>
+              ) : (
+                <span className="text-lg font-medium">{currentEntry?.label}</span>
               )}
-            </li>
-          ))}
-        </ul>
-        <HeaderPromo className="col-span-2" />
-      </div>
+            </div>
+            <hr className="border-border-subtle" />
+          </div>
+          <ul className="divide-y divide-border-subtle">
+            {currentItems?.map((item, index) => (
+              <li key={`${item.label}-${index}`}>
+                {item.hasSubmenu ? (
+                  <div className="flex items-center justify-between py-2 text-md">
+                    <Link href={item.href} className="flex-1">
+                      {item.label}
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => handleSubmenuDrill(item)}
+                      className="cursor-pointer ps-2"
+                      aria-label={`Open ${item.label} subcategories`}
+                    >
+                      <ChevronDown className="w-5 h-5" />
+                    </button>
+                  </div>
+                ) : (
+                  <Link href={item.href} className="flex items-center justify-between py-2 text-md">
+                    {item.label}
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </div>
   );
 }

@@ -7,14 +7,14 @@ import { cn } from '@/lib/utils';
 
 interface HeaderNavigationProps {
   className?: string;
-  onMenuHover?: (item: MenuItem | null) => void;
+  onMenuToggle?: (item: MenuItem | null) => void;
   activeMenuId?: string | null;
   menuItems?: MenuItem[];
 }
 
 export function MenuLevel1({
   className,
-  onMenuHover,
+  onMenuToggle,
   activeMenuId,
   menuItems = navigationMenuItems,
 }: HeaderNavigationProps) {
@@ -22,9 +22,9 @@ export function MenuLevel1({
 
   const handleMenuClick = (item: MenuItem) => {
     if (activeMenuId === item.id) {
-      onMenuHover?.(null);
+      onMenuToggle?.(null);
     } else {
-      onMenuHover?.(item);
+      onMenuToggle?.(item);
     }
   };
 
@@ -33,25 +33,21 @@ export function MenuLevel1({
       {menuItems.map((item) => (
         <li key={item.id}>
           {item.href && !item.hasSubmenu ? (
-            <>
-              <Link href={item.href} className="text-lg" onMouseEnter={() => onMenuHover?.(item)}>
-                {t(item.labelKey as any)}
-              </Link>
-            </>
+            <Link href={item.href} className="text-lg">
+              {t(item.labelKey as any)}
+            </Link>
           ) : (
-            <>
-              <button
-                className={cn(
-                  'flex items-center text-lg cursor-pointer',
-                  activeMenuId === item.id && 'text-text-action',
-                )}
-                onMouseEnter={() => onMenuHover?.(item)}
-                onClick={() => handleMenuClick(item)}
-              >
-                {t(item.labelKey as any)}
-                <ChevronDown className="w-5 h-5 ms-1" />
-              </button>
-            </>
+            <button
+              type="button"
+              className={cn('flex items-center text-lg cursor-pointer', activeMenuId === item.id && 'text-text-action')}
+              onClick={() => handleMenuClick(item)}
+              aria-expanded={activeMenuId === item.id}
+            >
+              {t(item.labelKey as any)}
+              <ChevronDown
+                className={cn('w-5 h-5 ms-1 transition-transform', activeMenuId === item.id && 'rotate-180')}
+              />
+            </button>
           )}
         </li>
       ))}

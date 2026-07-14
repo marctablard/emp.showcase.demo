@@ -40,21 +40,15 @@ export function HeaderActionBar({ categoryItems = [] }: HeaderActionBarProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [activeDesktopMenu, setActiveDesktopMenu] = useState<MenuItem | null>(null);
+  const [menuPathname, setMenuPathname] = useState(pathname);
   const actionBarRef = useRef<HTMLDivElement>(null);
-  const menuLeaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handleMenuLeave = () => {
-    menuLeaveTimeoutRef.current = setTimeout(() => {
-      setActiveDesktopMenu(null);
-    }, 150);
-  };
+  if (pathname !== menuPathname) {
+    setMenuPathname(pathname);
+    setActiveDesktopMenu(null);
+  }
 
-  const handleMenuHover = (item: MenuItem | null) => {
-    if (menuLeaveTimeoutRef.current) {
-      clearTimeout(menuLeaveTimeoutRef.current);
-      menuLeaveTimeoutRef.current = null;
-    }
-    // Close flyout immediately when hovering items without submenu
+  const handleMenuToggle = (item: MenuItem | null) => {
     if (item && !item.hasSubmenu) {
       setActiveDesktopMenu(null);
       return;
@@ -62,11 +56,28 @@ export function HeaderActionBar({ categoryItems = [] }: HeaderActionBarProps) {
     setActiveDesktopMenu(item);
   };
 
+  const closeDesktopMenu = () => setActiveDesktopMenu(null);
+
   useEffect(() => {
     // @see https://react.dev/reference/react-dom/client/hydrateRoot#handling-different-client-and-server-content
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsClient(true);
   }, []);
+
+  useEffect(() => {
+    if (!activeDesktopMenu) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!actionBarRef.current?.contains(event.target as Node)) {
+        closeDesktopMenu();
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [activeDesktopMenu]);
 
   useEffect(() => {
     const shouldLockScroll = showMenu && isAboveSmallScreen && !isAboveMediumScreen;
@@ -179,7 +190,7 @@ export function HeaderActionBar({ categoryItems = [] }: HeaderActionBarProps) {
           )}
         >
           <div className={cn('hidden md:block', (showSearch || scrolled) && 'md:hidden')}>
-            <MenuLevel1 menuItems={menuItems} onMenuHover={handleMenuHover} activeMenuId={activeDesktopMenu?.id} />
+            <MenuLevel1 menuItems={menuItems} onMenuToggle={handleMenuToggle} activeMenuId={activeDesktopMenu?.id} />
           </div>
           <HeaderCartButton />
           <HeaderIconButton
@@ -198,11 +209,11 @@ export function HeaderActionBar({ categoryItems = [] }: HeaderActionBarProps) {
       )}
       {!showSearch && scrolled && showMenu && isAboveMediumScreen && (
         <div className="flex mt-5">
-          <MenuLevel1 menuItems={menuItems} onMenuHover={handleMenuHover} activeMenuId={activeDesktopMenu?.id} />
+          <MenuLevel1 menuItems={menuItems} onMenuToggle={handleMenuToggle} activeMenuId={activeDesktopMenu?.id} />
         </div>
       )}
       {!showSearch && activeDesktopMenu && isAboveMediumScreen && (!scrolled || showMenu) && (
-        <DesktopMenuFlyout menuItem={activeDesktopMenu} onMouseLeave={handleMenuLeave} />
+        <DesktopMenuFlyout menuItem={activeDesktopMenu} onClose={closeDesktopMenu} />
       )}
     </div>
   );
