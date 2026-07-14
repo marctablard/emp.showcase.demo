@@ -1,6 +1,7 @@
 'use client';
 
 import { ProductTile } from '@/components/product/product-tile';
+import { useSessionPricedProducts } from '@/hooks/product/useSessionPricedProducts';
 import type { Product } from '@/platform/services/model/product';
 
 interface CategoryProductGridProps {
@@ -8,7 +9,9 @@ interface CategoryProductGridProps {
   locale?: string;
 }
 
-export function CategoryProductGrid({ products, locale = 'en' }: CategoryProductGridProps) {
+export function CategoryProductGrid({ products: initialProducts, locale = 'en' }: CategoryProductGridProps) {
+  const { products } = useSessionPricedProducts(initialProducts);
+
   if (products.length === 0) return null;
 
   return (

@@ -99,8 +99,11 @@ class BatteryIncludedSearchService implements SearchService {
         };
         return filter;
       });
+    const products = searchResult.hits.map((hit) => this.productMapper.mapToService(hit.document));
+    const enrichedProducts = await this.productService.addAdditionalData(products, { prices: true });
+
     return {
-      items: searchResult.hits.map((hit) => this.productMapper.mapToService(hit.document)),
+      items: enrichedProducts,
       page: searchResult.page - 1,
       pageSize: params.size || 10, // default
       total: searchResult.found,
@@ -118,7 +121,16 @@ class BatteryIncludedSearchService implements SearchService {
         }
       }
       const apiResponse = await this.shopApi.suggest(params.query || '', params.locale, segmentIds?.join(','));
-      return this.suggestionsMapper.mapSearchSuggestions(apiResponse);
+      const suggestions = this.suggestionsMapper.mapSearchSuggestions(apiResponse);
+      if (suggestions.products.length === 0) {
+        return suggestions;
+      }
+
+      const enrichedProducts = await this.productService.addAdditionalData(suggestions.products, { prices: true });
+      return {
+        ...suggestions,
+        products: enrichedProducts,
+      };
     } catch (error) {
       this.logger.error({ err: error }, '[SearchService] Error getting suggestions');
       return {
