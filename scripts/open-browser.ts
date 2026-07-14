@@ -1,8 +1,8 @@
-import { execFile, spawn } from 'child_process';
-import * as http from 'http';
+import { execFile, spawn } from 'node:child_process';
+import * as http from 'node:http';
 
 const portEnv = process.env.PORT || '3000';
-const parsedPort = parseInt(portEnv, 10);
+const parsedPort = Number.parseInt(portEnv, 10);
 const PORT = Number.isNaN(parsedPort) || parsedPort < 1 || parsedPort > 65535 ? 3000 : parsedPort;
 const URL = `http://localhost:${PORT}`;
 /** Poll liveness so Node's minimal `http.get` headers do not hit `/` (middleware health-check shortcut). */
@@ -23,13 +23,15 @@ export function openBrowser(url: string): void {
   switch (platform) {
     case 'darwin':
       // macOS: 'open' command opens URL in default browser and focuses it
-      execFile('open', [url], cb);
+      execFile('/usr/bin/open', [url], cb);
       break;
     case 'win32':
       // Windows: 'start' command via cmd to open URL in default browser
       {
         let fired = false;
-        const child = spawn('cmd', ['/c', 'start', '""', url], { windowsVerbatimArguments: true, detached: true });
+        const systemRoot = process.env.SystemRoot || String.raw`C:\Windows`;
+        const comspec = process.env.ComSpec || String.raw`${systemRoot}\System32\cmd.exe`;
+        const child = spawn(comspec, ['/c', 'start', '""', url], { windowsVerbatimArguments: true, detached: true });
         child.on('error', (err) => {
           if (!fired) { fired = true; cb(err); }
         });
@@ -41,7 +43,7 @@ export function openBrowser(url: string): void {
       break;
     default:
       // Linux and others: try xdg-open
-      execFile('xdg-open', [url], cb);
+      execFile('/usr/bin/xdg-open', [url], cb);
   }
 }
 

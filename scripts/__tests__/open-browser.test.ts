@@ -37,7 +37,7 @@ describe('openBrowser', () => {
   it('should use open on darwin', () => {
     setPlatform('darwin');
     openBrowser('http://localhost:3000');
-    expect(mockExecFile).toHaveBeenCalledWith('open', ['http://localhost:3000'], expect.any(Function));
+    expect(mockExecFile).toHaveBeenCalledWith('/usr/bin/open', ['http://localhost:3000'], expect.any(Function));
   });
 
   it('should use cmd start on win32', () => {
@@ -50,7 +50,8 @@ describe('openBrowser', () => {
     });
 
     openBrowser('http://localhost:3000');
-    expect(mockSpawn).toHaveBeenCalledWith('cmd', ['/c', 'start', '""', 'http://localhost:3000'], {
+    const expectedCmdPath = process.env.ComSpec || `${process.env.SystemRoot || 'C:\\Windows'}\\System32\\cmd.exe`;
+    expect(mockSpawn).toHaveBeenCalledWith(expectedCmdPath, ['/c', 'start', '""', 'http://localhost:3000'], {
       windowsVerbatimArguments: true,
       detached: true
     });
@@ -62,6 +63,6 @@ describe('openBrowser', () => {
   it('should use xdg-open on linux and others', () => {
     setPlatform('linux');
     openBrowser('http://localhost:3000');
-    expect(mockExecFile).toHaveBeenCalledWith('xdg-open', ['http://localhost:3000'], expect.any(Function));
+    expect(mockExecFile).toHaveBeenCalledWith('/usr/bin/xdg-open', ['http://localhost:3000'], expect.any(Function));
   });
 });

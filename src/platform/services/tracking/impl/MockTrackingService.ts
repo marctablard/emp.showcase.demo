@@ -13,7 +13,7 @@ class MockTrackingService implements TrackingService {
     // Determine a deterministic pseudo-random seed from the orderId
     let orderSeed = 0;
     for (let i = 0; i < orderId.length; i++) {
-      orderSeed = (orderSeed + orderId.charCodeAt(i)) % 1000;
+      orderSeed = (orderSeed + (orderId.codePointAt(i) ?? 0)) % 1000;
     }
 
     // Simulate API delay with deterministic duration between 300-600ms based on orderId
@@ -28,7 +28,7 @@ class MockTrackingService implements TrackingService {
     const orderCreatedDate = subDays(now, 3);
 
     // Determine status based on order ID's last character (for demo variety)
-    const lastChar = orderId.charAt(orderId.length - 1);
+    const lastChar = orderId.at(-1) ?? '';
     const statusMap: Record<string, TrackingInfo['status']> = {
       '0': 'PENDING',
       '1': 'IN_TRANSIT',
