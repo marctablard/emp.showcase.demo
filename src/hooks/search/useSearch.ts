@@ -72,6 +72,11 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     size: DEFAULT_PAGE_SIZE,
   });
   const searchGeneration = useRef(0);
+  // The pathname where this search hook is hosted (e.g. /browse), captured on mount.
+  // While an intercepting route (e.g. the /login dialog) is open, `usePathname()` returns the
+  // intercept's pathname for this still-mounted page; syncing to it would rewrite the browser URL
+  // to /login and pollute history, breaking router.back() restore. Skip URL sync in that case.
+  const searchHostPathnameRef = useRef(pathname);
 
   /**
    * Updates the browser URL to reflect current search parameters without reloading.
@@ -83,6 +88,12 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
    */
   const updateBrowserUrl = useCallback(
     (apiSearchParams: URLSearchParams) => {
+      // Do not sync the browser URL when the active route is no longer the search page
+      // (e.g. an intercepting /login dialog changed the pathname). Prevents polluting history.
+      if (pathname !== searchHostPathnameRef.current) {
+        return;
+      }
+
       const isDefault = (k: string, v: string) =>
         (k === 'page' && v === String(DEFAULT_PAGE_INDEX)) || (k === 'size' && v === String(DEFAULT_PAGE_SIZE));
 

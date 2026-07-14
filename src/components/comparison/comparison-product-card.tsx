@@ -2,13 +2,15 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { FlipHorizontal2, MapPin, Pin, ShoppingCart, Truck } from 'lucide-react';
+import { FlipHorizontal2, MapPin, ShoppingCart, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ToastType, notify } from '@/components/ui/toast-notification';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { WishlistPinButton } from '@/components/wishlist/wishlist-pin-button';
 import { useCart } from '@/hooks/cart/useCart';
 import { useValidateAddToCart } from '@/hooks/cart/useValidateAddToCart';
 import { useL10n } from '@/hooks/useL10n';
+import { useWishlistAddWithAuth } from '@/hooks/wishlist/useWishlistAddWithAuth';
 import { Link } from '@/i18n/navigation';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency, imageSizes } from '@/lib/utils';
@@ -26,6 +28,8 @@ export function ComparisonProductCard({ product, onRemove }: ComparisonProductCa
   const tProduct = useTranslations('product');
   const { addItem, loading: cartLoading } = useCart();
   const { disabled: cartDisabled, tooltip: cartTooltip } = useValidateAddToCart(product);
+  const { disabled: wishlistDisabled, tooltip: wishlistTooltip } = useValidateAddToCart(product, undefined, 'wishlist');
+  const { addToWishlist, isAdding: isAddingToWishlist, loginDialog } = useWishlistAddWithAuth();
 
   const brand = l10n(
     product.brand?.name || product.specifications?.find((spec) => spec.key === 'manufacturer')?.value || '',
@@ -45,6 +49,10 @@ export function ComparisonProductCard({ product, onRemove }: ComparisonProductCa
         type: ToastType.Error,
       });
     }
+  };
+
+  const handleAddToWishlist = () => {
+    addToWishlist(product.id, 1);
   };
 
   return (
@@ -145,16 +153,13 @@ export function ComparisonProductCard({ product, onRemove }: ComparisonProductCa
           )}
         </div>
         <div className="flex shrink-0 gap-2">
-          <Button
-            size="icon"
-            variant="secondary"
+          <WishlistPinButton
+            disabled={wishlistDisabled}
+            disabledTooltip={wishlistTooltip}
+            isAdding={isAddingToWishlist}
+            onClick={handleAddToWishlist}
             className="h-[50px] w-[50px]"
-            disabled
-            title={t('addToWishlist')}
-            aria-label={t('addToWishlist')}
-          >
-            <Pin className="h-6 w-6" />
-          </Button>
+          />
           <Tooltip>
             <TooltipTrigger asChild>
               <span className="inline-flex">
@@ -173,6 +178,7 @@ export function ComparisonProductCard({ product, onRemove }: ComparisonProductCa
           </Tooltip>
         </div>
       </div>
+      {loginDialog}
     </div>
   );
 }

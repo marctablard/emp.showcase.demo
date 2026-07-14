@@ -2,6 +2,7 @@
 
 import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useSiteCode } from '@/hooks/site/useSiteCode';
 import { useToast } from '@/hooks/ui/useToast';
 import { fetchProductPrices } from '@/lib/client/prices';
 import { getLogger } from '@/lib/logger/use-logger-client';
@@ -31,6 +32,7 @@ export const QuickOrderTextPaste = forwardRef<QuickOrderTextPasteHandle, QuickOr
   function QuickOrderTextPaste({ onAddProducts, onResolvingChange, onTextChange, onValidationChange }, ref) {
     const t = useTranslations('quick-order');
     const locale = useLocale();
+    const siteCode = useSiteCode();
     const { toast } = useToast();
     const logger = getLogger();
     const sessionCurrency = useSessionStore().session?.currency;
@@ -52,7 +54,7 @@ export const QuickOrderTextPaste = forwardRef<QuickOrderTextPasteHandle, QuickOr
       setIsResolving(true);
       onResolvingChange?.(true);
       try {
-        const { resolved, notFound: notFoundEntries } = await resolveProductsBatch(entries, locale, logger);
+        const { resolved, notFound: notFoundEntries } = await resolveProductsBatch(entries, locale, siteCode, logger);
 
         // Check prices for resolved products
         const withPrice: Array<{ product: Product; quantity: number }> = [];
@@ -170,7 +172,7 @@ export const QuickOrderTextPaste = forwardRef<QuickOrderTextPasteHandle, QuickOr
         setIsResolving(false);
         onResolvingChange?.(false);
       }
-    }, [text, locale, onAddProducts, toast, t, logger, onResolvingChange, onTextChange, sessionCurrency]);
+    }, [text, locale, siteCode, onAddProducts, toast, t, logger, onResolvingChange, onTextChange, sessionCurrency]);
 
     useImperativeHandle(
       ref,
