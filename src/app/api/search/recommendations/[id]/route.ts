@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
+import type { ProductService } from '@/platform/services/product/ProductService';
 import type { SearchService } from '@/platform/services/search/SearchService';
 
 /**
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   try {
     const searchService = server.get<SearchService>('SearchService');
+    const productService = server.get<ProductService>('ProductService');
 
     if (!productId) {
       return NextResponse.json({ error: 'Product ID is required' }, { status: 400 });
@@ -25,7 +27,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const recommendations = await searchService.getRecommendations(productId, locale, undefined, limit);
 
-    return NextResponse.json(recommendations);
+    const [products, crossSell, upSell] = await Promise.all([
+      productService.addAdditionalData(recommendations.products ?? [], { prices: true }),
+      productService.addAdditionalData(recommendations.crossSell ?? [], { prices: true }),
+      productService.addAdditionalData(recommendations.upSell ?? [], { prices: true }),
+    ]);
+
+    return NextResponse.json({ products, crossSell, upSell });
   } catch (error) {
     const logger = server.get<LoggerService>('LoggerService');
     logger.error(

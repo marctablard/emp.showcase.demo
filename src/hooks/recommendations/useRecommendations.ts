@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useShopContextReady } from '@/hooks/common/useShopContextReady';
+import { useSession } from '@/hooks/session/useSession';
 import { fetchRecommendations } from '@/lib/client/recommendations';
+import { buildSessionPricingScopeKey } from '@/lib/common/price-fetch-options';
 import type { ProductRecommendations } from '@/platform/services/model/product';
 
 export function useRecommendations(productId?: string, locale?: string) {
+  const { session } = useSession();
+  const { ready: shopContextReady } = useShopContextReady();
+  const sessionPricingScope = buildSessionPricingScopeKey(session);
   const [recommendations, setRecommendations] = useState<ProductRecommendations | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +32,7 @@ export function useRecommendations(productId?: string, locale?: string) {
   }, []);
 
   useEffect(() => {
-    if (!productId) {
+    if (!productId || !shopContextReady) {
       return;
     }
 
@@ -37,14 +43,16 @@ export function useRecommendations(productId?: string, locale?: string) {
     return () => {
       cancelled = true;
     };
-  }, [productId, locale, loadRecommendations]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId, locale, shopContextReady, sessionPricingScope, loadRecommendations]);
 
   const hasProduct = Boolean(productId);
+  const waitingForShopContext = hasProduct && !shopContextReady;
   const pending = hasProduct && !loading && !error && recommendations === undefined;
 
   return {
-    recommendations: hasProduct ? recommendations : undefined,
-    loading: hasProduct && (loading || pending),
+    recommendations: hasProduct && shopContextReady ? recommendations : undefined,
+    loading: hasProduct && (waitingForShopContext || loading || pending),
     error: hasProduct ? error : null,
   };
 }

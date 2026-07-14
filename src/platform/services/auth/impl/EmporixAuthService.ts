@@ -5,6 +5,7 @@ import {
   getPublicDefaultLanguage,
   getPublicDefaultSite,
 } from '@/lib/common/public-default-env';
+import { readSessionContextAttributeValue } from '@/lib/common/session-context-attribute';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixTokenManager } from '@/platform/integrations/emporix/common/EmporixTokenManager';
 import type { EmporixConfig } from '@/platform/integrations/emporix/config';
@@ -172,6 +173,8 @@ export class EmporixAuthService implements AuthService {
         );
       }
     }
+
+    await this.ensureB2BLegalEntityOnSession(session);
 
     // ── Phase 3: Ensure customer cart binding ──
     // Session is now settled (token + site + currency + language). getCart()
@@ -522,6 +525,36 @@ export class EmporixAuthService implements AuthService {
       }
     }
     return this.CART_MERGE_REASON.CURRENCY_ALIGNMENT_FAILED;
+  }
+
+  private async ensureB2BLegalEntityOnSession(session: EmporixSessionContext): Promise<void> {
+    if (!session.customerId) {
+      return;
+    }
+
+    const existingLegalEntityId = readSessionContextAttributeValue(session.context, 'legalEntityId');
+    if (existingLegalEntityId) {
+      return;
+    }
+
+    try {
+      const profile = await this.emporixCustomerApi.getCustomerProfile();
+      const legalEntityId = profile.b2b?.legalEntities?.[0]?.id?.trim();
+      if (!legalEntityId) {
+        return;
+      }
+
+      await this.sessionService.setLegalEntity(legalEntityId);
+      session.context = { ...(session.context ?? {}), legalEntityId };
+    } catch (error) {
+      this.logger.warn(
+        {
+          err: error instanceof Error ? error.message : String(error),
+          customerId: session.customerId,
+        },
+        'Failed to seed B2B legal entity on session after login',
+      );
+    }
   }
 
   private buildLoginResult(

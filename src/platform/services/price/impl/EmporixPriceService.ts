@@ -1,4 +1,6 @@
 import { inject } from 'inversify';
+import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
+import { resolveLegalEntityIdFromSessionAndCustomer } from '@/lib/common/legal-entity-context';
 import { getPublicPriceMatchUseFallback } from '@/lib/common/public-default-env';
 import { injectable } from '@/platform/core/di/injectable';
 import type {
@@ -9,6 +11,8 @@ import type {
 import type { EmporixPriceApi } from '@/platform/integrations/emporix/price/EmporixPriceApi';
 import type { ProductPrice } from '@/platform/services/model/price';
 import type PriceMapper from '@/platform/services/model/price/impl/EmporixPriceMapper';
+import type { CustomerService } from '../../customer/CustomerService';
+import type { SessionService } from '../../session/SessionService';
 import type { SiteService } from '../../site/SiteService';
 import type { PriceFetchOptions, PriceService } from '../PriceService';
 
@@ -22,6 +26,8 @@ class EmporixPriceService implements PriceService {
     @inject('EmporixPriceApi') private priceApi: EmporixPriceApi,
     @inject('EmporixPriceMapper') private mapper: PriceMapper,
     @inject('SiteService') private siteService: SiteService,
+    @inject('SessionService') private sessionService: SessionService,
+    @inject('CustomerService') private customerService: CustomerService,
   ) {}
 
   async getProductPrice(
@@ -37,28 +43,10 @@ class EmporixPriceService implements PriceService {
         items,
       });
     } else {
-      if (!params.currency || !params.country) {
-        const site = await this.siteService.getSite(params.siteCode);
-        if (!site) {
-          throw new Error(`Site ${params.siteCode} not found`);
-        }
-        if (!params.currency) {
-          params.currency = site.defaultCurrency.id;
-        }
-        if (!params.country) {
-          params.country = site.defaultCountry;
-        }
-      }
-      const matchRequest: EmporixMatchPricesRequest = {
-        targetCurrency: params.currency!,
-        siteCode: params.siteCode,
-        targetLocation: {
-          countryCode: params.country!,
-        },
-        items: [this.mapToMatchPriceItem(productId, quantity, unitCode)],
-        useFallback: getPublicPriceMatchUseFallback(),
-      };
-      matchedPrices = await this.priceApi.matchPrices(matchRequest);
+      const resolvedParams = await this.resolvePriceFetchParams(params);
+      matchedPrices = await this.priceApi.matchPrices(
+        this.buildMatchPricesRequest(resolvedParams, [this.mapToMatchPriceItem(productId, quantity, unitCode)]),
+      );
     }
     const requestedCurrency = params?.currency;
     const preferredPrice = this.pickPreferredMatchedPrice(matchedPrices, requestedCurrency);
@@ -90,25 +78,8 @@ class EmporixPriceService implements PriceService {
       if (!params) {
         matchedPrices = await this.priceApi.matchPricesByContext({ items });
       } else {
-        if (!params.currency || !params.country) {
-          const site = await this.siteService.getSite(params.siteCode);
-          if (!site) {
-            throw new Error(`Site ${params.siteCode} not found`);
-          }
-          if (!params.currency) {
-            params.currency = site.defaultCurrency.id;
-          }
-          if (!params.country) {
-            params.country = site.defaultCountry;
-          }
-        }
-        matchedPrices = await this.priceApi.matchPrices({
-          targetCurrency: params.currency!,
-          siteCode: params.siteCode,
-          targetLocation: { countryCode: params.country! },
-          items,
-          useFallback: getPublicPriceMatchUseFallback(),
-        });
+        const resolvedParams = await this.resolvePriceFetchParams(params);
+        matchedPrices = await this.priceApi.matchPrices(this.buildMatchPricesRequest(resolvedParams, items));
       }
       allMatched.push(...matchedPrices);
     }
@@ -129,6 +100,58 @@ class EmporixPriceService implements PriceService {
     });
 
     return result;
+  }
+
+  private async resolvePriceFetchParams(params: PriceFetchOptions): Promise<PriceFetchOptions> {
+    const resolved = { ...params };
+
+    if (!resolved.currency || !resolved.country) {
+      const site = await this.siteService.getSite(resolved.siteCode);
+      if (!site) {
+        throw new Error(`Site ${resolved.siteCode} not found`);
+      }
+      if (!resolved.currency) {
+        resolved.currency = site.defaultCurrency.id;
+      }
+      if (!resolved.country) {
+        resolved.country = site.defaultCountry;
+      }
+    }
+
+    if (!resolved.legalEntityId?.trim()) {
+      const legalEntityId = await this.resolveLegalEntityIdForPricing();
+      if (legalEntityId) {
+        resolved.legalEntityId = legalEntityId;
+      }
+    }
+
+    return resolved;
+  }
+
+  private async resolveLegalEntityIdForPricing(): Promise<string | undefined> {
+    const session = await this.sessionService.getCurrent();
+    if (!session || !isAuthenticatedSessionCustomerId(session.customerId)) {
+      return undefined;
+    }
+
+    const customer = await this.customerService.getCustomer();
+    return resolveLegalEntityIdFromSessionAndCustomer(session, customer);
+  }
+
+  private buildMatchPricesRequest(
+    params: PriceFetchOptions,
+    items: EmporixPriceMatchItem[],
+  ): EmporixMatchPricesRequest {
+    return {
+      targetCurrency: params.currency!,
+      siteCode: params.siteCode,
+      targetLocation: {
+        countryCode: params.country!,
+      },
+      items,
+      ...(params.legalEntityId ? { legalEntityId: params.legalEntityId } : {}),
+      useFallback: getPublicPriceMatchUseFallback(),
+    };
   }
 
   private pickPreferredMatchedPrice(

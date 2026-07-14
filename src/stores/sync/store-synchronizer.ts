@@ -1,6 +1,7 @@
 import { shallow } from 'zustand/shallow';
 import { devSyncLog } from '@/lib/client/dev-sync-log';
 import { invalidateShippingMethodsResponseCache } from '@/lib/client/shipping-methods-response-cache';
+import { buildSessionPricingScopeKey } from '@/lib/common/price-fetch-options';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type {
   AvailabilityStoreApi,
@@ -94,35 +95,24 @@ export function setupStoreSynchronization({
   );
   unsubscribers.push(unsubCheckoutReset);
 
-  // Product cache is keyed only by id; clear on site/currency change so PDP/search never
-  // display another site's currency before the fresh fetch completes.
+  // Product cache is keyed only by id; clear on shop/pricing scope change so tiles and
+  // recommendations never display another context's prices before the fresh fetch completes.
   const unsubProductClientCache = sessionStore.subscribe(
-    (state) => ({
-      siteCode: state.session?.siteCode ?? '',
-      currency: state.session?.currency ?? '',
-    }),
+    (state) => buildSessionPricingScopeKey(state.session),
     (curr, prev) => {
-      if (!curr.siteCode || !curr.currency) {
+      if (!curr) {
         return;
       }
       if (prev === undefined) {
         return;
       }
-      const prevSite =
-        typeof prev === 'object' && prev && 'siteCode' in prev ? (prev as { siteCode: string }).siteCode : '';
-      const prevCur =
-        typeof prev === 'object' && prev && 'currency' in prev ? (prev as { currency: string }).currency : '';
-      if (!prevSite || !prevCur) {
+      const previousScope = typeof prev === 'string' ? prev : '';
+      if (!previousScope || previousScope === curr) {
         return;
       }
-      if (prevSite === curr.siteCode && prevCur === curr.currency) {
-        return;
-      }
-      devSyncLog('store-sync: clear client product cache (session site/currency changed)', {
-        prevSite,
-        prevCurrency: prevCur,
-        siteCode: curr.siteCode,
-        currency: curr.currency,
+      devSyncLog('store-sync: clear client product cache (session pricing scope changed)', {
+        previousScope,
+        currentScope: curr,
       });
       productStore.getState().clearProductCache();
       availabilityStore.getState().clearAllAvailabilities();

@@ -5,6 +5,7 @@ import { useHistory } from '@/hooks/history/useHistory';
 import { useSession } from '@/hooks/session/useSession';
 import { useSite } from '@/hooks/site/useSite';
 import { fetchProductById } from '@/lib/client/products';
+import { buildSessionPricingScopeKey } from '@/lib/common/price-fetch-options';
 import {
   isProductPriceDisplayableForPurchase,
   stripProductPriceIfNotDisplayableForShopContext,
@@ -136,9 +137,9 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
   );
 
   const refetch = useCallback(async () => {
-    const scope = session?.siteCode && session?.currency ? `${session.siteCode}|${session.currency}` : '';
+    const scope = buildSessionPricingScopeKey(session);
     await fetchProduct(true, scope);
-  }, [session?.siteCode, session?.currency, fetchProduct]);
+  }, [session, fetchProduct]);
 
   const productForUi = useMemo(() => {
     if (!product) {
@@ -182,7 +183,7 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
     }
   }, [id, session, loading, sessionLoading]);
 
-  const sessionPricingKey = session?.siteCode && session?.currency ? `${session.siteCode}|${session.currency}` : '';
+  const sessionPricingKey = buildSessionPricingScopeKey(session);
   const prevSessionPricingKeyRef = useRef<string | null>(null);
   const prevProductIdRef = useRef<string | undefined>(undefined);
 

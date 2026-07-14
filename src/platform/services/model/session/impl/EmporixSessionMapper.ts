@@ -1,4 +1,5 @@
 import { getPublicDefaultCurrency, getPublicDefaultSite } from '@/lib/common/public-default-env';
+import { readSessionContextAttributeValue } from '@/lib/common/session-context-attribute';
 import { injectable } from '@/platform/core/di/injectable';
 import type {
   EmporixContextAttribute,
@@ -37,11 +38,11 @@ export class EmporixSessionMapper implements SessionMapper<EmporixSessionContext
       currency: source.currency || getPublicDefaultCurrency(),
       siteCode: source.siteCode || getPublicDefaultSite(),
       customerId: source.customerId,
-      language: source.language ?? source.context?.['language'],
+      language: source.language ?? readSessionContextAttributeValue(source.context, 'language'),
       country: source.targetLocation,
-      region: source.context?.['region'],
-      cartId: source.context?.['currentCart'],
-      legalEntityId: source.context?.['legalEntityId'],
+      region: readSessionContextAttributeValue(source.context, 'region'),
+      cartId: readSessionContextAttributeValue(source.context, 'currentCart'),
+      legalEntityId: readSessionContextAttributeValue(source.context, 'legalEntityId'),
       attributes,
       ...(typeof source.metadata?.version === 'number' ? { metadata: { version: source.metadata.version } } : {}),
     };

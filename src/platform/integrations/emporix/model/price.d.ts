@@ -30,6 +30,10 @@ export interface EmporixMatchPricesRequest {
   };
   items: EmporixPriceMatchItem[];
   /**
+   * Legal entity for which price lists are included in the price match.
+   */
+  legalEntityId?: string;
+  /**
    * If no price found for the specified site, try to find the best price for the main site.
    * Useful for branch sites where products may only be priced on the main site.
    */

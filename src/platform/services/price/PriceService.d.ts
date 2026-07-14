@@ -5,6 +5,8 @@ export interface PriceFetchOptions {
   siteCode: string;
   currency?: string;
   country?: string;
+  /** B2B company context — includes price lists assigned to this legal entity. */
+  legalEntityId?: string;
 }
 
 /**

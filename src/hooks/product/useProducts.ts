@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLogger } from '@/hooks/common/useLogger';
+import { useSession } from '@/hooks/session/useSession';
 import { fetchProductById } from '@/lib/client/products';
+import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
+import { buildSessionPricingScopeKey } from '@/lib/common/price-fetch-options';
 import type { Product } from '@/platform/services/model/product';
 import type { ProductFetchOptions } from '@/platform/services/product/ProductService';
 import { useProductStore } from '@/providers/StoreProvider';
@@ -15,6 +18,8 @@ interface UseProductsResult {
 
 export function useProducts(productIds: Product['id'][] = [], fetchOptions?: ProductFetchOptions): UseProductsResult {
   const logger = useLogger();
+  const { session } = useSession();
+  const sessionPricingScope = buildSessionPricingScopeKey(session);
   const { getProduct, addProducts, cacheGeneration } = useProductStore();
   const fetchOptionsKey = JSON.stringify({
     variants: fetchOptions?.variants ?? false,
@@ -27,6 +32,7 @@ export function useProducts(productIds: Product['id'][] = [], fetchOptions?: Pro
             country: fetchOptions.prices.country,
           }
         : (fetchOptions?.prices ?? false),
+    sessionPricingScope,
   });
 
   // Stabilize fetchOptions to prevent unnecessary re-renders
@@ -54,6 +60,7 @@ export function useProducts(productIds: Product['id'][] = [], fetchOptions?: Pro
           typeof fetchOptionsRef.current?.prices === 'object' && fetchOptionsRef.current.prices !== null
             ? fetchOptionsRef.current.prices.currency
             : undefined;
+        const trustCachedPrices = !pricesRequested || !isAuthenticatedSessionCustomerId(session?.customerId);
 
         // Get products already in store (unless forceRefresh)
         const cachedProducts = forceRefresh
@@ -62,6 +69,10 @@ export function useProducts(productIds: Product['id'][] = [], fetchOptions?: Pro
               .map((id) => {
                 const cachedProduct = getProduct(id);
                 if (!cachedProduct) {
+                  return null;
+                }
+
+                if (pricesRequested && !trustCachedPrices) {
                   return null;
                 }
 
@@ -91,7 +102,7 @@ export function useProducts(productIds: Product['id'][] = [], fetchOptions?: Pro
           uniqueIdsToFetch.map(async (id) => {
             if (!id) return null;
             try {
-              const fetched = await fetchProductById(id, fetchOptionsRef.current);
+              const fetched = await fetchProductById(id, fetchOptionsRef.current, sessionPricingScope);
               return fetched;
             } catch (_err) {
               logger.error(
@@ -121,7 +132,7 @@ export function useProducts(productIds: Product['id'][] = [], fetchOptions?: Pro
         setLoading(false);
       }
     },
-    [productIds, getProduct, addProducts, logger],
+    [productIds, getProduct, addProducts, logger, session?.customerId, sessionPricingScope],
   );
 
   const prevCacheGenRef = useRef(cacheGeneration);
