@@ -3,6 +3,7 @@ import { useLocale } from 'next-intl';
 import { usePathname, useRouter } from 'next/navigation';
 import useHistory from '@/hooks/history/useHistory';
 import { useSiteCode } from '@/hooks/site/useSiteCode';
+import { buildSessionPricingScopeKey } from '@/lib/common/price-fetch-options';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { SearchParams as BaseSearchParams, Filter, SearchResult } from '@/platform/services/model/common';
 import type { SearchSuggestions } from '@/platform/services/model/search/SearchSuggestions';
@@ -19,7 +20,13 @@ type SearchParams<T> = Omit<BaseSearchParams<T>, 'filters'> & {
   filters?: Record<string, FilterValue>;
 };
 
-export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: SearchResult<T>) {
+export function useSearch<T>(
+  initialSearch?: SearchParams<T>,
+  initialResult?: SearchResult<T>,
+  options?: { refetchOnPricingScopeChange?: boolean },
+) {
+  // Suggestion-only consumers (header/quick-order) should not refetch full results on auth changes.
+  const refetchOnPricingScopeChange = options?.refetchOnPricingScopeChange ?? false;
   const { addSearchQuery } = useHistory();
   const router = useRouter();
   const pathname = usePathname();
@@ -43,12 +50,22 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   });
   const siteCode = useSiteCode();
   const locale = useLocale();
-  const sessionCurrency = useSessionStore().session?.currency;
+  const session = useSessionStore().session;
+  const sessionCurrency = session?.currency;
+  // Changes on login/logout, company switch, site or currency change. Used to refetch prices
+  // that are resolved server-side from the authenticated session (customer/legal entity),
+  // since those dimensions are not reflected in the search request URL.
+  const sessionPricingScope = buildSessionPricingScopeKey(session);
 
-  // Keep track of the last search params for pagination
+  // Keep track of the last search params for pagination and for session-driven refetches.
+  // Seeded from SSR props so a refetch triggered before any client search still reuses the
+  // original query/filters/sort instead of falling back to an empty "all products" search.
   const lastSearchParams = useRef<SearchParams<T>>({
-    page: DEFAULT_PAGE_INDEX,
-    size: DEFAULT_PAGE_SIZE,
+    query: initialSearch?.query,
+    sort: initialSearch?.sort,
+    filters: initialSearch?.filters,
+    page: initialResult?.page ?? DEFAULT_PAGE_INDEX,
+    size: initialResult?.pageSize ?? DEFAULT_PAGE_SIZE,
   });
 
   /**
@@ -163,7 +180,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         // Update browser URL with the same parameters (but with 'q' instead of 'query')
         updateBrowserUrl(url.searchParams);
 
-        const response = await fetch(url.toString());
+        const response = await fetch(url.toString(), { cache: 'no-store' });
 
         if (!response.ok) {
           throw new Error(`Search failed: ${response.statusText}`);
@@ -344,7 +361,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         });
       }
 
-      const response = await fetch(url.toString());
+      const response = await fetch(url.toString(), { cache: 'no-store' });
       if (!response.ok) throw new Error(`Search failed: ${response.statusText}`);
 
       const result: SearchResult<T> = await response.json();
@@ -383,7 +400,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         if (sessionCurrency) {
           url.searchParams.append('currency', sessionCurrency);
         }
-        const response = await fetch(url.toString());
+        const response = await fetch(url.toString(), { cache: 'no-store' });
         if (!response.ok) {
           throw new Error(`Suggestions failed: ${response.statusText}`);
         }
@@ -416,6 +433,29 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
       addSearchQuery(currentQuery);
     }
   }, [currentQuery, addSearchQuery]);
+
+  // Prices in search results are resolved server-side from the authenticated session, but that
+  // context is not part of the request URL. Re-run the last search whenever the pricing scope
+  // changes (login/logout, company switch, site/currency change) so stale prices don't linger.
+  const prevPricingScopeRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!refetchOnPricingScopeChange) {
+      return;
+    }
+    if (!sessionPricingScope) {
+      return;
+    }
+    // Establish the baseline on first resolve without refetching; the initial results come from
+    // SSR / the component's URL-driven search.
+    if (prevPricingScopeRef.current === null) {
+      prevPricingScopeRef.current = sessionPricingScope;
+      return;
+    }
+    if (prevPricingScopeRef.current !== sessionPricingScope) {
+      prevPricingScopeRef.current = sessionPricingScope;
+      void search(lastSearchParams.current);
+    }
+  }, [refetchOnPricingScopeChange, sessionPricingScope, search]);
 
   return {
     // State

@@ -41,7 +41,7 @@ export function SearchResultsComponent({ initialSearch, initialResults, locale }
     resetFacet,
     resetAllFacets,
     activeFilters,
-  } = useSearch<Product>(initialSearch, initialResults);
+  } = useSearch<Product>(initialSearch, initialResults, { refetchOnPricingScopeChange: true });
 
   // Shared props for SearchFilter component (used in both mobile and desktop layouts)
   const searchFilterProps = {
