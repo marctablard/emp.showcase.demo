@@ -1,11 +1,12 @@
 import type { RefObject } from 'react';
 import { useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { Info, LockKeyhole } from 'lucide-react';
+import { LockKeyhole } from 'lucide-react';
+import { CartPriceBreakdown } from '@/components/cart/cart-price-breakdown';
+import { PromoCodeInput } from '@/components/cart/promo-code-input';
 import { H5 } from '@/components/ui/h';
-import { useCartTotal } from '@/hooks/cart/useCartTotal';
 import { useElementScroll } from '@/hooks/ui/useElementScroll';
-import { cn, formatCurrency } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import type { Cart } from '@/platform/services/model/cart';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import UiLink from '../ui/link';
@@ -23,7 +24,6 @@ export function CartSummary({ cart, boundingContent }: CartSummaryProps) {
   const fixedContainer = useRef<HTMLDivElement>(null);
   const topPosition = 112;
   const { isFixed, isFixedToTop, isContainerBottom } = useElementScroll(fixedContainer, topPosition, boundingContent);
-  const { cartTotal, shippingCosts, currency } = useCartTotal();
 
   return (
     <div className="col-span-1 lg:col-span-1 mb-6 flex">
@@ -44,50 +44,8 @@ export function CartSummary({ cart, boundingContent }: CartSummaryProps) {
             </CardHeader>
             <CardContent className="bg-surface-page rounded-md p-4">
               <div className="space-y-4">
-                <div className="flex gap-2 text-text-action">
-                  <div>
-                    <Info />
-                  </div>
-                  <div className="text-base">{t('promoCodeInfo')}</div>
-                </div>
-                <div className="flex justify-between">
-                  <span className="">{t('valueOfGoods')}</span>
-                  <span>{formatCurrency(cart?.subTotalPrice.amount, cart?.subTotalPrice.currency)}</span>
-                </div>
-
-                <div className="flex justify-between text-base pt-4 border-t border-border-primary">
-                  <span>{t('netValueOfGoods')}</span>
-                  <span className="font-bold font-headlines">
-                    {formatCurrency(cart.tax.netValue, cart.tax.currency)}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <div className="flex justify-between text-base">
-                    <span>{t('vat')}</span>
-                    <span>{formatCurrency(cart.tax.amount, cart.tax.currency)}</span>
-                  </div>
-                  <div className="flex justify-between text-base">
-                    <span>{t('shippingCosts')}</span>
-                    {shippingCosts !== undefined ? (
-                      <span>{formatCurrency(shippingCosts, currency)}</span>
-                    ) : (
-                      <span>{t('calculatedAtCheckout')}</span>
-                    )}
-                  </div>
-                </div>
-                {/*isDelivery && freeShippingValue - cart.totalPrice.amount > 0 && <CartFreeship cart={cart} />*/}
-                <div className="flex flex-col gap-2">
-                  {cart.fees && (
-                    <div className="flex justify-between text-base">
-                      <span>{t('fees')}</span>
-                      <span>{formatCurrency(cart.fees.amount, cart.fees.currency)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between font-bold font-headlines text-lg">
-                    <span>{t('total')}</span>
-                    <span>{formatCurrency(cartTotal, currency)}</span>
-                  </div>
-                </div>
+                <PromoCodeInput />
+                <CartPriceBreakdown cart={cart} hideShippingUntilSelected />
               </div>
             </CardContent>
             <CardFooter className="flex flex-col p-0">

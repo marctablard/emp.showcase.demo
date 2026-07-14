@@ -191,6 +191,42 @@ export async function updateShippingInfo(
 }
 
 /**
+ * Apply a promo/coupon code to the cart
+ */
+export async function applyPromoCode(cartId: string, code: string): Promise<Cart> {
+  const response = await fetch(`/api/cart/${cartId}/discounts`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ code }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.error || `Failed to apply promo code: ${response.statusText}`);
+  }
+
+  return await response.json();
+}
+
+/**
+ * Remove a promo/coupon code from the cart
+ */
+export async function removePromoCode(cartId: string, code: string): Promise<Cart> {
+  const response = await fetch(`/api/cart/${cartId}/discounts?codes=${encodeURIComponent(code)}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.error || `Failed to remove promo code: ${response.statusText}`);
+  }
+
+  return await response.json();
+}
+
+/**
  * Update cart currency
  */
 export async function updateCartCurrency(cartId: string, currency: string): Promise<Cart> {

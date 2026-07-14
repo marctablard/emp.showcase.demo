@@ -88,6 +88,13 @@
   },
   "summary": {
     "title": "Order Summary",
+    "promoCode": "Promo Code",
+    "apply": "Apply",
+    "discount": "Discount",
+    "promoCodeApplied": "Promo code applied",
+    "promoCodeRemoved": "Promo code removed",
+    "promoCodeError": "Could not update promo code",
+    "removePromoCode": "Remove promo code {code}",
     "subtotal": "Subtotal",
     "total": "Total",
     "valueOfGoods": "Value of goods",

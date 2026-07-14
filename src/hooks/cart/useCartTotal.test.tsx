@@ -149,4 +149,35 @@ describe('useCartTotal', () => {
 
     expect(result.current.currency).toBe('EUR');
   });
+
+  it('does not expose shipping costs until a shipping method is selected', () => {
+    mockUseCart.mockReturnValue({
+      cart: {
+        subTotalPrice: { amount: 100, currency: 'EUR' },
+        totalPrice: { amount: 100, currency: 'EUR' },
+        shippingCosts: { amount: 0, currency: 'EUR' },
+      },
+    });
+
+    const { result } = renderHook(() => useCartTotal());
+
+    expect(result.current.shippingCosts).toBeUndefined();
+  });
+
+  it('returns shipping costs once a shipping method is selected', () => {
+    mockUseCheckout.mockReturnValue({
+      shippingMethod: { amount: 12.5 },
+    });
+    mockUseCart.mockReturnValue({
+      cart: {
+        subTotalPrice: { amount: 100, currency: 'EUR' },
+        totalPrice: { amount: 112.5, currency: 'EUR' },
+        shippingCosts: { amount: 0, currency: 'EUR' },
+      },
+    });
+
+    const { result } = renderHook(() => useCartTotal());
+
+    expect(result.current.shippingCosts).toBe(12.5);
+  });
 });

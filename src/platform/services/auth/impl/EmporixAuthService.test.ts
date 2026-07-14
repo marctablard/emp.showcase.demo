@@ -206,6 +206,8 @@ describe('EmporixAuthService', () => {
       removeCartItem: jest.fn(),
       deleteCart: jest.fn(),
       updateShippingInfo: jest.fn(),
+      applyPromoCode: jest.fn(),
+      removePromoCode: jest.fn(),
       updateCurrency: jest.fn(),
       getSavedCarts: jest.fn(),
       saveCart: jest.fn(),
