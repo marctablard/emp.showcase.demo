@@ -1,38 +1,48 @@
-import { exec } from 'child_process';
+import { execFile, spawn } from 'child_process';
 import * as http from 'http';
 
-const PORT = process.env.PORT || 3000;
+const portEnv = process.env.PORT || '3000';
+const parsedPort = parseInt(portEnv, 10);
+const PORT = Number.isNaN(parsedPort) || parsedPort < 1 || parsedPort > 65535 ? 3000 : parsedPort;
 const URL = `http://localhost:${PORT}`;
 /** Poll liveness so Node's minimal `http.get` headers do not hit `/` (middleware health-check shortcut). */
 const HEALTH_URL = `${URL}/api/health`;
 const MAX_RETRIES = 30;
 const RETRY_INTERVAL = 1000;
 
-function openBrowser(url: string): void {
+export function openBrowser(url: string): void {
   const platform = process.platform;
-
-  let command: string;
-  switch (platform) {
-    case 'darwin':
-      // macOS: 'open' command opens URL in default browser and focuses it
-      command = `open "${url}"`;
-      break;
-    case 'win32':
-      // Windows: 'start' command opens URL in default browser
-      command = `start "" "${url}"`;
-      break;
-    default:
-      // Linux and others: try xdg-open
-      command = `xdg-open "${url}"`;
-  }
-
-  exec(command, (error) => {
+  const cb = (error: Error | null) => {
     if (error) {
       console.log(`\x1b[33m⚠ Could not open browser automatically. Please visit: ${url}\x1b[0m`);
     } else {
       console.log(`\x1b[32m✓ Browser opened at ${url}\x1b[0m`);
     }
-  });
+  };
+
+  switch (platform) {
+    case 'darwin':
+      // macOS: 'open' command opens URL in default browser and focuses it
+      execFile('open', [url], cb);
+      break;
+    case 'win32':
+      // Windows: 'start' command via cmd to open URL in default browser
+      {
+        let fired = false;
+        const child = spawn('cmd', ['/c', 'start', '""', url], { windowsVerbatimArguments: true, detached: true });
+        child.on('error', (err) => {
+          if (!fired) { fired = true; cb(err); }
+        });
+        child.on('spawn', () => {
+          if (!fired) { fired = true; cb(null); }
+        }); // Success when it spawns
+        child.unref();
+      }
+      break;
+    default:
+      // Linux and others: try xdg-open
+      execFile('xdg-open', [url], cb);
+  }
 }
 
 function checkServer(url: string): Promise<boolean> {
@@ -71,6 +81,8 @@ async function waitForServerAndOpen(): Promise<void> {
   console.log(`\x1b[33m⚠ Server didn't respond after ${MAX_RETRIES} attempts. Please open ${URL} manually.\x1b[0m`);
 }
 
-waitForServerAndOpen();
+if (require.main === module) {
+  waitForServerAndOpen();
+}
 
 

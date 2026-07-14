@@ -416,7 +416,8 @@ async function generateContainerFile(
   const toModuleName = (relativePath: string): string =>
     path.basename(relativePath)
       .replace(/[^a-zA-Z0-9_]/g, '_')
-      .replace(/^_+|_+$/g, '');
+      .replace(/^_+/, '')
+      .replace(/_+$/, '');
 
   // Fail fast if two injectables produce the same import identifier.
   const seenModuleNames = new Map<string, string>();
@@ -468,7 +469,8 @@ async function generateContainerFile(
       // Build a unique module name prefixed by extension name
       const baseName = path.basename(extInjectable.relativePath)
         .replace(/[^a-zA-Z0-9_]/g, '_')
-        .replace(/^_+|_+$/g, '');
+        .replace(/^_+/, '')
+        .replace(/_+$/, '');
       const uniqueName = `ext_${ext.name.replace(/[^a-zA-Z0-9_]/g, '_')}_${baseName}`;
 
       // Build the import path relative to the output file

@@ -10,12 +10,18 @@ import type { TrackingService } from '@/platform/services/tracking/TrackingServi
 @injectable('TrackingService', 'Singleton')
 class MockTrackingService implements TrackingService {
   async getOrderTrackingInfo(orderId: string): Promise<TrackingInfo | null> {
-    // Simulate API delay with random duration between 300-600ms
-    const randomDelay = Math.floor(300 + Math.random() * 300);
+    // Determine a deterministic pseudo-random seed from the orderId
+    let orderSeed = 0;
+    for (let i = 0; i < orderId.length; i++) {
+      orderSeed = (orderSeed + orderId.charCodeAt(i)) % 1000;
+    }
+
+    // Simulate API delay with deterministic duration between 300-600ms based on orderId
+    const randomDelay = 300 + (orderSeed % 300);
     await new Promise((resolve) => setTimeout(resolve, randomDelay));
 
-    // Generate random tracking number
-    const trackingNumber = `EM${Math.floor(10000000 + Math.random() * 90000000)}DE`;
+    // Generate deterministic tracking number based on orderId
+    const trackingNumber = `EM${10000000 + ((orderSeed * 12345) % 90000000)}DE`;
 
     // Use current date as reference point
     const now = new Date();

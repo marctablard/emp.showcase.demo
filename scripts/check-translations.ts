@@ -157,11 +157,17 @@ function extractUsedKeys(): UsedKey[] {
 
     const fnStartRe = /^(?:export\s+(?:default\s+)?)?(?:async\s+)?function\s+\w+/;
     // Also handle arrow-function components: export const Foo = (...) => {
-    const arrowFnRe = /^(?:export\s+)?(?:const|let)\s+\w+\s*=\s*(?:\([^)]*\)|[^=])*=>\s*\{?/;
+    // Replaced problematic backtracking regex with a constrained linear check
+    const isArrowFnStart = (line: string) => {
+      if (!line.startsWith('export const ') && !line.startsWith('const ') && !line.startsWith('export let ') && !line.startsWith('let ')) return false;
+      const eqIdx = line.indexOf('=');
+      const arrowIdx = line.indexOf('=>', eqIdx);
+      return eqIdx > -1 && arrowIdx > eqIdx;
+    };
 
     for (let i = 0; i < lines.length; i++) {
       const trimmed = lines[i].trimStart();
-      if (fnStartRe.test(trimmed) || arrowFnRe.test(trimmed)) {
+      if (fnStartRe.test(trimmed) || isArrowFnStart(trimmed)) {
         // Walk forward counting braces to find the end
         let depth = 0;
         let foundOpen = false;

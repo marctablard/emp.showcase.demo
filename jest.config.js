@@ -253,6 +253,7 @@ const customJestConfig = {
         '**/lib/**/?(*.)+(spec|test).ts?(x)',
         '**/stores/**/?(*.)+(spec|test).ts?(x)',
         '**/app/api/**/?(*.)+(spec|test).ts?(x)',
+        '**/scripts/**/?(*.)+(spec|test).ts?(x)',
       ],
       setupFilesAfterEnv: ['<rootDir>/jest.platform.setup.js'],
       transformIgnorePatterns: ['/node_modules/(?!(next-intl|use-intl)/)'],

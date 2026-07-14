@@ -87,11 +87,20 @@ export interface SiteSwitchResult {
 
 export const NAVIGATION_REFRESH_DELAY_MS = 150;
 
+let switchFallbackCounter = 0;
+
 function generateCorrelationId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
-  return `sw-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  // Fallback for older browsers
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const arr = new Uint32Array(2);
+    crypto.getRandomValues(arr);
+    return `sw-${Date.now().toString(36)}-${arr[0].toString(36)}${arr[1].toString(36)}`;
+  }
+  switchFallbackCounter++;
+  return `sw-${Date.now().toString(36)}-${switchFallbackCounter.toString(36)}`;
 }
 
 function normalizeList(items: Array<string | { id?: string; code?: string }> | undefined): string[] {
