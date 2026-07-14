@@ -5,12 +5,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { LockKeyhole } from 'lucide-react';
 import { useApprovalCheckout } from '@/hooks/approval/useApprovalCheckout';
-import { useCartTotal } from '@/hooks/cart/useCartTotal';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
 import { useElementScroll } from '@/hooks/ui/useElementScroll';
 import { useValidator } from '@/hooks/validation/useValidator';
 import { createCheckoutApprovalContext } from '@/lib/approval/contracts';
-import { cn, formatCurrency } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { CartPriceBreakdown } from '../cart/cart-price-breakdown';
+import { PromoCodeInput } from '../cart/promo-code-input';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { Checkbox } from '../ui/checkbox';
@@ -70,7 +71,6 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
 
   const fixedContainer = useRef<HTMLDivElement>(null);
   const { isFixed, isFixedToTop, isContainerBottom } = useElementScroll(fixedContainer, 80, leftContent);
-  const { cartTotal, shippingCosts } = useCartTotal();
   if (!cart) {
     return (
       <div className="bg-surface-page p-6 rounded-md shadow-sm">
@@ -100,38 +100,14 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
           </CardHeader>
           <CardContent className="bg-surface-page rounded-md p-4">
             <div className="space-y-4">
-              <div className="flex justify-between">
-                <span className="">{t('valueOfGoods')}</span>
-                <span>{formatCurrency(cart?.subTotalPrice.amount, cart?.subTotalPrice.currency)}</span>
-              </div>
-              <div className="flex justify-between font-medium text-base pt-4 border-t border-border-primary">
-                <span>{t('netValueOfGoods')}</span>
-                <span className="font-bold">{formatCurrency(cart.tax.netValue, cart.tax.currency)}</span>
-              </div>
-              <div className="flex flex-col gap-2">
-                <div className="flex justify-between font-medium text-base">
-                  <span>{t('vat')}</span>
-                  <span>{formatCurrency(cart?.tax?.amount, cart?.tax?.currency)}</span>
-                </div>
-                <div className="flex justify-between font-medium text-base">
-                  <span>{t('shippingCosts')}</span>
-                  {shippingCosts !== undefined ? (
-                    <span>{formatCurrency(shippingCosts, cart.currency)}</span>
-                  ) : (
-                    <span>{t('calculatedAtCheckout')}</span>
-                  )}
-                </div>
-                {cart.fees && (
-                  <div className="flex justify-between font-medium text-base">
-                    <span>{t('fees')}</span>
-                    <span>{formatCurrency(cart.fees.amount, cart.fees.currency)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between font-bold text-lg">
-                  <span>{t('total')}</span>
-                  <span>{formatCurrency(cartTotal, cart.currency)}</span>
-                </div>
-              </div>
+              <PromoCodeInput translationNamespace="checkout.summary" />
+              <CartPriceBreakdown
+                cart={cart}
+                translationNamespace="checkout.summary"
+                shippingLabel={t('shippingCosts')}
+                rowClassName="font-medium text-base"
+                totalClassName="font-bold text-lg"
+              />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col p-0">

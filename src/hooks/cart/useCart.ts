@@ -18,6 +18,8 @@ interface UseCart {
   updateItemQuantity: (itemId: string, quantity: number) => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
   updateShippingInfo: (shippingAddress: CartShippingAddress, billingAddress?: CartShippingAddress) => Promise<void>;
+  applyPromoCode: (code: string) => Promise<void>;
+  removePromoCode: (code: string) => Promise<void>;
   clearCart: (options?: { deleteCart?: boolean; clearSession?: boolean }) => void;
   loadCart: (cartId: string, type?: string) => Promise<Cart | null | undefined>;
 
@@ -40,6 +42,8 @@ export const useCart = (initialCart?: Cart | null): UseCart => {
     updateItemQuantity,
     removeItem,
     updateShippingInfo,
+    applyPromoCode,
+    removePromoCode,
     clearCart,
     fetchCart,
     setCurrentCart,
@@ -80,6 +84,8 @@ export const useCart = (initialCart?: Cart | null): UseCart => {
     updateItemQuantity,
     removeItem,
     updateShippingInfo,
+    applyPromoCode,
+    removePromoCode,
     clearCart,
     refetch: async () => {
       await fetchCart(false);

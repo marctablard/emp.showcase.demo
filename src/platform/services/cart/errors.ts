@@ -8,6 +8,16 @@ export const CART_CURRENCY_UPDATE_ERROR_CODE = {
   UPSTREAM_FAILURE: 'UPSTREAM_FAILURE',
 } as const;
 
+export const PROMO_CODE_ERROR_CODE = {
+  EMPTY_CODE: 'EMPTY_CODE',
+  INVALID: 'INVALID',
+  ALREADY_APPLIED: 'ALREADY_APPLIED',
+  NOT_FOUND: 'NOT_FOUND',
+  UPSTREAM_FAILURE: 'UPSTREAM_FAILURE',
+} as const;
+
+export type PromoCodeErrorCode = (typeof PROMO_CODE_ERROR_CODE)[keyof typeof PROMO_CODE_ERROR_CODE];
+
 export type CartCurrencyUpdateErrorCode =
   (typeof CART_CURRENCY_UPDATE_ERROR_CODE)[keyof typeof CART_CURRENCY_UPDATE_ERROR_CODE];
 
@@ -27,11 +37,31 @@ export class CartCurrencyUpdateError extends Error {
   }
 }
 
+export class PromoCodeError extends Error {
+  public readonly upstreamStatus?: number;
+  public readonly upstreamBody?: string;
+
+  constructor(
+    public readonly code: PromoCodeErrorCode,
+    message: string,
+    details?: { upstreamStatus?: number; upstreamBody?: string },
+  ) {
+    super(message);
+    this.name = 'PromoCodeError';
+    this.upstreamStatus = details?.upstreamStatus;
+    this.upstreamBody = details?.upstreamBody;
+  }
+}
+
 /** Works across bundle boundaries where `instanceof` can fail for the same class. */
 export function isCartCurrencyUpdateError(error: unknown): error is CartCurrencyUpdateError {
   return (
     error instanceof CartCurrencyUpdateError || (error instanceof Error && error.name === 'CartCurrencyUpdateError')
   );
+}
+
+export function isPromoCodeError(error: unknown): error is PromoCodeError {
+  return error instanceof PromoCodeError || (error instanceof Error && error.name === 'PromoCodeError');
 }
 
 const UPSTREAM_STATUS_REGEX = /(?:\bstatus\b["':\s]+)?(400|401|403|404|409|422|500|502|503)\b/i;

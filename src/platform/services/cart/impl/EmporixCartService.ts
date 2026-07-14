@@ -11,6 +11,8 @@ import type { CartStatus, CartStatusDetailCode } from '@/platform/services/cart/
 import {
   CART_CURRENCY_UPDATE_ERROR_CODE,
   CartCurrencyUpdateError,
+  PROMO_CODE_ERROR_CODE,
+  PromoCodeError,
   extractUpstreamBody,
   extractUpstreamStatus,
 } from '@/platform/services/cart/errors';
@@ -768,6 +770,85 @@ class EmporixCartService implements CartService {
       upstreamStatus,
       upstreamBody,
     });
+  }
+
+  private mapPromoCodeError(error: unknown): PromoCodeError {
+    if (error instanceof PromoCodeError) {
+      return error;
+    }
+
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const upstreamStatus = extractUpstreamStatus(errorMessage);
+    const upstreamBody = extractUpstreamBody(errorMessage);
+    const normalizedMessage = errorMessage.toLowerCase();
+
+    if (normalizedMessage.includes('already exists')) {
+      return new PromoCodeError(PROMO_CODE_ERROR_CODE.ALREADY_APPLIED, 'Promo code already applied', {
+        upstreamStatus,
+        upstreamBody,
+      });
+    }
+
+    if (upstreamStatus === 404) {
+      return new PromoCodeError(PROMO_CODE_ERROR_CODE.NOT_FOUND, 'Promo code not found', {
+        upstreamStatus,
+        upstreamBody,
+      });
+    }
+
+    if (upstreamStatus === 400 || upstreamStatus === 409) {
+      return new PromoCodeError(PROMO_CODE_ERROR_CODE.INVALID, 'Invalid promo code', {
+        upstreamStatus,
+        upstreamBody,
+      });
+    }
+
+    return new PromoCodeError(PROMO_CODE_ERROR_CODE.UPSTREAM_FAILURE, 'Failed to apply promo code', {
+      upstreamStatus,
+      upstreamBody,
+    });
+  }
+
+  async applyPromoCode(cartId: string, code: string): Promise<Cart> {
+    const trimmedCode = code.trim();
+    if (!trimmedCode) {
+      throw new PromoCodeError(PROMO_CODE_ERROR_CODE.EMPTY_CODE, 'Promo code is required');
+    }
+
+    try {
+      await this.cartApi.applyDiscount(cartId, trimmedCode);
+      await this.refreshCartWithCleanup(cartId);
+    } catch (error) {
+      throw this.mapPromoCodeError(error);
+    }
+
+    const cart = await this.getCartById(cartId);
+    if (!cart) {
+      throw new PromoCodeError(PROMO_CODE_ERROR_CODE.NOT_FOUND, 'Cart not found');
+    }
+
+    return cart;
+  }
+
+  async removePromoCode(cartId: string, code: string): Promise<Cart> {
+    const trimmedCode = code.trim();
+    if (!trimmedCode) {
+      throw new PromoCodeError(PROMO_CODE_ERROR_CODE.EMPTY_CODE, 'Promo code is required');
+    }
+
+    try {
+      await this.cartApi.removeDiscounts(cartId, [trimmedCode]);
+      await this.refreshCartWithCleanup(cartId);
+    } catch (error) {
+      throw this.mapPromoCodeError(error);
+    }
+
+    const cart = await this.getCartById(cartId);
+    if (!cart) {
+      throw new PromoCodeError(PROMO_CODE_ERROR_CODE.NOT_FOUND, 'Cart not found');
+    }
+
+    return cart;
   }
 }
 

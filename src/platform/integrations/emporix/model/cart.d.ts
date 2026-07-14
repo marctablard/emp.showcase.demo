@@ -49,6 +49,25 @@ export interface EmporixCalculatedAppliedDiscount {
   origin: 'INTERNAL' | 'EXTERNAL';
 }
 
+export interface EmporixAppliedDiscount {
+  yrn: string;
+  discountId: string;
+  discountIndex: number;
+}
+
+export interface EmporixDiscountResponse {
+  id?: string;
+  yrn?: string;
+  couponYrn?: string;
+  code: string;
+  amount?: number;
+  currency?: string;
+  discountRate?: number;
+  name?: string;
+  discountType?: 'PERCENT' | 'ABSOLUTE' | 'FREE_SHIPPING';
+  discountCalculationType?: 'SUBTOTAL' | 'TOTAL';
+}
+
 export interface EmporixTaxInfo {
   taxRate: number;
   taxCode: string;
@@ -92,6 +111,7 @@ export interface EmporixCart {
   type?: string;
   status?: string;
   items?: CartItem[];
+  discounts?: EmporixDiscountResponse[];
   calculatedPrice?: {
     price: EmporixCartPrice;
     finalPrice: EmporixCartPrice;

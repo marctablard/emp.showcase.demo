@@ -4,9 +4,11 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import {
   addItemToCart as apiAddItemToCart,
+  applyPromoCode as apiApplyPromoCode,
   createCart as apiCreateCart,
   fetchCurrentCart as apiFetchCurrentCart,
   removeCartItem as apiRemoveCartItem,
+  removePromoCode as apiRemovePromoCode,
   updateCartCurrency as apiUpdateCartCurrency,
   updateCartItemQuantity as apiUpdateCartItemQuantity,
   updateShippingInfo as apiUpdateShippingInfo,
@@ -61,6 +63,8 @@ interface CartActions {
   updateItemQuantity: (itemId: string, quantity: number) => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
   updateShippingInfo: (shippingAddress: CartShippingAddress, billingAddress?: CartShippingAddress) => Promise<void>;
+  applyPromoCode: (code: string) => Promise<void>;
+  removePromoCode: (code: string) => Promise<void>;
   updateCurrency: (currency: string) => Promise<void>;
   clearCart: (options?: { deleteCart?: boolean; clearSession?: boolean }) => void;
 
@@ -503,6 +507,52 @@ export const createCartStore = (initState: CartState = defaultState) => {
           getLogger().error({ err }, 'Error updating shipping info');
         } finally {
           releaseNext();
+        }
+      },
+
+      applyPromoCode: async (code: string) => {
+        const { currentCart } = get();
+        if (!currentCart) {
+          await get().fetchCart();
+        }
+
+        const cart = get().currentCart;
+        if (!cart) {
+          throw new Error('No cart available');
+        }
+
+        try {
+          set({ loading: true, error: null });
+          const updatedCart = await apiApplyPromoCode(cart.id, code);
+          set({ currentCart: updatedCart, loading: false });
+        } catch (err) {
+          const error = err instanceof Error ? err : new Error('Failed to apply promo code');
+          set({ error, loading: false });
+          getLogger().error({ err }, 'Error applying promo code');
+          throw error;
+        }
+      },
+
+      removePromoCode: async (code: string) => {
+        const { currentCart } = get();
+        if (!currentCart) {
+          await get().fetchCart();
+        }
+
+        const cart = get().currentCart;
+        if (!cart) {
+          throw new Error('No cart available');
+        }
+
+        try {
+          set({ loading: true, error: null });
+          const updatedCart = await apiRemovePromoCode(cart.id, code);
+          set({ currentCart: updatedCart, loading: false });
+        } catch (err) {
+          const error = err instanceof Error ? err : new Error('Failed to remove promo code');
+          set({ error, loading: false });
+          getLogger().error({ err }, 'Error removing promo code');
+          throw error;
         }
       },
 

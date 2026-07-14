@@ -40,12 +40,17 @@ export class EmporixCartMapper implements CartMapper<EmporixCart, EmporixCartIte
       };
     }
     let tax;
-    if (emporixCart.calculatedPrice?.price) {
+    const hasDiscount = (emporixCart.calculatedPrice?.totalDiscount?.value ?? 0) > 0;
+    const taxPriceSource =
+      hasDiscount && emporixCart.calculatedPrice?.discountedPrice
+        ? emporixCart.calculatedPrice.discountedPrice
+        : emporixCart.calculatedPrice?.price;
+    if (taxPriceSource) {
       tax = {
-        amount: emporixCart.calculatedPrice.price.taxValue,
+        amount: taxPriceSource.taxValue,
         currency: emporixCart.currency,
-        netValue: emporixCart.calculatedPrice.price.netValue,
-        grossValue: emporixCart.calculatedPrice.price.grossValue,
+        netValue: taxPriceSource.netValue,
+        grossValue: taxPriceSource.grossValue,
       };
     } else {
       tax = {
@@ -74,6 +79,36 @@ export class EmporixCartMapper implements CartMapper<EmporixCart, EmporixCartIte
     } else {
       fees = undefined;
     }
+
+    let totalDiscount;
+    if (emporixCart.calculatedPrice?.totalDiscount?.value) {
+      totalDiscount = {
+        amount: emporixCart.calculatedPrice.totalDiscount.value,
+        currency: emporixCart.currency,
+      };
+    } else {
+      totalDiscount = undefined;
+    }
+
+    const appliedDiscountValues = new Map(
+      emporixCart.calculatedPrice?.totalDiscount?.appliedDiscounts?.map((discount) => [discount.id, discount.value]) ??
+        [],
+    );
+
+    const discounts =
+      emporixCart.discounts?.map((discount) => ({
+        code: discount.code,
+        name: discount.name,
+        value:
+          discount.amount ??
+          appliedDiscountValues.get(discount.code) ??
+          appliedDiscountValues.get(discount.id ?? '') ??
+          0,
+        currency: discount.currency ?? emporixCart.currency,
+        discountType: discount.discountType,
+        discountRate: discount.discountRate,
+      })) ?? undefined;
+
     return {
       id: emporixCart.id,
       customerId: emporixCart.customerId,
@@ -85,6 +120,8 @@ export class EmporixCartMapper implements CartMapper<EmporixCart, EmporixCartIte
       items: emporixCart.items?.map((item) => this.mapCartItemToService(emporixCart, item)) || [],
       shippingCosts: shippingCosts,
       fees: fees,
+      totalDiscount: totalDiscount,
+      discounts: discounts,
       totalPrice: totalPrice,
       subTotalPrice: subTotalPrice,
       tax: tax,

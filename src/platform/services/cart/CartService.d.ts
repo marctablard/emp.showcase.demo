@@ -158,4 +158,20 @@ export interface CartService {
    * @returns The mapped cart or null if not found
    */
   getCartByCriteria(siteCode: string, sessionId: string, customerId?: string, type?: string): Promise<Cart | null>;
+
+  /**
+   * Apply a promo/coupon code to the cart
+   * @param cartId The ID of the cart
+   * @param code The coupon code to apply
+   * @returns The updated cart with recalculated prices
+   */
+  applyPromoCode(cartId: string, code: string): Promise<Cart>;
+
+  /**
+   * Remove a promo/coupon code from the cart
+   * @param cartId The ID of the cart
+   * @param code The coupon code to remove
+   * @returns The updated cart with recalculated prices
+   */
+  removePromoCode(cartId: string, code: string): Promise<Cart>;
 }
