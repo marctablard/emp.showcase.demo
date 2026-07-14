@@ -1,6 +1,7 @@
 {
   "title": "Produktvergleich",
   "clear": "Vergleich zurücksetzen",
+  "close": "Vergleich schließen",
   "noSharedAttributes": "Die ausgewählten Produkte haben keine gemeinsamen Attribute.",
   "emptyState": "Ihre Vergleichsliste ist leer.",
   "emptyStateAction": "Produkte durchsuchen",

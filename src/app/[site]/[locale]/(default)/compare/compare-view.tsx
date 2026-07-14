@@ -12,15 +12,16 @@ import { useLogger } from '@/hooks/common/useLogger';
 import { useComparison } from '@/hooks/comparison/useComparison';
 import { useProducts } from '@/hooks/product/useProducts';
 import { useSession } from '@/hooks/session/useSession';
-import { Link } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import { fetchProductPrice } from '@/lib/client/prices';
 import type { ProductPrice } from '@/platform/services/model/price/price';
 
 export function CompareView() {
   const t = useTranslations('comparison');
-  const { productIds, count, removeProduct, clearComparison } = useComparison();
+  const { productIds, count, removeProduct } = useComparison();
   const { session } = useSession();
   const logger = useLogger();
+  const router = useRouter();
   const { products, loading } = useProducts(productIds);
   const productIdsKey = productIds.join(',');
   const [priceState, setPriceState] = useState<{
@@ -139,8 +140,8 @@ export function CompareView() {
           size="icon"
           variant="link"
           className="h-8 w-8 text-text-headings normal-case"
-          onClick={clearComparison}
-          aria-label={t('clear')}
+          onClick={() => router.back()}
+          aria-label={t('close')}
         >
           <X className="h-6 w-6" />
         </Button>
