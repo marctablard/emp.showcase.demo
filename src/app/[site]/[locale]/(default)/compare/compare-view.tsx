@@ -22,6 +22,16 @@ export function CompareView() {
   const { session } = useSession();
   const logger = useLogger();
   const router = useRouter();
+
+  const handleClose = () => {
+    // Prefer returning to the previous page; fall back to /browse when the compare page
+    // was opened directly (e.g. deep link / new tab) and router.back() would be a no-op.
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push('/browse');
+    }
+  };
   const { products, loading } = useProducts(productIds);
   const productIdsKey = productIds.join(',');
   const [priceState, setPriceState] = useState<{
@@ -140,7 +150,7 @@ export function CompareView() {
           size="icon"
           variant="link"
           className="h-8 w-8 text-text-headings normal-case"
-          onClick={() => router.back()}
+          onClick={handleClose}
           aria-label={t('close')}
         >
           <X className="h-6 w-6" />

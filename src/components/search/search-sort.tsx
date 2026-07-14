@@ -41,7 +41,7 @@ export function SearchSort({ availableSorts = [], currentSort, onChangeSort, cha
   };
 
   return (
-    <div className="flex w-full items-center gap-2" data-testid="search-sort-container">
+    <div className="flex w-full items-center gap-2" data-testid="search-sort">
       <Select value={selectedOptionId} onValueChange={handleSelectChange}>
         <SelectTrigger data-testid="search-sort-trigger">
           <SelectValue placeholder={t('placeholder')} />
