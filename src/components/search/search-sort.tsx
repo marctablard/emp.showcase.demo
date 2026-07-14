@@ -19,7 +19,9 @@ export function SearchSort({ availableSorts = [], currentSort, onChangeSort, cha
 
       return sort.directions.map((dir) => ({
         id: `${sort.id}:${dir}`,
-        testId: `${sort.id}-${dir}`,
+        // Sanitize to a CSS-selector-safe subset so unquoted attribute selectors in tests stay robust
+        // (sort ids can contain `:`, `.`, `{`, `}`, e.g. `_product_i18n.{locale}.name`).
+        testId: `${sort.id}-${dir}`.replace(/[^a-zA-Z0-9_-]+/g, '-'),
         displayLabel: `${label} ${t(`direction.${dir}`)}`,
       }));
     });

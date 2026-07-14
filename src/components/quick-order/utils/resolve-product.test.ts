@@ -15,7 +15,8 @@ const SITE = 'main';
 describe('resolveProductByCode', () => {
   const originalFetch = global.fetch;
   const hadWindow = typeof window !== 'undefined';
-  const originalWindow = hadWindow ? window : undefined;
+  // Snapshot the function value (not the window reference) so it survives beforeEach overwriting it.
+  const originalWindowFetch = hadWindow ? window.fetch : undefined;
 
   beforeEach(() => {
     fetchMock.mockReset();
@@ -35,9 +36,7 @@ describe('resolveProductByCode', () => {
   afterEach(() => {
     global.fetch = originalFetch;
     if (hadWindow) {
-      if (originalWindow) {
-        window.fetch = originalWindow.fetch;
-      }
+      window.fetch = originalWindowFetch as typeof fetch;
     } else {
       delete (global as unknown as { window?: unknown }).window;
     }
