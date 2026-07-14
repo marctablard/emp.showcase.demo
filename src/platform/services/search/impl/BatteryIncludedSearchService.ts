@@ -10,6 +10,7 @@ import type { SearchService } from '@/platform/services/search/SearchService';
 import type { CustomerService } from '../../customer/CustomerService';
 import type { ProductMapper } from '../../model/product/ProductMapper';
 import type { SearchSuggestions, SuggestionsMapper } from '../../model/search';
+import type { ProductService } from '../../product/ProductService';
 import type { SessionService } from '../../session';
 import type SegmentFilterService from './SegmentFilterService';
 
@@ -25,6 +26,7 @@ class BatteryIncludedSearchService implements SearchService {
   private sessionService: SessionService;
   private segmentFilterService: SegmentFilterService;
   private customerService: CustomerService;
+  private productService: ProductService;
   private logger: LoggerService;
 
   constructor(
@@ -33,6 +35,7 @@ class BatteryIncludedSearchService implements SearchService {
     @inject('SessionService') sessionService: SessionService,
     @inject('SegmentFilterService') segmentFilterService: SegmentFilterService,
     @inject('CustomerService') customerService: CustomerService,
+    @inject('ProductService') productService: ProductService,
     @inject('LoggerService') logger: LoggerService,
   ) {
     this.shopApi = shopApi;
@@ -42,6 +45,7 @@ class BatteryIncludedSearchService implements SearchService {
     this.sessionService = sessionService;
     this.segmentFilterService = segmentFilterService;
     this.customerService = customerService;
+    this.productService = productService;
     this.logger = logger;
   }
 
@@ -97,8 +101,11 @@ class BatteryIncludedSearchService implements SearchService {
         };
         return filter;
       });
+    const products = searchResult.hits.map((hit) => this.productMapper.mapToService(hit.document));
+    const enrichedProducts = await this.productService.addAdditionalData(products, { prices: true });
+
     return {
-      items: searchResult.hits.map((hit) => this.productMapper.mapToService(hit.document)),
+      items: enrichedProducts,
       page: searchResult.page - 1,
       pageSize: params.size || 10, // default
       total: searchResult.found,
@@ -120,7 +127,16 @@ class BatteryIncludedSearchService implements SearchService {
         const session = await this.sessionService.getCurrent();
         params.site = session?.siteCode;
       }
-      return this.suggestionsMapper.mapSearchSuggestions(apiResponse);
+      const suggestions = this.suggestionsMapper.mapSearchSuggestions(apiResponse);
+      if (suggestions.products.length === 0) {
+        return suggestions;
+      }
+
+      const enrichedProducts = await this.productService.addAdditionalData(suggestions.products, { prices: true });
+      return {
+        ...suggestions,
+        products: enrichedProducts,
+      };
     } catch (error) {
       this.logger.error({ err: error }, '[SearchService] Error getting suggestions');
       return {
