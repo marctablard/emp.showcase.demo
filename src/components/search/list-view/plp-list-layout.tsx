@@ -132,10 +132,11 @@ export function PlpListLayout({
   const currentCategoryName = resolvedCategoryContext.currentCategory
     ? l10nOrEmpty(resolvedCategoryContext.currentCategory.name, locale)
     : '';
-  const summaryTitle = searchQuery?.trim() ? 'Search Results' : currentCategoryName || t('allProducts');
-  const summaryDescription = resolvedCategoryContext.currentCategory
-    ? l10nOrEmpty(resolvedCategoryContext.currentCategory.description, locale)
-    : '';
+  const summaryTitle = searchQuery?.trim() ? t('searchResults') : currentCategoryName || t('allProducts');
+  const summaryDescription =
+    !searchQuery?.trim() && resolvedCategoryContext.currentCategory
+      ? l10nOrEmpty(resolvedCategoryContext.currentCategory.description, locale)
+      : '';
   const productGridHeaderNode = (
     <div className="hidden w-full justify-end min-[1024px]:flex min-[1024px]:w-[261px] min-[1024px]:shrink-0">
       <SearchSort availableSorts={availableSorts} currentSort={currentSort} changeSort={changeSort} />
