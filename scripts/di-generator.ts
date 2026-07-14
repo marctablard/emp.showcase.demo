@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 require('dotenv').config({ path: path.resolve(process.cwd(), '.env') });
 import * as ts from 'typescript';
 import type { Decorator } from 'typescript';
@@ -219,7 +219,7 @@ async function scanForInjectables(directory: string): Promise<InjectableInfo[]> 
           
           if (injectableDecorator) {
             const decoratorText = injectableDecorator.expression.getText(sourceFile);
-            const match = decoratorText.match(/injectable\(['"]([^'"]+)['"],\s*['"]([^'"]+)['"]\)/);
+            const match = /injectable\(['"]([^'"]+)['"],\s*['"]([^'"]+)['"]\)/.exec(decoratorText);
             
             if (match) {
               const serviceId = match[1];
@@ -228,7 +228,7 @@ async function scanForInjectables(directory: string): Promise<InjectableInfo[]> 
               
               // Calculate relative path for import
               const relativePath = path.relative(directory, filePath)
-                .replace(/\\/g, '/') // Convert Windows paths to Unix-style
+                .replaceAll('\\', '/') // Convert Windows paths to Unix-style
                 .replace(/\.tsx?$/, ''); // Remove file extension
               
               // Determine if this is a client-only or server-only injectable
@@ -415,7 +415,7 @@ async function generateContainerFile(
 
   const toModuleName = (relativePath: string): string =>
     path.basename(relativePath)
-      .replace(/[^a-zA-Z0-9_]/g, '_')
+      .replaceAll(/\W/g, '_')
       .replace(/^_+/, '')
       .replace(/_+$/, '');
 
@@ -468,15 +468,15 @@ async function generateContainerFile(
 
       // Build a unique module name prefixed by extension name
       const baseName = path.basename(extInjectable.relativePath)
-        .replace(/[^a-zA-Z0-9_]/g, '_')
+        .replaceAll(/\W/g, '_')
         .replace(/^_+/, '')
         .replace(/_+$/, '');
-      const uniqueName = `ext_${ext.name.replace(/[^a-zA-Z0-9_]/g, '_')}_${baseName}`;
+      const uniqueName = `ext_${ext.name.replaceAll(/\W/g, '_')}_${baseName}`;
 
       // Build the import path relative to the output file
       const outputDir = path.dirname(outputFile);
       let relImportPath = path.relative(outputDir, extInjectable.filePath)
-        .replace(/\\/g, '/')
+        .replaceAll('\\', '/')
         .replace(/\.tsx?$/, '');
       if (!relImportPath.startsWith('.')) {
         relImportPath = './' + relImportPath;
