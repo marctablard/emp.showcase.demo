@@ -237,6 +237,10 @@ export function SearchResultsComponent({
       return;
     }
 
+    if (initialResults !== undefined && urlSig === currentSearchSig) {
+      return;
+    }
+
     search({
       query,
       page: Number.isFinite(page) ? page : 0,

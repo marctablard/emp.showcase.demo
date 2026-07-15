@@ -1,7 +1,77 @@
 import BatteryIncludedSearchService from './BatteryIncludedSearchService';
 import { BATTERY_INCLUDED_DEFAULT_SORTS } from './BatteryIncludedSortResolver';
 
+jest.mock('next-intl/server', () => ({
+  getTranslations: jest.fn(async () => (key: string) => (key === 'bi.basePrice' ? 'Base Price' : key)),
+}));
+
 describe('BatteryIncludedSearchService', () => {
+  it('resolves #-prefixed facet labels via translations and leaves plain labels verbatim', async () => {
+    const shopApi = {
+      browse: jest.fn().mockResolvedValue({
+        hits: [],
+        found: 0,
+        page: 1,
+        size: 12,
+        facet_counts: [
+          {
+            field_name: '_product_siteAware.currencyAware.countryAware.price.effectiveAmount',
+            field_label: '#bi.basePrice',
+            type: 'range',
+            stats: { min: 4, max: 5900 },
+          },
+          {
+            field_name: '_product_i18n.brand.name',
+            field_label: 'Brand',
+            type: 'select',
+            counts: [{ value: 'Victron', count: 1 }],
+          },
+          {
+            field_name: '_product_i18n.unlabelled',
+            type: 'select',
+            counts: [{ value: 'X', count: 1 }],
+          },
+        ],
+      }),
+      suggest: jest.fn(),
+      getHighlights: jest.fn(),
+      getRecommendations: jest.fn(),
+      getPresets: jest.fn(),
+    };
+
+    const service = new BatteryIncludedSearchService(
+      shopApi as never,
+      { mapToService: jest.fn() } as never,
+      { getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'DE', currency: 'EUR' }) } as never,
+      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
+      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
+      { getSnapshot: jest.fn() } as never,
+      { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(['root-a']) } as never,
+      { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }) } as never,
+      {
+        trace: jest.fn(),
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        fatal: jest.fn(),
+      } as never,
+    );
+
+    const result = await service.searchProducts({ page: 0, size: 12 }, 'en', 'main');
+
+    const rangeFacet = result.batteryIncludedFacets?.find((facet) => facet.kind === 'range');
+    const brandFacet = result.batteryIncludedFacets?.find((facet) => facet.id === '_product_i18n.brand.name');
+    const unlabelledFacet = result.batteryIncludedFacets?.find((facet) => facet.id === '_product_i18n.unlabelled');
+
+    // `#bi.basePrice` is a localized-key marker -> resolved through translations.
+    expect(rangeFacet?.label).toBe('Base Price');
+    // Plain labels pass through verbatim.
+    expect(brandFacet?.label).toBe('Brand');
+    // Missing field_label falls back to field_name.
+    expect(unlabelledFacet?.label).toBe('_product_i18n.unlabelled');
+  });
+
   it('requests BI variant hits and enriches parent products with response-derived variant counts', async () => {
     const parentHit = {
       document: {
