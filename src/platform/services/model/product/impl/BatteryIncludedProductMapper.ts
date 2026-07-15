@@ -582,7 +582,9 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
         i18nSpecs.forEach((i18nSpec) => {
           if (i18nSpec && typeof i18nSpec === 'object') {
             const specObj = i18nSpec as Record<string, unknown>;
-            if (!specObj.key) {
+            // Drop pure grouping shells (only groupLabel, no key/value/label) so they do not
+            // become phantom blank specs. Keep key-less value-only specs (e.g. suggest documents).
+            if (!specObj.key && specObj.value === undefined && specObj.label === undefined) {
               return;
             }
 

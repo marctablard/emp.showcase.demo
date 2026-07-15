@@ -42,6 +42,22 @@ describe('BatteryIncludedProductMapper', () => {
     });
   });
 
+  it('drops i18n groupLabel-only shells instead of creating phantom blank specs', () => {
+    const result = mapper.mapToService({
+      id: '1',
+      _product: { id: '1', productType: 'BASIC' },
+      _product_i18n: {
+        mixins: {
+          specifications: {
+            specifications: [{ groupLabel: 'Section' }],
+          },
+        },
+      },
+    });
+
+    expect(result.specifications).toEqual([]);
+  });
+
   it('maps full-product with array-shaped specifications without modifying them', () => {
     const result = mapper.mapToService({
       id: '1',

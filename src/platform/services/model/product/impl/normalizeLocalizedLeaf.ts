@@ -1,7 +1,7 @@
-import { LocalizedString } from '@/platform/services/model/i18n';
+import type { LocalizedString } from '@/platform/services/model/common';
 
 export const normalizeLocalizedLeaf = (value: unknown, fallbackKey?: string): LocalizedString | undefined => {
-  if (!value) return fallbackKey ? { en: fallbackKey } : undefined;
+  if (value === undefined || value === null || value === '') return fallbackKey ? { en: fallbackKey } : undefined;
 
   if (Array.isArray(value)) {
     const reduced = value.reduce((acc: Record<string, string>, item: unknown) => {
