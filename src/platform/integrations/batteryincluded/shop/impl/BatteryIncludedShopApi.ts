@@ -91,6 +91,7 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
     const { query, segmentIds, variables, visibility } = params;
     const searchParams = new URLSearchParams();
     searchParams.append('q', query);
+    searchParams.append('analyze', '1');
 
     appendBatteryIncludedVisibility(searchParams, visibility ?? variables);
 

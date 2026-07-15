@@ -1314,4 +1314,68 @@ describe('BatteryIncludedProductMapper', () => {
       },
     });
   });
+
+  it('maps the analyze=1 flattened suggestion effective price (currencyAware.countryAware.price)', () => {
+    const result = mapper.mapSearchSuggestions([
+      {
+        kind: 'document',
+        hits: [
+          {
+            document: {
+              _product: { id: 'blueso-1', code: 'blueso-1', productType: 'PARENT_VARIANT' },
+              _product_i18n: { name: 'Blueso One' },
+              _product_siteAware: {
+                currencyAware: {
+                  countryAware: {
+                    price: { currency: 'EUR', effectiveAmount: 110 },
+                  },
+                },
+              },
+            },
+            highlighted: {
+              _product: { id: 'blueso-1', code: 'blueso-1', productType: 'PARENT_VARIANT' },
+              _product_i18n: { name: '<mark>Blueso</mark> One' },
+              __batteryIncludedSelection: { siteAware: 'main', currencyAware: 'EUR' },
+              _product_siteAware: {
+                currencyAware: {
+                  countryAware: {
+                    price: { currency: 'EUR', effectiveAmount: 110 },
+                  },
+                },
+              },
+            },
+          },
+          {
+            document: {
+              _product: { id: 'blueso-2', code: 'blueso-2', productType: 'PARENT_VARIANT' },
+              _product_i18n: { name: 'Blueso Two' },
+              _product_siteAware: {
+                currencyAware: {
+                  countryAware: {
+                    price: { currency: 'EUR', effectiveAmount: 40, originalAmount: 50 },
+                  },
+                },
+              },
+            },
+            highlighted: {
+              _product: { id: 'blueso-2', code: 'blueso-2', productType: 'PARENT_VARIANT' },
+              _product_i18n: { name: '<mark>Blueso</mark> Two' },
+              __batteryIncludedSelection: { siteAware: 'main', currencyAware: 'EUR' },
+              _product_siteAware: {
+                currencyAware: {
+                  countryAware: {
+                    price: { currency: 'EUR', effectiveAmount: 40, originalAmount: 50 },
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+    ]);
+
+    expect(result.products).toHaveLength(2);
+    expect(result.products[0]?.price).toMatchObject({ amount: 110, currency: 'EUR' });
+    expect(result.products[1]?.price).toMatchObject({ amount: 40, originalAmount: 50, currency: 'EUR' });
+  });
 });

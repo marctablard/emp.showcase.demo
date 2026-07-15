@@ -194,6 +194,7 @@ describe('BatteryIncludedShopApi', () => {
 
       // Verify URL parameters
       expect(url).toContain('q=pho');
+      expect(url).toContain('analyze=1');
       expect(url).toContain('v%5Blocale%5D=en');
       expect(url).toContain('v%5BsiteAware%5D=main');
       expect(url).toContain('v%5BcountryAware%5D=DE');
