@@ -262,7 +262,15 @@ class BatteryIncludedSearchService implements SearchService {
         if (!key) {
           return facet.field_name;
         }
-        return translate ? translate(key) : key;
+        if (!translate) {
+          return key;
+        }
+        // translate() may throw (e.g. missing/invalid message key); degrade to the raw key.
+        try {
+          return translate(key);
+        } catch {
+          return key;
+        }
       }
       return fieldLabel;
     }

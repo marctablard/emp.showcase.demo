@@ -99,7 +99,7 @@ describe('PlpCategoryBreadcrumbs', () => {
     expect(screen.queryByRole('link', { name: 'allProducts' })).toBeInTheDocument();
   });
 
-  it('renders a clickable All Products reset link at the root level when there are resettable params EXCEPT facets and sort', () => {
+  it('renders All Products as the current page (non-link) at the root level when there are resettable params EXCEPT facets and sort', () => {
     mockSearchParams = new URLSearchParams('currency=EUR&sort=x&filters[brand]=Victron');
     const plpCategoryContext: PlpCategoryContext = {
       ancestorTrail: [],

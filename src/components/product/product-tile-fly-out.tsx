@@ -119,7 +119,7 @@ const extractDimensions = (attributes: Record<string, string>) => {
 
 export function ProductTileFlyOut({ product, onProductClick, keyword }: ProductTileProps) {
   const t = useTranslations('product');
-  const { l10n } = useL10n();
+  const { l10n, l10nOrEmpty } = useL10n();
   const [image] = product.images || [];
   const clickable_id = clearMarkHighlights(product.id);
   return (
@@ -178,11 +178,13 @@ export function ProductTileFlyOut({ product, onProductClick, keyword }: ProductT
             // Calculate how many template attributes we can show (excluding dimensions which will be shown separately)
             const templateCount = Math.max(0, maxTotalAttributes - variantCount - (dimensionsLine ? 1 : 0));
 
-            // Extract unlabelled specifications from the normalized suggest specs to show values directly
+            // Extract unlabelled specifications from the normalized suggest specs to show values directly.
+            // l10nOrEmpty() returns '' (not the L10N_MISSING_LABEL '-' sentinel) when a locale is
+            // missing, so unlabelled specs are correctly detected and '-' placeholders never leak in.
             const specsWithoutLabel =
               product.specifications
-                ?.filter((spec) => !l10n(spec.label) && l10n(spec.value))
-                ?.map((spec) => l10n(spec.value) as string) || [];
+                ?.filter((spec) => !l10nOrEmpty(spec.label) && l10nOrEmpty(spec.value))
+                ?.map((spec) => l10nOrEmpty(spec.value)) || [];
 
             return (
               <>

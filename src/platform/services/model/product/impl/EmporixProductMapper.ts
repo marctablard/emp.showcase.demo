@@ -47,14 +47,20 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
       : undefined;
     const mappedSpecs = !Array.isArray(source.mixins?.specifications?.specifications)
       ? []
-      : source.mixins.specifications.specifications.map((spec: any) => ({
-          key: spec?.key || '',
-          label: normalizeLocalizedLeaf(spec?.label, spec?.key) || { en: spec?.key || '' },
-          value: normalizeLocalizedLeaf(spec?.value) || { en: '' },
-          ...(spec?.group ? { group: spec.group } : {}),
-          ...(spec?.groupLabel ? { groupLabel: normalizeLocalizedLeaf(spec.groupLabel) } : {}),
-          ...(spec?.unit ? { unit: normalizeLocalizedLeaf(spec.unit) } : {}),
-        }));
+      : source.mixins.specifications.specifications.map((spec: any) => {
+          // normalizeLocalizedLeaf() can return undefined for empty arrays/objects; only spread the
+          // optional props when a defined value exists so we never emit { groupLabel: undefined }.
+          const groupLabel = normalizeLocalizedLeaf(spec?.groupLabel);
+          const unit = normalizeLocalizedLeaf(spec?.unit);
+          return {
+            key: spec?.key || '',
+            label: normalizeLocalizedLeaf(spec?.label, spec?.key) || { en: spec?.key || '' },
+            value: normalizeLocalizedLeaf(spec?.value) || { en: '' },
+            ...(spec?.group ? { group: spec.group } : {}),
+            ...(groupLabel ? { groupLabel } : {}),
+            ...(unit ? { unit } : {}),
+          };
+        });
 
     // Also create a grouped version of specifications
     const groupedSpecifications = mappedSpecs.length > 0 ? this.groupSpecificationsByGroup(mappedSpecs) : [];

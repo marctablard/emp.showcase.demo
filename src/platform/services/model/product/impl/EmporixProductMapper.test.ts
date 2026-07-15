@@ -1,4 +1,3 @@
-import { EmporixProduct } from '@/platform/integrations/emporix/model/product';
 import { EmporixProductMapper } from './EmporixProductMapper';
 
 describe('EmporixProductMapper', () => {
