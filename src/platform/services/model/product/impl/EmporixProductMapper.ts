@@ -1,6 +1,5 @@
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixProduct } from '@/platform/integrations/emporix/model/product';
-import type { LocalizedString } from '@/platform/services/model/common';
 import type {
   GroupedSpecification,
   Product,
@@ -8,6 +7,7 @@ import type {
   ProductVariantAttribute,
 } from '@/platform/services/model/product';
 import type { ProductMapper } from '../ProductMapper';
+import { normalizeLocalizedLeaf } from './normalizeLocalizedLeaf';
 import { normalizeProductAttributeStringMap } from './normalizeProductAttributeStringMap';
 
 /**
@@ -42,39 +42,18 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
     const templateAttributes = normalizeProductAttributeStringMap(
       source.mixins?.productTemplateAttributes as Record<string, unknown> | undefined,
     );
-    const highlights = source.mixins?.highlights?.highlights?.map((highlight: any) => highlight.value);
-    const mappedSpecs = !source.mixins?.specifications?.specifications
+    const highlights = Array.isArray(source.mixins?.highlights?.highlights)
+      ? { en: source.mixins.highlights.highlights.map((highlight: any) => highlight?.value).filter(Boolean) }
+      : undefined;
+    const mappedSpecs = !Array.isArray(source.mixins?.specifications?.specifications)
       ? []
-      : source.mixins?.specifications?.specifications.map((spec: any) => ({
-          key: spec.key,
-          group: spec.group,
-          groupLabel: spec.groupLabel
-            ? spec.groupLabel.reduce((acc: LocalizedString, item: any) => {
-                acc[item.language] = item.value;
-                return acc;
-              }, {} as any)
-            : {},
-          label:
-            spec.label && Array.isArray(spec.label)
-              ? spec.label.reduce((acc: LocalizedString, item: any) => {
-                  acc[item.language] = item.value;
-                  return acc;
-                }, {} as any)
-              : { en: spec.key || '' },
-          value:
-            spec.value && Array.isArray(spec.value)
-              ? spec.value.reduce((acc: LocalizedString, item: any) => {
-                  acc[item.language] = item.value;
-                  return acc;
-                }, {} as any)
-              : { en: '' },
-          ...(spec.unit &&
-            Array.isArray(spec.unit) && {
-              unit: spec.unit.reduce((acc: LocalizedString, item: any) => {
-                acc[item.language] = item.value;
-                return acc;
-              }, {} as any),
-            }),
+      : source.mixins.specifications.specifications.map((spec: any) => ({
+          key: spec?.key || '',
+          label: normalizeLocalizedLeaf(spec?.label, spec?.key) || { en: spec?.key || '' },
+          value: normalizeLocalizedLeaf(spec?.value) || { en: '' },
+          ...(spec?.group ? { group: spec.group } : {}),
+          ...(spec?.groupLabel ? { groupLabel: normalizeLocalizedLeaf(spec.groupLabel) } : {}),
+          ...(spec?.unit ? { unit: normalizeLocalizedLeaf(spec.unit) } : {}),
         }));
 
     // Also create a grouped version of specifications

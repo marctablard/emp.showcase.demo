@@ -572,23 +572,50 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
 
     if (i18nMixins?.specifications) {
       const i18nSpecs = (i18nMixins.specifications as Record<string, unknown>).specifications;
+      const rootSpecsObj = mergedMixins.specifications as Record<string, unknown> | undefined;
+      const rootSpecs = rootSpecsObj?.specifications;
+
       if (Array.isArray(i18nSpecs)) {
-        // String to localized-array normalization
-        const normalizedSpecs = i18nSpecs.map((spec) => {
-          if (spec && typeof spec === 'object') {
-            const specObj = spec as Record<string, unknown>;
-            if (typeof specObj.value === 'string') {
-              return {
-                ...specObj,
-                value: [{ language: 'en', value: specObj.value }],
-              };
+        // Merge root specifications with i18n specifications
+        const mergedSpecsTemp = Array.isArray(rootSpecs) ? [...rootSpecs] : [];
+
+        i18nSpecs.forEach((i18nSpec) => {
+          if (i18nSpec && typeof i18nSpec === 'object') {
+            const specObj = i18nSpec as Record<string, unknown>;
+            if (!specObj.key) {
+              return;
             }
+
+            const existingSpecIndex = mergedSpecsTemp.findIndex(
+              (s) => s && typeof s === 'object' && s.key && s.key === specObj.key,
+            );
+
+            // Normalize the i18n value as it can be a plain string
+            const normalizedSpec = { ...specObj };
+            if (typeof specObj.value === 'string') {
+              normalizedSpec.value = [{ language: 'en', value: specObj.value }];
+            }
+
+            if (existingSpecIndex !== -1) {
+              // Merge if we match by key
+              mergedSpecsTemp[existingSpecIndex] = {
+                ...mergedSpecsTemp[existingSpecIndex],
+                ...normalizedSpec,
+              };
+            } else {
+              mergedSpecsTemp.push(normalizedSpec);
+            }
+          } else {
+            mergedSpecsTemp.push(i18nSpec);
           }
-          return spec;
         });
-        mergedMixins.specifications = { specifications: normalizedSpecs };
+
+        mergedMixins.specifications = { specifications: mergedSpecsTemp };
       } else {
-        mergedMixins.specifications = i18nMixins.specifications;
+        // If i18n isn't array, gently assign if base didn't exist or just let it pass
+        if (!mergedMixins.specifications) {
+          mergedMixins.specifications = i18nMixins.specifications;
+        }
       }
     }
 

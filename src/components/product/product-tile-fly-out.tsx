@@ -181,8 +181,8 @@ export function ProductTileFlyOut({ product, onProductClick, keyword }: ProductT
             // Extract unlabelled specifications from the normalized suggest specs to show values directly
             const specsWithoutLabel =
               product.specifications
-                ?.filter((spec) => !spec.label?.en && spec.value?.en)
-                ?.map((spec) => spec.value.en) || [];
+                ?.filter((spec) => !l10n(spec.label) && l10n(spec.value))
+                ?.map((spec) => l10n(spec.value) as string) || [];
 
             return (
               <>
