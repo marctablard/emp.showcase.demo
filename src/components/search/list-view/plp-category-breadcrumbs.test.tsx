@@ -99,7 +99,7 @@ describe('PlpCategoryBreadcrumbs', () => {
     expect(screen.queryByRole('link', { name: 'allProducts' })).toBeInTheDocument();
   });
 
-  it('renders a clickable All Products reset link at the root level when there are resettable params', () => {
+  it('renders a clickable All Products reset link at the root level when there are resettable params EXCEPT facets and sort', () => {
     mockSearchParams = new URLSearchParams('currency=EUR&sort=x&filters[brand]=Victron');
     const plpCategoryContext: PlpCategoryContext = {
       ancestorTrail: [],
@@ -112,9 +112,8 @@ describe('PlpCategoryBreadcrumbs', () => {
     render(<PlpCategoryBreadcrumbs plpCategoryContext={plpCategoryContext} locale="en" />);
 
     expect(screen.getByRole('link', { name: 'homeLink' })).toHaveAttribute('href', '/');
-    const allProductsLink = screen.getByRole('link', { name: 'allProducts' });
-    expect(allProductsLink).toHaveAttribute('href', '/browse?currency=EUR');
-    expect(allProductsLink.closest('li')).not.toHaveAttribute('aria-current');
+    const allProductsLink = screen.getByText('allProducts');
+    expect(allProductsLink.closest('li')).toHaveAttribute('aria-current', 'page');
   });
 
   it('does not render the missing-label placeholder for category breadcrumbs', () => {

@@ -28,9 +28,7 @@ export function PlpCategoryBreadcrumbs({ plpCategoryContext, locale }: PlpCatego
     ? [...plpCategoryContext.ancestorTrail, { kind: 'category' as const, category: plpCategoryContext.currentCategory }]
     : [];
 
-  const hasResettableParams = Array.from(searchParams?.keys() ?? []).some(
-    (key) => key.startsWith('filters[') || key.startsWith('f[') || key === 'sort' || key === 'q',
-  );
+  const hasSearchPhrase = !!searchParams?.get('q');
 
   return (
     <nav aria-label={tSearch('allProducts')} className="w-full" data-testid="plp-category-breadcrumbs">
@@ -45,7 +43,7 @@ export function PlpCategoryBreadcrumbs({ plpCategoryContext, locale }: PlpCatego
             <li className="inline-flex items-center text-text-placeholders" aria-hidden="true">
               <ChevronRight className="size-4" />
             </li>
-            {hasResettableParams ? (
+            {hasSearchPhrase ? (
               <li className="contents">
                 <PlpPendingLink
                   href={buildBrowseHrefResetAll(searchParams)}
@@ -86,15 +84,19 @@ export function PlpCategoryBreadcrumbs({ plpCategoryContext, locale }: PlpCatego
                       >
                         {tSearch('allProducts')}
                       </PlpPendingLink>
-                      <span className="inline-flex items-center text-text-placeholders" aria-hidden="true">
-                        <ChevronRight className="size-4" />
-                      </span>
-                      <PlpPendingLink
-                        href={buildBrowseHrefClearCategory(searchParams)}
-                        className="inline-flex items-center font-bold text-text-action underline hover:text-text-action-hover"
-                      >
-                        {tSearch('searchResults')}
-                      </PlpPendingLink>
+                      {hasSearchPhrase && (
+                        <>
+                          <span className="inline-flex items-center text-text-placeholders" aria-hidden="true">
+                            <ChevronRight className="size-4" />
+                          </span>
+                          <PlpPendingLink
+                            href={buildBrowseHrefClearCategory(searchParams)}
+                            className="inline-flex items-center font-bold text-text-action underline hover:text-text-action-hover"
+                          >
+                            {tSearch('searchResults')}
+                          </PlpPendingLink>
+                        </>
+                      )}
                     </>
                   )
                 ) : isLast ? (
