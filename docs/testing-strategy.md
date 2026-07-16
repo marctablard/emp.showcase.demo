@@ -36,9 +36,16 @@ Unit and integration tests are located alongside the code they test, following a
 
 ### End-to-End Tests (Playwright)
 
-E2E tests are located in the `/e2e` directory at the root of the project. Each test file focuses on a specific feature or user flow:
+E2E tests are located in the `/e2e` directory at the root of the project.
+
+- Root-level specs in `/e2e` are the default environment-agnostic suite and must not depend on tenant-specific env vars or seeded data.
+- Specs in `/e2e/local` are opt-in local tests for tenant/data-dependent scenarios and are excluded from `npm run e2e` by default.
+- Tracked `*.local.spec.ts` files are committed local-only scenarios that stay out of `npm run e2e`; `e2e/auth-site-sync.local.spec.ts` bootstraps shopper auth through a guarded local route instead of browser credentials, requires `NEXT_E2E_LOCAL_AUTH_BOOTSTRAP_TOKEN`, and runs on a dedicated localhost lane so it does not collide with the default dev server.
+
+Current default-suite examples:
 
 - `e2e/homepage.spec.ts` - Tests for homepage functionality and locale redirects
+- `e2e/login-dialog-register.spec.ts` - Tests the login dialog to registration flow
 
 ## Dependency Injection in Tests
 
@@ -127,27 +134,21 @@ The project includes a sample E2E test that verifies locale handling:
 // e2e/homepage.spec.ts
 import { expect, test } from '@playwright/test';
 
-test('German homepage (/de) loads correctly', async ({ page }) => {
-  // Navigate to the German homepage
-  await page.goto('/de');
+test('Root URL (/) loads the homepage using the active default locale', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
 
-  await page.waitForLoadState('networkidle');
   await expect(page.locator('header > div').first()).toBeVisible();
-
-  // Check that we're on the German version by looking for German Locale
-  const htmlLang = await page.getAttribute('html', 'lang');
-  expect(htmlLang).toBe('de');
+  await expect(page.locator('html')).toHaveAttribute('lang', /.+/);
 });
 
-test('Default locale (/en) redirects to root (/)', async ({ page }) => {
-  // Navigate to the English homepage
-  await page.goto('/en');
+test('Current default-locale path resolves to the same homepage locale as root', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  const defaultLocale = await page.locator('html').getAttribute('lang');
 
-  // Wait for any redirects to complete
-  await page.waitForURL('/');
+  await page.goto(`/${defaultLocale}`, { waitUntil: 'domcontentloaded' });
 
-  // Verify we've been redirected to the root URL
-  expect(page.url()).toContain('/');
+  await expect(page.locator('header > div').first()).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('lang', defaultLocale ?? '');
 });
 ```
 
@@ -179,11 +180,15 @@ npm run jest:coverage
 To run Playwright tests, use the following commands:
 
 ```bash
-# Run all Playwright tests
+# Run the default environment-agnostic Playwright suite
 npm run e2e
 
-# Run tests in a specific browser
-npm run e2e:chromium
+# Run tracked local-only Playwright tests (`*.local.spec.ts`). Set `NEXT_E2E_LOCAL_AUTH_BOOTSTRAP_TOKEN` in `.env` first for the auth bootstrap scenario.
+npm run e2e:local
+
+# Run the credential-free local auth/site sync spec explicitly.
+# The script uses localhost:3100 so it can run while localhost:3000 is already in use.
+npm run e2e:auth-sync
 
 # Run tests with UI mode for debugging
 npm run e2e:ui
@@ -224,3 +229,10 @@ Both Jest and Playwright tests are configured to run in the CI pipeline. The con
 The testing strategy implemented in the Emporix Showcase project provides comprehensive coverage from unit testing through end-to-end testing. By using Jest for component and logic testing and Playwright for E2E testing, we ensure the application works correctly at all levels.
 
 For more information about the dependency injection system used in tests, refer to the [Dependency Injection Documentation](./dependency-injection.md).
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Testing Guide](./testing-guide.md)
+- [Dependency Injection](./dependency-injection.md)
+- [Deployment Process](./deployment-process.md)

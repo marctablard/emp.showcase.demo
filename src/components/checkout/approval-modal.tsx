@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,7 @@ interface ApprovalModalProps {
 export function ApprovalModal({ isOpen, onClose, resourceContext, approvalSubmit }: ApprovalModalProps) {
   const t = useTranslations('checkout.approval');
   const { toast } = useToast();
+  const commentRef = useRef<HTMLTextAreaElement | null>(null);
 
   const { approvers, loading, error, refetch } = useApproverSearch({
     resourceType: resourceContext.resourceType,
@@ -73,7 +74,14 @@ export function ApprovalModal({ isOpen, onClose, resourceContext, approvalSubmit
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent
+        className="sm:max-w-[500px]"
+        aria-describedby={undefined}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          commentRef.current?.focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{t('selectApprover')}</DialogTitle>
         </DialogHeader>
@@ -129,6 +137,7 @@ export function ApprovalModal({ isOpen, onClose, resourceContext, approvalSubmit
         <div className="space-y-2">
           <Label htmlFor="approval-comment">{t('comment')}</Label>
           <Textarea
+            ref={commentRef}
             id="approval-comment"
             placeholder={t('commentPlaceholder')}
             value={comment}

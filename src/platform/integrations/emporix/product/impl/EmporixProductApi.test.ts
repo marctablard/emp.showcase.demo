@@ -7,6 +7,16 @@ import { EmporixProduct, EmporixSearchParams } from '../../model';
 import EmporixOAuthApi from '../../oauth/impl/EmporixOAuthApi';
 import EmporixProductApi from './EmporixProductApi';
 
+
+
+
+
+
+
+
+
+
+
 // Create a test config implementation
 class TestEmporixConfig implements EmporixConfig {
   baseUrl: string = process.env.NEXT_EMPORIX_TEST_BASE_URL || 'https://api.emporix.io';
@@ -138,12 +148,32 @@ describe('EmporixProductApi', () => {
       expect(result.description).toEqual(sampleSingleProduct.description);
     });
 
-    it('should handle errors when fetching a product', async () => {
+    it('should return undefined when the product is not found', async () => {
       // Setup mocks
       const productId = 'non-existent-product';
       const result = await productApi.getProduct(productId);
       // Execute and assert
       expect(result).toBeUndefined();
+    });
+
+    it('should return undefined when the product is forbidden for the public token', async () => {
+      const productId = 'forbidden-product';
+      (apiInvoker.authenticatedFetch as jest.Mock).mockResolvedValueOnce(
+        new Response(null, { status: 403, statusText: 'Forbidden' }),
+      );
+
+      const result = await productApi.getProduct(productId);
+
+      expect(result).toBeUndefined();
+    });
+
+    it('should throw for unexpected error statuses', async () => {
+      const productId = 'errored-product';
+      (apiInvoker.authenticatedFetch as jest.Mock).mockResolvedValueOnce(
+        new Response(null, { status: 500, statusText: 'Internal Server Error' }),
+      );
+
+      await expect(productApi.getProduct(productId)).rejects.toThrow('Failed to get product: Internal Server Error');
     });
   });
 

@@ -11,6 +11,7 @@ import { useSearch } from '@/hooks/search/useSearch';
 import { useToast } from '@/hooks/ui/useToast';
 import { fetchProductAvailability } from '@/lib/client/availability';
 import { fetchProductPrice } from '@/lib/client/prices';
+import { clearMarkHighlights } from '@/lib/common/clear-mark-highlights';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
 import type { Product } from '@/platform/services/model/product';
@@ -78,17 +79,25 @@ export function QuickOrderSearch({ onAddProducts }: QuickOrderSearchProps) {
 
   const handleSelect = useCallback(
     async (product: Product) => {
+      const plainProductId = clearMarkHighlights(product.id);
+      const plainProductSku = clearMarkHighlights(product.sku ?? '');
+      const sanitizedProduct = {
+        ...product,
+        id: plainProductId,
+        sku: plainProductSku || product.sku,
+      };
+
       setQuery('');
       setShowDropdown(false);
       setHasSearched(false);
       setHighlightedIndex(-1);
 
       try {
-        const price = await fetchProductPrice(product.id, undefined, undefined, sessionCurrency);
+        const price = await fetchProductPrice(plainProductId, undefined, undefined, sessionCurrency);
         if (!price) {
           toast({
             title: t('notifications.productsCouldNotBeAdded', { count: 1 }),
-            description: product.sku ?? product.id,
+            description: plainProductSku || plainProductId,
             variant: 'destructive',
             persistent: true,
           });
@@ -97,9 +106,9 @@ export function QuickOrderSearch({ onAddProducts }: QuickOrderSearchProps) {
         }
 
         // Check availability
-        const code = product.sku ?? product.id;
+        const code = plainProductSku || plainProductId;
         try {
-          const availability = await fetchProductAvailability(product.id);
+          const availability = await fetchProductAvailability(plainProductId);
           if (!availability.isAvailable || availability.availableQuantity <= 0) {
             toast({
               title: t('notifications.insufficientStock', {
@@ -116,12 +125,12 @@ export function QuickOrderSearch({ onAddProducts }: QuickOrderSearchProps) {
           // If availability check fails, allow the product through
         }
 
-        onAddProducts([{ product: { ...product, price }, quantity: 1 }]);
+        onAddProducts([{ product: { ...sanitizedProduct, price }, quantity: 1 }]);
       } catch (err) {
-        logger.error({ err, productId: product.id }, 'Failed to fetch price for selected product');
+        logger.error({ err, productId: plainProductId }, 'Failed to fetch price for selected product');
         toast({
           title: t('notifications.productsCouldNotBeAdded', { count: 1 }),
-          description: product.sku ?? product.id,
+          description: plainProductSku || plainProductId,
           variant: 'destructive',
           persistent: true,
         });

@@ -9,8 +9,14 @@ describe('Common Utilities', () => {
         page: 2,
         size: 15,
         sort: 'price:desc',
+        variants: 0,
         locale: 'en',
+        analyze: 1,
         preset: 'popular-products',
+        variables: {
+          siteAware: 'main',
+          countryAware: 'DE',
+        },
         filters: {
           'attributes.brand': ['Samsung', 'Apple'],
           categories: 'Electronics > Phones',
@@ -24,7 +30,11 @@ describe('Common Utilities', () => {
       expect(result).toContain('page=2');
       expect(result).toContain('per_page=15');
       expect(result).toContain('sort=price%3Adesc');
+      expect(result).toContain('variants=0');
+      expect(result).toContain('analyze=1');
       expect(result).toContain('v%5Blocale%5D=en');
+      expect(result).toContain('v%5BsiteAware%5D=main');
+      expect(result).toContain('v%5BcountryAware%5D=DE');
       expect(result).toContain('preset=popular-products');
 
       // Check that array filters are handled correctly
@@ -53,6 +63,83 @@ describe('Common Utilities', () => {
 
       // Check that default pagination is included
       expect(result).toBe('page=1&per_page=10');
+    });
+
+    it('should preserve the grounded bootstrap contract', () => {
+      const params: BatteryIncludedSearchParams<any> = {
+        query: '',
+        page: 0,
+        size: 0,
+        variants: 0,
+        analyze: 1,
+        variables: {
+          locale: 'en',
+          siteAware: 'main',
+          countryAware: 'DE',
+        },
+      };
+
+      const result = buildSearchParams(params);
+
+      expect(result).toBe(
+        'q=&page=0&per_page=0&variants=0&analyze=1&v%5Blocale%5D=en&v%5BsiteAware%5D=main&v%5BcountryAware%5D=DE',
+      );
+    });
+
+    it('should serialize variants exactly once when explicitly requested', () => {
+      const params: BatteryIncludedSearchParams<any> = {
+        query: 'panel',
+        variants: 0,
+      };
+
+      const result = buildSearchParams(params);
+
+      expect(result.match(/variants=0/g)).toHaveLength(1);
+    });
+
+    it('should serialize the explicit BI visibility hard filters in the existing GET shape', () => {
+      const params = {
+        filters: {
+          '_product.published': true,
+          '_product.categoryIds': ['root-a', 'root-b'],
+        },
+      } as BatteryIncludedSearchParams<any>;
+
+      const result = buildSearchParams(params);
+
+      expect(result).toContain('f%5B_product.published%5D=true');
+      expect(result).toContain('f%5B_product.categoryIds%5D%5B%5D=root-a');
+      expect(result).toContain('f%5B_product.categoryIds%5D%5B%5D=root-b');
+    });
+
+    it('should serialize the explicit visibility contract once without duplicating legacy filters', () => {
+      const params = {
+        query: 'phone',
+        variables: {
+          siteAware: 'legacy-site',
+        },
+        filters: {
+          brand: 'legacy-brand',
+        },
+        visibility: {
+          variables: {
+            locale: 'en',
+            siteAware: 'main',
+          },
+          filters: {
+            '_product.published': 'true',
+            '_product.categoryIds': ['root-a', 'root-b'],
+          },
+        },
+      } as BatteryIncludedSearchParams<any>;
+
+      const result = buildSearchParams(params);
+
+      expect(result.match(/v%5BsiteAware%5D=main/g)).toHaveLength(1);
+      expect(result.match(/f%5B_product.published%5D=true/g)).toHaveLength(1);
+      expect(result.match(/f%5B_product.categoryIds%5D%5B%5D=root-a/g)).toHaveLength(1);
+      expect(result.match(/f%5B_product.categoryIds%5D%5B%5D=root-b/g)).toHaveLength(1);
+      expect(result).not.toContain('legacy-brand');
     });
   });
 });

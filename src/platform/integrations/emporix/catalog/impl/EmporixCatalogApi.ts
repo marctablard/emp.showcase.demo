@@ -2,6 +2,7 @@ import { inject } from 'inversify';
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import { DEFAULT_CACHE_REVALIDATE } from '../../common/cache-defaults';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import { buildPaginatedResponse, buildSearchQuery } from '../../common/util/common';
@@ -10,18 +11,44 @@ import type { EmporixCatalog, EmporixPaginatedResponse, EmporixSearchParams } fr
 import type { EmporixCatalogApi as IEmporixCatalogApi } from '../EmporixCatalogApi';
 
 const createCatalogMetrics = (route: string) => createFetchMetricsParams('catalog', route);
+const CATEGORY_ID_PREVIEW_LIMIT = 20;
+
+function buildCategoryIdPreview(catalogs: EmporixCatalog[]): string[] {
+  const preview: string[] = [];
+
+  for (const catalog of catalogs) {
+    for (const categoryId of catalog.categoryIds ?? []) {
+      preview.push(categoryId);
+      if (preview.length >= CATEGORY_ID_PREVIEW_LIMIT) {
+        return preview;
+      }
+    }
+  }
+
+  return preview;
+}
 
 @injectable('EmporixCatalogApi', 'Singleton')
 class EmporixCatalogApi implements IEmporixCatalogApi {
   constructor(
     @inject('EmporixApiInvoker') protected apiClient: EmporixApiClient,
     @inject('EmporixConfig') protected config: EmporixConfig,
+    @inject('LoggerService') private logger: LoggerService,
   ) {}
 
   async getCatalogs(params: EmporixSearchParams<any>): Promise<EmporixPaginatedResponse<EmporixCatalog>> {
     const { body: _body, query } = buildSearchQuery(params, true);
+    const path = `/catalog/${this.config.tenant}/catalogs`;
+    this.logger.info(
+      {
+        path,
+        query,
+        criteria: params.criteria,
+      },
+      'Emporix catalogs request',
+    );
     const response = await this.apiClient.authenticatedFetch(
-      `/catalog/${this.config.tenant}/catalogs?${query}`,
+      `${path}?${query}`,
       { method: 'GET', headers: { 'X-Total-Count': 'true' } },
       'public',
       undefined,
@@ -29,7 +56,18 @@ class EmporixCatalogApi implements IEmporixCatalogApi {
       DEFAULT_CACHE_REVALIDATE,
     );
 
-    return buildPaginatedResponse(params, response);
+    const result = await buildPaginatedResponse<EmporixCatalog>(params, response);
+    this.logger.info(
+      {
+        path,
+        itemCount: result.items.length,
+        total: result.total,
+        page: result.page,
+        categoryIdPreview: buildCategoryIdPreview(result.items),
+      },
+      'Emporix catalogs response',
+    );
+    return result;
   }
 
   async getCatalog(id: string): Promise<EmporixCatalog | null> {

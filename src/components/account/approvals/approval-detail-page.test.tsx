@@ -60,7 +60,9 @@ jest.mock('@/lib/ssr/seo', () => ({
   getPageTitle: jest.fn(),
 }));
 
-const { default: ApprovalDetailPage } = require('@/app/[site]/[locale]/(default)/account/approvals/[id]/page');
+const {
+  default: ApprovalDetailPage,
+} = require('@/app/[site]/[locale]/(nav-shell)/(default)/account/approvals/[id]/page');
 
 describe('Approval requester detail page', () => {
   beforeEach(() => {

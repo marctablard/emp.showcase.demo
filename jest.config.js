@@ -69,23 +69,17 @@ const hasEmporixTestConfig = Boolean(
     process.env.NEXT_EMPORIX_TEST_CLIENT_ID &&
     process.env.NEXT_EMPORIX_TEST_CLIENT_SECRET,
 );
-const hasBatteryIncludedConfig = Boolean(
-  process.env.NEXT_PUBLIC_BATTERY_INCLUDED_API_KEY && process.env.NEXT_PUBLIC_BATTERY_INCLUDED_COLLECTION,
-);
 const runIntegrationTests = isCi || process.env.RUN_INTEGRATION_TESTS === 'true';
 const skipEmporixIntegrationTests = !runIntegrationTests || !hasEmporixTestConfig;
-const skipBatteryIncludedTests = !runIntegrationTests || !hasBatteryIncludedConfig;
 
 console.log('[jest] RUN_INTEGRATION_TESTS:', process.env.RUN_INTEGRATION_TESTS);
 console.log('[jest] Emporix config present:', hasEmporixTestConfig);
-console.log('[jest] BatteryIncluded config present:', hasBatteryIncludedConfig);
 if (!isCi) {
   console.log('[jest] env file source:', envPath);
 }
 
 const integrationTestIgnorePatterns = [
   ...(skipEmporixIntegrationTests ? ['src/platform/integrations/emporix/.*/impl/.*\\.test\\.(ts|tsx)$'] : []),
-  ...(skipBatteryIncludedTests ? ['src/platform/integrations/batteryincluded/.*/impl/.*\\.test\\.(ts|tsx)$'] : []),
 ];
 
 const commonJestConfig = {
@@ -179,11 +173,32 @@ const customJestConfig = {
       testEnvironment: 'node',
       testMatch: ['**/components/**/?(*.)+(spec|test).ts?(x)'],
       setupFilesAfterEnv: ['<rootDir>/jest.platform.setup.js'],
+      transformIgnorePatterns: ['/node_modules/(?!(next-intl|use-intl)/)'],
       transform: {
         '^.+\\.tsx?$': [
           'ts-jest',
           {
             tsconfig: 'tsconfig.json',
+          },
+        ],
+        '^.+\\.(js|jsx)$': [
+          '@swc/jest',
+          {
+            jsc: {
+              parser: {
+                syntax: 'ecmascript',
+                jsx: true,
+              },
+              transform: {
+                react: {
+                  runtime: 'automatic',
+                },
+              },
+              target: 'es2017',
+            },
+            module: {
+              type: 'es6',
+            },
           },
         ],
       },
@@ -199,11 +214,32 @@ const customJestConfig = {
       testEnvironment: 'node',
       testMatch: ['**/platform/**/?(*.)+(spec|test).ts?(x)'],
       setupFilesAfterEnv: ['<rootDir>/jest.platform.setup.js'],
+      transformIgnorePatterns: ['/node_modules/(?!(next-intl|use-intl)/)'],
       transform: {
         '^.+\\.tsx?$': [
           'ts-jest',
           {
             tsconfig: 'tsconfig.json',
+          },
+        ],
+        '^.+\\.(js|jsx)$': [
+          '@swc/jest',
+          {
+            jsc: {
+              parser: {
+                syntax: 'ecmascript',
+                jsx: true,
+              },
+              transform: {
+                react: {
+                  runtime: 'automatic',
+                },
+              },
+              target: 'es2017',
+            },
+            module: {
+              type: 'es6',
+            },
           },
         ],
       },
@@ -219,11 +255,49 @@ const customJestConfig = {
         '**/app/api/**/?(*.)+(spec|test).ts?(x)',
       ],
       setupFilesAfterEnv: ['<rootDir>/jest.platform.setup.js'],
+      transformIgnorePatterns: ['/node_modules/(?!(next-intl|use-intl)/)'],
       transform: {
-        '^.+\\.tsx?$': [
-          'ts-jest',
+        '^.+\\.(ts|tsx)$': [
+          '@swc/jest',
           {
-            tsconfig: 'tsconfig.json',
+            jsc: {
+              parser: {
+                syntax: 'typescript',
+                decorators: true,
+                tsx: true,
+              },
+              transform: {
+                react: {
+                  runtime: 'automatic',
+                },
+                legacyDecorator: true,
+                decoratorMetadata: true,
+              },
+              target: 'es2017',
+            },
+            module: {
+              type: 'es6',
+            },
+          },
+        ],
+        '^.+\\.(js|jsx)$': [
+          '@swc/jest',
+          {
+            jsc: {
+              parser: {
+                syntax: 'ecmascript',
+                jsx: true,
+              },
+              transform: {
+                react: {
+                  runtime: 'automatic',
+                },
+              },
+              target: 'es2017',
+            },
+            module: {
+              type: 'es6',
+            },
           },
         ],
       },

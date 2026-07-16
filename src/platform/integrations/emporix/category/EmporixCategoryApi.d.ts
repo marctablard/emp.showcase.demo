@@ -4,10 +4,17 @@ import {
   EmporixCategoryAssignmentQuery,
   EmporixCategoryParent,
   EmporixCategorySubcategory,
+  EmporixCategoryTree,
   EmporixPaginatedResponse,
 } from '../model';
 
 export interface EmporixCategoryQuery {
+  /**
+   * Search query for the Category Service (`q` parameter), e.g. `id:(uuid1,uuid2)` per
+   * https://developer.emporix.io/api-references/standard-practices/q-param
+   */
+  q?: string;
+
   /**
    * If set to true, only root categories (categories without parents) are retrieved.
    * Default: false
@@ -97,6 +104,15 @@ export interface EmporixCategoryApi {
   getCategories(query?: EmporixCategoryQuery): Promise<EmporixPaginatedResponse<EmporixCategory>>;
 
   /**
+   * Resolves catalog-assigned category ids via GET /categories with {@link EmporixCategoryQuery.q}
+   * `id:(id1,id2,…)` (works when ids are not category-tree roots).
+   */
+  getCategoriesByIds(
+    categoryIds: string[],
+    options?: { showRoots?: boolean; showUnpublished?: boolean; pageSize?: number },
+  ): Promise<EmporixCategory[]>;
+
+  /**
    * Retrieves a specific category by its ID.
    * @param categoryId The category ID to retrieve
    * @returns The category data or null if not found
@@ -147,6 +163,25 @@ export interface EmporixCategoryApi {
    * @returns The category tree data or undefined if not found
    */
   getCategoryTree(categoryId: string, showUnpublished?: boolean): Promise<EmporixCategory | undefined>;
+
+  /**
+   * Retrieves category trees for the given category ids (GET /category/{tenant}/category-trees?categoryIds=...).
+   * @param categoryIds Category UUIDs (repeated query keys upstream). Empty array skips the HTTP call and returns [].
+   * @param showUnpublished When true, requires service token + category_read_unpublished scope
+   */
+  getCategoryTrees(categoryIds: string[], showUnpublished?: boolean): Promise<EmporixCategoryTree[]>;
+
+  /**
+   * All category trees for the tenant (GET /category/{tenant}/category-trees with no categoryIds filter).
+   * @see https://developer.emporix.io/api-references/api-guides/catalogs-and-categories/category-tree/category
+   */
+  getAllCategoryTrees(showUnpublished?: boolean): Promise<EmporixCategoryTree[]>;
+
+  /**
+   * Returns category trees that contain at least one of the given category ids
+   * (POST /category/{tenant}/category-trees/search). Published trees only (public token).
+   */
+  searchCategoryTreesForCategoryIds(categoryIds: string[]): Promise<EmporixCategoryTree[]>;
 
   /**
    * Retrieves resources (such as products) assigned to a specified category.

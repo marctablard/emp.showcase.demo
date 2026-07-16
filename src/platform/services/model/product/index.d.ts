@@ -61,6 +61,8 @@ export interface Product {
     name?: string | LocalizedString;
     logo?: Media;
   };
+  isParentVariant?: boolean;
+  variantCount?: number;
   parentVariantId?: string;
   primaryCategory?: Category;
   categories?: Category[];

@@ -290,7 +290,7 @@ class EmporixApiInvokerSSR {
 
   async fetch(url: string, options: RequestInit = {}): Promise<Response> {
     url = `${this.config.baseUrl}/${url}`;
-    const ctx: DebugContext = { callType: 'external' };
+    const ctx: DebugContext = { callType: 'external', source: 'ssr' };
     const prefix = buildAndLogCurl(url, options, ctx);
     logRequestPayload(url, options, prefix, ctx);
     const responsePromise = fetch(url, options);

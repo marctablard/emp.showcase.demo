@@ -22,10 +22,9 @@ import { useL10n } from '@/hooks/useL10n';
 import { useWishlistAddWithAuth } from '@/hooks/wishlist/useWishlistAddWithAuth';
 import { type ProductTemplateAttributeKey, dk } from '@/i18n/dynamic-key';
 import { Link } from '@/i18n/navigation';
-import { getPublicDefaultLanguage } from '@/lib/common/public-default-env';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency, imageSizes } from '@/lib/utils';
-import type { Product } from '@/platform/services/model/product';
+import type { Product, ProductUSP } from '@/platform/services/model/product';
 import { MAX_COMPARISON_PRODUCTS } from '@/stores/comparison-store';
 import { ToastType, notify } from '../ui/toast-notification';
 
@@ -33,12 +32,29 @@ interface ProductTileProps {
   product: Product;
   locale?: string;
   skipVariantFetch?: boolean;
+  showParentVariantBadge?: boolean;
 }
 
-export function ProductTile({ product, locale, skipVariantFetch = false }: ProductTileProps) {
+function getProductUspKey(usp: ProductUSP, index: number): string {
+  const descriptionKey =
+    typeof usp.description === 'string'
+      ? usp.description
+      : Object.entries(usp.description ?? {})
+          .sort(([leftLocale], [rightLocale]) => leftLocale.localeCompare(rightLocale))
+          .map(([locale, value]) => `${locale}:${value}`)
+          .join('|');
+
+  return `${usp.icon}:${descriptionKey}:${index}`;
+}
+
+export function ProductTile({
+  product,
+  locale,
+  skipVariantFetch = false,
+  showParentVariantBadge = false,
+}: ProductTileProps) {
   const t = useTranslations('product');
-  const effectiveLocale = locale ?? getPublicDefaultLanguage();
-  const { l10n } = useL10n(effectiveLocale);
+  const { l10n, l10nOrEmpty } = useL10n(locale);
   const { addItem, loading: cartLoading } = useCart();
   const { isInComparison, toggleProduct, isFull } = useComparison();
   const { disabled: cartDisabled, tooltip: cartTooltip } = useValidateAddToCart(product);
@@ -55,12 +71,10 @@ export function ProductTile({ product, locale, skipVariantFetch = false }: Produ
   const availableValues = skipVariantFetch ? (firstAttribute?.values ?? []) : fetchedValues;
   const variantLoading = skipVariantFetch ? false : fetchedLoading;
 
-  const handleAddToCart = async (e: any) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     try {
       e.stopPropagation();
       e.preventDefault();
-
-      if (!product) return;
 
       await addItem(product.id, 1);
 
@@ -80,19 +94,22 @@ export function ProductTile({ product, locale, skipVariantFetch = false }: Produ
   const handleAddToWishlist = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    if (!product) return;
     addToWishlist(product.id, 1);
   };
 
   function getIcon(icon: unknown): LucideIcon {
-    const s = typeof icon === 'string' ? icon : icon != null ? String(icon) : '';
-    if (s.includes('years')) {
+    const symbol = typeof icon === 'string' ? icon : icon != null ? String(icon) : '';
+
+    if (symbol.includes('years')) {
       return Shield;
-    } else if (s === 'worldwide') {
+    }
+    if (symbol === 'worldwide') {
       return Globe;
-    } else if (s === 'waterproof') {
+    }
+    if (symbol === 'waterproof') {
       return DropletOff;
-    } else if (s === 'sustainable') {
+    }
+    if (symbol === 'sustainable') {
       return Trees;
     }
 
@@ -106,12 +123,16 @@ export function ProductTile({ product, locale, skipVariantFetch = false }: Produ
     if (isInComparison(product.id)) {
       toggleProduct(product.id);
       notify({ title: t('removedFromComparison', { name: l10n(product.name) }), type: ToastType.Info });
-    } else if (isFull) {
-      notify({ title: t('comparisonFull', { max: MAX_COMPARISON_PRODUCTS }), type: ToastType.Warning });
-    } else {
-      toggleProduct(product.id);
-      notify({ title: t('addedToComparison', { name: l10n(product.name) }), type: ToastType.Success });
+      return;
     }
+
+    if (isFull) {
+      notify({ title: t('comparisonFull', { max: MAX_COMPARISON_PRODUCTS }), type: ToastType.Warning });
+      return;
+    }
+
+    toggleProduct(product.id);
+    notify({ title: t('addedToComparison', { name: l10n(product.name) }), type: ToastType.Success });
   };
 
   return (
@@ -166,12 +187,23 @@ export function ProductTile({ product, locale, skipVariantFetch = false }: Produ
 
           <CardContent className="flex flex-grow flex-col gap-4">
             <div className="bg-surface-image-background relative p-4">
+              {showParentVariantBadge && product.isParentVariant && (product.variantCount ?? 0) > 0 && (
+                <div className="absolute top-4 right-4 z-10">
+                  <Badge data-testid="parent-variant-count-badge" variant="white" rounded="full">
+                    {product.variantCount}
+                  </Badge>
+                </div>
+              )}
               <div className="relative aspect-square rounded-ss-md rounded-ee-md p-4">
                 {product.primaryImage ? (
                   <div className="relative h-full w-full">
                     <Image
                       src={product.primaryImage.url}
-                      alt={product.primaryImage.altText ? l10n(product.primaryImage.altText) : l10n(product.name)}
+                      alt={
+                        product.primaryImage.altText
+                          ? l10nOrEmpty(product.primaryImage.altText) || l10nOrEmpty(product.name) || ''
+                          : l10nOrEmpty(product.name) || ''
+                      }
                       fill
                       sizes={imageSizes}
                       className="object-contain object-center"
@@ -179,7 +211,12 @@ export function ProductTile({ product, locale, skipVariantFetch = false }: Produ
                   </div>
                 ) : (
                   <div className="flex h-full items-center justify-center">
-                    <Image src={'/images/no_image_alt.png'} alt={l10n(product.name)} width={220} height={220} />
+                    <Image
+                      src={'/images/no_image_alt.png'}
+                      alt={l10nOrEmpty(product.name) || ''}
+                      width={220}
+                      height={220}
+                    />
                   </div>
                 )}
               </div>
@@ -188,7 +225,7 @@ export function ProductTile({ product, locale, skipVariantFetch = false }: Produ
                 {!variantLoading && availableValues.length > 0 && (
                   <>
                     {availableValues.slice(0, 3).map((value) => {
-                      const isColorAttribute = firstAttribute!.key === 'color' || firstAttribute!.key === 'farbe';
+                      const isColorAttribute = firstAttribute?.key === 'color' || firstAttribute?.key === 'farbe';
 
                       return isColorAttribute ? (
                         <ProductColorTile
@@ -202,7 +239,7 @@ export function ProductTile({ product, locale, skipVariantFetch = false }: Produ
                         <ProductCharacteristic
                           key={value.key}
                           value={value.name ? l10n(value.name) : value.key}
-                          unit={firstAttribute!.name ? l10n(firstAttribute!.name) : firstAttribute!.key}
+                          unit={firstAttribute?.name ? l10n(firstAttribute.name) : (firstAttribute?.key ?? '')}
                         />
                       );
                     })}
@@ -227,27 +264,28 @@ export function ProductTile({ product, locale, skipVariantFetch = false }: Produ
             <div className="flex flex-col gap-2">
               {product.templateAttributes && (
                 <div className="w-full">
-                  {/* Dynamically display all template attributes */}
-                  {product.templateAttributes &&
-                    Object.entries(product.templateAttributes).map(([key, value]) => (
-                      <div key={key} className="flex justify-between">
-                        <p className="text-sm">
-                          {t(dk<ProductTemplateAttributeKey>(`filters.mixins.productTemplateAttributes.${key}`), {
-                            defaultValue: key,
-                          })}
-                        </p>
-                        <p className="text-sm font-bold capitalize">
-                          {value}
-                          {/* Todo: get unit from product */}
-                          {key === 'length' || key === 'width' || key === 'height' ? 'cm' : ''}
-                        </p>
-                      </div>
-                    ))}
+                  {Object.entries(product.templateAttributes).map(([key, value]) => (
+                    <div key={key} className="flex justify-between">
+                      <p className="text-sm">
+                        {t(dk<ProductTemplateAttributeKey>(`filters.mixins.productTemplateAttributes.${key}`), {
+                          defaultValue: key,
+                        })}
+                      </p>
+                      <p className="text-sm font-bold capitalize">
+                        {value}
+                        {key === 'length' || key === 'width' || key === 'height' ? 'cm' : ''}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               )}
               <div ref={horizontalScrollRef} className="hide-scrollbar flex max-w-full gap-2 overflow-x-scroll">
-                {product.usps?.map((usp) => (
-                  <ProductTag icon={getIcon(usp.icon)} text={l10n(usp.description)} key={l10n(usp.description)} />
+                {product.usps?.map((usp, index) => (
+                  <ProductTag
+                    icon={getIcon(usp.icon)}
+                    text={l10n(usp.description)}
+                    key={getProductUspKey(usp, index)}
+                  />
                 ))}
               </div>
             </div>
@@ -256,12 +294,10 @@ export function ProductTile({ product, locale, skipVariantFetch = false }: Produ
           <CardFooter>
             <div className="flex w-full flex-col gap-1">
               <div className="text-text-success flex items-center gap-2 text-sm">
-                {/* Todo: read availability from product */}
                 <Truck />
                 <p>{t('shipping.onlineAvailable')}</p>
               </div>
               <div className="text-text-success flex items-center gap-2 text-sm">
-                {/* Todo: read pickup availability from product */}
                 <MapPin />
                 <p>{t('shipping.canBeReservedExample')}</p>
               </div>
@@ -292,7 +328,7 @@ export function ProductTile({ product, locale, skipVariantFetch = false }: Produ
                       <Button
                         size="icon"
                         className="h-[50px] w-[50px]"
-                        onClick={(e) => handleAddToCart(e)}
+                        onClick={handleAddToCart}
                         aria-label={t('addToCart')}
                         disabled={cartLoading || cartDisabled || !product.price}
                       >

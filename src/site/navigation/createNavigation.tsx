@@ -20,11 +20,14 @@ export default function createNavigation(siteRouting: SiteRoutingConfig, intlRou
       if (!pathname) return pathname;
 
       let unprefixedPathname = pathname;
-      const sitePrefix = prependPrefix(site);
-      const isPathnameSitePrefixed = hasPathnamePrefixed(sitePrefix, pathname);
+      let sitePrefix: string | null = null;
+      if (site) {
+        sitePrefix = prependPrefix(site);
+        const isPathnameSitePrefixed = hasPathnamePrefixed(sitePrefix, pathname);
 
-      if (isPathnameSitePrefixed) {
-        unprefixedPathname = unprefixPathname(pathname, sitePrefix);
+        if (isPathnameSitePrefixed) {
+          unprefixedPathname = unprefixPathname(pathname, sitePrefix);
+        }
       }
       // We must reimplement this logic, because next-intl does not allow to hook into it
       const localePrefix = getLocalePrefix(locale, intlRouting);
@@ -35,7 +38,7 @@ export default function createNavigation(siteRouting: SiteRoutingConfig, intlRou
 
       // Guard against corrupted URLs that still contain the site prefix after stripping
       // (e.g. /brand1/de/brand1/product/123 → after first strip → /brand1/product/123)
-      if (hasPathnamePrefixed(sitePrefix, unprefixedPathname)) {
+      if (sitePrefix && hasPathnamePrefixed(sitePrefix, unprefixedPathname)) {
         unprefixedPathname = unprefixPathname(unprefixedPathname, sitePrefix);
       }
 
@@ -55,7 +58,7 @@ export default function createNavigation(siteRouting: SiteRoutingConfig, intlRou
           const { site: nextSite, ...rest } = options || {};
           const path = addPrefixIfNeeded(
             typeof href === 'string' ? href : href.pathname,
-            nextSite || (site as string),
+            nextSite || site,
             siteRouting,
           );
           const args: [href: string, options?: Options] = [path];

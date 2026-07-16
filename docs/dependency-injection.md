@@ -16,6 +16,8 @@ Our Dependency Injection (DI) framework provides a robust, type-safe way to mana
 
 5. **Centralized Configuration**: All service registrations are managed in one place, making it easier to understand and modify the application's architecture.
 
+6. **Explicit request context**: Services that need request-scoped visibility or site scoping should resolve it in the service layer and pass it down as a value object. The BatteryIncluded search stack follows this rule so unpublished catalogs are filtered without hidden mutable state.
+
 ## Technical Foundation
 
 Our DI framework is built on [InversifyJS](https://inversify.io/), a powerful inversion of control container for TypeScript & JavaScript applications. We've extended Inversify with custom functionality to support:
@@ -182,6 +184,8 @@ Resolution order:
 2. `DI_ENV` (fallback: `NODE_ENV`) using `src/platform/depency.<env>.yml` (e.g. `depency.production.yml`)
 3. Fallback: `src/platform/depency.yml`
 
+After the dependency alias source is resolved, `DI_SEARCH_SERVICE` can override only the `SearchService` alias. Supported values are `EmporixSearchService` and `BatteryIncludedSearchService`. This override is applied last, after YAML aliases and extension aliases are merged.
+
 ### How Generation Works
 
 1. `scripts/di-generator.ts` scans `src/platform/` (single root) for `@injectable('ServiceId', 'Scope')` classes.
@@ -195,7 +199,8 @@ Resolution order:
    - `src/platform/ssr.ts` — `import 'server-only'`; Server Components and `src/lib/ssr/*`
    - `src/platform/client.ts` — **only when** `NEXT_PUBLIC_ENABLE_DI_GENERATE_CLIENT` is enabled; **no** `server-only` import (browser bundle)
 4. If client generation is **disabled** after it was previously enabled, the next `npm run generate` **removes** `client.ts` if present.
-5. Each file statically imports all bound modules and applies aliases from `depency.yml` where configured.
+5. Each file statically imports all bound modules and applies aliases from the resolved dependency alias source where configured.
+6. `DI_SEARCH_SERVICE` is build-time only. Changing it after a build does not mutate already-generated `server.ts` or `ssr.ts`; the env value that matters is the one available to the build that runs `npm run generate`.
 
 After a production build, `npm run verify:client-chunks` checks that known Emporix integration symbols do not appear under `.next/static/chunks` (run manually or in CI if needed).
 
@@ -363,3 +368,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 ## Conclusion
 
 Our Dependency Injection framework always covers **server** and **SSR** Node runtimes. **By default** the browser stays free of the Inversify integration/service graph for smaller bundles and safer defaults. Use `server.get` / `ssr.get` on the server and thin `lib/client` helpers plus `/api/*` in the browser. Forks that need a browser container can enable `NEXT_PUBLIC_ENABLE_DI_GENERATE_CLIENT`, regenerate, and use the emitted `client.ts` with appropriate security review.
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Layered Architecture](./layered-architecture.md)
+- [Naming Conventions](./naming-conventions.md)
+- [Search Service](./search-service.md)

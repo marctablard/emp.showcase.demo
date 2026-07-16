@@ -1,5 +1,5 @@
 import { buildPaginatedResponse } from './common';
-import { buildSearchQuery, checkTokenValidity } from './common';
+import { buildSearchQuery, checkTokenValidity, extractItemsFromPaginatedJsonBody } from './common';
 
 describe('buildPaginatedResponse', () => {
   it('maps a raw array response body into paginated items', async () => {
@@ -121,6 +121,20 @@ describe('buildSearchQuery', () => {
     });
 
     expect(result.body).toBe('((name:~solar) OR (id:~solar)) categoryIds:(root-a root-b)');
+  });
+});
+
+describe('extractItemsFromPaginatedJsonBody', () => {
+  it('returns the array when body is T[]', () => {
+    expect(extractItemsFromPaginatedJsonBody([{ id: '1' }])).toEqual([{ id: '1' }]);
+  });
+
+  it('returns body.items when present', () => {
+    expect(extractItemsFromPaginatedJsonBody({ items: [{ id: 'a' }], total: 1 })).toEqual([{ id: 'a' }]);
+  });
+
+  it('returns empty array for error-shaped objects without items', () => {
+    expect(extractItemsFromPaginatedJsonBody({ code: 404, message: 'Not Found' })).toEqual([]);
   });
 });
 

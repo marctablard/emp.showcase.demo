@@ -9,8 +9,11 @@ describe('buildProductCategoryIdsCriteriaValue', () => {
     expect(buildProductCategoryIdsCriteriaValue(['', '  '])).toBeUndefined();
   });
 
-  it('returns single id without brackets', () => {
-    expect(buildProductCategoryIdsCriteriaValue(['abc'])).toBe('abc');
+  it('wraps single id in parentheses (required for UUIDs with hyphens in Emporix q)', () => {
+    expect(buildProductCategoryIdsCriteriaValue(['abc'])).toBe('(abc)');
+    expect(buildProductCategoryIdsCriteriaValue(['812358ba-6327-4195-ac6b-bf77e1fb9718'])).toBe(
+      '(812358ba-6327-4195-ac6b-bf77e1fb9718)',
+    );
   });
 
   it('dedupes and joins multiple ids in parentheses', () => {

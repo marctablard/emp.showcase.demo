@@ -3,6 +3,7 @@ import { EmporixLocalizedString, EmporixMedia, EmporixMetadata, EmporixMixins } 
 export interface EmporixCategory {
   id: string;
   code?: string;
+  subcategories?: EmporixCategory[];
   name: EmporixLocalizedString;
   description?: EmporixLocalizedString;
   shortDescription?: EmporixLocalizedString;
@@ -43,4 +44,26 @@ export interface EmporixCategoryAssignmentQuery {
   withSubcategories?: boolean;
   segmentsIds?: string;
   hideUnpublishedProducts?: boolean;
+}
+
+export interface EmporixCategoryTreeValidity {
+  from?: string;
+  to?: string;
+}
+
+export interface EmporixCategoryTree {
+  id: string;
+  localizedName: EmporixLocalizedString;
+  localizedSlug?: EmporixLocalizedString;
+  localizedDescription?: EmporixLocalizedString;
+  code?: string;
+  position: number;
+  published: boolean;
+  parentId?: string;
+  subcategories?: EmporixCategoryTree[];
+  validity?: EmporixCategoryTreeValidity;
+  /** @deprecated Prefer localizedName */
+  name?: string;
+  /** @deprecated Prefer localizedDescription */
+  description?: string;
 }

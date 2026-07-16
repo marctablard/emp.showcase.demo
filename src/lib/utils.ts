@@ -1,8 +1,11 @@
 import { type ClassValue, clsx } from 'clsx';
 import { extendTailwindMerge } from 'tailwind-merge';
 import { getPublicDefaultCurrency, getPublicDefaultLanguage } from '@/lib/common/public-default-env';
-import type { LocalizedString, SearchParams } from '@/platform/services/model/common';
+import type { SearchParams } from '@/platform/services/model/common';
 import type { Session } from '@/platform/services/model/session/session';
+
+export { L10N_MISSING_LABEL, l10n, l10nOrEmpty, resolveLocalizedString } from './l10n';
+export type { L10nInput } from './l10n';
 
 function buildBaseUrl() {
   const envUrl = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000';
@@ -101,121 +104,6 @@ export function buildCanonicalUrl(locale: string, path: string): string {
   }
   return `${baseUrl}${locale === getPublicDefaultLanguage() ? '' : `/${locale}`}${path}`;
 }
-/**
- * Placeholder returned by `l10n` when the localized input has entries
- * but none of them match the deterministic fallback chain.
- *
- * Returned only when data exists in languages outside the configured
- * fallback order — never when the input is empty/missing (those keep
- * the legacy empty-string contract so `l10n(x) || fallback` works).
- */
-export const L10N_PLACEHOLDER = '-';
-
-/**
- * Build the deterministic lookup chain for `l10n`:
- *   [currentLocale, ...callerFallbacks, NEXT_PUBLIC_DEFAULT_LANGUAGE]
- *
- * Empty / non-string entries are dropped and duplicates removed so the
- * chain is stable across call sites. The env default is always appended
- * last so every caller — even ones that don't know the site default —
- * gets a consistent final fallback instead of a random "first value".
- */
-function buildLocaleChain(
-  locale?: string | null,
-  fallbackLocales?: ReadonlyArray<string | null | undefined>,
-): string[] {
-  const chain: string[] = [];
-  const push = (candidate: string | null | undefined) => {
-    if (typeof candidate === 'string' && candidate.length > 0 && !chain.includes(candidate)) {
-      chain.push(candidate);
-    }
-  };
-  push(locale);
-  fallbackLocales?.forEach(push);
-  push(getPublicDefaultLanguage());
-  return chain;
-}
-
-/**
- * Extract the localized value from a LocalizedString, array format, or
- * return the string directly.
- *
- * Fallback order (deterministic — no random "first available"):
- *   1. `locale` (usually the current UI locale)
- *   2. each entry in `fallbackLocales` (e.g. `site.defaultLanguage`)
- *   3. `NEXT_PUBLIC_DEFAULT_LANGUAGE` (env default, always appended)
- *
- * Return value semantics:
- *   - empty / null / undefined input → `''`
- *   - plain string input → returned as-is
- *   - localized map / array with a match in the chain → matched value
- *   - localized map / array with entries but no match in the chain → `L10N_PLACEHOLDER`
- *   - localized map / array with no valid string entries at all → `''`
- *
- * Client components should normally consume this via `useL10n()`, which
- * threads `site.defaultLanguage` through `fallbackLocales` automatically.
- */
-export function l10n(
-  input: string | LocalizedString | Array<{ language: string; message: string }> | unknown,
-  locale?: string | null,
-  fallbackLocales?: ReadonlyArray<string | null | undefined>,
-): string {
-  if (input === null || input === undefined || input === '') {
-    return '';
-  }
-
-  if (typeof input === 'string') {
-    return input;
-  }
-
-  const chain = buildLocaleChain(locale, fallbackLocales);
-
-  if (Array.isArray(input)) {
-    try {
-      for (const lang of chain) {
-        const match = input.find(
-          (item) =>
-            item !== null &&
-            typeof item === 'object' &&
-            (item as { language?: unknown }).language === lang &&
-            typeof (item as { message?: unknown }).message === 'string',
-        ) as { message: string } | undefined;
-        if (match) {
-          return match.message;
-        }
-      }
-      const hasValidEntry = input.some(
-        (item) =>
-          item !== null &&
-          typeof item === 'object' &&
-          typeof (item as { language?: unknown }).language === 'string' &&
-          typeof (item as { message?: unknown }).message === 'string',
-      );
-      return hasValidEntry ? L10N_PLACEHOLDER : '';
-    } catch {
-      return '';
-    }
-  }
-
-  if (typeof input === 'object') {
-    try {
-      const record = input as Record<string, unknown>;
-      for (const lang of chain) {
-        const value = record[lang];
-        if (typeof value === 'string' && value.length > 0) {
-          return value;
-        }
-      }
-      const hasValidEntry = Object.values(record).some((v) => typeof v === 'string' && v.length > 0);
-      return hasValidEntry ? L10N_PLACEHOLDER : '';
-    } catch {
-      return '';
-    }
-  }
-
-  return '';
-}
-
 // Mirrors the product grid columns (1 → 2 → 3 → 4) at the design-system breakpoints
 // (sm 768 / md 1024 / lg 1280): full width on mobile, then 1/2, 1/3, 1/4.
 export const imageSizes = '(max-width: 768px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw';

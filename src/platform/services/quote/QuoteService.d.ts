@@ -32,7 +32,7 @@ export interface QuoteService {
   ): Promise<void>;
 
   /**
-   * Set or update the quote user comment (additionalInfo mixin) using the service patch scope.
+   * Set or update the quote user comment (additionalInfo mixin) using the current customer session scope.
    */
   addQuoteUserComment(quoteId: string, input: { comment: string; reference?: string }): Promise<void>;
 

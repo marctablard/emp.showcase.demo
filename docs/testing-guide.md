@@ -62,9 +62,16 @@ Unit and integration tests are located alongside the code they test, following a
 
 ### End-to-End Tests (Playwright)
 
-E2E tests are located in the `/e2e` directory at the root of the project. Each test file focuses on a specific feature or user flow:
+E2E tests are located in the `/e2e` directory at the root of the project.
+
+- Root-level specs in `/e2e` are the default environment-agnostic suite and must not depend on tenant-specific env vars or seeded data.
+- Specs in `/e2e/local` are opt-in local tests for tenant/data-dependent scenarios and are excluded from `npm run e2e` by default.
+- Tracked `*.local.spec.ts` files are committed local-only scenarios that stay out of `npm run e2e`; `e2e/auth-site-sync.local.spec.ts` uses a guarded local bootstrap route instead of real login secrets, requires `NEXT_E2E_LOCAL_AUTH_BOOTSTRAP_TOKEN`, and runs on a dedicated localhost lane so it can coexist with a normal dev server on port 3000.
+
+Current default-suite examples:
 
 - `e2e/homepage.spec.ts` - Tests for homepage functionality and locale redirects
+- `e2e/login-dialog-register.spec.ts` - Tests the login dialog to registration flow
 
 ## Dependency Injection in Tests
 
@@ -590,8 +597,16 @@ npm run test -- -t="test name pattern"
 To run Playwright tests, use the following commands:
 
 ```bash
-# Run all Playwright tests
-npx playwright test
+# Run the default environment-agnostic Playwright suite
+npm run e2e
+
+# Run tracked local-only Playwright tests (`*.local.spec.ts`). Set `NEXT_E2E_LOCAL_AUTH_BOOTSTRAP_TOKEN` in `.env` first for the auth bootstrap scenario.
+npm run e2e:local
+
+# Run the credential-free local auth/site sync spec explicitly.
+# This command starts its own localhost:3100 app instance so it can run alongside
+# a normal `npm run dev` session on localhost:3000.
+npm run e2e:auth-sync
 
 # Run tests in a specific browser
 npx playwright test --project=chromium
@@ -699,3 +714,10 @@ The testing strategy implemented in the Emporix Showcase project provides compre
 By following the best practices outlined in this guide, particularly around context sharing, proper use of `act()`, and handling asynchronous operations, you can create reliable, maintainable tests that accurately verify your application's behavior.
 
 For more information about the dependency injection system used in tests, refer to the [Dependency Injection Documentation](./dependency-injection.md).
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Testing Strategy](./testing-strategy.md)
+- [Dependency Injection](./dependency-injection.md)
+- [ESLint: exhaustive-deps](./eslint-exhaustive-deps.md)

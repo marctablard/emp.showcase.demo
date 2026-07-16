@@ -38,6 +38,10 @@
     "doubleCheck": "Double-check your search for any typos or spelling mistakes, or try using a different search term.",
     "commonSearch": "Here are common search queries from other customers:",
     "clearHistory": "delete search history",
+    "seeAllCategories": "Show all",
+    "allFromCategory": "All from {name}",
+    "back": "Back",
+    "openSubcategoriesFor": "Open subcategories for {name}",
     "navigation": {
       "meta": "Meta"
     },
@@ -73,6 +77,7 @@
     "privacyPolicy": "Privacy Policy"
   },
   "footerLinks": {
+    "showAllCategories": "Show all",
     "products": "Products",
     "solarPanels": "Solar Panels",
     "inverters": "Inverters",

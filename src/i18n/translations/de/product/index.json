@@ -23,6 +23,7 @@
   "share": "Teilen",
   "compare": "Vergleichen",
   "noImage": "Kein Bild verfügbar",
+  "primaryImageAltUnlabeled": "Produktansicht (ID: {id})",
   "noDescription": "Keine Beschreibung verfügbar.",
   "productId": "Produkt-ID",
   "quantity": "Menge",
@@ -91,8 +92,16 @@
     "categoryAssignments": {
       "name": "Kategorie Name"
     },
+    "categoryIds": "Kategorie",
     "filterButton": "Filter",
+    "close": "Schließen",
+    "activeFiltersTitle": "Aktive Filter",
+    "productCount": "({count} Produkte)",
+    "showProducts": "{count} Produkte anzeigen",
+    "from": "Von",
+    "till": "Bis",
     "clearFilter": "Filter löschen",
+    "clearAllFilters": "Filter löschen",
     "applyFilters": "Filter anwenden"
   },
   "tabs": {

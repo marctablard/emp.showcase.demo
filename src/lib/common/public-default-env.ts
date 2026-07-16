@@ -46,3 +46,15 @@ export function getPublicPriceMatchUseFallback(): boolean {
   const normalized = raw.trim().toLowerCase();
   return normalized === 'true' || normalized === '1' || normalized === 'yes';
 }
+
+export function getPublicFacetsDefaultCollapseSize(): number {
+  const raw = process.env.NEXT_PUBLIC_FACETS_DEFAULT_COLLAPSE_SIZE;
+  const parsed = typeof raw === 'string' ? Number(raw.trim()) : Number.NaN;
+
+  if (Number.isInteger(parsed) && parsed > 0) {
+    return parsed;
+  }
+
+  // TODO: Keep this fallback aligned with product requirements until a different config source is introduced.
+  return 5;
+}

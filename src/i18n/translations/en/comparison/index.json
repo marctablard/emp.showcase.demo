@@ -1,6 +1,7 @@
 {
   "title": "Product Comparison",
   "clear": "Clear comparison",
+  "close": "Close comparison",
   "noSharedAttributes": "The selected products have no shared attributes.",
   "emptyState": "Your comparison list is empty.",
   "emptyStateAction": "Browse products",

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
-import type { CarouselApi } from '@/components/ui/carousel';
+import type { CarouselType } from '@/components/ui/carousel';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { useL10n } from '@/hooks/useL10n';
 import { imageSizes } from '@/lib/utils';
@@ -14,10 +14,10 @@ interface ProductCarouselProps {
 }
 
 export function ProductCarousel({ images }: ProductCarouselProps) {
-  const { l10n } = useL10n();
+  const { l10nOrEmpty } = useL10n();
 
-  const [mainApi, setMainApi] = useState<CarouselApi>();
-  const [thumbApi, setThumbApi] = useState<CarouselApi>();
+  const [mainApi, setMainApi] = useState<CarouselType>();
+  const [thumbApi, setThumbApi] = useState<CarouselType>();
   const [activeIndex, setActiveIndex] = useState(0);
 
   // Sync the main carousel with the thumbnail carousel
@@ -59,7 +59,11 @@ export function ProductCarousel({ images }: ProductCarouselProps) {
                 <div className="relative w-[296px] sm:w-[431px] h-[255px] sm:h-[351px] md:h-[160px] lg:h-[460px] md:w-full mx-auto">
                   <Image
                     src={image.url}
-                    alt={image.altText ? l10n(image.altText) : `Product image ${index + 1}`}
+                    alt={
+                      image.altText
+                        ? l10nOrEmpty(image.altText) || `Product image ${index + 1}`
+                        : `Product image ${index + 1}`
+                    }
                     fill
                     sizes={imageSizes}
                     priority={index === 0}
@@ -102,7 +106,11 @@ export function ProductCarousel({ images }: ProductCarouselProps) {
                   >
                     <Image
                       src={image.url}
-                      alt={image.altText ? l10n(image.altText) : `Thumbnail ${index + 1}`}
+                      alt={
+                        image.altText
+                          ? l10nOrEmpty(image.altText) || `Thumbnail ${index + 1}`
+                          : `Thumbnail ${index + 1}`
+                      }
                       fill
                       sizes={imageSizes}
                       className="px-2 py-1 md:p-1.5 object-cover object-center"
