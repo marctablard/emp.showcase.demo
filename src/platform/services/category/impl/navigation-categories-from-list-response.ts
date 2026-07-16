@@ -31,6 +31,21 @@ export function selectTopLevelCategoryListRows(rows: EmporixCategory[]): Emporix
   return rows.filter((r) => !r.parentId || !idSet.has(r.parentId));
 }
 
+function comparePositions(a: Category, b: Category): number {
+  const aPosition = a.position;
+  const bPosition = b.position;
+
+  if (aPosition === undefined && bPosition === undefined) return 0;
+  if (aPosition === undefined) return 1;
+  if (bPosition === undefined) return -1;
+
+  if (aPosition === 0 && bPosition === 0) return 0;
+  if (aPosition === 0) return 1;
+  if (bPosition === 0) return -1;
+
+  return aPosition - bPosition;
+}
+
 function mapRowWithEmbeddedChildren(
   row: EmporixCategory,
   mapEmporixToCategory: (e: EmporixCategory) => Category,
@@ -41,9 +56,7 @@ function mapRowWithEmbeddedChildren(
   if (!Array.isArray(subs) || subs.length === 0) {
     return base;
   }
-  const children = subs
-    .map((sub) => mapRowWithEmbeddedChildren(sub, mapEmporixToCategory))
-    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  const children = subs.map((sub) => mapRowWithEmbeddedChildren(sub, mapEmporixToCategory)).sort(comparePositions);
   return { ...base, children };
 }
 
@@ -59,7 +72,5 @@ export function mapListCategoryRowsToNavigationCategories(
     return [];
   }
   const topLevel = selectTopLevelCategoryListRows(listed);
-  return topLevel
-    .map((row) => mapRowWithEmbeddedChildren(row, mapEmporixToCategory))
-    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  return topLevel.map((row) => mapRowWithEmbeddedChildren(row, mapEmporixToCategory)).sort(comparePositions);
 }
