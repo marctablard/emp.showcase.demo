@@ -221,7 +221,7 @@ export function ProductTile({
                 )}
               </div>
 
-              <div className="absolute right-4 bottom-4 flex flex-row justify-end gap-2">
+              <div className="absolute right-4 bottom-4 flex max-w-full flex-wrap justify-end gap-2">
                 {!variantLoading && availableValues.length > 0 && (
                   <>
                     {availableValues.slice(0, 3).map((value) => {
@@ -240,6 +240,7 @@ export function ProductTile({
                           key={value.key}
                           value={value.name ? l10n(value.name) : value.key}
                           unit={firstAttribute?.name ? l10n(firstAttribute.name) : (firstAttribute?.key ?? '')}
+                          className="w-full max-w-full"
                         />
                       );
                     })}
