@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
 import type {
@@ -251,10 +252,30 @@ class BatteryIncludedSearchService implements SearchService {
       .filter((entry) => entry.length > 0);
   }
 
-  private resolveFacetLabel(facet: BatteryIncludedFacetCount): string {
+  private resolveFacetLabel(facet: BatteryIncludedFacetCount, translate?: (key: string) => string): string {
     const fieldLabel = facet.field_label?.trim();
 
-    return fieldLabel && fieldLabel.length > 0 ? fieldLabel : facet.field_name;
+    if (fieldLabel) {
+      if (fieldLabel.startsWith('#')) {
+        const key = fieldLabel.slice(1).trim();
+        // A bare '#' (optionally followed by whitespace) is a malformed marker with no key.
+        if (!key) {
+          return facet.field_name;
+        }
+        if (!translate) {
+          return key;
+        }
+        // translate() may throw (e.g. missing/invalid message key); degrade to the raw key.
+        try {
+          return translate(key);
+        } catch {
+          return key;
+        }
+      }
+      return fieldLabel;
+    }
+
+    return facet.field_name;
   }
 
   private getFacetCounts(facet: BatteryIncludedFacetCount): BatteryIncludedFacetCountRow[] {
@@ -303,7 +324,10 @@ class BatteryIncludedSearchService implements SearchService {
     });
   }
 
-  private mapRangeFacet(facet: BatteryIncludedFacetCount): Extract<BatteryIncludedFacet, { kind: 'range' }> {
+  private mapRangeFacet(
+    facet: BatteryIncludedFacetCount,
+    translate?: (key: string) => string,
+  ): Extract<BatteryIncludedFacet, { kind: 'range' }> {
     const counts = this.getFacetCounts(facet);
     const statsMin = facet.stats?.min;
     const statsMax = facet.stats?.max;
@@ -319,7 +343,7 @@ class BatteryIncludedSearchService implements SearchService {
 
     return {
       id: facet.field_name,
-      label: this.resolveFacetLabel(facet),
+      label: this.resolveFacetLabel(facet, translate),
       kind: 'range',
       min: statsMin !== undefined ? String(statsMin) : legacyBounds.min,
       max: statsMax !== undefined ? String(statsMax) : legacyBounds.max,
@@ -335,13 +359,17 @@ class BatteryIncludedSearchService implements SearchService {
     return `${rating} star${rating === 1 ? '' : 's'} & up`;
   }
 
-  private mapBatteryIncludedFacet(facet: BatteryIncludedFacetCount, filters?: SearchFilters): BatteryIncludedFacet {
+  private mapBatteryIncludedFacet(
+    facet: BatteryIncludedFacetCount,
+    filters?: SearchFilters,
+    translate?: (key: string) => string,
+  ): BatteryIncludedFacet {
     const kind = this.classifyFacetKind(facet);
-    const label = this.resolveFacetLabel(facet);
+    const label = this.resolveFacetLabel(facet, translate);
     const counts = this.getFacetCounts(facet);
 
     if (kind === 'range') {
-      return this.mapRangeFacet(facet);
+      return this.mapRangeFacet(facet, translate);
     }
 
     if (kind === 'tree') {
@@ -517,9 +545,22 @@ class BatteryIncludedSearchService implements SearchService {
     });
     const variantCountByParentId = this.buildVariantCountByParentId(searchResult.hits);
 
+    // Resolve a translator for `#`-prefixed localized facet labels. `getTranslations` is only
+    // available in a server request context; degrade gracefully elsewhere (e.g. tests) so search
+    // never crashes and plain labels are unaffected. Note: keys used via the `#` marker (e.g.
+    // `bi.basePrice`) are resolved dynamically and are therefore invisible to `check-translations`.
+    let translate: ((key: string) => string) | undefined;
+    if (resolvedLocale) {
+      try {
+        const t = await getTranslations({ locale: resolvedLocale });
+        translate = (key: string) => t(key as never);
+      } catch {
+        translate = undefined;
+      }
+    }
     const batteryIncludedFacets = searchResult.facet_counts
       .filter((facet) => facet.field_name !== 'segmentIds')
-      .map((facet) => this.mapBatteryIncludedFacet(facet, filters));
+      .map((facet) => this.mapBatteryIncludedFacet(facet, filters, translate));
     const availableSorts = this.resolveAvailableSorts(batteryIncludedFacets);
     const availableFilters = batteryIncludedFacets
       .filter((facet) => facet.id !== BATTERY_INCLUDED_BREADCRUMB_FILTER)
