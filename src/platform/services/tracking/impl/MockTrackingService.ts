@@ -17,7 +17,7 @@ class MockTrackingService implements TrackingService {
     }
 
     // Simulate API delay with deterministic duration between 300-600ms based on orderId
-    const randomDelay = 300 + (orderSeed % 300);
+    const randomDelay = 300 + (orderSeed % 301);
     await new Promise((resolve) => setTimeout(resolve, randomDelay));
 
     // Generate deterministic tracking number based on orderId

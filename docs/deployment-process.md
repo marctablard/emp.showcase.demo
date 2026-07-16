@@ -52,9 +52,8 @@ Vercel automatically assigns URLs for development and PR preview deployments.
 - Pull requests against the `develop` branch
 
 **Process**:
-1. Checks out the code
-2. Sets up Node.js to use the same version as the application
-3. Runs the SonarQube scanner against `https://sonarqube.k8s-tech.emporix.io` using the `SONAR_LOGIN` secret and the `emporix-showcase` project key.
+1. Checks out the code (full history, `fetch-depth: 0`)
+2. Runs the SonarQube scanner against `https://sonarqube.k8s-tech.emporix.io` using the `SONAR_LOGIN` secret and the `emporix-showcase` project key.
 
 ### 1. PR Preview Workflow (`github-actions-deploy-pr-preview.yml`)
 

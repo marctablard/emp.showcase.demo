@@ -182,7 +182,7 @@ const _requestTimestamps = new Map<string, number>();
 // Track debug contexts per request so logResponse can access them (dev only)
 const _requestContexts = new Map<string, DebugContext>();
 
-/** Generate a short unique ID for correlating request/response events */
+/** Generate a unique ID for correlating request/response events */
 function generateRequestId(): string {
   return randomUUID();
 }
