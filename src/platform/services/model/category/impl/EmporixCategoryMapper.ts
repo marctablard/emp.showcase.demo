@@ -4,7 +4,18 @@ import type { Category } from '@/platform/services/model/category';
 import type { CategoryMapper } from '../CategoryMapper';
 
 function sortCategoryTreeByPosition(a: EmporixCategoryTree, b: EmporixCategoryTree): number {
-  return (a.position ?? 0) - (b.position ?? 0);
+  const aPosition = a.position;
+  const bPosition = b.position;
+
+  if (aPosition === undefined && bPosition === undefined) return 0;
+  if (aPosition === undefined) return 1;
+  if (bPosition === undefined) return -1;
+
+  if (aPosition === 0 && bPosition === 0) return 0;
+  if (aPosition === 0) return 1;
+  if (bPosition === 0) return -1;
+
+  return aPosition - bPosition;
 }
 
 /**
