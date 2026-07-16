@@ -41,7 +41,7 @@ Here is a quick start guide to get you started with Journey Aware Storefront.
 
 ### Prerequisites
 
-- Node.js (v20+)
+- Node.js (v22 or v24 LTS)
 - npm or yarn
 
 ### Installation
