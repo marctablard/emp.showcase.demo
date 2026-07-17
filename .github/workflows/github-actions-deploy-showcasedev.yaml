@@ -37,6 +37,10 @@ jobs:
       - name: Setup safe-chain
         run: safe-chain setup-ci
 
+      - name: Run npm audit
+        continue-on-error: true
+        run: npm audit --audit-level=high
+
       - name: Pull Vercel environment
         run: vercel env pull .env --environment=production --yes --token=${{ secrets.VERCEL_TOKEN }}
 

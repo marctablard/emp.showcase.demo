@@ -31,6 +31,9 @@ jobs:
           npm ci
           npm i -g @aikidosec/safe-chain vercel
 
+      - name: Run npm audit
+        run: npm audit --audit-level=high
+
       - name: Setup safe-chain
         run: safe-chain setup-ci
 
