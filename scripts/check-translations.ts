@@ -119,31 +119,49 @@ interface UsedKey {
 type FnRange = { start: number; end: number };
 type VarMapping = { varName: string; rootNs: string; subPath: string; definedLine: number; };
 
+/**
+ * Scans forward from `startLine` tracking brace depth to find the line where the
+ * function/block opened on `startLine` closes. Extracted from `getFunctionRanges` to
+ * keep cognitive complexity of both functions low.
+ */
+function findBlockEndLine(lines: string[], startLine: number): number {
+  let depth = 0;
+  let foundOpen = false;
+  for (let j = startLine; j < lines.length; j++) {
+    for (const ch of lines[j]) {
+      if (ch === '{') {
+        depth++;
+        foundOpen = true;
+      }
+      if (ch === '}') depth--;
+    }
+    if (foundOpen && depth <= 0) return j;
+  }
+  return startLine;
+}
+
+function isArrowFnStart(line: string): boolean {
+  if (
+    !line.startsWith('export const ') &&
+    !line.startsWith('const ') &&
+    !line.startsWith('export let ') &&
+    !line.startsWith('let ')
+  ) {
+    return false;
+  }
+  const eqIdx = line.indexOf('=');
+  const arrowIdx = line.indexOf('=>', eqIdx);
+  return eqIdx > -1 && arrowIdx > eqIdx;
+}
+
 function getFunctionRanges(lines: string[]): FnRange[] {
   const fnRanges: FnRange[] = [];
   const fnStartRe = /^(?:export\s+(?:default\s+)?)?(?:async\s+)?function\s+\w+/;
-  
-  const isArrowFnStart = (line: string) => {
-    if (!line.startsWith('export const ') && !line.startsWith('const ') && !line.startsWith('export let ') && !line.startsWith('let ')) return false;
-    const eqIdx = line.indexOf('=');
-    const arrowIdx = line.indexOf('=>', eqIdx);
-    return eqIdx > -1 && arrowIdx > eqIdx;
-  };
 
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trimStart();
     if (fnStartRe.test(trimmed) || isArrowFnStart(trimmed)) {
-      let depth = 0;
-      let foundOpen = false;
-      let endLine = i;
-      for (let j = i; j < lines.length; j++) {
-        for (const ch of lines[j]) {
-          if (ch === '{') { depth++; foundOpen = true; }
-          if (ch === '}') depth--;
-        }
-        if (foundOpen && depth <= 0) { endLine = j; break; }
-      }
-      fnRanges.push({ start: i, end: endLine });
+      fnRanges.push({ start: i, end: findBlockEndLine(lines, i) });
     }
   }
   return fnRanges;
@@ -272,7 +290,7 @@ function extractUsedKeys(): UsedKey[] {
 }
 
 function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+  return s.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }
 
 type MissingEntry = { key: string; fullPath: string; file: string; line: number };

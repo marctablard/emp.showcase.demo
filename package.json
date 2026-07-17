@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "npm-run-all --parallel generate:watch dev:next dev:open-browser",
     "dev:next": "next dev",
-    "dev:open-browser": "wait-on http://localhost:${PORT:-3000}/api/health && open-cli http://localhost:${PORT:-3000}",
+    "dev:open-browser": "wait-on http://localhost:3000/api/health && open-cli http://localhost:3000",
     "dev:https": "npm-run-all --parallel generate:watch dev:next:https",
     "dev:next:https": "next dev --experimental-https",
     "build": "npm run generate && next build && npm run check-translations && npm run lint",

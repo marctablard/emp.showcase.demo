@@ -19,14 +19,6 @@ interface EmporixIndexPublicConfigurationResponse {
   searchKey?: unknown;
 }
 
-function maskApiKey(apiKey: string): string {
-  if (apiKey.length <= 8) {
-    return '***';
-  }
-
-  return `${apiKey.slice(0, 4)}…${apiKey.slice(-4)}`;
-}
-
 @injectable('BatteryIncludedConfig', 'Singleton')
 class BatteryIncludedConfig implements IBatteryIncludedConfig {
   baseUrl: string;
@@ -118,7 +110,7 @@ class BatteryIncludedConfig implements IBatteryIncludedConfig {
           provider: BATTERY_INCLUDED_PROVIDER,
           tenant: this.emporixConfig.tenant,
           collection,
-          apiKey: maskApiKey(apiKey),
+          apiKeyPresent: true,
         },
         'Resolved BatteryIncluded runtime configuration',
       );

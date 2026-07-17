@@ -62,7 +62,7 @@ describe('BatteryIncludedConfig', () => {
         provider: 'BATTERY_INCLUDED',
         tenant: 'showcasedev',
         collection: 'customer.emporix.showcasedevnew',
-        apiKey: 'reso…-key',
+        apiKeyPresent: true,
       }),
       'Resolved BatteryIncluded runtime configuration',
     );
