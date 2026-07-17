@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "concurrently \"npm:generate:watch\" \"npm:dev:next\" \"npm:dev:open-browser\"",
     "dev:next": "next dev",
-    "dev:open-browser": "wait-on http://localhost:3000/api/health && open-cli http://localhost:3000",
+    "dev:open-browser": "node scripts/dev-open-browser.mjs",
     "dev:https": "concurrently \"npm:generate:watch\" \"npm:dev:next:https\"",
     "dev:next:https": "next dev --experimental-https",
     "build": "npm run generate && next build && npm run check-translations && npm run lint",

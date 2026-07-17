@@ -108,7 +108,7 @@ function loadTranslationKeys(locale: string): Map<string, Set<string>> {
 
 // ── Extract used translation keys from source code ─────────────────────────
 
-interface UsedKey {
+export interface UsedKey {
   namespace: string; // root namespace e.g. "checkout"
   subPath: string;   // sub-namespace path e.g. "shipping" or ""
   key: string;       // the key passed to t() e.g. "cancel"
@@ -116,8 +116,8 @@ interface UsedKey {
   line: number;
 }
 
-type FnRange = { start: number; end: number };
-type VarMapping = { varName: string; rootNs: string; subPath: string; definedLine: number; };
+export type FnRange = { start: number; end: number };
+export type VarMapping = { varName: string; rootNs: string; subPath: string; definedLine: number; };
 
 /**
  * Scans forward from `startLine` tracking brace depth to find the line where the
@@ -154,7 +154,7 @@ function isArrowFnStart(line: string): boolean {
   return eqIdx > -1 && arrowIdx > eqIdx;
 }
 
-function getFunctionRanges(lines: string[]): FnRange[] {
+export function getFunctionRanges(lines: string[]): FnRange[] {
   const fnRanges: FnRange[] = [];
   const fnStartRe = /^(?:export\s+(?:default\s+)?)?(?:async\s+)?function\s+\w+/;
 
@@ -167,7 +167,7 @@ function getFunctionRanges(lines: string[]): FnRange[] {
   return fnRanges;
 }
 
-function getVariableMappings(content: string): VarMapping[] {
+export function getVariableMappings(content: string): VarMapping[] {
   const useTranslationsRe = /\b(?:const|let)\s+(\w+)\s*=\s*(?:useTranslations|await\s+getTranslations)\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
   const getTranslationsObjRe = /\b(?:const|let)\s+(\w+)\s*=\s*(?:useTranslations|await\s+getTranslations)\s*\(\s*\{[^}]*namespace:\s*['"]([^'"]+)['"][^}]*\}\s*\)/g;
   const varMappings: VarMapping[] = [];
@@ -188,7 +188,7 @@ function getVariableMappings(content: string): VarMapping[] {
   return varMappings;
 }
 
-function extractScopedVariableKeys(
+export function extractScopedVariableKeys(
   content: string,
   lines: string[],
   fnRanges: FnRange[],
@@ -407,4 +407,6 @@ function main(): void {
   }
 }
 
-main();
+if (require.main === module) {
+  main();
+}
