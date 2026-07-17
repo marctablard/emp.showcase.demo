@@ -110,7 +110,7 @@ class BatteryIncludedConfig implements IBatteryIncludedConfig {
           provider: BATTERY_INCLUDED_PROVIDER,
           tenant: this.emporixConfig.tenant,
           collection,
-          apiKeyPresent: true,
+          apiKeyPresent: Boolean(apiKey),
         },
         'Resolved BatteryIncluded runtime configuration',
       );
