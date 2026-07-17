@@ -22,8 +22,8 @@
  *   npx ts-node --project scripts/tsconfig.json scripts/check-translations.ts --locales de --strict
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 import * as glob from 'glob';
 
 // ── Paths ──────────────────────────────────────────────────────────────────
@@ -47,7 +47,7 @@ function getRequestedLocales(): string[] | 'allLanguages' {
 function readDefaultLocale(): string {
   const routingPath = path.join(SRC, 'i18n', 'routing.ts');
   const content = fs.readFileSync(routingPath, 'utf-8');
-  const m = content.match(/defaultLocale:\s*['"]([^'"]+)['"]/);
+  const m = /defaultLocale:\s*['"]([^'"]+)['"]/.exec(content);
   return m ? m[1] : 'en';
 }
 
@@ -116,6 +116,121 @@ interface UsedKey {
   line: number;
 }
 
+type FnRange = { start: number; end: number };
+type VarMapping = { varName: string; rootNs: string; subPath: string; definedLine: number; };
+
+function getFunctionRanges(lines: string[]): FnRange[] {
+  const fnRanges: FnRange[] = [];
+  const fnStartRe = /^(?:export\s+(?:default\s+)?)?(?:async\s+)?function\s+\w+/;
+  
+  const isArrowFnStart = (line: string) => {
+    if (!line.startsWith('export const ') && !line.startsWith('const ') && !line.startsWith('export let ') && !line.startsWith('let ')) return false;
+    const eqIdx = line.indexOf('=');
+    const arrowIdx = line.indexOf('=>', eqIdx);
+    return eqIdx > -1 && arrowIdx > eqIdx;
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trimStart();
+    if (fnStartRe.test(trimmed) || isArrowFnStart(trimmed)) {
+      let depth = 0;
+      let foundOpen = false;
+      let endLine = i;
+      for (let j = i; j < lines.length; j++) {
+        for (const ch of lines[j]) {
+          if (ch === '{') { depth++; foundOpen = true; }
+          if (ch === '}') depth--;
+        }
+        if (foundOpen && depth <= 0) { endLine = j; break; }
+      }
+      fnRanges.push({ start: i, end: endLine });
+    }
+  }
+  return fnRanges;
+}
+
+function getVariableMappings(content: string): VarMapping[] {
+  const useTranslationsRe = /\b(?:const|let)\s+(\w+)\s*=\s*(?:useTranslations|await\s+getTranslations)\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+  const getTranslationsObjRe = /\b(?:const|let)\s+(\w+)\s*=\s*(?:useTranslations|await\s+getTranslations)\s*\(\s*\{[^}]*namespace:\s*['"]([^'"]+)['"][^}]*\}\s*\)/g;
+  const varMappings: VarMapping[] = [];
+
+  for (const re of [useTranslationsRe, getTranslationsObjRe]) {
+    re.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(content)) !== null) {
+      const varName = m[1];
+      const fullNs = m[2];
+      const dotIdx = fullNs.indexOf('.');
+      const rootNs = dotIdx >= 0 ? fullNs.substring(0, dotIdx) : fullNs;
+      const subPath = dotIdx >= 0 ? fullNs.substring(dotIdx + 1) : '';
+      const lineNum = content.substring(0, m.index).split('\n').length;
+      varMappings.push({ varName, rootNs, subPath, definedLine: lineNum });
+    }
+  }
+  return varMappings;
+}
+
+function extractScopedVariableKeys(
+  content: string,
+  lines: string[],
+  fnRanges: FnRange[],
+  varMappings: VarMapping[],
+  relFile: string,
+  result: UsedKey[]
+) {
+  for (const mapping of varMappings) {
+    const defLine0 = mapping.definedLine - 1;
+    const scope = fnRanges.find((r) => defLine0 >= r.start && defLine0 <= r.end);
+
+    let searchContent: string;
+    let lineOffset: number;
+    if (scope) {
+      searchContent = lines.slice(scope.start, scope.end + 1).join('\n');
+      lineOffset = scope.start;
+    } else {
+      searchContent = content;
+      lineOffset = 0;
+    }
+
+    const callRe = new RegExp(
+      `\\b${escapeRegExp(mapping.varName)}(?:\\.\\w+)?\\s*\\(\\s*['"\`]([^'"\`]+)['"\`]`,
+      'g',
+    );
+    callRe.lastIndex = 0;
+    let cm: RegExpExecArray | null;
+    while ((cm = callRe.exec(searchContent)) !== null) {
+      const key = cm[1];
+      if (key.includes('${') || key.includes('+')) continue;
+      if (key.endsWith('.') || key.startsWith('.')) continue;
+      const lineInScope = searchContent.substring(0, cm.index).split('\n').length;
+      const lineNum = lineInScope + lineOffset;
+      result.push({
+        namespace: mapping.rootNs,
+        subPath: mapping.subPath,
+        key,
+        file: relFile,
+        line: lineNum,
+      });
+    }
+  }
+}
+
+function extractL10nKeys(content: string, relFile: string, result: UsedKey[]) {
+  const l10nRe = /\bl10n\s*\(\s*['"]([a-zA-Z][\w-]*(?:\.[a-zA-Z][\w-]*)+)['"]\s*\)/g;
+  l10nRe.lastIndex = 0;
+  let lm: RegExpExecArray | null;
+  while ((lm = l10nRe.exec(content)) !== null) {
+    const fullKey = lm[1];
+    const dotIdx = fullKey.indexOf('.');
+    if (dotIdx < 0) continue;
+    const namespace = fullKey.substring(0, dotIdx);
+    const key = fullKey.substring(dotIdx + 1);
+    if (key.includes('${') || key.includes('+')) continue;
+    const lineNum = content.substring(0, lm.index).split('\n').length;
+    result.push({ namespace, subPath: '', key, file: relFile, line: lineNum });
+  }
+}
+
 /**
  * Parse source files and extract namespace + key information.
  *
@@ -127,7 +242,7 @@ interface UsedKey {
  *
  * Scopes variables to the function they are defined in so that multiple
  * components in one file (e.g. footer.tsx with Footer, FooterLinks,
- * LegalFooter) each using `const t = useTranslations(...)` don't
+ * LegalFooter) each using \`const t = useTranslations(...)\` don't
  * cross-contaminate.
  */
 function extractUsedKeys(): UsedKey[] {
@@ -138,141 +253,109 @@ function extractUsedKeys(): UsedKey[] {
 
   const result: UsedKey[] = [];
 
-  // Patterns for translation hook/function calls
-  const useTranslationsRe =
-    /\b(?:const|let)\s+(\w+)\s*=\s*(?:useTranslations|await\s+getTranslations)\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
-  const getTranslationsObjRe =
-    /\b(?:const|let)\s+(\w+)\s*=\s*(?:useTranslations|await\s+getTranslations)\s*\(\s*\{[^}]*namespace:\s*['"]([^'"]+)['"][^}]*\}\s*\)/g;
-
   for (const relFile of srcFiles) {
     const absPath = path.join(SRC, relFile);
     const content = fs.readFileSync(absPath, 'utf-8');
     const lines = content.split('\n');
 
-    // ── Step 1: Find function boundaries ──────────────────────────────
-    // Detect top-level (exported) function starts and track brace depth
-    // to determine where each function ends. This lets us scope variables.
-    type FnRange = { start: number; end: number };
-    const fnRanges: FnRange[] = [];
-
-    const fnStartRe = /^(?:export\s+(?:default\s+)?)?(?:async\s+)?function\s+\w+/;
-    // Also handle arrow-function components: export const Foo = (...) => {
-    // Replaced problematic backtracking regex with a constrained linear check
-    const isArrowFnStart = (line: string) => {
-      if (!line.startsWith('export const ') && !line.startsWith('const ') && !line.startsWith('export let ') && !line.startsWith('let ')) return false;
-      const eqIdx = line.indexOf('=');
-      const arrowIdx = line.indexOf('=>', eqIdx);
-      return eqIdx > -1 && arrowIdx > eqIdx;
-    };
-
-    for (let i = 0; i < lines.length; i++) {
-      const trimmed = lines[i].trimStart();
-      if (fnStartRe.test(trimmed) || isArrowFnStart(trimmed)) {
-        // Walk forward counting braces to find the end
-        let depth = 0;
-        let foundOpen = false;
-        let endLine = i;
-        for (let j = i; j < lines.length; j++) {
-          for (const ch of lines[j]) {
-            if (ch === '{') { depth++; foundOpen = true; }
-            if (ch === '}') depth--;
-          }
-          if (foundOpen && depth <= 0) { endLine = j; break; }
-        }
-        fnRanges.push({ start: i, end: endLine });
-      }
+    const fnRanges = getFunctionRanges(lines);
+    const varMappings = getVariableMappings(content);
+    
+    if (varMappings.length > 0) {
+      extractScopedVariableKeys(content, lines, fnRanges, varMappings, relFile, result);
     }
-
-    // ── Step 2: Collect variable → namespace mappings with line info ──
-    const varMappings: Array<{
-      varName: string; rootNs: string; subPath: string; definedLine: number;
-    }> = [];
-
-    for (const re of [useTranslationsRe, getTranslationsObjRe]) {
-      re.lastIndex = 0;
-      let m: RegExpExecArray | null;
-      while ((m = re.exec(content)) !== null) {
-        const varName = m[1];
-        const fullNs = m[2];
-        const dotIdx = fullNs.indexOf('.');
-        const rootNs = dotIdx >= 0 ? fullNs.substring(0, dotIdx) : fullNs;
-        const subPath = dotIdx >= 0 ? fullNs.substring(dotIdx + 1) : '';
-        const lineNum = content.substring(0, m.index).split('\n').length;
-        varMappings.push({ varName, rootNs, subPath, definedLine: lineNum });
-      }
-    }
-
-    if (varMappings.length === 0) continue;
-
-    // ── Step 3: For each variable, find `t('key')` calls in scope ────
-    for (const mapping of varMappings) {
-      // Determine function scope for this variable
-      const defLine0 = mapping.definedLine - 1; // 0-based
-      const scope = fnRanges.find((r) => defLine0 >= r.start && defLine0 <= r.end);
-
-      // Build a substring of the file within scope (or whole file if no scope)
-      let searchContent: string;
-      let lineOffset: number; // how many lines before searchContent starts
-      if (scope) {
-        searchContent = lines.slice(scope.start, scope.end + 1).join('\n');
-        lineOffset = scope.start;
-      } else {
-        searchContent = content;
-        lineOffset = 0;
-      }
-
-      const callRe = new RegExp(
-        `\\b${escapeRegExp(mapping.varName)}(?:\\.\\w+)?\\s*\\(\\s*['"\`]([^'"\`]+)['"\`]`,
-        'g',
-      );
-      callRe.lastIndex = 0;
-      let cm: RegExpExecArray | null;
-      while ((cm = callRe.exec(searchContent)) !== null) {
-        const key = cm[1];
-        if (key.includes('${') || key.includes('+')) continue;
-        // Skip keys that look like partial dynamic keys (end with . or start with .)
-        if (key.endsWith('.') || key.startsWith('.')) continue;
-        const lineInScope = searchContent.substring(0, cm.index).split('\n').length;
-        const lineNum = lineInScope + lineOffset;
-        result.push({
-          namespace: mapping.rootNs,
-          subPath: mapping.subPath,
-          key,
-          file: relFile,
-          line: lineNum,
-        });
-      }
-    }
-  }
-
-  // ── Step 4: Detect l10n('namespace.key') calls ─────────────────────────
-  // The l10n() helper uses fully-qualified keys like 'quick-order.search.noResults'
-  // where the first segment is the translation namespace.
-  const l10nRe = /\bl10n\s*\(\s*['"]([a-zA-Z][\w-]*(?:\.[a-zA-Z][\w-]*)+)['"]\s*\)/g;
-
-  for (const relFile of srcFiles) {
-    const absPath = path.join(SRC, relFile);
-    const content = fs.readFileSync(absPath, 'utf-8');
-
-    l10nRe.lastIndex = 0;
-    let lm: RegExpExecArray | null;
-    while ((lm = l10nRe.exec(content)) !== null) {
-      const fullKey = lm[1];
-      const dotIdx = fullKey.indexOf('.');
-      if (dotIdx < 0) continue;
-      const namespace = fullKey.substring(0, dotIdx);
-      const key = fullKey.substring(dotIdx + 1);
-      if (key.includes('${') || key.includes('+')) continue;
-      const lineNum = content.substring(0, lm.index).split('\n').length;
-      result.push({ namespace, subPath: '', key, file: relFile, line: lineNum });
-    }
+    
+    extractL10nKeys(content, relFile, result);
   }
 
   return result;
 }
 
 function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return s.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+}
+
+type MissingEntry = { key: string; fullPath: string; file: string; line: number };
+type UniqueMissing = Map<string, { files: string[]; key: string }>;
+
+function collectMissingKeysForLocale(
+  nsKeys: Map<string, Set<string>>,
+  usedKeys: UsedKey[],
+  isDefault: boolean
+): MissingEntry[] {
+  const missingEntries: MissingEntry[] = [];
+  for (const used of usedKeys) {
+    const availableKeys = nsKeys.get(used.namespace);
+    if (!availableKeys) {
+      if (isDefault) {
+        missingEntries.push({
+          key: `${used.namespace}.*`,
+          fullPath: used.subPath ? `${used.subPath}.${used.key}` : used.key,
+          file: used.file,
+          line: used.line,
+        });
+      }
+      continue;
+    }
+
+    const fullKey = used.subPath ? `${used.subPath}.${used.key}` : used.key;
+    if (!availableKeys.has(fullKey)) {
+      missingEntries.push({
+        key: `${used.namespace}.${fullKey}`,
+        fullPath: fullKey,
+        file: used.file,
+        line: used.line,
+      });
+    }
+  }
+  return missingEntries;
+}
+
+function deduplicateMissingKeys(missingEntries: MissingEntry[]): UniqueMissing {
+  const uniqueMissing: UniqueMissing = new Map();
+  for (const entry of missingEntries) {
+    const existing = uniqueMissing.get(entry.key);
+    if (existing) {
+      const loc = `${entry.file}:${entry.line}`;
+      if (!existing.files.includes(loc)) existing.files.push(loc);
+    } else {
+      uniqueMissing.set(entry.key, {
+        key: entry.key,
+        files: [`${entry.file}:${entry.line}`],
+      });
+    }
+  }
+  return uniqueMissing;
+}
+
+function reportMissingKeys(uniqueMissing: UniqueMissing, locale: string, isDefault: boolean): void {
+  const label = isDefault ? '⚠️  WARNING (default locale)' : 'ℹ️  INFO';
+  console.log(`${label} — ${locale}: ${uniqueMissing.size} missing translation key(s):\n`);
+  for (const [key, info] of uniqueMissing) {
+    console.log(`   ❌ ${key}`);
+    for (const f of info.files.slice(0, 3)) {
+      console.log(`      └─ ${f}`);
+    }
+    if (info.files.length > 3) {
+      console.log(`      └─ ... and ${info.files.length - 3} more`);
+    }
+  }
+  console.log('');
+}
+
+function processLocale(locale: string, usedKeys: UsedKey[]): number {
+  const isDefault = locale === DEFAULT_LOCALE;
+  const nsKeys = loadTranslationKeys(locale);
+  const missingEntries = collectMissingKeysForLocale(nsKeys, usedKeys, isDefault);
+  const uniqueMissing = deduplicateMissingKeys(missingEntries);
+
+  if (uniqueMissing.size > 0) {
+    reportMissingKeys(uniqueMissing, locale, isDefault);
+    return isDefault ? uniqueMissing.size : 0;
+  } else {
+    console.log(`   ✅ ${locale}: All translation keys present.\n`);
+    return 0;
+  }
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────
@@ -289,70 +372,7 @@ function main(): void {
   let totalWarnings = 0;
 
   for (const locale of locales) {
-    const isDefault = locale === DEFAULT_LOCALE;
-    const nsKeys = loadTranslationKeys(locale);
-    const missingEntries: Array<{ key: string; fullPath: string; file: string; line: number }> = [];
-
-    for (const used of usedKeys) {
-      const availableKeys = nsKeys.get(used.namespace);
-      if (!availableKeys) {
-        // Entire namespace missing for this locale — only warn for default
-        if (isDefault) {
-          missingEntries.push({
-            key: `${used.namespace}.*`,
-            fullPath: used.subPath ? `${used.subPath}.${used.key}` : used.key,
-            file: used.file,
-            line: used.line,
-          });
-        }
-        continue;
-      }
-
-      // Build the full key path within the namespace file
-      const fullKey = used.subPath ? `${used.subPath}.${used.key}` : used.key;
-
-      if (!availableKeys.has(fullKey)) {
-        missingEntries.push({
-          key: `${used.namespace}.${fullKey}`,
-          fullPath: fullKey,
-          file: used.file,
-          line: used.line,
-        });
-      }
-    }
-
-    // De-duplicate (same key referenced from multiple places)
-    const uniqueMissing = new Map<string, { files: string[]; key: string }>();
-    for (const entry of missingEntries) {
-      const existing = uniqueMissing.get(entry.key);
-      if (existing) {
-        const loc = `${entry.file}:${entry.line}`;
-        if (!existing.files.includes(loc)) existing.files.push(loc);
-      } else {
-        uniqueMissing.set(entry.key, {
-          key: entry.key,
-          files: [`${entry.file}:${entry.line}`],
-        });
-      }
-    }
-
-    if (uniqueMissing.size > 0) {
-      const label = isDefault ? '⚠️  WARNING (default locale)' : 'ℹ️  INFO';
-      console.log(`${label} — ${locale}: ${uniqueMissing.size} missing translation key(s):\n`);
-      for (const [key, info] of uniqueMissing) {
-        console.log(`   ❌ ${key}`);
-        for (const f of info.files.slice(0, 3)) {
-          console.log(`      └─ ${f}`);
-        }
-        if (info.files.length > 3) {
-          console.log(`      └─ ... and ${info.files.length - 3} more`);
-        }
-      }
-      console.log('');
-      if (isDefault) totalWarnings += uniqueMissing.size;
-    } else {
-      console.log(`   ✅ ${locale}: All translation keys present.\n`);
-    }
+    totalWarnings += processLocale(locale, usedKeys);
   }
 
   // 3. Summary
