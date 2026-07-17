@@ -96,7 +96,7 @@
     "react-hook-form": "7.66.0",
     "react-redux": "9.2.0",
     "react-sizeme": "3.0.2",
-    "read-excel-file": "9.3.2",
+    "read-excel-file": "9.3.0",
     "recharts": "2.15.3",
     "reflect-metadata": "0.2.2",
     "server-only": "0.0.1",
@@ -166,6 +166,12 @@
     "lightningcss-linux-x64-musl": "1.30.1"
   },
   "overrides": {
+    "intl-messageformat": "11.2.10",
+    "caniuse-lite": "1.0.30001803",
+    "@formatjs/intl-localematcher": "0.8.11",
+    "@formatjs/icu-messageformat-parser": "3.5.13",
+    "@formatjs/fast-memoize": "3.1.6",
+    "@formatjs/icu-skeleton-parser": "2.1.10",
     "postcss": "^8.5.10",
     "markdown-it": "^14.3.0",
     "linkify-it": "^6.0.0",
