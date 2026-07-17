@@ -1,4 +1,5 @@
 import Papa from 'papaparse';
+import type { CellValue } from 'read-excel-file/browser';
 import type { ParsedEntry } from './parse-text-input';
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -142,29 +143,20 @@ export function parseCSV(file: File): Promise<ParsedEntry[]> {
 }
 
 /**
- * Parses an XLSX file into an array of ParsedEntry using SheetJS.
+ * Parses an XLSX file into an array of ParsedEntry using read-excel-file.
  */
 export async function parseXLSX(file: File): Promise<ParsedEntry[]> {
-  const { read, utils } = await import('xlsx');
+  const { readSheet } = await import('read-excel-file/browser');
   const buffer = await file.arrayBuffer();
-  const workbook = read(buffer, { type: 'array' });
-  const firstSheetName = workbook.SheetNames[0];
-  if (!firstSheetName) {
-    throw new EmptyFileError();
-  }
 
-  const sheet = workbook.Sheets[firstSheetName];
-  const rows = utils.sheet_to_json<string[]>(sheet, {
-    header: 1,
-    defval: '',
-    blankrows: false,
-  });
+  const rows = await readSheet(buffer);
 
   if (!rows || rows.length === 0) {
     throw new EmptyFileError();
   }
 
   let startIndex = 0;
+  // coerce possibly null/numeric cell to string, then trim
   const firstCell = String(rows[0]?.[0] ?? '').trim();
   const cleaned = stripBom(firstCell);
   if (isHeaderRow(cleaned)) {
@@ -173,7 +165,8 @@ export async function parseXLSX(file: File): Promise<ParsedEntry[]> {
 
   const entries: ParsedEntry[] = [];
   for (let i = startIndex; i < rows.length; i++) {
-    const row = rows[i].map((cell) => String(cell));
+    // string coercion for all cells to keep rowToEntry compatible
+    const row = rows[i].map((cell: CellValue | null) => (cell == null ? '' : String(cell)));
     const entry = rowToEntry(row);
     if (entry) {
       entries.push(entry);

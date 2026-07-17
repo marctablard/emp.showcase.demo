@@ -144,7 +144,7 @@ The following scripts are available in `package.json`:
 
 ```json
 "scripts": {
-  "dev": "npm-run-all --parallel generate:watch dev:next",
+  "dev": "concurrently \"npm:generate:watch\" \"npm:dev:next\" \"npm:dev:open-browser\"",
   "generate": "ts-node --project scripts/tsconfig.json scripts/di-generator.ts",
   "generate:watch": "ts-node --project scripts/tsconfig.json scripts/di-generator.ts --watch"
 }
