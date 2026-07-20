@@ -5,6 +5,15 @@ import {
   type UsedKey,
 } from '../check-translations';
 
+function extract(source: string, relFile = 'component.tsx'): UsedKey[] {
+  const lines = source.split('\n');
+  const fnRanges = getFunctionRanges(lines);
+  const varMappings = getVariableMappings(source);
+  const result: UsedKey[] = [];
+  extractScopedVariableKeys(source, lines, fnRanges, varMappings, relFile, result);
+  return result;
+}
+
 describe('check-translations extraction helpers', () => {
   describe('getVariableMappings', () => {
     it('maps a simple useTranslations namespace', () => {
@@ -55,15 +64,6 @@ describe('check-translations extraction helpers', () => {
   });
 
   describe('extractScopedVariableKeys', () => {
-    function extract(source: string, relFile = 'component.tsx'): UsedKey[] {
-      const lines = source.split('\n');
-      const fnRanges = getFunctionRanges(lines);
-      const varMappings = getVariableMappings(source);
-      const result: UsedKey[] = [];
-      extractScopedVariableKeys(source, lines, fnRanges, varMappings, relFile, result);
-      return result;
-    }
-
     it('scopes keys to the function they are declared in (no cross-contamination)', () => {
       const source = [
         'function Footer() {', // 1
