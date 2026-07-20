@@ -2,10 +2,10 @@
  * content-container @utility (SHOW-320).
  *
  * The shared layout container must compile to the Figma grid contract:
- *   max-width 1920px (the 6xl token) + auto side margins + 16px side padding below lg
- *   and 36px from lg (1280px) up — which yields 1848px of content at a 1920px viewport
- *   (1920 − 2×36), exactly the Figma "Maximum 1848px total width" spec, and full-bleed
- *   centering beyond 1920.
+ *   max-width 1920px (the 6xl token) + auto side margins + 16px side padding below md
+ *   and 36px from md (1024px) up — which yields 952px of content at 1024 and 1848px at a
+ *   1920px viewport (1920 − 2×36), exactly the Figma "Maximum 1848px total width" spec,
+ *   and full-bleed centering beyond 1920.
  *
  * Part 1 compiles the REAL globals.css with Tailwind so the assertions cover the actually
  * generated CSS. Part 2 is a fitness check that the verbatim container duplicate
@@ -71,8 +71,12 @@ describe('content-container @utility', () => {
     expect(rule).toMatch(/padding-inline:\s*(calc\(var\(--spacing\)\s*\*\s*4\)|1rem)/);
   });
 
-  it('grows to 36px side padding from lg (1280px) up — content = 1848 at 1920 (matches lg:px-9)', () => {
-    expect(rule).toMatch(/@media[^{]*\b80rem\b/); // lg = 80rem = 1280px
+  it('grows to 36px side padding from md (1024px) up — content = 952 at 1024, 1848 at 1920 (matches md:px-9)', () => {
+    // md = 64rem = 1024px. Figma grid frame `md | Desktop min-width-1024` (420:10335) has its
+    // columns at x=36, and the PLP md frame (12185:48039) puts header AND content on x=36 —
+    // so the container must switch where the header (`md:px-9`) switches, not at lg.
+    expect(rule).toMatch(/@media[^{]*\b64rem\b/);
+    expect(rule).not.toMatch(/@media[^{]*\b80rem\b/);
     expect(rule).toMatch(/padding-inline:\s*(calc\(var\(--spacing\)\s*\*\s*9\)|2\.25rem)/);
   });
 });
@@ -81,12 +85,20 @@ describe('content-container — inline duplicates are migrated', () => {
   // A base `px-4` class (preceded by whitespace/quote), NOT `sm:px-4`/`md:px-4`.
   const hasBasePx4 = (line: string) => /(^|[\s"'`])px-4(?=[\s"'`])/.test(line);
 
-  it('no className inlines the full container pattern (max-w-6xl + px-4 + lg:px-9)', () => {
+  it('no className inlines the full container pattern (max-w-6xl + px-4 + md/lg:px-9)', () => {
     const offenders = sourceFiles.filter((f) =>
       read(f)
         .split('\n')
-        .some((line) => line.includes('max-w-6xl') && hasBasePx4(line) && line.includes('lg:px-9')),
+        .some(
+          (line) =>
+            line.includes('max-w-6xl') && hasBasePx4(line) && (line.includes('md:px-9') || line.includes('lg:px-9')),
+        ),
     );
+    expect(offenders).toEqual([]);
+  });
+
+  it('no container still uses the pre-SHOW-320 lg step (36px starts at md/1024)', () => {
+    const offenders = sourceFiles.filter((f) => /\blg:(m|p)x-9\b/.test(read(f)));
     expect(offenders).toEqual([]);
   });
 

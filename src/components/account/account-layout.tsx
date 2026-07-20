@@ -204,7 +204,7 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
         </div>
       )}
 
-      <div className="flex min-h-screen sm:mx-4 lg:mx-9">
+      <div className="flex min-h-screen sm:mx-4 md:mx-9">
         {/* Desktop Sidebar - always visible on desktop */}
         {isDesktop && <AccountSidebar items={sidebarItems} groups={sidebarGroups} />}
 

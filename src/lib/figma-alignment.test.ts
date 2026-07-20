@@ -15,7 +15,11 @@ import path from 'node:path';
 const ROOT = path.resolve(__dirname, '../..');
 const read = (rel: string): string => readFileSync(path.join(ROOT, rel), 'utf8');
 
-describe('header — 36px side padding from md (Figma: header switches at 1024, content at 1280)', () => {
+// Header AND content both switch to 36px at md (1024). An earlier review round recorded
+// "content at 1280" here; re-measuring the Figma grid frame `md | Desktop min-width-1024`
+// (420:10335, columns at x=36) and the PLP md frame (12185:48039, header and content both
+// at x=36) showed that to be wrong — see the `content-container` @utility in globals.css.
+describe('header — 36px side padding from md (Figma: header and content both switch at 1024)', () => {
   for (const rel of ['src/components/header/header.tsx', 'src/components/header/header-checkout.tsx']) {
     it(`${path.basename(rel)} uses md:px-9 and no lg:px-9 / md:pt-3`, () => {
       const src = read(rel);
@@ -118,10 +122,12 @@ describe('account — sidebar persistent from 768 (Figma: only mobile uses the d
     expect(src).not.toMatch(/useBreakpoint\('lg'\)/);
   });
 
-  it('account-layout margins/padding are declarative (16px@sm-md, 36px@lg; no px-4/px-0 class conflict)', () => {
+  it('account-layout margins/padding are declarative (16px@sm, 36px@md; no px-4/px-0 class conflict)', () => {
     const src = read('src/components/account/account-layout.tsx');
     expect(src).toContain('sm:mx-4');
-    expect(src).toContain('lg:mx-9');
+    // 36px starts at md (1024) — same switch point as the header and the sidebar width below
+    expect(src).toContain('md:mx-9');
+    expect(src).not.toContain('lg:mx-9');
     expect(src).toContain('sm:px-0');
     // template-literal conditional padding produced conflicting px-4 + px-0 (px-4 wins in the stylesheet)
     expect(src).not.toMatch(/px-4 \$\{/);

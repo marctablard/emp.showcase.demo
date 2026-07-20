@@ -41,7 +41,7 @@ export function CartOverview({ initialCart }: CartOverviewProps) {
   if (showLoadingShell) {
     return (
       <div className="max-w-6xl mx-auto mt-8" aria-busy="true">
-        <div className="mx-4 lg:mx-9">
+        <div className="mx-4 md:mx-9">
           <div className="flex gap-3 align-end mb-8">
             <H3>{t('title')}</H3>
           </div>
@@ -61,7 +61,7 @@ export function CartOverview({ initialCart }: CartOverviewProps) {
 
   return (
     <div className="max-w-6xl mx-auto mt-8">
-      <div className="mx-4 lg:mx-9">
+      <div className="mx-4 md:mx-9">
         <div className="flex gap-3 align-end mb-8">
           <H3>{t('title')}</H3>
           <div className="text-text-on-disabled text-lg m-0 leading-[2]">

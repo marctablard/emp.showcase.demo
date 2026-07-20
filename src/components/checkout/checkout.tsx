@@ -99,7 +99,7 @@ const Checkout: React.FC<CheckoutProps> = ({ onComplete }) => {
   if (customer === undefined || loading || orderResponse) {
     getLogger().debug({ customer, loading, orderResponse }, 'Checkout loading state');
     return (
-      <div className="mx-4 lg:mx-9">
+      <div className="mx-4 md:mx-9">
         <div className="flex flex-col items-center justify-center py-12">
           <Spinner variant="lg" />
         </div>
@@ -123,7 +123,7 @@ const Checkout: React.FC<CheckoutProps> = ({ onComplete }) => {
   return (
     <CheckoutValidationProvider>
       <div className="max-w-6xl mx-auto">
-        <div className="mx-4 lg:mx-9">
+        <div className="mx-4 md:mx-9">
           <div className="flex gap-3 align-end mb-8">
             <H1 variant="h3">{t('title')}</H1>
           </div>
