@@ -28,6 +28,8 @@ env:
 
 jobs:
   build_and_deploy_pr_preview:
+    # Dependabot-triggered PR runs do not receive Actions secrets (VERCEL_* / tokens would be empty), so skip them.
+    if: ${{ github.actor != 'dependabot[bot]' }}
     runs-on: ubuntu-latest
 
     steps:

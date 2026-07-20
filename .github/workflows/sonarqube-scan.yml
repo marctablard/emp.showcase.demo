@@ -10,7 +10,8 @@ on:
 jobs:
   sonarqube-scan:
     name: SonarQube scan
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
+    # Dependabot-triggered PR runs do not receive Actions secrets (SONAR_LOGIN would be empty → 401), so skip them.
+    if: ${{ github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) }}
     runs-on: ubuntu-latest
     env:
       PROJECT_NAME: emporix-showcase
