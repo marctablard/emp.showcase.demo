@@ -69,11 +69,9 @@ export default async function CMSPageComponent({ slug, locale, site, emptyOnNoRe
   }
 
   return (
-    <>
-      <div className="flex-grow mt-17 sm:mt-36 md:mt-52">
-        {breadcrumb.length > 0 && <UiBreadcrumb items={breadcrumb} className="content-container sm:gap-x-6" />}
-        <CMSComponentRenderer components={page.components} locale={locale} />
-      </div>
-    </>
+    <div className="flex-grow mt-17 sm:mt-36 md:mt-52">
+      {breadcrumb.length > 0 && <UiBreadcrumb items={breadcrumb} className="content-container sm:gap-x-6" />}
+      <CMSComponentRenderer components={page.components} locale={locale} />
+    </div>
   );
 }

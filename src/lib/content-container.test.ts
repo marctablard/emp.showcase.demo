@@ -36,7 +36,8 @@ const sourceFiles = walkSources('src');
 
 /** Extract a full top-level rule (balancing braces, so nested @media stays included). */
 function extractRule(css: string, selector: string): string {
-  const start = css.indexOf(selector + ' {') !== -1 ? css.indexOf(selector + ' {') : css.indexOf(selector + '{');
+  const spaced = css.indexOf(selector + ' {');
+  const start = spaced === -1 ? css.indexOf(selector + '{') : spaced;
   if (start === -1) return '';
   let depth = 0;
   for (let i = css.indexOf('{', start); i < css.length; i++) {
@@ -98,7 +99,7 @@ describe('content-container — inline duplicates are migrated', () => {
   });
 
   it('no container still uses the pre-SHOW-320 lg step (36px starts at md/1024)', () => {
-    const offenders = sourceFiles.filter((f) => /\blg:(m|p)x-9\b/.test(read(f)));
+    const offenders = sourceFiles.filter((f) => /\blg:[mp]x-9\b/.test(read(f)));
     expect(offenders).toEqual([]);
   });
 

@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { type Breakpoint, breakpoints } from '@/lib/breakpoints';
 
 // Re-exported so existing `@/hooks/useBreakpoint` imports of the constant keep working.
-export { breakpoints };
-export type { Breakpoint };
+export { breakpoints } from '@/lib/breakpoints';
+export type { Breakpoint } from '@/lib/breakpoints';
 
 /**
  * React hook that detects whether the current viewport width is at or above a given

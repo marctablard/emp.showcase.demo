@@ -19,7 +19,7 @@ const read = (rel: string): string => readFileSync(path.join(ROOT, rel), 'utf8')
 function parseCssBreakpoints(css: string): Record<string, number> {
   const out: Record<string, number> = {};
   for (const m of css.matchAll(/--breakpoint-([a-z0-9]+):\s*([\d.]+)rem/gi)) {
-    out[m[1]] = parseFloat(m[2]) * 16; // rem → px at the 16px root font-size
+    out[m[1]] = Number.parseFloat(m[2]) * 16; // rem → px at the 16px root font-size
   }
   return out;
 }
@@ -51,7 +51,8 @@ describe('breakpoints — single source of truth', () => {
   });
 
   it('CSS and TS declare exactly the same breakpoint keys (no xl/2xl drift)', () => {
-    expect(Object.keys(cssBreakpoints).sort()).toEqual(Object.keys(breakpoints).sort());
+    const byName = (a: string, b: string): number => a.localeCompare(b);
+    expect(Object.keys(cssBreakpoints).sort(byName)).toEqual(Object.keys(breakpoints).sort(byName));
   });
 });
 
