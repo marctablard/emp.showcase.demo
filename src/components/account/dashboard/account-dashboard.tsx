@@ -49,7 +49,7 @@ export default function AccountDashboard(_props: AccountDashboardProps) {
               {t('hello')}{' '}
               <span className="text-text-action">{customer?.firstName + ' ' + customer?.lastName || 'Kunde'}</span>
             </H3>
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-4">
               <SupportTicketDialog onSubmit={handleTicketSubmit} />
               <DashboardControls
                 isCustomizableInitial={isCustomizable}
