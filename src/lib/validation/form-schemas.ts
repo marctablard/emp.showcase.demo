@@ -31,9 +31,9 @@ export const PasswordChangeSchema = z
       .string()
       .min(1, 'password.newPassword.required')
       .min(8, 'password.newPassword.minLength')
-      .regex(/(?=.*[a-z])/, 'password.newPassword.lowercase')
-      .regex(/(?=.*[A-Z])/, 'password.newPassword.uppercase')
-      .regex(/(?=.*\d)/, 'password.newPassword.number'),
+      .regex(/[a-z]/, 'password.newPassword.lowercase')
+      .regex(/[A-Z]/, 'password.newPassword.uppercase')
+      .regex(/\d/, 'password.newPassword.number'),
     confirmPassword: z.string().min(1, 'password.confirmPassword.required'),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {

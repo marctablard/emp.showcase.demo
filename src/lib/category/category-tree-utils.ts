@@ -23,6 +23,27 @@ export function getCategoryChildren(node: Category): Category[] {
 }
 
 /**
+ * Compares two position-bearing nodes for stable navigation ordering: nodes with a real,
+ * non-zero `position` sort ascending first, nodes with `position === 0` sort next, and nodes
+ * with no `position` (`undefined`) sort last. Shared by the Emporix category-tree, category-list,
+ * and category-service mappers so all navigation sources order categories consistently.
+ */
+export function compareByPosition<T extends { position?: number }>(a: T, b: T): number {
+  const aPosition = a.position;
+  const bPosition = b.position;
+
+  if (aPosition === undefined && bPosition === undefined) return 0;
+  if (aPosition === undefined) return 1;
+  if (bPosition === undefined) return -1;
+
+  if (aPosition === 0 && bPosition === 0) return 0;
+  if (aPosition === 0) return 1;
+  if (bPosition === 0) return -1;
+
+  return aPosition - bPosition;
+}
+
+/**
  * Depth-first pre-order walk. `visit` receives each node and its ancestor chain
  * (parent-first, immediate parent last). Return `false` from `visit` to skip descending
  * into that node's children; any other value (including `undefined`) continues the walk.

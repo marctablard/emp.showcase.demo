@@ -10,7 +10,7 @@ This document consolidates how to run, build, and deploy the Emporix Showcase ap
 - DI container generation (Inversify) required for builds.
 
 ## Prerequisites
-- Node.js 20+ (recommended by README).
+- Node.js 22.x or 24.x (matches the `engines` field in `package.json`).
 - npm (or yarn).
 - Access to Emporix Developer Portal for API keys (see links below).
 - Optional: Storyblok account and space (if using CMS in production).

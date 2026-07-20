@@ -4,25 +4,43 @@ import type { TrackingInfo } from '@/platform/services/model/tracking';
 import type { TrackingService } from '@/platform/services/tracking/TrackingService';
 
 /**
+ * 32-bit FNV-1a hash, used to derive a well-distributed deterministic seed from an orderId
+ * (avoids collisions from a naive running `% 1000` accumulator).
+ */
+function fnv1aHash(input: string): number {
+  let hash = 0x811c9dc5;
+  for (const char of input) {
+    hash ^= char.codePointAt(0) ?? 0;
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
+
+/**
  * Mock implementation of the TrackingService interface.
  * Provides dummy tracking data for demonstration purposes.
  */
 @injectable('TrackingService', 'Singleton')
 class MockTrackingService implements TrackingService {
   async getOrderTrackingInfo(orderId: string): Promise<TrackingInfo | null> {
-    // Simulate API delay with random duration between 300-600ms
-    const randomDelay = Math.floor(300 + Math.random() * 300);
+    // Determine a deterministic pseudo-random seed from the orderId using a 32-bit FNV-1a hash,
+    // which spreads similar orderIds across the output range far better than a running `% 1000`
+    // accumulator (that approach collapsed most orderIds onto the same handful of seeds).
+    const orderSeed = fnv1aHash(orderId);
+
+    // Simulate API delay with deterministic duration between 300-600ms based on orderId
+    const randomDelay = 300 + (orderSeed % 301);
     await new Promise((resolve) => setTimeout(resolve, randomDelay));
 
-    // Generate random tracking number
-    const trackingNumber = `EM${Math.floor(10000000 + Math.random() * 90000000)}DE`;
+    // Generate deterministic tracking number based on orderId
+    const trackingNumber = `EM${10000000 + (orderSeed % 90000000)}DE`;
 
     // Use current date as reference point
     const now = new Date();
     const orderCreatedDate = subDays(now, 3);
 
     // Determine status based on order ID's last character (for demo variety)
-    const lastChar = orderId.charAt(orderId.length - 1);
+    const lastChar = orderId.at(-1) ?? '';
     const statusMap: Record<string, TrackingInfo['status']> = {
       '0': 'PENDING',
       '1': 'IN_TRANSIT',

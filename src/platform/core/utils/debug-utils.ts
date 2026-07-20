@@ -1,4 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import pino from 'pino';
+import 'server-only';
 import {
   getDebugApiOutput,
   getDebugApiResponseMode,
@@ -180,9 +182,9 @@ const _requestTimestamps = new Map<string, number>();
 // Track debug contexts per request so logResponse can access them (dev only)
 const _requestContexts = new Map<string, DebugContext>();
 
-/** Generate a short unique ID for correlating request/response events */
+/** Generate a unique ID for correlating request/response events */
 function generateRequestId(): string {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  return randomUUID();
 }
 
 /** Format an ANSI-coloured call-type tag for terminal output, e.g. ` EXTERNAL ` */
@@ -259,7 +261,7 @@ function maskHeaders(headers: Record<string, any>): Record<string, any> {
  */
 function maskSensitiveQueryParams(url: string): string {
   try {
-    const u = new URL(url, 'http://dummy'); // base needed for relative URLs
+    const u = new URL(url, 'https://dummy.invalid'); // base needed for relative URLs
     for (const key of u.searchParams.keys()) {
       if (isSensitiveKey(key)) {
         u.searchParams.set(key, '******');
@@ -287,7 +289,7 @@ function getDebugPrefix(url: string): string {
   // 2. Try to get the path prefix
   let pathPrefix = 'URL_'; // Default fallback if parsing fails
   try {
-    const u = new URL(url, '/dummy');
+    const u = new URL(url, 'https://dummy.invalid');
     const path = u.pathname.replace(/^\//, ''); // Remove leading '/'
 
     if (path.length === 0) {
@@ -338,7 +340,7 @@ function shouldLogEndpoint(url: string): boolean {
     .filter(Boolean);
   if (endpoints.length === 0) return true; // No filter set, log everything
   try {
-    const u = new URL(url, 'http://dummy');
+    const u = new URL(url, 'https://dummy.invalid');
     const path = u.pathname.toLowerCase();
     return endpoints.some((endpoint) => path.includes(endpoint));
   } catch {

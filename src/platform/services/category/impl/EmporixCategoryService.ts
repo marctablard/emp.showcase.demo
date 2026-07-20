@@ -1,4 +1,5 @@
 import { inject } from 'inversify';
+import { compareByPosition } from '@/lib/category/category-tree-utils';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCategoryApi } from '@/platform/integrations/emporix/category/EmporixCategoryApi';
 import type { EmporixCategory, EmporixCategoryTree } from '@/platform/integrations/emporix/model';
@@ -13,22 +14,6 @@ import type { Category } from '@/platform/services/model/category';
 import type { CategoryMapper } from '@/platform/services/model/category/CategoryMapper';
 import { mapEmporixCategoryTreeToCategory } from '@/platform/services/model/category/impl/EmporixCategoryMapper';
 import type { CategoryService } from '../CategoryService';
-
-function compareCategoryTreePositions(a: { position?: number }, b: { position?: number }): number {
-  const aPosition = typeof a.position === 'number' ? a.position : 0;
-  const bPosition = typeof b.position === 'number' ? b.position : 0;
-
-  if (aPosition === 0 && bPosition === 0) {
-    return 0;
-  }
-  if (aPosition === 0) {
-    return 1;
-  }
-  if (bPosition === 0) {
-    return -1;
-  }
-  return aPosition - bPosition;
-}
 
 /**
  * Emporix implementation of the CategoryService
@@ -308,7 +293,7 @@ export class EmporixCategoryService implements CategoryService {
       if (trees.length > 0) {
         return trees
           .slice()
-          .sort(compareCategoryTreePositions)
+          .sort(compareByPosition)
           .map((t) => mapEmporixCategoryTreeToCategory(t));
       }
 

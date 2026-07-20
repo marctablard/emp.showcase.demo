@@ -10,14 +10,11 @@ jest.mock('papaparse', () => ({
   },
 }));
 
-// ---------- SheetJS mock ----------
-const mockRead = jest.fn();
-const mockSheetToJson = jest.fn();
-jest.mock('xlsx', () => ({
-  read: (...args: unknown[]) => mockRead(...args),
-  utils: {
-    sheet_to_json: (...args: unknown[]) => mockSheetToJson(...args),
-  },
+// ---------- read-excel-file mock ----------
+const mockReadSheet = jest.fn();
+jest.mock('read-excel-file/browser', () => ({
+  __esModule: true,
+  readSheet: (...args: unknown[]) => mockReadSheet(...args),
 }));
 
 function makeFile(name: string, content: string, size?: number): File {
@@ -32,8 +29,7 @@ function makeFile(name: string, content: string, size?: number): File {
 describe('parseUploadedFile', () => {
   beforeEach(() => {
     mockPapaParse.mockReset();
-    mockRead.mockReset();
-    mockSheetToJson.mockReset();
+    mockReadSheet.mockReset();
   });
 
   describe('validation', () => {
@@ -234,13 +230,9 @@ describe('parseUploadedFile', () => {
     it('delegates to parseXLSX for .xlsx files', async () => {
       const file = makeFile('test.xlsx', 'dummy', 100);
 
-      mockRead.mockReturnValue({
-        SheetNames: ['Sheet1'],
-        Sheets: { Sheet1: {} },
-      });
-      mockSheetToJson.mockReturnValue([
-        ['ABC', '5'],
-        ['DEF', '3'],
+      mockReadSheet.mockResolvedValue([
+        ['ABC', 5],
+        ['DEF', 3],
       ]);
 
       const result = await parseUploadedFile(file);
@@ -253,40 +245,47 @@ describe('parseUploadedFile', () => {
     it('detects header row in XLSX', async () => {
       const file = makeFile('test.xlsx', 'dummy', 100);
 
-      mockRead.mockReturnValue({
-        SheetNames: ['Sheet1'],
-        Sheets: { Sheet1: {} },
-      });
-      mockSheetToJson.mockReturnValue([
+      mockReadSheet.mockResolvedValue([
         ['Item_Number', 'Quantity'],
-        ['ABC', '2'],
+        ['ABC', 2],
       ]);
 
       const result = await parseUploadedFile(file);
       expect(result).toEqual<ParsedEntry[]>([{ code: 'ABC', quantity: 2 }]);
     });
 
-    it('throws EmptyFileError when XLSX has no sheets', async () => {
+    it('throws EmptyFileError when XLSX has no data rows', async () => {
       const file = makeFile('test.xlsx', 'dummy', 100);
 
-      mockRead.mockReturnValue({
-        SheetNames: [],
-        Sheets: {},
-      });
+      mockReadSheet.mockResolvedValue([]);
 
       await expect(parseUploadedFile(file)).rejects.toThrow(EmptyFileError);
     });
 
-    it('throws EmptyFileError when XLSX sheet has no data rows', async () => {
+    it('throws EmptyFileError when XLSX has only a header row', async () => {
       const file = makeFile('test.xlsx', 'dummy', 100);
 
-      mockRead.mockReturnValue({
-        SheetNames: ['Sheet1'],
-        Sheets: { Sheet1: {} },
-      });
-      mockSheetToJson.mockReturnValue([]);
+      mockReadSheet.mockResolvedValue([['ProductCode', 'Quantity']]);
 
       await expect(parseUploadedFile(file)).rejects.toThrow(EmptyFileError);
+    });
+
+    it('coerces null and numeric cells properly', async () => {
+      const file = makeFile('test.xlsx', 'dummy', 100);
+
+      mockReadSheet.mockResolvedValue([
+        ['ABC', 5],
+        ['DEF', null], // missing quantity defaults to 1
+        [null, 4], // missing code gets skipped
+        [12345, 2], // numeric code
+      ]);
+
+      const result = await parseUploadedFile(file);
+      expect(result).toEqual<ParsedEntry[]>([
+        { code: 'ABC', quantity: 5 },
+        { code: 'DEF', quantity: 1 },
+        { code: '12345', quantity: 2 },
+      ]);
     });
   });
 
@@ -306,15 +305,11 @@ describe('parseUploadedFile', () => {
     it('routes .xlsx files to XLSX parser', async () => {
       const file = makeFile('data.xlsx', 'dummy', 100);
 
-      mockRead.mockReturnValue({
-        SheetNames: ['Sheet1'],
-        Sheets: { Sheet1: {} },
-      });
-      mockSheetToJson.mockReturnValue([['XYZ', '10']]);
+      mockReadSheet.mockResolvedValue([['XYZ', '10']]);
 
       const result = await parseUploadedFile(file);
       expect(result).toEqual<ParsedEntry[]>([{ code: 'XYZ', quantity: 10 }]);
-      expect(mockRead).toHaveBeenCalled();
+      expect(mockReadSheet).toHaveBeenCalled();
     });
   });
 });
