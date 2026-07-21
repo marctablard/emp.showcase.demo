@@ -68,7 +68,7 @@ export function AccountSidebar({ className, items, groups = [], scrollable = tru
   return (
     <nav
       className={cn(
-        'flex flex-col min-w-[180px] lg:min-w-[288px] items-start rounded-md h-full py-4 shadow-sm',
+        'flex flex-col min-w-[180px] md:min-w-[288px] items-start rounded-md h-full py-4 shadow-sm',
         scrollable && 'overflow-y-auto',
         className,
       )}
