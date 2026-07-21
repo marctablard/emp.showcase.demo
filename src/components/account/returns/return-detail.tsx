@@ -19,7 +19,7 @@ import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { Link } from '@/i18n/navigation';
 import type { Return } from '@/platform/services/model/return';
 import { formatReturnCurrency } from './helpers';
-import { RETURN_REASON_LABEL_KEYS, getReturnReasonLabel, getReturnReasonTranslationKey } from './reason-labels';
+import { RETURN_REASON_LABEL_KEYS, renderReturnReasonLabel } from './reason-labels';
 import { ReturnStatusBadge } from './return-status-badge';
 
 const MAX_DESCRIPTION_CHARACTERS = 500;
@@ -91,15 +91,6 @@ interface ReturnItemsListProps {
   locale: string;
   t: ReturnType<typeof useTranslations<'account.returns'>>;
   generalReasonCode?: string;
-}
-
-function renderReturnReasonLabel(t: ReturnType<typeof useTranslations<'account.returns'>>, code: string): string {
-  const translationKey = getReturnReasonTranslationKey(code);
-  if (translationKey) {
-    return t(translationKey);
-  }
-
-  return getReturnReasonLabel(code);
 }
 
 function ReturnOverview({ returnItem, locale, t }: ReturnOverviewProps) {

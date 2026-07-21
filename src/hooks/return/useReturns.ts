@@ -18,6 +18,13 @@ interface UseReturnsOptions {
   sort?: string;
   query?: string;
   forceRefreshOnMount?: boolean;
+  initialTotalCount?: number;
+  initialRequest?: {
+    pageSize?: number;
+    pageNumber?: number;
+    sort?: string;
+    query?: string;
+  };
 }
 
 /**
@@ -27,10 +34,18 @@ interface UseReturnsOptions {
  * @param pageNumber Optional page number (default: 1)
  */
 export function useReturns(initialReturns?: Return[], options: UseReturnsOptions = {}): UseReturnsReturn {
-  const { pageSize, pageNumber, sort, query, forceRefreshOnMount = false } = options;
+  const { pageSize, pageNumber, sort, query, forceRefreshOnMount = false, initialTotalCount, initialRequest } = options;
   const [returns, setReturns] = useState<Return[]>(initialReturns || []);
-  const [totalCount, setTotalCount] = useState<number | undefined>(initialReturns?.length);
-  const [loading, setLoading] = useState<boolean>(!initialReturns || pageNumber !== 1 || !!query || !!sort);
+  const [totalCount, setTotalCount] = useState<number | undefined>(initialTotalCount ?? initialReturns?.length);
+
+  const canReuseInitialData =
+    !!initialReturns &&
+    pageNumber === (initialRequest?.pageNumber ?? 1) &&
+    pageSize === initialRequest?.pageSize &&
+    query === initialRequest?.query &&
+    sort === initialRequest?.sort;
+
+  const [loading, setLoading] = useState<boolean>(!canReuseInitialData);
   const [error, setError] = useState<Error | null>(null);
 
   const fetchReturnsData = useCallback(
@@ -55,12 +70,10 @@ export function useReturns(initialReturns?: Return[], options: UseReturnsOptions
   }, [fetchReturnsData]);
 
   useEffect(() => {
-    // Use SSR-provided returns only for the default first-page, no-query/no-sort-load.
-    const canReuseInitialData = !!initialReturns && pageNumber === 1 && !query && !sort;
     if (!canReuseInitialData || forceRefreshOnMount) {
       fetchReturnsData(forceRefreshOnMount);
     }
-  }, [initialReturns, pageNumber, query, sort, forceRefreshOnMount, fetchReturnsData]);
+  }, [canReuseInitialData, forceRefreshOnMount, fetchReturnsData]);
 
   return {
     returns,
