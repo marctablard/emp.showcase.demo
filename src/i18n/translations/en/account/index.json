@@ -453,7 +453,7 @@
     "quotationDate": "Quotation Date",
     "requestedBy": "Requested By",
     "authorization": "Authorization",
-    "totalAmount": "Total amount",
+    "netValue": "Net Value",
     "numberOfProducts": "Number of Products",
     "products": "Products",
     "relatedOrder": "Related Order",
@@ -461,6 +461,8 @@
     "searchPlaceholder": "Search by quote ID or reference...",
     "noMatches": "No quotes match your search",
     "viewQuote": "View quote",
+    "action": "Action",
+    "viewQuoteAriaLabel": "View quote {id}",
     "next": "Next",
     "previous": "Previous",
     "pageIndicator": "Page {current} / {total}"

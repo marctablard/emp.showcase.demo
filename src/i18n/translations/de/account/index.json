@@ -409,7 +409,7 @@
     "quotationDate": "Angebotsdatum",
     "requestedBy": "Angefordert von",
     "authorization": "Autorisierung",
-    "totalAmount": "Gesamtbetrag",
+    "netValue": "Nettowert",
     "numberOfProducts": "Anzahl der Produkte",
     "products": "Produkte",
     "relatedOrder": "Zugehörige Bestellung",
@@ -417,6 +417,8 @@
     "searchPlaceholder": "Nach Angebots-ID oder Referenz suchen...",
     "noMatches": "Keine Angebote entsprechen Ihrer Suche",
     "viewQuote": "Angebotsansicht",
+    "action": "Aktion",
+    "viewQuoteAriaLabel": "Angebot {id} ansehen",
     "next": "Weiter",
     "previous": "Zurück",
     "pageIndicator": "Seite {current} / {total}"

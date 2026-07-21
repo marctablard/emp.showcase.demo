@@ -1,14 +1,33 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { ArrowDown, ArrowRight, ArrowUp, ChevronsUpDown } from 'lucide-react';
 import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TablePagination } from '@/components/ui/table-pagination';
+import { useRouter } from '@/i18n/navigation';
 import { formatDate } from '@/lib/date-utils';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import type { Quote } from '@/platform/services/model/quote';
 import { QuoteStatusBadge } from './quote-status-badge';
+
+/**
+ * Sortable Quotes columns. Requested By, Authorization, and Number of Products are
+ * intentionally excluded: they have no single documented raw sortable field on the
+ * Emporix quote (name fields are compound, product count is a client-side aggregate),
+ * mirroring the same approved exception used for Returns' non-sortable columns.
+ */
+export type QuoteSortField = 'quoteId' | 'quotationDate' | 'status' | 'quoteReference' | 'netValue';
+
+/** Raw upstream Emporix Quote fields backing each sortable column (see resources/emporix/quote.yml). */
+export const QUOTE_SORT_FIELD_MAP: Record<QuoteSortField, string> = {
+  quoteId: 'id',
+  quotationDate: 'metadata.createdAt',
+  status: 'status.value',
+  quoteReference: 'customerReference',
+  netValue: 'totalPrice.netValue',
+};
 
 interface QuotesTableProps {
   quotes: Quote[];
@@ -17,6 +36,10 @@ interface QuotesTableProps {
   totalPages?: number;
   onPreviousPage?: () => void;
   onNextPage?: () => void;
+  sortField?: QuoteSortField;
+  sortDirection?: 'asc' | 'desc';
+  onToggleSort?: (field: QuoteSortField) => void;
+  hasActiveSearch?: boolean;
 }
 
 export function QuotesTable({
@@ -26,68 +49,97 @@ export function QuotesTable({
   totalPages = 1,
   onPreviousPage,
   onNextPage,
-}: QuotesTableProps) {
+  sortField = 'quotationDate',
+  sortDirection = 'desc',
+  onToggleSort,
+  hasActiveSearch = false,
+}: Readonly<QuotesTableProps>) {
   const t = useTranslations('account.quotesList');
+  const locale = useLocale();
+  const router = useRouter();
 
-  const formatPrice = (price: number, currency: string) => {
-    try {
-      return new Intl.NumberFormat('de', {
-        style: 'currency',
-        currency,
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(price);
-    } catch (_error) {
-      return `${price.toFixed(2)} ${currency}`;
-    }
+  const getSortIcon = (field: QuoteSortField) => {
+    if (sortField !== field) return <ChevronsUpDown className="h-4 w-4 text-text-on-disabled" />;
+    return sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
   };
 
+  const getSortAriaSort = (field: QuoteSortField): 'none' | 'ascending' | 'descending' => {
+    if (sortField !== field) return 'none';
+    return sortDirection === 'asc' ? 'ascending' : 'descending';
+  };
+
+  const renderSortableHead = (field: QuoteSortField, label: string, className: string) => (
+    <TableHead className={className} aria-sort={getSortAriaSort(field)}>
+      <button
+        type="button"
+        onClick={() => onToggleSort?.(field)}
+        className="flex items-center gap-2 hover:text-text-action"
+      >
+        {label}
+        {getSortIcon(field)}
+      </button>
+    </TableHead>
+  );
+
   return (
-    <div className="w-full">
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="whitespace-nowrap">{t('quoteId')}</TableHead>
-              <TableHead className="whitespace-nowrap">{t('quoteReference')}</TableHead>
-              <TableHead className="whitespace-nowrap">{t('status')}</TableHead>
-              <TableHead className="whitespace-nowrap">{t('quotationDate')}</TableHead>
-              <TableHead className="whitespace-nowrap">{t('requestedBy')}</TableHead>
-              <TableHead className="whitespace-nowrap">{t('authorization')}</TableHead>
-              <TableHead className="whitespace-nowrap text-right">{t('totalAmount')}</TableHead>
-              <TableHead className="whitespace-nowrap text-right">{t('numberOfProducts')}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center">
-                  <div className="flex items-center justify-center">
-                    <Spinner color="primary" variant="md" />
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : quotes.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center">
-                  {t('noQuotes')}
-                </TableCell>
-              </TableRow>
-            ) : (
-              quotes.map((quote, index) => (
+    <div>
+      <Table containerClassName="pr-1">
+        <TableHeader>
+          <TableRow className="text-base">
+            {renderSortableHead('quoteId', t('quoteId'), '!h-14 w-[160px] font-bold')}
+            {renderSortableHead('quotationDate', t('quotationDate'), '!h-14 w-[160px] font-bold')}
+            {renderSortableHead('status', t('status'), '!h-14 w-[140px] font-bold')}
+            {renderSortableHead('quoteReference', t('quoteReference'), '!h-14 w-[180px] font-bold')}
+            <TableHead className="!h-14 w-[180px] font-bold">{t('requestedBy')}</TableHead>
+            <TableHead className="!h-14 w-[180px] font-bold">{t('authorization')}</TableHead>
+            {renderSortableHead('netValue', t('netValue'), '!h-14 w-[160px] font-bold')}
+            <TableHead className="!h-14 w-[180px] font-bold">{t('numberOfProducts')}</TableHead>
+            <TableHead className="!h-14 w-[100px] font-bold text-center">{t('action')}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {(() => {
+            if (loading) {
+              return (
+                <TableRow>
+                  <TableCell colSpan={9} className="h-24 text-center">
+                    <div className="flex items-center justify-center">
+                      <Spinner color="primary" variant="md" />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            }
+
+            if (quotes.length === 0) {
+              return (
+                <TableRow>
+                  <TableCell colSpan={9} className="h-24 text-center">
+                    {hasActiveSearch ? t('noMatches') : t('noQuotes')}
+                  </TableCell>
+                </TableRow>
+              );
+            }
+
+            return quotes.map((quote, index) => {
+              const quoteHref = `/account/quotes/${quote.id}`;
+
+              return (
                 <TableRow
                   key={quote.id}
                   className={cn(
-                    'hover:surface-image-background text-base',
+                    'hover:bg-surface-image-background cursor-pointer text-base',
                     index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
                   )}
+                  onClick={() => router.push(quoteHref)}
                 >
-                  <TableCell className="font-medium px-2 py-4">
+                  <TableCell className="px-2 py-4 font-medium">
                     <UiLink
                       type="Link"
-                      href={`/account/quotes/${quote.id}`}
-                      variant="text"
-                      className="no-underline hover:underline"
+                      href={quoteHref}
+                      variant="primary"
+                      size="m"
+                      onClick={(event) => event.stopPropagation()}
                     >
                       {quote.id}
                     </UiLink>
@@ -99,45 +151,58 @@ export function QuotesTable({
                           href={`/account/orders/${quote.orderId}`}
                           variant="text"
                           className="underline"
+                          onClick={(event) => event.stopPropagation()}
                         >
                           #{quote.orderId}
                         </UiLink>
                       </div>
                     ) : null}
                   </TableCell>
-                  <TableCell className="px-2 py-4">{quote.reference || '-'}</TableCell>
+                  <TableCell className="px-2 py-4">{formatDate(quote.submittedDate, locale)}</TableCell>
                   <TableCell className="px-2 py-4">
                     <QuoteStatusBadge status={quote.status} />
                   </TableCell>
-                  <TableCell className="px-2 py-4">{formatDate(quote.submittedDate)}</TableCell>
+                  <TableCell className="px-2 py-4">{quote.reference || '-'}</TableCell>
                   <TableCell className="px-2 py-4">{quote.customerName || quote.customerId}</TableCell>
                   <TableCell className="px-2 py-4">{quote.approverName || '-'}</TableCell>
-                  <TableCell className="text-right px-2 py-4 font-medium">
-                    {formatPrice(quote.totalGross, quote.currency)}
+                  <TableCell className="px-2 py-4 font-medium">
+                    {formatCurrency(quote.totalNet, quote.currency, locale)}
                   </TableCell>
-                  <TableCell className="text-right px-2 py-4">
+                  <TableCell className="px-2 py-4">
                     {quote.items?.reduce((total, item) => total + (item.quantity.quantity || 0), 0) || 0}{' '}
                     {t('products')}
                   </TableCell>
+                  <TableCell className="px-2 py-4 text-center">
+                    <div className="flex items-center justify-center">
+                      <UiLink
+                        type="Link"
+                        href={quoteHref}
+                        variant="primary"
+                        size="m"
+                        onClick={(event) => event.stopPropagation()}
+                        aria-label={t('viewQuoteAriaLabel', { id: quote.id })}
+                      >
+                        <ArrowRight className="h-6 w-6" />
+                      </UiLink>
+                    </div>
+                  </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              );
+            });
+          })()}
+        </TableBody>
+      </Table>
 
-      {totalPages > 1 ? (
-        <TablePagination
-          className="px-3"
-          currentPage={currentPage}
-          totalPages={totalPages}
-          pageIndicator={t('pageIndicator', { current: currentPage, total: totalPages })}
-          previousLabel={t('previous')}
-          nextLabel={t('next')}
-          onPreviousPage={onPreviousPage}
-          onNextPage={onNextPage}
-        />
-      ) : null}
+      <TablePagination
+        className="px-3"
+        currentPage={currentPage}
+        totalPages={totalPages}
+        pageIndicator={t('pageIndicator', { current: currentPage, total: totalPages })}
+        previousLabel={t('previous')}
+        nextLabel={t('next')}
+        onPreviousPage={onPreviousPage}
+        onNextPage={onNextPage}
+      />
     </div>
   );
 }
