@@ -48,14 +48,14 @@
   "columns": {
     "orderNumber": "Order #",
     "status": "Status",
-    "totalShippingCost": "Total Shipping Cost",
+    "totalShippingCost": "Shipping Cost",
     "customer": "Customer",
     "orderDate": "Order Date",
     "expectedDeliveryDate": "Expected Delivery Date",
     "deliveryDate": "Delivery Date",
     "deliveryAddress": "Delivery Address",
     "payment": "Payment",
-    "orderValue": "Order Value",
+    "orderValue": "Net Order Value",
     "action": "Action",
     "view": "View"
   },

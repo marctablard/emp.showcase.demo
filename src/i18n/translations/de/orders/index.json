@@ -39,14 +39,14 @@
   "columns": {
     "orderNumber": "Bestell-Nr.",
     "status": "Status",
-    "totalShippingCost": "Gesamtversandkosten",
+    "totalShippingCost": "Versandkosten",
     "customer": "Kunde",
     "orderDate": "Bestelldatum",
     "expectedDeliveryDate": "Vorauss. Lieferdatum",
     "deliveryDate": "Lieferdatum",
     "deliveryAddress": "Lieferadresse",
     "payment": "Zahlungsart",
-    "orderValue": "Bestellwert",
+    "orderValue": "Netto-Bestellwert",
     "action": "Aktion",
     "view": "Ansicht"
   },

@@ -45,6 +45,16 @@ function createOrderQueryKey(searchQuery: { query: string; body: unknown }, free
   });
 }
 
+function getCanonicalUnfilteredOrdersQueryKey(): string {
+  const canonicalQuery = buildSearchQuery({
+    page: 1,
+    size: 50,
+    criteria: {},
+  });
+
+  return createOrderQueryKey(canonicalQuery);
+}
+
 /**
  * Hook for managing collections of orders with pagination, filtering, and searching
  * This is now a simple pass-through to the order store
@@ -82,17 +92,19 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
     criteria: filters,
   });
   const queryKey = createOrderQueryKey(query, searchQuery);
+  const canonicalUnfilteredQueryKey = getCanonicalUnfilteredOrdersQueryKey();
+  const shouldHydrateFromInitialOrders = Boolean(initialOrders) && queryKey === canonicalUnfilteredQueryKey;
 
   useEffect(() => {
-    // Initialize with initialOrders if provided and not already in store
-    if (initialOrders && !getStoreOrders(queryKey) && !getStoreLoading(queryKey)) {
+    // Keep the canonical unfiltered list in sync with SSR data on mount.
+    if (shouldHydrateFromInitialOrders && !getStoreLoading(queryKey)) {
       setStoreOrders(queryKey, initialOrders);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialOrders, queryKey]);
+  }, [initialOrders, queryKey, shouldHydrateFromInitialOrders]);
 
   // Get current state from store
-  const orders = getStoreOrders(queryKey) || initialOrders;
+  const orders = getStoreOrders(queryKey) || (shouldHydrateFromInitialOrders ? initialOrders : undefined);
   const loading = getStoreLoading(queryKey);
   const error = getStoreError(queryKey);
 
