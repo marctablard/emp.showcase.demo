@@ -76,26 +76,49 @@ describe('ApprovalsTable', () => {
     ]);
   });
 
-  it('keeps only Modified At sortable; all other columns (including Created At) are non-sortable', () => {
+  it('keeps only Quote Number, Order Number, and Action non-sortable; all other columns are sortable', () => {
     render(<ApprovalsTable approvals={[buildApproval()]} />);
 
-    for (const name of [
-      'status',
-      'resourceType',
-      'quoteNumber',
-      'orderNumber',
-      'netTotal',
-      'requestor',
-      'approver',
-      'createdAt',
-    ]) {
+    for (const name of ['quoteNumber', 'orderNumber']) {
       const header = screen.getByRole('columnheader', { name });
       expect(within(header).queryByRole('button')).not.toBeInTheDocument();
       expect(header).not.toHaveAttribute('aria-sort');
     }
 
-    const modifiedAtHeader = screen.getByRole('columnheader', { name: /modifiedAt/ });
-    expect(within(modifiedAtHeader).getByRole('button')).toBeInTheDocument();
+    for (const name of [
+      /approvalId/,
+      /modifiedAt/,
+      /^status$/,
+      /resourceType/,
+      /netTotal/,
+      /requestor/,
+      /approver/,
+      /createdAt/,
+    ]) {
+      const header = screen.getByRole('columnheader', { name });
+      expect(within(header).getByRole('button')).toBeInTheDocument();
+    }
+  });
+
+  it('calls onToggleSort with the mapped field for each sortable column', () => {
+    const onToggleSort = jest.fn();
+    render(<ApprovalsTable approvals={[buildApproval()]} onToggleSort={onToggleSort} />);
+
+    const cases: [RegExp, string][] = [
+      [/approvalId/, 'approvalId'],
+      [/^status$/, 'status'],
+      [/resourceType/, 'resourceType'],
+      [/netTotal/, 'netTotal'],
+      [/requestor/, 'requestorFirstName'],
+      [/approver/, 'approverFirstName'],
+      [/createdAt/, 'createdAt'],
+    ];
+
+    for (const [name, expectedField] of cases) {
+      const header = screen.getByRole('columnheader', { name });
+      fireEvent.click(within(header).getByRole('button'));
+      expect(onToggleSort).toHaveBeenLastCalledWith(expectedField);
+    }
   });
 
   it('keeps the Action column non-sortable, centered, and arrow-only', () => {

@@ -150,6 +150,41 @@ describe('ApprovalsList', () => {
     expect(options.pageNumber).toBe(1);
   });
 
+  it('does not render a status filter dropdown', () => {
+    mockApprovalsResult({ approvals: [buildApproval()] });
+    render(<ApprovalsList initialApprovals={[buildApproval()]} />);
+
+    expect(screen.queryByText('filterByStatus')).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+  });
+
+  it('sends query undefined and resets to page 1 once the search input is cleared', () => {
+    mockApprovalsResult({
+      approvals: [buildApproval()],
+      pagination: { pageNumber: 2, pageSize: 5, totalPages: 3, totalItems: 15 },
+    });
+    render(<ApprovalsList initialApprovals={[buildApproval()]} />);
+
+    const input = screen.getByPlaceholderText('searchPlaceholder');
+    fireEvent.change(input, { target: { value: 'abc' } });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    fireEvent.change(input, { target: { value: '' } });
+
+    const [, optionsAfterClearBeforeDebounce] = mockUseApprovals.mock.calls[mockUseApprovals.mock.calls.length - 1];
+    expect(optionsAfterClearBeforeDebounce.pageNumber).toBe(1);
+
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    const [, optionsAfterDebounce] = mockUseApprovals.mock.calls[mockUseApprovals.mock.calls.length - 1];
+    expect(optionsAfterDebounce.query).toBeUndefined();
+    expect(optionsAfterDebounce.pageNumber).toBe(1);
+  });
+
   it('renders the error state distinctly instead of the table when the fetch fails', () => {
     mockApprovalsResult({ approvals: [], error: new Error('boom') });
     render(<ApprovalsList initialApprovals={[]} />);

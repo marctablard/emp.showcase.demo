@@ -154,6 +154,33 @@ describe('QuotesPageContent', () => {
     expect(options.page).toBe(0);
   });
 
+  it('sends query undefined and resets to page 1 once the search input is cleared', () => {
+    mockQuotesResult({
+      quotes: [buildQuote()],
+      pagination: { pageNumber: 1, pageSize: 5, totalPages: 3, totalItems: 15 },
+    });
+    render(<QuotesPageContent initialQuotes={[buildQuote()]} />);
+
+    const input = screen.getByPlaceholderText('searchPlaceholder');
+    fireEvent.change(input, { target: { value: 'abc' } });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    fireEvent.change(input, { target: { value: '' } });
+
+    const [, optionsAfterClearBeforeDebounce] = mockUseQuotes.mock.calls[mockUseQuotes.mock.calls.length - 1];
+    expect(optionsAfterClearBeforeDebounce.page).toBe(0);
+
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    const [, optionsAfterDebounce] = mockUseQuotes.mock.calls[mockUseQuotes.mock.calls.length - 1];
+    expect(optionsAfterDebounce.query).toBeUndefined();
+    expect(optionsAfterDebounce.page).toBe(0);
+  });
+
   it('renders the error state distinctly instead of the table when the fetch fails', () => {
     mockQuotesResult({ quotes: [], error: new Error('boom') });
     render(<QuotesPageContent initialQuotes={[]} />);

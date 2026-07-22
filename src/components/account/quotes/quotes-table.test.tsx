@@ -77,10 +77,10 @@ describe('QuotesTable', () => {
     ]);
   });
 
-  it('keeps Requested By, Authorization, Number of Products, and Related Order non-sortable', () => {
+  it('keeps Requested By, Authorization, Number of Products, Related Order, and Quote Reference non-sortable', () => {
     render(<QuotesTable quotes={[buildQuote()]} />);
 
-    for (const name of ['requestedBy', 'authorization', 'numberOfProducts']) {
+    for (const name of ['requestedBy', 'authorization', 'numberOfProducts', 'quoteReference']) {
       const header = screen.getByRole('columnheader', { name });
       expect(within(header).queryByRole('button')).not.toBeInTheDocument();
       expect(header).not.toHaveAttribute('aria-sort');
@@ -116,10 +116,10 @@ describe('QuotesTable', () => {
     const onToggleSort = jest.fn();
     render(<QuotesTable quotes={[buildQuote()]} onToggleSort={onToggleSort} />);
 
-    const referenceHeader = screen.getByRole('columnheader', { name: /quoteReference/ });
-    fireEvent.click(within(referenceHeader).getByRole('button'));
+    const statusHeader = screen.getByRole('columnheader', { name: /^status$/ });
+    fireEvent.click(within(statusHeader).getByRole('button'));
 
-    expect(onToggleSort).toHaveBeenCalledWith('quoteReference');
+    expect(onToggleSort).toHaveBeenCalledWith('status');
   });
 
   it('navigates the full row, bold Quote ID link, and Action arrow to the same quote detail destination', () => {

@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import type { Return } from '@/platform/services/model/return';
 import { ReturnsList } from './returns-list';
 
@@ -128,14 +128,25 @@ describe('ReturnsList', () => {
     });
   });
 
-  it('keeps Return Number, Order Number, Customer, and Reason non-sortable', () => {
+  it('keeps Order Number and Customer non-sortable', () => {
     mockReturnsResult({ returns: [buildReturn()], totalCount: 1 });
     render(<ReturnsList initialReturns={[buildReturn()]} />);
 
-    for (const name of ['returnNumber', 'orderNumber', 'customer', 'reasonLabel']) {
+    for (const name of ['orderNumber', 'customer']) {
       const header = screen.getByRole('columnheader', { name });
       expect(within(header).queryByRole('button')).not.toBeInTheDocument();
       expect(header).not.toHaveAttribute('aria-sort');
+    }
+  });
+
+  it('makes Return Number, Net Return Value, and Reason sortable alongside Return Date and Status', () => {
+    mockReturnsResult({ returns: [buildReturn()], totalCount: 1 });
+    render(<ReturnsList initialReturns={[buildReturn()]} />);
+
+    for (const name of [/returnNumber/, /netReturnValue/, /reasonLabel/]) {
+      const header = screen.getByRole('columnheader', { name });
+      expect(within(header).getByRole('button')).toBeInTheDocument();
+      expect(header).toHaveAttribute('aria-sort', 'none');
     }
   });
 
@@ -174,13 +185,40 @@ describe('ReturnsList', () => {
     expect(lastCallOptions).toMatchObject({ sort: 'approvalStatus:DESC', pageNumber: 1 });
   });
 
-  it('keeps Net Return Value non-sortable because no exact upstream sort field matches displayed net value', () => {
+  it('toggles Return Number sort, requests the mapped upstream id field, and resets to page 1', () => {
+    mockReturnsResult({ returns: [buildReturn()], totalCount: 1 });
+    render(<ReturnsList initialReturns={[buildReturn()]} />);
+
+    const returnNumberHeader = screen.getByRole('columnheader', { name: /returnNumber/ });
+    fireEvent.click(within(returnNumberHeader).getByRole('button'));
+
+    expect(returnNumberHeader).toHaveAttribute('aria-sort', 'descending');
+    const lastCallOptions = mockUseReturns.mock.calls[mockUseReturns.mock.calls.length - 1][1];
+    expect(lastCallOptions).toMatchObject({ sort: 'id:DESC', pageNumber: 1 });
+  });
+
+  it('toggles Net Return Value sort and requests the mapped calculatedPrice.finalPrice.netValue upstream field', () => {
     mockReturnsResult({ returns: [buildReturn()], totalCount: 1 });
     render(<ReturnsList initialReturns={[buildReturn()]} />);
 
     const valueHeader = screen.getByRole('columnheader', { name: /netReturnValue/ });
-    expect(within(valueHeader).queryByRole('button')).not.toBeInTheDocument();
-    expect(valueHeader).not.toHaveAttribute('aria-sort');
+    fireEvent.click(within(valueHeader).getByRole('button'));
+
+    expect(valueHeader).toHaveAttribute('aria-sort', 'descending');
+    const lastCallOptions = mockUseReturns.mock.calls[mockUseReturns.mock.calls.length - 1][1];
+    expect(lastCallOptions).toMatchObject({ sort: 'calculatedPrice.finalPrice.netValue:DESC', pageNumber: 1 });
+  });
+
+  it('toggles Reason sort and requests the mapped reason.code upstream field', () => {
+    mockReturnsResult({ returns: [buildReturn()], totalCount: 1 });
+    render(<ReturnsList initialReturns={[buildReturn()]} />);
+
+    const reasonHeader = screen.getByRole('columnheader', { name: /reasonLabel/ });
+    fireEvent.click(within(reasonHeader).getByRole('button'));
+
+    expect(reasonHeader).toHaveAttribute('aria-sort', 'descending');
+    const lastCallOptions = mockUseReturns.mock.calls[mockUseReturns.mock.calls.length - 1][1];
+    expect(lastCallOptions).toMatchObject({ sort: 'reason.code:DESC', pageNumber: 1 });
   });
 
   it('navigates the full row, Return Number link, and Action arrow to the same return detail destination', () => {
@@ -363,6 +401,35 @@ describe('ReturnsList', () => {
     const noReasonRow = screen.getByText('r-no-reason').closest('tr') as HTMLTableRowElement;
     const cells = within(noReasonRow).getAllByRole('cell');
     expect(cells[6]).toHaveTextContent('-');
+  });
+
+  it('sends query undefined and resets to page 1 once the search input is cleared', () => {
+    jest.useFakeTimers();
+    try {
+      mockReturnsResult({ returns: [buildReturn()], totalCount: 12 });
+      render(<ReturnsList initialReturns={[buildReturn()]} />);
+
+      const input = screen.getByPlaceholderText('searchPlaceholder');
+      fireEvent.change(input, { target: { value: 'abc' } });
+      act(() => {
+        jest.advanceTimersByTime(500);
+      });
+
+      fireEvent.change(input, { target: { value: '' } });
+
+      const [, optionsAfterClearBeforeDebounce] = mockUseReturns.mock.calls[mockUseReturns.mock.calls.length - 1];
+      expect(optionsAfterClearBeforeDebounce.pageNumber).toBe(1);
+
+      act(() => {
+        jest.advanceTimersByTime(500);
+      });
+
+      const [, optionsAfterDebounce] = mockUseReturns.mock.calls[mockUseReturns.mock.calls.length - 1];
+      expect(optionsAfterDebounce.query).toBeUndefined();
+      expect(optionsAfterDebounce.pageNumber).toBe(1);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('shows the loading state, then the empty state, when there are no returns', () => {

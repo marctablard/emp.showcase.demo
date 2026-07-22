@@ -7,12 +7,11 @@ import { APPROVALS_PER_PAGE } from '@/components/account/account-table-constants
 import { Button } from '@/components/ui/button';
 import { H1 } from '@/components/ui/h';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { TableCard } from '@/components/ui/table';
 import { useApprovals } from '@/hooks/approval/useApprovals';
 import { useDebouncedValue } from '@/hooks/common/useDebouncedValue';
-import type { Approval, ApprovalStatus } from '@/platform/services/model/approval';
+import type { Approval } from '@/platform/services/model/approval';
 import { APPROVAL_SORT_FIELD_MAP, type ApprovalSortField, ApprovalsTable } from './approvals-table';
 
 const SEARCH_DEBOUNCE_MS = 500;
@@ -26,8 +25,6 @@ interface ApprovalsListProps {
 
 export function ApprovalsList({ initialApprovals, currentUserId, initialTotalCount }: Readonly<ApprovalsListProps>) {
   const t = useTranslations('orders.Approval');
-  const tStatus = useTranslations('orders.ApprovalStatus');
-  const [filterStatus, setFilterStatus] = useState<ApprovalStatus | '_ALL_'>('_ALL_');
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<ApprovalSortField>('modifiedAt');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -36,17 +33,11 @@ export function ApprovalsList({ initialApprovals, currentUserId, initialTotalCou
   const normalizedSearch = useDebouncedValue(quickSearch, SEARCH_DEBOUNCE_MS).trim();
 
   const apiQuery = useMemo(() => {
-    const parts: string[] = [];
-    if (filterStatus !== '_ALL_') {
-      parts.push(`status:${filterStatus}`);
+    if (normalizedSearch.length === 0) {
+      return undefined;
     }
-    if (normalizedSearch.length > 0) {
-      parts.push(
-        `compoundLogicalQuery:((id:~(${normalizedSearch})) OR (status:~(${normalizedSearch.toUpperCase()})) OR (requestor.firstName:~(${normalizedSearch})) OR (requestor.lastName:~(${normalizedSearch})) OR (approver.firstName:~(${normalizedSearch})) OR (approver.lastName:~(${normalizedSearch})))`,
-      );
-    }
-    return parts.length > 0 ? parts.join(' ') : undefined;
-  }, [filterStatus, normalizedSearch]);
+    return `compoundLogicalQuery:((id:~(${normalizedSearch})) OR (status:~(${normalizedSearch.toUpperCase()})) OR (requestor.firstName:~(${normalizedSearch})) OR (requestor.lastName:~(${normalizedSearch})) OR (approver.firstName:~(${normalizedSearch})) OR (approver.lastName:~(${normalizedSearch})))`;
+  }, [normalizedSearch]);
 
   const apiSort = `${APPROVAL_SORT_FIELD_MAP[sortField]}:${sortDirection}`;
 
@@ -63,11 +54,6 @@ export function ApprovalsList({ initialApprovals, currentUserId, initialTotalCou
       query: undefined,
     },
   });
-
-  const handleFilter = (status: ApprovalStatus | '_ALL_') => {
-    setFilterStatus(status);
-    setCurrentPage(1);
-  };
 
   const toggleSort = (field: ApprovalSortField) => {
     setCurrentPage(1);
@@ -88,7 +74,7 @@ export function ApprovalsList({ initialApprovals, currentUserId, initialTotalCou
     setCurrentPage((prev) => Math.min(prev + 1, totalPages));
   };
 
-  const hasActiveSearch = normalizedSearch.length > 0 || filterStatus !== '_ALL_';
+  const hasActiveSearch = normalizedSearch.length > 0;
   const isSearchLoading = loading && normalizedSearch.length > 0;
 
   return (
@@ -117,21 +103,6 @@ export function ApprovalsList({ initialApprovals, currentUserId, initialTotalCou
                 loadingText={t('loading')}
               />
             )}
-          </div>
-          <div className="flex-1 min-w-[200px] max-w-[280px]">
-            <Select value={filterStatus} onValueChange={(value) => handleFilter(value as ApprovalStatus | '_ALL_')}>
-              <SelectTrigger>
-                <SelectValue placeholder={t('filterByStatus')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_ALL_">{t('allStatuses')}</SelectItem>
-                <SelectItem value="PENDING">{tStatus('PENDING')}</SelectItem>
-                <SelectItem value="APPROVED">{tStatus('APPROVED')}</SelectItem>
-                <SelectItem value="DECLINED">{tStatus('DECLINED')}</SelectItem>
-                <SelectItem value="EXPIRED">{tStatus('EXPIRED')}</SelectItem>
-                <SelectItem value="CLOSED">{tStatus('CLOSED')}</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </div>
 

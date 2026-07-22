@@ -13,15 +13,31 @@ import type { Approval, ApprovalRequestor, ApprovalUser } from '@/platform/servi
 import { ApprovalStatusBadge } from './approval-status-badge';
 
 /**
- * The only sortable column. `metadata.createdAt` is equally documented in
- * `resources/emporix/approval.yml`, but the Jira/product-approved contract for
- * COP-6028 only requires Modified At sorting (default descending); other columns
- * (Requestor/Approver names, Resource Type, Net Total) have no single documented
- * raw sortable field, mirroring the same approved exception used for Returns/Quotes.
+ * Sortable Approval columns. Status, Approval ID, Net Total, Requestor, Approver,
+ * Created At, Resource Type, and Modified At are each backed by a single documented
+ * raw upstream field (see `resources/emporix/approval.yml`), so all are sortable.
+ * Quote Number and Order Number are computed/joined display fields with no raw
+ * sortable equivalent, and Action has no data to sort, so those stay non-sortable.
  */
-export type ApprovalSortField = 'modifiedAt';
+export type ApprovalSortField =
+  | 'status'
+  | 'approvalId'
+  | 'netTotal'
+  | 'requestorFirstName'
+  | 'approverFirstName'
+  | 'createdAt'
+  | 'resourceType'
+  | 'modifiedAt';
 
+/** Raw upstream Emporix Approval fields backing each sortable column. */
 export const APPROVAL_SORT_FIELD_MAP: Record<ApprovalSortField, string> = {
+  status: 'status',
+  approvalId: 'id',
+  netTotal: 'resource.subtotalAggregate.netValue',
+  requestorFirstName: 'requestor.firstName',
+  approverFirstName: 'approver.firstName',
+  createdAt: 'metadata.createdAt',
+  resourceType: 'resourceType',
   modifiedAt: 'metadata.modifiedAt',
 };
 
@@ -125,16 +141,16 @@ export function ApprovalsTable({
       <Table containerClassName="pr-1">
         <TableHeader>
           <TableRow className="text-base">
-            <TableHead className="!h-14 w-[160px] font-bold">{t('approvalId')}</TableHead>
+            {renderSortableHead('approvalId', t('approvalId'), '!h-14 w-[160px] font-bold')}
             {renderSortableHead('modifiedAt', t('modifiedAt'), '!h-14 w-[160px] font-bold')}
-            <TableHead className="!h-14 w-[140px] font-bold">{t('status')}</TableHead>
-            <TableHead className="!h-14 w-[140px] font-bold">{t('resourceType')}</TableHead>
+            {renderSortableHead('status', t('status'), '!h-14 w-[140px] font-bold')}
+            {renderSortableHead('resourceType', t('resourceType'), '!h-14 w-[140px] font-bold')}
             <TableHead className="!h-14 w-[160px] font-bold">{t('quoteNumber')}</TableHead>
             <TableHead className="!h-14 w-[160px] font-bold">{t('orderNumber')}</TableHead>
-            <TableHead className="!h-14 w-[140px] font-bold">{t('netTotal')}</TableHead>
-            <TableHead className="!h-14 w-[180px] font-bold">{t('requestor')}</TableHead>
-            <TableHead className="!h-14 w-[180px] font-bold">{t('approver')}</TableHead>
-            <TableHead className="!h-14 w-[160px] font-bold">{t('createdAt')}</TableHead>
+            {renderSortableHead('netTotal', t('netTotal'), '!h-14 w-[140px] font-bold')}
+            {renderSortableHead('requestorFirstName', t('requestor'), '!h-14 w-[180px] font-bold')}
+            {renderSortableHead('approverFirstName', t('approver'), '!h-14 w-[180px] font-bold')}
+            {renderSortableHead('createdAt', t('createdAt'), '!h-14 w-[160px] font-bold')}
             <TableHead className="!h-14 w-[100px] font-bold text-center">{t('action')}</TableHead>
           </TableRow>
         </TableHeader>

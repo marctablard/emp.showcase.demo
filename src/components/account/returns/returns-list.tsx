@@ -26,12 +26,16 @@ import {
 import { renderReturnReasonLabel } from './reason-labels';
 import { ReturnStatusBadge } from './return-status-badge';
 
-type ReturnSortField = 'date' | 'status';
+type ReturnSortField = 'date' | 'status' | 'returnNumber' | 'netValue' | 'reason';
 const RETURNS_PER_PAGE = 5;
 const SEARCH_DEBOUNCE_MS = 500;
+/** Raw upstream Emporix Return fields backing each sortable column (see resources/emporix/returns.yml). */
 const RETURN_SORT_FIELD_MAP: Record<ReturnSortField, string> = {
   date: 'metadata.createdAt',
   status: 'approvalStatus',
+  returnNumber: 'id',
+  netValue: 'calculatedPrice.finalPrice.netValue',
+  reason: 'reason.code',
 };
 const INITIAL_PAGE_SORT = 'metadata.createdAt:DESC';
 
@@ -110,6 +114,19 @@ export function ReturnsList({
 
     return sortDirection === 'asc' ? 'ascending' : 'descending';
   };
+
+  const renderSortableHead = (field: ReturnSortField, label: string, className: string) => (
+    <TableHead className={className} aria-sort={getSortAriaSort(field)}>
+      <button
+        type="button"
+        onClick={() => toggleSort(field)}
+        className="flex items-center gap-2 hover:text-text-action"
+      >
+        {label}
+        {getSortIcon(field)}
+      </button>
+    </TableHead>
+  );
 
   const handlePreviousPage = () => {
     setCurrentPage((prev) => Math.max(prev - 1, 1));
@@ -210,31 +227,13 @@ export function ReturnsList({
           <Table containerClassName="pr-1">
             <TableHeader>
               <TableRow className="text-base">
-                <TableHead className="!h-14 w-[180px] font-bold">{t('returnNumber')}</TableHead>
-                <TableHead className="!h-14 w-[160px] font-bold" aria-sort={getSortAriaSort('date')}>
-                  <button
-                    type="button"
-                    onClick={() => toggleSort('date')}
-                    className="flex items-center gap-2 hover:text-text-action"
-                  >
-                    {t('returnDate')}
-                    {getSortIcon('date')}
-                  </button>
-                </TableHead>
-                <TableHead className="!h-14 w-[140px] font-bold" aria-sort={getSortAriaSort('status')}>
-                  <button
-                    type="button"
-                    onClick={() => toggleSort('status')}
-                    className="flex items-center gap-2 hover:text-text-action"
-                  >
-                    {t('statusLabel')}
-                    {getSortIcon('status')}
-                  </button>
-                </TableHead>
+                {renderSortableHead('returnNumber', t('returnNumber'), '!h-14 w-[180px] font-bold')}
+                {renderSortableHead('date', t('returnDate'), '!h-14 w-[160px] font-bold')}
+                {renderSortableHead('status', t('statusLabel'), '!h-14 w-[140px] font-bold')}
                 <TableHead className="!h-14 w-[160px] font-bold">{t('orderNumber')}</TableHead>
                 <TableHead className="!h-14 w-[180px] font-bold">{t('customer')}</TableHead>
-                <TableHead className="!h-14 w-[180px] font-bold">{t('netReturnValue')}</TableHead>
-                <TableHead className="!h-14 w-[160px] font-bold">{t('reasonLabel')}</TableHead>
+                {renderSortableHead('netValue', t('netReturnValue'), '!h-14 w-[180px] font-bold')}
+                {renderSortableHead('reason', t('reasonLabel'), '!h-14 w-[160px] font-bold')}
                 <TableHead className="!h-14 w-[100px] font-bold text-center">{t('action')}</TableHead>
               </TableRow>
             </TableHeader>

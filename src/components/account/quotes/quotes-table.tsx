@@ -17,15 +17,18 @@ import { QuoteStatusBadge } from './quote-status-badge';
  * intentionally excluded: they have no single documented raw sortable field on the
  * Emporix quote (name fields are compound, product count is a client-side aggregate),
  * mirroring the same approved exception used for Returns' non-sortable columns.
+ * Quote Reference is also excluded: the displayed value (`quote.reference`) is a
+ * mapper fallback (`customerReference || mixins.additionalInfo.reference`, see
+ * `EmporixQuoteMapper`), so sorting upstream by the raw `customerReference` field
+ * alone would not reliably reflect the displayed order.
  */
-export type QuoteSortField = 'quoteId' | 'quotationDate' | 'status' | 'quoteReference' | 'netValue';
+export type QuoteSortField = 'quoteId' | 'quotationDate' | 'status' | 'netValue';
 
 /** Raw upstream Emporix Quote fields backing each sortable column (see resources/emporix/quote.yml). */
 export const QUOTE_SORT_FIELD_MAP: Record<QuoteSortField, string> = {
   quoteId: 'id',
   quotationDate: 'metadata.createdAt',
   status: 'status.value',
-  quoteReference: 'customerReference',
   netValue: 'totalPrice.netValue',
 };
 
@@ -90,7 +93,7 @@ export function QuotesTable({
             {renderSortableHead('quotationDate', t('quotationDate'), '!h-14 w-[160px] font-bold')}
             {renderSortableHead('status', t('status'), '!h-14 w-[140px] font-bold')}
             <TableHead className="!h-14 w-[160px] font-bold">{t('relatedOrder')}</TableHead>
-            {renderSortableHead('quoteReference', t('quoteReference'), '!h-14 w-[180px] font-bold')}
+            <TableHead className="!h-14 w-[180px] font-bold">{t('quoteReference')}</TableHead>
             <TableHead className="!h-14 w-[180px] font-bold">{t('requestedBy')}</TableHead>
             <TableHead className="!h-14 w-[180px] font-bold">{t('authorization')}</TableHead>
             {renderSortableHead('netValue', t('netValue'), '!h-14 w-[160px] font-bold')}
