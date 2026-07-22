@@ -47,8 +47,8 @@ describe('OrderStore', () => {
     mockFetchOrdersPage.mockResolvedValue({ items: mockOrders, totalCount: 2 });
 
     // Start two concurrent fetches with the same parameters
-    const promise1 = store.getState().fetchOrders(10, 1, {});
-    const promise2 = store.getState().fetchOrders(10, 1, {});
+    const promise1 = store.getState().fetchOrders(10, 1);
+    const promise2 = store.getState().fetchOrders(10, 1);
 
     // Both should resolve to the same result
     const [result1, result2] = await Promise.all([promise1, promise2]);
@@ -69,8 +69,8 @@ describe('OrderStore', () => {
       .mockResolvedValueOnce({ items: mockOrders2, totalCount: 1 });
 
     // Fetch with different parameters
-    const promise1 = store.getState().fetchOrders(10, 1, {});
-    const promise2 = store.getState().fetchOrders(20, 1, {});
+    const promise1 = store.getState().fetchOrders(10, 1);
+    const promise2 = store.getState().fetchOrders(20, 1);
 
     await Promise.all([promise1, promise2]);
 
@@ -84,10 +84,10 @@ describe('OrderStore', () => {
     mockFetchOrdersPage.mockResolvedValue({ items: mockOrders, totalCount: 1 });
 
     // First fetch
-    await store.getState().fetchOrders(10, 1, {});
+    await store.getState().fetchOrders(10, 1);
 
     // Second fetch should return cached data without API call
-    const cachedResult = await store.getState().fetchOrders(10, 1, {});
+    const cachedResult = await store.getState().fetchOrders(10, 1);
 
     expect(cachedResult).toEqual(mockOrders);
     expect(mockFetchOrdersPage).toHaveBeenCalledTimes(1);
@@ -97,7 +97,7 @@ describe('OrderStore', () => {
     const error = new Error('API Error');
     mockFetchOrdersPage.mockRejectedValue(error);
 
-    await expect(store.getState().fetchOrders(10, 1, {})).rejects.toThrow('API Error');
+    await expect(store.getState().fetchOrders(10, 1)).rejects.toThrow('API Error');
 
     // Check that error state is set
     const queryKey = JSON.stringify({
@@ -124,11 +124,11 @@ describe('OrderStore', () => {
       .mockResolvedValueOnce({ items: updatedOrders, totalCount: 2 });
 
     // First fetch populates cache
-    await store.getState().fetchOrders(10, 1, {});
+    await store.getState().fetchOrders(10, 1);
     expect(mockFetchOrdersPage).toHaveBeenCalledTimes(1);
 
     // Second fetch with forceRefresh should call API again
-    const result = await store.getState().fetchOrders(10, 1, {}, true);
+    const result = await store.getState().fetchOrders(10, 1, true);
 
     expect(mockFetchOrdersPage).toHaveBeenCalledTimes(2);
     expect(result).toEqual(updatedOrders);
@@ -140,8 +140,8 @@ describe('OrderStore', () => {
     mockFetchOrdersPage.mockResolvedValue({ items: mockOrders, totalCount: 1 });
 
     // Start two concurrent forceRefresh fetches with the same parameters
-    const promise1 = store.getState().fetchOrders(10, 1, {}, true);
-    const promise2 = store.getState().fetchOrders(10, 1, {}, true);
+    const promise1 = store.getState().fetchOrders(10, 1, true);
+    const promise2 = store.getState().fetchOrders(10, 1, true);
 
     const [result1, result2] = await Promise.all([promise1, promise2]);
 
@@ -156,7 +156,7 @@ describe('OrderStore', () => {
     const mockOrders = [{ id: '1', status: 'CREATED', total: { amount: 100, currency: 'EUR' } }];
     mockFetchOrdersPage.mockResolvedValue({ items: mockOrders, totalCount: 42 });
 
-    await store.getState().fetchOrders(10, 2, {}, false, 'status:CREATED', 'created:desc');
+    await store.getState().fetchOrders(10, 2, false, 'status:CREATED', 'created:desc');
 
     const queryKey = JSON.stringify({
       pageSize: 10,

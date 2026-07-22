@@ -239,6 +239,35 @@ describe('ApprovalsTable', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it('supports keyboard row navigation with Enter and does not navigate on Space', () => {
+    render(<ApprovalsTable approvals={[buildApproval({ id: 'APR-42' })]} />);
+
+    const row = screen.getByRole('row', { name: 'viewApprovalAriaLabel:APR-42' });
+
+    fireEvent.keyDown(row, { key: 'Enter' });
+    expect(push).toHaveBeenCalledWith('/account/quotes/quote-1');
+
+    push.mockClear();
+    fireEvent.keyDown(row, { key: ' ' });
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('does not row-navigate when Enter is pressed on nested links', () => {
+    render(<ApprovalsTable approvals={[buildApproval({ id: 'APR-42', resource: { id: 'quote-42' } })]} />);
+
+    const idLink = screen.getByRole('link', { name: 'APR-42' });
+    fireEvent.keyDown(idLink, { key: 'Enter' });
+    expect(push).not.toHaveBeenCalled();
+
+    const quoteLink = screen.getByRole('link', { name: 'quote-42' });
+    fireEvent.keyDown(quoteLink, { key: 'Enter' });
+    expect(push).not.toHaveBeenCalled();
+
+    const arrowLink = screen.getByRole('link', { name: 'viewApprovalAriaLabel:APR-42' });
+    fireEvent.keyDown(arrowLink, { key: 'Enter' });
+    expect(push).not.toHaveBeenCalled();
+  });
+
   it('shows the empty-approvals message when there are no approvals and no active search', () => {
     render(<ApprovalsTable approvals={[]} hasActiveSearch={false} />);
     expect(screen.getByText('noApprovalsFound')).toBeInTheDocument();

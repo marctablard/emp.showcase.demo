@@ -237,6 +237,39 @@ describe('ReturnsList', () => {
     expect(arrowLink).toHaveAttribute('href', '/account/returns/ret-42');
   });
 
+  it('supports keyboard row navigation with Enter and does not navigate on Space', () => {
+    const returnItem = buildReturn({ id: 'ret-42' });
+    mockReturnsResult({ returns: [returnItem], totalCount: 1 });
+    render(<ReturnsList initialReturns={[returnItem]} />);
+
+    const row = screen.getByRole('row', { name: 'viewReturnAriaLabel:ret-42' });
+
+    fireEvent.keyDown(row, { key: 'Enter' });
+    expect(push).toHaveBeenCalledWith('/account/returns/ret-42');
+
+    push.mockClear();
+    fireEvent.keyDown(row, { key: ' ' });
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('does not row-navigate when Enter is pressed on nested links', () => {
+    const returnItem = buildReturn({ id: 'ret-42', orders: [{ id: 'order-42', items: [] }] });
+    mockReturnsResult({ returns: [returnItem], totalCount: 1 });
+    render(<ReturnsList initialReturns={[returnItem]} />);
+
+    const returnNumberLink = screen.getByRole('link', { name: 'ret-42' });
+    fireEvent.keyDown(returnNumberLink, { key: 'Enter' });
+    expect(push).not.toHaveBeenCalled();
+
+    const orderLink = screen.getByRole('link', { name: 'order-42' });
+    fireEvent.keyDown(orderLink, { key: 'Enter' });
+    expect(push).not.toHaveBeenCalled();
+
+    const arrowLink = screen.getByRole('link', { name: 'viewReturnAriaLabel:ret-42' });
+    fireEvent.keyDown(arrowLink, { key: 'Enter' });
+    expect(push).not.toHaveBeenCalled();
+  });
+
   it('gives the Action arrow link a localized accessible name that identifies the return', () => {
     const returnItem = buildReturn({ id: 'ret-42' });
     mockReturnsResult({ returns: [returnItem], totalCount: 1 });

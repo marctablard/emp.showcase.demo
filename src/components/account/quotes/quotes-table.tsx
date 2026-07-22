@@ -124,15 +124,28 @@ export function QuotesTable({
 
             return quotes.map((quote, index) => {
               const quoteHref = `/account/quotes/${quote.id}`;
+              const rowAriaLabel = t('viewQuoteAriaLabel', { id: quote.id });
 
               return (
                 <TableRow
                   key={quote.id}
                   className={cn(
-                    'hover:bg-surface-image-background cursor-pointer text-base',
+                    'hover:bg-surface-image-background cursor-pointer text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
                     index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
                   )}
+                  tabIndex={0}
+                  aria-label={rowAriaLabel}
                   onClick={() => router.push(quoteHref)}
+                  onKeyDown={(event) => {
+                    if (event.target !== event.currentTarget) {
+                      return;
+                    }
+
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      router.push(quoteHref);
+                    }
+                  }}
                 >
                   <TableCell className="px-2 py-4 font-medium">
                     <UiLink

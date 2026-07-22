@@ -25,7 +25,7 @@ interface MockOrderStore {
   setOrders: jest.Mock<void, [string, Order[], number?]>;
   getLoading: jest.Mock<boolean, [string]>;
   getError: jest.Mock<Error | null, [string]>;
-  fetchOrders: jest.Mock<Promise<Order[]>, [number, number, Record<string, any>, boolean, string?, string?]>;
+  fetchOrders: jest.Mock<Promise<Order[]>, [number, number, boolean, string?, string?]>;
 }
 
 function createOrder(id: string): Order {
@@ -124,7 +124,7 @@ describe('useOrders', () => {
     renderHook(() => useOrders({ initialOrders: ssrOrders, query: searchQuery }));
 
     await waitFor(() => {
-      expect(store.fetchOrders).toHaveBeenCalledWith(50, 1, {}, false, searchQuery, undefined);
+      expect(store.fetchOrders).toHaveBeenCalledWith(50, 1, false, searchQuery, undefined);
     });
 
     expect(store.fetchOrders).toHaveBeenCalledTimes(1);
@@ -138,7 +138,7 @@ describe('useOrders', () => {
     renderHook(() => useOrders({ query: searchQuery, sort }));
 
     await waitFor(() => {
-      expect(store.fetchOrders).toHaveBeenCalledWith(50, 1, {}, false, searchQuery, sort);
+      expect(store.fetchOrders).toHaveBeenCalledWith(50, 1, false, searchQuery, sort);
     });
   });
 

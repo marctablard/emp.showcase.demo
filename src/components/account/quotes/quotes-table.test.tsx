@@ -178,6 +178,35 @@ describe('QuotesTable', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it('supports keyboard row navigation with Enter and does not navigate on Space', () => {
+    render(<QuotesTable quotes={[buildQuote({ id: 'Q-42' })]} />);
+
+    const row = screen.getByRole('row', { name: 'viewQuoteAriaLabel:Q-42' });
+
+    fireEvent.keyDown(row, { key: 'Enter' });
+    expect(push).toHaveBeenCalledWith('/account/quotes/Q-42');
+
+    push.mockClear();
+    fireEvent.keyDown(row, { key: ' ' });
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('does not row-navigate when Enter is pressed on nested links', () => {
+    render(<QuotesTable quotes={[buildQuote({ id: 'Q-42', orderId: 'order-42' })]} />);
+
+    const idLink = screen.getByRole('link', { name: 'Q-42' });
+    fireEvent.keyDown(idLink, { key: 'Enter' });
+    expect(push).not.toHaveBeenCalled();
+
+    const orderLink = screen.getByRole('link', { name: 'order-42' });
+    fireEvent.keyDown(orderLink, { key: 'Enter' });
+    expect(push).not.toHaveBeenCalled();
+
+    const arrowLink = screen.getByRole('link', { name: 'viewQuoteAriaLabel:Q-42' });
+    fireEvent.keyDown(arrowLink, { key: 'Enter' });
+    expect(push).not.toHaveBeenCalled();
+  });
+
   it('displays Net Value from totalNet, never totalGross', () => {
     render(<QuotesTable quotes={[buildQuote({ totalNet: 100, totalGross: 120, currency: 'EUR' })]} />);
 

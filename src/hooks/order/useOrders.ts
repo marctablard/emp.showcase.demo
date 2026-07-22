@@ -10,7 +10,6 @@ interface UseOrdersOptions {
   initialTotalCount?: number;
   pageSize?: number;
   pageNumber?: number;
-  filters?: Record<string, any>;
   query?: string;
   sort?: string;
   forceRefresh?: boolean;
@@ -37,10 +36,6 @@ interface UseOrdersResult {
   setPageSize: (size: number) => void;
   setPageNumber: (page: number) => void;
 
-  // Filtering
-  filters: Record<string, any>;
-  setFilters: (filters: Record<string, any>) => void;
-
   // Utility
   refetchOrders: () => Promise<void>;
 }
@@ -55,7 +50,7 @@ function createOrderRequestKey(pageSize: number, pageNumber: number, freeTextQue
 }
 
 /**
- * Hook for managing collections of orders with pagination, filtering, and searching
+ * Hook for managing collections of orders with pagination and searching
  * This is now a simple pass-through to the order store
  *
  * @param options Configuration options for the hook
@@ -67,7 +62,6 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
     initialTotalCount,
     pageSize: initialPageSize = 50,
     pageNumber: initialPageNumber = 1,
-    filters: initialFilters = {},
     query: searchQuery,
     sort,
     forceRefresh = false,
@@ -83,10 +77,9 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
     fetchOrders: storeFetchOrders,
   } = useOrderStore();
 
-  // Local state for pagination and filters
+  // Local state for pagination
   const [pageSize, setPageSize] = useState<number>(initialPageSize);
   const [pageNumber, setPageNumber] = useState<number>(initialPageNumber);
-  const [filters, setFilters] = useState<Record<string, any>>(initialFilters);
 
   // Generate query key for current request parameters.
   const queryKey = createOrderRequestKey(pageSize, pageNumber, searchQuery, sort);
@@ -116,19 +109,19 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
   // Re-fetch orders; honours the configurable `forceRefresh` flag (default: false)
   const refetchOrders = useCallback(async () => {
     try {
-      await storeFetchOrders(pageSize, pageNumber, filters, forceRefresh, searchQuery, sort);
+      await storeFetchOrders(pageSize, pageNumber, forceRefresh, searchQuery, sort);
     } catch (err) {
       // Error is already handled in the store
       getLogger().error({ err, pageSize, pageNumber }, 'Error in refetchOrders');
     }
-  }, [pageSize, pageNumber, filters, forceRefresh, searchQuery, sort, storeFetchOrders]);
+  }, [pageSize, pageNumber, forceRefresh, searchQuery, sort, storeFetchOrders]);
 
   // Auto-fetch when parameters change and we don't have data
   useEffect(() => {
     if (!orders && !loading) {
       refetchOrders();
     }
-  }, [pageSize, pageNumber, filters, searchQuery, orders, loading, refetchOrders]);
+  }, [pageSize, pageNumber, searchQuery, orders, loading, refetchOrders]);
 
   return {
     orders,
@@ -139,8 +132,6 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
     pageNumber,
     setPageSize,
     setPageNumber,
-    filters,
-    setFilters,
     refetchOrders,
   };
 };

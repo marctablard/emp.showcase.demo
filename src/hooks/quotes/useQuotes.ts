@@ -23,7 +23,40 @@ interface UseQuotesOptions extends SearchParams<Quote> {
     size?: number;
     sort?: string;
     query?: string;
+    filters?: SearchParams<Quote>['filters'] | undefined;
   };
+}
+
+function sortStrings(values: string[]): string[] {
+  return [...values].sort((a, b) => a.localeCompare(b));
+}
+
+function normalizeQuoteFilters(filters?: SearchParams<Quote>['filters']): string | undefined {
+  if (!filters) {
+    return undefined;
+  }
+
+  const sortedTopLevel = Object.entries(filters)
+    .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+    .map(([key, value]) => {
+      if (Array.isArray(value)) {
+        return [key, sortStrings(value)];
+      }
+
+      if (typeof value === 'object' && value !== null) {
+        const sortedNested = Object.entries(value)
+          .sort(([nestedKeyA], [nestedKeyB]) => nestedKeyA.localeCompare(nestedKeyB))
+          .map(([nestedKey, nestedValue]) => [
+            nestedKey,
+            Array.isArray(nestedValue) ? sortStrings(nestedValue) : nestedValue,
+          ]);
+        return [key, sortedNested];
+      }
+
+      return [key, value];
+    });
+
+  return JSON.stringify(sortedTopLevel);
 }
 
 /**
@@ -39,13 +72,16 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
   const filters = params?.filters;
   const initialTotalCount = params?.initialTotalCount;
   const initialRequest = params?.initialRequest;
+  const normalizedFilters = normalizeQuoteFilters(filters);
+  const normalizedInitialRequestFilters = normalizeQuoteFilters(initialRequest?.filters);
 
   const canReuseInitialData =
     !!initialQuotes &&
     (page ?? 0) === (initialRequest?.page ?? 0) &&
     size === initialRequest?.size &&
     sort === initialRequest?.sort &&
-    searchQuery === initialRequest?.query;
+    searchQuery === initialRequest?.query &&
+    normalizedFilters === normalizedInitialRequestFilters;
 
   const [loading, setLoading] = useState<boolean>(!canReuseInitialData);
   const [error, setError] = useState<Error | null>(null);

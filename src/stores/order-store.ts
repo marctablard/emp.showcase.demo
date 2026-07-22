@@ -32,7 +32,6 @@ interface OrderActions {
   fetchOrders: (
     pageSize: number,
     pageNumber: number,
-    filters?: Record<string, any>,
     forceRefresh?: boolean,
     query?: string,
     sort?: string,
@@ -106,7 +105,6 @@ export const createOrderStore = () =>
     fetchOrders: async (
       pageSize: number,
       pageNumber: number,
-      _filters: Record<string, any> = {},
       forceRefresh: boolean = false,
       query?: string,
       sort?: string,

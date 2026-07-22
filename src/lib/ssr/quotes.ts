@@ -41,14 +41,19 @@ export interface SsrQuotesPageResult {
  * the client hook (`useQuotes`) and the `/api/quotes` route.
  */
 export const getQuotes = cache(
-  async (pageSize?: number, pageNumber?: number, sort?: string): Promise<SsrQuotesPageResult | undefined> => {
+  async (
+    pageSize?: number,
+    pageNumber?: number,
+    sort?: string,
+    query?: string,
+  ): Promise<SsrQuotesPageResult | undefined> => {
     try {
       const quoteService = getQuoteService();
-      const result = await quoteService.getQuotes({ size: pageSize, page: pageNumber, sort });
+      const result = await quoteService.getQuotes({ size: pageSize, page: pageNumber, sort, query });
       return { items: result.items, totalCount: result.total };
     } catch (error) {
       getLogger().error(
-        { error: error instanceof Error ? error.message : String(error), pageSize, pageNumber, sort },
+        { error: error instanceof Error ? error.message : String(error), pageSize, pageNumber, sort, query },
         'SSR getQuotes failed',
       );
       return undefined;
