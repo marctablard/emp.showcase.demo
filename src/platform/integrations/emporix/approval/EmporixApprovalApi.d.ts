@@ -26,14 +26,14 @@ export interface EmporixApprovalApi {
    * @param pageSize Optional page size (default: 60)
    * @param sort Optional sort parameter
    * @param query Optional query parameter for filtering
-   * @returns Promise with array of approvals
+   * @returns Promise with the approval items and, when requested via `X-Total-Count`, the total count
    */
   getApprovals(
     pageNumber?: number,
     pageSize?: number,
     sort?: string,
     query?: string,
-  ): Promise<EmporixApprovalResponse[]>;
+  ): Promise<{ items: EmporixApprovalResponse[]; totalCount?: number }>;
 
   /**
    * Get a specific approval by ID

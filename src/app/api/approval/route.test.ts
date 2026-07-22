@@ -35,13 +35,23 @@ describe('/api/approval', () => {
   });
 
   it('defaults GET sorting to metadata.modifiedAt:desc for approvals listing', async () => {
-    approvalService.getApprovals.mockResolvedValueOnce([{ id: 'approval-1' }]);
+    approvalService.getApprovals.mockResolvedValueOnce({ items: [{ id: 'approval-1' }], totalCount: 1 });
 
     const response = await GET({ url: 'https://example.test/api/approval' } as never);
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual([{ id: 'approval-1' }]);
+    expect(response.headers.get('x-total-count')).toBe('1');
     expect(approvalService.getApprovals).toHaveBeenCalledWith(1, 60, 'metadata.modifiedAt:desc', undefined);
+  });
+
+  it('omits the x-total-count header when the service does not return a total', async () => {
+    approvalService.getApprovals.mockResolvedValueOnce({ items: [{ id: 'approval-1' }] });
+
+    const response = await GET({ url: 'https://example.test/api/approval' } as never);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('x-total-count')).toBeNull();
   });
 
   it('creates a quote approval for a valid request', async () => {

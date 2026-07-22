@@ -88,6 +88,24 @@ describe('ReturnsList', () => {
     ]);
   });
 
+  it('wraps the search, table, and pagination in the shared table-card surface', () => {
+    mockReturnsResult({ returns: [buildReturn()], totalCount: 12 });
+    const { container } = render(<ReturnsList initialReturns={[buildReturn()]} initialTotalCount={12} />);
+
+    const tableCard = container.querySelector('[data-slot="table-card"]');
+    expect(tableCard).not.toBeNull();
+    expect(tableCard).toHaveClass(
+      'bg-surface-primary',
+      'border',
+      'border-border-primary',
+      'rounded-md',
+      'shadow-[var(--theme-shadow-sm)]',
+    );
+    expect(tableCard).not.toHaveClass('shadow-sm');
+    expect(tableCard?.querySelector('table')).not.toBeNull();
+    expect(within(tableCard as HTMLElement).getByText('next')).toBeInTheDocument();
+  });
+
   it('passes the canonical initial page-one default-sort request metadata to useReturns for SSR hydration reuse', () => {
     const initialReturn = buildReturn();
     mockReturnsResult({ returns: [initialReturn], totalCount: 99 });
@@ -182,6 +200,27 @@ describe('ReturnsList', () => {
     expect(arrowLink).toHaveAttribute('href', '/account/returns/ret-42');
   });
 
+  it('uses shared table-link styling (no underline and table typography) for return links', () => {
+    const returnItem = buildReturn({ id: 'ret-42' });
+    mockReturnsResult({ returns: [returnItem], totalCount: 1 });
+    render(<ReturnsList initialReturns={[returnItem]} />);
+
+    const returnNumberLink = screen.getByRole('link', { name: 'ret-42' });
+    expect(returnNumberLink).toHaveClass(
+      'no-underline',
+      'cursor-pointer',
+      'font-secondary',
+      'text-[16px]',
+      'leading-[24px]',
+      'text-text-action',
+      'font-bold',
+    );
+    expect(returnNumberLink).not.toHaveClass('underline');
+
+    const arrowLink = screen.getByRole('link', { name: 'viewReturnAriaLabel:ret-42' });
+    expect(arrowLink).toHaveClass('no-underline', 'cursor-pointer', 'font-secondary', 'text-[16px]', 'leading-[24px]');
+  });
+
   it('does not trigger row router.push when nested Return Number or Action links are clicked', () => {
     const returnItem = buildReturn({ id: 'ret-42' });
     mockReturnsResult({ returns: [returnItem], totalCount: 1 });
@@ -206,6 +245,38 @@ describe('ReturnsList', () => {
     const arrowLink = screen.getByRole('link', { name: 'viewReturnAriaLabel:ret-42' });
     expect(arrowLink).toHaveAttribute('href', '/account/returns/ret-42');
     expect(arrowLink).toHaveTextContent('');
+  });
+
+  it('links the Order Number cell to the related order detail page using the shared table-link styling', () => {
+    const returnItem = buildReturn({ id: 'ret-42', orders: [{ id: 'order-42', items: [] }] });
+    mockReturnsResult({ returns: [returnItem], totalCount: 1 });
+    render(<ReturnsList initialReturns={[returnItem]} />);
+
+    const orderLink = screen.getByRole('link', { name: 'order-42' });
+    expect(orderLink).toHaveAttribute('href', '/account/orders/order-42');
+    expect(orderLink).toHaveClass('no-underline', 'cursor-pointer', 'font-secondary', 'text-[16px]', 'leading-[24px]');
+    expect(orderLink).not.toHaveClass('underline');
+  });
+
+  it('does not trigger row navigation when the Order Number link is clicked', () => {
+    const returnItem = buildReturn({ id: 'ret-42', orders: [{ id: 'order-42', items: [] }] });
+    mockReturnsResult({ returns: [returnItem], totalCount: 1 });
+    render(<ReturnsList initialReturns={[returnItem]} />);
+
+    const orderLink = screen.getByRole('link', { name: 'order-42' });
+    fireEvent.click(orderLink);
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('shows a placeholder in the Order Number column when a return has no related order', () => {
+    const returnItem = buildReturn({ id: 'ret-no-order', orders: [] });
+    mockReturnsResult({ returns: [returnItem], totalCount: 1 });
+    render(<ReturnsList initialReturns={[returnItem]} />);
+
+    const row = screen.getByText('ret-no-order').closest('tr') as HTMLTableRowElement;
+    const cells = within(row).getAllByRole('cell');
+    expect(cells[3]).toHaveTextContent('-');
+    expect(within(cells[3]).queryByRole('link')).not.toBeInTheDocument();
   });
 
   it('displays only calculatedPrice.finalPrice.netValue for Net Return Value, never falling back to total', () => {

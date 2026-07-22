@@ -6,6 +6,11 @@ import {
   EmporixUpdateOrderRequest,
 } from '../model/order';
 
+export interface EmporixOrderPageResponse {
+  items: EmporixOrder[];
+  totalCount?: number;
+}
+
 /**
  * Interface for Order API operations
  */
@@ -85,6 +90,16 @@ export interface EmporixOrderApi {
    * @returns Promise with array of orders
    */
   getCustomerOrders(pageSize?: number, pageNumber?: number, sort?: string, query?: string): Promise<EmporixOrder[]>;
+
+  /**
+   * Get customer orders with pagination metadata (customer-managed endpoint).
+   */
+  getCustomerOrdersPage(
+    pageSize?: number,
+    pageNumber?: number,
+    sort?: string,
+    query?: string,
+  ): Promise<EmporixOrderPageResponse>;
 
   /**
    * Update a customer order (customer-managed endpoint)

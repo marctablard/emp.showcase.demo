@@ -1,24 +1,26 @@
 'use client';
 
 import { create } from 'zustand';
-import { fetchOrders as apiFetchOrders } from '@/lib/client/orders';
+import { fetchOrdersPage as apiFetchOrdersPage } from '@/lib/client/orders';
+import type { OrdersPageResult } from '@/lib/client/orders';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { buildSearchQuery } from '@/platform/integrations/emporix/common/util/common';
 import type { Order } from '@/platform/services/model/order/order';
 
 export interface OrderState {
   // Order data
   orderQueries: Record<string, string[]>;
   orders: Record<string, Order>;
+  totals: Record<string, number | undefined>;
   loading: Record<string, boolean>;
   error: Record<string, Error | null>;
   updated: number;
   // Track ongoing fetches to prevent duplicates
-  ongoingFetches: Record<string, Promise<Order[]>>;
+  ongoingFetches: Record<string, Promise<OrdersPageResult>>;
 }
 interface OrderActions {
-  setOrders: (query: string, orders: Order[]) => void;
+  setOrders: (query: string, orders: Order[], totalCount?: number) => void;
   getOrders: (query: string) => Order[] | undefined;
+  getTotalCount: (query: string) => number | undefined;
 
   setLoading: (query: string, loading: boolean) => void;
   getLoading: (query: string) => boolean;
@@ -33,23 +35,26 @@ interface OrderActions {
     filters?: Record<string, any>,
     forceRefresh?: boolean,
     query?: string,
+    sort?: string,
   ) => Promise<Order[]>;
 
   reset: () => void;
 }
 export type OrderStore = OrderState & OrderActions;
 
-function createOrderQueryKey(searchQuery: { query: string; body: unknown }, query?: string): string {
+function createOrderRequestKey(pageSize: number, pageNumber: number, query?: string, sort?: string): string {
   return JSON.stringify({
-    query: searchQuery.query,
-    body: searchQuery.body,
-    search: query ?? null,
+    pageSize,
+    pageNumber,
+    sort: sort ?? null,
+    query: query ?? null,
   });
 }
 
 const defaultState: OrderState = {
   orderQueries: {},
   orders: {},
+  totals: {},
   loading: {},
   error: {},
   updated: 0,
@@ -59,12 +64,17 @@ const defaultState: OrderState = {
 export const createOrderStore = () =>
   create<OrderStore>()((set, get) => ({
     ...defaultState,
-    setOrders: (query: string, orders: Order[]) => {
+    setOrders: (query: string, orders: Order[], totalCount?: number) => {
       // Store order IDs in the query mapping
       const orderIds = orders.map((order) => order.id);
       const orderQueries = {
         ...get().orderQueries,
         [query]: orderIds,
+      };
+
+      const totals = {
+        ...get().totals,
+        [query]: totalCount,
       };
 
       // Add each order to the orders record with its ID as the key
@@ -78,6 +88,7 @@ export const createOrderStore = () =>
         ...state,
         orders: orderRecords,
         orderQueries: orderQueries,
+        totals,
         updated: state.updated + 1,
       }));
     },
@@ -85,6 +96,7 @@ export const createOrderStore = () =>
       const ids: string[] = get().orderQueries[query];
       return ids ? ids.map((id) => get().orders[id]) : undefined;
     },
+    getTotalCount: (query: string) => get().totals[query],
     setLoading: (query: string, loading: boolean) => set({ loading: { ...get().loading, [query]: loading } }),
     getLoading: (query: string) => get().loading[query] || false,
 
@@ -94,16 +106,12 @@ export const createOrderStore = () =>
     fetchOrders: async (
       pageSize: number,
       pageNumber: number,
-      filters: Record<string, any> = {},
+      _filters: Record<string, any> = {},
       forceRefresh: boolean = false,
       query?: string,
+      sort?: string,
     ) => {
-      const searchQuery = buildSearchQuery({
-        page: pageNumber,
-        size: pageSize,
-        criteria: filters,
-      });
-      const queryKey = createOrderQueryKey(searchQuery, query);
+      const queryKey = createOrderRequestKey(pageSize, pageNumber, query, sort);
 
       // Check if we already have this data and it's not stale (skip when forceRefresh is true)
       if (!forceRefresh) {
@@ -115,8 +123,9 @@ export const createOrderStore = () =>
 
       // Check if there's already an ongoing fetch for this query
       const ongoingFetch = get().ongoingFetches[queryKey];
-      if (ongoingFetch) {
-        return ongoingFetch;
+      if (ongoingFetch !== undefined) {
+        const result = await ongoingFetch;
+        return result.items;
       }
 
       // Start new fetch
@@ -127,10 +136,10 @@ export const createOrderStore = () =>
             error: { ...get().error, [queryKey]: null },
           });
 
-          const ordersData = await apiFetchOrders(pageSize, pageNumber, query);
+          const ordersData = await apiFetchOrdersPage(pageSize, pageNumber, query, sort);
 
           // Store the fetched orders
-          get().setOrders(queryKey, ordersData);
+          get().setOrders(queryKey, ordersData.items, ordersData.totalCount);
 
           return ordersData;
         } catch (err) {
@@ -159,7 +168,8 @@ export const createOrderStore = () =>
         ongoingFetches: { ...get().ongoingFetches, [queryKey]: fetchPromise },
       });
 
-      return fetchPromise;
+      const result = await fetchPromise;
+      return result.items;
     },
 
     reset: () => set(defaultState),

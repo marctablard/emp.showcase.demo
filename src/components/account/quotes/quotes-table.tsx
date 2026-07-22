@@ -89,6 +89,7 @@ export function QuotesTable({
             {renderSortableHead('quoteId', t('quoteId'), '!h-14 w-[160px] font-bold')}
             {renderSortableHead('quotationDate', t('quotationDate'), '!h-14 w-[160px] font-bold')}
             {renderSortableHead('status', t('status'), '!h-14 w-[140px] font-bold')}
+            <TableHead className="!h-14 w-[160px] font-bold">{t('relatedOrder')}</TableHead>
             {renderSortableHead('quoteReference', t('quoteReference'), '!h-14 w-[180px] font-bold')}
             <TableHead className="!h-14 w-[180px] font-bold">{t('requestedBy')}</TableHead>
             <TableHead className="!h-14 w-[180px] font-bold">{t('authorization')}</TableHead>
@@ -102,7 +103,7 @@ export function QuotesTable({
             if (loading) {
               return (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-24 text-center">
+                  <TableCell colSpan={10} className="h-24 text-center">
                     <div className="flex items-center justify-center">
                       <Spinner color="primary" variant="md" />
                     </div>
@@ -114,7 +115,7 @@ export function QuotesTable({
             if (quotes.length === 0) {
               return (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-24 text-center">
+                  <TableCell colSpan={10} className="h-24 text-center">
                     {hasActiveSearch ? t('noMatches') : t('noQuotes')}
                   </TableCell>
                 </TableRow>
@@ -137,30 +138,25 @@ export function QuotesTable({
                     <UiLink
                       type="Link"
                       href={quoteHref}
-                      variant="primary"
-                      size="m"
+                      variant="table"
+                      className="font-bold"
                       onClick={(event) => event.stopPropagation()}
                     >
                       {quote.id}
                     </UiLink>
-                    {quote.orderId ? (
-                      <div className="mt-1 text-sm text-text-placeholders">
-                        {t('relatedOrder')}{' '}
-                        <UiLink
-                          type="Link"
-                          href={`/account/orders/${quote.orderId}`}
-                          variant="text"
-                          className="underline"
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          #{quote.orderId}
-                        </UiLink>
-                      </div>
-                    ) : null}
                   </TableCell>
                   <TableCell className="px-2 py-4">{formatDate(quote.submittedDate, locale)}</TableCell>
                   <TableCell className="px-2 py-4">
                     <QuoteStatusBadge status={quote.status} />
+                  </TableCell>
+                  <TableCell className="px-2 py-4" onClick={(event) => event.stopPropagation()}>
+                    {quote.orderId ? (
+                      <UiLink type="Link" href={`/account/orders/${quote.orderId}`} variant="table">
+                        {quote.orderId}
+                      </UiLink>
+                    ) : (
+                      '-'
+                    )}
                   </TableCell>
                   <TableCell className="px-2 py-4">{quote.reference || '-'}</TableCell>
                   <TableCell className="px-2 py-4">{quote.customerName || quote.customerId}</TableCell>
@@ -177,8 +173,7 @@ export function QuotesTable({
                       <UiLink
                         type="Link"
                         href={quoteHref}
-                        variant="primary"
-                        size="m"
+                        variant="table"
                         onClick={(event) => event.stopPropagation()}
                         aria-label={t('viewQuoteAriaLabel', { id: quote.id })}
                       >

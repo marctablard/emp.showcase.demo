@@ -2,17 +2,24 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { buildSearchQuery } from '@/platform/integrations/emporix/common/util/common';
 import type { Order } from '@/platform/services/model/order/order';
 import { useOrderStore } from '@/providers/StoreProvider';
 
 interface UseOrdersOptions {
   initialOrders?: Order[];
+  initialTotalCount?: number;
   pageSize?: number;
   pageNumber?: number;
   filters?: Record<string, any>;
   query?: string;
+  sort?: string;
   forceRefresh?: boolean;
+  initialRequest?: {
+    pageSize?: number;
+    pageNumber?: number;
+    sort?: string;
+    query?: string;
+  };
 }
 
 interface UseOrdersResult {
@@ -22,6 +29,7 @@ interface UseOrdersResult {
   // Status
   loading: boolean;
   error: Error | null;
+  totalCount?: number;
 
   // Pagination
   pageSize: number;
@@ -37,22 +45,13 @@ interface UseOrdersResult {
   refetchOrders: () => Promise<void>;
 }
 
-function createOrderQueryKey(searchQuery: { query: string; body: unknown }, freeTextQuery?: string): string {
+function createOrderRequestKey(pageSize: number, pageNumber: number, freeTextQuery?: string, sort?: string): string {
   return JSON.stringify({
-    query: searchQuery.query,
-    body: searchQuery.body,
-    search: freeTextQuery ?? null,
+    pageSize,
+    pageNumber,
+    sort: sort ?? null,
+    query: freeTextQuery ?? null,
   });
-}
-
-function getCanonicalUnfilteredOrdersQueryKey(): string {
-  const canonicalQuery = buildSearchQuery({
-    page: 1,
-    size: 50,
-    criteria: {},
-  });
-
-  return createOrderQueryKey(canonicalQuery);
 }
 
 /**
@@ -65,15 +64,19 @@ function getCanonicalUnfilteredOrdersQueryKey(): string {
 export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
   const {
     initialOrders = undefined,
+    initialTotalCount,
     pageSize: initialPageSize = 50,
     pageNumber: initialPageNumber = 1,
     filters: initialFilters = {},
     query: searchQuery,
+    sort,
     forceRefresh = false,
+    initialRequest,
   } = options;
 
   const {
     getOrders: getStoreOrders,
+    getTotalCount: getStoreTotalCount,
     setOrders: setStoreOrders,
     getLoading: getStoreLoading,
     getError: getStoreError,
@@ -85,38 +88,40 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
   const [pageNumber, setPageNumber] = useState<number>(initialPageNumber);
   const [filters, setFilters] = useState<Record<string, any>>(initialFilters);
 
-  // Generate query key for current parameters
-  const query = buildSearchQuery({
-    page: pageNumber,
-    size: pageSize,
-    criteria: filters,
-  });
-  const queryKey = createOrderQueryKey(query, searchQuery);
-  const canonicalUnfilteredQueryKey = getCanonicalUnfilteredOrdersQueryKey();
-  const shouldHydrateFromInitialOrders = Boolean(initialOrders) && queryKey === canonicalUnfilteredQueryKey;
+  // Generate query key for current request parameters.
+  const queryKey = createOrderRequestKey(pageSize, pageNumber, searchQuery, sort);
+  const shouldHydrateFromInitialOrders =
+    Boolean(initialOrders) &&
+    pageNumber === (initialRequest?.pageNumber ?? initialPageNumber) &&
+    pageSize === (initialRequest?.pageSize ?? initialPageSize) &&
+    searchQuery === initialRequest?.query &&
+    sort === initialRequest?.sort;
 
   useEffect(() => {
-    // Keep the canonical unfiltered list in sync with SSR data on mount.
-    if (shouldHydrateFromInitialOrders && !getStoreLoading(queryKey)) {
-      setStoreOrders(queryKey, initialOrders);
+    // Keep the initial request cache in sync with SSR data on mount.
+    if (shouldHydrateFromInitialOrders && initialOrders && !getStoreLoading(queryKey)) {
+      setStoreOrders(queryKey, initialOrders, initialTotalCount ?? initialOrders.length);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialOrders, queryKey, shouldHydrateFromInitialOrders]);
+  }, [initialOrders, initialTotalCount, queryKey, shouldHydrateFromInitialOrders]);
 
   // Get current state from store
   const orders = getStoreOrders(queryKey) || (shouldHydrateFromInitialOrders ? initialOrders : undefined);
+  const totalCount =
+    getStoreTotalCount(queryKey) ??
+    (shouldHydrateFromInitialOrders ? (initialTotalCount ?? initialOrders?.length) : undefined);
   const loading = getStoreLoading(queryKey);
   const error = getStoreError(queryKey);
 
   // Re-fetch orders; honours the configurable `forceRefresh` flag (default: false)
   const refetchOrders = useCallback(async () => {
     try {
-      await storeFetchOrders(pageSize, pageNumber, filters, forceRefresh, searchQuery);
+      await storeFetchOrders(pageSize, pageNumber, filters, forceRefresh, searchQuery, sort);
     } catch (err) {
       // Error is already handled in the store
       getLogger().error({ err, pageSize, pageNumber }, 'Error in refetchOrders');
     }
-  }, [pageSize, pageNumber, filters, forceRefresh, searchQuery, storeFetchOrders]);
+  }, [pageSize, pageNumber, filters, forceRefresh, searchQuery, sort, storeFetchOrders]);
 
   // Auto-fetch when parameters change and we don't have data
   useEffect(() => {
@@ -129,6 +134,7 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
     orders,
     loading,
     error,
+    totalCount,
     pageSize,
     pageNumber,
     setPageSize,

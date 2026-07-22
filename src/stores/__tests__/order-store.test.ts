@@ -2,7 +2,7 @@ import { createOrderStore } from '../order-store';
 
 // Mock the API calls
 jest.mock('@/lib/client/orders', () => ({
-  fetchOrders: jest.fn(),
+  fetchOrdersPage: jest.fn(),
 }));
 
 jest.mock('@/lib/logger/use-logger-client', () => ({
@@ -16,12 +16,7 @@ jest.mock('@/lib/logger/use-logger-client', () => ({
   })),
 }));
 
-jest.mock('@/platform/integrations/emporix/common/util/common', () => ({
-  buildSearchQuery: jest.fn(),
-}));
-
-const mockFetchOrders = require('@/lib/client/orders').fetchOrders;
-const { buildSearchQuery: mockBuildSearchQuery } = require('@/platform/integrations/emporix/common/util/common');
+const mockFetchOrdersPage = require('@/lib/client/orders').fetchOrdersPage;
 const { getLogger: mockGetLogger } = require('@/lib/logger/use-logger-client');
 const mockLogger = {
   error: jest.fn(),
@@ -36,16 +31,10 @@ describe('OrderStore', () => {
   let store: ReturnType<typeof createOrderStore>;
 
   beforeEach(() => {
-    mockFetchOrders.mockClear();
+    mockFetchOrdersPage.mockClear();
     Object.values(mockLogger).forEach((fn) => fn.mockClear());
     mockGetLogger.mockReset();
     mockGetLogger.mockReturnValue(mockLogger);
-    mockBuildSearchQuery.mockImplementation(
-      (params: { page: number; size: number; criteria: Record<string, unknown> }) => ({
-        query: `page=${params.page}&size=${params.size}`,
-        body: JSON.stringify(params.criteria),
-      }),
-    );
     store = createOrderStore();
   });
 
@@ -55,7 +44,7 @@ describe('OrderStore', () => {
       { id: '2', status: 'CONFIRMED', total: { amount: 200, currency: 'EUR' } },
     ];
 
-    mockFetchOrders.mockResolvedValue(mockOrders);
+    mockFetchOrdersPage.mockResolvedValue({ items: mockOrders, totalCount: 2 });
 
     // Start two concurrent fetches with the same parameters
     const promise1 = store.getState().fetchOrders(10, 1, {});
@@ -68,14 +57,16 @@ describe('OrderStore', () => {
     expect(result2).toEqual(mockOrders);
 
     // But the API should only be called once
-    expect(mockFetchOrders).toHaveBeenCalledTimes(1);
+    expect(mockFetchOrdersPage).toHaveBeenCalledTimes(1);
   });
 
   it('should handle different queries separately', async () => {
     const mockOrders1 = [{ id: '1', status: 'CREATED', total: { amount: 100, currency: 'EUR' } }];
     const mockOrders2 = [{ id: '2', status: 'CONFIRMED', total: { amount: 200, currency: 'EUR' } }];
 
-    mockFetchOrders.mockResolvedValueOnce(mockOrders1).mockResolvedValueOnce(mockOrders2);
+    mockFetchOrdersPage
+      .mockResolvedValueOnce({ items: mockOrders1, totalCount: 1 })
+      .mockResolvedValueOnce({ items: mockOrders2, totalCount: 1 });
 
     // Fetch with different parameters
     const promise1 = store.getState().fetchOrders(10, 1, {});
@@ -84,13 +75,13 @@ describe('OrderStore', () => {
     await Promise.all([promise1, promise2]);
 
     // API should be called twice for different queries
-    expect(mockFetchOrders).toHaveBeenCalledTimes(2);
+    expect(mockFetchOrdersPage).toHaveBeenCalledTimes(2);
   });
 
   it('should return cached data when available', async () => {
     const mockOrders = [{ id: '1', status: 'CREATED', total: { amount: 100, currency: 'EUR' } }];
 
-    mockFetchOrders.mockResolvedValue(mockOrders);
+    mockFetchOrdersPage.mockResolvedValue({ items: mockOrders, totalCount: 1 });
 
     // First fetch
     await store.getState().fetchOrders(10, 1, {});
@@ -99,20 +90,21 @@ describe('OrderStore', () => {
     const cachedResult = await store.getState().fetchOrders(10, 1, {});
 
     expect(cachedResult).toEqual(mockOrders);
-    expect(mockFetchOrders).toHaveBeenCalledTimes(1);
+    expect(mockFetchOrdersPage).toHaveBeenCalledTimes(1);
   });
 
   it('should handle errors properly', async () => {
     const error = new Error('API Error');
-    mockFetchOrders.mockRejectedValue(error);
+    mockFetchOrdersPage.mockRejectedValue(error);
 
     await expect(store.getState().fetchOrders(10, 1, {})).rejects.toThrow('API Error');
 
     // Check that error state is set
     const queryKey = JSON.stringify({
-      query: 'page=1&size=10',
-      body: '{}',
-      search: null,
+      pageSize: 10,
+      pageNumber: 1,
+      sort: null,
+      query: null,
     });
     expect(store.getState().getError(queryKey)).toEqual(error);
     expect(store.getState().getLoading(queryKey)).toBe(false);
@@ -127,23 +119,25 @@ describe('OrderStore', () => {
       { id: '2', status: 'CREATED', total: { amount: 50, currency: 'EUR' } },
     ];
 
-    mockFetchOrders.mockResolvedValueOnce(mockOrders).mockResolvedValueOnce(updatedOrders);
+    mockFetchOrdersPage
+      .mockResolvedValueOnce({ items: mockOrders, totalCount: 1 })
+      .mockResolvedValueOnce({ items: updatedOrders, totalCount: 2 });
 
     // First fetch populates cache
     await store.getState().fetchOrders(10, 1, {});
-    expect(mockFetchOrders).toHaveBeenCalledTimes(1);
+    expect(mockFetchOrdersPage).toHaveBeenCalledTimes(1);
 
     // Second fetch with forceRefresh should call API again
     const result = await store.getState().fetchOrders(10, 1, {}, true);
 
-    expect(mockFetchOrders).toHaveBeenCalledTimes(2);
+    expect(mockFetchOrdersPage).toHaveBeenCalledTimes(2);
     expect(result).toEqual(updatedOrders);
   });
 
   it('should still deduplicate concurrent forceRefresh calls', async () => {
     const mockOrders = [{ id: '1', status: 'CREATED', total: { amount: 100, currency: 'EUR' } }];
 
-    mockFetchOrders.mockResolvedValue(mockOrders);
+    mockFetchOrdersPage.mockResolvedValue({ items: mockOrders, totalCount: 1 });
 
     // Start two concurrent forceRefresh fetches with the same parameters
     const promise1 = store.getState().fetchOrders(10, 1, {}, true);
@@ -155,6 +149,22 @@ describe('OrderStore', () => {
     expect(result2).toEqual(mockOrders);
 
     // API should only be called once due to ongoingFetches deduplication
-    expect(mockFetchOrders).toHaveBeenCalledTimes(1);
+    expect(mockFetchOrdersPage).toHaveBeenCalledTimes(1);
+  });
+
+  it('stores total count per request key', async () => {
+    const mockOrders = [{ id: '1', status: 'CREATED', total: { amount: 100, currency: 'EUR' } }];
+    mockFetchOrdersPage.mockResolvedValue({ items: mockOrders, totalCount: 42 });
+
+    await store.getState().fetchOrders(10, 2, {}, false, 'status:CREATED', 'created:desc');
+
+    const queryKey = JSON.stringify({
+      pageSize: 10,
+      pageNumber: 2,
+      sort: 'created:desc',
+      query: 'status:CREATED',
+    });
+
+    expect(store.getState().getTotalCount(queryKey)).toBe(42);
   });
 });

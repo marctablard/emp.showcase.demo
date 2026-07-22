@@ -8,6 +8,7 @@ import { QUOTE_SORT_FIELD_MAP, type QuoteSortField, QuotesTable } from '@/compon
 import { H1 } from '@/components/ui/h';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
+import { TableCard } from '@/components/ui/table';
 import { useDebouncedValue } from '@/hooks/common/useDebouncedValue';
 import { useQuotes } from '@/hooks/quotes/useQuotes';
 import type { Quote } from '@/platform/services/model/quote';
@@ -76,48 +77,50 @@ export default function QuotesPageContent({ initialQuotes, initialTotalCount }: 
     <div className="space-y-6">
       <H1>{t('title')}</H1>
 
-      <div className="mb-4 w-full max-w-[380px]">
-        <div className="relative w-full">
-          <Input
-            value={quickSearch}
-            onChange={(event) => {
-              setCurrentPage(1);
-              setQuickSearch(event.target.value);
-            }}
-            placeholder={t('searchPlaceholder')}
-            className="pr-10"
-            endIcon={isSearchLoading ? undefined : Search}
-            aria-label={t('searchPlaceholder')}
-          />
-          {isSearchLoading && (
-            <Spinner
-              variant="sm"
-              color="primary"
-              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
-              loadingText={t('title')}
+      <TableCard>
+        <div className="mb-4 w-full max-w-[380px]">
+          <div className="relative w-full">
+            <Input
+              value={quickSearch}
+              onChange={(event) => {
+                setCurrentPage(1);
+                setQuickSearch(event.target.value);
+              }}
+              placeholder={t('searchPlaceholder')}
+              className="pr-10"
+              endIcon={isSearchLoading ? undefined : Search}
+              aria-label={t('searchPlaceholder')}
             />
-          )}
+            {isSearchLoading && (
+              <Spinner
+                variant="sm"
+                color="primary"
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
+                loadingText={t('title')}
+              />
+            )}
+          </div>
         </div>
-      </div>
 
-      {error ? (
-        <div className="bg-surface-error border border-border-error text-text-error px-4 py-3 rounded">
-          {error.message}
-        </div>
-      ) : (
-        <QuotesTable
-          quotes={quotes}
-          loading={loading}
-          currentPage={currentPage}
-          totalPages={pagination?.totalPages ?? 1}
-          onPreviousPage={handlePreviousPage}
-          onNextPage={handleNextPage}
-          sortField={sortField}
-          sortDirection={sortDirection}
-          onToggleSort={toggleSort}
-          hasActiveSearch={normalizedSearch.length > 0}
-        />
-      )}
+        {error ? (
+          <div className="bg-surface-error border border-border-error text-text-error px-4 py-3 rounded">
+            {error.message}
+          </div>
+        ) : (
+          <QuotesTable
+            quotes={quotes}
+            loading={loading}
+            currentPage={currentPage}
+            totalPages={pagination?.totalPages ?? 1}
+            onPreviousPage={handlePreviousPage}
+            onNextPage={handleNextPage}
+            sortField={sortField}
+            sortDirection={sortDirection}
+            onToggleSort={toggleSort}
+            hasActiveSearch={normalizedSearch.length > 0}
+          />
+        )}
+      </TableCard>
     </div>
   );
 }

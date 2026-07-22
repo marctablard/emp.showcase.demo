@@ -59,7 +59,7 @@ describe('QuotesTable', () => {
     jest.clearAllMocks();
   });
 
-  it('renders columns in the contract order: Quote ID, Quotation Date, Status, Quote Reference, Requested By, Authorization, Net Value, Number of Products, Action', () => {
+  it('renders columns in the contract order: Quote ID, Quotation Date, Status, Related Order, Quote Reference, Requested By, Authorization, Net Value, Number of Products, Action', () => {
     render(<QuotesTable quotes={[buildQuote()]} />);
 
     const headers = screen.getAllByRole('columnheader').map((header) => header.textContent);
@@ -67,6 +67,7 @@ describe('QuotesTable', () => {
       'quoteId',
       'quotationDate',
       'status',
+      'relatedOrder',
       'quoteReference',
       'requestedBy',
       'authorization',
@@ -76,7 +77,7 @@ describe('QuotesTable', () => {
     ]);
   });
 
-  it('keeps Requested By, Authorization, and Number of Products non-sortable', () => {
+  it('keeps Requested By, Authorization, Number of Products, and Related Order non-sortable', () => {
     render(<QuotesTable quotes={[buildQuote()]} />);
 
     for (const name of ['requestedBy', 'authorization', 'numberOfProducts']) {
@@ -84,6 +85,10 @@ describe('QuotesTable', () => {
       expect(within(header).queryByRole('button')).not.toBeInTheDocument();
       expect(header).not.toHaveAttribute('aria-sort');
     }
+
+    const relatedOrderHeader = screen.getByRole('columnheader', { name: 'relatedOrder' });
+    expect(within(relatedOrderHeader).queryByRole('button')).not.toBeInTheDocument();
+    expect(relatedOrderHeader).not.toHaveAttribute('aria-sort');
   });
 
   it('keeps the Action column non-sortable, centered, and arrow-only', () => {
@@ -132,6 +137,35 @@ describe('QuotesTable', () => {
     expect(arrowLink).toHaveAttribute('href', '/account/quotes/Q-42');
   });
 
+  it('uses shared table-link styling (no underline, table typography, pointer) for quote table links', () => {
+    render(<QuotesTable quotes={[buildQuote({ id: 'Q-42', orderId: 'order-42' })]} />);
+
+    const idLink = screen.getByRole('link', { name: 'Q-42' });
+    expect(idLink).toHaveClass(
+      'no-underline',
+      'cursor-pointer',
+      'font-secondary',
+      'text-[16px]',
+      'leading-[24px]',
+      'text-text-action',
+      'font-bold',
+    );
+    expect(idLink).not.toHaveClass('underline');
+
+    const relatedOrderLink = screen.getByRole('link', { name: 'order-42' });
+    expect(relatedOrderLink).toHaveClass(
+      'no-underline',
+      'cursor-pointer',
+      'font-secondary',
+      'text-[16px]',
+      'leading-[24px]',
+    );
+    expect(relatedOrderLink).not.toHaveClass('underline');
+
+    const arrowLink = screen.getByRole('link', { name: 'viewQuoteAriaLabel:Q-42' });
+    expect(arrowLink).toHaveClass('no-underline', 'cursor-pointer', 'font-secondary', 'text-[16px]', 'leading-[24px]');
+  });
+
   it('does not trigger row navigation when the nested Quote ID or Action links are clicked', () => {
     render(<QuotesTable quotes={[buildQuote({ id: 'Q-42' })]} />);
 
@@ -152,11 +186,34 @@ describe('QuotesTable', () => {
     expect(within(row).queryByText('€120.00')).not.toBeInTheDocument();
   });
 
-  it('shows the related order link within the Quote ID cell when orderId is present', () => {
+  it('shows the related order link in a standalone column when orderId is present', () => {
     render(<QuotesTable quotes={[buildQuote({ id: 'Q-77', orderId: 'order-77' })]} />);
 
-    const orderLink = screen.getByRole('link', { name: '#order-77' });
+    const orderLink = screen.getByRole('link', { name: 'order-77' });
     expect(orderLink).toHaveAttribute('href', '/account/orders/order-77');
+
+    const row = screen.getByText('Q-77').closest('tr') as HTMLTableRowElement;
+    const cells = within(row).getAllByRole('cell');
+    expect(cells).toHaveLength(10);
+    expect(within(cells[3]).getByRole('link', { name: 'order-77' })).toBe(orderLink);
+    expect(cells[0]).not.toHaveTextContent('relatedOrder');
+  });
+
+  it('shows a placeholder in the Related Order column when a quote has no related order', () => {
+    render(<QuotesTable quotes={[buildQuote({ id: 'Q-88', orderId: undefined })]} />);
+
+    const row = screen.getByText('Q-88').closest('tr') as HTMLTableRowElement;
+    const cells = within(row).getAllByRole('cell');
+    expect(cells[3]).toHaveTextContent('-');
+    expect(within(cells[3]).queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('does not navigate the row when the related order link is clicked', () => {
+    render(<QuotesTable quotes={[buildQuote({ id: 'Q-99', orderId: 'order-99' })]} />);
+
+    const orderLink = screen.getByRole('link', { name: 'order-99' });
+    fireEvent.click(orderLink);
+    expect(push).not.toHaveBeenCalled();
   });
 
   it('shows the empty-quotes message when there are no quotes and no active search', () => {

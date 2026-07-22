@@ -11,7 +11,7 @@ import type {
   EmporixOrderCreationResponse,
   EmporixUpdateOrderRequest,
 } from '../../model/order';
-import type { EmporixOrderApi as IEmporixOrderApi } from '../EmporixOrderApi';
+import type { EmporixOrderPageResponse, EmporixOrderApi as IEmporixOrderApi } from '../EmporixOrderApi';
 import { normalizeCustomerOrderTransitionsPayload } from '../normalize-customer-order-transitions';
 
 const createOrderMetrics = (route: string) => createFetchMetricsParams('order', route);
@@ -20,6 +20,38 @@ function createUpstreamOrderError(message: string, status: number): Error & { up
   const error = new Error(message) as Error & { upstreamStatus: number };
   error.upstreamStatus = status;
   return error;
+}
+
+function toOrderListQueryString(pageSize?: number, pageNumber?: number, sort?: string, query?: string): string {
+  const queryParams = new URLSearchParams();
+
+  if (pageSize !== undefined) {
+    queryParams.append('pageSize', pageSize.toString());
+  }
+
+  if (pageNumber !== undefined) {
+    queryParams.append('pageNumber', pageNumber.toString());
+  }
+
+  if (sort) {
+    queryParams.append('sort', sort);
+  }
+
+  if (query) {
+    queryParams.append('q', query);
+  }
+
+  return queryParams.toString() ? `?${queryParams.toString()}` : '';
+}
+
+function parseTotalCount(headers: Headers | { get(name: string): string | null } | undefined): number | undefined {
+  if (!headers) {
+    return undefined;
+  }
+
+  const rawTotalCount = headers.get('x-total-count') ?? headers.get('X-Total-Count');
+  const totalCount = rawTotalCount ? Number.parseInt(rawTotalCount, 10) : Number.NaN;
+  return Number.isFinite(totalCount) ? totalCount : undefined;
 }
 
 // Customer-managed endpoints use '/orders' while tenant-managed endpoints use '/salesorders'
@@ -205,25 +237,17 @@ class EmporixOrderApi implements IEmporixOrderApi {
     sort?: string,
     query?: string,
   ): Promise<EmporixOrder[]> {
-    const queryParams = new URLSearchParams();
+    const page = await this.getCustomerOrdersPage(pageSize, pageNumber, sort, query);
+    return page.items;
+  }
 
-    if (pageSize !== undefined) {
-      queryParams.append('pageSize', pageSize.toString());
-    }
-
-    if (pageNumber !== undefined) {
-      queryParams.append('pageNumber', pageNumber.toString());
-    }
-
-    if (sort) {
-      queryParams.append('sort', sort);
-    }
-
-    if (query) {
-      queryParams.append('q', query);
-    }
-
-    const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+  async getCustomerOrdersPage(
+    pageSize?: number,
+    pageNumber?: number,
+    sort?: string,
+    query?: string,
+  ): Promise<EmporixOrderPageResponse> {
+    const queryString = toOrderListQueryString(pageSize, pageNumber, sort, query);
 
     const response = await this.apiClient.authenticatedFetch(
       `/order-v2/${this.config.tenant}/orders${queryString}`,
@@ -238,7 +262,11 @@ class EmporixOrderApi implements IEmporixOrderApi {
       throw new Error(`Failed to get customer orders: ${response.statusText} ${errorDetails}`);
     }
 
-    return await response.json();
+    const items = (await response.json()) as unknown;
+    return {
+      items: Array.isArray(items) ? (items as EmporixOrder[]) : [],
+      totalCount: parseTotalCount(response.headers),
+    };
   }
 
   /**

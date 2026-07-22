@@ -46,7 +46,7 @@
     "placeholder": "Search orders..."
   },
   "columns": {
-    "orderNumber": "Order #",
+    "orderNumber": "Order",
     "status": "Status",
     "totalShippingCost": "Shipping Cost",
     "customer": "Customer",
@@ -123,6 +123,7 @@
     "freightInfo": "After the order is completed, the contracted shipping company will contact you with further information."
   },
   "Approval": {
+    "title": "Approval Dashboard",
     "approvals": "Approvals",
     "approval": "Approval",
     "approvalsList": "Approvals List",
@@ -141,10 +142,16 @@
     "filterByResourceType": "Filter by Resource Type",
     "allStatuses": "All Statuses",
     "id": "ID",
+    "approvalId": "Approval ID",
+    "modifiedAt": "Modified At",
     "resourceType": "Resource Type",
     "resourceId": "Resource ID",
     "quoteId": "Quote ID",
+    "quoteNumber": "Quote Number",
     "orderId": "Order ID",
+    "orderNumber": "Order Number",
+    "netTotal": "Net Total",
+    "viewApprovalAriaLabel": "View approval {id}",
     "action": "Action",
     "status": "Status",
     "requestor": "Requestor",
@@ -218,6 +225,10 @@
   },
   "ApprovalAction": {
     "CHECKOUT": "Order"
+  },
+  "ApprovalResourceType": {
+    "CART": "Cart",
+    "QUOTE": "Quote"
   },
   "ApprovalStatus": {
     "PENDING": "Pending",

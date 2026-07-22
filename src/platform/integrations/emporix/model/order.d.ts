@@ -116,6 +116,11 @@ export interface EmporixOrderCalculatedPrice {
     grossValue: number;
     taxValue: number;
   };
+  totalShipping?: {
+    netValue: number;
+    grossValue: number;
+    taxValue: number;
+  };
 }
 
 /**
@@ -144,6 +149,12 @@ export interface EmporixOrder {
   status: EmporixOrderStatus;
   lastStatusChange?: string;
   creationDate?: string;
+  shipments?: Array<{
+    expectDeliveryOn?: string;
+  }>;
+  deliveryWindow?: {
+    deliveryDate?: string;
+  };
   entries: EmporixOrderEntry[];
   customer: EmporixOrderCustomer;
   billingAddress?: EmporixAddress;

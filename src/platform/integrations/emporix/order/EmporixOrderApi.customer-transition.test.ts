@@ -49,4 +49,32 @@ describe('EmporixOrderApi customer transition (mocked)', () => {
     const result = await api.getCustomerOrderStatusTransitions('ord-2');
     expect(result).toEqual(['DECLINED']);
   });
+
+  it('builds customer orders request using pageNumber/pageSize/sort/q and parses total count', async () => {
+    const mockApiClient = {
+      authenticatedFetch: jest.fn().mockResolvedValue({
+        ok: true,
+        headers: {
+          get: jest.fn((name: string) => (name.toLowerCase() === 'x-total-count' ? '17' : null)),
+        },
+        json: jest.fn().mockResolvedValue([{ id: 'ord-1' }]),
+      }),
+    } as unknown as jest.Mocked<EmporixApiInvoker>;
+
+    const api = new EmporixOrderApi(mockApiClient, mockConfigLocal);
+    const response = await api.getCustomerOrdersPage(10, 1, 'created:desc,id:asc', 'status:CREATED id:(ord-1,ord-2)');
+
+    const [path, options, tokenType] = mockApiClient.authenticatedFetch.mock.calls[0];
+    const [endpoint, rawQuery = ''] = String(path).split('?');
+    const queryParams = new URLSearchParams(rawQuery);
+
+    expect(endpoint).toBe('/order-v2/mock-tenant/orders');
+    expect(queryParams.get('pageSize')).toBe('10');
+    expect(queryParams.get('pageNumber')).toBe('1');
+    expect(queryParams.get('sort')).toBe('created:desc,id:asc');
+    expect(queryParams.get('q')).toBe('status:CREATED id:(ord-1,ord-2)');
+    expect(options).toEqual({ method: 'GET' });
+    expect(tokenType).toBe('session');
+    expect(response).toEqual({ items: [{ id: 'ord-1' }], totalCount: 17 });
+  });
 });

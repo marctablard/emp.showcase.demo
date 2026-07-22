@@ -91,6 +91,7 @@ next-env.d.ts
 # Playwright
 /test-results/
 /playwright-report/
+.playwright-cli
 /blob-report/
 /playwright/.cache/
 # Local-only e2e specs and helpers: kept for developer reproduction/exploration,

@@ -1,5 +1,4 @@
 import { renderHook, waitFor } from '@testing-library/react';
-import { buildSearchQuery } from '@/platform/integrations/emporix/common/util/common';
 import type { Order } from '@/platform/services/model/order/order';
 import { useOrders } from './useOrders';
 
@@ -22,10 +21,11 @@ jest.mock('@/lib/logger/use-logger-client', () => ({
 
 interface MockOrderStore {
   getOrders: jest.Mock<Order[] | undefined, [string]>;
-  setOrders: jest.Mock<void, [string, Order[]]>;
+  getTotalCount: jest.Mock<number | undefined, [string]>;
+  setOrders: jest.Mock<void, [string, Order[], number?]>;
   getLoading: jest.Mock<boolean, [string]>;
   getError: jest.Mock<Error | null, [string]>;
-  fetchOrders: jest.Mock<Promise<Order[]>, [number, number, Record<string, any>, boolean, string?]>;
+  fetchOrders: jest.Mock<Promise<Order[]>, [number, number, Record<string, any>, boolean, string?, string?]>;
 }
 
 function createOrder(id: string): Order {
@@ -37,22 +37,12 @@ function createOrder(id: string): Order {
   } as Order;
 }
 
-function createOrderQueryKey(
-  page: number,
-  size: number,
-  filters: Record<string, any> = {},
-  searchQuery?: string,
-): string {
-  const query = buildSearchQuery({
-    page,
-    size,
-    criteria: filters,
-  });
-
+function createOrderQueryKey(page: number, size: number, searchQuery?: string, sort?: string): string {
   return JSON.stringify({
-    query: query.query,
-    body: query.body,
-    search: searchQuery ?? null,
+    pageSize: size,
+    pageNumber: page,
+    sort: sort ?? null,
+    query: searchQuery ?? null,
   });
 }
 
@@ -67,11 +57,12 @@ describe('useOrders', () => {
 
     store = {
       getOrders: jest.fn((query: string) => ordersByQuery[query]),
+      getTotalCount: jest.fn((_query: string) => undefined),
       setOrders: jest.fn((query: string, orders: Order[]) => {
         ordersByQuery[query] = orders;
       }),
-      getLoading: jest.fn(() => false),
-      getError: jest.fn(() => null),
+      getLoading: jest.fn((_query: string) => false),
+      getError: jest.fn((_query: string) => null),
       fetchOrders: jest.fn().mockResolvedValue([]),
     };
 
@@ -90,7 +81,7 @@ describe('useOrders', () => {
     renderHook(() => useOrders({ initialOrders: ssrOrders }));
 
     await waitFor(() => {
-      expect(store.setOrders).toHaveBeenCalledWith(canonicalQueryKey, ssrOrders);
+      expect(store.setOrders).toHaveBeenCalledWith(canonicalQueryKey, ssrOrders, ssrOrders.length);
     });
 
     expect(store.fetchOrders).not.toHaveBeenCalled();
@@ -104,7 +95,7 @@ describe('useOrders', () => {
     renderHook(() => useOrders({ initialOrders: ssrOrders }));
 
     await waitFor(() => {
-      expect(store.setOrders).toHaveBeenCalledWith(canonicalQueryKey, ssrOrders);
+      expect(store.setOrders).toHaveBeenCalledWith(canonicalQueryKey, ssrOrders, ssrOrders.length);
     });
 
     const { result } = renderHook(() => useOrders());
@@ -118,7 +109,7 @@ describe('useOrders', () => {
     renderHook(() => useOrders({ initialOrders: ssrOrders }));
 
     await waitFor(() => {
-      expect(store.setOrders).toHaveBeenCalledWith(canonicalQueryKey, ssrOrders);
+      expect(store.setOrders).toHaveBeenCalledWith(canonicalQueryKey, ssrOrders, ssrOrders.length);
     });
 
     expect(store.setOrders).toHaveBeenCalledTimes(1);
@@ -128,15 +119,53 @@ describe('useOrders', () => {
   it('does not seed searched-query caches from initialOrders and performs the scoped search fetch once', async () => {
     const ssrOrders = [createOrder('fresh-order')];
     const searchQuery = 'order-9';
-    const searchedQueryKey = createOrderQueryKey(1, 50, {}, searchQuery);
+    const searchedQueryKey = createOrderQueryKey(1, 50, searchQuery);
 
     renderHook(() => useOrders({ initialOrders: ssrOrders, query: searchQuery }));
 
     await waitFor(() => {
-      expect(store.fetchOrders).toHaveBeenCalledWith(50, 1, {}, false, searchQuery);
+      expect(store.fetchOrders).toHaveBeenCalledWith(50, 1, {}, false, searchQuery, undefined);
     });
 
     expect(store.fetchOrders).toHaveBeenCalledTimes(1);
     expect(store.setOrders).not.toHaveBeenCalledWith(searchedQueryKey, ssrOrders);
+  });
+
+  it('forwards sort to server fetch and uses it in request keying', async () => {
+    const searchQuery = 'status:CREATED';
+    const sort = 'created:desc';
+
+    renderHook(() => useOrders({ query: searchQuery, sort }));
+
+    await waitFor(() => {
+      expect(store.fetchOrders).toHaveBeenCalledWith(50, 1, {}, false, searchQuery, sort);
+    });
+  });
+
+  it('hydrates from SSR initialRequest with initialTotalCount and avoids duplicate client fetch', async () => {
+    const initialOrders = [createOrder('order-1')];
+    const initialRequestKey = createOrderQueryKey(1, 5, undefined, 'created:DESC');
+
+    renderHook(() =>
+      useOrders({
+        initialOrders,
+        initialTotalCount: 14,
+        pageSize: 5,
+        pageNumber: 1,
+        sort: 'created:DESC',
+        initialRequest: {
+          pageSize: 5,
+          pageNumber: 1,
+          sort: 'created:DESC',
+          query: undefined,
+        },
+      }),
+    );
+
+    await waitFor(() => {
+      expect(store.setOrders).toHaveBeenCalledWith(initialRequestKey, initialOrders, 14);
+    });
+
+    expect(store.fetchOrders).not.toHaveBeenCalled();
   });
 });

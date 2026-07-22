@@ -98,6 +98,27 @@ describe('QuotesPageContent', () => {
     });
   });
 
+  it('wraps the search, table, and pagination in the shared table-card surface', () => {
+    mockQuotesResult({
+      quotes: [buildQuote()],
+      pagination: { pageNumber: 0, pageSize: 5, totalPages: 3, totalItems: 15 },
+    });
+    const { container } = render(<QuotesPageContent initialQuotes={[buildQuote()]} />);
+
+    const tableCard = container.querySelector('[data-slot="table-card"]');
+    expect(tableCard).not.toBeNull();
+    expect(tableCard).toHaveClass(
+      'bg-surface-primary',
+      'border',
+      'border-border-primary',
+      'rounded-md',
+      'shadow-[var(--theme-shadow-sm)]',
+    );
+    expect(tableCard).not.toHaveClass('shadow-sm');
+    expect(tableCard?.querySelector('table')).not.toBeNull();
+    expect(tableCard?.querySelector('input')).not.toBeNull();
+  });
+
   it('scopes quick search to raw id and customerReference fields only, never the mapper-derived reference field', () => {
     mockQuotesResult({ quotes: [], pagination: { pageNumber: 0, pageSize: 5, totalPages: 1, totalItems: 0 } });
     render(<QuotesPageContent initialQuotes={[]} />);

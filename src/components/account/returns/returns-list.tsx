@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCard, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { useDebouncedValue } from '@/hooks/common/useDebouncedValue';
 import { useReturns } from '@/hooks/return/useReturns';
@@ -175,7 +175,7 @@ export function ReturnsList({
         {t('title')}
       </h1>
 
-      <div className="bg-surface-primary border border-border-primary rounded-md p-4 min-[768px]:p-6 shadow-sm">
+      <TableCard>
         <div className="mb-4">
           <div className="relative w-full max-w-[380px]">
             <Input
@@ -243,6 +243,8 @@ export function ReturnsList({
                 const returnHref = `/account/returns/${returnItem.id}`;
                 const netValue = getNetReturnValue(returnItem);
                 const reasonCode = getReturnReasonCode(returnItem);
+                const firstOrderId = getFirstOrderId(returnItem);
+                const hasFirstOrderId = firstOrderId !== '-';
 
                 return (
                   <TableRow
@@ -257,8 +259,8 @@ export function ReturnsList({
                       <UiLink
                         type="Link"
                         href={returnHref}
-                        variant="primary"
-                        size="m"
+                        variant="table"
+                        className="font-bold"
                         onClick={(event) => event.stopPropagation()}
                       >
                         {returnItem.id}
@@ -268,7 +270,20 @@ export function ReturnsList({
                     <TableCell className="px-2 py-4">
                       <ReturnStatusBadge status={returnItem.status} isExpired={returnItem.isExpired} />
                     </TableCell>
-                    <TableCell className="px-2 py-4">{getFirstOrderId(returnItem)}</TableCell>
+                    <TableCell className="px-2 py-4">
+                      {hasFirstOrderId ? (
+                        <UiLink
+                          type="Link"
+                          href={`/account/orders/${firstOrderId}`}
+                          variant="table"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          {firstOrderId}
+                        </UiLink>
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
                     <TableCell className="px-2 py-4">{getReturnCustomerName(returnItem)}</TableCell>
                     <TableCell className="px-2 py-4 font-medium">
                       {formatReturnCurrency(netValue.value, netValue.currency, locale)}
@@ -281,8 +296,7 @@ export function ReturnsList({
                         <UiLink
                           type="Link"
                           href={returnHref}
-                          variant="primary"
-                          size="m"
+                          variant="table"
                           onClick={(event) => event.stopPropagation()}
                           aria-label={t('viewReturnAriaLabel', { id: returnItem.id })}
                         >
@@ -307,7 +321,7 @@ export function ReturnsList({
           onPreviousPage={handlePreviousPage}
           onNextPage={handleNextPage}
         />
-      </div>
+      </TableCard>
     </div>
   );
 }

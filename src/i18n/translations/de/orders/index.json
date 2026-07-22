@@ -120,6 +120,7 @@
     "freightInfo": "Nach der Bestellung kontaktiert Sie die beauftragte Spedition mit weiteren Informationen."
   },
   "Approval": {
+    "title": "Freigaben-Dashboard",
     "approvals": "Freigaben",
     "approval": "Freigabe",
     "approvalsList": "Freigabenliste",
@@ -138,10 +139,16 @@
     "filterByResourceType": "Nach Ressourcentyp filtern",
     "allStatuses": "Alle Status",
     "id": "ID",
+    "approvalId": "Freigabe-ID",
+    "modifiedAt": "Geändert am",
     "resourceType": "Ressourcentyp",
     "resourceId": "Ressourcen-ID",
     "quoteId": "Angebots-ID",
+    "quoteNumber": "Angebotsnummer",
     "orderId": "Bestell-ID",
+    "orderNumber": "Bestellnummer",
+    "netTotal": "Nettobetrag",
+    "viewApprovalAriaLabel": "Freigabe {id} anzeigen",
     "action": "Aktion",
     "status": "Status",
     "requestor": "Anforderer",
@@ -215,6 +222,10 @@
   },
   "ApprovalAction": {
     "CHECKOUT": "Bestellung"
+  },
+  "ApprovalResourceType": {
+    "CART": "Warenkorb",
+    "QUOTE": "Angebot"
   },
   "ApprovalStatus": {
     "PENDING": "Ausstehend",

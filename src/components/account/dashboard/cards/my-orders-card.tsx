@@ -3,12 +3,13 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowRight, Search } from 'lucide-react';
-import { MyOrdersTable } from '@/components/account/orders/my-orders-table';
+import { MyOrdersTable, type OrderSortField, type SortDirection } from '@/components/account/orders/my-orders-table';
 import { CardTitle } from '@/components/ui/card';
 import { H1, H4 } from '@/components/ui/h';
 import { Input } from '@/components/ui/input';
 import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
+import { TableCard } from '@/components/ui/table';
 import { useDebouncedValue } from '@/hooks/common/useDebouncedValue';
 import { useOrders } from '@/hooks/order/useOrders';
 import { cn } from '@/lib/utils';
@@ -17,6 +18,20 @@ import type { DashboardCardProps } from './dashboard-card';
 import { DashboardCard } from './dashboard-card';
 
 const SEARCH_DEBOUNCE_MS = 500;
+const ORDERS_PER_PAGE = 5;
+const ORDER_SORT_FIELD_MAP: Record<OrderSortField, string> = {
+  orderNumber: 'id',
+  relatedQuote: 'quoteId',
+  orderDate: 'created',
+  status: 'status',
+  orderValue: 'calculatedPrice.finalPrice.netValue',
+  shippingCost: 'calculatedPrice.totalShipping.netValue',
+  customer: 'customer.name',
+  deliveryAddress: 'shippingAddress.street',
+};
+const INITIAL_SORT_FIELD: OrderSortField = 'orderDate';
+const INITIAL_SORT_DIRECTION: SortDirection = 'desc';
+const INITIAL_API_SORT = 'created:DESC';
 
 interface MyOrdersCardProps extends Omit<DashboardCardProps, 'children'> {
   className?: string;
@@ -24,41 +39,62 @@ interface MyOrdersCardProps extends Omit<DashboardCardProps, 'children'> {
   initialOrders?: Order[];
   /** Renders the canonical Order History full-page layout (H1 heading, no "Show all orders" affordance) instead of the compact dashboard widget. */
   pageMode?: boolean;
+  initialTotalCount?: number;
 }
 
-export function MyOrdersCard({ className, title, initialOrders, pageMode = false, ...props }: MyOrdersCardProps) {
+export function MyOrdersCard({
+  className,
+  title,
+  initialOrders,
+  pageMode = false,
+  initialTotalCount,
+  ...props
+}: Readonly<MyOrdersCardProps>) {
   const t = useTranslations('orders');
 
   const [quickSearch, setQuickSearch] = useState('');
+  const [sortField, setSortField] = useState<OrderSortField>(INITIAL_SORT_FIELD);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(INITIAL_SORT_DIRECTION);
   const normalizedSearch = useDebouncedValue(quickSearch, SEARCH_DEBOUNCE_MS).trim();
   const apiQuery = normalizedSearch.length > 0 ? `id:~(${normalizedSearch})` : undefined;
+  const apiSort = `${ORDER_SORT_FIELD_MAP[sortField]}:${sortDirection === 'asc' ? 'ASC' : 'DESC'}`;
 
-  // Fetch orders from the hook. `initialOrders` is only forwarded while there is no active
-  // search: useOrders() re-seeds the store for the *current* query key whenever it changes, so
-  // keeping initialOrders bound to an active search key would mask the real search fetch with
-  // the original unfiltered list.
-  const { orders, loading } = useOrders({
-    initialOrders: apiQuery ? undefined : initialOrders,
+  const { orders, loading, totalCount, pageNumber, setPageNumber } = useOrders({
+    initialOrders,
+    initialTotalCount,
+    pageSize: ORDERS_PER_PAGE,
+    pageNumber: 1,
     query: apiQuery,
-    forceRefresh: apiQuery !== undefined,
+    sort: apiSort,
+    initialRequest: {
+      pageNumber: 1,
+      pageSize: ORDERS_PER_PAGE,
+      sort: INITIAL_API_SORT,
+      query: undefined,
+    },
   });
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const ordersPerPage = 5;
-
-  const resetToFirstPage = () => setCurrentPage(1);
+  const resetToFirstPage = () => setPageNumber(1);
+  const hasServerTotalCount = totalCount !== undefined;
+  const hasNextPage = hasServerTotalCount
+    ? pageNumber < Math.ceil(totalCount / ORDERS_PER_PAGE)
+    : (orders?.length ?? 0) === ORDERS_PER_PAGE;
 
   // Pagination handlers
   const handlePreviousPage = () => {
-    setCurrentPage((prev) => Math.max(prev - 1, 1));
+    setPageNumber(Math.max(pageNumber - 1, 1));
   };
 
   const handleNextPage = () => {
-    if (orders) {
-      const maxPage = Math.ceil(orders.length / ordersPerPage);
-      setCurrentPage((prev) => Math.min(prev + 1, maxPage));
+    if (hasNextPage) {
+      setPageNumber(pageNumber + 1);
     }
+  };
+
+  const handleSortChange = (field: OrderSortField, direction: SortDirection) => {
+    resetToFirstPage();
+    setSortField(field);
+    setSortDirection(direction);
   };
 
   const isSearchLoading = loading && normalizedSearch.length > 0;
@@ -96,12 +132,15 @@ export function MyOrdersCard({ className, title, initialOrders, pageMode = false
   const table = (
     <MyOrdersTable
       orders={orders || []}
-      currentPage={currentPage}
-      ordersPerPage={ordersPerPage}
+      currentPage={pageNumber}
+      ordersPerPage={ORDERS_PER_PAGE}
+      totalCount={totalCount}
+      sortField={sortField}
+      sortDirection={sortDirection}
       loading={loading}
       onPreviousPage={handlePreviousPage}
       onNextPage={handleNextPage}
-      onSortChange={resetToFirstPage}
+      onSortChange={handleSortChange}
     />
   );
 
@@ -109,9 +148,11 @@ export function MyOrdersCard({ className, title, initialOrders, pageMode = false
     return (
       <div className={cn('space-y-6', className)}>
         <H1>{title || t('title')}</H1>
-        {searchInput}
-        {noMatches}
-        <div className="flex flex-col">{table}</div>
+        <TableCard>
+          {searchInput}
+          {noMatches}
+          <div className="flex flex-col">{table}</div>
+        </TableCard>
       </div>
     );
   }
