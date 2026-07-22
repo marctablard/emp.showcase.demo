@@ -24,8 +24,12 @@ export async function GET(request: NextRequest) {
     const approvalService = server.get<ApprovalService>('ApprovalService');
     const { items: approvals, totalCount } = await approvalService.getApprovals(pageNumber, pageSize, sort, query);
 
+    if (totalCount === undefined) {
+      return NextResponse.json(approvals);
+    }
+
     return NextResponse.json(approvals, {
-      headers: totalCount !== undefined ? { 'x-total-count': String(totalCount) } : undefined,
+      headers: { 'x-total-count': String(totalCount) },
     });
   } catch (error) {
     const logger = server.get<LoggerService>('LoggerService');

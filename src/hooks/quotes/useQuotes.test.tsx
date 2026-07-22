@@ -38,7 +38,7 @@ function buildQuote(id: string): Quote {
 describe('useQuotes', () => {
   beforeEach(() => {
     fetchMock.mockReset();
-    global.fetch = fetchMock as unknown as typeof fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
   });
 
   it('reuses SSR initial data when filters are value-equivalent despite different object identity', async () => {

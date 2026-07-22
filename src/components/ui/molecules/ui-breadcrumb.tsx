@@ -38,7 +38,7 @@ export function UiBreadcrumb({ items, maxItems = 2, className, disabledCategorie
   const effectiveMaxItems = Math.max(maxItems, 2) - 1;
   const itemsToShow = items.slice(items.length - effectiveMaxItems);
   const hiddenItems = items.slice(0, items.length - effectiveMaxItems);
-  const backHref = items.length > 1 ? items[items.length - 2].href : items[items.length - 1].href;
+  const backHref = items.length > 1 ? items.at(-2)!.href : items.at(-1)!.href;
 
   return (
     <Breadcrumb className={cn('w-full py-4', className)} {...props}>

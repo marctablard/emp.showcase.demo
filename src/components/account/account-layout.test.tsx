@@ -7,7 +7,7 @@ import { breakpoints } from '@/hooks/useBreakpoint';
 import { AccountLayout } from './account-layout';
 
 function setViewportWidth(width: number) {
-  Object.defineProperty(window, 'innerWidth', {
+  Object.defineProperty(globalThis, 'innerWidth', {
     writable: true,
     configurable: true,
     value: width,
@@ -36,7 +36,7 @@ jest.mock('@/hooks/authentication/useAuthentication', () => ({
 }));
 
 describe('AccountLayout responsive sidebar/mobile-menu switching', () => {
-  const originalInnerWidth = window.innerWidth;
+  const originalInnerWidth = globalThis.innerWidth;
 
   afterEach(() => {
     setViewportWidth(originalInnerWidth);

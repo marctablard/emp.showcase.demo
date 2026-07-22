@@ -23,7 +23,7 @@ interface UseQuotesOptions extends SearchParams<Quote> {
     size?: number;
     sort?: string;
     query?: string;
-    filters?: SearchParams<Quote>['filters'] | undefined;
+    filters?: SearchParams<Quote>['filters'];
   };
 }
 

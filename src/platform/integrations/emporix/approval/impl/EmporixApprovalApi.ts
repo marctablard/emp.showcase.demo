@@ -86,7 +86,7 @@ class EmporixApprovalApi implements IEmporixApprovalApi {
     }
 
     const totalCountHeader = response.headers.get('x-total-count');
-    const parsedTotalCount = totalCountHeader ? parseInt(totalCountHeader, 10) : Number.NaN;
+    const parsedTotalCount = totalCountHeader ? Number.parseInt(totalCountHeader, 10) : Number.NaN;
     const items = (await response.json()) as EmporixApprovalResponse[];
 
     return {

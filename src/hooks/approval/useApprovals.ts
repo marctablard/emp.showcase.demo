@@ -107,7 +107,7 @@ export function useApprovals(initialApprovals?: Approval[], options: UseApproval
       }
 
       const totalCountHeader = response.headers.get('x-total-count');
-      const parsedTotalCount = totalCountHeader ? parseInt(totalCountHeader, 10) : Number.NaN;
+      const parsedTotalCount = totalCountHeader ? Number.parseInt(totalCountHeader, 10) : Number.NaN;
       const data: Approval[] = await response.json();
       setApprovals(data);
 

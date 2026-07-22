@@ -1,6 +1,13 @@
-import type EmporixApiInvoker from '../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../config';
 import EmporixOrderApi from './impl/EmporixOrderApi';
+
+type AuthenticatedFetch = (
+  ...args: Parameters<EmporixOrderApi['apiClient']['authenticatedFetch']>
+) => ReturnType<EmporixOrderApi['apiClient']['authenticatedFetch']>;
+
+type MockOrderApiClient = {
+  authenticatedFetch: jest.MockedFunction<AuthenticatedFetch>;
+};
 
 const mockConfigLocal: EmporixConfig = {
   baseUrl: 'https://api.emporix.io',
@@ -13,13 +20,13 @@ const mockConfigLocal: EmporixConfig = {
 
 describe('EmporixOrderApi customer transition (mocked)', () => {
   it('POSTs DECLINED with session token and metrics', async () => {
-    const mockApiClient = {
+    const mockApiClient: MockOrderApiClient = {
       authenticatedFetch: jest.fn().mockResolvedValue({
         ok: true,
         status: 204,
         text: jest.fn().mockResolvedValue(''),
       }),
-    } as unknown as jest.Mocked<EmporixApiInvoker>;
+    };
 
     const api = new EmporixOrderApi(mockApiClient, mockConfigLocal);
     await api.postCustomerOrderTransition('ord-1', { status: 'DECLINED' });
@@ -38,12 +45,12 @@ describe('EmporixOrderApi customer transition (mocked)', () => {
   });
 
   it('normalizes customer GET transitions from transitions wrapper', async () => {
-    const mockApiClient = {
+    const mockApiClient: MockOrderApiClient = {
       authenticatedFetch: jest.fn().mockResolvedValue({
         ok: true,
         json: jest.fn().mockResolvedValue({ transitions: [{ status: 'DECLINED' }] }),
       }),
-    } as unknown as jest.Mocked<EmporixApiInvoker>;
+    };
 
     const api = new EmporixOrderApi(mockApiClient, mockConfigLocal);
     const result = await api.getCustomerOrderStatusTransitions('ord-2');
@@ -51,7 +58,7 @@ describe('EmporixOrderApi customer transition (mocked)', () => {
   });
 
   it('builds customer orders request using pageNumber/pageSize/sort/q and parses total count', async () => {
-    const mockApiClient = {
+    const mockApiClient: MockOrderApiClient = {
       authenticatedFetch: jest.fn().mockResolvedValue({
         ok: true,
         headers: {
@@ -59,7 +66,7 @@ describe('EmporixOrderApi customer transition (mocked)', () => {
         },
         json: jest.fn().mockResolvedValue([{ id: 'ord-1' }]),
       }),
-    } as unknown as jest.Mocked<EmporixApiInvoker>;
+    };
 
     const api = new EmporixOrderApi(mockApiClient, mockConfigLocal);
     const response = await api.getCustomerOrdersPage(10, 1, 'created:desc,id:asc', 'status:CREATED id:(ord-1,ord-2)');

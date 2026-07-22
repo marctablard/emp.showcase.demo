@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { breakpoints, useBreakpoint } from './useBreakpoint';
 
 function setViewportWidth(width: number) {
-  Object.defineProperty(window, 'innerWidth', {
+  Object.defineProperty(globalThis, 'innerWidth', {
     writable: true,
     configurable: true,
     value: width,
@@ -10,7 +10,7 @@ function setViewportWidth(width: number) {
 }
 
 describe('useBreakpoint', () => {
-  const originalInnerWidth = window.innerWidth;
+  const originalInnerWidth = globalThis.innerWidth;
 
   afterEach(() => {
     setViewportWidth(originalInnerWidth);
@@ -42,7 +42,7 @@ describe('useBreakpoint', () => {
 
     act(() => {
       setViewportWidth(breakpoints.md);
-      window.dispatchEvent(new Event('resize'));
+      globalThis.dispatchEvent(new Event('resize'));
     });
 
     expect(result.current).toBe(true);
