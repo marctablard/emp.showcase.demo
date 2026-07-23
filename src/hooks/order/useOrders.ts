@@ -85,16 +85,14 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
   useEffect(() => {
     // Keep the initial request cache in sync with SSR data on mount.
     if (shouldHydrateFromInitialOrders && initialOrders && !getStoreLoading(queryKey)) {
-      setStoreOrders(queryKey, initialOrders, initialTotalCount ?? initialOrders.length);
+      setStoreOrders(queryKey, initialOrders, initialTotalCount);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialOrders, initialTotalCount, queryKey, shouldHydrateFromInitialOrders]);
 
   // Get current state from store
   const orders = getStoreOrders(queryKey) || (shouldHydrateFromInitialOrders ? initialOrders : undefined);
-  const totalCount =
-    getStoreTotalCount(queryKey) ??
-    (shouldHydrateFromInitialOrders ? (initialTotalCount ?? initialOrders?.length) : undefined);
+  const totalCount = getStoreTotalCount(queryKey) ?? (shouldHydrateFromInitialOrders ? initialTotalCount : undefined);
   const loading = getStoreLoading(queryKey);
   const error = getStoreError(queryKey);
 

@@ -65,8 +65,8 @@ export async function fetchOrdersPage(
   sort?: string,
 ): Promise<OrdersPageResult> {
   const queryParams = new URLSearchParams();
-  if (pageSize) queryParams.append('pageSize', pageSize.toString());
-  if (pageNumber) queryParams.append('pageNumber', pageNumber.toString());
+  if (pageSize !== undefined) queryParams.append('pageSize', pageSize.toString());
+  if (pageNumber !== undefined) queryParams.append('pageNumber', pageNumber.toString());
   if (query) queryParams.append('q', query);
   if (sort) queryParams.append('sort', sort);
 

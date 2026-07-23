@@ -73,7 +73,7 @@ describe('useOrders', () => {
     renderHook(() => useOrders({ initialOrders: ssrOrders }));
 
     await waitFor(() => {
-      expect(store.setOrders).toHaveBeenCalledWith(canonicalQueryKey, ssrOrders, ssrOrders.length);
+      expect(store.setOrders).toHaveBeenCalledWith(canonicalQueryKey, ssrOrders, undefined);
     });
 
     expect(store.fetchOrders).not.toHaveBeenCalled();
@@ -87,7 +87,7 @@ describe('useOrders', () => {
     renderHook(() => useOrders({ initialOrders: ssrOrders }));
 
     await waitFor(() => {
-      expect(store.setOrders).toHaveBeenCalledWith(canonicalQueryKey, ssrOrders, ssrOrders.length);
+      expect(store.setOrders).toHaveBeenCalledWith(canonicalQueryKey, ssrOrders, undefined);
     });
 
     const { result } = renderHook(() => useOrders());
@@ -101,11 +101,23 @@ describe('useOrders', () => {
     renderHook(() => useOrders({ initialOrders: ssrOrders }));
 
     await waitFor(() => {
-      expect(store.setOrders).toHaveBeenCalledWith(canonicalQueryKey, ssrOrders, ssrOrders.length);
+      expect(store.setOrders).toHaveBeenCalledWith(canonicalQueryKey, ssrOrders, undefined);
     });
 
     expect(store.setOrders).toHaveBeenCalledTimes(1);
     expect(store.fetchOrders).not.toHaveBeenCalled();
+  });
+
+  it('returns undefined totalCount when initialTotalCount is absent even if initialOrders exist', async () => {
+    const ssrOrders = [createOrder('fresh-order')];
+
+    const { result } = renderHook(() => useOrders({ initialOrders: ssrOrders }));
+
+    await waitFor(() => {
+      expect(store.setOrders).toHaveBeenCalledWith(canonicalQueryKey, ssrOrders, undefined);
+    });
+
+    expect(result.current.totalCount).toBeUndefined();
   });
 
   it('does not seed searched-query caches from initialOrders and performs the scoped search fetch once', async () => {
