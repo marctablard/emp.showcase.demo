@@ -37,6 +37,8 @@
   "noOrders": "No orders found",
   "noMatches": "No orders match your search",
   "ordersTotal": "Total orders",
+  "errorLoadingOrders": "Error loading orders",
+  "tryAgain": "Try Again",
   "orderActions": "Order Actions",
   "cancelOrder": "Cancel Order",
   "cancelOrderFailed": "Could not cancel order",

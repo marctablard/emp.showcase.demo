@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowRight, Search } from 'lucide-react';
 import { MyOrdersTable, type OrderSortField, type SortDirection } from '@/components/account/orders/my-orders-table';
+import { Button } from '@/components/ui/button';
 import { CardTitle } from '@/components/ui/card';
 import { H1, H4 } from '@/components/ui/h';
 import { Input } from '@/components/ui/input';
@@ -62,7 +63,7 @@ export function MyOrdersCard({
       : undefined;
   const apiSort = `${ORDER_SORT_FIELD_MAP[sortField]}:${sortDirection === 'asc' ? 'ASC' : 'DESC'}`;
 
-  const { orders, loading, totalCount, pageNumber, setPageNumber } = useOrders({
+  const { orders, loading, error, totalCount, pageNumber, setPageNumber, refetchOrders } = useOrders({
     initialOrders,
     initialTotalCount,
     pageSize: ORDERS_PER_PAGE,
@@ -78,6 +79,7 @@ export function MyOrdersCard({
   });
 
   const resetToFirstPage = () => setPageNumber(1);
+
   const hasServerTotalCount = totalCount !== undefined;
   const hasNextPage = hasServerTotalCount
     ? pageNumber < Math.ceil(totalCount / ORDERS_PER_PAGE)
@@ -108,7 +110,6 @@ export function MyOrdersCard({
         <Input
           value={quickSearch}
           onChange={(event) => {
-            resetToFirstPage();
             setQuickSearch(event.target.value);
           }}
           placeholder={t('search.placeholder')}
@@ -128,7 +129,14 @@ export function MyOrdersCard({
     </div>
   );
 
-  const table = (
+  const table = error ? (
+    <div className="bg-surface-error border border-border-error text-text-error px-4 py-3 rounded space-y-3">
+      <p>
+        {t('errorLoadingOrders')}: {error.message}
+      </p>
+      <Button onClick={() => refetchOrders()}>{t('tryAgain')}</Button>
+    </div>
+  ) : (
     <MyOrdersTable
       orders={orders || []}
       currentPage={pageNumber}

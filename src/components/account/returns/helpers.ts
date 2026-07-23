@@ -43,13 +43,15 @@ export function getReturnCustomerName(returnItem: Return): string {
 }
 
 /**
- * Net Return Value per the COP-6026 contract: calculatedPrice.finalPrice.netValue only,
- * with its mapped currency when present. No fallback to total/orders item values.
+ * Net Return Value per the approved COP-6067 contract: prefers
+ * calculatedPrice.finalPrice.netValue (and its currency) when present, falling
+ * back to the customer-visible Return.total (value/currency) otherwise. This
+ * mirrors the same fallback already used on the return detail page.
  */
 export function getNetReturnValue(returnItem: Return): { value: number | undefined; currency: string | undefined } {
   return {
-    value: returnItem.calculatedPrice?.finalPrice?.netValue,
-    currency: returnItem.calculatedPrice?.finalPrice?.currency,
+    value: returnItem.calculatedPrice?.finalPrice?.netValue ?? returnItem.total?.value,
+    currency: returnItem.calculatedPrice?.finalPrice?.currency ?? returnItem.total?.currency,
   };
 }
 

@@ -29,9 +29,19 @@ jest.mock('@/i18n/navigation', () => ({
 }));
 
 const mockUseReturns = jest.fn();
+const mockTablePagination = jest.fn();
 
 jest.mock('@/hooks/return/useReturns', () => ({
   useReturns: (...args: unknown[]) => mockUseReturns(...args),
+}));
+
+jest.mock('@/components/ui/table-pagination', () => ({
+  TablePagination: ({ currentPage, totalPages, onPreviousPage, onNextPage }: any) => (
+    <div>
+      {currentPage > 1 ? <button onClick={onPreviousPage}>previous</button> : null}
+      {currentPage < totalPages ? <button onClick={onNextPage}>next</button> : null}
+    </div>
+  ),
 }));
 
 function buildReturn(overrides: Partial<Return> = {}): Return {
@@ -67,8 +77,13 @@ function mockReturnsResult(overrides: {
 }
 
 describe('ReturnsList', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
   afterEach(() => {
     jest.clearAllMocks();
+    jest.useRealTimers();
   });
 
   it('renders columns in the contract order: Return Number, Return Date, Status, Order Number, Customer, Net Return Value, Reason, Action', () => {
@@ -126,6 +141,63 @@ describe('ReturnsList', () => {
         query: undefined,
       },
     });
+  });
+
+  it('resets to page one only after the debounced search changes and keeps pagination bounded by the known total', () => {
+    mockReturnsResult({ returns: [buildReturn()], totalCount: 15 });
+    render(<ReturnsList initialReturns={[buildReturn()]} initialTotalCount={15} />);
+
+    const input = screen.getByPlaceholderText('searchPlaceholder');
+    fireEvent.change(input, { target: { value: '  abc  ' } });
+
+    const [, optionsBeforeDebounce] = mockUseReturns.mock.calls[mockUseReturns.mock.calls.length - 1];
+    expect(optionsBeforeDebounce.pageNumber).toBe(1);
+    expect(optionsBeforeDebounce.query).toBeUndefined();
+
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    const [, optionsAfterDebounce] = mockUseReturns.mock.calls[mockUseReturns.mock.calls.length - 1];
+    expect(optionsAfterDebounce.query).toBe('id:~(abc)');
+    expect(optionsAfterDebounce.pageNumber).toBe(1);
+
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    const [, optionsAfterNext] = mockUseReturns.mock.calls[mockUseReturns.mock.calls.length - 1];
+    expect(optionsAfterNext.pageNumber).toBe(2);
+
+    fireEvent.click(screen.getByRole('button', { name: 'next' }));
+
+    const [, optionsAfterSecondNext] = mockUseReturns.mock.calls[mockUseReturns.mock.calls.length - 1];
+    expect(optionsAfterSecondNext.pageNumber).toBe(3);
+  });
+
+  it('never calls useReturns with {new query, old page} when the debounced search settles after paging forward', () => {
+    mockReturnsResult({ returns: [buildReturn()], totalCount: 25 });
+    render(<ReturnsList initialReturns={[buildReturn()]} initialTotalCount={25} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'next' }));
+
+    const [, pageThreeOptions] = mockUseReturns.mock.calls[mockUseReturns.mock.calls.length - 1];
+    expect(pageThreeOptions.pageNumber).toBe(3);
+
+    const input = screen.getByPlaceholderText('searchPlaceholder');
+    fireEvent.change(input, { target: { value: 'abc' } });
+
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    const staleCombo = mockUseReturns.mock.calls.find(
+      ([, options]) => options.query === 'id:~(abc)' && options.pageNumber === 3,
+    );
+    expect(staleCombo).toBeUndefined();
+
+    const [, settledOptions] = mockUseReturns.mock.calls[mockUseReturns.mock.calls.length - 1];
+    expect(settledOptions.query).toBe('id:~(abc)');
+    expect(settledOptions.pageNumber).toBe(1);
   });
 
   it('keeps Order Number and Customer non-sortable', () => {
@@ -350,7 +422,7 @@ describe('ReturnsList', () => {
     expect(within(cells[3]).queryByRole('link')).not.toBeInTheDocument();
   });
 
-  it('displays only calculatedPrice.finalPrice.netValue for Net Return Value, never falling back to total', () => {
+  it('falls back to the customer-visible Return.total for Net Return Value when calculatedPrice is absent', () => {
     const returnItem = buildReturn({
       id: 'ret-no-net',
       calculatedPrice: undefined,
@@ -362,7 +434,13 @@ describe('ReturnsList', () => {
     const row = screen.getByText('ret-no-net').closest('tr') as HTMLTableRowElement;
     const cells = within(row).getAllByRole('cell');
     expect(cells).toHaveLength(8);
-    expect(cells[5]).toHaveTextContent('-');
+    const expected = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(999);
+    expect(cells[5]).toHaveTextContent(expected);
   });
 
   it('derives Customer from requestor fullName, composed name, then email, defaulting to "-"', () => {

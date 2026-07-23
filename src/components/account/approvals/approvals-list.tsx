@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Search } from 'lucide-react';
 import { APPROVALS_PER_PAGE } from '@/components/account/account-table-constants';
@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { TableCard } from '@/components/ui/table';
 import { useApprovals } from '@/hooks/approval/useApprovals';
-import { useDebouncedValue } from '@/hooks/common/useDebouncedValue';
 import type { Approval } from '@/platform/services/model/approval';
 import { APPROVAL_SORT_FIELD_MAP, type ApprovalSortField, ApprovalsTable } from './approvals-table';
 
@@ -30,7 +29,23 @@ export function ApprovalsList({ initialApprovals, currentUserId, initialTotalCou
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   const [quickSearch, setQuickSearch] = useState('');
-  const normalizedSearch = useDebouncedValue(quickSearch, SEARCH_DEBOUNCE_MS).trim();
+  const [normalizedSearch, setNormalizedSearch] = useState('');
+
+  useEffect(() => {
+    const timeoutId = globalThis.setTimeout(() => {
+      const nextNormalizedSearch = quickSearch.trim();
+      if (nextNormalizedSearch === normalizedSearch) {
+        return;
+      }
+
+      setCurrentPage((prev) => (prev === 1 ? prev : 1));
+      setNormalizedSearch(nextNormalizedSearch);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      globalThis.clearTimeout(timeoutId);
+    };
+  }, [quickSearch, normalizedSearch]);
 
   const apiQuery = useMemo(() => {
     if (normalizedSearch.length === 0) {
@@ -87,7 +102,6 @@ export function ApprovalsList({ initialApprovals, currentUserId, initialTotalCou
             <Input
               value={quickSearch}
               onChange={(event) => {
-                setCurrentPage(1);
                 setQuickSearch(event.target.value);
               }}
               placeholder={t('searchPlaceholder')}

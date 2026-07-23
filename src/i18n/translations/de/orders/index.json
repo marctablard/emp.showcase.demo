@@ -31,6 +31,8 @@
   "noOrders": "Keine Bestellungen gefunden",
   "noMatches": "Keine Bestellungen entsprechen Ihrer Suche",
   "ordersTotal": "Bestellungen insgesamt",
+  "errorLoadingOrders": "Fehler beim Laden der Bestellungen",
+  "tryAgain": "Erneut versuchen",
   "billingAddress": "Rechnungsadresse",
   "shippingAddress": "Lieferadresse",
   "search": {

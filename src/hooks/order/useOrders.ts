@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { createOrderRequestKey } from '@/lib/order/create-order-request-key';
 import type { Order } from '@/platform/services/model/order/order';
@@ -73,11 +73,26 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
   const [pageSize, setPageSize] = useState<number>(initialPageSize);
   const [pageNumber, setPageNumber] = useState<number>(initialPageNumber);
 
+  // Reset to page one synchronously in the same render whenever the search
+  // query transitions (including clearing it back to empty). Comparing and
+  // correcting the page here - before it is used to build the request key -
+  // guarantees the store is never queried for {new query, old page}; a later
+  // effect never has to correct an already-issued stale request.
+  const previousSearchQueryRef = useRef(searchQuery);
+  let effectivePageNumber = pageNumber;
+  if (previousSearchQueryRef.current !== searchQuery) {
+    previousSearchQueryRef.current = searchQuery;
+    effectivePageNumber = 1;
+    if (pageNumber !== 1) {
+      setPageNumber(1);
+    }
+  }
+
   // Generate query key for current request parameters.
-  const queryKey = createOrderRequestKey(pageSize, pageNumber, searchQuery, sort);
+  const queryKey = createOrderRequestKey(pageSize, effectivePageNumber, searchQuery, sort);
   const shouldHydrateFromInitialOrders =
     Boolean(initialOrders) &&
-    pageNumber === (initialRequest?.pageNumber ?? initialPageNumber) &&
+    effectivePageNumber === (initialRequest?.pageNumber ?? initialPageNumber) &&
     pageSize === (initialRequest?.pageSize ?? initialPageSize) &&
     searchQuery === initialRequest?.query &&
     sort === initialRequest?.sort;
@@ -99,19 +114,21 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
   // Re-fetch orders; honours the configurable `forceRefresh` flag (default: false)
   const refetchOrders = useCallback(async () => {
     try {
-      await storeFetchOrders(pageSize, pageNumber, forceRefresh, searchQuery, sort);
+      await storeFetchOrders(pageSize, effectivePageNumber, forceRefresh, searchQuery, sort);
     } catch (err) {
       // Error is already handled in the store
-      getLogger().error({ err, pageSize, pageNumber }, 'Error in refetchOrders');
+      getLogger().error({ err, pageSize, pageNumber: effectivePageNumber }, 'Error in refetchOrders');
     }
-  }, [pageSize, pageNumber, forceRefresh, searchQuery, sort, storeFetchOrders]);
+  }, [pageSize, effectivePageNumber, forceRefresh, searchQuery, sort, storeFetchOrders]);
 
-  // Auto-fetch when parameters change and we don't have data
+  // Auto-fetch when parameters change and we don't have data, unless the current
+  // request key already has a stored error; explicit refetch and changed request
+  // keys (which start with no stored error) remain valid retry paths.
   useEffect(() => {
-    if (!orders && !loading) {
+    if (!orders && !loading && !error) {
       refetchOrders();
     }
-  }, [pageSize, pageNumber, searchQuery, orders, loading, refetchOrders]);
+  }, [pageSize, effectivePageNumber, searchQuery, orders, loading, error, refetchOrders]);
 
   return {
     orders,
@@ -119,7 +136,7 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
     error,
     totalCount,
     pageSize,
-    pageNumber,
+    pageNumber: effectivePageNumber,
     setPageSize,
     setPageNumber,
     refetchOrders,

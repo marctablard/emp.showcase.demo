@@ -154,7 +154,7 @@ describe('QuotesPageContent', () => {
     expect(options.page).toBe(0);
   });
 
-  it('sends query undefined and resets to page 1 once the search input is cleared', () => {
+  it('waits for the debounced trimmed search to reset page 1 and clears the query once the field is emptied', () => {
     mockQuotesResult({
       quotes: [buildQuote()],
       pagination: { pageNumber: 1, pageSize: 5, totalPages: 3, totalItems: 15 },
@@ -162,23 +162,66 @@ describe('QuotesPageContent', () => {
     render(<QuotesPageContent initialQuotes={[buildQuote()]} />);
 
     const input = screen.getByPlaceholderText('searchPlaceholder');
-    fireEvent.change(input, { target: { value: 'abc' } });
-    act(() => {
-      jest.advanceTimersByTime(500);
-    });
+    fireEvent.change(input, { target: { value: '  abc  ' } });
 
-    fireEvent.change(input, { target: { value: '' } });
-
-    const [, optionsAfterClearBeforeDebounce] = mockUseQuotes.mock.calls[mockUseQuotes.mock.calls.length - 1];
-    expect(optionsAfterClearBeforeDebounce.page).toBe(0);
+    const [, optionsBeforeDebounce] = mockUseQuotes.mock.calls[mockUseQuotes.mock.calls.length - 1];
+    expect(optionsBeforeDebounce.page).toBe(0);
+    expect(optionsBeforeDebounce.query).toBeUndefined();
 
     act(() => {
       jest.advanceTimersByTime(500);
     });
 
     const [, optionsAfterDebounce] = mockUseQuotes.mock.calls[mockUseQuotes.mock.calls.length - 1];
-    expect(optionsAfterDebounce.query).toBeUndefined();
+    expect(optionsAfterDebounce.query).toBe('compoundLogicalQuery:((id:~(abc)) OR (customerReference:~(abc)))');
     expect(optionsAfterDebounce.page).toBe(0);
+
+    fireEvent.change(input, { target: { value: '' } });
+
+    const [, optionsAfterClearBeforeDebounce] = mockUseQuotes.mock.calls[mockUseQuotes.mock.calls.length - 1];
+    expect(optionsAfterClearBeforeDebounce.page).toBe(0);
+    expect(optionsAfterClearBeforeDebounce.query).toBe(
+      'compoundLogicalQuery:((id:~(abc)) OR (customerReference:~(abc)))',
+    );
+
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    const [, optionsAfterDebouncedClear] = mockUseQuotes.mock.calls[mockUseQuotes.mock.calls.length - 1];
+    expect(optionsAfterDebouncedClear.query).toBeUndefined();
+    expect(optionsAfterDebouncedClear.page).toBe(0);
+  });
+
+  it('never calls useQuotes with {new query, old page} when the debounced search settles after paging forward', () => {
+    mockQuotesResult({
+      quotes: [buildQuote()],
+      pagination: { pageNumber: 0, pageSize: 5, totalPages: 5, totalItems: 25 },
+    });
+    render(<QuotesPageContent initialQuotes={[buildQuote()]} initialTotalCount={25} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'next' }));
+
+    const [, pageThreeOptions] = mockUseQuotes.mock.calls[mockUseQuotes.mock.calls.length - 1];
+    expect(pageThreeOptions.page).toBe(2);
+
+    const input = screen.getByPlaceholderText('searchPlaceholder');
+    fireEvent.change(input, { target: { value: 'abc' } });
+
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    const staleCombo = mockUseQuotes.mock.calls.find(
+      ([, options]) =>
+        options.query === 'compoundLogicalQuery:((id:~(abc)) OR (customerReference:~(abc)))' && options.page === 2,
+    );
+    expect(staleCombo).toBeUndefined();
+
+    const [, settledOptions] = mockUseQuotes.mock.calls[mockUseQuotes.mock.calls.length - 1];
+    expect(settledOptions.query).toBe('compoundLogicalQuery:((id:~(abc)) OR (customerReference:~(abc)))');
+    expect(settledOptions.page).toBe(0);
   });
 
   it('renders the error state distinctly instead of the table when the fetch fails', () => {

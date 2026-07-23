@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Search } from 'lucide-react';
 import { QUOTES_PER_PAGE } from '@/components/account/account-table-constants';
@@ -9,7 +9,6 @@ import { H1 } from '@/components/ui/h';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { TableCard } from '@/components/ui/table';
-import { useDebouncedValue } from '@/hooks/common/useDebouncedValue';
 import { useQuotes } from '@/hooks/quotes/useQuotes';
 import type { Quote } from '@/platform/services/model/quote';
 
@@ -28,7 +27,24 @@ export default function QuotesPageContent({ initialQuotes, initialTotalCount }: 
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   const [quickSearch, setQuickSearch] = useState('');
-  const normalizedSearch = useDebouncedValue(quickSearch, SEARCH_DEBOUNCE_MS).trim();
+  const [normalizedSearch, setNormalizedSearch] = useState('');
+
+  useEffect(() => {
+    const timeoutId = globalThis.setTimeout(() => {
+      const nextNormalizedSearch = quickSearch.trim();
+      if (nextNormalizedSearch === normalizedSearch) {
+        return;
+      }
+
+      setCurrentPage((prev) => (prev === 1 ? prev : 1));
+      setNormalizedSearch(nextNormalizedSearch);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      globalThis.clearTimeout(timeoutId);
+    };
+  }, [quickSearch, normalizedSearch]);
+
   // Quick search is scoped to Quote ID and Quote Reference only, using the raw
   // upstream fields (`id`, `customerReference`) rather than the mapper-derived
   // `reference` fallback field.
@@ -83,7 +99,6 @@ export default function QuotesPageContent({ initialQuotes, initialTotalCount }: 
             <Input
               value={quickSearch}
               onChange={(event) => {
-                setCurrentPage(1);
                 setQuickSearch(event.target.value);
               }}
               placeholder={t('searchPlaceholder')}

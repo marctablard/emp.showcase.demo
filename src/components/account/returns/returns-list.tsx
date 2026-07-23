@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ArrowDown, ArrowRight, ArrowUp, ChevronsUpDown, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,6 @@ import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCard, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TablePagination } from '@/components/ui/table-pagination';
-import { useDebouncedValue } from '@/hooks/common/useDebouncedValue';
 import { useReturns } from '@/hooks/return/useReturns';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
@@ -57,9 +56,27 @@ export function ReturnsList({
   const [sortField, setSortField] = useState<ReturnSortField>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [currentPage, setCurrentPage] = useState(1);
-  const normalizedSearch = useDebouncedValue(quickSearch, SEARCH_DEBOUNCE_MS).trim();
+  const [normalizedSearch, setNormalizedSearch] = useState('');
+
+  useEffect(() => {
+    const timeoutId = globalThis.setTimeout(() => {
+      const nextNormalizedSearch = quickSearch.trim();
+      if (nextNormalizedSearch === normalizedSearch) {
+        return;
+      }
+
+      setCurrentPage((prev) => (prev === 1 ? prev : 1));
+      setNormalizedSearch(nextNormalizedSearch);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      globalThis.clearTimeout(timeoutId);
+    };
+  }, [quickSearch, normalizedSearch]);
+
   const apiSort = `${RETURN_SORT_FIELD_MAP[sortField]}:${sortDirection === 'asc' ? 'ASC' : 'DESC'}`;
   const apiQuery = normalizedSearch.length > 0 ? `id:~(${normalizedSearch})` : undefined;
+
   const {
     returns: visibleReturns,
     totalCount,
@@ -80,6 +97,7 @@ export function ReturnsList({
       query: undefined,
     },
   });
+
   const hasServerTotalCount = totalCount !== undefined;
   const hasNextPage = hasServerTotalCount
     ? currentPage < Math.ceil(totalCount / RETURNS_PER_PAGE)
@@ -133,7 +151,7 @@ export function ReturnsList({
   };
 
   const handleNextPage = () => {
-    setCurrentPage((prev) => prev + 1);
+    setCurrentPage((prev) => (hasServerTotalCount ? Math.min(prev + 1, totalPages) : prev + 1));
   };
 
   if (isInitialLoading) {
@@ -198,7 +216,6 @@ export function ReturnsList({
             <Input
               value={quickSearch}
               onChange={(event) => {
-                setCurrentPage(1);
                 setQuickSearch(event.target.value);
               }}
               placeholder={t('searchPlaceholder')}

@@ -31,6 +31,15 @@ jest.mock('@/hooks/approval/useApprovals', () => ({
   useApprovals: (...args: unknown[]) => mockUseApprovals(...args),
 }));
 
+jest.mock('@/components/ui/table-pagination', () => ({
+  TablePagination: ({ currentPage, totalPages, onPreviousPage, onNextPage }: any) => (
+    <div>
+      {currentPage > 1 ? <button onClick={onPreviousPage}>previous</button> : null}
+      {currentPage < totalPages ? <button onClick={onNextPage}>next</button> : null}
+    </div>
+  ),
+}));
+
 function buildApproval(overrides: Partial<Approval> = {}): Approval {
   return {
     id: 'APR-1',
@@ -158,31 +167,76 @@ describe('ApprovalsList', () => {
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
-  it('sends query undefined and resets to page 1 once the search input is cleared', () => {
+  it('waits for the debounced trimmed search to reset page 1 and clears the query once the field is emptied', () => {
     mockApprovalsResult({
       approvals: [buildApproval()],
       pagination: { pageNumber: 2, pageSize: 5, totalPages: 3, totalItems: 15 },
     });
     render(<ApprovalsList initialApprovals={[buildApproval()]} />);
 
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
     const input = screen.getByPlaceholderText('searchPlaceholder');
-    fireEvent.change(input, { target: { value: 'abc' } });
-    act(() => {
-      jest.advanceTimersByTime(500);
-    });
+    fireEvent.change(input, { target: { value: '  abc  ' } });
 
-    fireEvent.change(input, { target: { value: '' } });
-
-    const [, optionsAfterClearBeforeDebounce] = mockUseApprovals.mock.calls[mockUseApprovals.mock.calls.length - 1];
-    expect(optionsAfterClearBeforeDebounce.pageNumber).toBe(1);
+    const [, optionsBeforeDebounce] = mockUseApprovals.mock.calls[mockUseApprovals.mock.calls.length - 1];
+    expect(optionsBeforeDebounce.pageNumber).toBe(2);
+    expect(optionsBeforeDebounce.query).toBeUndefined();
 
     act(() => {
       jest.advanceTimersByTime(500);
     });
 
     const [, optionsAfterDebounce] = mockUseApprovals.mock.calls[mockUseApprovals.mock.calls.length - 1];
-    expect(optionsAfterDebounce.query).toBeUndefined();
+    expect(optionsAfterDebounce.query).toBe(
+      'compoundLogicalQuery:((id:~(abc)) OR (status:~(ABC)) OR (requestor.firstName:~(abc)) OR (requestor.lastName:~(abc)) OR (approver.firstName:~(abc)) OR (approver.lastName:~(abc)))',
+    );
     expect(optionsAfterDebounce.pageNumber).toBe(1);
+
+    fireEvent.change(input, { target: { value: '' } });
+
+    const [, optionsAfterClearBeforeDebounce] = mockUseApprovals.mock.calls[mockUseApprovals.mock.calls.length - 1];
+    expect(optionsAfterClearBeforeDebounce.pageNumber).toBe(1);
+    expect(optionsAfterClearBeforeDebounce.query).toBe(
+      'compoundLogicalQuery:((id:~(abc)) OR (status:~(ABC)) OR (requestor.firstName:~(abc)) OR (requestor.lastName:~(abc)) OR (approver.firstName:~(abc)) OR (approver.lastName:~(abc)))',
+    );
+
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    const [, optionsAfterDebouncedClear] = mockUseApprovals.mock.calls[mockUseApprovals.mock.calls.length - 1];
+    expect(optionsAfterDebouncedClear.query).toBeUndefined();
+    expect(optionsAfterDebouncedClear.pageNumber).toBe(1);
+  });
+
+  it('never calls useApprovals with {new query, old page} while the debounced search settles', () => {
+    mockApprovalsResult({
+      approvals: [buildApproval()],
+      pagination: { pageNumber: 2, pageSize: 5, totalPages: 3, totalItems: 15 },
+    });
+    render(<ApprovalsList initialApprovals={[buildApproval()]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    const input = screen.getByPlaceholderText('searchPlaceholder');
+    fireEvent.change(input, { target: { value: 'abc' } });
+
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    const expectedQuery =
+      'compoundLogicalQuery:((id:~(abc)) OR (status:~(ABC)) OR (requestor.firstName:~(abc)) OR (requestor.lastName:~(abc)) OR (approver.firstName:~(abc)) OR (approver.lastName:~(abc)))';
+
+    const staleCombo = mockUseApprovals.mock.calls.find(
+      ([, options]) => options.query === expectedQuery && options.pageNumber === 2,
+    );
+    expect(staleCombo).toBeUndefined();
+
+    const [, settledOptions] = mockUseApprovals.mock.calls[mockUseApprovals.mock.calls.length - 1];
+    expect(settledOptions.query).toBe(expectedQuery);
+    expect(settledOptions.pageNumber).toBe(1);
   });
 
   it('renders the error state distinctly instead of the table when the fetch fails', () => {

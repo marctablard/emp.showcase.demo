@@ -142,8 +142,21 @@ describe('getNetReturnValue', () => {
     expect(getNetReturnValue(ret)).toEqual({ value: 42.5, currency: 'EUR' });
   });
 
-  it('returns undefined value/currency when calculatedPrice is absent, without falling back to total', () => {
+  it('falls back to the customer-visible Return.total when calculatedPrice is absent', () => {
     const ret = makeReturn({ total: { value: 99, currency: 'USD' } });
+    expect(getNetReturnValue(ret)).toEqual({ value: 99, currency: 'USD' });
+  });
+
+  it('prefers calculatedPrice.finalPrice.netValue over total when both are present', () => {
+    const ret = makeReturn({
+      calculatedPrice: { finalPrice: { netValue: 42.5, grossValue: 50, taxValue: 7.5, currency: 'EUR' } },
+      total: { value: 99, currency: 'USD' },
+    });
+    expect(getNetReturnValue(ret)).toEqual({ value: 42.5, currency: 'EUR' });
+  });
+
+  it('returns undefined value/currency when neither calculatedPrice nor total is present', () => {
+    const ret = makeReturn();
     expect(getNetReturnValue(ret)).toEqual({ value: undefined, currency: undefined });
   });
 

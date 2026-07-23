@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { createOrderRequestKey } from '@/lib/order/create-order-request-key';
 import type { Order } from '@/platform/services/model/order/order';
 import { useOrders } from './useOrders';
@@ -171,5 +171,98 @@ describe('useOrders', () => {
     });
 
     expect(store.fetchOrders).not.toHaveBeenCalled();
+  });
+
+  it('does not auto-fetch when the current request key already has a stored error', async () => {
+    const searchQuery = 'boom';
+    const searchedQueryKey = createOrderRequestKey(50, 1, searchQuery);
+    const storedError = new Error('failed to load orders');
+    store.getError = jest.fn((query: string) => (query === searchedQueryKey ? storedError : null));
+
+    const { result } = renderHook(() => useOrders({ query: searchQuery }));
+
+    await waitFor(() => {
+      expect(result.current.error).toBe(storedError);
+    });
+
+    expect(store.fetchOrders).not.toHaveBeenCalled();
+  });
+
+  it('still refetches explicitly for a request key that has a stored error', async () => {
+    const searchQuery = 'boom';
+    const storedError = new Error('failed to load orders');
+    store.getError = jest.fn(() => storedError);
+
+    const { result } = renderHook(() => useOrders({ query: searchQuery }));
+
+    await waitFor(() => {
+      expect(result.current.error).toBe(storedError);
+    });
+
+    await act(async () => {
+      await result.current.refetchOrders();
+    });
+
+    expect(store.fetchOrders).toHaveBeenCalledWith(50, 1, false, searchQuery, undefined);
+  });
+
+  it('auto-fetches once for a new request key even when a different key has a stored error', async () => {
+    const failedQuery = 'boom';
+    const newQuery = 'fresh';
+    const failedQueryKey = createOrderRequestKey(50, 1, failedQuery);
+    const storedError = new Error('failed to load orders');
+    store.getError = jest.fn((query: string) => (query === failedQueryKey ? storedError : null));
+
+    renderHook(() => useOrders({ query: newQuery }));
+
+    await waitFor(() => {
+      expect(store.fetchOrders).toHaveBeenCalledWith(50, 1, false, newQuery, undefined);
+    });
+  });
+
+  it('resets to page one synchronously when the query changes, never fetching {new query, old page}', async () => {
+    const { result, rerender } = renderHook(({ query }: { query?: string }) => useOrders({ query }), {
+      initialProps: { query: undefined as string | undefined },
+    });
+
+    await waitFor(() => {
+      expect(store.fetchOrders).toHaveBeenCalledWith(50, 1, false, undefined, undefined);
+    });
+    store.fetchOrders.mockClear();
+
+    act(() => {
+      result.current.setPageNumber(3);
+    });
+    expect(result.current.pageNumber).toBe(3);
+
+    rerender({ query: 'boom' });
+
+    expect(result.current.pageNumber).toBe(1);
+
+    const staleCall = store.fetchOrders.mock.calls.find(([, page, , q]) => q === 'boom' && page === 3);
+    expect(staleCall).toBeUndefined();
+
+    await waitFor(() => {
+      expect(store.fetchOrders).toHaveBeenCalledWith(50, 1, false, 'boom', undefined);
+    });
+  });
+
+  it('does not trigger an extra page-one transition when the same query is passed again', async () => {
+    const { result, rerender } = renderHook(({ query }: { query?: string }) => useOrders({ query }), {
+      initialProps: { query: 'same' },
+    });
+
+    await waitFor(() => {
+      expect(result.current.pageNumber).toBe(1);
+    });
+
+    act(() => {
+      result.current.setPageNumber(2);
+    });
+    expect(result.current.pageNumber).toBe(2);
+
+    rerender({ query: 'same' });
+
+    expect(result.current.pageNumber).toBe(2);
   });
 });

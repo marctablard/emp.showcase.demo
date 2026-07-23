@@ -8,6 +8,7 @@ import { MyOrdersCard } from './my-orders-card';
 
 const mockUseOrders = jest.fn();
 const mockSetPageNumber = jest.fn();
+const mockRefetchOrders = jest.fn();
 
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -51,13 +52,16 @@ describe('MyOrdersCard', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     mockSetPageNumber.mockReset();
+    mockRefetchOrders.mockReset();
     mockUseOrders.mockReset();
     mockUseOrders.mockImplementation(() => ({
       orders: [buildOrder('order-1')],
       loading: false,
+      error: null,
       totalCount: 14,
       pageNumber: 2,
       setPageNumber: mockSetPageNumber,
+      refetchOrders: mockRefetchOrders,
     }));
   });
 
@@ -85,15 +89,16 @@ describe('MyOrdersCard', () => {
     });
   });
 
-  it('resets to page 1 when query or sort changes and updates request params', () => {
+  it('updates request params when query or sort changes, and resets to page 1 on sort change', () => {
     render(<MyOrdersCard pageMode initialOrders={[buildOrder('initial-1')]} initialTotalCount={14} />);
 
     fireEvent.change(screen.getByRole('textbox', { name: 'search.placeholder' }), {
       target: { value: 'ORD-10' },
     });
 
-    expect(mockSetPageNumber).toHaveBeenCalledWith(1);
-
+    // The stale-page race for the debounced search is corrected synchronously
+    // inside useOrders itself (see useOrders.test.tsx); MyOrdersCard only needs
+    // to forward the settled query/sort, so it does not call setPageNumber here.
     const queryCall = mockUseOrders.mock.calls.at(-1)?.[0] as Record<string, unknown>;
     expect(queryCall.query).toBe('compoundLogicalQuery:((id:~(ORD-10)) OR (customer.name:~(ORD-10)))');
     expect(queryCall.sort).toBe('created:DESC');
@@ -131,5 +136,26 @@ describe('MyOrdersCard', () => {
 
     const latestCall = mockUseOrders.mock.calls.at(-1)?.[0] as Record<string, unknown>;
     expect(latestCall.query).toBeUndefined();
+  });
+
+  it('renders an error banner with a retry action instead of the table when the order fetch fails, and retries on click', () => {
+    mockUseOrders.mockImplementation(() => ({
+      orders: undefined,
+      loading: false,
+      error: new Error('boom'),
+      totalCount: undefined,
+      pageNumber: 1,
+      setPageNumber: mockSetPageNumber,
+      refetchOrders: mockRefetchOrders,
+    }));
+
+    render(<MyOrdersCard pageMode initialOrders={[buildOrder('initial-1')]} initialTotalCount={14} />);
+
+    expect(screen.getByText('errorLoadingOrders: boom')).toBeInTheDocument();
+    expect(screen.queryByText('trigger-sort')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'tryAgain' }));
+
+    expect(mockRefetchOrders).toHaveBeenCalledTimes(1);
   });
 });

@@ -148,6 +148,44 @@ describe('OrderStore', () => {
     expect(mockFetchOrdersPage).toHaveBeenCalledTimes(1);
   });
 
+  it('clears a stored error for the same request key after a forced successful refetch', async () => {
+    const failedQuery = 'boom';
+    const queryKey = createOrderRequestKey(10, 1, failedQuery);
+    const firstError = new Error('API Error');
+    const recoveredOrders = [{ id: '1', status: 'CREATED', total: { amount: 100, currency: 'EUR' } }];
+
+    mockFetchOrdersPage
+      .mockRejectedValueOnce(firstError)
+      .mockResolvedValueOnce({ items: recoveredOrders, totalCount: 1 });
+
+    await expect(store.getState().fetchOrders(10, 1, false, failedQuery)).rejects.toThrow('API Error');
+    expect(store.getState().getError(queryKey)).toEqual(firstError);
+
+    await expect(store.getState().fetchOrders(10, 1, true, failedQuery)).resolves.toEqual(recoveredOrders);
+    expect(store.getState().getError(queryKey)).toBeNull();
+    expect(store.getState().getOrders(queryKey)).toEqual(recoveredOrders);
+  });
+
+  it('keeps a different request key independent when the first key has a stored error', async () => {
+    const failedQuery = 'boom';
+    const freshQuery = 'fresh';
+    const failedQueryKey = createOrderRequestKey(10, 1, failedQuery);
+    const freshQueryKey = createOrderRequestKey(10, 1, freshQuery);
+    const firstError = new Error('API Error');
+    const freshOrders = [{ id: '2', status: 'CONFIRMED', total: { amount: 200, currency: 'EUR' } }];
+
+    mockFetchOrdersPage.mockRejectedValueOnce(firstError).mockResolvedValueOnce({ items: freshOrders, totalCount: 1 });
+
+    await expect(store.getState().fetchOrders(10, 1, false, failedQuery)).rejects.toThrow('API Error');
+    expect(store.getState().getError(failedQueryKey)).toEqual(firstError);
+
+    await expect(store.getState().fetchOrders(10, 1, false, freshQuery)).resolves.toEqual(freshOrders);
+
+    expect(store.getState().getError(freshQueryKey)).toBeNull();
+    expect(store.getState().getError(failedQueryKey)).toEqual(firstError);
+    expect(store.getState().getOrders(freshQueryKey)).toEqual(freshOrders);
+  });
+
   it('stores total count per request key', async () => {
     const mockOrders = [{ id: '1', status: 'CREATED', total: { amount: 100, currency: 'EUR' } }];
     mockFetchOrdersPage.mockResolvedValue({ items: mockOrders, totalCount: 42 });
