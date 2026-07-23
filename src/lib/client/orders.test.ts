@@ -8,7 +8,7 @@ describe('fetchOrdersPage', () => {
     jest.resetAllMocks();
   });
 
-  it('forwards explicit pageSize/pageNumber values when they are 0', async () => {
+  it('throws for invalid pageSize/pageNumber values and never calls fetch', async () => {
     const fetchMock = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -20,9 +20,11 @@ describe('fetchOrdersPage', () => {
 
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-    await fetchOrdersPage(0, 0);
+    await expect(fetchOrdersPage(0, 0)).rejects.toThrow('pageSize must be >= 1');
+    await expect(fetchOrdersPage(0)).rejects.toThrow('pageSize must be >= 1');
+    await expect(fetchOrdersPage(undefined, 0)).rejects.toThrow('pageNumber must be >= 1');
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/orders?pageSize=0&pageNumber=0');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('omits pageSize/pageNumber when they are undefined', async () => {

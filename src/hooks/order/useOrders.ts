@@ -77,16 +77,21 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
   // query transitions (including clearing it back to empty). Comparing and
   // correcting the page here - before it is used to build the request key -
   // guarantees the store is never queried for {new query, old page}; a later
-  // effect never has to correct an already-issued stale request.
+  // effect only synchronizes internal state and never has to correct an
+  // already-issued stale request.
   const previousSearchQueryRef = useRef(searchQuery);
+  const didSearchQueryChange = previousSearchQueryRef.current !== searchQuery;
   let effectivePageNumber = pageNumber;
-  if (previousSearchQueryRef.current !== searchQuery) {
+  if (didSearchQueryChange) {
     previousSearchQueryRef.current = searchQuery;
     effectivePageNumber = 1;
-    if (pageNumber !== 1) {
+  }
+
+  useEffect(() => {
+    if (didSearchQueryChange && pageNumber !== 1) {
       setPageNumber(1);
     }
-  }
+  }, [didSearchQueryChange, pageNumber]);
 
   // Generate query key for current request parameters.
   const queryKey = createOrderRequestKey(pageSize, effectivePageNumber, searchQuery, sort);

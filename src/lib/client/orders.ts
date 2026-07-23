@@ -64,6 +64,14 @@ export async function fetchOrdersPage(
   query?: string,
   sort?: string,
 ): Promise<OrdersPageResult> {
+  if (pageSize !== undefined && pageSize < 1) {
+    throw new Error('pageSize must be >= 1');
+  }
+
+  if (pageNumber !== undefined && pageNumber < 1) {
+    throw new Error('pageNumber must be >= 1');
+  }
+
   const queryParams = new URLSearchParams();
   if (pageSize !== undefined) queryParams.append('pageSize', pageSize.toString());
   if (pageNumber !== undefined) queryParams.append('pageNumber', pageNumber.toString());

@@ -131,6 +131,7 @@ export function ApprovalsTable({
       <button
         type="button"
         onClick={() => onToggleSort?.(field)}
+        disabled={!onToggleSort}
         className="flex items-center gap-2 hover:text-text-action"
       >
         {label}

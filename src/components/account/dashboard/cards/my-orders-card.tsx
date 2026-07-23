@@ -64,7 +64,7 @@ export function MyOrdersCard({
   const [sortField, setSortField] = useState<OrderSortField>(INITIAL_SORT_FIELD);
   const [sortDirection, setSortDirection] = useState<SortDirection>(INITIAL_SORT_DIRECTION);
   const normalizedSearch = useDebouncedValue(quickSearch, SEARCH_DEBOUNCE_MS).trim();
-  const apiQuery = normalizedSearch.length > 0 ? `id:~${normalizedSearch}` : undefined;
+  const apiQuery = normalizedSearch.length > 0 ? `id:~(${normalizedSearch})` : undefined;
   const apiSort = `${ORDER_SORT_FIELD_MAP[sortField]}:${sortDirection === 'asc' ? 'ASC' : 'DESC'}`;
 
   const { orders, loading, error, totalCount, pageNumber, setPageNumber, refetchOrders } = useOrders({
