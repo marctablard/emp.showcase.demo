@@ -113,11 +113,14 @@ export function useApprovals(initialApprovals?: Approval[], options: UseApproval
 
       const size = pageSize || 60;
       const currentPage = pageNumber ?? 1;
-      const totalItems = Number.isFinite(parsedTotalCount)
-        ? parsedTotalCount
-        : data.length === size
-          ? (currentPage + 1) * size
-          : currentPage * size;
+      let totalItems: number;
+      if (Number.isFinite(parsedTotalCount)) {
+        totalItems = parsedTotalCount;
+      } else if (data.length === size) {
+        totalItems = (currentPage + 1) * size;
+      } else {
+        totalItems = (currentPage - 1) * size + data.length;
+      }
       setPagination({
         pageNumber: currentPage,
         pageSize: size,
