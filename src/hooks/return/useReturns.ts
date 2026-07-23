@@ -36,7 +36,7 @@ interface UseReturnsOptions {
 export function useReturns(initialReturns?: Return[], options: UseReturnsOptions = {}): UseReturnsReturn {
   const { pageSize, pageNumber, sort, query, forceRefreshOnMount = false, initialTotalCount, initialRequest } = options;
   const [returns, setReturns] = useState<Return[]>(initialReturns || []);
-  const [totalCount, setTotalCount] = useState<number | undefined>(initialTotalCount ?? initialReturns?.length);
+  const [totalCount, setTotalCount] = useState<number | undefined>(initialTotalCount);
 
   const canReuseInitialData =
     !!initialReturns &&

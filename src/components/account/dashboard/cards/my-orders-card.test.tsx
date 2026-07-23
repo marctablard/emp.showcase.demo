@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import '@testing-library/jest-dom';
+import { act } from '@testing-library/react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { Order } from '@/platform/services/model/order/order';
 import { MyOrdersCard } from './my-orders-card';
@@ -22,10 +23,19 @@ jest.mock('@/hooks/order/useOrders', () => ({
 }));
 
 jest.mock('@/components/account/orders/my-orders-table', () => ({
-  MyOrdersTable: ({ onSortChange }: { onSortChange: (field: 'status', direction: 'asc') => void }) => (
-    <button type="button" onClick={() => onSortChange('status', 'asc')}>
-      trigger-sort
-    </button>
+  MyOrdersTable: ({
+    onSortChange,
+    hasActiveSearch,
+  }: {
+    onSortChange: (field: 'status', direction: 'asc') => void;
+    hasActiveSearch?: boolean;
+  }) => (
+    <>
+      <button type="button" onClick={() => onSortChange('status', 'asc')}>
+        trigger-sort
+      </button>
+      <div data-testid="search-state">{hasActiveSearch ? 'search-on' : 'search-off'}</div>
+    </>
   ),
 }));
 
@@ -40,6 +50,7 @@ function buildOrder(id: string): Order {
 
 describe('MyOrdersCard', () => {
   beforeEach(() => {
+    jest.useFakeTimers();
     mockSetPageNumber.mockReset();
     mockUseOrders.mockReset();
     mockUseOrders.mockImplementation(() => ({
@@ -49,6 +60,10 @@ describe('MyOrdersCard', () => {
       pageNumber: 2,
       setPageNumber: mockSetPageNumber,
     }));
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('requests orders with server-page, query and sort state plus the canonical initial request seed', () => {
@@ -81,7 +96,7 @@ describe('MyOrdersCard', () => {
     expect(mockSetPageNumber).toHaveBeenCalledWith(1);
 
     const queryCall = mockUseOrders.mock.calls.at(-1)?.[0] as Record<string, unknown>;
-    expect(queryCall.query).toBe('id:~(ORD-10)');
+    expect(queryCall.query).toBe('compoundLogicalQuery:((id:~(ORD-10)) OR (customer.name:~(ORD-10)))');
     expect(queryCall.sort).toBe('created:DESC');
 
     fireEvent.click(screen.getByRole('button', { name: 'trigger-sort' }));
@@ -90,5 +105,32 @@ describe('MyOrdersCard', () => {
 
     const sortCall = mockUseOrders.mock.calls.at(-1)?.[0] as Record<string, unknown>;
     expect(sortCall.sort).toBe('status:ASC');
+  });
+
+  it('passes hasActiveSearch to table so search-empty state is rendered in one place', () => {
+    render(<MyOrdersCard pageMode initialOrders={[buildOrder('initial-1')]} initialTotalCount={14} />);
+
+    expect(screen.getByTestId('search-state')).toHaveTextContent('search-off');
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'search.placeholder' }), {
+      target: { value: 'Ada' },
+    });
+
+    expect(screen.getByTestId('search-state')).toHaveTextContent('search-on');
+  });
+
+  it('clears quick search back to an undefined API query after debounce', () => {
+    render(<MyOrdersCard pageMode initialOrders={[buildOrder('initial-1')]} initialTotalCount={14} />);
+
+    const input = screen.getByRole('textbox', { name: 'search.placeholder' });
+    fireEvent.change(input, { target: { value: 'Ada' } });
+    fireEvent.change(input, { target: { value: '' } });
+
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    const latestCall = mockUseOrders.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(latestCall.query).toBeUndefined();
   });
 });

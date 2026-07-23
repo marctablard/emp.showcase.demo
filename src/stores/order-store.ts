@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { fetchOrdersPage as apiFetchOrdersPage } from '@/lib/client/orders';
 import type { OrdersPageResult } from '@/lib/client/orders';
 import { getLogger } from '@/lib/logger/use-logger-client';
+import { createOrderRequestKey } from '@/lib/order/create-order-request-key';
 import type { Order } from '@/platform/services/model/order/order';
 
 export interface OrderState {
@@ -40,15 +41,6 @@ interface OrderActions {
   reset: () => void;
 }
 export type OrderStore = OrderState & OrderActions;
-
-function createOrderRequestKey(pageSize: number, pageNumber: number, query?: string, sort?: string): string {
-  return JSON.stringify({
-    pageSize,
-    pageNumber,
-    sort: sort ?? null,
-    query: query ?? null,
-  });
-}
 
 const defaultState: OrderState = {
   orderQueries: {},
@@ -111,7 +103,7 @@ export const createOrderStore = () =>
     ) => {
       const queryKey = createOrderRequestKey(pageSize, pageNumber, query, sort);
 
-      // Check if we already have this data and it's not stale (skip when forceRefresh is true)
+      // Reuse cached data unless a caller explicitly requests a forced refresh.
       if (!forceRefresh) {
         const existingOrders = get().getOrders(queryKey);
         if (existingOrders && !get().getLoading(queryKey)) {

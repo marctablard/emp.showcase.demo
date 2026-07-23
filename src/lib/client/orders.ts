@@ -76,7 +76,7 @@ export async function fetchOrdersPage(
   const response = await fetch(url);
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch orders: ${response.statusText}`);
+    throw await getOrderApiError(response);
   }
 
   const totalCountHeader = response.headers.get('x-total-count');

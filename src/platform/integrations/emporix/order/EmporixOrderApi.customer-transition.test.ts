@@ -80,7 +80,7 @@ describe('EmporixOrderApi customer transition (mocked)', () => {
     expect(queryParams.get('pageNumber')).toBe('1');
     expect(queryParams.get('sort')).toBe('created:desc,id:asc');
     expect(queryParams.get('q')).toBe('status:CREATED id:(ord-1,ord-2)');
-    expect(options).toEqual({ method: 'GET' });
+    expect(options).toEqual({ method: 'GET', headers: { 'X-Total-Count': 'true' } });
     expect(tokenType).toBe('session');
     expect(response).toEqual({ items: [{ id: 'ord-1' }], totalCount: 17 });
   });

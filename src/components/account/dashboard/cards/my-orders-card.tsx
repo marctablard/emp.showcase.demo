@@ -56,7 +56,10 @@ export function MyOrdersCard({
   const [sortField, setSortField] = useState<OrderSortField>(INITIAL_SORT_FIELD);
   const [sortDirection, setSortDirection] = useState<SortDirection>(INITIAL_SORT_DIRECTION);
   const normalizedSearch = useDebouncedValue(quickSearch, SEARCH_DEBOUNCE_MS).trim();
-  const apiQuery = normalizedSearch.length > 0 ? `id:~(${normalizedSearch})` : undefined;
+  const apiQuery =
+    normalizedSearch.length > 0
+      ? `compoundLogicalQuery:((id:~(${normalizedSearch})) OR (customer.name:~(${normalizedSearch})))`
+      : undefined;
   const apiSort = `${ORDER_SORT_FIELD_MAP[sortField]}:${sortDirection === 'asc' ? 'ASC' : 'DESC'}`;
 
   const { orders, loading, totalCount, pageNumber, setPageNumber } = useOrders({
@@ -125,10 +128,6 @@ export function MyOrdersCard({
     </div>
   );
 
-  const noMatches = !loading && orders?.length === 0 && normalizedSearch.length > 0 && (
-    <div className="rounded-md border border-border-primary p-4 text-sm text-text-on-disabled">{t('noMatches')}</div>
-  );
-
   const table = (
     <MyOrdersTable
       orders={orders || []}
@@ -141,6 +140,7 @@ export function MyOrdersCard({
       onPreviousPage={handlePreviousPage}
       onNextPage={handleNextPage}
       onSortChange={handleSortChange}
+      hasActiveSearch={normalizedSearch.length > 0}
     />
   );
 
@@ -150,7 +150,6 @@ export function MyOrdersCard({
         <H1>{title || t('title')}</H1>
         <TableCard>
           {searchInput}
-          {noMatches}
           <div className="flex flex-col">{table}</div>
         </TableCard>
       </div>
@@ -168,7 +167,6 @@ export function MyOrdersCard({
         </UiLink>
       </div>
       {searchInput}
-      {noMatches}
       <div className="flex flex-col">{table}</div>
     </DashboardCard>
   );

@@ -69,6 +69,7 @@ export interface MyOrdersTableProps {
   onPreviousPage: () => void;
   onNextPage: () => void;
   onSortChange: (field: OrderSortField, direction: SortDirection) => void;
+  hasActiveSearch?: boolean;
 }
 
 /**
@@ -87,6 +88,7 @@ export function MyOrdersTable({
   onPreviousPage,
   onNextPage,
   onSortChange,
+  hasActiveSearch = false,
 }: Readonly<MyOrdersTableProps>) {
   const t = useTranslations('orders');
   const router = useRouter();
@@ -189,7 +191,7 @@ export function MyOrdersTable({
       return (
         <TableRow>
           <TableCell colSpan={10} className="text-center py-4">
-            {t('noOrders')}
+            {hasActiveSearch ? t('noMatches') : t('noOrders')}
           </TableCell>
         </TableRow>
       );

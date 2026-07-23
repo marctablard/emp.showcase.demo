@@ -1,4 +1,5 @@
 import { renderHook, waitFor } from '@testing-library/react';
+import { createOrderRequestKey } from '@/lib/order/create-order-request-key';
 import type { Order } from '@/platform/services/model/order/order';
 import { useOrders } from './useOrders';
 
@@ -37,20 +38,11 @@ function createOrder(id: string): Order {
   } as Order;
 }
 
-function createOrderQueryKey(page: number, size: number, searchQuery?: string, sort?: string): string {
-  return JSON.stringify({
-    pageSize: size,
-    pageNumber: page,
-    sort: sort ?? null,
-    query: searchQuery ?? null,
-  });
-}
-
 describe('useOrders', () => {
   let ordersByQuery: Record<string, Order[]>;
   let store: MockOrderStore;
 
-  const canonicalQueryKey = createOrderQueryKey(1, 50);
+  const canonicalQueryKey = createOrderRequestKey(50, 1);
 
   beforeEach(() => {
     ordersByQuery = {};
@@ -119,7 +111,7 @@ describe('useOrders', () => {
   it('does not seed searched-query caches from initialOrders and performs the scoped search fetch once', async () => {
     const ssrOrders = [createOrder('fresh-order')];
     const searchQuery = 'order-9';
-    const searchedQueryKey = createOrderQueryKey(1, 50, searchQuery);
+    const searchedQueryKey = createOrderRequestKey(50, 1, searchQuery);
 
     renderHook(() => useOrders({ initialOrders: ssrOrders, query: searchQuery }));
 
@@ -144,7 +136,7 @@ describe('useOrders', () => {
 
   it('hydrates from SSR initialRequest with initialTotalCount and avoids duplicate client fetch', async () => {
     const initialOrders = [createOrder('order-1')];
-    const initialRequestKey = createOrderQueryKey(1, 5, undefined, 'created:DESC');
+    const initialRequestKey = createOrderRequestKey(5, 1, undefined, 'created:DESC');
 
     renderHook(() =>
       useOrders({

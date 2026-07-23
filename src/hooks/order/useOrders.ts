@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { getLogger } from '@/lib/logger/use-logger-client';
+import { createOrderRequestKey } from '@/lib/order/create-order-request-key';
 import type { Order } from '@/platform/services/model/order/order';
 import { useOrderStore } from '@/providers/StoreProvider';
 
@@ -38,15 +39,6 @@ interface UseOrdersResult {
 
   // Utility
   refetchOrders: () => Promise<void>;
-}
-
-function createOrderRequestKey(pageSize: number, pageNumber: number, freeTextQuery?: string, sort?: string): string {
-  return JSON.stringify({
-    pageSize,
-    pageNumber,
-    sort: sort ?? null,
-    query: freeTextQuery ?? null,
-  });
 }
 
 /**

@@ -1,3 +1,4 @@
+import { createOrderRequestKey } from '@/lib/order/create-order-request-key';
 import { createOrderStore } from '../order-store';
 
 // Mock the API calls
@@ -100,12 +101,7 @@ describe('OrderStore', () => {
     await expect(store.getState().fetchOrders(10, 1)).rejects.toThrow('API Error');
 
     // Check that error state is set
-    const queryKey = JSON.stringify({
-      pageSize: 10,
-      pageNumber: 1,
-      sort: null,
-      query: null,
-    });
+    const queryKey = createOrderRequestKey(10, 1);
     expect(store.getState().getError(queryKey)).toEqual(error);
     expect(store.getState().getLoading(queryKey)).toBe(false);
 
@@ -158,12 +154,7 @@ describe('OrderStore', () => {
 
     await store.getState().fetchOrders(10, 2, false, 'status:CREATED', 'created:desc');
 
-    const queryKey = JSON.stringify({
-      pageSize: 10,
-      pageNumber: 2,
-      sort: 'created:desc',
-      query: 'status:CREATED',
-    });
+    const queryKey = createOrderRequestKey(10, 2, 'status:CREATED', 'created:desc');
 
     expect(store.getState().getTotalCount(queryKey)).toBe(42);
   });

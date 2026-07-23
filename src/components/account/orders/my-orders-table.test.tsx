@@ -341,6 +341,13 @@ describe('MyOrdersTable', () => {
     expect(screen.getByText('noOrders')).toBeInTheDocument();
   });
 
+  it('shows only one search-specific empty-state message when active search returns no rows', () => {
+    renderTable({ orders: [], loading: false, totalCount: 0, hasActiveSearch: true });
+
+    expect(screen.getByText('noMatches')).toBeInTheDocument();
+    expect(screen.queryByText('noOrders')).not.toBeInTheDocument();
+  });
+
   it('gives the horizontal scroll container trailing padding so the last Action column is never clipped at max scroll', () => {
     renderTable();
 

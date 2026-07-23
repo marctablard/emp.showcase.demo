@@ -34,6 +34,7 @@ describe('useReturns', () => {
     const { result } = renderHook(() => useReturns(initialReturns, { pageNumber: 1 }));
 
     expect(result.current.returns).toEqual(initialReturns);
+    expect(result.current.totalCount).toBeUndefined();
     expect(mockFetchReturnsPage).not.toHaveBeenCalled();
   });
 

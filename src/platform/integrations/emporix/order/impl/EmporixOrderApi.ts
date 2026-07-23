@@ -251,7 +251,12 @@ class EmporixOrderApi implements IEmporixOrderApi {
 
     const response = await this.apiClient.authenticatedFetch(
       `/order-v2/${this.config.tenant}/orders${queryString}`,
-      { method: 'GET' },
+      {
+        method: 'GET',
+        headers: {
+          'X-Total-Count': 'true',
+        },
+      },
       'session',
       undefined,
       createOrderMetrics('/order-v2/{tenant}/orders'),
