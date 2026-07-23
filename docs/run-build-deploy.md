@@ -134,6 +134,24 @@ Integration tests are gated and will only run when:
 
 BatteryIncluded search runtime credentials are not taken from storefront env vars. The server resolves BI `searchKey` and `indexName` from Emporix indexing provider `BATTERY_INCLUDED`, while `NEXT_PUBLIC_BATTERY_INCLUDED_BASE_URL` remains the BI API base URL.
 
+## Local Clean-Install Parity Check (CI Dependency Parity)
+
+`npm run jest` never reinstalls dependencies, so it cannot catch a broken lockfile, a dependency blocked by Aikido safe-chain (malware or safe-chain's own minimum package release-age policy), or a newly-disclosed high severity advisory. Validate that in isolation with:
+
+```bash
+npm run verify:ci-install
+```
+
+This runs [`scripts/verify-safe-chain-install.sh`](../scripts/verify-safe-chain-install.sh), which mirrors the dependency-install step used in `.github/workflows/*.yaml`:
+
+1. Copies `package.json`, `package-lock.json`, and `.npmrc` into a disposable temp directory — your real `node_modules` is untouched.
+2. Runs `npm ci --ignore-scripts` there via `npx`, using the project's pinned npm version (`packageManager` in `package.json`) wrapped by Aikido safe-chain — installed on-demand via `npx` only, never as a project/global dependency — so malware blocking is enforced exactly like CI.
+3. Runs `npm audit --audit-level=high` against the resulting lockfile.
+
+This repo does not set npm's own `min-release-age` (see `.npmrc`); safe-chain still enforces its own, independently-controlled minimum release-age policy on top of malware blocking, both here and in CI. A freshly published dependency bump can therefore still be held back by safe-chain for a period after release even though plain `npm install` would resolve it — that is safe-chain working as intended, not a bug in this script or a reason to weaken it. A pass here only confirms today's lockfile clears safe-chain's policies and the audit; it is not a guarantee that a future bump of the same package will.
+
+Scripts are skipped only because the disposable directory has no `.git` (the `prepare`/husky script requires one); it does not affect dependency resolution or the safe-chain/audit checks. Run this after any `package.json`/`package-lock.json` change, and never weaken it (lower `--audit-level`, skip safe-chain, or pin an old safe-chain release) to force a pass — a failure here means a real dependency issue that must be fixed or explicitly, visibly accepted.
+
 ## Deployment (Vercel + GitHub Actions)
 Deployment is automated using Vercel and GitHub Actions.
 

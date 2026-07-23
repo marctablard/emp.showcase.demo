@@ -44,7 +44,7 @@ describe('useApprovals', () => {
     fetchMock.mockResolvedValue({
       ok: true,
       headers: {
-        get: (name: string) => (name.toLowerCase() === 'x-total-count' ? null : null),
+        get: () => null,
       },
       json: async () => fullPage,
       statusText: 'OK',

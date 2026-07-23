@@ -618,6 +618,24 @@ npx playwright test --ui
 npx playwright test homepage.spec.ts
 ```
 
+### Local Clean-Install Parity Check
+
+`npm run jest` (and `npm run test`) run against whatever `node_modules` already exists on disk — they never reinstall dependencies, so they cannot catch a broken/mismatched lockfile, a dependency that fails Aikido safe-chain's malware or minimum-package-age policy, or a newly-disclosed high severity advisory. That check is a separate command:
+
+```bash
+npm run verify:ci-install
+```
+
+This runs `scripts/verify-safe-chain-install.sh`, which performs a disposable, throwaway-directory install that mirrors the CI dependency step:
+
+1. Copies `package.json`, `package-lock.json`, and `.npmrc` into a temp directory (your real `node_modules` is never touched).
+2. Runs `npm ci --ignore-scripts` there via `npx`, using the project's pinned npm version (`packageManager` in `package.json`) and wrapped by Aikido safe-chain (installed on-demand via `npx`, never added as a project dependency) — this enforces malware blocking exactly like `.github/workflows/*.yaml` does.
+3. Runs `npm audit --audit-level=high` against the resulting lockfile.
+
+This repo does not configure npm's own `min-release-age` (see `.npmrc`). Safe-chain still applies its own, independently-controlled minimum release-age policy regardless of repo config, in both this script and CI. A dependency bumped to a version published very recently can therefore still fail this check (or CI) purely on age, even though a plain `npm install`/`npm ci` would succeed — treat that as safe-chain doing its job, not as a reason to weaken the check. A passing run only proves today's lockfile clears safe-chain's current policy and the audit; it says nothing about a later bump of the same package.
+
+Scripts are skipped (`--ignore-scripts`) only because the disposable directory is not a git worktree and the `prepare` (husky) script requires `.git`; this does not affect dependency resolution, safe-chain enforcement, or the audit result. Run this after any change to `package.json`/`package-lock.json`, and do not weaken it (do not lower `--audit-level`, skip safe-chain, or pin an old safe-chain release) to force it to pass — treat a failure as a real dependency issue to resolve.
+
 ## Best Practices
 
 ### Jest Best Practices
@@ -647,6 +665,8 @@ Both Jest and Playwright tests are configured to run in the CI pipeline. The con
 2. Failed tests block merging
 3. Test coverage reports are generated
 4. Screenshots and videos are captured for failed Playwright tests
+
+**Jest is not a clean-install/dependency check.** CI installs dependencies with `npm ci` behind Aikido safe-chain before any test step runs; `npm run jest` itself only exercises whatever is already in `node_modules`. Use `npm run verify:ci-install` locally (see [Local Clean-Install Parity Check](#local-clean-install-parity-check)) to validate the dependency install/audit step in isolation.
 
 ## Troubleshooting Common Issues
 

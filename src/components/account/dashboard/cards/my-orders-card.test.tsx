@@ -2,8 +2,7 @@
  * @jest-environment jsdom
  */
 import '@testing-library/jest-dom';
-import { act } from '@testing-library/react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { Order } from '@/platform/services/model/order/order';
 import { MyOrdersCard } from './my-orders-card';
 

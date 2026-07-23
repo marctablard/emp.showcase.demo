@@ -23,6 +23,7 @@
     "start": "next start",
     "lint": "eslint",
     "verify:client-chunks": "node scripts/verify-client-chunks.mjs",
+    "verify:ci-install": "bash scripts/verify-safe-chain-install.sh",
     "test": "concurrently \"npm:jest\" \"npm:e2e\"",
     "jest": "node scripts/run-jest.cjs --runInBand",
     "jest:watch": "node scripts/run-jest.cjs --watch",
