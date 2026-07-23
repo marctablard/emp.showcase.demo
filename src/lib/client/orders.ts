@@ -64,12 +64,12 @@ export async function fetchOrdersPage(
   query?: string,
   sort?: string,
 ): Promise<OrdersPageResult> {
-  if (pageSize !== undefined && pageSize < 1) {
-    throw new Error('pageSize must be >= 1');
+  if (pageSize !== undefined && (!Number.isSafeInteger(pageSize) || pageSize < 1)) {
+    throw new Error('pageSize must be a safe integer >= 1');
   }
 
-  if (pageNumber !== undefined && pageNumber < 1) {
-    throw new Error('pageNumber must be >= 1');
+  if (pageNumber !== undefined && (!Number.isSafeInteger(pageNumber) || pageNumber < 1)) {
+    throw new Error('pageNumber must be a safe integer >= 1');
   }
 
   const queryParams = new URLSearchParams();

@@ -20,9 +20,9 @@ describe('fetchOrdersPage', () => {
 
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-    await expect(fetchOrdersPage(0, 0)).rejects.toThrow('pageSize must be >= 1');
-    await expect(fetchOrdersPage(0)).rejects.toThrow('pageSize must be >= 1');
-    await expect(fetchOrdersPage(undefined, 0)).rejects.toThrow('pageNumber must be >= 1');
+    await expect(fetchOrdersPage(0, 0)).rejects.toThrow('pageSize must be a safe integer >= 1');
+    await expect(fetchOrdersPage(0)).rejects.toThrow('pageSize must be a safe integer >= 1');
+    await expect(fetchOrdersPage(undefined, 0)).rejects.toThrow('pageNumber must be a safe integer >= 1');
 
     expect(fetchMock).not.toHaveBeenCalled();
   });
