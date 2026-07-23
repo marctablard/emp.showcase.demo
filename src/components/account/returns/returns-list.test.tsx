@@ -86,7 +86,7 @@ describe('ReturnsList', () => {
     jest.useRealTimers();
   });
 
-  it('renders columns in the contract order: Return Number, Return Date, Status, Order Number, Customer, Net Return Value, Reason, Action', () => {
+  it('renders columns in the contract order: Return Number, Return Date, Status, Order Number, Net Return Value, Reason, Action', () => {
     mockReturnsResult({ returns: [buildReturn()], totalCount: 1 });
     render(<ReturnsList initialReturns={[buildReturn()]} />);
 
@@ -96,7 +96,6 @@ describe('ReturnsList', () => {
       'returnDate',
       'statusLabel',
       'orderNumber',
-      'customer',
       'netReturnValue',
       'reasonLabel',
       'action',
@@ -209,11 +208,11 @@ describe('ReturnsList', () => {
     expect(header).not.toHaveAttribute('aria-sort');
   });
 
-  it('makes Return Number, Net Return Value, Reason, and Customer sortable alongside Return Date and Status', () => {
+  it('makes Return Number, Net Return Value, and Reason sortable alongside Return Date and Status', () => {
     mockReturnsResult({ returns: [buildReturn()], totalCount: 1 });
     render(<ReturnsList initialReturns={[buildReturn()]} />);
 
-    for (const name of [/returnNumber/, /netReturnValue/, /reasonLabel/, /^customer$/]) {
+    for (const name of [/returnNumber/, /netReturnValue/, /reasonLabel/]) {
       const header = screen.getByRole('columnheader', { name });
       expect(within(header).getByRole('button')).toBeInTheDocument();
       expect(header).toHaveAttribute('aria-sort', 'none');
@@ -241,6 +240,22 @@ describe('ReturnsList', () => {
     expect(dateHeader).toHaveAttribute('aria-sort', 'ascending');
     const lastCallOptions = mockUseReturns.mock.calls[mockUseReturns.mock.calls.length - 1][1];
     expect(lastCallOptions).toMatchObject({ sort: 'metadata.createdAt:ASC', pageNumber: 1 });
+  });
+
+  it('shows a spinner in place of the active sort column icon while reloading, keeping the table body mounted', () => {
+    mockReturnsResult({ returns: [buildReturn()], totalCount: 1, loading: true });
+    render(<ReturnsList initialReturns={[buildReturn()]} />);
+
+    const dateHeader = screen.getByRole('columnheader', { name: /returnDate/ });
+    expect(within(dateHeader).getByRole('status')).toBeInTheDocument();
+
+    const returnNumberHeader = screen.getByRole('columnheader', { name: /returnNumber/ });
+    expect(within(returnNumberHeader).queryByRole('status')).not.toBeInTheDocument();
+
+    expect(screen.getByText('ret-1')).toBeInTheDocument();
+
+    const table = screen.getByRole('table');
+    expect(table.closest('[data-slot="table-container"]')?.parentElement).toHaveClass('opacity-70');
   });
 
   it('switches sort to Status and requests the mapped approvalStatus upstream field', () => {
@@ -289,18 +304,6 @@ describe('ReturnsList', () => {
     expect(reasonHeader).toHaveAttribute('aria-sort', 'descending');
     const lastCallOptions = mockUseReturns.mock.calls[mockUseReturns.mock.calls.length - 1][1];
     expect(lastCallOptions).toMatchObject({ sort: 'reason.code:DESC', pageNumber: 1 });
-  });
-
-  it('toggles Customer sort and requests the mapped requestor.firstName upstream field', () => {
-    mockReturnsResult({ returns: [buildReturn()], totalCount: 1 });
-    render(<ReturnsList initialReturns={[buildReturn()]} />);
-
-    const customerHeader = screen.getByRole('columnheader', { name: /^customer$/ });
-    fireEvent.click(within(customerHeader).getByRole('button'));
-
-    expect(customerHeader).toHaveAttribute('aria-sort', 'descending');
-    const lastCallOptions = mockUseReturns.mock.calls[mockUseReturns.mock.calls.length - 1][1];
-    expect(lastCallOptions).toMatchObject({ sort: 'requestor.firstName:DESC', pageNumber: 1 });
   });
 
   it('navigates the full row, Return Number link, and Action arrow to the same return detail destination', () => {
@@ -443,37 +446,14 @@ describe('ReturnsList', () => {
 
     const row = screen.getByText('ret-no-net').closest('tr') as HTMLTableRowElement;
     const cells = within(row).getAllByRole('cell');
-    expect(cells).toHaveLength(8);
+    expect(cells).toHaveLength(7);
     const expected = new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(999);
-    expect(cells[5]).toHaveTextContent(expected);
-  });
-
-  it('derives Customer from requestor fullName, composed name, then email, defaulting to "-"', () => {
-    const withFullName = buildReturn({ id: 'r-full', requestor: { fullName: 'Full Name' } });
-    const withComposedName = buildReturn({ id: 'r-composed', requestor: { firstName: 'First', lastName: 'Last' } });
-    const withEmailOnly = buildReturn({ id: 'r-email', requestor: { email: 'only@example.com' } });
-    const withNoRequestor = buildReturn({ id: 'r-none', requestor: undefined });
-    const returns = [withFullName, withComposedName, withEmailOnly, withNoRequestor];
-    mockReturnsResult({ returns, totalCount: returns.length });
-    render(<ReturnsList initialReturns={returns} />);
-
-    expect(
-      within(screen.getByText('r-full').closest('tr') as HTMLTableRowElement).getByText('Full Name'),
-    ).toBeInTheDocument();
-    expect(
-      within(screen.getByText('r-composed').closest('tr') as HTMLTableRowElement).getByText('First Last'),
-    ).toBeInTheDocument();
-    expect(
-      within(screen.getByText('r-email').closest('tr') as HTMLTableRowElement).getByText('only@example.com'),
-    ).toBeInTheDocument();
-    const noRequestorRow = screen.getByText('r-none').closest('tr') as HTMLTableRowElement;
-    const cells = within(noRequestorRow).getAllByRole('cell');
-    expect(cells[4]).toHaveTextContent('-');
+    expect(cells[4]).toHaveTextContent(expected);
   });
 
   it('shows the translated reason label from the top-level reason code, or "-" when absent', () => {
@@ -488,7 +468,7 @@ describe('ReturnsList', () => {
     ).toBeInTheDocument();
     const noReasonRow = screen.getByText('r-no-reason').closest('tr') as HTMLTableRowElement;
     const cells = within(noReasonRow).getAllByRole('cell');
-    expect(cells[6]).toHaveTextContent('-');
+    expect(cells[5]).toHaveTextContent('-');
   });
 
   it('sends query undefined and resets to page 1 once the search input is cleared', () => {

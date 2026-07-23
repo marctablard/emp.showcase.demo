@@ -19,7 +19,6 @@ import {
   formatReturnDate,
   getFirstOrderId,
   getNetReturnValue,
-  getReturnCustomerName,
   getReturnReasonCode,
 } from './helpers';
 import { renderReturnReasonLabel } from './reason-labels';
@@ -127,6 +126,9 @@ export function ReturnsList({
   };
 
   const getSortIcon = (field: ReturnSortField) => {
+    if (isTableReloading && sortField === field) {
+      return <Spinner variant="sm" color="primary" className="h-4 w-4" loadingText={t('loading')} />;
+    }
     if (sortField !== field) return <ChevronsUpDown className="h-4 w-4 text-text-on-disabled" />;
     if (sortDirection === 'asc') return <ArrowUp className="h-4 w-4" />;
     return <ArrowDown className="h-4 w-4" />;
@@ -247,7 +249,10 @@ export function ReturnsList({
           </div>
         )}
 
-        <div className={`transition-opacity ${isTableReloading ? 'opacity-70' : 'opacity-100'}`}>
+        <div
+          className={`transition-opacity ${isTableReloading ? 'opacity-70' : 'opacity-100'}`}
+          aria-busy={isTableReloading}
+        >
           <Table containerClassName="pr-1">
             <TableHeader>
               <TableRow className="text-base">
@@ -255,7 +260,6 @@ export function ReturnsList({
                 {renderSortableHead('date', t('returnDate'), '!h-14 w-[160px] font-bold')}
                 {renderSortableHead('status', t('statusLabel'), '!h-14 w-[140px] font-bold')}
                 <TableHead className="!h-14 w-[160px] font-bold">{t('orderNumber')}</TableHead>
-                {renderSortableHead('customer', t('customer'), '!h-14 w-[180px] font-bold')}
                 {renderSortableHead('netValue', t('netReturnValue'), '!h-14 w-[180px] font-bold')}
                 {renderSortableHead('reason', t('reasonLabel'), '!h-14 w-[160px] font-bold')}
                 <TableHead className="!h-14 w-[100px] font-bold text-center">{t('action')}</TableHead>
@@ -320,7 +324,6 @@ export function ReturnsList({
                         '-'
                       )}
                     </TableCell>
-                    <TableCell className="px-2 py-4">{getReturnCustomerName(returnItem)}</TableCell>
                     <TableCell className="px-2 py-4 font-medium">
                       {formatReturnCurrency(netValue.value, netValue.currency, locale)}
                     </TableCell>

@@ -280,9 +280,30 @@ describe('QuotesTable', () => {
     expect(screen.queryByText('noQuotes')).not.toBeInTheDocument();
   });
 
-  it('shows a loading indicator instead of rows while loading', () => {
+  it('keeps rows mounted and dimmed while reloading, without swapping in a full-width spinner row', () => {
+    render(<QuotesTable quotes={[buildQuote()]} loading sortField="quotationDate" sortDirection="desc" />);
+
+    expect(screen.getByText('Q-1000')).toBeInTheDocument();
+    expect(screen.queryByText('noQuotes')).not.toBeInTheDocument();
+
+    const dateHeader = screen.getByRole('columnheader', { name: /quotationDate/ });
+    expect(within(dateHeader).getByRole('status')).toBeInTheDocument();
+
+    const table = screen.getByRole('table');
+    expect(table.closest('[data-slot="table-container"]')?.parentElement).toHaveClass('opacity-70');
+  });
+
+  it('only shows the spinner on the active sort column while reloading, not on other sortable headers', () => {
+    render(<QuotesTable quotes={[buildQuote()]} loading sortField="quotationDate" sortDirection="desc" />);
+
+    const statusHeader = screen.getByRole('columnheader', { name: /^status$/ });
+    expect(within(statusHeader).queryByRole('status')).not.toBeInTheDocument();
+    expect(within(statusHeader).getByRole('button')).toBeInTheDocument();
+  });
+
+  it('does not flash the empty state while reloading and no rows have loaded yet', () => {
     render(<QuotesTable quotes={[]} loading />);
     expect(screen.queryByText('noQuotes')).not.toBeInTheDocument();
-    expect(screen.getAllByRole('row')).toHaveLength(2); // header row + loading row
+    expect(screen.getAllByRole('row')).toHaveLength(1); // header row only
   });
 });

@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { ArrowDown, ArrowRight, ArrowUp, ChevronsUpDown } from 'lucide-react';
 import { OrderStatusBadge } from '@/components/account/orders/order-status-badge';
 import UiLink from '@/components/ui/link';
+import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -113,6 +114,9 @@ export function MyOrdersTable({
   };
 
   const getSortIcon = (field: OrderSortField) => {
+    if (loading && sortField === field) {
+      return <Spinner variant="sm" color="primary" className="h-4 w-4" loadingText={t('loading')} />;
+    }
     if (sortField !== field) return <ChevronsUpDown className="h-4 w-4 text-text-on-disabled" />;
     if (sortDirection === 'asc') return <ArrowUp className="h-4 w-4" />;
     return <ArrowDown className="h-4 w-4" />;
@@ -182,17 +186,7 @@ export function MyOrdersTable({
   };
 
   const renderTableRows = () => {
-    if (loading) {
-      return (
-        <TableRow>
-          <TableCell colSpan={10} className="text-center py-4">
-            {t('loading')}
-          </TableCell>
-        </TableRow>
-      );
-    }
-
-    if (visibleOrders.length === 0) {
+    if (!loading && visibleOrders.length === 0) {
       return (
         <TableRow>
           <TableCell colSpan={10} className="text-center py-4">
@@ -304,94 +298,96 @@ export function MyOrdersTable({
 
   return (
     <div className={className}>
-      <Table containerClassName="pr-1">
-        <TableHeader>
-          <TableRow className="text-base">
-            <TableHead className="!h-14 w-[200px] font-bold" aria-sort={getSortAriaSort('orderNumber')}>
-              <button
-                type="button"
-                onClick={() => toggleSort('orderNumber')}
-                className="flex items-center gap-2 hover:text-text-action"
-              >
-                {t('columns.orderNumber')}
-                {getSortIcon('orderNumber')}
-              </button>
-            </TableHead>
-            <TableHead className="!h-14 w-[160px] font-bold" aria-sort={getSortAriaSort('orderDate')}>
-              <button
-                type="button"
-                onClick={() => toggleSort('orderDate')}
-                className="flex items-center gap-2 hover:text-text-action"
-              >
-                {t('columns.orderDate')}
-                {getSortIcon('orderDate')}
-              </button>
-            </TableHead>
-            <TableHead className="!h-14 w-[160px] font-bold" aria-sort={getSortAriaSort('status')}>
-              <button
-                type="button"
-                onClick={() => toggleSort('status')}
-                className="flex items-center gap-2 hover:text-text-action"
-              >
-                {t('columns.status')}
-                {getSortIcon('status')}
-              </button>
-            </TableHead>
-            <TableHead className="!h-14 w-[160px] font-bold" aria-sort={getSortAriaSort('relatedQuote')}>
-              <button
-                type="button"
-                onClick={() => toggleSort('relatedQuote')}
-                className="flex items-center gap-2 hover:text-text-action"
-              >
-                {t('relatedQuote')} #{getSortIcon('relatedQuote')}
-              </button>
-            </TableHead>
-            <TableHead className="!h-14 w-[180px] font-bold" aria-sort={getSortAriaSort('orderValue')}>
-              <button
-                type="button"
-                onClick={() => toggleSort('orderValue')}
-                className="flex items-center gap-2 hover:text-text-action"
-              >
-                {t('columns.orderValue')}
-                {getSortIcon('orderValue')}
-              </button>
-            </TableHead>
-            <TableHead className="!h-14 w-[180px] font-bold" aria-sort={getSortAriaSort('shippingCost')}>
-              <button
-                type="button"
-                onClick={() => toggleSort('shippingCost')}
-                className="flex items-center gap-2 hover:text-text-action"
-              >
-                {t('columns.totalShippingCost')}
-                {getSortIcon('shippingCost')}
-              </button>
-            </TableHead>
-            <TableHead className="!h-14 w-[200px] font-bold" aria-sort={getSortAriaSort('customer')}>
-              <button
-                type="button"
-                onClick={() => toggleSort('customer')}
-                className="flex items-center gap-2 hover:text-text-action"
-              >
-                {t('columns.customer')}
-                {getSortIcon('customer')}
-              </button>
-            </TableHead>
-            <TableHead className="!h-14 w-[200px] font-bold">{t('columns.expectedDeliveryDate')}</TableHead>
-            <TableHead className="!h-14 w-[240px] font-bold" aria-sort={getSortAriaSort('deliveryAddress')}>
-              <button
-                type="button"
-                onClick={() => toggleSort('deliveryAddress')}
-                className="flex items-center gap-2 hover:text-text-action"
-              >
-                {t('columns.deliveryAddress')}
-                {getSortIcon('deliveryAddress')}
-              </button>
-            </TableHead>
-            <TableHead className="!h-14 w-[160px] font-bold text-center">{t('columns.action')}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>{renderTableRows()}</TableBody>
-      </Table>
+      <div className={`transition-opacity ${loading ? 'opacity-70' : 'opacity-100'}`} aria-busy={loading}>
+        <Table containerClassName="pr-1">
+          <TableHeader>
+            <TableRow className="text-base">
+              <TableHead className="!h-14 w-[200px] font-bold" aria-sort={getSortAriaSort('orderNumber')}>
+                <button
+                  type="button"
+                  onClick={() => toggleSort('orderNumber')}
+                  className="flex items-center gap-2 hover:text-text-action"
+                >
+                  {t('columns.orderNumber')}
+                  {getSortIcon('orderNumber')}
+                </button>
+              </TableHead>
+              <TableHead className="!h-14 w-[160px] font-bold" aria-sort={getSortAriaSort('orderDate')}>
+                <button
+                  type="button"
+                  onClick={() => toggleSort('orderDate')}
+                  className="flex items-center gap-2 hover:text-text-action"
+                >
+                  {t('columns.orderDate')}
+                  {getSortIcon('orderDate')}
+                </button>
+              </TableHead>
+              <TableHead className="!h-14 w-[160px] font-bold" aria-sort={getSortAriaSort('status')}>
+                <button
+                  type="button"
+                  onClick={() => toggleSort('status')}
+                  className="flex items-center gap-2 hover:text-text-action"
+                >
+                  {t('columns.status')}
+                  {getSortIcon('status')}
+                </button>
+              </TableHead>
+              <TableHead className="!h-14 w-[160px] font-bold" aria-sort={getSortAriaSort('relatedQuote')}>
+                <button
+                  type="button"
+                  onClick={() => toggleSort('relatedQuote')}
+                  className="flex items-center gap-2 hover:text-text-action"
+                >
+                  {t('relatedQuote')} #{getSortIcon('relatedQuote')}
+                </button>
+              </TableHead>
+              <TableHead className="!h-14 w-[180px] font-bold" aria-sort={getSortAriaSort('orderValue')}>
+                <button
+                  type="button"
+                  onClick={() => toggleSort('orderValue')}
+                  className="flex items-center gap-2 hover:text-text-action"
+                >
+                  {t('columns.orderValue')}
+                  {getSortIcon('orderValue')}
+                </button>
+              </TableHead>
+              <TableHead className="!h-14 w-[180px] font-bold" aria-sort={getSortAriaSort('shippingCost')}>
+                <button
+                  type="button"
+                  onClick={() => toggleSort('shippingCost')}
+                  className="flex items-center gap-2 hover:text-text-action"
+                >
+                  {t('columns.totalShippingCost')}
+                  {getSortIcon('shippingCost')}
+                </button>
+              </TableHead>
+              <TableHead className="!h-14 w-[200px] font-bold" aria-sort={getSortAriaSort('customer')}>
+                <button
+                  type="button"
+                  onClick={() => toggleSort('customer')}
+                  className="flex items-center gap-2 hover:text-text-action"
+                >
+                  {t('columns.customer')}
+                  {getSortIcon('customer')}
+                </button>
+              </TableHead>
+              <TableHead className="!h-14 w-[200px] font-bold">{t('columns.expectedDeliveryDate')}</TableHead>
+              <TableHead className="!h-14 w-[240px] font-bold" aria-sort={getSortAriaSort('deliveryAddress')}>
+                <button
+                  type="button"
+                  onClick={() => toggleSort('deliveryAddress')}
+                  className="flex items-center gap-2 hover:text-text-action"
+                >
+                  {t('columns.deliveryAddress')}
+                  {getSortIcon('deliveryAddress')}
+                </button>
+              </TableHead>
+              <TableHead className="!h-14 w-[160px] font-bold text-center">{t('columns.action')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>{renderTableRows()}</TableBody>
+        </Table>
+      </div>
 
       <TablePagination
         className="px-3"

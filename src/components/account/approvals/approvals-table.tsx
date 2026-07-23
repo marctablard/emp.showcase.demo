@@ -114,6 +114,9 @@ export function ApprovalsTable({
   const router = useRouter();
 
   const getSortIcon = (field: ApprovalSortField) => {
+    if (loading && sortField === field) {
+      return <Spinner variant="sm" color="primary" className="h-4 w-4" loadingText={t('loading')} />;
+    }
     if (sortField !== field) return <ChevronsUpDown className="h-4 w-4 text-text-on-disabled" />;
     return sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
   };
@@ -138,131 +141,121 @@ export function ApprovalsTable({
 
   return (
     <div>
-      <Table containerClassName="pr-1">
-        <TableHeader>
-          <TableRow className="text-base">
-            {renderSortableHead('approvalId', t('approvalId'), '!h-14 w-[160px] font-bold')}
-            {renderSortableHead('modifiedAt', t('modifiedAt'), '!h-14 w-[160px] font-bold')}
-            {renderSortableHead('status', t('status'), '!h-14 w-[140px] font-bold')}
-            {renderSortableHead('resourceType', t('resourceType'), '!h-14 w-[140px] font-bold')}
-            <TableHead className="!h-14 w-[160px] font-bold">{t('quoteNumber')}</TableHead>
-            <TableHead className="!h-14 w-[160px] font-bold">{t('orderNumber')}</TableHead>
-            {renderSortableHead('netTotal', t('netTotal'), '!h-14 w-[140px] font-bold')}
-            {renderSortableHead('requestorFirstName', t('requestor'), '!h-14 w-[180px] font-bold')}
-            {renderSortableHead('approverFirstName', t('approver'), '!h-14 w-[180px] font-bold')}
-            {renderSortableHead('createdAt', t('createdAt'), '!h-14 w-[160px] font-bold')}
-            <TableHead className="!h-14 w-[100px] font-bold text-center">{t('action')}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {(() => {
-            if (loading) {
-              return (
-                <TableRow>
-                  <TableCell colSpan={COLUMN_COUNT} className="h-24 text-center">
-                    <div className="flex items-center justify-center">
-                      <Spinner color="primary" variant="md" />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            }
+      <div className={`transition-opacity ${loading ? 'opacity-70' : 'opacity-100'}`} aria-busy={loading}>
+        <Table containerClassName="pr-1">
+          <TableHeader>
+            <TableRow className="text-base">
+              {renderSortableHead('approvalId', t('approvalId'), '!h-14 w-[160px] font-bold')}
+              {renderSortableHead('modifiedAt', t('modifiedAt'), '!h-14 w-[160px] font-bold')}
+              {renderSortableHead('status', t('status'), '!h-14 w-[140px] font-bold')}
+              {renderSortableHead('resourceType', t('resourceType'), '!h-14 w-[140px] font-bold')}
+              <TableHead className="!h-14 w-[160px] font-bold">{t('quoteNumber')}</TableHead>
+              <TableHead className="!h-14 w-[160px] font-bold">{t('orderNumber')}</TableHead>
+              {renderSortableHead('netTotal', t('netTotal'), '!h-14 w-[140px] font-bold')}
+              {renderSortableHead('requestorFirstName', t('requestor'), '!h-14 w-[180px] font-bold')}
+              {renderSortableHead('approverFirstName', t('approver'), '!h-14 w-[180px] font-bold')}
+              {renderSortableHead('createdAt', t('createdAt'), '!h-14 w-[160px] font-bold')}
+              <TableHead className="!h-14 w-[100px] font-bold text-center">{t('action')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {(() => {
+              if (!loading && approvals.length === 0) {
+                return (
+                  <TableRow>
+                    <TableCell colSpan={COLUMN_COUNT} className="h-24 text-center">
+                      {hasActiveSearch ? t('noMatches') : t('noApprovalsFound')}
+                    </TableCell>
+                  </TableRow>
+                );
+              }
 
-            if (approvals.length === 0) {
-              return (
-                <TableRow>
-                  <TableCell colSpan={COLUMN_COUNT} className="h-24 text-center">
-                    {hasActiveSearch ? t('noMatches') : t('noApprovalsFound')}
-                  </TableCell>
-                </TableRow>
-              );
-            }
+              return approvals.map((approval, index) => {
+                const approvalHref = getApprovalHref(approval, currentUserId);
+                const rowAriaLabel = t('viewApprovalAriaLabel', { id: approval.id });
+                const isQuote = approval.resourceType === 'QUOTE';
+                const netTotal = approval.resource.subtotalAggregate;
 
-            return approvals.map((approval, index) => {
-              const approvalHref = getApprovalHref(approval, currentUserId);
-              const rowAriaLabel = t('viewApprovalAriaLabel', { id: approval.id });
-              const isQuote = approval.resourceType === 'QUOTE';
-              const netTotal = approval.resource.subtotalAggregate;
-
-              return (
-                <TableRow
-                  key={approval.id}
-                  className={cn(
-                    'hover:bg-surface-image-background cursor-pointer text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
-                    index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
-                  )}
-                  tabIndex={0}
-                  aria-label={rowAriaLabel}
-                  onClick={() => router.push(approvalHref)}
-                  onKeyDown={(event) => {
-                    if (event.target !== event.currentTarget) {
-                      return;
-                    }
-
-                    if (event.key === 'Enter') {
-                      event.preventDefault();
-                      router.push(approvalHref);
-                    }
-                  }}
-                >
-                  <TableCell className="px-2 py-4 font-medium">
-                    <UiLink
-                      type="Link"
-                      href={approvalHref}
-                      variant="table"
-                      className="font-bold"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      {approval.id}
-                    </UiLink>
-                  </TableCell>
-                  <TableCell className="px-2 py-4">
-                    {formatDate(approval.modifiedAt ?? approval.createdAt, locale)}
-                  </TableCell>
-                  <TableCell className="px-2 py-4">
-                    <ApprovalStatusBadge status={approval.status} />
-                  </TableCell>
-                  <TableCell className="px-2 py-4">{tResourceType(approval.resourceType)}</TableCell>
-                  <TableCell className="px-2 py-4">
-                    {isQuote ? (
-                      <UiLink
-                        type="Link"
-                        href={`/account/quotes/${approval.resource.id}`}
-                        variant="table"
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        {approval.resource.id}
-                      </UiLink>
-                    ) : (
-                      '-'
+                return (
+                  <TableRow
+                    key={approval.id}
+                    className={cn(
+                      'hover:bg-surface-image-background cursor-pointer text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
+                      index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
                     )}
-                  </TableCell>
-                  <TableCell className="px-2 py-4">{approval.resource.orderId ?? '-'}</TableCell>
-                  <TableCell className="px-2 py-4 font-medium">
-                    {netTotal ? formatCurrency(netTotal.netValue, netTotal.currency, locale) : '-'}
-                  </TableCell>
-                  <TableCell className="px-2 py-4">{formatApprovalUserName(approval.requestor)}</TableCell>
-                  <TableCell className="px-2 py-4">{formatApprovalUserName(approval.approver)}</TableCell>
-                  <TableCell className="px-2 py-4">{formatDate(approval.createdAt, locale)}</TableCell>
-                  <TableCell className="px-2 py-4 text-center">
-                    <div className="flex items-center justify-center">
+                    tabIndex={0}
+                    aria-label={rowAriaLabel}
+                    onClick={() => router.push(approvalHref)}
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget) {
+                        return;
+                      }
+
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        router.push(approvalHref);
+                      }
+                    }}
+                  >
+                    <TableCell className="px-2 py-4 font-medium">
                       <UiLink
                         type="Link"
                         href={approvalHref}
                         variant="table"
+                        className="font-bold"
                         onClick={(event) => event.stopPropagation()}
-                        aria-label={t('viewApprovalAriaLabel', { id: approval.id })}
                       >
-                        <ArrowRight className="h-6 w-6" />
+                        {approval.id}
                       </UiLink>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            });
-          })()}
-        </TableBody>
-      </Table>
+                    </TableCell>
+                    <TableCell className="px-2 py-4">
+                      {formatDate(approval.modifiedAt ?? approval.createdAt, locale)}
+                    </TableCell>
+                    <TableCell className="px-2 py-4">
+                      <ApprovalStatusBadge status={approval.status} />
+                    </TableCell>
+                    <TableCell className="px-2 py-4">{tResourceType(approval.resourceType)}</TableCell>
+                    <TableCell className="px-2 py-4">
+                      {isQuote ? (
+                        <UiLink
+                          type="Link"
+                          href={`/account/quotes/${approval.resource.id}`}
+                          variant="table"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          {approval.resource.id}
+                        </UiLink>
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell className="px-2 py-4">{approval.resource.orderId ?? '-'}</TableCell>
+                    <TableCell className="px-2 py-4 font-medium">
+                      {netTotal ? formatCurrency(netTotal.netValue, netTotal.currency, locale) : '-'}
+                    </TableCell>
+                    <TableCell className="px-2 py-4">{formatApprovalUserName(approval.requestor)}</TableCell>
+                    <TableCell className="px-2 py-4">{formatApprovalUserName(approval.approver)}</TableCell>
+                    <TableCell className="px-2 py-4">{formatDate(approval.createdAt, locale)}</TableCell>
+                    <TableCell className="px-2 py-4 text-center">
+                      <div className="flex items-center justify-center">
+                        <UiLink
+                          type="Link"
+                          href={approvalHref}
+                          variant="table"
+                          onClick={(event) => event.stopPropagation()}
+                          aria-label={t('viewApprovalAriaLabel', { id: approval.id })}
+                        >
+                          <ArrowRight className="h-6 w-6" />
+                        </UiLink>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              });
+            })()}
+          </TableBody>
+        </Table>
+      </div>
 
       <TablePagination
         className="px-3"

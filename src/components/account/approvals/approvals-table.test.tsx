@@ -303,6 +303,28 @@ describe('ApprovalsTable', () => {
     expect(screen.queryByText('noApprovalsFound')).not.toBeInTheDocument();
   });
 
+  it('keeps rows mounted and dimmed while reloading, showing a spinner only on the active sort column', () => {
+    render(<ApprovalsTable approvals={[buildApproval()]} loading sortField="modifiedAt" sortDirection="desc" />);
+
+    expect(screen.getByText('APR-1000')).toBeInTheDocument();
+    expect(screen.queryByText('noApprovalsFound')).not.toBeInTheDocument();
+
+    const modifiedAtHeader = screen.getByRole('columnheader', { name: /modifiedAt/ });
+    expect(within(modifiedAtHeader).getByRole('status')).toBeInTheDocument();
+
+    const statusHeader = screen.getByRole('columnheader', { name: /^status$/ });
+    expect(within(statusHeader).queryByRole('status')).not.toBeInTheDocument();
+
+    const table = screen.getByRole('table');
+    expect(table.closest('[data-slot="table-container"]')?.parentElement).toHaveClass('opacity-70');
+  });
+
+  it('does not flash the empty state while reloading and no rows have loaded yet', () => {
+    render(<ApprovalsTable approvals={[]} loading />);
+    expect(screen.queryByText('noApprovalsFound')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('row')).toHaveLength(1); // header row only
+  });
+
   it('never prefixes Approval ID, Quote Number, or Order Number identifiers with "#"', () => {
     render(
       <ApprovalsTable

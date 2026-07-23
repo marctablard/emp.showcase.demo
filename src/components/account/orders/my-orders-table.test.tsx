@@ -321,9 +321,10 @@ describe('MyOrdersTable', () => {
     expect(within(cells[3]).queryByRole('link')).not.toBeInTheDocument();
   });
 
-  it('shows loading and empty states spanning all columns', () => {
+  it('does not flash the empty state while reloading and no rows have loaded yet', () => {
     const { rerender } = renderTable({ orders: [], loading: true, totalCount: 0 });
-    expect(screen.getByText('loading')).toBeInTheDocument();
+    expect(screen.queryByText('noOrders')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('row')).toHaveLength(1); // header row only
 
     rerender(
       <MyOrdersTable
@@ -339,6 +340,27 @@ describe('MyOrdersTable', () => {
       />,
     );
     expect(screen.getByText('noOrders')).toBeInTheDocument();
+  });
+
+  it('keeps rows mounted and dimmed while reloading, showing a spinner only on the active sort column', () => {
+    renderTable({
+      orders: [buildOrder({ id: 'order-42' })],
+      loading: true,
+      sortField: 'orderDate',
+      sortDirection: 'desc',
+    });
+
+    expect(screen.getByText('order-42')).toBeInTheDocument();
+    expect(screen.queryByText('noOrders')).not.toBeInTheDocument();
+
+    const orderDateHeader = screen.getByRole('columnheader', { name: /columns\.orderDate/ });
+    expect(within(orderDateHeader).getByRole('status')).toBeInTheDocument();
+
+    const statusHeader = screen.getByRole('columnheader', { name: 'columns.status' });
+    expect(within(statusHeader).queryByRole('status')).not.toBeInTheDocument();
+
+    const table = screen.getByRole('table');
+    expect(table.closest('[data-slot="table-container"]')?.parentElement).toHaveClass('opacity-70');
   });
 
   it('shows only one search-specific empty-state message when active search returns no rows', () => {

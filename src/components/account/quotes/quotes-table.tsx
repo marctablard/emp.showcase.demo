@@ -71,6 +71,9 @@ export function QuotesTable({
   const router = useRouter();
 
   const getSortIcon = (field: QuoteSortField) => {
+    if (loading && sortField === field) {
+      return <Spinner variant="sm" color="primary" className="h-4 w-4" />;
+    }
     if (sortField !== field) return <ChevronsUpDown className="h-4 w-4 text-text-on-disabled" />;
     return sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
   };
@@ -95,123 +98,113 @@ export function QuotesTable({
 
   return (
     <div>
-      <Table containerClassName="pr-1">
-        <TableHeader>
-          <TableRow className="text-base">
-            {renderSortableHead('quoteId', t('quoteId'), '!h-14 w-[160px] font-bold')}
-            {renderSortableHead('quotationDate', t('quotationDate'), '!h-14 w-[160px] font-bold')}
-            {renderSortableHead('status', t('status'), '!h-14 w-[140px] font-bold')}
-            {renderSortableHead('relatedOrder', t('relatedOrder'), '!h-14 w-[160px] font-bold')}
-            <TableHead className="!h-14 w-[180px] font-bold">{t('quoteReference')}</TableHead>
-            {renderSortableHead('customerFirstName', t('requestedBy'), '!h-14 w-[180px] font-bold')}
-            {renderSortableHead('approverFirstName', t('authorization'), '!h-14 w-[180px] font-bold')}
-            {renderSortableHead('netValue', t('netValue'), '!h-14 w-[160px] font-bold')}
-            <TableHead className="!h-14 w-[180px] font-bold">{t('numberOfProducts')}</TableHead>
-            <TableHead className="!h-14 w-[100px] font-bold text-center">{t('action')}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {(() => {
-            if (loading) {
-              return (
-                <TableRow>
-                  <TableCell colSpan={10} className="h-24 text-center">
-                    <div className="flex items-center justify-center">
-                      <Spinner color="primary" variant="md" />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            }
+      <div className={`transition-opacity ${loading ? 'opacity-70' : 'opacity-100'}`} aria-busy={loading}>
+        <Table containerClassName="pr-1">
+          <TableHeader>
+            <TableRow className="text-base">
+              {renderSortableHead('quoteId', t('quoteId'), '!h-14 w-[160px] font-bold')}
+              {renderSortableHead('quotationDate', t('quotationDate'), '!h-14 w-[160px] font-bold')}
+              {renderSortableHead('status', t('status'), '!h-14 w-[140px] font-bold')}
+              {renderSortableHead('relatedOrder', t('relatedOrder'), '!h-14 w-[160px] font-bold')}
+              <TableHead className="!h-14 w-[180px] font-bold">{t('quoteReference')}</TableHead>
+              {renderSortableHead('customerFirstName', t('requestedBy'), '!h-14 w-[180px] font-bold')}
+              {renderSortableHead('approverFirstName', t('authorization'), '!h-14 w-[180px] font-bold')}
+              {renderSortableHead('netValue', t('netValue'), '!h-14 w-[160px] font-bold')}
+              <TableHead className="!h-14 w-[180px] font-bold">{t('numberOfProducts')}</TableHead>
+              <TableHead className="!h-14 w-[100px] font-bold text-center">{t('action')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {(() => {
+              if (!loading && quotes.length === 0) {
+                return (
+                  <TableRow>
+                    <TableCell colSpan={10} className="h-24 text-center">
+                      {hasActiveSearch ? t('noMatches') : t('noQuotes')}
+                    </TableCell>
+                  </TableRow>
+                );
+              }
 
-            if (quotes.length === 0) {
-              return (
-                <TableRow>
-                  <TableCell colSpan={10} className="h-24 text-center">
-                    {hasActiveSearch ? t('noMatches') : t('noQuotes')}
-                  </TableCell>
-                </TableRow>
-              );
-            }
+              return quotes.map((quote, index) => {
+                const quoteHref = `/account/quotes/${quote.id}`;
+                const rowAriaLabel = t('viewQuoteAriaLabel', { id: quote.id });
 
-            return quotes.map((quote, index) => {
-              const quoteHref = `/account/quotes/${quote.id}`;
-              const rowAriaLabel = t('viewQuoteAriaLabel', { id: quote.id });
-
-              return (
-                <TableRow
-                  key={quote.id}
-                  className={cn(
-                    'hover:bg-surface-image-background cursor-pointer text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
-                    index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
-                  )}
-                  tabIndex={0}
-                  aria-label={rowAriaLabel}
-                  onClick={() => router.push(quoteHref)}
-                  onKeyDown={(event) => {
-                    if (event.target !== event.currentTarget) {
-                      return;
-                    }
-
-                    if (event.key === 'Enter') {
-                      event.preventDefault();
-                      router.push(quoteHref);
-                    }
-                  }}
-                >
-                  <TableCell className="px-2 py-4 font-medium">
-                    <UiLink
-                      type="Link"
-                      href={quoteHref}
-                      variant="table"
-                      className="font-bold"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      {quote.id}
-                    </UiLink>
-                  </TableCell>
-                  <TableCell className="px-2 py-4">{formatDate(quote.submittedDate, locale)}</TableCell>
-                  <TableCell className="px-2 py-4">
-                    <QuoteStatusBadge status={quote.status} />
-                  </TableCell>
-                  <TableCell className="px-2 py-4" onClick={(event) => event.stopPropagation()}>
-                    {quote.orderId ? (
-                      <UiLink type="Link" href={`/account/orders/${quote.orderId}`} variant="table">
-                        {quote.orderId}
-                      </UiLink>
-                    ) : (
-                      '-'
+                return (
+                  <TableRow
+                    key={quote.id}
+                    className={cn(
+                      'hover:bg-surface-image-background cursor-pointer text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
+                      index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
                     )}
-                  </TableCell>
-                  <TableCell className="px-2 py-4">{quote.reference || '-'}</TableCell>
-                  <TableCell className="px-2 py-4">{quote.customerName || quote.customerId}</TableCell>
-                  <TableCell className="px-2 py-4">{quote.approverName || '-'}</TableCell>
-                  <TableCell className="px-2 py-4 font-medium">
-                    {formatCurrency(quote.totalNet, quote.currency, locale)}
-                  </TableCell>
-                  <TableCell className="px-2 py-4">
-                    {quote.items?.reduce((total, item) => total + (item.quantity.quantity || 0), 0) || 0}{' '}
-                    {t('products')}
-                  </TableCell>
-                  <TableCell className="px-2 py-4 text-center">
-                    <div className="flex items-center justify-center">
+                    tabIndex={0}
+                    aria-label={rowAriaLabel}
+                    onClick={() => router.push(quoteHref)}
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget) {
+                        return;
+                      }
+
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        router.push(quoteHref);
+                      }
+                    }}
+                  >
+                    <TableCell className="px-2 py-4 font-medium">
                       <UiLink
                         type="Link"
                         href={quoteHref}
                         variant="table"
+                        className="font-bold"
                         onClick={(event) => event.stopPropagation()}
-                        aria-label={t('viewQuoteAriaLabel', { id: quote.id })}
                       >
-                        <ArrowRight className="h-6 w-6" />
+                        {quote.id}
                       </UiLink>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            });
-          })()}
-        </TableBody>
-      </Table>
+                    </TableCell>
+                    <TableCell className="px-2 py-4">{formatDate(quote.submittedDate, locale)}</TableCell>
+                    <TableCell className="px-2 py-4">
+                      <QuoteStatusBadge status={quote.status} />
+                    </TableCell>
+                    <TableCell className="px-2 py-4" onClick={(event) => event.stopPropagation()}>
+                      {quote.orderId ? (
+                        <UiLink type="Link" href={`/account/orders/${quote.orderId}`} variant="table">
+                          {quote.orderId}
+                        </UiLink>
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell className="px-2 py-4">{quote.reference || '-'}</TableCell>
+                    <TableCell className="px-2 py-4">{quote.customerName || quote.customerId}</TableCell>
+                    <TableCell className="px-2 py-4">{quote.approverName || '-'}</TableCell>
+                    <TableCell className="px-2 py-4 font-medium">
+                      {formatCurrency(quote.totalNet, quote.currency, locale)}
+                    </TableCell>
+                    <TableCell className="px-2 py-4">
+                      {quote.items?.reduce((total, item) => total + (item.quantity.quantity || 0), 0) || 0}{' '}
+                      {t('products')}
+                    </TableCell>
+                    <TableCell className="px-2 py-4 text-center">
+                      <div className="flex items-center justify-center">
+                        <UiLink
+                          type="Link"
+                          href={quoteHref}
+                          variant="table"
+                          onClick={(event) => event.stopPropagation()}
+                          aria-label={t('viewQuoteAriaLabel', { id: quote.id })}
+                        >
+                          <ArrowRight className="h-6 w-6" />
+                        </UiLink>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              });
+            })()}
+          </TableBody>
+        </Table>
+      </div>
 
       <TablePagination
         className="px-3"
