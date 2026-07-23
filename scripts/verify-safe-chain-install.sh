@@ -35,6 +35,15 @@ set -euo pipefail
 #     an explicit, documented policy exception. Do not respond to it by
 #     removing safe-chain, pinning an older safe-chain release, or otherwise
 #     bypassing it.
+#   - The ONE documented, time-boxed exception to the above is the preview
+#     deploy workflow's `--safe-chain-skip-minimum-package-age` override (see
+#     docs/run-build-deploy.md, "Preview-Only Safe-Chain Minimum-Package-Age
+#     Override"). To reproduce that exact CI behavior locally, opt in with:
+#       SAFE_CHAIN_SKIP_MINIMUM_PACKAGE_AGE=1 npm run verify:ci-install
+#     This is off by default and only ever skips the minimum-package-age
+#     gate — malware blocking and the npm audit step below are unaffected.
+#     Do not set it to work around anything other than reproducing that
+#     specific, documented preview-only policy exception.
 #   - Runs `npm ci --ignore-scripts` because the disposable directory is not
 #     a git worktree: the `prepare` (husky) lifecycle script requires `.git`
 #     and would fail outside the real repo. Dependency lifecycle scripts are
@@ -77,6 +86,7 @@ CACHE_DIR="$WORKDIR/.npm-cache"
 mkdir -p "$CACHE_DIR"
 cleanup() {
   rm -rf "$WORKDIR"
+  return 0
 }
 trap cleanup EXIT
 
@@ -89,10 +99,16 @@ fi
 echo "==> Disposable clean-install path: $WORKDIR (isolated npm cache: $CACHE_DIR)"
 echo "==> npm@${NPM_VERSION} (pinned via packageManager) + safe-chain (latest, unpinned to match CI), invoked via npx"
 
+declare -a NPM_CI_ARGS=(npm ci --ignore-scripts --cache "$CACHE_DIR")
+if [[ "${SAFE_CHAIN_SKIP_MINIMUM_PACKAGE_AGE:-0}" == "1" ]]; then
+  NPM_CI_ARGS+=(--safe-chain-skip-minimum-package-age)
+  echo "==> SAFE_CHAIN_SKIP_MINIMUM_PACKAGE_AGE=1: reproducing the preview-only override, skipping safe-chain's minimum-package-age gate only"
+fi
+
 pushd "$WORKDIR" >/dev/null
 
-echo "==> safe-chain npm ci --ignore-scripts"
-npx --yes -p "npm@${NPM_VERSION}" -p @aikidosec/safe-chain safe-chain npm ci --ignore-scripts --cache "$CACHE_DIR"
+echo "==> safe-chain ${NPM_CI_ARGS[*]}"
+npx --yes -p "npm@${NPM_VERSION}" -p @aikidosec/safe-chain safe-chain "${NPM_CI_ARGS[@]}"
 
 echo "==> npm audit --audit-level=high"
 npx --yes -p "npm@${NPM_VERSION}" npm audit --audit-level=high --cache "$CACHE_DIR"

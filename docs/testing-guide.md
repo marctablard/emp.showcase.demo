@@ -634,7 +634,13 @@ This runs `scripts/verify-safe-chain-install.sh`, which performs a disposable, t
 
 This repo does not configure npm's own `min-release-age` (see `.npmrc`). Safe-chain still applies its own, independently-controlled minimum release-age policy regardless of repo config, in both this script and CI. A dependency bumped to a version published very recently can therefore still fail this check (or CI) purely on age, even though a plain `npm install`/`npm ci` would succeed — treat that as safe-chain doing its job, not as a reason to weaken the check. A passing run only proves today's lockfile clears safe-chain's current policy and the audit; it says nothing about a later bump of the same package.
 
-Scripts are skipped (`--ignore-scripts`) only because the disposable directory is not a git worktree and the `prepare` (husky) script requires `.git`; this does not affect dependency resolution, safe-chain enforcement, or the audit result. Run this after any change to `package.json`/`package-lock.json`, and do not weaken it (do not lower `--audit-level`, skip safe-chain, or pin an old safe-chain release) to force it to pass — treat a failure as a real dependency issue to resolve.
+Scripts are skipped (`--ignore-scripts`) only because the disposable directory is not a git worktree and the `prepare` (husky) script requires `.git`; this does not affect dependency resolution, safe-chain enforcement, or the audit result, but it does mean this check validates clean resolution, supply-chain policy, and audit only — it is not full lifecycle-script parity with CI, since CI's real `npm ci` runs install scripts and this one intentionally does not. Run this after any change to `package.json`/`package-lock.json`, and do not weaken it (do not lower `--audit-level`, skip safe-chain, or pin an old safe-chain release) to force it to pass — treat a failure as a real dependency issue to resolve.
+
+**Preview-only minimum-package-age override.** The PR preview workflow (`.github/workflows/github-actions-deploy-pr-preview.yaml`) is the one documented exception: its Install dependencies step runs `npm ci --safe-chain-skip-minimum-package-age` to unblock an urgent security patch that safe-chain has not yet aged in. This skips **only** the minimum-package-age gate — malware blocking, `safe-chain setup-ci`, and the subsequent `npm audit --audit-level=high` step are all unchanged, the step still fails on any other install error, and no other workflow uses this override. See `docs/run-build-deploy.md` ("Preview-Only Safe-Chain Minimum-Package-Age Override") for the full policy. To reproduce it locally instead of plain `npm run verify:ci-install`, run:
+
+```bash
+npm run verify:ci-install:preview-override
+```
 
 ## Best Practices
 
