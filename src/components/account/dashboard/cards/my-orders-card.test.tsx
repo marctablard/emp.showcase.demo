@@ -100,7 +100,7 @@ describe('MyOrdersCard', () => {
     // inside useOrders itself (see useOrders.test.tsx); MyOrdersCard only needs
     // to forward the settled query/sort, so it does not call setPageNumber here.
     const queryCall = mockUseOrders.mock.calls.at(-1)?.[0] as Record<string, unknown>;
-    expect(queryCall.query).toBe('compoundLogicalQuery:((id:~(ORD-10)) OR (customer.name:~(ORD-10)))');
+    expect(queryCall.query).toBe('id:~ORD-10');
     expect(queryCall.sort).toBe('created:DESC');
 
     fireEvent.click(screen.getByRole('button', { name: 'trigger-sort' }));
