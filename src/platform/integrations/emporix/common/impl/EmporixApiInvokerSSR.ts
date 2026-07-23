@@ -78,14 +78,46 @@ class EmporixApiInvokerSSR {
     metrics?: FetchMetrics,
     cacheSeconds?: number,
   ): Promise<Response> {
-    let token: string;
+    const { token, headers } = await this.resolveAuthTokenAndHeaders(options.headers, tokenType, authOptions);
+    this.applyCacheOptions(url, options, cacheSeconds);
 
+    const requestUrl = this.normalizeUrl(url);
+    const requestHeaders = {
+      ...headers,
+      Authorization: `Bearer ${token}`,
+    };
+    const metricsContext = await this.createMetricsContext(metrics);
+
+    let response = await this.fetchWithMetrics(
+      requestUrl,
+      { ...options, headers: requestHeaders },
+      tokenType,
+      metrics,
+      metricsContext,
+    );
+
+    if (response.status === 401 && tokenType === 'public') {
+      response = await this.retryPublicFetchWithMetrics(requestUrl, options, tokenType, metrics, metricsContext);
+    }
+
+    return response;
+  }
+
+  private async resolveAuthTokenAndHeaders(
+    originalHeaders: HeadersInit | undefined,
+    tokenType: TokenType,
+    authOptions?: {
+      credentials?: { username: string; password: string };
+      scopes?: string[];
+    },
+  ): Promise<{ token: string; headers: HeadersInit }> {
+    let token: string;
     let headers = {
-      ...options.headers,
+      ...originalHeaders,
     };
 
     switch (tokenType) {
-      case 'public':
+      case 'public': {
         const publicToken = await this.tokenManager.getPublicToken(this.config.tenant, this.config.clientId);
         token = publicToken.accessToken;
         headers = {
@@ -93,9 +125,10 @@ class EmporixApiInvokerSSR {
           ...this.addPublicHeaders(publicToken),
         };
         break;
+      }
       case 'customer-saas':
       case 'session':
-      case 'ai':
+      case 'ai': {
         const sessionToken = await this.tokenManager.getSessionToken(
           this.config.tenant,
           this.config.clientId,
@@ -103,14 +136,13 @@ class EmporixApiInvokerSSR {
         );
         token = sessionToken.accessToken;
         if (tokenType === 'customer-saas' || tokenType === 'ai') {
-          if (sessionToken.saasToken) {
-            headers = {
-              ...headers,
-              ...this.addCustomerHeaders(sessionToken),
-            };
-          } else {
+          if (!sessionToken.saasToken) {
             throw new Error('No SaaS token available');
           }
+          headers = {
+            ...headers,
+            ...this.addCustomerHeaders(sessionToken),
+          };
           if (tokenType === 'ai') {
             const headersObj = headers as Record<string, string>;
             if (!headersObj['session-id']) {
@@ -127,7 +159,8 @@ class EmporixApiInvokerSSR {
           };
         }
         break;
-      case 'service':
+      }
+      case 'service': {
         if (!this.config.serverClientId || !this.config.serverClientSecret) {
           throw new Error('Service Credentials not available');
         }
@@ -138,156 +171,215 @@ class EmporixApiInvokerSSR {
           authOptions?.scopes,
         );
         break;
+      }
       default:
         throw new Error(`Unknown token type: ${tokenType}`);
     }
 
-    {
-      const method = (options.method || 'GET').toUpperCase();
-      const isWriteMethod = method !== 'GET' && method !== 'HEAD';
-      const cacheBypassForDebug = shouldBypassExternalCacheForDebug(`${this.config.baseUrl}/${url}`, {
-        callType: 'external',
-        source: 'ssr',
-      });
+    return { token, headers };
+  }
 
-      if (isWriteMethod || cacheBypassForDebug) {
-        options['cache'] = 'no-store';
-        delete (options as Record<string, unknown>)['next'];
-      } else if (!options['cache'] && !options['next'] && cacheSeconds !== undefined) {
-        options['cache'] = 'force-cache';
-        options['next'] = { revalidate: cacheSeconds };
-      }
+  private applyCacheOptions(url: string, options: RequestInit, cacheSeconds?: number): void {
+    const method = (options.method || 'GET').toUpperCase();
+    const isWriteMethod = method !== 'GET' && method !== 'HEAD';
+    const cacheBypassForDebug = shouldBypassExternalCacheForDebug(`${this.config.baseUrl}/${url}`, {
+      callType: 'external',
+      source: 'ssr',
+    });
+
+    if (isWriteMethod || cacheBypassForDebug) {
+      options['cache'] = 'no-store';
+      delete (options as Record<string, unknown>)['next'];
+      return;
     }
 
-    headers = {
-      ...headers,
-      Authorization: `Bearer ${token}`,
-    };
+    if (!options['cache'] && !options['next'] && cacheSeconds !== undefined) {
+      options['cache'] = 'force-cache';
+      options['next'] = { revalidate: cacheSeconds };
+    }
+  }
 
+  private normalizeUrl(url: string): string {
     if (url.startsWith('/')) {
-      url = url.substring(1);
+      return url.substring(1);
+    }
+    return url;
+  }
+
+  private async createMetricsContext(metrics?: FetchMetrics): Promise<{
+    enabled: boolean;
+    site?: string;
+    startTime?: number;
+  }> {
+    const enabled = this.metricsService.isEnabled();
+    if (!enabled || !metrics) {
+      return { enabled, site: undefined, startTime: undefined };
     }
 
-    const metricsEnabled = this.metricsService.isEnabled();
     let site: string | undefined;
-    let startTime: number | undefined;
-
-    if (metricsEnabled && metrics) {
-      try {
-        site = await this.requestContext.getSite();
-      } catch {
-        site = METRICS_DEFAULT_SITE;
-      }
-      startTime = performance.now();
+    try {
+      site = await this.requestContext.getSite();
+    } catch {
+      site = METRICS_DEFAULT_SITE;
     }
 
-    let response: Response;
+    return { enabled, site, startTime: performance.now() };
+  }
+
+  private createMetricsLabels(
+    url: string,
+    options: RequestInit,
+    tokenType: TokenType,
+    metrics: FetchMetrics,
+    site: string | undefined,
+    statusCode: string,
+  ): {
+    site: string;
+    method: string;
+    status_code: string;
+    source: string;
+    token_type: TokenType;
+    route: string;
+  } {
+    const method = (options.method || 'GET').toUpperCase();
+    const source = metrics.source || getFirstUrlSegment(url, 'unknown');
+    const route = metrics.routePattern || url;
+
+    return {
+      site: site || METRICS_DEFAULT_SITE,
+      method,
+      status_code: statusCode,
+      source,
+      token_type: tokenType,
+      route,
+    };
+  }
+
+  private observeFetchDuration(
+    labels: {
+      site: string;
+      method: string;
+      status_code: string;
+      source: string;
+      token_type: TokenType;
+      route: string;
+    },
+    startTime: number,
+  ): void {
+    const duration = (performance.now() - startTime) / 1000;
+    this.metricsService
+      .getOrCreateHistogram(
+        METRIC_FETCH_DURATION,
+        'Upstream API fetch duration in seconds',
+        METRIC_LABEL_NAMES,
+        HISTOGRAM_BUCKETS,
+      )
+      .observe(labels, duration);
+  }
+
+  private recordFetchErrorMetrics(
+    url: string,
+    options: RequestInit,
+    tokenType: TokenType,
+    metrics: FetchMetrics,
+    site: string | undefined,
+    startTime: number,
+  ): void {
+    const labels = this.createMetricsLabels(url, options, tokenType, metrics, site, '0');
+    this.metricsService
+      .getOrCreateCounter(METRIC_FETCH_TOTAL, 'Total upstream API fetch calls', METRIC_LABEL_NAMES)
+      .inc(labels);
+    this.metricsService
+      .getOrCreateCounter(METRIC_FETCH_ERRORS_TOTAL, 'Total upstream API fetch errors', METRIC_LABEL_NAMES)
+      .inc(labels);
+    this.observeFetchDuration(labels, startTime);
+  }
+
+  private recordFetchResponseMetrics(
+    response: Response,
+    url: string,
+    options: RequestInit,
+    tokenType: TokenType,
+    metrics: FetchMetrics,
+    site: string | undefined,
+    startTime: number,
+  ): void {
+    const labels = this.createMetricsLabels(url, options, tokenType, metrics, site, String(response.status));
+    this.metricsService
+      .getOrCreateCounter(METRIC_FETCH_TOTAL, 'Total upstream API fetch calls', METRIC_LABEL_NAMES)
+      .inc(labels);
+    if (!response.ok) {
+      this.metricsService
+        .getOrCreateCounter(METRIC_FETCH_ERRORS_TOTAL, 'Total upstream API fetch errors', METRIC_LABEL_NAMES)
+        .inc(labels);
+    }
+    this.observeFetchDuration(labels, startTime);
+  }
+
+  private async fetchWithMetrics(
+    url: string,
+    requestInit: RequestInit,
+    tokenType: TokenType,
+    metrics: FetchMetrics | undefined,
+    metricsContext: { enabled: boolean; site?: string; startTime?: number },
+  ): Promise<Response> {
     try {
-      response = await this.fetch(url, { ...options, headers });
+      const response = await this.fetch(url, requestInit);
+      if (metricsContext.enabled && metrics && metricsContext.startTime !== undefined) {
+        this.recordFetchResponseMetrics(
+          response,
+          url,
+          requestInit,
+          tokenType,
+          metrics,
+          metricsContext.site,
+          metricsContext.startTime,
+        );
+      }
+      return response;
     } catch (error) {
-      if (metricsEnabled && metrics && startTime !== undefined) {
-        const method = (options.method || 'GET').toUpperCase();
-        const source = metrics.source || getFirstUrlSegment(url, 'unknown');
-        const route = metrics.routePattern || url;
-        const labels = {
-          site: site || METRICS_DEFAULT_SITE,
-          method,
-          status_code: '0',
-          source,
-          token_type: tokenType,
-          route,
-        };
-        this.metricsService
-          .getOrCreateCounter(METRIC_FETCH_TOTAL, 'Total upstream API fetch calls', METRIC_LABEL_NAMES)
-          .inc(labels);
-        this.metricsService
-          .getOrCreateCounter(METRIC_FETCH_ERRORS_TOTAL, 'Total upstream API fetch errors', METRIC_LABEL_NAMES)
-          .inc(labels);
-        const duration = (performance.now() - startTime) / 1000;
-        this.metricsService
-          .getOrCreateHistogram(
-            METRIC_FETCH_DURATION,
-            'Upstream API fetch duration in seconds',
-            METRIC_LABEL_NAMES,
-            HISTOGRAM_BUCKETS,
-          )
-          .observe(labels, duration);
+      if (metricsContext.enabled && metrics && metricsContext.startTime !== undefined) {
+        this.recordFetchErrorMetrics(
+          url,
+          requestInit,
+          tokenType,
+          metrics,
+          metricsContext.site,
+          metricsContext.startTime,
+        );
       }
       throw error;
     }
+  }
 
-    if (metricsEnabled && metrics && startTime !== undefined) {
-      const method = (options.method || 'GET').toUpperCase();
-      const source = metrics.source || getFirstUrlSegment(url, 'unknown');
-      const route = metrics.routePattern || url;
-      const labels = {
-        site: site || METRICS_DEFAULT_SITE,
-        method,
-        status_code: String(response.status),
-        source,
-        token_type: tokenType,
-        route,
-      };
-      this.metricsService
-        .getOrCreateCounter(METRIC_FETCH_TOTAL, 'Total upstream API fetch calls', METRIC_LABEL_NAMES)
-        .inc(labels);
-      if (!response.ok) {
-        this.metricsService
-          .getOrCreateCounter(METRIC_FETCH_ERRORS_TOTAL, 'Total upstream API fetch errors', METRIC_LABEL_NAMES)
-          .inc(labels);
-      }
-      const duration = (performance.now() - startTime) / 1000;
-      this.metricsService
-        .getOrCreateHistogram(
-          METRIC_FETCH_DURATION,
-          'Upstream API fetch duration in seconds',
-          METRIC_LABEL_NAMES,
-          HISTOGRAM_BUCKETS,
-        )
-        .observe(labels, duration);
-    }
+  private async retryPublicFetchWithMetrics(
+    url: string,
+    options: RequestInit,
+    tokenType: TokenType,
+    metrics: FetchMetrics | undefined,
+    metricsContext: { enabled: boolean; site?: string; startTime?: number },
+  ): Promise<Response> {
+    this.tokenManager.clearPublicTokenCache(this.config.tenant, this.config.clientId);
+    const freshToken = await this.tokenManager.getPublicToken(this.config.tenant, this.config.clientId);
+    const retryHeaders = {
+      ...options.headers,
+      ...this.addPublicHeaders(freshToken),
+      Authorization: `Bearer ${freshToken.accessToken}`,
+    };
+    const retryRequest = { ...options, headers: retryHeaders };
+    const retryStartTime = metricsContext.enabled && metrics ? performance.now() : undefined;
+    const response = await this.fetch(url, retryRequest);
 
-    if (response.status === 401 && tokenType === 'public') {
-      this.tokenManager.clearPublicTokenCache(this.config.tenant, this.config.clientId);
-      const freshToken = await this.tokenManager.getPublicToken(this.config.tenant, this.config.clientId);
-      const retryHeaders = {
-        ...options.headers,
-        ...this.addPublicHeaders(freshToken),
-        Authorization: `Bearer ${freshToken.accessToken}`,
-      };
-      const retryStartTime = metricsEnabled && metrics ? performance.now() : undefined;
-      response = await this.fetch(url, { ...options, headers: retryHeaders });
-
-      if (metricsEnabled && metrics && retryStartTime !== undefined) {
-        const method = (options.method || 'GET').toUpperCase();
-        const source = metrics.source || getFirstUrlSegment(url, 'unknown');
-        const route = metrics.routePattern || url;
-        const retryLabels = {
-          site: site || METRICS_DEFAULT_SITE,
-          method,
-          status_code: String(response.status),
-          source,
-          token_type: tokenType,
-          route,
-        };
-        this.metricsService
-          .getOrCreateCounter(METRIC_FETCH_TOTAL, 'Total upstream API fetch calls', METRIC_LABEL_NAMES)
-          .inc(retryLabels);
-        if (!response.ok) {
-          this.metricsService
-            .getOrCreateCounter(METRIC_FETCH_ERRORS_TOTAL, 'Total upstream API fetch errors', METRIC_LABEL_NAMES)
-            .inc(retryLabels);
-        }
-        const duration = (performance.now() - retryStartTime) / 1000;
-        this.metricsService
-          .getOrCreateHistogram(
-            METRIC_FETCH_DURATION,
-            'Upstream API fetch duration in seconds',
-            METRIC_LABEL_NAMES,
-            HISTOGRAM_BUCKETS,
-          )
-          .observe(retryLabels, duration);
-      }
+    if (metricsContext.enabled && metrics && retryStartTime !== undefined) {
+      this.recordFetchResponseMetrics(
+        response,
+        url,
+        retryRequest,
+        tokenType,
+        metrics,
+        metricsContext.site,
+        retryStartTime,
+      );
     }
 
     return response;

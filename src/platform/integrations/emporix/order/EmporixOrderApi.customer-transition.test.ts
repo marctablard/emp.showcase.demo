@@ -1,10 +1,10 @@
-import type EmporixApiInvoker from '../common/impl/EmporixApiInvoker';
+import type EmporixApiInvokerServer from '../common/impl/EmporixApiInvokerServer';
 import type { EmporixConfig } from '../config';
 import EmporixOrderApi from './impl/EmporixOrderApi';
 
 type AuthenticatedFetch = (
-  ...args: Parameters<EmporixApiInvoker['authenticatedFetch']>
-) => ReturnType<EmporixApiInvoker['authenticatedFetch']>;
+  ...args: Parameters<EmporixApiInvokerServer['authenticatedFetch']>
+) => ReturnType<EmporixApiInvokerServer['authenticatedFetch']>;
 
 type MockOrderApiClient = {
   authenticatedFetch: jest.MockedFunction<AuthenticatedFetch>;
