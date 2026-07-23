@@ -5,6 +5,7 @@ import {
   getDebugLogger,
   logRequestPayload,
   logResponse,
+  shouldBypassExternalCacheForDebug,
 } from '@/platform/core/utils/debug-utils';
 import type { EmporixConfig } from '../../config';
 import type { FetchMetrics } from '../../model/metrics';
@@ -142,8 +143,11 @@ class EmporixApiInvoker {
     {
       const method = (options.method || 'GET').toUpperCase();
       const isWriteMethod = method !== 'GET' && method !== 'HEAD';
+      const cacheBypassForDebug = shouldBypassExternalCacheForDebug(`${this.config.baseUrl}/${url}`, {
+        callType: 'external',
+      });
 
-      if (isWriteMethod) {
+      if (isWriteMethod || cacheBypassForDebug) {
         options['cache'] = 'no-store';
         delete (options as Record<string, unknown>)['next'];
       } else if (!options['cache'] && !options['next'] && cacheSeconds !== undefined) {

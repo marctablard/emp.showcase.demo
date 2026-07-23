@@ -7,6 +7,7 @@ import {
   getDebugLogger,
   logRequestPayload,
   logResponse,
+  shouldBypassExternalCacheForDebug,
 } from '@/platform/core/utils/debug-utils';
 import type { FetchMetrics } from '@/platform/integrations/emporix/model/metrics';
 import type { MetricsService } from '@/platform/services/metrics/MetricsService';
@@ -144,8 +145,12 @@ class EmporixApiInvokerServer {
     {
       const method = (options.method || 'GET').toUpperCase();
       const isWriteMethod = method !== 'GET' && method !== 'HEAD';
+      const cacheBypassForDebug = shouldBypassExternalCacheForDebug(`${this.config.baseUrl}/${url}`, {
+        callType: 'external',
+        source: 'client',
+      });
 
-      if (isWriteMethod) {
+      if (isWriteMethod || cacheBypassForDebug) {
         options['cache'] = 'no-store';
         delete (options as Record<string, unknown>)['next'];
       } else if (!options['cache'] && !options['next'] && cacheSeconds !== undefined) {

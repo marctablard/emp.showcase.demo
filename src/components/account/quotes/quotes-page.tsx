@@ -45,12 +45,13 @@ export default function QuotesPageContent({ initialQuotes, initialTotalCount }: 
     };
   }, [quickSearch, normalizedSearch]);
 
-  // Quick search is scoped to Quote ID and Quote Reference only, using the raw
-  // upstream fields (`id`, `customerReference`) rather than the mapper-derived
-  // `reference` fallback field.
+  // Quick search is scoped to Quote ID and Quote Reference only. It targets the
+  // raw upstream `id` and `customerReference` fields, plus the mixin path
+  // `mixins.additionalInfo.reference`, since real quotes populate the reference
+  // there rather than on top-level `customerReference`.
   const apiQuery =
     normalizedSearch.length > 0
-      ? `compoundLogicalQuery:((id:~(${normalizedSearch})) OR (customerReference:~(${normalizedSearch})))`
+      ? `compoundLogicalQuery:((id:~(${normalizedSearch})) OR (customerReference:~(${normalizedSearch})) OR (mixins.additionalInfo.reference:~(${normalizedSearch})))`
       : undefined;
   const apiSort = `${QUOTE_SORT_FIELD_MAP[sortField]}:${sortDirection === 'asc' ? 'ASC' : 'DESC'}`;
 

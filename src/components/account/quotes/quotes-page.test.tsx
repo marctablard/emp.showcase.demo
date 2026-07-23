@@ -131,8 +131,9 @@ describe('QuotesPageContent', () => {
     });
 
     const [, options] = mockUseQuotes.mock.calls[mockUseQuotes.mock.calls.length - 1];
-    expect(options.query).toBe('compoundLogicalQuery:((id:~(abc)) OR (customerReference:~(abc)))');
-    expect(options.query).not.toContain('mixins');
+    expect(options.query).toBe(
+      'compoundLogicalQuery:((id:~(abc)) OR (customerReference:~(abc)) OR (mixins.additionalInfo.reference:~(abc)))',
+    );
     expect(options.query).not.toContain('customer.firstName');
   });
 
@@ -173,7 +174,9 @@ describe('QuotesPageContent', () => {
     });
 
     const [, optionsAfterDebounce] = mockUseQuotes.mock.calls[mockUseQuotes.mock.calls.length - 1];
-    expect(optionsAfterDebounce.query).toBe('compoundLogicalQuery:((id:~(abc)) OR (customerReference:~(abc)))');
+    expect(optionsAfterDebounce.query).toBe(
+      'compoundLogicalQuery:((id:~(abc)) OR (customerReference:~(abc)) OR (mixins.additionalInfo.reference:~(abc)))',
+    );
     expect(optionsAfterDebounce.page).toBe(0);
 
     fireEvent.change(input, { target: { value: '' } });
@@ -181,7 +184,7 @@ describe('QuotesPageContent', () => {
     const [, optionsAfterClearBeforeDebounce] = mockUseQuotes.mock.calls[mockUseQuotes.mock.calls.length - 1];
     expect(optionsAfterClearBeforeDebounce.page).toBe(0);
     expect(optionsAfterClearBeforeDebounce.query).toBe(
-      'compoundLogicalQuery:((id:~(abc)) OR (customerReference:~(abc)))',
+      'compoundLogicalQuery:((id:~(abc)) OR (customerReference:~(abc)) OR (mixins.additionalInfo.reference:~(abc)))',
     );
 
     act(() => {
@@ -215,12 +218,16 @@ describe('QuotesPageContent', () => {
 
     const staleCombo = mockUseQuotes.mock.calls.find(
       ([, options]) =>
-        options.query === 'compoundLogicalQuery:((id:~(abc)) OR (customerReference:~(abc)))' && options.page === 2,
+        options.query ===
+          'compoundLogicalQuery:((id:~(abc)) OR (customerReference:~(abc)) OR (mixins.additionalInfo.reference:~(abc)))' &&
+        options.page === 2,
     );
     expect(staleCombo).toBeUndefined();
 
     const [, settledOptions] = mockUseQuotes.mock.calls[mockUseQuotes.mock.calls.length - 1];
-    expect(settledOptions.query).toBe('compoundLogicalQuery:((id:~(abc)) OR (customerReference:~(abc)))');
+    expect(settledOptions.query).toBe(
+      'compoundLogicalQuery:((id:~(abc)) OR (customerReference:~(abc)) OR (mixins.additionalInfo.reference:~(abc)))',
+    );
     expect(settledOptions.page).toBe(0);
   });
 

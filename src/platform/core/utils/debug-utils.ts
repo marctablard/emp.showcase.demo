@@ -350,6 +350,21 @@ function shouldLogEndpoint(url: string): boolean {
 }
 
 /**
+ * Returns true when external API debug logging is active for the given request,
+ * meaning upstream fetch caching should be bypassed so request/response debug logs
+ * are emitted from the real network call.
+ */
+export function shouldBypassExternalCacheForDebug(url: string, ctx?: DebugContext): boolean {
+  if (!shouldLogEndpoint(url)) return false;
+  if (!shouldLogEvent(ctx?.callType, ctx?.source)) return false;
+
+  const debugCurlEnabled = process.env.NEXT_PUBLIC_DEBUG_API_CURL === 'true' && shouldLogToTerminal();
+  const debugResponseEnabled = isDebugApiEnabled();
+
+  return debugCurlEnabled || debugResponseEnabled;
+}
+
+/**
  * Logs a curl command if debugging is enabled (reads environment variables directly).
  * In dev mode also records a start timestamp for duration calculation.
  * @param url Target URL
