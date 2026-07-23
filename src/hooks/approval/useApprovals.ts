@@ -112,9 +112,12 @@ export function useApprovals(initialApprovals?: Approval[], options: UseApproval
       setApprovals(data);
 
       const size = pageSize || 60;
-      const totalItems = Number.isFinite(parsedTotalCount) ? parsedTotalCount : data.length;
+      const currentPage = pageNumber ?? 1;
+      const totalItems = Number.isFinite(parsedTotalCount)
+        ? parsedTotalCount
+        : currentPage * size + (data.length === size ? 1 : 0);
       setPagination({
-        pageNumber: pageNumber ?? 1,
+        pageNumber: currentPage,
         pageSize: size,
         totalPages: Math.max(1, Math.ceil(totalItems / size)),
         totalItems,
