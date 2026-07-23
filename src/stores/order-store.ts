@@ -65,7 +65,7 @@ export const createOrderStore = () =>
 
       const totals = {
         ...get().totals,
-        [query]: totalCount,
+        ...(totalCount !== undefined ? { [query]: totalCount } : {}),
       };
 
       // Add each order to the orders record with its ID as the key
