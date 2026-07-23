@@ -129,35 +129,9 @@ class EmporixApiInvokerSSR {
       case 'customer-saas':
       case 'session':
       case 'ai': {
-        const sessionToken = await this.tokenManager.getSessionToken(
-          this.config.tenant,
-          this.config.clientId,
-          authOptions?.credentials,
-        );
-        token = sessionToken.accessToken;
-        if (tokenType === 'customer-saas' || tokenType === 'ai') {
-          if (!sessionToken.saasToken) {
-            throw new Error('No SaaS token available');
-          }
-          headers = {
-            ...headers,
-            ...this.addCustomerHeaders(sessionToken),
-          };
-          if (tokenType === 'ai') {
-            const headersObj = headers as Record<string, string>;
-            if (!headersObj['session-id']) {
-              headers = {
-                ...headers,
-                'session-id': `${sessionToken.sessionId}`,
-              };
-            }
-          }
-        } else {
-          headers = {
-            ...headers,
-            ...this.addSessionHeaders(sessionToken),
-          };
-        }
+        const sessionResolution = await this.resolveSessionTokenAndHeaders(headers, tokenType, authOptions);
+        token = sessionResolution.token;
+        headers = sessionResolution.headers;
         break;
       }
       case 'service': {
@@ -177,6 +151,56 @@ class EmporixApiInvokerSSR {
     }
 
     return { token, headers };
+  }
+
+  private async resolveSessionTokenAndHeaders(
+    originalHeaders: HeadersInit,
+    tokenType: Extract<TokenType, 'session' | 'customer-saas' | 'ai'>,
+    authOptions?: {
+      credentials?: { username: string; password: string };
+      scopes?: string[];
+    },
+  ): Promise<{ token: string; headers: HeadersInit }> {
+    const sessionToken = await this.tokenManager.getSessionToken(
+      this.config.tenant,
+      this.config.clientId,
+      authOptions?.credentials,
+    );
+
+    let headers = {
+      ...originalHeaders,
+    };
+
+    if (tokenType === 'customer-saas' || tokenType === 'ai') {
+      if (!sessionToken.saasToken) {
+        throw new Error('No SaaS token available');
+      }
+
+      headers = {
+        ...headers,
+        ...this.addCustomerHeaders(sessionToken),
+      };
+
+      if (tokenType === 'ai') {
+        const headersObj = headers as Record<string, string>;
+        if (!headersObj['session-id']) {
+          headers = {
+            ...headers,
+            'session-id': `${sessionToken.sessionId}`,
+          };
+        }
+      }
+    } else {
+      headers = {
+        ...headers,
+        ...this.addSessionHeaders(sessionToken),
+      };
+    }
+
+    return {
+      token: sessionToken.accessToken,
+      headers,
+    };
   }
 
   private applyCacheOptions(url: string, options: RequestInit, cacheSeconds?: number): void {
