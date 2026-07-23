@@ -1,3 +1,4 @@
+import { shouldBypassExternalCacheForDebug } from '@/platform/core/utils/debug-utils';
 import type { EmporixTokenManager } from '../../common/EmporixTokenManager';
 import type { EmporixConfig } from '../../config';
 import EmporixApiInvoker from './EmporixApiInvoker';
@@ -8,6 +9,7 @@ jest.mock('@/platform/core/utils/debug-utils', () => ({
   logRequestPayload: jest.fn(),
   logResponse: jest.fn(),
   getDebugLogger: jest.fn().mockReturnValue({ error: jest.fn() }),
+  shouldBypassExternalCacheForDebug: jest.fn().mockReturnValue(false),
 }));
 
 // Mock global fetch
@@ -34,6 +36,7 @@ describe('EmporixApiInvoker', () => {
 
   beforeEach(() => {
     (globalThis.fetch as jest.Mock).mockResolvedValue({ status: 200, ok: true });
+    (shouldBypassExternalCacheForDebug as jest.Mock).mockReturnValue(false);
 
     mockTokenManager = {
       getPublicToken: jest.fn().mockResolvedValue({ accessToken: 'public-token-123' }),
@@ -229,6 +232,7 @@ describe('EmporixApiInvoker', () => {
       process.env.NEXT_PUBLIC_DEBUG_API_CURL = 'true';
       process.env.NEXT_PUBLIC_DEBUG_API_OUTPUT = 'BOTH';
       process.env.NEXT_PUBLIC_DEBUG_API_ENDPOINTS = 'quote';
+      (shouldBypassExternalCacheForDebug as jest.Mock).mockReturnValue(true);
 
       await invoker.authenticatedFetch('/quote/test-tenant/quotes?page=1', { method: 'GET' }, 'service');
 
@@ -242,6 +246,7 @@ describe('EmporixApiInvoker', () => {
       process.env.NEXT_PUBLIC_DEBUG_API_CURL = 'true';
       process.env.NEXT_PUBLIC_DEBUG_API_OUTPUT = 'BOTH';
       process.env.NEXT_PUBLIC_DEBUG_API_ENDPOINTS = 'quote';
+      (shouldBypassExternalCacheForDebug as jest.Mock).mockReturnValue(false);
 
       await invoker.authenticatedFetch(
         '/catalog/test-tenant/catalogs',
@@ -262,6 +267,7 @@ describe('EmporixApiInvoker', () => {
       process.env.NEXT_PUBLIC_DEBUG_API_OUTPUT = 'BOTH';
       process.env.NEXT_PUBLIC_DEBUG_API_RESPONSE = 'STATUS-BODY';
       process.env.NEXT_PUBLIC_DEBUG_API_ENDPOINTS = 'approval';
+      (shouldBypassExternalCacheForDebug as jest.Mock).mockReturnValue(true);
 
       await invoker.authenticatedFetch(
         '/approval/test-tenant/approvals?pageNumber=1',
