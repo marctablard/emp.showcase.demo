@@ -37,7 +37,7 @@ describe('fetchOrdersPage', () => {
 
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-    await fetchOrdersPage(undefined, undefined);
+    await fetchOrdersPage();
 
     expect(fetchMock).toHaveBeenCalledWith('/api/orders');
   });

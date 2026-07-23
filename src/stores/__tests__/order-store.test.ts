@@ -169,4 +169,15 @@ describe('OrderStore', () => {
 
     expect(store.getState().getTotalCount(queryKey)).toBe(42);
   });
+
+  it('overwrites existing total count with 0 for the same query key', () => {
+    const queryKey = createOrderRequestKey(10, 1);
+    const firstOrders = [{ id: '1', status: 'CREATED', total: { amount: 100, currency: 'EUR' } }];
+    const updatedOrders = [{ id: '1', status: 'CONFIRMED', total: { amount: 100, currency: 'EUR' } }];
+
+    store.getState().setOrders(queryKey, firstOrders as never, 42);
+    store.getState().setOrders(queryKey, updatedOrders as never, 0);
+
+    expect(store.getState().getTotalCount(queryKey)).toBe(0);
+  });
 });
