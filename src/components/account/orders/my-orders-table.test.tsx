@@ -134,13 +134,13 @@ describe('MyOrdersTable', () => {
     expect(push).toHaveBeenCalledWith('/account/orders/order-42');
   });
 
-  it('uses shared table-link styling (no underline, cursor pointer, and table typography) for table links', () => {
+  it('uses shared table-link styling (no underline, default cursor, and table typography) for table links', () => {
     renderTable({ orders: [buildOrder({ id: 'order-42', quoteId: 'quote-9' })] });
 
     const idLink = screen.getByRole('link', { name: 'order-42' });
     expect(idLink).toHaveClass(
       'no-underline',
-      'cursor-pointer',
+      'cursor-default',
       'font-secondary',
       'text-[16px]',
       'leading-[24px]',
@@ -150,12 +150,12 @@ describe('MyOrdersTable', () => {
     expect(idLink).not.toHaveClass('underline');
 
     const quoteLink = screen.getByRole('link', { name: 'quote-9' });
-    expect(quoteLink).toHaveClass('no-underline', 'cursor-pointer', 'font-secondary', 'text-[16px]', 'leading-[24px]');
+    expect(quoteLink).toHaveClass('no-underline', 'cursor-default', 'font-secondary', 'text-[16px]', 'leading-[24px]');
     expect(quoteLink).not.toHaveClass('underline');
 
     const row = screen.getByText('order-42').closest('tr') as HTMLTableRowElement;
     const arrowLink = within(row).getAllByRole('link')[2];
-    expect(arrowLink).toHaveClass('no-underline', 'cursor-pointer', 'font-secondary', 'text-[16px]', 'leading-[24px]');
+    expect(arrowLink).toHaveClass('no-underline', 'cursor-default', 'font-secondary', 'text-[16px]', 'leading-[24px]');
   });
 
   it('keeps the Action column non-sortable with no "View" text', () => {
@@ -179,7 +179,7 @@ describe('MyOrdersTable', () => {
     const firstDeliveryCell = within(rows[0]).getAllByRole('cell')[7];
     const secondDeliveryCell = within(rows[1]).getAllByRole('cell')[7];
 
-    expect(firstDeliveryCell).toHaveTextContent('01.08.2026');
+    expect(firstDeliveryCell).toHaveTextContent('08/01/2026');
     expect(secondDeliveryCell).toHaveTextContent('-');
   });
 

@@ -77,18 +77,41 @@ describe('QuotesTable', () => {
     ]);
   });
 
-  it('keeps Requested By, Authorization, Number of Products, Related Order, and Quote Reference non-sortable', () => {
+  it('keeps Number of Products and Quote Reference non-sortable', () => {
     render(<QuotesTable quotes={[buildQuote()]} />);
 
-    for (const name of ['requestedBy', 'authorization', 'numberOfProducts', 'quoteReference']) {
+    for (const name of ['numberOfProducts', 'quoteReference']) {
       const header = screen.getByRole('columnheader', { name });
       expect(within(header).queryByRole('button')).not.toBeInTheDocument();
       expect(header).not.toHaveAttribute('aria-sort');
     }
+  });
 
-    const relatedOrderHeader = screen.getByRole('columnheader', { name: 'relatedOrder' });
-    expect(within(relatedOrderHeader).queryByRole('button')).not.toBeInTheDocument();
-    expect(relatedOrderHeader).not.toHaveAttribute('aria-sort');
+  it('makes Requested By, Authorization, and Related Order sortable', () => {
+    render(<QuotesTable quotes={[buildQuote()]} />);
+
+    for (const name of [/^requestedBy$/, /^authorization$/, /^relatedOrder$/]) {
+      const header = screen.getByRole('columnheader', { name });
+      expect(within(header).getByRole('button')).toBeInTheDocument();
+      expect(header).toHaveAttribute('aria-sort', 'none');
+    }
+  });
+
+  it('calls onToggleSort with the mapped field for Requested By, Authorization, and Related Order', () => {
+    const onToggleSort = jest.fn();
+    render(<QuotesTable quotes={[buildQuote()]} onToggleSort={onToggleSort} />);
+
+    const cases: [RegExp, string][] = [
+      [/^requestedBy$/, 'customerFirstName'],
+      [/^authorization$/, 'approverFirstName'],
+      [/^relatedOrder$/, 'relatedOrder'],
+    ];
+
+    for (const [name, expectedField] of cases) {
+      const header = screen.getByRole('columnheader', { name });
+      fireEvent.click(within(header).getByRole('button'));
+      expect(onToggleSort).toHaveBeenLastCalledWith(expectedField);
+    }
   });
 
   it('keeps the Action column non-sortable, centered, and arrow-only', () => {
@@ -137,13 +160,13 @@ describe('QuotesTable', () => {
     expect(arrowLink).toHaveAttribute('href', '/account/quotes/Q-42');
   });
 
-  it('uses shared table-link styling (no underline, table typography, pointer) for quote table links', () => {
+  it('uses shared table-link styling (no underline, table typography, default cursor) for quote table links', () => {
     render(<QuotesTable quotes={[buildQuote({ id: 'Q-42', orderId: 'order-42' })]} />);
 
     const idLink = screen.getByRole('link', { name: 'Q-42' });
     expect(idLink).toHaveClass(
       'no-underline',
-      'cursor-pointer',
+      'cursor-default',
       'font-secondary',
       'text-[16px]',
       'leading-[24px]',
@@ -155,7 +178,7 @@ describe('QuotesTable', () => {
     const relatedOrderLink = screen.getByRole('link', { name: 'order-42' });
     expect(relatedOrderLink).toHaveClass(
       'no-underline',
-      'cursor-pointer',
+      'cursor-default',
       'font-secondary',
       'text-[16px]',
       'leading-[24px]',
@@ -163,7 +186,7 @@ describe('QuotesTable', () => {
     expect(relatedOrderLink).not.toHaveClass('underline');
 
     const arrowLink = screen.getByRole('link', { name: 'viewQuoteAriaLabel:Q-42' });
-    expect(arrowLink).toHaveClass('no-underline', 'cursor-pointer', 'font-secondary', 'text-[16px]', 'leading-[24px]');
+    expect(arrowLink).toHaveClass('no-underline', 'cursor-default', 'font-secondary', 'text-[16px]', 'leading-[24px]');
   });
 
   it('does not trigger row navigation when the nested Quote ID or Action links are clicked', () => {

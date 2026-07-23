@@ -115,7 +115,7 @@ describe('UiLink', () => {
     expect(link).toHaveClass(
       'no-underline',
       'hover:no-underline',
-      'cursor-pointer',
+      'cursor-default',
       'font-secondary',
       'text-[16px]',
       'leading-[24px]',

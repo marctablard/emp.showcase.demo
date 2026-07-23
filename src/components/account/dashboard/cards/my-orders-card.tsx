@@ -20,6 +20,13 @@ import { DashboardCard } from './dashboard-card';
 
 const SEARCH_DEBOUNCE_MS = 500;
 const ORDERS_PER_PAGE = 5;
+/**
+ * Raw upstream Emporix Order fields backing each sortable column (see resources/emporix/order.yml).
+ * Expected Delivery Date has no entry here: `Order.expectedDeliveryDate` is resolved by
+ * `EmporixOrderMapper.resolveExpectedDeliveryDate` from whichever `shipments[]` entry has a
+ * non-empty `expectDeliveryOn`, falling back to `deliveryWindow.deliveryDate` — there is no
+ * single raw field a server-side sort could target, so that column stays non-sortable.
+ */
 const ORDER_SORT_FIELD_MAP: Record<OrderSortField, string> = {
   orderNumber: 'id',
   relatedQuote: 'quoteId',

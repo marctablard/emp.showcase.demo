@@ -1,14 +1,10 @@
+import { formatDate } from '@/lib/date-utils';
 import { formatCurrency } from '@/lib/utils';
 import type { Return } from '@/platform/services/model/return';
 
 export function formatReturnDate(dateString: string | undefined, locale: string): string {
   if (!dateString) return '-';
-  const date = new Date(dateString);
-  return new Intl.DateTimeFormat(locale, {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(date);
+  return formatDate(dateString, locale);
 }
 
 export function formatReturnCurrency(value: number | undefined, currency: string | undefined, locale?: string): string {

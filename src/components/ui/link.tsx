@@ -19,7 +19,7 @@ const linkVariants = cva(
         text: 'text-text-action underline hover:text-text-action-hover',
         textNoUnderline: 'text-text-action no-underline hover:text-text-action-hover',
         table:
-          'inline-flex items-center gap-1 no-underline hover:no-underline cursor-pointer font-secondary text-[16px] leading-[24px] text-text-action hover:text-text-action-hover',
+          'inline-flex items-center gap-1 no-underline hover:no-underline cursor-default font-secondary text-[16px] leading-[24px] text-text-action hover:text-text-action-hover',
         buttonPrimary:
           'cursor-pointer uppercase inline-flex items-center justify-center gap-3 whitespace-nowrap px-4 py-3 text-base tracking-widest font-bold transition-all disabled:pointer-events-none disabled:bg-surface-disabled disabled:text-text-on-disabled aria-disabled:pointer-events-none aria-disabled:bg-surface-disabled aria-disabled:text-text-on-disabled [&_svg]:pointer-events-none shrink-0 [&_svg]:shrink-0 bg-surface-action text-text-on-action border border-transparent hover:bg-surface-action-hover rounded-button',
         buttonSecondary:

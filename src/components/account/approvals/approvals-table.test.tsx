@@ -182,7 +182,7 @@ describe('ApprovalsTable', () => {
     const idLink = screen.getByRole('link', { name: 'APR-42' });
     expect(idLink).toHaveClass(
       'no-underline',
-      'cursor-pointer',
+      'cursor-default',
       'font-secondary',
       'text-[16px]',
       'leading-[24px]',
@@ -192,11 +192,11 @@ describe('ApprovalsTable', () => {
     expect(idLink).not.toHaveClass('underline');
 
     const quoteLink = screen.getByRole('link', { name: 'quote-42' });
-    expect(quoteLink).toHaveClass('no-underline', 'cursor-pointer', 'font-secondary', 'text-[16px]', 'leading-[24px]');
+    expect(quoteLink).toHaveClass('no-underline', 'cursor-default', 'font-secondary', 'text-[16px]', 'leading-[24px]');
     expect(quoteLink).not.toHaveClass('underline');
 
     const arrowLink = screen.getByRole('link', { name: 'viewApprovalAriaLabel:APR-42' });
-    expect(arrowLink).toHaveClass('no-underline', 'cursor-pointer', 'font-secondary', 'text-[16px]', 'leading-[24px]');
+    expect(arrowLink).toHaveClass('no-underline', 'cursor-default', 'font-secondary', 'text-[16px]', 'leading-[24px]');
   });
 
   it('renders Order Number from resource.orderId regardless of resourceType, or "-" when absent', () => {

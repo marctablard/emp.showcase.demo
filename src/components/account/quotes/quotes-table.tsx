@@ -13,22 +13,31 @@ import type { Quote } from '@/platform/services/model/quote';
 import { QuoteStatusBadge } from './quote-status-badge';
 
 /**
- * Sortable Quotes columns. Requested By, Authorization, and Number of Products are
- * intentionally excluded: they have no single documented raw sortable field on the
- * Emporix quote (name fields are compound, product count is a client-side aggregate),
- * mirroring the same approved exception used for Returns' non-sortable columns.
- * Quote Reference is also excluded: the displayed value (`quote.reference`) is a
- * mapper fallback (`customerReference || mixins.additionalInfo.reference`, see
- * `EmporixQuoteMapper`), so sorting upstream by the raw `customerReference` field
- * alone would not reliably reflect the displayed order.
+ * Sortable Quotes columns. Number of Products and Quote Reference are intentionally
+ * excluded: Number of Products is a client-side aggregate over `quote.items`, and
+ * Quote Reference is a mapper fallback (`customerReference || mixins.additionalInfo.reference`,
+ * see `EmporixQuoteMapper`), so sorting upstream by the raw `customerReference` field alone
+ * would not reliably reflect the displayed value. Requested By and Authorization sort by
+ * `customer.firstName` and `employee.firstName` respectively (the first sub-field of each
+ * compound display name), mirroring the Approvals Requestor/Approver pattern.
  */
-export type QuoteSortField = 'quoteId' | 'quotationDate' | 'status' | 'netValue';
+export type QuoteSortField =
+  | 'quoteId'
+  | 'quotationDate'
+  | 'status'
+  | 'relatedOrder'
+  | 'customerFirstName'
+  | 'approverFirstName'
+  | 'netValue';
 
 /** Raw upstream Emporix Quote fields backing each sortable column (see resources/emporix/quote.yml). */
 export const QUOTE_SORT_FIELD_MAP: Record<QuoteSortField, string> = {
   quoteId: 'id',
   quotationDate: 'metadata.createdAt',
   status: 'status.value',
+  relatedOrder: 'orderId',
+  customerFirstName: 'customer.firstName',
+  approverFirstName: 'employee.firstName',
   netValue: 'totalPrice.netValue',
 };
 
@@ -92,10 +101,10 @@ export function QuotesTable({
             {renderSortableHead('quoteId', t('quoteId'), '!h-14 w-[160px] font-bold')}
             {renderSortableHead('quotationDate', t('quotationDate'), '!h-14 w-[160px] font-bold')}
             {renderSortableHead('status', t('status'), '!h-14 w-[140px] font-bold')}
-            <TableHead className="!h-14 w-[160px] font-bold">{t('relatedOrder')}</TableHead>
+            {renderSortableHead('relatedOrder', t('relatedOrder'), '!h-14 w-[160px] font-bold')}
             <TableHead className="!h-14 w-[180px] font-bold">{t('quoteReference')}</TableHead>
-            <TableHead className="!h-14 w-[180px] font-bold">{t('requestedBy')}</TableHead>
-            <TableHead className="!h-14 w-[180px] font-bold">{t('authorization')}</TableHead>
+            {renderSortableHead('customerFirstName', t('requestedBy'), '!h-14 w-[180px] font-bold')}
+            {renderSortableHead('approverFirstName', t('authorization'), '!h-14 w-[180px] font-bold')}
             {renderSortableHead('netValue', t('netValue'), '!h-14 w-[160px] font-bold')}
             <TableHead className="!h-14 w-[180px] font-bold">{t('numberOfProducts')}</TableHead>
             <TableHead className="!h-14 w-[100px] font-bold text-center">{t('action')}</TableHead>

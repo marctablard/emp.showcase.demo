@@ -25,16 +25,23 @@ import {
 import { renderReturnReasonLabel } from './reason-labels';
 import { ReturnStatusBadge } from './return-status-badge';
 
-type ReturnSortField = 'date' | 'status' | 'returnNumber' | 'netValue' | 'reason';
+type ReturnSortField = 'date' | 'status' | 'returnNumber' | 'netValue' | 'reason' | 'customer';
 const RETURNS_PER_PAGE = 5;
 const SEARCH_DEBOUNCE_MS = 500;
-/** Raw upstream Emporix Return fields backing each sortable column (see resources/emporix/returns.yml). */
+/**
+ * Raw upstream Emporix Return fields backing each sortable column (see resources/emporix/returns.yml).
+ * Customer sorts by `requestor.firstName` (the first sub-field of the displayed name), mirroring the
+ * Approvals Requestor/Approver pattern. Order Number has no entry here: `getFirstOrderId` reads
+ * `orders[0].id` from the return's `orders[]` array, a cross-order aggregate with no single raw
+ * sortable field, so that column stays non-sortable.
+ */
 const RETURN_SORT_FIELD_MAP: Record<ReturnSortField, string> = {
   date: 'metadata.createdAt',
   status: 'approvalStatus',
   returnNumber: 'id',
   netValue: 'calculatedPrice.finalPrice.netValue',
   reason: 'reason.code',
+  customer: 'requestor.firstName',
 };
 const INITIAL_PAGE_SORT = 'metadata.createdAt:DESC';
 
@@ -248,7 +255,7 @@ export function ReturnsList({
                 {renderSortableHead('date', t('returnDate'), '!h-14 w-[160px] font-bold')}
                 {renderSortableHead('status', t('statusLabel'), '!h-14 w-[140px] font-bold')}
                 <TableHead className="!h-14 w-[160px] font-bold">{t('orderNumber')}</TableHead>
-                <TableHead className="!h-14 w-[180px] font-bold">{t('customer')}</TableHead>
+                {renderSortableHead('customer', t('customer'), '!h-14 w-[180px] font-bold')}
                 {renderSortableHead('netValue', t('netReturnValue'), '!h-14 w-[180px] font-bold')}
                 {renderSortableHead('reason', t('reasonLabel'), '!h-14 w-[160px] font-bold')}
                 <TableHead className="!h-14 w-[100px] font-bold text-center">{t('action')}</TableHead>

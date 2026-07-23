@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { useTranslations } from 'next-intl';
-import { format } from 'date-fns';
+import { useLocale, useTranslations } from 'next-intl';
 import { ArrowDown, ArrowRight, ArrowUp, ChevronsUpDown } from 'lucide-react';
 import { OrderStatusBadge } from '@/components/account/orders/order-status-badge';
 import UiLink from '@/components/ui/link';
@@ -13,12 +12,22 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useRouter } from '@/i18n/navigation';
 import { fetchReturnsForOrderIds } from '@/lib/client/returns';
 import { type OrderReturnability, computeOrderReturnability } from '@/lib/common/returns/returnability';
+import { formatDate } from '@/lib/date-utils';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { Order, OrderStatus } from '@/platform/services/model/order/order';
 import { ORDER_STATUS } from '@/platform/services/model/order/order-status';
 import { CreateReturnDialog } from './create-return-dialog';
 
+/**
+ * Sortable Order History columns. Expected Delivery Date is intentionally excluded:
+ * `Order.expectedDeliveryDate` is resolved by `EmporixOrderMapper` from whichever
+ * shipment entry in the `shipments[]` array has a non-empty `expectDeliveryOn`,
+ * falling back to `deliveryWindow.deliveryDate` (see `resolveExpectedDeliveryDate`),
+ * so there is no single raw upstream field a server-side sort could target.
+ * All other columns map to a single raw field via `ORDER_SORT_FIELD_MAP`
+ * (see src/components/account/dashboard/cards/my-orders-card.tsx).
+ */
 export type OrderSortField =
   | 'orderNumber'
   | 'relatedQuote'
@@ -91,6 +100,7 @@ export function MyOrdersTable({
   hasActiveSearch = false,
 }: Readonly<MyOrdersTableProps>) {
   const t = useTranslations('orders');
+  const locale = useLocale();
   const router = useRouter();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -169,11 +179,6 @@ export function MyOrdersTable({
   const handleReturnClick = (order: Order): void => {
     setSelectedOrder(order);
     setDialogOpen(true);
-  };
-
-  const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return '-';
-    return format(new Date(dateString), 'dd.MM.yyyy');
   };
 
   const renderTableRows = () => {
@@ -260,7 +265,7 @@ export function MyOrdersTable({
               {order.id}
             </UiLink>
           </TableCell>
-          <TableCell className="px-2 py-4">{formatDate(order.createdAt)}</TableCell>
+          <TableCell className="px-2 py-4">{order.createdAt ? formatDate(order.createdAt, locale) : '-'}</TableCell>
           <TableCell className="px-2 py-4">
             <OrderStatusBadge status={order.status} />
           </TableCell>
@@ -280,7 +285,9 @@ export function MyOrdersTable({
             {formatOrderValue(order.shipping?.total.value, order.shipping?.total.currency)}
           </TableCell>
           <TableCell className="px-2 py-4">{getCustomerName(order)}</TableCell>
-          <TableCell className="px-2 py-4">{formatDate(order.expectedDeliveryDate)}</TableCell>
+          <TableCell className="px-2 py-4">
+            {order.expectedDeliveryDate ? formatDate(order.expectedDeliveryDate, locale) : '-'}
+          </TableCell>
           <TableCell className="px-2 py-4">{formatAddress(order)}</TableCell>
           <TableCell className="px-2 py-4 text-center" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-center gap-3">

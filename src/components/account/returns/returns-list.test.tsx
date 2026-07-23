@@ -200,22 +200,20 @@ describe('ReturnsList', () => {
     expect(settledOptions.pageNumber).toBe(1);
   });
 
-  it('keeps Order Number and Customer non-sortable', () => {
+  it('keeps Order Number non-sortable', () => {
     mockReturnsResult({ returns: [buildReturn()], totalCount: 1 });
     render(<ReturnsList initialReturns={[buildReturn()]} />);
 
-    for (const name of ['orderNumber', 'customer']) {
-      const header = screen.getByRole('columnheader', { name });
-      expect(within(header).queryByRole('button')).not.toBeInTheDocument();
-      expect(header).not.toHaveAttribute('aria-sort');
-    }
+    const header = screen.getByRole('columnheader', { name: 'orderNumber' });
+    expect(within(header).queryByRole('button')).not.toBeInTheDocument();
+    expect(header).not.toHaveAttribute('aria-sort');
   });
 
-  it('makes Return Number, Net Return Value, and Reason sortable alongside Return Date and Status', () => {
+  it('makes Return Number, Net Return Value, Reason, and Customer sortable alongside Return Date and Status', () => {
     mockReturnsResult({ returns: [buildReturn()], totalCount: 1 });
     render(<ReturnsList initialReturns={[buildReturn()]} />);
 
-    for (const name of [/returnNumber/, /netReturnValue/, /reasonLabel/]) {
+    for (const name of [/returnNumber/, /netReturnValue/, /reasonLabel/, /^customer$/]) {
       const header = screen.getByRole('columnheader', { name });
       expect(within(header).getByRole('button')).toBeInTheDocument();
       expect(header).toHaveAttribute('aria-sort', 'none');
@@ -293,6 +291,18 @@ describe('ReturnsList', () => {
     expect(lastCallOptions).toMatchObject({ sort: 'reason.code:DESC', pageNumber: 1 });
   });
 
+  it('toggles Customer sort and requests the mapped requestor.firstName upstream field', () => {
+    mockReturnsResult({ returns: [buildReturn()], totalCount: 1 });
+    render(<ReturnsList initialReturns={[buildReturn()]} />);
+
+    const customerHeader = screen.getByRole('columnheader', { name: /^customer$/ });
+    fireEvent.click(within(customerHeader).getByRole('button'));
+
+    expect(customerHeader).toHaveAttribute('aria-sort', 'descending');
+    const lastCallOptions = mockUseReturns.mock.calls[mockUseReturns.mock.calls.length - 1][1];
+    expect(lastCallOptions).toMatchObject({ sort: 'requestor.firstName:DESC', pageNumber: 1 });
+  });
+
   it('navigates the full row, Return Number link, and Action arrow to the same return detail destination', () => {
     const returnItem = buildReturn({ id: 'ret-42' });
     mockReturnsResult({ returns: [returnItem], totalCount: 1 });
@@ -318,7 +328,7 @@ describe('ReturnsList', () => {
     const returnNumberLink = screen.getByRole('link', { name: 'ret-42' });
     expect(returnNumberLink).toHaveClass(
       'no-underline',
-      'cursor-pointer',
+      'cursor-default',
       'font-secondary',
       'text-[16px]',
       'leading-[24px]',
@@ -328,7 +338,7 @@ describe('ReturnsList', () => {
     expect(returnNumberLink).not.toHaveClass('underline');
 
     const arrowLink = screen.getByRole('link', { name: 'viewReturnAriaLabel:ret-42' });
-    expect(arrowLink).toHaveClass('no-underline', 'cursor-pointer', 'font-secondary', 'text-[16px]', 'leading-[24px]');
+    expect(arrowLink).toHaveClass('no-underline', 'cursor-default', 'font-secondary', 'text-[16px]', 'leading-[24px]');
   });
 
   it('does not trigger row router.push when nested Return Number or Action links are clicked', () => {
@@ -397,7 +407,7 @@ describe('ReturnsList', () => {
 
     const orderLink = screen.getByRole('link', { name: 'order-42' });
     expect(orderLink).toHaveAttribute('href', '/account/orders/order-42');
-    expect(orderLink).toHaveClass('no-underline', 'cursor-pointer', 'font-secondary', 'text-[16px]', 'leading-[24px]');
+    expect(orderLink).toHaveClass('no-underline', 'cursor-default', 'font-secondary', 'text-[16px]', 'leading-[24px]');
     expect(orderLink).not.toHaveClass('underline');
   });
 
