@@ -89,4 +89,58 @@ describe('useApprovals', () => {
       totalItems: 3,
     });
   });
+
+  it('refetches page 1 after visiting page 2 when initial page 1 was SSR-reused', async () => {
+    const ssrPageOne = [buildApproval('SSR-1')];
+    const fetchedPageTwo = [buildApproval('P2-1')];
+    const fetchedPageOne = [buildApproval('P1-FRESH-1')];
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: (name: string) => (name.toLowerCase() === 'x-total-count' ? '22' : null) },
+        json: async () => fetchedPageTwo,
+        statusText: 'OK',
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: (name: string) => (name.toLowerCase() === 'x-total-count' ? '11' : null) },
+        json: async () => fetchedPageOne,
+        statusText: 'OK',
+      } as Response);
+
+    const { result, rerender } = renderHook(
+      ({ pageNumber }) =>
+        useApprovals(ssrPageOne, {
+          pageNumber,
+          pageSize: 5,
+          initialTotalCount: 11,
+          initialRequest: {
+            pageNumber: 1,
+            pageSize: 5,
+            sort: undefined,
+            query: undefined,
+          },
+        }),
+      { initialProps: { pageNumber: 1 } },
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.current.approvals).toEqual(ssrPageOne);
+
+    rerender({ pageNumber: 2 });
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/approval?pageNumber=2&pageSize=5');
+    });
+    await waitFor(() => expect(result.current.approvals).toEqual(fetchedPageTwo));
+
+    rerender({ pageNumber: 1 });
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/approval?pageNumber=1&pageSize=5');
+    });
+    await waitFor(() => expect(result.current.approvals).toEqual(fetchedPageOne));
+    expect(result.current.approvals).not.toEqual(fetchedPageTwo);
+  });
 });

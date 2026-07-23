@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   Approval,
   ApprovalCreateRequest,
@@ -55,8 +55,10 @@ interface UseApprovalsReturn {
  */
 export function useApprovals(initialApprovals?: Approval[], options: UseApprovalsOptions = {}): UseApprovalsReturn {
   const { pageNumber, pageSize, sort, query, initialTotalCount, initialRequest } = options;
+  const hasFetchedRef = useRef(false);
 
   const canReuseInitialData =
+    !hasFetchedRef.current &&
     !!initialApprovals &&
     (pageNumber ?? 1) === (initialRequest?.pageNumber ?? 1) &&
     pageSize === initialRequest?.pageSize &&
@@ -80,6 +82,7 @@ export function useApprovals(initialApprovals?: Approval[], options: UseApproval
   });
 
   const fetchApprovals = useCallback(async () => {
+    hasFetchedRef.current = true;
     try {
       setLoading(true);
       setError(null);

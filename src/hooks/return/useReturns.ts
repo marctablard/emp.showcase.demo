@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchReturnsPage } from '@/lib/client/returns';
 import type { Return } from '@/platform/services/model/return';
 
@@ -35,10 +35,12 @@ interface UseReturnsOptions {
  */
 export function useReturns(initialReturns?: Return[], options: UseReturnsOptions = {}): UseReturnsReturn {
   const { pageSize, pageNumber, sort, query, forceRefreshOnMount = false, initialTotalCount, initialRequest } = options;
+  const hasFetchedRef = useRef(false);
   const [returns, setReturns] = useState<Return[]>(initialReturns || []);
   const [totalCount, setTotalCount] = useState<number | undefined>(initialTotalCount);
 
   const canReuseInitialData =
+    !hasFetchedRef.current &&
     !!initialReturns &&
     pageNumber === (initialRequest?.pageNumber ?? 1) &&
     pageSize === initialRequest?.pageSize &&
@@ -50,6 +52,7 @@ export function useReturns(initialReturns?: Return[], options: UseReturnsOptions
 
   const fetchReturnsData = useCallback(
     async (forceRefresh: boolean = false) => {
+      hasFetchedRef.current = true;
       try {
         setLoading(true);
         setError(null);

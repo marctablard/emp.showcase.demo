@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { SearchFilterLeafValue, SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { Quote } from '@/platform/services/model/quote';
@@ -65,6 +65,7 @@ function normalizeQuoteFilters(filters?: SearchParams<Quote>['filters']): string
  * @param params Optional search params for client-side filtering
  */
 export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
+  const hasFetchedRef = useRef(false);
   const page = params?.page;
   const size = params?.size;
   const sort = params?.sort;
@@ -76,6 +77,7 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
   const normalizedInitialRequestFilters = normalizeQuoteFilters(initialRequest?.filters);
 
   const canReuseInitialData =
+    !hasFetchedRef.current &&
     !!initialQuotes &&
     (page ?? 0) === (initialRequest?.page ?? 0) &&
     size === initialRequest?.size &&
@@ -120,6 +122,7 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
   >([]);
 
   const fetchQuotes = useCallback(async () => {
+    hasFetchedRef.current = true;
     try {
       setLoading(true);
       setError(null);

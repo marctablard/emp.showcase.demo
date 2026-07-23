@@ -100,4 +100,69 @@ describe('useQuotes', () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
   });
+
+  it('refetches page 0 after visiting page 1 when initial page 0 was SSR-reused', async () => {
+    const ssrPageZero = [buildQuote('SSR-0')];
+    const fetchedPageOne = [buildQuote('P1-1')];
+    const fetchedPageZero = [buildQuote('P0-FRESH-1')];
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          items: fetchedPageOne,
+          total: 22,
+          page: 1,
+          pageSize: 10,
+          availableFilters: [],
+        }),
+        statusText: 'OK',
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          items: fetchedPageZero,
+          total: 11,
+          page: 0,
+          pageSize: 10,
+          availableFilters: [],
+        }),
+        statusText: 'OK',
+      } as Response);
+
+    const { result, rerender } = renderHook(
+      ({ page }) =>
+        useQuotes(ssrPageZero, {
+          page,
+          size: 10,
+          initialTotalCount: 11,
+          initialRequest: {
+            page: 0,
+            size: 10,
+            sort: undefined,
+            query: undefined,
+            filters: undefined,
+          },
+        }),
+      { initialProps: { page: 0 } },
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.current.quotes).toEqual(ssrPageZero);
+
+    rerender({ page: 1 });
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/quotes?page=1&size=10');
+    });
+    await waitFor(() => expect(result.current.quotes).toEqual(fetchedPageOne));
+
+    rerender({ page: 0 });
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/quotes?page=0&size=10');
+    });
+    await waitFor(() => expect(result.current.quotes).toEqual(fetchedPageZero));
+    expect(result.current.quotes).not.toEqual(fetchedPageOne);
+  });
 });

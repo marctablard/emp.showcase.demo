@@ -148,4 +148,48 @@ describe('useReturns', () => {
     const [, , , sortArg] = mockFetchReturnsPage.mock.calls[0];
     expect(['metadata.createdAt', 'approvalStatus'].some((field) => sortArg.startsWith(field))).toBe(true);
   });
+
+  it('refetches page 1 after visiting page 2 when initial page 1 was SSR-reused', async () => {
+    const ssrPageOne = [buildReturn('ssr-1')];
+    const fetchedPageTwo = [buildReturn('page-2')];
+    const fetchedPageOne = [buildReturn('page-1-fresh')];
+
+    mockFetchReturnsPage
+      .mockResolvedValueOnce({ items: fetchedPageTwo, totalCount: 22 })
+      .mockResolvedValueOnce({ items: fetchedPageOne, totalCount: 11 });
+
+    const { result, rerender } = renderHook(
+      ({ pageNumber }) =>
+        useReturns(ssrPageOne, {
+          pageNumber,
+          pageSize: 5,
+          initialTotalCount: 11,
+          initialRequest: {
+            pageNumber: 1,
+            pageSize: 5,
+            sort: undefined,
+            query: undefined,
+          },
+        }),
+      { initialProps: { pageNumber: 1 } },
+    );
+
+    expect(mockFetchReturnsPage).not.toHaveBeenCalled();
+    expect(result.current.returns).toEqual(ssrPageOne);
+
+    rerender({ pageNumber: 2 });
+
+    await waitFor(() => {
+      expect(mockFetchReturnsPage).toHaveBeenCalledWith(5, 2, undefined, undefined, false);
+    });
+    await waitFor(() => expect(result.current.returns).toEqual(fetchedPageTwo));
+
+    rerender({ pageNumber: 1 });
+
+    await waitFor(() => {
+      expect(mockFetchReturnsPage).toHaveBeenCalledWith(5, 1, undefined, undefined, false);
+    });
+    await waitFor(() => expect(result.current.returns).toEqual(fetchedPageOne));
+    expect(result.current.returns).not.toEqual(fetchedPageTwo);
+  });
 });
