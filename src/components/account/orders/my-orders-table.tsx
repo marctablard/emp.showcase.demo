@@ -63,10 +63,6 @@ function formatAddress(order: Order): string {
   return parts.length > 0 ? parts.join(', ') : '-';
 }
 
-function getCustomerName(order: Order): string {
-  return order.customer?.name || order.customer?.firstName || order.customer?.lastName || '';
-}
-
 export interface MyOrdersTableProps {
   orders: Order[];
   currentPage: number;
@@ -278,7 +274,6 @@ export function MyOrdersTable({
           <TableCell className="py-4 font-medium">
             {formatOrderValue(order.shipping?.total.value, order.shipping?.total.currency)}
           </TableCell>
-          <TableCell className="px-2 py-4">{getCustomerName(order)}</TableCell>
           <TableCell className="px-2 py-4">
             {order.expectedDeliveryDate ? formatDate(order.expectedDeliveryDate, locale) : '-'}
           </TableCell>
@@ -359,16 +354,6 @@ export function MyOrdersTable({
                 >
                   {t('columns.totalShippingCost')}
                   {getSortIcon('shippingCost')}
-                </button>
-              </TableHead>
-              <TableHead className="!h-14 w-[200px] font-bold" aria-sort={getSortAriaSort('customer')}>
-                <button
-                  type="button"
-                  onClick={() => toggleSort('customer')}
-                  className="flex items-center gap-2 hover:text-text-action"
-                >
-                  {t('columns.customer')}
-                  {getSortIcon('customer')}
                 </button>
               </TableHead>
               <TableHead className="!h-14 w-[200px] font-bold">{t('columns.expectedDeliveryDate')}</TableHead>

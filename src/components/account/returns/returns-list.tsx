@@ -243,12 +243,6 @@ export function ReturnsList({
           </div>
         </div>
 
-        {!loading && visibleReturns.length === 0 && quickSearch && (
-          <div className="rounded-md border border-border-primary p-4 text-sm text-text-on-disabled">
-            {t('noMatches')}
-          </div>
-        )}
-
         <div
           className={`transition-opacity ${isTableReloading ? 'opacity-70' : 'opacity-100'}`}
           aria-busy={isTableReloading}
@@ -266,6 +260,13 @@ export function ReturnsList({
               </TableRow>
             </TableHeader>
             <TableBody>
+              {!loading && visibleReturns.length === 0 && quickSearch && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-4">
+                    {t('noMatches')}
+                  </TableCell>
+                </TableRow>
+              )}
               {visibleReturns.map((returnItem, index) => {
                 const returnHref = `/account/returns/${returnItem.id}`;
                 const rowAriaLabel = t('viewReturnAriaLabel', { id: returnItem.id });
