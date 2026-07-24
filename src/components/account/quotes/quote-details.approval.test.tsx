@@ -445,7 +445,7 @@ describe('QuoteDetails approval flow', () => {
     expect(screen.getByRole('button', { name: 'account.quoteDetails.rejectQuote' })).toBeDisabled();
   });
 
-  it('opens a request-change dialog with a required reason selector and comment field', async () => {
+  it('renders the request-change form between quote details and history with a required reason selector and comment field', async () => {
     checkApprovalPermitted.mockResolvedValue({
       action: 'CHECKOUT',
       permitted: true,
@@ -466,7 +466,14 @@ describe('QuoteDetails approval flow', () => {
     expect(screen.getByText('account.quoteDetails.requestChangeConfirmationTitle')).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'account.quoteDetails.decisionReasonLabel' })).toBeInTheDocument();
     expect(screen.getByLabelText('account.quoteDetails.yourComment')).toBeInTheDocument();
-    expect(screen.getByRole('dialog').querySelector('button[type="button"], button')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'account.quoteDetails.requestChange' })).toBeDisabled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'account.quoteDetails.requestChange' })[0]).toBeDisabled();
+
+    const requestChangeTitle = screen.getByText('account.quoteDetails.requestChangeConfirmationTitle');
+    const quoteHistoryTitle = screen.getByText('account.quoteDetails.quoteHistory');
+
+    expect(
+      requestChangeTitle.compareDocumentPosition(quoteHistoryTitle) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });

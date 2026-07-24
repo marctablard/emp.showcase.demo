@@ -66,6 +66,39 @@ describe('EmporixQuoteMapper', () => {
     expect(result.orderId).toBeUndefined();
   });
 
+  it('preserves gross and net item prices', async () => {
+    const mapper = new EmporixQuoteMapper(siteService as never);
+
+    const result = await mapper.mapToService(
+      buildQuote({
+        items: [
+          {
+            id: 'item-1',
+            quantity: { quantity: 1, unitCode: 'pc' },
+            price: {
+              priceId: 'price-1',
+              unitPrice: 130,
+              totalNetValue: 130,
+              tax: {
+                taxClass: 'STANDARD',
+                taxRate: 19,
+                prices: { grossValue: 154.7, netValue: 130 },
+              },
+            },
+            product: { productId: 'product-1' },
+          },
+        ],
+      }),
+    );
+
+    expect(result.items[0].product.itemPrice).toMatchObject({
+      amount: 154.7,
+      grossValue: 154.7,
+      netValue: 130,
+      currency: 'EUR',
+    });
+  });
+
   it('maps reference and userComment from top-level fields (customerReference/customerComment)', async () => {
     const mapper = new EmporixQuoteMapper(siteService as never);
 

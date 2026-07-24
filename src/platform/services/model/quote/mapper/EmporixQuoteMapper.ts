@@ -57,6 +57,8 @@ export class EmporixQuoteMapper implements QuoteMapper<EmporixQuote> {
             currency: emporixQuote.currency,
             baseAmount: item.price?.totalNetValue || 0,
             tax: (item.price?.tax?.prices?.grossValue || 0) - (item.price?.totalNetValue || 0),
+            grossValue: item.price?.tax?.prices?.grossValue,
+            netValue: item.price?.tax?.prices?.netValue,
           },
         },
         quantity: {

@@ -161,7 +161,7 @@ describe('Quote cross-links', () => {
     );
 
     expect(screen.getByRole('columnheader', { name: /account\.quotesList\.relatedOrder/ })).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: '#order-123' })[0]).toHaveAttribute('href', '/account/orders/order-123');
+    expect(screen.getAllByRole('link', { name: 'order-123' })[0]).toHaveAttribute('href', '/account/orders/order-123');
     expect(screen.getByText('account.quoteDetails.relatedOrder')).toBeInTheDocument();
   });
 
@@ -174,7 +174,7 @@ describe('Quote cross-links', () => {
     );
 
     expect(screen.getByRole('columnheader', { name: /account\.quotesList\.relatedOrder/ })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /^#/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'order-123' })).not.toBeInTheDocument();
     expect(screen.queryByText('account.quoteDetails.relatedOrder')).not.toBeInTheDocument();
   });
 
@@ -197,8 +197,15 @@ describe('Quote cross-links', () => {
     expect(screen.getByText('Ada Lovelace (CUSTOMER)')).toBeInTheDocument();
     expect(screen.getByText('Status Changed to In Progress')).toBeInTheDocument();
     expect(screen.getByText(/Please adjust delivery window/)).toBeInTheDocument();
-    expect(screen.getByText('Reason')).toBeInTheDocument();
-    expect(screen.getByText('DELIVERY_TIME_LATE')).toBeInTheDocument();
+    expect(screen.getByText('account.quoteDetails.quoteHistory')).toBeInTheDocument();
+    expect(screen.getByText('account.quoteDetails.changeDate')).toBeInTheDocument();
+    expect(screen.getByText('account.quoteDetails.event')).toBeInTheDocument();
+    expect(screen.getByText('account.quoteDetails.changedBy')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        (_, element) => element?.tagName === 'P' && Boolean(element.textContent?.includes('DELIVERY_TIME_LATE')),
+      ),
+    ).toBeInTheDocument();
 
     const historyTimestamp = screen.getByText(/02\.06\.2026/);
 
@@ -209,7 +216,7 @@ describe('Quote cross-links', () => {
     render(<QuoteDetails quoteId="quote-open-1" initialQuote={{ ...baseQuote, status: 'OPEN' }} />);
 
     expect(await screen.findByText('account.quoteDetails.relatedApproval')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '#approval-123' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'approval-123' })).toHaveAttribute(
       'href',
       '/account/approval/approval-123',
     );
