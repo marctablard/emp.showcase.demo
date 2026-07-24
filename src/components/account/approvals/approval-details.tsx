@@ -3,13 +3,13 @@
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, CircleCheck, CircleX, MessageSquareText } from 'lucide-react';
 import { ApprovalSummary } from '@/components/account/approvals/approval-summary';
 import { ProductListResolver } from '@/components/product/product-list-resolver';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+import { H3, H4, H5 } from '@/components/ui/h';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { useApproval } from '@/hooks/approval/useApproval';
@@ -29,7 +29,6 @@ interface ApprovalDetailsProps {
 export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetailsProps) {
   const locale = useLocale();
   const t = useTranslations('orders.Approval');
-  const tStatus = useTranslations('orders.ApprovalStatus');
   const router = useRouter();
   const { toast } = useToast();
   const { customer, loading: customerLoading } = useCustomer();
@@ -37,6 +36,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [isCommentFormOpen, setIsCommentFormOpen] = useState(false);
 
   const {
     approval,
@@ -212,163 +212,148 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
   const isDesignatedApprover = approval.approver.userId === customer?.id;
   const canApprove = approval.status === 'PENDING' && isDesignatedApprover && !isRequestor;
   const canComment = approval.status === 'PENDING';
+
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <CardTitle>{t('approvalDetails')}</CardTitle>
-            <CardDescription>{t('approvalDetailsDescription')}</CardDescription>
-          </div>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-6">
+        <div className="flex items-center gap-6">
+          <H3>
+            {t('approvalDetails')}: {approval.id}
+          </H3>
           <ApprovalStatusBadge status={approval.status} />
         </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {actionSuccess && (
-          <Alert variant="default" className="mb-4">
-            <CheckCircle2 className="h-4 w-4" />
-            <AlertTitle>{t('success')}</AlertTitle>
-            <AlertDescription>{actionSuccess}</AlertDescription>
-          </Alert>
-        )}
+        <div className="flex flex-wrap items-center gap-4">
+          {canApprove && (
+            <>
+              <Button variant="outlineError" size="small" onClick={handleDecline} disabled={isProcessing}>
+                <CircleX className="h-5 w-5" />
+                {t('decline')}
+              </Button>
+              <Button variant="outlineSuccess" size="small" onClick={handleApprove} disabled={isProcessing}>
+                <CircleCheck className="h-5 w-5" />
+                {t('approve')}
+              </Button>
+            </>
+          )}
+          {canComment && (
+            <Button variant="secondary" size="small" onClick={() => setIsCommentFormOpen((isOpen) => !isOpen)}>
+              <MessageSquareText className="h-5 w-5" />
+              {t('addComment')}
+            </Button>
+          )}
+        </div>
+      </div>
 
-        {actionError && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>{t('error')}</AlertTitle>
-            <AlertDescription>{actionError}</AlertDescription>
-          </Alert>
-        )}
+      {actionSuccess && (
+        <Alert variant="default">
+          <CheckCircle2 className="h-4 w-4" />
+          <AlertTitle>{t('success')}</AlertTitle>
+          <AlertDescription>{actionSuccess}</AlertDescription>
+        </Alert>
+      )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm font-medium text-text-placeholders">{t('id')}</p>
-            <p className="text-base">{approval.id}</p>
+      {actionError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>{t('error')}</AlertTitle>
+          <AlertDescription>{actionError}</AlertDescription>
+        </Alert>
+      )}
+
+      <div className="rounded-md bg-surface-primary p-6 shadow-sm">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1">
+              <H5>{t('createdAt')}</H5>
+              <span className="text-base font-body text-text-body">{formatDate(approval.createdAt)}</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <H5>{t('totalAmount')}</H5>
+              <span className="text-base font-body text-text-body">
+                {approval.resource.totalPrice?.formattedAmount || approval.resource.totalPrice?.amount || '-'}
+              </span>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-medium text-text-placeholders">{t('status')}</p>
-            <p className="text-base">{tStatus(approval.status)}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-text-placeholders">{t('resourceType')}</p>
-            <p className="text-base">{approval.resourceType}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-text-placeholders">{t('resourceId')}</p>
-            <p className="text-base">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1">
+              <H5>{t('requestedBy')}</H5>
+              <span className="text-base font-body text-text-body">
+                {approval.requestor.firstName} {approval.requestor.lastName}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <H5>{t('relatedOrder')}</H5>
               {approval.resourceType === 'QUOTE' ? (
-                <Link href={`/account/quotes/${approval.resource.id}`} className="underline">
+                <Link href={`/account/quotes/${approval.resource.id}`} className="text-base font-body text-text-action">
                   {approval.resource.id}
                 </Link>
               ) : (
-                approval.resource.id
+                <span className="text-base font-body text-text-body">{approval.resource.orderId || '-'}</span>
               )}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-text-placeholders">{t('action')}</p>
-            <p className="text-base">{approval.action}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-text-placeholders">{t('createdAt')}</p>
-            <p className="text-base">{formatDate(approval.createdAt)}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-text-placeholders">{t('requestorId')}</p>
-            <p className="text-base">{approval.requestor.userId}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-text-placeholders">{t('approverId')}</p>
-            <p className="text-base">{approval.approver.userId}</p>
-          </div>
-          {approval.updatedAt && (
-            <div>
-              <p className="text-sm font-medium text-text-placeholders">{t('updatedAt')}</p>
-              <p className="text-base">{formatDate(approval.updatedAt)}</p>
             </div>
-          )}
+          </div>
         </div>
+      </div>
 
-        <Separator />
-
-        <ApprovalSummary approval={approval} />
-
-        {approval.resource.items && approval.resource.items.length > 0 && (
-          <ProductListResolver
-            items={approval.resource.items.map((it) => ({
-              productId: it.productId,
-              itemYrn: it.itemYrn,
-              quantity: it.quantity,
-              unitPrice: it.itemPrice.amount,
-              currency: it.itemPrice.currency,
-            }))}
-          />
-        )}
-
-        <div>
-          <p className="text-sm font-medium mb-2">{t('requestorComment')}</p>
-          {approval.comment ? (
-            <div className="bg-surface-disabled p-3 rounded-md">{approval.comment}</div>
-          ) : (
-            <p className="text-text-placeholders">{t('noRequestorComment')}</p>
-          )}
+      <div className="rounded-md bg-surface-primary p-4 shadow-sm">
+        <H4 className="mb-4">{t('approvalHistory')}</H4>
+        <div className="hidden grid-cols-[minmax(140px,1fr)_minmax(220px,2fr)_minmax(160px,1fr)_120px_minmax(160px,1fr)] gap-6 border-b border-border-primary pb-4 sm:grid">
+          <span className="text-sm font-bold text-text-headings">{t('date')}</span>
+          <span className="text-sm font-bold text-text-headings">{t('event')}</span>
+          <span className="text-sm font-bold text-text-headings">{t('changedBy')}</span>
+          <span className="text-sm font-bold text-text-headings">{t('status')}</span>
+          <span className="text-sm font-bold text-text-headings">{t('comment')}</span>
         </div>
-
-        <div>
-          <p className="text-sm font-medium mb-2">{t('approverComment')}</p>
-          {approval.approverComment ? (
-            <div className="bg-surface-disabled p-3 rounded-md">{approval.approverComment}</div>
-          ) : (
-            <p className="text-text-placeholders">{t('noApproverComment')}</p>
-          )}
+        <div className="grid grid-cols-1 gap-3 py-4 text-base font-body text-text-body sm:grid-cols-[minmax(140px,1fr)_minmax(220px,2fr)_minmax(160px,1fr)_120px_minmax(160px,1fr)] sm:gap-6">
+          <span>{formatDate(approval.createdAt)}</span>
+          <span>{t('approvalRequestCreated')}</span>
+          <span>
+            {approval.requestor.firstName} {approval.requestor.lastName}
+          </span>
+          <ApprovalStatusBadge status={approval.status} className="w-fit" />
+          <span>{approval.comment || '-'}</span>
         </div>
+      </div>
 
-        {canApprove && (
-          <>
-            <Separator />
+      <Card>
+        <CardContent className="space-y-6 pt-6">
+          <ApprovalSummary approval={approval} />
 
-            <div>
-              <p className="text-sm font-medium mb-2">{t('approvalActions')}</p>
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleApprove}
-                  disabled={isProcessing}
-                  className="bg-surface-success hover:bg-surface-action-hover-2"
-                >
-                  {t('approve')}
-                </Button>
-                <Button onClick={handleDecline} disabled={isProcessing} variant="secondary">
-                  {t('decline')}
-                </Button>
+          {approval.resource.items && approval.resource.items.length > 0 && (
+            <ProductListResolver
+              items={approval.resource.items.map((it) => ({
+                productId: it.productId,
+                itemYrn: it.itemYrn,
+                quantity: it.quantity,
+                unitPrice: it.itemPrice.amount,
+                currency: it.itemPrice.currency,
+              }))}
+            />
+          )}
+
+          {canComment && isCommentFormOpen && (
+            <div className="rounded-md bg-surface-primary p-6 shadow-sm">
+              <H4 className="mb-4">{t('addComment')}</H4>
+              <div>
+                <Textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder={t('enterComment')}
+                  className="mb-2"
+                />
+                <div className="flex justify-end gap-3">
+                  <Button variant="secondary" onClick={() => setIsCommentFormOpen(false)}>
+                    {t('back')}
+                  </Button>
+                  <Button onClick={handleComment} disabled={!comment.trim()}>
+                    {t('saveComment')}
+                  </Button>
+                </div>
               </div>
             </div>
-          </>
-        )}
-
-        {canComment && (
-          <>
-            <Separator />
-
-            <div>
-              <p className="text-sm font-medium mb-2">{t('addComment')}</p>
-              <Textarea
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder={t('enterComment')}
-                className="mb-2"
-              />
-              <Button onClick={handleComment} disabled={!comment.trim()}>
-                {t('saveComment')}
-              </Button>
-            </div>
-          </>
-        )}
-      </CardContent>
-      <CardFooter className="flex justify-between">
-        <Button variant="neutral" onClick={() => window.history.back()}>
-          {t('back')}
-        </Button>
-      </CardFooter>
-    </Card>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

@@ -133,9 +133,14 @@ describe('Company quote approval details', () => {
     });
   });
 
+  const openCommentForm = () => {
+    fireEvent.click(screen.getByText('addComment'));
+  };
+
   it('keeps the initial accept action UI-only and reveals the accept-quote state', async () => {
     render(<ApprovalDetails approvalId="approval-1" currentUserId="approver-1" />);
 
+    openCommentForm();
     fireEvent.change(screen.getByPlaceholderText('enterApproverComment'), {
       target: { value: 'Ready for review' },
     });
@@ -186,7 +191,16 @@ describe('Company quote approval details', () => {
     fireEvent.click(screen.getByText('approve'));
 
     await waitFor(() => {
-      expect(screen.getByText('acceptQuoteAfterApprovalTitle')).toBeInTheDocument();
+      const acceptQuoteHeading = screen.getByRole('heading', { name: 'acceptQuoteAfterApprovalTitle' });
+      const detailsHeading = screen.getByRole('heading', { name: 'approvalDetails' });
+      const historyHeading = screen.getByRole('heading', { name: 'approvalHistory' });
+
+      expect(
+        detailsHeading.compareDocumentPosition(acceptQuoteHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(
+        acceptQuoteHeading.compareDocumentPosition(historyHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
       expect(screen.getByLabelText('yourComment')).toBeInTheDocument();
       expect(screen.getByText('acceptQuoteAfterApprovalAction')).toBeInTheDocument();
     });
@@ -265,6 +279,7 @@ describe('Company quote approval details', () => {
 
     render(<ApprovalDetails approvalId="approval-1" currentUserId="approver-1" />);
 
+    openCommentForm();
     fireEvent.change(screen.getByPlaceholderText('enterApproverComment'), {
       target: { value: 'Needs more detail' },
     });
@@ -313,7 +328,7 @@ describe('Company quote approval details', () => {
     );
   });
 
-  it('renders generic approval metadata together with resource-driven quote details', () => {
+  it('renders the approval header and resource-driven quote details', () => {
     mockApproval = buildApproval({
       details: undefined,
       resource: {
@@ -341,8 +356,13 @@ describe('Company quote approval details', () => {
 
     render(<ApprovalDetails approvalId="approval-1" currentUserId="approver-1" />);
 
-    expect(screen.getByText('approval-1')).toBeInTheDocument();
-    expect(screen.getByText('QUOTE')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'approval: approval-1' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'approvalDetails' })).toBeInTheDocument();
+    expect(screen.getByText('quotationDate')).toBeInTheDocument();
+    expect(screen.getByText('totalAmount')).toBeInTheDocument();
+    expect(screen.getByText('approvalHistory')).toBeInTheDocument();
+    expect(screen.getByText('approvalRequestCreated')).toBeInTheDocument();
+    expect(screen.queryByText('approvalActions')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Q-1000' })).toHaveAttribute('href', '/account/quotes/Q-1000');
     expect(screen.getByText('ProductListResolver')).toBeInTheDocument();
   });
@@ -377,7 +397,14 @@ describe('Company quote approval details', () => {
   it('shows only the approver comment box to the approver', () => {
     render(<ApprovalDetails approvalId="approval-1" currentUserId="approver-1" />);
 
-    expect(screen.getByText('addApproverComment')).toBeInTheDocument();
+    expect(screen.queryByText('addApproverComment')).not.toBeInTheDocument();
+    openCommentForm();
+    const commentHeading = screen.getByRole('heading', { name: 'addApproverComment' });
+    const detailsHeading = screen.getByRole('heading', { name: 'approvalDetails' });
+    const historyHeading = screen.getByRole('heading', { name: 'approvalHistory' });
+
+    expect(detailsHeading.compareDocumentPosition(commentHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(commentHeading.compareDocumentPosition(historyHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByText('addRequestorComment')).not.toBeInTheDocument();
   });
 
@@ -395,6 +422,7 @@ describe('Company quote approval details', () => {
   it('shows only the requestor comment box to the requestor', () => {
     render(<ApprovalDetails approvalId="approval-1" currentUserId="requestor-1" />);
 
+    openCommentForm();
     expect(screen.getByText('addRequestorComment')).toBeInTheDocument();
     expect(screen.queryByText('addApproverComment')).not.toBeInTheDocument();
     expect(screen.queryByText('approve')).not.toBeInTheDocument();
@@ -403,6 +431,7 @@ describe('Company quote approval details', () => {
   it('limits the approver comment textarea to 250 characters', () => {
     render(<ApprovalDetails approvalId="approval-1" currentUserId="approver-1" />);
 
+    openCommentForm();
     const commentField = screen.getByPlaceholderText('enterApproverComment') as HTMLTextAreaElement;
 
     fireEvent.change(commentField, { target: { value: 'a'.repeat(300) } });
@@ -413,6 +442,7 @@ describe('Company quote approval details', () => {
   it('limits the requestor comment textarea to 250 characters', () => {
     render(<ApprovalDetails approvalId="approval-1" currentUserId="requestor-1" />);
 
+    openCommentForm();
     const commentField = screen.getByPlaceholderText('enterRequestorComment') as HTMLTextAreaElement;
 
     fireEvent.change(commentField, { target: { value: 'a'.repeat(300) } });
