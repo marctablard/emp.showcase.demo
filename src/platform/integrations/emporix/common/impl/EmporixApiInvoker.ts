@@ -84,6 +84,19 @@ class EmporixApiInvoker {
     return this.fetch(this.normalizeUrl(url), { ...options, headers: finalHeaders });
   }
 
+  private normalizeHeaders(headers: HeadersInit | undefined): Record<string, string> {
+    if (!headers) {
+      return {};
+    }
+    if (headers instanceof Headers) {
+      return Object.fromEntries(headers.entries());
+    }
+    if (Array.isArray(headers)) {
+      return Object.fromEntries(headers);
+    }
+    return { ...headers };
+  }
+
   private async resolveAuthTokenAndHeaders(
     originalHeaders: HeadersInit | undefined,
     tokenType: 'public' | 'session' | 'customer-saas' | 'ai' | 'service',
@@ -91,11 +104,9 @@ class EmporixApiInvoker {
       credentials?: { username: string; password: string };
       scopes?: string[];
     },
-  ): Promise<{ token: string; headers: HeadersInit }> {
+  ): Promise<{ token: string; headers: Record<string, string> }> {
     let token: string;
-    let headers = {
-      ...originalHeaders,
-    };
+    let headers: Record<string, string> = this.normalizeHeaders(originalHeaders);
 
     switch (tokenType) {
       case 'public': {
@@ -141,16 +152,14 @@ class EmporixApiInvoker {
       credentials?: { username: string; password: string };
       scopes?: string[];
     },
-  ): Promise<{ token: string; headers: HeadersInit }> {
+  ): Promise<{ token: string; headers: Record<string, string> }> {
     const sessionToken = await this.tokenManager.getSessionToken(
       this.config.tenant,
       this.config.clientId,
       authOptions?.credentials,
     );
 
-    let headers = {
-      ...originalHeaders,
-    };
+    let headers: Record<string, string> = this.normalizeHeaders(originalHeaders);
 
     if (tokenType === 'customer-saas' || tokenType === 'ai') {
       if (!sessionToken.saasToken) {
@@ -162,14 +171,11 @@ class EmporixApiInvoker {
         ...this.addCustomerHeaders(sessionToken),
       };
 
-      if (tokenType === 'ai') {
-        const headersObj = headers as Record<string, string>;
-        if (!headersObj['session-id']) {
-          headers = {
-            ...headers,
-            'session-id': `${sessionToken.sessionId}`,
-          };
-        }
+      if (tokenType === 'ai' && !headers['session-id']) {
+        headers = {
+          ...headers,
+          'session-id': `${sessionToken.sessionId}`,
+        };
       }
     } else {
       headers = {

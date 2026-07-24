@@ -59,7 +59,7 @@ export function ProductItemRow({ item, showNetUnderGross = false }: ProductItemR
           </span>
           {showNetUnderGross && item.netUnitPrice !== undefined && (
             <span className="text-sm font-body text-text-placeholders">
-              {t('net')}: {formatCurrency(item.netUnitPrice, item.currency)}
+              {t('net').trim()}: {formatCurrency(item.netUnitPrice, item.currency)}
             </span>
           )}
         </div>
