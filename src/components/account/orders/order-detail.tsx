@@ -2,29 +2,39 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import Image from 'next/image';
 import { format } from 'date-fns';
-import { Ban, RotateCcw, Truck } from 'lucide-react';
+import { Ban, CreditCard, Mail, ReceiptText, RotateCcw, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { H2, H3 } from '@/components/ui/h';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { H3, H4, H5, H6 } from '@/components/ui/h';
 import UiLink from '@/components/ui/link';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { SummaryCard, SummaryField } from '@/components/ui/summary-card';
 import { ToastType, notify } from '@/components/ui/toast-notification';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useOrder } from '@/hooks/order/useOrder';
 import { type PaymentModeKey, dk } from '@/i18n/dynamic-key';
-import { useRouter } from '@/i18n/navigation';
+import { Link } from '@/i18n/navigation';
 import { isOrderAccessDeniedError } from '@/lib/client/orders';
 import { fetchReturnsForOrder } from '@/lib/client/returns';
 import { ORDER_CUSTOMER_DECLINE_NOT_ALLOWED_MESSAGE } from '@/lib/common/order-customer-decline-not-allowed';
 import { type OrderReturnability, computeOrderReturnability } from '@/lib/common/returns/returnability';
 import { getLogger } from '@/lib/logger/use-logger-client';
+import type { Address } from '@/platform/services/model/common';
 import type { Order, OrderStatus } from '@/platform/services/model/order/order';
 import { ORDER_STATUS } from '@/platform/services/model/order/order-status';
 import { CreateReturnDialog } from './create-return-dialog';
 import { OrderStatusBadge } from './order-status-badge';
-import { TrackingDialog } from './tracking-dialog';
+
+const TRACKING_ELIGIBLE_STATUSES: OrderStatus[] = [
+  ORDER_STATUS.PROCESSING,
+  ORDER_STATUS.READY_FOR_SHIPPING,
+  ORDER_STATUS.READY_FOR_PICKUP,
+  ORDER_STATUS.SHIPPED,
+  ORDER_STATUS.DELIVERED,
+  ORDER_STATUS.COMPLETED,
+];
 
 function shouldShowCancelButton(status: OrderStatus, transitions: string[]): boolean {
   return status === ORDER_STATUS.CREATED && transitions.includes('DECLINED');
@@ -34,6 +44,58 @@ function shouldShowReturnButton(status: OrderStatus): boolean {
   return status === ORDER_STATUS.COMPLETED;
 }
 
+function shouldShowTrackShipmentControl(status: OrderStatus): boolean {
+  return TRACKING_ELIGIBLE_STATUSES.includes(status);
+}
+
+function renderAddress(address: Address) {
+  return (
+    <p>
+      {address.contactName}
+      <br />
+      {address.street} {address.streetNumber || ''}
+      <br />
+      {address.zipCode} {address.city}
+      <br />
+      {address.country}
+    </p>
+  );
+}
+
+/** Item unit-price cell: base/gross value primary, net value shown as the secondary, muted line. */
+function ItemPriceCell({
+  price,
+  tOrder,
+}: {
+  price?: { value: number; netValue?: number; grossValue?: number; currency: string };
+  tOrder: ReturnType<typeof useTranslations<'orders'>>;
+}) {
+  if (!price) {
+    return <>-</>;
+  }
+
+  const primaryValue = price.grossValue ?? price.value;
+
+  if (price.netValue === undefined) {
+    return (
+      <span className="text-2xl font-bold font-headlines text-text-headings">
+        {primaryValue} {price.currency}
+      </span>
+    );
+  }
+
+  return (
+    <div className="flex flex-col sm:items-end">
+      <span className="text-2xl font-bold font-headlines text-text-headings">
+        {primaryValue} {price.currency}
+      </span>
+      <span className="text-sm font-body text-text-placeholders">
+        {tOrder('net')}: {price.netValue} {price.currency}
+      </span>
+    </div>
+  );
+}
+
 /**
  * Order Detail component
  * Displays detailed information for a single order
@@ -41,10 +103,8 @@ function shouldShowReturnButton(status: OrderStatus): boolean {
 export function OrderDetail({ orderId, initialOrder }: { orderId: string; initialOrder?: Order | null }) {
   const tOrder = useTranslations('orders');
   const tPaymentModes = useTranslations('checkout.PaymentModes');
-  const [trackingDialogOpen, setTrackingDialogOpen] = useState(false);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [returnability, setReturnability] = useState<OrderReturnability | null>(null);
-  const router = useRouter();
 
   const { order, loading, error, cancelOrder, statusTransitions } = useOrder({ orderId, initialOrder });
   const orderErrorMessage =
@@ -102,243 +162,301 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
     );
   }
 
+  const shippingMethodName = order.shipping?.methods?.[0]?.name;
+  const contactPhone = order.shippingAddress?.contactPhone ?? order.billingAddress?.contactPhone;
+  const showTransportCard = Boolean(shippingMethodName || order.expectedDeliveryDate || order.shippingAddress);
+  const showPaymentCard = Boolean((order.payments && order.payments.length > 0) || order.billingAddress);
+  const showContactCard = Boolean(order.customerEmail || contactPhone);
+  const showCancelButton = shouldShowCancelButton(order.status, statusTransitions);
+  const showReturnButton = shouldShowReturnButton(order.status);
+  const showTrackShipmentControl = shouldShowTrackShipmentControl(order.status);
+  const hasHeaderActions = showCancelButton || showReturnButton || showTrackShipmentControl;
+
+  const handleCancelOrder = async () => {
+    if (!cancelOrder) return;
+    try {
+      await cancelOrder();
+    } catch (err) {
+      getLogger().error({ err }, 'Failed to cancel order');
+      const message = err instanceof Error ? err.message : '';
+      const description =
+        message === ORDER_CUSTOMER_DECLINE_NOT_ALLOWED_MESSAGE
+          ? tOrder('cancelOrderNotAllowed')
+          : message || tOrder('cancelOrderFailedUnknown');
+      notify({
+        title: tOrder('cancelOrderFailed'),
+        description,
+        type: ToastType.Error,
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-start">
-            <div>
-              <CardTitle>
-                <H2 variant="h4">{tOrder('orderDetails')}</H2>
-              </CardTitle>
-              <CardDescription>
-                {tOrder('orderNumber')} #{order.id}
-              </CardDescription>
-            </div>
-            <div>
-              <OrderStatusBadge status={order.status} />
-            </div>
+      {/* Header: order identity + status on the left, order actions on the right */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <H3>
+            {tOrder('orderIdHeading')}: {order.id}
+          </H3>
+          <OrderStatusBadge status={order.status} />
+        </div>
+
+        {hasHeaderActions && (
+          <div className="flex flex-wrap items-center gap-4">
+            {showCancelButton && cancelOrder && (
+              <Button variant="secondary" onClick={() => void handleCancelOrder()}>
+                <Ban className="h-6 w-6" />
+                {tOrder('cancelOrder')}
+              </Button>
+            )}
+            {showReturnButton &&
+              (returnability?.hasAnyReturnableItem === false ? (
+                <Tooltip delayDuration={200}>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <Button variant="secondary" disabled>
+                        <RotateCcw className="h-6 w-6" />
+                        {tOrder('returnOrder')}
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent className="w-[22rem] max-w-[calc(100vw-2rem)] text-wrap">
+                    {tOrder('noRemainingItems')}
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <Button variant="secondary" onClick={() => setReturnDialogOpen(true)}>
+                  <RotateCcw className="h-6 w-6" />
+                  {tOrder('returnOrder')}
+                </Button>
+              ))}
+            {showTrackShipmentControl && (
+              <Button variant="secondary" disabled aria-disabled="true">
+                <Truck className="h-6 w-6" />
+                {tOrder('trackShipment')}
+              </Button>
+            )}
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div>
-              <H3 variant="h5" className="mb-2">
-                {tOrder('orderDate')}
-              </H3>
-              <p>{order.createdAt ? format(new Date(order.createdAt), 'PPP') : '-'}</p>
+        )}
+      </div>
 
-              {order.customerEmail && (
-                <>
-                  <H3 variant="h5" className="mb-2 mt-4">
-                    {tOrder('email')}
-                  </H3>
-                  <p>{order.customerEmail}</p>
-                </>
+      {/* Compact Order Details strip: single surface-primary card, theme shadow, p-6, H4 title */}
+      <div className="rounded-md bg-surface-primary shadow-sm p-6">
+        <div className="flex flex-col items-start gap-6">
+          <H4>{tOrder('orderDetails')}</H4>
+          <div className="grid w-full grid-cols-1 gap-2 pb-1 sm:grid-cols-2">
+            <SummaryField label={tOrder('orderNumber')} valueClassName="text-sm">
+              {order.id}
+            </SummaryField>
+            <SummaryField label={tOrder('orderDate')} valueClassName="text-sm">
+              {order.createdAt ? format(new Date(order.createdAt), 'PPP') : '-'}
+            </SummaryField>
+          </div>
+        </div>
+      </div>
+
+      {/* Detail cards: Order Overview (with totals), Transport, Payment, Contact */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
+          <SummaryCard
+            heading={tOrder('orderOverview')}
+            className="shadow-none rounded-md p-4 h-full gap-4"
+            headerClassName="p-0"
+            contentClassName="p-0 space-y-4"
+            icon={<ReceiptText className="h-8 w-8 text-text-action" />}
+            hasHeadline
+          >
+            <SummaryField label={tOrder('orderDate')}>
+              {order.createdAt ? format(new Date(order.createdAt), 'PPP') : '-'}
+            </SummaryField>
+            {order.quoteId && (
+              <SummaryField label={tOrder('relatedQuote')}>
+                <UiLink href={`/account/quotes/${order.quoteId}`} type="Link" variant="textNoUnderline">
+                  {order.quoteId}
+                </UiLink>
+              </SummaryField>
+            )}
+
+            {order.price && (
+              <div className="space-y-2 text-base font-body text-text-body">
+                <div className="flex justify-between items-start gap-4 border-b border-border-primary pb-4">
+                  <span>{tOrder('subtotal')}</span>
+                  <div className="text-right font-normal">
+                    <div className="font-normal">
+                      {order.price.subtotal.net} {order.price.subtotal.currency}
+                    </div>
+                    <div className="text-sm text-text-placeholders">
+                      {tOrder('gross')}: {order.price.subtotal.gross} {order.price.subtotal.currency}
+                    </div>
+                  </div>
+                </div>
+
+                {order.shipping && (
+                  <div className="flex justify-between gap-4 pt-2">
+                    <span>{tOrder('shipping')}</span>
+                    <span>
+                      {order.shipping.total.value === 0
+                        ? tOrder('free')
+                        : `${order.shipping.total.value} ${order.shipping.total.currency}`}
+                    </span>
+                  </div>
+                )}
+
+                {order.discounts && order.discounts.length > 0 && (
+                  <div className="flex justify-between gap-4 pt-2">
+                    <span>{tOrder('discount')}</span>
+                    <span>
+                      -{order.discounts[0].value} {order.discounts[0].currency}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-start gap-4 pt-2">
+                  <H5>{tOrder('total')}</H5>
+                  <div className="text-right">
+                    <H5>
+                      {order.price.total.net} {order.price.total.currency}
+                    </H5>
+                    <div className="text-sm font-normal text-text-placeholders">
+                      {tOrder('gross')}: {order.price.total.gross} {order.price.total.currency}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </SummaryCard>
+        </div>
+
+        {showTransportCard && (
+          <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
+            <SummaryCard
+              heading={tOrder('transport')}
+              className="shadow-none rounded-md p-4 h-full gap-4"
+              headerClassName="p-0"
+              contentClassName="p-0 space-y-4"
+              icon={<Truck className="h-8 w-8 text-text-action" />}
+              hasHeadline
+            >
+              {shippingMethodName && <SummaryField label={tOrder('shippingMethod')}>{shippingMethodName}</SummaryField>}
+              {order.expectedDeliveryDate && (
+                <SummaryField label={tOrder('deliveryDate')}>
+                  {format(new Date(order.expectedDeliveryDate), 'PPP')}
+                </SummaryField>
               )}
+              {order.shippingAddress && (
+                <SummaryField label={tOrder('deliveryAddress')}>{renderAddress(order.shippingAddress)}</SummaryField>
+              )}
+            </SummaryCard>
+          </div>
+        )}
 
+        {showPaymentCard && (
+          <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
+            <SummaryCard
+              heading={tOrder('payment')}
+              className="shadow-none rounded-md p-4 h-full gap-4"
+              headerClassName="p-0"
+              contentClassName="p-0 space-y-4"
+              icon={<CreditCard className="h-8 w-8 text-text-action" />}
+              hasHeadline
+            >
               {order.payments && order.payments.length > 0 && (
-                <>
-                  <H3 variant="h5" className="mb-2 mt-4">
-                    {tOrder('paymentMethod')}
-                  </H3>
-                  <p>{tPaymentModes(dk<PaymentModeKey>(order.payments[0].method.toLowerCase()))}</p>
-                </>
+                <SummaryField label={tOrder('paymentMethod')}>
+                  {tPaymentModes(dk<PaymentModeKey>(order.payments[0].method.toLowerCase()))}
+                </SummaryField>
               )}
+              {order.billingAddress && (
+                <SummaryField label={tOrder('billingAddress')}>{renderAddress(order.billingAddress)}</SummaryField>
+              )}
+            </SummaryCard>
+          </div>
+        )}
 
-              {order.quoteId ? (
-                <>
-                  <H3 variant="h5" className="mb-2 mt-4">
-                    {tOrder('relatedQuote')}
-                  </H3>
-                  <UiLink href={`/account/quotes/${order.quoteId}`} type="Link">
-                    #{order.quoteId}
-                  </UiLink>
-                </>
-              ) : null}
-            </div>
+        {showContactCard && (
+          <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
+            <SummaryCard
+              heading={tOrder('contact')}
+              className="shadow-none rounded-md p-4 h-full gap-4"
+              headerClassName="p-0"
+              contentClassName="p-0 space-y-4"
+              icon={<Mail className="h-8 w-8 text-text-action" />}
+              hasHeadline
+            >
+              {order.customerEmail && (
+                <SummaryField label={tOrder('email')} valueClassName="break-all">
+                  {order.customerEmail}
+                </SummaryField>
+              )}
+              {contactPhone && <SummaryField label={tOrder('phone')}>{contactPhone}</SummaryField>}
+            </SummaryCard>
+          </div>
+        )}
+      </div>
 
-            {order.shippingAddress && (
-              <div>
-                <H3 variant="h5" className="mb-2">
-                  {tOrder('shippingAddress')}
-                </H3>
-                <p>
-                  {order.shippingAddress.contactName}
-                  <br />
-                  {order.shippingAddress.street} {order.shippingAddress.streetNumber || ''}
-                  <br />
-                  {order.shippingAddress.zipCode} {order.shippingAddress.city}
-                  <br />
-                  {order.shippingAddress.country}
-                </p>
-              </div>
-            )}
+      {/* Product list, following the Returns & Claims product presentation */}
+      <Card className="border border-border-primary shadow-sm">
+        <CardContent className="p-6">
+          <H6 className="mb-4">{tOrder('orderItems')}</H6>
+
+          <div className="hidden sm:grid grid-cols-[minmax(280px,1.6fr)_100px_minmax(140px,1fr)] gap-6 items-start pb-4 border-b border-border-primary">
+            <H6 className="text-sm font-bold text-text-headings">{tOrder('product')}</H6>
+            <H6 className="text-sm font-bold text-text-headings text-right">{tOrder('quantity')}</H6>
+            <H6 className="text-sm font-bold text-text-headings text-right">{tOrder('price')}</H6>
           </div>
 
-          <div className="mt-8">
-            <H3 variant="h5" className="mb-4">
-              {tOrder('orderItems')}
-            </H3>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{tOrder('product')}</TableHead>
-                  <TableHead className="text-right">{tOrder('quantity')}</TableHead>
-                  <TableHead className="text-right">{tOrder('price')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {order.items.map((item) => (
-                  <TableRow
-                    className="cursor-pointer hover:bg-surface-action-hover-2"
-                    key={item.id}
-                    onClick={() => router.push(`/product/${item.productId}`)}
-                  >
-                    <TableCell>
-                      <div className="font-medium">{item.name || item.productId}</div>
-                      {item.sku && <div className="text-sm text-text-placeholders">SKU: {item.sku}</div>}
-                    </TableCell>
-                    <TableCell className="text-right">{item.quantity}</TableCell>
-                    <TableCell className="text-right">
-                      {item.price ? (
-                        <>
-                          {item.price.value} {item.price.currency}
-                        </>
+          <div className="divide-y divide-border-primary">
+            {order.items.map((item) => {
+              const firstImage = item.images?.[0];
+              return (
+                <div
+                  key={item.id}
+                  className="py-6 first:pt-4 flex flex-col gap-3 sm:grid sm:grid-cols-[minmax(280px,1.6fr)_100px_minmax(140px,1fr)] sm:gap-6 sm:items-center"
+                >
+                  <div className="flex gap-4 items-start min-w-0">
+                    <div className="bg-surface-image-background w-[120px] h-[78px] shrink-0 rounded-tl-lg rounded-br-lg overflow-hidden flex items-center justify-center">
+                      {firstImage ? (
+                        <Image
+                          src={firstImage}
+                          alt={item.name || item.productId}
+                          width={120}
+                          height={78}
+                          className="object-contain w-full h-full"
+                        />
                       ) : (
-                        '-'
+                        <div className="w-full h-full bg-surface-image-background" />
                       )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                    </div>
+                    <div className="flex-1 min-w-0 flex flex-col gap-1">
+                      {item.vendorName && <span className="text-base font-body text-text-body">{item.vendorName}</span>}
+                      <Link
+                        href={`/product/${item.productId}`}
+                        className="text-2xl font-bold font-headlines text-text-headings hover:underline break-words"
+                      >
+                        {item.name || item.productId}
+                      </Link>
+                      {item.sku && (
+                        <span className="text-sm text-text-placeholders">
+                          {tOrder('itemNumber')}: {item.sku}
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
-          <div className="mt-6 border-t pt-6">
-            <div className="flex justify-between mb-2">
-              <span>{tOrder('subtotal')}</span>
-              <span>
-                {order.price?.subtotal.gross} {order.currency}
-              </span>
-            </div>
+                  <div className="flex items-center justify-between sm:block sm:text-right">
+                    <span className="text-sm text-text-body sm:hidden">{tOrder('quantity')}</span>
+                    <span className="text-base font-body">{item.quantity}</span>
+                  </div>
 
-            {order.shipping && (
-              <div className="flex justify-between mb-2">
-                <span>{tOrder('shipping')}</span>
-                <span>
-                  {order.shipping.total.value === 0
-                    ? tOrder('free')
-                    : `${order.shipping.total.value} ${order.shipping.total.currency}`}
-                </span>
-              </div>
-            )}
-
-            {order.discounts && order.discounts.length > 0 && (
-              <div className="flex justify-between mb-2">
-                <span>{tOrder('discount')}</span>
-                <span>
-                  -{order.discounts[0].value} {order.discounts[0].currency}
-                </span>
-              </div>
-            )}
-
-            <div className="flex justify-between font-bold mt-4 pt-4 border-t">
-              <span>{tOrder('total')}</span>
-              <span>
-                {order.price?.total.gross} {order.currency}
-              </span>
-            </div>
+                  <div className="text-right">
+                    <ItemPriceCell price={item.price} tOrder={tOrder} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </CardContent>
-        {/* Order action buttons at the bottom */}
-        {(shouldShowCancelButton(order.status, statusTransitions) ||
-          shouldShowReturnButton(order.status) ||
-          (
-            [
-              ORDER_STATUS.PROCESSING,
-              ORDER_STATUS.READY_FOR_SHIPPING,
-              ORDER_STATUS.READY_FOR_PICKUP,
-              ORDER_STATUS.SHIPPED,
-
-              ORDER_STATUS.DELIVERED,
-            ] as OrderStatus[]
-          ).includes(order.status)) && (
-          <CardFooter className="flex flex-col items-start pt-6 border-t">
-            <H2 variant="h5" className="mb-3">
-              {tOrder('orderActions')}
-            </H2>
-            <div className="flex flex-wrap gap-2">
-              {shouldShowCancelButton(order.status, statusTransitions) && cancelOrder && (
-                <Button
-                  variant="secondary"
-                  size="small"
-                  onClick={async () => {
-                    try {
-                      await cancelOrder();
-                    } catch (err) {
-                      getLogger().error({ err }, 'Failed to cancel order');
-                      const message = err instanceof Error ? err.message : '';
-                      const description =
-                        message === ORDER_CUSTOMER_DECLINE_NOT_ALLOWED_MESSAGE
-                          ? tOrder('cancelOrderNotAllowed')
-                          : message || tOrder('cancelOrderFailedUnknown');
-                      notify({
-                        title: tOrder('cancelOrderFailed'),
-                        description,
-                        type: ToastType.Error,
-                      });
-                    }
-                  }}
-                >
-                  <Ban className="mr-2 h-4 w-4" />
-                  {tOrder('cancelOrder')}
-                </Button>
-              )}
-              {shouldShowReturnButton(order.status) &&
-                (returnability?.hasAnyReturnableItem === false ? (
-                  <Tooltip delayDuration={200}>
-                    <TooltipTrigger asChild>
-                      <span>
-                        <Button variant="secondary" size="small" disabled>
-                          <RotateCcw className="mr-2 h-4 w-4" />
-                          {tOrder('returnOrder')}
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent className="w-[22rem] max-w-[calc(100vw-2rem)] text-wrap">
-                      {tOrder('noRemainingItems')}
-                    </TooltipContent>
-                  </Tooltip>
-                ) : (
-                  <Button variant="secondary" size="small" onClick={() => setReturnDialogOpen(true)}>
-                    <RotateCcw className="mr-2 h-4 w-4" />
-                    {tOrder('returnOrder')}
-                  </Button>
-                ))}
-              {(
-                [
-                  ORDER_STATUS.PROCESSING,
-                  ORDER_STATUS.READY_FOR_SHIPPING,
-                  ORDER_STATUS.READY_FOR_PICKUP,
-                  ORDER_STATUS.SHIPPED,
-
-                  ORDER_STATUS.DELIVERED,
-                  ORDER_STATUS.COMPLETED,
-                ] as OrderStatus[]
-              ).includes(order.status) && (
-                <Button variant="secondary" size="small" onClick={() => setTrackingDialogOpen(true)}>
-                  <Truck className="mr-2 h-4 w-4" />
-                  {tOrder('trackOrder')}
-                </Button>
-              )}
-            </div>
-          </CardFooter>
-        )}
       </Card>
-
-      {/* Tracking Dialog */}
-      <TrackingDialog orderId={orderId} open={trackingDialogOpen} onOpenChange={setTrackingDialogOpen} />
 
       {order && (
         <CreateReturnDialog
