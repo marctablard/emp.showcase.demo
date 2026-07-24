@@ -10,6 +10,7 @@ import { useRouter } from '@/i18n/navigation';
 import { formatDate } from '@/lib/date-utils';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { Approval, ApprovalRequestor, ApprovalUser } from '@/platform/services/model/approval';
+import { getApprovalHref } from './approval-routing';
 import { ApprovalStatusBadge } from './approval-status-badge';
 
 /**
@@ -42,29 +43,11 @@ export const APPROVAL_SORT_FIELD_MAP: Record<ApprovalSortField, string> = {
 };
 
 /**
- * Resolves the destination for the Approval ID / row / Action arrow. Preserves the
- * exact pre-existing routing semantics:
- * - A QUOTE approval where the current user is the designated approver (and not
- *   also the requestor) routes to the standalone approval review page.
- * - Other QUOTE approvals route to the quote detail page.
- * - CART (and any other non-QUOTE) approvals route to the approval detail page.
+ * Re-exported from the server-safe `./approval-routing` module so the canonical
+ * approval detail route can reuse the same routing decision. See that module for
+ * the preserved routing semantics.
  */
-export function getApprovalHref(approval: Approval, currentUserId?: string): string {
-  if (
-    approval.resourceType === 'QUOTE' &&
-    currentUserId &&
-    approval.approver.userId === currentUserId &&
-    approval.requestor.userId !== currentUserId
-  ) {
-    return `/account/approval/${approval.id}`;
-  }
-
-  if (approval.resourceType === 'QUOTE') {
-    return `/account/quotes/${approval.resource.id}`;
-  }
-
-  return `/account/approvals/${approval.id}`;
-}
+export { getApprovalHref };
 
 export function formatApprovalUserName(user: ApprovalUser | ApprovalRequestor): string {
   if (user.fullName && user.fullName.trim() !== '') {

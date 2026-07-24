@@ -146,14 +146,14 @@ describe('OrderDetail', () => {
     expect(screen.getAllByText('gross: 119 EUR').length).toBeGreaterThanOrEqual(2);
   });
 
-  it('renders the product list unit price with the base value primary and net as the secondary value', () => {
+  it('renders the product list unit price with the net value primary and gross as the secondary value', () => {
     mockUseOrder();
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    // Item with both net/gross values available shows the base value primary, net secondary.
-    expect(screen.getByText('50 EUR')).toBeInTheDocument();
-    expect(screen.getByText('net: 42 EUR')).toBeInTheDocument();
+    // Item with both net/gross values available shows the net value primary, gross secondary.
+    expect(screen.getByText('42 EUR')).toBeInTheDocument();
+    expect(screen.getByText('gross: 50 EUR')).toBeInTheDocument();
 
     // Item without net/gross falls back to the existing single value.
     expect(screen.getByText('30 EUR')).toBeInTheDocument();
@@ -235,20 +235,6 @@ describe('OrderDetail', () => {
     expect(screen.queryByText('trackShipment')).not.toBeInTheDocument();
   });
 
-  it('renders the contact email label and value as separate, stacked elements', () => {
-    mockUseOrder();
-
-    render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
-
-    const emailLabel = screen.getByText('email');
-    const emailValue = screen.getByText(baseOrder.customerEmail as string);
-
-    expect(emailLabel).toBeInTheDocument();
-    expect(emailValue).toBeInTheDocument();
-    expect(emailLabel).not.toBe(emailValue);
-    expect(emailLabel.parentElement).toBe(emailValue.parentElement);
-  });
-
   it('links the product name to its product page, preserving product navigation', () => {
     mockUseOrder();
 
@@ -307,15 +293,20 @@ describe('OrderDetail', () => {
   });
 
   it('renders card field labels as bold h5 and values as regular body-md, vertically stacked with a compact gap', () => {
-    mockUseOrder();
+    mockUseOrder({
+      order: {
+        ...baseOrder,
+        shipping: { methods: [{ name: 'Pickup' }], total: { value: 0, currency: 'EUR' } },
+      },
+    });
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    const emailLabel = screen.getByText('email');
-    const emailValue = screen.getByText(baseOrder.customerEmail as string);
-    expect(emailLabel).toHaveClass('text-3xl', 'font-bold', 'font-headlines');
-    expect(emailValue).toHaveClass('text-base', 'font-normal', 'font-body');
-    expect(emailLabel.parentElement).toHaveClass('flex', 'flex-col', 'gap-1');
+    const label = screen.getByText('shippingMethod');
+    const value = screen.getByText('Pickup');
+    expect(label).toHaveClass('text-3xl', 'font-bold', 'font-headlines');
+    expect(value).toHaveClass('text-base', 'font-normal', 'font-body');
+    expect(label.parentElement).toHaveClass('flex', 'flex-col', 'gap-1');
   });
 
   it('uses Figma H4 titles with 32px icons and a 16px inner card panel', () => {
@@ -410,15 +401,15 @@ describe('OrderDetail', () => {
     expect(quantityValue).toHaveClass('text-base', 'font-body');
   });
 
-  it('renders the item price as h6 with the secondary Net value as body-sm', () => {
+  it('renders the item price as h6 with the secondary Gross value as body-sm', () => {
     mockUseOrder();
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    const primaryPrice = screen.getByText('50 EUR');
-    const netPrice = screen.getByText('net: 42 EUR');
+    const primaryPrice = screen.getByText('42 EUR');
+    const grossPrice = screen.getByText('gross: 50 EUR');
     expect(primaryPrice).toHaveClass('text-2xl', 'font-bold', 'font-headlines');
-    expect(netPrice).toHaveClass('text-sm', 'font-body');
+    expect(grossPrice).toHaveClass('text-sm', 'font-body');
 
     // The legacy single-value item (no net/gross split) also renders at the h6 price scale.
     const legacyPrice = screen.getByText('30 EUR');

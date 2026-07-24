@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { format } from 'date-fns';
-import { Ban, CreditCard, Mail, ReceiptText, RotateCcw, Truck } from 'lucide-react';
+import { Ban, CreditCard, ReceiptText, RotateCcw, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { H3, H4, H5, H6 } from '@/components/ui/h';
@@ -62,7 +62,7 @@ function renderAddress(address: Address) {
   );
 }
 
-/** Item unit-price cell: base/gross value primary, net value shown as the secondary, muted line. */
+/** Item unit-price cell: net value primary, gross value shown as the secondary, muted line. */
 function ItemPriceCell({
   price,
   tOrder,
@@ -74,9 +74,9 @@ function ItemPriceCell({
     return <>-</>;
   }
 
-  const primaryValue = price.grossValue ?? price.value;
+  const primaryValue = price.netValue ?? price.value;
 
-  if (price.netValue === undefined) {
+  if (price.grossValue === undefined) {
     return (
       <span className="text-2xl font-bold font-headlines text-text-headings">
         {primaryValue} {price.currency}
@@ -90,7 +90,7 @@ function ItemPriceCell({
         {primaryValue} {price.currency}
       </span>
       <span className="text-sm font-body text-text-placeholders">
-        {tOrder('net')}: {price.netValue} {price.currency}
+        {tOrder('gross')}: {price.grossValue} {price.currency}
       </span>
     </div>
   );
@@ -163,10 +163,8 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
   }
 
   const shippingMethodName = order.shipping?.methods?.[0]?.name;
-  const contactPhone = order.shippingAddress?.contactPhone ?? order.billingAddress?.contactPhone;
   const showTransportCard = Boolean(shippingMethodName || order.expectedDeliveryDate || order.shippingAddress);
   const showPaymentCard = Boolean((order.payments && order.payments.length > 0) || order.billingAddress);
-  const showContactCard = Boolean(order.customerEmail || contactPhone);
   const showCancelButton = shouldShowCancelButton(order.status, statusTransitions);
   const showReturnButton = shouldShowReturnButton(order.status);
   const showTrackShipmentControl = shouldShowTrackShipmentControl(order.status);
@@ -312,6 +310,18 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
                   </div>
                 )}
 
+                <div className="flex justify-between gap-4 pt-2">
+                  <span>
+                    {tOrder('vat')}
+                    {order.price.total.net > 0
+                      ? ` (${Math.round((order.price.total.tax / order.price.total.net) * 100)}%)`
+                      : ''}
+                  </span>
+                  <span>
+                    {order.price.total.tax} {order.price.total.currency}
+                  </span>
+                </div>
+
                 <div className="flex justify-between items-start gap-4 pt-2">
                   <H5>{tOrder('total')}</H5>
                   <div className="text-right">
@@ -369,26 +379,6 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
               {order.billingAddress && (
                 <SummaryField label={tOrder('billingAddress')}>{renderAddress(order.billingAddress)}</SummaryField>
               )}
-            </SummaryCard>
-          </div>
-        )}
-
-        {showContactCard && (
-          <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
-            <SummaryCard
-              heading={tOrder('contact')}
-              className="shadow-none rounded-md p-4 h-full gap-4"
-              headerClassName="p-0"
-              contentClassName="p-0 space-y-4"
-              icon={<Mail className="h-8 w-8 text-text-action" />}
-              hasHeadline
-            >
-              {order.customerEmail && (
-                <SummaryField label={tOrder('email')} valueClassName="break-all">
-                  {order.customerEmail}
-                </SummaryField>
-              )}
-              {contactPhone && <SummaryField label={tOrder('phone')}>{contactPhone}</SummaryField>}
             </SummaryCard>
           </div>
         )}

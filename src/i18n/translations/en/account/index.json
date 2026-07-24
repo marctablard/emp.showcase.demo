@@ -244,6 +244,7 @@
     "price": "Price",
     "refundAmount": "Refund Amount",
     "net": "Net",
+    "gross": "Gross",
     "itemNumberLabel": "Item number",
     "singleItemReturn": "Single item return",
     "totalReturnValue": "Total return value",

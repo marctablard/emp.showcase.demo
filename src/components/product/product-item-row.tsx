@@ -55,11 +55,11 @@ export function ProductItemRow({ item, showNetUnderGross = false }: ProductItemR
       <div className="text-right">
         <div className="flex flex-col sm:items-end">
           <span className="text-2xl font-bold font-headlines text-text-headings">
-            {formatCurrency(item.grossUnitPrice ?? item.unitPrice, item.currency)}
+            {formatCurrency(item.netUnitPrice ?? item.unitPrice, item.currency)}
           </span>
-          {showNetUnderGross && item.netUnitPrice !== undefined && (
+          {showNetUnderGross && item.grossUnitPrice !== undefined && (
             <span className="text-sm font-body text-text-placeholders">
-              {t('net').trim()}: {formatCurrency(item.netUnitPrice, item.currency)}
+              {t('gross').trim()}: {formatCurrency(item.grossUnitPrice, item.currency)}
             </span>
           )}
         </div>

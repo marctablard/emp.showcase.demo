@@ -297,21 +297,23 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
 
       <div className="rounded-md bg-surface-primary p-4 shadow-sm">
         <H4 className="mb-4">{t('approvalHistory')}</H4>
-        <div className="hidden grid-cols-[minmax(140px,1fr)_minmax(220px,2fr)_minmax(160px,1fr)_120px_minmax(160px,1fr)] gap-6 border-b border-border-primary pb-4 sm:grid">
+        <div className="hidden grid-cols-[minmax(140px,1fr)_minmax(220px,2fr)_minmax(160px,1fr)_120px_minmax(160px,1fr)_minmax(160px,1fr)] gap-6 border-b border-border-primary pb-4 sm:grid">
           <span className="text-sm font-bold text-text-headings">{t('date')}</span>
           <span className="text-sm font-bold text-text-headings">{t('event')}</span>
           <span className="text-sm font-bold text-text-headings">{t('changedBy')}</span>
           <span className="text-sm font-bold text-text-headings">{t('status')}</span>
           <span className="text-sm font-bold text-text-headings">{t('comment')}</span>
+          <span className="text-sm font-bold text-text-headings">{t('changeReason')}</span>
         </div>
-        <div className="grid grid-cols-1 gap-3 py-4 text-base font-body text-text-body sm:grid-cols-[minmax(140px,1fr)_minmax(220px,2fr)_minmax(160px,1fr)_120px_minmax(160px,1fr)] sm:gap-6">
+        <div className="grid grid-cols-1 gap-3 py-4 text-base font-body text-text-body sm:grid-cols-[minmax(140px,1fr)_minmax(220px,2fr)_minmax(160px,1fr)_120px_minmax(160px,1fr)_minmax(160px,1fr)] sm:gap-6">
           <span>{formatDate(approval.createdAt)}</span>
           <span>{t('approvalRequestCreated')}</span>
           <span>
-            {approval.requestor.firstName} {approval.requestor.lastName}
+            {approval.requestor.firstName} {approval.requestor.lastName} ({t('roleCustomer')})
           </span>
           <ApprovalStatusBadge status={approval.status} className="w-fit" />
           <span>{approval.comment || '-'}</span>
+          <span>-</span>
         </div>
       </div>
 
@@ -321,12 +323,15 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
 
           {approval.resource.items && approval.resource.items.length > 0 && (
             <ProductListResolver
+              showNetUnderGross
               items={approval.resource.items.map((it) => ({
                 productId: it.productId,
                 itemYrn: it.itemYrn,
                 quantity: it.quantity,
                 unitPrice: it.itemPrice.amount,
                 currency: it.itemPrice.currency,
+                grossUnitPrice: it.itemPrice.grossValue,
+                netUnitPrice: it.itemPrice.netValue,
               }))}
             />
           )}

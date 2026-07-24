@@ -106,13 +106,13 @@ function ReturnOverview({ returnItem, locale, t }: ReturnOverviewProps) {
         </div>
         <div className="flex items-start justify-between gap-4">
           <H5>{t('totalReturnValue')}</H5>
-          <H5 className="text-right">
-            {totalGrossValue !== undefined ? formatReturnCurrency(totalGrossValue, totalCurrency, locale) : '-'}
-          </H5>
+          <H5 className="text-right">{formatReturnCurrency(totalNetValue, totalCurrency, locale)}</H5>
         </div>
         <div className="flex items-start justify-between gap-4 text-sm font-body text-text-placeholders">
-          <span>{t('net')}</span>
-          <span className="text-right">{formatReturnCurrency(totalNetValue, totalCurrency, locale)}</span>
+          <span>{t('gross')}</span>
+          <span className="text-right">
+            {totalGrossValue !== undefined ? formatReturnCurrency(totalGrossValue, totalCurrency, locale) : '-'}
+          </span>
         </div>
       </div>
     </div>
@@ -182,8 +182,6 @@ function ReturnItemsList({ items, locale, t }: ReturnItemsListProps) {
             const refundNet = getItemRefundNet(item);
             const unitPrice = getItemUnitPrice(item);
             const firstImage = item.images?.[0];
-            const hasRefundNet =
-              item.calculatedPrice?.finalPrice?.netValue !== undefined || item.netPrice || item.unitPrice;
             return (
               <div
                 key={item.id}
@@ -234,11 +232,11 @@ function ReturnItemsList({ items, locale, t }: ReturnItemsListProps) {
                   <span className="text-sm text-text-body sm:hidden">{t('price')}</span>
                   <div className="flex flex-col gap-1">
                     <span className="text-base font-body text-text-body">
-                      {formatReturnCurrency(unitPrice.grossValue, unitPrice.currency, locale)}
+                      {formatReturnCurrency(unitPrice.netValue, unitPrice.currency, locale)}
                     </span>
-                    {unitPrice.netValue !== undefined && (
+                    {unitPrice.grossValue !== undefined && (
                       <span className="text-sm text-text-placeholders">
-                        {t('net')} {formatReturnCurrency(unitPrice.netValue, unitPrice.currency, locale)}
+                        {t('gross')} {formatReturnCurrency(unitPrice.grossValue, unitPrice.currency, locale)}
                       </span>
                     )}
                   </div>
@@ -250,10 +248,10 @@ function ReturnItemsList({ items, locale, t }: ReturnItemsListProps) {
                 <div className="flex justify-between text-right sm:block">
                   <span className="text-sm text-text-body sm:hidden">{t('refundAmount')}</span>
                   <div className="flex flex-col gap-1 sm:items-end">
-                    <H6>{formatReturnCurrency(refund.value, refund.currency, locale)}</H6>
-                    {hasRefundNet && (
+                    <H6>{formatReturnCurrency(refundNet.value, refundNet.currency, locale)}</H6>
+                    {refund.value !== undefined && (
                       <span className="text-sm text-text-placeholders">
-                        {t('net')} {formatReturnCurrency(refundNet.value, refundNet.currency, locale)}
+                        {t('gross')} {formatReturnCurrency(refund.value, refund.currency, locale)}
                       </span>
                     )}
                   </div>

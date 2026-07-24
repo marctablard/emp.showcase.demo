@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { CreditCard, NotebookPen, ReceiptText, Truck } from 'lucide-react';
 import { SummaryCard, SummaryRow } from '@/components/ui/summary-card';
 import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
-import type { Approval } from '@/platform/services/model/approval';
+import type { Approval, ApprovalResourceItem } from '@/platform/services/model/approval';
 
 interface ApprovalSummaryProps {
   approval: Approval;
@@ -22,7 +22,7 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
     approval.resource.subTotalPrice?.currency ||
     getPublicDefaultCurrency();
 
-  const valueOfGoods = items.reduce((sum: number, it: any) => sum + (it?.itemPrice?.amount || 0), 0);
+  const valueOfGoods = items.reduce((sum: number, it: ApprovalResourceItem) => sum + (it.itemPrice?.amount || 0), 0);
   const shippingCost = details?.shipping?.amount ?? 0;
   const vat = approval.resource.subtotalAggregate?.taxValue ?? 0;
   const total = approval.resource.totalPrice?.amount ?? valueOfGoods + shippingCost + vat;

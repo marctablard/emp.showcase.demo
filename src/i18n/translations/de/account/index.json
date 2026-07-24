@@ -192,6 +192,7 @@
     "price": "Preis",
     "refundAmount": "Erstattungsbetrag",
     "net": "Netto",
+    "gross": "Brutto",
     "itemNumberLabel": "Artikelnummer",
     "singleItemReturn": "Einzelartikel-Retoure",
     "totalReturnValue": "Gesamtwert der Rücksendung",
