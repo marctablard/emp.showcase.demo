@@ -134,6 +134,43 @@ Integration tests are gated and will only run when:
 
 BatteryIncluded search runtime credentials are not taken from storefront env vars. The server resolves BI `searchKey` and `indexName` from Emporix indexing provider `BATTERY_INCLUDED`, while `NEXT_PUBLIC_BATTERY_INCLUDED_BASE_URL` remains the BI API base URL.
 
+## Local Clean-Install Parity Check (CI Dependency Parity)
+
+`npm run jest` never reinstalls dependencies, so it cannot catch a broken lockfile, a dependency blocked by Aikido safe-chain (malware or safe-chain's own minimum package release-age policy), or a newly-disclosed high severity advisory. Validate that in isolation with:
+
+```bash
+npm run verify:ci-install
+```
+
+This runs [`scripts/verify-safe-chain-install.sh`](../scripts/verify-safe-chain-install.sh), which mirrors the dependency-install step used in `.github/workflows/*.yaml`:
+
+1. Copies `package.json`, `package-lock.json`, and `.npmrc` into a disposable temp directory — your real `node_modules` is untouched.
+2. Runs `npm ci --ignore-scripts` there via `npx`, using the project's pinned npm version (`packageManager` in `package.json`) wrapped by Aikido safe-chain — installed on-demand via `npx` only, never as a project/global dependency — so malware blocking is enforced exactly like CI.
+3. Runs `npm audit --audit-level=high` against the resulting lockfile.
+
+This repo does not set npm's own `min-release-age` (see `.npmrc`); safe-chain still enforces its own, independently-controlled minimum release-age policy on top of malware blocking, both here and in CI. A freshly published dependency bump can therefore still be held back by safe-chain for a period after release even though plain `npm install` would resolve it — that is safe-chain working as intended, not a bug in this script or a reason to weaken it. A pass here only confirms today's lockfile clears safe-chain's policies and the audit; it is not a guarantee that a future bump of the same package will.
+
+Scripts are skipped only because the disposable directory has no `.git` (the `prepare`/husky script requires one); it does not affect dependency resolution or the safe-chain/audit checks, but it does mean this check validates clean resolution, supply-chain policy, and audit only — it is not full lifecycle-script parity with CI, since CI's real `npm ci` runs install scripts and this one intentionally does not. Run this after any `package.json`/`package-lock.json` change, and never weaken it (lower `--audit-level`, skip safe-chain, or pin an old safe-chain release) to force a pass — a failure here means a real dependency issue that must be fixed or explicitly, visibly accepted.
+
+### Preview-Only Safe-Chain Minimum-Package-Age Override
+
+The **Install dependencies** step of `.github/workflows/github-actions-deploy-pr-preview.yaml` runs `npm ci --safe-chain-skip-minimum-package-age` instead of plain `npm ci`. This is a narrow, explicit, and temporary policy exception used to unblock urgent security patches (e.g. a same-day framework patch release) that plain `npm install`/`npm ci` would resolve fine but that safe-chain's minimum release-age gate has not yet aged in.
+
+Scope of the override — read carefully, this is not a general safe-chain bypass:
+- It skips **only** safe-chain's minimum-package-age check.
+- `safe-chain setup-ci` still runs first, and every other safe-chain protection (malware/dependency-confusion blocking) stays fully enforced for this install.
+- `npm audit --audit-level=high` still runs immediately after, unchanged.
+- The step is a normal, non-`continue-on-error` step: any other install failure (network, integrity, malware block, unresolved dependency, etc.) still fails the job exactly as before.
+- It applies **only** to the PR preview workflow. Every other workflow in `.github/workflows/` continues to run plain `npm ci` with the full, unmodified safe-chain policy.
+
+To reproduce this exact CI behavior locally (e.g. to confirm a patch installs cleanly before opening the PR), use:
+
+```bash
+npm run verify:ci-install:preview-override
+```
+
+which is equivalent to `SAFE_CHAIN_SKIP_MINIMUM_PACKAGE_AGE=1 npm run verify:ci-install` and only ever skips the minimum-package-age gate — never the malware checks or the audit step. Do not add this override to any other workflow, and remove it from the preview workflow once the underlying package has aged past safe-chain's policy window (or a permanent exception is agreed) rather than leaving it in place indefinitely.
+
 ## Deployment (Vercel + GitHub Actions)
 Deployment is automated using Vercel and GitHub Actions.
 

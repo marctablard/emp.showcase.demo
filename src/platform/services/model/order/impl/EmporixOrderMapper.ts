@@ -16,7 +16,6 @@ import type {
   OrderPayment,
   OrderPrice,
   OrderShipping,
-  OrderStatus,
 } from '@/platform/services/model/order/order';
 
 /**
@@ -24,14 +23,15 @@ import type {
  */
 @injectable('EmporixOrderMapper', 'Singleton')
 class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
-  constructor(@inject('EmporixAddressMapper') private addressMapper: EmporixAddressMapper) {}
+  constructor(@inject('EmporixAddressMapper') private readonly addressMapper: EmporixAddressMapper) {}
 
   mapToService(integrationModel: EmporixOrder): Order {
     return {
       id: integrationModel.id,
       quoteId: integrationModel.quoteId,
-      status: integrationModel.status as OrderStatus,
+      status: integrationModel.status,
       createdAt: integrationModel.created,
+      expectedDeliveryDate: this.resolveExpectedDeliveryDate(integrationModel),
       lastStatusChange: integrationModel.lastStatusChange,
       items: this.mapOrderItems(integrationModel.entries),
       billingAddress: integrationModel.billingAddress
@@ -47,7 +47,11 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
         currency: discount.currency,
         description: discount.description,
       })),
-      shipping: this.mapShipping(integrationModel.shipping),
+      shipping: this.mapShipping(
+        integrationModel.shipping,
+        integrationModel.calculatedPrice,
+        integrationModel.currency,
+      ),
       price: this.mapPrice(integrationModel.calculatedPrice, integrationModel.currency),
       currency: integrationModel.currency,
       customer: integrationModel.customer
@@ -62,6 +66,18 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
       customerEmail: integrationModel.customer?.email,
       customerNote: integrationModel.customerNote,
     };
+  }
+
+  private resolveExpectedDeliveryDate(integrationModel: EmporixOrder): string | undefined {
+    const shipmentExpectedDeliveryDate = integrationModel.shipments?.find(
+      (shipment) => typeof shipment.expectDeliveryOn === 'string' && shipment.expectDeliveryOn.length > 0,
+    )?.expectDeliveryOn;
+
+    if (shipmentExpectedDeliveryDate) {
+      return shipmentExpectedDeliveryDate;
+    }
+
+    return integrationModel.deliveryWindow?.deliveryDate;
   }
 
   mapToSource(serviceModel: Order): EmporixOrder {
@@ -183,17 +199,24 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
     }));
   }
 
-  private mapShipping(shipping?: EmporixShipping): OrderShipping | undefined {
-    if (!shipping) {
+  private mapShipping(
+    shipping?: EmporixShipping,
+    calculatedPrice?: { totalShipping?: { netValue: number } },
+    currency?: string,
+  ): OrderShipping | undefined {
+    const shippingValue = calculatedPrice?.totalShipping?.netValue ?? shipping?.total.amount;
+    const shippingCurrency = shipping?.total.currency ?? currency;
+
+    if (shippingValue === undefined || !shippingCurrency) {
       return undefined;
     }
 
     return {
       total: {
-        value: shipping.total.amount,
-        currency: shipping.total.currency,
+        value: shippingValue,
+        currency: shippingCurrency,
       },
-      methods: shipping.lines?.map((line) => {
+      methods: shipping?.lines?.map((line) => {
         const localizedName = line.localizedName;
         const firstLocalized =
           localizedName && typeof localizedName === 'object' ? Object.values(localizedName)[0] : undefined;

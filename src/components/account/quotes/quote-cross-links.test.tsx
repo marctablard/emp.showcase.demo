@@ -150,7 +150,7 @@ describe('Quote cross-links', () => {
     mockCheckApprovalPermitted.mockResolvedValue({ permitted: false, approvalId: 'approval-123' });
   });
 
-  it('renders the related order link on quote list and detail views when orderId is present', () => {
+  it('renders the related order link in the standalone list column and on the detail view when orderId is present', () => {
     const quoteWithOrder = { ...baseQuote, orderId: 'order-123' };
 
     render(
@@ -160,12 +160,12 @@ describe('Quote cross-links', () => {
       </>,
     );
 
-    expect(screen.getAllByText('account.quotesList.relatedOrder')[0]).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: /account\.quotesList\.relatedOrder/ })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: '#order-123' })[0]).toHaveAttribute('href', '/account/orders/order-123');
     expect(screen.getByText('account.quoteDetails.relatedOrder')).toBeInTheDocument();
   });
 
-  it('omits related order UI when orderId is absent', () => {
+  it('omits the related order link (but keeps the standalone column) when orderId is absent', () => {
     render(
       <>
         <QuotesTable quotes={[baseQuote]} />
@@ -173,7 +173,8 @@ describe('Quote cross-links', () => {
       </>,
     );
 
-    expect(screen.queryByText('account.quotesList.relatedOrder')).not.toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: /account\.quotesList\.relatedOrder/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^#/ })).not.toBeInTheDocument();
     expect(screen.queryByText('account.quoteDetails.relatedOrder')).not.toBeInTheDocument();
   });
 

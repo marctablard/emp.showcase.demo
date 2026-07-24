@@ -37,6 +37,8 @@
   "noOrders": "No orders found",
   "noMatches": "No orders match your search",
   "ordersTotal": "Total orders",
+  "errorLoadingOrders": "Error loading orders",
+  "tryAgain": "Try Again",
   "orderActions": "Order Actions",
   "cancelOrder": "Cancel Order",
   "cancelOrderFailed": "Could not cancel order",
@@ -46,16 +48,16 @@
     "placeholder": "Search orders..."
   },
   "columns": {
-    "orderNumber": "Order #",
+    "orderNumber": "Order",
     "status": "Status",
-    "totalShippingCost": "Total Shipping Cost",
+    "totalShippingCost": "Shipping Cost",
     "customer": "Customer",
     "orderDate": "Order Date",
     "expectedDeliveryDate": "Expected Delivery Date",
     "deliveryDate": "Delivery Date",
     "deliveryAddress": "Delivery Address",
     "payment": "Payment",
-    "orderValue": "Order Value",
+    "orderValue": "Net Order Value",
     "action": "Action",
     "view": "View"
   },
@@ -123,6 +125,7 @@
     "freightInfo": "After the order is completed, the contracted shipping company will contact you with further information."
   },
   "Approval": {
+    "title": "Approval Dashboard",
     "approvals": "Approvals",
     "approval": "Approval",
     "approvalsList": "Approvals List",
@@ -141,10 +144,16 @@
     "filterByResourceType": "Filter by Resource Type",
     "allStatuses": "All Statuses",
     "id": "ID",
+    "approvalId": "Approval ID",
+    "modifiedAt": "Modified At",
     "resourceType": "Resource Type",
     "resourceId": "Resource ID",
     "quoteId": "Quote ID",
+    "quoteNumber": "Quote Number",
     "orderId": "Order ID",
+    "orderNumber": "Order Number",
+    "netTotal": "Net Total",
+    "viewApprovalAriaLabel": "View approval {id}",
     "action": "Action",
     "status": "Status",
     "requestor": "Requestor",
@@ -218,6 +227,10 @@
   },
   "ApprovalAction": {
     "CHECKOUT": "Order"
+  },
+  "ApprovalResourceType": {
+    "CART": "Cart",
+    "QUOTE": "Quote"
   },
   "ApprovalStatus": {
     "PENDING": "Pending",

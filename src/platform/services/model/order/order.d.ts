@@ -104,6 +104,7 @@ export interface Order {
   quoteId?: string;
   status: OrderStatus;
   createdAt?: string;
+  expectedDeliveryDate?: string;
   lastStatusChange?: string;
   items: OrderItem[];
   billingAddress?: Address;

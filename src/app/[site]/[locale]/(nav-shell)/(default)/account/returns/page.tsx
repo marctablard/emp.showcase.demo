@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import AccountLayout from '@/components/account/account-layout';
 import { ReturnsList } from '@/components/account/returns/returns-list';
-import { getReturns } from '@/lib/ssr/returns';
+import { getReturnsPage } from '@/lib/ssr/returns';
 import { getPageTitle } from '@/lib/ssr/seo';
 
 // Force dynamic rendering to ensure fresh data
@@ -21,18 +21,20 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   };
 }
 
-export default async function ReturnsPage({ params }: { params: Promise<{ locale: string }> }) {
+export default async function ReturnsPage({ params }: Readonly<{ params: Promise<{ locale: string }> }>) {
+  const initialPageSize = 5;
+  const initialSort = 'metadata.createdAt:DESC';
   const { locale } = await params;
-  const [tAccount, tReturns, returns] = await Promise.all([
+  const [tAccount, tReturns, returnsPage] = await Promise.all([
     getTranslations({ locale, namespace: 'account' }),
     getTranslations({ locale, namespace: 'account.returns' }),
-    getReturns(),
+    getReturnsPage(1, initialPageSize, initialSort),
   ]);
 
   const breadcrumbs = [
     {
       href: '/account',
-      label: tAccount('title'),
+      label: tAccount('accountDetails'),
     },
     {
       href: '/account/returns',
@@ -42,7 +44,7 @@ export default async function ReturnsPage({ params }: { params: Promise<{ locale
 
   return (
     <AccountLayout breadcrumbs={breadcrumbs}>
-      <ReturnsList initialReturns={returns} forceRefreshOnMount />
+      <ReturnsList initialReturns={returnsPage?.items} initialTotalCount={returnsPage?.totalCount} />
     </AccountLayout>
   );
 }

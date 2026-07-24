@@ -3,9 +3,13 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-function Table({ className, ...props }: React.ComponentProps<'table'>) {
+function Table({
+  className,
+  containerClassName,
+  ...props
+}: React.ComponentProps<'table'> & { containerClassName?: string }) {
   return (
-    <div data-slot="table-container" className="relative w-full overflow-x-auto">
+    <div data-slot="table-container" className={cn('relative w-full overflow-x-auto', containerClassName)}>
       <table data-slot="table" className={cn('w-full caption-bottom text-sm', className)} {...props} />
     </div>
   );
@@ -74,4 +78,28 @@ function TableCaption({ className, ...props }: React.ComponentProps<'caption'>) 
   );
 }
 
-export { Table, TableHeader, TableBody, TableFooter, TableHead, TableRow, TableCell, TableCaption };
+/**
+ * Shared card surface for account-list tables. Wrap a list's search/filter controls, `Table`,
+ * and `TablePagination` in this component so every account list (Orders, Returns, Quotes,
+ * Approvals) renders inside the same light card: a subtle border, rounded corners, and shadow,
+ * matching the Figma account-list reference (`TYdPJprCUxuqn564qa9urk`, node `6354:68087`).
+ *
+ * The shadow references the `--theme-shadow-sm` design token directly (rather than the
+ * `shadow-sm` Tailwind scale utility) so this single centralized declaration stays explicitly
+ * tied to the Figma-recorded value even if the generic Tailwind shadow scale is retuned later.
+ * Do not add a domain-specific shadow override on top of this.
+ */
+function TableCard({ className, ...props }: React.ComponentProps<'div'>) {
+  return (
+    <div
+      data-slot="table-card"
+      className={cn(
+        'bg-surface-primary border border-border-primary rounded-md p-4 shadow-[var(--theme-shadow-sm)] min-[768px]:p-6',
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+export { Table, TableHeader, TableBody, TableFooter, TableHead, TableRow, TableCell, TableCaption, TableCard };

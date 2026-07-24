@@ -1,6 +1,11 @@
 import { ORDER_ACCESS_DENIED_MESSAGE, isOrderAccessDeniedStatus } from '@/lib/common/order-access-denied';
 import type { Order } from '@/platform/services/model/order/order';
 
+export interface OrdersPageResult {
+  items: Order[];
+  totalCount?: number;
+}
+
 export class OrderAccessDeniedError extends Error {
   readonly status: number;
 
@@ -43,23 +48,52 @@ async function getOrderApiError(response: Response): Promise<Error> {
  * @param {string} [query] - Optional query filter (e.g. 'id:~(partial)')
  * @returns {Promise<Order[]>} Array of orders
  */
-export async function fetchOrders(pageSize?: number, pageNumber?: number, query?: string): Promise<Order[]> {
+export async function fetchOrders(
+  pageSize?: number,
+  pageNumber?: number,
+  query?: string,
+  sort?: string,
+): Promise<Order[]> {
+  const page = await fetchOrdersPage(pageSize, pageNumber, query, sort);
+  return page.items;
+}
+
+export async function fetchOrdersPage(
+  pageSize?: number,
+  pageNumber?: number,
+  query?: string,
+  sort?: string,
+): Promise<OrdersPageResult> {
+  if (pageSize !== undefined && (!Number.isSafeInteger(pageSize) || pageSize < 1)) {
+    throw new Error('pageSize must be a safe integer >= 1');
+  }
+
+  if (pageNumber !== undefined && (!Number.isSafeInteger(pageNumber) || pageNumber < 1)) {
+    throw new Error('pageNumber must be a safe integer >= 1');
+  }
+
   const queryParams = new URLSearchParams();
-  if (pageSize) queryParams.append('pageSize', pageSize.toString());
-  if (pageNumber) queryParams.append('pageNumber', pageNumber.toString());
-  if (query) queryParams.append('query', query);
+  if (pageSize !== undefined) queryParams.append('pageSize', pageSize.toString());
+  if (pageNumber !== undefined) queryParams.append('pageNumber', pageNumber.toString());
+  if (query) queryParams.append('q', query);
+  if (sort) queryParams.append('sort', sort);
 
   const queryString = queryParams.toString();
-  const url = `/api/orders${queryString ? `?${queryString}` : ''}`;
+  const url = queryString.length > 0 ? `/api/orders?${queryString}` : '/api/orders';
 
   const response = await fetch(url);
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch orders: ${response.statusText}`);
+    throw await getOrderApiError(response);
   }
 
-  const orders = await response.json();
-  return orders;
+  const totalCountHeader = response.headers.get('x-total-count');
+  const parsedTotalCount = totalCountHeader ? Number.parseInt(totalCountHeader, 10) : Number.NaN;
+  const orders = (await response.json()) as Order[];
+  return {
+    items: orders,
+    totalCount: Number.isFinite(parsedTotalCount) ? parsedTotalCount : undefined,
+  };
 }
 
 /**

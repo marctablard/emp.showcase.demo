@@ -47,8 +47,14 @@ jobs:
           safe-chain setup-ci
       - name: Install Vercel CLI
         run: npm i -g vercel
+      # Preview-only, time-boxed override: skips safe-chain's minimum-package-age
+      # gate (only) to unblock an urgent security patch. All other safe-chain
+      # malware protections and the npm audit step below stay enforced, and a
+      # non-safe-chain install failure still fails this step. See
+      # docs/run-build-deploy.md ("Preview-Only Safe-Chain Minimum-Package-Age
+      # Override") before copying this to any other workflow.
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --safe-chain-skip-minimum-package-age
       - name: Run npm audit
         run: npm audit --audit-level=high
       # - name: Install Playwright Browsers

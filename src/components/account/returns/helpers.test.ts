@@ -1,5 +1,13 @@
 import { Return } from '@/platform/services/model/return';
-import { formatReturnCurrency, formatReturnDate, getFirstOrderId, getRequestorEmail } from './helpers';
+import {
+  formatReturnCurrency,
+  formatReturnDate,
+  getFirstOrderId,
+  getNetReturnValue,
+  getRequestorEmail,
+  getReturnCustomerName,
+  getReturnReasonCode,
+} from './helpers';
 
 const makeReturn = (overrides: Partial<Return> = {}): Return => ({
   id: 'ret-1',
@@ -90,5 +98,84 @@ describe('getRequestorEmail', () => {
   it('returns "-" when email is undefined', () => {
     const ret = makeReturn({ requestor: { customerId: 'c1' } });
     expect(getRequestorEmail(ret)).toBe('-');
+  });
+});
+
+describe('getReturnCustomerName', () => {
+  it('returns the requestor fullName when present', () => {
+    const ret = makeReturn({
+      requestor: { fullName: 'Jane Doe', firstName: 'Jane', lastName: 'Smith', email: 'jane@example.com' },
+    });
+    expect(getReturnCustomerName(ret)).toBe('Jane Doe');
+  });
+
+  it('composes firstName and lastName when fullName is absent', () => {
+    const ret = makeReturn({
+      requestor: { firstName: 'Jane', lastName: 'Smith', email: 'jane@example.com' },
+    });
+    expect(getReturnCustomerName(ret)).toBe('Jane Smith');
+  });
+
+  it('falls back to email when no name fields are present', () => {
+    const ret = makeReturn({
+      requestor: { email: 'jane@example.com' },
+    });
+    expect(getReturnCustomerName(ret)).toBe('jane@example.com');
+  });
+
+  it('returns "-" when requestor is undefined', () => {
+    const ret = makeReturn({ requestor: undefined });
+    expect(getReturnCustomerName(ret)).toBe('-');
+  });
+
+  it('returns "-" when requestor has no name or email fields', () => {
+    const ret = makeReturn({ requestor: { customerId: 'c1' } });
+    expect(getReturnCustomerName(ret)).toBe('-');
+  });
+});
+
+describe('getNetReturnValue', () => {
+  it('returns the net value and currency from calculatedPrice.finalPrice', () => {
+    const ret = makeReturn({
+      calculatedPrice: { finalPrice: { netValue: 42.5, grossValue: 50, taxValue: 7.5, currency: 'EUR' } },
+    });
+    expect(getNetReturnValue(ret)).toEqual({ value: 42.5, currency: 'EUR' });
+  });
+
+  it('falls back to the customer-visible Return.total when calculatedPrice is absent', () => {
+    const ret = makeReturn({ total: { value: 99, currency: 'USD' } });
+    expect(getNetReturnValue(ret)).toEqual({ value: 99, currency: 'USD' });
+  });
+
+  it('prefers calculatedPrice.finalPrice.netValue over total when both are present', () => {
+    const ret = makeReturn({
+      calculatedPrice: { finalPrice: { netValue: 42.5, grossValue: 50, taxValue: 7.5, currency: 'EUR' } },
+      total: { value: 99, currency: 'USD' },
+    });
+    expect(getNetReturnValue(ret)).toEqual({ value: 42.5, currency: 'EUR' });
+  });
+
+  it('returns undefined value/currency when neither calculatedPrice nor total is present', () => {
+    const ret = makeReturn();
+    expect(getNetReturnValue(ret)).toEqual({ value: undefined, currency: undefined });
+  });
+
+  it('returns undefined currency when only netValue is present', () => {
+    const ret = makeReturn({
+      calculatedPrice: { finalPrice: { netValue: 10, grossValue: 12, taxValue: 2 } },
+    });
+    expect(getNetReturnValue(ret)).toEqual({ value: 10, currency: undefined });
+  });
+});
+
+describe('getReturnReasonCode', () => {
+  it('returns the top-level reason code', () => {
+    const ret = makeReturn({ reason: { code: 'DEFECTIVE' } });
+    expect(getReturnReasonCode(ret)).toBe('DEFECTIVE');
+  });
+
+  it('returns undefined when reason is absent', () => {
+    const ret = makeReturn({ reason: undefined });
+    expect(getReturnReasonCode(ret)).toBeUndefined();
   });
 });

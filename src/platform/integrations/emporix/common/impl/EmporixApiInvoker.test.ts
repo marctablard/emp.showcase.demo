@@ -1,3 +1,4 @@
+import { shouldBypassExternalCacheForDebug } from '@/platform/core/utils/debug-utils';
 import type { EmporixTokenManager } from '../../common/EmporixTokenManager';
 import type { EmporixConfig } from '../../config';
 import EmporixApiInvoker from './EmporixApiInvoker';
@@ -8,10 +9,11 @@ jest.mock('@/platform/core/utils/debug-utils', () => ({
   logRequestPayload: jest.fn(),
   logResponse: jest.fn(),
   getDebugLogger: jest.fn().mockReturnValue({ error: jest.fn() }),
+  shouldBypassExternalCacheForDebug: jest.fn().mockReturnValue(false),
 }));
 
 // Mock global fetch
-global.fetch = jest.fn();
+globalThis.fetch = jest.fn();
 
 const mockConfig: EmporixConfig = {
   baseUrl: 'https://api.emporix.io',
@@ -25,9 +27,16 @@ const mockConfig: EmporixConfig = {
 describe('EmporixApiInvoker', () => {
   let invoker: EmporixApiInvoker;
   let mockTokenManager: EmporixTokenManager;
+  const originalEnv = {
+    NEXT_PUBLIC_DEBUG_API_CURL: process.env.NEXT_PUBLIC_DEBUG_API_CURL,
+    NEXT_PUBLIC_DEBUG_API_OUTPUT: process.env.NEXT_PUBLIC_DEBUG_API_OUTPUT,
+    NEXT_PUBLIC_DEBUG_API_RESPONSE: process.env.NEXT_PUBLIC_DEBUG_API_RESPONSE,
+    NEXT_PUBLIC_DEBUG_API_ENDPOINTS: process.env.NEXT_PUBLIC_DEBUG_API_ENDPOINTS,
+  };
 
   beforeEach(() => {
-    (global.fetch as jest.Mock).mockResolvedValue({ status: 200, ok: true });
+    (globalThis.fetch as jest.Mock).mockResolvedValue({ status: 200, ok: true });
+    (shouldBypassExternalCacheForDebug as jest.Mock).mockReturnValue(false);
 
     mockTokenManager = {
       getPublicToken: jest.fn().mockResolvedValue({ accessToken: 'public-token-123' }),
@@ -45,14 +54,26 @@ describe('EmporixApiInvoker', () => {
     };
 
     invoker = new EmporixApiInvoker(mockConfig, mockTokenManager);
+
+    delete process.env.NEXT_PUBLIC_DEBUG_API_CURL;
+    delete process.env.NEXT_PUBLIC_DEBUG_API_OUTPUT;
+    delete process.env.NEXT_PUBLIC_DEBUG_API_RESPONSE;
+    delete process.env.NEXT_PUBLIC_DEBUG_API_ENDPOINTS;
+  });
+
+  afterAll(() => {
+    process.env.NEXT_PUBLIC_DEBUG_API_CURL = originalEnv.NEXT_PUBLIC_DEBUG_API_CURL;
+    process.env.NEXT_PUBLIC_DEBUG_API_OUTPUT = originalEnv.NEXT_PUBLIC_DEBUG_API_OUTPUT;
+    process.env.NEXT_PUBLIC_DEBUG_API_RESPONSE = originalEnv.NEXT_PUBLIC_DEBUG_API_RESPONSE;
+    process.env.NEXT_PUBLIC_DEBUG_API_ENDPOINTS = originalEnv.NEXT_PUBLIC_DEBUG_API_ENDPOINTS;
   });
 
   describe('authenticatedFetch cache behavior', () => {
     it('should not cache by default for service token (opt-in required)', async () => {
       await invoker.authenticatedFetch('/test-url', { method: 'GET' }, 'service');
 
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      const [, options] = (globalThis.fetch as jest.Mock).mock.calls[0];
       expect(options.cache).toBeUndefined();
       expect(options.next).toBeUndefined();
     });
@@ -60,8 +81,8 @@ describe('EmporixApiInvoker', () => {
     it('should not cache by default for public token (opt-in required)', async () => {
       await invoker.authenticatedFetch('/test-url', { method: 'GET' }, 'public');
 
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      const [, options] = (globalThis.fetch as jest.Mock).mock.calls[0];
       expect(options.cache).toBeUndefined();
       expect(options.next).toBeUndefined();
     });
@@ -69,8 +90,8 @@ describe('EmporixApiInvoker', () => {
     it('should opt in to caching via cacheSeconds for service token', async () => {
       await invoker.authenticatedFetch('/test-url', { method: 'GET' }, 'service', undefined, undefined, 3600);
 
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      const [, options] = (globalThis.fetch as jest.Mock).mock.calls[0];
       expect(options.cache).toBe('force-cache');
       expect(options.next).toEqual({ revalidate: 3600 });
     });
@@ -78,8 +99,8 @@ describe('EmporixApiInvoker', () => {
     it('should opt in to caching via cacheSeconds for public token', async () => {
       await invoker.authenticatedFetch('/test-url', { method: 'GET' }, 'public', undefined, undefined, 60);
 
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      const [, options] = (globalThis.fetch as jest.Mock).mock.calls[0];
       expect(options.cache).toBe('force-cache');
       expect(options.next).toEqual({ revalidate: 60 });
     });
@@ -91,16 +112,16 @@ describe('EmporixApiInvoker', () => {
         'public',
       );
 
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      const [, options] = (globalThis.fetch as jest.Mock).mock.calls[0];
       expect(options.next).toEqual({ revalidate: 0 });
     });
 
     it('should respect pre-set cache: no-store for service token', async () => {
       await invoker.authenticatedFetch('/test-url', { method: 'GET', cache: 'no-store' }, 'service');
 
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      const [, options] = (globalThis.fetch as jest.Mock).mock.calls[0];
       expect(options.cache).toBe('no-store');
       expect(options.next).toBeUndefined();
     });
@@ -108,8 +129,8 @@ describe('EmporixApiInvoker', () => {
     it('should respect pre-set cache: no-store for public token', async () => {
       await invoker.authenticatedFetch('/test-url', { method: 'GET', cache: 'no-store' }, 'public');
 
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      const [, options] = (globalThis.fetch as jest.Mock).mock.calls[0];
       expect(options.cache).toBe('no-store');
       expect(options.next).toBeUndefined();
     });
@@ -117,8 +138,8 @@ describe('EmporixApiInvoker', () => {
     it('should not set cache option for session token', async () => {
       await invoker.authenticatedFetch('/test-url', { method: 'GET' }, 'session');
 
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      const [, options] = (globalThis.fetch as jest.Mock).mock.calls[0];
       expect(options.cache).toBeUndefined();
       expect(options.next).toBeUndefined();
     });
@@ -130,8 +151,8 @@ describe('EmporixApiInvoker', () => {
         'service',
       );
 
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      const [, options] = (globalThis.fetch as jest.Mock).mock.calls[0];
       expect(options.next).toEqual({ revalidate: 60 });
       expect(options.cache).toBeUndefined();
     });
@@ -139,8 +160,8 @@ describe('EmporixApiInvoker', () => {
     it('should add Authorization header with correct token for service calls', async () => {
       await invoker.authenticatedFetch('/test-url', { method: 'GET' }, 'service');
 
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      const [, options] = (globalThis.fetch as jest.Mock).mock.calls[0];
       expect(options.headers).toEqual(
         expect.objectContaining({
           Authorization: 'Bearer service-token-123',
@@ -151,8 +172,8 @@ describe('EmporixApiInvoker', () => {
     it('should add session-id header for session token', async () => {
       await invoker.authenticatedFetch('/test-url', { method: 'GET' }, 'session');
 
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      const [, options] = (globalThis.fetch as jest.Mock).mock.calls[0];
       expect(options.headers).toEqual(
         expect.objectContaining({
           Authorization: 'Bearer session-token-123',
@@ -164,8 +185,8 @@ describe('EmporixApiInvoker', () => {
     it.each(['POST', 'PUT', 'PATCH', 'DELETE'])('should force no-store for %s with service token', async (method) => {
       await invoker.authenticatedFetch('/test-url', { method }, 'service');
 
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      const [, options] = (globalThis.fetch as jest.Mock).mock.calls[0];
       expect(options.cache).toBe('no-store');
       expect(options.next).toBeUndefined();
     });
@@ -173,8 +194,8 @@ describe('EmporixApiInvoker', () => {
     it('should force no-store for POST with public token', async () => {
       await invoker.authenticatedFetch('/test-url', { method: 'POST' }, 'public');
 
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      const [, options] = (globalThis.fetch as jest.Mock).mock.calls[0];
       expect(options.cache).toBe('no-store');
       expect(options.next).toBeUndefined();
     });
@@ -186,8 +207,8 @@ describe('EmporixApiInvoker', () => {
         'public',
       );
 
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      const [, options] = (globalThis.fetch as jest.Mock).mock.calls[0];
       expect(options.cache).toBeUndefined();
       expect(options.next).toEqual({ revalidate: 60 });
     });
@@ -202,9 +223,65 @@ describe('EmporixApiInvoker', () => {
         3600,
       );
 
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      const [, options] = (globalThis.fetch as jest.Mock).mock.calls[0];
       expect(options.next).toEqual({ revalidate: 60 });
+    });
+
+    it('should force no-store for matching endpoint when debug curl logging is enabled', async () => {
+      process.env.NEXT_PUBLIC_DEBUG_API_CURL = 'true';
+      process.env.NEXT_PUBLIC_DEBUG_API_OUTPUT = 'BOTH';
+      process.env.NEXT_PUBLIC_DEBUG_API_ENDPOINTS = 'quote';
+      (shouldBypassExternalCacheForDebug as jest.Mock).mockReturnValue(true);
+
+      await invoker.authenticatedFetch('/quote/test-tenant/quotes?page=1', { method: 'GET' }, 'service');
+
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      const [, options] = (globalThis.fetch as jest.Mock).mock.calls[0];
+      expect(options.cache).toBe('no-store');
+      expect(options.next).toBeUndefined();
+    });
+
+    it('should preserve cacheSeconds for non-matching endpoint when debug is enabled', async () => {
+      process.env.NEXT_PUBLIC_DEBUG_API_CURL = 'true';
+      process.env.NEXT_PUBLIC_DEBUG_API_OUTPUT = 'BOTH';
+      process.env.NEXT_PUBLIC_DEBUG_API_ENDPOINTS = 'quote';
+      (shouldBypassExternalCacheForDebug as jest.Mock).mockReturnValue(false);
+
+      await invoker.authenticatedFetch(
+        '/catalog/test-tenant/catalogs',
+        { method: 'GET' },
+        'service',
+        undefined,
+        undefined,
+        60,
+      );
+
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      const [, options] = (globalThis.fetch as jest.Mock).mock.calls[0];
+      expect(options.cache).toBe('force-cache');
+      expect(options.next).toEqual({ revalidate: 60 });
+    });
+
+    it('should force no-store for matching endpoint when debug response logging is enabled', async () => {
+      process.env.NEXT_PUBLIC_DEBUG_API_OUTPUT = 'BOTH';
+      process.env.NEXT_PUBLIC_DEBUG_API_RESPONSE = 'STATUS-BODY';
+      process.env.NEXT_PUBLIC_DEBUG_API_ENDPOINTS = 'approval';
+      (shouldBypassExternalCacheForDebug as jest.Mock).mockReturnValue(true);
+
+      await invoker.authenticatedFetch(
+        '/approval/test-tenant/approvals?pageNumber=1',
+        { method: 'GET' },
+        'service',
+        undefined,
+        undefined,
+        120,
+      );
+
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      const [, options] = (globalThis.fetch as jest.Mock).mock.calls[0];
+      expect(options.cache).toBe('no-store');
+      expect(options.next).toBeUndefined();
     });
   });
 });

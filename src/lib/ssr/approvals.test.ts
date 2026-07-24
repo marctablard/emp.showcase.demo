@@ -34,11 +34,28 @@ describe('getApprovals', () => {
   });
 
   it('forwards page number before page size to ApprovalService', async () => {
-    approvalService.getApprovals.mockResolvedValueOnce([{ id: 'approval-1' }]);
+    approvalService.getApprovals.mockResolvedValueOnce({ items: [{ id: 'approval-1' }], totalCount: 1 });
 
-    const approvals = await getApprovals(3, 25);
+    const result = await getApprovals(3, 25);
 
-    expect(approvals).toEqual([{ id: 'approval-1' }]);
+    expect(result).toEqual({ items: [{ id: 'approval-1' }], totalCount: 1 });
     expect(approvalService.getApprovals).toHaveBeenCalledWith(3, 25, 'metadata.modifiedAt:desc');
+  });
+
+  it('forwards an explicit sort override instead of the default', async () => {
+    approvalService.getApprovals.mockResolvedValueOnce({ items: [], totalCount: 0 });
+
+    await getApprovals(1, 25, 'metadata.modifiedAt:ASC');
+
+    expect(approvalService.getApprovals).toHaveBeenCalledWith(1, 25, 'metadata.modifiedAt:ASC');
+  });
+
+  it('returns undefined and logs when the service call fails', async () => {
+    approvalService.getApprovals.mockRejectedValueOnce(new Error('boom'));
+
+    const result = await getApprovals(1, 25);
+
+    expect(result).toBeUndefined();
+    expect(logger.error).toHaveBeenCalled();
   });
 });

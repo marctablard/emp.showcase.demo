@@ -2,170 +2,296 @@
  * @jest-environment jsdom
  */
 import '@testing-library/jest-dom';
-import { render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { Approval } from '@/platform/services/model/approval';
 import { ApprovalsList } from './approvals-list';
 
 jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: Record<string, string | number>) => {
+    if (values) {
+      return `${key}:${JSON.stringify(values)}`;
+    }
+    return key;
+  },
   useLocale: () => 'en-US',
 }));
 
 jest.mock('@/i18n/navigation', () => ({
-  Link: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a>,
+  Link: ({ href, children, ...rest }: { href: string; children: React.ReactNode } & Record<string, unknown>) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+  useRouter: () => ({ push: jest.fn() }),
 }));
+
+const mockUseApprovals = jest.fn();
 
 jest.mock('@/hooks/approval/useApprovals', () => ({
-  useApprovals: (initialApprovals?: Approval[]) => ({
-    approvals: initialApprovals ?? [],
-    loading: false,
-    error: null,
-    filterApprovals: jest.fn(),
-    refreshApprovals: jest.fn(),
-  }),
+  useApprovals: (...args: unknown[]) => mockUseApprovals(...args),
 }));
 
+jest.mock('@/components/ui/table-pagination', () => ({
+  TablePagination: ({ currentPage, totalPages, onPreviousPage, onNextPage }: any) => (
+    <div>
+      {currentPage > 1 ? <button onClick={onPreviousPage}>previous</button> : null}
+      {currentPage < totalPages ? <button onClick={onNextPage}>next</button> : null}
+    </div>
+  ),
+}));
+
+function buildApproval(overrides: Partial<Approval> = {}): Approval {
+  return {
+    id: 'APR-1',
+    resourceType: 'QUOTE',
+    action: 'CHECKOUT',
+    status: 'PENDING',
+    resource: { id: 'quote-1' },
+    requestor: { userId: 'requestor-1', firstName: 'Requester', lastName: 'One', email: 'r@example.com' },
+    approver: { userId: 'approver-1', firstName: 'Approver', lastName: 'One' },
+    createdAt: '2026-05-31T10:00:00.000Z',
+    modifiedAt: '2026-06-01T10:00:00.000Z',
+    ...overrides,
+  };
+}
+
+function mockApprovalsResult(overrides: {
+  approvals: Approval[];
+  loading?: boolean;
+  error?: Error | null;
+  pagination?: { pageNumber: number; pageSize: number; totalPages: number; totalItems: number };
+}) {
+  mockUseApprovals.mockReturnValue({
+    approvals: overrides.approvals,
+    loading: overrides.loading ?? false,
+    error: overrides.error ?? null,
+    pagination: overrides.pagination,
+    refreshApprovals: jest.fn(),
+  });
+}
+
 describe('ApprovalsList', () => {
-  it('renders QUOTE approvals without checkout detail fields and preserves CART rows', () => {
-    const approvals: Approval[] = [
-      {
-        id: 'approval-quote-1',
-        resourceType: 'QUOTE',
-        action: 'CHECKOUT',
-        status: 'PENDING',
-        resource: { id: 'quote-1', orderId: 'order-1' },
-        requestor: { userId: 'requestor-1', firstName: 'Requester', lastName: 'One', fullName: 'Requester One' },
-        approver: { userId: 'approver-1', firstName: 'Approver', lastName: 'One', fullName: 'Approver One' },
-        createdAt: '2026-06-01T10:00:00.000Z',
-        modifiedAt: '2026-06-02T10:00:00.000Z',
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+    jest.useRealTimers();
+  });
+
+  it('passes the canonical initial page-one default-sort request metadata to useApprovals for SSR hydration reuse', () => {
+    mockApprovalsResult({
+      approvals: [buildApproval()],
+      pagination: { pageNumber: 1, pageSize: 5, totalPages: 1, totalItems: 1 },
+    });
+
+    render(<ApprovalsList initialApprovals={[buildApproval()]} initialTotalCount={1} />);
+
+    expect(mockUseApprovals).toHaveBeenCalled();
+    const [, options] = mockUseApprovals.mock.calls[mockUseApprovals.mock.calls.length - 1];
+    expect(options).toMatchObject({
+      pageNumber: 1,
+      sort: 'metadata.modifiedAt:desc',
+      initialTotalCount: 1,
+      initialRequest: {
+        pageNumber: 1,
+        sort: 'metadata.modifiedAt:desc',
+        query: undefined,
       },
-      {
-        id: 'approval-cart-1',
-        resourceType: 'CART',
-        action: 'CHECKOUT',
-        status: 'APPROVED',
-        resource: { id: 'cart-1' },
-        requestor: { userId: 'requestor-2' },
-        approver: { userId: 'approver-2', firstName: 'Approver', lastName: 'Two', fullName: 'Approver Two' },
-        createdAt: '2026-05-31T10:00:00.000Z',
-        modifiedAt: '2026-05-31T10:00:00.000Z',
-      },
-    ];
+    });
+  });
 
-    render(<ApprovalsList initialApprovals={approvals} />);
+  it('renders H1 "Approval Dashboard" via the title translation key with no subheading', () => {
+    mockApprovalsResult({ approvals: [buildApproval()] });
+    render(<ApprovalsList initialApprovals={[buildApproval()]} />);
 
-    expect(screen.getByText('resourceType')).toBeInTheDocument();
-    expect(screen.getByText('QUOTE')).toBeInTheDocument();
-    expect(screen.getByText('CART')).toBeInTheDocument();
-    expect(screen.getByText('quoteId')).toBeInTheDocument();
-    expect(screen.getByText('orderId')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'quote-1' })).toHaveAttribute('href', '/account/quotes/quote-1');
-    expect(screen.getByText('order-1')).toBeInTheDocument();
-    expect(screen.getByText('Requester One')).toBeInTheDocument();
-    expect(screen.getByText('Approver One')).toBeInTheDocument();
-    const quoteRow = screen.getByText('approval-quote-1').closest('tr');
-    const cartRow = screen.getByText('approval-cart-1').closest('tr');
+    expect(screen.getByRole('heading', { level: 1, name: 'title' })).toBeInTheDocument();
+  });
 
-    expect(quoteRow).not.toBeNull();
-    expect(within(quoteRow as HTMLTableRowElement).getByRole('link', { name: 'view' })).toHaveAttribute(
-      'href',
-      '/account/quotes/quote-1',
+  it('wraps the search, filter, table, and pagination in the shared table-card surface', () => {
+    mockApprovalsResult({
+      approvals: [buildApproval()],
+      pagination: { pageNumber: 1, pageSize: 5, totalPages: 3, totalItems: 15 },
+    });
+    const { container } = render(<ApprovalsList initialApprovals={[buildApproval()]} />);
+
+    const tableCard = container.querySelector('[data-slot="table-card"]');
+    expect(tableCard).not.toBeNull();
+    expect(tableCard).toHaveClass(
+      'bg-surface-primary',
+      'border',
+      'border-border-primary',
+      'rounded-md',
+      'shadow-[var(--theme-shadow-sm)]',
     );
-    expect(cartRow).not.toBeNull();
-    expect(within(cartRow as HTMLTableRowElement).getAllByText('-')).toHaveLength(2);
+    expect(tableCard).not.toHaveClass('shadow-sm');
+    expect(tableCard?.querySelector('table')).not.toBeNull();
+    expect(tableCard?.querySelector('input')).not.toBeNull();
   });
 
-  it('routes QUOTE approvals for designated approvers to the company approval page', () => {
-    const approvals: Approval[] = [
-      {
-        id: 'approval-quote-1',
-        resourceType: 'QUOTE',
-        action: 'CHECKOUT',
-        status: 'PENDING',
-        resource: { id: 'quote-1' },
-        requestor: { userId: 'requestor-1', firstName: 'Requester', lastName: 'One', fullName: 'Requester One' },
-        approver: { userId: 'approver-1', firstName: 'Approver', lastName: 'One', fullName: 'Approver One' },
-        createdAt: '2026-06-01T10:00:00.000Z',
-        modifiedAt: '2026-06-01T10:00:00.000Z',
-      },
-    ];
+  it('does not send a query when no search term or status filter is active', () => {
+    mockApprovalsResult({ approvals: [] });
+    render(<ApprovalsList initialApprovals={[]} />);
 
-    render(<ApprovalsList initialApprovals={approvals} currentUserId="approver-1" />);
-
-    expect(screen.getByRole('link', { name: 'view' })).toHaveAttribute('href', '/account/approval/approval-quote-1');
+    const [, initialOptions] = mockUseApprovals.mock.calls[mockUseApprovals.mock.calls.length - 1];
+    expect(initialOptions.query).toBeUndefined();
   });
 
-  it('keeps QUOTE approvals on the quote page for requestors even when they are also the approver', () => {
-    const approvals: Approval[] = [
-      {
-        id: 'approval-quote-1',
-        resourceType: 'QUOTE',
-        action: 'CHECKOUT',
-        status: 'PENDING',
-        resource: { id: 'quote-1' },
-        requestor: { userId: 'shared-user', firstName: 'Shared', lastName: 'User', fullName: 'Shared User' },
-        approver: { userId: 'shared-user', firstName: 'Shared', lastName: 'User', fullName: 'Shared User' },
-        createdAt: '2026-06-01T10:00:00.000Z',
-        modifiedAt: '2026-06-01T10:00:00.000Z',
-      },
-    ];
+  it('scopes quick search to id/status/requestor/approver name fields and resets to page 1', () => {
+    mockApprovalsResult({
+      approvals: [buildApproval()],
+      pagination: { pageNumber: 2, pageSize: 5, totalPages: 3, totalItems: 15 },
+    });
+    render(<ApprovalsList initialApprovals={[buildApproval()]} />);
 
-    render(<ApprovalsList initialApprovals={approvals} currentUserId="shared-user" />);
+    const input = screen.getByPlaceholderText('searchPlaceholder');
+    fireEvent.change(input, { target: { value: 'abc' } });
 
-    expect(screen.getByRole('link', { name: 'view' })).toHaveAttribute('href', '/account/quotes/quote-1');
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    const [, options] = mockUseApprovals.mock.calls[mockUseApprovals.mock.calls.length - 1];
+    expect(options.query).toBe(
+      'compoundLogicalQuery:((id:~(abc)) OR (status:~(ABC)) OR (requestor.firstName:~(abc)) OR (requestor.lastName:~(abc)) OR (approver.firstName:~(abc)) OR (approver.lastName:~(abc)))',
+    );
+    expect(options.pageNumber).toBe(1);
   });
 
-  it('keeps non-QUOTE approvals on the requester approval details route', () => {
-    const approvals: Approval[] = [
-      {
-        id: 'approval-cart-1',
-        resourceType: 'CART',
-        action: 'CHECKOUT',
-        status: 'APPROVED',
-        resource: { id: 'cart-1' },
-        requestor: { userId: 'requestor-2' },
-        approver: { userId: 'approver-2', firstName: 'Approver', lastName: 'Two', fullName: 'Approver Two' },
-        createdAt: '2026-05-31T10:00:00.000Z',
-        modifiedAt: '2026-05-31T10:00:00.000Z',
-      },
-    ];
+  it('does not render a status filter dropdown', () => {
+    mockApprovalsResult({ approvals: [buildApproval()] });
+    render(<ApprovalsList initialApprovals={[buildApproval()]} />);
 
-    render(<ApprovalsList initialApprovals={approvals} />);
-
-    expect(screen.getByRole('link', { name: 'view' })).toHaveAttribute('href', '/account/approvals/approval-cart-1');
+    expect(screen.queryByText('filterByStatus')).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
-  it('sorts approvals by modifiedAt descending before rendering', () => {
-    const approvals: Approval[] = [
-      {
-        id: 'approval-older',
-        resourceType: 'QUOTE',
-        action: 'CHECKOUT',
-        status: 'PENDING',
-        resource: { id: 'quote-older' },
-        requestor: { userId: 'requestor-1', fullName: 'Requester One', firstName: 'Requester', lastName: 'One' },
-        approver: { userId: 'approver-1', fullName: 'Approver One', firstName: 'Approver', lastName: 'One' },
-        createdAt: '2026-06-01T10:00:00.000Z',
-        modifiedAt: '2026-06-01T10:00:00.000Z',
-      },
-      {
-        id: 'approval-newer',
-        resourceType: 'QUOTE',
-        action: 'CHECKOUT',
-        status: 'PENDING',
-        resource: { id: 'quote-newer' },
-        requestor: { userId: 'requestor-2', fullName: 'Requester Two', firstName: 'Requester', lastName: 'Two' },
-        approver: { userId: 'approver-2', fullName: 'Approver Two', firstName: 'Approver', lastName: 'Two' },
-        createdAt: '2026-05-01T10:00:00.000Z',
-        modifiedAt: '2026-06-02T10:00:00.000Z',
-      },
-    ];
+  it('waits for the debounced trimmed search to reset page 1 and clears the query once the field is emptied', () => {
+    mockApprovalsResult({
+      approvals: [buildApproval()],
+      pagination: { pageNumber: 2, pageSize: 5, totalPages: 3, totalItems: 15 },
+    });
+    render(<ApprovalsList initialApprovals={[buildApproval()]} />);
 
-    render(<ApprovalsList initialApprovals={approvals} />);
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-    const dataRows = screen.getAllByRole('row').slice(1);
+    const input = screen.getByPlaceholderText('searchPlaceholder');
+    fireEvent.change(input, { target: { value: '  abc  ' } });
 
-    expect(within(dataRows[0] as HTMLTableRowElement).getByText('approval-newer')).toBeInTheDocument();
-    expect(within(dataRows[1] as HTMLTableRowElement).getByText('approval-older')).toBeInTheDocument();
+    const [, optionsBeforeDebounce] = mockUseApprovals.mock.calls[mockUseApprovals.mock.calls.length - 1];
+    expect(optionsBeforeDebounce.pageNumber).toBe(2);
+    expect(optionsBeforeDebounce.query).toBeUndefined();
+
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    const [, optionsAfterDebounce] = mockUseApprovals.mock.calls[mockUseApprovals.mock.calls.length - 1];
+    expect(optionsAfterDebounce.query).toBe(
+      'compoundLogicalQuery:((id:~(abc)) OR (status:~(ABC)) OR (requestor.firstName:~(abc)) OR (requestor.lastName:~(abc)) OR (approver.firstName:~(abc)) OR (approver.lastName:~(abc)))',
+    );
+    expect(optionsAfterDebounce.pageNumber).toBe(1);
+
+    fireEvent.change(input, { target: { value: '' } });
+
+    const [, optionsAfterClearBeforeDebounce] = mockUseApprovals.mock.calls[mockUseApprovals.mock.calls.length - 1];
+    expect(optionsAfterClearBeforeDebounce.pageNumber).toBe(1);
+    expect(optionsAfterClearBeforeDebounce.query).toBe(
+      'compoundLogicalQuery:((id:~(abc)) OR (status:~(ABC)) OR (requestor.firstName:~(abc)) OR (requestor.lastName:~(abc)) OR (approver.firstName:~(abc)) OR (approver.lastName:~(abc)))',
+    );
+
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    const [, optionsAfterDebouncedClear] = mockUseApprovals.mock.calls[mockUseApprovals.mock.calls.length - 1];
+    expect(optionsAfterDebouncedClear.query).toBeUndefined();
+    expect(optionsAfterDebouncedClear.pageNumber).toBe(1);
+  });
+
+  it('never calls useApprovals with {new query, old page} while the debounced search settles', () => {
+    mockApprovalsResult({
+      approvals: [buildApproval()],
+      pagination: { pageNumber: 2, pageSize: 5, totalPages: 3, totalItems: 15 },
+    });
+    render(<ApprovalsList initialApprovals={[buildApproval()]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    const input = screen.getByPlaceholderText('searchPlaceholder');
+    fireEvent.change(input, { target: { value: 'abc' } });
+
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    const expectedQuery =
+      'compoundLogicalQuery:((id:~(abc)) OR (status:~(ABC)) OR (requestor.firstName:~(abc)) OR (requestor.lastName:~(abc)) OR (approver.firstName:~(abc)) OR (approver.lastName:~(abc)))';
+
+    const staleCombo = mockUseApprovals.mock.calls.find(
+      ([, options]) => options.query === expectedQuery && options.pageNumber === 2,
+    );
+    expect(staleCombo).toBeUndefined();
+
+    const [, settledOptions] = mockUseApprovals.mock.calls[mockUseApprovals.mock.calls.length - 1];
+    expect(settledOptions.query).toBe(expectedQuery);
+    expect(settledOptions.pageNumber).toBe(1);
+  });
+
+  it('renders the error state distinctly instead of the table when the fetch fails', () => {
+    mockApprovalsResult({ approvals: [], error: new Error('boom') });
+    render(<ApprovalsList initialApprovals={[]} />);
+
+    expect(screen.getByText('boom')).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('shows a Try Again action in the error state that retries via refreshApprovals', () => {
+    const refreshApprovals = jest.fn();
+    mockUseApprovals.mockReturnValue({
+      approvals: [],
+      loading: false,
+      error: new Error('boom'),
+      pagination: undefined,
+      refreshApprovals,
+    });
+    render(<ApprovalsList initialApprovals={[]} />);
+
+    fireEvent.click(screen.getByText('tryAgain'));
+    expect(refreshApprovals).toHaveBeenCalledTimes(1);
+  });
+
+  it('routes QUOTE approvals for designated approvers to the standalone approval page via the table', () => {
+    const approval = buildApproval({
+      id: 'approval-quote-1',
+      resourceType: 'QUOTE',
+      requestor: { userId: 'requestor-1', firstName: 'Requester', lastName: 'One', email: 'r@example.com' },
+      approver: { userId: 'approver-1', firstName: 'Approver', lastName: 'One' },
+    });
+    mockApprovalsResult({ approvals: [approval] });
+
+    render(<ApprovalsList initialApprovals={[approval]} currentUserId="approver-1" />);
+
+    expect(screen.getByRole('link', { name: 'approval-quote-1' })).toHaveAttribute(
+      'href',
+      '/account/approval/approval-quote-1',
+    );
+  });
+
+  it('keeps non-QUOTE approvals on the approval details route via the table', () => {
+    const approval = buildApproval({
+      id: 'approval-cart-1',
+      resourceType: 'CART',
+      resource: { id: 'cart-1' },
+    });
+    mockApprovalsResult({ approvals: [approval] });
+
+    render(<ApprovalsList initialApprovals={[approval]} />);
+
+    expect(screen.getByRole('link', { name: 'approval-cart-1' })).toHaveAttribute(
+      'href',
+      '/account/approvals/approval-cart-1',
+    );
   });
 });
