@@ -104,15 +104,21 @@ function ReturnOverview({ returnItem, locale, t }: ReturnOverviewProps) {
           <ReceiptText className="h-8 w-8 shrink-0 text-text-action" />
           <H4>{t('returnOverview')}</H4>
         </div>
-        <div className="flex items-start justify-between gap-4">
-          <H5>{t('totalReturnValue')}</H5>
+        <div className="flex items-start justify-between gap-4 border-b border-border-primary pb-4">
+          <H5>{t('netValueOfGoods')}</H5>
           <H5 className="text-right">{formatReturnCurrency(totalNetValue, totalCurrency, locale)}</H5>
         </div>
-        <div className="flex items-start justify-between gap-4 text-sm font-body text-text-placeholders">
-          <span>{t('gross')}</span>
-          <span className="text-right">
-            {totalGrossValue !== undefined ? formatReturnCurrency(totalGrossValue, totalCurrency, locale) : '-'}
-          </span>
+        <div className="flex items-start justify-between gap-4 pt-2">
+          <H5>{t('totalReturnValue')}</H5>
+          <div className="text-right">
+            <H5>{formatReturnCurrency(totalNetValue, totalCurrency, locale)}</H5>
+            <div className="flex items-center justify-end gap-1 text-sm font-body text-text-placeholders">
+              <span>{t('gross')}</span>
+              <span>
+                {totalGrossValue !== undefined ? formatReturnCurrency(totalGrossValue, totalCurrency, locale) : '-'}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -169,7 +175,6 @@ function ReturnItemsList({ items, locale, t }: ReturnItemsListProps) {
   return (
     <Card className="border border-border-primary shadow-sm">
       <CardContent className="p-6">
-        <H6 className="mb-4">{t('returnedProducts')}</H6>
         <div className="hidden sm:grid grid-cols-[minmax(280px,1.6fr)_minmax(120px,1fr)_80px_minmax(140px,1fr)] gap-6 items-start pb-4 border-b border-border-primary">
           <H6 className="text-sm">{t('product')}</H6>
           <H6 className="text-sm">{t('price')}</H6>
@@ -187,7 +192,7 @@ function ReturnItemsList({ items, locale, t }: ReturnItemsListProps) {
                 key={item.id}
                 className="py-6 first:pt-4 flex flex-col gap-3 sm:grid sm:grid-cols-[minmax(280px,1.6fr)_minmax(120px,1fr)_80px_minmax(140px,1fr)] sm:gap-6 sm:items-start"
               >
-                <div className="flex gap-4 items-start min-w-0">
+                <div className="flex flex-col-reverse items-start gap-4 min-w-0 sm:flex-row">
                   <div className="bg-surface-image-background w-[80px] h-[52px] shrink-0 rounded-tl-lg rounded-br-lg overflow-hidden flex items-center justify-center">
                     {firstImage ? (
                       <Image
@@ -241,8 +246,7 @@ function ReturnItemsList({ items, locale, t }: ReturnItemsListProps) {
                     )}
                   </div>
                 </div>
-                <div className="flex justify-between sm:block">
-                  <span className="text-sm text-text-body sm:hidden">{t('quantity')}</span>
+                <div className="text-left">
                   <span className="text-base font-body text-text-body">{item.quantity}</span>
                 </div>
                 <div className="flex justify-between text-right sm:block">

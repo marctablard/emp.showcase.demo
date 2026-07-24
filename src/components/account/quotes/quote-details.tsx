@@ -578,76 +578,15 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={activeDecisionDialog === 'DECLINE'}
-        onOpenChange={(open) => handleDecisionDialogChange(open ? 'DECLINE' : null)}
-      >
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>{t('rejectConfirmationTitle')}</DialogTitle>
-            <DialogDescription>{t('rejectConfirmationDescription')}</DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-2">
-            <Label htmlFor="quote-decision-reason">{t('decisionReasonLabel')}</Label>
-            <Select value={decisionReasonCode} onValueChange={setDecisionReasonCode}>
-              <SelectTrigger id="quote-decision-reason" aria-label={t('decisionReasonLabel')}>
-                <SelectValue placeholder={t('decisionReasonPlaceholder')} />
-              </SelectTrigger>
-              <SelectContent>
-                {QUOTE_DECISION_REASON_OPTIONS.DECLINE.map((reasonCode) => (
-                  <SelectItem key={reasonCode} value={reasonCode}>
-                    {t(`decisionReasons.${reasonCode}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="quote-decision-comment">{t('yourComment')}</Label>
-            <Textarea
-              id="quote-decision-comment"
-              placeholder={t('rejectCommentPlaceholder')}
-              className="min-h-32 resize-none"
-              value={decisionComment}
-              onChange={(e) => setDecisionComment(e.target.value)}
-              maxLength={maxCommentLength}
-            />
-          </div>
-
-          {processError ? (
-            <Alert variant="destructive" role="alert">
-              <AlertDescription>{processError}</AlertDescription>
-            </Alert>
-          ) : null}
-
-          <DialogFooter>
-            <Button variant="secondary" disabled={isProcessing} onClick={() => handleDecisionDialogChange(null)}>
-              {t('cancel')}
-            </Button>
-            <Button
-              variant="red"
-              disabled={!decisionReasonCode || isProcessing}
-              onClick={() => {
-                void handleQuoteDecisionSubmit();
-              }}
-            >
-              {isProcessing ? t('rejecting') : t('rejectQuote')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <div className="flex flex-wrap items-center justify-between gap-6">
+      <div className="flex flex-wrap items-center gap-6 px-6">
         <div className="flex items-center gap-6">
           <H3>
-            {t('title')}: {quote.reference || quoteId}
+            {t('headerTitle')}: {quote.reference || quoteId}
           </H3>
           <QuoteStatusBadge status={quote.status} />
         </div>
         {!showAcceptConfirmation && !activeDecisionDialog && (
-          <div className="flex flex-wrap items-center gap-6">
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-6">
             <Button
               variant="outlineError"
               size="small"
@@ -691,89 +630,6 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
       </div>
 
       <CardContent className="space-y-6 mt-6">
-        {/* Quote acceptance confirmation dialog */}
-        {showAcceptConfirmation && (
-          <div className="grid grid-cols-1 mb-6 gap-6">
-            <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
-              <div className="shadow-none rounded-md py-4 h-full gap-2 bg-surface-page p-6">
-                <H3 variant="h5" className="mb-2">
-                  {t('confirmationTitle')}
-                </H3>
-                <p className="text-sm text-text-on-disabled mb-4">{t('confirmationDescription')}</p>
-
-                <div className="mb-4">
-                  <label htmlFor="accept-comment" className="block text-sm font-medium mb-1">
-                    {t('yourComment')}
-                  </label>
-                  <Textarea
-                    id="accept-comment"
-                    ref={acceptCommentRef}
-                    placeholder={t('commentPlaceholder')}
-                    className="w-full h-32 resize-none"
-                    value={acceptComment}
-                    onChange={(e) => setAcceptComment(e.target.value)}
-                    maxLength={maxCommentLength}
-                  />
-                </div>
-
-                <div className="mb-4">
-                  {t('termsAgreement')}{' '}
-                  <UiLink type="Link" variant="text" href="/privacy-policy">
-                    {t('privacyPolicy')}
-                  </UiLink>
-                  and{' '}
-                  <UiLink type="Link" variant="text" href="/terms-and-conditions">
-                    {t('termsOfUse')}
-                  </UiLink>
-                </div>
-
-                <div className="flex space-x-3">
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      setProcessError(null);
-                      setShowAcceptConfirmation(false);
-                      setAcceptComment('');
-                    }}
-                  >
-                    {t('cancel')}
-                  </Button>
-                  <Button
-                    variant="primary"
-                    disabled={isProcessing}
-                    onClick={async () => {
-                      try {
-                        setProcessError(null);
-                        setIsProcessing(true);
-
-                        await updateQuoteStatus(quoteId, 'ACCEPTED', acceptComment);
-
-                        setShowAcceptConfirmation(false);
-                        setAcceptComment('');
-                      } catch (error) {
-                        getLogger().error({ err: error }, 'Failed to process quote');
-                        const msg =
-                          error instanceof Error
-                            ? trimQuoteStatusErrorMessage(error.message)
-                            : t('quoteActionFailedDescription');
-                        notify({
-                          title: t('quoteActionFailedTitle'),
-                          description: msg,
-                          type: ToastType.Error,
-                        });
-                      } finally {
-                        setIsProcessing(false);
-                      }
-                    }}
-                  >
-                    {isProcessing ? t('creating') : t('createOrder')}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         <div className="rounded-md bg-surface-primary p-6 shadow-sm">
           <div className="flex flex-col gap-6">
             <H4>{t('title')}</H4>
@@ -824,61 +680,216 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
           </div>
         </div>
 
-        {activeDecisionDialog === 'CHANGE' && (
-          <div className="rounded-md bg-surface-primary p-6 shadow-sm">
-            <div className="flex flex-col gap-6">
-              <div>
-                <H4>{t('requestChangeConfirmationTitle')}</H4>
-                <p className="mt-2 text-base font-body text-text-body">{t('requestChangeConfirmationDescription')}</p>
-              </div>
+        {(showAcceptConfirmation || activeDecisionDialog) && (
+          <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
+            <div
+              className={cn(
+                'shadow-none rounded-md py-4 h-full bg-surface-page p-6',
+                activeDecisionDialog === 'CHANGE' && 'border-2 border-border-action',
+              )}
+            >
+              {showAcceptConfirmation && (
+                <>
+                  <H3 variant="h5" className="mb-2">
+                    {t('confirmationTitle')}
+                  </H3>
+                  <p className="text-sm text-text-on-disabled mb-4">{t('confirmationDescription')}</p>
 
-              <div className="space-y-2">
-                <Label htmlFor="quote-change-reason">{t('decisionReasonLabel')}</Label>
-                <Select value={decisionReasonCode} onValueChange={setDecisionReasonCode}>
-                  <SelectTrigger id="quote-change-reason" aria-label={t('decisionReasonLabel')}>
-                    <SelectValue placeholder={t('decisionReasonPlaceholder')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {QUOTE_DECISION_REASON_OPTIONS.CHANGE.map((reasonCode) => (
-                      <SelectItem key={reasonCode} value={reasonCode}>
-                        {t(`decisionReasons.${reasonCode}`)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  <div className="mb-4">
+                    <label htmlFor="accept-comment" className="block text-sm font-medium mb-1">
+                      {t('yourComment')}
+                    </label>
+                    <Textarea
+                      id="accept-comment"
+                      ref={acceptCommentRef}
+                      placeholder={t('commentPlaceholder')}
+                      className="w-full h-32 resize-none"
+                      value={acceptComment}
+                      onChange={(e) => setAcceptComment(e.target.value)}
+                      maxLength={maxCommentLength}
+                    />
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="quote-change-comment">{t('yourComment')}</Label>
-                <Textarea
-                  id="quote-change-comment"
-                  placeholder={t('requestChangeCommentPlaceholder')}
-                  className="min-h-32 resize-none"
-                  value={decisionComment}
-                  onChange={(event) => setDecisionComment(event.target.value)}
-                  maxLength={maxCommentLength}
-                />
-              </div>
+                  <div className="mb-4">
+                    {t('termsAgreement')}{' '}
+                    <UiLink type="Link" variant="text" href="/privacy-policy">
+                      {t('privacyPolicy')}
+                    </UiLink>
+                    and{' '}
+                    <UiLink type="Link" variant="text" href="/terms-and-conditions">
+                      {t('termsOfUse')}
+                    </UiLink>
+                  </div>
 
-              {processError ? (
-                <Alert variant="destructive" role="alert">
-                  <AlertDescription>{processError}</AlertDescription>
-                </Alert>
-              ) : null}
+                  <div className="flex space-x-3">
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        setProcessError(null);
+                        setShowAcceptConfirmation(false);
+                        setAcceptComment('');
+                      }}
+                    >
+                      {t('cancel')}
+                    </Button>
+                    <Button
+                      variant="primary"
+                      disabled={isProcessing}
+                      onClick={async () => {
+                        try {
+                          setProcessError(null);
+                          setIsProcessing(true);
 
-              <div className="flex flex-wrap gap-3">
-                <Button variant="secondary" disabled={isProcessing} onClick={() => handleDecisionDialogChange(null)}>
-                  {t('cancel')}
-                </Button>
-                <Button
-                  disabled={!decisionReasonCode || isProcessing}
-                  onClick={() => {
-                    void handleQuoteDecisionSubmit();
-                  }}
-                >
-                  {isProcessing ? t('requestingChange') : t('requestChange')}
-                </Button>
-              </div>
+                          await updateQuoteStatus(quoteId, 'ACCEPTED', acceptComment);
+
+                          setShowAcceptConfirmation(false);
+                          setAcceptComment('');
+                        } catch (error) {
+                          getLogger().error({ err: error }, 'Failed to process quote');
+                          const msg =
+                            error instanceof Error
+                              ? trimQuoteStatusErrorMessage(error.message)
+                              : t('quoteActionFailedDescription');
+                          notify({
+                            title: t('quoteActionFailedTitle'),
+                            description: msg,
+                            type: ToastType.Error,
+                          });
+                        } finally {
+                          setIsProcessing(false);
+                        }
+                      }}
+                    >
+                      {isProcessing ? t('creating') : t('createOrder')}
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              {activeDecisionDialog === 'DECLINE' && (
+                <div className="flex flex-col gap-6">
+                  <div>
+                    <H4>{t('rejectConfirmationTitle')}</H4>
+                    <p className="mt-2 text-base font-body text-text-body">{t('rejectConfirmationDescription')}</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="quote-decision-reason">{t('decisionReasonLabel')}</Label>
+                    <Select value={decisionReasonCode} onValueChange={setDecisionReasonCode}>
+                      <SelectTrigger id="quote-decision-reason" aria-label={t('decisionReasonLabel')}>
+                        <SelectValue placeholder={t('decisionReasonPlaceholder')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {QUOTE_DECISION_REASON_OPTIONS.DECLINE.map((reasonCode) => (
+                          <SelectItem key={reasonCode} value={reasonCode}>
+                            {t(`decisionReasons.${reasonCode}`)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="quote-decision-comment">{t('yourComment')}</Label>
+                    <Textarea
+                      id="quote-decision-comment"
+                      placeholder={t('rejectCommentPlaceholder')}
+                      className="min-h-32 resize-none"
+                      value={decisionComment}
+                      onChange={(e) => setDecisionComment(e.target.value)}
+                      maxLength={maxCommentLength}
+                    />
+                  </div>
+
+                  {processError ? (
+                    <Alert variant="destructive" role="alert">
+                      <AlertDescription>{processError}</AlertDescription>
+                    </Alert>
+                  ) : null}
+
+                  <div className="flex flex-wrap gap-3">
+                    <Button
+                      variant="secondary"
+                      disabled={isProcessing}
+                      onClick={() => handleDecisionDialogChange(null)}
+                    >
+                      {t('cancel')}
+                    </Button>
+                    <Button
+                      variant="red"
+                      disabled={!decisionReasonCode || isProcessing}
+                      onClick={() => {
+                        void handleQuoteDecisionSubmit();
+                      }}
+                    >
+                      {isProcessing ? t('rejecting') : t('rejectQuote')}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {activeDecisionDialog === 'CHANGE' && (
+                <div className="flex flex-col gap-6">
+                  <div>
+                    <H4>{t('requestChangeConfirmationTitle')}</H4>
+                    <p className="mt-2 text-base font-body text-text-body">
+                      {t('requestChangeConfirmationDescription')}
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="quote-change-reason">{t('decisionReasonLabel')}</Label>
+                    <Select value={decisionReasonCode} onValueChange={setDecisionReasonCode}>
+                      <SelectTrigger id="quote-change-reason" aria-label={t('decisionReasonLabel')}>
+                        <SelectValue placeholder={t('decisionReasonPlaceholder')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {QUOTE_DECISION_REASON_OPTIONS.CHANGE.map((reasonCode) => (
+                          <SelectItem key={reasonCode} value={reasonCode}>
+                            {t(`decisionReasons.${reasonCode}`)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="quote-change-comment">{t('yourComment')}</Label>
+                    <Textarea
+                      id="quote-change-comment"
+                      placeholder={t('requestChangeCommentPlaceholder')}
+                      className="min-h-32 resize-none"
+                      value={decisionComment}
+                      onChange={(event) => setDecisionComment(event.target.value)}
+                      maxLength={maxCommentLength}
+                    />
+                  </div>
+
+                  {processError ? (
+                    <Alert variant="destructive" role="alert">
+                      <AlertDescription>{processError}</AlertDescription>
+                    </Alert>
+                  ) : null}
+
+                  <div className="flex flex-wrap gap-3">
+                    <Button
+                      variant="secondary"
+                      disabled={isProcessing}
+                      onClick={() => handleDecisionDialogChange(null)}
+                    >
+                      {t('cancel')}
+                    </Button>
+                    <Button
+                      disabled={!decisionReasonCode || isProcessing}
+                      onClick={() => {
+                        void handleQuoteDecisionSubmit();
+                      }}
+                    >
+                      {isProcessing ? t('requestingChange') : t('requestChange')}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

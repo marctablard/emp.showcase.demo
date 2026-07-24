@@ -319,7 +319,7 @@ describe('OrderDetail', () => {
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    const title = screen.getByRole('heading', { level: 4, name: 'transport' });
+    const title = screen.getByRole('heading', { level: 4, name: 'shipping' });
     const card = title.closest('[data-slot="card"]');
     const icon = card?.querySelector('svg');
 
@@ -345,13 +345,13 @@ describe('OrderDetail', () => {
     expect(label.parentElement).toBe(value.parentElement);
   });
 
-  it('renders the product list section header as an h6 heading', () => {
+  it('does not render a redundant Order items heading above the product table', () => {
     mockUseOrder();
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    const heading = screen.getByRole('heading', { level: 6, name: 'orderItems' });
-    expect(heading).toHaveClass('text-2xl');
+    expect(screen.queryByText('orderItems')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 6, name: 'orderItems' })).not.toBeInTheDocument();
   });
 
   it('renders the product image at 120x78', () => {
@@ -401,18 +401,141 @@ describe('OrderDetail', () => {
     expect(quantityValue).toHaveClass('text-base', 'font-body');
   });
 
-  it('renders the item price as h6 with the secondary Gross value as body-sm', () => {
+  it('left-aligns the Quantity column header and each row value at desktop widths', () => {
+    mockUseOrder();
+
+    render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
+
+    const quantityHeader = screen.getByText('quantity');
+    expect(quantityHeader).toHaveClass('text-left');
+    expect(quantityHeader).not.toHaveClass('text-right');
+
+    const quantityValue = screen.getByText('2', { selector: 'span.text-base' });
+    expect(quantityValue.parentElement).toHaveClass('text-left');
+  });
+
+  it('does not render a redundant per-row Quantity label on smallest mobile', () => {
+    mockUseOrder();
+
+    render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
+
+    // Only the desktop column header renders the literal quantity label; no per-item mobile label duplicates it.
+    expect(screen.getAllByText('quantity')).toHaveLength(1);
+  });
+
+  it('renders the item price as a bold H5-equivalent primary with the secondary Gross value as body-sm', () => {
     mockUseOrder();
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
     const primaryPrice = screen.getByText('42 EUR');
     const grossPrice = screen.getByText('gross: 50 EUR');
-    expect(primaryPrice).toHaveClass('text-2xl', 'font-bold', 'font-headlines');
+    expect(primaryPrice).toHaveClass('text-3xl', 'font-bold', 'font-headlines');
     expect(grossPrice).toHaveClass('text-sm', 'font-body');
 
-    // The legacy single-value item (no net/gross split) also renders at the h6 price scale.
+    // The legacy single-value item (no net/gross split) also renders at the H5-equivalent price scale.
     const legacyPrice = screen.getByText('30 EUR');
-    expect(legacyPrice).toHaveClass('text-2xl', 'font-bold', 'font-headlines');
+    expect(legacyPrice).toHaveClass('text-3xl', 'font-bold', 'font-headlines');
+  });
+
+  it('renders the product name above the thumbnail on smallest mobile while preserving the desktop thumbnail-left order', () => {
+    mockUseOrder({
+      order: {
+        ...baseOrder,
+        items: [{ ...baseOrder.items[0], images: ['https://example.com/image.png'] }, baseOrder.items[1]],
+      },
+    });
+
+    render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
+
+    const productLink = screen.getByRole('link', { name: 'Sample Product' });
+    const productRow = productLink.closest('.flex-col-reverse');
+    expect(productRow).toHaveClass('flex-col-reverse', 'sm:flex-row');
+
+    const image = screen.getByRole('img', { name: 'Sample Product' });
+    // The thumbnail is the first DOM child, so flex-col-reverse renders it visually below the
+    // product name on smallest mobile; sm:flex-row restores the thumbnail-left desktop order.
+    expect(image.compareDocumentPosition(productLink) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('does not render an Order date or Subtotal row in the Order Overview card', () => {
+    mockUseOrder();
+
+    render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
+
+    const overviewHeading = screen.getByRole('heading', { level: 4, name: 'orderOverview' });
+    const overviewCard = overviewHeading.closest('[data-slot="card"]');
+
+    expect(overviewCard).not.toHaveTextContent('orderDate');
+    expect(overviewCard).not.toHaveTextContent('subtotal');
+  });
+
+  it('renders the Order Overview rows in the exact required sequence: Net value of goods, VAT, Shipping fee, Total value', () => {
+    const orderWithShipping = {
+      ...baseOrder,
+      shipping: { methods: [{ name: 'Pickup' }], total: { value: 5, currency: 'EUR' } },
+    };
+    mockUseOrder({ order: orderWithShipping });
+
+    render(<OrderDetail orderId={orderWithShipping.id} initialOrder={orderWithShipping} />);
+
+    const overviewHeading = screen.getByRole('heading', { level: 4, name: 'orderOverview' });
+    const overviewCard = overviewHeading.closest('[data-slot="card"]');
+    const text = overviewCard?.textContent ?? '';
+
+    const netValueOfGoodsIndex = text.indexOf('netValueOfGoods');
+    const vatIndex = text.indexOf('vat');
+    const shippingFeeIndex = text.indexOf('shippingFee');
+    const totalValueIndex = text.indexOf('totalValue');
+
+    expect(netValueOfGoodsIndex).toBeGreaterThanOrEqual(0);
+    expect(vatIndex).toBeGreaterThan(netValueOfGoodsIndex);
+    expect(shippingFeeIndex).toBeGreaterThan(vatIndex);
+    expect(totalValueIndex).toBeGreaterThan(shippingFeeIndex);
+  });
+
+  it('omits an optional Shipping VAT row when the order model has no independent shipping-tax value', () => {
+    mockUseOrder();
+
+    render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
+
+    expect(screen.queryByText('shippingVat')).not.toBeInTheDocument();
+  });
+
+  it('renders the Shipping card heading and Shipping address label instead of Transport/Delivery address', () => {
+    const orderWithShippingAddress = {
+      ...baseOrder,
+      shippingAddress: {
+        contactName: 'Jane Buyer',
+        street: 'Main St',
+        streetNumber: '1',
+        zipCode: '12345',
+        city: 'Berlin',
+        country: 'DE',
+      },
+    };
+    mockUseOrder({ order: orderWithShippingAddress });
+
+    const { container } = render(
+      <OrderDetail orderId={orderWithShippingAddress.id} initialOrder={orderWithShippingAddress} />,
+    );
+
+    expect(screen.getByRole('heading', { level: 4, name: 'shipping' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 4, name: 'transport' })).not.toBeInTheDocument();
+    expect(screen.getByText('shippingAddress')).toBeInTheDocument();
+    expect(screen.queryByText('deliveryAddress')).not.toBeInTheDocument();
+    expect(container).toHaveTextContent('Jane Buyer');
+  });
+
+  it('does not render a Contact card without breaking the detail-cards grid', () => {
+    mockUseOrder();
+
+    const { container } = render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
+
+    expect(screen.queryByText('contact')).not.toBeInTheDocument();
+    const overviewHeading = screen.getByRole('heading', { level: 4, name: 'orderOverview' });
+    const grid = overviewHeading.closest('[data-slot="card"]')?.parentElement?.parentElement;
+    expect(grid).toHaveClass('grid-cols-1', 'sm:grid-cols-2', 'lg:grid-cols-4');
+    expect(container).toBeInTheDocument();
   });
 });

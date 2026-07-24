@@ -83,14 +83,14 @@ describe('ReturnDetail', () => {
     jest.clearAllMocks();
   });
 
-  it('renders the Return Details strip before the full-width overview and returned products', () => {
+  it('renders the Return Details strip before the full-width overview and product list', () => {
     const { container } = render(<ReturnDetail returnId="return-123" />);
 
     const returnDetails = screen.getByText('returnDetails');
     const overview = screen.getByText('returnOverview');
-    const products = screen.getByText('returnedProducts');
+    const productsHeader = screen.getByText('product');
     expect(returnDetails.compareDocumentPosition(overview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(overview.compareDocumentPosition(products) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(overview.compareDocumentPosition(productsHeader) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     const detailsCard = returnDetails.closest('.rounded-md');
     expect(detailsCard).toHaveClass('bg-surface-primary', 'shadow-sm', 'p-6');
@@ -108,6 +108,62 @@ describe('ReturnDetail', () => {
     expect(screen.getByText('claimReasons.WRONG_ITEM')).toHaveClass('!bg-surface-disabled', '!font-bold');
     expect(screen.getByText('reasonDetails')).toBeInTheDocument();
     expect(screen.getByText('The wrong item was delivered.')).toBeInTheDocument();
+  });
+
+  it('renders Return Overview net-first with Net value of goods before Total return value', () => {
+    render(<ReturnDetail returnId="return-123" />);
+
+    const netLabel = screen.getByText('netValueOfGoods');
+    const totalLabel = screen.getByText('totalReturnValue');
+    expect(netLabel.compareDocumentPosition(totalLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    const overview = screen.getByText('returnOverview').closest('.bg-surface-primary') as HTMLElement;
+    expect(within(overview).getAllByText('€100.00')).toHaveLength(2);
+
+    const grossLabel = within(overview).getByText('gross');
+    const grossValue = within(overview).getByText('€119.00');
+    expect(totalLabel.compareDocumentPosition(grossLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(grossLabel.compareDocumentPosition(grossValue) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('does not render a separate Returned products heading but keeps H6 column headers', () => {
+    render(<ReturnDetail returnId="return-123" />);
+
+    expect(screen.queryByText('returnedProducts')).not.toBeInTheDocument();
+
+    const header = screen.getByText('product').closest('.pb-4') as HTMLElement;
+    expect(screen.getByText('product').tagName).toBe('H6');
+    expect(within(header).getByText('price').tagName).toBe('H6');
+    expect(within(header).getByText('quantity').tagName).toBe('H6');
+    expect(within(header).getByText('refundAmount').tagName).toBe('H6');
+  });
+
+  it('keeps product Price and Refund Amount net first with gross shown as the secondary value', () => {
+    render(<ReturnDetail returnId="return-123" />);
+
+    const row = screen.getByText('BlueSolar 55 W').closest('.py-6') as HTMLElement;
+    const netValues = within(row).getAllByText('€100.00');
+    const grossValues = within(row).getAllByText('gross €119.00');
+    expect(netValues).toHaveLength(2);
+    expect(grossValues).toHaveLength(2);
+
+    // Price cell: net value precedes its gross secondary value.
+    expect(netValues[0].compareDocumentPosition(grossValues[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Refund Amount cell: net value (H6) precedes its gross secondary value.
+    expect(netValues[1].tagName).toBe('H6');
+    expect(netValues[1].compareDocumentPosition(grossValues[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('reshapes the smallest-mobile row like the Order/Quote pattern while retaining reason, status, and comment', () => {
+    const { container } = render(<ReturnDetail returnId="return-123" />);
+
+    const image = container.querySelector('img[alt="BlueSolar 55 W"]') as HTMLElement;
+    const mobileWrapper = image.closest('.flex-col-reverse');
+    expect(mobileWrapper).toHaveClass('flex-col-reverse', 'sm:flex-row');
+
+    expect(screen.getByText('claimReasons.CHANGED_MIND')).toBeInTheDocument();
+    expect(screen.getByText('Item reason details.')).toBeInTheDocument();
+    expect(screen.getByText(/blue-solar-55w/)).toBeInTheDocument();
   });
 
   it('uses the shared overview and product-list visual hierarchy while retaining Return data', () => {

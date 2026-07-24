@@ -358,6 +358,17 @@ describe('QuoteDetails approval flow', () => {
     await waitFor(() => {
       expect(screen.getByText('account.quoteDetails.confirmationTitle')).toBeInTheDocument();
     });
+
+    const quoteDetailsTitle = screen.getByText('account.quoteDetails.title');
+    const confirmationTitle = screen.getByText('account.quoteDetails.confirmationTitle');
+    const quoteHistoryTitle = screen.getByText('account.quoteDetails.quoteHistory');
+
+    expect(
+      quoteDetailsTitle.compareDocumentPosition(confirmationTitle) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      confirmationTitle.compareDocumentPosition(quoteHistoryTitle) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it('focuses the accept comment textarea when the create-order panel opens', async () => {
@@ -421,7 +432,7 @@ describe('QuoteDetails approval flow', () => {
     expect(screen.queryByText(/Failed to update quote Q1000396/)).not.toBeInTheDocument();
   });
 
-  it('opens a decline dialog with a required reason selector and comment field', async () => {
+  it('renders the decline form between quote details and history with a required reason selector and comment field', async () => {
     checkApprovalPermitted.mockResolvedValue({
       action: 'CHECKOUT',
       permitted: true,
@@ -443,6 +454,18 @@ describe('QuoteDetails approval flow', () => {
     expect(screen.getByRole('combobox', { name: 'account.quoteDetails.decisionReasonLabel' })).toBeInTheDocument();
     expect(screen.getByLabelText('account.quoteDetails.yourComment')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'account.quoteDetails.rejectQuote' })).toBeDisabled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    const quoteDetailsTitle = screen.getByText('account.quoteDetails.title');
+    const rejectTitle = screen.getByText('account.quoteDetails.rejectConfirmationTitle');
+    const quoteHistoryTitle = screen.getByText('account.quoteDetails.quoteHistory');
+
+    expect(quoteDetailsTitle.compareDocumentPosition(rejectTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(rejectTitle.compareDocumentPosition(quoteHistoryTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    const rejectPanel = rejectTitle.closest('.bg-surface-page');
+
+    expect(rejectPanel).not.toHaveClass('border-border-action');
   });
 
   it('renders the request-change form between quote details and history with a required reason selector and comment field', async () => {
@@ -469,11 +492,19 @@ describe('QuoteDetails approval flow', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'account.quoteDetails.requestChange' })[0]).toBeDisabled();
 
+    const quoteDetailsTitle = screen.getByText('account.quoteDetails.title');
     const requestChangeTitle = screen.getByText('account.quoteDetails.requestChangeConfirmationTitle');
     const quoteHistoryTitle = screen.getByText('account.quoteDetails.quoteHistory');
 
     expect(
+      quoteDetailsTitle.compareDocumentPosition(requestChangeTitle) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
       requestChangeTitle.compareDocumentPosition(quoteHistoryTitle) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+
+    const requestChangePanel = requestChangeTitle.closest('.bg-surface-page');
+
+    expect(requestChangePanel).toHaveClass('border-2', 'border-border-action');
   });
 });

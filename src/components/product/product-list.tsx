@@ -32,7 +32,7 @@ export function ProductList({ items, className, showNetUnderGross = false }: Pro
       <CardContent className="p-6">
         <div className="hidden sm:grid grid-cols-[minmax(280px,1.6fr)_100px_minmax(140px,1fr)] items-start gap-6 border-b border-border-primary pb-4">
           <H6 className="text-sm font-bold text-text-headings">{tCart('product')}</H6>
-          <H6 className="text-right text-sm font-bold text-text-headings">{tQuoteDetails('quantity')}</H6>
+          <H6 className="text-left text-sm font-bold text-text-headings">{tQuoteDetails('quantity')}</H6>
           <H6 className="text-right text-sm font-bold text-text-headings">{tQuoteDetails('unitPrice')}</H6>
         </div>
         <div className="divide-y divide-border-primary">

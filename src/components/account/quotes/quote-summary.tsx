@@ -2,11 +2,10 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { List, NotebookPen, ReceiptText, Truck } from 'lucide-react';
+import { List, ReceiptText, Truck } from 'lucide-react';
 import { H5 } from '@/components/ui/h';
 import { SummaryCard, SummaryField } from '@/components/ui/summary-card';
 import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
-import { formatDate } from '@/lib/date-utils';
 import type { Quote } from '@/platform/services/model/quote';
 
 interface QuoteSummaryProps {
@@ -18,7 +17,6 @@ export const QuoteSummary: React.FC<QuoteSummaryProps> = ({ quote }) => {
 
   // Get quote data
   const currency = quote.currency || getPublicDefaultCurrency();
-  const itemCount = quote.items?.reduce((total, item) => total + (item.quantity.quantity || 0), 0) || 0;
 
   // Format currency values
   const fmt = (amount: number) => `${amount.toFixed(2)} ${currency}`;
@@ -34,7 +32,7 @@ export const QuoteSummary: React.FC<QuoteSummaryProps> = ({ quote }) => {
         <span>{fmt(quote.totalVat)}</span>
       </div>
       <div className="flex justify-between gap-4">
-        <span>{t('deliveryCosts')}</span>
+        <span>{t('shippingFee')}</span>
         <span>{fmt(quote.shippingCost)}</span>
       </div>
       <div className="flex items-start justify-between gap-4 pt-2">
@@ -45,23 +43,7 @@ export const QuoteSummary: React.FC<QuoteSummaryProps> = ({ quote }) => {
   );
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {/* Details Card */}
-      <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm">
-        <SummaryCard
-          heading={t('details')}
-          className="h-full gap-4 rounded-md p-4 shadow-none"
-          headerClassName="p-0"
-          contentClassName="space-y-4 p-0"
-          icon={<NotebookPen className="h-8 w-8 text-text-action" />}
-          hasHeadline
-        >
-          <SummaryField label={t('quotationDate')}>{formatDate(quote.submittedDate)}</SummaryField>
-          <SummaryField label={t('requestedBy')}>{quote.customerName || quote.customerId}</SummaryField>
-          <SummaryField label={t('numberOfProducts')}>{itemCount}</SummaryField>
-        </SummaryCard>
-      </div>
-
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {/* Base Price Card */}
       <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm">
         <SummaryCard
@@ -76,10 +58,10 @@ export const QuoteSummary: React.FC<QuoteSummaryProps> = ({ quote }) => {
         </SummaryCard>
       </div>
 
-      {/* Transport Card */}
+      {/* Shipping Card */}
       <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm">
         <SummaryCard
-          heading={t('transport')}
+          heading={t('shipping')}
           className="h-full gap-4 rounded-md p-4 shadow-none"
           headerClassName="p-0"
           contentClassName="space-y-4 p-0"
@@ -100,7 +82,7 @@ export const QuoteSummary: React.FC<QuoteSummaryProps> = ({ quote }) => {
       </div>
 
       {/* Quoted Price Card */}
-      <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm">
+      <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm border-2 border-border-success">
         <SummaryCard
           heading={t('quotedPrice')}
           className="h-full gap-4 rounded-md p-4 shadow-none"

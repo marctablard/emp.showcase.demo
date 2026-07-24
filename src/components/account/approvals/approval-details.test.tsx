@@ -13,7 +13,20 @@ const mockApproval: Approval = {
   status: 'PENDING',
   resourceType: 'QUOTE',
   action: 'CHECKOUT',
-  resource: { id: 'Q-1000' },
+  resource: {
+    id: 'Q-1000',
+    items: [
+      {
+        productId: 'product-1',
+        quantity: 3,
+        itemPrice: {
+          currency: 'EUR',
+          amount: 10,
+          netValue: 10,
+        },
+      },
+    ],
+  },
   requestor: {
     userId: 'requestor-1',
     firstName: 'Requester',
@@ -83,13 +96,16 @@ jest.mock('@/components/account/approvals/approval-summary', () => ({
   ApprovalSummary: () => <div>ApprovalSummary</div>,
 }));
 
+const mockProductListResolver = jest.fn(() => <div>ProductListResolver</div>);
+
 jest.mock('@/components/product/product-list-resolver', () => ({
-  ProductListResolver: () => <div>ProductListResolver</div>,
+  ProductListResolver: (props: unknown) => mockProductListResolver(props),
 }));
 
 describe('ApprovalDetails', () => {
   beforeEach(() => {
     refreshApproval.mockReset();
+    mockProductListResolver.mockClear();
   });
 
   it('links quote resource IDs to the quote details page and formats dates with the active locale', () => {
@@ -97,5 +113,25 @@ describe('ApprovalDetails', () => {
 
     expect(screen.getByRole('link', { name: 'Q-1000' })).toHaveAttribute('href', '/account/quotes/Q-1000');
     expect(screen.getAllByText(/Juni 2026|06\.2026/)).not.toHaveLength(0);
+  });
+
+  it('forwards resource items to ProductListResolver with a net-first resolver input and no derived gross price, preserving the fetching contract', () => {
+    render(<ApprovalDetails approvalId="approval-requestor-1" />);
+
+    expect(mockProductListResolver).toHaveBeenCalledWith(
+      expect.objectContaining({
+        showNetUnderGross: true,
+        items: [
+          expect.objectContaining({
+            productId: 'product-1',
+            quantity: 3,
+            unitPrice: 10,
+            currency: 'EUR',
+            netUnitPrice: 10,
+            grossUnitPrice: undefined,
+          }),
+        ],
+      }),
+    );
   });
 });

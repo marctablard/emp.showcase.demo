@@ -4,6 +4,7 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
+import enAccountTranslations from '@/i18n/translations/en/account/index.json';
 import type { Quote } from '@/platform/services/model/quote';
 import { QuoteDetails } from './quote-details';
 import { QuotesTable } from './quotes-table';
@@ -85,8 +86,10 @@ jest.mock('@/components/account/quotes/quote-summary', () => ({
   QuoteSummary: () => <div>QuoteSummary</div>,
 }));
 
+const mockProductListResolver = jest.fn(() => <div>ProductListResolver</div>);
+
 jest.mock('@/components/product/product-list-resolver', () => ({
-  ProductListResolver: () => <div>ProductListResolver</div>,
+  ProductListResolver: (props: unknown) => mockProductListResolver(props),
 }));
 
 jest.mock('@/components/ui/link', () => ({
@@ -127,6 +130,8 @@ const baseQuote: Quote = {
           currency: 'EUR',
           baseAmount: 100,
           tax: 20,
+          grossValue: 120,
+          netValue: 100,
         },
       },
     },
@@ -148,6 +153,42 @@ describe('Quote cross-links', () => {
     mockHistory = [];
     mockCheckApprovalPermitted.mockReset();
     mockCheckApprovalPermitted.mockResolvedValue({ permitted: false, approvalId: 'approval-123' });
+    mockProductListResolver.mockClear();
+  });
+
+  it('uses exact sentence case for the English Quote netValue label', () => {
+    expect(enAccountTranslations.quoteDetails.netValue).toBe('Net value of goods');
+  });
+
+  it('anchors the action row flush to the right edge so it stays aligned with the Quote Details surface', () => {
+    render(<QuoteDetails quoteId={baseQuote.id} initialQuote={baseQuote} />);
+
+    const requestChangeButton = screen.getByRole('button', { name: 'account.quoteDetails.requestChange' });
+    const actionRow = requestChangeButton.parentElement;
+
+    expect(actionRow).toHaveClass('ml-auto', 'justify-end');
+    expect(screen.getByRole('button', { name: 'account.quoteDetails.reject' }).parentElement).toBe(actionRow);
+    expect(screen.getByRole('button', { name: 'account.quoteDetails.accept' }).parentElement).toBe(actionRow);
+  });
+
+  it('forwards quote items to ProductListResolver with net-first resolver inputs, preserving the fetching contract', () => {
+    render(<QuoteDetails quoteId={baseQuote.id} initialQuote={baseQuote} />);
+
+    expect(mockProductListResolver).toHaveBeenCalledWith(
+      expect.objectContaining({
+        showNetUnderGross: true,
+        items: [
+          expect.objectContaining({
+            productId: 'product-1',
+            quantity: 1,
+            unitPrice: 120,
+            currency: 'EUR',
+            grossUnitPrice: 120,
+            netUnitPrice: 100,
+          }),
+        ],
+      }),
+    );
   });
 
   it('renders the related order link in the standalone list column and on the detail view when orderId is present', () => {

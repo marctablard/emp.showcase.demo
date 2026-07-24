@@ -62,7 +62,7 @@ function renderAddress(address: Address) {
   );
 }
 
-/** Item unit-price cell: net value primary, gross value shown as the secondary, muted line. */
+/** Item unit-price cell: net value primary as bold H5-equivalent text, gross value shown as the small secondary line. */
 function ItemPriceCell({
   price,
   tOrder,
@@ -78,7 +78,7 @@ function ItemPriceCell({
 
   if (price.grossValue === undefined) {
     return (
-      <span className="text-2xl font-bold font-headlines text-text-headings">
+      <span className="text-3xl font-bold font-headlines text-text-headings">
         {primaryValue} {price.currency}
       </span>
     );
@@ -86,7 +86,7 @@ function ItemPriceCell({
 
   return (
     <div className="flex flex-col sm:items-end">
-      <span className="text-2xl font-bold font-headlines text-text-headings">
+      <span className="text-3xl font-bold font-headlines text-text-headings">
         {primaryValue} {price.currency}
       </span>
       <span className="text-sm font-body text-text-placeholders">
@@ -254,7 +254,7 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
         </div>
       </div>
 
-      {/* Detail cards: Order Overview (with totals), Transport, Payment, Contact */}
+      {/* Detail cards: Order Overview (with totals), Shipping, Payment */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
           <SummaryCard
@@ -265,9 +265,6 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
             icon={<ReceiptText className="h-8 w-8 text-text-action" />}
             hasHeadline
           >
-            <SummaryField label={tOrder('orderDate')}>
-              {order.createdAt ? format(new Date(order.createdAt), 'PPP') : '-'}
-            </SummaryField>
             {order.quoteId && (
               <SummaryField label={tOrder('relatedQuote')}>
                 <UiLink href={`/account/quotes/${order.quoteId}`} type="Link" variant="textNoUnderline">
@@ -279,7 +276,7 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
             {order.price && (
               <div className="space-y-2 text-base font-body text-text-body">
                 <div className="flex justify-between items-start gap-4 border-b border-border-primary pb-4">
-                  <span>{tOrder('subtotal')}</span>
+                  <span>{tOrder('netValueOfGoods')}</span>
                   <div className="text-right font-normal">
                     <div className="font-normal">
                       {order.price.subtotal.net} {order.price.subtotal.currency}
@@ -290,9 +287,21 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
                   </div>
                 </div>
 
+                <div className="flex justify-between gap-4 pt-2">
+                  <span>
+                    {tOrder('vat')}
+                    {order.price.total.net > 0
+                      ? ` (${Math.round((order.price.total.tax / order.price.total.net) * 100)}%)`
+                      : ''}
+                  </span>
+                  <span>
+                    {order.price.total.tax} {order.price.total.currency}
+                  </span>
+                </div>
+
                 {order.shipping && (
                   <div className="flex justify-between gap-4 pt-2">
-                    <span>{tOrder('shipping')}</span>
+                    <span>{tOrder('shippingFee')}</span>
                     <span>
                       {order.shipping.total.value === 0
                         ? tOrder('free')
@@ -310,20 +319,8 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
                   </div>
                 )}
 
-                <div className="flex justify-between gap-4 pt-2">
-                  <span>
-                    {tOrder('vat')}
-                    {order.price.total.net > 0
-                      ? ` (${Math.round((order.price.total.tax / order.price.total.net) * 100)}%)`
-                      : ''}
-                  </span>
-                  <span>
-                    {order.price.total.tax} {order.price.total.currency}
-                  </span>
-                </div>
-
                 <div className="flex justify-between items-start gap-4 pt-2">
-                  <H5>{tOrder('total')}</H5>
+                  <H5>{tOrder('totalValue')}</H5>
                   <div className="text-right">
                     <H5>
                       {order.price.total.net} {order.price.total.currency}
@@ -341,7 +338,7 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
         {showTransportCard && (
           <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
             <SummaryCard
-              heading={tOrder('transport')}
+              heading={tOrder('shipping')}
               className="shadow-none rounded-md p-4 h-full gap-4"
               headerClassName="p-0"
               contentClassName="p-0 space-y-4"
@@ -355,7 +352,7 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
                 </SummaryField>
               )}
               {order.shippingAddress && (
-                <SummaryField label={tOrder('deliveryAddress')}>{renderAddress(order.shippingAddress)}</SummaryField>
+                <SummaryField label={tOrder('shippingAddress')}>{renderAddress(order.shippingAddress)}</SummaryField>
               )}
             </SummaryCard>
           </div>
@@ -387,11 +384,9 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
       {/* Product list, following the Returns & Claims product presentation */}
       <Card className="border border-border-primary shadow-sm">
         <CardContent className="p-6">
-          <H6 className="mb-4">{tOrder('orderItems')}</H6>
-
           <div className="hidden sm:grid grid-cols-[minmax(280px,1.6fr)_100px_minmax(140px,1fr)] gap-6 items-start pb-4 border-b border-border-primary">
             <H6 className="text-sm font-bold text-text-headings">{tOrder('product')}</H6>
-            <H6 className="text-sm font-bold text-text-headings text-right">{tOrder('quantity')}</H6>
+            <H6 className="text-sm font-bold text-text-headings text-left">{tOrder('quantity')}</H6>
             <H6 className="text-sm font-bold text-text-headings text-right">{tOrder('price')}</H6>
           </div>
 
@@ -403,7 +398,8 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
                   key={item.id}
                   className="py-6 first:pt-4 flex flex-col gap-3 sm:grid sm:grid-cols-[minmax(280px,1.6fr)_100px_minmax(140px,1fr)] sm:gap-6 sm:items-center"
                 >
-                  <div className="flex gap-4 items-start min-w-0">
+                  {/* Smallest-mobile: product name/details render above the thumbnail via flex-col-reverse; desktop restores the thumbnail-left row via sm:flex-row. */}
+                  <div className="flex flex-col-reverse items-start gap-4 min-w-0 sm:flex-row">
                     <div className="bg-surface-image-background w-[120px] h-[78px] shrink-0 rounded-tl-lg rounded-br-lg overflow-hidden flex items-center justify-center">
                       {firstImage ? (
                         <Image
@@ -433,8 +429,8 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between sm:block sm:text-right">
-                    <span className="text-sm text-text-body sm:hidden">{tOrder('quantity')}</span>
+                  {/* No Quantity label on smallest mobile; left-aligned at desktop widths. */}
+                  <div className="text-left">
                     <span className="text-base font-body">{item.quantity}</span>
                   </div>
 

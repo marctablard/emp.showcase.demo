@@ -44,7 +44,7 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ lo
   const breadcrumbs = [
     {
       href: '/account',
-      label: tAccount('title'),
+      label: tAccount('accountDetails'),
     },
     {
       href: '/account/quotes',
@@ -52,7 +52,7 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ lo
     },
     {
       href: `/account/quotes/${id}`,
-      label: `${tQuote('title')} ${id}`,
+      label: `${tQuote('headerTitle')} ${id}`,
     },
   ];
 
