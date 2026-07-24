@@ -88,12 +88,11 @@ describe('MyOrdersTable', () => {
       'relatedQuote #',
       'columns.orderValue',
       'columns.totalShippingCost',
-      'columns.customer',
       'columns.expectedDeliveryDate',
       'columns.deliveryAddress',
       'columns.action',
     ]);
-    expect(headers).toHaveLength(10);
+    expect(headers).toHaveLength(9);
     expect(screen.queryByText('columns.payment')).not.toBeInTheDocument();
   });
 
@@ -176,8 +175,8 @@ describe('MyOrdersTable', () => {
     });
 
     const rows = screen.getAllByRole('row').slice(1);
-    const firstDeliveryCell = within(rows[0]).getAllByRole('cell')[7];
-    const secondDeliveryCell = within(rows[1]).getAllByRole('cell')[7];
+    const firstDeliveryCell = within(rows[0]).getAllByRole('cell')[6];
+    const secondDeliveryCell = within(rows[1]).getAllByRole('cell')[6];
 
     expect(firstDeliveryCell).toHaveTextContent('08/01/2026');
     expect(secondDeliveryCell).toHaveTextContent('-');
@@ -298,7 +297,7 @@ describe('MyOrdersTable', () => {
 
     const row = screen.getByText('order-return').closest('tr') as HTMLTableRowElement;
     const cells = within(row).getAllByRole('cell');
-    expect(cells).toHaveLength(10);
+    expect(cells).toHaveLength(9);
 
     const orderNumberCell = cells[0];
     expect(within(orderNumberCell).queryByRole('link', { name: 'Q1000375' })).not.toBeInTheDocument();
