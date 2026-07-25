@@ -11,9 +11,10 @@ interface ProductItemRowProps {
 
 export function ProductItemRow({ item, showNetUnderGross = false }: ProductItemRowProps) {
   const t = useTranslations('cart');
+  const tOrders = useTranslations('orders');
   const netPrice = item.netUnitPrice ?? item.unitPrice;
   // Missing gross is rendered as a literal '-' secondary value; it is never derived from net/unit price.
-  const grossPriceLabel = item.grossUnitPrice !== undefined ? formatCurrency(item.grossUnitPrice, item.currency) : '-';
+  const grossPriceLabel = item.grossUnitPrice === undefined ? '-' : formatCurrency(item.grossUnitPrice, item.currency);
 
   const productImage = (
     <div className="flex h-[78px] w-[120px] shrink-0 items-center justify-center overflow-hidden rounded-tl-lg rounded-br-lg bg-surface-image-background">
@@ -63,7 +64,7 @@ export function ProductItemRow({ item, showNetUnderGross = false }: ProductItemR
             </div>
             {item.itemNumber && (
               <p className="text-sm text-text-placeholders">
-                {t('itemNumber')}: {item.itemNumber}
+                {tOrders('itemNumber')}: {item.itemNumber}
               </p>
             )}
             <span className="text-base font-body">{item.quantity}</span>
@@ -84,7 +85,7 @@ export function ProductItemRow({ item, showNetUnderGross = false }: ProductItemR
             {productName}
             {item.itemNumber && (
               <p className="text-sm text-text-placeholders">
-                {t('itemNumber')}: {item.itemNumber}
+                {tOrders('itemNumber')}: {item.itemNumber}
               </p>
             )}
           </div>

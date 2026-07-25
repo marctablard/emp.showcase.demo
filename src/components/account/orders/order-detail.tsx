@@ -27,14 +27,14 @@ import { ORDER_STATUS } from '@/platform/services/model/order/order-status';
 import { CreateReturnDialog } from './create-return-dialog';
 import { OrderStatusBadge } from './order-status-badge';
 
-const TRACKING_ELIGIBLE_STATUSES: OrderStatus[] = [
+const TRACKING_ELIGIBLE_STATUSES: Set<OrderStatus> = new Set([
   ORDER_STATUS.PROCESSING,
   ORDER_STATUS.READY_FOR_SHIPPING,
   ORDER_STATUS.READY_FOR_PICKUP,
   ORDER_STATUS.SHIPPED,
   ORDER_STATUS.DELIVERED,
   ORDER_STATUS.COMPLETED,
-];
+]);
 
 function shouldShowCancelButton(status: OrderStatus, transitions: string[]): boolean {
   return status === ORDER_STATUS.CREATED && transitions.includes('DECLINED');
@@ -45,7 +45,7 @@ function shouldShowReturnButton(status: OrderStatus): boolean {
 }
 
 function shouldShowTrackShipmentControl(status: OrderStatus): boolean {
-  return TRACKING_ELIGIBLE_STATUSES.includes(status);
+  return TRACKING_ELIGIBLE_STATUSES.has(status);
 }
 
 function renderAddress(address: Address) {
@@ -67,8 +67,8 @@ function ItemPriceCell({
   price,
   tOrder,
 }: {
-  price?: { value: number; netValue?: number; grossValue?: number; currency: string };
-  tOrder: ReturnType<typeof useTranslations<'orders'>>;
+  readonly price?: { value: number; netValue?: number; grossValue?: number; currency: string };
+  readonly tOrder: ReturnType<typeof useTranslations<'orders'>>;
 }) {
   if (!price) {
     return <>-</>;
@@ -100,7 +100,13 @@ function ItemPriceCell({
  * Order Detail component
  * Displays detailed information for a single order
  */
-export function OrderDetail({ orderId, initialOrder }: { orderId: string; initialOrder?: Order | null }) {
+export function OrderDetail({
+  orderId,
+  initialOrder,
+}: {
+  readonly orderId: string;
+  readonly initialOrder?: Order | null;
+}) {
   const tOrder = useTranslations('orders');
   const tPaymentModes = useTranslations('checkout.PaymentModes');
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);

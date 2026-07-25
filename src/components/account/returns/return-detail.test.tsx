@@ -154,6 +154,36 @@ describe('ReturnDetail', () => {
     expect(netValues[1].compareDocumentPosition(grossValues[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it('falls back the primary unit price to the gross value when no net value is available', () => {
+    mockUseReturn.mockReturnValue({
+      returnItem: {
+        ...buildReturn(),
+        orders: [
+          {
+            id: 'order-123',
+            items: [
+              {
+                id: 'item-456',
+                name: 'Gross Only Item',
+                quantity: 1,
+                grossUnitPrice: { value: 59.99, currency: 'EUR' },
+              },
+            ],
+          },
+        ],
+      },
+      loading: false,
+      error: null,
+      refreshReturn: jest.fn(),
+    });
+
+    render(<ReturnDetail returnId="return-123" />);
+
+    const row = screen.getByText('Gross Only Item').closest('.py-6') as HTMLElement;
+    const primaryValues = within(row).getAllByText('€59.99');
+    expect(primaryValues.length).toBeGreaterThanOrEqual(1);
+  });
+
   it('reshapes the smallest-mobile row like the Order/Quote pattern while retaining reason, status, and comment', () => {
     const { container } = render(<ReturnDetail returnId="return-123" />);
 

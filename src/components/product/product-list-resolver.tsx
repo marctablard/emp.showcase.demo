@@ -14,9 +14,9 @@ export interface ProductMinimal {
 }
 
 interface ProductListResolverProps {
-  items: ProductMinimal[];
-  className?: string;
-  showNetUnderGross?: boolean;
+  readonly items: ProductMinimal[];
+  readonly className?: string;
+  readonly showNetUnderGross?: boolean;
 }
 
 const extractProductIdFromYrn = (yrn?: string) => {

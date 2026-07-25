@@ -145,7 +145,7 @@ npm run verify:ci-install
 This runs [`scripts/verify-safe-chain-install.sh`](../scripts/verify-safe-chain-install.sh), which mirrors the dependency-install step used in `.github/workflows/*.yaml`:
 
 1. Copies `package.json`, `package-lock.json`, and `.npmrc` into a disposable temp directory — your real `node_modules` is untouched.
-2. Runs `npm ci --ignore-scripts` there via `npx`, using the project's pinned npm version (`packageManager` in `package.json`) wrapped by Aikido safe-chain — installed on-demand via `npx` only, never as a project/global dependency — so malware blocking is enforced exactly like CI.
+2. Runs `safe-chain setup-ci` there first, then `npm ci --ignore-scripts` via `npx`, using the project's pinned npm version (`packageManager` in `package.json`) and safe-chain installed on-demand via `npx` only (never as a project/global dependency), matching CI's setup sequence while still enforcing safe-chain protections.
 3. Runs `npm audit --audit-level=high` against the resulting lockfile.
 
 This repo does not set npm's own `min-release-age` (see `.npmrc`); safe-chain still enforces its own, independently-controlled minimum release-age policy on top of malware blocking, both here and in CI. A freshly published dependency bump can therefore still be held back by safe-chain for a period after release even though plain `npm install` would resolve it — that is safe-chain working as intended, not a bug in this script or a reason to weaken it. A pass here only confirms today's lockfile clears safe-chain's policies and the audit; it is not a guarantee that a future bump of the same package will.

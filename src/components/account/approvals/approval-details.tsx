@@ -26,6 +26,7 @@ import useCustomer from '@/hooks/customer/useCustomer';
 import { useToast } from '@/hooks/ui/useToast';
 import { Link } from '@/i18n/navigation';
 import { checkoutApproval as checkoutApi } from '@/lib/client/checkout';
+import { formatCurrency } from '@/lib/utils';
 import type { Approval } from '@/platform/services/model/approval';
 import type { CheckoutRequest } from '@/platform/services/model/checkout';
 import { ApprovalStatusBadge } from './approval-status-badge';
@@ -66,6 +67,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
   } = useApproval(approvalId, initialApproval);
 
   const isRequestor = approval?.requestor.userId === customer?.id;
+  const isDesignatedApprover = approval?.approver.userId === customer?.id;
 
   const handleApprove = async () => {
     if (isRequestor || approval?.approver.userId !== customer?.id) {
@@ -143,6 +145,9 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
   };
 
   const handleComment = async () => {
+    if (!isRequestor && !isDesignatedApprover) {
+      return;
+    }
     try {
       setActionError(null);
       if (isRequestor) {
@@ -259,9 +264,8 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
       </Card>
     );
   } else {
-    const isDesignatedApprover = approval.approver.userId === customer?.id;
     const canApprove = approval.status === 'PENDING' && isDesignatedApprover && !isRequestor;
-    const canComment = approval.status === 'PENDING';
+    const canComment = approval.status === 'PENDING' && (isRequestor || isDesignatedApprover);
 
     content = (
       <div className="space-y-6">
@@ -321,7 +325,14 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
               <div className="flex flex-col gap-1">
                 <H5>{t('totalNetAmount')}</H5>
                 <span className="text-base font-body text-text-body">
-                  {approval.resource.totalPrice?.formattedAmount || approval.resource.totalPrice?.amount || '-'}
+                  {approval.resource.totalPrice
+                    ? (approval.resource.totalPrice.formattedAmount ??
+                      formatCurrency(
+                        approval.resource.totalPrice.amount,
+                        approval.resource.totalPrice.currency,
+                        locale,
+                      ))
+                    : '-'}
                 </span>
               </div>
             </div>
@@ -342,7 +353,9 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
                     {approval.resource.id}
                   </Link>
                 ) : (
-                  <span className="text-base font-body text-text-body">{approval.resource.orderId || '-'}</span>
+                  <span className="text-base font-body text-text-body">
+                    {approval.resource.orderId || approval.resource.id}
+                  </span>
                 )}
               </div>
             </div>

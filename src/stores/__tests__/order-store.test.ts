@@ -218,4 +218,18 @@ describe('OrderStore', () => {
 
     expect(store.getState().getTotalCount(queryKey)).toBe(0);
   });
+
+  it('does not retain orders after reset when setOrders was called before', () => {
+    const queryKey = createOrderRequestKey(10, 1);
+    const orders = [{ id: '1', status: 'CREATED', total: { amount: 100, currency: 'EUR' } }];
+
+    store.getState().setOrders(queryKey, orders as never, 1);
+    expect(store.getState().getOrders(queryKey)).toEqual(orders);
+
+    store.getState().reset();
+
+    expect(store.getState().orders).toEqual({});
+    expect(store.getState().orderQueries).toEqual({});
+    expect(store.getState().getOrders(queryKey)).toBeUndefined();
+  });
 });

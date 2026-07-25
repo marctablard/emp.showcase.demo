@@ -70,26 +70,26 @@ interface ExtendedReturn extends Omit<Return, 'orders'> {
 const claimReasonValues = Object.keys(RETURN_REASON_LABEL_KEYS) as (keyof typeof RETURN_REASON_LABEL_KEYS)[];
 
 interface ReturnDetailProps {
-  returnId: string;
-  initialReturn?: Return | null;
+  readonly returnId: string;
+  readonly initialReturn?: Return | null;
 }
 
 interface ProductDetailCardProps {
-  item: ExtendedReturnItem;
-  locale: string;
-  t: ReturnType<typeof useTranslations<'account.returns'>>;
+  readonly item: ExtendedReturnItem;
+  readonly locale: string;
+  readonly t: ReturnType<typeof useTranslations<'account.returns'>>;
 }
 
 interface ReturnOverviewProps {
-  returnItem: ExtendedReturn;
-  locale: string;
-  t: ReturnType<typeof useTranslations<'account.returns'>>;
+  readonly returnItem: ExtendedReturn;
+  readonly locale: string;
+  readonly t: ReturnType<typeof useTranslations<'account.returns'>>;
 }
 
 interface ReturnItemsListProps {
-  items: ExtendedReturnItem[];
-  locale: string;
-  t: ReturnType<typeof useTranslations<'account.returns'>>;
+  readonly items: ExtendedReturnItem[];
+  readonly locale: string;
+  readonly t: ReturnType<typeof useTranslations<'account.returns'>>;
 }
 
 function ReturnOverview({ returnItem, locale, t }: ReturnOverviewProps) {
@@ -186,6 +186,7 @@ function ReturnItemsList({ items, locale, t }: ReturnItemsListProps) {
             const refund = getItemRefund(item);
             const refundNet = getItemRefundNet(item);
             const unitPrice = getItemUnitPrice(item);
+            const primaryUnitPriceValue = unitPrice.netValue ?? unitPrice.grossValue;
             const firstImage = item.images?.[0];
             return (
               <div
@@ -237,7 +238,7 @@ function ReturnItemsList({ items, locale, t }: ReturnItemsListProps) {
                   <span className="text-sm text-text-body sm:hidden">{t('price')}</span>
                   <div className="flex flex-col gap-1">
                     <span className="text-base font-body text-text-body">
-                      {formatReturnCurrency(unitPrice.netValue, unitPrice.currency, locale)}
+                      {formatReturnCurrency(primaryUnitPriceValue, unitPrice.currency, locale)}
                     </span>
                     {unitPrice.grossValue !== undefined && (
                       <span className="text-sm text-text-placeholders">

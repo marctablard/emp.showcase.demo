@@ -19,6 +19,11 @@ jest.mock('next-intl', () => ({
   },
 }));
 
+jest.mock('next/image', () => ({
+  __esModule: true,
+  default: ({ alt, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) => <img alt={alt} {...props} />,
+}));
+
 jest.mock('@/i18n/navigation', () => ({
   useRouter: () => ({
     push: jest.fn(),

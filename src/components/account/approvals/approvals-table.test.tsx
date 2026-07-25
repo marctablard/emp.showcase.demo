@@ -262,7 +262,7 @@ describe('ApprovalsTable', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it('supports keyboard row navigation with Enter and does not navigate on Space', () => {
+  it('supports keyboard row navigation with Enter and Space', () => {
     render(<ApprovalsTable approvals={[buildApproval({ id: 'APR-42' })]} />);
 
     const row = screen.getByRole('row', { name: 'viewApprovalAriaLabel:APR-42' });
@@ -272,22 +272,25 @@ describe('ApprovalsTable', () => {
 
     push.mockClear();
     fireEvent.keyDown(row, { key: ' ' });
-    expect(push).not.toHaveBeenCalled();
+    expect(push).toHaveBeenCalledWith('/account/quotes/quote-1');
   });
 
-  it('does not row-navigate when Enter is pressed on nested links', () => {
+  it('does not row-navigate when Enter or Space is pressed on nested links', () => {
     render(<ApprovalsTable approvals={[buildApproval({ id: 'APR-42', resource: { id: 'quote-42' } })]} />);
 
     const idLink = screen.getByRole('link', { name: 'APR-42' });
     fireEvent.keyDown(idLink, { key: 'Enter' });
+    fireEvent.keyDown(idLink, { key: ' ' });
     expect(push).not.toHaveBeenCalled();
 
     const quoteLink = screen.getByRole('link', { name: 'quote-42' });
     fireEvent.keyDown(quoteLink, { key: 'Enter' });
+    fireEvent.keyDown(quoteLink, { key: ' ' });
     expect(push).not.toHaveBeenCalled();
 
     const arrowLink = screen.getByRole('link', { name: 'viewApprovalAriaLabel:APR-42' });
     fireEvent.keyDown(arrowLink, { key: 'Enter' });
+    fireEvent.keyDown(arrowLink, { key: ' ' });
     expect(push).not.toHaveBeenCalled();
   });
 

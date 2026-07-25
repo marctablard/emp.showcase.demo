@@ -6,11 +6,11 @@ import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from './card';
 
 interface SummaryCardProps extends React.ComponentProps<typeof Card> {
-  heading: React.ReactNode;
-  hasHeadline?: boolean;
-  icon?: React.ReactNode;
-  headerClassName?: string;
-  contentClassName?: string;
+  readonly heading: React.ReactNode;
+  readonly hasHeadline?: boolean;
+  readonly icon?: React.ReactNode;
+  readonly headerClassName?: string;
+  readonly contentClassName?: string;
 }
 
 export function SummaryCard({
@@ -22,7 +22,7 @@ export function SummaryCard({
   children,
   hasHeadline,
   ...props
-}: SummaryCardProps) {
+}: Readonly<SummaryCardProps>) {
   return (
     <Card className={cn('border-none shadow-sm', className)} {...props}>
       <CardHeader className={cn('pb-2', headerClassName)}>
@@ -37,12 +37,12 @@ export function SummaryCard({
 }
 
 interface SummaryRowProps extends React.HTMLAttributes<HTMLDivElement> {
-  label: React.ReactNode;
-  valueClassName?: string;
+  readonly label: React.ReactNode;
+  readonly valueClassName?: string;
   /** Emphasize the value (e.g., for totals) */
-  strong?: boolean;
+  readonly strong?: boolean;
   /** Render the label as muted text */
-  mutedLabel?: boolean;
+  readonly mutedLabel?: boolean;
 }
 
 export function SummaryRow({
@@ -53,7 +53,7 @@ export function SummaryRow({
   strong,
   mutedLabel,
   ...props
-}: SummaryRowProps) {
+}: Readonly<SummaryRowProps>) {
   return (
     <div className={cn('flex justify-between text-sm', strong && 'font-bold', className)} {...props}>
       <span className={cn(mutedLabel ? 'text-text-on-disabled' : undefined)}>{label}</span>
@@ -63,9 +63,9 @@ export function SummaryRow({
 }
 
 interface SummaryFieldProps extends React.HTMLAttributes<HTMLDivElement> {
-  label: React.ReactNode;
-  labelClassName?: string;
-  valueClassName?: string;
+  readonly label: React.ReactNode;
+  readonly labelClassName?: string;
+  readonly valueClassName?: string;
 }
 
 /**
@@ -84,7 +84,7 @@ export function SummaryField({
   labelClassName,
   valueClassName,
   ...props
-}: SummaryFieldProps) {
+}: Readonly<SummaryFieldProps>) {
   return (
     <div className={cn('flex flex-col gap-1', className)} {...props}>
       <div className={cn('text-3xl font-bold font-headlines text-text-headings', labelClassName)}>{label}</div>

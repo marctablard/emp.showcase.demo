@@ -180,13 +180,24 @@ describe('ApprovalDetails', () => {
     expect(screen.queryByText('totalAmount')).not.toBeInTheDocument();
   });
 
-  it('renders the related order as the safe empty value when the resource has no order id (CART approval)', () => {
+  it('falls back to a locale/currency-formatted amount when formattedAmount is absent', () => {
+    mockApproval = {
+      ...baseApproval,
+      resource: { ...baseApproval.resource, totalPrice: { currency: 'EUR', amount: 42 } },
+    };
+
+    render(<ApprovalDetails approvalId="approval-requestor-1" />);
+
+    expect(screen.getByText(/42,00.*€/)).toBeInTheDocument();
+  });
+
+  it('falls back to the resource id as the related order when the resource has no order id (CART approval)', () => {
     mockApproval = { ...baseApproval, resourceType: 'CART', resource: { id: 'cart-1' } };
 
     render(<ApprovalDetails approvalId="approval-requestor-1" />);
 
     const label = screen.getByText('relatedOrder');
-    expect(label.nextElementSibling).toHaveTextContent('-');
+    expect(label.nextElementSibling).toHaveTextContent('cart-1');
   });
 
   it('renders the source-backed related order id when present on the resource (CART approval)', () => {
@@ -281,6 +292,15 @@ describe('ApprovalDetails', () => {
 
       await waitFor(() => expect(updateApproverComment).toHaveBeenCalledWith('approver note'));
       expect(updateRequestorComment).not.toHaveBeenCalled();
+    });
+
+    it('hides the addComment control and blocks the comment mutation for a customer who is neither requestor nor designated approver', () => {
+      mockCustomer = { id: 'unrelated-customer' };
+      render(<ApprovalDetails approvalId="approval-requestor-1" />);
+
+      expect(screen.queryByRole('button', { name: /addComment/ })).not.toBeInTheDocument();
+      expect(updateRequestorComment).not.toHaveBeenCalled();
+      expect(updateApproverComment).not.toHaveBeenCalled();
     });
   });
 

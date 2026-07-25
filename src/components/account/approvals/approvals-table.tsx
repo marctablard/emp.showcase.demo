@@ -47,7 +47,7 @@ export const APPROVAL_SORT_FIELD_MAP: Record<ApprovalSortField, string> = {
  * approval detail route can reuse the same routing decision. See that module for
  * the preserved routing semantics.
  */
-export { getApprovalHref };
+export { getApprovalHref } from './approval-routing';
 
 export function formatApprovalUserName(user: ApprovalUser | ApprovalRequestor): string {
   if (user.fullName && user.fullName.trim() !== '') {
@@ -175,7 +175,7 @@ export function ApprovalsTable({
                         return;
                       }
 
-                      if (event.key === 'Enter') {
+                      if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
                         router.push(approvalHref);
                       }

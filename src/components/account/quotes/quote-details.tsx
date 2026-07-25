@@ -443,7 +443,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
 
   const showInquiryCta = approvalPermission?.permitted === false;
   const primaryActionLabel = showInquiryCta ? t('inquireApproval') : t('accept');
-  const isPrimaryActionDisabled = !(quote?.status === 'OPEN') || isProcessing || isCheckingApprovalPermission;
+  const isPrimaryActionDisabled = quote?.status !== 'OPEN' || isProcessing || isCheckingApprovalPermission;
 
   // Loading state
   if (loading) {
@@ -617,7 +617,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
               variant="secondary"
               size="small"
               className={cn('gap-2 disabled:border-none')}
-              disabled={!(quote.status === 'OPEN')}
+              disabled={quote.status !== 'OPEN'}
               onClick={() => {
                 handleDecisionDialogChange('CHANGE');
               }}
