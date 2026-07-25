@@ -16,7 +16,7 @@ export interface ProductMinimal {
 interface ProductListResolverProps {
   readonly items: ProductMinimal[];
   readonly className?: string;
-  readonly showNetUnderGross?: boolean;
+  readonly showGrossUnderNet?: boolean;
 }
 
 const extractProductIdFromYrn = (yrn?: string) => {
@@ -25,7 +25,7 @@ const extractProductIdFromYrn = (yrn?: string) => {
   return parts[parts.length - 1] || yrn;
 };
 
-export function ProductListResolver({ items, className, showNetUnderGross }: ProductListResolverProps) {
+export function ProductListResolver({ items, className, showGrossUnderNet }: ProductListResolverProps) {
   const { l10n } = useL10n();
   const productIds = (items || [])
     .map((it) => it.productId || extractProductIdFromYrn(it.itemYrn))
@@ -56,5 +56,5 @@ export function ProductListResolver({ items, className, showNetUnderGross }: Pro
     };
   });
 
-  return <ProductList items={listItems} className={className} showNetUnderGross={showNetUnderGross} />;
+  return <ProductList items={listItems} className={className} showGrossUnderNet={showGrossUnderNet} />;
 }

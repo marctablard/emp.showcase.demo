@@ -145,7 +145,7 @@ describe('ApprovalDetails', () => {
 
     expect(mockProductListResolver).toHaveBeenCalledWith(
       expect.objectContaining({
-        showNetUnderGross: true,
+        showGrossUnderNet: true,
         items: [
           expect.objectContaining({
             productId: 'product-1',
@@ -189,6 +189,17 @@ describe('ApprovalDetails', () => {
     render(<ApprovalDetails approvalId="approval-requestor-1" />);
 
     expect(screen.getByText(/42,00.*€/)).toBeInTheDocument();
+  });
+
+  it('preserves a numeric total amount of 0 when formattedAmount is absent, rather than falling back to "-"', () => {
+    mockApproval = {
+      ...baseApproval,
+      resource: { ...baseApproval.resource, totalPrice: { currency: 'EUR', amount: 0 } },
+    };
+
+    render(<ApprovalDetails approvalId="approval-requestor-1" />);
+
+    expect(screen.getByText(/0,00.*€/)).toBeInTheDocument();
   });
 
   it('falls back to the resource id as the related order when the resource has no order id (CART approval)', () => {

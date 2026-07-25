@@ -20,10 +20,10 @@ export interface ProductListItem {
 interface ProductListProps {
   readonly items: ProductListItem[];
   readonly className?: string;
-  readonly showNetUnderGross?: boolean;
+  readonly showGrossUnderNet?: boolean;
 }
 
-export function ProductList({ items, className, showNetUnderGross = false }: ProductListProps) {
+export function ProductList({ items, className, showGrossUnderNet = false }: ProductListProps) {
   const tCart = useTranslations('cart');
   const tQuoteDetails = useTranslations('account.quoteDetails');
 
@@ -37,7 +37,7 @@ export function ProductList({ items, className, showNetUnderGross = false }: Pro
         </div>
         <div className="divide-y divide-border-primary">
           {items.map((item) => (
-            <ProductItemRow key={item.id} item={item} showNetUnderGross={showNetUnderGross} />
+            <ProductItemRow key={item.id} item={item} showGrossUnderNet={showGrossUnderNet} />
           ))}
         </div>
       </CardContent>

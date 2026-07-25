@@ -6,10 +6,10 @@ import type { ProductListItem } from './product-list';
 
 interface ProductItemRowProps {
   readonly item: ProductListItem;
-  readonly showNetUnderGross?: boolean;
+  readonly showGrossUnderNet?: boolean;
 }
 
-export function ProductItemRow({ item, showNetUnderGross = false }: ProductItemRowProps) {
+export function ProductItemRow({ item, showGrossUnderNet = false }: ProductItemRowProps) {
   const t = useTranslations('cart');
   const tOrders = useTranslations('orders');
   const netPrice = item.netUnitPrice ?? item.unitPrice;
@@ -56,7 +56,7 @@ export function ProductItemRow({ item, showNetUnderGross = false }: ProductItemR
               <span className="text-2xl font-bold font-headlines text-text-headings">
                 {formatCurrency(netPrice, item.currency)}
               </span>
-              {showNetUnderGross && (
+              {showGrossUnderNet && (
                 <span className="text-sm font-body text-text-placeholders">
                   {t('gross').trim()}: {grossPriceLabel}
                 </span>
@@ -100,7 +100,7 @@ export function ProductItemRow({ item, showNetUnderGross = false }: ProductItemR
             <span className="text-2xl font-bold font-headlines text-text-headings">
               {formatCurrency(netPrice, item.currency)}
             </span>
-            {showNetUnderGross && (
+            {showGrossUnderNet && (
               <span className="text-sm font-body text-text-placeholders">
                 {t('gross').trim()}: {grossPriceLabel}
               </span>

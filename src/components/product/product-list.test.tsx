@@ -65,7 +65,7 @@ describe('ProductList', () => {
   });
 
   it('renders Quote-style items net-first with gross as the secondary value on desktop and mobile', () => {
-    render(<ProductList items={[quoteStyleItem]} showNetUnderGross />);
+    render(<ProductList items={[quoteStyleItem]} showGrossUnderNet />);
 
     const desktopRow = screen.getByTestId(`product-item-desktop-${quoteStyleItem.id}`);
     expect(within(desktopRow).getByText('€330.00')).toBeInTheDocument();
@@ -77,7 +77,7 @@ describe('ProductList', () => {
   });
 
   it('renders a literal "-" secondary value for Approval-style items with no gross price, never deriving one', () => {
-    render(<ProductList items={[approvalStyleItemMissingGross]} showNetUnderGross />);
+    render(<ProductList items={[approvalStyleItemMissingGross]} showGrossUnderNet />);
 
     const desktopRow = screen.getByTestId(`product-item-desktop-${approvalStyleItemMissingGross.id}`);
     expect(within(desktopRow).getByText('€10.00')).toBeInTheDocument();
@@ -87,14 +87,14 @@ describe('ProductList', () => {
     expect(within(mobileRow).getByText('gross: -')).toBeInTheDocument();
   });
 
-  it('does not render a secondary price line when showNetUnderGross is false', () => {
+  it('does not render a secondary price line when showGrossUnderNet is false', () => {
     render(<ProductList items={[quoteStyleItem]} />);
 
     expect(screen.queryByText(/gross:/i)).not.toBeInTheDocument();
   });
 
   it('places brand/name above the thumbnail on smallest-mobile, hides the Quantity label, and keeps item number and quantity in the value stack', () => {
-    render(<ProductList items={[quoteStyleItem]} showNetUnderGross />);
+    render(<ProductList items={[quoteStyleItem]} showGrossUnderNet />);
 
     const mobileRow = screen.getByTestId(`product-item-mobile-${quoteStyleItem.id}`);
     const mobileScope = within(mobileRow);
@@ -114,7 +114,7 @@ describe('ProductList', () => {
   });
 
   it('renders the desktop layout with quantity and item number retained alongside the product details', () => {
-    render(<ProductList items={[quoteStyleItem]} showNetUnderGross />);
+    render(<ProductList items={[quoteStyleItem]} showGrossUnderNet />);
 
     const desktopRow = screen.getByTestId(`product-item-desktop-${quoteStyleItem.id}`);
     const desktopScope = within(desktopRow);

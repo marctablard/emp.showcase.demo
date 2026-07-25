@@ -37,7 +37,7 @@ const item: ProductListItem = {
 
 describe('ProductItemRow translation namespaces', () => {
   it('reads itemNumber from the orders namespace and gross from the cart namespace', () => {
-    render(<ProductItemRow item={item} showNetUnderGross />);
+    render(<ProductItemRow item={item} showGrossUnderNet />);
 
     expect(screen.getAllByText(`orders.itemNumber: ${item.itemNumber}`).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/cart\.gross:/).length).toBeGreaterThan(0);

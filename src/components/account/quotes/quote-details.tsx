@@ -952,7 +952,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         <QuoteSummary quote={quote} />
         {
           <ProductListResolver
-            showNetUnderGross
+            showGrossUnderNet
             items={quote.items.map((it) => ({
               productId: it.product.id,
               quantity: it.quantity.quantity, // Extract just the numeric quantity value

@@ -413,7 +413,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
 
             {approval.resource.items && approval.resource.items.length > 0 && (
               <ProductListResolver
-                showNetUnderGross
+                showGrossUnderNet
                 items={approval.resource.items.map((it) => ({
                   productId: it.productId,
                   itemYrn: it.itemYrn,

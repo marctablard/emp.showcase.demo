@@ -176,7 +176,7 @@ describe('Quote cross-links', () => {
 
     expect(mockProductListResolver).toHaveBeenCalledWith(
       expect.objectContaining({
-        showNetUnderGross: true,
+        showGrossUnderNet: true,
         items: [
           expect.objectContaining({
             productId: 'product-1',
