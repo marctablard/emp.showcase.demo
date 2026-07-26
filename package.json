@@ -23,6 +23,7 @@
     "start": "next start",
     "lint": "eslint",
     "verify:client-chunks": "node scripts/verify-client-chunks.mjs",
+    "verify:audit-policy": "npm audit --audit-level=high --json > audit-report.json || true; node scripts/verify-audit-policy.mjs audit-report.json",
     "verify:ci-install": "bash scripts/verify-safe-chain-install.sh",
     "verify:ci-install:preview-override": "SAFE_CHAIN_SKIP_MINIMUM_PACKAGE_AGE=1 bash scripts/verify-safe-chain-install.sh",
     "test": "concurrently \"npm:jest\" \"npm:e2e\"",

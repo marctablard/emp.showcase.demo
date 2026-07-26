@@ -1,0 +1,202 @@
+#!/usr/bin/env node
+/**
+ * Enforces the repo's npm audit policy in CI.
+ *
+ * Consumes the JSON produced by `npm audit --audit-level=high --json` and
+ * fails unless every high/critical advisory found in the report is covered
+ * by an active (non-expired) entry in ALLOWED_EXCEPTIONS below.
+ *
+ * This intentionally does NOT rely on npm's own process exit code: `npm
+ * audit --audit-level=high` exits non-zero the moment it finds any
+ * high/critical advisory, which is exactly the (narrow, temporary) case
+ * this script exists to tolerate. Instead the pass/fail decision is
+ * re-derived from the report content itself, so:
+ *   - any high/critical advisory NOT listed in ALLOWED_EXCEPTIONS fails CI
+ *   - a listed exception whose `expires` date has passed fails CI
+ *   - a missing, empty, unparsable, or unexpectedly-shaped report fails CI
+ *   - a report with zero high/critical advisories passes CI
+ *
+ * Do NOT weaken this script to force a pass (e.g. broadening the allowlist,
+ * removing the expiry check, or ignoring malformed reports) — see
+ * docs/run-build-deploy.md ("npm audit Policy Exceptions") before changing
+ * ALLOWED_EXCEPTIONS.
+ *
+ * Usage:
+ *   npm audit --audit-level=high --json > audit-report.json || true
+ *   node scripts/verify-audit-policy.mjs audit-report.json
+ */
+import fs from 'fs';
+
+// --- Policy: narrowly-scoped, time-boxed exceptions only. -----------------
+// Every entry MUST have an explicit, short-lived `expires` date (YYYY-MM-DD,
+// exception is valid through the end of that UTC day) and a `reason`
+// explaining why upgrading is not currently safe. Remove the entry once a
+// real fix lands or the date passes — do not silently extend `expires`.
+const ALLOWED_EXCEPTIONS = [
+  {
+    id: 'GHSA-mh99-v99m-4gvg',
+    package: 'brace-expansion',
+    reason:
+      'brace-expansion DoS via unbounded expansion length (CWE-400/CWE-770), pulled in transitively by eslint/jest tooling (minimatch). The only available fix requires a semver-major bump of eslint/jest that is not currently safe to take without breaking lint/test tooling. See docs/run-build-deploy.md ("npm audit Policy Exceptions") for rationale and removal condition.',
+    expires: '2026-08-08',
+  },
+];
+
+const FAIL_SEVERITIES = new Set(['high', 'critical']);
+const GHSA_RE = /GHSA-[0-9a-z]+-[0-9a-z]+-[0-9a-z]+/i;
+
+class AuditPolicyError extends Error {}
+
+function fail(message) {
+  throw new AuditPolicyError(message);
+}
+
+function readReport(reportPath) {
+  let raw;
+  try {
+    raw = fs.readFileSync(reportPath, 'utf8');
+  } catch (err) {
+    fail(`could not read audit report at "${reportPath}": ${err.message}`);
+  }
+  if (!raw || !raw.trim()) {
+    fail(`audit report at "${reportPath}" is empty — npm audit likely failed to run (network/registry error?)`);
+  }
+  let report;
+  try {
+    report = JSON.parse(raw);
+  } catch (err) {
+    fail(`audit report at "${reportPath}" is not valid JSON: ${err.message}`);
+  }
+  if (!report || typeof report !== 'object' || Array.isArray(report)) {
+    fail('audit report has an unexpected shape (expected a JSON object)');
+  }
+  if (report.error) {
+    fail(`npm audit reported an error instead of a report: ${JSON.stringify(report.error)}`);
+  }
+  const { vulnerabilities } = report;
+  if (!vulnerabilities || typeof vulnerabilities !== 'object' || Array.isArray(vulnerabilities)) {
+    fail('audit report is missing a valid "vulnerabilities" object — cannot verify policy');
+  }
+  return report;
+}
+
+/**
+ * Collects every distinct advisory referenced anywhere in the report.
+ *
+ * `via` entries on a vulnerability node can be either:
+ *   - a plain dependency-name string: transitive propagation through
+ *     another already-reported package, NOT itself a new advisory, or
+ *   - an advisory object with its own `severity`/`url`/`title`/`source`.
+ *
+ * Only advisory objects represent an actual disclosed vulnerability, so
+ * string entries are skipped — they would otherwise be (incorrectly)
+ * treated as separate, unlisted advisories.
+ */
+function collectAdvisories(vulnerabilities) {
+  const advisoriesById = new Map();
+
+  for (const [pkgName, vuln] of Object.entries(vulnerabilities)) {
+    if (!vuln || typeof vuln !== 'object' || !Array.isArray(vuln.via)) continue;
+    for (const via of vuln.via) {
+      if (!via || typeof via !== 'object') continue; // dependency-name string, not an advisory
+      const severity = via.severity || vuln.severity;
+      if (!FAIL_SEVERITIES.has(severity)) continue;
+
+      const url = typeof via.url === 'string' ? via.url : '';
+      const match = url.match(GHSA_RE);
+      const id = match ? match[0] : `NPM-ADVISORY-${via.source ?? 'UNKNOWN'}`;
+
+      if (!advisoriesById.has(id)) {
+        advisoriesById.set(id, {
+          id,
+          severity,
+          title: via.title || '(no title)',
+          url: url || '(no url)',
+          packages: new Set(),
+        });
+      }
+      advisoriesById.get(id).packages.add(via.dependency || pkgName);
+    }
+  }
+
+  return [...advisoriesById.values()];
+}
+
+function evaluateAdvisories(advisories, today) {
+  const disallowed = [];
+  const tolerated = [];
+
+  for (const advisory of advisories) {
+    const exception = ALLOWED_EXCEPTIONS.find((e) => e.id.toLowerCase() === advisory.id.toLowerCase());
+    if (!exception) {
+      disallowed.push({ ...advisory, reason: 'not in ALLOWED_EXCEPTIONS' });
+      continue;
+    }
+    const expires = new Date(`${exception.expires}T23:59:59.999Z`);
+    if (Number.isNaN(expires.getTime())) {
+      disallowed.push({ ...advisory, reason: `exception has an invalid expires date: "${exception.expires}"` });
+      continue;
+    }
+    if (today > expires) {
+      disallowed.push({ ...advisory, reason: `exception expired on ${exception.expires}` });
+      continue;
+    }
+    tolerated.push({ ...advisory, exception });
+  }
+
+  return { disallowed, tolerated };
+}
+
+function formatAdvisory(a) {
+  return [
+    `  - ${a.id} (${a.severity}) ${a.title}`,
+    `    packages: ${[...a.packages].join(', ')}`,
+    `    url: ${a.url}`,
+    `    reason: ${a.reason}`,
+  ].join('\n');
+}
+
+function main() {
+  const [, , reportPathArg] = process.argv;
+  if (!reportPathArg) {
+    fail('missing required argument: path to an `npm audit --json` report (e.g. audit-report.json)');
+  }
+
+  const report = readReport(reportPathArg);
+  const advisories = collectAdvisories(report.vulnerabilities);
+
+  if (advisories.length === 0) {
+    console.log('verify-audit-policy: OK — no high/critical advisories found.');
+    return;
+  }
+
+  const { disallowed, tolerated } = evaluateAdvisories(advisories, new Date());
+
+  if (disallowed.length > 0) {
+    console.error(
+      'verify-audit-policy: FAILED — the following high/critical advisories are not covered by an active exception:',
+    );
+    for (const a of disallowed) {
+      console.error(formatAdvisory(a));
+    }
+    fail('one or more high/critical advisories are not covered by an active, non-expired exception');
+  }
+
+  console.warn('verify-audit-policy: WARNING — passing only due to active, time-boxed exception(s):');
+  for (const a of tolerated) {
+    console.warn(`  - ${a.id} (${a.severity}) ${a.title} — expires ${a.exception.expires}`);
+    console.warn(`    packages: ${[...a.packages].join(', ')}`);
+    console.warn(`    reason: ${a.exception.reason}`);
+  }
+  console.log('verify-audit-policy: OK — all high/critical advisories are covered by active exceptions above.');
+}
+
+try {
+  main();
+} catch (err) {
+  if (err instanceof AuditPolicyError) {
+    console.error(`verify-audit-policy: ${err.message}`);
+    process.exit(1);
+  }
+  throw err;
+}

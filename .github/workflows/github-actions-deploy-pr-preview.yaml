@@ -55,8 +55,18 @@ jobs:
       # Override") before copying this to any other workflow.
       - name: Install dependencies
         run: npm ci --safe-chain-skip-minimum-package-age
+      # Runs the real `npm audit --audit-level=high` (unchanged) and captures
+      # its JSON report; the exit code of that command is intentionally not
+      # what fails this step. scripts/verify-audit-policy.mjs re-derives the
+      # pass/fail decision from the report itself, so CI still fails on any
+      # high/critical advisory, malformed report, or script error — the ONLY
+      # narrow exception is GHSA-mh99-v99m-4gvg (brace-expansion DoS), which
+      # expires 2026-08-08. See docs/run-build-deploy.md ("npm audit Policy
+      # Exceptions") before touching this step or the script's allowlist.
       - name: Run npm audit
-        run: npm audit --audit-level=high
+        run: |
+          npm audit --audit-level=high --json > audit-report.json || true
+          node scripts/verify-audit-policy.mjs audit-report.json
       # - name: Install Playwright Browsers
       #   run: npx playwright install --with-deps
       - name: Pull Vercel environment information

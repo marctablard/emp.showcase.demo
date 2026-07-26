@@ -171,6 +171,39 @@ npm run verify:ci-install:preview-override
 
 which is equivalent to `SAFE_CHAIN_SKIP_MINIMUM_PACKAGE_AGE=1 npm run verify:ci-install` and only ever skips the minimum-package-age gate — never the malware checks or the audit step. Do not add this override to any other workflow, and remove it from the preview workflow once the underlying package has aged past safe-chain's policy window (or a permanent exception is agreed) rather than leaving it in place indefinitely.
 
+### npm audit Policy Exceptions
+
+The **Run npm audit** step of `.github/workflows/github-actions-deploy-pr-preview.yaml` still runs the real, unmodified `npm audit --audit-level=high` — the audit level is never lowered, dev dependencies are never omitted, and `audit fix --force` is never used. What changed is how the step decides pass/fail: instead of relying on `npm audit`'s own exit code, the step captures its JSON report and passes it to [`scripts/verify-audit-policy.mjs`](../scripts/verify-audit-policy.mjs), which re-derives the pass/fail decision from the report content:
+
+```yaml
+- name: Run npm audit
+  run: |
+    npm audit --audit-level=high --json > audit-report.json || true
+    node scripts/verify-audit-policy.mjs audit-report.json
+```
+
+This exists to allow one narrowly-scoped, time-boxed exception while keeping every other failure mode fatal:
+
+- **Advisory:** [`GHSA-mh99-v99m-4gvg`](https://github.com/advisories/GHSA-mh99-v99m-4gvg) — `brace-expansion` DoS via unbounded expansion length (CWE-400/CWE-770), pulled in transitively through `minimatch` by the ESLint and Jest toolchains.
+- **Why:** the only available fix (`fixAvailable` in the audit report) requires a semver-major bump of `eslint`/`jest`, which is not currently safe to take without breaking lint/test tooling in this repo. This is a dev-tooling-only exposure (ESLint/Jest CLI usage), not a runtime/production dependency path.
+- **Expiry:** **2026-08-08** (valid through the end of that day, UTC). After this date, `scripts/verify-audit-policy.mjs` treats the exception as expired and fails CI on this advisory exactly like any other unlisted one — the date must be extended deliberately in code (with a fresh rationale) or, preferably, removed once `eslint`/`jest` can be upgraded.
+- **Removal condition:** remove the `GHSA-mh99-v99m-4gvg` entry from `ALLOWED_EXCEPTIONS` in `scripts/verify-audit-policy.mjs` as soon as upgrading `eslint`/`jest` (or their transitive `minimatch`/`brace-expansion` versions) resolves the advisory, without waiting for the expiry date.
+- **Scope:** this exception applies **only** to the PR preview deploy workflow's audit step. Every other workflow (`github-actions-deploy-dev.yaml`, `-prod.yaml`, `-showcasedev.yaml`, `-showcaseqadev.yaml`) continues to run plain `npm audit --audit-level=high` with no exception applied, and will fail immediately on this or any other high/critical advisory.
+
+`scripts/verify-audit-policy.mjs` is deliberately strict about everything else:
+
+- Any high/critical advisory **not** in `ALLOWED_EXCEPTIONS` fails CI.
+- A missing, empty, unparsable, or unexpectedly-shaped audit report (e.g. a registry/network error instead of a real report) fails CI.
+- It is robust to the two shapes `npm audit --json` uses inside each vulnerability's `via` array: a plain dependency-name string (transitive propagation through an already-reported package) versus an advisory object (an actual disclosed vulnerability, carrying its own `severity`/`url`/`title`). Only advisory objects are checked against the allowlist.
+
+To reproduce this exact CI check locally:
+
+```bash
+npm run verify:audit-policy
+```
+
+Do not weaken this mechanism to force a pass — do not broaden `ALLOWED_EXCEPTIONS` beyond `GHSA-mh99-v99m-4gvg`, do not remove or extend the expiry check, do not add `continue-on-error` to the step, and do not lower `--audit-level` or add `--omit=dev`. A failure here means either a new high/critical advisory that must be triaged, or the existing exception has expired and needs a real fix or an explicit, reviewed renewal.
+
 ## Deployment (Vercel + GitHub Actions)
 Deployment is automated using Vercel and GitHub Actions.
 
