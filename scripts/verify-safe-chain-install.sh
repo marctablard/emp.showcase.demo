@@ -4,10 +4,10 @@ set -euo pipefail
 # Verifies CI dependency-installation parity locally in a disposable,
 # throwaway directory:
 #
-#   1. `npm ci` wrapped by Aikido safe-chain (malware blocking + safe-chain's
-#      own minimum package release-age policy), run with the project's
-#      pinned npm version (`packageManager` in package.json) via `npx`, so
-#      nothing is installed globally and nothing is added to project
+#   1. `safe-chain setup-ci` followed by `npm ci` (malware blocking +
+#      safe-chain's own minimum package release-age policy), both run with the
+#      project's pinned npm version (`packageManager` in package.json) via
+#      `npx`, so nothing is installed globally and nothing is added to project
 #      dependencies.
 #   2. `npm audit --audit-level=high` against the resulting lockfile.
 #
@@ -107,14 +107,17 @@ fi
 
 pushd "$WORKDIR" >/dev/null
 
-echo "==> safe-chain ${NPM_CI_ARGS[*]}"
-npx --yes -p "npm@${NPM_VERSION}" -p @aikidosec/safe-chain safe-chain "${NPM_CI_ARGS[@]}"
+echo "==> safe-chain setup-ci"
+npx --yes -p @aikidosec/safe-chain safe-chain setup-ci
+
+echo "==> ${NPM_CI_ARGS[*]}"
+npx --yes -p "npm@${NPM_VERSION}" "${NPM_CI_ARGS[@]}"
 
 echo "==> npm audit --audit-level=high"
 npx --yes -p "npm@${NPM_VERSION}" npm audit --audit-level=high --cache "$CACHE_DIR"
 
 popd >/dev/null
 
-echo "==> verify:ci-install passed: safe-chain-wrapped npm ci + npm audit --audit-level=high succeeded"
+echo "==> verify:ci-install passed: safe-chain setup-ci + npm ci + npm audit --audit-level=high succeeded"
 echo "==> note: this only confirms today's lockfile clears safe-chain's own age/malware policy and audit;"
 echo "    it is not a guarantee that a future 'npm install' bump of the same package will."

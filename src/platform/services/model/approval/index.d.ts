@@ -19,6 +19,11 @@ export interface ApprovalPrice {
   currency: string;
   amount: number;
   formattedAmount?: string;
+  unitPrice?: number;
+  newUnitPrice?: number;
+  netValue?: number;
+  grossValue?: number;
+  taxValue?: number;
 }
 
 export interface ApprovalTaxablePrice {

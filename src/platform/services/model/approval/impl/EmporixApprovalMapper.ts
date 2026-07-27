@@ -164,6 +164,11 @@ export class EmporixApprovalMapper implements ApprovalMapper<EmporixApprovalResp
       currency: source.currency,
       amount: source.amount,
       formattedAmount: `${source.amount.toFixed(2)} ${source.currency}`,
+      unitPrice: source.unitPrice,
+      newUnitPrice: source.newUnitPrice,
+      netValue: source.netValue ?? source.calculatedPrice?.price?.netValue,
+      grossValue: source.grossValue ?? source.calculatedPrice?.price?.grossValue,
+      taxValue: source.taxValue ?? source.calculatedPrice?.price?.taxValue,
     };
   }
 

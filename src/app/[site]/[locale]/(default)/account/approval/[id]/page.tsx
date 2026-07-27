@@ -1,57 +1,26 @@
-import { getTranslations } from 'next-intl/server';
-import { notFound } from 'next/navigation';
-import AccountLayout from '@/components/account/account-layout';
-import { ApprovalDetails } from '@/components/account/approvals/approval-details.quote';
-import { getApprovalById } from '@/lib/ssr/approvals';
-import { getCurrentCustomer } from '@/lib/ssr/customer';
-import { getPageTitle } from '@/lib/ssr/seo';
+import { createNavigation as createIntlNavigation } from 'next-intl/navigation';
+import { redirect } from 'next/navigation';
+import { routing as intlRouting } from '@/i18n/routing';
+import { routing as siteRouting } from '@/site/routing';
+import { addPrefixIfNeeded } from '@/site/utils';
 
-export async function generateMetadata({ params }: { params: Promise<{ locale: string; id: string }> }) {
-  const { locale, id } = await params;
-  const t = await getTranslations({ locale, namespace: 'orders.Approval' });
+const { getPathname } = createIntlNavigation(intlRouting);
 
-  return {
-    title: await getPageTitle(t('approvalDetails') + ' #' + id, locale),
-    description: t('approvalDetailsDescription'),
-    robots: {
-      index: false,
-      follow: false,
-    },
-  };
-}
+/**
+ * Legacy singular approval route.
+ *
+ * Consolidated into a site- and locale-preserving redirect to the canonical
+ * plural route `/account/approvals/[id]`, which owns the single approval detail
+ * implementation (including the quote-approval redirect).
+ */
+export default async function LegacyApprovalDetailPage({
+  params,
+}: {
+  params: Promise<{ site: string; locale: string; id: string }>;
+}) {
+  const { site, locale, id } = await params;
 
-export default async function ApprovalDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
-  const { locale, id } = await params;
+  const target = addPrefixIfNeeded(getPathname({ href: `/account/approvals/${id}`, locale }), site, siteRouting, true);
 
-  const [tAccount, tApproval, approval, customer] = await Promise.all([
-    getTranslations({ locale, namespace: 'account' }),
-    getTranslations({ locale, namespace: 'orders.Approval' }),
-    getApprovalById(id),
-    getCurrentCustomer(),
-  ]);
-
-  if (!approval) {
-    notFound();
-  }
-
-  const breadcrumbs = [
-    {
-      href: '/account',
-      label: tAccount('title'),
-    },
-    {
-      href: '/account/approvals',
-      label: tApproval('approvals'),
-    },
-    {
-      href: `/account/approval/${id}`,
-      label: `${tApproval('approval')} #${id}`,
-    },
-  ];
-
-  return (
-    <AccountLayout breadcrumbs={breadcrumbs}>
-      <ApprovalDetails approvalId={id} initialApproval={approval} currentUserId={customer?.id} />
-    </AccountLayout>
-  );
+  redirect(target);
 }

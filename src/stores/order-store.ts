@@ -68,8 +68,8 @@ export const createOrderStore = () =>
         [query]: totalCount ?? get().totals[query],
       };
 
-      // Add each order to the orders record with its ID as the key
-      const orderRecords = get().orders;
+      // Clone first so default/reset state never shares a mutated orders record.
+      const orderRecords = { ...get().orders };
       orders.forEach((order: Order) => {
         orderRecords[order.id] = order;
       });

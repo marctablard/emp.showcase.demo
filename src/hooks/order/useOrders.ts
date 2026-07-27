@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { createOrderRequestKey } from '@/lib/order/create-order-request-key';
 import type { Order } from '@/platform/services/model/order/order';
@@ -72,26 +72,29 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
   // Local state for pagination
   const [pageSize, setPageSize] = useState<number>(initialPageSize);
   const [pageNumber, setPageNumber] = useState<number>(initialPageNumber);
+  const [appliedSearchQuery, setAppliedSearchQuery] = useState(searchQuery);
 
   // Reset to page one synchronously in the same render whenever the search
-  // query transitions (including clearing it back to empty). Comparing and
-  // correcting the page here - before it is used to build the request key -
-  // guarantees the store is never queried for {new query, old page}; a later
-  // effect only synchronizes internal state and never has to correct an
-  // already-issued stale request.
-  const previousSearchQueryRef = useRef(searchQuery);
-  const didSearchQueryChange = previousSearchQueryRef.current !== searchQuery;
+  // query transitions (including clearing it back to empty). We derive this
+  // from committed state (not ref mutation during render) to avoid concurrent
+  // render leakage while still preventing {new query, old page} requests.
+  const didSearchQueryChange = appliedSearchQuery !== searchQuery;
   let effectivePageNumber = pageNumber;
   if (didSearchQueryChange) {
-    previousSearchQueryRef.current = searchQuery;
     effectivePageNumber = 1;
   }
 
   useEffect(() => {
-    if (didSearchQueryChange && pageNumber !== 1) {
+    if (!didSearchQueryChange) {
+      return;
+    }
+
+    setAppliedSearchQuery(searchQuery);
+
+    if (pageNumber !== 1) {
       setPageNumber(1);
     }
-  }, [didSearchQueryChange, pageNumber]);
+  }, [didSearchQueryChange, pageNumber, searchQuery]);
 
   // Generate query key for current request parameters.
   const queryKey = createOrderRequestKey(pageSize, effectivePageNumber, searchQuery, sort);

@@ -46,6 +46,7 @@ async function getOrderApiError(response: Response): Promise<Error> {
  * @param {number} [pageSize] - Optional page size for pagination
  * @param {number} [pageNumber] - Optional page number for pagination
  * @param {string} [query] - Optional query filter (e.g. 'id:~(partial)')
+ * @param {string} [sort] - Optional sort expression (e.g. 'createdAt:desc')
  * @returns {Promise<Order[]>} Array of orders
  */
 export async function fetchOrders(

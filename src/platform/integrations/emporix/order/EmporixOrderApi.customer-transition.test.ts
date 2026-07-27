@@ -85,4 +85,39 @@ describe('EmporixOrderApi customer transition (mocked)', () => {
     expect(tokenType).toBe('session');
     expect(response).toEqual({ items: [{ id: 'ord-1' }], totalCount: 17 });
   });
+
+  it('accepts customer orders payload wrapped as { items: [...] }', async () => {
+    const mockApiClient: MockOrderApiClient = {
+      authenticatedFetch: jest.fn().mockResolvedValue({
+        ok: true,
+        headers: {
+          get: jest.fn((name: string) => (name.toLowerCase() === 'x-total-count' ? '2' : null)),
+        },
+        json: jest.fn().mockResolvedValue({ items: [{ id: 'ord-3' }, { id: 'ord-4' }] }),
+      }),
+    };
+
+    const api = new EmporixOrderApi(mockApiClient, mockConfigLocal);
+    const response = await api.getCustomerOrdersPage(10, 1);
+
+    expect(response).toEqual({ items: [{ id: 'ord-3' }, { id: 'ord-4' }], totalCount: 2 });
+  });
+
+  it('throws a clear error for unexpected customer orders payload', async () => {
+    const mockApiClient: MockOrderApiClient = {
+      authenticatedFetch: jest.fn().mockResolvedValue({
+        ok: true,
+        headers: {
+          get: jest.fn(() => null),
+        },
+        json: jest.fn().mockResolvedValue({ data: [] }),
+      }),
+    };
+
+    const api = new EmporixOrderApi(mockApiClient, mockConfigLocal);
+
+    await expect(api.getCustomerOrdersPage(10, 1)).rejects.toThrow(
+      'Unexpected customer orders payload from Emporix API: expected an array or an object with an items array',
+    );
+  });
 });

@@ -54,6 +54,23 @@ function parseTotalCount(headers: Headers | { get(name: string): string | null }
   return Number.isFinite(totalCount) ? totalCount : undefined;
 }
 
+function extractCustomerOrdersFromPayload(payload: unknown): EmporixOrder[] {
+  if (Array.isArray(payload)) {
+    return payload as EmporixOrder[];
+  }
+
+  if (payload && typeof payload === 'object') {
+    const payloadWithItems = payload as { items?: unknown };
+    if (Array.isArray(payloadWithItems.items)) {
+      return payloadWithItems.items as EmporixOrder[];
+    }
+  }
+
+  throw new Error(
+    'Unexpected customer orders payload from Emporix API: expected an array or an object with an items array',
+  );
+}
+
 // Customer-managed endpoints use '/orders' while tenant-managed endpoints use '/salesorders'
 
 @injectable('EmporixOrderApi', 'Singleton')
@@ -267,9 +284,9 @@ class EmporixOrderApi implements IEmporixOrderApi {
       throw new Error(`Failed to get customer orders: ${response.statusText} ${errorDetails}`);
     }
 
-    const items = (await response.json()) as unknown;
+    const payload = (await response.json()) as unknown;
     return {
-      items: Array.isArray(items) ? (items as EmporixOrder[]) : [],
+      items: extractCustomerOrdersFromPayload(payload),
       totalCount: parseTotalCount(response.headers),
     };
   }

@@ -265,4 +265,31 @@ describe('useOrders', () => {
 
     expect(result.current.pageNumber).toBe(2);
   });
+
+  it('resets to page one synchronously when clearing query, never fetching {empty query, old page}', async () => {
+    const { result, rerender } = renderHook(({ query }: { query?: string }) => useOrders({ query }), {
+      initialProps: { query: 'status:CREATED' },
+    });
+
+    await waitFor(() => {
+      expect(store.fetchOrders).toHaveBeenCalledWith(50, 1, false, 'status:CREATED', undefined);
+    });
+    store.fetchOrders.mockClear();
+
+    act(() => {
+      result.current.setPageNumber(4);
+    });
+    expect(result.current.pageNumber).toBe(4);
+
+    rerender({ query: undefined });
+
+    expect(result.current.pageNumber).toBe(1);
+
+    const staleCall = store.fetchOrders.mock.calls.find(([, page, , q]) => q === undefined && page === 4);
+    expect(staleCall).toBeUndefined();
+
+    await waitFor(() => {
+      expect(store.fetchOrders).toHaveBeenCalledWith(50, 1, false, undefined, undefined);
+    });
+  });
 });

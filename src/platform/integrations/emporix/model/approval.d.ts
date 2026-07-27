@@ -20,6 +20,18 @@ export interface EmporixApprovalRequestor extends EmporixApprovalUser {
 export interface EmporixApprovalPrice {
   currency: string;
   amount: number;
+  unitPrice?: number;
+  newUnitPrice?: number;
+  netValue?: number;
+  grossValue?: number;
+  taxValue?: number;
+  calculatedPrice?: {
+    price?: {
+      netValue?: number;
+      grossValue?: number;
+      taxValue?: number;
+    };
+  };
 }
 
 export interface EmporixApprovalTaxablePrice {
