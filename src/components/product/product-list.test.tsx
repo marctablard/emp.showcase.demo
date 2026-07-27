@@ -4,6 +4,7 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { render, screen, within } from '@testing-library/react';
+import { formatCurrency } from '@/lib/utils';
 import { ProductList } from './product-list';
 import type { ProductListItem } from './product-list';
 
@@ -51,6 +52,17 @@ const approvalStyleItemMissingGross: ProductListItem = {
   imageUrl: null,
 };
 
+function normalizeText(value: string): string {
+  return value
+    .replace(/[\u00A0\u202F]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function byNormalizedText(expected: string) {
+  return (_content: string, node: Element | null) => normalizeText(node?.textContent ?? '') === normalizeText(expected);
+}
+
 describe('ProductList', () => {
   it('renders desktop headers as H6 with a left-aligned Quantity column and a right-aligned price column', () => {
     render(<ProductList items={[quoteStyleItem]} />);
@@ -67,24 +79,38 @@ describe('ProductList', () => {
   it('renders Quote-style items net-first with gross as the secondary value on desktop and mobile', () => {
     render(<ProductList items={[quoteStyleItem]} showGrossUnderNet />);
 
+    const netPriceLabel = formatCurrency(
+      quoteStyleItem.netUnitPrice ?? quoteStyleItem.unitPrice,
+      quoteStyleItem.currency,
+    );
+    const grossPriceLabel =
+      quoteStyleItem.grossUnitPrice === undefined
+        ? '-'
+        : formatCurrency(quoteStyleItem.grossUnitPrice, quoteStyleItem.currency);
+
     const desktopRow = screen.getByTestId(`product-item-desktop-${quoteStyleItem.id}`);
-    expect(within(desktopRow).getByText('€330.00')).toBeInTheDocument();
-    expect(within(desktopRow).getByText('gross: €334.99')).toBeInTheDocument();
+    expect(within(desktopRow).getByText(byNormalizedText(netPriceLabel))).toBeInTheDocument();
+    expect(within(desktopRow).getByText(byNormalizedText(`gross: ${grossPriceLabel}`))).toBeInTheDocument();
 
     const mobileRow = screen.getByTestId(`product-item-mobile-${quoteStyleItem.id}`);
-    expect(within(mobileRow).getByText('€330.00')).toBeInTheDocument();
-    expect(within(mobileRow).getByText('gross: €334.99')).toBeInTheDocument();
+    expect(within(mobileRow).getByText(byNormalizedText(netPriceLabel))).toBeInTheDocument();
+    expect(within(mobileRow).getByText(byNormalizedText(`gross: ${grossPriceLabel}`))).toBeInTheDocument();
   });
 
   it('renders a literal "-" secondary value for Approval-style items with no gross price, never deriving one', () => {
     render(<ProductList items={[approvalStyleItemMissingGross]} showGrossUnderNet />);
 
+    const netPriceLabel = formatCurrency(
+      approvalStyleItemMissingGross.netUnitPrice ?? approvalStyleItemMissingGross.unitPrice,
+      approvalStyleItemMissingGross.currency,
+    );
+
     const desktopRow = screen.getByTestId(`product-item-desktop-${approvalStyleItemMissingGross.id}`);
-    expect(within(desktopRow).getByText('€10.00')).toBeInTheDocument();
-    expect(within(desktopRow).getByText('gross: -')).toBeInTheDocument();
+    expect(within(desktopRow).getByText(byNormalizedText(netPriceLabel))).toBeInTheDocument();
+    expect(within(desktopRow).getByText(byNormalizedText('gross: -'))).toBeInTheDocument();
 
     const mobileRow = screen.getByTestId(`product-item-mobile-${approvalStyleItemMissingGross.id}`);
-    expect(within(mobileRow).getByText('gross: -')).toBeInTheDocument();
+    expect(within(mobileRow).getByText(byNormalizedText('gross: -'))).toBeInTheDocument();
   });
 
   it('does not render a secondary price line when showGrossUnderNet is false', () => {

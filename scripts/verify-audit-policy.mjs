@@ -25,7 +25,7 @@
  *   npm audit --audit-level=high --json > audit-report.json || true
  *   node scripts/verify-audit-policy.mjs audit-report.json
  */
-import fs from 'fs';
+import fs from 'node:fs';
 
 // --- Policy: narrowly-scoped, time-boxed exceptions only. -----------------
 // Every entry MUST have an explicit, short-lived `expires` date (YYYY-MM-DD,
@@ -92,31 +92,50 @@ function readReport(reportPath) {
  * string entries are skipped — they would otherwise be (incorrectly)
  * treated as separate, unlisted advisories.
  */
+function isAdvisoryEntry(via) {
+  // A `via` entry is either an advisory object or a plain dependency-name
+  // string (transitive propagation, not itself a new advisory).
+  return Boolean(via) && typeof via === 'object';
+}
+
+function advisoryIdFromVia(via) {
+  const url = typeof via.url === 'string' ? via.url : '';
+  const match = url.match(GHSA_RE);
+  const id = match ? match[0] : `NPM-ADVISORY-${via.source ?? 'UNKNOWN'}`;
+  return { id, url };
+}
+
+function recordAdvisory(advisoriesById, via, severity, pkgName) {
+  const { id, url } = advisoryIdFromVia(via);
+
+  if (!advisoriesById.has(id)) {
+    advisoriesById.set(id, {
+      id,
+      severity,
+      title: via.title || '(no title)',
+      url: url || '(no url)',
+      packages: new Set(),
+    });
+  }
+  advisoriesById.get(id).packages.add(via.dependency || pkgName);
+}
+
+function collectVulnerabilityAdvisories(advisoriesById, pkgName, vuln) {
+  if (!vuln || typeof vuln !== 'object' || !Array.isArray(vuln.via)) return;
+
+  for (const via of vuln.via) {
+    if (!isAdvisoryEntry(via)) continue; // dependency-name string, not an advisory
+    const severity = via.severity || vuln.severity;
+    if (!FAIL_SEVERITIES.has(severity)) continue;
+    recordAdvisory(advisoriesById, via, severity, pkgName);
+  }
+}
+
 function collectAdvisories(vulnerabilities) {
   const advisoriesById = new Map();
 
   for (const [pkgName, vuln] of Object.entries(vulnerabilities)) {
-    if (!vuln || typeof vuln !== 'object' || !Array.isArray(vuln.via)) continue;
-    for (const via of vuln.via) {
-      if (!via || typeof via !== 'object') continue; // dependency-name string, not an advisory
-      const severity = via.severity || vuln.severity;
-      if (!FAIL_SEVERITIES.has(severity)) continue;
-
-      const url = typeof via.url === 'string' ? via.url : '';
-      const match = url.match(GHSA_RE);
-      const id = match ? match[0] : `NPM-ADVISORY-${via.source ?? 'UNKNOWN'}`;
-
-      if (!advisoriesById.has(id)) {
-        advisoriesById.set(id, {
-          id,
-          severity,
-          title: via.title || '(no title)',
-          url: url || '(no url)',
-          packages: new Set(),
-        });
-      }
-      advisoriesById.get(id).packages.add(via.dependency || pkgName);
-    }
+    collectVulnerabilityAdvisories(advisoriesById, pkgName, vuln);
   }
 
   return [...advisoriesById.values()];
