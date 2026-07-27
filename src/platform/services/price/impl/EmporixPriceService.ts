@@ -60,8 +60,9 @@ class EmporixPriceService implements PriceService {
       };
       matchedPrices = await this.priceApi.matchPrices(matchRequest);
     }
-    const price = matchedPrices.length > 0 ? this.mapper.mapToService(matchedPrices[0]) : null;
-    // TODO clarify, what to do when more prices match?
+    const requestedCurrency = params?.currency;
+    const preferredPrice = this.pickPreferredMatchedPrice(matchedPrices, requestedCurrency);
+    const price = preferredPrice ? this.mapper.mapToService(preferredPrice) : null;
     return price;
   }
 
@@ -112,16 +113,38 @@ class EmporixPriceService implements PriceService {
       allMatched.push(...matchedPrices);
     }
 
-    productIds.forEach((id) => result.set(id, null));
+    const requestedCurrency = params?.currency;
+    const matchesByProductId = new Map<string, EmporixMatchedPrice[]>();
 
     allMatched.forEach((matched) => {
       const productId = matched.itemId.id;
-      if (result.has(productId) && result.get(productId) === null) {
-        result.set(productId, this.mapper.mapToService(matched));
-      }
+      const productMatches = matchesByProductId.get(productId) ?? [];
+      productMatches.push(matched);
+      matchesByProductId.set(productId, productMatches);
+    });
+
+    productIds.forEach((productId) => {
+      const preferredPrice = this.pickPreferredMatchedPrice(matchesByProductId.get(productId) ?? [], requestedCurrency);
+      result.set(productId, preferredPrice ? this.mapper.mapToService(preferredPrice) : null);
     });
 
     return result;
+  }
+
+  private pickPreferredMatchedPrice(
+    matchedPrices: EmporixMatchedPrice[],
+    requestedCurrency?: string,
+  ): EmporixMatchedPrice | null {
+    if (matchedPrices.length === 0) {
+      return null;
+    }
+
+    if (!requestedCurrency) {
+      return matchedPrices[0];
+    }
+
+    const exactCurrencyMatch = matchedPrices.find((matchedPrice) => matchedPrice.currency === requestedCurrency);
+    return exactCurrencyMatch ?? matchedPrices[0];
   }
 
   private mapToMatchPriceItem(productId: string, quantity: number, unitCode?: string): EmporixPriceMatchItem {

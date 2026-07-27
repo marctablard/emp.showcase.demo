@@ -1,5 +1,4 @@
-import type { ChangeEvent, FormEvent } from 'react';
-import { useState } from 'react';
+import { type ChangeEvent, type FormEvent, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ListFilter, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,11 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
-import type { FilterValue as SearchFilterValue } from '@/hooks/search/useSearch';
 import { type ProductFilterKey, dk } from '@/i18n/dynamic-key';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import type { Filter } from '@/platform/services/model/common';
-import { getMinMaxValues, isNumberRange, isSelect } from './util/search';
+import type { Filter, SearchFilterValue } from '@/platform/services/model/common';
+import { getFilterLabelFallback, getMinMaxValues, isNumberRange, isSelect } from './util/search';
 
 interface SearchFilterProps {
   availableFilters: Filter[];
@@ -24,9 +22,31 @@ interface SearchFilterProps {
   resetFacet: (facetId: string) => void;
   resetAllFacets: () => void;
   onSubmitComplete?: () => void;
+  appliedFilterCount?: number;
 }
 
 type FilterFormValues = Record<string, string | number>;
+
+type ProductTranslator = (key: ProductFilterKey, values?: { defaultValue?: string }) => string;
+
+export function getSearchFilterLabel(
+  filter: Pick<Filter, 'id' | 'name' | 'labelIsPlainText'>,
+  t: ProductTranslator,
+): string {
+  const name = filter.name?.trim();
+
+  if (!name) {
+    return getFilterLabelFallback(filter.id);
+  }
+
+  if (filter.labelIsPlainText) {
+    return name;
+  }
+
+  return t(dk<ProductFilterKey>(`filters.${name}`), {
+    defaultValue: getFilterLabelFallback(name),
+  });
+}
 
 function FilterMenu({ availableFilters, activeFilters, applyAllFacets, onSubmitComplete }: SearchFilterProps) {
   const t = useTranslations('product');
@@ -144,7 +164,10 @@ function FilterMenu({ availableFilters, activeFilters, applyAllFacets, onSubmitC
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {availableFilters.map(({ id, values, name }) => {
+      {availableFilters.map((filter) => {
+        const { id, values, name } = filter;
+        const filterLabel = getSearchFilterLabel(filter, t);
+
         if (!isSelect(name || '')) {
           const [min, max] = getMinMaxValues(values);
           const minValue = formValues[`${id}_min`] !== undefined ? Number(formValues[`${id}_min`]) : min;
@@ -152,7 +175,7 @@ function FilterMenu({ availableFilters, activeFilters, applyAllFacets, onSubmitC
 
           return (
             <div key={id} className="space-y-2">
-              <Label>{t(dk<ProductFilterKey>(`filters.${name}`))}</Label>
+              <Label>{filterLabel}</Label>
               <div className="grid grid-cols-2 gap-2">
                 {['min', 'max'].map((input) => {
                   const inputId = `${id}_${input}`;
@@ -194,7 +217,7 @@ function FilterMenu({ availableFilters, activeFilters, applyAllFacets, onSubmitC
         if (isSelect(name || '')) {
           return (
             <div key={id} className="space-y-2">
-              <Label>{t(dk<ProductFilterKey>(`filters.${name}`))}</Label>
+              <Label>{filterLabel}</Label>
               <Select
                 value={formValues[id] as string}
                 onValueChange={(value) => {
@@ -202,7 +225,7 @@ function FilterMenu({ availableFilters, activeFilters, applyAllFacets, onSubmitC
                 }}
               >
                 <SelectTrigger data-testid={`filter-${id}-select`}>
-                  <SelectValue placeholder={t(dk<ProductFilterKey>(`filters.${name}`))} />
+                  <SelectValue placeholder={filterLabel} />
                 </SelectTrigger>
                 <SelectContent>
                   {values.map((value) => (
@@ -235,6 +258,7 @@ function SearchFilter({
   resetFacet,
   resetAllFacets,
   activeFilters,
+  appliedFilterCount,
 }: SearchFilterProps) {
   // Check if there are any active filters
   // State to control if the filter offcanvas is visible
@@ -246,10 +270,21 @@ function SearchFilter({
   };
 
   return (
-    <div className="relative">
+    <div className="relative w-auto shrink-0">
       {/* Filter Toggle Button */}
-      <Button variant="secondary" onClick={toggleFilterOffcanvas} data-testid="filter-toggleButton">
-        <ListFilter className="mr-2" /> Filter
+      <Button variant="secondary" disabled className="whitespace-nowrap" data-testid="filter-toggleButton">
+        <span className="relative mr-2">
+          <ListFilter />
+          {typeof appliedFilterCount === 'number' && appliedFilterCount > 0 ? (
+            <span
+              aria-hidden="true"
+              className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-[3px] rounded-full bg-surface-success text-[10px] font-bold leading-[14px] text-center tabular-nums text-text-body"
+            >
+              {appliedFilterCount}
+            </span>
+          ) : null}
+        </span>
+        Filter
       </Button>
 
       {/* Offcanvas Filter Menu - shown when toggled */}

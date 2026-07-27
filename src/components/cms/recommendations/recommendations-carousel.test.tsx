@@ -28,18 +28,19 @@ jest.mock('@/hooks/product/useProducts', () => ({
   useProducts: jest.fn(),
 }));
 
-// The island imports its product children through relative paths, which the
-// project-level `@/components/product/*` moduleNameMapper stubs do not match.
-// Stub them here so the carousel tree hydrates without the full Zustand
-// provider stack — mirroring those project stubs.
-jest.mock('../../product/product-tile', () => ({
+// The project-level `@/components/product/*` moduleNameMapper stubs already
+// cover these children. Re-declaring them here keeps this suite's assertions
+// (`data-product-id`) self-describing and independent of the shared stubs'
+// exact markup — the specifiers must stay alias-form so both this factory and
+// the project mapper resolve to the same module the island imports.
+jest.mock('@/components/product/product-tile', () => ({
   ProductTile: ({ product }: { product?: { id?: string; name?: string } }) => (
     <div data-testid="mock-product-tile" data-product-id={product?.id ?? ''}>
       {product?.name ?? ''}
     </div>
   ),
 }));
-jest.mock('../../product/product-tile-skeleton', () => ({
+jest.mock('@/components/product/product-tile-skeleton', () => ({
   ProductTileSkeleton: () => <div data-testid="mock-product-tile-skeleton" />,
 }));
 

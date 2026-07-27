@@ -5,6 +5,7 @@ import type { EmporixOAuthApi } from '../oauth/EmporixOAuthApi';
 // Imported after the jest.mock calls above so the module-level `next/headers`
 // and `@/platform/server` imports resolve to the stubs.
 import EmporixTokenManagerServer from './impl/EmporixTokenManagerServer';
+import { decryptTokenPayload, encryptTokenPayload, isEncryptedFormat } from './util/token-encryption';
 
 // Prevent the real `next/headers` import (only available at Next runtime)
 // from executing when this module is pulled in — `resolveSessionParams` itself
@@ -249,5 +250,142 @@ describe('EmporixTokenManagerServer.resolveSessionParams', () => {
     expect(requestContext.getCurrency).not.toHaveBeenCalled();
     expect(requestContext.getLanguage).not.toHaveBeenCalled();
     expect(capturedSessionParams()).toBe(explicit);
+  });
+});
+
+describe('EmporixTokenManagerServer.readTokens / writeTokens encryption', () => {
+  const tenant = 'enc-tenant';
+  const testSecret = 'test-secret-for-encryption-tests-long-enough';
+  let cookieStore: { get: jest.Mock; set: jest.Mock };
+  let logger: jest.Mocked<LoggerService>;
+  let manager: InstanceType<typeof EmporixTokenManagerServer>;
+
+  const mockOAuthApi = {
+    getPublicToken: jest.fn(),
+    getAnonymousToken: jest.fn(),
+    refreshAnonymousToken: jest.fn(),
+    getCustomerToken: jest.fn(),
+    refreshCustomerToken: jest.fn(),
+    getServiceAccessToken: jest.fn(),
+  };
+
+  const mockRequestContext = {
+    getSite: jest.fn(),
+    getCurrency: jest.fn(),
+    getLanguage: jest.fn(),
+  };
+
+  beforeEach(() => {
+    process.env.NEXTAUTH_SECRET = testSecret;
+    cookieStore = { get: jest.fn(), set: jest.fn() };
+    const { cookies } = jest.requireMock('next/headers') as { cookies: jest.Mock };
+    cookies.mockResolvedValue(cookieStore);
+
+    logger = {
+      debug: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      fatal: jest.fn(),
+      trace: jest.fn(),
+    } as unknown as jest.Mocked<LoggerService>;
+
+    manager = new EmporixTokenManagerServer(
+      mockOAuthApi as unknown as EmporixOAuthApi,
+      mockRequestContext as unknown as RequestContextService,
+      logger as LoggerService,
+    );
+  });
+
+  afterEach(() => {
+    delete process.env.NEXTAUTH_SECRET;
+  });
+
+  it('writeTokens stores an encrypted value with enc.v1: prefix', async () => {
+    const tokens = { anonymousToken: { token: { access_token: 'tok-123', session_id: 'sid' }, expiryAt: 99999 } };
+    await (manager as unknown as { writeTokens: (t: unknown, tenant: string) => Promise<void> }).writeTokens(
+      tokens,
+      tenant,
+    );
+
+    expect(cookieStore.set).toHaveBeenCalledTimes(1);
+    const [, cookieValue] = cookieStore.set.mock.calls[0];
+    expect(isEncryptedFormat(cookieValue)).toBe(true);
+    expect(cookieValue).not.toContain('tok-123');
+    expect(cookieValue).not.toContain('access_token');
+  });
+
+  it('writeTokens preserves cookie options', async () => {
+    await (manager as unknown as { writeTokens: (t: unknown, tenant: string) => Promise<void> }).writeTokens(
+      {},
+      tenant,
+    );
+    const [, , options] = cookieStore.set.mock.calls[0];
+    expect(options).toMatchObject({
+      httpOnly: true,
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+    });
+  });
+
+  it('readTokens decrypts an encrypted cookie and returns TokenStore', async () => {
+    const tokens = { anonymousToken: { token: { access_token: 'abc', session_id: 's1' }, expiryAt: 1000 } };
+    const encrypted = encryptTokenPayload(JSON.stringify(tokens), testSecret);
+    cookieStore.get.mockReturnValue({ value: encrypted });
+
+    const result = await (
+      manager as unknown as { readTokens: (tenant: string) => Promise<Record<string, unknown>> }
+    ).readTokens(tenant);
+    expect(result).toMatchObject(tokens);
+  });
+
+  it('readTokens handles legacy base64 cookies (backward compat)', async () => {
+    const tokens = { anonymousToken: { token: { access_token: 'legacy', session_id: 'ls1' }, expiryAt: 2000 } };
+    const b64 = Buffer.from(JSON.stringify(tokens)).toString('base64');
+    cookieStore.get.mockReturnValue({ value: b64 });
+
+    const result = await (
+      manager as unknown as { readTokens: (tenant: string) => Promise<Record<string, unknown>> }
+    ).readTokens(tenant);
+    expect(result).toMatchObject(tokens);
+  });
+
+  it('readTokens returns {} and logs warning for corrupted cookie', async () => {
+    cookieStore.get.mockReturnValue({ value: 'enc.v1:corrupted-garbage-data' });
+
+    const result = await (
+      manager as unknown as { readTokens: (tenant: string) => Promise<Record<string, unknown>> }
+    ).readTokens(tenant);
+    expect(result).toEqual({});
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ tenant }),
+      expect.stringContaining('Failed to decrypt'),
+    );
+  });
+
+  it('readTokens returns {} when cookie is missing', async () => {
+    cookieStore.get.mockReturnValue(undefined);
+
+    const result = await (
+      manager as unknown as { readTokens: (tenant: string) => Promise<Record<string, unknown>> }
+    ).readTokens(tenant);
+    expect(result).toEqual({});
+  });
+
+  it('writeTokens omits serviceToken from cookie payload', async () => {
+    const tokens = {
+      anonymousToken: { token: { access_token: 'a1' }, expiryAt: 1 },
+      serviceToken: { token: { access_token: 'service-secret' }, expiryAt: 2 },
+    };
+    await (manager as unknown as { writeTokens: (t: unknown, tenant: string) => Promise<void> }).writeTokens(
+      tokens,
+      tenant,
+    );
+    const [, cookieValue] = cookieStore.set.mock.calls[0];
+    const decrypted = decryptTokenPayload(cookieValue, testSecret);
+    const parsed = JSON.parse(decrypted);
+    expect(parsed.serviceToken).toBeUndefined();
+    expect(parsed.anonymousToken).toBeDefined();
   });
 });

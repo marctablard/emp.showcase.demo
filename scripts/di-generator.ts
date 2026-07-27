@@ -1,11 +1,21 @@
 #!/usr/bin/env ts-node
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 require('dotenv').config({ path: path.resolve(process.cwd(), '.env') });
 import * as ts from 'typescript';
 import type { Decorator } from 'typescript';
 import * as glob from 'glob';
 import * as chokidar from 'chokidar';
+import { generateGeneratorAliasBindings } from '../src/platform/core/di/search-service-alias';
+
+/** Strip leading and trailing underscores without a backtracking-prone regex. */
+function stripEdgeUnderscores(value: string): string {
+  let start = 0;
+  let end = value.length;
+  while (start < end && value[start] === '_') start++;
+  while (end > start && value[end - 1] === '_') end--;
+  return value.slice(start, end);
+}
 
 type DependencyAliasConfig = {
   Services?: Record<string, string> | Array<Record<string, string>>;
@@ -218,7 +228,7 @@ async function scanForInjectables(directory: string): Promise<InjectableInfo[]> 
           
           if (injectableDecorator) {
             const decoratorText = injectableDecorator.expression.getText(sourceFile);
-            const match = decoratorText.match(/injectable\(['"]([^'"]+)['"],\s*['"]([^'"]+)['"]\)/);
+            const match = /injectable\(['"]([^'"]+)['"],\s*['"]([^'"]+)['"]\)/.exec(decoratorText);
             
             if (match) {
               const serviceId = match[1];
@@ -227,7 +237,7 @@ async function scanForInjectables(directory: string): Promise<InjectableInfo[]> 
               
               // Calculate relative path for import
               const relativePath = path.relative(directory, filePath)
-                .replace(/\\/g, '/') // Convert Windows paths to Unix-style
+                .replaceAll('\\', '/') // Convert Windows paths to Unix-style
                 .replace(/\.tsx?$/, ''); // Remove file extension
               
               // Determine if this is a client-only or server-only injectable
@@ -413,9 +423,7 @@ async function generateContainerFile(
   const dependencyAliases = tryParseDependencyAliases();
 
   const toModuleName = (relativePath: string): string =>
-    path.basename(relativePath)
-      .replace(/[^a-zA-Z0-9_]/g, '_')
-      .replace(/^_+|_+$/g, '');
+    stripEdgeUnderscores(path.basename(relativePath).replaceAll(/\W/g, '_'));
 
   // Fail fast if two injectables produce the same import identifier.
   const seenModuleNames = new Map<string, string>();
@@ -465,15 +473,15 @@ async function generateContainerFile(
       }
 
       // Build a unique module name prefixed by extension name
-      const baseName = path.basename(extInjectable.relativePath)
-        .replace(/[^a-zA-Z0-9_]/g, '_')
-        .replace(/^_+|_+$/g, '');
-      const uniqueName = `ext_${ext.name.replace(/[^a-zA-Z0-9_]/g, '_')}_${baseName}`;
+      const baseName = stripEdgeUnderscores(
+        path.basename(extInjectable.relativePath).replaceAll(/\W/g, '_')
+      );
+      const uniqueName = `ext_${ext.name.replaceAll(/\W/g, '_')}_${baseName}`;
 
       // Build the import path relative to the output file
       const outputDir = path.dirname(outputFile);
       let relImportPath = path.relative(outputDir, extInjectable.filePath)
-        .replace(/\\/g, '/')
+        .replaceAll('\\', '/')
         .replace(/\.tsx?$/, '');
       if (!relImportPath.startsWith('.')) {
         relImportPath = './' + relImportPath;
@@ -493,42 +501,12 @@ async function generateContainerFile(
   // Generate the module array string
   const moduleArray = `const modules : any[] = [${allModuleNames.join(', ')}];`;
 
-  /**
-   * Helper function to generate alias binding code.
-   * Checks if target is bound before creating the alias.
-   */
-  function generateAliasBindings(aliasMap: Record<string, string>, comment: string): string {
-    const entries = Object.entries(aliasMap);
-    if (entries.length === 0) return '';
-
-    const aliasLines = entries.map(([alias, target]) => {
-      // Skip if alias === target (no-op)
-      if (alias === target) return null;
-
-      return [
-        `  // ${comment}: ${alias} -> ${target}`,
-        `  if (container.isBound('${target}')) {`,
-        `    if (container.isBound('${alias}')) {`,
-        `      container.unbind('${alias}');`,
-        `    }`,
-        `    container.bind('${alias}').toService('${target}');`,
-        `  }`,
-      ].join('\n');
-    }).filter(Boolean);
-
-    return aliasLines.length > 0 ? '\n' + aliasLines.join('\n\n') + '\n' : '';
-  }
-
-  // Combine extension aliases and dependency aliases into a single map
-  const dependencyAliasMap = dependencyAliases.reduce((acc, { alias, target }) => {
-    acc[alias] = target;
-    return acc;
-  }, {} as Record<string, string>);
-  
-  const allAliases = { ...dependencyAliasMap, ...aliases };
-  
-  // Generate all alias bindings using the helper function
-  const aliasBindings = generateAliasBindings(allAliases, 'Alias');
+  const aliasBindings = generateGeneratorAliasBindings({
+    dependencyAliases,
+    extensionAliases: aliases,
+    searchServiceOverride: process.env.DI_SEARCH_SERVICE,
+    comment: 'Alias',
+  });
   
   // Read the template file
   const templatePath = path.join(process.cwd(), 'scripts/templates/container.ts.tmpl');

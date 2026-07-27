@@ -27,7 +27,7 @@ export const Spinner: React.FC<SpinnerProps> = ({ loadingText, variant = 'md', c
     default: 'border-border-primary/20 border-t-border-primary',
     primary: 'border-border-action/20 border-t-border-action',
     secondary: 'border-border-secondary/20 border-t-border-secondary',
-    white: 'border-border-white/20 border-t-border-white',
+    white: 'border-border-white/20 border-t-border-surface-page',
   };
 
   return (

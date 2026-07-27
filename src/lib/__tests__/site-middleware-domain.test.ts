@@ -350,6 +350,16 @@ describe('createSiteMiddleware probe detection behavior', () => {
 
     expect(response?.headers.get('x-misrouted-healthcheck')).toBeNull();
   });
+
+  test('does not intercept devtools probe paths with empty user-agent', () => {
+    const middleware = createSiteMiddleware(routingConfig);
+
+    const listResponse = middleware(createRequest('https://example.com/json/list', {}, { 'User-Agent': '' }));
+    const versionResponse = middleware(createRequest('https://example.com/json/version', {}, { 'User-Agent': '' }));
+
+    expect(listResponse?.headers.get('x-misrouted-healthcheck')).toBeNull();
+    expect(versionResponse?.headers.get('x-misrouted-healthcheck')).toBeNull();
+  });
 });
 
 describe('fallback-OFF behavior (no defaultSite)', () => {

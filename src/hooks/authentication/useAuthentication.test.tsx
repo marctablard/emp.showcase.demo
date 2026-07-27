@@ -5,6 +5,8 @@ import useAuthentication from './useAuthentication';
 const mockSignIn = jest.fn();
 const mockSignOut = jest.fn();
 const mockUseSession = jest.fn();
+const mockUpdateSession = jest.fn();
+const mockRefreshSession = jest.fn();
 const mockGetPathname = jest.fn();
 const mockFetchCurrentSession = jest.fn();
 const mockClearCart = jest.fn();
@@ -46,18 +48,24 @@ jest.mock('@/hooks/checkout/useCheckout', () => ({
   useCheckout: () => ({ reset: mockReset }),
 }));
 
+jest.mock('@/hooks/session/useSession', () => ({
+  useSession: () => ({ refreshSession: mockRefreshSession }),
+}));
+
 jest.mock('@/providers/StoreProvider', () => ({
   useCartStore: () => ({ clearCart: mockClearCart }),
 }));
 
-describe('useAuthentication canonical post-login redirect', () => {
+describe('useAuthentication login', () => {
   let consoleErrorSpy: jest.SpyInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    mockUseSession.mockReturnValue({ status: 'unauthenticated' });
+    mockUseSession.mockReturnValue({ status: 'unauthenticated', update: mockUpdateSession });
     mockSignIn.mockResolvedValue({ error: undefined });
+    mockUpdateSession.mockResolvedValue(undefined);
+    mockRefreshSession.mockResolvedValue(undefined);
     mockGetPathname.mockImplementation(
       ({ href, site }: { href: string; site: string }) => `/${site}${href.startsWith('/') ? href : `/${href}`}`,
     );
@@ -84,6 +92,22 @@ describe('useAuthentication canonical post-login redirect', () => {
       forcePrefix: true,
     });
     expect(mockFetchCurrentSession).toHaveBeenCalledWith(true);
+    expect(mockUpdateSession).not.toHaveBeenCalled();
+    expect(mockRefreshSession).not.toHaveBeenCalled();
+  });
+
+  it('refreshes auth and storefront session after successful non-redirect login', async () => {
+    const { result } = renderHook(() => useAuthentication());
+
+    await act(async () => {
+      const success = await result.current.login('john@example.com', 'secret');
+      expect(success).toBe(true);
+    });
+
+    expect(mockUpdateSession).toHaveBeenCalledTimes(1);
+    expect(mockRefreshSession).toHaveBeenCalledTimes(1);
+    expect(mockFetchCurrentSession).not.toHaveBeenCalled();
+    expect(mockGetPathname).not.toHaveBeenCalled();
   });
 
   it('uses authoritative non-default site for post-login redirect path', async () => {

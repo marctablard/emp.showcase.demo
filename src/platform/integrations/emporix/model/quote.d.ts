@@ -59,6 +59,8 @@ export interface EmporixCreateQuoteFromCartRequest {
     zoneId?: string;
     shippingTaxCode?: string;
   };
+  customerReference?: string;
+  customerComment?: string;
 }
 
 /**
@@ -151,6 +153,7 @@ export interface EmporixQuoteShipping {
  */
 export interface EmporixQuote {
   id: string;
+  orderId?: string;
   businessModel?: string;
   cartId?: string;
   customer: {
@@ -187,6 +190,8 @@ export interface EmporixQuote {
   billingAddress?: EmporixAddress;
   shippingAddress?: EmporixAddress;
   items: EmporixQuoteItem[];
+  customerReference?: string;
+  customerComment?: string;
   metadata: {
     mixins?: Record<string, string>;
     version: number;

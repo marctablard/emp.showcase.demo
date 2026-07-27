@@ -12,10 +12,18 @@
     "productAdded": "Ihr gewähltes Produkt",
     "quantityAdded": "Hinzugefügte Menge"
   },
-  "addToWishlist": "Produkt Merken",
+  "addToWishlistResult": {
+    "title": "Zur Wunschliste hinzugefügt",
+    "itemNumber": "Artikelnummer",
+    "quantityAdded": "{count, plural, one {# Produkt zur Wunschliste hinzugefügt} other {# Produkte zur Wunschliste hinzugefügt}}",
+    "ok": "OK",
+    "close": "Schließen"
+  },
+  "addToWishlist": "Zur Wunschliste hinzufügen",
   "share": "Teilen",
   "compare": "Vergleichen",
   "noImage": "Kein Bild verfügbar",
+  "primaryImageAltUnlabeled": "Produktansicht (ID: {id})",
   "noDescription": "Keine Beschreibung verfügbar.",
   "productId": "Produkt-ID",
   "quantity": "Menge",
@@ -84,8 +92,16 @@
     "categoryAssignments": {
       "name": "Kategorie Name"
     },
+    "categoryIds": "Kategorie",
     "filterButton": "Filter",
+    "close": "Schließen",
+    "activeFiltersTitle": "Aktive Filter",
+    "productCount": "({count} Produkte)",
+    "showProducts": "{count} Produkte anzeigen",
+    "from": "Von",
+    "till": "Bis",
     "clearFilter": "Filter löschen",
+    "clearAllFilters": "Filter löschen",
     "applyFilters": "Filter anwenden"
   },
   "tabs": {
@@ -99,5 +115,20 @@
     "headline": "Diese Produkte könnten auch interessant sein"
   },
   "loadingVariants": "Varianten werden geladen...",
-  "variantSelectPlaceholder": "Variante auswählen"
+  "variantSelectPlaceholder": "Variante auswählen",
+  "addedToComparison": "{name} wurde zur Vergleichsliste hinzugefügt",
+  "removedFromComparison": "{name} wurde aus der Vergleichsliste entfernt",
+  "comparisonFull": "Vergleichsliste ist voll (max. {max} Produkte)",
+  "wishlistTooltip": "Produkt merken",
+  "shareTooltip": "Teilen",
+  "compareTooltipAdd": "Zum Vergleich hinzufügen",
+  "compareTooltipRemove": "Aus Vergleich entfernen",
+  "compareTooltipInList": "Dieser Artikel ist auf der Vergleichsliste",
+  "compareTooltipMasterProduct": "Hauptprodukt kann nicht verglichen werden. Bitte wählen Sie eine bestimmte Variante.",
+  "cartTooltipMasterProduct": "Hauptprodukt kann nicht in den Warenkorb gelegt werden. Bitte wählen Sie eine bestimmte Variante.",
+  "wishlistTooltipMasterProduct": "Hauptprodukt kann nicht zur Wunschliste hinzugefügt werden. Bitte wählen Sie eine bestimmte Variante.",
+  "cartTooltipNotPurchasable": "Dieses Produkt ist nicht zum Kauf verfügbar.",
+  "cartTooltipNoPrice": "Dieses Produkt hat keinen {currency}-Preis und kann nicht in den Warenkorb gelegt werden.",
+  "wishlistTooltipNoPrice": "Dieses Produkt hat keinen {currency}-Preis und kann nicht zur Wunschliste hinzugefügt werden.",
+  "inComparisonList": "In der Vergleichsliste"
 }

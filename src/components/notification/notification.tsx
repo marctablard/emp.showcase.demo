@@ -101,7 +101,7 @@ function WelcomeNotification() {
 export function Notification() {
   const { registerNotificationListener, unregisterNotificationListener, markNotificationAsRead } = useNotifications();
   const t = useTranslations('common.Notification');
-  const { l10n } = useL10n();
+  const { l10nOrEmpty } = useL10n();
 
   useEffect(() => {
     const notificationSubscription = registerNotificationListener(
@@ -113,7 +113,7 @@ export function Notification() {
           }
           const status = notification.data_json?.status;
           const message =
-            l10n(notification.message) || t(dk<NotificationOnboardingKey>('company.onboarding.' + status));
+            l10nOrEmpty(notification.message) || t(dk<NotificationOnboardingKey>('company.onboarding.' + status));
           let type = ToastType.Success;
           switch (status) {
             case 'rejected':

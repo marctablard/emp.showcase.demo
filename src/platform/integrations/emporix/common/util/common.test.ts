@@ -1,4 +1,57 @@
-import { buildSearchQuery, checkTokenValidity } from './common';
+import { buildPaginatedResponse } from './common';
+import { buildSearchQuery, checkTokenValidity, extractItemsFromPaginatedJsonBody } from './common';
+
+describe('buildPaginatedResponse', () => {
+  it('maps a raw array response body into paginated items', async () => {
+    const response = new Response(JSON.stringify([{ id: '1' }]), {
+      headers: { 'x-total-count': '1' },
+    });
+
+    const result = await buildPaginatedResponse<{ id: string }>(
+      {
+        page: 2,
+        size: 5,
+      },
+      response,
+    );
+
+    expect(result).toEqual({
+      items: [{ id: '1' }],
+      page: 2,
+      size: 5,
+      total: 1,
+    });
+  });
+
+  it('maps an enveloped response body into paginated items', async () => {
+    const response = new Response(
+      JSON.stringify({
+        items: [{ id: '1' }, { id: '2' }],
+        page: 3,
+        size: 10,
+        total: 27,
+      }),
+      {
+        headers: { 'x-total-count': '99' },
+      },
+    );
+
+    const result = await buildPaginatedResponse<{ id: string }>(
+      {
+        page: 1,
+        size: 20,
+      },
+      response,
+    );
+
+    expect(result).toEqual({
+      items: [{ id: '1' }, { id: '2' }],
+      page: 3,
+      size: 10,
+      total: 27,
+    });
+  });
+});
 
 describe('buildSearchQuery', () => {
   it('should produce correct body for single value without spaces', () => {
@@ -57,6 +110,31 @@ describe('buildSearchQuery', () => {
     // (not '~(solar blue)') and buildSearchQuery is the single canonical wrapping point
     const result = buildSearchQuery({ criteria: { name: '~solar blue' } });
     expect(result.body).toBe('name:(~solar blue)');
+  });
+
+  it('should emit raw compound logical criteria without a synthetic field prefix', () => {
+    const result = buildSearchQuery({
+      criteria: {
+        compoundLogicalQuery: '((name:~solar) OR (id:~solar))',
+        categoryIds: '(root-a root-b)',
+      },
+    });
+
+    expect(result.body).toBe('((name:~solar) OR (id:~solar)) categoryIds:(root-a root-b)');
+  });
+});
+
+describe('extractItemsFromPaginatedJsonBody', () => {
+  it('returns the array when body is T[]', () => {
+    expect(extractItemsFromPaginatedJsonBody([{ id: '1' }])).toEqual([{ id: '1' }]);
+  });
+
+  it('returns body.items when present', () => {
+    expect(extractItemsFromPaginatedJsonBody({ items: [{ id: 'a' }], total: 1 })).toEqual([{ id: 'a' }]);
+  });
+
+  it('returns empty array for error-shaped objects without items', () => {
+    expect(extractItemsFromPaginatedJsonBody({ code: 404, message: 'Not Found' })).toEqual([]);
   });
 });
 

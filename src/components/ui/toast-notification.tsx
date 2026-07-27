@@ -20,6 +20,7 @@ export interface ToastProps {
     onClick: () => void;
   };
   type: ToastType;
+  duration?: number;
 }
 
 export interface NotificationProps {
@@ -49,7 +50,7 @@ function toast(toast: Omit<ToastProps, 'id'>) {
       />
     ),
     {
-      duration: 4000,
+      duration: toast.duration ?? 4000,
       position: 'bottom-center',
       className: 'w-full pb-15 sm:pb-2 sm:px-4 sm:flex sm:justify-end sm:[&>div]:max-w-[300px]',
     },
@@ -106,6 +107,7 @@ function Toast(props: ToastProps) {
             <p className="text-base font-bold text-text-headings m-0">{title}</p>
           </div>
           <div
+            className="cursor-pointer"
             onClick={() => {
               button.onClick();
               sonnerToast.dismiss(id);
@@ -119,7 +121,7 @@ function Toast(props: ToastProps) {
         </div>
         <div className="flex">
           <div
-            className="rounded-sm border border-border-black bg-transparent px-2 py-1 text-text-headings font-bold"
+            className="cursor-pointer rounded-sm border border-border-black bg-transparent px-2 py-1 text-text-headings font-bold"
             onClick={() => {
               button.onClick();
               sonnerToast.dismiss(id);
@@ -168,7 +170,7 @@ function Notification(props: NotificationProps) {
           ) : null}
         </div>
         <div
-          className="flex justify-end items-center"
+          className="flex justify-end items-center cursor-pointer"
           onClick={() => {
             button?.onClick();
             sonnerToast.dismiss(id);

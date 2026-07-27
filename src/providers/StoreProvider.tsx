@@ -7,6 +7,7 @@ import type { Session } from '@/platform/services/model/session';
 import { createAvailabilityStore } from '@/stores/availability-store';
 import { createCartStore } from '@/stores/cart-store';
 import { createCheckoutStore } from '@/stores/checkout-store';
+import { createComparisonStore } from '@/stores/comparison-store';
 import { createCustomerStore } from '@/stores/customer-store';
 import { createDashboardStore } from '@/stores/dashboard-store';
 import { createHistoryStore } from '@/stores/history-store';
@@ -17,6 +18,7 @@ import { createSessionStore } from '@/stores/session-store-context';
 import { createShippingMethodsStore } from '@/stores/shipping-methods-store';
 import { createSiteStore } from '@/stores/site-store';
 import { setupStoreSynchronization } from '@/stores/sync';
+import { createWishlistStore } from '@/stores/wishlist-store';
 
 export type ProductStoreApi = ReturnType<typeof createProductStore>;
 export const ProductStoreContext = createContext<ProductStoreApi | null>(null);
@@ -42,6 +44,10 @@ export type NotificationStoreApi = ReturnType<typeof createNotificationStore>;
 export const NotificationStoreContext = createContext<NotificationStoreApi | null>(null);
 export type AvailabilityStoreApi = ReturnType<typeof createAvailabilityStore>;
 export const AvailabilityStoreContext = createContext<AvailabilityStoreApi | null>(null);
+export type ComparisonStoreApi = ReturnType<typeof createComparisonStore>;
+export const ComparisonStoreContext = createContext<ComparisonStoreApi | null>(null);
+export type WishlistStoreApi = ReturnType<typeof createWishlistStore>;
+export const WishlistStoreContext = createContext<WishlistStoreApi | null>(null);
 
 export interface StoreProviderProps {
   children: ReactNode;
@@ -60,11 +66,16 @@ export const StoreProvider = ({ children, shopSession, site, availableSites }: S
   const [shippingMethodsStore] = useState<ShippingMethodsStoreApi>(() => createShippingMethodsStore());
   const [customerStore] = useState<CustomerStoreApi>(() => createCustomerStore());
   const [historyStore] = useState<HistoryStoreApi>(() => createHistoryStore());
+  const [comparisonStore] = useState<ComparisonStoreApi>(() => {
+    const storageKey = `comparison:${site?.code ?? 'default'}:${shopSession?.customerId ?? 'anonymous'}`;
+    return createComparisonStore(undefined, storageKey);
+  });
   const [dashboardStore] = useState<DashboardStoreApi>(() => createDashboardStore());
   const [orderStore] = useState<OrderStoreApi>(() => createOrderStore());
   const [sessionStore] = useState<SessionStoreApi>(() => createSessionStore({ session: shopSession, loading: false }));
   const [notificationStore] = useState<NotificationStoreApi>(() => createNotificationStore());
   const [availabilityStore] = useState<AvailabilityStoreApi>(() => createAvailabilityStore());
+  const [wishlistStore] = useState<WishlistStoreApi>(() => createWishlistStore());
 
   // Store unsubscribe functions ref for cross-store subscriptions
   const unsubscribersRef = useRef<(() => void)[]>([]);
@@ -79,6 +90,7 @@ export const StoreProvider = ({ children, shopSession, site, availableSites }: S
       productStore,
       availabilityStore,
       checkoutStore,
+      comparisonStore,
     });
 
     // Cleanup subscriptions on unmount
@@ -86,7 +98,16 @@ export const StoreProvider = ({ children, shopSession, site, availableSites }: S
       unsubscribersRef.current.forEach((unsubscribe) => unsubscribe());
       unsubscribersRef.current = [];
     };
-  }, [sessionStore, cartStore, siteStore, customerStore, productStore, availabilityStore, checkoutStore]);
+  }, [
+    sessionStore,
+    cartStore,
+    siteStore,
+    customerStore,
+    productStore,
+    availabilityStore,
+    checkoutStore,
+    comparisonStore,
+  ]);
 
   /**
    * The order is relevant, because store data can only depend on one another,
@@ -107,19 +128,23 @@ export const StoreProvider = ({ children, shopSession, site, availableSites }: S
           <CustomerStoreContext.Provider value={customerStore}>
             <OrderStoreContext.Provider value={orderStore}>
               <CartStoreContext.Provider value={cartStore}>
-                <CheckoutStoreContext.Provider value={checkoutStore}>
-                  <HistoryStoreContext.Provider value={historyStore}>
-                    <DashboardStoreContext.Provider value={dashboardStore}>
-                      <SessionStoreContext.Provider value={sessionStore}>
-                        <NotificationStoreContext.Provider value={notificationStore}>
-                          <AvailabilityStoreContext.Provider value={availabilityStore}>
-                            {children}
-                          </AvailabilityStoreContext.Provider>
-                        </NotificationStoreContext.Provider>
-                      </SessionStoreContext.Provider>
-                    </DashboardStoreContext.Provider>
-                  </HistoryStoreContext.Provider>
-                </CheckoutStoreContext.Provider>
+                <WishlistStoreContext.Provider value={wishlistStore}>
+                  <CheckoutStoreContext.Provider value={checkoutStore}>
+                    <HistoryStoreContext.Provider value={historyStore}>
+                      <ComparisonStoreContext.Provider value={comparisonStore}>
+                        <DashboardStoreContext.Provider value={dashboardStore}>
+                          <SessionStoreContext.Provider value={sessionStore}>
+                            <NotificationStoreContext.Provider value={notificationStore}>
+                              <AvailabilityStoreContext.Provider value={availabilityStore}>
+                                {children}
+                              </AvailabilityStoreContext.Provider>
+                            </NotificationStoreContext.Provider>
+                          </SessionStoreContext.Provider>
+                        </DashboardStoreContext.Provider>
+                      </ComparisonStoreContext.Provider>
+                    </HistoryStoreContext.Provider>
+                  </CheckoutStoreContext.Provider>
+                </WishlistStoreContext.Provider>
               </CartStoreContext.Provider>
             </OrderStoreContext.Provider>
           </CustomerStoreContext.Provider>
@@ -221,6 +246,22 @@ export const useAvailabilityStore = () => {
   const storeContext = useContext(AvailabilityStoreContext);
   if (!storeContext) {
     throw new Error('useAvailabilityStore must be used within StoreProvider');
+  }
+  return useStore(storeContext);
+};
+
+export const useComparisonStore = () => {
+  const storeContext = useContext(ComparisonStoreContext);
+  if (!storeContext) {
+    throw new Error('useComparisonStore must be used within StoreProvider');
+  }
+  return useStore(storeContext);
+};
+
+export const useWishlistStore = () => {
+  const storeContext = useContext(WishlistStoreContext);
+  if (!storeContext) {
+    throw new Error('useWishlistStore must be used within StoreProvider');
   }
   return useStore(storeContext);
 };

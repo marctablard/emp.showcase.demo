@@ -1,4 +1,12 @@
+import { webcrypto } from 'crypto';
+import { isEncryptedFormat } from '../util/token-encryption-client';
 import EmporixTokenManagerClient from './EmporixTokenManagerClient';
+
+// Polyfill Web Crypto API and browser globals for Node.js test environment
+beforeAll(() => {
+  Object.defineProperty(globalThis, 'crypto', { value: webcrypto, writable: true });
+  Object.defineProperty(globalThis, 'location', { value: { origin: 'https://shop.example.com' }, writable: true });
+});
 
 // Mock inversify decorators
 jest.mock('inversify', () => ({
@@ -48,7 +56,7 @@ describe('EmporixTokenManagerClient', () => {
   });
 
   describe('readTokens / writeTokens round-trip', () => {
-    it('should write tokens to localStorage and read them back', async () => {
+    it('should write encrypted tokens to localStorage and read them back', async () => {
       const tokens = {
         anonymousToken: {
           token: {
@@ -64,16 +72,40 @@ describe('EmporixTokenManagerClient', () => {
 
       // Write
       await (tokenManager as any).writeTokens(tokens, 'test-tenant');
-      expect(localStorage.setItem).toHaveBeenCalledWith('emporix-token_test-tenant', JSON.stringify(tokens));
 
-      // Read
+      // Verify stored value is encrypted
+      const storedValue = mockLocalStorage['emporix-token_test-tenant'];
+      expect(isEncryptedFormat(storedValue)).toBe(true);
+      expect(storedValue).not.toContain('anon-123');
+      expect(storedValue).not.toContain('access_token');
+
+      // Read back
       const result = await (tokenManager as any).readTokens('test-tenant');
-      expect(localStorage.getItem).toHaveBeenCalledWith('emporix-token_test-tenant');
       expect(result).toEqual(tokens);
     });
 
     it('should return empty object when no tokens stored', async () => {
       const result = await (tokenManager as any).readTokens('missing-tenant');
+      expect(result).toEqual({});
+    });
+
+    it('should read legacy plain JSON values (backward compat)', async () => {
+      const tokens = {
+        anonymousToken: {
+          token: { access_token: 'legacy-tok', session_id: 'sid-2' },
+          expiryAt: 9999999,
+        },
+      };
+      mockLocalStorage['emporix-token_test-tenant'] = JSON.stringify(tokens);
+
+      const result = await (tokenManager as any).readTokens('test-tenant');
+      expect(result).toEqual(tokens);
+    });
+
+    it('should return empty object for corrupted encrypted data', async () => {
+      mockLocalStorage['emporix-token_test-tenant'] = 'enc.v1:corrupted-garbage';
+
+      const result = await (tokenManager as any).readTokens('test-tenant');
       expect(result).toEqual({});
     });
   });

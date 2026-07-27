@@ -69,23 +69,17 @@ const hasEmporixTestConfig = Boolean(
     process.env.NEXT_EMPORIX_TEST_CLIENT_ID &&
     process.env.NEXT_EMPORIX_TEST_CLIENT_SECRET,
 );
-const hasBatteryIncludedConfig = Boolean(
-  process.env.NEXT_PUBLIC_BATTERY_INCLUDED_API_KEY && process.env.NEXT_PUBLIC_BATTERY_INCLUDED_COLLECTION,
-);
 const runIntegrationTests = isCi || process.env.RUN_INTEGRATION_TESTS === 'true';
 const skipEmporixIntegrationTests = !runIntegrationTests || !hasEmporixTestConfig;
-const skipBatteryIncludedTests = !runIntegrationTests || !hasBatteryIncludedConfig;
 
 console.log('[jest] RUN_INTEGRATION_TESTS:', process.env.RUN_INTEGRATION_TESTS);
 console.log('[jest] Emporix config present:', hasEmporixTestConfig);
-console.log('[jest] BatteryIncluded config present:', hasBatteryIncludedConfig);
 if (!isCi) {
   console.log('[jest] env file source:', envPath);
 }
 
 const integrationTestIgnorePatterns = [
   ...(skipEmporixIntegrationTests ? ['src/platform/integrations/emporix/.*/impl/.*\\.test\\.(ts|tsx)$'] : []),
-  ...(skipBatteryIncludedTests ? ['src/platform/integrations/batteryincluded/.*/impl/.*\\.test\\.(ts|tsx)$'] : []),
 ];
 
 const commonJestConfig = {
@@ -149,7 +143,9 @@ const customJestConfig = {
         '^next-auth/react$': '<rootDir>/jest/mocks/next-auth-react.ts',
       },
       testPathIgnorePatterns: commonJestConfig.testPathIgnorePatterns,
-      transformIgnorePatterns: ['/node_modules/(?!(next-intl|use-intl)/)'],
+      transformIgnorePatterns: [
+        '/node_modules/(?!(next-intl|use-intl|@formatjs|intl-messageformat|icu-minify|icu-messageformat-parser|icu-skeleton-parser|intl-localematcher|@schummar/icu-type-parser)/)',
+      ],
       transform: {
         '^.+\\.(ts|tsx)$': [
           '@swc/jest',
@@ -202,11 +198,34 @@ const customJestConfig = {
       testEnvironment: 'node',
       testMatch: ['**/components/**/?(*.)+(spec|test).ts?(x)'],
       setupFilesAfterEnv: ['<rootDir>/jest.platform.setup.js'],
+      transformIgnorePatterns: [
+        '/node_modules/(?!(next-intl|use-intl|@formatjs|intl-messageformat|icu-minify|icu-messageformat-parser|icu-skeleton-parser|intl-localematcher|@schummar/icu-type-parser)/)',
+      ],
       transform: {
         '^.+\\.tsx?$': [
           'ts-jest',
           {
             tsconfig: 'tsconfig.json',
+          },
+        ],
+        '^.+\\.(js|jsx)$': [
+          '@swc/jest',
+          {
+            jsc: {
+              parser: {
+                syntax: 'ecmascript',
+                jsx: true,
+              },
+              transform: {
+                react: {
+                  runtime: 'automatic',
+                },
+              },
+              target: 'es2017',
+            },
+            module: {
+              type: 'es6',
+            },
           },
         ],
       },
@@ -226,6 +245,9 @@ const customJestConfig = {
       testEnvironment: 'node',
       testMatch: ['**/platform/**/?(*.)+(spec|test).ts?(x)'],
       setupFilesAfterEnv: ['<rootDir>/jest.platform.setup.js'],
+      transformIgnorePatterns: [
+        '/node_modules/(?!(next-intl|use-intl|@formatjs|intl-messageformat|icu-minify|icu-messageformat-parser|icu-skeleton-parser|intl-localematcher|@schummar/icu-type-parser)/)',
+      ],
       transform: {
         '^.+\\.tsx?$': [
           'ts-jest',
@@ -237,8 +259,9 @@ const customJestConfig = {
         // shared CMS render layer (e.g. `StoryblokCmsMapper` → the agnostic
         // `CMSPage` components, see ADR 0001) and transitively the pure-ESM
         // `next-intl` (via `@/i18n/navigation`). ts-jest only transforms
-        // `.tsx?`; the ESM `.js` from `next-intl` / `use-intl` needs an
-        // explicit transform here so those platform tests can load it.
+        // `.tsx?`; the ESM `.js` / `.jsx` / `.mjs` from `next-intl`,
+        // `use-intl` and the `@formatjs` / `icu-*` chain needs an explicit
+        // transform here so those platform tests can load it.
         '^.+\\.(js|jsx|mjs)$': [
           '@swc/jest',
           {
@@ -252,7 +275,9 @@ const customJestConfig = {
         ],
       },
       ...commonJestConfig,
-      transformIgnorePatterns: ['/node_modules/(?!(next-intl|use-intl)/)'],
+      // `commonJestConfig` carries no `transformIgnorePatterns`, so the
+      // project-level entry above stays in effect — do not re-declare a
+      // narrower list here, it would silently win over it.
       testPathIgnorePatterns: [...commonJestConfig.testPathIgnorePatterns],
     },
     {
@@ -268,6 +293,7 @@ const customJestConfig = {
         '**/lib/**/?(*.)+(spec|test).ts?(x)',
         '**/stores/**/?(*.)+(spec|test).ts?(x)',
         '**/app/api/**/?(*.)+(spec|test).ts?(x)',
+        '**/scripts/**/?(*.)+(spec|test).ts?(x)',
         // Per-site theme registry (`src/app/styles/themes`) — pure resolver
         // logic, no DOM; node project keeps it from being a silent skip.
         '**/app/styles/**/?(*.)+(spec|test).ts?(x)',
@@ -278,11 +304,51 @@ const customJestConfig = {
         '**/app/_actions/**/?(*.)+(spec|test).ts?(x)',
       ],
       setupFilesAfterEnv: ['<rootDir>/jest.platform.setup.js'],
+      transformIgnorePatterns: [
+        '/node_modules/(?!(next-intl|use-intl|@formatjs|intl-messageformat|icu-minify|icu-messageformat-parser|icu-skeleton-parser|intl-localematcher|@schummar/icu-type-parser)/)',
+      ],
       transform: {
-        '^.+\\.tsx?$': [
-          'ts-jest',
+        '^.+\\.(ts|tsx)$': [
+          '@swc/jest',
           {
-            tsconfig: 'tsconfig.json',
+            jsc: {
+              parser: {
+                syntax: 'typescript',
+                decorators: true,
+                tsx: true,
+              },
+              transform: {
+                react: {
+                  runtime: 'automatic',
+                },
+                legacyDecorator: true,
+                decoratorMetadata: true,
+              },
+              target: 'es2017',
+            },
+            module: {
+              type: 'es6',
+            },
+          },
+        ],
+        '^.+\\.(js|jsx)$': [
+          '@swc/jest',
+          {
+            jsc: {
+              parser: {
+                syntax: 'ecmascript',
+                jsx: true,
+              },
+              transform: {
+                react: {
+                  runtime: 'automatic',
+                },
+              },
+              target: 'es2017',
+            },
+            module: {
+              type: 'es6',
+            },
           },
         ],
       },

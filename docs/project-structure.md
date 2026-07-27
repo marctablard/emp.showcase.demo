@@ -187,3 +187,10 @@ TypeScript type definitions used throughout the application.
 
 ### `/src/utils`
 Utility functions and helpers.
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Run, Build & Deploy](./run-build-deploy.md)
+- [Layered Architecture](./layered-architecture.md)
+- [Dependency Injection](./dependency-injection.md)

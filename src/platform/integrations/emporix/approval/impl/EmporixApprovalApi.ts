@@ -56,7 +56,7 @@ class EmporixApprovalApi implements IEmporixApprovalApi {
     pageSize: number = 60,
     sort?: string,
     query?: string,
-  ): Promise<EmporixApprovalResponse[]> {
+  ): Promise<{ items: EmporixApprovalResponse[]; totalCount?: number }> {
     let url = `/approval/${this.config.tenant}/approvals?pageNumber=${pageNumber}&pageSize=${pageSize}`;
 
     if (sort) {
@@ -85,7 +85,14 @@ class EmporixApprovalApi implements IEmporixApprovalApi {
       throw new Error(`Failed to get approvals: ${JSON.stringify(error)}`);
     }
 
-    return await response.json();
+    const totalCountHeader = response.headers.get('x-total-count');
+    const parsedTotalCount = totalCountHeader ? Number.parseInt(totalCountHeader, 10) : Number.NaN;
+    const items = (await response.json()) as EmporixApprovalResponse[];
+
+    return {
+      items,
+      totalCount: Number.isFinite(parsedTotalCount) ? parsedTotalCount : undefined,
+    };
   }
 
   async getApproval(approvalId: string): Promise<EmporixApprovalResponse | null> {

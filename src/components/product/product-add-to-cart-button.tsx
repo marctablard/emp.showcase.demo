@@ -4,11 +4,10 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCart } from '@/hooks/cart/useCart';
+import { useValidateAddToCart } from '@/hooks/cart/useValidateAddToCart';
 import { useGlobalSyncReady } from '@/hooks/common/useGlobalSyncReady';
-import { useSession } from '@/hooks/session/useSession';
-import { useSite } from '@/hooks/site/useSite';
-import { isProductPriceDisplayableForPurchase } from '@/lib/common/product-price-site-context';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
 import type { CartStatus, CartStatusDetailCode } from '@/platform/services/cart/CartService';
@@ -36,12 +35,9 @@ export default function ProductAddToCartButton({
 }) {
   const t = useTranslations('product');
   const { addItem, cart } = useCart();
-  const { session } = useSession();
-  const { site } = useSite();
+  const { disabled: cartDisabled, tooltip: cartTooltip } = useValidateAddToCart(product, price);
   const { ready: syncReady, reason: syncReason } = useGlobalSyncReady();
   const [adding, setAdding] = useState(false);
-
-  const priceOkForCart = price != null && isProductPriceDisplayableForPurchase(price.currency, session, site);
 
   const isMidSwitch =
     !syncReady &&
@@ -90,26 +86,33 @@ export default function ProductAddToCartButton({
     }
   };
 
+  const isDisabled =
+    cart === undefined ||
+    cartDisabled ||
+    adding ||
+    availabilityLoading ||
+    (availability != null && !availability.isAvailable) ||
+    !syncReady;
+
   return (
     <>
-      <Button
-        className={cn('flex-1 w-full', className)}
-        onClick={handleAddToCart}
-        disabled={
-          cart === undefined ||
-          product.purchasable === false ||
-          adding ||
-          !priceOkForCart ||
-          availabilityLoading ||
-          (availability != null && !availability.isAvailable) ||
-          !syncReady
-        }
-        title={syncTitle}
-        data-testid="product-addToCartButton"
-      >
-        {t('addToCart')}
-        <ShoppingCart className="hidden sm:inline" />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex flex-1 w-full">
+            <Button
+              className={cn('flex-1 w-full', className)}
+              onClick={handleAddToCart}
+              disabled={isDisabled}
+              title={syncTitle}
+              data-testid="product-addToCartButton"
+            >
+              {t('addToCart')}
+              <ShoppingCart className="hidden sm:inline" />
+            </Button>
+          </span>
+        </TooltipTrigger>
+        {cartTooltip && <TooltipContent>{cartTooltip}</TooltipContent>}
+      </Tooltip>
 
       {/* Add to Cart Modal */}
       {product && addToCartResult && (

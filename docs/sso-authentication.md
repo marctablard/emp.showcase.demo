@@ -428,6 +428,7 @@ Check logs for detailed authentication flow information.
 
 ## Related Documentation
 
+- [Documentation index](./README.md)
 - [Auth.js Documentation](https://authjs.dev/)
 - [Auth.js Providers](https://authjs.dev/getting-started/providers)
 - [Environment Variables](./environment-variables.md)

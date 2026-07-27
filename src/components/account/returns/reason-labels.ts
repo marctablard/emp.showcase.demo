@@ -31,3 +31,16 @@ export function getReturnReasonLabel(code: string): string {
   }
   return translationKey;
 }
+
+/**
+ * Resolves a return reason code to its localized display label, translating known codes
+ * via the shared `claimReasons.*` keys and falling back to a humanized code for unknown values.
+ */
+export function renderReturnReasonLabel(t: (key: ReturnReasonTranslationKey) => string, code: string): string {
+  const translationKey = getReturnReasonTranslationKey(code);
+  if (translationKey) {
+    return t(translationKey);
+  }
+
+  return getReturnReasonLabel(code);
+}

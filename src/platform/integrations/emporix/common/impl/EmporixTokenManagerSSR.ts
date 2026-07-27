@@ -5,9 +5,11 @@ import { omit } from 'lodash';
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import type { StoredToken } from '@/platform/integrations/types/auth';
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { EmporixCustomerTokenResponse } from '../../model/oauth';
 import type { EmporixOAuthApi } from '../../oauth/EmporixOAuthApi';
 import { EMPORIX_TOKEN_TYPE } from '../token-types';
+import { decryptOrDecodeLegacy } from '../util/token-encryption';
 import type { TokenStore } from './EmporixTokenManagerAbstract';
 import { EmporixTokenManagerAbstract } from './EmporixTokenManagerAbstract';
 
@@ -15,7 +17,10 @@ import { EmporixTokenManagerAbstract } from './EmporixTokenManagerAbstract';
 class EmporixTokenManagerSSR extends EmporixTokenManagerAbstract {
   protected ssrToken: Record<string, TokenStore> = {};
 
-  constructor(@inject('EmporixOAuthApi') oauthApi: EmporixOAuthApi) {
+  constructor(
+    @inject('EmporixOAuthApi') oauthApi: EmporixOAuthApi,
+    @inject('LoggerService') private logger: LoggerService,
+  ) {
     super(oauthApi);
   }
 
@@ -93,8 +98,18 @@ class EmporixTokenManagerSSR extends EmporixTokenManagerAbstract {
       }
       return {};
     }
-    const b64Token = tokenCookie.value;
-    const tokens: TokenStore = JSON.parse(Buffer.from(b64Token, 'base64').toString('utf-8'));
+    let tokens: TokenStore;
+    try {
+      const decrypted = decryptOrDecodeLegacy(tokenCookie.value, process.env.NEXTAUTH_SECRET!);
+      tokens = JSON.parse(decrypted);
+    } catch (error) {
+      this.logger.warn(
+        { tenant, error: error instanceof Error ? error.message : String(error) },
+        'Failed to decrypt token cookie in SSR context, resetting session',
+      );
+      this.ssrToken[tenant] = {};
+      return {};
+    }
     return tokens;
   }
 }

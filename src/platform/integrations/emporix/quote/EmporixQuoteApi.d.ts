@@ -29,20 +29,16 @@ export interface EmporixQuoteApi {
   getQuote(quoteId: string): Promise<EmporixQuote>;
 
   /**
+   * Get all available quote reasons
+   */
+  getQuoteReasons(): Promise<EmporixQuoteReason[]>;
+
+  /**
    * Get a specific quote reason by ID
    * @param quoteReasonId The ID of the quote reason to retrieve
    * @returns Promise with the retrieved quote reason
    */
   getQuoteReason(quoteReasonId: string): Promise<EmporixQuoteReason>;
-
-  /**
-   * Create a new quote reason
-   * @param createQuoteReasonRequest The request payload to create a quote reason
-   * @returns Promise with the ID of the created quote reason
-   */
-  createQuoteReason(
-    createQuoteReasonRequest: EmporixCreateQuoteReasonRequest,
-  ): Promise<EmporixQuoteReasonCreationResponse>;
 
   /**
    * Get quote history for a specific quote

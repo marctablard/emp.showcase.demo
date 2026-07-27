@@ -6,6 +6,7 @@ import type {
   AvailabilityStoreApi,
   CartStoreApi,
   CheckoutStoreApi,
+  ComparisonStoreApi,
   CustomerStoreApi,
   ProductStoreApi,
   SessionStoreApi,
@@ -22,6 +23,7 @@ interface StoreSynchronizerParams {
   productStore: ProductStoreApi;
   availabilityStore: AvailabilityStoreApi;
   checkoutStore: CheckoutStoreApi;
+  comparisonStore?: ComparisonStoreApi;
 }
 
 const CURRENCY_SYNC_RETRY_DELAYS_MS = [0, 250, 750];
@@ -40,6 +42,7 @@ export function setupStoreSynchronization({
   productStore,
   availabilityStore,
   checkoutStore,
+  comparisonStore,
 }: StoreSynchronizerParams): UnsubscribeFn[] {
   const unsubscribers: UnsubscribeFn[] = [];
   let activeCurrencySyncToken = 0;
@@ -237,6 +240,7 @@ export function setupStoreSynchronization({
       if (legalEntityId === previousLegalEntityId) {
         return;
       }
+      comparisonStore?.getState().clearComparison();
       // Cache invalidation is free (no upstream call); cart re-fetch waits for the mutation
       // lock to release so we don't race a concurrent per-site `fetchCart`.
       customerStore.getState().invalidateLegalEntityCheckoutAddresses();

@@ -1,35 +1,68 @@
 import { EmporixMedia } from '@/platform/integrations/emporix/model/common';
+import type { SearchFilters } from '@/platform/services/model/common';
+
+export interface BatteryIncludedBrowseVariables {
+  locale?: string;
+  siteAware?: string;
+  countryAware?: string;
+  currencyAware?: string;
+}
+
+export type BatteryIncludedVisibilityFilters = SearchFilters;
+
+export interface BatteryIncludedVisibilityContext {
+  variables?: BatteryIncludedBrowseVariables;
+  filters?: BatteryIncludedVisibilityFilters;
+}
 
 export interface BatteryIncludedSearchParams<T> {
   query?: string;
   page?: number;
   size?: number;
   sort?: string;
+  variants?: 0 | 1;
   locale?: string;
+  analyze?: 0 | 1;
   preset?: string;
-  filters?: Record<string, string | string[]>;
+  variables?: BatteryIncludedBrowseVariables;
+  visibility?: BatteryIncludedVisibilityContext;
+  filters?: Record<string, string | string[] | Record<string, string | number>>;
+}
+
+export interface BatteryIncludedFacetCountRowData {
+  displayPath?: string;
+  idPath?: string;
+  position?: number;
+  [key: string]: unknown;
+}
+
+export interface BatteryIncludedFacetCountRow {
+  count: number;
+  value: string;
+  data?: BatteryIncludedFacetCountRowData;
+}
+
+export interface BatteryIncludedFacetStats {
+  total_values?: number;
+  min?: number;
+  max?: number;
+  [key: string]: unknown;
 }
 
 export interface BatteryIncludedFacetCount {
-  counts: [
-    {
-      count: number;
-      value: string;
-    },
-  ];
+  counts?: BatteryIncludedFacetCountRow[];
+  field_label?: string;
   field_name: string;
-  stats: {
-    total_values: number;
-  };
+  stats?: BatteryIncludedFacetStats;
   type: 'select' | 'range';
 }
 
 export interface BatteryIncludedSearchResponse<T> {
-  hits: [{ document: T }];
+  hits: Array<{ document: T }>;
   found: number;
   page: number;
   size: number;
-  facet_counts: [BatteryIncludedFacetCount];
+  facet_counts: BatteryIncludedFacetCount[];
 }
 
 export interface BatteryIncludedMedia extends EmporixMedia {
@@ -52,7 +85,43 @@ export interface BatteryIncludedHighlight {
   products: string[];
 }
 
-export interface BatteryIncludedSuggestion {
-  text: string;
-  count: number;
+export interface BatteryIncludedSuggestParams {
+  query: string;
+  variables?: BatteryIncludedBrowseVariables;
+  visibility?: BatteryIncludedVisibilityContext;
+  segmentIds?: string[];
 }
+
+export interface BatteryIncludedSuggestionQueryCompletionHit {
+  value: string;
+  count?: number;
+}
+
+export interface BatteryIncludedSuggestionDocumentHit<T> {
+  highlighted: T;
+  [key: string]: unknown;
+}
+
+export interface BatteryIncludedSuggestionFacetHit extends BatteryIncludedFacetCountRow {
+  highlighted?: string;
+}
+
+export interface BatteryIncludedSuggestionQueryCompletionGroup {
+  kind: 'query-completion';
+  hits: BatteryIncludedSuggestionQueryCompletionHit[];
+}
+
+export interface BatteryIncludedSuggestionDocumentGroup<T> {
+  kind: 'document';
+  hits: BatteryIncludedSuggestionDocumentHit<T>[];
+}
+
+export interface BatteryIncludedSuggestionFacetGroup {
+  kind: `facet.${string}`;
+  hits: BatteryIncludedSuggestionFacetHit[];
+}
+
+export type BatteryIncludedSuggestion<T> =
+  | BatteryIncludedSuggestionQueryCompletionGroup
+  | BatteryIncludedSuggestionDocumentGroup<T>
+  | BatteryIncludedSuggestionFacetGroup;

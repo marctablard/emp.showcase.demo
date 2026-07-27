@@ -19,7 +19,15 @@ export async function fetchProductById(
   /** Separates in-flight dedupe per shop session so a site switch does not reuse the previous site's response. */
   clientDedupeScope = '',
 ): Promise<Product | null> {
-  const cacheKey = `${id}:${clientDedupeScope}:${options?.variants ?? false}:${options?.prices ?? false}`;
+  const pricesCacheKey =
+    typeof options?.prices === 'object' && options.prices !== null
+      ? JSON.stringify({
+          siteCode: options.prices.siteCode,
+          currency: options.prices.currency,
+          country: options.prices.country,
+        })
+      : String(options?.prices ?? false);
+  const cacheKey = `${id}:${clientDedupeScope}:${options?.variants ?? false}:${pricesCacheKey}`;
   const existing = _productInflight.get(cacheKey);
   if (existing) return existing;
 
@@ -30,6 +38,15 @@ export async function fetchProductById(
     }
     if (options?.prices) {
       searchParams.set('prices', 'true');
+      if (typeof options.prices === 'object' && options.prices !== null) {
+        searchParams.set('priceSiteCode', options.prices.siteCode);
+        if (options.prices.currency) {
+          searchParams.set('priceCurrency', options.prices.currency);
+        }
+        if (options.prices.country) {
+          searchParams.set('priceCountry', options.prices.country);
+        }
+      }
     }
 
     const queryString = searchParams.toString();

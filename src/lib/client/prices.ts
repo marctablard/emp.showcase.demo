@@ -12,12 +12,14 @@ import type { ProductPrice } from '@/platform/services/model/price/price';
  * @param id Product ID
  * @param quantity Optional quantity
  * @param unitCode Optional unit code
+ * @param currency Optional currency override to ensure correct currency is fetched
  * @returns ProductPrice object or null if not found
  */
 export async function fetchProductPrice(
   id: string,
   quantity?: number,
   unitCode?: string,
+  currency?: string,
 ): Promise<ProductPrice | null> {
   try {
     let url = `/api/products/${id}/price`;
@@ -29,6 +31,10 @@ export async function fetchProductPrice(
 
     if (unitCode !== undefined) {
       params.append('unitCode', unitCode);
+    }
+
+    if (currency) {
+      params.append('currency', currency);
     }
 
     const queryString = params.toString();
@@ -51,6 +57,36 @@ export async function fetchProductPrice(
     return await response.json();
   } catch (error) {
     getLogger().error({ err: error, productId: id }, 'Error fetching product price');
+    throw error;
+  }
+}
+
+/**
+ * Fetch prices for multiple products in a single batch call.
+ *
+ * @param productIds Array of product IDs
+ * @param currency Optional currency override to ensure correct currency is fetched
+ * @returns Map of product ID → ProductPrice (or null when unavailable)
+ */
+export async function fetchProductPrices(
+  productIds: string[],
+  currency?: string,
+): Promise<Record<string, ProductPrice | null>> {
+  try {
+    const response = await fetch('/api/products/prices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productIds, currency }),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch batch product prices: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    getLogger().error({ err: error, productIds }, 'Error fetching batch product prices');
     throw error;
   }
 }

@@ -1,5 +1,6 @@
 import { inject } from 'inversify';
 import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
+import { baseUrl } from '@/lib/utils';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCartApi } from '@/platform/integrations/emporix/cart/EmporixCartApi';
 import type EmporixCommonUtil from '@/platform/integrations/emporix/common/util/EmporixCommonUtil';
@@ -137,7 +138,7 @@ class EmporixCartService implements CartService {
       type: 'shopping',
       channel: {
         name: 'storefront',
-        source: process.env.NEXT_PUBLIC_SERVER_URL || 'https://showcase.emporix.io',
+        source: baseUrl,
       },
       sessionValidated: true,
     };
@@ -149,8 +150,12 @@ class EmporixCartService implements CartService {
       await this.sessionService.setCart(cartId);
       return cartId;
     } catch (error) {
-      // only business error can be that it's a duplicate
-      if (error instanceof Error && error.message.includes('Duplicate key found for a unique index.')) {
+      // Cart already exists for this session — Emporix returns either
+      // 409 Conflict or a "Duplicate key found" error. Fall back to the existing cart.
+      if (
+        error instanceof Error &&
+        (error.message.includes('Conflict') || error.message.includes('Duplicate key found for a unique index.'))
+      ) {
         const existingCart = await this.getCart();
         if (!existingCart) {
           throw new Error('Failed to get session cart');

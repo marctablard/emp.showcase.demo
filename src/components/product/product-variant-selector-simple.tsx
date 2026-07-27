@@ -33,7 +33,7 @@ export default function ProductVariantSelectorSimple({
 
   const router = useRouter();
   const t = useTranslations('product');
-  const { l10n } = useL10n();
+  const { l10n, l10nOrEmpty } = useL10n();
   const { session } = useSession();
 
   // Reset variant prices when currency changes to trigger re-fetch
@@ -69,7 +69,9 @@ export default function ProductVariantSelectorSimple({
             return;
           }
 
-          const fetchedPrices = await Promise.all(fetchedVariants.map((variant) => fetchProductPrice(variant.id)));
+          const fetchedPrices = await Promise.all(
+            fetchedVariants.map((variant) => fetchProductPrice(variant.id, undefined, undefined, session?.currency)),
+          );
 
           if (isCancelled) {
             return;
@@ -78,7 +80,9 @@ export default function ProductVariantSelectorSimple({
           setVariantPrices(fetchedPrices.filter((price): price is ProductPrice => price !== null));
         } else if (variantPrices === undefined) {
           // Re-fetch only prices when currency changes (variants already loaded)
-          const fetchedPrices = await Promise.all(variants.map((variant) => fetchProductPrice(variant.id)));
+          const fetchedPrices = await Promise.all(
+            variants.map((variant) => fetchProductPrice(variant.id, undefined, undefined, session?.currency)),
+          );
 
           if (isCancelled) {
             return;
@@ -101,7 +105,7 @@ export default function ProductVariantSelectorSimple({
     return () => {
       isCancelled = true;
     };
-  }, [product.id, product.parentVariantId, soloVariant, variants, variantPrices]);
+  }, [product.id, product.parentVariantId, soloVariant, variants, variantPrices, session?.currency]);
 
   // Handle variant selection via tiles
   const handleVariantTileClick = (variant: Product) => {
@@ -165,7 +169,7 @@ export default function ProductVariantSelectorSimple({
                 {variant.images && variant.images.length > 0 ? (
                   <Image
                     src={variant.images[0].url}
-                    alt={variant.images[0].altText ? l10n(variant.images[0].altText) : `Product image`}
+                    alt={variant.images[0].altText ? l10nOrEmpty(variant.images[0].altText) || '' : ''}
                     width={100}
                     height={50}
                     className="object-center w-full h-full"

@@ -21,7 +21,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: 'npm'
 
       - name: Align npm with packageManager
@@ -58,7 +58,7 @@ jobs:
       - name: Deploy to Vercel
         id: deploy
         run: |
-          URL=$(vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }})
+          URL=$(vercel deploy --prod --force --token=${{ secrets.VERCEL_TOKEN }})
           echo "url=$URL" >> $GITHUB_OUTPUT
 
       - name: Deployment summary

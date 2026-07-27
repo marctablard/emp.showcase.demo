@@ -1,9 +1,11 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { isApprovalAction, isApprovalResourceType } from '@/lib/approval/contracts';
 import { withApiRouteDebug } from '@/platform/core/utils/debug-utils';
 import server from '@/platform/server';
 import type { ApprovalService } from '@/platform/services/approval/ApprovalService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
+import type { ApprovalAction, ApprovalResourceType } from '@/platform/services/model/approval';
 
 /**
  * GET /api/approval/requires-approval
@@ -11,15 +13,33 @@ import type { LoggerService } from '@/platform/services/logger/LoggerService';
  */
 async function handler(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const cartId = searchParams.get('cartId');
+  const resourceId = searchParams.get('resourceId') ?? searchParams.get('cartId');
+  const rawResourceType = searchParams.get('resourceType');
+  const rawAction = searchParams.get('action');
 
   try {
-    if (!cartId) {
-      return NextResponse.json({ error: 'Cart ID is required' }, { status: 400 });
+    if (!resourceId) {
+      return NextResponse.json({ error: 'resourceId is required' }, { status: 400 });
     }
 
+    if (rawResourceType && !isApprovalResourceType(rawResourceType)) {
+      return NextResponse.json({ error: 'Invalid resourceType' }, { status: 400 });
+    }
+
+    if (rawAction && !isApprovalAction(rawAction)) {
+      return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+    }
+
+    const resourceType: ApprovalResourceType =
+      rawResourceType && isApprovalResourceType(rawResourceType) ? rawResourceType : 'CART';
+    const action: ApprovalAction = rawAction && isApprovalAction(rawAction) ? rawAction : 'CHECKOUT';
+
     const approvalService = server.get<ApprovalService>('ApprovalService');
-    const requiresApproval = await approvalService.requiresApproval(cartId);
+    const requiresApproval = await approvalService.requiresApproval({
+      resourceId,
+      resourceType,
+      action,
+    });
 
     return NextResponse.json(requiresApproval);
   } catch (error) {
@@ -30,7 +50,9 @@ async function handler(request: NextRequest) {
         stack: error instanceof Error ? error.stack : undefined,
         path: '/api/approval/requires-approval',
         method: 'GET',
-        cartId,
+        resourceId,
+        resourceType: rawResourceType,
+        action: rawAction,
       },
       'Error checking approval requirements',
     );

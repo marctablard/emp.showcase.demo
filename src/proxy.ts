@@ -8,7 +8,7 @@ import { createSiteMiddleware } from './site/middleware';
 import { routing as siteRouting } from './site/routing';
 import { NEXT_REWRITE_HEADER } from './site/types';
 
-const apiBypassPrefixes = ['/api/auth', '/api/csrf', '/api/notifications', '/api/debug'];
+const apiBypassPrefixes = ['/api/auth', '/api/csrf', '/api/notifications', '/api/debug', '/api/test/auth/bootstrap'];
 // CSRF is replaced by HMAC-signature verification for the CMS webhook. The
 // bypass is an EXACT match — `/api/cms` (and any other `/api/cms/*` route)
 // stays under normal CSRF handling; only the machine-to-machine webhook sink

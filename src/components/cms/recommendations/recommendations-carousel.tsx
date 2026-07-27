@@ -1,11 +1,8 @@
 'use client';
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useProducts } from '@/hooks/product/useProducts';
-import { useRecommendations } from '@/hooks/recommendations/useRecommendations';
-import type { Product } from '@/platform/services/model/product';
-import { ProductTile } from '../../product/product-tile';
-import { ProductTileSkeleton } from '../../product/product-tile-skeleton';
+import { ProductTile } from '@/components/product/product-tile';
+import { ProductTileSkeleton } from '@/components/product/product-tile-skeleton';
 import {
   Carousel,
   CarouselContent,
@@ -13,8 +10,11 @@ import {
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
-} from '../../ui/carousel';
-import { Heading } from '../../ui/h';
+} from '@/components/ui/carousel';
+import { Heading } from '@/components/ui/h';
+import { useProducts } from '@/hooks/product/useProducts';
+import { useRecommendations } from '@/hooks/recommendations/useRecommendations';
+import type { Product } from '@/platform/services/model/product';
 import { parseProductIds } from './parse-product-ids';
 
 interface RecommendationsCarouselProps {

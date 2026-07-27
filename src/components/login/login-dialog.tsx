@@ -11,7 +11,9 @@ type LoginDialogProps = {
   email?: string;
   open?: boolean;
   onCloseAction?: () => void;
+  onLoginSuccess?: () => void;
   guestCheckout?: boolean;
+  onGuestAction?: () => void;
 };
 
 export default function LoginDialog({
@@ -20,7 +22,9 @@ export default function LoginDialog({
   email,
   open = false,
   onCloseAction,
+  onLoginSuccess,
   guestCheckout = false,
+  onGuestAction,
 }: LoginDialogProps) {
   const handleOpenChange = (open: boolean) => {
     if (!open) onCloseAction?.();
@@ -38,8 +42,9 @@ export default function LoginDialog({
         <LoginForm
           callbackUrl={callbackUrl}
           email={email}
-          onSuccess={onCloseAction}
+          onSuccess={onLoginSuccess ?? onCloseAction}
           guestCheckout={guestCheckout}
+          onGuestAction={onGuestAction}
           isDialog
         />
       </DialogContent>

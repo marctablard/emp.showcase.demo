@@ -11,6 +11,7 @@ import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
 import { useCart } from '@/hooks/cart/useCart';
 import { useAvailability } from '@/hooks/product/useAvailability';
+import { useSession } from '@/hooks/session/useSession';
 import { useL10n } from '@/hooks/useL10n';
 import { fetchProductPrice } from '@/lib/client/prices';
 import { fetchProductById } from '@/lib/client/products';
@@ -33,6 +34,7 @@ interface SubstitutionModalProps {
 export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onDone }: SubstitutionModalProps) {
   const t = useTranslations('cart');
   const { l10n } = useL10n();
+  const { session } = useSession();
   const { updateItemQuantity, addItem, loading } = useCart();
   const [selectedSubstitutions, setSelectedSubstitutions] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -101,7 +103,7 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
         ); // Filter out empty IDs
 
         // Fetch prices for all products
-        const pricePromises = productIds.map((id) => fetchProductPrice(id));
+        const pricePromises = productIds.map((id) => fetchProductPrice(id, undefined, undefined, session?.currency));
         const prices = await Promise.all(pricePromises);
 
         // Create a map of product ID to price data

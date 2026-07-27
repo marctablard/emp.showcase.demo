@@ -446,7 +446,7 @@ describe('EmporixApprovalApi', () => {
       await setupApproverToken();
 
       // Get all approvals
-      const approvals = await approvalApi.getApprovals();
+      const { items: approvals } = await approvalApi.getApprovals();
 
       // Verify we got a list of approvals
       expect(Array.isArray(approvals)).toBe(true);

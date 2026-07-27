@@ -95,7 +95,7 @@ export function HeaderMiniCartItemList({ cart }: HeaderMiniCartItemListProps) {
               </p>
               <div className="flex items-center">
                 <p className="text-sm border-r border-border-primary pr-4">
-                  {t('itemNumber')} {item.product?.id}
+                  {t('itemNumber')}: {item.product?.id}
                 </p>
                 <p className="text-sm pl-4">
                   <span

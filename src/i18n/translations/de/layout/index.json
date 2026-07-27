@@ -15,8 +15,8 @@
     "newsletter": "Newsletter",
     "offerRequest": "Angebot anfragen",
     "contact": "Kontakt",
-    "quickOrder": "Quick Order",
-    "wishlists": "Wunschlisten",
+    "quickOrder": "Schnellauftrag",
+    "wishlists": "Wunschliste",
     "allProducts": "Produkte",
     "products": "Produkte",
     "services": "Services",
@@ -38,9 +38,17 @@
     "doubleCheck": "Prüfen Sie Ihre Suche auf Rechtschreibung oder Tippfehler, oder versuchen Sie es mit einem anderen Suchbegriff.",
     "commonSearch": "Hier sind häufige Suchbegriffe von anderen Kunden:",
     "clearHistory": "Suchverlauf löschen",
+    "seeAllCategories": "Alle anzeigen",
+    "allFromCategory": "Alle aus {name}",
+    "back": "Zurück",
+    "openSubcategoriesFor": "Unterkategorien für {name} öffnen",
     "navigation": {
       "meta": "Meta"
-    }
+    },
+    "compare": "Vergleichen",
+    "compareCount": "Vergleichen ({count})",
+    "compareTooltip": "Klicken, um {count} Artikel zu vergleichen",
+    "compareTooltipMinimum": "Mindestens 2 Produkte zum Vergleichen hinzufügen"
   },
   "footer": {
     "newsletterTitle": "Abonnieren Sie unseren Newsletter für exklusive Updates und mehr!",
@@ -63,12 +71,13 @@
     "sales": "Sales"
   },
   "footerLegal": {
-    "copyright": "© 2025 Emporix. Alle Rechte vorbehalten.",
+    "copyright": "© 2026 Emporix. Alle Rechte vorbehalten.",
     "termsAndConditions": "Geschäftsbedingungen",
     "imprint": "Impressum",
     "privacyPolicy": "Datenschutz"
   },
   "footerLinks": {
+    "showAllCategories": "Alle anzeigen",
     "products": "Produkte",
     "solarPanels": "Solarpaneele",
     "inverters": "Wechselrichter",

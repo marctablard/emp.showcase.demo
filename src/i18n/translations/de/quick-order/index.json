@@ -1,0 +1,83 @@
+{
+  "title": "Schnellauftrag",
+  "description": "Fügen Sie Produkte schnell zu Ihrem Warenkorb hinzu – per Suche, SKU-Eingabe oder Datei-Upload.",
+  "breadcrumb": "Schnellauftrag",
+  "tabs": {
+    "productsSearch": "Produktsuche",
+    "addManually": "Produkte manuell hinzufügen",
+    "bulkUpload": "Massenupload"
+  },
+  "search": {
+    "label": "Produkt suchen",
+    "hint": "Produktname oder Artikelnummer eingeben",
+    "placeholder": "Suche nach Produktname oder Artikelnummer",
+    "noResults": "Keine Produkte gefunden",
+    "addToList": "Zur Liste hinzufügen",
+    "addProducts": "Produkte hinzufügen"
+  },
+  "textPaste": {
+    "label": "Artikelnummer mit Menge",
+    "hint": "Produktcodes mit optionaler Menge eingeben (Standard: 1)",
+    "placeholder": "SKU- und Mengenpaare einfügen, z. B.:\nSKU001, 2\nSKU002, 5",
+    "description": "Geben Sie Produktcodes getrennt durch Komma oder Zeilenumbruch ein. Optional Menge nach jedem Code angeben (Standard: 1)."
+  },
+  "quickLinks": {
+    "saveOrderList": "Bestellliste speichern",
+    "loadOrderList": "Bestellliste laden",
+    "share": "Teilen"
+  },
+  "fileUpload": {
+    "title": "Datei auswählen",
+    "description": "Laden Sie eine gültige CSV/XLSX-Datei hoch, um alle Produkte mit nur einem Klick anzuzeigen. Sie können eine Vorlage über den untenstehenden Link herunterladen.",
+    "uploadButton": "Hochladen",
+    "downloadTemplate": "CSV-Vorlage herunterladen",
+    "supportedFormats": "Unterstützte Formate: .csv, .xlsx",
+    "removeFile": "Datei entfernen",
+    "selectFile": "Wählen Sie eine CSV- oder XLSX-Datei zum Hochladen aus"
+  },
+  "productList": {
+    "product": "Produkt",
+    "quantity": "Menge",
+    "unitPrice": "Stückpreis",
+    "remove": "Entfernen",
+    "empty": "Noch keine Produkte hinzugefügt. Verwenden Sie die Suche, Eingabe oder den Upload, um Produkte hinzuzufügen."
+  },
+  "overview": {
+    "title": "Bestellübersicht",
+    "valueOfGoods": "Warenwert",
+    "netValue": "Nettowert",
+    "vat": "MwSt.",
+    "shippingCosts": "Versandkosten",
+    "freightCosts": "Frachtkosten",
+    "total": "Gesamt",
+    "addToCart": "In den Warenkorb",
+    "goToCheckout": "Zur Kasse",
+    "secureTransmission": "Ihre Daten werden sicher und verschlüsselt übertragen.",
+    "calculatedAtCheckout": "Wird an der Kasse berechnet"
+  },
+  "notifications": {
+    "productsAdded": "{count, plural, one {# Produkt} other {# Produkte}} zur Liste hinzugefügt",
+    "productsCouldNotBeAdded": "Die folgenden ({count}) {count, plural, one {Produkt} other {Produkte}} konnten nicht hinzugefügt werden:",
+    "uploadSuccess": "Alle {count, plural, one {# Produkt} other {# Produkte}} zur Liste hinzugefügt.",
+    "uploadPartial": "{found} von {total} Produkten hinzugefügt. {notFound, plural, one {# Code} other {# Codes}} nicht gefunden.",
+    "uploadError": "Datei konnte nicht verarbeitet werden. Bitte überprüfen Sie das Format.",
+    "addedToCart": "Produkte erfolgreich zum Warenkorb hinzugefügt",
+    "addToCartPartialFailure": "{failed, plural, one {# Artikel} other {# Artikel}} konnten nicht zum Warenkorb hinzugefügt werden. Bitte versuchen Sie es erneut.",
+    "addingProgress": "Artikel {current} von {total} wird hinzugefügt...",
+    "insufficientStock": "Die erforderliche Anzahl von Produkten ({code} - {requested}) ist nicht auf Lager. ({code} - {available}) Produkte hinzugefügt."
+  },
+  "validation": {
+    "invalidFormat": "Ungültiges Format. Bitte überprüfen Sie Ihre Eingabe.",
+    "invalidQuantity": "\"{line}\" ist kein gültiges Format. Wir akzeptieren nur positive Zahlen oder keine Angabe.",
+    "emptyFile": "Die hochgeladene Datei ist leer.",
+    "fileTooLarge": "Datei ist zu groß. Maximale Größe beträgt 5 MB.",
+    "unsupportedFormat": "Nicht unterstütztes Dateiformat. Bitte verwenden Sie CSV oder XLSX."
+  },
+  "accessibility": {
+    "searchResults": "Suchergebnisse",
+    "removeProduct": "Produkt entfernen",
+    "decreaseQuantity": "Menge verringern",
+    "increaseQuantity": "Menge erhöhen",
+    "quantity": "Menge"
+  }
+}

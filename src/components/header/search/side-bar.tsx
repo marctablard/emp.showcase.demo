@@ -2,6 +2,7 @@ import React from 'react';
 import { MarkedText } from '@/components/header/search/marked-text';
 import { Heading } from '@/components/ui/h';
 import UiLink from '@/components/ui/link';
+import { buildBrowseHrefForBreadcrumbDisplayPath } from '@/lib/navigation/build-browse-category-href';
 import type { SearchSuggestions } from '@/platform/services/model/search';
 
 export interface SideBarProps {
@@ -37,12 +38,20 @@ export function SideBar({ categories, query }: SideBarProps) {
           <Heading className="mb-6" variant="h5" as="div">
             Categories
           </Heading>
-          {categories.map(({ name, count }) => (
-            // Todo: set correct href for categories
-            <UiLink className="mb-3" key={name + count} type="Link" href="#" variant="secondary">
-              <MarkedText text={name} keyword={query} />
-            </UiLink>
-          ))}
+          {categories.map(({ name, highlighted, count }) => {
+            const params = new URLSearchParams();
+            if (query) {
+              params.set('q', query);
+            }
+            const href = buildBrowseHrefForBreadcrumbDisplayPath(name, params);
+            return (
+              <UiLink className="mb-3" key={name + count} type="Link" href={href} variant="secondary">
+                <span>
+                  <MarkedText text={highlighted ?? name} keyword="" />
+                </span>
+              </UiLink>
+            );
+          })}
         </div>
       )}
       {links.map(({ headline, links }) => (

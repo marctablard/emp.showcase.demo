@@ -10,7 +10,7 @@ This document consolidates how to run, build, and deploy the Emporix Showcase ap
 - DI container generation (Inversify) required for builds.
 
 ## Prerequisites
-- Node.js 20+ (recommended by README).
+- Node.js 22.x or 24.x (matches the `engines` field in `package.json`).
 - npm (or yarn).
 - Access to Emporix Developer Portal for API keys (see links below).
 - Optional: Storyblok account and space (if using CMS in production).
@@ -131,9 +131,78 @@ Integration tests are gated and will only run when:
   - `NEXT_EMPORIX_TEST_TENANT`
   - `NEXT_EMPORIX_TEST_CLIENT_ID`
   - `NEXT_EMPORIX_TEST_CLIENT_SECRET`
-- BatteryIncluded integration envs are set:
-  - `NEXT_PUBLIC_BATTERY_INCLUDED_API_KEY`
-  - `NEXT_PUBLIC_BATTERY_INCLUDED_COLLECTION`
+
+BatteryIncluded search runtime credentials are not taken from storefront env vars. The server resolves BI `searchKey` and `indexName` from Emporix indexing provider `BATTERY_INCLUDED`, while `NEXT_PUBLIC_BATTERY_INCLUDED_BASE_URL` remains the BI API base URL.
+
+## Local Clean-Install Parity Check (CI Dependency Parity)
+
+`npm run jest` never reinstalls dependencies, so it cannot catch a broken lockfile, a dependency blocked by Aikido safe-chain (malware or safe-chain's own minimum package release-age policy), or a newly-disclosed high severity advisory. Validate that in isolation with:
+
+```bash
+npm run verify:ci-install
+```
+
+This runs [`scripts/verify-safe-chain-install.sh`](../scripts/verify-safe-chain-install.sh), which mirrors the dependency-install step used in `.github/workflows/*.yaml`:
+
+1. Copies `package.json`, `package-lock.json`, and `.npmrc` into a disposable temp directory — your real `node_modules` is untouched.
+2. Runs `safe-chain setup-ci` there first, then `npm ci --ignore-scripts` via `npx`, using the project's pinned npm version (`packageManager` in `package.json`) and safe-chain installed on-demand via `npx` only (never as a project/global dependency), matching CI's setup sequence while still enforcing safe-chain protections.
+3. Runs `npm audit --audit-level=high` against the resulting lockfile.
+
+This repo does not set npm's own `min-release-age` (see `.npmrc`); safe-chain still enforces its own, independently-controlled minimum release-age policy on top of malware blocking, both here and in CI. A freshly published dependency bump can therefore still be held back by safe-chain for a period after release even though plain `npm install` would resolve it — that is safe-chain working as intended, not a bug in this script or a reason to weaken it. A pass here only confirms today's lockfile clears safe-chain's policies and the audit; it is not a guarantee that a future bump of the same package will.
+
+Scripts are skipped only because the disposable directory has no `.git` (the `prepare`/husky script requires one); it does not affect dependency resolution or the safe-chain/audit checks, but it does mean this check validates clean resolution, supply-chain policy, and audit only — it is not full lifecycle-script parity with CI, since CI's real `npm ci` runs install scripts and this one intentionally does not. Run this after any `package.json`/`package-lock.json` change, and never weaken it (lower `--audit-level`, skip safe-chain, or pin an old safe-chain release) to force a pass — a failure here means a real dependency issue that must be fixed or explicitly, visibly accepted.
+
+### Preview-Only Safe-Chain Minimum-Package-Age Override
+
+The **Install dependencies** step of `.github/workflows/github-actions-deploy-pr-preview.yaml` runs `npm ci --safe-chain-skip-minimum-package-age` instead of plain `npm ci`. This is a narrow, explicit, and temporary policy exception used to unblock urgent security patches (e.g. a same-day framework patch release) that plain `npm install`/`npm ci` would resolve fine but that safe-chain's minimum release-age gate has not yet aged in.
+
+Scope of the override — read carefully, this is not a general safe-chain bypass:
+- It skips **only** safe-chain's minimum-package-age check.
+- `safe-chain setup-ci` still runs first, and every other safe-chain protection (malware/dependency-confusion blocking) stays fully enforced for this install.
+- `npm audit --audit-level=high` still runs immediately after, unchanged.
+- The step is a normal, non-`continue-on-error` step: any other install failure (network, integrity, malware block, unresolved dependency, etc.) still fails the job exactly as before.
+- It applies **only** to the PR preview workflow. Every other workflow in `.github/workflows/` continues to run plain `npm ci` with the full, unmodified safe-chain policy.
+
+To reproduce this exact CI behavior locally (e.g. to confirm a patch installs cleanly before opening the PR), use:
+
+```bash
+npm run verify:ci-install:preview-override
+```
+
+which is equivalent to `SAFE_CHAIN_SKIP_MINIMUM_PACKAGE_AGE=1 npm run verify:ci-install` and only ever skips the minimum-package-age gate — never the malware checks or the audit step. Do not add this override to any other workflow, and remove it from the preview workflow once the underlying package has aged past safe-chain's policy window (or a permanent exception is agreed) rather than leaving it in place indefinitely.
+
+### npm audit Policy Exceptions
+
+The **Run npm audit** step of `.github/workflows/github-actions-deploy-pr-preview.yaml` still runs the real, unmodified `npm audit --audit-level=high` — the audit level is never lowered, dev dependencies are never omitted, and `audit fix --force` is never used. What changed is how the step decides pass/fail: instead of relying on `npm audit`'s own exit code, the step captures its JSON report and passes it to [`scripts/verify-audit-policy.mjs`](../scripts/verify-audit-policy.mjs), which re-derives the pass/fail decision from the report content:
+
+```yaml
+- name: Run npm audit
+  run: |
+    npm audit --audit-level=high --json > audit-report.json || true
+    node scripts/verify-audit-policy.mjs audit-report.json
+```
+
+This exists to allow one narrowly-scoped, time-boxed exception while keeping every other failure mode fatal:
+
+- **Advisory:** [`GHSA-mh99-v99m-4gvg`](https://github.com/advisories/GHSA-mh99-v99m-4gvg) — `brace-expansion` DoS via unbounded expansion length (CWE-400/CWE-770), pulled in transitively through `minimatch` by the ESLint and Jest toolchains.
+- **Why:** the only available fix (`fixAvailable` in the audit report) requires a semver-major bump of `eslint`/`jest`, which is not currently safe to take without breaking lint/test tooling in this repo. This is a dev-tooling-only exposure (ESLint/Jest CLI usage), not a runtime/production dependency path.
+- **Expiry:** **2026-08-08** (valid through the end of that day, UTC). After this date, `scripts/verify-audit-policy.mjs` treats the exception as expired and fails CI on this advisory exactly like any other unlisted one — the date must be extended deliberately in code (with a fresh rationale) or, preferably, removed once `eslint`/`jest` can be upgraded.
+- **Removal condition:** remove the `GHSA-mh99-v99m-4gvg` entry from `ALLOWED_EXCEPTIONS` in `scripts/verify-audit-policy.mjs` as soon as upgrading `eslint`/`jest` (or their transitive `minimatch`/`brace-expansion` versions) resolves the advisory, without waiting for the expiry date.
+- **Scope:** this exception applies **only** to the PR preview deploy workflow's audit step. Every other workflow (`github-actions-deploy-dev.yaml`, `-prod.yaml`, `-showcasedev.yaml`, `-showcaseqadev.yaml`) continues to run plain `npm audit --audit-level=high` with no exception applied, and will fail immediately on this or any other high/critical advisory.
+
+`scripts/verify-audit-policy.mjs` is deliberately strict about everything else:
+
+- Any high/critical advisory **not** in `ALLOWED_EXCEPTIONS` fails CI.
+- A missing, empty, unparsable, or unexpectedly-shaped audit report (e.g. a registry/network error instead of a real report) fails CI.
+- It is robust to the two shapes `npm audit --json` uses inside each vulnerability's `via` array: a plain dependency-name string (transitive propagation through an already-reported package) versus an advisory object (an actual disclosed vulnerability, carrying its own `severity`/`url`/`title`). Only advisory objects are checked against the allowlist.
+
+To reproduce this exact CI check locally:
+
+```bash
+npm run verify:audit-policy
+```
+
+Do not weaken this mechanism to force a pass — do not broaden `ALLOWED_EXCEPTIONS` beyond `GHSA-mh99-v99m-4gvg`, do not remove or extend the expiry check, do not add `continue-on-error` to the step, and do not lower `--audit-level` or add `--omit=dev`. A failure here means either a new high/critical advisory that must be triaged, or the existing exception has expired and needs a real fix or an explicit, reviewed renewal.
 
 ## Deployment (Vercel + GitHub Actions)
 Deployment is automated using Vercel and GitHub Actions.
@@ -259,6 +328,9 @@ A: All required envs listed above. Ensure `NEXT_PUBLIC_SERVER_URL` matches the p
 Q: What port should be exposed?
 A: `3000` when using `next start`.
 
+Q: Which HTTP version should Azure use?
+A: Use HTTP/2 instead of Azure's default HTTP/1.1 where this is configurable. HTTP/1.1 can introduce unnecessary redirects in front of the app, while HTTP/2 avoids that extra redirect hop.
+
 Q: Is readiness check safe if Emporix is down?
 A: Yes. `/api/ready` checks only local env presence, not upstream services.
 
@@ -303,3 +375,10 @@ A: Check GitHub Actions logs (build/test) and Vercel deployment logs. Common iss
 - `docs/cms-framework.md`
 - `docs/sso-authentication.md`
 - `docs/site-middleware.md`
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Environment Variables](./environment-variables.md)
+- [Deployment Process](./deployment-process.md)
+- [Health Checks](./health-checks.md)

@@ -1,29 +1,60 @@
 import { inject } from 'inversify';
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
+import { createEmporixApiError } from '@/platform/integrations/emporix/common/EmporixApiError';
 import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import { buildPaginatedResponse, buildSearchQuery } from '../../common/util/common';
 import type { EmporixConfig } from '../../config';
 import type { EmporixPaginatedResponse, EmporixSearchParams } from '../../model';
 import type {
-  EmporixCreateQuoteReasonRequest,
   EmporixCreateQuoteRequest,
   EmporixQuoteCreationResponse,
   EmporixQuoteHistory,
   EmporixQuoteReason,
-  EmporixQuoteReasonCreationResponse,
 } from '../../model/quote';
 import type { EmporixQuote } from '../../model/quote';
 import type { EmporixQuoteApi as IEmporixQuoteApi } from '../EmporixQuoteApi';
 
 const createQuoteMetrics = (route: string) => createFetchMetricsParams('quote', route);
 
+function formatQuotePatchErrorBody(rawBody: string): string {
+  const body = rawBody.trim();
+
+  if (!body) {
+    return body;
+  }
+
+  try {
+    const parsedBody = JSON.parse(body) as {
+      message?: unknown;
+      reason?: unknown;
+    };
+
+    if (typeof parsedBody.message !== 'string' || !parsedBody.message.trim()) {
+      return body;
+    }
+
+    const message = parsedBody.message.trim().replace(/\.\s+Reason:\s+/i, '. ');
+
+    if (typeof parsedBody.reason !== 'string' || !parsedBody.reason.trim()) {
+      return message;
+    }
+
+    const reason = parsedBody.reason.trim();
+    return message.includes(reason) ? message : `${message}. ${reason}`;
+  } catch {
+    return body;
+  }
+}
+
 @injectable('EmporixQuoteApi', 'Singleton')
 class EmporixQuoteApi implements IEmporixQuoteApi {
   constructor(
     @inject('EmporixApiInvoker') protected apiClient: EmporixApiClient,
     @inject('EmporixConfig') protected config: EmporixConfig,
+    @inject('LoggerService') private logger: LoggerService,
   ) {}
 
   /**
@@ -34,8 +65,14 @@ class EmporixQuoteApi implements IEmporixQuoteApi {
     body: any,
     scope: 'public' | 'session' | 'customer-saas' | 'service' = 'public',
   ): Promise<void> {
+    const endpoint = `/quote/${this.config.tenant}/quotes/${quoteId}`;
+    const firstOpPath =
+      Array.isArray(body) && body[0] && typeof body[0] === 'object' && 'path' in body[0]
+        ? String((body[0] as { path?: string }).path)
+        : undefined;
+
     const response = await this.apiClient.authenticatedFetch(
-      `/quote/${this.config.tenant}/quotes/${quoteId}`,
+      endpoint,
       {
         method: 'PATCH',
         headers: {
@@ -50,13 +87,31 @@ class EmporixQuoteApi implements IEmporixQuoteApi {
     );
 
     if (!response.ok) {
-      const errorDetails = await response.text();
-      const firstOpPath =
-        Array.isArray(body) && body[0] && typeof body[0] === 'object' && 'path' in body[0]
-          ? String((body[0] as { path?: string }).path)
-          : undefined;
-      throw new Error(
-        `Failed to update quote ${quoteId}${firstOpPath ? ` (${firstOpPath})` : ''}: ${response.statusText} ${errorDetails}`,
+      const responseBody = await response.text();
+      const formattedResponseBody = formatQuotePatchErrorBody(responseBody);
+
+      this.logger.error(
+        {
+          endpoint,
+          method: 'PATCH',
+          quoteId,
+          scope,
+          operationPath: firstOpPath,
+          operationCount: Array.isArray(body) ? body.length : undefined,
+          status: response.status,
+          statusText: response.statusText,
+          hasResponseBody: responseBody.length > 0,
+          responseBodyLength: responseBody.length,
+        },
+        'Emporix quote patch failed',
+      );
+
+      throw await createEmporixApiError(
+        `Failed to update quote ${quoteId}${firstOpPath ? ` (${firstOpPath})` : ''}`,
+        new Response(formattedResponseBody, {
+          status: response.status,
+          statusText: response.statusText,
+        }),
       );
     }
   }
@@ -100,6 +155,7 @@ class EmporixQuoteApi implements IEmporixQuoteApi {
         method: 'GET',
         headers: {
           Accept: 'application/json',
+          'X-Total-Count': 'true',
         },
         cache: 'no-store',
       },
@@ -139,6 +195,29 @@ class EmporixQuoteApi implements IEmporixQuoteApi {
     return await response.json();
   }
 
+  async getQuoteReasons(): Promise<EmporixQuoteReason[]> {
+    const response = await this.apiClient.authenticatedFetch(
+      `/quote/${this.config.tenant}/quote-reasons`,
+      {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+        },
+        cache: 'no-store',
+      },
+      'service',
+      undefined,
+      createQuoteMetrics('/quote/{tenant}/quote-reasons'),
+    );
+
+    if (!response.ok) {
+      const errorDetails = await response.text();
+      throw new Error(`Failed to fetch quote reasons: ${response.statusText} ${errorDetails}`);
+    }
+
+    return await response.json();
+  }
+
   async getQuoteReason(quoteReasonId: string): Promise<EmporixQuoteReason> {
     const response = await this.apiClient.authenticatedFetch(
       `/quote/${this.config.tenant}/quote-reasons/${quoteReasonId}`,
@@ -157,32 +236,6 @@ class EmporixQuoteApi implements IEmporixQuoteApi {
     if (!response.ok) {
       const errorDetails = await response.text();
       throw new Error(`Failed to fetch quote reason ${quoteReasonId}: ${response.statusText} ${errorDetails}`);
-    }
-
-    return await response.json();
-  }
-
-  async createQuoteReason(
-    createQuoteReasonRequest: EmporixCreateQuoteReasonRequest,
-  ): Promise<EmporixQuoteReasonCreationResponse> {
-    const response = await this.apiClient.authenticatedFetch(
-      `/quote/${this.config.tenant}/quote-reasons`,
-      {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(createQuoteReasonRequest),
-      },
-      'service',
-      undefined,
-      createQuoteMetrics('/quote/{tenant}/quote-reasons'),
-    );
-
-    if (!response.ok) {
-      const errorDetails = await response.text();
-      throw new Error(`Failed to create quote reason: ${response.statusText} ${errorDetails}`);
     }
 
     return await response.json();

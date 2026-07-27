@@ -503,6 +503,7 @@ NEXT_DEBUG_API_PAYLOAD=false
 
 ## Related Documentation
 
+- [Documentation index](./README.md)
 - [Deployment Process](./deployment-process.md)
 - [Testing Guide](./testing-guide.md)
 - [CMS Framework](./cms-framework.md)

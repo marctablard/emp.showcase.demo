@@ -28,9 +28,10 @@ export interface EmporixSchemaApi {
    * Get custom instance by ID
    * @param type Custom schema type
    * @param instanceId Custom instance ID
+   * @param cacheSeconds (optional) TTL for caching
    * @returns Promise with the custom instance details
    */
-  getCustomEntity(type: string, instanceId: string): Promise<EmporixCustomEntity | null>;
+  getCustomEntity(type: string, instanceId: string, cacheSeconds?: number): Promise<EmporixCustomEntity | null>;
 
   /**
    * Update custom instance

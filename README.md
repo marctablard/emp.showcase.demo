@@ -2,6 +2,10 @@
 
 Journey Aware Storefront is a journey-aware storefront that provides a seamless shopping experience for customers. It is built on top of the React/Next.js framework that provides the basis for modern composable web applications.
 
+## Documentation
+
+Full technical documentation lives in [`docs/`](./docs/README.md) — start there for setup guides, architecture, integrations, and task-based guided paths (Frontend Integration / Operations).
+
 ## Features
 
 An overview of the key features of Journey Aware Storefront.
@@ -37,7 +41,7 @@ Here is a quick start guide to get you started with Journey Aware Storefront.
 
 ### Prerequisites
 
-- Node.js (v20+)
+- Node.js 22.x or 24.x (matches the `engines` field in `package.json`)
 - npm or yarn
 
 ### Installation
@@ -129,7 +133,9 @@ The build process:
 - `npm run jest` - Run unit tests
 - `npm run jest:watch` - Run unit tests in watch mode
 - `npm run jest:coverage` - Run unit tests with coverage
-- `npm run e2e` - Run Playwright E2E tests
+- `npm run e2e` - Run environment-agnostic Playwright E2E tests
+- `npm run e2e:local` - Run committed local-only `*.local.spec.ts` Playwright tests on a dedicated localhost lane
+- `npm run e2e:auth-sync` - Run the credential-free local auth/site sync Playwright spec explicitly on localhost:3100
 - `npm run e2e:ui` - Run Playwright in UI mode
 - `npm run e2e:debug` - Run Playwright in debug mode
 - `npm run e2e:report` - Show Playwright HTML report
@@ -138,7 +144,7 @@ The build process:
 
 ## License
 
-The [LICENSE](LICENSE) file contains the license information for the Journey Aware Storefront.
+The [LICENSE](LICENSE.md) file contains the license information for the Journey Aware Storefront.
 
 ## Documentation
 

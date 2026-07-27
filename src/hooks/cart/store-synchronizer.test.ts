@@ -6,6 +6,7 @@ import type { Session } from '@/platform/services/model/session';
 import { createAvailabilityStore } from '@/stores/availability-store';
 import { createCartStore } from '@/stores/cart-store';
 import { createCheckoutStore } from '@/stores/checkout-store';
+import { createComparisonStore } from '@/stores/comparison-store';
 import { createCustomerStore } from '@/stores/customer-store';
 import { createProductStore } from '@/stores/products-store';
 import { createSessionStore } from '@/stores/session-store-context';
@@ -271,6 +272,42 @@ describe('Store Synchronizer', () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       expect(validateLeSpy).toHaveBeenCalledWith('le-b');
+    });
+
+    it('should clear comparison data when session legalEntityId changes', async () => {
+      const comparisonStore = createComparisonStore();
+      const clearComparisonSpy = jest.spyOn(comparisonStore.getState(), 'clearComparison');
+
+      unsubscribers = setupStoreSynchronization({
+        sessionStore,
+        cartStore,
+        siteStore,
+        customerStore,
+        productStore,
+        availabilityStore,
+        checkoutStore,
+        comparisonStore,
+      });
+
+      await act(async () => {
+        sessionStore.setState({
+          session: createMockSession({ legalEntityId: 'le-a' }),
+        });
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(clearComparisonSpy).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        sessionStore.setState({
+          session: createMockSession({ legalEntityId: 'le-b' }),
+        });
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(clearComparisonSpy).toHaveBeenCalledTimes(2);
     });
 
     it('should cleanup subscriptions when unsubscribe functions are called', () => {

@@ -16,7 +16,7 @@
     "offerRequest": "Offer Request",
     "contact": "Contact",
     "quickOrder": "Quick Order",
-    "wishlists": "Wishlists",
+    "wishlists": "Wishlist",
     "allProducts": "All Products",
     "products": "Products",
     "services": "Services",
@@ -38,9 +38,17 @@
     "doubleCheck": "Double-check your search for any typos or spelling mistakes, or try using a different search term.",
     "commonSearch": "Here are common search queries from other customers:",
     "clearHistory": "delete search history",
+    "seeAllCategories": "Show all",
+    "allFromCategory": "All from {name}",
+    "back": "Back",
+    "openSubcategoriesFor": "Open subcategories for {name}",
     "navigation": {
       "meta": "Meta"
-    }
+    },
+    "compare": "Compare",
+    "compareCount": "Compare ({count})",
+    "compareTooltip": "Click to compare {count} item(s)",
+    "compareTooltipMinimum": "Add at least 2 products to compare"
   },
   "footer": {
     "newsletterTitle": "Join Our Newsletter for Exclusive Updates and More!",
@@ -63,12 +71,13 @@
     "sales": "Sales"
   },
   "footerLegal": {
-    "copyright": "© 2025 Emporix. All Rights Reserved.",
+    "copyright": "© 2026 Emporix. All Rights Reserved.",
     "termsAndConditions": "Terms and Conditions",
     "imprint": "Imprint",
     "privacyPolicy": "Privacy Policy"
   },
   "footerLinks": {
+    "showAllCategories": "Show all",
     "products": "Products",
     "solarPanels": "Solar Panels",
     "inverters": "Inverters",

@@ -34,6 +34,7 @@ export class EmporixQuoteMapper implements QuoteMapper<EmporixQuote> {
 
     return {
       id: emporixQuote.id,
+      orderId: emporixQuote.orderId,
       status: status,
       cartId: emporixQuote.cartId,
       submittedDate: emporixQuote.metadata.createdAt,
@@ -56,6 +57,8 @@ export class EmporixQuoteMapper implements QuoteMapper<EmporixQuote> {
             currency: emporixQuote.currency,
             baseAmount: item.price?.totalNetValue || 0,
             tax: (item.price?.tax?.prices?.grossValue || 0) - (item.price?.totalNetValue || 0),
+            grossValue: item.price?.tax?.prices?.grossValue,
+            netValue: item.price?.tax?.prices?.netValue,
           },
         },
         quantity: {
@@ -73,8 +76,8 @@ export class EmporixQuoteMapper implements QuoteMapper<EmporixQuote> {
       },
       shippingCost: emporixQuote.shipping?.value || 0,
       shippingMethod: emporixQuote.shipping?.methodId || '',
-      reference: emporixQuote.mixins?.additionalInfo?.reference,
-      userComment: emporixQuote.mixins?.additionalInfo?.userComment,
+      reference: emporixQuote.customerReference || emporixQuote.mixins?.additionalInfo?.reference,
+      userComment: emporixQuote.customerComment || emporixQuote.mixins?.additionalInfo?.userComment,
     };
   }
 }

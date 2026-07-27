@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Coins, Minus, Package, Plus, ShoppingCart, Trash2 } from 'lucide-react';
+import { Coins, Loader2, Minus, Package, Plus, ShoppingCart, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import UiLink from '@/components/ui/link';
 import { UINotification } from '@/components/ui/molecules/ui-notification';
@@ -11,6 +11,7 @@ import { useCart } from '@/hooks/cart/useCart';
 import { useNotifications } from '@/hooks/notifications/useNotifications';
 import { useAvailability } from '@/hooks/product/useAvailability';
 import { useL10n } from '@/hooks/useL10n';
+import { useWishlistAddWithAuth } from '@/hooks/wishlist/useWishlistAddWithAuth';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { Cart, CartItem, CartItemPriceChange, CartItemSubstitution } from '@/platform/services/model/cart/cart.d';
 import type { StorefrontNotification } from '@/platform/services/model/notification/notification';
@@ -40,6 +41,7 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
   const [priceChangeNotificationId, setPriceChangeNotificationId] = useState<string | null>(null);
   const [showPriceChangeModal, setShowPriceChangeModal] = useState(false);
   const { availability } = useAvailability(item.product?.id);
+  const { addToWishlist, isAdding: isAddingToWishlist, loginDialog } = useWishlistAddWithAuth();
 
   // Handler for cart notifications
   const handleCartNotification = useCallback(
@@ -132,6 +134,13 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
       setPriceChange(null);
     }
     setShowPriceChangeModal(false);
+  };
+
+  const handleAddToWishlist = () => {
+    const productId = item.product?.id;
+    if (!productId || isAddingToWishlist) return;
+
+    addToWishlist(productId, item.quantity);
   };
 
   return (
@@ -240,7 +249,16 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
             )}
           </div>
           {showQty && (
-            <Button variant="link" size="small" className="normal-case text-sm tracking-normal p-0 justify-start">
+            <Button
+              variant="link"
+              size="small"
+              className="normal-case text-sm tracking-normal p-0 justify-start gap-2"
+              onClick={handleAddToWishlist}
+              disabled={!item.product?.id || isAddingToWishlist}
+              aria-busy={isAddingToWishlist || undefined}
+              data-testid={`cart-item-add-to-wishlist-${item.product?.id}`}
+            >
+              {isAddingToWishlist && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
               {t('addToWishlist')}
             </Button>
           )}
@@ -352,6 +370,7 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
           onDone={onItemPriceChangeDone}
         />
       )}
+      {loginDialog}
     </div>
   );
 }

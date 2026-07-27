@@ -150,3 +150,10 @@ A drift-guard test (`src/components/theme/theme-layer-provider-agnostic.drift.te
 - **Theme Customization (operator-facing recipe)**: [`theme-customization.md`](./theme-customization.md)
 - **Design Source**: Figma storefront design system (context tokens mirror Figma naming)
 - **ADR-0001**: CMS providers integrated solely through adapters (theme layer is a leaf, no provider coupling)
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [UI Components](./ui-components.md)
+- [Rendering: SSR / SSG / ISR](./rendering-ssr-ssg-isr.md)
+- [Project Structure](./project-structure.md)

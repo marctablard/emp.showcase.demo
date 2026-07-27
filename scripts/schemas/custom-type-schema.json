@@ -1,0 +1,37 @@
+{
+  "id": "cfg_Customtype",
+  "name": {
+    "en": "Custom Type Config"
+  },
+  "attributes": [
+    {
+      "key": "myId",
+      "name": {
+        "en": "My ID"
+      },
+      "type": "TEXT",
+      "metadata": {
+        "readOnly": false,
+        "localized": false,
+        "required": false,
+        "nullable": false
+      }
+    },
+    {
+      "key": "myId2",
+      "name": {
+        "en": "My ID 2"
+      },
+      "type": "BOOLEAN",
+      "metadata": {
+        "readOnly": true,
+        "localized": false,
+        "required": false,
+        "nullable": true
+      }
+    }
+  ],
+  "types": [
+    "CUSTOM_TYPE"
+  ]
+}

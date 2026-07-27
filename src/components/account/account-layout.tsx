@@ -9,7 +9,6 @@ import {
   ClipboardCheck,
   CreditCard,
   FileText,
-  Gauge,
   HandHelping,
   History,
   LayoutDashboard,
@@ -39,7 +38,9 @@ interface AccountLayoutProps {
 export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
   const t = useTranslations('account');
   const [showSidebarOffcanvas, setShowSidebarOffcanvas] = useState(false);
-  const isDesktop = useBreakpoint('lg');
+  // Persistent account rail is expected to be visible starting at 1024px (the 'md' breakpoint);
+  // below that width the off-canvas mobile menu is used instead.
+  const isDesktop = useBreakpoint('md');
 
   // Toggle sidebar offcanvas visibility
   const toggleSidebarOffcanvas = () => {
@@ -126,11 +127,6 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
           icon: <PackageMinus className="h-6 w-6" />,
           counter: 1,
         },
-        {
-          href: '/account/quick-order',
-          title: t('sidebar.items.quickOrder'),
-          icon: <Gauge className="h-6 w-6" />,
-        },
       ],
     },
     {
@@ -197,8 +193,8 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
   ];
 
   return (
-    <div className="lg:mx-9">
-      {breadcrumbs && <UiBreadcrumb items={breadcrumbs} className="max-w-6xl mx-auto px-4 lg:px-9 md:gap-x-6" />}
+    <div className="md:mx-9">
+      {breadcrumbs && <UiBreadcrumb items={breadcrumbs} className="max-w-6xl mx-auto px-4 md:px-9 md:gap-x-6" />}
 
       {/* Mobile Menu Button - only visible on mobile */}
       {!isDesktop && (

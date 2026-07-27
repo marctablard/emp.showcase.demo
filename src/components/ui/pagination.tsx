@@ -37,7 +37,7 @@ function PaginationLink({ disabled, className, isActive, ...props }: PaginationL
       data-active={isActive}
       aria-disabled={disabled || false}
       className={cn(
-        'inline-flex items-center justify-center gap-3 whitespace-nowrap min-w-10 h-10 p-2 cursor-pointer uppercase text-action-button tracking-widest transition-all rounded-button shrink-0 [&_svg]:shrink-0 bg-transparent text-text-action border-width-button border-transparent disabled:border-border-disabled hover:border-border-action-hover hover:bg-surface-action-hover-2 hover:text-text-action-hover outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:border-border-action',
+        'inline-flex items-center justify-center gap-3 whitespace-nowrap min-w-10 h-10 p-2 cursor-pointer uppercase text-action-button tracking-widest transition-all rounded-button shrink-0 [&_svg]:shrink-0 bg-transparent text-text-action border-width-button border-transparent disabled:border-border-disabled hover:border-border-action-hover hover:bg-surface-action-hover-2 hover:text-text-action-hover outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:border-border-action',
         isActive && 'border-border-action',
         disabled && 'pointer-events-none bg-surface-disabled text-text-on-disabled [&_svg]:pointer-events-none',
         className,

@@ -5,11 +5,15 @@ export interface MarkedTextProps {
   keyword?: string;
 }
 
-export function MarkedText({ text, keyword = '<mark>' }: MarkedTextProps) {
+export function MarkedText({ text, keyword = '' }: MarkedTextProps) {
   const safeText = typeof text === 'string' ? text : String(text ?? '');
   const safeKeyword = typeof keyword === 'string' ? keyword : String(keyword ?? '');
-  const parts = safeText
-    .replace(new RegExp(safeKeyword.trim().split(' ').join('|'), 'gi'), (match) => `<mark>${match}</mark>`)
+  const trimmedKeyword = safeKeyword.trim();
+  const source = trimmedKeyword
+    ? safeText.replace(new RegExp(trimmedKeyword.split(' ').join('|'), 'gi'), (match) => `<mark>${match}</mark>`)
+    : safeText;
+
+  const parts = source
     .split('<mark>')
     .map((texts) => texts.split('</mark>'))
     .flat();

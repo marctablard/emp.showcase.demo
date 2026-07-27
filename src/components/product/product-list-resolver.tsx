@@ -9,11 +9,14 @@ export interface ProductMinimal {
   quantity: number;
   unitPrice: number;
   currency: string;
+  grossUnitPrice?: number;
+  netUnitPrice?: number;
 }
 
 interface ProductListResolverProps {
-  items: ProductMinimal[];
-  className?: string;
+  readonly items: ProductMinimal[];
+  readonly className?: string;
+  readonly showGrossUnderNet?: boolean;
 }
 
 const extractProductIdFromYrn = (yrn?: string) => {
@@ -22,7 +25,7 @@ const extractProductIdFromYrn = (yrn?: string) => {
   return parts[parts.length - 1] || yrn;
 };
 
-export function ProductListResolver({ items, className }: ProductListResolverProps) {
+export function ProductListResolver({ items, className, showGrossUnderNet }: ProductListResolverProps) {
   const { l10n } = useL10n();
   const productIds = (items || [])
     .map((it) => it.productId || extractProductIdFromYrn(it.itemYrn))
@@ -46,10 +49,12 @@ export function ProductListResolver({ items, className }: ProductListResolverPro
       quantity: it.quantity,
       unitPrice: it.unitPrice,
       currency: it.currency,
+      grossUnitPrice: it.grossUnitPrice,
+      netUnitPrice: it.netUnitPrice,
       imageUrl: product?.images?.[0]?.url || null,
       href: product?.id ? `/product/${product.id}` : undefined,
     };
   });
 
-  return <ProductList items={listItems} className={className} />;
+  return <ProductList items={listItems} className={className} showGrossUnderNet={showGrossUnderNet} />;
 }

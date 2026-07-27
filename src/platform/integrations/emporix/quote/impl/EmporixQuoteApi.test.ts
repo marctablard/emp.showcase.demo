@@ -1,3 +1,4 @@
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../../config';
 import EmporixQuoteApi from './EmporixQuoteApi';
@@ -20,6 +21,7 @@ const mockConfig: EmporixConfig = {
 describe('EmporixQuoteApi', () => {
   let quoteApi: EmporixQuoteApi;
   let mockApiClient: jest.Mocked<EmporixApiInvoker>;
+  let logger: jest.Mocked<LoggerService>;
 
   beforeEach(() => {
     mockApiClient = {
@@ -31,7 +33,17 @@ describe('EmporixQuoteApi', () => {
       }),
     } as unknown as jest.Mocked<EmporixApiInvoker>;
 
-    quoteApi = new EmporixQuoteApi(mockApiClient, mockConfig);
+    logger = {
+      trace: jest.fn(),
+      debug: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      fatal: jest.fn(),
+      child: jest.fn(),
+    } as unknown as jest.Mocked<LoggerService>;
+
+    quoteApi = new EmporixQuoteApi(mockApiClient, mockConfig, logger);
   });
 
   describe('getQuotes', () => {
