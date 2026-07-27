@@ -54,8 +54,8 @@ const approvalStyleItemMissingGross: ProductListItem = {
 
 function normalizeText(value: string): string {
   return value
-    .replace(/[\u00A0\u202F]/g, ' ')
-    .replace(/\s+/g, ' ')
+    .replaceAll(/[\u00A0\u202F]/g, ' ')
+    .replaceAll(/\s+/g, ' ')
     .trim();
 }
 
