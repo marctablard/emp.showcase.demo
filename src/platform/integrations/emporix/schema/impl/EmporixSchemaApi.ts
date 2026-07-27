@@ -109,13 +109,14 @@ class EmporixSchemaApi implements IEmporixSchemaApi {
     return buildPaginatedResponse(searchParams, response);
   }
 
-  async getCustomEntity(type: string, instanceId: string): Promise<EmporixCustomEntity | null> {
+  async getCustomEntity(type: string, instanceId: string, cacheSeconds?: number): Promise<EmporixCustomEntity | null> {
     const response = await this.apiClient.authenticatedFetch(
       `/schema/${this.config.tenant}/custom-entities/${type}/instances/${instanceId}`,
       { method: 'GET' },
       'service',
       undefined,
       createSchemaMetrics('/schema/{tenant}/custom-entities/{id}/instances/{id}'),
+      cacheSeconds,
     );
 
     if (!response.ok) {
