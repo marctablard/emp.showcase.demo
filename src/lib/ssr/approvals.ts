@@ -31,20 +31,31 @@ export const getApprovalById = cache(async (approvalId: string): Promise<Approva
   }
 });
 
+export interface SsrApprovalsPageResult {
+  items: Approval[];
+  totalCount?: number;
+}
+
 /**
  * Get all approvals for the current customer with optional pagination
  * This function is cached to prevent multiple approval fetches in a single request
  */
-export const getApprovals = cache(async (pageNumber?: number, pageSize?: number): Promise<Approval[] | undefined> => {
-  try {
-    const approvalService = getApprovalService();
-    const approvals = await approvalService.getApprovals(pageNumber, pageSize, DEFAULT_APPROVAL_SORT);
-    return approvals;
-  } catch (error) {
-    getLogger().error(
-      { error: error instanceof Error ? error.message : String(error), pageSize, pageNumber },
-      'SSR getApprovals failed',
-    );
-    return undefined;
-  }
-});
+export const getApprovals = cache(
+  async (pageNumber?: number, pageSize?: number, sort?: string): Promise<SsrApprovalsPageResult | undefined> => {
+    try {
+      const approvalService = getApprovalService();
+      const { items, totalCount } = await approvalService.getApprovals(
+        pageNumber,
+        pageSize,
+        sort ?? DEFAULT_APPROVAL_SORT,
+      );
+      return { items, totalCount };
+    } catch (error) {
+      getLogger().error(
+        { error: error instanceof Error ? error.message : String(error), pageSize, pageNumber },
+        'SSR getApprovals failed',
+      );
+      return undefined;
+    }
+  },
+);

@@ -1,4 +1,5 @@
 import { inject } from 'inversify';
+import { compareByPosition } from '@/lib/category/category-tree-utils';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCategoryApi } from '@/platform/integrations/emporix/category/EmporixCategoryApi';
 import type { EmporixCategory, EmporixCategoryTree } from '@/platform/integrations/emporix/model';
@@ -290,9 +291,10 @@ export class EmporixCategoryService implements CategoryService {
       }
 
       if (trees.length > 0) {
-        const mapped = trees.map((t) => mapEmporixCategoryTreeToCategory(t));
-        const order = new Map(trees.map((t, index) => [t.id, index]));
-        return mapped.sort((x, y) => (order.get(x.id) ?? 999) - (order.get(y.id) ?? 999));
+        return trees
+          .slice()
+          .sort(compareByPosition)
+          .map((t) => mapEmporixCategoryTreeToCategory(t));
       }
 
       if (listed.length > 0) {

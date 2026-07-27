@@ -3,7 +3,7 @@
 import { cache } from 'react';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Order } from '@/platform/services/model/order/order';
-import type { OrderService } from '@/platform/services/order/OrderService';
+import type { OrderPageResponse, OrderService } from '@/platform/services/order/OrderService';
 import ssr from '@/platform/ssr';
 
 /**
@@ -34,18 +34,30 @@ export const getOrderById = cache(async (orderId: string): Promise<Order | null 
  * This function is cached to prevent multiple order fetches in a single request
  */
 export const getOrders = cache(async (pageSize?: number, pageNumber?: number): Promise<Order[] | undefined> => {
-  try {
-    const orderService = getOrderService();
-    const orders = await orderService.getCustomerOrders(pageSize, pageNumber);
-    return orders;
-  } catch (error) {
-    getLogger().error(
-      { error: error instanceof Error ? error.message : String(error), pageSize, pageNumber },
-      'SSR getOrders failed',
-    );
-    return undefined;
-  }
+  const page = await getOrdersPage(pageSize, pageNumber);
+  return page?.items;
 });
+
+export const getOrdersPage = cache(
+  async (
+    pageSize?: number,
+    pageNumber?: number,
+    sort?: string,
+    query?: string,
+  ): Promise<OrderPageResponse | undefined> => {
+    try {
+      const orderService = getOrderService();
+      const page = await orderService.getCustomerOrdersPage(pageSize, pageNumber, sort, query);
+      return page;
+    } catch (error) {
+      getLogger().error(
+        { error: error instanceof Error ? error.message : String(error), pageSize, pageNumber, sort, query },
+        'SSR getOrdersPage failed',
+      );
+      return undefined;
+    }
+  },
+);
 
 /**
  * Get available status transitions for an order

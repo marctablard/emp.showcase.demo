@@ -2,17 +2,24 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import { buildSearchQuery } from '@/platform/integrations/emporix/common/util/common';
+import { createOrderRequestKey } from '@/lib/order/create-order-request-key';
 import type { Order } from '@/platform/services/model/order/order';
 import { useOrderStore } from '@/providers/StoreProvider';
 
 interface UseOrdersOptions {
   initialOrders?: Order[];
+  initialTotalCount?: number;
   pageSize?: number;
   pageNumber?: number;
-  filters?: Record<string, any>;
   query?: string;
+  sort?: string;
   forceRefresh?: boolean;
+  initialRequest?: {
+    pageSize?: number;
+    pageNumber?: number;
+    sort?: string;
+    query?: string;
+  };
 }
 
 interface UseOrdersResult {
@@ -22,6 +29,7 @@ interface UseOrdersResult {
   // Status
   loading: boolean;
   error: Error | null;
+  totalCount?: number;
 
   // Pagination
   pageSize: number;
@@ -29,24 +37,12 @@ interface UseOrdersResult {
   setPageSize: (size: number) => void;
   setPageNumber: (page: number) => void;
 
-  // Filtering
-  filters: Record<string, any>;
-  setFilters: (filters: Record<string, any>) => void;
-
   // Utility
   refetchOrders: () => Promise<void>;
 }
 
-function createOrderQueryKey(searchQuery: { query: string; body: unknown }, freeTextQuery?: string): string {
-  return JSON.stringify({
-    query: searchQuery.query,
-    body: searchQuery.body,
-    search: freeTextQuery ?? null,
-  });
-}
-
 /**
- * Hook for managing collections of orders with pagination, filtering, and searching
+ * Hook for managing collections of orders with pagination and searching
  * This is now a simple pass-through to the order store
  *
  * @param options Configuration options for the hook
@@ -55,74 +51,102 @@ function createOrderQueryKey(searchQuery: { query: string; body: unknown }, free
 export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
   const {
     initialOrders = undefined,
+    initialTotalCount,
     pageSize: initialPageSize = 50,
     pageNumber: initialPageNumber = 1,
-    filters: initialFilters = {},
     query: searchQuery,
+    sort,
     forceRefresh = false,
+    initialRequest,
   } = options;
 
   const {
     getOrders: getStoreOrders,
+    getTotalCount: getStoreTotalCount,
     setOrders: setStoreOrders,
     getLoading: getStoreLoading,
     getError: getStoreError,
     fetchOrders: storeFetchOrders,
   } = useOrderStore();
 
-  // Local state for pagination and filters
+  // Local state for pagination
   const [pageSize, setPageSize] = useState<number>(initialPageSize);
   const [pageNumber, setPageNumber] = useState<number>(initialPageNumber);
-  const [filters, setFilters] = useState<Record<string, any>>(initialFilters);
+  const [appliedSearchQuery, setAppliedSearchQuery] = useState(searchQuery);
 
-  // Generate query key for current parameters
-  const query = buildSearchQuery({
-    page: pageNumber,
-    size: pageSize,
-    criteria: filters,
-  });
-  const queryKey = createOrderQueryKey(query, searchQuery);
+  // Reset to page one synchronously in the same render whenever the search
+  // query transitions (including clearing it back to empty). We derive this
+  // from committed state (not ref mutation during render) to avoid concurrent
+  // render leakage while still preventing {new query, old page} requests.
+  const didSearchQueryChange = appliedSearchQuery !== searchQuery;
+  let effectivePageNumber = pageNumber;
+  if (didSearchQueryChange) {
+    effectivePageNumber = 1;
+  }
 
   useEffect(() => {
-    // Initialize with initialOrders if provided and not already in store
-    if (initialOrders && !getStoreOrders(queryKey) && !getStoreLoading(queryKey)) {
-      setStoreOrders(queryKey, initialOrders);
+    if (!didSearchQueryChange) {
+      return;
+    }
+
+    setAppliedSearchQuery(searchQuery);
+
+    if (pageNumber !== 1) {
+      setPageNumber(1);
+    }
+  }, [didSearchQueryChange, pageNumber, searchQuery]);
+
+  // Generate query key for current request parameters.
+  const queryKey = createOrderRequestKey(pageSize, effectivePageNumber, searchQuery, sort);
+  const shouldHydrateFromInitialOrders =
+    Boolean(initialOrders) &&
+    effectivePageNumber === (initialRequest?.pageNumber ?? initialPageNumber) &&
+    pageSize === (initialRequest?.pageSize ?? initialPageSize) &&
+    searchQuery === initialRequest?.query &&
+    sort === initialRequest?.sort;
+
+  useEffect(() => {
+    // Keep the initial request cache in sync with SSR data on mount.
+    if (shouldHydrateFromInitialOrders && initialOrders && !getStoreLoading(queryKey)) {
+      setStoreOrders(queryKey, initialOrders, initialTotalCount);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialOrders, queryKey]);
+  }, [initialOrders, initialTotalCount, queryKey, shouldHydrateFromInitialOrders]);
 
   // Get current state from store
-  const orders = getStoreOrders(queryKey) || initialOrders;
+  const orders = getStoreOrders(queryKey) || (shouldHydrateFromInitialOrders ? initialOrders : undefined);
+  const totalCount = getStoreTotalCount(queryKey) ?? (shouldHydrateFromInitialOrders ? initialTotalCount : undefined);
   const loading = getStoreLoading(queryKey);
   const error = getStoreError(queryKey);
 
   // Re-fetch orders; honours the configurable `forceRefresh` flag (default: false)
   const refetchOrders = useCallback(async () => {
     try {
-      await storeFetchOrders(pageSize, pageNumber, filters, forceRefresh, searchQuery);
+      await storeFetchOrders(pageSize, effectivePageNumber, forceRefresh, searchQuery, sort);
     } catch (err) {
       // Error is already handled in the store
-      getLogger().error({ err, pageSize, pageNumber }, 'Error in refetchOrders');
+      getLogger().error({ err, pageSize, pageNumber: effectivePageNumber }, 'Error in refetchOrders');
     }
-  }, [pageSize, pageNumber, filters, forceRefresh, searchQuery, storeFetchOrders]);
+  }, [pageSize, effectivePageNumber, forceRefresh, searchQuery, sort, storeFetchOrders]);
 
-  // Auto-fetch when parameters change and we don't have data
+  // Auto-fetch when parameters change and we don't have data, unless the current
+  // request key already has a stored error; explicit refetch and changed request
+  // keys (which start with no stored error) remain valid retry paths.
   useEffect(() => {
-    if (!orders && !loading) {
+    if (!orders && !loading && !error) {
       refetchOrders();
     }
-  }, [pageSize, pageNumber, filters, searchQuery, orders, loading, refetchOrders]);
+  }, [pageSize, effectivePageNumber, searchQuery, orders, loading, error, refetchOrders]);
 
   return {
     orders,
     loading,
     error,
+    totalCount,
     pageSize,
-    pageNumber,
+    pageNumber: effectivePageNumber,
     setPageSize,
     setPageNumber,
-    filters,
-    setFilters,
     refetchOrders,
   };
 };

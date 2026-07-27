@@ -57,6 +57,16 @@ describe('BatteryIncludedConfig', () => {
       collection: 'customer.emporix.showcasedevnew',
     });
 
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'BATTERY_INCLUDED',
+        tenant: 'showcasedev',
+        collection: 'customer.emporix.showcasedevnew',
+        apiKeyPresent: true,
+      }),
+      'Resolved BatteryIncluded runtime configuration',
+    );
+
     expect(emporixApiInvoker.authenticatedFetch).toHaveBeenCalledWith(
       '/indexing/showcasedev/public/configurations/BATTERY_INCLUDED',
       expect.objectContaining({

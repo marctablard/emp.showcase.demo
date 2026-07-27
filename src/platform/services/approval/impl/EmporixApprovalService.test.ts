@@ -34,7 +34,7 @@ describe('EmporixApprovalService', () => {
         },
       ]),
       createApproval: jest.fn().mockResolvedValue({ id: 'approval-1' }),
-      getApprovals: jest.fn().mockResolvedValue([]),
+      getApprovals: jest.fn().mockResolvedValue({ items: [], totalCount: 0 }),
     };
 
     mockApprovalMapper = {
@@ -124,36 +124,39 @@ describe('EmporixApprovalService', () => {
   });
 
   it('logs only aggregate approval identifiers before mapping', async () => {
-    mockApprovalApi.getApprovals.mockResolvedValueOnce([
-      {
-        id: 'approval-1',
-        resourceType: 'QUOTE',
-        action: 'CHECKOUT',
-        status: 'PENDING',
-        resource: { id: 'quote-1' },
-        requestor: {
-          userId: 'requestor-1',
-          firstName: 'Requester',
-          lastName: 'One',
-          email: 'requestor@example.com',
-        },
-        approver: {
-          userId: 'approver-1',
-          firstName: 'Approver',
-          lastName: 'One',
-          email: 'approver@example.com',
-        },
-        comment: 'Please review',
-        metadata: {
-          createdAt: '2026-06-01T10:00:00.000Z',
-          updatedAt: '2026-06-01T11:00:00.000Z',
-          version: 3,
-        },
-      } as never,
-    ]);
+    mockApprovalApi.getApprovals.mockResolvedValueOnce({
+      items: [
+        {
+          id: 'approval-1',
+          resourceType: 'QUOTE',
+          action: 'CHECKOUT',
+          status: 'PENDING',
+          resource: { id: 'quote-1' },
+          requestor: {
+            userId: 'requestor-1',
+            firstName: 'Requester',
+            lastName: 'One',
+            email: 'requestor@example.com',
+          },
+          approver: {
+            userId: 'approver-1',
+            firstName: 'Approver',
+            lastName: 'One',
+            email: 'approver@example.com',
+          },
+          comment: 'Please review',
+          metadata: {
+            createdAt: '2026-06-01T10:00:00.000Z',
+            updatedAt: '2026-06-01T11:00:00.000Z',
+            version: 3,
+          },
+        } as never,
+      ],
+      totalCount: 1,
+    });
     mockApprovalMapper.mapToService.mockReturnValueOnce({ id: 'approval-1' } as never);
 
-    await approvalService.getApprovals(1, 60, 'createdAt:desc');
+    const result = await approvalService.getApprovals(1, 60, 'createdAt:desc');
 
     expect(mockLogger.info).toHaveBeenCalledWith(
       {
@@ -167,5 +170,6 @@ describe('EmporixApprovalService', () => {
       'Emporix approvals list response summary',
     );
     expect(mockApprovalMapper.mapToService).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ items: [{ id: 'approval-1' }], totalCount: 1 });
   });
 });

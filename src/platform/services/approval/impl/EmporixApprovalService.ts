@@ -73,16 +73,21 @@ export class EmporixApprovalService implements ApprovalService {
    * @param pageSize Optional page size (default: 60)
    * @param sort Optional sort parameter
    * @param query Optional query parameter for filtering
-   * @returns Promise with array of approvals
+   * @returns Promise with the approval items and, when available, the server-authoritative total count
    */
   async getApprovals(
     pageNumber: number = 1,
     pageSize: number = 60,
     sort?: string,
     query?: string,
-  ): Promise<Approval[]> {
+  ): Promise<{ items: Approval[]; totalCount?: number }> {
     // Call the API
-    const emporixApprovals = await this.approvalApi.getApprovals(pageNumber, pageSize, sort, query);
+    const { items: emporixApprovals, totalCount } = await this.approvalApi.getApprovals(
+      pageNumber,
+      pageSize,
+      sort,
+      query,
+    );
 
     this.logger.info(
       {
@@ -97,7 +102,10 @@ export class EmporixApprovalService implements ApprovalService {
     );
 
     // Map each approval to service model
-    return emporixApprovals.map((approval) => this.approvalMapper.mapToService(approval));
+    return {
+      items: emporixApprovals.map((approval) => this.approvalMapper.mapToService(approval)),
+      totalCount,
+    };
   }
 
   /**

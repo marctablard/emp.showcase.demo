@@ -105,6 +105,16 @@ class BatteryIncludedConfig implements IBatteryIncludedConfig {
         throw new Error('Emporix indexing configuration is missing BatteryIncluded searchKey or indexName');
       }
 
+      this.logger.info(
+        {
+          provider: BATTERY_INCLUDED_PROVIDER,
+          tenant: this.emporixConfig.tenant,
+          collection,
+          apiKeyPresent: Boolean(apiKey),
+        },
+        'Resolved BatteryIncluded runtime configuration',
+      );
+
       return {
         apiKey,
         collection,

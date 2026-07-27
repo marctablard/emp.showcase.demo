@@ -38,6 +38,8 @@ describe('CatalogPublishedRootCategoryService', () => {
   });
 
   it('returns cached ids within TTL without calling API again', async () => {
+    // We use a site code that is present in the standard test environment configuration (.env.test / .env),
+    // such as default 'main'. If user changes the .env.test file, this test may fail. In that case, update the site code below to a valid configured storefront site code.
     const getCatalogs = jest.fn().mockResolvedValue({
       items: [{ categoryIds: ['x'] }],
       page: 1,
@@ -47,8 +49,8 @@ describe('CatalogPublishedRootCategoryService', () => {
     const catalogApi = { getCatalogs, getCatalog: jest.fn() } as unknown as EmporixCatalogApi;
 
     const svc = new CatalogPublishedRootCategoryService(catalogApi, logger);
-    await svc.getRootCategoryIdsForSite('fw-site');
-    await svc.getRootCategoryIdsForSite('fw-site');
+    await svc.getRootCategoryIdsForSite('main');
+    await svc.getRootCategoryIdsForSite('main');
     expect(getCatalogs).toHaveBeenCalledTimes(1);
   });
 

@@ -14,21 +14,100 @@ function appendQuoteFilterParam(queryParams: URLSearchParams, key: string, value
   queryParams.append(key, value);
 }
 
+interface UseQuotesOptions extends SearchParams<Quote> {
+  /** Total item count seeded from SSR, used to compute pagination before the first client fetch. */
+  initialTotalCount?: number;
+  /** The exact params SSR used to fetch `initialQuotes`, used to decide if the initial client fetch can be skipped. */
+  initialRequest?: {
+    page?: number;
+    size?: number;
+    sort?: string;
+    query?: string;
+    filters?: SearchParams<Quote>['filters'];
+  };
+}
+
+function sortStrings(values: string[]): string[] {
+  return [...values].sort((a, b) => a.localeCompare(b));
+}
+
+function normalizeQuoteFilters(filters?: SearchParams<Quote>['filters']): string | undefined {
+  if (!filters) {
+    return undefined;
+  }
+
+  const sortedTopLevel = Object.entries(filters)
+    .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+    .map(([key, value]) => {
+      if (Array.isArray(value)) {
+        return [key, sortStrings(value)];
+      }
+
+      if (typeof value === 'object' && value !== null) {
+        const sortedNested = Object.entries(value)
+          .sort(([nestedKeyA], [nestedKeyB]) => nestedKeyA.localeCompare(nestedKeyB))
+          .map(([nestedKey, nestedValue]) => [
+            nestedKey,
+            Array.isArray(nestedValue) ? sortStrings(nestedValue) : nestedValue,
+          ]);
+        return [key, sortedNested];
+      }
+
+      return [key, value];
+    });
+
+  return JSON.stringify(sortedTopLevel);
+}
+
 /**
  * Hook for fetching quotes
  * @param initialQuotes Optional initial quotes data (from SSR)
  * @param params Optional search params for client-side filtering
  */
-export function useQuotes(initialQuotes?: Quote[], params?: SearchParams<Quote>) {
-  const [loading, setLoading] = useState<boolean>(!initialQuotes);
+export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
+  const hasFetchedRef = useRef(false);
+  const page = params?.page;
+  const size = params?.size;
+  const sort = params?.sort;
+  const searchQuery = params?.query;
+  const filters = params?.filters;
+  const initialTotalCount = params?.initialTotalCount;
+  const initialRequest = params?.initialRequest;
+  const normalizedFilters = normalizeQuoteFilters(filters);
+  const normalizedInitialRequestFilters = normalizeQuoteFilters(initialRequest?.filters);
+
+  const canReuseInitialData =
+    !hasFetchedRef.current &&
+    !!initialQuotes &&
+    (page ?? 0) === (initialRequest?.page ?? 0) &&
+    size === initialRequest?.size &&
+    sort === initialRequest?.sort &&
+    searchQuery === initialRequest?.query &&
+    normalizedFilters === normalizedInitialRequestFilters;
+
+  const [loading, setLoading] = useState<boolean>(!canReuseInitialData);
   const [error, setError] = useState<Error | null>(null);
   const [quotes, setQuotes] = useState<Quote[]>(initialQuotes || []);
-  const [pagination, setPagination] = useState<{
-    pageNumber: number;
-    pageSize: number;
-    totalPages: number;
-    totalItems: number;
-  }>();
+  const [pagination, setPagination] = useState<
+    | {
+        pageNumber: number;
+        pageSize: number;
+        totalPages: number;
+        totalItems: number;
+      }
+    | undefined
+  >(() => {
+    if (initialTotalCount === undefined) {
+      return undefined;
+    }
+    const pageSize = size || 10;
+    return {
+      pageNumber: page ?? 0,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(initialTotalCount / pageSize)),
+      totalItems: initialTotalCount,
+    };
+  });
   const [availableFilters, setAvailableFilters] = useState<
     Array<{
       id: string;
@@ -42,13 +121,8 @@ export function useQuotes(initialQuotes?: Quote[], params?: SearchParams<Quote>)
     }>
   >([]);
 
-  const page = params?.page;
-  const size = params?.size;
-  const sort = params?.sort;
-  const searchQuery = params?.query;
-  const filters = params?.filters;
-
   const fetchQuotes = useCallback(async () => {
+    hasFetchedRef.current = true;
     try {
       setLoading(true);
       setError(null);
@@ -111,16 +185,12 @@ export function useQuotes(initialQuotes?: Quote[], params?: SearchParams<Quote>)
     await fetchQuotes();
   }, [fetchQuotes]);
 
-  // Skip only the very first fetch when SSR data is available and no custom params override the defaults
-  const hasCustomParams = !!(params?.query || params?.page || params?.size || params?.sort || params?.filters);
-  const isFirstRender = useRef(!!initialQuotes && !hasCustomParams);
+  // Skip only the initial fetch when SSR data matches the exact params it was fetched with.
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
+    if (!canReuseInitialData) {
+      fetchQuotes();
     }
-    fetchQuotes();
-  }, [fetchQuotes]);
+  }, [canReuseInitialData, fetchQuotes]);
 
   return {
     loading,

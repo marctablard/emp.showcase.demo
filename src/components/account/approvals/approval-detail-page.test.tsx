@@ -2,8 +2,10 @@
  * @jest-environment jsdom
  */
 import '@testing-library/jest-dom';
+import { render, screen } from '@testing-library/react';
 
 const getApprovalById = jest.fn();
+const getCurrentCustomer = jest.fn();
 const mockGetTranslations = jest.fn(
   async ({ namespace }: { namespace: string }) =>
     (key: string) =>
@@ -56,6 +58,10 @@ jest.mock('@/lib/ssr/approvals', () => ({
   getApprovalById: (...args: unknown[]) => getApprovalById(...args),
 }));
 
+jest.mock('@/lib/ssr/customer', () => ({
+  getCurrentCustomer: (...args: unknown[]) => getCurrentCustomer(...args),
+}));
+
 jest.mock('@/lib/ssr/seo', () => ({
   getPageTitle: jest.fn(),
 }));
@@ -67,16 +73,25 @@ const {
 describe('Approval requester detail page', () => {
   beforeEach(() => {
     getApprovalById.mockReset();
-    mockGetTranslations.mockClear();
+    getCurrentCustomer.mockReset();
+    mockGetTranslations.mockReset();
+    mockGetTranslations.mockImplementation(
+      async ({ namespace }: { namespace: string }) =>
+        (key: string) =>
+          `${namespace}.${key}`,
+    );
     redirect.mockClear();
     notFound.mockClear();
   });
 
-  it('redirects QUOTE approvals to the linked quote details page', async () => {
+  it('redirects QUOTE approvals to the linked quote details page for the quote owner', async () => {
+    getCurrentCustomer.mockResolvedValue({ id: 'requestor-1' });
     getApprovalById.mockResolvedValue({
       id: 'approval-quote-1',
       resourceType: 'QUOTE',
       resource: { id: 'quote-1' },
+      approver: { userId: 'approver-1' },
+      requestor: { userId: 'requestor-1' },
     });
 
     await expect(
@@ -84,5 +99,24 @@ describe('Approval requester detail page', () => {
     ).rejects.toThrow('REDIRECT');
 
     expect(redirect).toHaveBeenCalledWith('/main/account/quotes/quote-1');
+  });
+
+  it('renders approval details for the designated approver of a QUOTE approval instead of redirecting to the quote', async () => {
+    getCurrentCustomer.mockResolvedValue({ id: 'approver-1' });
+    getApprovalById.mockResolvedValue({
+      id: 'approval-quote-1',
+      resourceType: 'QUOTE',
+      resource: { id: 'quote-1' },
+      approver: { userId: 'approver-1' },
+      requestor: { userId: 'requestor-1' },
+    });
+
+    const element = await ApprovalDetailPage({
+      params: Promise.resolve({ locale: 'en', site: 'main', id: 'approval-quote-1' }),
+    });
+
+    expect(redirect).not.toHaveBeenCalled();
+    render(element);
+    expect(screen.getByTestId('approval-details')).toHaveTextContent('approval-quote-1');
   });
 });

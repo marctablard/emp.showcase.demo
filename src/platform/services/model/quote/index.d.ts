@@ -54,9 +54,18 @@ export interface QuoteItem {
 
 export interface QuoteItemProduct {
   quantity: number;
-  itemPrice: ApprovalPrice;
+  itemPrice: QuoteItemPrice;
   id: string;
   name?: string | LocalizedString;
+}
+
+export interface QuoteItemPrice {
+  amount: number;
+  currency: string;
+  baseAmount?: number;
+  tax?: number;
+  grossValue?: number;
+  netValue?: number;
 }
 
 export type CreateQuoteInput = EmporixCreateQuoteRequest;

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
+import { CompareView } from '@/app/[site]/[locale]/(default)/compare/compare-view';
 import { getPageTitle } from '@/lib/ssr/seo';
-import { CompareView } from './compare-view';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;

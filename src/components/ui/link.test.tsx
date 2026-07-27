@@ -103,4 +103,26 @@ describe('UiLink', () => {
     fireEvent.click(button);
     expect(onClick).not.toHaveBeenCalled();
   });
+
+  it('renders the table variant with shared no-underline table link styling', () => {
+    render(
+      <UiLink type="Link" href="/account/orders/order-1" variant="table" className="font-bold">
+        Order #1
+      </UiLink>,
+    );
+
+    const link = screen.getByRole('link', { name: 'Order #1' });
+    expect(link).toHaveClass(
+      'no-underline',
+      'hover:no-underline',
+      'cursor-default',
+      'font-secondary',
+      'text-[16px]',
+      'leading-[24px]',
+      'text-text-action',
+      'hover:text-text-action-hover',
+      'font-bold',
+    );
+    expect(link).not.toHaveClass('underline');
+  });
 });

@@ -5,6 +5,7 @@ import {
   getDebugLogger,
   logRequestPayload,
   logResponse,
+  shouldBypassExternalCacheForDebug,
 } from '@/platform/core/utils/debug-utils';
 import type { EmporixConfig } from '../../config';
 import type { FetchMetrics } from '../../model/metrics';
@@ -72,15 +73,43 @@ class EmporixApiInvoker {
     _metrics?: FetchMetrics,
     cacheSeconds?: number,
   ): Promise<Response> {
-    let token: string;
+    const { token, headers } = await this.resolveAuthTokenAndHeaders(options.headers, tokenType, authOptions);
+    this.applyCacheOptions(url, options, cacheSeconds);
 
-    // Add authorization header to the request
-    let headers = {
-      ...options.headers,
+    const finalHeaders = {
+      ...headers,
+      Authorization: `Bearer ${token}`,
     };
-    // Get the appropriate token based on the token type
+
+    return this.fetch(this.normalizeUrl(url), { ...options, headers: finalHeaders });
+  }
+
+  private normalizeHeaders(headers: HeadersInit | undefined): Record<string, string> {
+    if (!headers) {
+      return {};
+    }
+    if (headers instanceof Headers) {
+      return Object.fromEntries(headers.entries());
+    }
+    if (Array.isArray(headers)) {
+      return Object.fromEntries(headers);
+    }
+    return { ...headers };
+  }
+
+  private async resolveAuthTokenAndHeaders(
+    originalHeaders: HeadersInit | undefined,
+    tokenType: 'public' | 'session' | 'customer-saas' | 'ai' | 'service',
+    authOptions?: {
+      credentials?: { username: string; password: string };
+      scopes?: string[];
+    },
+  ): Promise<{ token: string; headers: Record<string, string> }> {
+    let token: string;
+    let headers: Record<string, string> = this.normalizeHeaders(originalHeaders);
+
     switch (tokenType) {
-      case 'public':
+      case 'public': {
         const publicToken = await this.tokenManager.getPublicToken(this.config.tenant, this.config.clientId);
         token = publicToken.accessToken;
         headers = {
@@ -88,41 +117,16 @@ class EmporixApiInvoker {
           ...this.addPublicHeaders(publicToken),
         };
         break;
+      }
       case 'customer-saas':
       case 'session':
-      case 'ai':
-        const sessionToken = await this.tokenManager.getSessionToken(
-          this.config.tenant,
-          this.config.clientId,
-          authOptions?.credentials,
-        );
-        token = sessionToken.accessToken;
-        if (tokenType === 'customer-saas' || tokenType === 'ai') {
-          if (sessionToken.saasToken) {
-            headers = {
-              ...headers,
-              ...this.addCustomerHeaders(sessionToken),
-            };
-          } else {
-            throw new Error('No SaaS token available');
-          }
-          if (tokenType === 'ai') {
-            const headersObj = headers as Record<string, string>;
-            if (!headersObj['session-id']) {
-              headers = {
-                ...headers,
-                'session-id': `${sessionToken.sessionId}`,
-              };
-            }
-          }
-        } else {
-          headers = {
-            ...headers,
-            ...this.addSessionHeaders(sessionToken),
-          };
-        }
+      case 'ai': {
+        const sessionResolution = await this.resolveSessionTokenAndHeaders(headers, tokenType, authOptions);
+        token = sessionResolution.token;
+        headers = sessionResolution.headers;
         break;
-      case 'service':
+      }
+      case 'service': {
         if (!this.config.serverClientId || !this.config.serverClientSecret) {
           throw new Error('Service Credentials not available');
         }
@@ -133,36 +137,83 @@ class EmporixApiInvoker {
           authOptions?.scopes,
         );
         break;
+      }
       default:
         throw new Error(`Unknown token type: ${tokenType}`);
     }
 
-    // Caching is opt-in. Callers enable it per-endpoint via `cacheSeconds` or by
-    // setting `options.cache` / `options.next` explicitly. Writes are always uncached.
-    {
-      const method = (options.method || 'GET').toUpperCase();
-      const isWriteMethod = method !== 'GET' && method !== 'HEAD';
+    return { token, headers };
+  }
 
-      if (isWriteMethod) {
-        options['cache'] = 'no-store';
-        delete (options as Record<string, unknown>)['next'];
-      } else if (!options['cache'] && !options['next'] && cacheSeconds !== undefined) {
-        options['cache'] = 'force-cache';
-        options['next'] = { revalidate: cacheSeconds };
+  private async resolveSessionTokenAndHeaders(
+    originalHeaders: HeadersInit,
+    tokenType: 'session' | 'customer-saas' | 'ai',
+    authOptions?: {
+      credentials?: { username: string; password: string };
+      scopes?: string[];
+    },
+  ): Promise<{ token: string; headers: Record<string, string> }> {
+    const sessionToken = await this.tokenManager.getSessionToken(
+      this.config.tenant,
+      this.config.clientId,
+      authOptions?.credentials,
+    );
+
+    let headers: Record<string, string> = this.normalizeHeaders(originalHeaders);
+
+    if (tokenType === 'customer-saas' || tokenType === 'ai') {
+      if (!sessionToken.saasToken) {
+        throw new Error('No SaaS token available');
       }
+
+      headers = {
+        ...headers,
+        ...this.addCustomerHeaders(sessionToken),
+      };
+
+      if (tokenType === 'ai' && !headers['session-id']) {
+        headers = {
+          ...headers,
+          'session-id': `${sessionToken.sessionId}`,
+        };
+      }
+    } else {
+      headers = {
+        ...headers,
+        ...this.addSessionHeaders(sessionToken),
+      };
     }
 
-    // Add authorization header to the request
-    headers = {
-      ...headers,
-      Authorization: `Bearer ${token}`,
+    return {
+      token: sessionToken.accessToken,
+      headers,
     };
+  }
 
-    if (url.startsWith('/')) {
-      url = url.substring(1);
+  private applyCacheOptions(url: string, options: RequestInit, cacheSeconds?: number): void {
+    const method = (options.method || 'GET').toUpperCase();
+    const isWriteMethod = method !== 'GET' && method !== 'HEAD';
+    const cacheBypassForDebug = shouldBypassExternalCacheForDebug(`${this.config.baseUrl}/${url}`, {
+      callType: 'external',
+    });
+
+    if (isWriteMethod || cacheBypassForDebug) {
+      options['cache'] = 'no-store';
+      delete (options as Record<string, unknown>)['next'];
+      return;
     }
 
-    return this.fetch(url, { ...options, headers });
+    if (!options['cache'] && !options['next'] && cacheSeconds !== undefined) {
+      options['cache'] = 'force-cache';
+      options['next'] = { revalidate: cacheSeconds };
+    }
+  }
+
+  private normalizeUrl(url: string): string {
+    if (url.startsWith('/')) {
+      return url.substring(1);
+    }
+    return url;
   }
 
   async fetch(url: string, options: RequestInit = {}): Promise<Response> {

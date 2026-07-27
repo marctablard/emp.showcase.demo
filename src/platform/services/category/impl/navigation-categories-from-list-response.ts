@@ -1,3 +1,4 @@
+import { compareByPosition } from '@/lib/category/category-tree-utils';
 import type { EmporixCategory } from '@/platform/integrations/emporix/model';
 import type { EmporixLocalizedString } from '@/platform/integrations/emporix/model/common';
 import type { Category } from '@/platform/services/model/category';
@@ -41,9 +42,7 @@ function mapRowWithEmbeddedChildren(
   if (!Array.isArray(subs) || subs.length === 0) {
     return base;
   }
-  const children = subs
-    .map((sub) => mapRowWithEmbeddedChildren(sub, mapEmporixToCategory))
-    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  const children = subs.map((sub) => mapRowWithEmbeddedChildren(sub, mapEmporixToCategory)).sort(compareByPosition);
   return { ...base, children };
 }
 
@@ -59,7 +58,5 @@ export function mapListCategoryRowsToNavigationCategories(
     return [];
   }
   const topLevel = selectTopLevelCategoryListRows(listed);
-  return topLevel
-    .map((row) => mapRowWithEmbeddedChildren(row, mapEmporixToCategory))
-    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  return topLevel.map((row) => mapRowWithEmbeddedChildren(row, mapEmporixToCategory)).sort(compareByPosition);
 }

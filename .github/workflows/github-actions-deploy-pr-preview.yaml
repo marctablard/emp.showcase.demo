@@ -28,13 +28,15 @@ env:
 
 jobs:
   build_and_deploy_pr_preview:
+    # Dependabot-triggered PR runs do not receive Actions secrets (VERCEL_* / tokens would be empty), so skip them.
+    if: ${{ github.actor != 'dependabot[bot]' }}
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: 'npm'
           cache-dependency-path: package-lock.json
       - name: Align npm with packageManager
@@ -45,8 +47,26 @@ jobs:
           safe-chain setup-ci
       - name: Install Vercel CLI
         run: npm i -g vercel
+      # Preview-only, time-boxed override: skips safe-chain's minimum-package-age
+      # gate (only) to unblock an urgent security patch. All other safe-chain
+      # malware protections and the npm audit step below stay enforced, and a
+      # non-safe-chain install failure still fails this step. See
+      # docs/run-build-deploy.md ("Preview-Only Safe-Chain Minimum-Package-Age
+      # Override") before copying this to any other workflow.
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --safe-chain-skip-minimum-package-age
+      # Runs the real `npm audit --audit-level=high` (unchanged) and captures
+      # its JSON report; the exit code of that command is intentionally not
+      # what fails this step. scripts/verify-audit-policy.mjs re-derives the
+      # pass/fail decision from the report itself, so CI still fails on any
+      # high/critical advisory, malformed report, or script error — the ONLY
+      # narrow exception is GHSA-mh99-v99m-4gvg (brace-expansion DoS), which
+      # expires 2026-08-08. See docs/run-build-deploy.md ("npm audit Policy
+      # Exceptions") before touching this step or the script's allowlist.
+      - name: Run npm audit
+        run: |
+          npm audit --audit-level=high --json > audit-report.json || true
+          node scripts/verify-audit-policy.mjs audit-report.json
       # - name: Install Playwright Browsers
       #   run: npx playwright install --with-deps
       - name: Pull Vercel environment information

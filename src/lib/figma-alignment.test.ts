@@ -142,7 +142,8 @@ describe('account — sidebar persistent from 768 (Figma: only mobile uses the d
   it('quote summary cards switch 1→2 at the 576px container step (@xl), not 512 (@lg)', () => {
     const src = read('src/components/account/quotes/quote-summary.tsx');
     expect(src).toContain('@xl:grid-cols-2');
-    expect(src).toContain('@5xl:grid-cols-4');
+    // three cards since the details card was folded into the quote header, so the top step is 3-up
+    expect(src).toContain('@5xl:grid-cols-3');
     expect(src).not.toContain('@lg:grid-cols-2');
   });
 });

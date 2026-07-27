@@ -16,6 +16,15 @@ function sortByPosition(a: Category, b: Category): number {
   if (bPosition === undefined) {
     return -1;
   }
+  if (aPosition === 0 && bPosition === 0) {
+    return 0;
+  }
+  if (aPosition === 0) {
+    return 1;
+  }
+  if (bPosition === 0) {
+    return -1;
+  }
   return aPosition - bPosition;
 }
 

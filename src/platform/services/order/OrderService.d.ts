@@ -1,5 +1,10 @@
 import { Order } from '@/platform/services/model/order/order';
 
+export interface OrderPageResponse {
+  items: Order[];
+  totalCount?: number;
+}
+
 /**
  * Service interface for order management operations.
  * Provides methods to create, retrieve, and update orders.
@@ -50,6 +55,16 @@ export interface OrderService {
    * @returns A promise that resolves to an array of orders
    */
   getCustomerOrders(pageSize?: number, pageNumber?: number, sort?: string, query?: string): Promise<Order[]>;
+
+  /**
+   * Retrieves customer-managed orders with pagination metadata.
+   */
+  getCustomerOrdersPage(
+    pageSize?: number,
+    pageNumber?: number,
+    sort?: string,
+    query?: string,
+  ): Promise<OrderPageResponse>;
 
   /**
    * Updates the status of an order.

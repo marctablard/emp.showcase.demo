@@ -29,9 +29,10 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ lo
   const { locale, id } = await params;
 
   // Get translations
-  const [tAccount, tQuote, quote] = await Promise.all([
+  const [tAccount, tQuote, tQuotes, quote] = await Promise.all([
     getTranslations({ locale, namespace: 'account' }),
     getTranslations({ locale, namespace: 'account.quoteDetails' }),
+    getTranslations({ locale, namespace: 'account.quotesList' }),
     getQuoteById(id),
   ]);
 
@@ -43,15 +44,15 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ lo
   const breadcrumbs = [
     {
       href: '/account',
-      label: tAccount('title'),
+      label: tAccount('accountDetails'),
     },
     {
       href: '/account/quotes',
-      label: tQuote('title'),
+      label: tQuotes('title'),
     },
     {
       href: `/account/quotes/${id}`,
-      label: `${tQuote('title')} #${id}`,
+      label: `${tQuote('headerTitle')} ${id}`,
     },
   ];
 

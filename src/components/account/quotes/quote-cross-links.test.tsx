@@ -4,6 +4,7 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
+import enAccountTranslations from '@/i18n/translations/en/account/index.json';
 import type { Quote } from '@/platform/services/model/quote';
 import { QuoteDetails } from './quote-details';
 import { QuotesTable } from './quotes-table';
@@ -85,8 +86,10 @@ jest.mock('@/components/account/quotes/quote-summary', () => ({
   QuoteSummary: () => <div>QuoteSummary</div>,
 }));
 
+const mockProductListResolver = jest.fn(() => <div>ProductListResolver</div>);
+
 jest.mock('@/components/product/product-list-resolver', () => ({
-  ProductListResolver: () => <div>ProductListResolver</div>,
+  ProductListResolver: (props: unknown) => mockProductListResolver(props),
 }));
 
 jest.mock('@/components/ui/link', () => ({
@@ -127,6 +130,8 @@ const baseQuote: Quote = {
           currency: 'EUR',
           baseAmount: 100,
           tax: 20,
+          grossValue: 120,
+          netValue: 100,
         },
       },
     },
@@ -148,9 +153,45 @@ describe('Quote cross-links', () => {
     mockHistory = [];
     mockCheckApprovalPermitted.mockReset();
     mockCheckApprovalPermitted.mockResolvedValue({ permitted: false, approvalId: 'approval-123' });
+    mockProductListResolver.mockClear();
   });
 
-  it('renders the related order link on quote list and detail views when orderId is present', () => {
+  it('uses exact sentence case for the English Quote netValue label', () => {
+    expect(enAccountTranslations.quoteDetails.netValue).toBe('Net value of goods');
+  });
+
+  it('anchors the action row flush to the right edge so it stays aligned with the Quote Details surface', () => {
+    render(<QuoteDetails quoteId={baseQuote.id} initialQuote={baseQuote} />);
+
+    const requestChangeButton = screen.getByRole('button', { name: 'account.quoteDetails.requestChange' });
+    const actionRow = requestChangeButton.parentElement;
+
+    expect(actionRow).toHaveClass('ml-auto', 'justify-end');
+    expect(screen.getByRole('button', { name: 'account.quoteDetails.reject' }).parentElement).toBe(actionRow);
+    expect(screen.getByRole('button', { name: 'account.quoteDetails.accept' }).parentElement).toBe(actionRow);
+  });
+
+  it('forwards quote items to ProductListResolver with net-first resolver inputs, preserving the fetching contract', () => {
+    render(<QuoteDetails quoteId={baseQuote.id} initialQuote={baseQuote} />);
+
+    expect(mockProductListResolver).toHaveBeenCalledWith(
+      expect.objectContaining({
+        showGrossUnderNet: true,
+        items: [
+          expect.objectContaining({
+            productId: 'product-1',
+            quantity: 1,
+            unitPrice: 120,
+            currency: 'EUR',
+            grossUnitPrice: 120,
+            netUnitPrice: 100,
+          }),
+        ],
+      }),
+    );
+  });
+
+  it('renders the related order link in the standalone list column and on the detail view when orderId is present', () => {
     const quoteWithOrder = { ...baseQuote, orderId: 'order-123' };
 
     render(
@@ -160,12 +201,12 @@ describe('Quote cross-links', () => {
       </>,
     );
 
-    expect(screen.getAllByText('account.quotesList.relatedOrder')[0]).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: '#order-123' })[0]).toHaveAttribute('href', '/account/orders/order-123');
+    expect(screen.getByRole('columnheader', { name: /account\.quotesList\.relatedOrder/ })).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'order-123' })[0]).toHaveAttribute('href', '/account/orders/order-123');
     expect(screen.getByText('account.quoteDetails.relatedOrder')).toBeInTheDocument();
   });
 
-  it('omits related order UI when orderId is absent', () => {
+  it('omits the related order link (but keeps the standalone column) when orderId is absent', () => {
     render(
       <>
         <QuotesTable quotes={[baseQuote]} />
@@ -173,7 +214,8 @@ describe('Quote cross-links', () => {
       </>,
     );
 
-    expect(screen.queryByText('account.quotesList.relatedOrder')).not.toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: /account\.quotesList\.relatedOrder/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'order-123' })).not.toBeInTheDocument();
     expect(screen.queryByText('account.quoteDetails.relatedOrder')).not.toBeInTheDocument();
   });
 
@@ -196,8 +238,15 @@ describe('Quote cross-links', () => {
     expect(screen.getByText('Ada Lovelace (CUSTOMER)')).toBeInTheDocument();
     expect(screen.getByText('Status Changed to In Progress')).toBeInTheDocument();
     expect(screen.getByText(/Please adjust delivery window/)).toBeInTheDocument();
-    expect(screen.getByText('Reason')).toBeInTheDocument();
-    expect(screen.getByText('DELIVERY_TIME_LATE')).toBeInTheDocument();
+    expect(screen.getByText('account.quoteDetails.quoteHistory')).toBeInTheDocument();
+    expect(screen.getByText('account.quoteDetails.changeDate')).toBeInTheDocument();
+    expect(screen.getByText('account.quoteDetails.event')).toBeInTheDocument();
+    expect(screen.getByText('account.quoteDetails.changedBy')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        (_, element) => element?.tagName === 'P' && Boolean(element.textContent?.includes('DELIVERY_TIME_LATE')),
+      ),
+    ).toBeInTheDocument();
 
     const historyTimestamp = screen.getByText(/02\.06\.2026/);
 
@@ -208,7 +257,7 @@ describe('Quote cross-links', () => {
     render(<QuoteDetails quoteId="quote-open-1" initialQuote={{ ...baseQuote, status: 'OPEN' }} />);
 
     expect(await screen.findByText('account.quoteDetails.relatedApproval')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '#approval-123' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'approval-123' })).toHaveAttribute(
       'href',
       '/account/approval/approval-123',
     );

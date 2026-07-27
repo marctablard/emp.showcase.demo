@@ -120,7 +120,9 @@ const customJestConfig = {
         '^server-only$': '<rootDir>/jest/mocks/server-only.js',
       },
       testPathIgnorePatterns: commonJestConfig.testPathIgnorePatterns,
-      transformIgnorePatterns: ['/node_modules/(?!(next-intl|use-intl)/)'],
+      transformIgnorePatterns: [
+        '/node_modules/(?!(next-intl|use-intl|@formatjs|intl-messageformat|icu-minify|icu-messageformat-parser|icu-skeleton-parser|intl-localematcher|@schummar/icu-type-parser)/)',
+      ],
       transform: {
         '^.+\\.(ts|tsx)$': [
           '@swc/jest',
@@ -173,7 +175,9 @@ const customJestConfig = {
       testEnvironment: 'node',
       testMatch: ['**/components/**/?(*.)+(spec|test).ts?(x)'],
       setupFilesAfterEnv: ['<rootDir>/jest.platform.setup.js'],
-      transformIgnorePatterns: ['/node_modules/(?!(next-intl|use-intl)/)'],
+      transformIgnorePatterns: [
+        '/node_modules/(?!(next-intl|use-intl|@formatjs|intl-messageformat|icu-minify|icu-messageformat-parser|icu-skeleton-parser|intl-localematcher|@schummar/icu-type-parser)/)',
+      ],
       transform: {
         '^.+\\.tsx?$': [
           'ts-jest',
@@ -214,7 +218,9 @@ const customJestConfig = {
       testEnvironment: 'node',
       testMatch: ['**/platform/**/?(*.)+(spec|test).ts?(x)'],
       setupFilesAfterEnv: ['<rootDir>/jest.platform.setup.js'],
-      transformIgnorePatterns: ['/node_modules/(?!(next-intl|use-intl)/)'],
+      transformIgnorePatterns: [
+        '/node_modules/(?!(next-intl|use-intl|@formatjs|intl-messageformat|icu-minify|icu-messageformat-parser|icu-skeleton-parser|intl-localematcher|@schummar/icu-type-parser)/)',
+      ],
       transform: {
         '^.+\\.tsx?$': [
           'ts-jest',
@@ -253,9 +259,12 @@ const customJestConfig = {
         '**/lib/**/?(*.)+(spec|test).ts?(x)',
         '**/stores/**/?(*.)+(spec|test).ts?(x)',
         '**/app/api/**/?(*.)+(spec|test).ts?(x)',
+        '**/scripts/**/?(*.)+(spec|test).ts?(x)',
       ],
       setupFilesAfterEnv: ['<rootDir>/jest.platform.setup.js'],
-      transformIgnorePatterns: ['/node_modules/(?!(next-intl|use-intl)/)'],
+      transformIgnorePatterns: [
+        '/node_modules/(?!(next-intl|use-intl|@formatjs|intl-messageformat|icu-minify|icu-messageformat-parser|icu-skeleton-parser|intl-localematcher|@schummar/icu-type-parser)/)',
+      ],
       transform: {
         '^.+\\.(ts|tsx)$': [
           '@swc/jest',
