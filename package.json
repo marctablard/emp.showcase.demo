@@ -115,6 +115,7 @@
   "devDependencies": {
     "@builder.io/partytown": "0.10.3",
     "@eslint/eslintrc": "3.3.1",
+    "@next/bundle-analyzer": "16.2.5",
     "@next/eslint-plugin-next": "16.2.11",
     "@playwright/test": "1.56.1",
     "@swc/core": "1.15.0",
@@ -135,6 +136,7 @@
     "@types/web-push": "3.6.4",
     "chokidar": "4.0.3",
     "concurrently": "9.2.4",
+    "cross-env": "10.1.0",
     "dotenv": "17.2.3",
     "eslint": "9.31.0",
     "eslint-config-next": "16.2.11",

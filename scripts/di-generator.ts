@@ -1254,7 +1254,13 @@ async function generateContainerFile(
     throw new Error(`Error reading template file ${templatePath}: ${error}`);
   }
 
+  // `server-only` poisons the module for the browser bundle, so importing the server or SSR
+  // container from client code fails the build instead of leaking server code at runtime.
+  // The client container must not carry it — it is meant to load in the browser.
+  const serverOnlyImport = type === 'client' ? '' : "import 'server-only';\n\n";
+
   const output = template
+    .replace('{{serverOnlyImport}}', serverOnlyImport)
     .replace('{{imports}}', allImports)
     .replace('{{moduleArray}}', moduleArray)
     .replace('{{aliasBindings}}', aliasBindings)
