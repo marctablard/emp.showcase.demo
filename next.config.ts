@@ -48,7 +48,7 @@ switch (process.env.NEXT_SERVER_OUTPUTMODE) {
     );
 }
 
-let nextConfig: NextConfig = {
+const baseConfig: NextConfig = {
   // When another package-lock.json exists above this repo (e.g. ~/package-lock.json), Turbopack
   // can infer the wrong workspace root and resolve `tailwindcss` / `next-intl` from the parent
   // tree instead of this project's node_modules — breaking `next dev` with bogus module-not-found.
@@ -161,8 +161,7 @@ const withBundleAnalyzer = createBundleAnalyzer({
   openAnalyzer: false,
 });
 
-// Apply plugins in sequence
-nextConfig = withNextIntlSplit(nextConfig);
-nextConfig = withBundleAnalyzer(nextConfig);
+// Apply plugins in sequence: i18n splitting first, then the bundle analyzer wrapper.
+const nextConfig = withBundleAnalyzer(withNextIntlSplit(baseConfig));
 
 export default nextConfig;
