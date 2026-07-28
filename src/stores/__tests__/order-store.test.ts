@@ -1,8 +1,9 @@
+import { createOrderRequestKey } from '@/lib/order/create-order-request-key';
 import { createOrderStore } from '../order-store';
 
 // Mock the API calls
 jest.mock('@/lib/client/orders', () => ({
-  fetchOrders: jest.fn(),
+  fetchOrdersPage: jest.fn(),
 }));
 
 jest.mock('@/lib/logger/use-logger-client', () => ({
@@ -16,12 +17,7 @@ jest.mock('@/lib/logger/use-logger-client', () => ({
   })),
 }));
 
-jest.mock('@/platform/integrations/emporix/common/util/common', () => ({
-  buildSearchQuery: jest.fn(),
-}));
-
-const mockFetchOrders = require('@/lib/client/orders').fetchOrders;
-const { buildSearchQuery: mockBuildSearchQuery } = require('@/platform/integrations/emporix/common/util/common');
+const mockFetchOrdersPage = require('@/lib/client/orders').fetchOrdersPage;
 const { getLogger: mockGetLogger } = require('@/lib/logger/use-logger-client');
 const mockLogger = {
   error: jest.fn(),
@@ -36,16 +32,10 @@ describe('OrderStore', () => {
   let store: ReturnType<typeof createOrderStore>;
 
   beforeEach(() => {
-    mockFetchOrders.mockClear();
+    mockFetchOrdersPage.mockClear();
     Object.values(mockLogger).forEach((fn) => fn.mockClear());
     mockGetLogger.mockReset();
     mockGetLogger.mockReturnValue(mockLogger);
-    mockBuildSearchQuery.mockImplementation(
-      (params: { page: number; size: number; criteria: Record<string, unknown> }) => ({
-        query: `page=${params.page}&size=${params.size}`,
-        body: JSON.stringify(params.criteria),
-      }),
-    );
     store = createOrderStore();
   });
 
@@ -55,11 +45,11 @@ describe('OrderStore', () => {
       { id: '2', status: 'CONFIRMED', total: { amount: 200, currency: 'EUR' } },
     ];
 
-    mockFetchOrders.mockResolvedValue(mockOrders);
+    mockFetchOrdersPage.mockResolvedValue({ items: mockOrders, totalCount: 2 });
 
     // Start two concurrent fetches with the same parameters
-    const promise1 = store.getState().fetchOrders(10, 1, {});
-    const promise2 = store.getState().fetchOrders(10, 1, {});
+    const promise1 = store.getState().fetchOrders(10, 1);
+    const promise2 = store.getState().fetchOrders(10, 1);
 
     // Both should resolve to the same result
     const [result1, result2] = await Promise.all([promise1, promise2]);
@@ -68,48 +58,50 @@ describe('OrderStore', () => {
     expect(result2).toEqual(mockOrders);
 
     // But the API should only be called once
-    expect(mockFetchOrders).toHaveBeenCalledTimes(1);
+    expect(mockFetchOrdersPage).toHaveBeenCalledTimes(1);
   });
 
   it('should handle different queries separately', async () => {
     const mockOrders1 = [{ id: '1', status: 'CREATED', total: { amount: 100, currency: 'EUR' } }];
     const mockOrders2 = [{ id: '2', status: 'CONFIRMED', total: { amount: 200, currency: 'EUR' } }];
 
-    mockFetchOrders.mockResolvedValueOnce(mockOrders1).mockResolvedValueOnce(mockOrders2);
+    mockFetchOrdersPage
+      .mockResolvedValueOnce({ items: mockOrders1, totalCount: 1 })
+      .mockResolvedValueOnce({ items: mockOrders2, totalCount: 1 });
 
     // Fetch with different parameters
-    const promise1 = store.getState().fetchOrders(10, 1, {});
-    const promise2 = store.getState().fetchOrders(20, 1, {});
+    const promise1 = store.getState().fetchOrders(10, 1);
+    const promise2 = store.getState().fetchOrders(20, 1);
 
     await Promise.all([promise1, promise2]);
 
     // API should be called twice for different queries
-    expect(mockFetchOrders).toHaveBeenCalledTimes(2);
+    expect(mockFetchOrdersPage).toHaveBeenCalledTimes(2);
   });
 
   it('should return cached data when available', async () => {
     const mockOrders = [{ id: '1', status: 'CREATED', total: { amount: 100, currency: 'EUR' } }];
 
-    mockFetchOrders.mockResolvedValue(mockOrders);
+    mockFetchOrdersPage.mockResolvedValue({ items: mockOrders, totalCount: 1 });
 
     // First fetch
-    await store.getState().fetchOrders(10, 1, {});
+    await store.getState().fetchOrders(10, 1);
 
     // Second fetch should return cached data without API call
-    const cachedResult = await store.getState().fetchOrders(10, 1, {});
+    const cachedResult = await store.getState().fetchOrders(10, 1);
 
     expect(cachedResult).toEqual(mockOrders);
-    expect(mockFetchOrders).toHaveBeenCalledTimes(1);
+    expect(mockFetchOrdersPage).toHaveBeenCalledTimes(1);
   });
 
   it('should handle errors properly', async () => {
     const error = new Error('API Error');
-    mockFetchOrders.mockRejectedValue(error);
+    mockFetchOrdersPage.mockRejectedValue(error);
 
-    await expect(store.getState().fetchOrders(10, 1, {})).rejects.toThrow('API Error');
+    await expect(store.getState().fetchOrders(10, 1)).rejects.toThrow('API Error');
 
     // Check that error state is set
-    const queryKey = 'page=1&size=10{}';
+    const queryKey = createOrderRequestKey(10, 1);
     expect(store.getState().getError(queryKey)).toEqual(error);
     expect(store.getState().getLoading(queryKey)).toBe(false);
 
@@ -123,27 +115,29 @@ describe('OrderStore', () => {
       { id: '2', status: 'CREATED', total: { amount: 50, currency: 'EUR' } },
     ];
 
-    mockFetchOrders.mockResolvedValueOnce(mockOrders).mockResolvedValueOnce(updatedOrders);
+    mockFetchOrdersPage
+      .mockResolvedValueOnce({ items: mockOrders, totalCount: 1 })
+      .mockResolvedValueOnce({ items: updatedOrders, totalCount: 2 });
 
     // First fetch populates cache
-    await store.getState().fetchOrders(10, 1, {});
-    expect(mockFetchOrders).toHaveBeenCalledTimes(1);
+    await store.getState().fetchOrders(10, 1);
+    expect(mockFetchOrdersPage).toHaveBeenCalledTimes(1);
 
     // Second fetch with forceRefresh should call API again
-    const result = await store.getState().fetchOrders(10, 1, {}, true);
+    const result = await store.getState().fetchOrders(10, 1, true);
 
-    expect(mockFetchOrders).toHaveBeenCalledTimes(2);
+    expect(mockFetchOrdersPage).toHaveBeenCalledTimes(2);
     expect(result).toEqual(updatedOrders);
   });
 
   it('should still deduplicate concurrent forceRefresh calls', async () => {
     const mockOrders = [{ id: '1', status: 'CREATED', total: { amount: 100, currency: 'EUR' } }];
 
-    mockFetchOrders.mockResolvedValue(mockOrders);
+    mockFetchOrdersPage.mockResolvedValue({ items: mockOrders, totalCount: 1 });
 
     // Start two concurrent forceRefresh fetches with the same parameters
-    const promise1 = store.getState().fetchOrders(10, 1, {}, true);
-    const promise2 = store.getState().fetchOrders(10, 1, {}, true);
+    const promise1 = store.getState().fetchOrders(10, 1, true);
+    const promise2 = store.getState().fetchOrders(10, 1, true);
 
     const [result1, result2] = await Promise.all([promise1, promise2]);
 
@@ -151,6 +145,91 @@ describe('OrderStore', () => {
     expect(result2).toEqual(mockOrders);
 
     // API should only be called once due to ongoingFetches deduplication
-    expect(mockFetchOrders).toHaveBeenCalledTimes(1);
+    expect(mockFetchOrdersPage).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears a stored error for the same request key after a forced successful refetch', async () => {
+    const failedQuery = 'boom';
+    const queryKey = createOrderRequestKey(10, 1, failedQuery);
+    const firstError = new Error('API Error');
+    const recoveredOrders = [{ id: '1', status: 'CREATED', total: { amount: 100, currency: 'EUR' } }];
+
+    mockFetchOrdersPage
+      .mockRejectedValueOnce(firstError)
+      .mockResolvedValueOnce({ items: recoveredOrders, totalCount: 1 });
+
+    await expect(store.getState().fetchOrders(10, 1, false, failedQuery)).rejects.toThrow('API Error');
+    expect(store.getState().getError(queryKey)).toEqual(firstError);
+
+    await expect(store.getState().fetchOrders(10, 1, true, failedQuery)).resolves.toEqual(recoveredOrders);
+    expect(store.getState().getError(queryKey)).toBeNull();
+    expect(store.getState().getOrders(queryKey)).toEqual(recoveredOrders);
+  });
+
+  it('keeps a different request key independent when the first key has a stored error', async () => {
+    const failedQuery = 'boom';
+    const freshQuery = 'fresh';
+    const failedQueryKey = createOrderRequestKey(10, 1, failedQuery);
+    const freshQueryKey = createOrderRequestKey(10, 1, freshQuery);
+    const firstError = new Error('API Error');
+    const freshOrders = [{ id: '2', status: 'CONFIRMED', total: { amount: 200, currency: 'EUR' } }];
+
+    mockFetchOrdersPage.mockRejectedValueOnce(firstError).mockResolvedValueOnce({ items: freshOrders, totalCount: 1 });
+
+    await expect(store.getState().fetchOrders(10, 1, false, failedQuery)).rejects.toThrow('API Error');
+    expect(store.getState().getError(failedQueryKey)).toEqual(firstError);
+
+    await expect(store.getState().fetchOrders(10, 1, false, freshQuery)).resolves.toEqual(freshOrders);
+
+    expect(store.getState().getError(freshQueryKey)).toBeNull();
+    expect(store.getState().getError(failedQueryKey)).toEqual(firstError);
+    expect(store.getState().getOrders(freshQueryKey)).toEqual(freshOrders);
+  });
+
+  it('stores total count per request key', async () => {
+    const mockOrders = [{ id: '1', status: 'CREATED', total: { amount: 100, currency: 'EUR' } }];
+    mockFetchOrdersPage.mockResolvedValue({ items: mockOrders, totalCount: 42 });
+
+    await store.getState().fetchOrders(10, 2, false, 'status:CREATED', 'created:desc');
+
+    const queryKey = createOrderRequestKey(10, 2, 'status:CREATED', 'created:desc');
+
+    expect(store.getState().getTotalCount(queryKey)).toBe(42);
+  });
+
+  it('does not overwrite existing total count with undefined for the same query key', () => {
+    const queryKey = createOrderRequestKey(10, 1);
+    const firstOrders = [{ id: '1', status: 'CREATED', total: { amount: 100, currency: 'EUR' } }];
+    const updatedOrders = [{ id: '1', status: 'CONFIRMED', total: { amount: 100, currency: 'EUR' } }];
+
+    store.getState().setOrders(queryKey, firstOrders as never, 42);
+    store.getState().setOrders(queryKey, updatedOrders as never, undefined);
+
+    expect(store.getState().getTotalCount(queryKey)).toBe(42);
+  });
+
+  it('overwrites existing total count with 0 for the same query key', () => {
+    const queryKey = createOrderRequestKey(10, 1);
+    const firstOrders = [{ id: '1', status: 'CREATED', total: { amount: 100, currency: 'EUR' } }];
+    const updatedOrders = [{ id: '1', status: 'CONFIRMED', total: { amount: 100, currency: 'EUR' } }];
+
+    store.getState().setOrders(queryKey, firstOrders as never, 42);
+    store.getState().setOrders(queryKey, updatedOrders as never, 0);
+
+    expect(store.getState().getTotalCount(queryKey)).toBe(0);
+  });
+
+  it('does not retain orders after reset when setOrders was called before', () => {
+    const queryKey = createOrderRequestKey(10, 1);
+    const orders = [{ id: '1', status: 'CREATED', total: { amount: 100, currency: 'EUR' } }];
+
+    store.getState().setOrders(queryKey, orders as never, 1);
+    expect(store.getState().getOrders(queryKey)).toEqual(orders);
+
+    store.getState().reset();
+
+    expect(store.getState().orders).toEqual({});
+    expect(store.getState().orderQueries).toEqual({});
+    expect(store.getState().getOrders(queryKey)).toBeUndefined();
   });
 });

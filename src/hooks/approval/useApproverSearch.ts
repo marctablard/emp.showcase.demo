@@ -1,16 +1,17 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useToast } from '@/hooks/ui/useToast';
 import { searchApprovalUsers } from '@/lib/client/approval';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import type { ApprovalUser } from '@/platform/services/model/approval';
+import type { ApprovalAction, ApprovalResourceType, ApprovalUser } from '@/platform/services/model/approval';
 
 interface UseApproverSearchProps {
-  resourceType?: string;
+  resourceType?: ApprovalResourceType;
   resourceId?: string;
-  action?: string;
+  action?: ApprovalAction;
+  enabled?: boolean;
 }
 
 interface UseApproverSearchResult {
@@ -27,6 +28,7 @@ export function useApproverSearch({
   resourceType = 'CART',
   resourceId = '',
   action = 'CHECKOUT',
+  enabled = false,
 }: UseApproverSearchProps = {}): UseApproverSearchResult {
   const [approvers, setApprovers] = useState<ApprovalUser[] | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(false);
@@ -59,6 +61,14 @@ export function useApproverSearch({
       setLoading(false);
     }
   }, [resourceType, resourceId, action, t, toast]);
+
+  useEffect(() => {
+    if (!enabled || !resourceId) {
+      return;
+    }
+
+    void fetchApprovers();
+  }, [enabled, resourceId, fetchApprovers]);
 
   return {
     approvers,

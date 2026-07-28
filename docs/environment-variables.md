@@ -312,6 +312,37 @@ NEXT_DEBUG_API_PAYLOAD=true
 # NEXT_PUBLIC_DEBUG_API_LEVEL=ALL
 ```
 
+### UI Behavior
+
+#### `NEXT_PUBLIC_DIALOGS_CLOSE_ON_OUTSIDE_CLICK`
+
+Controls whether dialog modals can be dismissed by clicking outside of them:
+
+- `true` — Clicking outside a dialog closes it (standard Radix UI behavior)
+- Not set / any other value — Outside-click close is disabled; users must use the X button, Cancel button, or Escape key (default)
+
+This affects all components using `DialogContent` from `src/components/ui/dialog.tsx`. Individual dialog instances can override this setting via the `closeOnOutsideClick` prop on `DialogContent`.
+
+**Example:**
+```env
+# Enable standard close-on-outside-click behavior
+NEXT_PUBLIC_DIALOGS_CLOSE_ON_OUTSIDE_CLICK=true
+
+# Disable (default when variable is not set)
+# NEXT_PUBLIC_DIALOGS_CLOSE_ON_OUTSIDE_CLICK=false
+```
+
+**Per-component override:**
+```tsx
+// Force-enable outside click for a specific dialog, regardless of the env variable
+<DialogContent closeOnOutsideClick={true}>...</DialogContent>
+
+// Force-disable outside click for a specific dialog
+<DialogContent closeOnOutsideClick={false}>...</DialogContent>
+```
+
+> **Note:** This does not affect DropdownMenus, Popovers, Sheets, or Drawers — only Dialog modals. Escape key remains functional regardless of this setting.
+
 ### Application defaults (required `NEXT_PUBLIC_*`)
 
 Runtime defaults for **currency, site, language, country, region, and Emporix unit code** must not be hardcoded in application logic. They are read from public environment variables and exposed through [`src/lib/common/public-default-env.ts`](../src/lib/common/public-default-env.ts).
@@ -456,6 +487,7 @@ NEXT_DEBUG_API_PAYLOAD=false
 
 ## Related Documentation
 
+- [Documentation index](./README.md)
 - [Deployment Process](./deployment-process.md)
 - [Testing Guide](./testing-guide.md)
 - [Storyblok Integration](./storyblok-integration.md)

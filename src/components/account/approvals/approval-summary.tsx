@@ -2,10 +2,11 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { CreditCard, NotebookPen, ReceiptText, Truck } from 'lucide-react';
+import { CreditCard, List, NotebookPen, ReceiptText, Truck } from 'lucide-react';
+import { H5 } from '@/components/ui/h';
 import { SummaryCard, SummaryRow } from '@/components/ui/summary-card';
 import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
-import type { Approval } from '@/platform/services/model/approval';
+import type { Approval, ApprovalResourceItem } from '@/platform/services/model/approval';
 
 interface ApprovalSummaryProps {
   approval: Approval;
@@ -22,7 +23,7 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
     approval.resource.subTotalPrice?.currency ||
     getPublicDefaultCurrency();
 
-  const valueOfGoods = items.reduce((sum: number, it: any) => sum + (it?.itemPrice?.amount || 0), 0);
+  const valueOfGoods = items.reduce((sum: number, it: ApprovalResourceItem) => sum + (it.itemPrice?.amount || 0), 0);
   const shippingCost = details?.shipping?.amount ?? 0;
   const vat = approval.resource.subtotalAggregate?.taxValue ?? 0;
   const total = approval.resource.totalPrice?.amount ?? valueOfGoods + shippingCost + vat;
@@ -30,6 +31,7 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
   const shippingAddress = details?.addresses?.find?.((a: any) => a?.type === 'SHIPPING') || details?.addresses?.[0];
   const billingAddress = details?.addresses?.find?.((a: any) => a?.type === 'BILLING') || details?.addresses?.[1];
   const payment = details?.paymentMethods?.[0];
+  const isQuote = approval.resourceType === 'QUOTE';
 
   const fmt = (amount: number) => new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount);
 
@@ -49,23 +51,95 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
       <span className="text-sm text-text-placeholders">{t('notProvided')}</span>
     );
 
+  const renderQuotePriceRows = (totalLabel: string) => (
+    <div className="space-y-4 text-base font-body text-text-body">
+      <SummaryRow label={t('netValueOfGoods')} mutedLabel>
+        {fmt(valueOfGoods)}
+      </SummaryRow>
+      <SummaryRow label={t('vat')} mutedLabel>
+        {fmt(vat)}
+      </SummaryRow>
+      <SummaryRow label={t('shippingFee')} mutedLabel>
+        {fmt(shippingCost)}
+      </SummaryRow>
+      <div className="flex items-start justify-between gap-4 pt-2">
+        <H5>{totalLabel}</H5>
+        <H5>{fmt(total)}</H5>
+      </div>
+    </div>
+  );
+
+  if (isQuote) {
+    return (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
+          <SummaryCard
+            heading={t('quoteDetails')}
+            className="h-full gap-4 rounded-md p-4 shadow-none"
+            headerClassName="p-0"
+            contentClassName="space-y-4 p-0"
+            icon={<NotebookPen className="h-8 w-8 text-text-action" />}
+            hasHeadline
+          >
+            <div>
+              <div className="text-sm text-text-on-disabled">{t('quoteReference')}</div>
+              <H5>{approval.resource.id}</H5>
+            </div>
+            <div>
+              <div className="text-sm text-text-on-disabled">{t('numberOfProducts')}</div>
+              <H5>{items.length}</H5>
+            </div>
+          </SummaryCard>
+        </div>
+
+        <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
+          <SummaryCard
+            heading={t('basePrice')}
+            className="h-full gap-4 rounded-md p-4 shadow-none"
+            headerClassName="p-0"
+            contentClassName="p-0"
+            icon={<List className="h-8 w-8 text-text-action" />}
+            hasHeadline
+          >
+            {renderQuotePriceRows(t('baseTotal'))}
+          </SummaryCard>
+        </div>
+
+        <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm border-2 border-border-success">
+          <SummaryCard
+            heading={t('quotedPrice')}
+            className="h-full gap-4 rounded-md p-4 shadow-none"
+            headerClassName="p-0"
+            contentClassName="p-0"
+            icon={<ReceiptText className="h-8 w-8 text-text-action" />}
+            hasHeadline
+          >
+            {renderQuotePriceRows(t('quotedTotal'))}
+          </SummaryCard>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
         <SummaryCard
           heading={t('orderOverview')}
-          className="shadow-none rounded-md py-4 h-full gap-2"
-          icon={<ReceiptText className="h-5 w-5 text-text-action" />}
+          className="h-full gap-4 rounded-md p-4 shadow-none"
+          headerClassName="p-0"
+          contentClassName="space-y-4 p-0"
+          icon={<ReceiptText className="h-8 w-8 text-text-action" />}
           hasHeadline
         >
-          <SummaryRow label={t('valueOfGoods')} mutedLabel>
+          <SummaryRow label={t('netValueOfGoods')} mutedLabel>
             {fmt(valueOfGoods)}
-          </SummaryRow>
-          <SummaryRow label={t('shippingCosts')} mutedLabel>
-            {fmt(shippingCost)}
           </SummaryRow>
           <SummaryRow label={t('vat')} mutedLabel>
             {fmt(vat)}
+          </SummaryRow>
+          <SummaryRow label={t('shippingFee')} mutedLabel>
+            {fmt(shippingCost)}
           </SummaryRow>
           <SummaryRow label={t('totalValue')} strong>
             {fmt(total)}
@@ -75,16 +149,18 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
 
       <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
         <SummaryCard
-          heading={t('transport')}
-          className="shadow-none rounded-md py-4 h-full gap-2"
-          icon={<Truck className="h-5 w-5 text-text-action" />}
+          heading={t('shipping')}
+          className="h-full gap-4 rounded-md p-4 shadow-none"
+          headerClassName="p-0"
+          contentClassName="space-y-4 p-0"
+          icon={<Truck className="h-8 w-8 text-text-action" />}
           hasHeadline
         >
-          <SummaryRow label={<span className="font-semibold">{t('transportCondition')}</span>}>
+          <SummaryRow label={<span className="font-semibold">{t('shippingMethod')}</span>}>
             {details?.shipping?.methodName || details?.shipping?.methodId || t('notProvided')}
           </SummaryRow>
           <div>
-            <div className="text-sm font-semibold">{t('deliveryAddress')}</div>
+            <div className="text-sm font-semibold">{t('shippingAddress')}</div>
             {renderAddress(shippingAddress)}
           </div>
         </SummaryCard>
@@ -93,8 +169,10 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
       <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
         <SummaryCard
           heading={t('payment')}
-          className="shadow-none rounded-md py-4 h-full gap-2"
-          icon={<CreditCard className="h-5 w-5 text-text-action" />}
+          className="h-full gap-4 rounded-md p-4 shadow-none"
+          headerClassName="p-0"
+          contentClassName="space-y-4 p-0"
+          icon={<CreditCard className="h-8 w-8 text-text-action" />}
           hasHeadline
         >
           <SummaryRow label={<span className="font-semibold">{t('paymentMethod')}</span>}>
@@ -110,8 +188,10 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
       <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
         <SummaryCard
           heading={t('other')}
-          className="shadow-none rounded-md py-4 h-full gap-2"
-          icon={<NotebookPen className="h-5 w-5 text-text-action" />}
+          className="h-full gap-4 rounded-md p-4 shadow-none"
+          headerClassName="p-0"
+          contentClassName="space-y-4 p-0"
+          icon={<NotebookPen className="h-8 w-8 text-text-action" />}
           hasHeadline
         >
           <div>

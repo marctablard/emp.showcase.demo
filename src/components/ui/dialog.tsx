@@ -40,10 +40,23 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  closeOnOutsideClick,
+  onPointerDownOutside,
+  onInteractOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
+  /**
+   * Whether clicking outside the dialog dismisses it.
+   * Defaults to the NEXT_PUBLIC_DIALOGS_CLOSE_ON_OUTSIDE_CLICK env variable.
+   * When the env variable is absent or not 'true', outside-click close is disabled.
+   * Pass `true` or `false` to override the global setting for a specific dialog instance.
+   */
+  closeOnOutsideClick?: boolean;
 }) {
+  const shouldCloseOnOutsideClick =
+    closeOnOutsideClick ?? process.env.NEXT_PUBLIC_DIALOGS_CLOSE_ON_OUTSIDE_CLICK === 'true';
+
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay>
@@ -53,6 +66,14 @@ function DialogContent({
             'bg-surface-page data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 relative grid w-full max-w-[calc(100%-2rem)] max-h-[calc(100dvh-var(--dialog-safe-top,5.25rem))] overflow-y-auto gap-4 rounded-md border p-4 sm:p-6 shadow-sm duration-200 sm:max-w-lg',
             className,
           )}
+          onPointerDownOutside={(e) => {
+            if (!shouldCloseOnOutsideClick) e.preventDefault();
+            onPointerDownOutside?.(e);
+          }}
+          onInteractOutside={(e) => {
+            if (!shouldCloseOnOutsideClick) e.preventDefault();
+            onInteractOutside?.(e);
+          }}
           {...props}
         >
           {children}

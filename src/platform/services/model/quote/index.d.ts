@@ -9,6 +9,7 @@ import { LocalizedString } from '../common';
  */
 export interface Quote {
   id: string;
+  orderId?: string;
   reference?: string;
   status: QuoteStatus;
   submittedDate: string;
@@ -53,9 +54,18 @@ export interface QuoteItem {
 
 export interface QuoteItemProduct {
   quantity: number;
-  itemPrice: ApprovalPrice;
+  itemPrice: QuoteItemPrice;
   id: string;
   name?: string | LocalizedString;
+}
+
+export interface QuoteItemPrice {
+  amount: number;
+  currency: string;
+  baseAmount?: number;
+  tax?: number;
+  grossValue?: number;
+  netValue?: number;
 }
 
 export type CreateQuoteInput = EmporixCreateQuoteRequest;
@@ -121,10 +131,13 @@ export interface QuoteUpdateRequest {
 export interface QuoteHistoryItem {
   id: string;
   userFullName: string;
+  userType?: QuoteUserType;
   comment: string;
   modifiedAt: string;
   rawModifiedAt?: string;
   fieldChanged: string;
+  statusValue?: string;
+  quoteReason?: string;
 }
 
 export type QuoteHistory = QuoteHistoryItem[];

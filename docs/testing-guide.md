@@ -62,9 +62,16 @@ Unit and integration tests are located alongside the code they test, following a
 
 ### End-to-End Tests (Playwright)
 
-E2E tests are located in the `/e2e` directory at the root of the project. Each test file focuses on a specific feature or user flow:
+E2E tests are located in the `/e2e` directory at the root of the project.
+
+- Root-level specs in `/e2e` are the default environment-agnostic suite and must not depend on tenant-specific env vars or seeded data.
+- Specs in `/e2e/local` are opt-in local tests for tenant/data-dependent scenarios and are excluded from `npm run e2e` by default.
+- Tracked `*.local.spec.ts` files are committed local-only scenarios that stay out of `npm run e2e`; `e2e/auth-site-sync.local.spec.ts` uses a guarded local bootstrap route instead of real login secrets, requires `NEXT_E2E_LOCAL_AUTH_BOOTSTRAP_TOKEN`, and runs on a dedicated localhost lane so it can coexist with a normal dev server on port 3000.
+
+Current default-suite examples:
 
 - `e2e/homepage.spec.ts` - Tests for homepage functionality and locale redirects
+- `e2e/login-dialog-register.spec.ts` - Tests the login dialog to registration flow
 
 ## Dependency Injection in Tests
 
@@ -590,8 +597,16 @@ npm run test -- -t="test name pattern"
 To run Playwright tests, use the following commands:
 
 ```bash
-# Run all Playwright tests
-npx playwright test
+# Run the default environment-agnostic Playwright suite
+npm run e2e
+
+# Run tracked local-only Playwright tests (`*.local.spec.ts`). Set `NEXT_E2E_LOCAL_AUTH_BOOTSTRAP_TOKEN` in `.env` first for the auth bootstrap scenario.
+npm run e2e:local
+
+# Run the credential-free local auth/site sync spec explicitly.
+# This command starts its own localhost:3100 app instance so it can run alongside
+# a normal `npm run dev` session on localhost:3000.
+npm run e2e:auth-sync
 
 # Run tests in a specific browser
 npx playwright test --project=chromium
@@ -601,6 +616,30 @@ npx playwright test --ui
 
 # Run a specific test file
 npx playwright test homepage.spec.ts
+```
+
+### Local Clean-Install Parity Check
+
+`npm run jest` (and `npm run test`) run against whatever `node_modules` already exists on disk — they never reinstall dependencies, so they cannot catch a broken/mismatched lockfile, a dependency that fails Aikido safe-chain's malware or minimum-package-age policy, or a newly-disclosed high severity advisory. That check is a separate command:
+
+```bash
+npm run verify:ci-install
+```
+
+This runs `scripts/verify-safe-chain-install.sh`, which performs a disposable, throwaway-directory install that mirrors the CI dependency step:
+
+1. Copies `package.json`, `package-lock.json`, and `.npmrc` into a temp directory (your real `node_modules` is never touched).
+2. Runs `safe-chain setup-ci` there first, then `npm ci --ignore-scripts` via `npx`, using the project's pinned npm version (`packageManager` in `package.json`) and safe-chain installed on-demand via `npx` (never added as a project dependency), mirroring `.github/workflows/*.yaml` while preserving safe-chain protections.
+3. Runs `npm audit --audit-level=high` against the resulting lockfile.
+
+This repo does not configure npm's own `min-release-age` (see `.npmrc`). Safe-chain still applies its own, independently-controlled minimum release-age policy regardless of repo config, in both this script and CI. A dependency bumped to a version published very recently can therefore still fail this check (or CI) purely on age, even though a plain `npm install`/`npm ci` would succeed — treat that as safe-chain doing its job, not as a reason to weaken the check. A passing run only proves today's lockfile clears safe-chain's current policy and the audit; it says nothing about a later bump of the same package.
+
+Scripts are skipped (`--ignore-scripts`) only because the disposable directory is not a git worktree and the `prepare` (husky) script requires `.git`; this does not affect dependency resolution, safe-chain enforcement, or the audit result, but it does mean this check validates clean resolution, supply-chain policy, and audit only — it is not full lifecycle-script parity with CI, since CI's real `npm ci` runs install scripts and this one intentionally does not. Run this after any change to `package.json`/`package-lock.json`, and do not weaken it (do not lower `--audit-level`, skip safe-chain, or pin an old safe-chain release) to force it to pass — treat a failure as a real dependency issue to resolve.
+
+**Preview-only minimum-package-age override.** The PR preview workflow (`.github/workflows/github-actions-deploy-pr-preview.yaml`) is the one documented exception: its Install dependencies step runs `npm ci --safe-chain-skip-minimum-package-age` to unblock an urgent security patch that safe-chain has not yet aged in. This skips **only** the minimum-package-age gate — malware blocking, `safe-chain setup-ci`, and the subsequent `npm audit --audit-level=high` step are all unchanged, the step still fails on any other install error, and no other workflow uses this override. See `docs/run-build-deploy.md` ("Preview-Only Safe-Chain Minimum-Package-Age Override") for the full policy. To reproduce it locally instead of plain `npm run verify:ci-install`, run:
+
+```bash
+npm run verify:ci-install:preview-override
 ```
 
 ## Best Practices
@@ -632,6 +671,8 @@ Both Jest and Playwright tests are configured to run in the CI pipeline. The con
 2. Failed tests block merging
 3. Test coverage reports are generated
 4. Screenshots and videos are captured for failed Playwright tests
+
+**Jest is not a clean-install/dependency check.** CI installs dependencies with `npm ci` behind Aikido safe-chain before any test step runs; `npm run jest` itself only exercises whatever is already in `node_modules`. Use `npm run verify:ci-install` locally (see [Local Clean-Install Parity Check](#local-clean-install-parity-check)) to validate the dependency install/audit step in isolation.
 
 ## Troubleshooting Common Issues
 
@@ -699,3 +740,10 @@ The testing strategy implemented in the Emporix Showcase project provides compre
 By following the best practices outlined in this guide, particularly around context sharing, proper use of `act()`, and handling asynchronous operations, you can create reliable, maintainable tests that accurately verify your application's behavior.
 
 For more information about the dependency injection system used in tests, refer to the [Dependency Injection Documentation](./dependency-injection.md).
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Testing Strategy](./testing-strategy.md)
+- [Dependency Injection](./dependency-injection.md)
+- [ESLint: exhaustive-deps](./eslint-exhaustive-deps.md)

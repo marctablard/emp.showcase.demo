@@ -1,4 +1,4 @@
-// c:\Workspace\emporix-showcase\src\platform\services\search\SearchService.d.ts
+import type { BatteryIncludedBrowseVariables } from '@/platform/integrations/batteryincluded/model';
 import { SearchParams, SearchResult } from '../model/common';
 import { Product } from '../model/product';
 import { SearchSuggestions } from '../model/search';
@@ -20,10 +20,16 @@ export interface SearchService {
   /**
    * Get highlighted products
    */
-  getHighlights(): Promise<Product[]>;
+  getHighlights(visibility?: BatteryIncludedBrowseVariables): Promise<Product[]>;
 
   /**
    * Get product recommendations based on a product ID
    */
-  getRecommendations(productId: string, locale?: string, site?: string, limit?: number): Promise<Product[]>;
+  getRecommendations(
+    productId: string,
+    locale?: string,
+    site?: string,
+    limit?: number,
+    visibility?: BatteryIncludedBrowseVariables,
+  ): Promise<Product[]>;
 }

@@ -10,8 +10,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme={theme as ToasterProps['theme']}
-      className="toaster group mx-Auto"
+      className="toaster group mx-auto"
       data-x-position="right"
+      expand
+      visibleToasts={9}
       style={
         {
           '--width': '90%',

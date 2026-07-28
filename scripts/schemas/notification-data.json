@@ -1,0 +1,228 @@
+{
+  "id": "STOREFRONT_NOTIFICATION_DATA",
+  "name": {
+    "en": "Notification Data"
+  },
+  "attributes": [
+    {
+      "key": "type",
+      "name": {
+        "en": "Type",
+        "de": "Typ"
+      },
+      "description": {
+        "en": "Notification type (INFO, SUCCESS, WARN)",
+        "de": "Benachrichtigungstyp (INFO, SUCCESS, WARN)"
+      },
+      "type": "ENUM",
+      "metadata": {
+        "required": true
+      },
+      "values": [
+        {
+          "value": "INFO",
+          "name": {
+            "en": "Info",
+            "de": "Info"
+          }
+        },
+        {
+          "value": "SUCCESS",
+          "name": {
+            "en": "Success",
+            "de": "Erfolg"
+          }
+        },
+        {
+          "value": "WARN",
+          "name": {
+            "en": "Warning",
+            "de": "Warnung"
+          }
+        },
+        {
+          "value": "ERROR",
+          "name": {
+            "en": "Error",
+            "de": "Fehler"
+          }
+        }
+      ]
+    },
+    {
+      "key": "notification_code",
+      "name": {
+        "en": "Notification Code",
+        "de": "Benachrichtigungs-Code"
+      },
+      "description": {
+        "en": "Notification code (e.g. SUBSTITUTION_FOUND, PRICE_CHANGED)",
+        "de": "Benachrichtigungs-Code (z.B. SUBSTITUTION_FOUND, PRICE_CHANGED)"
+      },
+      "type": "TEXT",
+      "metadata": {
+        "required": false,
+        "nullable": true
+      }
+    },
+    {
+      "key": "reference_type",
+      "name": {
+        "en": "Reference Type",
+        "de": "Referenz-Typ"
+      },
+      "description": {
+        "en": "Type of entity this notification refers to",
+        "de": "Typ der Entität, auf die sich diese Benachrichtigung bezieht"
+      },
+      "type": "ENUM",
+      "metadata": {
+        "required": false,
+        "nullable": true
+      },
+      "values": [
+        {
+          "value": "CART",
+          "name": {
+            "en": "Cart",
+            "de": "Warenkorb"
+          }
+        },
+        {
+          "value": "CART_ITEM",
+          "name": {
+            "en": "Cart Item",
+            "de": "Warenkorb-Artikel"
+          }
+        },
+        {
+          "value": "CUSTOMER",
+          "name": {
+            "en": "Customer",
+            "de": "Kunde"
+          }
+        },
+        {
+          "value": "COMPANY",
+          "name": {
+            "en": "Company",
+            "de": "Unternehmen"
+          }
+        }
+      ]
+    },
+    {
+      "key": "reference_id",
+      "name": {
+        "en": "Reference ID",
+        "de": "Referenz-ID"
+      },
+      "description": {
+        "en": "ID of the referenced entity",
+        "de": "ID der referenzierten Entität"
+      },
+      "type": "TEXT",
+      "metadata": {
+        "required": false,
+        "nullable": true
+      }
+    },
+    {
+      "key": "recipient_id",
+      "name": {
+        "en": "Recipient ID",
+        "de": "Empfänger-ID"
+      },
+      "description": {
+        "en": "ID of the recipient",
+        "de": "ID des Empfängers"
+      },
+      "type": "TEXT",
+      "metadata": {
+        "required": false,
+        "nullable": true
+      }
+    },
+    {
+      "key": "recipient_type",
+      "name": {
+        "en": "Recipient Type",
+        "de": "Empfänger-Typ"
+      },
+      "description": {
+        "en": "Type of the recipient",
+        "de": "Typ des Empfängers"
+      },
+      "type": "ENUM",
+      "metadata": {
+        "required": true,
+        "nullable": false
+      },
+      "values": [
+        {
+          "value": "SESSION",
+          "name": {
+            "en": "Session",
+            "de": "Sitzung"
+          }
+        },
+        {
+          "value": "CART_OWNER",
+          "name": {
+            "en": "Cart Owner",
+            "de": "Warenkorb-Eigner"
+          }
+        },
+        {
+          "value": "CUSTOMER",
+          "name": {
+            "en": "Customer",
+            "de": "Kunde"
+          }
+        },
+        {
+          "value": "COMPANY",
+          "name": {
+            "en": "Company",
+            "de": "Unternehmen"
+          }
+        }
+      ]
+    },
+    {
+      "key": "message",
+      "name": {
+        "en": "Message",
+        "de": "Nachricht"
+      },
+      "type": "TEXT",
+      "description": {
+        "en": "Notification message",
+        "de": "Benachrichtigungsnachricht"
+      },
+      "metadata": {
+        "required": false,
+        "nullable": true,
+        "localized": true
+      }
+    },
+    {
+      "key": "data_json",
+      "name": {
+        "en": "Data",
+        "de": "Daten"
+      },
+      "description": {
+        "en": "Additional data for the notification",
+        "de": "Zusätzliche Daten für die Benachrichtigung"
+      },
+      "type": "TEXT",
+      "metadata": {
+        "required": false
+      }
+    }
+  ],
+  "types": [
+    "STOREFRONT_NOTIFICATION"
+  ]
+}

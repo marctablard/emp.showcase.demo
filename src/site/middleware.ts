@@ -122,6 +122,23 @@ const NEXT_MIDDLEWARE_PREFIX = 'x-middleware-request-';
 const INTL_LOCALE_HEADER = 'x-next-intl-locale';
 const INTL_MIDDLEWARE_HEADER = NEXT_MIDDLEWARE_PREFIX + INTL_LOCALE_HEADER;
 
+function isProbeProtectedMainRoute(pathname: string, routing: SiteConfig): boolean {
+  if (pathname === '/') {
+    return true;
+  }
+
+  const segments = pathname.split('/').filter(Boolean);
+  if (segments.length === 1) {
+    return (intlRouting.locales ?? []).includes(segments[0]);
+  }
+
+  if (segments.length === 2) {
+    return routing.availableSites.includes(segments[0]) && (intlRouting.locales ?? []).includes(segments[1]);
+  }
+
+  return false;
+}
+
 function handleMisroutedHealthCheck(req: NextRequest): NextResponse {
   const ua = req.headers.get('user-agent') ?? '';
   const xff = req.headers.get('x-forwarded-for') ?? '';
@@ -166,16 +183,17 @@ const withCookies = function (
 export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
   return (req: NextRequest) => {
     const path = req.nextUrl.pathname;
+    const routing = resolveApplicableRouting(req.nextUrl.hostname, routingConfig);
 
-    // Only protect the expensive "main routes"
-    if (path === '/' || /^\/[^/]+\/[^/]+$/.test(path)) {
+    // Only protect actual entry routes; arbitrary two-segment paths such as /json/list
+    // are not app pages and should not be treated as misrouted probes.
+    if (isProbeProtectedMainRoute(path, routing)) {
       if (isLikelyProbe(req)) {
         return handleMisroutedHealthCheck(req);
       }
     }
 
     // First look for the matching routing by Domain
-    const routing = resolveApplicableRouting(req.nextUrl.hostname, routingConfig);
     const resolved = resolveSite(req.nextUrl.pathname, req.cookies, req.headers, routing);
     let { site } = resolved;
     const { appPath } = resolved;

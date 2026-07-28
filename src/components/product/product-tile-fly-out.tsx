@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useL10n } from '@/hooks/useL10n';
 import { type ProductAttributeKey, dk } from '@/i18n/dynamic-key';
 import { Link } from '@/i18n/navigation';
+import { clearMarkHighlights } from '@/lib/common/clear-mark-highlights';
 import { formatCurrency } from '@/lib/utils';
 import type { Product } from '@/platform/services/model/product';
 
@@ -118,9 +119,9 @@ const extractDimensions = (attributes: Record<string, string>) => {
 
 export function ProductTileFlyOut({ product, onProductClick, keyword }: ProductTileProps) {
   const t = useTranslations('product');
-  const { l10n } = useL10n();
+  const { l10n, l10nOrEmpty } = useL10n();
   const [image] = product.images || [];
-  const clickable_id = product.id ? product.id.replaceAll(/<\/?mark>/g, '') : '';
+  const clickable_id = clearMarkHighlights(product.id);
   return (
     <Link href={`/product/${clickable_id}`} onClick={onProductClick}>
       <div className="flex">
@@ -177,6 +178,14 @@ export function ProductTileFlyOut({ product, onProductClick, keyword }: ProductT
             // Calculate how many template attributes we can show (excluding dimensions which will be shown separately)
             const templateCount = Math.max(0, maxTotalAttributes - variantCount - (dimensionsLine ? 1 : 0));
 
+            // Extract unlabelled specifications from the normalized suggest specs to show values directly.
+            // l10nOrEmpty() returns '' (not the L10N_MISSING_LABEL '-' sentinel) when a locale is
+            // missing, so unlabelled specs are correctly detected and '-' placeholders never leak in.
+            const specsWithoutLabel =
+              product.specifications
+                ?.filter((spec) => !l10nOrEmpty(spec.label) && l10nOrEmpty(spec.value))
+                ?.map((spec) => l10nOrEmpty(spec.value)) || [];
+
             return (
               <>
                 {variantAttributes &&
@@ -188,6 +197,11 @@ export function ProductTileFlyOut({ product, onProductClick, keyword }: ProductT
                     false,
                     keyword,
                   )}
+                {specsWithoutLabel.slice(0, 3).map((val, idx) => (
+                  <p key={`spec-${idx}`} className="text-sm text-text-muted">
+                    {markText(val, keyword)}
+                  </p>
+                ))}
                 {dimensionsLine && <p className="text-sm">{markText(dimensionsLine, keyword)}</p>}
                 {filteredTemplateAttributes &&
                   Object.keys(filteredTemplateAttributes).length > 0 &&

@@ -43,6 +43,18 @@ Vercel automatically assigns URLs for development and PR preview deployments.
 
 ## GitHub Actions Workflows
 
+### SonarQube Scan (`sonarqube-scan.yml`)
+
+**Purpose**: Runs static code analysis and security checks.
+
+**Trigger**:
+- Pushes to the `develop` branch
+- Pull requests against the `develop` branch
+
+**Process**:
+1. Checks out the code (full history, `fetch-depth: 0`)
+2. Runs the SonarQube scanner against an internal SonarQube host (`https://sonarqube.<internal-domain>`) using the `SONAR_LOGIN` secret and the `emporix-showcase` project key. This workflow is **internal only** — if packaged for external use, replace the host and project key with placeholders or omit it.
+
 ### 1. PR Preview Workflow (`github-actions-deploy-pr-preview.yml`)
 
 **Purpose**: Creates preview deployments for pull requests.
@@ -59,6 +71,99 @@ Vercel automatically assigns URLs for development and PR preview deployments.
 - Runs Jest tests
 - Deploys to Vercel preview environment
 - Preview URL is automatically assigned by Vercel
+
+#### Reference Example
+
+Below is a representative, self-contained example of the PR-preview workflow. It mirrors
+what we actually run, but **all environment-specific and internal values are replaced with
+placeholders** (see the `# CHANGE ME` comments). If you reuse this workflow, swap the
+placeholders for your own values and store every secret in your GitHub repository/organization
+settings — never commit real tokens, project IDs, internal hostnames, or tenant credentials.
+
+```yaml
+name: Deploy PR preview
+
+on:
+  pull_request:
+    branches:
+      - develop
+    types:
+      - opened
+      - synchronize
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  # CHANGE ME: Vercel org/project identifiers — provide via GitHub secrets, do not hardcode.
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }} # CHANGE ME: your preview project's ID
+
+jobs:
+  build_and_deploy_pr_preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      - name: Install Vercel CLI
+        run: npm i -g vercel
+      - name: Install dependencies
+        run: npm ci
+      - name: Run npm audit
+        run: npm audit --audit-level=high
+      # Playwright browsers install — uncomment to run E2E in CI.
+      # - name: Install Playwright Browsers
+      #   run: npx playwright install --with-deps
+      - name: Pull Vercel environment information
+        # CHANGE ME: VERCEL_TOKEN is a GitHub secret; never inline the token value.
+        run: vercel env pull .env --environment=preview --yes --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Generate files
+        run: npm run generate
+      - name: Run lint
+        run: npm run lint
+      - name: Run jest
+        run: npm run jest
+        env:
+          DOTENV_CONFIG_PATH: .env
+          # CHANGE ME: point to your own API base URL.
+          NEXT_PUBLIC_EMPORIX_BASE_URL: https://api.example.com
+          # CHANGE ME: tenant-specific test credentials — supply via GitHub vars/secrets.
+          NEXT_EMPORIX_TEST_TENANT: ${{ vars.NEXT_EMPORIX_TEST_TENANT }}
+          NEXT_EMPORIX_TEST_CLIENT_ID: ${{ vars.NEXT_EMPORIX_TEST_CLIENT_ID }}
+          NEXT_EMPORIX_TEST_CLIENT_SECRET: ${{ secrets.NEXT_EMPORIX_TEST_CLIENT_SECRET }}
+          # CHANGE ME: integration-specific API key/collection — supply via GitHub vars/secrets.
+          NEXT_PUBLIC_BATTERY_INCLUDED_API_KEY: ${{ secrets.NEXT_PUBLIC_BATTERY_INCLUDED_API_KEY }}
+          NEXT_PUBLIC_BATTERY_INCLUDED_COLLECTION: ${{ vars.NEXT_PUBLIC_BATTERY_INCLUDED_COLLECTION }}
+      # E2E run + report upload — uncomment together with the Playwright install step above.
+      # - name: Run e2e
+      #   run: npm run e2e
+      # - name: Upload playwright report
+      #   uses: actions/upload-artifact@v4
+      #   if: ${{ !cancelled() }}
+      #   with:
+      #     name: playwright-report
+      #     path: playwright-report/
+      #     retention-days: 7
+      - name: Deploy preview
+        id: deploy
+        run: |
+          # CHANGE ME: VERCEL_TOKEN is a GitHub secret.
+          DEPLOY_OUTPUT=$(vercel deploy --force --token=${{ secrets.VERCEL_TOKEN }})
+          PREVIEW_URL=$(echo "$DEPLOY_OUTPUT" | grep -o 'https://.*vercel.app')
+          echo "preview_url=$PREVIEW_URL" >> $GITHUB_OUTPUT
+```
+
+> **Note on internal-only workflows and hosts.** Some of our workflows reference
+> internal infrastructure that must **not** be distributed as-is. For example, the SonarQube
+> scan targets an internal host (`https://sonarqube.<internal-domain>` — CHANGE ME) using the
+> `SONAR_LOGIN` secret. When packaging any workflow for external use, replace such internal
+> hostnames and project keys with placeholders, or drop the workflow from the deliverable.
 
 ### 2. Development Deployment (`github-actions-deploy-dev.yml`)
 
@@ -214,3 +319,10 @@ Potential improvements to the deployment process:
 4. Configure automatic rollback on failed deployments
 5. Implement environment-specific approval workflows for production deployments
 6. Set up domain aliases for easier access to environments
+
+## Related Documentation
+
+- [Documentation index](./README.md)
+- [Health Checks](./health-checks.md)
+- [Logging Guide](./logging-guide.md)
+- [Run, Build & Deploy](./run-build-deploy.md)

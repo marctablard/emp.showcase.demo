@@ -1,5 +1,7 @@
 import type { EmporixPaginatedResponse, EmporixSearchParams } from '../../model';
 
+const RAW_SEARCH_CRITERIA_KEY = 'compoundLogicalQuery';
+
 /**
  * Translate Search Parameters to Query and Body (for POST)
  * @param params
@@ -23,7 +25,7 @@ export function buildSearchQuery<T>(
   if (params.expand) {
     queryParams.append('expand', params.expand.join(','));
   }
-  let query: string = '';
+  let query: string = params.query ?? '';
   if (params.criteria) {
     Object.entries(params.criteria).forEach(([key, value]) => {
       if (value === undefined || value === null) {
@@ -35,13 +37,38 @@ export function buildSearchQuery<T>(
         if (query.length > 0) {
           query += ' ';
         }
-        const safeValue = String(value).includes(' ') ? `(${value})` : String(value);
+        const strValue = String(value);
+        if (key === RAW_SEARCH_CRITERIA_KEY) {
+          query += strValue;
+          return;
+        }
+
+        const safeValue = strValue.includes(' ') && !strValue.startsWith('(') ? `(${strValue})` : strValue;
         query += `${key}:${safeValue}`;
       }
     });
   }
 
   return { body: query, query: filterAsQuery ? queryParams.toString() : queryParams.toString() };
+}
+
+/**
+ * Emporix list endpoints may return a JSON array or a wrapper `{ items: [...] }`.
+ * Using a non-array as `items` breaks `.map()` downstream.
+ */
+export function extractItemsFromPaginatedJsonBody<T>(body: unknown): T[] {
+  if (Array.isArray(body)) {
+    return body as T[];
+  }
+  if (
+    body !== null &&
+    typeof body === 'object' &&
+    'items' in body &&
+    Array.isArray((body as { items: unknown }).items)
+  ) {
+    return (body as { items: T[] }).items;
+  }
+  return [];
 }
 
 /**
@@ -55,12 +82,29 @@ export async function buildPaginatedResponse<T>(
   response: Response,
 ): Promise<EmporixPaginatedResponse<T>> {
   const total: number = Number(response.headers.get('x-total-count')) || -1;
-  const data: T[] = await response.json();
+  const body: unknown = await response.json();
+  const items = extractItemsFromPaginatedJsonBody<T>(body);
+
+  if (Array.isArray(body)) {
+    return {
+      items,
+      page: params.page || 0,
+      size: params.size || 20,
+      total,
+    };
+  }
+
+  const paginatedBody = body as {
+    page?: number;
+    size?: number;
+    total?: number;
+  };
+
   return {
-    items: data,
-    page: params.page || 0,
-    size: params.size || 20,
-    total: total,
+    items,
+    page: paginatedBody.page ?? (params.page || 0),
+    size: paginatedBody.size ?? (params.size || 20),
+    total: paginatedBody.total ?? total,
   };
 }
 

@@ -68,6 +68,7 @@ const defaultState: NotificationState = {
 export const createNotificationStore = (initState: NotificationState = defaultState) => {
   // Create memory-only variables outside the persisted store
   let listeners: NotificationSubscription[] = [];
+  let notificationFallbackCounter = 0;
   // Read polling interval from environment variable (in seconds)
   // The value is interpreted as seconds and converted to milliseconds for setInterval
   const pollingIntervalEnv = process.env.NEXT_PUBLIC_NOTIFICATION_POLLING_INTERVAL_SECONDS;
@@ -120,8 +121,18 @@ export const createNotificationStore = (initState: NotificationState = defaultSt
     },
     // Reference type subscriptions - stored in memory only, not persisted
     registerNotificationListener: (referenceType: string, listener: NotificationListener) => {
-      const subscriptionId = `${referenceType}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-
+      let randomSuffix = '';
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        randomSuffix = crypto.randomUUID().substring(0, 8);
+      } else if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+        const arr = new Uint32Array(1);
+        crypto.getRandomValues(arr);
+        randomSuffix = arr[0].toString(36);
+      } else {
+        notificationFallbackCounter++;
+        randomSuffix = `fallback-${notificationFallbackCounter}`;
+      }
+      const subscriptionId = `${referenceType}-${Date.now()}-${randomSuffix}`;
       // Add to in-memory listeners array instead of state
       listeners.push({ id: subscriptionId, reference_type: referenceType, listener });
 

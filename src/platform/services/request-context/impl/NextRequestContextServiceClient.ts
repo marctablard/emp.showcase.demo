@@ -3,6 +3,7 @@
 import { CURRENCY_COOKIE_NAME } from '@/lib/common/cookie-names';
 import { getPublicDefaultSite } from '@/lib/common/public-default-env';
 import { injectable } from '@/platform/core/di/injectable';
+import type { DebugCallSource } from '@/platform/core/utils/debug-event-bus';
 import type { RequestContextService } from '../RequestContextService';
 
 /**
@@ -36,6 +37,11 @@ class NextRequestContextServiceClient implements RequestContextService {
 
   async getLanguage(): Promise<string | undefined> {
     return readCookie(localeCookieName());
+  }
+
+  /** Browser — see {@link RequestContextService.getCallSource}. */
+  getCallSource(): DebugCallSource {
+    return 'client';
   }
 }
 

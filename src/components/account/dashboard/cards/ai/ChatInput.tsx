@@ -32,7 +32,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ form, onSubmit, loading, i
   }, [loading]);
 
   return (
-    <div className="bg-white border-t border-gray-200 pt-4 pb-4">
+    <div className="bg-surface-page border-t border-gray-200 pt-4 pb-4">
       <FormProvider {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <FormField

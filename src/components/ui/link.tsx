@@ -2,24 +2,28 @@
 
 import type { VariantProps } from 'class-variance-authority';
 import { cva } from 'class-variance-authority';
+import { acquireNavigationWaitCursorLease, releaseNavigationWaitCursorLease } from '@/hooks/common/useGlobalCursor';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
+import { getBrowseTargetSignature } from '@/utils/browseNavigation';
 
 const linkVariants = cva(
-  'outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+  'outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2',
   {
     variants: {
       variant: {
         primary:
-          'inline-flex items-center gap-1 text-text-action font-bold underline hover:text-text-action-hover disabled:text-text-disabled disabled:[&_svg]:text-text-disabled',
+          'inline-flex items-center gap-1 text-text-action font-bold underline hover:text-text-action-hover disabled:text-text-disabled disabled:[&_svg]:text-text-disabled aria-disabled:text-text-disabled aria-disabled:[&_svg]:text-text-disabled',
         secondary:
-          'inline-flex items-center gap-1 text-text-body hover:underline hover:text-text-action disabled:hover:no-underline disabled:text-text-disabled disabled:[&_svg]:text-text-disabled',
+          'inline-flex items-center gap-1 text-text-body hover:underline hover:text-text-action disabled:hover:no-underline disabled:text-text-disabled disabled:[&_svg]:text-text-disabled aria-disabled:hover:no-underline aria-disabled:text-text-disabled aria-disabled:[&_svg]:text-text-disabled',
         text: 'text-text-action underline hover:text-text-action-hover',
         textNoUnderline: 'text-text-action no-underline hover:text-text-action-hover',
+        table:
+          'inline-flex items-center gap-1 no-underline hover:no-underline cursor-default font-secondary text-[16px] leading-[24px] text-text-action hover:text-text-action-hover',
         buttonPrimary:
-          'cursor-pointer uppercase inline-flex items-center justify-center gap-3 whitespace-nowrap px-4 py-3 text-base tracking-widest font-bold transition-all disabled:pointer-events-none disabled:bg-surface-disabled disabled:text-text-on-disabled [&_svg]:pointer-events-none shrink-0 [&_svg]:shrink-0 bg-surface-action text-text-on-action border border-transparent hover:bg-surface-action-hover rounded-button',
+          'cursor-pointer uppercase inline-flex items-center justify-center gap-3 whitespace-nowrap px-4 py-3 text-base tracking-widest font-bold transition-all disabled:pointer-events-none disabled:bg-surface-disabled disabled:text-text-on-disabled aria-disabled:pointer-events-none aria-disabled:bg-surface-disabled aria-disabled:text-text-on-disabled [&_svg]:pointer-events-none shrink-0 [&_svg]:shrink-0 bg-surface-action text-text-on-action border border-transparent hover:bg-surface-action-hover rounded-button',
         buttonSecondary:
-          'cursor-pointer uppercase inline-flex items-center justify-center gap-3 whitespace-nowrap px-4 py-3 text-action-button tracking-widest font-bold transition-all disabled:pointer-events-none disabled:bg-surface-disabled disabled:text-text-on-disabled [&_svg]:pointer-events-none shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-white border-width-button border-border-secondary bg-transparent text-text-action disabled:border-border-disabled hover:border-border-action-hover hover:bg-surface-action-hover-2 hover:text-text-action-hover rounded-button',
+          'cursor-pointer uppercase inline-flex items-center justify-center gap-3 whitespace-nowrap px-4 py-3 text-action-button tracking-widest font-bold transition-all disabled:pointer-events-none disabled:bg-surface-disabled disabled:text-text-on-disabled aria-disabled:pointer-events-none aria-disabled:bg-surface-disabled aria-disabled:text-text-on-disabled [&_svg]:pointer-events-none shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 border-width-button border-border-secondary bg-transparent text-text-action disabled:border-border-disabled aria-disabled:border-border-disabled hover:border-border-action-hover hover:bg-surface-action-hover-2 hover:text-text-action-hover rounded-button',
         footerLegal: 'text-text-on-action hover:underline hover:text-text-on-action',
         clean: '',
       },
@@ -43,7 +47,7 @@ interface LinkProps {
   iconAfter?: React.ReactNode | undefined;
   children?: React.ReactNode | undefined;
   className?: string;
-  onClick?: () => void;
+  onClick?: React.MouseEventHandler<HTMLAnchorElement | HTMLButtonElement>;
   target?: string;
   replace?: boolean;
 }
@@ -52,6 +56,7 @@ export default function UiLink({
   variant,
   size,
   type,
+  disabled,
   iconBefore,
   iconAfter,
   href = '#',
@@ -65,10 +70,64 @@ export default function UiLink({
     asChild?: boolean;
   }) {
   const classes = linkVariants({ variant, size, className });
+  const anchorDisabledProps = disabled
+    ? {
+        'aria-disabled': true,
+        tabIndex: -1,
+      }
+    : undefined;
+
+  const handleAnchorClick: React.MouseEventHandler<HTMLAnchorElement> = (event) => {
+    if (disabled) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
+    onClick?.(event);
+  };
+
+  const handleLinkClick: React.MouseEventHandler<HTMLAnchorElement> = (event) => {
+    if (disabled) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
+    const browseTargetSignature =
+      typeof href === 'string' &&
+      event.button === 0 &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.shiftKey &&
+      !event.altKey &&
+      !target
+        ? getBrowseTargetSignature(href)
+        : null;
+
+    if (browseTargetSignature) {
+      acquireNavigationWaitCursorLease(browseTargetSignature);
+    }
+
+    onClick?.(event);
+
+    if (browseTargetSignature && event.defaultPrevented) {
+      releaseNavigationWaitCursorLease({ force: true });
+    }
+  };
+
   switch (type) {
     case 'Link':
       return (
-        <Link href={href} target={target} className={classes} onClick={onClick} replace={replace} {...props}>
+        <Link
+          href={href}
+          target={target}
+          className={classes}
+          onClick={handleLinkClick}
+          replace={replace}
+          {...anchorDisabledProps}
+          {...props}
+        >
           {iconBefore}
           {props.children}
           {iconAfter}
@@ -76,7 +135,14 @@ export default function UiLink({
       );
     case 'A':
       return (
-        <a href={href} target={target} className={classes} onClick={onClick} {...props}>
+        <a
+          href={href}
+          target={target}
+          className={classes}
+          onClick={handleAnchorClick}
+          {...anchorDisabledProps}
+          {...props}
+        >
           {iconBefore}
           {props.children}
           {iconAfter}
@@ -84,7 +150,13 @@ export default function UiLink({
       );
     case 'Button':
       return (
-        <button type="button" className={cn('cursor-pointer', classes)} onClick={onClick} {...props}>
+        <button
+          type="button"
+          className={cn('cursor-pointer', classes)}
+          onClick={onClick}
+          disabled={disabled}
+          {...props}
+        >
           {iconBefore}
           {props.children}
           {iconAfter}

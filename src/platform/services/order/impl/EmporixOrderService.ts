@@ -3,9 +3,20 @@ import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixOrder } from '@/platform/integrations/emporix/model/order';
 import type { EmporixOrderApi } from '@/platform/integrations/emporix/order/EmporixOrderApi';
 import type { Order } from '@/platform/services/model/order/order';
-import type { OrderService } from '@/platform/services/order/OrderService';
+import type { OrderPageResponse, OrderService } from '@/platform/services/order/OrderService';
 import type { SessionService } from '@/platform/services/session/SessionService';
 import type { OrderMapper } from '../../model/order/OrderMapper';
+
+function wrapOrderError(message: string, error: Error): Error & { upstreamStatus?: number } {
+  const wrappedError = new Error(message) as Error & { upstreamStatus?: number };
+  const upstreamStatus = (error as Error & { upstreamStatus?: number }).upstreamStatus;
+
+  if (typeof upstreamStatus === 'number') {
+    wrappedError.upstreamStatus = upstreamStatus;
+  }
+
+  return wrappedError;
+}
 
 /**
  * Implementation of OrderService for Emporix order data.
@@ -13,9 +24,9 @@ import type { OrderMapper } from '../../model/order/OrderMapper';
  */
 @injectable('OrderService', 'Singleton')
 class EmporixOrderService implements OrderService {
-  private orderApi: EmporixOrderApi;
-  private mapper: OrderMapper<EmporixOrder>;
-  private sessionService: SessionService;
+  private readonly orderApi: EmporixOrderApi;
+  private readonly mapper: OrderMapper<EmporixOrder>;
+  private readonly sessionService: SessionService;
 
   constructor(
     @inject('EmporixOrderApi') orderApi: EmporixOrderApi,
@@ -56,7 +67,7 @@ class EmporixOrderService implements OrderService {
       return order ? this.mapper.mapToService(order) : null;
     } catch (error) {
       if (error instanceof Error) {
-        throw new Error(`Failed to get order: ${error.message}`);
+        throw wrapOrderError(`Failed to get order: ${error.message}`, error);
       }
       throw error;
     }
@@ -74,10 +85,23 @@ class EmporixOrderService implements OrderService {
     }
   }
 
-  async getCustomerOrders(pageSize?: number, pageNumber?: number): Promise<Order[]> {
+  async getCustomerOrders(pageSize?: number, pageNumber?: number, sort?: string, query?: string): Promise<Order[]> {
+    const page = await this.getCustomerOrdersPage(pageSize, pageNumber, sort, query);
+    return page.items;
+  }
+
+  async getCustomerOrdersPage(
+    pageSize?: number,
+    pageNumber?: number,
+    sort?: string,
+    query?: string,
+  ): Promise<OrderPageResponse> {
     try {
-      const orders = await this.orderApi.getCustomerOrders(pageSize, pageNumber);
-      return orders.map((order) => this.mapper.mapToService(order));
+      const response = await this.orderApi.getCustomerOrdersPage(pageSize, pageNumber, sort, query);
+      return {
+        items: response.items.map((order) => this.mapper.mapToService(order)),
+        totalCount: response.totalCount,
+      };
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`Failed to get orders: ${error.message}`);
@@ -114,7 +138,7 @@ class EmporixOrderService implements OrderService {
       return await this.orderApi.getCustomerOrderStatusTransitions(orderId);
     } catch (error) {
       if (error instanceof Error) {
-        throw new Error(`Failed to get order status transitions: ${error.message}`);
+        throw wrapOrderError(`Failed to get order status transitions: ${error.message}`, error);
       }
       throw error;
     }

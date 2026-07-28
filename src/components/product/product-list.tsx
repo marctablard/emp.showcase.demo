@@ -1,5 +1,6 @@
 import { useTranslations } from 'next-intl';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { H6 } from '@/components/ui/h';
 import { ProductItemRow } from './product-item-row';
 
 export interface ProductListItem {
@@ -10,34 +11,35 @@ export interface ProductListItem {
   quantity: number;
   unitPrice: number;
   currency: string;
+  grossUnitPrice?: number;
+  netUnitPrice?: number;
   imageUrl?: string | null;
   href?: string; // optional product link
 }
 
 interface ProductListProps {
-  items: ProductListItem[];
-  className?: string;
-  showNetUnderGross?: boolean;
+  readonly items: ProductListItem[];
+  readonly className?: string;
+  readonly showGrossUnderNet?: boolean;
 }
 
-export function ProductList({ items, className, showNetUnderGross = false }: ProductListProps) {
+export function ProductList({ items, className, showGrossUnderNet = false }: ProductListProps) {
   const tCart = useTranslations('cart');
+  const tQuoteDetails = useTranslations('account.quoteDetails');
 
   return (
-    <Card className={`p-0 shadow-sm border-none md:mb-6 gap-3 ${className || ''}`}>
-      <CardHeader className="pt-6 hidden sm:block">
-        <div className="grid grid-cols-[1fr_2fr] sm:grid-cols-[120px_2fr_1fr_1fr] md:grid-cols-[120px_3fr_1fr_1fr]">
-          <p className="col-start-1 col-end-3 font-bold font-headlines">{tCart('product')}</p>
-          <p className="col-start-2 row-start-4 sm:col-start-3 sm:col-end-3 sm:row-start-1 md:col-start-3 font-bold font-headlines">
-            {tCart('qty')}
-          </p>
-          <p className="col-start-4 lg:col-start-4 font-bold font-headlines text-end">{tCart('price')}</p>
+    <Card className={`border border-border-primary shadow-sm ${className || ''}`}>
+      <CardContent className="p-6">
+        <div className="hidden sm:grid grid-cols-[minmax(280px,1.6fr)_100px_minmax(140px,1fr)] items-start gap-6 border-b border-border-primary pb-4">
+          <H6 className="text-sm font-bold text-text-headings">{tCart('product')}</H6>
+          <H6 className="text-left text-sm font-bold text-text-headings">{tQuoteDetails('quantity')}</H6>
+          <H6 className="text-right text-sm font-bold text-text-headings">{tQuoteDetails('unitPrice')}</H6>
         </div>
-      </CardHeader>
-      <CardContent className="px-6">
-        {items.map((item) => (
-          <ProductItemRow key={item.id} item={item} showNetUnderGross={showNetUnderGross} />
-        ))}
+        <div className="divide-y divide-border-primary">
+          {items.map((item) => (
+            <ProductItemRow key={item.id} item={item} showGrossUnderNet={showGrossUnderNet} />
+          ))}
+        </div>
       </CardContent>
     </Card>
   );

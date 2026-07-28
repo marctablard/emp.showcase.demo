@@ -9,7 +9,7 @@ function Breadcrumb({ ...props }: React.ComponentProps<'nav'>) {
     <nav
       aria-label="breadcrumb"
       data-slot="breadcrumb"
-      className="relative [@media_screen]:after:content-[''] after:absolute after:top-0 after:right-0 after:w-8 after:h-full after:bg-gradient-to-r after:from-transparent after:to-white"
+      className="relative [@media_screen]:after:content-[''] after:absolute after:top-0 after:right-0 after:w-8 after:h-full after:bg-gradient-to-r after:from-transparent after:to-surface-page"
       {...props}
     />
   );
@@ -38,7 +38,7 @@ function BreadcrumbLink({ className, children, href, ...props }: React.Component
       href={href as string}
       data-slot="breadcrumb-link"
       className={cn(
-        'inline-flex items-center gap-1 whitespace-nowrap text-text-action [&>svg]:size-4 md:[&>svg]:size-6 font-bold underline hover:text-text-action-hover outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+        'inline-flex items-center gap-1 whitespace-nowrap text-text-action [&>svg]:size-4 md:[&>svg]:size-6 font-bold underline hover:text-text-action-hover outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2',
         className,
       )}
       {...props}
@@ -70,7 +70,7 @@ function BreadcrumbBackLink({ className, href, ...props }: React.ComponentProps<
       data-slot="breadcrumb-back-link"
       aria-label={t('backLinkAriaLabel')}
       className={cn(
-        'flex font-bold items-center justify-center gap-1 pr-4 underline cursor-pointer [&>svg]:size-4 md:[&>svg]:size-6 hover:text-text-action-hover outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+        'flex font-bold items-center justify-center gap-1 pr-4 underline cursor-pointer [&>svg]:size-4 md:[&>svg]:size-6 hover:text-text-action-hover outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2',
         className,
       )}
       {...props}

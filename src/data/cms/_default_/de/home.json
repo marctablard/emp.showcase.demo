@@ -51,7 +51,7 @@
           "icon": "ScanSearch"
         },
         {
-          "title": "Schnellbestellung",
+          "title": "Schnellauftrag",
           "link": "/quick-order",
           "link_name": "Zeit sparen",
           "icon": "ShoppingCart"

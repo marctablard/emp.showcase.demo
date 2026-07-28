@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: 'npm'
           cache-dependency-path: package-lock.json
       - name: Align npm with packageManager
@@ -78,7 +78,7 @@ jobs:
       - name: Deploy to stage
         id: deploy
         run: |
-          DEPLOY_OUTPUT=$(vercel deploy --token=${{ secrets.VERCEL_TOKEN }} --target=stage)
+          DEPLOY_OUTPUT=$(vercel deploy --force --token=${{ secrets.VERCEL_TOKEN }} --target=stage)
           DEPLOY_STATUS=$?
           URL=$(echo "$DEPLOY_OUTPUT" | grep -o 'https://.*vercel.app')
           echo "deploy_status=$DEPLOY_STATUS" >> $GITHUB_OUTPUT

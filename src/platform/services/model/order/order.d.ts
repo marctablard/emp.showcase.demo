@@ -101,8 +101,10 @@ export interface OrderPrice {
  */
 export interface Order {
   id: string;
+  quoteId?: string;
   status: OrderStatus;
   createdAt?: string;
+  expectedDeliveryDate?: string;
   lastStatusChange?: string;
   items: OrderItem[];
   billingAddress?: Address;

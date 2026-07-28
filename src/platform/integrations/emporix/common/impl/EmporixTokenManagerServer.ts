@@ -13,6 +13,7 @@ import type {
   EmporixAnonymousTokenResponse,
 } from '../../model/oauth';
 import type { EmporixOAuthApi } from '../../oauth/EmporixOAuthApi';
+import { decryptOrDecodeLegacy, encryptTokenPayload } from '../util/token-encryption';
 import type { TokenStore } from './EmporixTokenManagerAbstract';
 import { EmporixTokenManagerAbstract } from './EmporixTokenManagerAbstract';
 
@@ -119,8 +120,14 @@ class EmporixTokenManagerServer extends EmporixTokenManagerAbstract {
     if (!tokenCookie) {
       return {};
     }
-    const b64Token = tokenCookie.value;
-    const tokens: TokenStore = JSON.parse(Buffer.from(b64Token, 'base64').toString('utf-8'));
+    let tokens: TokenStore;
+    try {
+      const decrypted = decryptOrDecodeLegacy(tokenCookie.value, process.env.NEXTAUTH_SECRET!);
+      tokens = JSON.parse(decrypted);
+    } catch (error) {
+      this.logger.warn({ error, tenant }, 'Failed to decrypt/decode token cookie, treating as empty');
+      return {};
+    }
     // we grab the service token from memory if possible because we don't want to store it in cookies for security reasons
     tokens.serviceToken = this.serviceToken;
     return tokens;
@@ -129,9 +136,9 @@ class EmporixTokenManagerServer extends EmporixTokenManagerAbstract {
   protected async writeTokens(tokens: TokenStore, tenant: string): Promise<void> {
     // omit service token from cookies so it doesn't get leaked to client-side code
     const clientTokens = omit(tokens, ['serviceToken']);
-    const b64Token = Buffer.from(JSON.stringify(clientTokens)).toString('base64');
+    const encryptedValue = encryptTokenPayload(JSON.stringify(clientTokens), process.env.NEXTAUTH_SECRET!);
     const cookieStore = await cookies();
-    cookieStore.set(this.buildStorageKey(tenant), b64Token, {
+    cookieStore.set(this.buildStorageKey(tenant), encryptedValue, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',

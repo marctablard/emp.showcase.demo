@@ -1,6 +1,7 @@
 import { Container } from 'inversify';
 import { EmporixTokenManager } from '../../common/EmporixTokenManager';
 import EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
+import { disabledMetricsService, testRequestContext } from '../../common/impl/EmporixApiInvoker.test-doubles';
 import { EmporixTestTokenManager } from '../../common/impl/EmporixTokenManager.test';
 import { EmporixConfig } from '../../config';
 import { EmporixCustomerAddress, EmporixPasswordChangeRequest } from '../../model/customer';
@@ -50,6 +51,8 @@ describe('EmporixCustomerApi', () => {
           new EmporixApiInvoker(
             ctx.get<EmporixConfig>('EmporixConfig'),
             ctx.get<EmporixTokenManager>('EmporixTokenManager'),
+            disabledMetricsService(),
+            testRequestContext(),
           ),
       )
       .inSingletonScope();

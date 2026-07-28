@@ -9,6 +9,7 @@ import { useCartTotal } from '@/hooks/cart/useCartTotal';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
 import { useElementScroll } from '@/hooks/ui/useElementScroll';
 import { useValidator } from '@/hooks/validation/useValidator';
+import { createCheckoutApprovalContext } from '@/lib/approval/contracts';
 import { cn, formatCurrency } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card';
@@ -44,8 +45,8 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
     setDisabled(!data.termsAndConditions);
   };
 
-  const approvalSubmit = (approverId: string, comment: string) => {
-    onSubmit({ approverId, comment });
+  const approvalSubmit = async (approverId: string, comment: string) => {
+    await onSubmit({ approverId, comment });
     setIsApprovalModalOpen(false);
   };
 
@@ -200,7 +201,7 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
               <ApprovalModal
                 isOpen={isApprovalModalOpen}
                 onClose={() => setIsApprovalModalOpen(false)}
-                cartId={cart.id}
+                resourceContext={createCheckoutApprovalContext(cart.id)}
                 approvalSubmit={approvalSubmit}
               />
             )}

@@ -6,6 +6,7 @@ import MarkedText from '@/components/header/search/marked-text';
 import { Button } from '@/components/ui/button';
 import UiLink from '@/components/ui/link';
 import useHistory from '@/hooks/history/useHistory';
+import { clearMarkHighlights } from '@/lib/common/clear-mark-highlights';
 
 export interface QueryCompletionsProps {
   isProductsShown: boolean;
@@ -32,9 +33,10 @@ export function QueryCompletions({
         {completions.map((queryCompletion) => (
           <Button
             onClick={() => {
-              setQuery(queryCompletion);
+              const plainQueryCompletion = clearMarkHighlights(queryCompletion);
+              setQuery(plainQueryCompletion);
               if (onQuerySelect) {
-                onQuerySelect(queryCompletion);
+                onQuerySelect(plainQueryCompletion);
               }
             }}
             key={queryCompletion}

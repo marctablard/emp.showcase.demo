@@ -1,9 +1,11 @@
 import {
   Approval,
+  ApprovalAction,
   ApprovalCreateRequest,
   ApprovalId,
   ApprovalPermittedRequest,
   ApprovalPermittedResponse,
+  ApprovalResourceType,
   ApprovalStatus,
   ApprovalUser,
 } from '../model/approval';
@@ -26,9 +28,14 @@ export interface ApprovalService {
    * @param pageSize Optional page size (default: 60)
    * @param sort Optional sort parameter
    * @param query Optional query parameter for filtering
-   * @returns Promise with array of approvals
+   * @returns Promise with the approval items and, when available, the server-authoritative total count
    */
-  getApprovals(pageNumber?: number, pageSize?: number, sort?: string, query?: string): Promise<Approval[]>;
+  getApprovals(
+    pageNumber?: number,
+    pageSize?: number,
+    sort?: string,
+    query?: string,
+  ): Promise<{ items: Approval[]; totalCount?: number }>;
 
   /**
    * Get a specific approval by ID
@@ -82,12 +89,16 @@ export interface ApprovalService {
    * @param action The action to check
    * @returns Promise with array of users
    */
-  searchApprovalUsers(resourceType: string, resourceId: string, action: string): Promise<ApprovalUser[]>;
+  searchApprovalUsers(
+    resourceType: ApprovalResourceType,
+    resourceId: string,
+    action: ApprovalAction,
+  ): Promise<ApprovalUser[]>;
 
   /**
    * Requires Approval
-   * @param cartId The ID of the cart
+   * @param request The resource currently evaluated for approval requirements
    * @returns Promise with the requires approval result
    */
-  requiresApproval(cartId: string): Promise<boolean>;
+  requiresApproval(request: ApprovalPermittedRequest): Promise<boolean>;
 }

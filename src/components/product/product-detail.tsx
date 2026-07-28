@@ -4,17 +4,23 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import { ArrowDown, Copy, FlipHorizontal2, Pin, Share2, Sun } from 'lucide-react';
+import { ArrowDown, Copy, FlipHorizontal2, Share2, Sun } from 'lucide-react';
 import { ProductCarousel } from '@/components/product/product-carousel';
 import { Badge } from '@/components/ui/badge';
 import { BulletPoint } from '@/components/ui/bullet-point';
 import { Card, CardContent } from '@/components/ui/card';
+import { ToastType, notify } from '@/components/ui/toast-notification';
+import { WishlistPinButton } from '@/components/wishlist/wishlist-pin-button';
+import { useValidateAddToCart } from '@/hooks/cart/useValidateAddToCart';
 import { useShopContextReady } from '@/hooks/common/useShopContextReady';
+import { useComparison } from '@/hooks/comparison/useComparison';
+import { useValidateAddToComparison } from '@/hooks/comparison/useValidateAddToComparison';
 import { useProduct } from '@/hooks/product/useProduct';
 import { useSession } from '@/hooks/session/useSession';
 import { useSite } from '@/hooks/site/useSite';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useL10n } from '@/hooks/useL10n';
+import { useWishlistAddWithAuth } from '@/hooks/wishlist/useWishlistAddWithAuth';
 import { type ProductTemplateAttributeKey, type ProductVariantAttributeKey, dk } from '@/i18n/dynamic-key';
 import { fetchProductAvailability } from '@/lib/client/availability';
 import { fetchProductPrice } from '@/lib/client/prices';
@@ -28,12 +34,14 @@ import type { StockAvailability } from '@/platform/services/model/common';
 import type { ProductPrice } from '@/platform/services/model/price';
 import type { GroupedSpecification, Product, ProductVariantAttribute } from '@/platform/services/model/product';
 import type { ProductFetchOptions } from '@/platform/services/product';
+import { MAX_COMPARISON_PRODUCTS } from '@/stores/comparison-store';
 import Recommendations from '../cms/recommendations';
 import { Button } from '../ui/button';
 import { H1, H2, Overline } from '../ui/h';
 import UiLink from '../ui/link';
 import { RatingStarRow } from '../ui/rating';
 import { Spinner } from '../ui/spinner';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import ProductAddToCart from './product-add-to-cart';
 import ProductAddToCartBar from './product-add-to-cart-bar';
 import { ProductPriceComponent, ProductPriceSkeleton, ProductPriceUnavailable } from './product-price';
@@ -54,11 +62,26 @@ export default function ProductDetail({ product: initialProduct, options, classN
   const [price, setPrice] = useState<ProductPrice | null | undefined>(product?.price);
   const [availability, setAvailability] = useState<StockAvailability | undefined>(product?.availability);
   const locale = useLocale();
-  const { l10n } = useL10n(locale);
+  const { l10n, l10nOrEmpty } = useL10n(locale);
   const t = useTranslations('product');
   const isAboveMediumScreen = useBreakpoint('md');
+  const { isInComparison, toggleProduct, isFull } = useComparison();
+  const { disabled: compareDisabled, tooltip: compareTooltip } = useValidateAddToComparison(product);
   const addToCartButton = useRef<HTMLDivElement>(null);
   const addToCartBar = useRef<HTMLDivElement>(null);
+  const { addToWishlist, isAdding: isAddingToWishlist, loginDialog } = useWishlistAddWithAuth();
+  const { disabled: wishlistDisabled, tooltip: wishlistTooltip } = useValidateAddToCart(
+    product ?? undefined,
+    price,
+    'wishlist',
+  );
+  const [quantity, setQuantity] = useState(1);
+  const handleAddToWishlist = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!product) return;
+    addToWishlist(product.id, quantity);
+  };
   const priceSyncGenerationRef = useRef(0);
   const availabilitySyncGenerationRef = useRef(0);
   const availabilityShopContextRef = useRef('');
@@ -103,7 +126,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
       setPrice(embedded);
     } else {
       const syncPrice = async () => {
-        const nextPrice = await fetchProductPrice(product.id);
+        const nextPrice = await fetchProductPrice(product.id, undefined, undefined, session.currency);
         if (cancelled || syncGeneration !== priceSyncGenerationRef.current) {
           return;
         }
@@ -201,6 +224,19 @@ export default function ProductDetail({ product: initialProduct, options, classN
     }
   });
 
+  const handleCompareClick = () => {
+    if (!product) return;
+    if (isInComparison(product.id)) {
+      toggleProduct(product.id);
+      notify({ title: t('removedFromComparison', { name: l10n(product.name) }), type: ToastType.Info });
+    } else if (isFull) {
+      notify({ title: t('comparisonFull', { max: MAX_COMPARISON_PRODUCTS }), type: ToastType.Warning });
+    } else {
+      toggleProduct(product.id);
+      notify({ title: t('addedToComparison', { name: l10n(product.name) }), type: ToastType.Success });
+    }
+  };
+
   if (!shopContextReady || loading) {
     return (
       <div className={cn('flex justify-center items-center min-h-[400px] mb-6', className)}>
@@ -228,7 +264,13 @@ export default function ProductDetail({ product: initialProduct, options, classN
                   <div className="relative aspect-square">
                     <Image
                       src={product.images[0].url}
-                      alt={product.images[0].altText ? l10n(product.images[0].altText) : l10n(product.name)}
+                      alt={
+                        product.images[0].altText
+                          ? l10nOrEmpty(product.images[0].altText) ||
+                            l10nOrEmpty(product.name) ||
+                            t('primaryImageAltUnlabeled', { id: product.id })
+                          : l10nOrEmpty(product.name) || t('primaryImageAltUnlabeled', { id: product.id })
+                      }
                       fill
                       className="object-contain object-center"
                     />
@@ -238,7 +280,12 @@ export default function ProductDetail({ product: initialProduct, options, classN
                 )
               ) : (
                 <div className="bg-surface-image-background flex items-center justify-center">
-                  <Image src={'/images/no_image_alt.png'} alt={l10n(product.name)} width={90} height={90} />
+                  <Image
+                    src={'/images/no_image_alt.png'}
+                    alt={l10nOrEmpty(product.name) || ''}
+                    width={90}
+                    height={90}
+                  />
                 </div>
               )}
             </div>
@@ -319,15 +366,42 @@ export default function ProductDetail({ product: initialProduct, options, classN
                 ))}
               </div>
               <div className="hidden md:flex gap-2">
-                <Button size="icon" variant="secondary" aria-label={t('compare')}>
-                  <FlipHorizontal2 />
-                </Button>
-                <Button size="icon" variant="secondary" aria-label={t('addToWishlist')}>
-                  <Pin />
-                </Button>
-                <Button size="icon" variant="secondary" aria-label={t('share')}>
-                  <Share2 />
-                </Button>
+                <Tooltip delayDuration={200}>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
+                      <Button
+                        size="icon"
+                        variant={isInComparison(product.id) ? 'primary' : 'secondary'}
+                        aria-label={t('compare')}
+                        aria-pressed={isInComparison(product.id)}
+                        onClick={handleCompareClick}
+                        disabled={compareDisabled}
+                      >
+                        <FlipHorizontal2 />
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {compareTooltip ??
+                      (isInComparison(product.id) ? t('compareTooltipRemove') : t('compareTooltipAdd'))}
+                  </TooltipContent>
+                </Tooltip>
+                <WishlistPinButton
+                  disabled={wishlistDisabled}
+                  disabledTooltip={wishlistTooltip}
+                  isAdding={isAddingToWishlist}
+                  onClick={handleAddToWishlist}
+                />
+                <Tooltip delayDuration={200}>
+                  <TooltipTrigger asChild>
+                    <Button size="icon" variant="secondary" aria-label={t('share')}>
+                      <Share2 />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{t('shareTooltip')}</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
             </div>
           </div>
@@ -338,7 +412,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
               {product.brand.logo?.url && (
                 <Image
                   src={product.brand.logo?.url}
-                  alt={product.brand.name ? l10n(product.brand.name) : ''}
+                  alt={product.brand.name ? l10nOrEmpty(product.brand.name) : ''}
                   height={70}
                   width={70}
                 />
@@ -373,15 +447,36 @@ export default function ProductDetail({ product: initialProduct, options, classN
             price={price}
             availability={availability}
             availabilityLoading={availability === undefined}
+            quantity={quantity}
+            onQuantityChange={setQuantity}
             className="mt-6"
           />
           <div className="flex md:hidden justify-center gap-2 mt-6">
-            <Button size="icon" variant="secondary" aria-label={t('compare')}>
-              <FlipHorizontal2 />
-            </Button>
-            <Button size="icon" variant="secondary" aria-label={t('addToWishlist')}>
-              <Pin />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex">
+                  <Button
+                    size="icon"
+                    variant={isInComparison(product.id) ? 'primary' : 'secondary'}
+                    aria-label={t('compare')}
+                    aria-pressed={isInComparison(product.id)}
+                    onClick={handleCompareClick}
+                    disabled={compareDisabled}
+                  >
+                    <FlipHorizontal2 />
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {compareTooltip ?? (isInComparison(product.id) ? t('compareTooltipRemove') : t('compareTooltipAdd'))}
+              </TooltipContent>
+            </Tooltip>
+            <WishlistPinButton
+              disabled={wishlistDisabled}
+              disabledTooltip={wishlistTooltip}
+              isAdding={isAddingToWishlist}
+              onClick={handleAddToWishlist}
+            />
             <Button size="icon" variant="secondary" aria-label={t('share')}>
               <Share2 />
             </Button>
@@ -467,6 +562,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
         overline={t('productRecommendations.overline')}
         headline={t('productRecommendations.headline')}
       />
+      {loginDialog}
     </>
   );
 }

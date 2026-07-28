@@ -118,7 +118,7 @@ function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, '
 
   return (
     <div
-      className={cn('flex flex-col h-96 bg-white rounded-xl border shadow-sm overflow-hidden', className)}
+      className={cn('flex flex-col h-96 bg-surface-page rounded-xl border shadow-sm overflow-hidden', className)}
       {...props}
     >
       <div className="p-4 pb-0">

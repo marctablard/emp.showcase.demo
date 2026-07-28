@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { signIn, signOut, useSession } from 'next-auth/react';
+import { signIn, signOut, useSession as useNextAuthSession } from 'next-auth/react';
 import { useLocale } from 'next-intl';
 import { getPathname } from '@/i18n/navigation';
 import { fetchCurrentSession } from '@/lib/client/session';
@@ -11,6 +11,7 @@ import { getLogger } from '@/lib/logger/use-logger-client';
 import { useCartStore } from '@/providers/StoreProvider';
 import { clearAllPersistedStores } from '@/utils/storeUtils';
 import { useCheckout } from '../checkout/useCheckout';
+import { useSession as useShopSession } from '../session/useSession';
 import { useSite } from '../site/useSite';
 
 const LOGIN_SUCCESS_QUERY_PARAM = '?login=success';
@@ -31,7 +32,7 @@ interface AuthenticationHook {
 export const useAuthentication = (): AuthenticationHook => {
   const locale = useLocale();
   const { site } = useSite();
-  const session = useSession({
+  const session = useNextAuthSession({
     required: true,
     onUnauthenticated: () => {
       setIsAuthenticated(false);
@@ -44,6 +45,7 @@ export const useAuthentication = (): AuthenticationHook => {
   const [loading, setLoading] = useState<boolean>(session.status === 'loading');
   const [error, setError] = useState<Error | null>(null);
   const { reset } = useCheckout();
+  const { refreshSession } = useShopSession();
   const { clearCart } = useCartStore();
   const [_isPending, startTransition] = useTransition();
   const logger = getLogger();
@@ -90,6 +92,30 @@ export const useAuthentication = (): AuthenticationHook => {
     return canonicalSiteCode;
   };
 
+  const refreshClientSessionState = async (): Promise<void> => {
+    try {
+      await session.update();
+    } catch (refreshError) {
+      logger.warn(
+        {
+          err: refreshError instanceof Error ? refreshError.message : refreshError ? String(refreshError) : undefined,
+        },
+        'Failed to refresh NextAuth session after non-redirect login',
+      );
+    }
+
+    try {
+      await refreshSession();
+    } catch (refreshError) {
+      logger.warn(
+        {
+          err: refreshError instanceof Error ? refreshError.message : refreshError ? String(refreshError) : undefined,
+        },
+        'Failed to refresh storefront session after non-redirect login',
+      );
+    }
+  };
+
   const login = async (username: string, password: string, callbackUrl?: string): Promise<boolean> => {
     setLoading(true);
     setError(null);
@@ -130,6 +156,8 @@ export const useAuthentication = (): AuthenticationHook => {
             forcePrefix: true,
           });
           window.location.href = redirectPath;
+        } else {
+          await refreshClientSessionState();
         }
         success = true;
       }

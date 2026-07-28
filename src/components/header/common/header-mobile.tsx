@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-import { Gauge, LayoutGrid, Menu, Pin, Search, X } from 'lucide-react';
+import { Gauge, LayoutGrid, Menu, Search, X } from 'lucide-react';
+import { HeaderCompareButton } from '@/components/header/common/header-compare-button';
 import { HeaderIconButton } from '@/components/header/common/header-icon-button';
 import { HeaderIconLink } from '@/components/header/common/header-icon-link';
 import { HeaderSearch } from '@/components/header/common/header-search';
 import { MobileMenuNavigation } from '@/components/header/mobile/menu-navigation';
 import { useHeaderSearch } from '@/components/header/search/search-context';
+import { HeaderWishlistButton } from '@/components/header/wishlist/header-wishlist-button';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
@@ -45,7 +47,7 @@ export function HeaderMobile() {
           )}
           {!showSearch && (
             <>
-              <HeaderIconLink icon={Gauge} text={t('quickOrder')} href="/#" />
+              <HeaderIconLink icon={Gauge} text={t('quickOrder')} href="/quick-order" />
               <HeaderIconButton
                 icon={Search}
                 text={t('shortSearch')}
@@ -75,7 +77,8 @@ export function HeaderMobile() {
                 </DrawerContent>
               </Drawer>
               <HeaderIconLink icon={LayoutGrid} text={t('products')} href="/browse" />
-              <HeaderIconLink icon={Pin} text={t('wishlists')} href="/account/wishlists" />
+              <HeaderCompareButton />
+              <HeaderWishlistButton />
             </>
           )}
         </>

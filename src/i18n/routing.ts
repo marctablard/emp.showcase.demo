@@ -4,11 +4,8 @@ import { defineRouting } from 'next-intl/routing';
 const localeCookieName = process.env.NEXT_PUBLIC_LOCALE_COOKIE;
 
 export const routingConfig = {
-  // A list of all locales that are supported
   locales: ['en', 'de'],
-  // Used when no locale matches
   defaultLocale: 'en',
-  // Used for routing
   localePrefix: 'as-needed' as LocalePrefixMode,
   // Keep next-intl on the same cookie name as `src/site/middleware.ts` (`syncSiteCookie`) and
   // `src/lib/server/context.ts`; otherwise next-intl silently falls back to `NEXT_LOCALE` while we
@@ -17,6 +14,7 @@ export const routingConfig = {
   // causes `/us` → `/us/de` redirects on sites that do not advertise `de`).
   ...(localeCookieName ? { localeCookie: { name: localeCookieName } } : {}),
 };
+
 export const routing = defineRouting({
   ...routingConfig,
 });

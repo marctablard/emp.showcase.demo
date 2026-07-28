@@ -8,7 +8,7 @@ import { createSiteMiddleware } from './site/middleware';
 import { routing as siteRouting } from './site/routing';
 import { NEXT_REWRITE_HEADER } from './site/types';
 
-const apiBypassPrefixes = ['/api/auth', '/api/csrf', '/api/notifications', '/api/debug'];
+const apiBypassPrefixes = ['/api/auth', '/api/csrf', '/api/notifications', '/api/debug', '/api/test/auth/bootstrap'];
 const accountRegex = /^(.*)\/account\/([^/]+)$/;
 const authSubpageRegex = /^(.*)\/(category|browse|product)\/([^/]+)$/;
 const securedPatterns = [accountRegex, authSubpageRegex];

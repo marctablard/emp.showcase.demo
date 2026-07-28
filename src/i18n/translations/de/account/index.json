@@ -103,7 +103,7 @@
     "groups": {
       "selfService": "Self Service",
       "orderManagement": "Bestellverwaltung",
-      "myOrganisation": "Meine Organisation",
+      "myOrganisation": "Mein Unternehmen",
       "myAccount": "Mein Konto"
     },
     "items": {
@@ -114,12 +114,12 @@
       "invoicesPayments": "Rechnungen & Zahlungen",
       "quotes": "Angebote",
       "returnsClaims": "Retouren & Reklamationen",
-      "quickOrder": "Schnellbestellung",
+      "quickOrder": "Schnellauftrag",
       "companyManagement": "Unternehmensverwaltung",
       "addressManagement": "Adressverwaltung",
       "userManagement": "Benutzerverwaltung",
       "paymentOptions": "Zahlungsoptionen",
-      "wishlists": "Wunschlisten",
+      "wishlists": "Wunschliste",
       "productsMaintenance": "Produkte & Wartung",
       "contractsAgreements": "Verträge & Vereinbarungen",
       "personalData": "Persönliche Daten",
@@ -153,8 +153,10 @@
     "returnNumber": "Rücksendenummer",
     "returnDate": "Rücksendedatum",
     "orderNumber": "Bestellnummer",
+    "customer": "Kunde",
     "email": "E-Mail",
     "returnValue": "Rücksendewert",
+    "netReturnValue": "Netto-Rücksendewert",
     "returnId": "Rücksende-ID",
     "orderIds": "Bestellung(en)",
     "statusLabel": "Status",
@@ -162,7 +164,9 @@
     "total": "Gesamt",
     "createdAt": "Erstellt",
     "actions": "Aktionen",
+    "action": "Aktion",
     "view": "Anzeigen",
+    "viewReturnAriaLabel": "Rücksendung {id} anzeigen",
     "next": "Weiter",
     "previous": "Zurück",
     "pageIndicator": "Seite {current} / {total}",
@@ -176,6 +180,7 @@
     "yes": "Ja",
     "no": "Nein",
     "reason": "Rücksendegrund",
+    "reasonLabel": "Grund",
     "reasonCode": "Code",
     "reasonDetails": "Details",
     "order": "Bestellung",
@@ -187,8 +192,10 @@
     "price": "Preis",
     "refundAmount": "Erstattungsbetrag",
     "net": "Netto",
+    "gross": "Brutto",
     "itemNumberLabel": "Artikelnummer",
     "singleItemReturn": "Einzelartikel-Retoure",
+    "netValueOfGoods": "Nettowarenwert",
     "totalReturnValue": "Gesamtwert der Rücksendung",
     "itemReason": "Grund",
     "error": "Fehler",
@@ -321,13 +328,22 @@
   },
   "quoteDetails": {
     "title": "Angebotsdetails",
+    "headerTitle": "Angebot",
     "status": "Status",
+    "product": "Produkt",
+    "quantity": "Menge",
+    "price": "Preis",
+    "unitPrice": "Stückpreis",
     "quotationDate": "Angebotsdatum",
     "totalAmount": "Gesamtbetrag",
     "editor": "Bearbeiter",
     "action": "Aktion",
     "comment": "Kommentar",
     "date": "Datum",
+    "quoteHistory": "Angebotsverlauf",
+    "changeDate": "Änderungsdatum",
+    "event": "Ereignis",
+    "changedBy": "Geändert von",
     "numberOfProducts": "Anzahl der Produkte",
     "loading": "Angebotsdetails werden geladen...",
     "backToQuotes": "Zurück zu Angeboten",
@@ -336,17 +352,20 @@
     "basePrice": "Grundpreis",
     "quotedPrice": "Angebotspreis",
     "transport": "Transport",
+    "shipping": "Versand",
     "transportCondition": "Transportbedingung",
     "deliveryAddress": "Lieferadresse",
     "netValue": "Nettowert der Waren",
     "vat": "MwSt.",
     "deliveryCosts": "Lieferkosten",
+    "shippingFee": "Versandgebühr",
     "baseTotal": "Gesamtgrundpreis",
     "quotedTotal": "Angebotssumme",
     "transportCost": "Transport",
     "quoteReference": "Angebotsnummer",
     "approver": "Genehmiger",
     "accept": "ANNEHMEN",
+    "inquireApproval": "GENEHMIGUNG ANFRAGEN",
     "reject": "ABLEHNEN",
     "requestChange": "ÄNDERUNG ANFORDERN",
     "confirmationTitle": "Möchten Sie das Angebot annehmen und eine Bestellung erstellen?",
@@ -361,6 +380,16 @@
     "creating": "WIRD ERSTELLT...",
     "rejectConfirmationTitle": "Möchten Sie das Angebot ablehnen?",
     "rejectConfirmationDescription": "Wenn Sie möchten, können Sie einen Kommentar hinterlassen, um uns mitzuteilen, warum Sie dieses Angebot ablehnen. Ihr Feedback hilft uns, unsere Angebote zu verbessern.",
+    "decisionReasonLabel": "Grund",
+    "decisionReasonPlaceholder": "Wählen Sie einen Grund aus",
+    "decisionReasons": {
+      "PRICE_TOO_HIGH": "Preis zu hoch",
+      "NO_LONGER_NEEDED": "Nicht mehr benötigt",
+      "DELIVERY_TIME_LATE": "Lieferzeit zu spät",
+      "OTHER": "Andere",
+      "WRONG_MATERIAL": "Falsches Material",
+      "PROVIDED_PRICE_TO_HIGH": "Angegebener Preis zu hoch"
+    },
     "rejectCommentPlaceholder": "Bitte geben Sie Gründe für die Ablehnung dieses Angebots an...",
     "rejectQuote": "ANGEBOT ABLEHNEN",
     "rejecting": "WIRD ABGELEHNT...",
@@ -370,10 +399,13 @@
     "requestingChange": "ÄNDERUNG WIRD ANGEFORDERT...",
     "commentAdded": "Kommentar hinzugefügt",
     "initialQuoteRequest": "Angebotsanfrage",
-    "statusChanged": "Status geändert {currentStatus}",
+    "reason": "Grund",
+    "relatedApproval": "Zugehörige Genehmigung",
+    "statusChanged": "Status geändert zu {currentStatus}",
     "loadingHistory": "Verlauf wird geladen...",
     "quoteActionFailedTitle": "Die Aktion konnte nicht ausgeführt werden",
-    "quoteActionFailedDescription": "Bitte versuchen Sie es erneut oder wenden Sie sich an den Support."
+    "quoteActionFailedDescription": "Bitte versuchen Sie es erneut oder wenden Sie sich an den Support.",
+    "relatedOrder": "Zugehörige Bestellung"
   },
   "quotesList": {
     "title": "Angebote",
@@ -381,16 +413,22 @@
     "latest": "Neueste",
     "oldest": "Altste",
     "filter": "Filter",
+    "quoteId": "Angebots-ID",
     "quoteReference": "Angebotsreferenz",
     "status": "Status",
     "quotationDate": "Angebotsdatum",
     "requestedBy": "Angefordert von",
     "authorization": "Autorisierung",
-    "totalAmount": "Gesamtbetrag",
+    "netValue": "Nettowert",
     "numberOfProducts": "Anzahl der Produkte",
     "products": "Produkte",
+    "relatedOrder": "Zugehörige Bestellung",
     "noQuotes": "Sie haben noch keine Angebote",
+    "searchPlaceholder": "Nach Angebots-ID oder Referenz suchen...",
+    "noMatches": "Keine Angebote entsprechen Ihrer Suche",
     "viewQuote": "Angebotsansicht",
+    "action": "Aktion",
+    "viewQuoteAriaLabel": "Angebot {id} ansehen",
     "next": "Weiter",
     "previous": "Zurück",
     "pageIndicator": "Seite {current} / {total}"
@@ -667,5 +705,55 @@
   "unknownError": "Ein unbekannter Fehler ist aufgetreten.",
   "Invoices": {
     "title": "Rechnungsdetails"
+  },
+  "wishlist": {
+    "title": "Wunschliste",
+    "breadcrumb": "Wunschliste",
+    "empty": "Ihre Wunschliste ist leer.",
+    "itemNumber": "Artikelnummer",
+    "net": "Netto",
+    "priceUnavailable": "-",
+    "quantity": "Menge",
+    "decrement": "Verringern",
+    "increment": "Erhöhen",
+    "columns": {
+      "product": "Produkt",
+      "quantity": "Menge",
+      "unitPrice": "Einheitspreis"
+    },
+    "statuses": {
+      "unavailable": "Deaktiviert",
+      "noPrice": "Kein Preis",
+      "onlineAvailable": "Online verfügbar"
+    },
+    "actions": {
+      "removeFromList": "Von Liste entfernen",
+      "addToCart": "In den Warenkorb",
+      "compare": "Vergleichen",
+      "addAllToCart": "Alles in den Warenkorb"
+    },
+    "totalValue": {
+      "title": "Gesamtwert",
+      "label": "Gesamtwert"
+    },
+    "bulkMoveResult": {
+      "success": {
+        "title": "Zum Warenkorb hinzugefügt",
+        "description": "Alle Produkte wurden zum Warenkorb hinzugefügt."
+      },
+      "warning": {
+        "title": "Eingeschränkte Verfügbarkeit",
+        "description": "Alle Produkte wurden zum Warenkorb hinzugefügt. Ein oder mehrere Produkte sind nicht in der gewünschten Menge verfügbar."
+      }
+    },
+    "notifications": {
+      "removeSuccess": "{product} wurde von der Wunschliste entfernt",
+      "removeError": "{product} konnte nicht von der Wunschliste entfernt werden",
+      "moveToCartError": "{product} konnte nicht in den Warenkorb gelegt werden",
+      "moveToCartPartialFailure": "{product} wurde in den Warenkorb gelegt, das Entfernen aus der Wunschliste schlug fehl",
+      "addError": "Produkt konnte nicht zur Wunschliste hinzugefügt werden",
+      "updateQuantityError": "Die Menge für {product} konnte nicht aktualisiert werden"
+    },
+    "noPriceTooltip": "Dieses Produkt hat keinen Preis und kann nicht zur Wunschliste hinzugefügt werden."
   }
 }

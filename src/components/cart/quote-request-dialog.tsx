@@ -6,7 +6,14 @@ import { AddressSelector } from '@/components/address/address-selector';
 import CheckoutAddress from '@/components/checkout/checkout-address';
 import ShippingMethod from '@/components/checkout/shipping-method';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useCart } from '@/hooks/cart/useCart';
@@ -34,6 +41,10 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
   const [reference, setReference] = useState('');
   const [comment, setComment] = useState('');
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    onOpenChange(nextOpen);
+  };
+
   const handleShippingChange = (address: Address) => {
     submitShippingAddress({ ...address, type: 'SHIPPING' });
   };
@@ -42,10 +53,10 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
     submitBillingAddress({ ...address, type: 'BILLING' });
   };
 
-  // Build the Emporix QuoteCreateFromCartRequest fields. The BFF accepts
-  // additional top-level fields (reference, userComment, comment) and applies
-  // them via PATCH after the quote id is returned — they are intentionally not
-  // part of the Emporix wire shape here.
+  // Build the Emporix QuoteCreateFromCartRequest fields. `reference`/`userComment`
+  // are NOT part of this wire shape; they are attached to the /api/quote payload
+  // separately (see submitQuote), and /api/quote maps them to Emporix
+  // `customerReference`/`customerComment` before forwarding upstream.
   const createFromCartPayload = () => {
     if (!checkoutCart?.id) {
       throw new Error('Cart ID is required for quote from cart');
@@ -66,7 +77,60 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
     } as const;
   };
 
-  const sendQuote = async () => {
+  const submitQuote = async () => {
+    if (!checkoutCart?.id || !checkoutCart.items?.length) {
+      throw new Error(t('failedDescription'));
+    }
+
+    const payload = {
+      ...createFromCartPayload(),
+      intent: 'REQUEST',
+      reference: reference || undefined,
+      userComment: comment || undefined,
+    };
+
+    const res = await fetch('/api/quote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errorBody = await res.json().catch(() => null);
+      throw new Error(errorBody?.error || t('failedDescription'));
+    }
+
+    const data = await res.json();
+
+    clearCart();
+
+    toast({
+      title: t('submittedTitle'),
+      description: t('submittedDescription'),
+      variant: 'success',
+    });
+
+    onOpenChange(false);
+
+    router.push(`/account/quotes/${data.quoteId}`);
+  };
+
+  const sendQuote = async (): Promise<boolean> => {
+    try {
+      await submitQuote();
+      return true;
+    } catch (err) {
+      getLogger().error({ err }, 'Send quote failed');
+      toast({
+        title: t('failedTitle'),
+        description: err instanceof Error ? err.message : t('failedDescription'),
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
+  const handlePrimaryAction = async () => {
     if (!checkoutCart?.id || !checkoutCart.items?.length) {
       toast({
         title: t('failedTitle'),
@@ -76,57 +140,15 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
       return;
     }
 
-    try {
-      const payload = {
-        ...createFromCartPayload(),
-        reference: reference || undefined,
-        userComment: comment || undefined,
-      };
-
-      const res = await fetch('/api/quote', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt || 'Failed to create quote');
-      }
-
-      const data = await res.json();
-
-      // Drop local cart state so the header badge and mini-cart zero out.
-      // Emporix owns the cart's post-quote lifecycle now that the quote stores
-      // cartId (spec: QuoteCreateFromCartRequest), so we no longer force
-      // `deleteCart: true` from the client.
-      clearCart();
-
-      toast({
-        title: t('submittedTitle'),
-        description: t('submittedDescription'),
-        variant: 'success',
-      });
-
-      onOpenChange(false);
-
-      router.push(`/account/quotes/${data.quoteId}`);
-    } catch (err) {
-      getLogger().error({ err }, 'Send quote failed');
-      toast({
-        title: t('failedTitle'),
-        description: err instanceof Error ? err.message : t('failedDescription'),
-        variant: 'destructive',
-      });
-    }
+    await sendQuote();
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="w-[calc(100%-2rem)] sm:max-w-screen-lg lg:max-w-[1220px] flex min-h-0 flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>{t('title')}</DialogTitle>
-          <p className="text-sm text-text-on-disabled">{t('subtitle')}</p>
+          <DialogDescription className="text-sm text-text-on-disabled">{t('subtitle')}</DialogDescription>
         </DialogHeader>
 
         {/* Scrollable content area */}
@@ -214,10 +236,10 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
         </div>
 
         <DialogFooter className="shrink-0 border-t pt-4 bg-surface-page">
-          <Button variant="secondary" onClick={() => onOpenChange(false)} data-testid="quote-cancelButton">
+          <Button variant="secondary" onClick={() => handleOpenChange(false)} data-testid="quote-cancelButton">
             {t('cancel')}
           </Button>
-          <Button onClick={sendQuote} data-testid="quote-sendButton">
+          <Button onClick={handlePrimaryAction} data-testid="quote-sendButton">
             {t('sendQuote')}
           </Button>
         </DialogFooter>

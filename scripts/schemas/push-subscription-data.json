@@ -1,0 +1,118 @@
+{
+  "id": "PUSH_SUBSCRIPTION_DATA",
+  "name": {
+    "en": "Storefront Push Subscription"
+  },
+  "attributes": [
+    {
+      "key": "origin",
+      "name": {
+        "en": "Origin",
+        "de": "Origin"
+      },
+      "description": {
+        "en": "Origin of the push subscription e.g. https://emporix-showcase.com/demo",
+        "de": "Origin-URL der Push Registrierung, bspw. https://emporix-showcase.com/demo"
+      },
+      "type": "TEXT",
+      "metadata": {
+        "required": true
+      }
+    },
+    {
+      "key": "endpoint",
+      "name": {
+        "en": "Endpoint",
+        "de": "Endpoint"
+      },
+      "description": {
+        "en": "Push subscription endpoint URL",
+        "de": "Push-Subscription-Endpoint-URL"
+      },
+      "type": "TEXT",
+      "metadata": {
+        "required": true
+      }
+    },
+    {
+      "key": "expiration_time",
+      "name": {
+        "en": "Expiration Time",
+        "de": "Ablaufzeit"
+      },
+      "description": {
+        "en": "Timestamp when the subscription expires (if applicable)",
+        "de": "Timestamp, wann das Abonnement abläuft (falls applicable)"
+      },
+      "type": "NUMBER",
+      "metadata": {
+        "required": false,
+        "nullable": true
+      }
+    },
+    {
+      "key": "p256dh_key",
+      "name": {
+        "en": "P256DH Key",
+        "de": "P256DH-Schlüssel"
+      },
+      "description": {
+        "en": "Public key for encryption",
+        "de": "Öffentlicher Schlüssel für Verschlüsselung"
+      },
+      "type": "TEXT",
+      "metadata": {
+        "required": true
+      }
+    },
+    {
+      "key": "auth_key",
+      "name": {
+        "en": "Auth Key",
+        "de": "Authentifizierungs-Secret"
+      },
+      "description": {
+        "en": "Authentication secret",
+        "de": "Authentifizierungs-Secret"
+      },
+      "type": "TEXT",
+      "metadata": {
+        "required": true
+      }
+    },
+    {
+      "key": "recipient_session_id",
+      "name": {
+        "en": "Recipient Session ID",
+        "de": "Sitzungs-ID des Empfängers"
+      },
+      "description": {
+        "en": "ID of the session this subscription belongs to",
+        "de": "ID der Sitzung, zu der diese Subscription gehört"
+      },
+      "type": "TEXT",
+      "metadata": {
+        "required": true
+      }
+    },
+    {
+      "key": "recipient_customer_id",
+      "name": {
+        "en": "Recipient Customer ID",
+        "de": "Kunden-ID des Empfängers"
+      },
+      "description": {
+        "en": "ID of the customer this subscription belongs to (if authenticated)",
+        "de": "ID des Kunden, zu dem diese Subscription gehört (falls authentifiziert)"
+      },
+      "type": "TEXT",
+      "metadata": {
+        "required": false,
+        "nullable": true
+      }
+    }
+  ],
+  "types": [
+    "STOREFRONT_PUSH_SUBSCRIPTION"
+  ]
+}

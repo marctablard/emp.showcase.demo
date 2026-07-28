@@ -20,6 +20,18 @@ export interface EmporixApprovalRequestor extends EmporixApprovalUser {
 export interface EmporixApprovalPrice {
   currency: string;
   amount: number;
+  unitPrice?: number;
+  newUnitPrice?: number;
+  netValue?: number;
+  grossValue?: number;
+  taxValue?: number;
+  calculatedPrice?: {
+    price?: {
+      netValue?: number;
+      grossValue?: number;
+      taxValue?: number;
+    };
+  };
 }
 
 export interface EmporixApprovalTaxablePrice {
@@ -38,11 +50,13 @@ export interface EmporixApprovalDeliveryWindow {
 export interface EmporixApprovalResourceItem {
   quantity: number;
   itemPrice: EmporixApprovalPrice;
-  itemYrn: string;
+  itemYrn?: string;
+  itemId?: string;
 }
 
 export interface EmporixApprovalResource {
   id: string;
+  orderId?: string;
   items?: EmporixApprovalResourceItem[];
   totalPrice?: EmporixApprovalPrice;
   subTotalPrice?: EmporixApprovalPrice;
@@ -65,7 +79,7 @@ export interface EmporixApprovalDetails {
   addresses?: EmporixCheckoutAddress[];
 }
 
-export type EmporixApprovalResourceType = 'CART';
+export type EmporixApprovalResourceType = 'CART' | 'QUOTE';
 export type EmporixApprovalAction = 'CHECKOUT';
 export type EmporixApprovalStatus = 'PENDING' | 'APPROVED' | 'CLOSED' | 'EXPIRED' | 'DECLINED';
 

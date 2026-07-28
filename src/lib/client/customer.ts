@@ -148,7 +148,7 @@ export async function deleteCustomerAddress(id: string): Promise<void> {
 export async function changeCustomerPassword(passwordData: PasswordChangeDto): Promise<void> {
   try {
     const response = await fetch('/api/customer/current/password', {
-      method: 'PUT',
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },

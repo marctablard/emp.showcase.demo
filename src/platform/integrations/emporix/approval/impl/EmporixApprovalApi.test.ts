@@ -3,6 +3,7 @@ import EmporixCartApi from '../../cart/impl/EmporixCartApi';
 import EmporixCheckoutApi from '../../checkout/impl/EmporixCheckoutApi';
 import { EmporixTokenManager } from '../../common/EmporixTokenManager';
 import EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
+import { disabledMetricsService, testRequestContext } from '../../common/impl/EmporixApiInvoker.test-doubles';
 import { EmporixTestTokenManager } from '../../common/impl/EmporixTokenManager.test';
 import { EmporixConfig } from '../../config';
 import EmporixCustomerApi from '../../customer/impl/EmporixCustomerApi';
@@ -171,6 +172,8 @@ describe('EmporixApprovalApi', () => {
           new EmporixApiInvoker(
             ctx.get<EmporixConfig>('EmporixConfig'),
             ctx.get<EmporixTokenManager>('EmporixTokenManager'),
+            disabledMetricsService(),
+            testRequestContext(),
           ),
       )
       .inSingletonScope();
@@ -446,7 +449,7 @@ describe('EmporixApprovalApi', () => {
       await setupApproverToken();
 
       // Get all approvals
-      const approvals = await approvalApi.getApprovals();
+      const { items: approvals } = await approvalApi.getApprovals();
 
       // Verify we got a list of approvals
       expect(Array.isArray(approvals)).toBe(true);

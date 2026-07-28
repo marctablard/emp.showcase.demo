@@ -1,4 +1,22 @@
-import { BatteryIncludedSearchResponse, Highlight, Preset, Product, SearchParams, Suggestion } from '../model';
+import type {
+  BatteryIncludedBrowseVariables,
+  BatteryIncludedHighlight,
+  BatteryIncludedPreset,
+  BatteryIncludedProduct,
+  BatteryIncludedSearchParams,
+  BatteryIncludedSearchResponse,
+  BatteryIncludedSuggestParams,
+  BatteryIncludedSuggestion,
+  BatteryIncludedVisibilityContext,
+} from '../model';
+
+export interface BatteryIncludedCategoryTreeBootstrapParams {
+  locale: string;
+  siteCode: string;
+  country?: string;
+  variables?: BatteryIncludedBrowseVariables;
+  visibility?: BatteryIncludedVisibilityContext;
+}
 
 export interface BatteryIncludedShopApi {
   /**
@@ -11,29 +29,41 @@ export interface BatteryIncludedShopApi {
    * @param sort Optional sort parameter
    * @param preset Optional preset ID to use
    */
-  browse(params: SearchParams<Product>): Promise<BatteryIncludedSearchResponse<Product>>;
+  browse<T>(params: BatteryIncludedSearchParams<T>): Promise<BatteryIncludedSearchResponse<T>>;
+
+  /**
+   * Browse with the grounded category-tree bootstrap contract.
+   */
+  browseCategoryTreeBootstrap<T>(
+    params: BatteryIncludedCategoryTreeBootstrapParams,
+  ): Promise<BatteryIncludedSearchResponse<T>>;
 
   /**
    * Get product suggestions based on a search query
-   * @param query Search query
-   * @param locale Locale for localized content
-   * @param segmentIds
+   * @param params Search query plus BI variable context
    */
-  suggest(query: string, locale?: string, segmentIds?: string): Promise<Suggestion[]>;
+  suggest(params: BatteryIncludedSuggestParams): Promise<BatteryIncludedSuggestion<BatteryIncludedProduct>[]>;
 
   /**
    * Get highlighted products
    */
-  getHighlights(): Promise<Highlight[]>;
+  getHighlights(
+    visibility?: BatteryIncludedBrowseVariables | BatteryIncludedVisibilityContext,
+  ): Promise<BatteryIncludedHighlight[]>;
 
   /**
    * Get product recommendations based on a product ID
    * @param id Product ID
    */
-  getRecommendations(id: string): Promise<Product[]>;
+  getRecommendations(
+    id: string,
+    visibility?: BatteryIncludedBrowseVariables | BatteryIncludedVisibilityContext,
+  ): Promise<BatteryIncludedProduct[]>;
 
   /**
    * Get available presets
    */
-  getPresets(): Promise<Preset[]>;
+  getPresets(
+    visibility?: BatteryIncludedBrowseVariables | BatteryIncludedVisibilityContext,
+  ): Promise<BatteryIncludedPreset[]>;
 }

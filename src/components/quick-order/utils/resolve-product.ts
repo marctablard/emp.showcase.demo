@@ -1,0 +1,125 @@
+import { fetchProductAvailability } from '@/lib/client/availability';
+import { clearMarkHighlights } from '@/lib/common/clear-mark-highlights';
+import type { Product } from '@/platform/services/model/product';
+
+interface ResolveLogger {
+  error: (obj: Record<string, unknown>, msg: string) => void;
+}
+
+const BATCH_SIZE = 5;
+
+export async function resolveProductByCode(
+  code: string,
+  locale: string,
+  site?: string,
+  logger?: ResolveLogger,
+): Promise<Product | null> {
+  const trimmedSite = site?.trim();
+  // `/api/search` requires a site for scoped search (unscoped search is gated behind an env flag),
+  // mirroring `useSearch`. Bail out early rather than issue a request that would silently return nothing.
+  if (!trimmedSite) {
+    return null;
+  }
+
+  try {
+    const url = new URL('/api/search', window.location.origin);
+    url.searchParams.append('query', code);
+    url.searchParams.append('locale', locale);
+    url.searchParams.append('site', trimmedSite);
+    url.searchParams.append('size', '10');
+    url.searchParams.append('allProducts', '1');
+
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+      return null;
+    }
+    const data = await response.json();
+    const products: Product[] = data.items ?? [];
+    const normalizedCode = clearMarkHighlights(code).toLowerCase();
+    const match = products.find((p) => {
+      const productId = clearMarkHighlights(p.id).toLowerCase();
+      const productSku = clearMarkHighlights(p.sku).toLowerCase();
+
+      return productId === normalizedCode || productSku === normalizedCode;
+    });
+    if (!match) {
+      return null;
+    }
+
+    // Strip any `<mark>` highlight markup from the identifiers so downstream price/availability
+    // lookups (which use `product.id`/`product.sku` directly) receive clean values.
+    const plainId = clearMarkHighlights(match.id);
+    const plainSku = clearMarkHighlights(match.sku);
+    return {
+      ...match,
+      id: plainId,
+      sku: plainSku || match.sku,
+    };
+  } catch (err) {
+    logger?.error({ err, code }, 'Failed to resolve product code');
+    return null;
+  }
+}
+
+export async function resolveProductsBatch(
+  entries: Array<{ code: string; quantity: number }>,
+  locale: string,
+  site?: string,
+  logger?: ResolveLogger,
+): Promise<{
+  resolved: Array<{ product: Product; quantity: number; code: string }>;
+  notFound: Array<{ code: string; quantity: number }>;
+}> {
+  const resolved: Array<{ product: Product; quantity: number; code: string }> = [];
+  const notFound: Array<{ code: string; quantity: number }> = [];
+
+  for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+    const batch = entries.slice(i, i + BATCH_SIZE);
+    const results = await Promise.all(
+      batch.map(async (entry) => ({
+        entry,
+        product: await resolveProductByCode(entry.code, locale, site, logger),
+      })),
+    );
+    for (const { entry, product } of results) {
+      if (product) {
+        resolved.push({ product, quantity: entry.quantity, code: entry.code });
+      } else {
+        notFound.push(entry);
+      }
+    }
+  }
+
+  return { resolved, notFound };
+}
+
+export interface AvailabilityResult<T> {
+  entry: T;
+  availability: Awaited<ReturnType<typeof fetchProductAvailability>> | null;
+}
+
+/**
+ * Fetch availability in batches to avoid unbounded concurrent requests.
+ */
+export async function fetchAvailabilityBatch<T extends { product: { id: string } }>(
+  entries: T[],
+): Promise<AvailabilityResult<T>[]> {
+  const results: AvailabilityResult<T>[] = [];
+
+  for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+    const batch = entries.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.all(
+      batch.map(async (entry) => {
+        try {
+          const availability = await fetchProductAvailability(entry.product.id);
+          return { entry, availability };
+        } catch {
+          return { entry, availability: null };
+        }
+      }),
+    );
+    results.push(...batchResults);
+  }
+
+  return results;
+}

@@ -1,6 +1,7 @@
 import { Container } from 'inversify';
 import { EmporixTokenManager as TokenManager } from '../../common/EmporixTokenManager';
 import EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
+import { disabledMetricsService, testRequestContext } from '../../common/impl/EmporixApiInvoker.test-doubles';
 import { EmporixTestTokenManager } from '../../common/impl/EmporixTokenManager.test';
 import { EmporixConfig } from '../../config';
 import { EmporixFindSiteRequest, EmporixShippingMethod } from '../../model/shipping';
@@ -39,7 +40,12 @@ describe('EmporixShippingApi', () => {
       .bind<EmporixApiInvoker>('EmporixApiInvoker')
       .toDynamicValue(
         (ctx) =>
-          new EmporixApiInvoker(ctx.get<EmporixConfig>('EmporixConfig'), ctx.get<TokenManager>('EmporixTokenManager')),
+          new EmporixApiInvoker(
+            ctx.get<EmporixConfig>('EmporixConfig'),
+            ctx.get<TokenManager>('EmporixTokenManager'),
+            disabledMetricsService(),
+            testRequestContext(),
+          ),
       )
       .inSingletonScope();
     container.bind<EmporixShippingApi>('EmporixShippingApi').to(EmporixShippingApi);

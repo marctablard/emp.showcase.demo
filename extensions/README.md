@@ -5,6 +5,7 @@ This directory contains extensions that enhance the core functionality of the Em
 ## Overview
 
 Extensions are self-contained modules that can:
+
 - Add new services and integrations
 - Provide React components
 - Register dependency injection bindings
@@ -22,6 +23,7 @@ Pre-built extensions are distributed as compressed archives (`.zip` or `.tar.gz`
 5. **Restart** the development server or rebuild the application
 
 Example structure after installation:
+
 ```
 extensions/
 ├── .gitkeep
@@ -84,15 +86,12 @@ Every extension **must** include a `plugin.json` file at its root. This manifest
   "description": "CMS page management backed by Emporix Custom Entities",
   "version": "1.0.0",
   "enabled": true,
-  
+
   "aliases": {
     "CMSService": "EmporixCMSService"
   },
-  
-  "setup": [
-    "setup/cms-page-entity.json",
-    "setup/cms-page-seed.json"
-  ]
+
+  "setup": ["setup/cms-page-entity.json", "setup/cms-page-seed.json"]
 }
 ```
 
@@ -123,7 +122,7 @@ import type { MyService } from '@/platform/services/my-service/MyService';
 export class MyCustomServiceSSR implements MyService {
   constructor(
     @inject('LoggerService') private logger: LoggerService,
-    @inject('SomeOtherService') private otherService: SomeOtherService
+    @inject('SomeOtherService') private otherService: SomeOtherService,
   ) {}
 
   async doSomething(): Promise<void> {
@@ -159,6 +158,7 @@ Use the `aliases` field in `plugin.json` to override core services:
 This tells the DI container: "When something requests `CMSService`, give them `EmporixCMSService` instead."
 
 **Use cases:**
+
 - Replace a default implementation with an extension-specific one
 - Provide alternative integrations (e.g., different payment providers)
 - Override behavior for specific environments
@@ -185,7 +185,7 @@ Extensions can provide React components that the storefront can use.
 // extensions/my-extension/components/index.ts
 /**
  * Component registry for my-extension.
- * 
+ *
  * Exports React components that can be used by the host application
  * or by other extensions. Import from '@extensions/my-extension/components'.
  */
@@ -232,10 +232,7 @@ Reference setup files in `plugin.json`:
 
 ```json
 {
-  "setup": [
-    "setup/my-entity-schema.json",
-    "setup/my-seed-data.json"
-  ]
+  "setup": ["setup/my-entity-schema.json", "setup/my-seed-data.json"]
 }
 ```
 
@@ -281,6 +278,7 @@ Extension (High-Level)              Storefront (Low-Level)
 ```
 
 **Benefits:**
+
 - Extension owns the contract (interface)
 - Storefront fulfills the contract (implementation)
 - Extension is portable to any storefront that implements the interface
@@ -289,14 +287,15 @@ Extension (High-Level)              Storefront (Low-Level)
 **Example:**
 
 ```typescript
+// Extension uses it
+import type { MyService } from '../MyService';
+
 // Extension defines what it needs
 // extensions/my-extension/MyService.d.ts
 export interface MyService {
   getData(): Promise<Data>;
 }
 
-// Extension uses it
-import type { MyService } from '../MyService';
 const service = client.get<MyService>('MyService');
 
 // Storefront implements it
@@ -328,6 +327,7 @@ export class MyServiceImpl implements MyService {
 ### 3. Document Your Extension
 
 Include a `docs/` directory with:
+
 - Architecture overview
 - API documentation
 - Configuration guide

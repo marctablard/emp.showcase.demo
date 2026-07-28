@@ -329,6 +329,15 @@ export const createCartStore = (initState: CartState = defaultState) => {
 
         let { currentCart } = get();
         if (!currentCart) {
+          // Wait for any in-flight fetchCart (e.g. from validateCart after login) before
+          // attempting to create — avoids a 409 Conflict when the auth service already
+          // created/merged a cart server-side.
+          if (_fetchPromise) {
+            await _fetchPromise;
+            currentCart = get().currentCart;
+          }
+        }
+        if (!currentCart) {
           try {
             const newCart = await apiCreateCart({
               ...(lastSiteCode ? { siteCode: lastSiteCode } : {}),
@@ -336,6 +345,15 @@ export const createCartStore = (initState: CartState = defaultState) => {
             set({ currentCart: newCart, loading: false });
             currentCart = newCart;
           } catch (err) {
+            // Cart creation failed — likely a 409 Conflict from a post-login race where
+            // the session already owns a cart. Fetch the existing cart and retry once.
+            if (_retryCount < 1) {
+              _fetchPromise = null;
+              const fetched = await get().fetchCart();
+              if (fetched) {
+                return get().addToCart(productId, quantity, _retryCount + 1);
+              }
+            }
             const error = err instanceof Error ? err : new Error('Failed to create cart');
             set({ error, loading: false });
             getLogger().error({ err }, 'Error creating cart before add-to-cart');

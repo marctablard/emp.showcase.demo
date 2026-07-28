@@ -1,5 +1,10 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import {
+  ORDER_ACCESS_DENIED_MESSAGE,
+  getUpstreamStatusCode,
+  isOrderAccessDeniedStatus,
+} from '@/lib/common/order-access-denied';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { OrderService } from '@/platform/services/order/OrderService';
@@ -20,6 +25,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json(statusTransitions);
   } catch (error) {
     const logger = server.get<LoggerService>('LoggerService');
+    const upstreamStatus = getUpstreamStatusCode(error);
+
     logger.error(
       {
         error: error instanceof Error ? error.message : String(error),
@@ -30,6 +37,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       },
       `Error fetching status transitions for order ${orderId}`,
     );
+
+    if (upstreamStatus !== null) {
+      return NextResponse.json(
+        {
+          error: isOrderAccessDeniedStatus(upstreamStatus)
+            ? ORDER_ACCESS_DENIED_MESSAGE
+            : 'Failed to fetch status transitions',
+        },
+        { status: upstreamStatus },
+      );
+    }
+
     return NextResponse.json({ error: 'Failed to fetch status transitions' }, { status: 500 });
   }
 }
