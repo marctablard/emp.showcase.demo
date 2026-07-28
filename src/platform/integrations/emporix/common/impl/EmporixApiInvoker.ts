@@ -29,8 +29,8 @@ const HISTOGRAM_BUCKETS = [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];
 class EmporixApiInvoker {
   protected config: EmporixConfig;
   protected tokenManager: EmporixTokenManager;
-  private metricsService: MetricsService;
-  private requestContext: RequestContextService;
+  private readonly metricsService: MetricsService;
+  private readonly requestContext: RequestContextService;
 
   constructor(
     @inject('EmporixConfig') config: EmporixConfig,

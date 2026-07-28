@@ -89,6 +89,35 @@ function tryParseAlwaysInclude(): Record<'server' | 'client' | 'ssr', string[]> 
   }
 }
 
+/**
+ * Reads the `AllowDynamicLookups:` section of depency.yml — repo-relative POSIX paths of
+ * files whose container lookups resolve their service ID at runtime. Listing a file is an
+ * explicit statement that the IDs it can reach are pinned under `AlwaysInclude:`; anything
+ * unlisted fails the prune run rather than being silently dropped.
+ *
+ * Shape:
+ *   AllowDynamicLookups:
+ *     - src/app/api/setup/route.ts
+ */
+function tryParseAllowDynamicLookups(): string[] {
+  try {
+    const dependencyFilePath = resolveDependencyFilePath();
+    if (!dependencyFilePath) return [];
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const yaml = require('js-yaml');
+    const raw = fs.readFileSync(dependencyFilePath, 'utf8');
+    const parsed = (yaml.load(raw) || {}) as Record<string, unknown>;
+    const section = parsed.AllowDynamicLookups;
+    if (!Array.isArray(section)) return [];
+    return section
+      .filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
+      .map((entry) => toPosix(entry.trim()));
+  } catch (error) {
+    console.error('Error reading/parsing AllowDynamicLookups in depency.yml:', error);
+    return [];
+  }
+}
+
 function tryParseDependencyAliases(): Array<{ alias: string; target: string }> {
   try {
     const dependencyFilePath = resolveDependencyFilePath();
@@ -148,6 +177,12 @@ function tryParseDependencyAliases(): Array<{ alias: string; target: string }> {
 const DEBUG = process.env.DEBUG === 'true';
 const EXTENSIONS_DIR = path.join(process.cwd(), 'extensions');
 const PRUNE = process.env.DI_PRUNE === 'true' || process.argv.slice(2).includes('--prune');
+/**
+ * Escape hatch for prune mode: downgrade unacknowledged runtime-resolved container lookups
+ * from a hard failure to a warning. Useful while iterating locally; not for CI builds,
+ * where a silently pruned service is exactly the failure this guard exists to prevent.
+ */
+const ALLOW_UNACKNOWLEDGED_LOOKUPS = process.env.DI_PRUNE_ALLOW_DYNAMIC === 'true';
 
 // Extension plugin manifest
 interface PluginManifest {
@@ -225,6 +260,79 @@ const SERVER_ONLY_IMPORT_RE = /^\s*import\s+["']server-only["']/m;
  * @param directory The directory to scan
  * @returns An array of injectable class information
  */
+/** Decorators attached to a node, which TypeScript exposes through `modifiers`. */
+function getDecorators(node: ts.ClassDeclaration | ts.ParameterDeclaration): Decorator[] {
+  const decorators: Decorator[] = [];
+  for (const modifier of node.modifiers ?? []) {
+    if (modifier.kind === ts.SyntaxKind.Decorator) decorators.push(modifier as Decorator);
+  }
+  return decorators;
+}
+
+/** `{ serviceId, scope }` from an `@injectable('Id', 'Scope')` decorator, or null. */
+function extractInjectableArgs(
+  node: ts.ClassDeclaration,
+  sourceFile: ts.SourceFile
+): { serviceId: string; scope: string } | null {
+  const injectableDecorator = getDecorators(node).find((decorator) => {
+    const text = decorator.expression.getText(sourceFile);
+    return text.startsWith('injectable(') || text.startsWith('@injectable(');
+  });
+  if (!injectableDecorator) return null;
+
+  const decoratorText = injectableDecorator.expression.getText(sourceFile);
+  const match = /injectable\(['"]([^'"]+)['"],\s*['"]([^'"]+)['"]\)/.exec(decoratorText);
+  if (!match) return null;
+
+  return { serviceId: match[1], scope: match[2] };
+}
+
+/** Service IDs from `@inject('Id')` decorators on constructor parameters. */
+function extractConstructorDependencies(node: ts.ClassDeclaration, sourceFile: ts.SourceFile): string[] {
+  const ctor = node.members.find((m): m is ts.ConstructorDeclaration => ts.isConstructorDeclaration(m));
+  if (!ctor) return [];
+
+  const dependencies: string[] = [];
+  for (const param of ctor.parameters) {
+    for (const decorator of getDecorators(param)) {
+      const injectMatch = /inject\(\s*['"]([^'"]+)['"]\s*\)/.exec(decorator.expression.getText(sourceFile));
+      if (injectMatch) dependencies.push(injectMatch[1]);
+    }
+  }
+  return dependencies;
+}
+
+/** Describe an `@injectable` class declaration, or null when the node is not one. */
+function toInjectableInfo(
+  node: ts.Node,
+  sourceFile: ts.SourceFile,
+  directory: string,
+  filePath: string,
+  hasServerOnlyImport: boolean
+): InjectableInfo | null {
+  if (!ts.isClassDeclaration(node) || !node.name) return null;
+
+  const injectableArgs = extractInjectableArgs(node, sourceFile);
+  if (!injectableArgs) return null;
+
+  const className = node.name.text;
+  const relativePath = toPosix(path.relative(directory, filePath)).replace(/\.tsx?$/, '');
+
+  return {
+    className,
+    serviceId: injectableArgs.serviceId,
+    scope: injectableArgs.scope,
+    filePath,
+    relativePath,
+    // The env suffix on the class name decides which container the injectable lands in.
+    isClientOnly: className.endsWith('Client'),
+    isServerOnly: className.endsWith('Server'),
+    isSsrOnly: className.endsWith('SSR'),
+    hasServerOnlyImport,
+    dependencies: extractConstructorDependencies(node, sourceFile),
+  };
+}
+
 async function scanForInjectables(directory: string): Promise<InjectableInfo[]> {
   const injectables: InjectableInfo[] = [];
   
@@ -251,77 +359,14 @@ async function scanForInjectables(directory: string): Promise<InjectableInfo[]> 
       
       // Find classes with @injectable decorator
       ts.forEachChild(sourceFile, (node) => {
-        if (ts.isClassDeclaration(node) && node.name) {
-          // Get decorators from modifiers
-          const decorators: Decorator[] = [];
-          if (node.modifiers) {
-            node.modifiers.forEach(modifier => {
-              if (modifier.kind === ts.SyntaxKind.Decorator) {
-                decorators.push(modifier as Decorator);
-              }
-            });
-          }
-          
-          if (decorators.length === 0) return;
-          // find our injectable decorator
-          const injectableDecorator = decorators.find((decorator) => {
-            const decoratorName = decorator.expression.getText(sourceFile);
-            return decoratorName.startsWith('injectable(') || decoratorName.startsWith('@injectable(');
-          });
-          
-          if (injectableDecorator) {
-            const decoratorText = injectableDecorator.expression.getText(sourceFile);
-            const match = /injectable\(['"]([^'"]+)['"],\s*['"]([^'"]+)['"]\)/.exec(decoratorText);
-            
-            if (match) {
-              const serviceId = match[1];
-              const scope = match[2];
-              const className = node.name.text;
-
-              // Calculate relative path for import
-              const relativePath = path.relative(directory, filePath)
-                .replaceAll('\\', '/') // Convert Windows paths to Unix-style
-                .replace(/\.tsx?$/, ''); // Remove file extension
-
-              // Determine if this is a client-only or server-only injectable
-              const isClientOnly = className.endsWith('Client');
-              const isServerOnly = className.endsWith('Server');
-              const isSsrOnly = className.endsWith('SSR');
-
-              // Extract @inject('Id') dependencies from constructor parameters
-              const dependencies: string[] = [];
-              const ctor = node.members.find(
-                (m): m is ts.ConstructorDeclaration => ts.isConstructorDeclaration(m)
-              );
-              if (ctor) {
-                for (const param of ctor.parameters) {
-                  if (!param.modifiers) continue;
-                  for (const modifier of param.modifiers) {
-                    if (modifier.kind !== ts.SyntaxKind.Decorator) continue;
-                    const decoratorText = (modifier as Decorator).expression.getText(sourceFile);
-                    const injectMatch = decoratorText.match(/inject\(\s*['"]([^'"]+)['"]\s*\)/);
-                    if (injectMatch) dependencies.push(injectMatch[1]);
-                  }
-                }
-              }
-
-              // gather information about all injectables that we have
-              injectables.push({
-                className,
-                serviceId,
-                scope,
-                filePath,
-                relativePath,
-                isClientOnly,
-                isServerOnly,
-                isSsrOnly,
-                hasServerOnlyImport,
-                dependencies,
-              });
-
-              if (DEBUG) console.debug(`Found injectable class: ${className} (${serviceId}, ${scope}) in ${relativePath} -> deps: [${dependencies.join(', ')}]`);
-            }
-          }
+        const found = toInjectableInfo(node, sourceFile, directory, filePath, hasServerOnlyImport);
+        if (!found) return;
+        injectables.push(found);
+        if (DEBUG) {
+          console.debug(
+            `Found injectable class: ${found.className} (${found.serviceId}, ${found.scope}) in ` +
+              `${found.relativePath} -> deps: [${found.dependencies.join(', ')}]`
+          );
         }
       });
     } catch (error) {
@@ -385,11 +430,26 @@ async function scanExtensions(): Promise<ExtensionInfo[]> {
 
 type ConsumerEnv = 'server' | 'client' | 'ssr';
 
+const CONSUMER_ENVS: ConsumerEnv[] = ['server', 'client', 'ssr'];
+
+/** Normalize Windows separators so path comparisons and log output stay stable. */
+function toPosix(value: string): string {
+  return value.replaceAll('\\', '/');
+}
+
+/** Repo-relative POSIX path, so warnings are copy-pasteable regardless of platform. */
+function toRepoRelative(filePath: string): string {
+  return toPosix(path.relative(process.cwd(), filePath));
+}
+
 const CONTAINER_FILE_PATHS: Record<ConsumerEnv, string> = {
-  server: path.join(process.cwd(), 'src/platform/server.ts').replace(/\\/g, '/'),
-  client: path.join(process.cwd(), 'src/platform/client.ts').replace(/\\/g, '/'),
-  ssr: path.join(process.cwd(), 'src/platform/ssr.ts').replace(/\\/g, '/'),
+  server: toPosix(path.join(process.cwd(), 'src/platform/server.ts')),
+  client: toPosix(path.join(process.cwd(), 'src/platform/client.ts')),
+  ssr: toPosix(path.join(process.cwd(), 'src/platform/ssr.ts')),
 };
+
+/** Container methods whose first argument is a service ID. */
+const CONTAINER_METHODS = new Set(['get', 'getAll', 'isBound', 'bind', 'unbind']);
 
 /**
  * Resolve an import specifier to one of the three platform container envs, or null.
@@ -404,7 +464,7 @@ function resolveImportToContainer(importPath: string, fromFile: string): Consume
   } else {
     return null;
   }
-  const normalized = resolved.replace(/\\/g, '/').replace(/\.(ts|tsx|js|jsx)$/, '');
+  const normalized = toPosix(resolved).replace(/\.(ts|tsx|js|jsx)$/, '');
   for (const env of Object.keys(CONTAINER_FILE_PATHS) as ConsumerEnv[]) {
     const target = CONTAINER_FILE_PATHS[env].replace(/\.(ts|tsx)$/, '');
     if (normalized === target) return env;
@@ -412,7 +472,204 @@ function resolveImportToContainer(importPath: string, fromFile: string): Consume
   return null;
 }
 
+/** Every scannable source file, excluding the generated containers themselves. */
+function collectScannableFiles(): string[] {
+  const files = glob.sync('{src,extensions}/**/*.{ts,tsx}', {
+    cwd: process.cwd(),
+    ignore: ['**/*.d.ts', '**/node_modules/**', '**/dist/**', '**/build/**'],
+    absolute: true,
+  });
+  const generated = new Set(Object.values(CONTAINER_FILE_PATHS));
+  return files.filter((filePath) => !generated.has(toPosix(filePath)));
+}
+
+/** Read and parse one file; null when it cannot be read. */
+function readSourceFile(filePath: string): { content: string; sourceFile: ts.SourceFile } | null {
+  let content: string;
+  try {
+    content = fs.readFileSync(filePath, 'utf8');
+  } catch {
+    return null;
+  }
+  return { content, sourceFile: ts.createSourceFile(filePath, content, ts.ScriptTarget.Latest, true) };
+}
+
+/**
+ * Map local identifiers bound to a platform container onto their env, e.g.
+ * `import server from '@/platform/server'` -> `{ server: 'server' }`.
+ */
+function collectContainerBindings(sourceFile: ts.SourceFile, filePath: string): Map<string, ConsumerEnv> {
+  const bindingToEnv = new Map<string, ConsumerEnv>();
+  ts.forEachChild(sourceFile, (node) => {
+    if (!ts.isImportDeclaration(node)) return;
+    const moduleSpec = node.moduleSpecifier;
+    if (!ts.isStringLiteral(moduleSpec)) return;
+    const env = resolveImportToContainer(moduleSpec.text, filePath);
+    if (!env) return;
+    const importClause = node.importClause;
+    if (!importClause) return;
+    if (importClause.name) bindingToEnv.set(importClause.name.text, env);
+    if (importClause.namedBindings && ts.isNamespaceImport(importClause.namedBindings)) {
+      bindingToEnv.set(importClause.namedBindings.name.text, env);
+    }
+  });
+  return bindingToEnv;
+}
+
+/**
+ * Nearest enclosing named function for a node. Used to suppress reports when a non-literal
+ * lookup lives inside a known proxy — the literal shows up at the proxy's call sites.
+ */
+function findEnclosingFunctionName(node: ts.Node): string | undefined {
+  let current: ts.Node | undefined = node.parent;
+  while (current) {
+    if (ts.isFunctionDeclaration(current) && current.name) return current.name.text;
+    if ((ts.isArrowFunction(current) || ts.isFunctionExpression(current)) && current.parent) {
+      const parent = current.parent;
+      if (ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name)) return parent.name.text;
+    }
+    current = current.parent;
+  }
+  return undefined;
+}
+
 type ProxyInfo = { env: ConsumerEnv; idArgIndex: number };
+
+/** Where a forwarded parameter ends up: a container method, or another function. */
+type ProxyVia = { kind: 'container'; env: ConsumerEnv } | { kind: 'proxy'; name: string };
+
+type ProxyTarget = { idArgIndex: number; via: ProxyVia };
+
+type ProxyCandidate = { name: string; targets: ProxyTarget[] };
+
+/** Classify a call's callee: a container method, a hop through another function, or neither. */
+function classifyForwardingCallee(
+  callee: ts.Expression,
+  bindingToEnv: Map<string, ConsumerEnv>
+): ProxyVia | null {
+  if (ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression)) {
+    const env = bindingToEnv.get(callee.expression.text);
+    if (!env || !CONTAINER_METHODS.has(callee.name.text)) return null;
+    return { kind: 'container', env };
+  }
+  if (ts.isIdentifier(callee)) return { kind: 'proxy', name: callee.text };
+  return null;
+}
+
+/** Target for a single node, or null when it does not forward one of `paramNames`. */
+function toForwardingTarget(
+  node: ts.Node,
+  paramNames: Array<string | null>,
+  bindingToEnv: Map<string, ConsumerEnv>
+): ProxyTarget | null {
+  if (!ts.isCallExpression(node)) return null;
+  const firstArg = node.arguments[0];
+  if (!firstArg || !ts.isIdentifier(firstArg)) return null;
+  const idArgIndex = paramNames.indexOf(firstArg.text);
+  if (idArgIndex < 0) return null;
+  const via = classifyForwardingCallee(node.expression, bindingToEnv);
+  return via ? { idArgIndex, via } : null;
+}
+
+/**
+ * Every call in `body` that forwards one of `paramNames` as its first argument, recorded as
+ * either a direct container hit or a hop through another (possibly not-yet-known) function.
+ * All of them are collected because a body may forward unrelated params first
+ * (e.g. `useRef(initialData)`) before the meaningful one. Traversal stays pre-order: the
+ * first resolvable target wins downstream, so ordering is behaviour, not cosmetics.
+ */
+function collectForwardingTargets(
+  paramNames: Array<string | null>,
+  body: ts.Node,
+  bindingToEnv: Map<string, ConsumerEnv>
+): ProxyTarget[] {
+  const targets: ProxyTarget[] = [];
+
+  const walk = (node: ts.Node): void => {
+    const target = toForwardingTarget(node, paramNames, bindingToEnv);
+    if (target) targets.push(target);
+    ts.forEachChild(node, walk);
+  };
+  walk(body);
+
+  return targets;
+}
+
+/** Named functions in one file that forward a parameter onward. */
+function collectProxyCandidates(
+  sourceFile: ts.SourceFile,
+  bindingToEnv: Map<string, ConsumerEnv>
+): ProxyCandidate[] {
+  const candidates: ProxyCandidate[] = [];
+
+  const inspectFunction = (
+    funcName: string,
+    params: ts.NodeArray<ts.ParameterDeclaration>,
+    body: ts.Node
+  ): void => {
+    const paramNames = Array.from(params).map((p) => (ts.isIdentifier(p.name) ? p.name.text : null));
+    if (!paramNames.some((name) => name !== null)) return;
+    const targets = collectForwardingTargets(paramNames, body, bindingToEnv);
+    if (targets.length > 0) candidates.push({ name: funcName, targets });
+  };
+
+  const visit = (node: ts.Node): void => {
+    if (ts.isFunctionDeclaration(node) && node.name && node.body) {
+      inspectFunction(node.name.text, node.parameters, node.body);
+    } else if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.initializer &&
+      (ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))
+    ) {
+      inspectFunction(node.name.text, node.initializer.parameters, node.initializer.body);
+    }
+    ts.forEachChild(node, visit);
+  };
+  ts.forEachChild(sourceFile, visit);
+
+  return candidates;
+}
+
+/** First target that bottoms out at a container, directly or via an already-resolved proxy. */
+function findResolvableTarget(targets: ProxyTarget[], resolved: Map<string, ProxyInfo>): ProxyInfo | null {
+  for (const target of targets) {
+    if (target.via.kind === 'container') {
+      return { env: target.via.env, idArgIndex: target.idArgIndex };
+    }
+    const dep = resolved.get(target.via.name);
+    if (dep) return { env: dep.env, idArgIndex: target.idArgIndex };
+  }
+  return null;
+}
+
+/**
+ * Iteratively resolve candidates until no progress is made; stranded ones (those that only
+ * forward into functions which never reach a container) are silently dropped.
+ */
+function resolveProxyChains(candidates: ProxyCandidate[]): Map<string, ProxyInfo> {
+  const resolved = new Map<string, ProxyInfo>();
+  let pending = candidates;
+  let progress = true;
+
+  while (progress) {
+    progress = false;
+    const remaining: ProxyCandidate[] = [];
+    for (const candidate of pending) {
+      if (resolved.has(candidate.name)) continue;
+      const hit = findResolvableTarget(candidate.targets, resolved);
+      if (hit) {
+        resolved.set(candidate.name, hit);
+        progress = true;
+      } else {
+        remaining.push(candidate);
+      }
+    }
+    pending = remaining;
+  }
+
+  return resolved;
+}
 
 /**
  * Auto-detect "DI proxy" functions: helpers whose body forwards one of their parameters
@@ -429,140 +686,21 @@ type ProxyInfo = { env: ConsumerEnv; idArgIndex: number };
  * detected.
  */
 async function detectProxies(): Promise<Map<string, ProxyInfo>> {
-  type Target =
-    | { idArgIndex: number; via: { kind: 'container'; env: ConsumerEnv } }
-    | { idArgIndex: number; via: { kind: 'proxy'; name: string } };
-  type Candidate = { name: string; targets: Target[] };
+  const candidates: ProxyCandidate[] = [];
 
-  const candidates: Candidate[] = [];
-  const interestingMethods = new Set(['get', 'getAll', 'isBound', 'bind', 'unbind']);
-
-  const files = glob.sync('{src,extensions}/**/*.{ts,tsx}', {
-    cwd: process.cwd(),
-    ignore: ['**/*.d.ts', '**/node_modules/**', '**/dist/**', '**/build/**'],
-    absolute: true,
-  });
-  const generatedContainerSet = new Set(Object.values(CONTAINER_FILE_PATHS));
-
-  for (const filePath of files) {
-    const normalizedPath = filePath.replace(/\\/g, '/');
-    if (generatedContainerSet.has(normalizedPath)) continue;
-    let fileContent: string;
-    try {
-      fileContent = fs.readFileSync(filePath, 'utf8');
-    } catch {
-      continue;
-    }
-
-    const sourceFile = ts.createSourceFile(filePath, fileContent, ts.ScriptTarget.Latest, true);
-
-    // Build local container-binding map (so we know which identifiers are containers).
-    const bindingToEnv = new Map<string, ConsumerEnv>();
-    ts.forEachChild(sourceFile, (node) => {
-      if (!ts.isImportDeclaration(node)) return;
-      const moduleSpec = node.moduleSpecifier;
-      if (!ts.isStringLiteral(moduleSpec)) return;
-      const env = resolveImportToContainer(moduleSpec.text, filePath);
-      if (!env) return;
-      const ic = node.importClause;
-      if (!ic) return;
-      if (ic.name) bindingToEnv.set(ic.name.text, env);
-      if (ic.namedBindings && ts.isNamespaceImport(ic.namedBindings)) {
-        bindingToEnv.set(ic.namedBindings.name.text, env);
-      }
-    });
-
-    const inspectFunction = (
-      funcName: string,
-      params: ts.NodeArray<ts.ParameterDeclaration>,
-      body: ts.Node
-    ) => {
-      const paramNames = Array.from(params).map((p) =>
-        ts.isIdentifier(p.name) ? p.name.text : null
-      );
-      if (!paramNames.some((n) => n !== null)) return;
-
-      // Collect *every* call expression that forwards one of this function's params
-      // as its first argument. We need all of them because the body may contain
-      // unrelated forwards (e.g. useRef(initialData)) before the meaningful one.
-      const targets: Target[] = [];
-      const walkBody = (n: ts.Node): void => {
-        if (ts.isCallExpression(n)) {
-          const firstArg = n.arguments[0];
-          if (firstArg && ts.isIdentifier(firstArg)) {
-            const argIndex = paramNames.indexOf(firstArg.text);
-            if (argIndex >= 0) {
-              const callee = n.expression;
-              if (ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression)) {
-                const env = bindingToEnv.get(callee.expression.text);
-                if (env && interestingMethods.has(callee.name.text)) {
-                  targets.push({ idArgIndex: argIndex, via: { kind: 'container', env } });
-                }
-              } else if (ts.isIdentifier(callee)) {
-                targets.push({ idArgIndex: argIndex, via: { kind: 'proxy', name: callee.text } });
-              }
-            }
-          }
-        }
-        ts.forEachChild(n, walkBody);
-      };
-      walkBody(body);
-      if (targets.length > 0) candidates.push({ name: funcName, targets });
-    };
-
-    const visit = (node: ts.Node): void => {
-      if (ts.isFunctionDeclaration(node) && node.name && node.body) {
-        inspectFunction(node.name.text, node.parameters, node.body);
-      } else if (
-        ts.isVariableDeclaration(node) &&
-        ts.isIdentifier(node.name) &&
-        node.initializer &&
-        (ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))
-      ) {
-        inspectFunction(node.name.text, node.initializer.parameters, node.initializer.body);
-      }
-      ts.forEachChild(node, visit);
-    };
-    ts.forEachChild(sourceFile, visit);
+  for (const filePath of collectScannableFiles()) {
+    const parsed = readSourceFile(filePath);
+    if (!parsed) continue;
+    const bindingToEnv = collectContainerBindings(parsed.sourceFile, filePath);
+    candidates.push(...collectProxyCandidates(parsed.sourceFile, bindingToEnv));
   }
 
-  // Iteratively resolve: a function is a proxy if any of its forwarding targets
-  // resolves to a container chain (directly or through another known proxy). Iterate
-  // until no progress is made; stranded candidates are silently dropped.
-  const resolved = new Map<string, ProxyInfo>();
-  let pending = candidates;
-  let progress = true;
-  while (progress) {
-    progress = false;
-    const remaining: Candidate[] = [];
-    for (const c of pending) {
-      if (resolved.has(c.name)) continue;
-      let resolvedHere: ProxyInfo | null = null;
-      for (const t of c.targets) {
-        if (t.via.kind === 'container') {
-          resolvedHere = { env: t.via.env, idArgIndex: t.idArgIndex };
-          break;
-        }
-        const dep = resolved.get(t.via.name);
-        if (dep) {
-          resolvedHere = { env: dep.env, idArgIndex: t.idArgIndex };
-          break;
-        }
-      }
-      if (resolvedHere) {
-        resolved.set(c.name, resolvedHere);
-        progress = true;
-      } else {
-        remaining.push(c);
-      }
-    }
-    pending = remaining;
-  }
+  const resolved = resolveProxyChains(candidates);
 
   if (DEBUG && resolved.size > 0) {
     console.debug(
       '[DI prune debug] detected proxies:',
-      Array.from(resolved.entries()).map(([n, i]) => `${n}->${i.env}[${i.idArgIndex}]`)
+      Array.from(resolved.entries()).map(([name, info]) => `${name}->${info.env}[${info.idArgIndex}]`)
     );
   }
 
@@ -570,152 +708,136 @@ async function detectProxies(): Promise<Map<string, ProxyInfo>> {
 }
 
 /**
- * Walks all source files in src/ and extensions/ looking for consumer-side container
- * lookups (container.get, getAll, bind, unbind, isBound). Returns the set of service IDs
- * referenced per environment. Per the build-size optimization plan, isBound is treated
- * as a hard reference so feature-detection paths (e.g. CMS live editor) survive pruning.
- *
- * If a `proxies` map is provided, calls to known proxy functions (e.g. `useValidator(...)`)
- * are also treated as seeds, attributed to the proxy's home env.
+ * A container lookup whose service ID is not a string literal, so reachability analysis
+ * cannot see which service it needs.
  */
-async function scanConsumers(
-  proxies: Map<string, ProxyInfo> = new Map()
-): Promise<Record<ConsumerEnv, Set<string>>> {
-  const result: Record<ConsumerEnv, Set<string>> = {
+type UntraceableLookup = {
+  /** Repo-relative POSIX path. */
+  file: string;
+  /** 1-based line of the offending argument. */
+  line: number;
+  /** Call description, e.g. `server.get()` or `proxy useValidator() argument[0]`. */
+  call: string;
+};
+
+type ConsumerScanResult = {
+  /** Service IDs referenced per environment. */
+  seeds: Record<ConsumerEnv, Set<string>>;
+  /** Lookups the pruner could not resolve; the caller decides whether these are fatal. */
+  untraceable: UntraceableLookup[];
+};
+
+/** Cheap prefilter: does this file mention a container import or any known proxy at all? */
+function mentionsContainerOrProxy(content: string, proxies: Map<string, ProxyInfo>): boolean {
+  if (
+    content.includes('platform/server') ||
+    content.includes('platform/client') ||
+    content.includes('platform/ssr')
+  ) {
+    return true;
+  }
+  for (const proxyName of proxies.keys()) {
+    if (content.includes(proxyName)) return true;
+  }
+  return false;
+}
+
+/** Everything the per-file seed collection needs, passed explicitly to keep helpers flat. */
+type ConsumerScanContext = {
+  sourceFile: ts.SourceFile;
+  filePath: string;
+  bindingToEnv: Map<string, ConsumerEnv>;
+  proxies: Map<string, ProxyInfo>;
+  seeds: Record<ConsumerEnv, Set<string>>;
+  untraceable: UntraceableLookup[];
+};
+
+function recordUntraceableLookup(
+  ctx: ConsumerScanContext,
+  node: ts.Node,
+  idArg: ts.Node,
+  call: string
+): void {
+  // A non-literal inside a known proxy is fine: the literal appears at the proxy's call sites.
+  const enclosing = findEnclosingFunctionName(node);
+  if (enclosing && ctx.proxies.has(enclosing)) return;
+  const { line } = ctx.sourceFile.getLineAndCharacterOfPosition(idArg.getStart(ctx.sourceFile));
+  ctx.untraceable.push({ file: toRepoRelative(ctx.filePath), line: line + 1, call });
+}
+
+/** Direct container method call: `<binding>.<method>('Id', ...)`. */
+function collectDirectContainerCall(
+  ctx: ConsumerScanContext,
+  node: ts.CallExpression,
+  callee: ts.PropertyAccessExpression
+): void {
+  if (!ts.isIdentifier(callee.expression)) return;
+  const env = ctx.bindingToEnv.get(callee.expression.text);
+  if (!env || !CONTAINER_METHODS.has(callee.name.text)) return;
+
+  const firstArg = node.arguments[0];
+  if (!firstArg) return;
+  if (ts.isStringLiteral(firstArg)) {
+    ctx.seeds[env].add(firstArg.text);
+    return;
+  }
+  recordUntraceableLookup(ctx, node, firstArg, `${callee.expression.text}.${callee.name.text}()`);
+}
+
+/** Known-proxy call: `<proxyName>('Id', ...)` where the proxy was detected upstream. */
+function collectProxyLookupCall(
+  ctx: ConsumerScanContext,
+  node: ts.CallExpression,
+  callee: ts.Identifier
+): void {
+  const proxy = ctx.proxies.get(callee.text);
+  if (!proxy) return;
+
+  const idArg = node.arguments[proxy.idArgIndex];
+  if (!idArg) return;
+  if (ts.isStringLiteral(idArg)) {
+    ctx.seeds[proxy.env].add(idArg.text);
+    return;
+  }
+  recordUntraceableLookup(ctx, node, idArg, `proxy ${callee.text}() argument[${proxy.idArgIndex}]`);
+}
+
+function collectSeedsFromFile(ctx: ConsumerScanContext): void {
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node)) {
+      const callee = node.expression;
+      if (ts.isPropertyAccessExpression(callee)) collectDirectContainerCall(ctx, node, callee);
+      if (ts.isIdentifier(callee)) collectProxyLookupCall(ctx, node, callee);
+    }
+    ts.forEachChild(node, visit);
+  };
+  ts.forEachChild(ctx.sourceFile, visit);
+}
+
+async function scanConsumers(proxies: Map<string, ProxyInfo> = new Map()): Promise<ConsumerScanResult> {
+  const seeds: Record<ConsumerEnv, Set<string>> = {
     server: new Set<string>(),
     client: new Set<string>(),
     ssr: new Set<string>(),
   };
+  const untraceable: UntraceableLookup[] = [];
 
-  const files = glob.sync('{src,extensions}/**/*.{ts,tsx}', {
-    cwd: process.cwd(),
-    ignore: ['**/*.d.ts', '**/node_modules/**', '**/dist/**', '**/build/**'],
-    absolute: true,
-  });
+  for (const filePath of collectScannableFiles()) {
+    const parsed = readSourceFile(filePath);
+    if (!parsed) continue;
+    if (!mentionsContainerOrProxy(parsed.content, proxies)) continue;
 
-  const generatedContainerSet = new Set(Object.values(CONTAINER_FILE_PATHS));
-  const interestingMethods = new Set(['get', 'getAll', 'isBound', 'bind', 'unbind']);
-
-  for (const filePath of files) {
-    const normalizedPath = filePath.replace(/\\/g, '/');
-    if (generatedContainerSet.has(normalizedPath)) continue;
-
-    let fileContent: string;
-    try {
-      fileContent = fs.readFileSync(filePath, 'utf8');
-    } catch {
-      continue;
-    }
-
-    // Cheap prefilter: skip files that mention neither a container nor any known proxy.
-    const mentionsContainer =
-      fileContent.includes('platform/server') ||
-      fileContent.includes('platform/client') ||
-      fileContent.includes('platform/ssr');
-    let mentionsProxy = false;
-    if (!mentionsContainer && proxies.size > 0) {
-      for (const proxyName of proxies.keys()) {
-        if (fileContent.includes(proxyName)) {
-          mentionsProxy = true;
-          break;
-        }
-      }
-    }
-    if (!mentionsContainer && !mentionsProxy) continue;
-
-    const sourceFile = ts.createSourceFile(filePath, fileContent, ts.ScriptTarget.Latest, true);
-
-    const bindingToEnv = new Map<string, ConsumerEnv>();
-    ts.forEachChild(sourceFile, (node) => {
-      if (!ts.isImportDeclaration(node)) return;
-      const moduleSpec = node.moduleSpecifier;
-      if (!ts.isStringLiteral(moduleSpec)) return;
-      const env = resolveImportToContainer(moduleSpec.text, filePath);
-      if (!env) return;
-      const importClause = node.importClause;
-      if (!importClause) return;
-      if (importClause.name) {
-        bindingToEnv.set(importClause.name.text, env);
-      }
-      if (importClause.namedBindings && ts.isNamespaceImport(importClause.namedBindings)) {
-        bindingToEnv.set(importClause.namedBindings.name.text, env);
-      }
+    collectSeedsFromFile({
+      sourceFile: parsed.sourceFile,
+      filePath,
+      bindingToEnv: collectContainerBindings(parsed.sourceFile, filePath),
+      proxies,
+      seeds,
+      untraceable,
     });
-
-    // Walks up parent links from `node` to find the nearest enclosing named function.
-    // Used to suppress warnings when a non-literal lookup lives inside a known proxy —
-    // the literal will be picked up at the proxy's call sites.
-    const findEnclosingFunctionName = (node: ts.Node): string | undefined => {
-      let current: ts.Node | undefined = node.parent;
-      while (current) {
-        if (ts.isFunctionDeclaration(current) && current.name) {
-          return current.name.text;
-        }
-        if ((ts.isArrowFunction(current) || ts.isFunctionExpression(current)) && current.parent) {
-          const p = current.parent;
-          if (ts.isVariableDeclaration(p) && ts.isIdentifier(p.name)) {
-            return p.name.text;
-          }
-        }
-        current = current.parent;
-      }
-      return undefined;
-    };
-
-    const visit = (node: ts.Node): void => {
-      if (ts.isCallExpression(node)) {
-        const expr = node.expression;
-
-        // Direct container method call: <bind>.<method>('Id', ...)
-        if (ts.isPropertyAccessExpression(expr) && ts.isIdentifier(expr.expression)) {
-          const targetName = expr.expression.text;
-          const methodName = expr.name.text;
-          const env = bindingToEnv.get(targetName);
-          if (env && interestingMethods.has(methodName)) {
-            const firstArg = node.arguments[0];
-            if (firstArg && ts.isStringLiteral(firstArg)) {
-              result[env].add(firstArg.text);
-            } else if (firstArg) {
-              const enclosing = findEnclosingFunctionName(node);
-              if (!enclosing || !proxies.has(enclosing)) {
-                const { line } = sourceFile.getLineAndCharacterOfPosition(firstArg.getStart(sourceFile));
-                console.warn(
-                  `[DI prune] Non-literal argument to ${targetName}.${methodName}() at ${path
-                    .relative(process.cwd(), filePath)
-                    .replace(/\\/g, '/')}:${line + 1} — pruner cannot trace this lookup.`
-                );
-              }
-            }
-          }
-        }
-
-        // Known-proxy call: <proxyName>('Id', ...) where the proxy was detected upstream.
-        if (ts.isIdentifier(expr)) {
-          const proxy = proxies.get(expr.text);
-          if (proxy) {
-            const idArg = node.arguments[proxy.idArgIndex];
-            if (idArg && ts.isStringLiteral(idArg)) {
-              result[proxy.env].add(idArg.text);
-            } else if (idArg) {
-              const enclosing = findEnclosingFunctionName(node);
-              if (!enclosing || !proxies.has(enclosing)) {
-                const { line } = sourceFile.getLineAndCharacterOfPosition(idArg.getStart(sourceFile));
-                console.warn(
-                  `[DI prune] Non-literal argument[${proxy.idArgIndex}] to proxy ${expr.text}() at ${path
-                    .relative(process.cwd(), filePath)
-                    .replace(/\\/g, '/')}:${line + 1} — pruner cannot trace this lookup.`
-                );
-              }
-            }
-          }
-        }
-      }
-      ts.forEachChild(node, visit);
-    };
-    ts.forEachChild(sourceFile, visit);
   }
 
-  return result;
+  return { seeds, untraceable };
 }
 
 /**
@@ -754,6 +876,155 @@ function computeReachable(
 }
 
 /**
+ * Injectables for one environment. Env-aware: env-suffixed variants (e.g.
+ * `PinoLoggerServiceServer`) shadow common ones registered under the same serviceId.
+ */
+function buildEnvironmentInjectables(env: ConsumerEnv, list: InjectableInfo[]): InjectableInfo[] {
+  let envInjectables: InjectableInfo[];
+  switch (env) {
+    case 'server':
+      envInjectables = list.filter(i => i.isServerOnly);
+      break;
+    case 'client':
+      envInjectables = list.filter(i => i.isClientOnly);
+      break;
+    case 'ssr':
+      envInjectables = list.filter(i => i.isSsrOnly);
+      break;
+    default:
+      envInjectables = [];
+  }
+  const isCommon = (injectable: InjectableInfo) =>
+    !injectable.isClientOnly && !injectable.isServerOnly && !injectable.isSsrOnly;
+  const isAlreadyInEnv = (i: InjectableInfo) => envInjectables.find((envI: InjectableInfo) => i.serviceId == envI.serviceId);
+  const common = list.filter(isCommon).filter((i) => !isAlreadyInEnv(i));
+  const combined = common.concat(envInjectables);
+
+  // Files carrying `import 'server-only'` cannot load in the browser, so they
+  // must never end up in the client container — even if their class name has
+  // a `Client` suffix (which would be a source-file inconsistency worth warning about).
+  if (env === 'client') {
+    return combined.filter((i) => {
+      if (!i.hasServerOnlyImport) return true;
+      if (i.isClientOnly) {
+        console.warn(
+          `[DI] Excluding ${i.className} from client container: file ${i.relativePath} imports 'server-only' despite the Client suffix.`,
+        );
+      }
+      return false;
+    });
+  }
+
+  return combined;
+}
+
+/**
+ * Untraceable lookups are fatal in prune mode: the IDs behind them are invisible to
+ * reachability, so the services they need get dropped and the breakage only shows up at
+ * runtime. Acknowledge a call site by listing its file under `AllowDynamicLookups:` in
+ * depency.yml once every ID it can reach is pinned under `AlwaysInclude:`.
+ */
+function assertDynamicLookupsAreAcknowledged(untraceable: UntraceableLookup[]): void {
+  if (untraceable.length === 0) return;
+
+  const acknowledged = new Set(tryParseAllowDynamicLookups());
+  const describe = (lookup: UntraceableLookup) => `  - ${lookup.file}:${lookup.line} — ${lookup.call}`;
+
+  for (const lookup of untraceable.filter((lookup) => acknowledged.has(lookup.file))) {
+    console.log(
+      `[DI prune] Acknowledged dynamic lookup: ${lookup.call} at ${lookup.file}:${lookup.line} ` +
+        `— its IDs must be listed under AlwaysInclude.`
+    );
+  }
+
+  const blocking = untraceable.filter((lookup) => !acknowledged.has(lookup.file));
+  if (blocking.length === 0) return;
+
+  const details = blocking.map(describe).join('\n');
+
+  if (ALLOW_UNACKNOWLEDGED_LOOKUPS) {
+    console.warn(
+      `[DI prune] ${blocking.length} untraceable lookup(s) downgraded to a warning because ` +
+        `DI_PRUNE_ALLOW_DYNAMIC=true — the services they need may be pruned:\n${details}`
+    );
+    return;
+  }
+
+  throw new Error(
+    `DI prune: ${blocking.length} container lookup(s) resolve their service ID at runtime, so pruning ` +
+      `cannot tell which services they need and would silently drop them:\n${details}\n\n` +
+      `Resolve it one of these ways:\n` +
+      `  1. Pass a string literal at the call site so the pruner can trace it.\n` +
+      `  2. List the reachable IDs under 'AlwaysInclude:' in src/platform/depency.yml, then add the ` +
+      `file under 'AllowDynamicLookups:' to acknowledge the call site.\n` +
+      `  3. Set DI_PRUNE_ALLOW_DYNAMIC=true to downgrade this to a warning (pruning stays on).`
+  );
+}
+
+/**
+ * Reachable service IDs per environment, seeded from real consumer call sites and expanded
+ * across the dependency graph.
+ */
+async function computeReachableByEnv(
+  injectables: InjectableInfo[],
+  extensionInjectables: InjectableInfo[],
+  extensionAliases: Record<string, string>
+): Promise<Record<ConsumerEnv, Set<string>>> {
+  console.log('[DI prune] Pruning enabled — detecting proxies + scanning consumer call sites...');
+  const proxies = await detectProxies();
+  if (proxies.size > 0) {
+    console.log(`[DI prune] detected ${proxies.size} proxy function(s)`);
+  }
+
+  const { seeds, untraceable } = await scanConsumers(proxies);
+  assertDynamicLookupsAreAcknowledged(untraceable);
+
+  // AlwaysInclude allowlist for IDs that the static analyzer cannot trace
+  // (typically env-var-sourced lookups like setup/route.ts).
+  const alwaysInclude = tryParseAlwaysInclude();
+  for (const env of CONSUMER_ENVS) {
+    for (const id of alwaysInclude[env]) seeds[env].add(id);
+  }
+  const alwaysCount = alwaysInclude.server.length + alwaysInclude.client.length + alwaysInclude.ssr.length;
+  if (alwaysCount > 0) {
+    console.log(
+      `[DI prune] AlwaysInclude — server:${alwaysInclude.server.length} client:${alwaysInclude.client.length} ssr:${alwaysInclude.ssr.length}`
+    );
+  }
+
+  // Merged alias map (depency.yml + extension aliases + DI_SEARCH_SERVICE override).
+  // Resolved through the same helper generateContainerFile uses, so reachability follows
+  // exactly the targets that will be bound — otherwise an overridden SearchService
+  // implementation would be pruned before it ever gets aliased.
+  const mergedAliases = resolveGeneratorAliases({
+    dependencyAliases: tryParseDependencyAliases(),
+    extensionAliases,
+    searchServiceOverride: process.env.DI_SEARCH_SERVICE,
+  });
+
+  const combined = injectables.concat(extensionInjectables);
+  const reachableByEnv = {
+    server: computeReachable(seeds.server, buildEnvironmentInjectables('server', combined), mergedAliases),
+    client: computeReachable(seeds.client, buildEnvironmentInjectables('client', combined), mergedAliases),
+    ssr: computeReachable(seeds.ssr, buildEnvironmentInjectables('ssr', combined), mergedAliases),
+  };
+
+  console.log(
+    `[DI prune] consumer seeds — server:${seeds.server.size} client:${seeds.client.size} ssr:${seeds.ssr.size}`
+  );
+  console.log(
+    `[DI prune] reachable set — server:${reachableByEnv.server.size} client:${reachableByEnv.client.size} ssr:${reachableByEnv.ssr.size}`
+  );
+  if (DEBUG) {
+    for (const env of CONSUMER_ENVS) {
+      console.debug(`[DI prune debug] ${env} seeds:`, Array.from(seeds[env]));
+    }
+  }
+
+  return reachableByEnv;
+}
+
+/**
  * Generates the container files with static imports
  * @param layer The layer for which to generate the container
  */
@@ -780,103 +1051,164 @@ async function generateContainerFiles(layer: Layer): Promise<void> {
     }
   }
 
-  // Build injectables for a specific environment, env-aware: env-suffixed variants
-  // (e.g. PinoLoggerServiceServer) shadow common ones with the same serviceId.
-  const buildEnvironmentInjectables = (env: ConsumerEnv, list: InjectableInfo[] = injectables) => {
-    let envInjectables: InjectableInfo[];
-    switch (env) {
-      case 'server':
-        envInjectables = list.filter(i => i.isServerOnly);
-        break;
-      case 'client':
-        envInjectables = list.filter(i => i.isClientOnly);
-        break;
-      case 'ssr':
-        envInjectables = list.filter(i => i.isSsrOnly);
-        break;
-      default:
-        envInjectables = [];
-    }
-    const isCommon = (injectable: InjectableInfo) =>
-      !injectable.isClientOnly && !injectable.isServerOnly && !injectable.isSsrOnly;
-    const isAlreadyInEnv = (i: InjectableInfo) => envInjectables.find((envI: InjectableInfo) => i.serviceId == envI.serviceId);
-    const common = list.filter(isCommon).filter((i) => !isAlreadyInEnv(i));
-    const combined = common.concat(envInjectables);
-
-    // Files carrying `import 'server-only'` cannot load in the browser, so they
-    // must never end up in the client container — even if their class name has
-    // a `Client` suffix (which would be a source-file inconsistency worth warning about).
-    if (env === 'client') {
-      return combined.filter((i) => {
-        if (!i.hasServerOnlyImport) return true;
-        if (i.isClientOnly) {
-          console.warn(
-            `[DI] Excluding ${i.className} from client container: file ${i.relativePath} imports 'server-only' despite the Client suffix.`,
-          );
-        }
-        return false;
-      });
-    }
-
-    return combined;
-  };
-
   // When pruning is enabled, compute the reachable set per environment by walking the
   // dependency graph from real consumer-side container.get/isBound/etc. call sites.
-  let reachableByEnv: Record<ConsumerEnv, Set<string>> | null = null;
-  if (PRUNE) {
-    console.log('[DI prune] Pruning enabled — detecting proxies + scanning consumer call sites...');
-    const proxies = await detectProxies();
-    if (proxies.size > 0) {
-      console.log(`[DI prune] detected ${proxies.size} proxy function(s)`);
-    }
-    const consumers = await scanConsumers(proxies);
+  const reachableByEnv = PRUNE
+    ? await computeReachableByEnv(injectables, extensionInjectables, aliases)
+    : null;
 
-    // AlwaysInclude allowlist for IDs that the static analyzer cannot trace
-    // (typically env-var-sourced lookups like setup/route.ts).
-    const alwaysInclude = tryParseAlwaysInclude();
-    for (const env of ['server', 'client', 'ssr'] as ConsumerEnv[]) {
-      for (const id of alwaysInclude[env]) consumers[env].add(id);
-    }
-    const alwaysCount = alwaysInclude.server.length + alwaysInclude.client.length + alwaysInclude.ssr.length;
-    if (alwaysCount > 0) {
-      console.log(
-        `[DI prune] AlwaysInclude — server:${alwaysInclude.server.length} client:${alwaysInclude.client.length} ssr:${alwaysInclude.ssr.length}`
+  const forEnv = (env: ConsumerEnv) => buildEnvironmentInjectables(env, injectables);
+
+  await generateContainerFile(layer, forEnv('server'), serverOutputFile, 'server', extensions, aliases, reachableByEnv?.server);
+  await generateContainerFile(layer, forEnv('client'), clientOutputFile, 'client', extensions, aliases, reachableByEnv?.client);
+  await generateContainerFile(layer, forEnv('ssr'), ssrOutputFile, 'ssr', extensions, aliases, reachableByEnv?.ssr);
+}
+
+/** Import identifier for an injectable, derived from its file name. */
+function toModuleName(relativePath: string): string {
+  return stripEdgeUnderscores(path.basename(relativePath).replaceAll(/\W/g, '_'));
+}
+
+/**
+ * Fail fast when two injectables would produce the same import identifier: the generated
+ * container would either not compile or bind the wrong module. Checked against the
+ * post-prune set, so only identifiers that actually reach the generated file can clash.
+ */
+function assertNoModuleNameCollisions(injectables: InjectableInfo[]): void {
+  const seen = new Map<string, string>();
+  for (const injectable of injectables) {
+    const moduleName = toModuleName(injectable.relativePath);
+    const previous = seen.get(moduleName);
+    if (previous) {
+      throw new Error(
+        `DI generator: import name collision "${moduleName}" between ` +
+        `"${previous}" and "${injectable.relativePath}". ` +
+        `Rename one of the files to avoid ambiguity.`,
       );
     }
+    seen.set(moduleName, injectable.relativePath);
+  }
+}
 
-    // Merged alias map (depency.yml + extension aliases + DI_SEARCH_SERVICE override).
-    // Resolved through the same helper generateContainerFile uses, so reachability follows
-    // exactly the targets that will be bound — otherwise an overridden SearchService
-    // implementation would be pruned before it ever gets aliased.
-    const mergedAliases = resolveGeneratorAliases({
-      dependencyAliases: tryParseDependencyAliases(),
-      extensionAliases: aliases,
-      searchServiceOverride: process.env.DI_SEARCH_SERVICE,
-    });
+/** Drop platform injectables that no consumer call site can reach in this environment. */
+function prunePlatformInjectables(
+  injectables: InjectableInfo[],
+  type: ConsumerEnv,
+  reachable?: Set<string>
+): InjectableInfo[] {
+  if (!reachable) return injectables;
+  const kept = injectables.filter((i) => reachable.has(i.serviceId));
+  console.log(`[DI prune] ${type}: kept ${kept.length}/${injectables.length} platform injectable(s)`);
+  return kept;
+}
 
-    const combined = injectables.concat(extensionInjectables);
-    reachableByEnv = {
-      server: computeReachable(consumers.server, buildEnvironmentInjectables('server', combined), mergedAliases),
-      client: computeReachable(consumers.client, buildEnvironmentInjectables('client', combined), mergedAliases),
-      ssr: computeReachable(consumers.ssr, buildEnvironmentInjectables('ssr', combined), mergedAliases),
-    };
-    console.log(
-      `[DI prune] consumer seeds — server:${consumers.server.size} client:${consumers.client.size} ssr:${consumers.ssr.size}`
-    );
-    console.log(
-      `[DI prune] reachable set — server:${reachableByEnv.server.size} client:${reachableByEnv.client.size} ssr:${reachableByEnv.ssr.size}`
-    );
-    if (DEBUG) {
-      console.debug('[DI prune debug] server seeds:', Array.from(consumers.server));
-      console.debug('[DI prune debug] client seeds:', Array.from(consumers.client));
-      console.debug('[DI prune debug] ssr seeds:', Array.from(consumers.ssr));
+type ExtensionImports = {
+  importLines: string[];
+  moduleNames: string[];
+  kept: number;
+  total: number;
+};
+
+/** Does this extension injectable belong in the given container? */
+function isExtensionInjectableForEnv(injectable: InjectableInfo, type: ConsumerEnv): boolean {
+  if (type === 'server' && injectable.isServerOnly) return true;
+  if (type === 'client' && injectable.isClientOnly) return true;
+  if (type === 'ssr' && injectable.isSsrOnly) return true;
+  return !injectable.isClientOnly && !injectable.isServerOnly && !injectable.isSsrOnly;
+}
+
+/** Import specifier for an extension file, relative to the generated container. */
+function toExtensionImportPath(outputFile: string, filePath: string): string {
+  const relative = toPosix(path.relative(path.dirname(outputFile), filePath)).replace(/\.tsx?$/, '');
+  return relative.startsWith('.') ? relative : `./${relative}`;
+}
+
+/** Extension injectables eligible for this container, paired with their owning extension. */
+function collectExtensionCandidates(
+  extensions: ExtensionInfo[],
+  type: ConsumerEnv
+): Array<{ ext: ExtensionInfo; injectable: InjectableInfo }> {
+  const candidates: Array<{ ext: ExtensionInfo; injectable: InjectableInfo }> = [];
+  for (const ext of extensions) {
+    for (const injectable of ext.injectables) {
+      if (isExtensionInjectableForEnv(injectable, type)) candidates.push({ ext, injectable });
     }
   }
+  return candidates;
+}
 
-  await generateContainerFile(layer, buildEnvironmentInjectables('server'), serverOutputFile, 'server', extensions, aliases, reachableByEnv?.server);
-  await generateContainerFile(layer, buildEnvironmentInjectables('client'), clientOutputFile, 'client', extensions, aliases, reachableByEnv?.client);
-  await generateContainerFile(layer, buildEnvironmentInjectables('ssr'), ssrOutputFile, 'ssr', extensions, aliases, reachableByEnv?.ssr);
+/**
+ * Mirror the project-side rule: a file importing 'server-only' must never reach the client
+ * container. A `Client` suffix on such a file is a source inconsistency worth warning about.
+ */
+function isBlockedFromClientContainer(
+  ext: ExtensionInfo,
+  injectable: InjectableInfo,
+  type: ConsumerEnv
+): boolean {
+  if (type !== 'client' || !injectable.hasServerOnlyImport) return false;
+  if (injectable.isClientOnly) {
+    console.warn(
+      `[DI] Excluding ${injectable.className} (extension '${ext.name}') from client container: file ${injectable.relativePath} imports 'server-only' despite the Client suffix.`,
+    );
+  }
+  return true;
+}
+
+function buildExtensionImports(
+  extensions: ExtensionInfo[],
+  type: ConsumerEnv,
+  outputFile: string,
+  reachable?: Set<string>
+): ExtensionImports {
+  const candidates = collectExtensionCandidates(extensions, type);
+  const importLines: string[] = [];
+  const moduleNames: string[] = [];
+
+  for (const { ext, injectable } of candidates) {
+    if (reachable && !reachable.has(injectable.serviceId)) continue;
+    if (isBlockedFromClientContainer(ext, injectable, type)) continue;
+
+    const uniqueName = `ext_${ext.name.replaceAll(/\W/g, '_')}_${toModuleName(injectable.relativePath)}`;
+    importLines.push(`import ${uniqueName} from '${toExtensionImportPath(outputFile, injectable.filePath)}';`);
+    moduleNames.push(uniqueName);
+  }
+
+  return { importLines, moduleNames, kept: importLines.length, total: candidates.length };
+}
+
+/**
+ * Alias map for one container: depency.yml + extension aliases + the DI_SEARCH_SERVICE
+ * override (extension wins over depency.yml; the override wins over both).
+ *
+ * When pruning, only aliases a consumer actually requests are kept. Aliases whose target was
+ * not shipped would degrade harmlessly anyway — the generated `if (container.isBound(target))`
+ * guard skips them — but dropping them up front keeps the generated file lean.
+ */
+function resolveContainerAliases(
+  extensionAliases: Record<string, string>,
+  type: ConsumerEnv,
+  extensionStats: { kept: number; total: number },
+  reachable?: Set<string>
+): Record<string, string> {
+  const allAliases = resolveGeneratorAliases({
+    dependencyAliases: tryParseDependencyAliases(),
+    extensionAliases,
+    searchServiceOverride: process.env.DI_SEARCH_SERVICE,
+  });
+
+  if (!reachable) return allAliases;
+
+  const filtered: Record<string, string> = {};
+  for (const [alias, target] of Object.entries(allAliases)) {
+    if (reachable.has(alias)) filtered[alias] = target;
+  }
+  console.log(
+    `[DI prune] ${type}: kept ${Object.keys(filtered).length}/${Object.keys(allAliases).length} alias binding(s); ` +
+      `extensions ${extensionStats.kept}/${extensionStats.total}`
+  );
+
+  return filtered;
 }
 
 /**
@@ -890,163 +1222,47 @@ async function generateContainerFile(
   layer: Layer,
   injectables: InjectableInfo[],
   outputFile: string,
-  type: 'server' | 'client' | 'ssr',
+  type: ConsumerEnv,
   extensions: ExtensionInfo[] = [],
   aliases: Record<string, string> = {},
   reachable?: Set<string>,
 ): Promise<string> {
-  // Generate static imports for all platform injectables
-  const dependencyAliases = tryParseDependencyAliases();
+  const activeInjectables = prunePlatformInjectables(injectables, type, reachable);
+  assertNoModuleNameCollisions(activeInjectables);
 
-  const toModuleName = (relativePath: string): string =>
-    stripEdgeUnderscores(path.basename(relativePath).replaceAll(/\W/g, '_'));
+  const platformImports = activeInjectables.map(
+    (injectable) => `import ${toModuleName(injectable.relativePath)} from './${injectable.relativePath}';`
+  );
+  const platformModuleNames = activeInjectables.map((injectable) => toModuleName(injectable.relativePath));
 
-  // Pruning pass: when a reachable set is provided, drop platform injectables that
-  // aren't transitively required by any consumer call site in this environment.
-  let activeInjectables = injectables;
-  if (reachable) {
-    const beforePlatform = activeInjectables.length;
-    activeInjectables = activeInjectables.filter((i) => reachable.has(i.serviceId));
-    console.log(
-      `[DI prune] ${type}: kept ${activeInjectables.length}/${beforePlatform} platform injectable(s)`
-    );
-  }
+  const extensionImports = buildExtensionImports(extensions, type, outputFile, reachable);
 
-  // Fail fast if two injectables produce the same import identifier. Checked against the
-  // post-prune set, so only identifiers that actually reach the generated file can clash.
-  const seenModuleNames = new Map<string, string>();
-  for (const injectable of activeInjectables) {
-    const moduleName = toModuleName(injectable.relativePath);
-    const prev = seenModuleNames.get(moduleName);
-    if (prev) {
-      throw new Error(
-        `DI generator: import name collision "${moduleName}" between ` +
-        `"${prev}" and "${injectable.relativePath}". ` +
-        `Rename one of the files to avoid ambiguity.`,
-      );
-    }
-    seenModuleNames.set(moduleName, injectable.relativePath);
-  }
-
-  // Generate static imports for all injectables
-  const imports = activeInjectables.map((injectable) => {
-    const moduleName = toModuleName(injectable.relativePath);
-    return `import ${moduleName} from './${injectable.relativePath}';`;
-  }).join('\n');
-
-  // Create an array of module names for platform injectables
-  const moduleNames = activeInjectables.map((injectable) => toModuleName(injectable.relativePath));
-
-  // Generate extension imports and module names
-  const extensionImportLines: string[] = [];
-  const extensionModuleNames: string[] = [];
-
-  let extensionKept = 0;
-  let extensionTotal = 0;
-  for (const ext of extensions) {
-    for (const extInjectable of ext.injectables) {
-      // Determine environment filtering for extension injectables
-      const isForEnv =
-        (type === 'server' && extInjectable.isServerOnly) ||
-        (type === 'client' && extInjectable.isClientOnly) ||
-        (type === 'ssr' && extInjectable.isSsrOnly) ||
-        (!extInjectable.isClientOnly && !extInjectable.isServerOnly && !extInjectable.isSsrOnly);
-
-      if (!isForEnv) continue;
-      extensionTotal++;
-      if (reachable && !reachable.has(extInjectable.serviceId)) continue;
-
-      // Mirror the project-side rule: never emit a 'server-only' file into the client container.
-      if (type === 'client' && extInjectable.hasServerOnlyImport) {
-        if (extInjectable.isClientOnly) {
-          console.warn(
-            `[DI] Excluding ${extInjectable.className} (extension '${ext.name}') from client container: file ${extInjectable.relativePath} imports 'server-only' despite the Client suffix.`,
-          );
-        }
-        continue;
-      }
-
-      extensionKept++;
-
-
-      // Build a unique module name prefixed by extension name
-      const baseName = stripEdgeUnderscores(
-        path.basename(extInjectable.relativePath).replaceAll(/\W/g, '_')
-      );
-      const uniqueName = `ext_${ext.name.replaceAll(/\W/g, '_')}_${baseName}`;
-
-      // Build the import path relative to the output file
-      const outputDir = path.dirname(outputFile);
-      let relImportPath = path.relative(outputDir, extInjectable.filePath)
-        .replaceAll('\\', '/')
-        .replace(/\.tsx?$/, '');
-      if (!relImportPath.startsWith('.')) {
-        relImportPath = './' + relImportPath;
-      }
-
-      extensionImportLines.push(`import ${uniqueName} from '${relImportPath}';`);
-      extensionModuleNames.push(uniqueName);
-    }
-  }
-
-  // Combine all imports
-  const allImports = [imports, ...extensionImportLines].filter(Boolean).join('\n');
-
-  // Combine all module names
-  const allModuleNames = [...moduleNames, ...extensionModuleNames];
-  
-  // Generate the module array string
+  const allImports = [...platformImports, ...extensionImports.importLines].join('\n');
+  const allModuleNames = [...platformModuleNames, ...extensionImports.moduleNames];
   const moduleArray = `const modules : any[] = [${allModuleNames.join(', ')}];`;
 
-  // Combine dependency aliases, extension aliases and the DI_SEARCH_SERVICE override
-  // into a single map (extension wins over depency.yml; the override wins over both).
-  let allAliases: Record<string, string> = resolveGeneratorAliases({
-    dependencyAliases,
-    extensionAliases: aliases,
-    searchServiceOverride: process.env.DI_SEARCH_SERVICE,
-  });
+  const aliasBindings = generateAliasBindings(
+    resolveContainerAliases(aliases, type, extensionImports, reachable),
+    'Alias'
+  );
 
-  // When pruning, retain only aliases consumers actually request (alias key in reachable).
-  // Aliases whose target wasn't shipped degrade naturally — the generated guard
-  // `if (container.isBound(target))` skips them — but dropping them up front keeps
-  // the generated file lean.
-  if (reachable) {
-    const beforeAliases = Object.keys(allAliases).length;
-    const filtered: Record<string, string> = {};
-    for (const [alias, target] of Object.entries(allAliases)) {
-      if (reachable.has(alias)) filtered[alias] = target;
-    }
-    allAliases = filtered;
-    console.log(
-      `[DI prune] ${type}: kept ${Object.keys(allAliases).length}/${beforeAliases} alias binding(s); ` +
-        `extensions ${extensionKept}/${extensionTotal}`
-    );
-  }
-
-  // Generate all alias bindings using the shared helper
-  const aliasBindings = generateAliasBindings(allAliases, 'Alias');
-  
-  // Read the template file
   const templatePath = path.join(process.cwd(), 'scripts/templates/container.ts.tmpl');
   let template: string;
-  
   try {
     template = fs.readFileSync(templatePath, 'utf8');
   } catch (error) {
     throw new Error(`Error reading template file ${templatePath}: ${error}`);
   }
-  
 
   const output = template
     .replace('{{imports}}', allImports)
     .replace('{{moduleArray}}', moduleArray)
     .replace('{{aliasBindings}}', aliasBindings)
     .replace('{{layer}}', layer);
-  
-  // Write the output file
+
   fs.writeFileSync(outputFile, output);
   console.log(`Generated ${type} container file: ${outputFile}`);
-  
+
   return output;
 }
 
