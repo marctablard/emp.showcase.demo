@@ -465,19 +465,15 @@ function RangeFacetRenderer({
     Number.isFinite(rawMax) ? { [facet.id]: rawMax } : {},
   );
 
-  React.useEffect(() => {
-    if (!Number.isFinite(rawMax)) {
-      return;
+  // Remember the highest max seen per facet. Adjusted during render rather than from an effect;
+  // the update is idempotent, so the next render leaves it unchanged.
+  if (Number.isFinite(rawMax)) {
+    const existingMax = rememberedMaxById[facet.id];
+    const nextMax = existingMax === undefined ? rawMax : Math.max(existingMax, rawMax);
+    if (nextMax !== existingMax) {
+      setRememberedMaxById({ ...rememberedMaxById, [facet.id]: nextMax });
     }
-    setRememberedMaxById((prev) => {
-      const existing = prev[facet.id];
-      const next = existing === undefined ? rawMax : Math.max(existing, rawMax);
-      if (next === existing) {
-        return prev;
-      }
-      return { ...prev, [facet.id]: next };
-    });
-  }, [facet.id, rawMax]);
+  }
 
   const storedMax = rememberedMaxById[facet.id];
   const effectiveMax = Number.isFinite(rawMax)

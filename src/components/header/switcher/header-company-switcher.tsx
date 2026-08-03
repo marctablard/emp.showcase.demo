@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { Building2 } from 'lucide-react';
@@ -10,64 +10,98 @@ import { useSession } from '@/hooks/session/useSession';
 import { useToast } from '@/hooks/ui/useToast';
 import type { Company } from '@/platform/services/model/company/company';
 
+// Module-level so the "no customer" case keeps a stable identity across renders.
+const NO_COMPANIES: Company[] = [];
+
 export function CompanySwitcher() {
   const { session, loading: sessionLoading, setCompany } = useSession();
   const router = useRouter();
   const t = useTranslations('common.Companies');
   const { toast } = useToast();
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [fetchedCompanies, setCompanies] = useState<Company[]>([]);
+  const [fetchLoading, setLoading] = useState(true);
+  const [fetchError, setError] = useState<string | null>(null);
+  // Read out of `session` once: optional-chained member expressions in a dependency array
+  // cannot be tracked as stable dependencies.
+  const customerId = session?.customerId;
+  const legalEntityId = session?.legalEntityId;
 
-  const fetchCompanies = useCallback(async () => {
-    try {
+  // Without a customer there is nothing to show and nothing in flight. Derived during render
+  // rather than reset from an effect, so no cascading render is needed to clear stale values.
+  const companies = customerId ? fetchedCompanies : NO_COMPANIES;
+  const loading = customerId ? fetchLoading : false;
+  const error = customerId ? fetchError : null;
+
+  // Enter the loading state during render when the customer changes, so the effect below only
+  // has to kick off the request instead of setting state synchronously.
+  const [prevCustomerId, setPrevCustomerId] = useState(customerId);
+  if (prevCustomerId !== customerId) {
+    setPrevCustomerId(customerId);
+    if (customerId) {
       setLoading(true);
-      const response = await fetch('/api/companies');
-      if (!response.ok) {
-        throw new Error('Failed to fetch companies');
-      }
-      const data = await response.json();
-      setCompanies(data);
       setError(null);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load companies';
-      setError(errorMessage);
-      setCompanies([]);
-      toast({
-        title: t('errorLoading'),
-        description: t('errorLoadingDescription'),
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }
 
+  // Kicked off inline so every state write happens after an await rather than synchronously in
+  // the effect body. `ignore` drops the result of a request whose customer is no longer current.
   useEffect(() => {
-    if (session?.customerId) {
-      fetchCompanies();
-    } else {
-      setCompanies([]);
-      setLoading(false);
-      setError(null);
+    if (!customerId) {
+      return;
     }
-  }, [session?.customerId, fetchCompanies]);
+    let ignore = false;
+
+    void (async () => {
+      try {
+        const response = await fetch('/api/companies');
+        if (!response.ok) {
+          throw new Error('Failed to fetch companies');
+        }
+        const data = await response.json();
+        if (ignore) {
+          return;
+        }
+        setCompanies(data);
+        setError(null);
+      } catch (err) {
+        if (ignore) {
+          return;
+        }
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load companies';
+        setError(errorMessage);
+        setCompanies([]);
+        toast({
+          title: t('errorLoading'),
+          description: t('errorLoadingDescription'),
+          variant: 'destructive',
+        });
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      ignore = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- t/toast are stable and were never tracked here
+  }, [customerId]);
 
   const currentCompany = useMemo(() => {
     if (!companies || companies.length === 0) {
       return undefined;
     }
 
-    if (session?.legalEntityId) {
-      const matchedCompany = companies.find((company) => company.id === session.legalEntityId);
+    if (legalEntityId) {
+      const matchedCompany = companies.find((company) => company.id === legalEntityId);
       if (matchedCompany) {
         return matchedCompany;
       }
     }
 
     return companies[0];
-  }, [companies, session?.legalEntityId]);
+  }, [companies, legalEntityId]);
 
   const switchCompany = async (companyId: string) => {
     try {

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
@@ -102,54 +103,55 @@ export default function ProductDetail({ product: initialProduct, options, classN
     const syncGeneration = ++priceSyncGenerationRef.current;
     let cancelled = false;
 
-    if (!product?.id) {
-      setPrice(undefined);
-      return () => {
-        cancelled = true;
-      };
-    }
+    // Whole body runs off the effect's synchronous path so the setPrice calls below never
+    // cascade inside this commit.
+    const syncPrice = async () => {
+      if (!product?.id) {
+        setPrice(undefined);
+        return;
+      }
 
-    if (!session?.currency || !session?.siteCode || !isPurchaseShopContextReady(session, site)) {
-      setPrice(undefined);
-      return () => {
-        cancelled = true;
-      };
-    }
+      if (!session?.currency || !session?.siteCode || !isPurchaseShopContextReady(session, site)) {
+        setPrice(undefined);
+        return;
+      }
 
-    const embedded = product.price;
-    if (
-      embedded !== undefined &&
-      embedded !== null &&
-      embedded.currency &&
-      isProductPriceDisplayableForPurchase(embedded.currency, session, site)
-    ) {
-      setPrice(embedded);
-    } else {
-      const syncPrice = async () => {
-        const nextPrice = await fetchProductPrice(product.id, undefined, undefined, session.currency);
-        if (cancelled || syncGeneration !== priceSyncGenerationRef.current) {
-          return;
-        }
-        if (nextPrice?.currency && !isProductPriceDisplayableForPurchase(nextPrice.currency, session, site)) {
-          getLogger().warn(
-            {
-              productId: product.id,
-              currency: nextPrice.currency,
-              sessionCurrency: session.currency,
-              siteCode: site?.code,
-            },
-            'Rejected product price API response — currency not allowed for current shop context',
-          );
-          setPrice(null);
-          return;
-        }
-        setPrice(nextPrice);
-      };
-      void syncPrice();
-    }
+      const embedded = product.price;
+      if (
+        embedded !== undefined &&
+        embedded !== null &&
+        embedded.currency &&
+        isProductPriceDisplayableForPurchase(embedded.currency, session, site)
+      ) {
+        setPrice(embedded);
+        return;
+      }
+
+      const nextPrice = await fetchProductPrice(product.id, undefined, undefined, session.currency);
+      if (cancelled || syncGeneration !== priceSyncGenerationRef.current) {
+        return;
+      }
+      if (nextPrice?.currency && !isProductPriceDisplayableForPurchase(nextPrice.currency, session, site)) {
+        getLogger().warn(
+          {
+            productId: product.id,
+            currency: nextPrice.currency,
+            sessionCurrency: session.currency,
+            siteCode: site?.code,
+          },
+          'Rejected product price API response — currency not allowed for current shop context',
+        );
+        setPrice(null);
+        return;
+      }
+      setPrice(nextPrice);
+    };
+
+    const cancelStart = startEffectTask(syncPrice);
 
     return () => {
       cancelled = true;
+      cancelStart();
     };
   }, [product, session, site]);
 
@@ -158,28 +160,24 @@ export default function ProductDetail({ product: initialProduct, options, classN
     const syncGeneration = ++availabilitySyncGenerationRef.current;
     let cancelled = false;
 
-    if (!product?.id) {
-      setAvailability(undefined);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    if (!session?.currency || !session?.siteCode || !isPurchaseShopContextReady(session, site)) {
-      setAvailability(undefined);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const shopSyncKey = `${session.siteCode}|${session.currency}|${site?.code ?? ''}|${product.id}`;
-    if (availabilityShopContextRef.current !== '' && availabilityShopContextRef.current !== shopSyncKey) {
-      setAvailability(undefined);
-    }
-    availabilityShopContextRef.current = shopSyncKey;
-
-    setAvailability(undefined);
+    // Whole body runs off the effect's synchronous path so the setAvailability calls below
+    // never cascade inside this commit.
     const syncAvailability = async () => {
+      if (!product?.id) {
+        setAvailability(undefined);
+        return;
+      }
+
+      if (!session?.currency || !session?.siteCode || !isPurchaseShopContextReady(session, site)) {
+        setAvailability(undefined);
+        return;
+      }
+
+      const shopSyncKey = `${session.siteCode}|${session.currency}|${site?.code ?? ''}|${product.id}`;
+      availabilityShopContextRef.current = shopSyncKey;
+
+      setAvailability(undefined);
+
       try {
         const nextAvailability = await fetchProductAvailability(product.id);
         if (cancelled || syncGeneration !== availabilitySyncGenerationRef.current) {
@@ -193,10 +191,12 @@ export default function ProductDetail({ product: initialProduct, options, classN
         setAvailability(undefined);
       }
     };
-    void syncAvailability();
+
+    const cancelStart = startEffectTask(syncAvailability);
 
     return () => {
       cancelled = true;
+      cancelStart();
     };
   }, [product?.id, session, site]);
 

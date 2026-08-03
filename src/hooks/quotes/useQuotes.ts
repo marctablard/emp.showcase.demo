@@ -65,7 +65,6 @@ function normalizeQuoteFilters(filters?: SearchParams<Quote>['filters']): string
  * @param params Optional search params for client-side filtering
  */
 export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
-  const hasFetchedRef = useRef(false);
   const page = params?.page;
   const size = params?.size;
   const sort = params?.sort;
@@ -77,7 +76,6 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
   const normalizedInitialRequestFilters = normalizeQuoteFilters(initialRequest?.filters);
 
   const canReuseInitialData =
-    !hasFetchedRef.current &&
     !!initialQuotes &&
     (page ?? 0) === (initialRequest?.page ?? 0) &&
     size === initialRequest?.size &&
@@ -122,7 +120,6 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
   >([]);
 
   const fetchQuotes = useCallback(async () => {
-    hasFetchedRef.current = true;
     try {
       setLoading(true);
       setError(null);
@@ -186,11 +183,18 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
   }, [fetchQuotes]);
 
   // Skip only the initial fetch when SSR data matches the exact params it was fetched with.
+  // Seeded during render but only ever read/written inside the effect: once the first effect run
+  // has consumed it, every later param change refetches, so navigating back to the SSR'd page
+  // still refreshes instead of showing whatever the previous fetch left in state.
+  const skipInitialFetchRef = useRef(canReuseInitialData);
+
   useEffect(() => {
-    if (!canReuseInitialData) {
-      fetchQuotes();
+    if (skipInitialFetchRef.current) {
+      skipInitialFetchRef.current = false;
+      return;
     }
-  }, [canReuseInitialData, fetchQuotes]);
+    void fetchQuotes();
+  }, [fetchQuotes]);
 
   return {
     loading,

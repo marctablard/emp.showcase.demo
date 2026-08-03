@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { useCategoryDisplayLabelIndex } from '@/components/navigation/category-display-label-index-context';
@@ -61,7 +61,6 @@ export function SearchResultsComponent({
   const searchParams = useSearchParams();
   const navigationLabelIndex = useCategoryDisplayLabelIndex();
   const layout = initialLayout;
-  const pendingCursorUrlSigRef = useRef<string | null>(null);
   // Initialize the search hook with Product type and initial results
   const {
     data: products,
@@ -89,25 +88,26 @@ export function SearchResultsComponent({
     error: searchError,
   } = useSearch<Product>(initialSearch, initialResults);
 
-  const previousFacetsRef = useRef(batteryIncludedFacets);
-  if (batteryIncludedFacets && batteryIncludedFacets.length > 0) {
-    previousFacetsRef.current = batteryIncludedFacets;
+  // Keep the last non-empty facet set so the filter panel does not collapse while a new search
+  // is in flight. This drives render output, so it is state (adjusted during render) rather than
+  // a ref — see https://react.dev/reference/react/useState#storing-information-from-previous-renders
+  //
+  // `useSearch` hands back a fresh array on every render, so the retained copy is keyed by facet
+  // ids instead of array identity; comparing identity here would re-set state on every render and
+  // never converge. The retained set is only ever a fallback for when facets are momentarily
+  // empty, so not refreshing it on count-only changes is fine.
+  const hasFacets = !!batteryIncludedFacets && batteryIncludedFacets.length > 0;
+  const facetsKey = hasFacets ? batteryIncludedFacets.map((facet) => facet.id).join('|') : '';
+  const [retainedFacets, setRetainedFacets] = useState({ key: facetsKey, facets: batteryIncludedFacets ?? [] });
+  if (hasFacets && retainedFacets.key !== facetsKey) {
+    setRetainedFacets({ key: facetsKey, facets: batteryIncludedFacets });
   }
-  const baseFacets =
-    batteryIncludedFacets && batteryIncludedFacets.length > 0
-      ? batteryIncludedFacets
-      : (previousFacetsRef.current ?? []);
+  const baseFacets = hasFacets ? batteryIncludedFacets : retainedFacets.facets;
 
   const displayFacets = mergeActiveFilterFacetOptions(baseFacets, activeFilters);
   const appliedFilterCount = getAppliedFilterCount(activeFilters);
 
   const searchParamsKey = searchParams.toString();
-  const previousSearchParamsKeyRef = useRef(searchParamsKey);
-  const searchParamsChanged = previousSearchParamsKeyRef.current !== searchParamsKey;
-
-  useEffect(() => {
-    previousSearchParamsKeyRef.current = searchParamsKey;
-  }, [searchParamsKey]);
 
   const isApiOnlyBrowseParam = (key: string) => key === 'site' || key === 'locale' || key === 'currency';
   const meaningfulKeys = Array.from(searchParams.keys()).filter((k) => !isApiOnlyBrowseParam(k));
@@ -140,18 +140,27 @@ export function SearchResultsComponent({
     filters: Object.keys(activeFilters).length > 0 ? activeFilters : undefined,
   });
 
-  if (
-    pendingCursorUrlSigRef.current !== null &&
-    (!hasBrowseSearchParams || currentSearchSig === pendingCursorUrlSigRef.current)
-  ) {
-    pendingCursorUrlSigRef.current = null;
-  }
+  // `pendingCursor` is render output (it is passed down to the result list), so the signature it
+  // derives from is state, not a ref. The params key is kept in the same state object so both
+  // advance together in a single render pass.
+  const [cursorState, setCursorState] = useState<{ paramsKey: string; pendingUrlSig: string | null }>({
+    paramsKey: searchParamsKey,
+    pendingUrlSig: null,
+  });
+  const searchParamsChanged = cursorState.paramsKey !== searchParamsKey;
 
+  let pendingUrlSig = cursorState.pendingUrlSig;
+  if (pendingUrlSig !== null && (!hasBrowseSearchParams || currentSearchSig === pendingUrlSig)) {
+    pendingUrlSig = null;
+  }
   if (searchParamsChanged && hasBrowseSearchParams && !loading && urlSig !== currentSearchSig) {
-    pendingCursorUrlSigRef.current = urlSig;
+    pendingUrlSig = urlSig;
+  }
+  if (searchParamsChanged || pendingUrlSig !== cursorState.pendingUrlSig) {
+    setCursorState({ paramsKey: searchParamsKey, pendingUrlSig });
   }
 
-  const pendingCursor = !loading && pendingCursorUrlSigRef.current === urlSig;
+  const pendingCursor = !loading && pendingUrlSig === urlSig;
 
   useLayoutEffect(() => {
     if (currentSearchSig !== urlSig) {

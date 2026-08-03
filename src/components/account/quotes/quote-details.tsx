@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { useLocale, useTranslations } from 'next-intl';
 import { ChevronsUpDown, CircleCheck, CircleX, Pencil } from 'lucide-react';
 import { QuoteStatusBadge } from '@/components/account/quotes/quote-status-badge';
@@ -177,15 +178,15 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   const quote = initialQuote || fetchedQuote;
 
   useEffect(() => {
-    if (!quote || quote.status !== 'OPEN') {
-      setApprovalPermission(null);
-      setIsCheckingApprovalPermission(false);
-      return;
-    }
-
     let isCancelled = false;
 
     const loadApprovalPermission = async (): Promise<void> => {
+      if (!quote || quote.status !== 'OPEN') {
+        setApprovalPermission(null);
+        setIsCheckingApprovalPermission(false);
+        return;
+      }
+
       try {
         setIsCheckingApprovalPermission(true);
 
@@ -213,10 +214,13 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
       }
     };
 
-    void loadApprovalPermission();
+    // Started off the effect's synchronous path so the state writes above do not cascade
+    // inside this commit.
+    const cancelStart = startEffectTask(loadApprovalPermission);
 
     return () => {
       isCancelled = true;
+      cancelStart();
     };
   }, [quote, quoteId]);
 

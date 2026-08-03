@@ -55,10 +55,13 @@ export function WishlistItem({ item, onMovedToCart }: WishlistItemProps) {
   const { disabled: compareDisabled, tooltip: compareTooltip } = useValidateAddToComparison(productForComparison);
   const isCompared = isInComparison(item.productId);
 
-  useEffect(() => {
+  // Follow the item's quantity when it changes upstream. Adjusted during render rather than
+  // from an effect: https://react.dev/learn/you-might-not-need-an-effect
+  const [prevItemQuantity, setPrevItemQuantity] = useState(item.quantity);
+  if (prevItemQuantity !== item.quantity) {
+    setPrevItemQuantity(item.quantity);
     if (item.quantity !== quantity) setQuantity(item.quantity);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.quantity]);
+  }
 
   useEffect(() => {
     return () => {

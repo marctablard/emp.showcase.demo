@@ -7,6 +7,7 @@ import {
   postCustomerOrderDecline as apiPostCustomerOrderDecline,
   isOrderAccessDeniedError,
 } from '@/lib/client/orders';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { ORDER_CUSTOMER_DECLINE_NOT_ALLOWED_MESSAGE } from '@/lib/common/order-customer-decline-not-allowed';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { Order } from '@/platform/services/model/order/order';
@@ -150,12 +151,14 @@ export const useOrder = (options: UseOrderOptions = {}): UseOrderResult => {
 
   useEffect(() => {
     if (!orderId) return;
+    const cancels: Array<() => void> = [];
     if (order === undefined) {
-      void fetchOrder();
+      cancels.push(startEffectTask(fetchOrder));
     }
     if (autoFetchStatusTransitions) {
-      void fetchStatusTransitions();
+      cancels.push(startEffectTask(fetchStatusTransitions));
     }
+    return () => cancels.forEach((cancel) => cancel());
   }, [orderId, order, autoFetchStatusTransitions, fetchOrder, fetchStatusTransitions]);
 
   return {

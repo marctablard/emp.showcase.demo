@@ -1,12 +1,19 @@
 'use client';
 
 import { useCallback, useContext, useEffect, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { getSite as apiGetSite, getSites as apiGetSites } from '@/lib/client/site';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { Country, Currency, Region } from '@/platform/services/model/common';
 import type { PaymentMode } from '@/platform/services/model/payment';
 import { SiteContext } from '@/providers/SiteProvider';
 import { useSiteStore } from '@/providers/StoreProvider';
+
+// Module-level so the "resolved, but no site" case keeps a stable identity across renders.
+const NO_COUNTRIES: Country[] = [];
+const NO_REGIONS: Region[] = [];
+const NO_CURRENCIES: Currency[] = [];
+const NO_PAYMENT_MODES: PaymentMode[] = [];
 
 /**
  * Hook for accessing site data like countries, regions, and currencies
@@ -16,7 +23,6 @@ export function useSite(id?: string) {
     setLoading,
     getLoading,
     setSite,
-    getSite,
     setAvailableSites,
     getAvailableSites,
     availableSites,
@@ -32,10 +38,13 @@ export function useSite(id?: string) {
       resetSite();
     }
   }, [effectiveSiteCode, site, resetSite]);
-  const [countries, setCountries] = useState<Country[] | undefined>(getSite()?.countries);
-  const [regions, setRegions] = useState<Region[] | undefined>(getSite()?.regions);
-  const [currencies, setCurrencies] = useState<Currency[] | undefined>(getSite()?.currencies);
-  const [paymentModes, setPaymentModes] = useState<PaymentMode[] | undefined>(getSite()?.paymentModes);
+  // Derived from the store's site instead of mirrored into local state by an effect.
+  // `null` means "resolved, but there is no site", which surfaces as empty lists;
+  // `undefined` means "not resolved yet" and stays undefined until the fetch below completes.
+  const countries: Country[] | undefined = site === null ? NO_COUNTRIES : site?.countries;
+  const regions: Region[] | undefined = site === null ? NO_REGIONS : site?.regions;
+  const currencies: Currency[] | undefined = site === null ? NO_CURRENCIES : site?.currencies;
+  const paymentModes: PaymentMode[] | undefined = site === null ? NO_PAYMENT_MODES : site?.paymentModes;
   const [error, setError] = useState<Error | null>(null);
 
   const fetchSiteData = useCallback(async () => {
@@ -71,19 +80,10 @@ export function useSite(id?: string) {
   }, [setLoading, setError, setSite, setAvailableSites, getAvailableSites, id, urlSiteCode]);
 
   useEffect(() => {
-    if (site) {
-      setCountries(site.countries);
-      setRegions(site.regions);
-      setCurrencies(site.currencies);
-      setPaymentModes(site.paymentModes);
-    } else if (site === null) {
-      setCountries([]);
-      setRegions([]);
-      setCurrencies([]);
-      setPaymentModes([]);
-    } else if (site === undefined && !getLoading()) {
-      fetchSiteData();
+    if (site !== undefined || getLoading()) {
+      return;
     }
+    return startEffectTask(fetchSiteData);
   }, [getLoading, fetchSiteData, site]);
 
   return {

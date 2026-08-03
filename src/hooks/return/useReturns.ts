@@ -35,12 +35,10 @@ interface UseReturnsOptions {
  */
 export function useReturns(initialReturns?: Return[], options: UseReturnsOptions = {}): UseReturnsReturn {
   const { pageSize, pageNumber, sort, query, forceRefreshOnMount = false, initialTotalCount, initialRequest } = options;
-  const hasFetchedRef = useRef(false);
   const [returns, setReturns] = useState<Return[]>(initialReturns || []);
   const [totalCount, setTotalCount] = useState<number | undefined>(initialTotalCount);
 
   const canReuseInitialData =
-    !hasFetchedRef.current &&
     !!initialReturns &&
     pageNumber === (initialRequest?.pageNumber ?? 1) &&
     pageSize === initialRequest?.pageSize &&
@@ -52,7 +50,6 @@ export function useReturns(initialReturns?: Return[], options: UseReturnsOptions
 
   const fetchReturnsData = useCallback(
     async (forceRefresh: boolean = false) => {
-      hasFetchedRef.current = true;
       try {
         setLoading(true);
         setError(null);
@@ -72,11 +69,18 @@ export function useReturns(initialReturns?: Return[], options: UseReturnsOptions
     await fetchReturnsData(true);
   }, [fetchReturnsData]);
 
+  // Skip only the initial fetch when SSR data matches the exact params it was fetched with.
+  // Seeded during render but only ever read/written inside the effect: once the first effect run
+  // has consumed it, every later param change refetches.
+  const skipInitialFetchRef = useRef(canReuseInitialData && !forceRefreshOnMount);
+
   useEffect(() => {
-    if (!canReuseInitialData || forceRefreshOnMount) {
-      fetchReturnsData(forceRefreshOnMount);
+    if (skipInitialFetchRef.current) {
+      skipInitialFetchRef.current = false;
+      return;
     }
-  }, [canReuseInitialData, forceRefreshOnMount, fetchReturnsData]);
+    void fetchReturnsData(forceRefreshOnMount);
+  }, [forceRefreshOnMount, fetchReturnsData]);
 
   return {
     returns,

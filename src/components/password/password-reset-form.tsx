@@ -19,7 +19,12 @@ type PasswordResetFormProps = {
   isDialog?: boolean;
 };
 
-export function PasswordResetForm({ email, callbackUrl, onSuccess, isDialog = false }: PasswordResetFormProps) {
+export function PasswordResetForm({
+  email,
+  callbackUrl: callbackUrlProp,
+  onSuccess,
+  isDialog = false,
+}: PasswordResetFormProps) {
   const t = useTranslations('auth.Password');
 
   const { form } = useValidator(
@@ -62,11 +67,8 @@ export function PasswordResetForm({ email, callbackUrl, onSuccess, isDialog = fa
   }
 
   const searchParams = useSearchParams();
-  email = email ?? searchParams.get('email') ?? undefined;
   // null is fine, just undefined needs to be checked
-  if (callbackUrl === undefined) {
-    callbackUrl = searchParams.get('callbackUrl') ?? undefined;
-  }
+  const callbackUrl = callbackUrlProp ?? searchParams.get('callbackUrl') ?? undefined;
 
   return (
     <div className="flex flex-col gap-6 w-full">
