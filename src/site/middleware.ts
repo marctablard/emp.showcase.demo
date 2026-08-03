@@ -191,7 +191,11 @@ const withCookies = function (
  * through to normal site handling.
  */
 function handlePreviewRoute(req: NextRequest): NextResponse | null {
-  if (!req.nextUrl.pathname.startsWith(PREVIEW_ROUTE_PREFIX)) {
+  const { pathname } = req.nextUrl;
+  // Segment-exact: a bare `startsWith` would also swallow `/previewable`,
+  // silently skipping the site rewrite for an unrelated app route.
+  const isPreviewRoute = pathname === PREVIEW_ROUTE_PREFIX || pathname.startsWith(`${PREVIEW_ROUTE_PREFIX}/`);
+  if (!isPreviewRoute) {
     return null;
   }
   const isPreview = getPreviewDetector(process.env).isPreviewRequest(req.nextUrl);

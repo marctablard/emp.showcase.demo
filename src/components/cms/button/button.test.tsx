@@ -14,8 +14,7 @@
  *    - merges incoming `className` via `cn(...)` instead of clobbering the
  *      component's own classes.
  *
- * The component, schema, and barrel file do not exist yet — these tests are
- * red until the co-located implementation lands.
+ * Co-located with the implementation they pin.
  */
 import '@testing-library/jest-dom';
 import { render } from '@testing-library/react';

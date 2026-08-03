@@ -15,8 +15,7 @@
  * the schema-shape invariants and the component spread/merge contract
  * shared with the other co-located CMS components.
  *
- * The schema, component, and barrel file do not exist in co-located form
- * yet — these tests are red until the migration lands.
+ * Co-located with the implementation they pin.
  */
 import '@testing-library/jest-dom';
 import { render } from '@testing-library/react';

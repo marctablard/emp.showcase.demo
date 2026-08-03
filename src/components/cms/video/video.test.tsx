@@ -7,8 +7,7 @@
  * optionals. The `hero` and `media-text` components reference this schema
  * directly so the shape needs to stay stable and validate end-to-end.
  *
- * The component, schema, and barrel file do not exist yet — these tests are
- * red until the co-located implementation lands.
+ * Co-located with the component, schema and barrel file they pin.
  */
 import '@testing-library/jest-dom';
 import { render } from '@testing-library/react';

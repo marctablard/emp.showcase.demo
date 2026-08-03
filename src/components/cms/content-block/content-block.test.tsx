@@ -6,8 +6,7 @@
  * a bounded `style` literal-union. Exercises both shape and enum
  * validation, and verifies the root-element spread contract.
  *
- * The schema, component, and barrel file do not exist yet — these tests
- * are red until the co-located implementation lands.
+ * Co-located with the implementation they pin.
  */
 import '@testing-library/jest-dom';
 import { render } from '@testing-library/react';

@@ -7,8 +7,7 @@
  * and rejects malformed entries. The component renders each element's title
  * as visible text, spreads `...rest` onto its root, and merges `className`.
  *
- * The component, schema, and barrel file do not exist yet — these tests are
- * red until the co-located implementation lands.
+ * Co-located with the implementation they pin.
  */
 import '@testing-library/jest-dom';
 import { render } from '@testing-library/react';

@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { H3 } from '@/components/ui/h';
 import { Link } from '@/i18n/navigation';
-import { sanitizeHref } from '@/lib/sanitize-href';
+import { isExternalHref, sanitizeHref } from '@/lib/sanitize-href';
 import { cn } from '@/lib/utils';
 import type { ColumnTeaserImageData } from './schema';
 
@@ -36,15 +36,27 @@ const ColumnTeaserImage = ({ image, className = '' }: Readonly<ColumnTeaserImage
     </div>
   );
 
-  if (image.link) {
+  const href = sanitizeHref(image.link);
+
+  // An unsafe link sanitises to '' — render the plain image rather than a link
+  // that would still navigate through the i18n router.
+  if (!href) {
+    return imageElement;
+  }
+
+  if (isExternalHref(href)) {
     return (
-      <Link href={sanitizeHref(image.link)} className="block h-full">
+      <a href={href} target="_blank" rel="noopener noreferrer" className="block h-full">
         {imageElement}
-      </Link>
+      </a>
     );
   }
 
-  return imageElement;
+  return (
+    <Link href={href} className="block h-full">
+      {imageElement}
+    </Link>
+  );
 };
 
 export default ColumnTeaserImage;

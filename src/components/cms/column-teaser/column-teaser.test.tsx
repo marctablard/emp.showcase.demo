@@ -8,8 +8,7 @@
  * wrong discriminators. The component spreads `...rest` onto its root and
  * merges `className`.
  *
- * The component, schema, and barrel file do not exist yet — these tests are
- * red until the co-located implementation lands.
+ * Co-located with the implementation they pin.
  */
 import '@testing-library/jest-dom';
 import { render } from '@testing-library/react';
@@ -97,7 +96,10 @@ describe('ColumnTeaser — XSS sanitisation', () => {
       main_image: { filename: '/main.png', link: 'javascript:alert(1)' },
     };
     const { container } = render(<ColumnTeaser {...xssData} />);
-    const anchor = container.querySelector('a');
-    expect(anchor?.getAttribute('href')).not.toMatch(/javascript:/i);
+    // An unsafe link sanitises to '' and the image renders without any link at
+    // all — stronger than emitting an anchor with a blanked href, which would
+    // still resolve to a navigable route through the i18n router.
+    expect(container.querySelector('a')).toBeNull();
+    expect(container.innerHTML).not.toMatch(/javascript:/i);
   });
 });

@@ -37,6 +37,12 @@ describe('sanitizeHref', () => {
       'file:///etc/passwd',
       'ftp://example.com',
       'about:blank',
+      // Protocol-relative: the browser resolves these against the current
+      // scheme and navigates off-site, so they must not pass as "relative".
+      '//evil.example',
+      '//evil.example/path',
+      ' //evil.example',
+      '///evil.example',
     ])('rejects %p', (input) => {
       expect(sanitizeHref(input)).toBe('');
     });

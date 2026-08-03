@@ -85,7 +85,11 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
   // 2) Handle API requests with CSRF validation
   let response;
   if (pathname.startsWith('/api/')) {
-    const csrfResult = csrfExactBypass.has(pathname) ? undefined : validateCsrf(req);
+    // Normalise a single trailing slash so `/api/cms/webhook/` matches the
+    // exact-bypass entry too — otherwise CSRF validation would reject a
+    // legitimate webhook call that arrives in the trailing-slash form.
+    const bypassPath = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+    const csrfResult = csrfExactBypass.has(bypassPath) ? undefined : validateCsrf(req);
     if (csrfResult) {
       response = csrfResult;
     } else {

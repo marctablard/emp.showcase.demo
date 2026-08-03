@@ -1,7 +1,7 @@
 import type { HTMLAttributes } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import UiLink from '@/components/ui/link';
-import { sanitizeHref } from '@/lib/sanitize-href';
+import { isExternalHref, sanitizeHref } from '@/lib/sanitize-href';
 import type { TopBannerAnnouncementData } from './schema';
 
 export type TopBannerAnnouncementProps = TopBannerAnnouncementData &
@@ -19,10 +19,18 @@ const TopBannerAnnouncement = ({
     return null;
   }
 
+  const href = sanitizeHref(link.url);
+
+  // An unsafe URL sanitises to '' — announce the text without a link rather
+  // than emitting a `Link` that would still resolve to a navigable route.
+  if (!href) {
+    return <span className="text-text-on-action">{title}</span>;
+  }
+
   return (
     <UiLink
-      type="Link"
-      href={sanitizeHref(link.url)}
+      type={isExternalHref(href) ? 'A' : 'Link'}
+      href={href}
       target={link.target}
       className="text-text-on-action hover:text-text-on-action"
       iconAfter={<ArrowUpRight className="w-4 h-4" />}

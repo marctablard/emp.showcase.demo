@@ -7,8 +7,7 @@
  * `'use client'` marker on its consumer path (the parent `Article` is a
  * Server Component).
  *
- * The module does not exist yet — these tests are red until the migration
- * lands.
+ * Co-located with the module they pin.
  */
 import '@testing-library/jest-dom';
 import { render } from '@testing-library/react';

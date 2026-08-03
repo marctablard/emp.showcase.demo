@@ -15,8 +15,7 @@
  * contract upgrade, not a regression. Behaviour for title / introduction
  * / video / linked_products is preserved verbatim.
  *
- * The co-located schema, component, and barrel do not exist yet — these
- * tests are red until the migration lands.
+ * Co-located with the implementation they pin.
  */
 import '@testing-library/jest-dom';
 import { render } from '@testing-library/react';

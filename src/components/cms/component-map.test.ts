@@ -13,8 +13,7 @@
  * fails — catching the most common registry-extension mistake at
  * compile + test time rather than at runtime when a page is loaded.
  *
- * The registry surfaces (`component-map.ts`, `component-schema.ts`) do not
- * exist yet — this suite is red until the foundation lands.
+ * Pins the registry surfaces (`component-map.ts`, `component-schema.ts`).
  */
 import type { z } from 'zod';
 import { type CmsComponentMapKey, cmsComponentMap } from './component-map';

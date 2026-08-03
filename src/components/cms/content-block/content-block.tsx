@@ -4,7 +4,7 @@ import type { HTMLAttributes } from 'react';
 import Image from 'next/image';
 import { H2 } from '@/components/ui/h';
 import { Link } from '@/i18n/navigation';
-import { sanitizeHref } from '@/lib/sanitize-href';
+import { isExternalHref, sanitizeHref } from '@/lib/sanitize-href';
 import { cn } from '@/lib/utils';
 import type { ContentBlockData } from './schema';
 
@@ -35,7 +35,9 @@ const ContentBlock = ({
 
   const sanitizedLink = sanitizeHref(button?.link);
   const buttonHref = sanitizedLink || '#';
-  const isExternalButton = buttonHref.startsWith('http') || button?.is_external;
+  // Case-insensitive and scheme-aware: `HTTPS://…`, `mailto:` and `tel:` must
+  // not be misread as internal and pushed through the rewriting router.
+  const isExternalButton = isExternalHref(buttonHref) || button?.is_external;
 
   return (
     <div className={cn('content-block relative', containerClasses, 'my-8', className)} {...rest}>

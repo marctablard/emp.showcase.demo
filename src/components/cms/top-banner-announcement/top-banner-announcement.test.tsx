@@ -20,8 +20,7 @@
  * (`data-blok-*`) and any other pass-through attribute reach the DOM root —
  * matching every other CMS component.
  *
- * The component, schema, and barrel file do not exist yet — these tests are
- * red until the co-located implementation lands.
+ * Co-located with the implementation they pin.
  */
 import '@testing-library/jest-dom';
 import { render } from '@testing-library/react';
@@ -188,7 +187,10 @@ describe('TopBannerAnnouncement — XSS sanitisation', () => {
         is_active={true}
       />,
     );
-    const anchor = container.querySelector('a');
-    expect(anchor?.getAttribute('href')).not.toMatch(/javascript:/i);
+    // An unsafe URL sanitises to '' and the announcement renders as plain text
+    // — stronger than emitting an anchor with a blanked href, which would still
+    // resolve to a navigable route through the i18n router.
+    expect(container.querySelector('a')).toBeNull();
+    expect(container.innerHTML).not.toMatch(/javascript:/i);
   });
 });
