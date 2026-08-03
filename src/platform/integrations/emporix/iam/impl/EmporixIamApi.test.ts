@@ -3,6 +3,7 @@ import { Container } from 'inversify';
 import { first } from 'lodash';
 import type { EmporixTokenManager } from '../../common/EmporixTokenManager';
 import EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
+import { disabledMetricsService, testRequestContext } from '../../common/impl/EmporixApiInvoker.test-doubles';
 import { EmporixTestTokenManager } from '../../common/impl/EmporixTokenManager.test';
 import { EmporixConfig } from '../../config';
 import EmporixCustomerApi from '../../customer/impl/EmporixCustomerApi';
@@ -70,6 +71,8 @@ describe('EmporixIamApi', () => {
           new EmporixApiInvoker(
             ctx.get<EmporixConfig>('EmporixConfig'),
             ctx.get<EmporixTokenManager>('EmporixTokenManager'),
+            disabledMetricsService(),
+            testRequestContext(),
           ),
       )
       .inSingletonScope();

@@ -1,4 +1,3 @@
-// c:\Workspace\emporix-showcase\src\platform\services\model\product\impl\BatteryIncludedProductMapper.ts
 import { inject } from 'inversify';
 import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import { injectable } from '@/platform/core/di/injectable';

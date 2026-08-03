@@ -1,7 +1,6 @@
 import { create } from 'zustand/react';
 import type { Product } from '@/platform/services/model/product';
 
-// src/stores/counter-store.ts
 // re-export for convenience
 export { useProductStore } from '@/providers/StoreProvider';
 

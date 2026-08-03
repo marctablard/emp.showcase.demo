@@ -12,7 +12,10 @@ import {
   type NavigationCategoryTreeRequestContext,
   buildBatteryIncludedCategoryTree,
 } from './batteryincluded-category-tree';
-import { buildBatteryIncludedVisibilityFilters, buildBatteryIncludedVisibilityVariables } from './batteryincluded-visibility';
+import {
+  buildBatteryIncludedVisibilityFilters,
+  buildBatteryIncludedVisibilityVariables,
+} from './batteryincluded-visibility';
 
 const COUNTRY_NONE_BUCKET = '__none__';
 

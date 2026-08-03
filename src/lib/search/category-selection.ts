@@ -1,15 +1,11 @@
 import { walkCategoryTree } from '@/lib/category/category-tree-utils';
 import type { Category } from '@/platform/services/model/category';
-import { BATTERY_INCLUDED_BREADCRUMB_FILTER, getBatteryIncludedCategoryMetadata } from '@/platform/services/model/category/batteryincluded-category';
+import {
+  BATTERY_INCLUDED_BREADCRUMB_FILTER,
+  getBatteryIncludedCategoryMetadata,
+} from '@/platform/services/model/category/batteryincluded-category';
 import type { SearchFilterValue } from '@/platform/services/model/common';
 import { parseCategoryIdsFilterValue } from './parse-category-ids-filter';
-
-
-
-
-
-
-
 
 type CategoryFilterValue = SearchFilterValue | undefined | null;
 

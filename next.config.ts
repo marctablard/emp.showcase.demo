@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next';
 import createNextIntlSplitPlugin from 'next-intl-split/plugin';
+import createBundleAnalyzer from '@next/bundle-analyzer';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { validateEnvVars } from './src/platform/healthcheck/env-validation';
@@ -47,7 +48,7 @@ switch (process.env.NEXT_SERVER_OUTPUTMODE) {
     );
 }
 
-let nextConfig: NextConfig = {
+const baseConfig: NextConfig = {
   // When another package-lock.json exists above this repo (e.g. ~/package-lock.json), Turbopack
   // can infer the wrong workspace root and resolve `tailwindcss` / `next-intl` from the parent
   // tree instead of this project's node_modules — breaking `next dev` with bogus module-not-found.
@@ -80,6 +81,12 @@ let nextConfig: NextConfig = {
   },
 
   reactStrictMode: true,
+  modularizeImports: {
+    lodash: {
+      transform: 'lodash/{{member}}',
+      preventFullImport: true,
+    },
+  },
   webpack: (config, { dev, isServer }) => {
     // Exclude test files from being compiled by Next.js
     config.module.rules.push({
@@ -149,7 +156,12 @@ let nextConfig: NextConfig = {
 // add i18n Logic to Next-Configuration
 const withNextIntlSplit = createNextIntlSplitPlugin('./src/i18n/translations');
 
-// Apply plugins in sequence
-nextConfig = withNextIntlSplit(nextConfig);
+const withBundleAnalyzer = createBundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+  openAnalyzer: false,
+});
+
+// Apply plugins in sequence: i18n splitting first, then the bundle analyzer wrapper.
+const nextConfig = withBundleAnalyzer(withNextIntlSplit(baseConfig));
 
 export default nextConfig;

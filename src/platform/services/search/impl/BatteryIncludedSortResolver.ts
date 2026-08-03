@@ -1,9 +1,9 @@
+import type { SearchSortOption } from '@/platform/services/model/common';
 import {
   buildBatteryIncludedSortToken,
   isBatteryIncludedResponseDrivenSortField,
   parseBatteryIncludedSortToken,
 } from './BatteryIncludedSortContract';
-import type { SearchSortOption } from '@/platform/services/model/common';
 
 export const BATTERY_INCLUDED_SORT_TOKEN_DELIMITER = ':';
 
@@ -27,9 +27,7 @@ export interface ResolvedBatteryIncludedSort {
   upstreamSort: string;
 }
 
-export const resolveBatteryIncludedSort = (
-  sort: string | undefined,
-): ResolvedBatteryIncludedSort | undefined => {
+export const resolveBatteryIncludedSort = (sort: string | undefined): ResolvedBatteryIncludedSort | undefined => {
   const parsed = parseBatteryIncludedSortToken(sort);
   if (!parsed) {
     return undefined;

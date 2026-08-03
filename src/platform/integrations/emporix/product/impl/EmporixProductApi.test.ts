@@ -1,21 +1,12 @@
 import { Container } from 'inversify';
 import { EmporixTokenManager } from '../../common/EmporixTokenManager';
 import EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
+import { disabledMetricsService, testRequestContext } from '../../common/impl/EmporixApiInvoker.test-doubles';
 import { EmporixTestTokenManager } from '../../common/impl/EmporixTokenManager.test';
 import { EmporixConfig } from '../../config';
 import { EmporixProduct, EmporixSearchParams } from '../../model';
 import EmporixOAuthApi from '../../oauth/impl/EmporixOAuthApi';
 import EmporixProductApi from './EmporixProductApi';
-
-
-
-
-
-
-
-
-
-
 
 // Create a test config implementation
 class TestEmporixConfig implements EmporixConfig {
@@ -66,6 +57,8 @@ describe('EmporixProductApi', () => {
           new EmporixApiInvoker(
             ctx.get<EmporixConfig>('EmporixConfig'),
             ctx.get<EmporixTokenManager>('EmporixTokenManager'),
+            disabledMetricsService(),
+            testRequestContext(),
           ),
       )
       .inSingletonScope();

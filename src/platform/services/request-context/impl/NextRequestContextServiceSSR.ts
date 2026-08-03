@@ -1,5 +1,6 @@
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
+import type { DebugCallSource } from '@/platform/core/utils/debug-event-bus';
 import { getRequestCurrency, getRequestLanguage } from '@/site/server/RequestPreferences';
 import { getRequestSite } from '@/site/server/RequestSite';
 import type { RequestContextService } from '../RequestContextService';
@@ -16,6 +17,11 @@ class NextRequestContextServiceSSR implements RequestContextService {
 
   async getLanguage(): Promise<string | undefined> {
     return getRequestLanguage();
+  }
+
+  /** Render pass — see {@link RequestContextService.getCallSource}. */
+  getCallSource(): DebugCallSource {
+    return 'ssr';
   }
 }
 

@@ -1,6 +1,7 @@
 import { Container } from 'inversify';
 import { EmporixTokenManager } from '../../common/EmporixTokenManager';
 import EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
+import { disabledMetricsService, testRequestContext } from '../../common/impl/EmporixApiInvoker.test-doubles';
 import { EmporixTestTokenManager } from '../../common/impl/EmporixTokenManager.test';
 import { EmporixConfig } from '../../config';
 import EmporixOAuthApi from '../../oauth/impl/EmporixOAuthApi';
@@ -38,6 +39,8 @@ describe('EmporixAvailabilityApi', () => {
           new EmporixApiInvoker(
             ctx.get<EmporixConfig>('EmporixConfig'),
             ctx.get<EmporixTokenManager>('EmporixTokenManager'),
+            disabledMetricsService(),
+            testRequestContext(),
           ),
       )
       .inSingletonScope();

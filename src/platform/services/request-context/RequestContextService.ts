@@ -1,3 +1,5 @@
+import type { DebugCallSource } from '@/platform/core/utils/debug-event-bus';
+
 export interface RequestContextService {
   getSite(): Promise<string>;
   /**
@@ -13,4 +15,24 @@ export interface RequestContextService {
    * not set. Mirrors {@link getCurrency}.
    */
   getLanguage(): Promise<string | undefined>;
+  /**
+   * Where the current call *originated* — deliberately not the runtime that executes it.
+   *
+   * `DebugCallSource` has no `'server'` member: the server/upstream axis is carried by
+   * {@link DebugContext.callType} (`external` = server → upstream API), so this field is
+   * only ever `'client'` (browser-triggered) or `'ssr'` (render pass). That makes the
+   * mapping look inverted at first glance and it is intentional:
+   *
+   * - Server impl  → `'client'`: API route handlers exist because a browser called them.
+   *   Same convention as `withApiRouteDebug`, which tags route handlers `source: 'client'`.
+   * - SSR impl     → `'ssr'`:    RSC / server-side render pass.
+   * - Client impl  → `'client'`: browser.
+   *
+   * Consumed by the debug tooling for the `[CLIENT]`/`[SSR]` badge and the
+   * `NEXT_PUBLIC_DEBUG_API_SOURCE` filter, which likewise only accepts `client`/`ssr`.
+   *
+   * Synchronous by design: the value is a per-environment constant, and callers such as
+   * `EmporixApiInvoker.applyCacheOptions` are synchronous.
+   */
+  getCallSource(): DebugCallSource;
 }

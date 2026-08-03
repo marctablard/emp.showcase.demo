@@ -1,10 +1,10 @@
-import type EmporixApiInvokerServer from '../common/impl/EmporixApiInvokerServer';
+import type EmporixApiInvoker from '../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../config';
 import EmporixOrderApi from './impl/EmporixOrderApi';
 
 type AuthenticatedFetch = (
-  ...args: Parameters<EmporixApiInvokerServer['authenticatedFetch']>
-) => ReturnType<EmporixApiInvokerServer['authenticatedFetch']>;
+  ...args: Parameters<EmporixApiInvoker['authenticatedFetch']>
+) => ReturnType<EmporixApiInvoker['authenticatedFetch']>;
 
 type MockOrderApiClient = {
   authenticatedFetch: jest.MockedFunction<AuthenticatedFetch>;
@@ -29,7 +29,7 @@ describe('EmporixOrderApi customer transition (mocked)', () => {
       }),
     };
 
-    const api = new EmporixOrderApi(mockApiClient, mockConfigLocal);
+    const api = new EmporixOrderApi(mockApiClient as unknown as EmporixApiInvoker, mockConfigLocal);
     await api.postCustomerOrderTransition('ord-1', { status: 'DECLINED' });
 
     expect(mockApiClient.authenticatedFetch).toHaveBeenCalledTimes(1);
@@ -53,7 +53,7 @@ describe('EmporixOrderApi customer transition (mocked)', () => {
       }),
     };
 
-    const api = new EmporixOrderApi(mockApiClient, mockConfigLocal);
+    const api = new EmporixOrderApi(mockApiClient as unknown as EmporixApiInvoker, mockConfigLocal);
     const result = await api.getCustomerOrderStatusTransitions('ord-2');
     expect(result).toEqual(['DECLINED']);
   });
@@ -69,7 +69,7 @@ describe('EmporixOrderApi customer transition (mocked)', () => {
       }),
     };
 
-    const api = new EmporixOrderApi(mockApiClient, mockConfigLocal);
+    const api = new EmporixOrderApi(mockApiClient as unknown as EmporixApiInvoker, mockConfigLocal);
     const response = await api.getCustomerOrdersPage(10, 1, 'created:desc,id:asc', 'status:CREATED id:(ord-1,ord-2)');
 
     const [path, options, tokenType] = mockApiClient.authenticatedFetch.mock.calls[0];
@@ -97,7 +97,7 @@ describe('EmporixOrderApi customer transition (mocked)', () => {
       }),
     };
 
-    const api = new EmporixOrderApi(mockApiClient, mockConfigLocal);
+    const api = new EmporixOrderApi(mockApiClient as unknown as EmporixApiInvoker, mockConfigLocal);
     const response = await api.getCustomerOrdersPage(10, 1);
 
     expect(response).toEqual({ items: [{ id: 'ord-3' }, { id: 'ord-4' }], totalCount: 2 });
@@ -114,7 +114,7 @@ describe('EmporixOrderApi customer transition (mocked)', () => {
       }),
     };
 
-    const api = new EmporixOrderApi(mockApiClient, mockConfigLocal);
+    const api = new EmporixOrderApi(mockApiClient as unknown as EmporixApiInvoker, mockConfigLocal);
 
     await expect(api.getCustomerOrdersPage(10, 1)).rejects.toThrow(
       'Unexpected customer orders payload from Emporix API: expected an array or an object with an items array',
