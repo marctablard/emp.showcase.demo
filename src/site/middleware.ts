@@ -181,59 +181,160 @@ const withCookies = function (
   return to;
 };
 
+/**
+ * Preview routes carry their own `/preview/[site]/[locale]/...` — they are
+ * never site-rewritten. The edge-safe detector flags genuine preview requests
+ * so caching is skipped; everything Storyblok-specific stays out of the Edge
+ * bundle (the registry imports only the pure detection module).
+ *
+ * Returns `null` when the request is not a preview route, so the caller falls
+ * through to normal site handling.
+ */
+function handlePreviewRoute(req: NextRequest): NextResponse | null {
+  if (!req.nextUrl.pathname.startsWith(PREVIEW_ROUTE_PREFIX)) {
+    return null;
+  }
+  const isPreview = getPreviewDetector(process.env).isPreviewRequest(req.nextUrl);
+  const res = NextResponse.next();
+  if (isPreview) {
+    res.headers.set('cache-control', 'no-store');
+  }
+  return res;
+}
+
+/**
+ * Resolves the site from path/cookie/header, then validates it against
+ * `availableSites`. A site outside that list falls back to `defaultSite` when
+ * one is configured; without a default it is flagged invalid so the layout can
+ * render not-found. A request that resolves no site at all lands on the first
+ * available site.
+ */
+function resolveValidatedSite(
+  req: NextRequest,
+  routing: SiteConfig,
+): { site: string; appPath: string; siteInvalid: boolean } {
+  const { site: resolvedSite, appPath } = resolveSite(req.nextUrl.pathname, req.cookies, req.headers, routing);
+  let site = resolvedSite;
+  let siteInvalid = false;
+
+  if (site && !routing.availableSites.includes(site)) {
+    if (routing.defaultSite) {
+      site = routing.defaultSite;
+    } else {
+      edgeLog('warn', 'invalid_site_rejected', {
+        site,
+        path: req.nextUrl.pathname,
+        availableSites: routing.availableSites,
+        recommendation: 'Check NEXT_PUBLIC_AVAILABLE_SITES configuration',
+      });
+      siteInvalid = true;
+      site = routing.availableSites[0];
+    }
+  }
+
+  const effectiveSite = site === undefined || site === '' ? routing.availableSites[0] : site;
+  return { site: effectiveSite, appPath, siteInvalid };
+}
+
+/** Request headers forwarded to the app: resolved app path, locale and site. */
+function buildForwardHeaders(
+  req: NextRequest,
+  appPath: string,
+  locale: string | null,
+  site: string,
+  siteInvalid: boolean,
+): Headers {
+  const headers = new Headers(req.headers);
+  headers.set(INTERNAL_APP_PATH_HEADER, appPath);
+  if (locale) {
+    headers.set(INTL_LOCALE_HEADER, locale);
+  }
+  if (site) {
+    headers.set(INTERNAL_SITE_HEADER, site);
+  }
+  if (siteInvalid) {
+    headers.set(INTERNAL_SITE_INVALID_HEADER, 'true');
+  }
+  return headers;
+}
+
+/** Rewrites an invalid-site request onto a valid route so the layout can render not-found. */
+function rewriteForInvalidSite(
+  req: NextRequest,
+  intlResponse: NextResponse,
+  site: string,
+  appPath: string,
+  headers: Headers,
+): NextResponse {
+  const rewrite = new URL(req.nextUrl);
+  rewrite.pathname = `/${site}${appPath === '' || appPath === '/' ? '' : `/${appPath}`}`;
+  const response = NextResponse.rewrite(rewrite, { request: { headers } });
+  intlResponse.cookies.getAll().forEach((cookie) => {
+    response.cookies.set(cookie.name, cookie.value);
+  });
+  return response;
+}
+
+/**
+ * Aligns the URL with the site-prefix policy: prefixed sites gain their
+ * `/{site}` segment, non-prefixed sites lose it. Returns `null` when the URL
+ * already matches and no redirect is needed.
+ */
+function resolveSitePrefixRedirect(
+  req: NextRequest,
+  intlResponse: NextResponse,
+  routing: SiteConfig,
+  site: string,
+  appPath: string,
+  resolvedLocale: string,
+  headers: Headers,
+): NextResponse | null {
+  const hasSitePrefix = req.nextUrl.pathname.startsWith(`/${site}`);
+
+  if (shouldPrefix(site, routing)) {
+    if (hasSitePrefix) {
+      return null;
+    }
+    const redirect = new URL(req.nextUrl);
+    redirect.pathname = `/${site}${redirect.pathname == '/' ? '' : redirect.pathname}`;
+    return withCookies(intlResponse, NextResponse.redirect(redirect, { headers }), req, routing, site, resolvedLocale);
+  }
+
+  if (!hasSitePrefix) {
+    return null;
+  }
+  const redirect = new URL(req.nextUrl);
+  redirect.pathname = appPath ? `/${appPath}` : '/';
+  return withCookies(intlResponse, NextResponse.redirect(redirect), req, routing, site, resolvedLocale);
+}
+
+/** Final hop: pass through when the path already carries the site, otherwise rewrite onto it. */
+function buildSiteResponse(req: NextRequest, site: string, headers: Headers): NextResponse {
+  if (req.nextUrl.pathname.startsWith(`/${site}`)) {
+    return NextResponse.next({ request: { headers } });
+  }
+  const rewrite = new URL(req.nextUrl);
+  rewrite.pathname = `/${site}${rewrite.pathname == '/' ? '' : rewrite.pathname}`;
+  return NextResponse.rewrite(rewrite, { request: { headers } });
+}
+
 export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
   return (req: NextRequest) => {
     const path = req.nextUrl.pathname;
     const routing = resolveApplicableRouting(req.nextUrl.hostname, routingConfig);
 
-    // Preview routes carry their own `/preview/[site]/[locale]/...` — never
-    // site-rewrite them. The edge-safe detector flags genuine preview requests
-    // so caching is skipped; everything Storyblok-specific stays out of the
-    // Edge bundle (the registry imports only the pure detection module).
-    if (path.startsWith(PREVIEW_ROUTE_PREFIX)) {
-      const isPreview = getPreviewDetector(process.env).isPreviewRequest(req.nextUrl);
-      const res = NextResponse.next();
-      if (isPreview) {
-        res.headers.set('cache-control', 'no-store');
-      }
-      return res;
+    const previewResponse = handlePreviewRoute(req);
+    if (previewResponse) {
+      return previewResponse;
     }
 
     // Only protect actual entry routes; arbitrary two-segment paths such as /json/list
     // are not app pages and should not be treated as misrouted probes.
-    if (isProbeProtectedMainRoute(path, routing)) {
-      if (isLikelyProbe(req)) {
-        return handleMisroutedHealthCheck(req);
-      }
+    if (isProbeProtectedMainRoute(path, routing) && isLikelyProbe(req)) {
+      return handleMisroutedHealthCheck(req);
     }
 
-    // First look for the matching routing by Domain
-    const resolved = resolveSite(req.nextUrl.pathname, req.cookies, req.headers, routing);
-    let { site } = resolved;
-    const { appPath } = resolved;
-    const fallbackEnabled = !!routing.defaultSite;
-    let siteInvalid = false;
-
-    // Post-resolution validation: reject sites not in availableSites (from cookies/headers)
-    if (site && !routing.availableSites.includes(site)) {
-      if (fallbackEnabled) {
-        site = routing.defaultSite;
-      } else {
-        edgeLog('warn', 'invalid_site_rejected', {
-          site,
-          path: req.nextUrl.pathname,
-          availableSites: routing.availableSites,
-          recommendation: 'Check NEXT_PUBLIC_AVAILABLE_SITES configuration',
-        });
-        siteInvalid = true;
-        site = routing.availableSites[0];
-      }
-    }
-
-    // No site resolved at all (no path/cookie/header match, no default)
-    if (!site) {
-      site = routing.availableSites[0];
-    }
+    const { site, appPath, siteInvalid } = resolveValidatedSite(req, routing);
 
     if (!siteInvalid) {
       setCachedRequestSite(site);
@@ -246,10 +347,10 @@ export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
     const intlResponse = intlMiddleware(req);
     // and restore the URL!
     req.nextUrl.pathname = originalPathname;
-    // if intl requires a redirect, let's
+
+    // if intl requires a redirect, let's build it from the redirect location
     const intlLocation = intlResponse.headers.get('location');
     if (intlLocation && !siteInvalid) {
-      // build URL from redirectLocation
       const newLocation = new URL(intlLocation);
       // prepend site if necessary
       if (shouldPrefix(site, routing)) {
@@ -257,52 +358,27 @@ export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
       }
       return withCookies(intlResponse, NextResponse.redirect(newLocation), req, routing, site);
     }
+
     // We can continue, but now we need to set the headers for Locale and Site
     const locale = intlResponse.headers.get(INTL_MIDDLEWARE_HEADER);
     const resolvedLocale = locale || getPublicDefaultLanguage();
-    const headers = new Headers(req.headers);
-    headers.set(INTERNAL_APP_PATH_HEADER, appPath);
-    if (locale) {
-      headers.set(INTL_LOCALE_HEADER, locale);
-    }
-    if (site) {
-      headers.set(INTERNAL_SITE_HEADER, site);
-    }
+    const headers = buildForwardHeaders(req, appPath, locale, site, siteInvalid);
+
     if (siteInvalid) {
-      headers.set(INTERNAL_SITE_INVALID_HEADER, 'true');
+      return rewriteForInvalidSite(req, intlResponse, site, appPath, headers);
     }
 
-    // When site is flagged invalid, rewrite to a valid route so the layout can render not-found
-    if (siteInvalid) {
-      const rewrite = new URL(req.nextUrl);
-      rewrite.pathname = `/${site}${appPath === '' || appPath === '/' ? '' : `/${appPath}`}`;
-      const response = NextResponse.rewrite(rewrite, { request: { headers } });
-      intlResponse.cookies.getAll().forEach((cookie) => {
-        response.cookies.set(cookie.name, cookie.value);
-      });
-      return response;
-    }
-
-    // handle Site-Redirection
-    if (shouldPrefix(site, routing)) {
-      if (!req.nextUrl.pathname.startsWith(`/${site}`)) {
-        const redirect = new URL(req.nextUrl);
-        redirect.pathname = `/${site}${redirect.pathname == '/' ? '' : redirect.pathname}`;
-        return withCookies(
-          intlResponse,
-          NextResponse.redirect(redirect, { headers }),
-          req,
-          routing,
-          site,
-          resolvedLocale,
-        );
-      }
-    } else {
-      if (req.nextUrl.pathname.startsWith(`/${site}`)) {
-        const redirect = new URL(req.nextUrl);
-        redirect.pathname = appPath ? `/${appPath}` : '/';
-        return withCookies(intlResponse, NextResponse.redirect(redirect), req, routing, site, resolvedLocale);
-      }
+    const prefixRedirect = resolveSitePrefixRedirect(
+      req,
+      intlResponse,
+      routing,
+      site,
+      appPath,
+      resolvedLocale,
+      headers,
+    );
+    if (prefixRedirect) {
+      return prefixRedirect;
     }
 
     const intlRewrite = intlResponse.headers.get(NEXT_REWRITE_HEADER);
@@ -318,18 +394,8 @@ export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
         site,
         resolvedLocale,
       );
-    } else {
     }
 
-    // Last but not least, we might need a rewrite on our own
-    let siteResponse;
-    if (req.nextUrl.pathname.startsWith(`/${site}`)) {
-      siteResponse = NextResponse.next({ request: { headers } });
-    } else {
-      const rewrite = new URL(req.nextUrl);
-      rewrite.pathname = `/${site}${rewrite.pathname == '/' ? '' : rewrite.pathname}`;
-      siteResponse = NextResponse.rewrite(rewrite, { request: { headers } });
-    }
-    return withCookies(intlResponse, siteResponse, req, routing, site, resolvedLocale);
+    return withCookies(intlResponse, buildSiteResponse(req, site, headers), req, routing, site, resolvedLocale);
   };
 }

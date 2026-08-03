@@ -54,52 +54,29 @@ export interface ProductDetailProps {
   className?: string;
 }
 
-export default function ProductDetail({ product: initialProduct, options, className }: Readonly<ProductDetailProps>) {
-  const { ready: shopContextReady } = useShopContextReady();
-  const { product, loading, setAsCurrent } = useProduct(initialProduct, options);
-  const { session } = useSession();
-  const { site } = useSite();
-  const [price, setPrice] = useState<ProductPrice | null | undefined>(product?.price);
-  const [availability, setAvailability] = useState<StockAvailability | undefined>(product?.availability);
-  const locale = useLocale();
-  const { l10n, l10nOrEmpty } = useL10n(locale);
-  const t = useTranslations('product');
-  const isAboveMediumScreen = useBreakpoint('md');
-  const { isInComparison, toggleProduct, isFull } = useComparison();
-  const { disabled: compareDisabled, tooltip: compareTooltip } = useValidateAddToComparison(product);
-  const addToCartButton = useRef<HTMLDivElement>(null);
-  const addToCartBar = useRef<HTMLDivElement>(null);
-  const { addToWishlist, isAdding: isAddingToWishlist, loginDialog } = useWishlistAddWithAuth();
-  const { disabled: wishlistDisabled, tooltip: wishlistTooltip } = useValidateAddToCart(
-    product ?? undefined,
-    price,
-    'wishlist',
-  );
-  const [quantity, setQuantity] = useState(1);
-  const handleAddToWishlist = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (!product) return;
-    addToWishlist(product.id, quantity);
-  };
-  const priceSyncGenerationRef = useRef(0);
-  const availabilitySyncGenerationRef = useRef(0);
-  const availabilityShopContextRef = useRef('');
-  const [opacity, setOpacity] = React.useState(false);
-  //   const { recommendations, loading: recLoading } = useRecommendations(product?.id);
-  useEffect(() => {
-    if (product) {
-      setAsCurrent();
-    }
-    return () => {
-      setAsCurrent(false);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [product]);
+type ProductDetailProduct = ReturnType<typeof useProduct>['product'];
+type ProductDetailSession = ReturnType<typeof useSession>['session'];
+type ProductDetailSite = ReturnType<typeof useSite>['site'];
 
-  // Price: keep aligned with session site/currency (store cache can hold another site's price until useProduct refetches).
+/**
+ * Keeps the displayed price aligned with the session's site/currency — the
+ * product store cache can still hold another site's price until `useProduct`
+ * refetches. An embedded price is used when its currency is allowed in the
+ * current shop context; otherwise the price is fetched and re-validated.
+ *
+ * The generation counter guards against out-of-order responses when the shop
+ * context changes while a fetch is in flight.
+ */
+function useSyncedProductPrice(
+  product: ProductDetailProduct,
+  session: ProductDetailSession,
+  site: ProductDetailSite,
+): ProductPrice | null | undefined {
+  const [price, setPrice] = useState<ProductPrice | null | undefined>(product?.price);
+  const syncGenerationRef = useRef(0);
+
   useEffect(() => {
-    const syncGeneration = ++priceSyncGenerationRef.current;
+    const syncGeneration = ++syncGenerationRef.current;
     let cancelled = false;
 
     if (!product?.id) {
@@ -127,7 +104,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
     } else {
       const syncPrice = async () => {
         const nextPrice = await fetchProductPrice(product.id, undefined, undefined, session.currency);
-        if (cancelled || syncGeneration !== priceSyncGenerationRef.current) {
+        if (cancelled || syncGeneration !== syncGenerationRef.current) {
           return;
         }
         if (nextPrice?.currency && !isProductPriceDisplayableForPurchase(nextPrice.currency, session, site)) {
@@ -153,9 +130,24 @@ export default function ProductDetail({ product: initialProduct, options, classN
     };
   }, [product, session, site]);
 
-  // Stock / delivery context is site+session scoped — refetch when shop context changes (do not reuse another site's row).
+  return price;
+}
+
+/**
+ * Stock / delivery context is site+session scoped, so it is refetched whenever
+ * the shop context changes rather than reusing another site's row.
+ */
+function useSyncedProductAvailability(
+  product: ProductDetailProduct,
+  session: ProductDetailSession,
+  site: ProductDetailSite,
+): StockAvailability | undefined {
+  const [availability, setAvailability] = useState<StockAvailability | undefined>(product?.availability);
+  const syncGenerationRef = useRef(0);
+  const shopContextRef = useRef('');
+
   useEffect(() => {
-    const syncGeneration = ++availabilitySyncGenerationRef.current;
+    const syncGeneration = ++syncGenerationRef.current;
     let cancelled = false;
 
     if (!product?.id) {
@@ -173,21 +165,21 @@ export default function ProductDetail({ product: initialProduct, options, classN
     }
 
     const shopSyncKey = `${session.siteCode}|${session.currency}|${site?.code ?? ''}|${product.id}`;
-    if (availabilityShopContextRef.current !== '' && availabilityShopContextRef.current !== shopSyncKey) {
+    if (shopContextRef.current !== '' && shopContextRef.current !== shopSyncKey) {
       setAvailability(undefined);
     }
-    availabilityShopContextRef.current = shopSyncKey;
+    shopContextRef.current = shopSyncKey;
 
     setAvailability(undefined);
     const syncAvailability = async () => {
       try {
         const nextAvailability = await fetchProductAvailability(product.id);
-        if (cancelled || syncGeneration !== availabilitySyncGenerationRef.current) {
+        if (cancelled || syncGeneration !== syncGenerationRef.current) {
           return;
         }
         setAvailability(nextAvailability);
       } catch {
-        if (cancelled || syncGeneration !== availabilitySyncGenerationRef.current) {
+        if (cancelled || syncGeneration !== syncGenerationRef.current) {
           return;
         }
         setAvailability(undefined);
@@ -200,16 +192,25 @@ export default function ProductDetail({ product: initialProduct, options, classN
     };
   }, [product?.id, session, site]);
 
+  return availability;
+}
+
+/**
+ * Reveals the sticky add-to-cart bar once the inline add-to-cart button leaves
+ * the viewport. Desktop only — below `md` the bar is always shown.
+ */
+function useStickyBarOpacity(
+  addToCartButton: React.RefObject<HTMLDivElement | null>,
+  isAboveMediumScreen: boolean,
+): boolean {
+  const [opacity, setOpacity] = React.useState(false);
+
   useEffect(() => {
     if (addToCartButton.current !== null && isAboveMediumScreen) {
       const observer = new IntersectionObserver(
         (entries) => {
           entries.forEach((entry) => {
-            if (entry.isIntersecting) {
-              setOpacity(false);
-            } else {
-              setOpacity(true);
-            }
+            setOpacity(!entry.isIntersecting);
           });
         },
         {
@@ -223,6 +224,49 @@ export default function ProductDetail({ product: initialProduct, options, classN
       observer.observe(addToCartButton.current);
     }
   });
+
+  return opacity;
+}
+
+export default function ProductDetail({ product: initialProduct, options, className }: Readonly<ProductDetailProps>) {
+  const { ready: shopContextReady } = useShopContextReady();
+  const { product, loading, setAsCurrent } = useProduct(initialProduct, options);
+  const { session } = useSession();
+  const { site } = useSite();
+  const price = useSyncedProductPrice(product, session, site);
+  const availability = useSyncedProductAvailability(product, session, site);
+  const locale = useLocale();
+  const { l10n, l10nOrEmpty } = useL10n(locale);
+  const t = useTranslations('product');
+  const isAboveMediumScreen = useBreakpoint('md');
+  const { isInComparison, toggleProduct, isFull } = useComparison();
+  const { disabled: compareDisabled, tooltip: compareTooltip } = useValidateAddToComparison(product);
+  const addToCartButton = useRef<HTMLDivElement>(null);
+  const addToCartBar = useRef<HTMLDivElement>(null);
+  const opacity = useStickyBarOpacity(addToCartButton, isAboveMediumScreen);
+  const { addToWishlist, isAdding: isAddingToWishlist, loginDialog } = useWishlistAddWithAuth();
+  const { disabled: wishlistDisabled, tooltip: wishlistTooltip } = useValidateAddToCart(
+    product ?? undefined,
+    price,
+    'wishlist',
+  );
+  const [quantity, setQuantity] = useState(1);
+  const handleAddToWishlist = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!product) return;
+    addToWishlist(product.id, quantity);
+  };
+  //   const { recommendations, loading: recLoading } = useRecommendations(product?.id);
+  useEffect(() => {
+    if (product) {
+      setAsCurrent();
+    }
+    return () => {
+      setAsCurrent(false);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product]);
 
   const handleCompareClick = () => {
     if (!product) return;
