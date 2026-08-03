@@ -544,8 +544,22 @@ describe('StoryblokCmsMapper — href sanitisation (XSS guard)', () => {
     expect(getLinkHref(result)).toBe('');
   });
 
+  // Deliberately a harmless, real-world scheme: the allowlist must drop
+  // everything it does not name, not just the schemes known to be dangerous.
   it('strips unknown-scheme: href → empty string', () => {
-    const result = newMapper().mapRichtext(doc(paragraph(textNode('x', [linkMark('ftp://evil.com')]))), 'xss-10');
+    const result = newMapper().mapRichtext(
+      doc(paragraph(textNode('x', [linkMark('webcal://example.com/calendar.ics')]))),
+      'xss-10',
+    );
+
+    expect(getLinkHref(result)).toBe('');
+  });
+
+  it('strips blob: href → empty string', () => {
+    const result = newMapper().mapRichtext(
+      doc(paragraph(textNode('x', [linkMark('blob:https://evil.com/8f3a-uuid')]))),
+      'xss-11',
+    );
 
     expect(getLinkHref(result)).toBe('');
   });

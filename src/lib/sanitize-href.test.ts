@@ -35,8 +35,13 @@ describe('sanitizeHref', () => {
       'data:text/html,<script>alert(1)</script>',
       'vbscript:msgbox(1)',
       'file:///etc/passwd',
-      'ftp://example.com',
+      // A blob URL can carry attacker-authored HTML and executes same-origin,
+      // so it must not survive the allowlist.
+      'blob:https://example.com/8f3a-uuid',
       'about:blank',
+      // Harmless but unnamed: proves the allowlist drops everything it does
+      // not list, rather than only the schemes known to be dangerous.
+      'webcal://example.com/calendar.ics',
       // Protocol-relative: the browser resolves these against the current
       // scheme and navigates off-site, so they must not pass as "relative".
       '//evil.example',
