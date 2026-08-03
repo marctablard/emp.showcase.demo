@@ -43,7 +43,7 @@ describe('computeOrderReturnability', () => {
   });
 
   it('treats undefined historical returns as no returns', () => {
-    const result = computeOrderReturnability(orderId, [{ id: 'item-a', quantity: 5 }], undefined);
+    const result = computeOrderReturnability(orderId, [{ id: 'item-a', quantity: 5 }]);
 
     expect(result.hasAnyReturnableItem).toBe(true);
     expect(result.orderItemSummaries).toEqual([

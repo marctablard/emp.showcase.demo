@@ -278,11 +278,11 @@ export default function Navigation() {
 
 Interactive locale changes triggered from client components (for example, the header language switcher) must use the application navigation API from `@/i18n/navigation`.
 
-- Generate the destination with `getPathname({href, locale, site, forcePrefix: true})`.
-- Navigate with the client router (`useRouter().push(...)`).
+- Keep the href logical and sanitized in the client component; do not precompute a locale-specific pathname with `getPathname(...)` for the transition.
+- Navigate with the client router by calling `router.push(href, { locale, site })` so the shared site-aware router can apply custom site prefixes while `next-intl` handles the locale transition.
 - Do not invoke server redirect helpers inside client event handlers.
 
-This keeps locale transitions aligned with combined site and locale routing rules without hardcoding URL segments.
+This keeps locale transitions aligned with combined site and locale routing rules without hardcoding URL segments or bypassing the shared router contract.
 
 ### 6. Browser Regression Coverage for Locale Route + Cookie Sync
 
@@ -296,6 +296,8 @@ The fixture discovers an eligible multilingual site via `/api/site`, opens its E
 - Route transition to the German browse route
 - Rendered document locale (`html[lang="de"]`)
 - Locale cookie synchronization using `NEXT_PUBLIC_LOCALE_COOKIE` with `NEXT_LOCALE` fallback
+
+The browser regression in `e2e/language-switcher.spec.ts` remains the contract for both directions: English-to-German and the reverse German-to-English transition back to the default-locale browse URL with the resolved locale cookie updated to `en`.
 
 ### 7. Integration with Services
 

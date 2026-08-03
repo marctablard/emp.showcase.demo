@@ -1,7 +1,8 @@
 'use client';
 import { useMemo } from 'react';
 import { useLocale } from 'next-intl';
-import { usePathname as useNextPathname, useRouter as useNextRouter } from 'next/navigation';
+import { createNavigation as createIntlNavigation } from 'next-intl/navigation';
+import { usePathname as useNextPathname } from 'next/navigation';
 import { useSiteCode } from '@/hooks/site/useSiteCode';
 import { createSiteNavigationShared } from '../shared/createNavigationShared';
 import type { SiteRoutingConfig } from '../types';
@@ -9,6 +10,7 @@ import { addPrefixIfNeeded, getLocalePrefix, hasPathnamePrefixed, prependPrefix,
 
 export default function createNavigation(siteRouting: SiteRoutingConfig, intlRouting: any) {
   const { Link, getPathname, redirect } = createSiteNavigationShared(siteRouting, intlRouting, useSiteCode);
+  const { useRouter: useIntlRouter } = createIntlNavigation(intlRouting);
 
   // Prepends the SiteCode if necessary
   function usePathname(): string {
@@ -47,13 +49,13 @@ export default function createNavigation(siteRouting: SiteRoutingConfig, intlRou
   }
 
   function useRouter() {
-    const nextRouter = useNextRouter();
+    const nextRouter = useIntlRouter();
     const site = useSiteCode();
     return useMemo(() => {
-      function createHandler<Options, Fn extends (href: string, options?: Options) => void>(fn: Fn) {
+      function createHandler(fn: (href: string, options?: any) => void) {
         return function handler(
           href: string | { pathname: string },
-          options?: Partial<Options> & { site?: string },
+          options?: Partial<Record<string, unknown>> & { site?: string },
         ): void {
           const { site: nextSite, ...rest } = options || {};
           const path = addPrefixIfNeeded(
@@ -61,22 +63,19 @@ export default function createNavigation(siteRouting: SiteRoutingConfig, intlRou
             nextSite || site,
             siteRouting,
           );
-          const args: [href: string, options?: Options] = [path];
           if (Object.keys(rest).length > 0) {
-            // @ts-expect-error unsafe typing expected
-            args.push(rest);
+            fn(path, rest);
+            return;
           }
-          fn(...args);
+          fn(path);
         };
       }
 
       return {
         ...nextRouter,
-        push: createHandler<Parameters<typeof nextRouter.push>[1], typeof nextRouter.push>(nextRouter.push),
-        replace: createHandler<Parameters<typeof nextRouter.replace>[1], typeof nextRouter.replace>(nextRouter.replace),
-        prefetch: createHandler<Parameters<typeof nextRouter.prefetch>[1], typeof nextRouter.prefetch>(
-          nextRouter.prefetch,
-        ),
+        push: createHandler(nextRouter.push),
+        replace: createHandler(nextRouter.replace),
+        prefetch: createHandler(nextRouter.prefetch),
       };
     }, [nextRouter, site]);
   }

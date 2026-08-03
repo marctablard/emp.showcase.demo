@@ -1,5 +1,7 @@
 import { test as base, expect } from '@playwright/test';
 
+export { expect };
+
 type SiteSummary = {
   code: string;
   languages?: string[];
@@ -86,5 +88,3 @@ export const test = base.extend<{ multilingualSite: MultilingualSiteContext }>({
     });
   },
 });
-
-export { expect };

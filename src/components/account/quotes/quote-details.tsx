@@ -310,17 +310,17 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         permitted: permission.permitted,
       });
 
-      if (!permission.permitted) {
-        if (permission.approvalId) {
-          router.push(`/account/approval/${permission.approvalId}`);
-          return;
-        }
-
-        handleApprovalInquiryDialogChange(true);
+      if (permission.permitted) {
+        setShowAcceptConfirmation(true);
         return;
       }
 
-      setShowAcceptConfirmation(true);
+      if (permission.approvalId) {
+        router.push(`/account/approval/${permission.approvalId}`);
+        return;
+      }
+
+      handleApprovalInquiryDialogChange(true);
     } catch (error) {
       getLogger().error({ err: error, quoteId }, 'Failed to evaluate quote approval requirement');
       const msg = error instanceof Error ? error.message : t('quoteActionFailedDescription');

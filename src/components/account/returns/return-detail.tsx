@@ -93,6 +93,121 @@ interface ReturnItemsListProps {
   readonly t: ReturnType<typeof useTranslations<'account.returns'>>;
 }
 
+type ReturnProductListItem = ProductListItem & {
+  readonly __returnItem?: ExtendedReturnItem;
+};
+
+interface ReturnReasonMetadataProps {
+  readonly reasonCode?: string;
+  readonly reasonDetails?: string;
+  readonly t: ReturnType<typeof useTranslations<'account.returns'>>;
+  readonly reasonBadgeClassName: string;
+  readonly containerClassName: string;
+}
+
+interface ReturnTrailingDesktopAmountProps {
+  readonly refundNetValue?: number;
+  readonly refundNetCurrency?: string;
+  readonly refundGrossValue?: number;
+  readonly refundGrossCurrency?: string;
+  readonly locale: string;
+  readonly grossLabel: string;
+}
+
+function ReturnReasonMetadata({
+  reasonCode,
+  reasonDetails,
+  t,
+  reasonBadgeClassName,
+  containerClassName,
+}: ReturnReasonMetadataProps) {
+  if (reasonCode != null || reasonDetails != null) {
+    return (
+      <div className={containerClassName}>
+        {reasonCode && <Badge className={reasonBadgeClassName}>{renderReturnReasonLabel(t, reasonCode)}</Badge>}
+        {reasonDetails && <p className="text-sm font-body text-text-body">{reasonDetails}</p>}
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function ReturnTrailingDesktopAmount({
+  refundNetValue,
+  refundNetCurrency,
+  refundGrossValue,
+  refundGrossCurrency,
+  locale,
+  grossLabel,
+}: ReturnTrailingDesktopAmountProps) {
+  return (
+    <div className="flex flex-col gap-1 sm:items-end">
+      <span className="text-2xl font-bold font-headlines text-text-headings">
+        {formatReturnCurrency(refundNetValue, refundNetCurrency, locale)}
+      </span>
+      {refundGrossValue !== undefined && (
+        <span className="text-sm font-body text-text-placeholders">
+          {grossLabel} {formatReturnCurrency(refundGrossValue, refundGrossCurrency, locale)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function isReturnProductListItem(productItem: ProductListItem): productItem is ReturnProductListItem {
+  return '__returnItem' in productItem;
+}
+
+function getReturnItemRefund(item: ExtendedReturnItem): { value?: number; currency?: string } {
+  if (item.calculatedPrice?.finalPrice?.grossValue !== undefined) {
+    return {
+      value: item.calculatedPrice.finalPrice.grossValue,
+      currency: item.calculatedPrice.finalPrice.currency ?? item.total?.currency ?? item.unitPrice?.currency,
+    };
+  }
+  if (item.grossUnitPrice?.value !== undefined && item.grossUnitPrice?.currency) {
+    return { value: item.grossUnitPrice.value * item.quantity, currency: item.grossUnitPrice.currency };
+  }
+  if (item.unitPrice?.value !== undefined && item.unitPrice?.currency) {
+    return { value: item.unitPrice.value * item.quantity, currency: item.unitPrice.currency };
+  }
+  if (item.total?.value !== undefined && item.total?.currency) {
+    return { value: item.total.value, currency: item.total.currency };
+  }
+  return { value: undefined, currency: undefined };
+}
+
+function getReturnItemUnitPrice(item: ExtendedReturnItem): {
+  grossValue?: number;
+  netValue?: number;
+  currency?: string;
+} {
+  return {
+    grossValue: item.calculatedUnitPrice?.grossValue ?? item.grossUnitPrice?.value ?? item.unitPrice?.value,
+    netValue: item.calculatedUnitPrice?.netValue ?? item.netPrice?.value ?? item.unitPrice?.value,
+    currency:
+      item.calculatedUnitPrice?.currency ??
+      item.grossUnitPrice?.currency ??
+      item.netPrice?.currency ??
+      item.unitPrice?.currency,
+  };
+}
+
+function getReturnItemRefundNet(item: ExtendedReturnItem): { value?: number; currency?: string } {
+  if (item.calculatedPrice?.finalPrice?.netValue !== undefined) {
+    return {
+      value: item.calculatedPrice.finalPrice.netValue,
+      currency: item.calculatedPrice.finalPrice.currency ?? item.total?.currency ?? item.unitPrice?.currency,
+    };
+  }
+
+  return {
+    value: (item.netPrice?.value ?? item.unitPrice?.value ?? 0) * item.quantity,
+    currency: item.netPrice?.currency ?? item.unitPrice?.currency,
+  };
+}
+
 function ReturnOverview({ returnItem, locale, t }: ReturnOverviewProps) {
   const totalGrossValue = returnItem.calculatedPrice?.finalPrice?.grossValue;
   const totalNetValue = returnItem.calculatedPrice?.finalPrice?.netValue ?? returnItem.total?.value;
@@ -129,59 +244,10 @@ function ReturnOverview({ returnItem, locale, t }: ReturnOverviewProps) {
 function ReturnItemsList({ items, locale, t }: ReturnItemsListProps) {
   const reasonBadgeClassName =
     'inline-flex !rounded-sm !border-border-primary !bg-surface-disabled !p-1 !text-sm !font-bold normal-case !tracking-normal text-text-headings font-body';
-
-  type ReturnProductListItem = ProductListItem & {
-    readonly __returnItem?: ExtendedReturnItem;
-  };
-
-  const isReturnProductListItem = (productItem: ProductListItem): productItem is ReturnProductListItem =>
-    '__returnItem' in productItem;
-
-  const getItemRefund = (item: ExtendedReturnItem) => {
-    if (item.calculatedPrice?.finalPrice?.grossValue !== undefined) {
-      return {
-        value: item.calculatedPrice.finalPrice.grossValue,
-        currency: item.calculatedPrice.finalPrice.currency ?? item.total?.currency ?? item.unitPrice?.currency,
-      };
-    }
-    if (item.grossUnitPrice?.value !== undefined && item.grossUnitPrice?.currency) {
-      return { value: item.grossUnitPrice.value * item.quantity, currency: item.grossUnitPrice.currency };
-    }
-    if (item.unitPrice?.value !== undefined && item.unitPrice?.currency) {
-      return { value: item.unitPrice.value * item.quantity, currency: item.unitPrice.currency };
-    }
-    if (item.total?.value !== undefined && item.total?.currency) {
-      return { value: item.total.value, currency: item.total.currency };
-    }
-    return { value: undefined, currency: undefined };
-  };
-
-  const getItemUnitPrice = (item: ExtendedReturnItem) => ({
-    grossValue: item.calculatedUnitPrice?.grossValue ?? item.grossUnitPrice?.value ?? item.unitPrice?.value,
-    netValue: item.calculatedUnitPrice?.netValue ?? item.netPrice?.value ?? item.unitPrice?.value,
-    currency:
-      item.calculatedUnitPrice?.currency ??
-      item.grossUnitPrice?.currency ??
-      item.netPrice?.currency ??
-      item.unitPrice?.currency,
-  });
-
-  const getItemRefundNet = (item: ExtendedReturnItem) => {
-    if (item.calculatedPrice?.finalPrice?.netValue !== undefined) {
-      return {
-        value: item.calculatedPrice.finalPrice.netValue,
-        currency: item.calculatedPrice.finalPrice.currency ?? item.total?.currency ?? item.unitPrice?.currency,
-      };
-    }
-
-    return {
-      value: (item.netPrice?.value ?? item.unitPrice?.value ?? 0) * item.quantity,
-      currency: item.netPrice?.currency ?? item.unitPrice?.currency,
-    };
-  };
+  const grossLabel = t('gross');
 
   const mappedItems: ReturnProductListItem[] = items.map((item) => {
-    const unitPrice = getItemUnitPrice(item);
+    const unitPrice = getReturnItemUnitPrice(item);
     const primaryUnitPriceValue = unitPrice.netValue ?? unitPrice.grossValue;
 
     return {
@@ -219,20 +285,18 @@ function ReturnItemsList({ items, locale, t }: ReturnItemsListProps) {
             return null;
           }
 
-          const refund = getItemRefund(returnItem);
-          const refundNet = getItemRefundNet(returnItem);
+          const refund = getReturnItemRefund(returnItem);
+          const refundNet = getReturnItemRefundNet(returnItem);
 
           return (
-            <div className="flex flex-col gap-1 sm:items-end">
-              <span className="text-2xl font-bold font-headlines text-text-headings">
-                {formatReturnCurrency(refundNet.value, refundNet.currency, locale)}
-              </span>
-              {refund.value !== undefined && (
-                <span className="text-sm font-body text-text-placeholders">
-                  {t('gross')} {formatReturnCurrency(refund.value, refund.currency, locale)}
-                </span>
-              )}
-            </div>
+            <ReturnTrailingDesktopAmount
+              refundNetValue={refundNet.value}
+              refundNetCurrency={refundNet.currency}
+              refundGrossValue={refund.value}
+              refundGrossCurrency={refund.currency}
+              locale={locale}
+              grossLabel={grossLabel}
+            />
           );
         },
         mobileMetadataSlots: [
@@ -240,19 +304,14 @@ function ReturnItemsList({ items, locale, t }: ReturnItemsListProps) {
             key: 'reason-badge',
             render: (productItem) => {
               const returnItem = isReturnProductListItem(productItem) ? productItem.__returnItem : undefined;
-              if (returnItem?.reason?.code == null && returnItem?.reason?.details == null) {
-                return null;
-              }
-
               return (
-                <div className="flex flex-col gap-2">
-                  {returnItem.reason?.code && (
-                    <Badge className={reasonBadgeClassName}>{renderReturnReasonLabel(t, returnItem.reason.code)}</Badge>
-                  )}
-                  {returnItem.reason?.details && (
-                    <p className="text-sm font-body text-text-body">{returnItem.reason.details}</p>
-                  )}
-                </div>
+                <ReturnReasonMetadata
+                  reasonCode={returnItem?.reason?.code}
+                  reasonDetails={returnItem?.reason?.details}
+                  t={t}
+                  reasonBadgeClassName={reasonBadgeClassName}
+                  containerClassName="flex flex-col gap-2"
+                />
               );
             },
           },
@@ -262,19 +321,14 @@ function ReturnItemsList({ items, locale, t }: ReturnItemsListProps) {
             key: 'reason-badge',
             render: (productItem) => {
               const returnItem = isReturnProductListItem(productItem) ? productItem.__returnItem : undefined;
-              if (returnItem?.reason?.code == null && returnItem?.reason?.details == null) {
-                return null;
-              }
-
               return (
-                <div className="flex flex-col gap-2 pt-2">
-                  {returnItem.reason?.code && (
-                    <Badge className={reasonBadgeClassName}>{renderReturnReasonLabel(t, returnItem.reason.code)}</Badge>
-                  )}
-                  {returnItem.reason?.details && (
-                    <p className="text-sm font-body text-text-body">{returnItem.reason.details}</p>
-                  )}
-                </div>
+                <ReturnReasonMetadata
+                  reasonCode={returnItem?.reason?.code}
+                  reasonDetails={returnItem?.reason?.details}
+                  t={t}
+                  reasonBadgeClassName={reasonBadgeClassName}
+                  containerClassName="flex flex-col gap-2 pt-2"
+                />
               );
             },
           },

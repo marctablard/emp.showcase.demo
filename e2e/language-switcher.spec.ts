@@ -23,5 +23,15 @@ test.describe('Language switcher', () => {
     const localeCookie = (await page.context().cookies()).find((cookie) => cookie.name === localeCookieName);
 
     expect(localeCookie?.value).toBe('de');
+
+    await page.getByRole('button', { name: 'Sprachen' }).click();
+    await page.getByRole('menuitem', { name: 'English' }).click();
+
+    await expect(page).toHaveURL(/\/(?:[^/]+\/)?browse(?:\?.*)?$/);
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+
+    const englishLocaleCookie = (await page.context().cookies()).find((cookie) => cookie.name === localeCookieName);
+
+    expect(englishLocaleCookie?.value).toBe('en');
   });
 });

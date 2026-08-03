@@ -32,6 +32,11 @@ jest.mock('@/components/account/orders/my-orders-table', () => ({
   }) => (
     <>
       <table>
+        <thead>
+          <tr>
+            <th scope="col">status</th>
+          </tr>
+        </thead>
         <tbody>
           <tr>
             <td>

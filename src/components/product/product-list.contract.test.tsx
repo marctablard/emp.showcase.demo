@@ -178,6 +178,6 @@ describe('ProductList contract', () => {
 
     expect(within(desktopRow).getByText(byNormalizedText('gross: -'))).toBeInTheDocument();
     expect(within(mobileRow).getByText(byNormalizedText('gross: -'))).toBeInTheDocument();
-    expect(within(desktopRow).queryByText(/gross: \€|gross: EUR/i)).not.toBeInTheDocument();
+    expect(within(desktopRow).queryByText(/gross: €|gross: EUR/i)).not.toBeInTheDocument();
   });
 });
