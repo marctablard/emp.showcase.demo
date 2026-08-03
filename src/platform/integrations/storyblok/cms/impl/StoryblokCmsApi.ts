@@ -82,17 +82,15 @@ export class StoryblokCmsApi implements StoryblokCmsApiContract {
     if (!token) {
       return null;
     }
-    if (!this.accessor) {
-      this.accessor = storyblokInit({
-        accessToken: token,
-        use: [apiPlugin],
-        bridge: true,
-        apiOptions: {
-          maxRetries: 2,
-          cache: { type: 'none' },
-        },
-      }) as unknown as StoryblokApiAccessor;
-    }
+    this.accessor ??= storyblokInit({
+      accessToken: token,
+      use: [apiPlugin],
+      bridge: true,
+      apiOptions: {
+        maxRetries: 2,
+        cache: { type: 'none' },
+      },
+    }) as unknown as StoryblokApiAccessor;
     return this.accessor?.() ?? null;
   }
 }
