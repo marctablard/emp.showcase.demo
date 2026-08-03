@@ -51,12 +51,19 @@ jobs:
           cache-dependency-path: package-lock.json
       - name: Align npm with packageManager
         run: npm install -g "$(node -p 'const packageManager = require("./package.json").packageManager; if (!packageManager?.startsWith("npm@")) throw new Error("Expected packageManager to start with npm@"); packageManager')"
+      # Neither CLI declares an install script, so lifecycle scripts are
+      # disabled for both global installs — nothing to run, one less way for a
+      # compromised transitive package to execute code on the runner.
       - name: Setup safe-chain
         run: |
-          npm i -g @aikidosec/safe-chain
+          npm i -g --ignore-scripts @aikidosec/safe-chain
           safe-chain setup-ci
       - name: Install Vercel CLI
-        run: npm i -g vercel
+        run: npm i -g --ignore-scripts vercel
+      # `npm ci` deliberately keeps lifecycle scripts: @swc/core (which drives
+      # both the Next build and jest), @parcel/watcher and unrs-resolver link
+      # their native binaries from a postinstall. Disabling scripts here would
+      # break the production build this smoke exists to exercise.
       - name: Install dependencies
         run: npm ci
       # The smoke pulls its full runtime config (the NEXT_PUBLIC_EMPORIX_* /
