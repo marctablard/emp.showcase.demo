@@ -2,7 +2,6 @@ import createIntlMiddleware from 'next-intl/middleware';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { routing as intlRouting } from '@/i18n/routing';
-import { getPublicDefaultLanguage } from '@/lib/common/public-default-env';
 import { edgeLog } from '@/lib/server/edge-stderr-log';
 import {
   INTERNAL_APP_PATH_HEADER,
@@ -40,13 +39,7 @@ function isUnprefixedDefaultSiteCanonicalPath(
   return !siteRouting.availableSites.includes(first);
 }
 
-function syncSiteCookie(
-  req: NextRequest,
-  res: NextResponse,
-  routing: SiteConfig,
-  resolvedSite?: string,
-  resolvedLocale?: string,
-) {
+function syncSiteCookie(req: NextRequest, res: NextResponse, routing: SiteConfig, resolvedSite?: string) {
   if (!routing.cookie) {
     return;
   }
@@ -63,24 +56,6 @@ function syncSiteCookie(
         sameSite: 'lax',
         path: '/',
       });
-    }
-  }
-
-  if (resolvedLocale) {
-    const localeCookieName = process.env.NEXT_PUBLIC_LOCALE_COOKIE;
-    if (localeCookieName) {
-      const locale = req.cookies?.get(localeCookieName);
-      if (locale?.value !== resolvedLocale) {
-        const maxAge = routing.cookie.maxAge ?? 365 * 24 * 60 * 60;
-        res.cookies.set({
-          name: localeCookieName,
-          value: resolvedLocale,
-          maxAge: maxAge,
-          httpOnly: false,
-          sameSite: 'lax',
-          path: '/',
-        });
-      }
     }
   }
 }
@@ -171,12 +146,11 @@ const withCookies = function (
   req: NextRequest,
   routing: SiteConfig,
   resolvedSite?: string,
-  resolvedLocale?: string,
 ): NextResponse {
   from.cookies.getAll().forEach((cookie) => {
-    to.cookies.set(cookie.name, cookie.value);
+    to.cookies.set(cookie);
   });
-  syncSiteCookie(req, to, routing, resolvedSite, resolvedLocale);
+  syncSiteCookie(req, to, routing, resolvedSite);
   return to;
 };
 
@@ -245,7 +219,6 @@ export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
     }
     // We can continue, but now we need to set the headers for Locale and Site
     const locale = intlResponse.headers.get(INTL_MIDDLEWARE_HEADER);
-    const resolvedLocale = locale || getPublicDefaultLanguage();
     const headers = new Headers(req.headers);
     headers.set(INTERNAL_APP_PATH_HEADER, appPath);
     if (locale) {
@@ -263,10 +236,7 @@ export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
       const rewrite = new URL(req.nextUrl);
       rewrite.pathname = `/${site}${appPath === '' || appPath === '/' ? '' : `/${appPath}`}`;
       const response = NextResponse.rewrite(rewrite, { request: { headers } });
-      intlResponse.cookies.getAll().forEach((cookie) => {
-        response.cookies.set(cookie.name, cookie.value);
-      });
-      return response;
+      return withCookies(intlResponse, response, req, routing, site);
     }
 
     // handle Site-Redirection
@@ -274,20 +244,13 @@ export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
       if (!req.nextUrl.pathname.startsWith(`/${site}`)) {
         const redirect = new URL(req.nextUrl);
         redirect.pathname = `/${site}${redirect.pathname == '/' ? '' : redirect.pathname}`;
-        return withCookies(
-          intlResponse,
-          NextResponse.redirect(redirect, { headers }),
-          req,
-          routing,
-          site,
-          resolvedLocale,
-        );
+        return withCookies(intlResponse, NextResponse.redirect(redirect, { headers }), req, routing, site);
       }
     } else {
       if (req.nextUrl.pathname.startsWith(`/${site}`)) {
         const redirect = new URL(req.nextUrl);
         redirect.pathname = appPath ? `/${appPath}` : '/';
-        return withCookies(intlResponse, NextResponse.redirect(redirect), req, routing, site, resolvedLocale);
+        return withCookies(intlResponse, NextResponse.redirect(redirect), req, routing, site);
       }
     }
 
@@ -296,14 +259,7 @@ export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
       // next-intl responded with rewrite, so we have to prepend our site
       const newRewrite = new URL(intlRewrite);
       newRewrite.pathname = `/${site}${newRewrite.pathname == '/' ? '' : newRewrite.pathname}`;
-      return withCookies(
-        intlResponse,
-        NextResponse.rewrite(newRewrite, { request: { headers } }),
-        req,
-        routing,
-        site,
-        resolvedLocale,
-      );
+      return withCookies(intlResponse, NextResponse.rewrite(newRewrite, { request: { headers } }), req, routing, site);
     } else {
     }
 
@@ -316,6 +272,6 @@ export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
       rewrite.pathname = `/${site}${rewrite.pathname == '/' ? '' : rewrite.pathname}`;
       siteResponse = NextResponse.rewrite(rewrite, { request: { headers } });
     }
-    return withCookies(intlResponse, siteResponse, req, routing, site, resolvedLocale);
+    return withCookies(intlResponse, siteResponse, req, routing, site);
   };
 }

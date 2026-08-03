@@ -13,9 +13,10 @@ type SiteApiResponse = {
 };
 
 type MultilingualSiteContext = {
-  siteCode: string;
-  englishBrowsePath: string;
-  germanBrowsePath: string;
+  defaultSiteCode: string;
+  defaultEnglishBrowsePath: string;
+  prefixedSiteCode: string;
+  prefixedEnglishBrowsePath: string;
 };
 
 const REQUIRED_LOCALES = ['en', 'de'] as const;
@@ -55,36 +56,35 @@ export const test = base.extend<{ multilingualSite: MultilingualSiteContext }>({
     const current = payload.current;
     const available = Array.isArray(payload.available) ? payload.available : [];
 
-    if (isMultilingual(current)) {
-      const englishBrowsePath = buildEnglishBrowsePath(current.code, true);
-      await page.goto(englishBrowsePath, { waitUntil: 'domcontentloaded' });
-      await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-
-      await provideFixture({
-        siteCode: current.code,
-        englishBrowsePath,
-        germanBrowsePath: englishBrowsePath.replace('/en/browse', '/de/browse'),
-      });
-      return;
+    if (!isMultilingual(current)) {
+      throw new Error(buildContractErrorMessage('GET /api/site current site does not support both locales en and de'));
     }
 
-    const multilingualAlternatives = available
+    const prefixedMultilingualAlternatives = available
+      .filter((site) => site.code !== current.code)
       .filter(isMultilingual)
       .sort((left, right) => left.code.localeCompare(right.code));
 
-    const selected = multilingualAlternatives[0];
-    if (!selected) {
-      throw new Error(buildContractErrorMessage('GET /api/site returned no multilingual site candidate'));
+    const prefixedSite = prefixedMultilingualAlternatives[0];
+    if (!prefixedSite) {
+      throw new Error(
+        buildContractErrorMessage('GET /api/site returned no distinct multilingual non-default site candidate'),
+      );
     }
 
-    const englishBrowsePath = buildEnglishBrowsePath(selected.code, false);
-    await page.goto(englishBrowsePath, { waitUntil: 'domcontentloaded' });
+    const defaultEnglishBrowsePath = buildEnglishBrowsePath(current.code, true);
+    await page.goto(defaultEnglishBrowsePath, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+
+    const prefixedEnglishBrowsePath = buildEnglishBrowsePath(prefixedSite.code, false);
+    await page.goto(prefixedEnglishBrowsePath, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 
     await provideFixture({
-      siteCode: selected.code,
-      englishBrowsePath,
-      germanBrowsePath: englishBrowsePath.replace('/en/browse', '/de/browse'),
+      defaultSiteCode: current.code,
+      defaultEnglishBrowsePath,
+      prefixedSiteCode: prefixedSite.code,
+      prefixedEnglishBrowsePath,
     });
   },
 });

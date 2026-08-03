@@ -6,17 +6,17 @@ function getLocaleCookieName(): string {
 }
 
 test.describe('Language switcher', () => {
-  test('switching to German updates route, document locale, and locale cookie', async ({
+  test('default multilingual site supports German and reverse English route/cookie recovery', async ({
     page,
-    multilingualSite: _multilingualSite,
+    multilingualSite,
   }) => {
-    expect(_multilingualSite.englishBrowsePath).toContain('/browse');
-    await expect(page).toHaveURL(/\/(?:[^/]+\/)?(?:en\/)?browse(?:\?.*)?$/);
+    await page.goto(multilingualSite.defaultEnglishBrowsePath, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 
     await page.getByRole('button', { name: 'Languages' }).click();
     await page.getByRole('menuitem', { name: 'German' }).click();
 
-    await expect(page).toHaveURL(/\/(?:[^/]+\/)?de\/browse(?:\?.*)?$/);
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/de/browse');
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
 
     const localeCookieName = getLocaleCookieName();
@@ -27,11 +27,26 @@ test.describe('Language switcher', () => {
     await page.getByRole('button', { name: 'Sprachen' }).click();
     await page.getByRole('menuitem', { name: 'English' }).click();
 
-    await expect(page).toHaveURL(/\/(?:[^/]+\/)?browse(?:\?.*)?$/);
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/browse');
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 
     const englishLocaleCookie = (await page.context().cookies()).find((cookie) => cookie.name === localeCookieName);
 
     expect(englishLocaleCookie?.value).toBe('en');
+  });
+
+  test('non-default multilingual site keeps site-before-locale route ordering', async ({ page, multilingualSite }) => {
+    await page.goto(multilingualSite.prefixedEnglishBrowsePath, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+
+    await page.getByRole('button', { name: 'Languages' }).click();
+    await page.getByRole('menuitem', { name: 'German' }).click();
+
+    await expect.poll(() => new URL(page.url()).pathname).toBe(`/${multilingualSite.prefixedSiteCode}/de/browse`);
+    await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+
+    const localeCookieName = getLocaleCookieName();
+    const localeCookie = (await page.context().cookies()).find((cookie) => cookie.name === localeCookieName);
+    expect(localeCookie?.value).toBe('de');
   });
 });

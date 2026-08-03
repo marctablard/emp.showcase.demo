@@ -2,7 +2,7 @@
 import { useMemo } from 'react';
 import { useLocale } from 'next-intl';
 import { createNavigation as createIntlNavigation } from 'next-intl/navigation';
-import { usePathname as useNextPathname } from 'next/navigation';
+import { usePathname as useNextPathname, useRouter as useNextRouter } from 'next/navigation';
 import { useSiteCode } from '@/hooks/site/useSiteCode';
 import { createSiteNavigationShared } from '../shared/createNavigationShared';
 import type { SiteRoutingConfig } from '../types';
@@ -10,7 +10,7 @@ import { addPrefixIfNeeded, getLocalePrefix, hasPathnamePrefixed, prependPrefix,
 
 export default function createNavigation(siteRouting: SiteRoutingConfig, intlRouting: any) {
   const { Link, getPathname, redirect } = createSiteNavigationShared(siteRouting, intlRouting, useSiteCode);
-  const { useRouter: useIntlRouter } = createIntlNavigation(intlRouting);
+  const { getPathname: getI18nPathname } = createIntlNavigation(intlRouting);
 
   // Prepends the SiteCode if necessary
   function usePathname(): string {
@@ -49,35 +49,60 @@ export default function createNavigation(siteRouting: SiteRoutingConfig, intlRou
   }
 
   function useRouter() {
-    const nextRouter = useIntlRouter();
+    const nextRouter = useNextRouter();
+    const currentLocale = useLocale();
     const site = useSiteCode();
+
     return useMemo(() => {
-      function createHandler(fn: (href: string, options?: any) => void) {
-        return function handler(
-          href: string | { pathname: string },
-          options?: Partial<Record<string, unknown>> & { site?: string },
-        ): void {
-          const { site: nextSite, ...rest } = options || {};
-          const path = addPrefixIfNeeded(
-            typeof href === 'string' ? href : href.pathname,
-            nextSite || site,
-            siteRouting,
-          );
+      type RouterOptions = Partial<Record<string, unknown>> & { locale?: string; site?: string };
+
+      function getSiteOuterPath(href: string | { pathname: string }, options?: RouterOptions) {
+        const { site: nextSite, locale: nextLocale } = options || {};
+        const localeAwarePath =
+          nextLocale !== undefined
+            ? getI18nPathname({
+                href: href as Parameters<typeof getI18nPathname>[0]['href'],
+                locale: nextLocale,
+                forcePrefix: true,
+              })
+            : typeof href === 'string'
+              ? href
+              : href.pathname;
+
+        return addPrefixIfNeeded(localeAwarePath, nextSite || site, siteRouting);
+      }
+
+      function createHandler(fn: (href: string, options?: any) => void, method: 'push' | 'replace' | 'prefetch') {
+        return function handler(href: string | { pathname: string }, options?: RouterOptions): void {
+          const { site: _nextSite, locale: nextLocale, ...rest } = options || {};
+          const path = getSiteOuterPath(href, options);
+
+          if (method !== 'prefetch' && nextLocale && nextLocale !== currentLocale) {
+            if (method === 'replace') {
+              globalThis.location.replace(path);
+              return;
+            }
+
+            globalThis.location.assign(path);
+            return;
+          }
+
           if (Object.keys(rest).length > 0) {
             fn(path, rest);
             return;
           }
+
           fn(path);
         };
       }
 
       return {
         ...nextRouter,
-        push: createHandler(nextRouter.push),
-        replace: createHandler(nextRouter.replace),
-        prefetch: createHandler(nextRouter.prefetch),
+        push: createHandler(nextRouter.push, 'push'),
+        replace: createHandler(nextRouter.replace, 'replace'),
+        prefetch: createHandler(nextRouter.prefetch, 'prefetch'),
       };
-    }, [nextRouter, site]);
+    }, [currentLocale, nextRouter, site]);
   }
 
   return {
