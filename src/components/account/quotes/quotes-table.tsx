@@ -22,13 +22,7 @@ import { QuoteStatusBadge } from './quote-status-badge';
  * compound display name), mirroring the Approvals Requestor/Approver pattern.
  */
 export type QuoteSortField =
-  | 'quoteId'
-  | 'quotationDate'
-  | 'status'
-  | 'relatedOrder'
-  | 'customerFirstName'
-  | 'approverFirstName'
-  | 'netValue';
+  'quoteId' | 'quotationDate' | 'status' | 'relatedOrder' | 'customerFirstName' | 'approverFirstName' | 'netValue';
 
 /** Raw upstream Emporix Quote fields backing each sortable column (see resources/emporix/quote.yml). */
 export const QUOTE_SORT_FIELD_MAP: Record<QuoteSortField, string> = {
@@ -98,7 +92,7 @@ export function QuotesTable({
   );
 
   return (
-    <div>
+    <>
       <div className={`transition-opacity ${loading ? 'opacity-70' : 'opacity-100'}`} aria-busy={loading}>
         <Table containerClassName="pr-1">
           <TableHeader>
@@ -217,6 +211,6 @@ export function QuotesTable({
         onPreviousPage={onPreviousPage}
         onNextPage={onNextPage}
       />
-    </div>
+    </>
   );
 }

@@ -413,7 +413,16 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
 
             {approval.resource.items && approval.resource.items.length > 0 && (
               <ProductListResolver
+                locale={locale}
                 showGrossUnderNet
+                presentationConfig={{
+                  labels: {
+                    product: t('product'),
+                    quantity: t('quantity'),
+                    unitPrice: t('unitPrice'),
+                  },
+                  showGrossSecondary: true,
+                }}
                 items={approval.resource.items.map((it) => ({
                   productId: it.productId,
                   itemYrn: it.itemYrn,

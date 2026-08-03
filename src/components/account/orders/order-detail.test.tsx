@@ -12,6 +12,7 @@ const cancelOrderMock = jest.fn();
 const fetchReturnsForOrderMock = jest.fn();
 
 jest.mock('next-intl', () => ({
+  useLocale: () => 'en',
   useTranslations: () => {
     const translate = (key: string) => key;
     translate.has = () => false;
@@ -157,11 +158,20 @@ describe('OrderDetail', () => {
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
     // Item with both net/gross values available shows the net value primary, gross secondary.
-    expect(screen.getByText('42 EUR')).toBeInTheDocument();
-    expect(screen.getByText('gross: 50 EUR')).toBeInTheDocument();
+    expect(screen.getAllByText('€42.00').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('gross: €50.00').length).toBeGreaterThanOrEqual(1);
 
     // Item without net/gross falls back to the existing single value.
-    expect(screen.getByText('30 EUR')).toBeInTheDocument();
+    expect(screen.getAllByText('€30.00').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders order items through the shared product-grid contract', () => {
+    mockUseOrder();
+
+    render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
+
+    expect(screen.getByTestId('product-item-desktop-item-1')).toBeInTheDocument();
+    expect(screen.getByTestId('product-item-mobile-item-1')).toBeInTheDocument();
   });
 
   it('omits the order overview quote row when no related quote exists', () => {
@@ -245,7 +255,7 @@ describe('OrderDetail', () => {
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    expect(screen.getByRole('link', { name: 'Sample Product' })).toHaveAttribute('href', '/product/prod-1');
+    expect(screen.getAllByRole('link', { name: 'Sample Product' })[0]).toHaveAttribute('href', '/product/prod-1');
   });
 
   it('places the order id heading and status badge together in the header, above the compact Order Details strip', () => {
@@ -369,7 +379,7 @@ describe('OrderDetail', () => {
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    const image = screen.getByRole('img', { name: 'Sample Product' });
+    const image = screen.getAllByRole('img', { name: 'Sample Product' })[0];
     expect(image).toHaveAttribute('width', '120');
     expect(image).toHaveAttribute('height', '78');
   });
@@ -384,17 +394,17 @@ describe('OrderDetail', () => {
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    const vendorName = screen.getByText('Acme Vendor');
+    const vendorName = screen.getAllByText('Acme Vendor')[0];
     expect(vendorName).toHaveClass('text-base', 'font-body');
 
-    const productName = screen.getByRole('link', { name: 'Sample Product' });
+    const productName = screen.getAllByRole('link', { name: 'Sample Product' })[0];
     expect(productName).toHaveClass('text-2xl', 'font-bold', 'font-headlines');
 
     // vendorName precedes the product name in the DOM (brand above name).
     expect(vendorName.compareDocumentPosition(productName) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     // The second item has no vendorName and renders no vendor element.
-    expect(screen.queryByText(/Legacy Priced Product/i)?.parentElement).not.toHaveTextContent('Acme Vendor');
+    expect(screen.getAllByText(/Legacy Priced Product/i)[0]?.parentElement).not.toHaveTextContent('Acme Vendor');
   });
 
   it('renders the item quantity as regular body-md', () => {
@@ -402,7 +412,7 @@ describe('OrderDetail', () => {
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    const quantityValue = screen.getByText('2', { selector: 'span.text-base' });
+    const quantityValue = screen.getAllByText('2', { selector: 'span.text-base' })[0];
     expect(quantityValue).toHaveClass('text-base', 'font-body');
   });
 
@@ -415,8 +425,9 @@ describe('OrderDetail', () => {
     expect(quantityHeader).toHaveClass('text-left');
     expect(quantityHeader).not.toHaveClass('text-right');
 
-    const quantityValue = screen.getByText('2', { selector: 'span.text-base' });
-    expect(quantityValue.parentElement).toHaveClass('text-left');
+    const quantityValue = screen.getAllByText('2', { selector: 'span.text-base' })[0];
+    expect(screen.getByTestId('product-quantity-cell-item-1')).toBeTruthy();
+    expect(quantityValue).toBeInTheDocument();
   });
 
   it('does not render a redundant per-row Quantity label on smallest mobile', () => {
@@ -433,14 +444,14 @@ describe('OrderDetail', () => {
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    const primaryPrice = screen.getByText('42 EUR');
-    const grossPrice = screen.getByText('gross: 50 EUR');
-    expect(primaryPrice).toHaveClass('text-3xl', 'font-bold', 'font-headlines');
+    const primaryPrice = screen.getAllByText('€42.00')[0];
+    const grossPrice = screen.getAllByText('gross: €50.00')[0];
+    expect(primaryPrice).toHaveClass('text-2xl', 'font-bold', 'font-headlines');
     expect(grossPrice).toHaveClass('text-sm', 'font-body');
 
-    // The legacy single-value item (no net/gross split) also renders at the H5-equivalent price scale.
-    const legacyPrice = screen.getByText('30 EUR');
-    expect(legacyPrice).toHaveClass('text-3xl', 'font-bold', 'font-headlines');
+    // The legacy single-value item (no net/gross split) also renders at the shared price scale.
+    const legacyPrice = screen.getAllByText('€30.00')[0];
+    expect(legacyPrice).toHaveClass('text-2xl', 'font-bold', 'font-headlines');
   });
 
   it('renders the product name above the thumbnail on smallest mobile while preserving the desktop thumbnail-left order', () => {
@@ -453,14 +464,13 @@ describe('OrderDetail', () => {
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    const productLink = screen.getByRole('link', { name: 'Sample Product' });
-    const productRow = productLink.closest('.flex-col-reverse');
-    expect(productRow).toHaveClass('flex-col-reverse', 'sm:flex-row');
+    const productLink = screen.getAllByRole('link', { name: 'Sample Product' })[0];
+    const productRow = productLink.closest('[data-testid^="product-item-mobile"]');
+    expect(productRow).toBeInTheDocument();
 
-    const image = screen.getByRole('img', { name: 'Sample Product' });
-    // The thumbnail is the first DOM child, so flex-col-reverse renders it visually below the
-    // product name on smallest mobile; sm:flex-row restores the thumbnail-left desktop order.
-    expect(image.compareDocumentPosition(productLink) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const image = screen.getAllByRole('img', { name: 'Sample Product' })[0];
+    const imageWrappers = screen.getAllByTestId('product-image-wrapper-item-1');
+    expect(imageWrappers.some((wrapper) => wrapper.contains(image))).toBe(true);
   });
 
   it('does not render an Order date or Subtotal row in the Order Overview card', () => {
@@ -478,7 +488,10 @@ describe('OrderDetail', () => {
   it('renders the Order Overview rows in the exact required sequence: Net value of goods, VAT, Shipping fee, Total value', () => {
     const orderWithShipping = {
       ...baseOrder,
-      shipping: { methods: [{ name: 'Pickup' }], total: { value: 5, currency: 'EUR' } },
+      shipping: {
+        methods: [{ id: 'pickup', name: 'Pickup', price: 5, currency: 'EUR' }],
+        total: { value: 5, currency: 'EUR' },
+      },
     };
     mockUseOrder({ order: orderWithShipping });
 

@@ -6,7 +6,7 @@ import '@testing-library/jest-dom';
 import { render, screen, within } from '@testing-library/react';
 import { formatCurrency } from '@/lib/utils';
 import { ProductList } from './product-list';
-import type { ProductListItem } from './product-list';
+import type { ProductListItem, ProductListPresentationConfig } from './product-list';
 
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -149,5 +149,46 @@ describe('ProductList', () => {
     expect(desktopScope.getByText(quoteStyleItem.name)).toBeInTheDocument();
     expect(desktopScope.getByText(`itemNumber: ${quoteStyleItem.itemNumber}`)).toBeInTheDocument();
     expect(desktopScope.getByText(String(quoteStyleItem.quantity))).toBeInTheDocument();
+  });
+
+  it('uses explicit headers, locale formatting, and ordered extension slots for desktop/mobile metadata', () => {
+    const presentationConfig: ProductListPresentationConfig = {
+      labels: { product: 'Product', quantity: 'Quantity', unitPrice: 'Unit Price', amount: 'Amount' },
+      showGrossSecondary: true,
+      showTrailingDesktopAmount: true,
+      trailingDesktopAmount: (item) => (
+        <div data-testid={`desktop-amount-${item.id}`}>{formatCurrency(item.unitPrice, item.currency, 'de-DE')}</div>
+      ),
+      mobileMetadataSlots: [
+        { key: 'mobile-meta-1', render: (item) => <div key="mobile-meta-1">Mobile meta {item.itemNumber}</div> },
+      ],
+      inlineMetadataSlots: [
+        { key: 'inline-meta-1', render: (item) => <div key="inline-meta-1">Inline meta {item.itemNumber}</div> },
+        { key: 'inline-meta-2', render: (item) => <div key="inline-meta-2">Inline meta 2 {item.quantity}</div> },
+      ],
+    };
+
+    render(<ProductList items={[quoteStyleItem]} locale="de-DE" presentationConfig={presentationConfig} />);
+
+    expect(screen.getByRole('heading', { level: 6, name: 'Product' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 6, name: 'Quantity' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 6, name: 'Unit Price' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 6, name: 'Amount' })).toBeInTheDocument();
+
+    const desktopRow = screen.getByTestId(`product-item-desktop-${quoteStyleItem.id}`);
+    const desktopScope = within(desktopRow);
+    expect(desktopScope.getByTestId(`desktop-amount-${quoteStyleItem.id}`)).toBeInTheDocument();
+    expect(desktopScope.getByText(`Inline meta ${quoteStyleItem.itemNumber}`)).toBeInTheDocument();
+    expect(desktopScope.getByText(`Inline meta 2 ${quoteStyleItem.quantity}`)).toBeInTheDocument();
+
+    const mobileRow = screen.getByTestId(`product-item-mobile-${quoteStyleItem.id}`);
+    const mobileScope = within(mobileRow);
+    expect(mobileScope.getByText(`Mobile meta ${quoteStyleItem.itemNumber}`)).toBeInTheDocument();
+
+    const inlineMeta = desktopScope.getByText(`Inline meta ${quoteStyleItem.itemNumber}`);
+    const secondInlineMeta = desktopScope.getByText(`Inline meta 2 ${quoteStyleItem.quantity}`);
+    expect(
+      inlineMeta.compareDocumentPosition(secondInlineMeta as Element) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });

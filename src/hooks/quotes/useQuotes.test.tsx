@@ -32,7 +32,17 @@ function buildQuote(id: string): Quote {
     totalNet: 100,
     totalVat: 20,
     items: [],
-  } as Quote;
+    shippingAddress: {
+      contactName: 'Ada Lovelace',
+      street: 'Test Street',
+      zipCode: '10115',
+      city: 'Berlin',
+      country: 'DE',
+      type: 'SHIPPING',
+    },
+    shippingCost: 0,
+    shippingMethod: 'STANDARD',
+  };
 }
 
 describe('useQuotes', () => {
@@ -75,7 +85,7 @@ describe('useQuotes', () => {
       ok: true,
       json: async () => ({ items: [buildQuote('Q-2')], total: 1, page: 0, pageSize: 10, availableFilters: [] }),
       statusText: 'OK',
-    } as Response);
+    } as unknown as Response);
 
     renderHook(() =>
       useQuotes([buildQuote('Q-1')], {
@@ -117,7 +127,7 @@ describe('useQuotes', () => {
           availableFilters: [],
         }),
         statusText: 'OK',
-      } as Response)
+      } as unknown as Response)
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -128,7 +138,7 @@ describe('useQuotes', () => {
           availableFilters: [],
         }),
         statusText: 'OK',
-      } as Response);
+      } as unknown as Response);
 
     const { result, rerender } = renderHook(
       ({ page }) =>

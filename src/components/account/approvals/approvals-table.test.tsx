@@ -57,6 +57,12 @@ describe('ApprovalsTable', () => {
     jest.clearAllMocks();
   });
 
+  it('renders the approval table with semantic table structure', () => {
+    render(<ApprovalsTable approvals={[buildApproval()]} />);
+
+    expect(screen.getByRole('table')).toBeInTheDocument();
+  });
+
   it('renders columns in the contract order: Approval ID, Modified At, Status, Resource Type, Quote Number, Order Number, Net Total, Requestor, Approver, Created At, Action', () => {
     render(<ApprovalsTable approvals={[buildApproval()]} />);
 

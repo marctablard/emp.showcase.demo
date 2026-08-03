@@ -39,6 +39,8 @@ const baseApproval: Approval = {
   },
   approver: {
     userId: 'approver-1',
+    firstName: 'Approver',
+    lastName: 'One',
   },
   createdAt: '2026-06-03T07:09:38.112Z',
   updatedAt: '2026-06-03T07:10:38.112Z',
@@ -112,7 +114,7 @@ jest.mock('@/components/account/approvals/approval-summary', () => ({
   ApprovalSummary: () => <div>ApprovalSummary</div>,
 }));
 
-const mockProductListResolver = jest.fn(() => <div>ProductListResolver</div>);
+const mockProductListResolver = jest.fn((_props: unknown) => <div>ProductListResolver</div>);
 
 jest.mock('@/components/product/product-list-resolver', () => ({
   ProductListResolver: (props: unknown) => mockProductListResolver(props),
@@ -140,12 +142,21 @@ describe('ApprovalDetails', () => {
     expect(screen.getAllByText(/Juni 2026|06\.2026/)).not.toHaveLength(0);
   });
 
-  it('forwards resource items to ProductListResolver with a net-first resolver input and no derived gross price, preserving the fetching contract', () => {
+  it('forwards resource items to ProductListResolver with the canonical grid config and locale, while preserving the fetching contract', () => {
     render(<ApprovalDetails approvalId="approval-requestor-1" />);
 
     expect(mockProductListResolver).toHaveBeenCalledWith(
       expect.objectContaining({
+        locale: 'de-DE',
         showGrossUnderNet: true,
+        presentationConfig: expect.objectContaining({
+          labels: expect.objectContaining({
+            product: 'product',
+            quantity: 'quantity',
+            unitPrice: 'unitPrice',
+          }),
+          showGrossSecondary: true,
+        }),
         items: [
           expect.objectContaining({
             productId: 'product-1',

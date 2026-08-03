@@ -160,7 +160,7 @@ export function MyOrdersCard({
     return (
       <div className={cn('space-y-6', className)}>
         <H1>{title || t('title')}</H1>
-        <TableCard>
+        <TableCard className="overflow-hidden">
           {searchInput}
           <div className="flex flex-col">{table}</div>
         </TableCard>

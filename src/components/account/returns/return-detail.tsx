@@ -4,11 +4,12 @@ import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { AlertCircle, Minus, Plus, ReceiptText, Trash2 } from 'lucide-react';
+import { ProductList, type ProductListItem } from '@/components/product/product-list';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { H1, H4, H5, H6 } from '@/components/ui/h';
+import { H1, H4, H5 } from '@/components/ui/h';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -129,6 +130,13 @@ function ReturnItemsList({ items, locale, t }: ReturnItemsListProps) {
   const reasonBadgeClassName =
     'inline-flex !rounded-sm !border-border-primary !bg-surface-disabled !p-1 !text-sm !font-bold normal-case !tracking-normal text-text-headings font-body';
 
+  type ReturnProductListItem = ProductListItem & {
+    readonly __returnItem?: ExtendedReturnItem;
+  };
+
+  const isReturnProductListItem = (productItem: ProductListItem): productItem is ReturnProductListItem =>
+    '__returnItem' in productItem;
+
   const getItemRefund = (item: ExtendedReturnItem) => {
     if (item.calculatedPrice?.finalPrice?.grossValue !== undefined) {
       return {
@@ -172,101 +180,107 @@ function ReturnItemsList({ items, locale, t }: ReturnItemsListProps) {
     };
   };
 
+  const mappedItems: ReturnProductListItem[] = items.map((item) => {
+    const unitPrice = getItemUnitPrice(item);
+    const primaryUnitPriceValue = unitPrice.netValue ?? unitPrice.grossValue;
+
+    return {
+      id: item.id,
+      name: item.name,
+      brand: item.vendorName,
+      itemNumber: item.itemNumber,
+      quantity: item.quantity,
+      unitPrice: primaryUnitPriceValue ?? 0,
+      currency: unitPrice.currency ?? '',
+      netUnitPrice: unitPrice.netValue,
+      grossUnitPrice: unitPrice.grossValue,
+      imageUrl: item.images?.[0],
+      href: item.productId ? `/product/${item.productId}` : undefined,
+      __returnItem: item,
+    };
+  });
+
   return (
-    <Card className="border border-border-primary shadow-sm">
-      <CardContent className="p-6">
-        <div className="hidden sm:grid grid-cols-[minmax(280px,1.6fr)_minmax(120px,1fr)_80px_minmax(140px,1fr)] gap-6 items-start pb-4 border-b border-border-primary">
-          <H6 className="text-sm">{t('product')}</H6>
-          <H6 className="text-sm">{t('price')}</H6>
-          <H6 className="text-sm">{t('quantity')}</H6>
-          <H6 className="text-sm text-right">{t('refundAmount')}</H6>
-        </div>
-        <div className="divide-y divide-border-primary">
-          {items.map((item) => {
-            const refund = getItemRefund(item);
-            const refundNet = getItemRefundNet(item);
-            const unitPrice = getItemUnitPrice(item);
-            const primaryUnitPriceValue = unitPrice.netValue ?? unitPrice.grossValue;
-            const firstImage = item.images?.[0];
-            return (
-              <div
-                key={item.id}
-                className="py-6 first:pt-4 flex flex-col gap-3 sm:grid sm:grid-cols-[minmax(280px,1.6fr)_minmax(120px,1fr)_80px_minmax(140px,1fr)] sm:gap-6 sm:items-start"
-              >
-                <div className="flex flex-col-reverse items-start gap-4 min-w-0 sm:flex-row">
-                  <div className="bg-surface-image-background w-[80px] h-[52px] shrink-0 rounded-tl-lg rounded-br-lg overflow-hidden flex items-center justify-center">
-                    {firstImage ? (
-                      <Image
-                        src={firstImage}
-                        alt={item.name}
-                        width={80}
-                        height={52}
-                        className="object-contain w-full h-full"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-surface-image-background" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0 flex flex-col gap-2">
-                    <div className="flex flex-col gap-1">
-                      {item.vendorName && <span className="text-sm font-body text-text-body">{item.vendorName}</span>}
-                      {item.productId ? (
-                        <Link
-                          href={`/product/${item.productId}`}
-                          className="text-2xl font-bold font-headlines text-text-headings hover:underline break-words"
-                        >
-                          {item.name}
-                        </Link>
-                      ) : (
-                        <span className="text-2xl font-bold font-headlines text-text-headings break-words">
-                          {item.name}
-                        </span>
-                      )}
-                    </div>
-                    {item.itemNumber && (
-                      <span className="text-sm text-text-body">
-                        {t('itemNumberLabel')}: {item.itemNumber}
-                      </span>
-                    )}
-                    {item.reason?.code && (
-                      <Badge className={reasonBadgeClassName}>{renderReturnReasonLabel(t, item.reason.code)}</Badge>
-                    )}
-                    {item.reason?.details && <p className="text-sm font-body text-text-body">{item.reason.details}</p>}
-                  </div>
+    <ProductList
+      items={mappedItems}
+      locale={locale}
+      presentationConfig={{
+        labels: {
+          product: t('product'),
+          quantity: t('quantity'),
+          unitPrice: t('price'),
+          amount: t('refundAmount'),
+        },
+        showGrossSecondary: true,
+        showTrailingDesktopAmount: true,
+        trailingDesktopAmount: (productItem) => {
+          const returnItem = isReturnProductListItem(productItem) ? productItem.__returnItem : undefined;
+          if (returnItem == null) {
+            return null;
+          }
+
+          const refund = getItemRefund(returnItem);
+          const refundNet = getItemRefundNet(returnItem);
+
+          return (
+            <div className="flex flex-col gap-1 sm:items-end">
+              <span className="text-2xl font-bold font-headlines text-text-headings">
+                {formatReturnCurrency(refundNet.value, refundNet.currency, locale)}
+              </span>
+              {refund.value !== undefined && (
+                <span className="text-sm font-body text-text-placeholders">
+                  {t('gross')} {formatReturnCurrency(refund.value, refund.currency, locale)}
+                </span>
+              )}
+            </div>
+          );
+        },
+        mobileMetadataSlots: [
+          {
+            key: 'reason-badge',
+            render: (productItem) => {
+              const returnItem = isReturnProductListItem(productItem) ? productItem.__returnItem : undefined;
+              if (returnItem?.reason?.code == null && returnItem?.reason?.details == null) {
+                return null;
+              }
+
+              return (
+                <div className="flex flex-col gap-2">
+                  {returnItem.reason?.code && (
+                    <Badge className={reasonBadgeClassName}>{renderReturnReasonLabel(t, returnItem.reason.code)}</Badge>
+                  )}
+                  {returnItem.reason?.details && (
+                    <p className="text-sm font-body text-text-body">{returnItem.reason.details}</p>
+                  )}
                 </div>
-                <div className="flex justify-between sm:block">
-                  <span className="text-sm text-text-body sm:hidden">{t('price')}</span>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-base font-body text-text-body">
-                      {formatReturnCurrency(primaryUnitPriceValue, unitPrice.currency, locale)}
-                    </span>
-                    {unitPrice.grossValue !== undefined && (
-                      <span className="text-sm text-text-placeholders">
-                        {t('gross')} {formatReturnCurrency(unitPrice.grossValue, unitPrice.currency, locale)}
-                      </span>
-                    )}
-                  </div>
+              );
+            },
+          },
+        ],
+        inlineMetadataSlots: [
+          {
+            key: 'reason-badge',
+            render: (productItem) => {
+              const returnItem = isReturnProductListItem(productItem) ? productItem.__returnItem : undefined;
+              if (returnItem?.reason?.code == null && returnItem?.reason?.details == null) {
+                return null;
+              }
+
+              return (
+                <div className="flex flex-col gap-2 pt-2">
+                  {returnItem.reason?.code && (
+                    <Badge className={reasonBadgeClassName}>{renderReturnReasonLabel(t, returnItem.reason.code)}</Badge>
+                  )}
+                  {returnItem.reason?.details && (
+                    <p className="text-sm font-body text-text-body">{returnItem.reason.details}</p>
+                  )}
                 </div>
-                <div className="text-left">
-                  <span className="text-base font-body text-text-body">{item.quantity}</span>
-                </div>
-                <div className="flex justify-between text-right sm:block">
-                  <span className="text-sm text-text-body sm:hidden">{t('refundAmount')}</span>
-                  <div className="flex flex-col gap-1 sm:items-end">
-                    <H6>{formatReturnCurrency(refundNet.value, refundNet.currency, locale)}</H6>
-                    {refund.value !== undefined && (
-                      <span className="text-sm text-text-placeholders">
-                        {t('gross')} {formatReturnCurrency(refund.value, refund.currency, locale)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
+              );
+            },
+          },
+        ],
+      }}
+    />
   );
 }
 
@@ -288,7 +302,10 @@ function ProductDetailCard({ item, locale: _locale, t }: ProductDetailCardProps)
             <Label className="text-base font-bold mb-3 block">{t('photos')}</Label>
             <div className="grid grid-cols-2 gap-3">
               {images.slice(0, 3).map((imageUrl, index) => (
-                <div key={index} className="aspect-[3/2] relative bg-surface-muted overflow-hidden">
+                <div
+                  key={`${item.id}-${imageUrl ?? index}`}
+                  className="aspect-[3/2] relative bg-surface-muted overflow-hidden"
+                >
                   <Image
                     src={imageUrl}
                     alt={`${item.name} - ${index + 1}`}
@@ -321,7 +338,7 @@ function ProductDetailCard({ item, locale: _locale, t }: ProductDetailCardProps)
                   <Input
                     type="number"
                     value={quantity}
-                    onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                    onChange={(e) => setQuantity(Math.max(1, Number.parseInt(e.target.value) || 1))}
                     className="h-12 w-15 text-center border-0 rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   <Button

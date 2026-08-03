@@ -59,13 +59,34 @@ function normalizeQuoteFilters(filters?: SearchParams<Quote>['filters']): string
   return JSON.stringify(sortedTopLevel);
 }
 
+function appendNormalizedQuoteFilters(queryParams: URLSearchParams, normalizedFilters?: string): void {
+  if (!normalizedFilters) {
+    return;
+  }
+
+  const parsedFilters = JSON.parse(normalizedFilters) as Array<
+    [string, SearchFilterLeafValue | Array<[string, SearchFilterLeafValue]>]
+  >;
+
+  parsedFilters.forEach(([key, value]) => {
+    if (Array.isArray(value) && value.every((entry) => Array.isArray(entry))) {
+      value.forEach(([nestedKey, nestedValue]) => {
+        appendQuoteFilterParam(queryParams, `${key}[${nestedKey}]`, nestedValue);
+      });
+      return;
+    }
+
+    appendQuoteFilterParam(queryParams, key, value as SearchFilterLeafValue);
+  });
+}
+
 /**
  * Hook for fetching quotes
  * @param initialQuotes Optional initial quotes data (from SSR)
  * @param params Optional search params for client-side filtering
  */
 export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
-  const hasFetchedRef = useRef(false);
+  const skippedInitialFetchRef = useRef(false);
   const page = params?.page;
   const size = params?.size;
   const sort = params?.sort;
@@ -76,8 +97,7 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
   const normalizedFilters = normalizeQuoteFilters(filters);
   const normalizedInitialRequestFilters = normalizeQuoteFilters(initialRequest?.filters);
 
-  const canReuseInitialData =
-    !hasFetchedRef.current &&
+  const canReuseInitialDataOnMount =
     !!initialQuotes &&
     (page ?? 0) === (initialRequest?.page ?? 0) &&
     size === initialRequest?.size &&
@@ -85,7 +105,7 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
     searchQuery === initialRequest?.query &&
     normalizedFilters === normalizedInitialRequestFilters;
 
-  const [loading, setLoading] = useState<boolean>(!canReuseInitialData);
+  const [loading, setLoading] = useState<boolean>(!canReuseInitialDataOnMount);
   const [error, setError] = useState<Error | null>(null);
   const [quotes, setQuotes] = useState<Quote[]>(initialQuotes || []);
   const [pagination, setPagination] = useState<
@@ -122,7 +142,6 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
   >([]);
 
   const fetchQuotes = useCallback(async () => {
-    hasFetchedRef.current = true;
     try {
       setLoading(true);
       setError(null);
@@ -140,19 +159,7 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
       if (searchQuery !== undefined) {
         queryParams.append('q', searchQuery);
       }
-      if (filters) {
-        Object.entries(filters).forEach(([key, value]) => {
-          if (Array.isArray(value)) {
-            appendQuoteFilterParam(queryParams, key, value);
-          } else if (typeof value === 'object' && value !== null) {
-            Object.entries(value).forEach(([nestedKey, nestedValue]) => {
-              appendQuoteFilterParam(queryParams, `${key}[${nestedKey}]`, nestedValue);
-            });
-          } else {
-            appendQuoteFilterParam(queryParams, key, value);
-          }
-        });
-      }
+      appendNormalizedQuoteFilters(queryParams, normalizedFilters);
 
       const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
       const res = await fetch(`/api/quotes${queryString}`);
@@ -179,7 +186,7 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
     } finally {
       setLoading(false);
     }
-  }, [page, size, sort, searchQuery, filters]);
+  }, [normalizedFilters, page, searchQuery, size, sort]);
 
   const refetchQuotes = useCallback(async () => {
     await fetchQuotes();
@@ -187,10 +194,17 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
 
   // Skip only the initial fetch when SSR data matches the exact params it was fetched with.
   useEffect(() => {
-    if (!canReuseInitialData) {
-      fetchQuotes();
+    if (!skippedInitialFetchRef.current) {
+      skippedInitialFetchRef.current = true;
+      if (canReuseInitialDataOnMount) {
+        return;
+      }
     }
-  }, [canReuseInitialData, fetchQuotes]);
+
+    queueMicrotask(() => {
+      void fetchQuotes();
+    });
+  }, [canReuseInitialDataOnMount, fetchQuotes]);
 
   return {
     loading,

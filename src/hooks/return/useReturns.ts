@@ -35,24 +35,22 @@ interface UseReturnsOptions {
  */
 export function useReturns(initialReturns?: Return[], options: UseReturnsOptions = {}): UseReturnsReturn {
   const { pageSize, pageNumber, sort, query, forceRefreshOnMount = false, initialTotalCount, initialRequest } = options;
-  const hasFetchedRef = useRef(false);
+  const skippedInitialFetchRef = useRef(false);
   const [returns, setReturns] = useState<Return[]>(initialReturns || []);
   const [totalCount, setTotalCount] = useState<number | undefined>(initialTotalCount);
 
-  const canReuseInitialData =
-    !hasFetchedRef.current &&
+  const canReuseInitialDataOnMount =
     !!initialReturns &&
     pageNumber === (initialRequest?.pageNumber ?? 1) &&
     pageSize === initialRequest?.pageSize &&
     query === initialRequest?.query &&
     sort === initialRequest?.sort;
 
-  const [loading, setLoading] = useState<boolean>(!canReuseInitialData);
+  const [loading, setLoading] = useState<boolean>(!canReuseInitialDataOnMount);
   const [error, setError] = useState<Error | null>(null);
 
   const fetchReturnsData = useCallback(
     async (forceRefresh: boolean = false) => {
-      hasFetchedRef.current = true;
       try {
         setLoading(true);
         setError(null);
@@ -73,10 +71,17 @@ export function useReturns(initialReturns?: Return[], options: UseReturnsOptions
   }, [fetchReturnsData]);
 
   useEffect(() => {
-    if (!canReuseInitialData || forceRefreshOnMount) {
-      fetchReturnsData(forceRefreshOnMount);
+    if (!skippedInitialFetchRef.current) {
+      skippedInitialFetchRef.current = true;
+      if (canReuseInitialDataOnMount && !forceRefreshOnMount) {
+        return;
+      }
     }
-  }, [canReuseInitialData, forceRefreshOnMount, fetchReturnsData]);
+
+    queueMicrotask(() => {
+      void fetchReturnsData(forceRefreshOnMount);
+    });
+  }, [canReuseInitialDataOnMount, forceRefreshOnMount, fetchReturnsData]);
 
   return {
     returns,

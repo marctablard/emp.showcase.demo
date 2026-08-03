@@ -109,15 +109,17 @@ describe('ApprovalsList', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'title' })).toBeInTheDocument();
   });
 
-  it('wraps the search, filter, table, and pagination in the shared table-card surface', () => {
+  it('wraps the search, filter, table, and pagination in exactly one shared table-card surface', () => {
     mockApprovalsResult({
       approvals: [buildApproval()],
       pagination: { pageNumber: 1, pageSize: 5, totalPages: 3, totalItems: 15 },
     });
     const { container } = render(<ApprovalsList initialApprovals={[buildApproval()]} />);
 
-    const tableCard = container.querySelector('[data-slot="table-card"]');
-    expect(tableCard).not.toBeNull();
+    const tableCards = container.querySelectorAll('[data-slot="table-card"]');
+    expect(tableCards).toHaveLength(1);
+
+    const tableCard = tableCards[0];
     expect(tableCard).toHaveClass(
       'bg-surface-primary',
       'border',
@@ -126,8 +128,8 @@ describe('ApprovalsList', () => {
       'shadow-[var(--theme-shadow-sm)]',
     );
     expect(tableCard).not.toHaveClass('shadow-sm');
-    expect(tableCard?.querySelector('table')).not.toBeNull();
-    expect(tableCard?.querySelector('input')).not.toBeNull();
+    expect(tableCard.querySelector('table')).not.toBeNull();
+    expect(tableCard.querySelector('input')).not.toBeNull();
   });
 
   it('does not send a query when no search term or status filter is active', () => {

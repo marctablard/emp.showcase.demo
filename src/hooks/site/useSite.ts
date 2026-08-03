@@ -32,10 +32,24 @@ export function useSite(id?: string) {
       resetSite();
     }
   }, [effectiveSiteCode, site, resetSite]);
-  const [countries, setCountries] = useState<Country[] | undefined>(getSite()?.countries);
-  const [regions, setRegions] = useState<Region[] | undefined>(getSite()?.regions);
-  const [currencies, setCurrencies] = useState<Currency[] | undefined>(getSite()?.currencies);
-  const [paymentModes, setPaymentModes] = useState<PaymentMode[] | undefined>(getSite()?.paymentModes);
+
+  const resolvedSite = site === undefined ? getSite() : site;
+  const countries: Country[] | undefined = resolvedSite
+    ? resolvedSite.countries
+    : resolvedSite === null
+      ? []
+      : undefined;
+  const regions: Region[] | undefined = resolvedSite ? resolvedSite.regions : resolvedSite === null ? [] : undefined;
+  const currencies: Currency[] | undefined = resolvedSite
+    ? resolvedSite.currencies
+    : resolvedSite === null
+      ? []
+      : undefined;
+  const paymentModes: PaymentMode[] | undefined = resolvedSite
+    ? resolvedSite.paymentModes
+    : resolvedSite === null
+      ? []
+      : undefined;
   const [error, setError] = useState<Error | null>(null);
 
   const fetchSiteData = useCallback(async () => {
@@ -71,18 +85,10 @@ export function useSite(id?: string) {
   }, [setLoading, setError, setSite, setAvailableSites, getAvailableSites, id, urlSiteCode]);
 
   useEffect(() => {
-    if (site) {
-      setCountries(site.countries);
-      setRegions(site.regions);
-      setCurrencies(site.currencies);
-      setPaymentModes(site.paymentModes);
-    } else if (site === null) {
-      setCountries([]);
-      setRegions([]);
-      setCurrencies([]);
-      setPaymentModes([]);
-    } else if (site === undefined && !getLoading()) {
-      fetchSiteData();
+    if (site === undefined && !getLoading()) {
+      queueMicrotask(() => {
+        void fetchSiteData();
+      });
     }
   }, [getLoading, fetchSiteData, site]);
 

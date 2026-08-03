@@ -1,6 +1,6 @@
 import { useProducts } from '@/hooks/product/useProducts';
 import { useL10n } from '@/hooks/useL10n';
-import type { ProductListItem } from './product-list';
+import type { ProductListItem, ProductListPresentationConfig } from './product-list';
 import { ProductList } from './product-list';
 
 export interface ProductMinimal {
@@ -16,6 +16,8 @@ export interface ProductMinimal {
 interface ProductListResolverProps {
   readonly items: ProductMinimal[];
   readonly className?: string;
+  readonly locale?: string;
+  readonly presentationConfig?: ProductListPresentationConfig;
   readonly showGrossUnderNet?: boolean;
 }
 
@@ -25,7 +27,13 @@ const extractProductIdFromYrn = (yrn?: string) => {
   return parts[parts.length - 1] || yrn;
 };
 
-export function ProductListResolver({ items, className, showGrossUnderNet }: ProductListResolverProps) {
+export function ProductListResolver({
+  items,
+  className,
+  locale,
+  presentationConfig,
+  showGrossUnderNet,
+}: ProductListResolverProps) {
   const { l10n } = useL10n();
   const productIds = (items || [])
     .map((it) => it.productId || extractProductIdFromYrn(it.itemYrn))
@@ -56,5 +64,13 @@ export function ProductListResolver({ items, className, showGrossUnderNet }: Pro
     };
   });
 
-  return <ProductList items={listItems} className={className} showGrossUnderNet={showGrossUnderNet} />;
+  return (
+    <ProductList
+      items={listItems}
+      className={className}
+      locale={locale}
+      presentationConfig={presentationConfig}
+      showGrossUnderNet={showGrossUnderNet}
+    />
+  );
 }

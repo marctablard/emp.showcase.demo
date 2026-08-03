@@ -19,7 +19,7 @@ const notFound = jest.fn(() => {
 });
 
 jest.mock('next-intl/server', () => ({
-  getTranslations: (...args: unknown[]) => mockGetTranslations(...args),
+  getTranslations: (params: { namespace: string }) => mockGetTranslations(params),
 }));
 
 jest.mock('next-intl/navigation', () => ({

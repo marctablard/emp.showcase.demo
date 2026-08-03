@@ -36,6 +36,8 @@ const baseApproval: Approval = {
   },
   approver: {
     userId: 'approver-1',
+    firstName: 'Approver',
+    lastName: 'One',
   },
   createdAt: '2026-06-03T07:09:38.112Z',
   updatedAt: '2026-06-03T07:10:38.112Z',

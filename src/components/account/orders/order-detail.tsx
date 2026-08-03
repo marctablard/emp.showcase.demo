@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
-import Image from 'next/image';
+import { useLocale, useTranslations } from 'next-intl';
 import { format } from 'date-fns';
 import { Ban, CreditCard, ReceiptText, RotateCcw, Truck } from 'lucide-react';
+import { ProductList, type ProductListItem } from '@/components/product/product-list';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { H3, H4, H5, H6 } from '@/components/ui/h';
+import { H3, H4, H5 } from '@/components/ui/h';
 import UiLink from '@/components/ui/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SummaryCard, SummaryField } from '@/components/ui/summary-card';
@@ -15,7 +15,6 @@ import { ToastType, notify } from '@/components/ui/toast-notification';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useOrder } from '@/hooks/order/useOrder';
 import { type PaymentModeKey, dk } from '@/i18n/dynamic-key';
-import { Link } from '@/i18n/navigation';
 import { isOrderAccessDeniedError } from '@/lib/client/orders';
 import { fetchReturnsForOrder } from '@/lib/client/returns';
 import { ORDER_CUSTOMER_DECLINE_NOT_ALLOWED_MESSAGE } from '@/lib/common/order-customer-decline-not-allowed';
@@ -48,6 +47,22 @@ function shouldShowTrackShipmentControl(status: OrderStatus): boolean {
   return TRACKING_ELIGIBLE_STATUSES.has(status);
 }
 
+function toOrderProductListItem(item: Order['items'][number]): ProductListItem {
+  return {
+    id: item.id,
+    name: item.name || item.productId,
+    brand: item.vendorName,
+    itemNumber: item.sku,
+    quantity: item.quantity,
+    unitPrice: item.price?.value ?? 0,
+    currency: item.price?.currency ?? '',
+    netUnitPrice: item.price?.netValue,
+    grossUnitPrice: item.price?.grossValue,
+    imageUrl: item.images?.[0],
+    href: `/product/${item.productId}`,
+  };
+}
+
 function renderAddress(address: Address) {
   return (
     <p>
@@ -59,40 +74,6 @@ function renderAddress(address: Address) {
       <br />
       {address.country}
     </p>
-  );
-}
-
-/** Item unit-price cell: net value primary as bold H5-equivalent text, gross value shown as the small secondary line. */
-function ItemPriceCell({
-  price,
-  tOrder,
-}: {
-  readonly price?: { value: number; netValue?: number; grossValue?: number; currency: string };
-  readonly tOrder: ReturnType<typeof useTranslations<'orders'>>;
-}) {
-  if (!price) {
-    return <>-</>;
-  }
-
-  const primaryValue = price.netValue ?? price.value;
-
-  if (price.grossValue === undefined) {
-    return (
-      <span className="text-3xl font-bold font-headlines text-text-headings">
-        {primaryValue} {price.currency}
-      </span>
-    );
-  }
-
-  return (
-    <div className="flex flex-col sm:items-end">
-      <span className="text-3xl font-bold font-headlines text-text-headings">
-        {primaryValue} {price.currency}
-      </span>
-      <span className="text-sm font-body text-text-placeholders">
-        {tOrder('gross')}: {price.grossValue} {price.currency}
-      </span>
-    </div>
   );
 }
 
@@ -109,6 +90,7 @@ export function OrderDetail({
 }) {
   const tOrder = useTranslations('orders');
   const tPaymentModes = useTranslations('checkout.PaymentModes');
+  const locale = useLocale();
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [returnability, setReturnability] = useState<OrderReturnability | null>(null);
 
@@ -175,6 +157,7 @@ export function OrderDetail({
   const showReturnButton = shouldShowReturnButton(order.status);
   const showTrackShipmentControl = shouldShowTrackShipmentControl(order.status);
   const hasHeaderActions = showCancelButton || showReturnButton || showTrackShipmentControl;
+  const productItems = order.items.map((item) => toOrderProductListItem(item));
 
   const handleCancelOrder = async () => {
     if (!cancelOrder) return;
@@ -388,67 +371,20 @@ export function OrderDetail({
       </div>
 
       {/* Product list, following the Returns & Claims product presentation */}
-      <Card className="border border-border-primary shadow-sm">
-        <CardContent className="p-6">
-          <div className="hidden sm:grid grid-cols-[minmax(280px,1.6fr)_100px_minmax(140px,1fr)] gap-6 items-start pb-4 border-b border-border-primary">
-            <H6 className="text-sm font-bold text-text-headings">{tOrder('product')}</H6>
-            <H6 className="text-sm font-bold text-text-headings text-left">{tOrder('quantity')}</H6>
-            <H6 className="text-sm font-bold text-text-headings text-right">{tOrder('price')}</H6>
-          </div>
-
-          <div className="divide-y divide-border-primary">
-            {order.items.map((item) => {
-              const firstImage = item.images?.[0];
-              return (
-                <div
-                  key={item.id}
-                  className="py-6 first:pt-4 flex flex-col gap-3 sm:grid sm:grid-cols-[minmax(280px,1.6fr)_100px_minmax(140px,1fr)] sm:gap-6 sm:items-center"
-                >
-                  {/* Smallest-mobile: product name/details render above the thumbnail via flex-col-reverse; desktop restores the thumbnail-left row via sm:flex-row. */}
-                  <div className="flex flex-col-reverse items-start gap-4 min-w-0 sm:flex-row">
-                    <div className="bg-surface-image-background w-[120px] h-[78px] shrink-0 rounded-tl-lg rounded-br-lg overflow-hidden flex items-center justify-center">
-                      {firstImage ? (
-                        <Image
-                          src={firstImage}
-                          alt={item.name || item.productId}
-                          width={120}
-                          height={78}
-                          className="object-contain w-full h-full"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-surface-image-background" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0 flex flex-col gap-1">
-                      {item.vendorName && <span className="text-base font-body text-text-body">{item.vendorName}</span>}
-                      <Link
-                        href={`/product/${item.productId}`}
-                        className="text-2xl font-bold font-headlines text-text-headings hover:underline break-words"
-                      >
-                        {item.name || item.productId}
-                      </Link>
-                      {item.sku && (
-                        <span className="text-sm text-text-placeholders">
-                          {tOrder('itemNumber')}: {item.sku}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* No Quantity label on smallest mobile; left-aligned at desktop widths. */}
-                  <div className="text-left">
-                    <span className="text-base font-body">{item.quantity}</span>
-                  </div>
-
-                  <div className="text-right">
-                    <ItemPriceCell price={item.price} tOrder={tOrder} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+      <ProductList
+        items={productItems}
+        locale={locale}
+        className="border border-border-primary shadow-sm"
+        presentationConfig={{
+          labels: {
+            product: tOrder('product'),
+            quantity: tOrder('quantity'),
+            unitPrice: tOrder('price'),
+            amount: tOrder('price'),
+          },
+          showGrossSecondary: true,
+        }}
+      />
 
       {order && (
         <CreateReturnDialog

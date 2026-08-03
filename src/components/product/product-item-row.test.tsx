@@ -4,6 +4,7 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
+import { formatCurrency } from '@/lib/utils';
 import { ProductItemRow } from './product-item-row';
 import type { ProductListItem } from './product-list';
 
@@ -41,5 +42,14 @@ describe('ProductItemRow translation namespaces', () => {
 
     expect(screen.getAllByText(`orders.itemNumber: ${item.itemNumber}`).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/cart\.gross:/).length).toBeGreaterThan(0);
+  });
+
+  it('formats money with the supplied active locale', () => {
+    render(<ProductItemRow item={item} locale="de-DE" />);
+
+    expect(
+      screen.getAllByText((_, node) => node?.textContent === formatCurrency(item.unitPrice, item.currency, 'de-DE'))
+        .length,
+    ).toBeGreaterThan(0);
   });
 });

@@ -2,22 +2,34 @@ import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Link } from '@/i18n/navigation';
 import { formatCurrency } from '@/lib/utils';
-import type { ProductListItem } from './product-list';
+import type { ProductListItem, ProductListPresentationConfig } from './product-list';
 
 interface ProductItemRowProps {
   readonly item: ProductListItem;
+  readonly locale?: string;
+  readonly presentationConfig?: ProductListPresentationConfig;
   readonly showGrossUnderNet?: boolean;
 }
 
-export function ProductItemRow({ item, showGrossUnderNet = false }: ProductItemRowProps) {
+export function ProductItemRow({ item, locale, presentationConfig, showGrossUnderNet = false }: ProductItemRowProps) {
   const t = useTranslations('cart');
   const tOrders = useTranslations('orders');
   const netPrice = item.netUnitPrice ?? item.unitPrice;
+  const showGrossSecondary = presentationConfig?.showGrossSecondary ?? showGrossUnderNet;
   // Missing gross is rendered as a literal '-' secondary value; it is never derived from net/unit price.
-  const grossPriceLabel = item.grossUnitPrice === undefined ? '-' : formatCurrency(item.grossUnitPrice, item.currency);
+  const grossPriceLabel =
+    item.grossUnitPrice === undefined ? '-' : formatCurrency(item.grossUnitPrice, item.currency, locale);
+  const mobileMetadataSlots = presentationConfig?.mobileMetadataSlots ?? [];
+  const inlineMetadataSlots = presentationConfig?.inlineMetadataSlots ?? [];
+  const hasTrailingDesktopAmount = Boolean(
+    presentationConfig?.showTrailingDesktopAmount && presentationConfig?.trailingDesktopAmount,
+  );
 
   const productImage = (
-    <div className="flex h-[78px] w-[120px] shrink-0 items-center justify-center overflow-hidden rounded-tl-lg rounded-br-lg bg-surface-image-background">
+    <div
+      className="flex h-[78px] w-[120px] shrink-0 items-center justify-center overflow-hidden rounded-tl-lg rounded-br-lg bg-surface-image-background"
+      data-testid={`product-image-wrapper-${item.id}`}
+    >
       {item.imageUrl ? (
         <Image
           width={120}
@@ -41,7 +53,7 @@ export function ProductItemRow({ item, showGrossUnderNet = false }: ProductItemR
   );
 
   return (
-    <div className="py-6 first:pt-4">
+    <div className="py-6 first:pt-4" data-testid={`product-item-row-${item.id}`}>
       {/* Smallest-mobile: brand/name render above the thumbnail; the thumbnail sits beside a
           value stack (price, item number, quantity) and the Quantity label is omitted. */}
       <div className="flex flex-col gap-3 sm:hidden" data-testid={`product-item-mobile-${item.id}`}>
@@ -54,9 +66,9 @@ export function ProductItemRow({ item, showGrossUnderNet = false }: ProductItemR
           <div className="flex min-w-0 flex-1 flex-col gap-3">
             <div className="flex flex-col gap-1">
               <span className="text-2xl font-bold font-headlines text-text-headings">
-                {formatCurrency(netPrice, item.currency)}
+                {formatCurrency(netPrice, item.currency, locale)}
               </span>
-              {showGrossUnderNet && (
+              {showGrossSecondary && (
                 <span className="text-sm font-body text-text-placeholders">
                   {t('gross').trim()}: {grossPriceLabel}
                 </span>
@@ -68,6 +80,9 @@ export function ProductItemRow({ item, showGrossUnderNet = false }: ProductItemR
               </p>
             )}
             <span className="text-base font-body">{item.quantity}</span>
+            {mobileMetadataSlots.map((slot) => (
+              <div key={slot.key}>{slot.render(item)}</div>
+            ))}
           </div>
         </div>
       </div>
@@ -75,7 +90,11 @@ export function ProductItemRow({ item, showGrossUnderNet = false }: ProductItemR
       {/* Desktop: three-column grid; Quantity stays left-aligned and price is net-first with
           gross as a secondary line. */}
       <div
-        className="hidden sm:grid sm:grid-cols-[minmax(280px,1.6fr)_100px_minmax(140px,1fr)] sm:items-center sm:gap-6"
+        className={
+          hasTrailingDesktopAmount
+            ? 'hidden sm:grid sm:grid-cols-[minmax(280px,1.6fr)_100px_minmax(140px,1fr)_minmax(140px,1fr)] sm:items-center sm:gap-6'
+            : 'hidden sm:grid sm:grid-cols-[minmax(280px,1.6fr)_100px_minmax(140px,1fr)] sm:items-center sm:gap-6'
+        }
         data-testid={`product-item-desktop-${item.id}`}
       >
         <div className="flex min-w-0 items-start gap-4">
@@ -91,22 +110,28 @@ export function ProductItemRow({ item, showGrossUnderNet = false }: ProductItemR
           </div>
         </div>
 
-        <div className="text-left">
+        <div className="text-left" data-testid={`product-quantity-cell-${item.id}`}>
           <span className="text-base font-body">{item.quantity}</span>
         </div>
 
         <div className="text-right">
           <div className="flex flex-col sm:items-end">
             <span className="text-2xl font-bold font-headlines text-text-headings">
-              {formatCurrency(netPrice, item.currency)}
+              {formatCurrency(netPrice, item.currency, locale)}
             </span>
-            {showGrossUnderNet && (
+            {showGrossSecondary && (
               <span className="text-sm font-body text-text-placeholders">
                 {t('gross').trim()}: {grossPriceLabel}
               </span>
             )}
+            {inlineMetadataSlots.map((slot) => (
+              <div key={slot.key}>{slot.render(item)}</div>
+            ))}
           </div>
         </div>
+        {hasTrailingDesktopAmount && (
+          <div className="text-right">{presentationConfig?.trailingDesktopAmount?.(item)}</div>
+        )}
       </div>
     </div>
   );

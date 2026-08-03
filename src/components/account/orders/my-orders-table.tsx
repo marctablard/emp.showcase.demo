@@ -44,9 +44,9 @@ function isReturnEnabled(status: OrderStatus): boolean {
   return status === ORDER_STATUS.COMPLETED;
 }
 
-function formatOrderValue(value: number | undefined, currency: string | undefined): string {
+function formatOrderValue(value: number | undefined, currency: string | undefined, locale: string): string {
   if (value === undefined || !currency) return '-';
-  return formatCurrency(value, currency);
+  return formatCurrency(value, currency, locale);
 }
 
 function formatAddress(order: Order): string {
@@ -269,10 +269,10 @@ export function MyOrdersTable({
             )}
           </TableCell>
           <TableCell className="py-4 font-medium">
-            {formatOrderValue(order.price?.total?.net, order.price?.total?.currency || order.currency)}
+            {formatOrderValue(order.price?.total?.net, order.price?.total?.currency || order.currency, locale)}
           </TableCell>
           <TableCell className="py-4 font-medium">
-            {formatOrderValue(order.shipping?.total.value, order.shipping?.total.currency)}
+            {formatOrderValue(order.shipping?.total.value, order.shipping?.total.currency, locale)}
           </TableCell>
           <TableCell className="px-2 py-4">
             {order.expectedDeliveryDate ? formatDate(order.expectedDeliveryDate, locale) : '-'}

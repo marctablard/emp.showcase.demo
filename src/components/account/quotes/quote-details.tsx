@@ -178,6 +178,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
 
   useEffect(() => {
     if (!quote || quote.status !== 'OPEN') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset approval permission state synchronously when the quote leaves OPEN status
       setApprovalPermission(null);
       setIsCheckingApprovalPermission(false);
       return;
@@ -952,7 +953,16 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         <QuoteSummary quote={quote} />
         {
           <ProductListResolver
+            locale={locale}
             showGrossUnderNet
+            presentationConfig={{
+              labels: {
+                product: t('product'),
+                quantity: t('quantity'),
+                unitPrice: t('unitPrice'),
+              },
+              showGrossSecondary: true,
+            }}
             items={quote.items.map((it) => ({
               productId: it.product.id,
               quantity: it.quantity.quantity, // Extract just the numeric quantity value

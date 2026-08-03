@@ -25,7 +25,6 @@ function buildApproval(id: string): Approval {
       userId: `approver-${id}`,
       firstName: 'Approver',
       lastName: 'One',
-      email: 'approver@example.com',
     },
     createdAt: '2026-01-01T10:00:00.000Z',
     modifiedAt: '2026-01-01T10:00:00.000Z',
@@ -48,7 +47,7 @@ describe('useApprovals', () => {
       },
       json: async () => fullPage,
       statusText: 'OK',
-    } as Response);
+    } as unknown as Response);
 
     const { result } = renderHook(() => useApprovals(undefined, { pageNumber: 2, pageSize: 2 }));
 
@@ -74,7 +73,7 @@ describe('useApprovals', () => {
       },
       json: async () => partialPage,
       statusText: 'OK',
-    } as Response);
+    } as unknown as Response);
 
     const { result } = renderHook(() => useApprovals(undefined, { pageNumber: 2, pageSize: 2 }));
 
@@ -101,13 +100,13 @@ describe('useApprovals', () => {
         headers: { get: (name: string) => (name.toLowerCase() === 'x-total-count' ? '22' : null) },
         json: async () => fetchedPageTwo,
         statusText: 'OK',
-      } as Response)
+      } as unknown as Response)
       .mockResolvedValueOnce({
         ok: true,
         headers: { get: (name: string) => (name.toLowerCase() === 'x-total-count' ? '11' : null) },
         json: async () => fetchedPageOne,
         statusText: 'OK',
-      } as Response);
+      } as unknown as Response);
 
     const { result, rerender } = renderHook(
       ({ pageNumber }) =>

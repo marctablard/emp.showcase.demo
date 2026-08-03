@@ -5,10 +5,10 @@ import type { Category } from '@/platform/services/model/category';
 import { resolvePlpCategoryContext } from './plp-category-context';
 
 describe('resolvePlpCategoryContext', () => {
-  const rootLeaf: Category = { id: 'root-leaf' };
-  const leaf1: Category = { id: 'leaf-1' };
-  const leaf2: Category = { id: 'leaf-2' };
-  const parent1: Category = { id: 'parent-1', children: [leaf1, leaf2] };
+  const rootLeaf: Category = { id: 'root-leaf', name: { en: 'Root leaf' } };
+  const leaf1: Category = { id: 'leaf-1', name: { en: 'Leaf 1' } };
+  const leaf2: Category = { id: 'leaf-2', name: { en: 'Leaf 2' } };
+  const parent1: Category = { id: 'parent-1', name: { en: 'Parent 1' }, children: [leaf1, leaf2] };
   const roots: Category[] = [rootLeaf, parent1];
 
   it('handles no selected category (root)', () => {

@@ -1,4 +1,4 @@
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { create } from 'zustand/react';
 
@@ -60,6 +60,7 @@ export const createComparisonStore = (initState?: ComparisonState, storageKey?: 
       })),
       {
         name,
+        storage: createJSONStorage(() => globalThis.localStorage),
       },
     ),
   );

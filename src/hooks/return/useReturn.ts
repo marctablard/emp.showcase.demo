@@ -42,7 +42,9 @@ export function useReturn(returnId: string, initialReturn?: Return | null): UseR
 
   useEffect(() => {
     if (!initialReturn && returnId) {
-      fetchReturn();
+      queueMicrotask(() => {
+        void fetchReturn();
+      });
     }
   }, [initialReturn, returnId, fetchReturn]);
 

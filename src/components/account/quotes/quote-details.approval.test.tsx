@@ -41,8 +41,10 @@ jest.mock('@/components/account/quotes/quote-summary', () => ({
   QuoteSummary: () => <div>QuoteSummary</div>,
 }));
 
+const mockProductListResolver = jest.fn((_props: unknown) => <div>ProductListResolver</div>);
+
 jest.mock('@/components/product/product-list-resolver', () => ({
-  ProductListResolver: () => <div>ProductListResolver</div>,
+  ProductListResolver: (props: unknown) => mockProductListResolver(props),
 }));
 
 jest.mock('@/components/ui/link', () => ({
@@ -128,6 +130,7 @@ describe('QuoteDetails approval flow', () => {
     notifyMock.mockReset();
     pushMock.mockReset();
     fetchMock.mockReset();
+    mockProductListResolver.mockClear();
     global.fetch = fetchMock as unknown as typeof fetch;
   });
 
@@ -137,6 +140,25 @@ describe('QuoteDetails approval flow', () => {
 
   afterAll(() => {
     global.fetch = originalFetch;
+  });
+
+  it('passes locale and canonical presentation config to the shared product grid', () => {
+    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+
+    expect(mockProductListResolver).toHaveBeenCalledWith(
+      expect.objectContaining({
+        locale: 'en',
+        showGrossUnderNet: true,
+        presentationConfig: expect.objectContaining({
+          showGrossSecondary: true,
+          labels: expect.objectContaining({
+            product: 'account.quoteDetails.product',
+            quantity: 'account.quoteDetails.quantity',
+            unitPrice: 'account.quoteDetails.unitPrice',
+          }),
+        }),
+      }),
+    );
   });
 
   it('routes to the linked approval when direct quote acceptance is not permitted', async () => {
@@ -506,5 +528,27 @@ describe('QuoteDetails approval flow', () => {
     const requestChangePanel = requestChangeTitle.closest('.bg-surface-page');
 
     expect(requestChangePanel).toHaveClass('border-2', 'border-border-action');
+  });
+
+  it('clears the inquiry CTA synchronously when the quote transitions away from OPEN, without an extra permission request', async () => {
+    checkApprovalPermitted.mockResolvedValue({
+      action: 'CHECKOUT',
+      permitted: false,
+    });
+
+    const { rerender } = render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+
+    expect(await screen.findByRole('button', { name: 'account.quoteDetails.inquireApproval' })).toBeInTheDocument();
+    expect(checkApprovalPermitted).toHaveBeenCalledTimes(1);
+
+    const acceptedQuote = { ...initialQuote, status: 'ACCEPTED' };
+    rerender(<QuoteDetails quoteId="Q-1000" initialQuote={acceptedQuote as never} />);
+
+    expect(screen.queryByRole('button', { name: 'account.quoteDetails.inquireApproval' })).not.toBeInTheDocument();
+
+    const acceptButton = screen.getByRole('button', { name: 'account.quoteDetails.accept' });
+    expect(acceptButton).toBeDisabled();
+
+    expect(checkApprovalPermitted).toHaveBeenCalledTimes(1);
   });
 });

@@ -86,7 +86,7 @@ jest.mock('@/components/account/quotes/quote-summary', () => ({
   QuoteSummary: () => <div>QuoteSummary</div>,
 }));
 
-const mockProductListResolver = jest.fn(() => <div>ProductListResolver</div>);
+const mockProductListResolver = jest.fn((_props: unknown) => <div>ProductListResolver</div>);
 
 jest.mock('@/components/product/product-list-resolver', () => ({
   ProductListResolver: (props: unknown) => mockProductListResolver(props),
@@ -171,12 +171,21 @@ describe('Quote cross-links', () => {
     expect(screen.getByRole('button', { name: 'account.quoteDetails.accept' }).parentElement).toBe(actionRow);
   });
 
-  it('forwards quote items to ProductListResolver with net-first resolver inputs, preserving the fetching contract', () => {
+  it('forwards quote items to ProductListResolver with locale-aware canonical presentation config and net-first resolver inputs', () => {
     render(<QuoteDetails quoteId={baseQuote.id} initialQuote={baseQuote} />);
 
     expect(mockProductListResolver).toHaveBeenCalledWith(
       expect.objectContaining({
+        locale: 'de-DE',
         showGrossUnderNet: true,
+        presentationConfig: expect.objectContaining({
+          showGrossSecondary: true,
+          labels: expect.objectContaining({
+            product: 'account.quoteDetails.product',
+            quantity: 'account.quoteDetails.quantity',
+            unitPrice: 'account.quoteDetails.unitPrice',
+          }),
+        }),
         items: [
           expect.objectContaining({
             productId: 'product-1',

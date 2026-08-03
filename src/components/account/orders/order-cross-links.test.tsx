@@ -12,6 +12,7 @@ import { OrdersTable } from './orders-table';
 const useOrderMock = jest.fn();
 
 jest.mock('next-intl', () => ({
+  useLocale: () => 'en',
   useTranslations: () => {
     const translate = (key: string) => key;
     translate.has = () => false;

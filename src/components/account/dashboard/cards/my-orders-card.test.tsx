@@ -31,10 +31,19 @@ jest.mock('@/components/account/orders/my-orders-table', () => ({
     hasActiveSearch?: boolean;
   }) => (
     <>
-      <button type="button" onClick={() => onSortChange('status', 'asc')}>
-        trigger-sort
-      </button>
+      <table>
+        <tbody>
+          <tr>
+            <td>
+              <button type="button" onClick={() => onSortChange('status', 'asc')}>
+                trigger-sort
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
       <div data-testid="search-state">{hasActiveSearch ? 'search-on' : 'search-off'}</div>
+      <div data-slot="table-pagination" />
     </>
   ),
 }));
@@ -67,6 +76,20 @@ describe('MyOrdersCard', () => {
 
   afterEach(() => {
     jest.useRealTimers();
+  });
+
+  it('wraps the search, table, and pagination in exactly one shared table-card surface in pageMode', () => {
+    const { container } = render(
+      <MyOrdersCard pageMode initialOrders={[buildOrder('initial-1')]} initialTotalCount={14} />,
+    );
+
+    const tableCards = container.querySelectorAll('[data-slot="table-card"]');
+    expect(tableCards).toHaveLength(1);
+
+    const tableCard = tableCards[0];
+    expect(tableCard.querySelector('input')).not.toBeNull();
+    expect(tableCard.querySelector('table')).not.toBeNull();
+    expect(tableCard.querySelector('[data-slot="table-pagination"]')).not.toBeNull();
   });
 
   it('requests orders with server-page, query and sort state plus the canonical initial request seed', () => {

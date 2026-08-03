@@ -77,6 +77,12 @@ function renderTable(overrides: Partial<ComponentProps<typeof MyOrdersTable>> = 
 }
 
 describe('MyOrdersTable', () => {
+  it('renders the table with semantic table structure', () => {
+    renderTable();
+
+    expect(screen.getByRole('table')).toBeInTheDocument();
+  });
+
   it('renders the canonical column sequence without a Payment column', () => {
     renderTable();
 
