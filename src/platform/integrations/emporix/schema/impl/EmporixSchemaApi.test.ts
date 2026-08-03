@@ -3,6 +3,7 @@ import { StoredToken } from '@/platform/integrations/types/auth';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { EmporixTokenManager } from '../../common/EmporixTokenManager';
 import EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
+import { disabledMetricsService, testRequestContext } from '../../common/impl/EmporixApiInvoker.test-doubles';
 import { EmporixTokenManagerAbstract, TokenStore } from '../../common/impl/EmporixTokenManagerAbstract';
 import type { EmporixTokenType } from '../../common/token-types';
 import { EmporixConfig } from '../../config';
@@ -86,6 +87,8 @@ describe('EmporixSchemaApi', () => {
           new EmporixApiInvoker(
             ctx.get<EmporixConfig>('EmporixConfig'),
             ctx.get<EmporixTokenManager>('EmporixTokenManager'),
+            disabledMetricsService(),
+            testRequestContext(),
           ),
       )
       .inSingletonScope();

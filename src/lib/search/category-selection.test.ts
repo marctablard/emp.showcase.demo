@@ -2,11 +2,6 @@ import type { Category } from '@/platform/services/model/category';
 import { withBatteryIncludedCategoryMetadata } from '@/platform/services/model/category/batteryincluded-category';
 import { resolveSelectedCategoryIdFromFilters } from './category-selection';
 
-
-
-
-
-
 describe('resolveSelectedCategoryIdFromFilters', () => {
   const navigationRoots: Category[] = [
     withBatteryIncludedCategoryMetadata(

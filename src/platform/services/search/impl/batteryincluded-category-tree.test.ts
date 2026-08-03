@@ -1,10 +1,6 @@
 import { getCategoryChildren } from '@/lib/category/category-tree-utils';
 import { buildBatteryIncludedCategoryTree } from './batteryincluded-category-tree';
 
-
-
-
-
 describe('buildBatteryIncludedCategoryTree', () => {
   it('builds a BI tree from breadcrumb rows filtered by published roots and ordered by published root order', () => {
     const response = {

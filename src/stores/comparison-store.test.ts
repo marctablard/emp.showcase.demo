@@ -20,6 +20,13 @@ const localStorageMock = (() => {
 
 Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock });
 
+// zustand's persist middleware resolves its default storage as
+// `createJSONStorage(() => window.localStorage)`. This suite runs in the node
+// test environment, which has no `window` — the lookup throws, persist falls
+// back to a no-op and nothing is ever written. Expose a `window` backed by the
+// same mock so the middleware stays live.
+Object.defineProperty(globalThis, 'window', { value: { localStorage: localStorageMock }, writable: true });
+
 describe('comparison-store', () => {
   let store: ReturnType<typeof createComparisonStore>;
   let getState: () => ComparisonStore;

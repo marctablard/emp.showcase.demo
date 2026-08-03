@@ -83,7 +83,11 @@ export async function POST(request: NextRequest) {
     if (result.quoteId) {
       try {
         if (comment !== undefined && comment !== '') {
-          await quoteService.updateQuote(result.quoteId, [{ op: 'REPLACE', path: '/comment', value: comment }], 'session');
+          await quoteService.updateQuote(
+            result.quoteId,
+            [{ op: 'REPLACE', path: '/comment', value: comment }],
+            'session',
+          );
         }
       } catch (updateError) {
         logger.error(

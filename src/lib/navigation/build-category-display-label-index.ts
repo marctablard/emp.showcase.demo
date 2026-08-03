@@ -2,11 +2,6 @@ import { L10N_MISSING_LABEL, l10n } from '@/lib/l10n';
 import type { Category } from '@/platform/services/model/category';
 import { getBatteryIncludedCategoryMetadata } from '@/platform/services/model/category/batteryincluded-category';
 
-
-
-
-
-
 /**
  * Flattens navigation category trees into id → display label for `locale`.
  * First non-empty resolved label wins per id (stable preorder walk). Omits {@link L10N_MISSING_LABEL}.
