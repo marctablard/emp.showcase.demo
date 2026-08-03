@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { useTranslations } from 'next-intl';
 import useEmblaCarousel, { type UseEmblaCarouselType } from 'embla-carousel-react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -111,11 +112,14 @@ function Carousel({
 
   React.useEffect(() => {
     if (!api) return;
-    onSelect(api);
+    // Seed the initial scroll state off the effect's synchronous path; the subscriptions below
+    // deliver every later update.
+    const cancelSeed = startEffectTask(async () => onSelect(api));
     api.on('reInit', onSelect);
     api.on('select', onSelect);
 
     return () => {
+      cancelSeed();
       api?.off('select', onSelect);
     };
   }, [api, onSelect]);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { useTranslations } from 'next-intl';
 import { useToast } from '@/hooks/ui/useToast';
 import { searchApprovalUsers } from '@/lib/client/approval';
@@ -67,7 +68,7 @@ export function useApproverSearch({
       return;
     }
 
-    void fetchApprovers();
+    return startEffectTask(fetchApprovers);
   }, [enabled, resourceId, fetchApprovers]);
 
   return {

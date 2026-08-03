@@ -36,13 +36,16 @@ export default function ProductVariantSelectorSimple({
   const { l10n, l10nOrEmpty } = useL10n();
   const { session } = useSession();
 
-  // Reset variant prices when currency changes to trigger re-fetch
-  useEffect(() => {
-    if (session?.currency && variantPrices !== undefined && variants.length > 0) {
+  // Reset variant prices when currency changes to trigger re-fetch. Adjusted during render
+  // rather than from an effect: https://react.dev/learn/you-might-not-need-an-effect
+  const sessionCurrency = session?.currency;
+  const [prevSessionCurrency, setPrevSessionCurrency] = useState(sessionCurrency);
+  if (prevSessionCurrency !== sessionCurrency) {
+    setPrevSessionCurrency(sessionCurrency);
+    if (sessionCurrency && variantPrices !== undefined && variants.length > 0) {
       setVariantPrices(undefined);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.currency]);
+  }
 
   useEffect(() => {
     let isCancelled = false;

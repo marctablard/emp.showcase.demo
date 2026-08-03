@@ -32,15 +32,7 @@ import fs from 'node:fs';
 // exception is valid through the end of that UTC day) and a `reason`
 // explaining why upgrading is not currently safe. Remove the entry once a
 // real fix lands or the date passes — do not silently extend `expires`.
-const ALLOWED_EXCEPTIONS = [
-  {
-    id: 'GHSA-mh99-v99m-4gvg',
-    package: 'brace-expansion',
-    reason:
-      'brace-expansion DoS via unbounded expansion length (CWE-400/CWE-770), pulled in transitively by eslint/jest tooling (minimatch). The only available fix requires a semver-major bump of eslint/jest that is not currently safe to take without breaking lint/test tooling. See docs/run-build-deploy.md ("npm audit Policy Exceptions") for rationale and removal condition.',
-    expires: '2026-08-08',
-  },
-];
+const ALLOWED_EXCEPTIONS = [];
 
 const FAIL_SEVERITIES = new Set(['high', 'critical']);
 const GHSA_RE = /GHSA-[0-9a-z]+-[0-9a-z]+-[0-9a-z]+/i;

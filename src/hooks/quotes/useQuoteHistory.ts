@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { QuoteHistory, UseQuoteHistoryResult } from '@/platform/services/model/quote';
 
@@ -30,9 +31,10 @@ export function useQuoteHistory(quoteId: string): UseQuoteHistoryResult {
   }, [quoteId]);
 
   useEffect(() => {
-    if (quoteId) {
-      fetchHistory();
+    if (!quoteId) {
+      return;
     }
+    return startEffectTask(fetchHistory);
   }, [quoteId, fetchHistory]);
 
   return {

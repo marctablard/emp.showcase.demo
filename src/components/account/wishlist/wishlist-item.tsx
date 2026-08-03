@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useSyncedState } from '@/hooks/common/use-synced-state';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { AlertCircle, FlipHorizontal2, Minus, Package, Plus, ShoppingCart, Trash2, Truck } from 'lucide-react';
@@ -39,7 +40,8 @@ export function WishlistItem({ item, onMovedToCart }: WishlistItemProps) {
   const { l10n } = useL10n();
   const { updateItemQuantity, removeItem, moveItemToCart, loading } = useWishlist();
   const { availability } = useAvailability(item.productId);
-  const [quantity, setQuantity] = useState(item.quantity);
+  // Follows the item's quantity when it changes upstream, while staying locally editable.
+  const [quantity, setQuantity] = useSyncedState(item.quantity);
   const [isProcessing, setIsProcessing] = useState(false);
   const quantityDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -54,11 +56,6 @@ export function WishlistItem({ item, onMovedToCart }: WishlistItemProps) {
   const { isInComparison, toggleProduct, isFull } = useComparison();
   const { disabled: compareDisabled, tooltip: compareTooltip } = useValidateAddToComparison(productForComparison);
   const isCompared = isInComparison(item.productId);
-
-  useEffect(() => {
-    if (item.quantity !== quantity) setQuantity(item.quantity);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.quantity]);
 
   useEffect(() => {
     return () => {
