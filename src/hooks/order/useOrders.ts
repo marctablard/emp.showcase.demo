@@ -82,19 +82,12 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
   let effectivePageNumber = pageNumber;
   if (didSearchQueryChange) {
     effectivePageNumber = 1;
-  }
-
-  useEffect(() => {
-    if (!didSearchQueryChange) {
-      return;
-    }
-
     setAppliedSearchQuery(searchQuery);
 
     if (pageNumber !== 1) {
       setPageNumber(1);
     }
-  }, [didSearchQueryChange, pageNumber, searchQuery]);
+  }
 
   // Generate query key for current request parameters.
   const queryKey = createOrderRequestKey(pageSize, effectivePageNumber, searchQuery, sort);

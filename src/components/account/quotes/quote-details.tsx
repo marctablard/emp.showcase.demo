@@ -26,6 +26,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { ToastType, notify } from '@/components/ui/toast-notification';
 import { useApproverSearch } from '@/hooks/approval/useApproverSearch';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { useQuoteHistory } from '@/hooks/quotes/useQuoteHistory';
 import { useQuote } from '@/hooks/quotes/useQuotes';
 import { useRouter } from '@/i18n/navigation';
@@ -177,16 +178,15 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   const quote = initialQuote || fetchedQuote;
 
   useEffect(() => {
-    if (!quote || quote.status !== 'OPEN') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset approval permission state synchronously when the quote leaves OPEN status
-      setApprovalPermission(null);
-      setIsCheckingApprovalPermission(false);
-      return;
-    }
-
     let isCancelled = false;
 
     const loadApprovalPermission = async (): Promise<void> => {
+      if (!quote || quote.status !== 'OPEN') {
+        setApprovalPermission(null);
+        setIsCheckingApprovalPermission(false);
+        return;
+      }
+
       try {
         setIsCheckingApprovalPermission(true);
 
@@ -214,10 +214,11 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
       }
     };
 
-    void loadApprovalPermission();
+    const cancelStart = startEffectTask(loadApprovalPermission);
 
     return () => {
       isCancelled = true;
+      cancelStart();
     };
   }, [quote, quoteId]);
 
@@ -442,7 +443,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
     return comment === '-' ? reason : `${comment} (${reason})`;
   };
 
-  const showInquiryCta = approvalPermission?.permitted === false;
+  const showInquiryCta = quote?.status === 'OPEN' && approvalPermission?.permitted === false;
   const primaryActionLabel = showInquiryCta ? t('inquireApproval') : t('accept');
   const isPrimaryActionDisabled = quote?.status !== 'OPEN' || isProcessing || isCheckingApprovalPermission;
 

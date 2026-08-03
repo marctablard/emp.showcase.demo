@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { SearchFilterLeafValue, SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { Quote } from '@/platform/services/model/quote';
@@ -86,7 +87,6 @@ function appendNormalizedQuoteFilters(queryParams: URLSearchParams, normalizedFi
  * @param params Optional search params for client-side filtering
  */
 export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
-  const skippedInitialFetchRef = useRef(false);
   const page = params?.page;
   const size = params?.size;
   const sort = params?.sort;
@@ -97,7 +97,7 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
   const normalizedFilters = normalizeQuoteFilters(filters);
   const normalizedInitialRequestFilters = normalizeQuoteFilters(initialRequest?.filters);
 
-  const canReuseInitialDataOnMount =
+  const canReuseInitialData =
     !!initialQuotes &&
     (page ?? 0) === (initialRequest?.page ?? 0) &&
     size === initialRequest?.size &&
@@ -105,7 +105,7 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
     searchQuery === initialRequest?.query &&
     normalizedFilters === normalizedInitialRequestFilters;
 
-  const [loading, setLoading] = useState<boolean>(!canReuseInitialDataOnMount);
+  const [loading, setLoading] = useState<boolean>(!canReuseInitialData);
   const [error, setError] = useState<Error | null>(null);
   const [quotes, setQuotes] = useState<Quote[]>(initialQuotes || []);
   const [pagination, setPagination] = useState<
@@ -186,25 +186,25 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
     } finally {
       setLoading(false);
     }
-  }, [normalizedFilters, page, searchQuery, size, sort]);
+  }, [page, size, sort, searchQuery, normalizedFilters]);
 
   const refetchQuotes = useCallback(async () => {
     await fetchQuotes();
   }, [fetchQuotes]);
 
   // Skip only the initial fetch when SSR data matches the exact params it was fetched with.
-  useEffect(() => {
-    if (!skippedInitialFetchRef.current) {
-      skippedInitialFetchRef.current = true;
-      if (canReuseInitialDataOnMount) {
-        return;
-      }
-    }
+  // Seeded during render but only ever read/written inside the effect: once the first effect run
+  // has consumed it, every later param change refetches, so navigating back to the SSR'd page
+  // still refreshes instead of showing whatever the previous fetch left in state.
+  const skipInitialFetchRef = useRef(canReuseInitialData);
 
-    queueMicrotask(() => {
-      void fetchQuotes();
-    });
-  }, [canReuseInitialDataOnMount, fetchQuotes]);
+  useEffect(() => {
+    if (skipInitialFetchRef.current) {
+      skipInitialFetchRef.current = false;
+      return;
+    }
+    return startEffectTask(fetchQuotes);
+  }, [fetchQuotes]);
 
   return {
     loading,

@@ -274,7 +274,30 @@ export default function Navigation() {
 }
 ```
 
-### 5. Integration with Services
+### 5. Interactive Locale Switching (Client Navigation Boundary)
+
+Interactive locale changes triggered from client components (for example, the header language switcher) must use the application navigation API from `@/i18n/navigation`.
+
+- Generate the destination with `getPathname({href, locale, site, forcePrefix: true})`.
+- Navigate with the client router (`useRouter().push(...)`).
+- Do not invoke server redirect helpers inside client event handlers.
+
+This keeps locale transitions aligned with combined site and locale routing rules without hardcoding URL segments.
+
+### 6. Browser Regression Coverage for Locale Route + Cookie Sync
+
+The language-switch behavior is verified with Playwright browser coverage:
+
+- Fixture: `e2e/fixtures/multilingual-site.ts`
+- Spec: `e2e/language-switcher.spec.ts`
+
+The fixture discovers an eligible multilingual site via `/api/site`, opens its English browse route, and asserts `html[lang="en"]` before interaction. The spec then selects German from the visible language menu and verifies:
+
+- Route transition to the German browse route
+- Rendered document locale (`html[lang="de"]`)
+- Locale cookie synchronization using `NEXT_PUBLIC_LOCALE_COOKIE` with `NEXT_LOCALE` fallback
+
+### 7. Integration with Services
 
 When working with our service layer, translations should be handled at the UI level, not in the services themselves. This keeps the service layer focused on business logic rather than presentation concerns:
 

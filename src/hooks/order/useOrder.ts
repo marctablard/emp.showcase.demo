@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import {
   fetchOrderById as apiFetchOrderById,
   fetchOrderStatusTransitions as apiFetchOrderStatusTransitions,
@@ -150,12 +151,14 @@ export const useOrder = (options: UseOrderOptions = {}): UseOrderResult => {
 
   useEffect(() => {
     if (!orderId) return;
+    const cancels: Array<() => void> = [];
     if (order === undefined) {
-      void fetchOrder();
+      cancels.push(startEffectTask(fetchOrder));
     }
     if (autoFetchStatusTransitions) {
-      void fetchStatusTransitions();
+      cancels.push(startEffectTask(fetchStatusTransitions));
     }
+    return () => cancels.forEach((cancel) => cancel());
   }, [orderId, order, autoFetchStatusTransitions, fetchOrder, fetchStatusTransitions]);
 
   return {

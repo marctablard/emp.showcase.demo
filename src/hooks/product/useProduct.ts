@@ -28,10 +28,15 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
   const { site } = useSite();
   const { getProduct, setCurrentProduct, addProduct, currentProductId } = useProductStore();
 
+  // Read out of `session` once: optional-chained member expressions in a dependency array
+  // cannot be tracked as stable dependencies.
+  const sessionCurrency = session?.currency;
+  const sessionSiteCode = session?.siteCode;
+
   const sessionPricingContext = useMemo(
     () => (session != null ? { currency: session.currency, siteCode: session.siteCode } : session),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional narrow slice: pricing helpers only use currency + siteCode
-    [session?.currency, session?.siteCode],
+    [sessionCurrency, sessionSiteCode],
   );
 
   let id: string | undefined;
@@ -115,9 +120,9 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
   );
 
   const refetch = useCallback(async () => {
-    const scope = session?.siteCode && session?.currency ? `${session.siteCode}|${session.currency}` : '';
+    const scope = sessionSiteCode && sessionCurrency ? `${sessionSiteCode}|${sessionCurrency}` : '';
     await fetchProduct(true, scope);
-  }, [session?.siteCode, session?.currency, fetchProduct]);
+  }, [sessionSiteCode, sessionCurrency, fetchProduct]);
 
   const productForUi = useMemo(() => {
     if (!product) {
@@ -150,18 +155,14 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
   }, [currentProductId, addLastSeenProduct, getProduct]);
 
   // Fail-safe: when session recovery fails (null + not loading), unblock the spinner
-  // so ProductDetail can show an error/retry state instead of infinite loading.
-  useEffect(() => {
-    if (!id) return;
-    if (session?.siteCode && session?.currency) return;
-    if (session === undefined) return;
-    if (loading && session === null && !sessionLoading) {
-      setLoading(false);
-      setError(new Error('Session unavailable — unable to load product pricing'));
-    }
-  }, [id, session, loading, sessionLoading]);
+  // so ProductDetail can show an error/retry state instead of infinite loading. Adjusted during
+  // render rather than from an effect; once `loading` is false the condition no longer holds.
+  if (id && session === null && !sessionLoading && loading) {
+    setLoading(false);
+    setError(new Error('Session unavailable — unable to load product pricing'));
+  }
 
-  const sessionPricingKey = session?.siteCode && session?.currency ? `${session.siteCode}|${session.currency}` : '';
+  const sessionPricingKey = sessionSiteCode && sessionCurrency ? `${sessionSiteCode}|${sessionCurrency}` : '';
   const prevSessionPricingKeyRef = useRef<string | null>(null);
   const prevProductIdRef = useRef<string | undefined>(undefined);
 

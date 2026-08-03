@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import UiLink from '@/components/ui/link';
 import { UINotification } from '@/components/ui/molecules/ui-notification';
 import { useCart } from '@/hooks/cart/useCart';
+import { useSyncedState } from '@/hooks/common/use-synced-state';
 import { useNotifications } from '@/hooks/notifications/useNotifications';
 import { useAvailability } from '@/hooks/product/useAvailability';
 import { useL10n } from '@/hooks/useL10n';
@@ -31,7 +32,8 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
   const t = useTranslations('cart');
   const { updateItemQuantity, removeItem, loading } = useCart(cart);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [quantity, setQuantity] = useState(item.quantity);
+  // Follows the item's quantity when it changes upstream, while staying locally editable.
+  const [quantity, setQuantity] = useSyncedState(item.quantity);
   const isStrike = false;
   const { registerNotificationListener, unregisterNotificationListener, markNotificationAsRead } = useNotifications();
   const [substitution, setSubstitution] = useState<CartItemSubstitution | null>(null);
@@ -79,13 +81,6 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
       unregisterNotificationListener(subscriptionId);
     };
   }, [handleCartNotification, registerNotificationListener, unregisterNotificationListener, item.product?.id, cart.id]);
-
-  useEffect(() => {
-    if (item.quantity != quantity) {
-      setQuantity(item.quantity);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.quantity]);
 
   // Handle quantity update
   const handleUpdateQuantity = async (newQuantity: number) => {

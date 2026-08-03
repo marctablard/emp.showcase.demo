@@ -104,6 +104,8 @@ interface LocalDashboardState {
   currentBreakpoint: string;
   renderedLayout: Layout[] | null;
   setRenderedLayout: (layout: Layout[]) => void;
+  setCurrentLayout: (layout: Layout[]) => void;
+  setCurrentBreakpoint: (breakpoint: string) => void;
 }
 
 // Create a local store to handle layout changes without causing re-renders
@@ -113,6 +115,8 @@ export const useLocalDashboardStore = create<LocalDashboardState>((set) => ({
   currentBreakpoint: 'lg',
   renderedLayout: null,
   setRenderedLayout: (layout: Layout[]) => set({ renderedLayout: layout }),
+  setCurrentLayout: (layout: Layout[]) => set({ currentLayout: layout }),
+  setCurrentBreakpoint: (breakpoint: string) => set({ currentBreakpoint: breakpoint }),
 }));
 
 export const findCardLayout = (cardKey: string, layout: Layout[]) => {

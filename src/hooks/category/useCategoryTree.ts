@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { fetchCategoryTree } from '@/lib/client/category';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { Category } from '@/platform/services/model/category';
@@ -58,9 +59,10 @@ export const useCategoryTree = (
 
   // Initialize category tree on first render if not already initialized
   useEffect(() => {
-    if (!initialCategoryTree) {
-      fetchTree();
+    if (initialCategoryTree) {
+      return;
     }
+    return startEffectTask(fetchTree);
   }, [fetchTree, initialCategoryTree]);
 
   return {

@@ -29,16 +29,16 @@ export function useProducts(productIds: Product['id'][] = [], fetchOptions?: Pro
         : (fetchOptions?.prices ?? false),
   });
 
-  // Stabilize fetchOptions to prevent unnecessary re-renders
+  // Latest-value ref so `fetchProducts` reads the current options without having to list the
+  // caller's (freshly allocated on every render) options object as a dependency. Kept in sync
+  // from an effect rather than during render, and declared before the fetch effect below so the
+  // ref is already updated by the time that effect runs for the same options change.
   const fetchOptionsRef = useRef<ProductFetchOptions | undefined>(fetchOptions);
-  const optionsChanged =
-    fetchOptionsRef.current?.variants !== fetchOptions?.variants ||
-    fetchOptionsRef.current?.prices !== fetchOptions?.prices ||
-    fetchOptionsRef.current?.categories !== fetchOptions?.categories;
 
-  if (optionsChanged) {
+  useEffect(() => {
     fetchOptionsRef.current = fetchOptions;
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchOptionsKey is the value identity of fetchOptions
+  }, [fetchOptionsKey]);
 
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);

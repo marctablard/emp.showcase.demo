@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { fetchCurrentCustomer } from '@/lib/client/customer';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { Customer } from '@/platform/services/model/customer/customer';
@@ -54,22 +55,24 @@ export const useCustomer = (initialCustomer?: Customer | null): CustomerHook => 
     }
   }, [setLoading, setCustomer, status, getLoading]);
 
-  // Initialize customer on first render if not already initialized
+  // Initialize customer on first render if not already initialized. The body runs off the
+  // effect's synchronous path so the store writes below do not cascade inside this commit.
   useEffect(() => {
-    // Do not fetch when unauthenticated or during session loading
-    if (status !== 'authenticated') {
-      setCustomer(null);
-      if (getLoading()) {
-        setLoading(false);
+    return startEffectTask(async () => {
+      // Do not fetch when unauthenticated or during session loading
+      if (status !== 'authenticated') {
+        setCustomer(null);
+        if (getLoading()) {
+          setLoading(false);
+        }
+        return;
       }
-      return;
-    }
 
-    if (!customer && !getLoading()) {
-      setLoading(true);
-      // check without state-effect
-      fetchCustomer();
-    }
+      if (!customer && !getLoading()) {
+        setLoading(true);
+        await fetchCustomer();
+      }
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 

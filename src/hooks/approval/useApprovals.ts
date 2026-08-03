@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import type {
   Approval,
   ApprovalCreateRequest,
@@ -55,10 +56,7 @@ interface UseApprovalsReturn {
  */
 export function useApprovals(initialApprovals?: Approval[], options: UseApprovalsOptions = {}): UseApprovalsReturn {
   const { pageNumber, pageSize, sort, query, initialTotalCount, initialRequest } = options;
-  const hasFetchedRef = useRef(false);
-
   const canReuseInitialData =
-    !hasFetchedRef.current &&
     !!initialApprovals &&
     (pageNumber ?? 1) === (initialRequest?.pageNumber ?? 1) &&
     pageSize === initialRequest?.pageSize &&
@@ -82,7 +80,6 @@ export function useApprovals(initialApprovals?: Approval[], options: UseApproval
   });
 
   const fetchApprovals = useCallback(async () => {
-    hasFetchedRef.current = true;
     try {
       setLoading(true);
       setError(null);
@@ -142,11 +139,17 @@ export function useApprovals(initialApprovals?: Approval[], options: UseApproval
   }, [fetchApprovals]);
 
   // Skip only the initial fetch when SSR data matches the exact params it was fetched with.
+  // Seeded during render but only ever read/written inside the effect: once the first effect run
+  // has consumed it, every later param change refetches.
+  const skipInitialFetchRef = useRef(canReuseInitialData);
+
   useEffect(() => {
-    if (!canReuseInitialData) {
-      fetchApprovals();
+    if (skipInitialFetchRef.current) {
+      skipInitialFetchRef.current = false;
+      return;
     }
-  }, [canReuseInitialData, fetchApprovals]);
+    return startEffectTask(fetchApprovals);
+  }, [fetchApprovals]);
 
   const createApproval = useCallback(
     async (approvalData: ApprovalCreateRequest): Promise<ApprovalId> => {

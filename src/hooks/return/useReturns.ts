@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { fetchReturnsPage } from '@/lib/client/returns';
 import type { Return } from '@/platform/services/model/return';
 
@@ -35,18 +36,17 @@ interface UseReturnsOptions {
  */
 export function useReturns(initialReturns?: Return[], options: UseReturnsOptions = {}): UseReturnsReturn {
   const { pageSize, pageNumber, sort, query, forceRefreshOnMount = false, initialTotalCount, initialRequest } = options;
-  const skippedInitialFetchRef = useRef(false);
   const [returns, setReturns] = useState<Return[]>(initialReturns || []);
   const [totalCount, setTotalCount] = useState<number | undefined>(initialTotalCount);
 
-  const canReuseInitialDataOnMount =
+  const canReuseInitialData =
     !!initialReturns &&
     pageNumber === (initialRequest?.pageNumber ?? 1) &&
     pageSize === initialRequest?.pageSize &&
     query === initialRequest?.query &&
     sort === initialRequest?.sort;
 
-  const [loading, setLoading] = useState<boolean>(!canReuseInitialDataOnMount);
+  const [loading, setLoading] = useState<boolean>(!canReuseInitialData);
   const [error, setError] = useState<Error | null>(null);
 
   const fetchReturnsData = useCallback(
@@ -70,18 +70,18 @@ export function useReturns(initialReturns?: Return[], options: UseReturnsOptions
     await fetchReturnsData(true);
   }, [fetchReturnsData]);
 
-  useEffect(() => {
-    if (!skippedInitialFetchRef.current) {
-      skippedInitialFetchRef.current = true;
-      if (canReuseInitialDataOnMount && !forceRefreshOnMount) {
-        return;
-      }
-    }
+  // Skip only the initial fetch when SSR data matches the exact params it was fetched with.
+  // Seeded during render but only ever read/written inside the effect: once the first effect run
+  // has consumed it, every later param change refetches.
+  const skipInitialFetchRef = useRef(canReuseInitialData && !forceRefreshOnMount);
 
-    queueMicrotask(() => {
-      void fetchReturnsData(forceRefreshOnMount);
-    });
-  }, [canReuseInitialDataOnMount, forceRefreshOnMount, fetchReturnsData]);
+  useEffect(() => {
+    if (skipInitialFetchRef.current) {
+      skipInitialFetchRef.current = false;
+      return;
+    }
+    return startEffectTask(() => fetchReturnsData(forceRefreshOnMount));
+  }, [forceRefreshOnMount, fetchReturnsData]);
 
   return {
     returns,
