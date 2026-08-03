@@ -33,8 +33,7 @@ export const CONTAINER_CHILD_KEYS: Partial<Record<CmsComponentMapKey, 'body' | '
   grid: 'columns',
 };
 
-const isMapKey = (type: string): type is CmsComponentMapKey =>
-  Object.prototype.hasOwnProperty.call(cmsComponentMap, type);
+const isMapKey = (type: string): type is CmsComponentMapKey => Object.hasOwn(cmsComponentMap, type);
 
 interface CmsRendererProps {
   component: CMSComponent;

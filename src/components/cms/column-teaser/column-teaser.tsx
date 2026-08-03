@@ -27,8 +27,8 @@ const ColumnTeaser = ({
 
         {sideImgs.length > 0 && (
           <div className="col-span-2 md:col-span-1 flex flex-col gap-4">
-            {sideImgs.slice(0, 3).map((image, index) => (
-              <div key={index} className="flex-1 h-20 md:h-auto min-h-[80px]">
+            {sideImgs.slice(0, 3).map((image) => (
+              <div key={image.filename} className="flex-1 h-20 md:h-auto min-h-[80px]">
                 <ColumnTeaserImage image={image} className="w-full h-full" />
               </div>
             ))}

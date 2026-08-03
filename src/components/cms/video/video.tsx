@@ -29,6 +29,9 @@ const Video = ({
         aria-label={alt_text || video_file?.alt || 'Video'}
       >
         <source src={video_file?.filename} type="video/mp4" />
+        {/* The CMS schema carries no subtitle asset, but the element must still
+            expose a caption track to stay accessible by default. */}
+        <track kind="captions" />
       </video>
     </div>
   );

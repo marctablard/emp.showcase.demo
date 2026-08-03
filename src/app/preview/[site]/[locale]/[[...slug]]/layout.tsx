@@ -57,10 +57,10 @@ const fontBody = Open_Sans({
 export default async function PreviewLocaleLayout({
   children,
   params,
-}: {
+}: Readonly<{
   children: ReactNode;
   params: Promise<{ site: string; locale: Locale }>;
-}) {
+}>) {
   const { locale, site: siteCode } = await params;
 
   // Reject unsupported locales before touching any SSR data source.

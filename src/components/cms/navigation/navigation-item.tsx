@@ -5,7 +5,7 @@ import { sanitizeHref } from '@/lib/sanitize-href';
 import type { NavigationItemData } from './schema';
 
 const NavigationItem = ({ title, slug, link, is_external }: NavigationItemData) => {
-  const isExternal = is_external || (link && link.startsWith('http'));
+  const isExternal = is_external || link?.startsWith('http');
   const rawHref = link || (slug ? `/${slug}` : '#');
   const href = sanitizeHref(rawHref);
 

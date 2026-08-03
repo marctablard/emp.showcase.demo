@@ -60,7 +60,7 @@ const renderBlock = (block: RichtextBlock, key: number): ReactNode => {
       return (
         <ListTag key={key}>
           {block.items.map((item, itemIdx) => (
-            <li key={itemIdx}>{renderInlines(item)}</li>
+            <li key={`${key}-item-${itemIdx}`}>{renderInlines(item)}</li>
           ))}
         </ListTag>
       );

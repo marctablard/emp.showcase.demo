@@ -13,7 +13,7 @@ const apiBypassPrefixes = ['/api/auth', '/api/csrf', '/api/notifications', '/api
 // bypass is an EXACT match — `/api/cms` (and any other `/api/cms/*` route)
 // stays under normal CSRF handling; only the machine-to-machine webhook sink
 // is exempt.
-const csrfExactBypass = ['/api/cms/webhook'];
+const csrfExactBypass = new Set(['/api/cms/webhook']);
 const accountRegex = /^(.*)\/account\/([^/]+)$/;
 const authSubpageRegex = /^(.*)\/(category|browse|product)\/([^/]+)$/;
 const securedPatterns = [accountRegex, authSubpageRegex];
@@ -85,7 +85,7 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
   // 2) Handle API requests with CSRF validation
   let response;
   if (pathname.startsWith('/api/')) {
-    const csrfResult = csrfExactBypass.includes(pathname) ? undefined : validateCsrf(req);
+    const csrfResult = csrfExactBypass.has(pathname) ? undefined : validateCsrf(req);
     if (csrfResult) {
       response = csrfResult;
     } else {

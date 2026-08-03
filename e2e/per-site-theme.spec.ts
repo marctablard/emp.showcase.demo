@@ -100,7 +100,7 @@ async function mountThemeLink(page: Page, href: string, siteCode: string): Promi
         const link = document.createElement('link');
         link.rel = 'stylesheet';
         link.href = href;
-        link.setAttribute('data-site-theme', siteCode);
+        link.dataset.siteTheme = siteCode;
         document.body.insertBefore(link, document.body.firstChild);
         if (link.sheet) {
           resolve();

@@ -66,8 +66,8 @@ if (!isCi || process.env.DOTENV_CONFIG_PATH) {
 
 const hasEmporixTestConfig = Boolean(
   process.env.NEXT_EMPORIX_TEST_TENANT &&
-    process.env.NEXT_EMPORIX_TEST_CLIENT_ID &&
-    process.env.NEXT_EMPORIX_TEST_CLIENT_SECRET,
+  process.env.NEXT_EMPORIX_TEST_CLIENT_ID &&
+  process.env.NEXT_EMPORIX_TEST_CLIENT_SECRET,
 );
 const runIntegrationTests = isCi || process.env.RUN_INTEGRATION_TESTS === 'true';
 const skipEmporixIntegrationTests = !runIntegrationTests || !hasEmporixTestConfig;
@@ -234,9 +234,9 @@ const customJestConfig = {
         ...commonJestConfig.testPathIgnorePatterns,
         'src/components/checkout/checkout-validation-registry.*\\.test\\.(ts|tsx)$',
         // CMS component tests need RTL/jsdom; routed to the React Tests project.
-        'src/components/cms/.*\\.test\\.(ts|tsx)$',
+        String.raw`src/components/cms/.*\.test\.(ts|tsx)$`,
         // Theme component tests need RTL/jsdom; routed to the React Tests project.
-        'src/components/theme/.*\\.test\\.(ts|tsx)$',
+        String.raw`src/components/theme/.*\.test\.(ts|tsx)$`,
       ],
     },
     {

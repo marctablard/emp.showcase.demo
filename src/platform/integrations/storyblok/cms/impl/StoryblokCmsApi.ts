@@ -27,7 +27,13 @@ export class StoryblokCmsApi implements StoryblokCmsApiContract {
   }
 
   getSpaceId(): string | null {
-    return process.env.NEXT_STORYBLOK_SPACE_ID?.trim() || null;
+    // A whitespace-only value counts as unset, so this is deliberately not a
+    // nullish fallback — an empty string must collapse to null as well.
+    const spaceId = process.env.NEXT_STORYBLOK_SPACE_ID?.trim();
+    if (spaceId === undefined || spaceId === '') {
+      return null;
+    }
+    return spaceId;
   }
 
   async getStory(

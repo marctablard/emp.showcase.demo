@@ -1,7 +1,7 @@
 import type { HTMLAttributes } from 'react';
 import { type SbBlokData, storyblokEditable } from '@storyblok/react/rsc';
-import crypto from 'crypto';
 import { inject } from 'inversify';
+import crypto from 'node:crypto';
 import 'server-only';
 import { LayoutContentSchema } from '@/components/cms/component-schema';
 import { routingConfig } from '@/i18n/routing';
@@ -177,7 +177,7 @@ export class StoryblokCmsAdapter implements CmsAdapter {
       rest = rest.slice(firstSlash + 1);
     }
 
-    const targetSites = explicitSite !== null ? [explicitSite] : this.configuredSites();
+    const targetSites = explicitSite === null ? this.configuredSites() : [explicitSite];
     const expand = <E extends WebhookEvent>(make: (site: string, locale: string) => E): E[] =>
       targetSites.flatMap((site) => targetLocales.map((locale) => make(site, locale)));
 

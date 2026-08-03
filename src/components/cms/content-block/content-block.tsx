@@ -57,8 +57,8 @@ const ContentBlock = ({
 
         {images && images.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-            {images.map((image, index) => (
-              <div key={index} className="relative h-48">
+            {images.map((image) => (
+              <div key={image.filename} className="relative h-48">
                 <Image src={image.filename} alt={image.alt || ''} fill className="object-cover rounded" />
               </div>
             ))}

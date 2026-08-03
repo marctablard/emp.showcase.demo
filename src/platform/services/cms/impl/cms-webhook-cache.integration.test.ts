@@ -13,7 +13,7 @@
  * and the REAL `globalThis` cache, then asserts the end-to-end round-trip in
  * both single-site and multi-site spaces: warm → webhook → cold.
  */
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import type { StoryblokCmsApi, StoryblokStoryResult } from '@/platform/integrations/storyblok/cms/StoryblokCmsApi';
 import { StoryblokCmsAdapter } from '@/platform/integrations/storyblok/cms/impl/StoryblokCmsAdapter';
 import type { StoryblokCmsMapper } from '@/platform/integrations/storyblok/cms/impl/StoryblokCmsMapper';
@@ -22,7 +22,9 @@ import type { CMSPage } from '../../model/cms';
 import { __resetCmsCache } from '../cms-cache';
 import { DelegatingCmsServiceSSR } from './DelegatingCmsServiceSSR';
 
-const WEBHOOK_SECRET = 'integration-secret';
+// Generated per run rather than checked in as a literal: the value only has to
+// be identical on both sides of the HMAC round-trip within this suite.
+const WEBHOOK_SECRET = crypto.randomBytes(16).toString('hex');
 
 const sign = (rawBody: string): string =>
   crypto.createHmac('sha256', WEBHOOK_SECRET).update(rawBody, 'utf8').digest('hex');

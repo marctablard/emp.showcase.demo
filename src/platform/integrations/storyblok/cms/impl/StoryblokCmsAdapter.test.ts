@@ -21,6 +21,7 @@
  *  - `BridgeScript` is the `StoryblokBridgeScript` component type
  *    (mounted once in the layout for the Visual Editor).
  */
+import nodeCrypto from 'node:crypto';
 import { getInjectableId } from '@/platform/core/di/injectable';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { CMSPage } from '@/platform/services/model/cms';
@@ -421,10 +422,9 @@ describe('StoryblokCmsAdapter — getLayout(layoutId, locale, site)', () => {
   });
 });
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports -- crypto for signing fixtures
-const nodeCrypto = require('crypto') as typeof import('crypto');
-
-const WEBHOOK_SECRET = 'top-secret';
+// Generated per run rather than checked in as a literal: the value only has to
+// be identical on both sides of the HMAC round-trip within this suite.
+const WEBHOOK_SECRET = nodeCrypto.randomBytes(16).toString('hex');
 
 const sign = (rawBody: string, secret: string = WEBHOOK_SECRET): string =>
   nodeCrypto.createHmac('sha256', secret).update(rawBody, 'utf8').digest('hex');

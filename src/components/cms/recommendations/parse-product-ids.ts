@@ -10,6 +10,6 @@
  */
 export const parseProductIds = (products: string): string[] =>
   products
-    .split(/\s*,\s*/)
+    .split(',')
     .map((id) => id.trim())
     .filter(Boolean);
