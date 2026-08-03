@@ -103,8 +103,8 @@ describe('Button — component', () => {
     const { container } = render(<Button {...VALID_PROPS} data-blok-c="button" data-blok-uid="editable-uid-btn" />);
 
     const root = container.firstChild as HTMLElement;
-    expect(root.getAttribute('data-blok-c')).toBe('button');
-    expect(root.getAttribute('data-blok-uid')).toBe('editable-uid-btn');
+    expect(root.dataset.blokC).toBe('button');
+    expect(root.dataset.blokUid).toBe('editable-uid-btn');
   });
 
   it('sanitises a javascript: link — rendered anchor href must not contain the scheme', () => {

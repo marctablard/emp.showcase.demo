@@ -20,6 +20,6 @@ interface CmsBodyFrameProps {
  * Provider-agnostic wrapper for a rendered CMS page body. Applies the shared
  * top-spacer unless the page opts out via `no_margin`.
  */
-export function CmsBodyFrame({ noMargin, children }: CmsBodyFrameProps) {
+export function CmsBodyFrame({ noMargin, children }: Readonly<CmsBodyFrameProps>) {
   return <div className={noMargin ? '' : CMS_BODY_SPACER_CLASS}>{children}</div>;
 }

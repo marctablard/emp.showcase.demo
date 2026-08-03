@@ -81,7 +81,7 @@ const renderBlock = (block: RichtextBlock, key: number): ReactNode => {
   }
 };
 
-const Richtext = ({ id: _id, type: _type, blocks, className, ...rest }: RichtextProps) => {
+const Richtext = ({ id: _id, type: _type, blocks, className, ...rest }: Readonly<RichtextProps>) => {
   return (
     <div className={cn('richtext', className)} {...rest}>
       {blocks.map((block, idx) => renderBlock(block, idx))}

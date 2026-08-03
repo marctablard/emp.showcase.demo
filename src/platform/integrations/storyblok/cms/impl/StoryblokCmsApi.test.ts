@@ -92,8 +92,9 @@ describe('StoryblokCmsApi', () => {
   describe('identity & lazy init', () => {
     it('does NOT call storyblokInit at module load (lazy-init behaviour)', async () => {
       const { StoryblokCmsApi } = await import('./StoryblokCmsApi');
-      new StoryblokCmsApi(silentLogger());
+      const api = new StoryblokCmsApi(silentLogger());
 
+      expect(api).toBeInstanceOf(StoryblokCmsApi);
       expect(mockStoryblokInit).not.toHaveBeenCalled();
     });
 

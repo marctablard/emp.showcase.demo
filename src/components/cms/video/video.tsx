@@ -15,7 +15,7 @@ const Video = ({
   alt_text,
   className,
   ...rest
-}: VideoProps) => {
+}: Readonly<VideoProps>) => {
   return (
     <div className={cn('w-full h-full', className)} {...rest}>
       <video

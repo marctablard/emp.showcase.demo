@@ -35,7 +35,7 @@ function previewUrl(
     token?: string | null;
   } = {},
 ): URL {
-  const url = new URL('http://preview.local/preview/main/en/home');
+  const url = new URL('https://preview.local/preview/main/en/home');
   const { storyblok = '1', timestamp = NOW_SECONDS, token = 'deadbeefcafef00d' } = opts;
   if (storyblok !== null) url.searchParams.set('_storyblok', storyblok);
   if (timestamp !== null) url.searchParams.set('_storyblok_tk[timestamp]', String(timestamp));
@@ -77,7 +77,7 @@ describe('isStoryblokPreviewRequest — presence of the three signed keys', () =
   });
 
   it('returns false for a plain (non-preview) URL with no Storyblok params', () => {
-    expect(isStoryblokPreviewRequest(new URL('http://preview.local/preview/main/en/home'))).toBe(false);
+    expect(isStoryblokPreviewRequest(new URL('https://preview.local/preview/main/en/home'))).toBe(false);
   });
 });
 
@@ -118,7 +118,7 @@ describe('isStoryblokPreviewRequest — purity (no @storyblok import in the sour
     // eslint-disable-next-line @typescript-eslint/no-require-imports -- test-time source-text inspection
     const path = require('node:path');
     const source = fs.readFileSync(path.resolve(__dirname, './storyblok-preview-detection.ts'), 'utf8') as string;
-    const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+    const code = source.replaceAll(/\/\*[\s\S]*?\*\//g, '').replaceAll(/\/\/[^\n]*/g, '');
 
     expect(code).not.toMatch(/@storyblok\//);
     expect(code).not.toMatch(/server-only/);

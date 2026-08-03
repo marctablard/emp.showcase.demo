@@ -17,7 +17,7 @@
 import { PREVIEW_ROUTE_PREFIX, getPreviewDetector } from './preview-detector-registry';
 
 /** A non-preview URL — never-detectors return false, the storyblok one too. */
-const PLAIN_URL = new URL('http://preview.local/preview/main/en/home');
+const PLAIN_URL = new URL('https://preview.local/preview/main/en/home');
 
 describe('preview-detector-registry — PREVIEW_ROUTE_PREFIX', () => {
   it('is the literal "/preview" (single source of truth for the route prefix)', () => {
@@ -61,7 +61,7 @@ describe('getPreviewDetector — provider dispatch', () => {
 
   it('the never-detector ignores even a well-formed preview query (always false)', () => {
     const detector = getPreviewDetector({ NEXT_CMS_PROVIDER: 'none' } as unknown as NodeJS.ProcessEnv);
-    const signed = new URL('http://preview.local/preview/main/en/home');
+    const signed = new URL('https://preview.local/preview/main/en/home');
     signed.searchParams.set('_storyblok', '1');
     signed.searchParams.set('_storyblok_tk[timestamp]', String(Math.floor(Date.now() / 1000)));
     signed.searchParams.set('_storyblok_tk[token]', 'deadbeef');
@@ -77,7 +77,7 @@ describe('preview-detector-registry — edge safety (source-text audit)', () => 
     // eslint-disable-next-line @typescript-eslint/no-require-imports -- test-time source-text inspection
     const path = require('node:path');
     const source = fs.readFileSync(path.resolve(__dirname, './preview-detector-registry.ts'), 'utf8') as string;
-    const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+    const code = source.replaceAll(/\/\*[\s\S]*?\*\//g, '').replaceAll(/\/\/[^\n]*/g, '');
 
     expect(code).not.toMatch(/@storyblok\//);
     expect(code).not.toMatch(/['"]server-only['"]/);

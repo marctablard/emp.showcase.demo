@@ -21,7 +21,7 @@ const MediaText = ({
   image_position,
   className,
   ...rest
-}: MediaTextProps) => {
+}: Readonly<MediaTextProps>) => {
   const button = main_button ? main_button[0] : null;
   const textContent = extractTipTapText(text);
 

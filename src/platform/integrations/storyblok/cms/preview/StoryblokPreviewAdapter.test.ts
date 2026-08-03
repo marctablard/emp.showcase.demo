@@ -60,10 +60,10 @@ const SAMPLE_PAGE: CMSPage = {
   components: [],
 };
 
-const storyResult = (content: Record<string, unknown> = { body: [] }): StoryblokStoryResult =>
+const storyResult = (content?: Record<string, unknown>): StoryblokStoryResult =>
   ({
     data: {
-      story: { id: 1, full_slug: 'main/home', slug: 'home', name: 'Home', content },
+      story: { id: 1, full_slug: 'main/home', slug: 'home', name: 'Home', content: content ?? { body: [] } },
     },
   }) as unknown as StoryblokStoryResult;
 
@@ -87,7 +87,7 @@ const buildMapper = (): jest.Mocked<StoryblokCmsMapper> =>
  */
 function previewUrl(opts: { ts?: number | null; spaceId?: string | null; omitToken?: boolean } = {}): URL {
   const { ts = NOW_SECONDS, spaceId = SPACE_ID, omitToken = false } = opts;
-  const url = new URL('http://preview.local/preview/main/en/home');
+  const url = new URL('https://preview.local/preview/main/en/home');
   url.searchParams.set('_storyblok', '1');
   if (ts !== null) url.searchParams.set('_storyblok_tk[timestamp]', String(ts));
   if (!omitToken) url.searchParams.set('_storyblok_tk[token]', 'deadbeefcafef00d');
@@ -126,7 +126,7 @@ describe('StoryblokPreviewAdapter — identity & detector delegation', () => {
   it('isPreviewRequest returns false for a plain (non-preview) URL', () => {
     const adapter = new StoryblokPreviewAdapter(buildApi(), buildMapper(), silentLogger());
 
-    expect(adapter.isPreviewRequest(new URL('http://preview.local/preview/main/en/home'))).toBe(false);
+    expect(adapter.isPreviewRequest(new URL('https://preview.local/preview/main/en/home'))).toBe(false);
   });
 });
 

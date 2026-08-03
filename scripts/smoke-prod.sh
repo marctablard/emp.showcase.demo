@@ -112,7 +112,7 @@ for ((i = 0; i < READY_TIMEOUT; i++)); do
 done
 
 if [[ "${ready}" -ne 1 ]]; then
-  echo "✗ server did not become ready within ${READY_TIMEOUT}s"
+  echo "✗ server did not become ready within ${READY_TIMEOUT}s" >&2
   exit 1
 fi
 
@@ -152,11 +152,11 @@ home_status="$(
 )"
 
 if [[ "${home_status}" == "000" ]]; then
-  echo "✗ smoke:prod failed — no HTTP response from ${BASE}/ (connection error)."
+  echo "✗ smoke:prod failed — no HTTP response from ${BASE}/ (connection error)." >&2
   exit 1
 fi
 if [[ "${home_status}" -ge 500 ]]; then
-  echo "✗ smoke:prod failed — home route returned server error ${home_status}."
+  echo "✗ smoke:prod failed — home route returned server error ${home_status}." >&2
   exit 1
 fi
 

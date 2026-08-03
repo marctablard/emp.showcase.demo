@@ -33,7 +33,7 @@ export default async function PreviewPage({
     notFound();
   }
 
-  const url = new URL('http://preview.local');
+  const url = new URL('https://preview.local');
   for (const [key, value] of Object.entries(search)) {
     if (Array.isArray(value)) {
       for (const v of value) {

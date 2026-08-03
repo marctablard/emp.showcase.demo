@@ -19,7 +19,7 @@ interface SiteThemeStyleProps {
  * `@/platform/integrations/*`. The site code is passed in as a prop by the
  * layout, which already resolves it from the route segment.
  */
-export function SiteThemeStyle({ siteCode }: SiteThemeStyleProps) {
+export function SiteThemeStyle({ siteCode }: Readonly<SiteThemeStyleProps>) {
   const href = resolveThemeForSite(siteCode);
   return <link rel="stylesheet" href={href} data-site-theme={siteCode} />;
 }

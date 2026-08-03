@@ -128,7 +128,7 @@ describe('Page — component (root contract)', () => {
     );
 
     const root = container.firstChild as HTMLElement;
-    expect(root.getAttribute('data-blok-c')).toBe('page');
-    expect(root.getAttribute('data-blok-uid')).toBe('editable-uid-pg');
+    expect(root.dataset.blokC).toBe('page');
+    expect(root.dataset.blokUid).toBe('editable-uid-pg');
   });
 });

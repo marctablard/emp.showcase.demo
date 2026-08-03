@@ -5,7 +5,7 @@ import type { LogoData } from './schema';
 
 export type LogoProps = LogoData & HTMLAttributes<HTMLDivElement>;
 
-const Logo = ({ id: _id, type: _type, site: _site, image, alt_text, className, ...rest }: LogoProps) => {
+const Logo = ({ id: _id, type: _type, site: _site, image, alt_text, className, ...rest }: Readonly<LogoProps>) => {
   if (!image?.filename) {
     return null;
   }

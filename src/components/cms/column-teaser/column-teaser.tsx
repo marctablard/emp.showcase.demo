@@ -5,7 +5,14 @@ import type { ColumnTeaserData } from './schema';
 
 export type ColumnTeaserProps = ColumnTeaserData & HTMLAttributes<HTMLDivElement>;
 
-const ColumnTeaser = ({ id: _id, type: _type, main_image, side_images, className, ...rest }: ColumnTeaserProps) => {
+const ColumnTeaser = ({
+  id: _id,
+  type: _type,
+  main_image,
+  side_images,
+  className,
+  ...rest
+}: Readonly<ColumnTeaserProps>) => {
   const mainImg = main_image;
   const sideImgs = side_images || [];
 

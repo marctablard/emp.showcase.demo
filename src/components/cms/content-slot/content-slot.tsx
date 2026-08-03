@@ -15,6 +15,6 @@ export type ContentSlotProps = ContentSlotData;
  * a slot it could not substitute (no `pageBody` in scope); rendering `null`
  * is the correct graceful degradation in that case.
  */
-const ContentSlot = (_props: ContentSlotProps) => null;
+const ContentSlot = (_props: Readonly<ContentSlotProps>) => null;
 
 export default ContentSlot;

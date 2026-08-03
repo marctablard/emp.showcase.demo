@@ -88,8 +88,8 @@ describe('ContentBlock — component', () => {
     );
 
     const root = container.firstChild as HTMLElement;
-    expect(root.getAttribute('data-blok-c')).toBe('content-block');
-    expect(root.getAttribute('data-blok-uid')).toBe('editable-uid-cb');
+    expect(root.dataset.blokC).toBe('content-block');
+    expect(root.dataset.blokUid).toBe('editable-uid-cb');
   });
 
   it('sanitises a javascript: button link — rendered anchor href must not contain the scheme', () => {

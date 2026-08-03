@@ -139,7 +139,7 @@ describe('Hero — component', () => {
     const { container } = render(<Hero {...VALID_HERO} data-blok-c="hero" data-blok-uid="editable-uid-hero" />);
 
     const root = container.firstChild as HTMLElement;
-    expect(root.getAttribute('data-blok-c')).toBe('hero');
-    expect(root.getAttribute('data-blok-uid')).toBe('editable-uid-hero');
+    expect(root.dataset.blokC).toBe('hero');
+    expect(root.dataset.blokUid).toBe('editable-uid-hero');
   });
 });

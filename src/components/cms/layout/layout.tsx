@@ -17,7 +17,7 @@ export type LayoutProps = LayoutData &
  * full-height column so a sticky header / footer in the body flow as
  * expected.
  */
-const Layout = ({ id: _id, type: _type, body: _body, children, className, ...rest }: LayoutProps) => {
+const Layout = ({ id: _id, type: _type, body: _body, children, className, ...rest }: Readonly<LayoutProps>) => {
   return (
     <div className={cn('flex min-h-full flex-col', className)} {...rest}>
       {children}

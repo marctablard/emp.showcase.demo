@@ -5,7 +5,7 @@ import type { TeaserData } from './schema';
 
 export type TeaserProps = TeaserData & HTMLAttributes<HTMLDivElement>;
 
-const Teaser = ({ id: _id, type: _type, headline, className, ...rest }: TeaserProps) => {
+const Teaser = ({ id: _id, type: _type, headline, className, ...rest }: Readonly<TeaserProps>) => {
   return (
     <div className={cn('p-6 bg-surface-disabled rounded-md shadow-sm text-center mb-6', className)} {...rest}>
       <H2 variant="h6" className="mb-4">

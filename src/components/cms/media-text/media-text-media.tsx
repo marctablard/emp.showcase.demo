@@ -11,7 +11,7 @@ type MediaTextMediaProps = {
   video?: MediaTextData['video'];
 };
 
-const MediaTextMedia = ({ image, video: videos }: MediaTextMediaProps) => {
+const MediaTextMedia = ({ image, video: videos }: Readonly<MediaTextMediaProps>) => {
   const video = videos?.[0];
   const videoContainer = useRef<HTMLDivElement>(null);
   const videoPlayer = useRef<HTMLDivElement>(null);

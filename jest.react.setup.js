@@ -9,15 +9,19 @@ require('@testing-library/jest-dom');
 // Provide a minimal no-op polyfill compatible with the standard return
 // shape — listeners are inert, which is fine for component-render tests
 // that do not exercise responsive behaviour.
-if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
-  window.matchMedia = (query) => ({
+const noop = () => {
+  // Inert listener: render tests do not exercise responsive behaviour.
+};
+
+if (globalThis.window !== undefined && typeof globalThis.window.matchMedia !== 'function') {
+  globalThis.window.matchMedia = (query) => ({
     matches: false,
     media: query,
     onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
+    addListener: noop,
+    removeListener: noop,
+    addEventListener: noop,
+    removeEventListener: noop,
     dispatchEvent: () => false,
   });
 }
@@ -27,28 +31,38 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
 // elements, lazy-loaders) crash without these. Inert stubs keep the
 // render path alive — tests that need real observer behaviour should
 // override locally with `jest.spyOn(window, 'IntersectionObserver')`.
-if (typeof window !== 'undefined' && typeof window.IntersectionObserver === 'undefined') {
+if (globalThis.window !== undefined && globalThis.window.IntersectionObserver === undefined) {
   class IntersectionObserverStub {
-    constructor() {}
-    observe() {}
-    unobserve() {}
-    disconnect() {}
+    observe() {
+      // Inert stub: no viewport intersections are simulated.
+    }
+    unobserve() {
+      // Inert stub: nothing is ever observed.
+    }
+    disconnect() {
+      // Inert stub: nothing is ever observed.
+    }
     takeRecords() {
       return [];
     }
   }
-  window.IntersectionObserver = IntersectionObserverStub;
-  global.IntersectionObserver = IntersectionObserverStub;
+  globalThis.window.IntersectionObserver = IntersectionObserverStub;
+  globalThis.IntersectionObserver = IntersectionObserverStub;
 }
-if (typeof window !== 'undefined' && typeof window.ResizeObserver === 'undefined') {
+if (globalThis.window !== undefined && globalThis.window.ResizeObserver === undefined) {
   class ResizeObserverStub {
-    constructor() {}
-    observe() {}
-    unobserve() {}
-    disconnect() {}
+    observe() {
+      // Inert stub: no resize events are simulated.
+    }
+    unobserve() {
+      // Inert stub: nothing is ever observed.
+    }
+    disconnect() {
+      // Inert stub: nothing is ever observed.
+    }
   }
-  window.ResizeObserver = ResizeObserverStub;
-  global.ResizeObserver = ResizeObserverStub;
+  globalThis.window.ResizeObserver = ResizeObserverStub;
+  globalThis.ResizeObserver = ResizeObserverStub;
 }
 
 // Load environment variables from .env.test

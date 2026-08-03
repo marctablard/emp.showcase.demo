@@ -32,7 +32,7 @@ let playSpy: jest.SpyInstance;
 
 beforeAll(() => {
   // jsdom has no media playback; stub so the play path does not throw.
-  playSpy = jest.spyOn(window.HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve());
+  playSpy = jest.spyOn(globalThis.HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve());
 });
 
 afterEach(() => {

@@ -9,7 +9,7 @@ type CategoryLinkProps = {
   children: ReactNode;
 };
 
-const CategoryLink = ({ href, className, children }: CategoryLinkProps) => {
+const CategoryLink = ({ href, className, children }: Readonly<CategoryLinkProps>) => {
   return (
     <Link href={href} className={className}>
       {children}

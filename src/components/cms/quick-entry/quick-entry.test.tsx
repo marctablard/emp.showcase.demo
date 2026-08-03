@@ -90,8 +90,8 @@ describe('QuickEntry — CMS editable attributes', () => {
     const { container } = render(<QuickEntry {...VALID} data-blok-c="quick_entry" data-blok-uid="editable-uid-456" />);
 
     const root = container.firstChild as HTMLElement;
-    expect(root.getAttribute('data-blok-c')).toBe('quick_entry');
-    expect(root.getAttribute('data-blok-uid')).toBe('editable-uid-456');
+    expect(root.dataset.blokC).toBe('quick_entry');
+    expect(root.dataset.blokUid).toBe('editable-uid-456');
   });
 });
 

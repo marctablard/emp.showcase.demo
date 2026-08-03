@@ -58,8 +58,8 @@ export class StoryblokCmsAdapter implements CmsAdapter {
         return { notfound: true };
       }
       return this.mapper.mapPage(result.data.story);
-    } catch (_error) {
-      this.logger.warn({ slug }, `Error loading Storyblok page with slug '${slug}'`);
+    } catch (error) {
+      this.logger.warn({ err: error, slug }, `Error loading Storyblok page with slug '${slug}'`);
       return { notfound: true };
     }
   }
@@ -79,8 +79,8 @@ export class StoryblokCmsAdapter implements CmsAdapter {
         return { notfound: true };
       }
       return parsed.data as CMSLayout;
-    } catch (_error) {
-      this.logger.warn({ layoutId }, `Error loading Storyblok layout '${layoutId}'`);
+    } catch (error) {
+      this.logger.warn({ err: error, layoutId }, `Error loading Storyblok layout '${layoutId}'`);
       return { notfound: true };
     }
   }

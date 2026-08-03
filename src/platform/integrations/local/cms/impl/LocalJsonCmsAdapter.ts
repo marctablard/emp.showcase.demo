@@ -19,7 +19,7 @@ import type { SessionService } from '@/platform/services/session';
  * for genuine I/O failures (which `LocalJsonCmsAdapter` then surfaces as
  * `{ notfound: true }` via its try/catch).
  */
-export type CmsDataLoader = (site: string, locale: string, slug: string) => Promise<unknown | null>;
+export type CmsDataLoader = (site: string, locale: string, slug: string) => Promise<unknown>;
 
 const defaultJsonLoader: CmsDataLoader = (site, locale, slug) =>
   import(`../../../../../data/cms/${site}/${locale}/${slug}.json`).then((m) => m.default).catch(() => null);
@@ -60,11 +60,11 @@ export class LocalJsonCmsAdapter implements CmsAdapter {
   }
 
   async getPage(slug: string, locale: string, _site: string): Promise<CMSPage | CMSNoResult> {
-    const normalizedSlug = slug.replace(/[^a-zA-Z0-9-_]/g, '').toLowerCase();
+    const normalizedSlug = slug.replaceAll(/[^a-zA-Z0-9-_]/g, '').toLowerCase();
     const normalizedLocale = locale.toLowerCase();
 
     const session = await this.sessionService.getCurrent();
-    const normalizedSite = session && session.siteCode ? session.siteCode : this.defaultSite;
+    const normalizedSite = session?.siteCode ? session.siteCode : this.defaultSite;
 
     let pageData = await this.tryLoadPage(normalizedSlug, normalizedLocale, normalizedSite);
 
@@ -89,12 +89,12 @@ export class LocalJsonCmsAdapter implements CmsAdapter {
    * body directly. The adapter MUST NOT throw upward (SPI contract).
    */
   async getLayout(layoutId: string, locale: string, _site: string): Promise<CMSLayout | CMSNoResult> {
-    const normalizedLayoutId = layoutId.replace(/[^a-zA-Z0-9-_]/g, '').toLowerCase();
+    const normalizedLayoutId = layoutId.replaceAll(/[^a-zA-Z0-9-_]/g, '').toLowerCase();
     const normalizedLocale = locale.toLowerCase();
     const slug = `layouts/${normalizedLayoutId}`;
 
     const session = await this.sessionService.getCurrent();
-    const normalizedSite = session && session.siteCode ? session.siteCode : this.defaultSite;
+    const normalizedSite = session?.siteCode ? session.siteCode : this.defaultSite;
 
     let result = await this.tryLoadLayout(slug, normalizedLocale, normalizedSite, layoutId);
 
@@ -139,8 +139,8 @@ export class LocalJsonCmsAdapter implements CmsAdapter {
       }
 
       return parsed.data as CMSLayout;
-    } catch (_error) {
-      this.logger.warn({ layoutId }, `Error loading layout '${layoutId}'`);
+    } catch (error) {
+      this.logger.warn({ err: error, layoutId }, `Error loading layout '${layoutId}'`);
       return {
         notfound: true,
         message: `Error loading layout '${layoutId}'`,
@@ -166,8 +166,8 @@ export class LocalJsonCmsAdapter implements CmsAdapter {
       }
 
       return pageData as CMSPage;
-    } catch (_error) {
-      this.logger.warn({ slug }, `Error loading CMS data for slug '${slug}'`);
+    } catch (error) {
+      this.logger.warn({ err: error, slug }, `Error loading CMS data for slug '${slug}'`);
       return {
         notfound: true,
         message: `Error loading page with slug '${slug}'`,

@@ -24,7 +24,7 @@ describe('SiteThemeStyle', () => {
 
   it('tags the link with the active site code for debuggability', () => {
     const link = linkFor('main');
-    expect(link.getAttribute('data-site-theme')).toBe('main');
+    expect(link.dataset.siteTheme).toBe('main');
   });
 
   it('falls back to the empty default theme for an un-themed site', () => {

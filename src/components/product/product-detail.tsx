@@ -54,7 +54,7 @@ export interface ProductDetailProps {
   className?: string;
 }
 
-export default function ProductDetail({ product: initialProduct, options, className }: ProductDetailProps) {
+export default function ProductDetail({ product: initialProduct, options, className }: Readonly<ProductDetailProps>) {
   const { ready: shopContextReady } = useShopContextReady();
   const { product, loading, setAsCurrent } = useProduct(initialProduct, options);
   const { session } = useSession();

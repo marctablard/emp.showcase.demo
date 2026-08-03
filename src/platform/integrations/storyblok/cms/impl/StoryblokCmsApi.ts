@@ -54,8 +54,8 @@ export class StoryblokCmsApi implements StoryblokCmsApiContract {
         return null;
       }
       return result as unknown as StoryblokStoryResult;
-    } catch (_error) {
-      this.logger.warn({ slug: fullSlug }, `Error fetching Storyblok story '${fullSlug}'`);
+    } catch (error) {
+      this.logger.warn({ err: error, slug: fullSlug }, `Error fetching Storyblok story '${fullSlug}'`);
       return null;
     }
   }

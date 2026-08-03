@@ -24,7 +24,7 @@ type ArticleProductLinkProps = {
  * supplied, matching the conditional render in the original flat
  * component.
  */
-const ArticleProductLink = ({ productId }: ArticleProductLinkProps) => {
+const ArticleProductLink = ({ productId }: Readonly<ArticleProductLinkProps>) => {
   if (!productId) {
     return null;
   }

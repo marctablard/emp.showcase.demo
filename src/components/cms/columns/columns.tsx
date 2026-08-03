@@ -7,7 +7,7 @@ export type ColumnsProps = ColumnsData &
     children?: ReactNode;
   };
 
-const Columns = ({ id: _id, type: _type, columns: _columns, children, className, ...rest }: ColumnsProps) => {
+const Columns = ({ id: _id, type: _type, columns: _columns, children, className, ...rest }: Readonly<ColumnsProps>) => {
   return (
     <div className={cn('flex flex-col sm:flex-row gap-4', className)} {...rest}>
       {Children.map(children, (child) => (

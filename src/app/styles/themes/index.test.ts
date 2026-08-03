@@ -48,7 +48,7 @@ describe('public/themes/_default_.css — no-cascade invariant', () => {
   ) as string;
 
   // Strip block comments so the explanatory header does not trip the guards.
-  const code = defaultCss.replace(/\/\*[\s\S]*?\*\//g, '').trim();
+  const code = defaultCss.replaceAll(/\/\*[\s\S]*?\*\//g, '').trim();
 
   it('declares no `:root` block (so it cannot cascade onto other sites)', () => {
     expect(code).not.toMatch(/:root/);

@@ -18,7 +18,7 @@ const Category = ({
   site: _site,
   className,
   ...rest
-}: CategoryProps) => {
+}: Readonly<CategoryProps>) => {
   const categoryUrl = emporix_category_id ? `/browse/${emporix_category_id}` : '#';
 
   return (

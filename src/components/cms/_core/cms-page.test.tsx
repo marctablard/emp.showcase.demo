@@ -112,7 +112,7 @@ describe('CmsPage — valid CMSPage renders the body', () => {
 
     const rendered = getAllByTestId('cms-renderer');
     expect(rendered).toHaveLength(2);
-    expect(rendered.map((el) => el.getAttribute('data-component-id'))).toEqual(['cmp-a', 'cmp-b']);
+    expect(rendered.map((el) => el.dataset.componentId)).toEqual(['cmp-a', 'cmp-b']);
     expect(notFoundMock).not.toHaveBeenCalled();
   });
 
@@ -197,8 +197,8 @@ describe('CmsPage — layout frame', () => {
     // Single render call for the layout root, carrying the page body.
     const rendered = getAllByTestId('cms-renderer');
     expect(rendered).toHaveLength(1);
-    expect(rendered[0]?.getAttribute('data-component-type')).toBe('layout');
-    expect(rendered[0]?.getAttribute('data-page-body-ids')).toBe('cmp-a,cmp-b');
+    expect(rendered[0]?.dataset.componentType).toBe('layout');
+    expect(rendered[0]?.dataset.pageBodyIds).toBe('cmp-a,cmp-b');
   });
 
   it("defaults to the 'default' layout id when the page declares none", async () => {
@@ -217,6 +217,6 @@ describe('CmsPage — layout frame', () => {
     const { getAllByTestId } = render(await CmsPage({ slug: '/demo', locale: 'en', site: 'main' }));
 
     const rendered = getAllByTestId('cms-renderer');
-    expect(rendered.map((el) => el.getAttribute('data-component-id'))).toEqual(['cmp-a', 'cmp-b']);
+    expect(rendered.map((el) => el.dataset.componentId)).toEqual(['cmp-a', 'cmp-b']);
   });
 });

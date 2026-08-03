@@ -46,7 +46,7 @@ interface CmsRendererProps {
   pageBody?: CMSComponent[];
 }
 
-export const CmsRenderer = ({ component, pageBody }: CmsRendererProps): ReactNode => {
+export const CmsRenderer = ({ component, pageBody }: Readonly<CmsRendererProps>): ReactNode => {
   const { type } = component;
 
   // Slot substitution runs BEFORE the map lookup: the registered

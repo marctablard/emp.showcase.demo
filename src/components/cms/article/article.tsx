@@ -48,7 +48,7 @@ const Article = ({
   linked_products,
   className,
   ...rest
-}: ArticleProps) => {
+}: Readonly<ArticleProps>) => {
   return (
     <article className={cn('article max-w-6xl mx-auto px-4 lg:px-9 sm:gap-x-6', className)} {...rest}>
       {(title || introduction) && (

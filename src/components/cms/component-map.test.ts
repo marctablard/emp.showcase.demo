@@ -111,7 +111,7 @@ describe('cmsComponentMap drift-guard', () => {
       'top-banner-announcement',
       'video',
     ];
-    const actual = Object.keys(cmsComponentMap).sort();
+    const actual = Object.keys(cmsComponentMap).sort((a, b) => a.localeCompare(b));
 
     expect(actual).toEqual(expected);
   });

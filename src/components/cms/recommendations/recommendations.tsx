@@ -16,7 +16,7 @@ const Recommendations = ({
   locale,
   className,
   ...rest
-}: RecommendationsProps) => {
+}: Readonly<RecommendationsProps>) => {
   const hasProductId = !!productId;
   const hasProducts = (products ? parseProductIds(products).length : 0) > 0;
 

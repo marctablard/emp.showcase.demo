@@ -11,15 +11,11 @@
  * asserts on its import surface. Comments are stripped first so prose naming a
  * provider cannot trip a false positive.
  */
+import fs from 'node:fs';
+import path from 'node:path';
 
-export {};
-
-// eslint-disable-next-line @typescript-eslint/no-require-imports -- test-time source-text inspection
-const fs = require('node:fs');
-// eslint-disable-next-line @typescript-eslint/no-require-imports -- test-time source-text inspection
-const path = require('node:path');
-
-const stripComments = (source: string): string => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+const stripComments = (source: string): string =>
+  source.replaceAll(/\/\*[\s\S]*?\*\//g, '').replaceAll(/\/\/[^\n]*/g, '');
 
 const MIDDLEWARE_PATH = path.resolve(__dirname, '../../site/middleware.ts');
 

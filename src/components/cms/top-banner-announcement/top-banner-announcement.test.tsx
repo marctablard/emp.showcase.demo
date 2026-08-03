@@ -129,7 +129,7 @@ describe('TopBannerAnnouncement — attribute spread reaches the rendered root',
       />,
     );
     const link = getByRole('link', { name: /Forward me/i });
-    expect(link.getAttribute('data-blok-c')).toBe('top-banner-announcement');
+    expect(link.dataset.blokC).toBe('top-banner-announcement');
   });
 
   it('forwards `data-blok-uid` to the rendered `<a>` element', () => {
@@ -144,7 +144,7 @@ describe('TopBannerAnnouncement — attribute spread reaches the rendered root',
       />,
     );
     const link = getByRole('link', { name: /Forward me/i });
-    expect(link.getAttribute('data-blok-uid')).toBe('editable-uid-tba');
+    expect(link.dataset.blokUid).toBe('editable-uid-tba');
   });
 
   it('forwards arbitrary `data-testid` to the rendered `<a>` element (general HTMLAttributes spread)', () => {
@@ -159,7 +159,7 @@ describe('TopBannerAnnouncement — attribute spread reaches the rendered root',
       />,
     );
     const link = getByRole('link', { name: /Forward me/i });
-    expect(link.getAttribute('data-testid')).toBe('cms-top-banner-root');
+    expect(link.dataset.testid).toBe('cms-top-banner-root');
   });
 
   it('does NOT spread props when is_active=false (component still returns null in that branch)', () => {

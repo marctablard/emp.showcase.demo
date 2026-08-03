@@ -12,7 +12,7 @@ type ColumnTeaserImageProps = {
   className?: string;
 };
 
-const ColumnTeaserImage = ({ image, className = '' }: ColumnTeaserImageProps) => {
+const ColumnTeaserImage = ({ image, className = '' }: Readonly<ColumnTeaserImageProps>) => {
   const imageElement = (
     <div className={cn('relative overflow-hidden group', className)}>
       <Image

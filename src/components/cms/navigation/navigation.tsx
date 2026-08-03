@@ -5,7 +5,7 @@ import type { NavigationData } from './schema';
 
 export type NavigationProps = NavigationData & HTMLAttributes<HTMLElement>;
 
-const Navigation = ({ id: _id, type: _type, items, site: _site, className, ...rest }: NavigationProps) => {
+const Navigation = ({ id: _id, type: _type, items, site: _site, className, ...rest }: Readonly<NavigationProps>) => {
   return (
     <nav className={cn('py-4', className)} {...rest}>
       <ul className="flex space-x-6">

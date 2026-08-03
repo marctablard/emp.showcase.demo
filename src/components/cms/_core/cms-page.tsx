@@ -25,7 +25,7 @@ interface CmsPageProps {
  * (e.g. the `none`/`local` adapter has no layout for the id), the shell falls
  * back to rendering the page body directly, preserving prior behaviour.
  */
-export default async function CmsPage({ slug, locale, site, emptyOnNoResult }: CmsPageProps) {
+export default async function CmsPage({ slug, locale, site, emptyOnNoResult }: Readonly<CmsPageProps>) {
   const cmsService = await getCmsService();
   const page = await cmsService.getPage(slug, locale, site);
 

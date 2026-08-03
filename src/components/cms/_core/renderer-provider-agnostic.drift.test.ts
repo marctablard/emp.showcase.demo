@@ -20,16 +20,8 @@
  * documentation prose which *names* providers (e.g. the page-shell JSDoc that
  * enumerates "local-JSON, Storyblok, or none") does not trip a false positive.
  */
-
-// `export {}` makes this file a module so its top-level `const`s are
-// file-scoped, not globals (sibling `*.drift.test.ts` files declare the same
-// `fs`/`path`/`stripComments`/`readCode` names at global script scope).
-export {};
-
-// eslint-disable-next-line @typescript-eslint/no-require-imports -- test-time source-text inspection
-const fs = require('node:fs');
-// eslint-disable-next-line @typescript-eslint/no-require-imports -- test-time source-text inspection
-const path = require('node:path');
+import fs from 'node:fs';
+import path from 'node:path';
 
 /**
  * Strip line (`//`) and block comments so prose that mentions a provider name
@@ -37,8 +29,8 @@ const path = require('node:path');
  */
 const stripComments = (source: string): string =>
   source
-    .replace(/\/\*[\s\S]*?\*\//g, '') // block comments, incl. JSDoc
-    .replace(/\/\/[^\n]*/g, ''); // line comments
+    .replaceAll(/\/\*[\s\S]*?\*\//g, '') // block comments, incl. JSDoc
+    .replaceAll(/\/\/[^\n]*/g, ''); // line comments
 
 const readCode = (relativePath: string): string => {
   const raw = fs.readFileSync(path.resolve(__dirname, relativePath), 'utf8') as string;

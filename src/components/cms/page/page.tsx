@@ -8,7 +8,7 @@ export type PageProps = PageData &
     children?: ReactNode;
   };
 
-const Page = ({ id: _id, type: _type, title, body: _body, children, className, ...rest }: PageProps) => {
+const Page = ({ id: _id, type: _type, title, body: _body, children, className, ...rest }: Readonly<PageProps>) => {
   return (
     <div className={cn('mx-auto', className)} {...rest}>
       {title && <H1 className="mb-6">{title}</H1>}

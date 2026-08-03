@@ -18,7 +18,7 @@ const Segment = ({
   children,
   className,
   ...rest
-}: SegmentProps) => {
+}: Readonly<SegmentProps>) => {
   return (
     <section className={cn('segment-container my-8', className)} {...rest}>
       {segment_name && <H2>{segment_name}</H2>}

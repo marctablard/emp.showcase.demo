@@ -13,18 +13,11 @@
  * asserts on its import surface. Comments are stripped first so prose that
  * names a provider cannot trip a false positive.
  */
+import fs from 'node:fs';
+import path from 'node:path';
 
-// `export {}` makes this file a module so its top-level `const`s are
-// file-scoped, not globals (other `*.drift.test.ts` files declare the same
-// `fs`/`path`/`stripComments` names at global script scope).
-export {};
-
-// eslint-disable-next-line @typescript-eslint/no-require-imports -- test-time source-text inspection
-const fs = require('node:fs');
-// eslint-disable-next-line @typescript-eslint/no-require-imports -- test-time source-text inspection
-const path = require('node:path');
-
-const stripComments = (source: string): string => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+const stripComments = (source: string): string =>
+  source.replaceAll(/\/\*[\s\S]*?\*\//g, '').replaceAll(/\/\/[^\n]*/g, '');
 
 const readCode = (relativePath: string): string => {
   const raw = fs.readFileSync(path.resolve(__dirname, relativePath), 'utf8') as string;

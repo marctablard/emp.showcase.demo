@@ -1,6 +1,8 @@
-export {}; // mark this file as a TS module — the sibling _actions test file
-// declares overlapping top-level consts; without this directive both files
-// share the global script scope and tsc reports "Cannot redeclare".
+// The type-only import also marks this file as a TS module — the sibling
+// _actions test file declares overlapping top-level consts; without a module
+// marker both files share the global script scope and tsc reports
+// "Cannot redeclare".
+import type * as CmsBannerModule from './cms-banner';
 
 /**
  * Acceptance contract for the `fetchTopBanner` server action.
@@ -120,7 +122,7 @@ afterAll(() => {
 async function loadAction() {
   // Defer the import so each test sees the env state set in its own setup.
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- defer module-load until after env reset
-  const mod = require('./cms-banner') as typeof import('./cms-banner');
+  const mod = require('./cms-banner') as typeof CmsBannerModule;
   return mod.fetchTopBanner;
 }
 

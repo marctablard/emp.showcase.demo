@@ -7,7 +7,7 @@ export type GridProps = GridData &
     children?: ReactNode;
   };
 
-const Grid = ({ id: _id, type: _type, columns: _columns, children, className, ...rest }: GridProps) => {
+const Grid = ({ id: _id, type: _type, columns: _columns, children, className, ...rest }: Readonly<GridProps>) => {
   return (
     <div className={cn('grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6', className)} {...rest}>
       {children}

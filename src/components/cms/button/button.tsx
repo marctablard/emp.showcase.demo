@@ -12,7 +12,16 @@ const IconVariant = {
 
 export type ButtonProps = ButtonData & HTMLAttributes<HTMLDivElement>;
 
-const Button = ({ id: _id, type: _type, title, link, iconLeft, iconRight, className, ...rest }: ButtonProps) => {
+const Button = ({
+  id: _id,
+  type: _type,
+  title,
+  link,
+  iconLeft,
+  iconRight,
+  className,
+  ...rest
+}: Readonly<ButtonProps>) => {
   const IconLeft = iconLeft && IconVariant[iconLeft as keyof typeof IconVariant];
   const IconRight = iconRight && IconVariant[iconRight as keyof typeof IconVariant];
 

@@ -84,8 +84,8 @@ describe('ColumnTeaser — CMS editable attributes', () => {
     );
 
     const root = container.firstChild as HTMLElement;
-    expect(root.getAttribute('data-blok-c')).toBe('column_teaser');
-    expect(root.getAttribute('data-blok-uid')).toBe('editable-uid-ct');
+    expect(root.dataset.blokC).toBe('column_teaser');
+    expect(root.dataset.blokUid).toBe('editable-uid-ct');
   });
 });
 

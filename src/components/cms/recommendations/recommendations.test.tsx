@@ -119,7 +119,7 @@ describe('Recommendations — CMS editable attributes', () => {
     );
 
     const root = container.firstChild as HTMLElement;
-    expect(root.getAttribute('data-blok-c')).toBe('recommendations');
-    expect(root.getAttribute('data-blok-uid')).toBe('editable-uid-recs');
+    expect(root.dataset.blokC).toBe('recommendations');
+    expect(root.dataset.blokUid).toBe('editable-uid-recs');
   });
 });

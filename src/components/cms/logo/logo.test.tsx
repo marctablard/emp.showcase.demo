@@ -81,7 +81,7 @@ describe('Logo — CMS editable attributes', () => {
     const { container } = render(<Logo {...VALID_WITH_IMAGE} data-blok-c="logo" data-blok-uid="editable-uid-123" />);
 
     const root = container.firstChild as HTMLElement;
-    expect(root.getAttribute('data-blok-c')).toBe('logo');
-    expect(root.getAttribute('data-blok-uid')).toBe('editable-uid-123');
+    expect(root.dataset.blokC).toBe('logo');
+    expect(root.dataset.blokUid).toBe('editable-uid-123');
   });
 });

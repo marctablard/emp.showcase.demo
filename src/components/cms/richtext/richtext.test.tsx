@@ -240,8 +240,8 @@ describe('Richtext — component (root contract)', () => {
     const { container } = render(<Richtext {...MINIMAL} data-blok-c="richtext" data-blok-uid="editable-uid-rt" />);
 
     const root = container.firstChild as HTMLElement;
-    expect(root.getAttribute('data-blok-c')).toBe('richtext');
-    expect(root.getAttribute('data-blok-uid')).toBe('editable-uid-rt');
+    expect(root.dataset.blokC).toBe('richtext');
+    expect(root.dataset.blokUid).toBe('editable-uid-rt');
   });
 });
 
@@ -524,7 +524,7 @@ describe('Richtext — provider-decoupling guarantee', () => {
      * them, so it is robust whether the module compiles or not.
      */
     const stripComments = (source: string): string =>
-      source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+      source.replaceAll(/\/\*[\s\S]*?\*\//g, '').replaceAll(/\/\/[^\n]*/g, '');
 
     const AUDITED_FILES = [
       { label: 'richtext.tsx', path: join(__dirname, 'richtext.tsx') },

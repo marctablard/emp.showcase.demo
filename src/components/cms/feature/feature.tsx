@@ -5,7 +5,7 @@ import type { FeatureData } from './schema';
 
 export type FeatureProps = FeatureData & HTMLAttributes<HTMLDivElement>;
 
-const Feature = ({ id: _id, type: _type, name, description, className, ...rest }: FeatureProps) => {
+const Feature = ({ id: _id, type: _type, name, description, className, ...rest }: Readonly<FeatureProps>) => {
   return (
     <div className={cn('p-6 border rounded-md shadow-sm', className)} {...rest}>
       <Heading variant="h3" as="div">

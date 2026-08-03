@@ -14,7 +14,7 @@ const TopBannerAnnouncement = ({
   link,
   is_active,
   ...rest
-}: TopBannerAnnouncementProps) => {
+}: Readonly<TopBannerAnnouncementProps>) => {
   if (!is_active) {
     return null;
   }

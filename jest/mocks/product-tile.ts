@@ -17,7 +17,7 @@ interface MockProductTileProps {
   product?: { id?: string; name?: string };
 }
 
-export const ProductTile = ({ product }: MockProductTileProps): ReactElement => {
+export const ProductTile = ({ product }: Readonly<MockProductTileProps>): ReactElement => {
   return createElement(
     'div',
     { 'data-testid': 'mock-product-tile', 'data-product-id': product?.id ?? '' },

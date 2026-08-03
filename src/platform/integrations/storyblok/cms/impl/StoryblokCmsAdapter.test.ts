@@ -64,7 +64,7 @@ const buildMapper = (
   return { mapper, mapPage };
 };
 
-const storyResult = (content: Record<string, unknown> = { body: [] }): StoryblokStoryResult =>
+const storyResult = (content?: Record<string, unknown>): StoryblokStoryResult =>
   ({
     data: {
       story: {
@@ -72,7 +72,7 @@ const storyResult = (content: Record<string, unknown> = { body: [] }): Storyblok
         full_slug: 'main/about',
         slug: 'about',
         name: 'About',
-        content,
+        content: content ?? { body: [] },
       },
     },
   }) as unknown as StoryblokStoryResult;

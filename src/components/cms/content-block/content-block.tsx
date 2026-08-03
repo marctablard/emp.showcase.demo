@@ -30,7 +30,7 @@ const ContentBlock = ({
   style,
   className,
   ...rest
-}: ContentBlockProps) => {
+}: Readonly<ContentBlockProps>) => {
   const containerClasses = CONTAINER_CLASSES[style ?? 'full-width'];
 
   const sanitizedLink = sanitizeHref(button?.link);
