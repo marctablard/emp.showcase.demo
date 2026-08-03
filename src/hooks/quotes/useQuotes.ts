@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { SearchFilterLeafValue, SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { Quote } from '@/platform/services/model/quote';
@@ -176,7 +177,11 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
     } finally {
       setLoading(false);
     }
-  }, [page, size, sort, searchQuery, filters]);
+    // normalizedFilters is the value identity of the caller's `filters` object, which is freshly
+    // allocated on every render; depending on the object itself re-creates this callback and
+    // re-runs the effect below on every single render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, size, sort, searchQuery, normalizedFilters]);
 
   const refetchQuotes = useCallback(async () => {
     await fetchQuotes();
@@ -193,7 +198,7 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
       skipInitialFetchRef.current = false;
       return;
     }
-    void fetchQuotes();
+    return startEffectTask(fetchQuotes);
   }, [fetchQuotes]);
 
   return {

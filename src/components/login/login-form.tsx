@@ -38,7 +38,7 @@ export function LoginForm({
   guestCheckout: guestCheckoutProp = false,
   onGuestAction,
   isDialog = false,
-}: LoginFormProps) {
+}: Readonly<LoginFormProps>) {
   const t = useTranslations('auth.login');
   const locale = useLocale();
   const { site } = useSite();

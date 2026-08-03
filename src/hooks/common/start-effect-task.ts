@@ -26,7 +26,11 @@
 export function startEffectTask(run: () => Promise<unknown>): () => void {
   let cancelled = false;
 
-  void Promise.resolve().then(() => (cancelled ? undefined : run()));
+  Promise.resolve()
+    .then(() => (cancelled ? undefined : run()))
+    .catch(() => {
+      // `run` owns its error handling; nothing to do here beyond not leaving a rejected promise.
+    });
 
   return () => {
     cancelled = true;

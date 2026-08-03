@@ -24,7 +24,7 @@ export function PasswordResetForm({
   callbackUrl: callbackUrlProp,
   onSuccess,
   isDialog = false,
-}: PasswordResetFormProps) {
+}: Readonly<PasswordResetFormProps>) {
   const t = useTranslations('auth.Password');
 
   const { form } = useValidator(

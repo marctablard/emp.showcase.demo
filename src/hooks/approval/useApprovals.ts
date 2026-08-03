@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import type {
   Approval,
   ApprovalCreateRequest,
@@ -147,7 +148,7 @@ export function useApprovals(initialApprovals?: Approval[], options: UseApproval
       skipInitialFetchRef.current = false;
       return;
     }
-    void fetchApprovals();
+    return startEffectTask(fetchApprovals);
   }, [fetchApprovals]);
 
   const createApproval = useCallback(

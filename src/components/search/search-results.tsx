@@ -20,7 +20,7 @@ import { resolveSelectedCategoryIdFromFilters } from '@/lib/search/category-sele
 import { getAppliedFilterCount } from '@/lib/search/get-applied-filter-count';
 import { cn } from '@/lib/utils';
 import type { Category } from '@/platform/services/model/category';
-import type { SearchParams, SearchResult } from '@/platform/services/model/common';
+import type { BatteryIncludedFacet, SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
 import {
   browseSearchStateSignature,
@@ -47,6 +47,70 @@ interface SearchClientWrapperProps {
 
 /** Matches `createBrowseInitialSearch` default when `size` is omitted from the URL. */
 const BROWSE_DEFAULT_PAGE_SIZE = 12;
+
+/**
+ * Keeps the last non-empty facet set so the filter panel does not collapse while a new search is
+ * in flight.
+ *
+ * This drives render output, so it is state adjusted during render rather than a ref — see
+ * https://react.dev/reference/react/useState#storing-information-from-previous-renders
+ *
+ * `useSearch` hands back a fresh array on every render, so the retained copy is keyed by facet ids
+ * instead of array identity; comparing identity here would re-set state on every render and never
+ * converge. The retained set is only ever the fallback for when facets are momentarily empty, so
+ * not refreshing it on count-only changes is fine.
+ */
+function useRetainedFacets(batteryIncludedFacets: BatteryIncludedFacet[] | undefined): BatteryIncludedFacet[] {
+  const hasFacets = !!batteryIncludedFacets && batteryIncludedFacets.length > 0;
+  const facetsKey = hasFacets ? batteryIncludedFacets.map((facet) => facet.id).join('|') : '';
+  const [retained, setRetained] = useState({ key: facetsKey, facets: batteryIncludedFacets ?? [] });
+
+  if (hasFacets && retained.key !== facetsKey) {
+    setRetained({ key: facetsKey, facets: batteryIncludedFacets });
+  }
+
+  return hasFacets ? batteryIncludedFacets : retained.facets;
+}
+
+/**
+ * Tracks whether the URL has moved ahead of the search hook's committed state, which is what the
+ * result list renders its wait cursor from.
+ *
+ * The signature is state rather than a ref because it is render output. The params key lives in
+ * the same state object so both advance together in a single render pass.
+ */
+function usePendingCursor({
+  searchParamsKey,
+  hasBrowseSearchParams,
+  loading,
+  urlSig,
+  currentSearchSig,
+}: {
+  searchParamsKey: string;
+  hasBrowseSearchParams: boolean;
+  loading: boolean;
+  urlSig: string;
+  currentSearchSig: string;
+}): boolean {
+  const [cursorState, setCursorState] = useState<{ paramsKey: string; pendingUrlSig: string | null }>({
+    paramsKey: searchParamsKey,
+    pendingUrlSig: null,
+  });
+  const searchParamsChanged = cursorState.paramsKey !== searchParamsKey;
+
+  let pendingUrlSig = cursorState.pendingUrlSig;
+  if (pendingUrlSig !== null && (!hasBrowseSearchParams || currentSearchSig === pendingUrlSig)) {
+    pendingUrlSig = null;
+  }
+  if (searchParamsChanged && hasBrowseSearchParams && !loading && urlSig !== currentSearchSig) {
+    pendingUrlSig = urlSig;
+  }
+  if (searchParamsChanged || pendingUrlSig !== cursorState.pendingUrlSig) {
+    setCursorState({ paramsKey: searchParamsKey, pendingUrlSig });
+  }
+
+  return !loading && pendingUrlSig === urlSig;
+}
 
 export function SearchResultsComponent({
   initialSearch,
@@ -88,21 +152,7 @@ export function SearchResultsComponent({
     error: searchError,
   } = useSearch<Product>(initialSearch, initialResults);
 
-  // Keep the last non-empty facet set so the filter panel does not collapse while a new search
-  // is in flight. This drives render output, so it is state (adjusted during render) rather than
-  // a ref — see https://react.dev/reference/react/useState#storing-information-from-previous-renders
-  //
-  // `useSearch` hands back a fresh array on every render, so the retained copy is keyed by facet
-  // ids instead of array identity; comparing identity here would re-set state on every render and
-  // never converge. The retained set is only ever a fallback for when facets are momentarily
-  // empty, so not refreshing it on count-only changes is fine.
-  const hasFacets = !!batteryIncludedFacets && batteryIncludedFacets.length > 0;
-  const facetsKey = hasFacets ? batteryIncludedFacets.map((facet) => facet.id).join('|') : '';
-  const [retainedFacets, setRetainedFacets] = useState({ key: facetsKey, facets: batteryIncludedFacets ?? [] });
-  if (hasFacets && retainedFacets.key !== facetsKey) {
-    setRetainedFacets({ key: facetsKey, facets: batteryIncludedFacets });
-  }
-  const baseFacets = hasFacets ? batteryIncludedFacets : retainedFacets.facets;
+  const baseFacets = useRetainedFacets(batteryIncludedFacets);
 
   const displayFacets = mergeActiveFilterFacetOptions(baseFacets, activeFilters);
   const appliedFilterCount = getAppliedFilterCount(activeFilters);
@@ -140,27 +190,13 @@ export function SearchResultsComponent({
     filters: Object.keys(activeFilters).length > 0 ? activeFilters : undefined,
   });
 
-  // `pendingCursor` is render output (it is passed down to the result list), so the signature it
-  // derives from is state, not a ref. The params key is kept in the same state object so both
-  // advance together in a single render pass.
-  const [cursorState, setCursorState] = useState<{ paramsKey: string; pendingUrlSig: string | null }>({
-    paramsKey: searchParamsKey,
-    pendingUrlSig: null,
+  const pendingCursor = usePendingCursor({
+    searchParamsKey,
+    hasBrowseSearchParams,
+    loading,
+    urlSig,
+    currentSearchSig,
   });
-  const searchParamsChanged = cursorState.paramsKey !== searchParamsKey;
-
-  let pendingUrlSig = cursorState.pendingUrlSig;
-  if (pendingUrlSig !== null && (!hasBrowseSearchParams || currentSearchSig === pendingUrlSig)) {
-    pendingUrlSig = null;
-  }
-  if (searchParamsChanged && hasBrowseSearchParams && !loading && urlSig !== currentSearchSig) {
-    pendingUrlSig = urlSig;
-  }
-  if (searchParamsChanged || pendingUrlSig !== cursorState.pendingUrlSig) {
-    setCursorState({ paramsKey: searchParamsKey, pendingUrlSig });
-  }
-
-  const pendingCursor = !loading && pendingUrlSig === urlSig;
 
   useLayoutEffect(() => {
     if (currentSearchSig !== urlSig) {

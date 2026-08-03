@@ -22,7 +22,7 @@ interface UseApprovalCheckReturn {
  */
 export function useApprovalCheckout(initialCartId?: string): UseApprovalCheckReturn {
   const [cartId, setCartId] = useState<string | undefined>(initialCartId);
-  const [approvalRequired, setRequiresApproval] = useState<boolean>(false);
+  const [approvalRequired, setApprovalRequired] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
 
@@ -38,11 +38,11 @@ export function useApprovalCheckout(initialCartId?: string): UseApprovalCheckRet
       setError(null);
 
       const result = await apiRequiresApproval(cartId);
-      setRequiresApproval(result);
+      setApprovalRequired(result);
       return result;
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));
-      setRequiresApproval(false);
+      setApprovalRequired(false);
       return false;
     } finally {
       setLoading(false);

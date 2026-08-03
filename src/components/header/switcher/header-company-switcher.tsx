@@ -18,9 +18,9 @@ export function CompanySwitcher() {
   const router = useRouter();
   const t = useTranslations('common.Companies');
   const { toast } = useToast();
-  const [fetchedCompanies, setCompanies] = useState<Company[]>([]);
-  const [fetchLoading, setLoading] = useState(true);
-  const [fetchError, setError] = useState<string | null>(null);
+  const [fetchedCompanies, setFetchedCompanies] = useState<Company[]>([]);
+  const [fetchLoading, setFetchLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   // Read out of `session` once: optional-chained member expressions in a dependency array
   // cannot be tracked as stable dependencies.
   const customerId = session?.customerId;
@@ -38,8 +38,8 @@ export function CompanySwitcher() {
   if (prevCustomerId !== customerId) {
     setPrevCustomerId(customerId);
     if (customerId) {
-      setLoading(true);
-      setError(null);
+      setFetchLoading(true);
+      setFetchError(null);
     }
   }
 
@@ -61,15 +61,15 @@ export function CompanySwitcher() {
         if (ignore) {
           return;
         }
-        setCompanies(data);
-        setError(null);
+        setFetchedCompanies(data);
+        setFetchError(null);
       } catch (err) {
         if (ignore) {
           return;
         }
         const errorMessage = err instanceof Error ? err.message : 'Failed to load companies';
-        setError(errorMessage);
-        setCompanies([]);
+        setFetchError(errorMessage);
+        setFetchedCompanies([]);
         toast({
           title: t('errorLoading'),
           description: t('errorLoadingDescription'),
@@ -77,7 +77,7 @@ export function CompanySwitcher() {
         });
       } finally {
         if (!ignore) {
-          setLoading(false);
+          setFetchLoading(false);
         }
       }
     })();
@@ -109,11 +109,11 @@ export function CompanySwitcher() {
       if (success) {
         router.refresh();
       } else {
-        setError('Failed to switch company');
+        setFetchError('Failed to switch company');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to switch company';
-      setError(errorMessage);
+      setFetchError(errorMessage);
       toast({
         title: t('errorSwitching'),
         description: t('errorSwitchingDescription'),

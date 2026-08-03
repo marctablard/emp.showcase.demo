@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { fetchReturnsPage } from '@/lib/client/returns';
 import type { Return } from '@/platform/services/model/return';
 
@@ -79,7 +80,7 @@ export function useReturns(initialReturns?: Return[], options: UseReturnsOptions
       skipInitialFetchRef.current = false;
       return;
     }
-    void fetchReturnsData(forceRefreshOnMount);
+    return startEffectTask(() => fetchReturnsData(forceRefreshOnMount));
   }, [forceRefreshOnMount, fetchReturnsData]);
 
   return {

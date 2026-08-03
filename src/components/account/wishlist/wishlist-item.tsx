@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useHasChanged } from '@/hooks/common/use-has-changed';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { AlertCircle, FlipHorizontal2, Minus, Package, Plus, ShoppingCart, Trash2, Truck } from 'lucide-react';
@@ -57,10 +58,9 @@ export function WishlistItem({ item, onMovedToCart }: WishlistItemProps) {
 
   // Follow the item's quantity when it changes upstream. Adjusted during render rather than
   // from an effect: https://react.dev/learn/you-might-not-need-an-effect
-  const [prevItemQuantity, setPrevItemQuantity] = useState(item.quantity);
-  if (prevItemQuantity !== item.quantity) {
-    setPrevItemQuantity(item.quantity);
-    if (item.quantity !== quantity) setQuantity(item.quantity);
+  const itemQuantityChanged = useHasChanged(item.quantity);
+  if (itemQuantityChanged && item.quantity !== quantity) {
+    setQuantity(item.quantity);
   }
 
   useEffect(() => {
