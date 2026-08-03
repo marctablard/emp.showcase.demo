@@ -228,6 +228,51 @@ function useStickyBarOpacity(
   return opacity;
 }
 
+/** Price slot: skeleton while unresolved, unavailable on rejection, otherwise the price. */
+function ProductPriceSlot({ price }: Readonly<{ price: ProductPrice | null | undefined }>) {
+  if (price === undefined) {
+    return <ProductPriceSkeleton />;
+  }
+  if (price === null) {
+    return <ProductPriceUnavailable />;
+  }
+  return <ProductPriceComponent price={price} />;
+}
+
+/**
+ * Product media: a single image renders on its own, several go into the
+ * carousel, none falls back to the placeholder.
+ */
+function ProductGalleryMedia({ product }: Readonly<{ product: Product }>) {
+  const locale = useLocale();
+  const { l10nOrEmpty } = useL10n(locale);
+  const t = useTranslations('product');
+  const images = product.images;
+
+  if (!images || images.length === 0) {
+    return (
+      <div className="bg-surface-image-background flex items-center justify-center">
+        <Image src={'/images/no_image_alt.png'} alt={l10nOrEmpty(product.name) || ''} width={90} height={90} />
+      </div>
+    );
+  }
+
+  if (images.length > 1) {
+    return <ProductCarousel images={images} />;
+  }
+
+  const [primary] = images;
+  // Prefer the image's own alt text, then the product name, then a generic label.
+  const altCandidates = [primary.altText ? l10nOrEmpty(primary.altText) : '', l10nOrEmpty(product.name)];
+  const alt = altCandidates.find(Boolean) ?? t('primaryImageAltUnlabeled', { id: product.id });
+
+  return (
+    <div className="relative aspect-square">
+      <Image src={primary.url} alt={alt} fill className="object-contain object-center" />
+    </div>
+  );
+}
+
 export default function ProductDetail({ product: initialProduct, options, className }: Readonly<ProductDetailProps>) {
   const { ready: shopContextReady } = useShopContextReady();
   const { product, loading, setAsCurrent } = useProduct(initialProduct, options);
@@ -257,7 +302,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
     if (!product) return;
     addToWishlist(product.id, quantity);
   };
-  //   const { recommendations, loading: recLoading } = useRecommendations(product?.id);
+
   useEffect(() => {
     if (product) {
       setAsCurrent();
@@ -303,35 +348,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
         >
           <CardContent className="px-0">
             <div className="overflow-hidden">
-              {product.images && product.images.length > 0 ? (
-                product.images.length === 1 ? (
-                  <div className="relative aspect-square">
-                    <Image
-                      src={product.images[0].url}
-                      alt={
-                        product.images[0].altText
-                          ? l10nOrEmpty(product.images[0].altText) ||
-                            l10nOrEmpty(product.name) ||
-                            t('primaryImageAltUnlabeled', { id: product.id })
-                          : l10nOrEmpty(product.name) || t('primaryImageAltUnlabeled', { id: product.id })
-                      }
-                      fill
-                      className="object-contain object-center"
-                    />
-                  </div>
-                ) : (
-                  <ProductCarousel images={product.images} />
-                )
-              ) : (
-                <div className="bg-surface-image-background flex items-center justify-center">
-                  <Image
-                    src={'/images/no_image_alt.png'}
-                    alt={l10nOrEmpty(product.name) || ''}
-                    width={90}
-                    height={90}
-                  />
-                </div>
-              )}
+              <ProductGalleryMedia product={product} />
             </div>
           </CardContent>
         </Card>
@@ -477,13 +494,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
             ref={addToCartButton}
           >
             <div className="col-start-1 sm:row-start-1 md:col-end-4 xl-col-end-5">
-              {price === undefined ? (
-                <ProductPriceSkeleton />
-              ) : price === null ? (
-                <ProductPriceUnavailable />
-              ) : (
-                <ProductPriceComponent price={price} />
-              )}
+              <ProductPriceSlot price={price} />
             </div>
           </div>
           <ProductAddToCart

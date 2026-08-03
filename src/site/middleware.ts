@@ -267,7 +267,8 @@ function rewriteForInvalidSite(
   headers: Headers,
 ): NextResponse {
   const rewrite = new URL(req.nextUrl);
-  rewrite.pathname = `/${site}${appPath === '' || appPath === '/' ? '' : `/${appPath}`}`;
+  const appSegment = appPath === '' || appPath === '/' ? '' : `/${appPath}`;
+  rewrite.pathname = `/${site}${appSegment}`;
   const response = NextResponse.rewrite(rewrite, { request: { headers } });
   intlResponse.cookies.getAll().forEach((cookie) => {
     response.cookies.set(cookie.name, cookie.value);
@@ -318,6 +319,69 @@ function buildSiteResponse(req: NextRequest, site: string, headers: Headers): Ne
   return NextResponse.rewrite(rewrite, { request: { headers } });
 }
 
+/**
+ * Runs next-intl against the site-stripped path. The reduced path is faked in
+ * and restored right after, so callers still see the original URL.
+ */
+function runIntlMiddleware(req: NextRequest, appPath: string): NextResponse {
+  const originalPathname = req.nextUrl.pathname;
+  req.nextUrl.pathname = appPath;
+  const intlResponse = intlMiddleware(req);
+  req.nextUrl.pathname = originalPathname;
+  return intlResponse;
+}
+
+/**
+ * next-intl asked for a locale redirect — re-issue it with the site segment
+ * prepended where the routing policy requires one. Returns `null` when intl
+ * wants no redirect.
+ */
+function resolveIntlRedirect(
+  req: NextRequest,
+  intlResponse: NextResponse,
+  routing: SiteConfig,
+  site: string,
+): NextResponse | null {
+  const intlLocation = intlResponse.headers.get('location');
+  if (!intlLocation) {
+    return null;
+  }
+  const newLocation = new URL(intlLocation);
+  // prepend site if necessary
+  if (shouldPrefix(site, routing)) {
+    newLocation.pathname = `/${site}${newLocation.pathname == '/' ? '' : newLocation.pathname}`;
+  }
+  return withCookies(intlResponse, NextResponse.redirect(newLocation), req, routing, site);
+}
+
+/**
+ * next-intl asked for a rewrite — prepend our site segment to its target.
+ * Returns `null` when intl wants no rewrite.
+ */
+function resolveIntlRewrite(
+  req: NextRequest,
+  intlResponse: NextResponse,
+  routing: SiteConfig,
+  site: string,
+  resolvedLocale: string,
+  headers: Headers,
+): NextResponse | null {
+  const intlRewrite = intlResponse.headers.get(NEXT_REWRITE_HEADER);
+  if (!intlRewrite) {
+    return null;
+  }
+  const newRewrite = new URL(intlRewrite);
+  newRewrite.pathname = `/${site}${newRewrite.pathname == '/' ? '' : newRewrite.pathname}`;
+  return withCookies(
+    intlResponse,
+    NextResponse.rewrite(newRewrite, { request: { headers } }),
+    req,
+    routing,
+    site,
+    resolvedLocale,
+  );
+}
+
 export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
   return (req: NextRequest) => {
     const path = req.nextUrl.pathname;
@@ -340,23 +404,14 @@ export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
       setCachedRequestSite(site);
     }
 
-    const originalPathname = req.nextUrl.pathname;
-    // fake a reduced path for the intlMiddleware
-    req.nextUrl.pathname = appPath;
     // First we check if Next-Intl requires a redirect or rewrite
-    const intlResponse = intlMiddleware(req);
-    // and restore the URL!
-    req.nextUrl.pathname = originalPathname;
+    const intlResponse = runIntlMiddleware(req, appPath);
 
-    // if intl requires a redirect, let's build it from the redirect location
-    const intlLocation = intlResponse.headers.get('location');
-    if (intlLocation && !siteInvalid) {
-      const newLocation = new URL(intlLocation);
-      // prepend site if necessary
-      if (shouldPrefix(site, routing)) {
-        newLocation.pathname = `/${site}${newLocation.pathname == '/' ? '' : newLocation.pathname}`;
+    if (!siteInvalid) {
+      const intlRedirect = resolveIntlRedirect(req, intlResponse, routing, site);
+      if (intlRedirect) {
+        return intlRedirect;
       }
-      return withCookies(intlResponse, NextResponse.redirect(newLocation), req, routing, site);
     }
 
     // We can continue, but now we need to set the headers for Locale and Site
@@ -381,19 +436,9 @@ export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
       return prefixRedirect;
     }
 
-    const intlRewrite = intlResponse.headers.get(NEXT_REWRITE_HEADER);
+    const intlRewrite = resolveIntlRewrite(req, intlResponse, routing, site, resolvedLocale, headers);
     if (intlRewrite) {
-      // next-intl responded with rewrite, so we have to prepend our site
-      const newRewrite = new URL(intlRewrite);
-      newRewrite.pathname = `/${site}${newRewrite.pathname == '/' ? '' : newRewrite.pathname}`;
-      return withCookies(
-        intlResponse,
-        NextResponse.rewrite(newRewrite, { request: { headers } }),
-        req,
-        routing,
-        site,
-        resolvedLocale,
-      );
+      return intlRewrite;
     }
 
     return withCookies(intlResponse, buildSiteResponse(req, site, headers), req, routing, site, resolvedLocale);
