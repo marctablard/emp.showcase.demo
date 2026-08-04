@@ -60,11 +60,10 @@ function isQuoteDetailsReady(
 function renderQuoteDetailsUnavailableState(deps: {
   loading: boolean;
   error: Error | null | undefined;
-  quote: Quote | null | undefined;
   t: QuoteDetailsTranslate;
   onBack: () => void;
 }): React.ReactNode {
-  const { loading, error, quote, t, onBack } = deps;
+  const { loading, error, t, onBack } = deps;
 
   if (loading) {
     return (
@@ -802,7 +801,6 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
     return renderQuoteDetailsUnavailableState({
       loading,
       error,
-      quote,
       t,
       onBack: () => router.back(),
     });
