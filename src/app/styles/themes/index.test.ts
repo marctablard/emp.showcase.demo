@@ -56,7 +56,12 @@ describe('public/themes/_default_.css — no-cascade invariant', () => {
 
   it('declares no design-token / color custom properties', () => {
     expect(code).not.toMatch(/--color-/);
-    expect(code).not.toMatch(/--[\w-]+\s*:/);
+    // The `--` must open a declaration (line start, or after `{` / `;` /
+    // whitespace) rather than sit inside `var(--x)`, and `:` follows the name
+    // directly. Both anchors are single characters, so unlike the previous
+    // `--[\w-]+\s*:` there is no quantifier pair to backtrack across — that
+    // form had to retry the `[\w-]+` run from every offset (S5852).
+    expect(code).not.toMatch(/(?:^|[{;\s])--[\w-]+:/m);
   });
 
   it('is effectively empty once comments are stripped', () => {
