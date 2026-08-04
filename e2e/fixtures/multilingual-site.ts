@@ -1,6 +1,6 @@
-import { test as base } from '@playwright/test';
+import { expect, test as base } from '@playwright/test';
 
-export { expect } from '@playwright/test';
+export { expect };
 
 type SiteSummary = {
   code: string;
