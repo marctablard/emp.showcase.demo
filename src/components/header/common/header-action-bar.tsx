@@ -139,13 +139,7 @@ export function HeaderActionBar() {
       )}
     >
       <div className={cn('flex items-center gap-5 w-full', !scrolled && 'md:justify-between md:flex-wrap')}>
-        {/* role="presentation": the hover handler only dismisses an open flyout,
-            it does not make this wrapper operable — see header-top-banner.tsx. */}
-        <div
-          role="presentation"
-          className="flex items-center gap-5 w-full md:justify-between"
-          onMouseEnter={dismissFlyout}
-        >
+        <div className="flex items-center gap-5 w-full md:justify-between" onMouseEnter={dismissFlyout}>
           <HeaderLogo scrolled={scrolled} className={cn('me-auto md:me-0', scrolled && 'lg:me-auto')} />
           <HeaderSearch show={showSearch} small={!isAboveDesktopFlyoutBreakpoint || scrolled} />
           <div className={cn('flex items-center gap-5 text-nowrap', showSearch && 'sm:hidden')}>
@@ -191,8 +185,7 @@ export function HeaderActionBar() {
           <div className={cn('hidden md:block', (showSearch || scrolled) && 'md:hidden')}>
             <MenuLevel1 onMenuHover={handleMenuHover} activeMenuId={activeDesktopMenu?.id} />
           </div>
-          {/* role="presentation": see the wrapper above — hover only dismisses. */}
-          <div role="presentation" className="flex items-center gap-5" onMouseEnter={dismissFlyout}>
+          <div className="flex items-center gap-5" onMouseEnter={dismissFlyout}>
             <HeaderCartButton />
             <HeaderIconButton
               className={cn('hidden sm:flex', !scrolled && 'md:hidden', !isClient && 'invisible')}

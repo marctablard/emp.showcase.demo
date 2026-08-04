@@ -17,18 +17,12 @@ export function HeaderTopBanner() {
   const { scrolled } = useHeaderScroll();
   const isAboveDesktopFlyoutBreakpoint = useBreakpoint('md');
   const { dismissFlyout } = useHeaderDesktopNavigation();
-  // `role="presentation"` marks the banner shell as non-interactive for S6848:
-  // onMouseEnter only dismisses an already-open flyout when the pointer leaves
-  // the nav, it does not make the container itself operable. A div carries no
-  // implicit role and `presentation` does not propagate to children, so the
-  // SiteSwitcher and links below keep their semantics.
   return (
     <div
       className={cn(
         'hidden sm:flex items-center -mx-2 lg:-mx-4 -mb-1 h-8 px-8 lg:px-10 relative z-10 bg-surface-action text-text-on-action shadow-sm rounded-lg',
         scrolled && 'sm:hidden',
       )}
-      role="presentation"
       onMouseEnter={dismissFlyout}
     >
       <div className="flex justify-between items-center self-stretch w-full">
