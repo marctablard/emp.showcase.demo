@@ -399,6 +399,90 @@ async function runQuoteDecisionSubmit(deps: {
   }
 }
 
+async function updateQuoteStatus(
+  quoteId: string,
+  status: string,
+  comment?: string,
+  reasonCode?: string,
+): Promise<void> {
+  const statusResponse = await fetch('/api/quote/update-status', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      quoteId,
+      status,
+      comment,
+      reasonCode,
+    }),
+  });
+
+  if (!statusResponse.ok) {
+    const errorData = await statusResponse.json();
+    throw new Error(errorData.error || 'Failed to update quote status');
+  }
+
+  // After successfully updating status, refresh the page to show updated status
+  window.location.reload();
+}
+
+async function runQuoteAccept(deps: {
+  quoteId: string;
+  acceptComment: string;
+  t: QuoteDetailsTranslate;
+  setProcessError: (v: string | null) => void;
+  setIsProcessing: (v: boolean) => void;
+  setShowAcceptConfirmation: (v: boolean) => void;
+  setAcceptComment: (v: string) => void;
+}): Promise<void> {
+  const { quoteId, acceptComment, t, setProcessError, setIsProcessing, setShowAcceptConfirmation, setAcceptComment } =
+    deps;
+
+  try {
+    setProcessError(null);
+    setIsProcessing(true);
+
+    await updateQuoteStatus(quoteId, 'ACCEPTED', acceptComment);
+
+    setShowAcceptConfirmation(false);
+    setAcceptComment('');
+  } catch (error) {
+    getLogger().error({ err: error }, 'Failed to process quote');
+    const msg = error instanceof Error ? trimQuoteStatusErrorMessage(error.message) : t('quoteActionFailedDescription');
+    notify({
+      title: t('quoteActionFailedTitle'),
+      description: msg,
+      type: ToastType.Error,
+    });
+  } finally {
+    setIsProcessing(false);
+  }
+}
+
+function getQuotePrimaryActionPresentation(deps: {
+  quote: Quote | null | undefined;
+  approvalPermission: ApprovalPermissionState | null;
+  isProcessing: boolean;
+  isCheckingApprovalPermission: boolean;
+  t: QuoteDetailsTranslate;
+}): {
+  showInquiryCta: boolean;
+  primaryActionLabel: string;
+  isPrimaryActionDisabled: boolean;
+} {
+  const { quote, approvalPermission, isProcessing, isCheckingApprovalPermission, t } = deps;
+  const showInquiryCta = quote?.status === 'OPEN' && approvalPermission?.permitted === false;
+  const primaryActionLabel = showInquiryCta ? t('inquireApproval') : t('accept');
+  const isPrimaryActionDisabled = quote?.status !== 'OPEN' || isProcessing || isCheckingApprovalPermission;
+
+  return {
+    showInquiryCta,
+    primaryActionLabel,
+    isPrimaryActionDisabled,
+  };
+}
+
 export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   const locale = useLocale();
   const t = useTranslations('account.quoteDetails');
@@ -450,34 +534,6 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
       return left.userId.localeCompare(right.userId, locale, { sensitivity: 'base' });
     });
   }, [approvers, locale]);
-
-  const updateQuoteStatus = async (
-    quoteId: string,
-    status: string,
-    comment?: string,
-    reasonCode?: string,
-  ): Promise<void> => {
-    const statusResponse = await fetch('/api/quote/update-status', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        quoteId,
-        status,
-        comment,
-        reasonCode,
-      }),
-    });
-
-    if (!statusResponse.ok) {
-      const errorData = await statusResponse.json();
-      throw new Error(errorData.error || 'Failed to update quote status');
-    }
-
-    // After successfully updating status, refresh the page to show updated status
-    window.location.reload();
-  };
 
   // Use the hook to fetch the quote if not provided as initialQuote
   const { quote: fetchedQuote, loading, error } = useQuote(initialQuote ? undefined : quoteId);
@@ -595,9 +651,14 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
     return historyItem.userFullName;
   };
 
-  const showInquiryCta = quote?.status === 'OPEN' && approvalPermission?.permitted === false;
-  const primaryActionLabel = showInquiryCta ? t('inquireApproval') : t('accept');
-  const isPrimaryActionDisabled = quote?.status !== 'OPEN' || isProcessing || isCheckingApprovalPermission;
+  const { showInquiryCta, primaryActionLabel, isPrimaryActionDisabled } = getQuotePrimaryActionPresentation({
+    quote,
+    approvalPermission,
+    isProcessing,
+    isCheckingApprovalPermission,
+    t,
+  });
+  void showInquiryCta;
 
   // Loading state
   if (loading) {
@@ -889,29 +950,16 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                     <Button
                       variant="primary"
                       disabled={isProcessing}
-                      onClick={async () => {
-                        try {
-                          setProcessError(null);
-                          setIsProcessing(true);
-
-                          await updateQuoteStatus(quoteId, 'ACCEPTED', acceptComment);
-
-                          setShowAcceptConfirmation(false);
-                          setAcceptComment('');
-                        } catch (error) {
-                          getLogger().error({ err: error }, 'Failed to process quote');
-                          const msg =
-                            error instanceof Error
-                              ? trimQuoteStatusErrorMessage(error.message)
-                              : t('quoteActionFailedDescription');
-                          notify({
-                            title: t('quoteActionFailedTitle'),
-                            description: msg,
-                            type: ToastType.Error,
-                          });
-                        } finally {
-                          setIsProcessing(false);
-                        }
+                      onClick={() => {
+                        void runQuoteAccept({
+                          quoteId,
+                          acceptComment,
+                          t,
+                          setProcessError,
+                          setIsProcessing,
+                          setShowAcceptConfirmation,
+                          setAcceptComment,
+                        });
                       }}
                     >
                       {isProcessing ? t('creating') : t('createOrder')}
