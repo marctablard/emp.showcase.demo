@@ -102,6 +102,52 @@ function getHistoryActionLabel(
 
 type QuoteDecisionMode = keyof typeof QUOTE_DECISION_REASON_OPTIONS;
 
+async function loadQuoteApprovalPermission({
+  quote,
+  quoteId,
+  isCancelled,
+  setApprovalPermission,
+  setIsCheckingApprovalPermission,
+}: {
+  quote: Quote | null | undefined;
+  quoteId: string;
+  isCancelled: () => boolean;
+  setApprovalPermission: React.Dispatch<React.SetStateAction<ApprovalPermissionState | null>>;
+  setIsCheckingApprovalPermission: React.Dispatch<React.SetStateAction<boolean>>;
+}): Promise<void> {
+  if (!quote || quote.status !== 'OPEN') {
+    setApprovalPermission(null);
+    setIsCheckingApprovalPermission(false);
+    return;
+  }
+
+  try {
+    setIsCheckingApprovalPermission(true);
+
+    const permission = await checkApprovalPermitted({
+      resourceId: quoteId,
+      resourceType: QUOTE_APPROVAL_RESOURCE_TYPE,
+      action: QUOTE_APPROVAL_ACTION,
+    });
+
+    if (!isCancelled()) {
+      setApprovalPermission({
+        approvalId: permission.approvalId,
+        permitted: permission.permitted,
+      });
+    }
+  } catch (error) {
+    if (!isCancelled()) {
+      setApprovalPermission(null);
+      getLogger().error({ err: error, quoteId }, 'Failed to load quote approval permission');
+    }
+  } finally {
+    if (!isCancelled()) {
+      setIsCheckingApprovalPermission(false);
+    }
+  }
+}
+
 export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   const locale = useLocale();
   const t = useTranslations('account.quoteDetails');
@@ -194,41 +240,15 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   useEffect(() => {
     let isCancelled = false;
 
-    const loadApprovalPermission = async (): Promise<void> => {
-      if (!quote || quote.status !== 'OPEN') {
-        setApprovalPermission(null);
-        setIsCheckingApprovalPermission(false);
-        return;
-      }
-
-      try {
-        setIsCheckingApprovalPermission(true);
-
-        const permission = await checkApprovalPermitted({
-          resourceId: quoteId,
-          resourceType: QUOTE_APPROVAL_RESOURCE_TYPE,
-          action: QUOTE_APPROVAL_ACTION,
-        });
-
-        if (!isCancelled) {
-          setApprovalPermission({
-            approvalId: permission.approvalId,
-            permitted: permission.permitted,
-          });
-        }
-      } catch (error) {
-        if (!isCancelled) {
-          setApprovalPermission(null);
-          getLogger().error({ err: error, quoteId }, 'Failed to load quote approval permission');
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsCheckingApprovalPermission(false);
-        }
-      }
-    };
-
-    const cancelStart = startEffectTask(loadApprovalPermission);
+    const cancelStart = startEffectTask(() =>
+      loadQuoteApprovalPermission({
+        quote,
+        quoteId,
+        isCancelled: () => isCancelled,
+        setApprovalPermission,
+        setIsCheckingApprovalPermission,
+      }),
+    );
 
     return () => {
       isCancelled = true;
