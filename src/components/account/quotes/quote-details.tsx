@@ -188,6 +188,35 @@ function shouldFetchApprovers(params: {
   return showApprovalInquiryDialog && approvers === undefined && !approverSearchLoading && !approverSearchError;
 }
 
+function formatDate(dateString: string | undefined, locale: string): string {
+  if (!dateString) return '-';
+  return new Date(dateString).toLocaleDateString(locale, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
+function formatHistoryDate(dateString: string | undefined, locale: string): string {
+  if (!dateString || dateString === '-') return '-';
+  return new Date(dateString).toLocaleString(locale, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function formatPrice(price: number | undefined, currency: string | undefined): string {
+  if (price === undefined || currency === undefined) return '-';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+  }).format(price);
+}
+
 export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   const locale = useLocale();
   const t = useTranslations('account.quoteDetails');
@@ -454,35 +483,6 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
     }
   };
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString(locale, {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-  };
-
-  const formatHistoryDate = (dateString?: string) => {
-    if (!dateString || dateString === '-') return '-';
-    return new Date(dateString).toLocaleString(locale, {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const formatPrice = (price: number | undefined, currency: string | undefined) => {
-    if (price === undefined || currency === undefined) return '-';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency,
-      minimumFractionDigits: 2,
-    }).format(price);
-  };
-
   const getHistoryAction = (historyItem: Pick<QuoteHistoryItem, 'fieldChanged' | 'statusValue'>) =>
     getHistoryActionLabel(historyItem, t, tQuoteStatus);
 
@@ -685,7 +685,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
               <div className="flex flex-col gap-1">
                 <H5>{t('quotationDate')}</H5>
-                <span className="text-base font-body text-text-body">{formatDate(quote.submittedDate)}</span>
+                <span className="text-base font-body text-text-body">{formatDate(quote.submittedDate, locale)}</span>
               </div>
               <div className="flex flex-col gap-1">
                 <H5>{t('totalAmount')}</H5>
@@ -961,7 +961,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                 </div>
 
                 <div className="grid min-h-15 grid-cols-5 gap-4 border-t border-border-primary px-2 py-4 text-base font-body text-text-body">
-                  <p>{formatDate(quote.submittedDate)}</p>
+                  <p>{formatDate(quote.submittedDate, locale)}</p>
                   <p>{t('initialQuoteRequest')}</p>
                   <p>{quote.customerName || 'Unknown User'}</p>
                   <p>-</p>
@@ -978,7 +978,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                       key={historyItem.id}
                       className="grid min-h-15 grid-cols-5 gap-4 border-t border-border-primary px-2 py-4 text-base font-body text-text-body"
                     >
-                      <p>{formatHistoryDate(historyItem.rawModifiedAt || historyItem.modifiedAt)}</p>
+                      <p>{formatHistoryDate(historyItem.rawModifiedAt || historyItem.modifiedAt, locale)}</p>
                       <p>{getHistoryAction(historyItem)}</p>
                       <p>{getHistoryUserName(historyItem)}</p>
                       <div>
