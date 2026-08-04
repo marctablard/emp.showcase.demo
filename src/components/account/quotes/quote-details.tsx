@@ -424,7 +424,7 @@ async function updateQuoteStatus(
   }
 
   // After successfully updating status, refresh the page to show updated status
-  window.location.reload();
+  globalThis.location.reload();
 }
 
 async function runQuoteAccept(deps: {
@@ -651,14 +651,13 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
     return historyItem.userFullName;
   };
 
-  const { showInquiryCta, primaryActionLabel, isPrimaryActionDisabled } = getQuotePrimaryActionPresentation({
+  const { primaryActionLabel, isPrimaryActionDisabled } = getQuotePrimaryActionPresentation({
     quote,
     approvalPermission,
     isProcessing,
     isCheckingApprovalPermission,
     t,
   });
-  void showInquiryCta;
 
   // Loading state
   if (loading) {
