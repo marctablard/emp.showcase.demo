@@ -100,6 +100,35 @@ function getHistoryActionLabel(
       });
 }
 
+type QuoteDetailsTranslate = ReturnType<typeof useTranslations<'account.quoteDetails'>>;
+
+function getHistoryReason(quoteReason: string | undefined, t: QuoteDetailsTranslate): string | undefined {
+  if (!quoteReason) {
+    return undefined;
+  }
+
+  return t.has(`decisionReasons.${quoteReason}` as any) ? t(`decisionReasons.${quoteReason}` as any) : quoteReason;
+}
+
+function getHistoryComment(historyItem: Pick<QuoteHistoryItem, 'comment'>): string {
+  if (!historyItem.comment || historyItem.comment === '-') {
+    return '-';
+  }
+
+  return historyItem.comment;
+}
+
+function getHistoryCommentWithReason(historyItem: QuoteHistoryItem, t: QuoteDetailsTranslate): string {
+  const comment = getHistoryComment(historyItem);
+  const reason = getHistoryReason(historyItem.quoteReason, t);
+
+  if (!reason) {
+    return comment;
+  }
+
+  return comment === '-' ? reason : `${comment} (${reason})`;
+}
+
 type QuoteDecisionMode = keyof typeof QUOTE_DECISION_REASON_OPTIONS;
 
 async function loadQuoteApprovalPermission({
@@ -459,33 +488,6 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
 
   const getHistoryUserName = (historyItem: Pick<QuoteHistoryItem, 'userFullName'>) => {
     return historyItem.userFullName;
-  };
-
-  const getHistoryReason = (quoteReason?: string): string | undefined => {
-    if (!quoteReason) {
-      return undefined;
-    }
-
-    return t.has(`decisionReasons.${quoteReason}` as any) ? t(`decisionReasons.${quoteReason}` as any) : quoteReason;
-  };
-
-  const getHistoryComment = (historyItem: Pick<QuoteHistoryItem, 'comment'>): string => {
-    if (!historyItem.comment || historyItem.comment === '-') {
-      return '-';
-    }
-
-    return historyItem.comment;
-  };
-
-  const getHistoryCommentWithReason = (historyItem: QuoteHistoryItem): string => {
-    const comment = getHistoryComment(historyItem);
-    const reason = getHistoryReason(historyItem.quoteReason);
-
-    if (!reason) {
-      return comment;
-    }
-
-    return comment === '-' ? reason : `${comment} (${reason})`;
   };
 
   const showInquiryCta = quote?.status === 'OPEN' && approvalPermission?.permitted === false;
@@ -986,7 +988,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                           '-'
                         )}
                       </div>
-                      <p>{getHistoryCommentWithReason(historyItem)}</p>
+                      <p>{getHistoryCommentWithReason(historyItem, t)}</p>
                     </div>
                   ))
                 )}
