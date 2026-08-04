@@ -73,6 +73,27 @@ function getApproverSortValue(approver: {
   return approver.firstName?.trim() || approver.fullName?.trim() || approver.lastName?.trim() || approver.userId;
 }
 
+function sortApproversByLocale<T extends { userId: string; firstName?: string; lastName?: string; fullName?: string }>(
+  approvers: T[] | null | undefined,
+  locale: string,
+): T[] | undefined {
+  if (!approvers) {
+    return undefined;
+  }
+
+  return [...approvers].sort((left, right) => {
+    const firstNameComparison = getApproverSortValue(left).localeCompare(getApproverSortValue(right), locale, {
+      sensitivity: 'base',
+    });
+
+    if (firstNameComparison !== 0) {
+      return firstNameComparison;
+    }
+
+    return left.userId.localeCompare(right.userId, locale, { sensitivity: 'base' });
+  });
+}
+
 function trimQuoteStatusErrorMessage(message: string): string {
   const markerIndex = message.toLowerCase().indexOf(QUOTE_STATUS_ERROR_MARKER);
 
@@ -591,23 +612,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
     action: QUOTE_APPROVAL_ACTION,
   });
 
-  const sortedApprovers = useMemo(() => {
-    if (!approvers) {
-      return undefined;
-    }
-
-    return [...approvers].sort((left, right) => {
-      const firstNameComparison = getApproverSortValue(left).localeCompare(getApproverSortValue(right), locale, {
-        sensitivity: 'base',
-      });
-
-      if (firstNameComparison !== 0) {
-        return firstNameComparison;
-      }
-
-      return left.userId.localeCompare(right.userId, locale, { sensitivity: 'base' });
-    });
-  }, [approvers, locale]);
+  const sortedApprovers = useMemo(() => sortApproversByLocale(approvers, locale), [approvers, locale]);
 
   // Use the hook to fetch the quote if not provided as initialQuote
   const { quote: fetchedQuote, loading, error } = useQuote(initialQuote ? undefined : quoteId);
@@ -618,13 +623,10 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   // Use initialQuote if provided, otherwise use fetched quote
   const quote = initialQuote || fetchedQuote;
 
-  const sortedHistoryRows = useMemo(() => {
-    if (!quote) {
-      return [];
-    }
-
-    return buildSortedQuoteHistoryRows(quote.submittedDate, quoteHistory, historySortDirection);
-  }, [quote, quoteHistory, historySortDirection]);
+  const sortedHistoryRows = useMemo(
+    () => (quote ? buildSortedQuoteHistoryRows(quote.submittedDate, quoteHistory, historySortDirection) : []),
+    [quote, quoteHistory, historySortDirection],
+  );
 
   const toggleHistorySortDirection = () => {
     setHistorySortDirection((current) => (current === 'desc' ? 'asc' : 'desc'));

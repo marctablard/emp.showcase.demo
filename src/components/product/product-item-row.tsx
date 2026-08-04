@@ -33,7 +33,7 @@ function renderMobileUnitPriceStack(
   locale: string | undefined,
   showGrossSecondary: boolean,
   grossPriceLabel: string,
-  t: (key: string) => string,
+  grossPrefix: string,
 ) {
   return (
     <div className="flex flex-col gap-1">
@@ -42,7 +42,7 @@ function renderMobileUnitPriceStack(
       </span>
       {showGrossSecondary ? (
         <span className="text-sm font-body text-text-placeholders">
-          {t('gross').trim()}: {grossPriceLabel}
+          {grossPrefix}: {grossPriceLabel}
         </span>
       ) : null}
     </div>
@@ -135,7 +135,14 @@ export function ProductItemRow({ item, locale, presentationConfig, showGrossUnde
           <div className="flex min-w-0 flex-1 flex-col gap-3">
             {omitMobileUnitPrice
               ? renderOmittedMobileUnitPrice(item, hasTrailingDesktopAmount, presentationConfig)
-              : renderMobileUnitPriceStack(netPrice, item.currency, locale, showGrossSecondary, grossPriceLabel, t)}
+              : renderMobileUnitPriceStack(
+                  netPrice,
+                  item.currency,
+                  locale,
+                  showGrossSecondary,
+                  grossPriceLabel,
+                  t('gross').trim(),
+                )}
             {item.itemNumber && (
               <p className="text-sm text-text-placeholders">
                 {tOrders('itemNumber')}: {item.itemNumber}
