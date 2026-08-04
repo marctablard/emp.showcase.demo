@@ -217,6 +217,67 @@ function formatPrice(price: number | undefined, currency: string | undefined): s
   }).format(price);
 }
 
+async function runQuotePrimaryAction(deps: {
+  quoteId: string;
+  t: QuoteDetailsTranslate;
+  router: ReturnType<typeof useRouter>;
+  setProcessError: (v: string | null) => void;
+  setIsProcessing: (v: boolean) => void;
+  setApprovalPermission: (v: ApprovalPermissionState | null) => void;
+  setShowAcceptConfirmation: (v: boolean) => void;
+  openApprovalInquiryDialog: () => void;
+}): Promise<void> {
+  const {
+    quoteId,
+    t,
+    router,
+    setProcessError,
+    setIsProcessing,
+    setApprovalPermission,
+    setShowAcceptConfirmation,
+    openApprovalInquiryDialog,
+  } = deps;
+
+  try {
+    setProcessError(null);
+    setIsProcessing(true);
+
+    const permission = await checkApprovalPermitted({
+      resourceId: quoteId,
+      resourceType: QUOTE_APPROVAL_RESOURCE_TYPE,
+      action: QUOTE_APPROVAL_ACTION,
+    });
+
+    setApprovalPermission({
+      approvalId: permission.approvalId,
+      permitted: permission.permitted,
+    });
+
+    if (permission.permitted) {
+      setShowAcceptConfirmation(true);
+      return;
+    }
+
+    if (permission.approvalId) {
+      router.push(`/account/approval/${permission.approvalId}`);
+      return;
+    }
+
+    openApprovalInquiryDialog();
+  } catch (error) {
+    getLogger().error({ err: error, quoteId }, 'Failed to evaluate quote approval requirement');
+    const msg = error instanceof Error ? error.message : t('quoteActionFailedDescription');
+    setProcessError(msg);
+    notify({
+      title: t('quoteActionFailedTitle'),
+      description: msg,
+      type: ToastType.Error,
+    });
+  } finally {
+    setIsProcessing(false);
+  }
+}
+
 export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   const locale = useLocale();
   const t = useTranslations('account.quoteDetails');
@@ -405,44 +466,16 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   };
 
   const handleQuotePrimaryAction = async (): Promise<void> => {
-    try {
-      setProcessError(null);
-      setIsProcessing(true);
-
-      const permission = await checkApprovalPermitted({
-        resourceId: quoteId,
-        resourceType: QUOTE_APPROVAL_RESOURCE_TYPE,
-        action: QUOTE_APPROVAL_ACTION,
-      });
-
-      setApprovalPermission({
-        approvalId: permission.approvalId,
-        permitted: permission.permitted,
-      });
-
-      if (permission.permitted) {
-        setShowAcceptConfirmation(true);
-        return;
-      }
-
-      if (permission.approvalId) {
-        router.push(`/account/approval/${permission.approvalId}`);
-        return;
-      }
-
-      handleApprovalInquiryDialogChange(true);
-    } catch (error) {
-      getLogger().error({ err: error, quoteId }, 'Failed to evaluate quote approval requirement');
-      const msg = error instanceof Error ? error.message : t('quoteActionFailedDescription');
-      setProcessError(msg);
-      notify({
-        title: t('quoteActionFailedTitle'),
-        description: msg,
-        type: ToastType.Error,
-      });
-    } finally {
-      setIsProcessing(false);
-    }
+    await runQuotePrimaryAction({
+      quoteId,
+      t,
+      router,
+      setProcessError,
+      setIsProcessing,
+      setApprovalPermission,
+      setShowAcceptConfirmation,
+      openApprovalInquiryDialog: () => handleApprovalInquiryDialogChange(true),
+    });
   };
 
   const handleDecisionDialogChange = (nextMode: QuoteDecisionMode | null): void => {
