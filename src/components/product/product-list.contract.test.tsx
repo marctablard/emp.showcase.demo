@@ -10,6 +10,7 @@ import type { ProductListItem, ProductListPresentationConfig } from './product-l
 
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+  useLocale: () => 'de-DE',
 }));
 
 jest.mock('next/image', () => ({
@@ -181,15 +182,15 @@ describe('ProductList contract', () => {
   });
 
   it('omits mobile unit price only when omitMobileUnitPrice is set, keeping Quote/Approval mobile unit price by default', () => {
-    const unitPriceLabel = formatCurrency(contractItem.netUnitPrice!, contractItem.currency);
-    const refundLabel = formatCurrency(999, contractItem.currency);
+    const unitPriceLabel = formatCurrency(contractItem.netUnitPrice!, contractItem.currency, 'de-DE');
+    const refundLabel = formatCurrency(999, contractItem.currency, 'de-DE');
 
     const { rerender } = render(
-      <ProductList items={[contractItem]} presentationConfig={{ showGrossSecondary: true }} />,
+      <ProductList items={[contractItem]} locale="de-DE" presentationConfig={{ showGrossSecondary: true }} />,
     );
 
     expect(
-      within(screen.getByTestId(`product-item-mobile-${contractItem.id}`)).getByText(unitPriceLabel),
+      within(screen.getByTestId(`product-item-mobile-${contractItem.id}`)).getByText(byNormalizedText(unitPriceLabel)),
     ).toBeInTheDocument();
 
     const presentationConfig: ProductListPresentationConfig = {
@@ -199,14 +200,15 @@ describe('ProductList contract', () => {
       trailingDesktopAmount: (item) => <div data-testid={`refund-${item.id}`}>{refundLabel}</div>,
     };
 
-    rerender(<ProductList items={[contractItem]} presentationConfig={presentationConfig} />);
+    rerender(<ProductList items={[contractItem]} locale="de-DE" presentationConfig={presentationConfig} />);
 
     const mobileRow = screen.getByTestId(`product-item-mobile-${contractItem.id}`);
     const desktopRow = screen.getByTestId(`product-item-desktop-${contractItem.id}`);
 
-    expect(within(mobileRow).queryByText(unitPriceLabel)).not.toBeInTheDocument();
-    expect(within(mobileRow).getByTestId(`refund-${contractItem.id}`)).toHaveTextContent(refundLabel);
-    expect(within(desktopRow).getByText(unitPriceLabel)).toBeInTheDocument();
+    expect(within(mobileRow).queryByText(byNormalizedText(unitPriceLabel))).not.toBeInTheDocument();
+    const refundNode = within(mobileRow).getByTestId(`refund-${contractItem.id}`);
+    expect(refundNode.textContent?.replaceAll(/\s+/g, ' ').trim()).toBe(refundLabel.replaceAll(/\s+/g, ' ').trim());
+    expect(within(desktopRow).getByText(byNormalizedText(unitPriceLabel))).toBeInTheDocument();
   });
 
   it('contains the four-column trailing-amount grid inside an overflow-safe card for ~1024–1150px layouts', () => {

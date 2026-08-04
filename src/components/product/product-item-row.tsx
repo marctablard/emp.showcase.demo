@@ -16,6 +16,39 @@ interface ProductItemRowProps {
   readonly showGrossUnderNet?: boolean;
 }
 
+function renderOmittedMobileUnitPrice(
+  item: ProductListItem,
+  hasTrailingDesktopAmount: boolean,
+  presentationConfig?: ProductListPresentationConfig,
+) {
+  if (!hasTrailingDesktopAmount) {
+    return null;
+  }
+  return presentationConfig?.trailingDesktopAmount?.(item) ?? null;
+}
+
+function renderMobileUnitPriceStack(
+  netPrice: number,
+  currency: string,
+  locale: string | undefined,
+  showGrossSecondary: boolean,
+  grossPriceLabel: string,
+  t: (key: string) => string,
+) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-2xl font-bold font-headlines text-text-headings">
+        {formatCurrency(netPrice, currency, locale)}
+      </span>
+      {showGrossSecondary ? (
+        <span className="text-sm font-body text-text-placeholders">
+          {t('gross').trim()}: {grossPriceLabel}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 export function ProductItemRow({ item, locale, presentationConfig, showGrossUnderNet = false }: ProductItemRowProps) {
   const t = useTranslations('cart');
   const tOrders = useTranslations('orders');
@@ -100,22 +133,9 @@ export function ProductItemRow({ item, locale, presentationConfig, showGrossUnde
         <div className="flex items-start gap-4">
           {productImage}
           <div className="flex min-w-0 flex-1 flex-col gap-3">
-            {omitMobileUnitPrice ? (
-              hasTrailingDesktopAmount ? (
-                presentationConfig?.trailingDesktopAmount?.(item)
-              ) : null
-            ) : (
-              <div className="flex flex-col gap-1">
-                <span className="text-2xl font-bold font-headlines text-text-headings">
-                  {formatCurrency(netPrice, item.currency, locale)}
-                </span>
-                {showGrossSecondary && (
-                  <span className="text-sm font-body text-text-placeholders">
-                    {t('gross').trim()}: {grossPriceLabel}
-                  </span>
-                )}
-              </div>
-            )}
+            {omitMobileUnitPrice
+              ? renderOmittedMobileUnitPrice(item, hasTrailingDesktopAmount, presentationConfig)
+              : renderMobileUnitPriceStack(netPrice, item.currency, locale, showGrossSecondary, grossPriceLabel, t)}
             {item.itemNumber && (
               <p className="text-sm text-text-placeholders">
                 {tOrders('itemNumber')}: {item.itemNumber}

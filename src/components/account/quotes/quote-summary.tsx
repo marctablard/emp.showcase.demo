@@ -49,19 +49,24 @@ function shippingAddressLines(address: CheckoutAddress): string[] {
   ].filter((line): line is string => Boolean(line));
 }
 
+/** Prefer model-backed taxAggregate rate; fall back to computed only if missing. */
+function resolveQuoteVatRatePercent(quote: Quote): number | undefined {
+  if (typeof quote.vatRate === 'number') {
+    return Math.round(quote.vatRate);
+  }
+  if (quote.totalNet > 0) {
+    return Math.round((quote.totalVat / quote.totalNet) * 100);
+  }
+  return undefined;
+}
+
 export const QuoteSummary: React.FC<QuoteSummaryProps> = ({ quote }) => {
   const t = useTranslations('account.quoteDetails');
   const locale = useLocale();
 
   const currency = quote.currency || getPublicDefaultCurrency();
   const fmt = (amount: number) => formatCurrency(amount, currency, locale);
-  // Prefer model-backed taxAggregate rate (finding 11); fall back to computed only if missing.
-  const vatRate =
-    typeof quote.vatRate === 'number'
-      ? Math.round(quote.vatRate)
-      : quote.totalNet > 0
-        ? Math.round((quote.totalVat / quote.totalNet) * 100)
-        : undefined;
+  const vatRate = resolveQuoteVatRatePercent(quote);
   const vatRateSuffix = typeof vatRate === 'number' ? ` (${vatRate}%)` : '';
   const shippingMethod = quote.shippingMethod?.trim() || '';
   const addressLines = shippingAddressLines(quote.shippingAddress);

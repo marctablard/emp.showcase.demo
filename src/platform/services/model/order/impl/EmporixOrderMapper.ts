@@ -216,7 +216,7 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
       total: {
         value: shippingValue,
         currency: shippingCurrency,
-        ...(shippingTax !== undefined ? { tax: shippingTax } : {}),
+        ...(shippingTax === undefined ? {} : { tax: shippingTax }),
       },
       methods: shipping?.lines?.map((line) => {
         const localizedName = line.localizedName;

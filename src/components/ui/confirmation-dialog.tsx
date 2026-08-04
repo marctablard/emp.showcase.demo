@@ -41,7 +41,7 @@ export function ConfirmationDialog({
   onConfirm,
   pending = false,
   confirmVariant = 'outlineError',
-}: ConfirmationDialogProps) {
+}: Readonly<ConfirmationDialogProps>) {
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
       onOpenChange(true);

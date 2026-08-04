@@ -445,7 +445,7 @@ describe('Quote cross-links', () => {
     expect(screen.queryByRole('button', { name: /account\.quoteDetails\.comment/ })).not.toBeInTheDocument();
 
     const historyRows = screen.getAllByTestId(/quote-history-row-/);
-    expect(historyRows.map((row) => row.getAttribute('data-testid'))).toEqual([
+    expect(historyRows.map((row) => row.dataset.testid)).toEqual([
       'quote-history-row-history-newer',
       'quote-history-row-history-older',
       'quote-history-row-initial',
@@ -454,7 +454,7 @@ describe('Quote cross-links', () => {
     fireEvent.click(sortButton);
 
     expect(sortButton.parentElement).toHaveAttribute('aria-sort', 'ascending');
-    expect(screen.getAllByTestId(/quote-history-row-/).map((row) => row.getAttribute('data-testid'))).toEqual([
+    expect(screen.getAllByTestId(/quote-history-row-/).map((row) => row.dataset.testid)).toEqual([
       'quote-history-row-initial',
       'quote-history-row-history-older',
       'quote-history-row-history-newer',

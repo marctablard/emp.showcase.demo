@@ -10,6 +10,7 @@ import type { ProductListItem } from './product-list';
 
 jest.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) => `${namespace}.${key}`,
+  useLocale: () => 'de-DE',
 }));
 
 jest.mock('next/image', () => ({
@@ -36,6 +37,12 @@ const item: ProductListItem = {
   netUnitPrice: 100,
   grossUnitPrice: 119,
 };
+
+function byNormalizedText(expected: string) {
+  const normalize = (value: string) => value.replaceAll(/\s+/g, ' ').trim();
+  const normalizedExpected = normalize(expected);
+  return (_content: string, node: Element | null) => normalize(node?.textContent ?? '') === normalizedExpected;
+}
 
 describe('ProductItemRow translation namespaces', () => {
   it('reads itemNumber from the orders namespace and gross from the cart namespace', () => {
@@ -112,14 +119,14 @@ describe('ProductItemRow first-card spacing', () => {
 });
 
 describe('ProductItemRow omitMobileUnitPrice', () => {
-  const unitPriceLabel = formatCurrency(item.netUnitPrice!, item.currency);
-  const trailingRefundLabel = formatCurrency(250, item.currency);
+  const unitPriceLabel = formatCurrency(item.netUnitPrice!, item.currency, 'de-DE');
+  const trailingRefundLabel = formatCurrency(250, item.currency, 'de-DE');
 
   it('keeps unit price visible on mobile by default (Quote/Approval parity)', () => {
-    render(<ProductItemRow item={item} showGrossUnderNet />);
+    render(<ProductItemRow item={item} showGrossUnderNet locale="de-DE" />);
 
     const mobileRow = screen.getByTestId(`product-item-mobile-${item.id}`);
-    expect(within(mobileRow).getByText(unitPriceLabel)).toBeInTheDocument();
+    expect(within(mobileRow).getByText(byNormalizedText(unitPriceLabel))).toBeInTheDocument();
   });
 
   it('omits unit price on mobile and renders the trailing amount slot instead when configured', () => {
@@ -127,6 +134,7 @@ describe('ProductItemRow omitMobileUnitPrice', () => {
       <ProductItemRow
         item={item}
         showGrossUnderNet
+        locale="de-DE"
         presentationConfig={{
           omitMobileUnitPrice: true,
           showTrailingDesktopAmount: true,
@@ -138,8 +146,11 @@ describe('ProductItemRow omitMobileUnitPrice', () => {
     const mobileRow = screen.getByTestId(`product-item-mobile-${item.id}`);
     const desktopRow = screen.getByTestId(`product-item-desktop-${item.id}`);
 
-    expect(within(mobileRow).queryByText(unitPriceLabel)).not.toBeInTheDocument();
-    expect(within(mobileRow).getByTestId('mobile-trailing-refund')).toHaveTextContent(trailingRefundLabel);
-    expect(within(desktopRow).getByText(unitPriceLabel)).toBeInTheDocument();
+    expect(within(mobileRow).queryByText(byNormalizedText(unitPriceLabel))).not.toBeInTheDocument();
+    const trailing = within(mobileRow).getByTestId('mobile-trailing-refund');
+    expect(trailing.textContent?.replaceAll(/\s+/g, ' ').trim()).toBe(
+      trailingRefundLabel.replaceAll(/\s+/g, ' ').trim(),
+    );
+    expect(within(desktopRow).getByText(byNormalizedText(unitPriceLabel))).toBeInTheDocument();
   });
 });

@@ -521,6 +521,36 @@ function getQuotePrimaryActionPresentation(deps: {
   };
 }
 
+function RelatedApprovalField({
+  approvalId,
+  relatedApproval,
+  currentUserId,
+  label,
+}: Readonly<{
+  approvalId: string;
+  relatedApproval: Parameters<typeof getApprovalHref>[0] | null | undefined;
+  currentUserId?: string;
+  label: string;
+}>) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1" title={approvalId}>
+      <H5>{label}</H5>
+      {relatedApproval ? (
+        <UiLink
+          type="Link"
+          href={getApprovalHref(relatedApproval, currentUserId)}
+          variant="textNoUnderline"
+          className="block min-w-0 max-w-full truncate"
+        >
+          {approvalId}
+        </UiLink>
+      ) : (
+        <span className="block min-w-0 max-w-full truncate text-base font-body text-text-body">{approvalId}</span>
+      )}
+    </div>
+  );
+}
+
 export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   const locale = useLocale();
   const t = useTranslations('account.quoteDetails');
@@ -941,23 +971,12 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                 </div>
               ) : null}
               {approvalPermission?.approvalId ? (
-                <div className="flex min-w-0 flex-col gap-1" title={approvalPermission.approvalId}>
-                  <H5>{t('relatedApproval')}</H5>
-                  {relatedApproval ? (
-                    <UiLink
-                      type="Link"
-                      href={getApprovalHref(relatedApproval, customer?.id)}
-                      variant="textNoUnderline"
-                      className="block min-w-0 max-w-full truncate"
-                    >
-                      {approvalPermission.approvalId}
-                    </UiLink>
-                  ) : (
-                    <span className="block min-w-0 max-w-full truncate text-base font-body text-text-body">
-                      {approvalPermission.approvalId}
-                    </span>
-                  )}
-                </div>
+                <RelatedApprovalField
+                  approvalId={approvalPermission.approvalId}
+                  relatedApproval={relatedApproval}
+                  currentUserId={customer?.id}
+                  label={t('relatedApproval')}
+                />
               ) : null}
             </div>
           </div>
