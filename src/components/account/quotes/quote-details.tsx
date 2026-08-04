@@ -115,7 +115,7 @@ async function loadQuoteApprovalPermission({
   setApprovalPermission: React.Dispatch<React.SetStateAction<ApprovalPermissionState | null>>;
   setIsCheckingApprovalPermission: React.Dispatch<React.SetStateAction<boolean>>;
 }): Promise<void> {
-  if (!quote || quote.status !== 'OPEN') {
+  if (quote?.status !== 'OPEN') {
     setApprovalPermission(null);
     setIsCheckingApprovalPermission(false);
     return;
@@ -146,6 +146,17 @@ async function loadQuoteApprovalPermission({
       setIsCheckingApprovalPermission(false);
     }
   }
+}
+
+function shouldFetchApprovers(params: {
+  showApprovalInquiryDialog: boolean;
+  approvers: ReturnType<typeof useApproverSearch>['approvers'];
+  approverSearchLoading: boolean;
+  approverSearchError: ReturnType<typeof useApproverSearch>['error'];
+}): boolean {
+  const { showApprovalInquiryDialog, approvers, approverSearchLoading, approverSearchError } = params;
+
+  return showApprovalInquiryDialog && approvers === undefined && !approverSearchLoading && !approverSearchError;
 }
 
 export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
@@ -257,7 +268,14 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   }, [quote, quoteId]);
 
   useEffect(() => {
-    if (!showApprovalInquiryDialog || approvers !== undefined || approverSearchLoading || approverSearchError) {
+    if (
+      !shouldFetchApprovers({
+        showApprovalInquiryDialog,
+        approvers,
+        approverSearchLoading,
+        approverSearchError,
+      })
+    ) {
       return;
     }
 
