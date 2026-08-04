@@ -10,6 +10,7 @@ import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
 import { ToastType, notify } from '@/components/ui/toast-notification';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useSyncedState } from '@/hooks/common/use-synced-state';
 import { useComparison } from '@/hooks/comparison/useComparison';
 import { useValidateAddToComparison } from '@/hooks/comparison/useValidateAddToComparison';
 import { useAvailability } from '@/hooks/product/useAvailability';
@@ -39,7 +40,8 @@ export function WishlistItem({ item, onMovedToCart }: WishlistItemProps) {
   const { l10n } = useL10n();
   const { updateItemQuantity, removeItem, moveItemToCart, loading } = useWishlist();
   const { availability } = useAvailability(item.productId);
-  const [quantity, setQuantity] = useState(item.quantity);
+  // Follows the item's quantity when it changes upstream, while staying locally editable.
+  const [quantity, setQuantity] = useSyncedState(item.quantity);
   const [isProcessing, setIsProcessing] = useState(false);
   const quantityDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -54,11 +56,6 @@ export function WishlistItem({ item, onMovedToCart }: WishlistItemProps) {
   const { isInComparison, toggleProduct, isFull } = useComparison();
   const { disabled: compareDisabled, tooltip: compareTooltip } = useValidateAddToComparison(productForComparison);
   const isCompared = isInComparison(item.productId);
-
-  useEffect(() => {
-    if (item.quantity !== quantity) setQuantity(item.quantity);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.quantity]);
 
   useEffect(() => {
     return () => {

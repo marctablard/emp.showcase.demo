@@ -32,13 +32,13 @@ type LoginFormProps = {
 };
 
 export function LoginForm({
-  callbackUrl,
-  email,
+  callbackUrl: callbackUrlProp,
+  email: emailProp,
   onSuccess,
-  guestCheckout = false,
+  guestCheckout: guestCheckoutProp = false,
   onGuestAction,
   isDialog = false,
-}: LoginFormProps) {
+}: Readonly<LoginFormProps>) {
   const t = useTranslations('auth.login');
   const locale = useLocale();
   const { site } = useSite();
@@ -49,27 +49,32 @@ export function LoginForm({
   const { form } = useValidator(
     'LoginValidationService',
     {
-      username: email || '',
+      // Seeded from the prop only: useValidator captures its initial values on mount, and the
+      // search-param fallbacks below are resolved after this call (unchanged behaviour).
+      username: emailProp || '',
       password: '',
     },
     'onChange',
   );
 
   const searchParams = useSearchParams();
-  if (email === undefined) {
-    email = searchParams.get('email') ?? undefined;
+  const email = emailProp ?? searchParams.get('email') ?? undefined;
+  const callbackUrl = callbackUrlProp ?? searchParams.get('callbackUrl') ?? '/account';
+  const guestCheckout = guestCheckoutProp || searchParams.get('guestCheckout') === 'true';
+
+  // Adjust state during render when the email changes, rather than from an effect:
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [prevEmail, setPrevEmail] = useState(email);
+  if (prevEmail !== email) {
+    setPrevEmail(email);
+    setError(null);
+    setShowPassword(false);
   }
-  if (callbackUrl === undefined) {
-    callbackUrl = searchParams.get('callbackUrl') ?? '/account';
-  }
-  guestCheckout = guestCheckout || searchParams.get('guestCheckout') === 'true';
 
   // Reset form when email changes
   useEffect(() => {
     if (form) {
       form.reset({ username: email || '', password: '' });
-      setError(null);
-      setShowPassword(false);
     }
   }, [email, form]);
 

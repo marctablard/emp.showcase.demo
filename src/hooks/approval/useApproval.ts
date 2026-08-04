@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import type { Approval, ApprovalStatus } from '@/platform/services/model/approval';
 
 interface UseApprovalReturn {
@@ -57,9 +58,10 @@ export function useApproval(approvalId: string, initialApproval?: Approval | nul
 
   // Load approval on initial render if not provided
   useEffect(() => {
-    if (!initialApproval && approvalId) {
-      fetchApproval();
+    if (initialApproval || !approvalId) {
+      return;
     }
+    return startEffectTask(fetchApproval);
   }, [initialApproval, approvalId, fetchApproval]);
 
   const updateApprovalStatus = useCallback(

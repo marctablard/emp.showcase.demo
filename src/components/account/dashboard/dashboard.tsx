@@ -16,6 +16,10 @@ import { TicketCard } from './cards/ticket-card';
 // Import card components from the cards folder
 import { WeatherCard } from './cards/weather-card';
 
+// Created once at module scope: calling WidthProvider() during render produces a new component
+// type on every render, which remounts the whole grid and drops its DOM/measurement state.
+const ResponsiveReactGridLayout = WidthProvider(Responsive);
+
 interface DashboardProps {
   isCustomizable: boolean;
   layouts: Layouts;
@@ -23,27 +27,27 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ isCustomizable, layouts, layoutChanged }: DashboardProps) {
-  const state = useLocalDashboardStore();
-
-  const ResponsiveReactGridLayout = WidthProvider(Responsive);
+  // Subscribe to the setters only — the store deliberately holds layout state that must not
+  // re-render this component when it changes.
+  const setCurrentBreakpoint = useLocalDashboardStore((s) => s.setCurrentBreakpoint);
+  const setCurrentLayout = useLocalDashboardStore((s) => s.setCurrentLayout);
 
   const onBreakpointChange = (breakpoint: string) => {
-    state.currentBreakpoint = breakpoint;
+    setCurrentBreakpoint(breakpoint);
   };
 
   const onLayoutChange = useCallback(
     (layout: Layout[], newLayouts: Layouts) => {
       if (!isEqual(layouts, newLayouts)) {
-        // TODO this triggers a re-render of the dashboard component
-        // when it changes the state of the Config-Store... no idea why
         layoutChanged(newLayouts);
       }
-      const currentLayout = state.currentLayout;
+      // Read through getState() so this callback does not need the layout as a dependency.
+      const currentLayout = useLocalDashboardStore.getState().currentLayout;
       if (!isEqual(layout, currentLayout)) {
-        state.currentLayout = layout;
+        setCurrentLayout(layout);
       }
     },
-    [layouts, layoutChanged, state],
+    [layouts, layoutChanged, setCurrentLayout],
   );
 
   const layoutItems = useMemo(() => {

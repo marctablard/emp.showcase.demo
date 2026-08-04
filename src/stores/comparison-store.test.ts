@@ -1,7 +1,17 @@
+/**
+ * @jest-environment jsdom
+ */
 import { MAX_COMPARISON_PRODUCTS, createComparisonStore } from './comparison-store';
 import type { ComparisonStore } from './comparison-store';
 
-// Provide an in-memory localStorage for zustand persist middleware
+// Provide an in-memory localStorage for zustand persist middleware.
+//
+// This file runs under jsdom rather than the Library Tests project's default `node` environment:
+// zustand's persist middleware resolves its default storage through `window.localStorage`, so in
+// a `window`-less environment it reports "the given storage is currently unavailable" and never
+// writes. jsdom gives us a `window`, and because `globalThis === window` there, defining the mock
+// below reaches the middleware. The store under test is browser-only state, so jsdom is also the
+// environment it actually runs in.
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
@@ -19,13 +29,6 @@ const localStorageMock = (() => {
 })();
 
 Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock });
-
-// zustand's persist middleware resolves its default storage as
-// `createJSONStorage(() => window.localStorage)`. This suite runs in the node
-// test environment, which has no `window` — the lookup throws, persist falls
-// back to a no-op and nothing is ever written. Expose a `window` backed by the
-// same mock so the middleware stays live.
-Object.defineProperty(globalThis, 'window', { value: { localStorage: localStorageMock }, writable: true });
 
 describe('comparison-store', () => {
   let store: ReturnType<typeof createComparisonStore>;

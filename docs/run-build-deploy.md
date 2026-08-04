@@ -182,13 +182,15 @@ The **Run npm audit** step of `.github/workflows/github-actions-deploy-pr-previe
     node scripts/verify-audit-policy.mjs audit-report.json
 ```
 
-This exists to allow one narrowly-scoped, time-boxed exception while keeping every other failure mode fatal:
+`ALLOWED_EXCEPTIONS` is **currently empty** — there is no active exception, and every high/critical advisory fails CI.
+
+The mechanism exists to allow narrowly-scoped, time-boxed exceptions when a fix genuinely is not yet available, while keeping every other failure mode fatal. Its one historical entry has been resolved:
 
 - **Advisory:** [`GHSA-mh99-v99m-4gvg`](https://github.com/advisories/GHSA-mh99-v99m-4gvg) — `brace-expansion` DoS via unbounded expansion length (CWE-400/CWE-770), pulled in transitively through `minimatch` by the ESLint and Jest toolchains.
-- **Why:** the only available fix (`fixAvailable` in the audit report) requires a semver-major bump of `eslint`/`jest`, which is not currently safe to take without breaking lint/test tooling in this repo. This is a dev-tooling-only exposure (ESLint/Jest CLI usage), not a runtime/production dependency path.
-- **Expiry:** **2026-08-08** (valid through the end of that day, UTC). After this date, `scripts/verify-audit-policy.mjs` treats the exception as expired and fails CI on this advisory exactly like any other unlisted one — the date must be extended deliberately in code (with a fresh rationale) or, preferably, removed once `eslint`/`jest` can be upgraded.
-- **Removal condition:** remove the `GHSA-mh99-v99m-4gvg` entry from `ALLOWED_EXCEPTIONS` in `scripts/verify-audit-policy.mjs` as soon as upgrading `eslint`/`jest` (or their transitive `minimatch`/`brace-expansion` versions) resolves the advisory, without waiting for the expiry date.
-- **Scope:** this exception applies **only** to the PR preview deploy workflow's audit step. Every other workflow (`github-actions-deploy-dev.yaml`, `-prod.yaml`, `-showcasedev.yaml`, `-showcaseqadev.yaml`) continues to run plain `npm audit --audit-level=high` with no exception applied, and will fail immediately on this or any other high/critical advisory.
+- **Resolved:** upstream published fixed patch releases on both affected major lines (`1.1.17` and `2.1.3`), so the advisory is fixed **without** the semver-major `eslint`/`jest` bump the exception was originally taken for. Both are pinned via `overrides` in `package.json` (`minimatch@^3.0.0 → brace-expansion 1.1.17` and `brace-expansion@^2.0.0 → 2.1.3`), and `npm audit --audit-level=high` now reports zero vulnerabilities. The entry was removed from `ALLOWED_EXCEPTIONS` per its own removal condition, ahead of its 2026-08-08 expiry.
+- **Scope note:** the exception mechanism applies **only** to the PR preview deploy workflow's audit step. Every other workflow (`github-actions-deploy-dev.yaml`, `-prod.yaml`, `-showcasedev.yaml`, `-showcaseqadev.yaml`) runs plain `npm audit --audit-level=high` with no exception applied. That asymmetry is why a tolerated advisory shows up as a green PR preview but a red `develop` deploy — an exception buys time on PRs only, never on the branch deploys.
+
+If a new exception ever becomes necessary, it MUST carry an explicit short-lived `expires` date and a written rationale, and be removed as soon as a real fix lands.
 
 `scripts/verify-audit-policy.mjs` is deliberately strict about everything else:
 
@@ -202,7 +204,7 @@ To reproduce this exact CI check locally:
 npm run verify:audit-policy
 ```
 
-Do not weaken this mechanism to force a pass — do not broaden `ALLOWED_EXCEPTIONS` beyond `GHSA-mh99-v99m-4gvg`, do not remove or extend the expiry check, do not add `continue-on-error` to the step, and do not lower `--audit-level` or add `--omit=dev`. A failure here means either a new high/critical advisory that must be triaged, or the existing exception has expired and needs a real fix or an explicit, reviewed renewal.
+Do not weaken this mechanism to force a pass — do not add entries to `ALLOWED_EXCEPTIONS` without an expiry and a reviewed rationale, do not remove or extend the expiry check, do not add `continue-on-error` to the step, and do not lower `--audit-level` or add `--omit=dev`. A failure here means either a new high/critical advisory that must be triaged, or an exception has expired and needs a real fix or an explicit, reviewed renewal.
 
 ## Deployment (Vercel + GitHub Actions)
 Deployment is automated using Vercel and GitHub Actions.

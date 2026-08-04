@@ -26,6 +26,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { ToastType, notify } from '@/components/ui/toast-notification';
 import { useApproverSearch } from '@/hooks/approval/useApproverSearch';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { useQuoteHistory } from '@/hooks/quotes/useQuoteHistory';
 import { useQuote } from '@/hooks/quotes/useQuotes';
 import { useRouter } from '@/i18n/navigation';
@@ -177,15 +178,15 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   const quote = initialQuote || fetchedQuote;
 
   useEffect(() => {
-    if (!quote || quote.status !== 'OPEN') {
-      setApprovalPermission(null);
-      setIsCheckingApprovalPermission(false);
-      return;
-    }
-
     let isCancelled = false;
 
     const loadApprovalPermission = async (): Promise<void> => {
+      if (!quote || quote.status !== 'OPEN') {
+        setApprovalPermission(null);
+        setIsCheckingApprovalPermission(false);
+        return;
+      }
+
       try {
         setIsCheckingApprovalPermission(true);
 
@@ -213,10 +214,13 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
       }
     };
 
-    void loadApprovalPermission();
+    // Started off the effect's synchronous path so the state writes above do not cascade
+    // inside this commit.
+    const cancelStart = startEffectTask(loadApprovalPermission);
 
     return () => {
       isCancelled = true;
+      cancelStart();
     };
   }, [quote, quoteId]);
 
