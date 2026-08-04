@@ -278,6 +278,127 @@ async function runQuotePrimaryAction(deps: {
   }
 }
 
+async function runQuoteApprovalInquiry(deps: {
+  selectedApproverId: string | null;
+  quoteId: string;
+  approvalInquiryComment: string;
+  t: QuoteDetailsTranslate;
+  router: ReturnType<typeof useRouter>;
+  setProcessError: (v: string | null) => void;
+  setIsProcessing: (v: boolean) => void;
+  setApprovalPermission: (v: ApprovalPermissionState | null) => void;
+  closeApprovalInquiryDialog: () => void;
+}): Promise<void> {
+  const {
+    selectedApproverId,
+    quoteId,
+    approvalInquiryComment,
+    t,
+    router,
+    setProcessError,
+    setIsProcessing,
+    setApprovalPermission,
+    closeApprovalInquiryDialog,
+  } = deps;
+
+  if (!selectedApproverId) {
+    return;
+  }
+
+  try {
+    setProcessError(null);
+    setIsProcessing(true);
+
+    const approval = await createApproval(
+      createQuoteApprovalRequest(quoteId, {
+        approverId: selectedApproverId,
+        comment: approvalInquiryComment.trim() || undefined,
+      }),
+    );
+
+    setApprovalPermission({
+      approvalId: approval.id,
+      permitted: false,
+    });
+    closeApprovalInquiryDialog();
+    router.push(`/account/approval/${approval.id}`);
+  } catch (error) {
+    if (error instanceof ApprovalAlreadyExistsError) {
+      setApprovalPermission({
+        approvalId: error.approvalId,
+        permitted: false,
+      });
+      closeApprovalInquiryDialog();
+      router.push(`/account/approval/${error.approvalId}`);
+      return;
+    }
+
+    getLogger().error({ err: error, quoteId }, 'Failed to create quote approval inquiry');
+    const msg = error instanceof Error ? error.message : t('quoteActionFailedDescription');
+    setProcessError(msg);
+    notify({
+      title: t('quoteActionFailedTitle'),
+      description: msg,
+      type: ToastType.Error,
+    });
+  } finally {
+    setIsProcessing(false);
+  }
+}
+
+async function runQuoteDecisionSubmit(deps: {
+  activeDecisionDialog: QuoteDecisionMode | null;
+  decisionReasonCode: string;
+  decisionComment: string;
+  quoteId: string;
+  t: QuoteDetailsTranslate;
+  updateQuoteStatus: (quoteId: string, status: string, comment?: string, reasonCode?: string) => Promise<void>;
+  setProcessError: (v: string | null) => void;
+  setIsProcessing: (v: boolean) => void;
+  closeDecisionDialog: () => void;
+}): Promise<void> {
+  const {
+    activeDecisionDialog,
+    decisionReasonCode,
+    decisionComment,
+    quoteId,
+    t,
+    updateQuoteStatus,
+    setProcessError,
+    setIsProcessing,
+    closeDecisionDialog,
+  } = deps;
+
+  if (!activeDecisionDialog || !decisionReasonCode) {
+    return;
+  }
+
+  try {
+    setProcessError(null);
+    setIsProcessing(true);
+
+    await updateQuoteStatus(
+      quoteId,
+      QUOTE_DECISION_STATUS[activeDecisionDialog],
+      decisionComment.trim() || undefined,
+      decisionReasonCode,
+    );
+
+    closeDecisionDialog();
+  } catch (error) {
+    getLogger().error({ err: error, quoteId, reasonCode: decisionReasonCode }, 'Failed to update quote decision');
+    const msg = error instanceof Error ? error.message : t('quoteActionFailedDescription');
+    setProcessError(msg);
+    notify({
+      title: t('quoteActionFailedTitle'),
+      description: msg,
+      type: ToastType.Error,
+    });
+  } finally {
+    setIsProcessing(false);
+  }
+}
+
 export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   const locale = useLocale();
   const t = useTranslations('account.quoteDetails');
@@ -420,49 +541,17 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   };
 
   const handleApprovalInquirySubmit = async (): Promise<void> => {
-    if (!selectedApproverId) {
-      return;
-    }
-
-    try {
-      setProcessError(null);
-      setIsProcessing(true);
-
-      const approval = await createApproval(
-        createQuoteApprovalRequest(quoteId, {
-          approverId: selectedApproverId,
-          comment: approvalInquiryComment.trim() || undefined,
-        }),
-      );
-
-      setApprovalPermission({
-        approvalId: approval.id,
-        permitted: false,
-      });
-      handleApprovalInquiryDialogChange(false);
-      router.push(`/account/approval/${approval.id}`);
-    } catch (error) {
-      if (error instanceof ApprovalAlreadyExistsError) {
-        setApprovalPermission({
-          approvalId: error.approvalId,
-          permitted: false,
-        });
-        handleApprovalInquiryDialogChange(false);
-        router.push(`/account/approval/${error.approvalId}`);
-        return;
-      }
-
-      getLogger().error({ err: error, quoteId }, 'Failed to create quote approval inquiry');
-      const msg = error instanceof Error ? error.message : t('quoteActionFailedDescription');
-      setProcessError(msg);
-      notify({
-        title: t('quoteActionFailedTitle'),
-        description: msg,
-        type: ToastType.Error,
-      });
-    } finally {
-      setIsProcessing(false);
-    }
+    await runQuoteApprovalInquiry({
+      selectedApproverId,
+      quoteId,
+      approvalInquiryComment,
+      t,
+      router,
+      setProcessError,
+      setIsProcessing,
+      setApprovalPermission,
+      closeApprovalInquiryDialog: () => handleApprovalInquiryDialogChange(false),
+    });
   };
 
   const handleQuotePrimaryAction = async (): Promise<void> => {
@@ -486,34 +575,17 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   };
 
   const handleQuoteDecisionSubmit = async (): Promise<void> => {
-    if (!activeDecisionDialog || !decisionReasonCode) {
-      return;
-    }
-
-    try {
-      setProcessError(null);
-      setIsProcessing(true);
-
-      await updateQuoteStatus(
-        quoteId,
-        QUOTE_DECISION_STATUS[activeDecisionDialog],
-        decisionComment.trim() || undefined,
-        decisionReasonCode,
-      );
-
-      handleDecisionDialogChange(null);
-    } catch (error) {
-      getLogger().error({ err: error, quoteId, reasonCode: decisionReasonCode }, 'Failed to update quote decision');
-      const msg = error instanceof Error ? error.message : t('quoteActionFailedDescription');
-      setProcessError(msg);
-      notify({
-        title: t('quoteActionFailedTitle'),
-        description: msg,
-        type: ToastType.Error,
-      });
-    } finally {
-      setIsProcessing(false);
-    }
+    await runQuoteDecisionSubmit({
+      activeDecisionDialog,
+      decisionReasonCode,
+      decisionComment,
+      quoteId,
+      t,
+      updateQuoteStatus,
+      setProcessError,
+      setIsProcessing,
+      closeDecisionDialog: () => handleDecisionDialogChange(null),
+    });
   };
 
   const getHistoryAction = (historyItem: Pick<QuoteHistoryItem, 'fieldChanged' | 'statusValue'>) =>
