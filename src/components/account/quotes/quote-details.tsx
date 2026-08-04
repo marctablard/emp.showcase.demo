@@ -47,6 +47,58 @@ interface QuoteDetailsProps {
   initialQuote?: Quote;
 }
 
+type QuoteDetailsTranslate = ReturnType<typeof useTranslations<'account.quoteDetails'>>;
+
+function isQuoteDetailsReady(
+  loading: boolean,
+  error: Error | null | undefined,
+  quote: Quote | null | undefined,
+): quote is Quote {
+  return !loading && !error && Boolean(quote);
+}
+
+function renderQuoteDetailsUnavailableState(deps: {
+  loading: boolean;
+  error: Error | null | undefined;
+  quote: Quote | null | undefined;
+  t: QuoteDetailsTranslate;
+  onBack: () => void;
+}): React.ReactNode {
+  const { loading, error, quote, t, onBack } = deps;
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('title')}</CardTitle>
+          <CardDescription>{t('title')}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex justify-center py-8">
+          <div className="flex flex-col items-center space-y-2">
+            <Spinner color="primary" variant="md" />
+            <div>{t('loading')}</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('title')}</CardTitle>
+        <CardDescription>{t('title')}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="bg-surface-error p-4 rounded-md text-text-error">{error?.message || 'Quote not found'}</div>
+      </CardContent>
+      <CardFooter>
+        <Button onClick={onBack}>{t('backToQuotes')}</Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
 interface ApprovalPermissionState {
   approvalId?: string;
   permitted: boolean;
@@ -112,7 +164,7 @@ function trimQuoteStatusErrorMessage(message: string): string {
 
 function getHistoryActionLabel(
   historyItem: Pick<QuoteHistoryItem, 'fieldChanged' | 'statusValue'>,
-  t: ReturnType<typeof useTranslations<'account.quoteDetails'>>,
+  t: QuoteDetailsTranslate,
   tQuoteStatus: ReturnType<typeof useTranslations<'account.quoteStatus'>>,
 ): string {
   return historyItem.fieldChanged === '/comment' || historyItem.fieldChanged.startsWith('/mixins/')
@@ -123,8 +175,6 @@ function getHistoryActionLabel(
           : 'UNKNOWN',
       });
 }
-
-type QuoteDetailsTranslate = ReturnType<typeof useTranslations<'account.quoteDetails'>>;
 
 function getHistoryReason(quoteReason: string | undefined, t: QuoteDetailsTranslate): string | undefined {
   if (!quoteReason) {
@@ -572,7 +622,7 @@ function RelatedApprovalField({
   );
 }
 
-export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
+export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsProps>) {
   const locale = useLocale();
   const t = useTranslations('account.quoteDetails');
   const tQuoteStatus = useTranslations('account.quoteStatus');
@@ -747,40 +797,15 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
     t,
   });
 
-  // Loading state
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('title')}</CardTitle>
-          <CardDescription>{t('title')}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-center py-8">
-          <div className="flex flex-col items-center space-y-2">
-            <Spinner color="primary" variant="md" />
-            <div>{t('loading')}</div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Error state
-  if (error || !quote) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('title')}</CardTitle>
-          <CardDescription>{t('title')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="bg-surface-error p-4 rounded-md text-text-error">{error?.message || 'Quote not found'}</div>
-        </CardContent>
-        <CardFooter>
-          <Button onClick={() => router.back()}>{t('backToQuotes')}</Button>
-        </CardFooter>
-      </Card>
-    );
+  // Loading / not-found gate (extracted to keep QuoteDetails cognitive complexity ≤ 15)
+  if (!isQuoteDetailsReady(loading, error, quote)) {
+    return renderQuoteDetailsUnavailableState({
+      loading,
+      error,
+      quote,
+      t,
+      onBack: () => router.back(),
+    });
   }
 
   return (
