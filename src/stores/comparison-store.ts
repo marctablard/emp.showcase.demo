@@ -27,6 +27,14 @@ const defaultState: ComparisonState = {
 
 export const createComparisonStore = (initState?: ComparisonState, storageKey?: string) => {
   const name = storageKey || process.env.NEXT_PUBLIC_COMPARISON_STORAGE_NAME || 'comparison-storage';
+  const persistOptions = {
+    name,
+    ...(typeof globalThis !== 'undefined' && globalThis.localStorage
+      ? {
+          storage: createJSONStorage(() => globalThis.localStorage),
+        }
+      : {}),
+  };
 
   return create<ComparisonStore>()(
     persist(
@@ -58,10 +66,7 @@ export const createComparisonStore = (initState?: ComparisonState, storageKey?: 
           }),
         getCount: (): number => get().productIds.length,
       })),
-      {
-        name,
-        storage: createJSONStorage(() => globalThis.localStorage),
-      },
+      persistOptions,
     ),
   );
 };

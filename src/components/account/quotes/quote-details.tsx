@@ -86,6 +86,20 @@ function trimQuoteStatusErrorMessage(message: string): string {
   return message.slice(descriptionStartIndex + 1).trim();
 }
 
+function getHistoryActionLabel(
+  historyItem: Pick<QuoteHistoryItem, 'fieldChanged' | 'statusValue'>,
+  t: ReturnType<typeof useTranslations<'account.quoteDetails'>>,
+  tQuoteStatus: ReturnType<typeof useTranslations<'account.quoteStatus'>>,
+): string {
+  return historyItem.fieldChanged === '/comment' || historyItem.fieldChanged.startsWith('/mixins/')
+    ? t('commentAdded')
+    : t('statusChanged', {
+        currentStatus: historyItem.statusValue
+          ? getQuoteStatusDisplayLabel(historyItem.statusValue, tQuoteStatus)
+          : 'UNKNOWN',
+      });
+}
+
 type QuoteDecisionMode = keyof typeof QUOTE_DECISION_REASON_OPTIONS;
 
 export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
@@ -402,15 +416,8 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
     }).format(price);
   };
 
-  const getHistoryAction = (historyItem: Pick<QuoteHistoryItem, 'fieldChanged' | 'statusValue'>) => {
-    return historyItem.fieldChanged === '/comment' || historyItem.fieldChanged.startsWith('/mixins/')
-      ? t('commentAdded')
-      : t('statusChanged', {
-          currentStatus: historyItem.statusValue
-            ? getQuoteStatusDisplayLabel(historyItem.statusValue, tQuoteStatus)
-            : 'UNKNOWN',
-        });
-  };
+  const getHistoryAction = (historyItem: Pick<QuoteHistoryItem, 'fieldChanged' | 'statusValue'>) =>
+    getHistoryActionLabel(historyItem, t, tQuoteStatus);
 
   const getHistoryUserName = (historyItem: Pick<QuoteHistoryItem, 'userFullName'>) => {
     return historyItem.userFullName;

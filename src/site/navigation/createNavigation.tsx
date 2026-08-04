@@ -1,5 +1,5 @@
 'use client';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useLocale } from 'next-intl';
 import { createNavigation as createIntlNavigation } from 'next-intl/navigation';
 import { usePathname as useNextPathname, useRouter as useNextRouter } from 'next/navigation';
@@ -53,28 +53,30 @@ export default function createNavigation(siteRouting: SiteRoutingConfig, intlRou
     const currentLocale = useLocale();
     const site = useSiteCode();
 
-    return useMemo(() => {
-      type RouterOptions = Partial<Record<string, unknown>> & { locale?: string; site?: string };
+    type RouterOptions = Partial<Record<string, unknown>> & { locale?: string; site?: string };
 
-      function getSiteOuterPath(href: string | { pathname: string }, options?: RouterOptions) {
-        const { site: nextSite, locale: nextLocale } = options || {};
+    const getSiteOuterPath = useCallback(
+      (href: string | { pathname: string }, options?: RouterOptions) => {
+        const { site: nextSite, locale: nextLocale } = options ?? {};
+        const rawHref = typeof href === 'string' ? href : href.pathname;
         const localeAwarePath =
-          nextLocale !== undefined
-            ? getI18nPathname({
+          nextLocale === undefined
+            ? rawHref
+            : getI18nPathname({
                 href: href as Parameters<typeof getI18nPathname>[0]['href'],
                 locale: nextLocale,
                 forcePrefix: true,
-              })
-            : typeof href === 'string'
-              ? href
-              : href.pathname;
+              });
 
         return addPrefixIfNeeded(localeAwarePath, nextSite || site, siteRouting);
-      }
+      },
+      [site],
+    );
 
-      function createHandler(fn: (href: string, options?: any) => void, method: 'push' | 'replace' | 'prefetch') {
+    const createHandler = useCallback(
+      (fn: (href: string, options?: any) => void, method: 'push' | 'replace' | 'prefetch') => {
         return function handler(href: string | { pathname: string }, options?: RouterOptions): void {
-          const { site: _nextSite, locale: nextLocale, ...rest } = options || {};
+          const { site: _nextSite, locale: nextLocale, ...rest } = options ?? {};
           const path = getSiteOuterPath(href, options);
 
           if (method !== 'prefetch' && nextLocale && nextLocale !== currentLocale) {
@@ -94,15 +96,18 @@ export default function createNavigation(siteRouting: SiteRoutingConfig, intlRou
 
           fn(path);
         };
-      }
+      },
+      [currentLocale, getSiteOuterPath],
+    );
 
+    return useMemo(() => {
       return {
         ...nextRouter,
         push: createHandler(nextRouter.push, 'push'),
         replace: createHandler(nextRouter.replace, 'replace'),
         prefetch: createHandler(nextRouter.prefetch, 'prefetch'),
       };
-    }, [currentLocale, nextRouter, site]);
+    }, [createHandler, nextRouter]);
   }
 
   return {

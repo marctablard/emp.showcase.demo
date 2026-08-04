@@ -208,6 +208,30 @@ function getReturnItemRefundNet(item: ExtendedReturnItem): { value?: number; cur
   };
 }
 
+function renderTrailingDesktopAmount(
+  productItem: ProductListItem,
+  { locale, grossLabel }: { locale: string; grossLabel: string },
+): React.ReactNode {
+  const returnItem = isReturnProductListItem(productItem) ? productItem.__returnItem : undefined;
+  if (returnItem == null) {
+    return null;
+  }
+
+  const refund = getReturnItemRefund(returnItem);
+  const refundNet = getReturnItemRefundNet(returnItem);
+
+  return (
+    <ReturnTrailingDesktopAmount
+      refundNetValue={refundNet.value}
+      refundNetCurrency={refundNet.currency}
+      refundGrossValue={refund.value}
+      refundGrossCurrency={refund.currency}
+      locale={locale}
+      grossLabel={grossLabel}
+    />
+  );
+}
+
 function ReturnOverview({ returnItem, locale, t }: ReturnOverviewProps) {
   const totalGrossValue = returnItem.calculatedPrice?.finalPrice?.grossValue;
   const totalNetValue = returnItem.calculatedPrice?.finalPrice?.netValue ?? returnItem.total?.value;
@@ -279,26 +303,7 @@ function ReturnItemsList({ items, locale, t }: ReturnItemsListProps) {
         },
         showGrossSecondary: true,
         showTrailingDesktopAmount: true,
-        trailingDesktopAmount: (productItem) => {
-          const returnItem = isReturnProductListItem(productItem) ? productItem.__returnItem : undefined;
-          if (returnItem == null) {
-            return null;
-          }
-
-          const refund = getReturnItemRefund(returnItem);
-          const refundNet = getReturnItemRefundNet(returnItem);
-
-          return (
-            <ReturnTrailingDesktopAmount
-              refundNetValue={refundNet.value}
-              refundNetCurrency={refundNet.currency}
-              refundGrossValue={refund.value}
-              refundGrossCurrency={refund.currency}
-              locale={locale}
-              grossLabel={grossLabel}
-            />
-          );
-        },
+        trailingDesktopAmount: (productItem) => renderTrailingDesktopAmount(productItem, { locale, grossLabel }),
         mobileMetadataSlots: [
           {
             key: 'reason-badge',

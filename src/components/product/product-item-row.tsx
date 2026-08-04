@@ -80,9 +80,10 @@ export function ProductItemRow({ item, locale, presentationConfig, showGrossUnde
               </p>
             )}
             <span className="text-base font-body">{item.quantity}</span>
-            {mobileMetadataSlots.map((slot) => (
-              <div key={slot.key}>{slot.render(item)}</div>
-            ))}
+            {mobileMetadataSlots.map((slot) => {
+              const rendered = slot.render(item);
+              return rendered == null ? null : <div key={slot.key}>{rendered}</div>;
+            })}
           </div>
         </div>
       </div>
@@ -124,9 +125,10 @@ export function ProductItemRow({ item, locale, presentationConfig, showGrossUnde
                 {t('gross').trim()}: {grossPriceLabel}
               </span>
             )}
-            {inlineMetadataSlots.map((slot) => (
-              <div key={slot.key}>{slot.render(item)}</div>
-            ))}
+            {inlineMetadataSlots.map((slot) => {
+              const rendered = slot.render(item);
+              return rendered == null ? null : <div key={slot.key}>{rendered}</div>;
+            })}
           </div>
         </div>
         {hasTrailingDesktopAmount && (

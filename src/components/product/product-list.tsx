@@ -68,7 +68,11 @@ export function ProductList({
     inlineMetadataSlots: presentationConfig?.inlineMetadataSlots ?? [],
   } satisfies ProductListPresentationConfig;
 
-  const desktopGridClassName = resolvedPresentationConfig.showTrailingDesktopAmount
+  const hasTrailingDesktopAmount = Boolean(
+    resolvedPresentationConfig.showTrailingDesktopAmount && resolvedPresentationConfig.trailingDesktopAmount,
+  );
+
+  const desktopGridClassName = hasTrailingDesktopAmount
     ? 'hidden sm:grid sm:grid-cols-[minmax(280px,1.6fr)_100px_minmax(140px,1fr)_minmax(140px,1fr)] items-start gap-6'
     : 'hidden sm:grid sm:grid-cols-[minmax(280px,1.6fr)_100px_minmax(140px,1fr)] items-start gap-6';
 
@@ -83,7 +87,7 @@ export function ProductList({
           <H6 className="text-right text-sm font-bold text-text-headings">
             {resolvedPresentationConfig.labels.unitPrice}
           </H6>
-          {resolvedPresentationConfig.showTrailingDesktopAmount && (
+          {hasTrailingDesktopAmount && (
             <H6 className="text-right text-sm font-bold text-text-headings">
               {resolvedPresentationConfig.labels.amount}
             </H6>
