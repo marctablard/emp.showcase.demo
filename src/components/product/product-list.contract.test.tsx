@@ -40,10 +40,9 @@ const contractItem: ProductListItem = {
 };
 
 function byNormalizedText(expected: string) {
-  return (_content: string, node: Element | null) => {
-    const normalized = (node?.textContent ?? '').replaceAll(/\s+/g, ' ').trim();
-    return normalized === expected;
-  };
+  const normalize = (value: string) => value.replaceAll(/\s+/g, ' ').trim();
+  const normalizedExpected = normalize(expected);
+  return (_content: string, node: Element | null) => normalize(node?.textContent ?? '') === normalizedExpected;
 }
 
 describe('ProductList contract', () => {
