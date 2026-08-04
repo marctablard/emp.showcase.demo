@@ -1,11 +1,13 @@
 'use client';
 
 import React from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { CreditCard, List, NotebookPen, ReceiptText, Truck } from 'lucide-react';
+import { resolveApprovalNetAmount } from '@/components/account/approvals/approval-net-amount';
 import { H5 } from '@/components/ui/h';
 import { SummaryCard, SummaryRow } from '@/components/ui/summary-card';
 import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
+import { formatCurrency } from '@/lib/utils';
 import type { Approval, ApprovalResourceItem } from '@/platform/services/model/approval';
 
 interface ApprovalSummaryProps {
@@ -14,11 +16,14 @@ interface ApprovalSummaryProps {
 
 export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) => {
   const t = useTranslations('orders.Approval');
+  const locale = useLocale();
 
   const details = approval.details;
   const items = approval.resource.items || [];
+  const netTotal = resolveApprovalNetAmount(approval);
   const currency =
     details?.currency ||
+    netTotal?.currency ||
     approval.resource.totalPrice?.currency ||
     approval.resource.subTotalPrice?.currency ||
     getPublicDefaultCurrency();
@@ -26,14 +31,16 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
   const valueOfGoods = items.reduce((sum: number, it: ApprovalResourceItem) => sum + (it.itemPrice?.amount || 0), 0);
   const shippingCost = details?.shipping?.amount ?? 0;
   const vat = approval.resource.subtotalAggregate?.taxValue ?? 0;
-  const total = approval.resource.totalPrice?.amount ?? valueOfGoods + shippingCost + vat;
+  // Finding 26: model-backed net only — never totalPrice.amount or invented goods+shipping+vat.
+  const formattedNetTotal = netTotal ? formatCurrency(netTotal.amount, netTotal.currency, locale) : '-';
 
   const shippingAddress = details?.addresses?.find?.((a: any) => a?.type === 'SHIPPING') || details?.addresses?.[0];
   const billingAddress = details?.addresses?.find?.((a: any) => a?.type === 'BILLING') || details?.addresses?.[1];
   const payment = details?.paymentMethods?.[0];
   const isQuote = approval.resourceType === 'QUOTE';
 
-  const fmt = (amount: number) => new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount);
+  const fmt = (amount: number) => formatCurrency(amount, currency, locale);
+  const vatRateSuffix = valueOfGoods > 0 ? ` (${Math.round((vat / valueOfGoods) * 100)}%)` : '';
 
   const renderAddress = (addr: any) =>
     addr ? (
@@ -51,20 +58,26 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
       <span className="text-sm text-text-placeholders">{t('notProvided')}</span>
     );
 
-  const renderQuotePriceRows = (totalLabel: string) => (
+  const renderQuotePriceRows = (heading: string) => (
     <div className="space-y-4 text-base font-body text-text-body">
-      <SummaryRow label={t('netValueOfGoods')} mutedLabel>
-        {fmt(valueOfGoods)}
-      </SummaryRow>
-      <SummaryRow label={t('vat')} mutedLabel>
-        {fmt(vat)}
-      </SummaryRow>
-      <SummaryRow label={t('shippingFee')} mutedLabel>
-        {fmt(shippingCost)}
-      </SummaryRow>
+      <div className="flex justify-between gap-4">
+        <span>{t('netValueOfGoods')}</span>
+        <span>{fmt(valueOfGoods)}</span>
+      </div>
+      <div className="flex justify-between gap-4">
+        <span>
+          {t('vat')}
+          {vatRateSuffix}
+        </span>
+        <span>{fmt(vat)}</span>
+      </div>
+      <div className="flex justify-between gap-4">
+        <span>{t('shippingFee')}</span>
+        <span>{fmt(shippingCost)}</span>
+      </div>
       <div className="flex items-start justify-between gap-4 pt-2">
-        <H5>{totalLabel}</H5>
-        <H5>{fmt(total)}</H5>
+        <H5>{heading}</H5>
+        <H5>{formattedNetTotal}</H5>
       </div>
     </div>
   );
@@ -72,7 +85,7 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
   if (isQuote) {
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
+        <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm">
           <SummaryCard
             heading={t('quoteDetails')}
             className="h-full gap-4 rounded-md p-4 shadow-none"
@@ -92,7 +105,7 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
           </SummaryCard>
         </div>
 
-        <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
+        <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm">
           <SummaryCard
             heading={t('basePrice')}
             className="h-full gap-4 rounded-md p-4 shadow-none"
@@ -105,7 +118,8 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
           </SummaryCard>
         </div>
 
-        <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm border-2 border-border-success">
+        {/* Quoted Price — success surface without dual blue+green border (match Quote Task 3.1) */}
+        <div className="rounded-md bg-surface-success p-6 shadow-sm" data-testid="approval-summary-quoted-price">
           <SummaryCard
             heading={t('quotedPrice')}
             className="h-full gap-4 rounded-md p-4 shadow-none"
@@ -121,9 +135,10 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
     );
   }
 
+  // 1024+ box layout: 2×2 cards (Figma 11895-138509)
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
+    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+      <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm">
         <SummaryCard
           heading={t('orderOverview')}
           className="h-full gap-4 rounded-md p-4 shadow-none"
@@ -142,12 +157,12 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
             {fmt(shippingCost)}
           </SummaryRow>
           <SummaryRow label={t('totalValue')} strong>
-            {fmt(total)}
+            {formattedNetTotal}
           </SummaryRow>
         </SummaryCard>
       </div>
 
-      <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
+      <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm">
         <SummaryCard
           heading={t('shipping')}
           className="h-full gap-4 rounded-md p-4 shadow-none"
@@ -166,7 +181,7 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
         </SummaryCard>
       </div>
 
-      <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
+      <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm">
         <SummaryCard
           heading={t('payment')}
           className="h-full gap-4 rounded-md p-4 shadow-none"
@@ -185,7 +200,7 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
         </SummaryCard>
       </div>
 
-      <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
+      <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm">
         <SummaryCard
           heading={t('other')}
           className="h-full gap-4 rounded-md p-4 shadow-none"

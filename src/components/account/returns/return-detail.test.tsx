@@ -83,6 +83,14 @@ describe('ReturnDetail', () => {
     jest.clearAllMocks();
   });
 
+  it('renders H1 as returnLabel + id (not list title Returns & Claims)', () => {
+    render(<ReturnDetail returnId="return-123" />);
+
+    const heading = screen.getByRole('heading', { level: 1 });
+    expect(heading).toHaveTextContent('returnLabel: return-123');
+    expect(heading).not.toHaveTextContent('title:');
+  });
+
   it('renders the Return Details strip before the full-width overview and product list', () => {
     const { container } = render(<ReturnDetail returnId="return-123" />);
 
@@ -110,7 +118,7 @@ describe('ReturnDetail', () => {
     expect(screen.getByText('The wrong item was delivered.')).toBeInTheDocument();
   });
 
-  it('renders Return Overview net-first with Net value of goods before Total return value', () => {
+  it('renders Return Overview with Net value of goods and a single gross Total return value', () => {
     render(<ReturnDetail returnId="return-123" />);
 
     const netLabel = screen.getByText('netValueOfGoods');
@@ -118,12 +126,35 @@ describe('ReturnDetail', () => {
     expect(netLabel.compareDocumentPosition(totalLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     const overview = screen.getByText('returnOverview').closest('.bg-surface-primary') as HTMLElement;
-    expect(within(overview).getAllByText('€100.00')).toHaveLength(2);
+    // Net row keeps net; Total is a single gross amount (finalPrice.grossValue) with no Gross prefix.
+    expect(within(overview).getByText('€100.00')).toBeInTheDocument();
+    expect(within(overview).getByText('€119.00')).toBeInTheDocument();
+    expect(within(overview).queryByText('gross')).not.toBeInTheDocument();
+  });
 
-    const grossLabel = within(overview).getByText('gross');
-    const grossValue = within(overview).getByText('€119.00');
-    expect(totalLabel.compareDocumentPosition(grossLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(grossLabel.compareDocumentPosition(grossValue) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  it('shows Total return value as "-" when finalPrice.grossValue is missing', () => {
+    mockUseReturn.mockReturnValue({
+      returnItem: {
+        ...buildReturn(),
+        calculatedPrice: {
+          finalPrice: { netValue: 100, taxValue: 19, currency: 'EUR' },
+        },
+      },
+      loading: false,
+      error: null,
+      refreshReturn: jest.fn(),
+    });
+
+    render(<ReturnDetail returnId="return-123" />);
+
+    const overview = screen.getByText('returnOverview').closest('.bg-surface-primary') as HTMLElement;
+    expect(within(overview).getByText('€100.00')).toBeInTheDocument();
+    expect(within(overview).queryByText('€119.00')).not.toBeInTheDocument();
+    expect(within(overview).queryByText('gross')).not.toBeInTheDocument();
+
+    const totalLabel = within(overview).getByText('totalReturnValue');
+    const totalRow = totalLabel.closest('div') as HTMLElement;
+    expect(within(totalRow).getByText('-')).toBeInTheDocument();
   });
 
   it('uses the shared product-grid contract for return items with refund and metadata extensions', () => {
@@ -136,6 +167,52 @@ describe('ReturnDetail', () => {
     expect(within(desktopRow).getByText('gross €119.00')).toBeInTheDocument();
     expect(within(mobileRow).getByText('claimReasons.CHANGED_MIND')).toBeInTheDocument();
     expect(within(mobileRow).getByText('Item reason details.')).toBeInTheDocument();
+  });
+
+  it('omits unit price on mobile and shows refund net/gross instead (desktop still shows unit price)', () => {
+    mockUseReturn.mockReturnValue({
+      returnItem: {
+        ...buildReturn(),
+        orders: [
+          {
+            id: 'order-123',
+            items: [
+              {
+                id: 'distinct-price-item',
+                name: 'Distinct Price Item',
+                quantity: 2,
+                vendorName: 'Nature Home',
+                itemNumber: 'sku-distinct',
+                productId: 'distinct-product',
+                images: ['https://example.com/distinct.jpg'],
+                reason: { code: 'CHANGED_MIND', details: 'Item reason details.' },
+                // Unit price column must stay numerically distinct from refund so the
+                // mobile omission assertion cannot pass by coincidence.
+                calculatedUnitPrice: { netValue: 50, grossValue: 59.5, taxValue: 9.5, currency: 'EUR' },
+                calculatedPrice: {
+                  finalPrice: { netValue: 100, grossValue: 119, taxValue: 19, currency: 'EUR' },
+                },
+              },
+            ],
+          },
+        ],
+      },
+      loading: false,
+      error: null,
+      refreshReturn: jest.fn(),
+    });
+
+    render(<ReturnDetail returnId="return-123" />);
+
+    const mobileRow = screen.getByTestId('product-item-mobile-distinct-price-item');
+    const desktopRow = screen.getByTestId('product-item-desktop-distinct-price-item');
+
+    expect(within(mobileRow).queryByText('€50.00')).not.toBeInTheDocument();
+    expect(within(mobileRow).getByText('€100.00')).toBeInTheDocument();
+    expect(within(mobileRow).getByText('gross €119.00')).toBeInTheDocument();
+
+    expect(within(desktopRow).getByText('€50.00')).toBeInTheDocument();
+    expect(within(desktopRow).getAllByText('€100.00').length).toBeGreaterThanOrEqual(1);
   });
 
   it('does not render a separate Returned products heading but keeps H6 column headers', () => {
@@ -244,6 +321,9 @@ describe('ReturnDetail', () => {
     expect(within(mobileRow).getByText('claimReasons.CHANGED_MIND')).toBeInTheDocument();
     expect(within(mobileRow).getByText('Item reason details.')).toBeInTheDocument();
     expect(within(mobileRow).getByText(/blue-solar-55w/)).toBeInTheDocument();
+    // Refund amount remains; core unit-price block is omitted via omitMobileUnitPrice.
+    expect(within(mobileRow).getByText('€100.00')).toBeInTheDocument();
+    expect(within(mobileRow).getByText('gross €119.00')).toBeInTheDocument();
   });
 
   it('uses the shared overview and product-list visual hierarchy while retaining Return data', () => {
@@ -264,5 +344,20 @@ describe('ReturnDetail', () => {
       within(screen.getByTestId('product-item-mobile-item-123')).getByText('Item reason details.'),
     ).toBeInTheDocument();
     expect(container.querySelector('img[alt="BlueSolar 55 W"]')).toHaveAttribute('width', '120');
+  });
+
+  it('keeps Refund Amount contained in the product-list card at medium breakpoints (~1024–1150)', () => {
+    render(<ReturnDetail returnId="return-123" />);
+
+    const card = screen.getByTestId('product-list-card');
+    const scroll = screen.getByTestId('product-list-scroll');
+    const desktopRow = screen.getByTestId('product-item-desktop-item-123');
+    const trailingCell = screen.getByTestId('product-trailing-amount-cell-item-123');
+
+    expect(card).toHaveClass('min-w-0', 'max-w-full', 'overflow-hidden', 'shadow-sm');
+    expect(scroll).toHaveClass('min-w-0', 'overflow-x-auto');
+    expect(desktopRow.className).toMatch(/minmax\(0,1\.6fr\).*minmax\(0,1fr\)_minmax\(0,1fr\)/);
+    expect(trailingCell).toHaveClass('min-w-0', 'text-right');
+    expect(within(trailingCell).getByText('€100.00')).toBeInTheDocument();
   });
 });

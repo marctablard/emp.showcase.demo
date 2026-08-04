@@ -57,6 +57,8 @@ export interface OrderShipping {
   total: {
     value: number;
     currency: string;
+    /** Shipping tax from `calculatedPrice.totalShipping.taxValue` when present. */
+    tax?: number;
   };
   methods?: Array<{
     id: string;

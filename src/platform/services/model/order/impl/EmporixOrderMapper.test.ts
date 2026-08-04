@@ -99,7 +99,26 @@ describe('EmporixOrderMapper', () => {
       }),
     );
 
+    expect(result.shipping?.total).toEqual({ value: 9, currency: 'EUR', tax: 1.71 });
+  });
+
+  it('omits shipping tax when calculatedPrice.totalShipping.taxValue is absent', () => {
+    const result = mapper.mapToService(
+      buildOrder({
+        currency: 'EUR',
+        shipping: {
+          total: { amount: 15, currency: 'EUR' },
+        },
+        calculatedPrice: {
+          price: { netValue: 100, grossValue: 119, taxValue: 19 },
+          finalPrice: { netValue: 115, grossValue: 136.85, taxValue: 21.85 },
+          totalShipping: { netValue: 9, grossValue: 10.71 },
+        },
+      }),
+    );
+
     expect(result.shipping?.total).toEqual({ value: 9, currency: 'EUR' });
+    expect(result.shipping?.total).not.toHaveProperty('tax');
   });
 
   it('falls back to shipping.total.amount when calculatedPrice.totalShipping is missing', () => {

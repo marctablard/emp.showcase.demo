@@ -449,7 +449,9 @@
     "loadingHistory": "Loading history...",
     "quoteActionFailedTitle": "We couldn't complete this action",
     "quoteActionFailedDescription": "Please try again or contact support if the problem persists.",
-    "relatedOrder": "Related Order"
+    "relatedOrder": "Related Order",
+    "shippingMethod": "Shipping method",
+    "shippingAddress": "Shipping address"
   },
   "quotesList": {
     "title": "Quotes",

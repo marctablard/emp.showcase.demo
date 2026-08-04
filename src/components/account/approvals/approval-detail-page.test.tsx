@@ -47,7 +47,24 @@ jest.mock('next/navigation', () => ({
 
 jest.mock('@/components/account/account-layout', () => ({
   __esModule: true,
-  default: ({ children }: { children: React.ReactNode }) => <div data-testid="account-layout">{children}</div>,
+  default: ({
+    children,
+    breadcrumbs,
+  }: {
+    children: React.ReactNode;
+    breadcrumbs?: { href: string; label: string }[];
+  }) => (
+    <div data-testid="account-layout">
+      <nav data-testid="breadcrumbs">
+        {breadcrumbs?.map((crumb) => (
+          <span key={crumb.href} data-testid="breadcrumb-item">
+            {crumb.label}
+          </span>
+        ))}
+      </nav>
+      {children}
+    </div>
+  ),
 }));
 
 jest.mock('@/components/account/approvals/approval-details', () => ({
@@ -118,5 +135,26 @@ describe('Approval requester detail page', () => {
     expect(redirect).not.toHaveBeenCalled();
     render(element);
     expect(screen.getByTestId('approval-details')).toHaveTextContent('approval-quote-1');
+  });
+
+  it('uses Account Details as the first breadcrumb label', async () => {
+    getCurrentCustomer.mockResolvedValue({ id: 'approver-1' });
+    getApprovalById.mockResolvedValue({
+      id: 'approval-cart-1',
+      resourceType: 'CART',
+      resource: { id: 'cart-1' },
+      approver: { userId: 'approver-1' },
+      requestor: { userId: 'requestor-1' },
+    });
+
+    const element = await ApprovalDetailPage({
+      params: Promise.resolve({ locale: 'en', site: 'main', id: 'approval-cart-1' }),
+    });
+
+    render(element);
+
+    const crumbs = screen.getAllByTestId('breadcrumb-item');
+    expect(crumbs[0]).toHaveTextContent('account.accountDetails');
+    expect(crumbs[0]).not.toHaveTextContent('account.title');
   });
 });

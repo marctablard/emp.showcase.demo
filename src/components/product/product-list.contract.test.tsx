@@ -179,4 +179,76 @@ describe('ProductList contract', () => {
     expect(within(mobileRow).getByText(byNormalizedText('gross: -'))).toBeInTheDocument();
     expect(within(desktopRow).queryByText(/gross: €|gross: EUR/i)).not.toBeInTheDocument();
   });
+
+  it('omits mobile unit price only when omitMobileUnitPrice is set, keeping Quote/Approval mobile unit price by default', () => {
+    const unitPriceLabel = formatCurrency(contractItem.netUnitPrice!, contractItem.currency);
+    const refundLabel = formatCurrency(999, contractItem.currency);
+
+    const { rerender } = render(
+      <ProductList items={[contractItem]} presentationConfig={{ showGrossSecondary: true }} />,
+    );
+
+    expect(
+      within(screen.getByTestId(`product-item-mobile-${contractItem.id}`)).getByText(unitPriceLabel),
+    ).toBeInTheDocument();
+
+    const presentationConfig: ProductListPresentationConfig = {
+      showGrossSecondary: true,
+      omitMobileUnitPrice: true,
+      showTrailingDesktopAmount: true,
+      trailingDesktopAmount: (item) => <div data-testid={`refund-${item.id}`}>{refundLabel}</div>,
+    };
+
+    rerender(<ProductList items={[contractItem]} presentationConfig={presentationConfig} />);
+
+    const mobileRow = screen.getByTestId(`product-item-mobile-${contractItem.id}`);
+    const desktopRow = screen.getByTestId(`product-item-desktop-${contractItem.id}`);
+
+    expect(within(mobileRow).queryByText(unitPriceLabel)).not.toBeInTheDocument();
+    expect(within(mobileRow).getByTestId(`refund-${contractItem.id}`)).toHaveTextContent(refundLabel);
+    expect(within(desktopRow).getByText(unitPriceLabel)).toBeInTheDocument();
+  });
+
+  it('contains the four-column trailing-amount grid inside an overflow-safe card for ~1024–1150px layouts', () => {
+    const presentationConfig: ProductListPresentationConfig = {
+      labels: { amount: 'Refund Amount' },
+      showTrailingDesktopAmount: true,
+      trailingDesktopAmount: (item) => (
+        <div data-testid={`desktop-amount-${item.id}`}>{formatCurrency(item.unitPrice, item.currency)}</div>
+      ),
+    };
+
+    render(<ProductList items={[contractItem]} presentationConfig={presentationConfig} />);
+
+    const card = screen.getByTestId('product-list-card');
+    const scroll = screen.getByTestId('product-list-scroll');
+    const desktopRow = screen.getByTestId(`product-item-desktop-${contractItem.id}`);
+    const trailingCell = screen.getByTestId(`product-trailing-amount-cell-${contractItem.id}`);
+
+    expect(card).toHaveClass('min-w-0', 'max-w-full', 'overflow-hidden', 'shadow-sm', 'py-0', 'gap-0');
+    expect(scroll).toHaveClass('min-w-0', 'overflow-x-auto', 'p-4', 'sm:p-6');
+    expect(desktopRow.className).toContain('minmax(0,1.6fr)');
+    expect(desktopRow.className).toContain('minmax(0,1fr)_minmax(0,1fr)');
+    expect(desktopRow.className).not.toContain('minmax(280px');
+    expect(desktopRow.className).not.toContain('minmax(140px');
+    expect(trailingCell).toHaveClass('min-w-0');
+    expect(screen.getByRole('heading', { level: 6, name: 'Refund Amount' })).toHaveClass('min-w-0');
+  });
+
+  it('keeps the three-column Quote/Approval grid track mins when trailing amount is absent', () => {
+    render(<ProductList items={[contractItem]} />);
+
+    const desktopRow = screen.getByTestId(`product-item-desktop-${contractItem.id}`);
+    const card = screen.getByTestId('product-list-card');
+    const scroll = screen.getByTestId('product-list-scroll');
+    const itemRow = screen.getByTestId(`product-item-row-${contractItem.id}`);
+
+    expect(desktopRow.className).toContain('minmax(280px,1.6fr)');
+    expect(desktopRow.className).toContain('minmax(140px,1fr)');
+    expect(desktopRow.className).not.toContain('minmax(0,1.6fr)');
+    expect(card).toHaveClass('overflow-hidden');
+    expect(scroll).toHaveClass('p-4', 'sm:p-6');
+    expect(itemRow).toHaveClass('py-4', 'first:pt-0', 'sm:py-6', 'sm:first:pt-4');
+    expect(screen.queryByTestId(`product-trailing-amount-cell-${contractItem.id}`)).not.toBeInTheDocument();
+  });
 });

@@ -3,8 +3,9 @@
  */
 import React from 'react';
 import '@testing-library/jest-dom';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import enAccountTranslations from '@/i18n/translations/en/account/index.json';
+import type { Approval } from '@/platform/services/model/approval';
 import type { Quote } from '@/platform/services/model/quote';
 import { QuoteDetails } from './quote-details';
 import { QuotesTable } from './quotes-table';
@@ -21,6 +22,11 @@ let mockHistory: Array<{
 }> = [];
 
 const mockCheckApprovalPermitted = jest.fn();
+
+let mockRelatedApproval: Approval | null = null;
+let mockRelatedApprovalLoading = false;
+let mockRelatedApprovalError: Error | null = null;
+let mockCustomer: { id: string } | null = { id: 'customer-1' };
 
 jest.mock('next-intl', () => ({
   useTranslations: (namespace: string) => {
@@ -82,6 +88,30 @@ jest.mock('@/hooks/approval/useApproverSearch', () => ({
   }),
 }));
 
+jest.mock('@/hooks/approval/useApproval', () => ({
+  useApproval: () => ({
+    approval: mockRelatedApproval,
+    loading: mockRelatedApprovalLoading,
+    error: mockRelatedApprovalError,
+    updateApprovalStatus: jest.fn(),
+    updateApproverComment: jest.fn(),
+    updateRequestorComment: jest.fn(),
+    deleteApproval: jest.fn(),
+    refreshApproval: jest.fn(),
+  }),
+}));
+
+jest.mock('@/hooks/customer/useCustomer', () => ({
+  __esModule: true,
+  default: () => ({
+    customer: mockCustomer,
+    loading: false,
+    error: null,
+    fetchCustomer: jest.fn(),
+    reset: jest.fn(),
+  }),
+}));
+
 jest.mock('@/components/account/quotes/quote-summary', () => ({
   QuoteSummary: () => <div>QuoteSummary</div>,
 }));
@@ -94,7 +124,21 @@ jest.mock('@/components/product/product-list-resolver', () => ({
 
 jest.mock('@/components/ui/link', () => ({
   __esModule: true,
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
+  default: ({
+    children,
+    href,
+    className,
+    title,
+  }: {
+    children: React.ReactNode;
+    href: string;
+    className?: string;
+    title?: string;
+  }) => (
+    <a href={href} className={className} title={title}>
+      {children}
+    </a>
+  ),
 }));
 
 jest.mock('@/lib/logger/use-logger-client', () => ({
@@ -148,27 +192,57 @@ const baseQuote: Quote = {
   shippingMethod: 'standard',
 };
 
+function buildRelatedApproval(overrides: Partial<Approval> = {}): Approval {
+  return {
+    id: 'approval-123',
+    status: 'PENDING',
+    resourceType: 'QUOTE',
+    action: 'CHECKOUT',
+    resource: { id: 'quote-open-1' },
+    requestor: {
+      userId: 'customer-1',
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      email: 'ada@example.com',
+    },
+    approver: {
+      userId: 'approver-1',
+      firstName: 'Approver',
+      lastName: 'One',
+    },
+    createdAt: '2026-05-31T10:00:00.000Z',
+    updatedAt: '2026-05-31T10:00:00.000Z',
+    ...overrides,
+  };
+}
+
 describe('Quote cross-links', () => {
   beforeEach(() => {
     mockHistory = [];
     mockCheckApprovalPermitted.mockReset();
     mockCheckApprovalPermitted.mockResolvedValue({ permitted: false, approvalId: 'approval-123' });
     mockProductListResolver.mockClear();
+    mockRelatedApproval = buildRelatedApproval();
+    mockRelatedApprovalLoading = false;
+    mockRelatedApprovalError = null;
+    mockCustomer = { id: 'customer-1' };
   });
 
   it('uses exact sentence case for the English Quote netValue label', () => {
     expect(enAccountTranslations.quoteDetails.netValue).toBe('Net value of goods');
   });
 
-  it('anchors the action row flush to the right edge so it stays aligned with the Quote Details surface', () => {
+  it('stacks Quote header actions one-per-line on mobile and keeps them on one band from sm', () => {
     render(<QuoteDetails quoteId={baseQuote.id} initialQuote={baseQuote} />);
 
-    const requestChangeButton = screen.getByRole('button', { name: 'account.quoteDetails.requestChange' });
-    const actionRow = requestChangeButton.parentElement;
+    const header = screen.getByTestId('quote-detail-header');
+    expect(header).toHaveClass('flex', 'flex-col', 'sm:flex-row', 'sm:items-center', 'sm:justify-between');
 
-    expect(actionRow).toHaveClass('ml-auto', 'justify-end');
-    expect(screen.getByRole('button', { name: 'account.quoteDetails.reject' }).parentElement).toBe(actionRow);
-    expect(screen.getByRole('button', { name: 'account.quoteDetails.accept' }).parentElement).toBe(actionRow);
+    const actions = screen.getByTestId('quote-detail-header-actions');
+    expect(actions).toHaveClass('flex', 'w-full', 'flex-col', 'gap-4', 'sm:w-auto', 'sm:flex-row');
+    expect(screen.getByRole('button', { name: 'account.quoteDetails.reject' }).parentElement).toBe(actions);
+    expect(screen.getByRole('button', { name: 'account.quoteDetails.accept' }).parentElement).toBe(actions);
+    expect(screen.getByRole('button', { name: 'account.quoteDetails.requestChange' }).parentElement).toBe(actions);
   });
 
   it('forwards quote items to ProductListResolver with locale-aware canonical presentation config and net-first resolver inputs', () => {
@@ -248,7 +322,7 @@ describe('Quote cross-links', () => {
     expect(screen.getByText('Status Changed to In Progress')).toBeInTheDocument();
     expect(screen.getByText(/Please adjust delivery window/)).toBeInTheDocument();
     expect(screen.getByText('account.quoteDetails.quoteHistory')).toBeInTheDocument();
-    expect(screen.getByText('account.quoteDetails.changeDate')).toBeInTheDocument();
+    expect(screen.getByTestId('quote-history-sort-change-date')).toHaveTextContent('account.quoteDetails.changeDate');
     expect(screen.getByText('account.quoteDetails.event')).toBeInTheDocument();
     expect(screen.getByText('account.quoteDetails.changedBy')).toBeInTheDocument();
     expect(
@@ -262,7 +336,24 @@ describe('Quote cross-links', () => {
     expect(historyTimestamp).toHaveTextContent(/\d{2}:\d{2}/);
   });
 
-  it('renders a related approval link when an existing approval id is already available from permission state', async () => {
+  it('ellipsizes the related approval id while linking via getApprovalHref for requestors (finding 21)', async () => {
+    render(<QuoteDetails quoteId="quote-open-1" initialQuote={{ ...baseQuote, status: 'OPEN' }} />);
+
+    expect(await screen.findByText('account.quoteDetails.relatedApproval')).toBeInTheDocument();
+
+    const relatedApprovalLink = screen.getByRole('link', { name: 'approval-123' });
+    // Requestor (customer-1) must not bounce through /account/approval/{id}
+    expect(relatedApprovalLink).toHaveAttribute('href', '/account/quotes/quote-open-1');
+    expect(relatedApprovalLink).not.toHaveAttribute('href', '/account/approval/approval-123');
+    expect(relatedApprovalLink).toHaveClass('block', 'min-w-0', 'max-w-full', 'truncate');
+    expect(relatedApprovalLink.parentElement).toHaveClass('min-w-0');
+    expect(relatedApprovalLink.parentElement).toHaveAttribute('title', 'approval-123');
+  });
+
+  it('routes Related Approval to the approval page for designated approvers via getApprovalHref', async () => {
+    mockCustomer = { id: 'approver-1' };
+    mockRelatedApproval = buildRelatedApproval();
+
     render(<QuoteDetails quoteId="quote-open-1" initialQuote={{ ...baseQuote, status: 'OPEN' }} />);
 
     expect(await screen.findByText('account.quoteDetails.relatedApproval')).toBeInTheDocument();
@@ -272,12 +363,101 @@ describe('Quote cross-links', () => {
     );
   });
 
+  it('renders Related Approval as plain text while useApproval is loading (non-bounce fallback)', async () => {
+    mockRelatedApproval = null;
+    mockRelatedApprovalLoading = true;
+
+    render(<QuoteDetails quoteId="quote-open-1" initialQuote={{ ...baseQuote, status: 'OPEN' }} />);
+
+    expect(await screen.findByText('account.quoteDetails.relatedApproval')).toBeInTheDocument();
+    expect(screen.getByText('approval-123')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'approval-123' })).not.toBeInTheDocument();
+  });
+
+  it('renders Related Approval as plain text when useApproval errors (non-bounce fallback)', async () => {
+    mockRelatedApproval = null;
+    mockRelatedApprovalLoading = false;
+    mockRelatedApprovalError = new Error('Failed to get approval');
+
+    render(<QuoteDetails quoteId="quote-open-1" initialQuote={{ ...baseQuote, status: 'OPEN' }} />);
+
+    expect(await screen.findByText('account.quoteDetails.relatedApproval')).toBeInTheDocument();
+    expect(screen.getByText('approval-123')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'approval-123' })).not.toBeInTheDocument();
+  });
+
   it('omits related approval UI when existing permission state does not include an approval id', async () => {
     mockCheckApprovalPermitted.mockResolvedValueOnce({ permitted: true, approvalId: undefined });
+    mockRelatedApproval = null;
 
     render(<QuoteDetails quoteId="quote-open-2" initialQuote={{ ...baseQuote, status: 'OPEN' }} />);
 
     expect(await screen.findByText('account.quoteDetails.totalAmount')).toBeInTheDocument();
     expect(screen.queryByText('account.quoteDetails.relatedApproval')).not.toBeInTheDocument();
+  });
+
+  it('makes Change Date the only sortable Quote History column and defaults to DESC', () => {
+    mockHistory = [
+      {
+        id: 'history-older',
+        userFullName: 'Older User',
+        comment: 'Older change',
+        modifiedAt: '2026-06-01T10:00:00.000Z',
+        rawModifiedAt: '2026-06-01T10:00:00.000Z',
+        fieldChanged: '/status',
+        statusValue: 'IN_PROGRESS',
+      },
+      {
+        id: 'history-newer',
+        userFullName: 'Newer User',
+        comment: 'Newer change',
+        modifiedAt: '2026-06-03T10:00:00.000Z',
+        rawModifiedAt: '2026-06-03T10:00:00.000Z',
+        fieldChanged: '/status',
+        statusValue: 'ACCEPTED',
+      },
+    ];
+
+    render(<QuoteDetails quoteId={baseQuote.id} initialQuote={baseQuote} />);
+
+    const sortButton = screen.getByTestId('quote-history-sort-change-date');
+    expect(sortButton).toBeInTheDocument();
+    expect(sortButton.parentElement).toHaveAttribute('aria-sort', 'descending');
+    expect(sortButton.querySelector('svg')).not.toBeNull();
+
+    const eventHeading = screen.getByText('account.quoteDetails.event');
+    const changedByHeading = screen.getByText('account.quoteDetails.changedBy');
+    const statusHeading = screen.getByText('account.quoteDetails.status');
+    const commentHeading = screen.getByText('account.quoteDetails.comment');
+
+    expect(eventHeading.closest('button')).toBeNull();
+    expect(changedByHeading.closest('button')).toBeNull();
+    expect(statusHeading.closest('button')).toBeNull();
+    expect(commentHeading.closest('button')).toBeNull();
+    expect(eventHeading.querySelector('svg')).toBeNull();
+    expect(changedByHeading.querySelector('svg')).toBeNull();
+    expect(statusHeading.querySelector('svg')).toBeNull();
+    expect(commentHeading.querySelector('svg')).toBeNull();
+
+    expect(screen.queryByRole('button', { name: /account\.quoteDetails\.event/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /account\.quoteDetails\.changedBy/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /account\.quoteDetails\.status/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /account\.quoteDetails\.comment/ })).not.toBeInTheDocument();
+
+    const historyRows = screen.getAllByTestId(/quote-history-row-/);
+    expect(historyRows.map((row) => row.getAttribute('data-testid'))).toEqual([
+      'quote-history-row-history-newer',
+      'quote-history-row-history-older',
+      'quote-history-row-initial',
+    ]);
+
+    fireEvent.click(sortButton);
+
+    expect(sortButton.parentElement).toHaveAttribute('aria-sort', 'ascending');
+    expect(screen.getAllByTestId(/quote-history-row-/).map((row) => row.getAttribute('data-testid'))).toEqual([
+      'quote-history-row-initial',
+      'quote-history-row-history-older',
+      'quote-history-row-history-newer',
+    ]);
   });
 });

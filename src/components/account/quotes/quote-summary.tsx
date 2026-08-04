@@ -1,25 +1,70 @@
 'use client';
 
 import React from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { List, ReceiptText, Truck } from 'lucide-react';
 import { H5 } from '@/components/ui/h';
 import { SummaryCard, SummaryField } from '@/components/ui/summary-card';
 import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
+import { formatCurrency } from '@/lib/utils';
+import type { CheckoutAddress } from '@/platform/services/model/checkout';
 import type { Quote } from '@/platform/services/model/quote';
 
 interface QuoteSummaryProps {
   quote: Quote;
 }
 
+/** Non-empty trimmed address segment; drops blank / literal "undefined" tokens. */
+function addressPart(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  // Mapper used to concat optional lines with `+`, baking the JS string "undefined" into street.
+  const cleaned = trimmed
+    .split(/\s+/)
+    .filter((token) => token !== 'undefined')
+    .join(' ')
+    .trim();
+  return cleaned || undefined;
+}
+
+/**
+ * Build shipping address lines for Quote summary (finding 13).
+ * Omits missing parts so JS undefined never leaks into the rendered string.
+ */
+function shippingAddressLines(address: CheckoutAddress): string[] {
+  const streetLine = [addressPart(address.street), addressPart(address.streetNumber)]
+    .filter((part): part is string => Boolean(part))
+    .join(' ');
+  const cityLine = [addressPart(address.zipCode), addressPart(address.city)]
+    .filter((part): part is string => Boolean(part))
+    .join(' ');
+
+  return [
+    addressPart(address.contactName),
+    streetLine || undefined,
+    cityLine || undefined,
+    addressPart(address.country),
+  ].filter((line): line is string => Boolean(line));
+}
+
 export const QuoteSummary: React.FC<QuoteSummaryProps> = ({ quote }) => {
   const t = useTranslations('account.quoteDetails');
+  const locale = useLocale();
 
-  // Get quote data
   const currency = quote.currency || getPublicDefaultCurrency();
-
-  // Format currency values
-  const fmt = (amount: number) => `${amount.toFixed(2)} ${currency}`;
+  const fmt = (amount: number) => formatCurrency(amount, currency, locale);
+  // Prefer model-backed taxAggregate rate (finding 11); fall back to computed only if missing.
+  const vatRate =
+    typeof quote.vatRate === 'number'
+      ? Math.round(quote.vatRate)
+      : quote.totalNet > 0
+        ? Math.round((quote.totalVat / quote.totalNet) * 100)
+        : undefined;
+  const vatRateSuffix = typeof vatRate === 'number' ? ` (${vatRate}%)` : '';
+  const shippingMethod = quote.shippingMethod?.trim() || '';
+  const addressLines = shippingAddressLines(quote.shippingAddress);
 
   const renderPriceRows = (totalLabel: string) => (
     <div className="space-y-4 text-base font-body text-text-body">
@@ -28,7 +73,10 @@ export const QuoteSummary: React.FC<QuoteSummaryProps> = ({ quote }) => {
         <span>{fmt(quote.totalNet)}</span>
       </div>
       <div className="flex justify-between gap-4">
-        <span>{t('vat')}</span>
+        <span>
+          {t('vat')}
+          {vatRateSuffix}
+        </span>
         <span>{fmt(quote.totalVat)}</span>
       </div>
       <div className="flex justify-between gap-4">
@@ -68,21 +116,20 @@ export const QuoteSummary: React.FC<QuoteSummaryProps> = ({ quote }) => {
           icon={<Truck className="h-8 w-8 text-text-action" />}
           hasHeadline
         >
-          <SummaryField label={t('transportCondition')}>{quote.shippingMethod}</SummaryField>
-          <SummaryField label={t('deliveryAddress')}>
-            {quote.shippingAddress.contactName}
-            <br />
-            {quote.shippingAddress.street}
-            <br />
-            {quote.shippingAddress.zipCode} {quote.shippingAddress.city}
-            <br />
-            {quote.shippingAddress.country}
+          <SummaryField label={t('shippingMethod')}>{shippingMethod || '—'}</SummaryField>
+          <SummaryField label={t('shippingAddress')}>
+            {addressLines.map((line, index) => (
+              <React.Fragment key={`${index}-${line}`}>
+                {index > 0 ? <br /> : null}
+                {line}
+              </React.Fragment>
+            ))}
           </SummaryField>
         </SummaryCard>
       </div>
 
-      {/* Quoted Price Card */}
-      <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm border-2 border-border-success">
+      {/* Quoted Price Card — success surface without dual blue+green border (Figma 11936-178681) */}
+      <div className="rounded-md bg-surface-success p-6 shadow-sm" data-testid="quote-summary-quoted-price">
         <SummaryCard
           heading={t('quotedPrice')}
           className="h-full gap-4 rounded-md p-4 shadow-none"

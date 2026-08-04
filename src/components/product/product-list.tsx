@@ -18,6 +18,8 @@ export interface ProductListPresentationConfig {
   };
   readonly showGrossSecondary?: boolean;
   readonly showTrailingDesktopAmount?: boolean;
+  /** When true, mobile omits the core unit-price block (Return); Quote/Approval leave this unset. */
+  readonly omitMobileUnitPrice?: boolean;
   readonly trailingDesktopAmount?: (item: ProductListItem) => ReactNode;
   readonly mobileMetadataSlots?: ProductListMetadataSlot[];
   readonly inlineMetadataSlots?: ProductListMetadataSlot[];
@@ -36,6 +38,15 @@ export interface ProductListItem {
   imageUrl?: string | null;
   href?: string; // optional product link
 }
+
+/**
+ * Desktop track templates shared by ProductList header and ProductItemRow.
+ * Four-column (trailing amount / Return) uses shrinkable mins so Refund Amount
+ * stays inside the card at ~1024–1150px account layouts with a sidebar.
+ */
+export const PRODUCT_DESKTOP_GRID_COLS = 'sm:grid-cols-[minmax(280px,1.6fr)_100px_minmax(140px,1fr)]';
+export const PRODUCT_DESKTOP_GRID_COLS_WITH_AMOUNT =
+  'sm:grid-cols-[minmax(0,1.6fr)_minmax(4rem,100px)_minmax(0,1fr)_minmax(0,1fr)]';
 
 interface ProductListProps {
   readonly items: ProductListItem[];
@@ -63,6 +74,7 @@ export function ProductList({
     },
     showGrossSecondary: presentationConfig?.showGrossSecondary ?? showGrossUnderNet,
     showTrailingDesktopAmount: presentationConfig?.showTrailingDesktopAmount ?? false,
+    omitMobileUnitPrice: presentationConfig?.omitMobileUnitPrice ?? false,
     trailingDesktopAmount: presentationConfig?.trailingDesktopAmount,
     mobileMetadataSlots: presentationConfig?.mobileMetadataSlots ?? [],
     inlineMetadataSlots: presentationConfig?.inlineMetadataSlots ?? [],
@@ -73,22 +85,27 @@ export function ProductList({
   );
 
   const desktopGridClassName = hasTrailingDesktopAmount
-    ? 'hidden sm:grid sm:grid-cols-[minmax(280px,1.6fr)_100px_minmax(140px,1fr)_minmax(140px,1fr)] items-start gap-6'
-    : 'hidden sm:grid sm:grid-cols-[minmax(280px,1.6fr)_100px_minmax(140px,1fr)] items-start gap-6';
+    ? `hidden min-w-0 sm:grid ${PRODUCT_DESKTOP_GRID_COLS_WITH_AMOUNT} items-start gap-4 lg:gap-6`
+    : `hidden sm:grid ${PRODUCT_DESKTOP_GRID_COLS} items-start gap-6`;
 
   return (
-    <Card className={`border border-border-primary shadow-sm ${className || ''}`}>
-      <CardContent className="p-6">
+    <Card
+      className={`min-w-0 max-w-full gap-0 overflow-hidden border border-border-primary py-0 shadow-sm ${className || ''}`}
+      data-testid="product-list-card"
+    >
+      {/* Mobile Figma Products frame: single spacing/4 inset. Card default py-6 must stay off
+          so it does not stack with CardContent padding (Jira #14a / #19 gap). */}
+      <CardContent className="min-w-0 overflow-x-auto p-4 sm:p-6" data-testid="product-list-scroll">
         <div className={`${desktopGridClassName} border-b border-border-primary pb-4`}>
-          <H6 className="text-sm font-bold text-text-headings">{resolvedPresentationConfig.labels.product}</H6>
+          <H6 className="min-w-0 text-sm font-bold text-text-headings">{resolvedPresentationConfig.labels.product}</H6>
           <H6 className="text-left text-sm font-bold text-text-headings">
             {resolvedPresentationConfig.labels.quantity}
           </H6>
-          <H6 className="text-right text-sm font-bold text-text-headings">
+          <H6 className="min-w-0 text-right text-sm font-bold text-text-headings">
             {resolvedPresentationConfig.labels.unitPrice}
           </H6>
           {hasTrailingDesktopAmount && (
-            <H6 className="text-right text-sm font-bold text-text-headings">
+            <H6 className="min-w-0 text-right text-sm font-bold text-text-headings">
               {resolvedPresentationConfig.labels.amount}
             </H6>
           )}

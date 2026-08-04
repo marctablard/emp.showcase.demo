@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import '@testing-library/jest-dom';
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { Order } from '@/platform/services/model/order/order';
 import { OrderDetail } from './order-detail';
 
@@ -142,14 +142,42 @@ describe('OrderDetail', () => {
     expect(screen.getByText('errorFetchingOrder')).toBeInTheDocument();
   });
 
-  it('renders the net value before the gross value for the Order Overview subtotal and total', () => {
+  it('renders Net value of goods and Total without Gross secondary lines, Total from price.total.gross', () => {
     mockUseOrder();
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    // Subtotal/total: net rendered unlabeled (primary), gross rendered as a labeled secondary value.
-    expect(screen.getAllByText('100 EUR').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText('gross: 119 EUR').length).toBeGreaterThanOrEqual(2);
+    const overviewHeading = screen.getByRole('heading', { level: 4, name: 'orderOverview' });
+    const overviewCard = overviewHeading.closest('[data-slot="card"]');
+
+    expect(overviewCard).toHaveTextContent('100 EUR');
+    expect(overviewCard).toHaveTextContent('119 EUR');
+    expect(overviewCard).not.toHaveTextContent('gross:');
+    // Total display is model gross only — not net.
+    expect(
+      within(overviewCard as HTMLElement).getByRole('heading', { level: 5, name: 'totalValue' }),
+    ).toBeInTheDocument();
+    const totalRow = within(overviewCard as HTMLElement).getByRole('heading', {
+      level: 5,
+      name: 'totalValue',
+    }).parentElement;
+    expect(totalRow).toHaveTextContent('119 EUR');
+    expect(totalRow).not.toHaveTextContent('100 EUR');
+  });
+
+  it('characterizes Total gross against Net+VAT when Shipping VAT is absent', () => {
+    const { price } = baseOrder;
+    expect(price).toBeDefined();
+    const lineSum = price!.subtotal.net + price!.total.tax;
+    expect(price!.total.gross).toBe(lineSum);
+
+    mockUseOrder();
+    render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
+
+    const overviewHeading = screen.getByRole('heading', { level: 4, name: 'orderOverview' });
+    const overviewCard = overviewHeading.closest('[data-slot="card"]') as HTMLElement;
+    const totalRow = within(overviewCard).getByRole('heading', { level: 5, name: 'totalValue' }).parentElement;
+    expect(totalRow).toHaveTextContent(`${price!.total.gross} EUR`);
   });
 
   it('renders the product list unit price with the net value primary and gross as the secondary value', () => {
@@ -174,7 +202,7 @@ describe('OrderDetail', () => {
     expect(screen.getByTestId('product-item-mobile-item-1')).toBeInTheDocument();
   });
 
-  it('omits the order overview quote row when no related quote exists', () => {
+  it('omits Related Quote when no quoteId exists', () => {
     mockUseOrder();
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
@@ -182,15 +210,22 @@ describe('OrderDetail', () => {
     expect(screen.queryByText('relatedQuote')).not.toBeInTheDocument();
   });
 
-  it('renders the related quote link when a quoteId is present', () => {
+  it('renders Related Quote only under Order Details when quoteId is present, not in Overview', () => {
     const orderWithQuote = { ...baseOrder, quoteId: 'Q-1000' };
     mockUseOrder({ order: orderWithQuote });
 
     render(<OrderDetail orderId={orderWithQuote.id} initialOrder={orderWithQuote} />);
 
-    expect(screen.getByText('relatedQuote')).toBeInTheDocument();
+    const strip = screen.getByTestId('order-details-strip');
+    expect(strip).toHaveTextContent('relatedQuote');
     const quoteLink = screen.getByRole('link', { name: 'Q-1000' });
     expect(quoteLink).toHaveAttribute('href', '/account/quotes/Q-1000');
+    expect(strip).toContainElement(quoteLink);
+
+    const overviewHeading = screen.getByRole('heading', { level: 4, name: 'orderOverview' });
+    const overviewCard = overviewHeading.closest('[data-slot="card"]');
+    expect(overviewCard).not.toHaveTextContent('relatedQuote');
+    expect(overviewCard).not.toContainElement(quoteLink);
   });
 
   it('shows the cancel order button only when CREATED and DECLINED transition is allowed', () => {
@@ -201,17 +236,70 @@ describe('OrderDetail', () => {
     expect(screen.getByText('cancelOrder')).toBeInTheDocument();
   });
 
-  it('cancels the order when the header Cancel Order button is clicked', async () => {
+  it('opens a cancel confirmation dialog without cancelling immediately', () => {
+    mockUseOrder({ order: { ...baseOrder, status: 'CREATED' }, statusTransitions: ['DECLINED'] });
+
+    render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /cancelOrder/ }));
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('cancelOrderConfirmTitle')).toBeInTheDocument();
+    expect(screen.getByText('cancelOrderConfirmDescription')).toBeInTheDocument();
+    expect(cancelOrderMock).not.toHaveBeenCalled();
+  });
+
+  it('keep-order dismiss closes the dialog and does not cancel', () => {
+    mockUseOrder({ order: { ...baseOrder, status: 'CREATED' }, statusTransitions: ['DECLINED'] });
+
+    render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /cancelOrder/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'keepOrder' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(cancelOrderMock).not.toHaveBeenCalled();
+  });
+
+  it('confirm cancels exactly once and closes the dialog', async () => {
     mockUseOrder({ order: { ...baseOrder, status: 'CREATED' }, statusTransitions: ['DECLINED'] });
     cancelOrderMock.mockResolvedValue(undefined);
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    screen.getByText('cancelOrder').closest('button')?.click();
+    fireEvent.click(screen.getByRole('button', { name: /cancelOrder/ }));
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'cancelOrder' }));
 
-    await Promise.resolve();
+    await waitFor(() => expect(cancelOrderMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('disables confirm and blocks duplicate cancel while the mutation is pending', async () => {
+    let resolveCancel: () => void = () => {};
+    cancelOrderMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveCancel = resolve;
+        }),
+    );
+    mockUseOrder({ order: { ...baseOrder, status: 'CREATED' }, statusTransitions: ['DECLINED'] });
+
+    render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /cancelOrder/ }));
+    const dialog = screen.getByRole('dialog');
+    const confirmButton = within(dialog).getByRole('button', { name: 'cancelOrder' });
+
+    fireEvent.click(confirmButton);
+    fireEvent.click(confirmButton);
 
     expect(cancelOrderMock).toHaveBeenCalledTimes(1);
+    expect(confirmButton).toBeDisabled();
+
+    await act(async () => {
+      resolveCancel();
+    });
   });
 
   it('hides the cancel order button when the DECLINED transition is not allowed', () => {
@@ -271,6 +359,23 @@ describe('OrderDetail', () => {
     const strip = screen.getByText('orderDetails').closest('div');
     expect(strip).toHaveTextContent('orderNumber');
     expect(strip).toHaveTextContent(baseOrder.id);
+  });
+
+  it('keeps header actions on the same row as the Order heading from sm (768px), stacking one-per-line only below sm', () => {
+    // CREATED + DECLINED transition shows Cancel; SHIPPED lifecycle also shows Track — use CREATED
+    // with DECLINED so Cancel is present without changing eligibility guards.
+    mockUseOrder({ order: { ...baseOrder, status: 'CREATED' }, statusTransitions: ['DECLINED'] });
+
+    render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
+
+    const header = screen.getByTestId('order-detail-header');
+    // Default column below sm; sm:flex-row keeps identity + actions on one band through ~1298px
+    // (project sm = 768px, md = 1024px, lg = 1280px — not stacked at 1024–1298).
+    expect(header).toHaveClass('flex', 'flex-col', 'sm:flex-row', 'sm:items-center', 'sm:justify-between');
+
+    const actions = screen.getByTestId('order-detail-header-actions');
+    expect(actions).toHaveClass('flex', 'w-full', 'flex-col', 'gap-4', 'sm:w-auto', 'sm:flex-row');
+    expect(screen.getByText('cancelOrder')).toBeInTheDocument();
   });
 
   it('does not render the former standalone totals block or bottom Order Actions footer', () => {
@@ -384,7 +489,7 @@ describe('OrderDetail', () => {
     expect(image).toHaveAttribute('height', '78');
   });
 
-  it('renders the optional vendor name above the bold h6 product name only when present', () => {
+  it('renders the optional vendor name above the product name (mobile H5 / desktop H6) only when present', () => {
     mockUseOrder({
       order: {
         ...baseOrder,
@@ -394,14 +499,16 @@ describe('OrderDetail', () => {
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    const vendorName = screen.getAllByText('Acme Vendor')[0];
-    expect(vendorName).toHaveClass('text-base', 'font-body');
+    const vendorNames = screen.getAllByText('Acme Vendor');
+    expect(vendorNames[0]).toHaveClass('text-sm', 'font-body', 'text-text-body');
+    expect(vendorNames[1]).toHaveClass('text-base', 'font-body', 'text-text-body');
 
-    const productName = screen.getAllByRole('link', { name: 'Sample Product' })[0];
-    expect(productName).toHaveClass('text-2xl', 'font-bold', 'font-headlines');
+    const productNames = screen.getAllByRole('link', { name: 'Sample Product' });
+    expect(productNames[0]).toHaveClass('text-3xl', 'font-bold', 'font-headlines');
+    expect(productNames[1]).toHaveClass('text-2xl', 'font-bold', 'font-headlines');
 
     // vendorName precedes the product name in the DOM (brand above name).
-    expect(vendorName.compareDocumentPosition(productName) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(vendorNames[0].compareDocumentPosition(productNames[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     // The second item has no vendorName and renders no vendor element.
     expect(screen.getAllByText(/Legacy Priced Product/i)[0]?.parentElement).not.toHaveTextContent('Acme Vendor');
@@ -518,6 +625,40 @@ describe('OrderDetail', () => {
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
     expect(screen.queryByText('shippingVat')).not.toBeInTheDocument();
+  });
+
+  it('renders Shipping VAT from the model tax field and Total from price.total.gross only', () => {
+    const orderWithShippingTax: Order = {
+      ...baseOrder,
+      price: {
+        subtotal: { net: 100, gross: 119, tax: 19, currency: 'EUR' },
+        total: { net: 100, gross: 129.71, tax: 19, currency: 'EUR' },
+      },
+      shipping: {
+        methods: [{ id: 'std', name: 'Standard', price: 9, currency: 'EUR' }],
+        total: { value: 9, currency: 'EUR', tax: 1.71 },
+      },
+    };
+
+    const lineSum =
+      orderWithShippingTax.price!.subtotal.net +
+      orderWithShippingTax.price!.total.tax +
+      orderWithShippingTax.shipping!.total.value +
+      (orderWithShippingTax.shipping!.total.tax ?? 0);
+    expect(orderWithShippingTax.price!.total.gross).toBe(lineSum);
+
+    mockUseOrder({ order: orderWithShippingTax });
+
+    render(<OrderDetail orderId={orderWithShippingTax.id} initialOrder={orderWithShippingTax} />);
+
+    expect(screen.getByText('shippingVat')).toBeInTheDocument();
+    expect(screen.getByText('1.71 EUR')).toBeInTheDocument();
+
+    const overviewHeading = screen.getByRole('heading', { level: 4, name: 'orderOverview' });
+    const overviewCard = overviewHeading.closest('[data-slot="card"]') as HTMLElement;
+    const totalRow = within(overviewCard).getByRole('heading', { level: 5, name: 'totalValue' }).parentElement;
+    expect(totalRow).toHaveTextContent('129.71 EUR');
+    expect(overviewCard).not.toHaveTextContent('gross:');
   });
 
   it('renders the Shipping card heading and Shipping address label instead of Transport/Delivery address', () => {

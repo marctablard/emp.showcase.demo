@@ -3,20 +3,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, CheckCircle2, CircleCheck, CircleX, MessageSquareText } from 'lucide-react';
+import { AlertCircle, CircleCheck, CircleX, MessageSquareText } from 'lucide-react';
+import { resolveApprovalNetAmount } from '@/components/account/approvals/approval-net-amount';
 import { ApprovalSummary } from '@/components/account/approvals/approval-summary';
 import { ProductListResolver } from '@/components/product/product-list-resolver';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { H3, H4, H5 } from '@/components/ui/h';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
@@ -36,6 +30,12 @@ interface ApprovalDetailsProps {
   readonly initialApproval?: Approval;
 }
 
+function formatApprovalNetAmount(approval: Approval, locale: string): string {
+  const net = resolveApprovalNetAmount(approval);
+  if (!net) return '-';
+  return formatCurrency(net.amount, net.currency, locale);
+}
+
 export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetailsProps) {
   const locale = useLocale();
   const t = useTranslations('orders.Approval');
@@ -43,11 +43,11 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
   const { toast } = useToast();
   const { customer, loading: customerLoading } = useCustomer();
   const [comment, setComment] = useState<string>('');
-  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [isCommentFormOpen, setIsCommentFormOpen] = useState(false);
   const [isDeclineDialogOpen, setIsDeclineDialogOpen] = useState(false);
+  const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const commentTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -69,25 +69,66 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
   const isRequestor = approval?.requestor.userId === customer?.id;
   const isDesignatedApprover = approval?.approver.userId === customer?.id;
 
-  const handleApprove = async () => {
+  const handleApproveClick = () => {
     if (isRequestor || approval?.approver.userId !== customer?.id) {
       return;
     }
-    try {
-      if (isProcessing) return;
-      setActionError(null);
+    setActionError(null);
+    setIsApproveDialogOpen(true);
+  };
 
+  const handleApproveDialogOpenChange = (open: boolean) => {
+    if (open) {
+      setIsApproveDialogOpen(true);
+      return;
+    }
+    if (isProcessing) return;
+    setIsApproveDialogOpen(false);
+  };
+
+  const handleCancelApprove = () => {
+    if (isProcessing) return;
+    setIsApproveDialogOpen(false);
+  };
+
+  const handleConfirmApprove = async () => {
+    if (isRequestor || approval?.approver.userId !== customer?.id || isProcessing || !approval) {
+      return;
+    }
+    try {
+      setActionError(null);
       setIsProcessing(true);
+
+      // QUOTE: status update only — never run cart checkout (finding 24c).
+      if (approval.resourceType === 'QUOTE') {
+        await updateApprovalStatus('APPROVED');
+
+        if (comment) {
+          await updateApproverComment(comment);
+          setComment('');
+        }
+
+        setIsApproveDialogOpen(false);
+        notify({
+          title: t('success'),
+          description: t('approvalSuccessfullyApproved'),
+          type: ToastType.Success,
+        });
+        return;
+      }
+
+      // CART (and ORDER-like) keep checkout-after-approve behind the confirm dialog.
       const checkoutResponse = await handleSubmitOrder();
       if (!checkoutResponse) {
         throw new Error('Checkout failed');
       }
 
-      // Navigate after successful approve + checkout
+      setIsApproveDialogOpen(false);
       toast({ title: t('success'), description: t('orderSuccessfullySubmitted'), variant: 'success' });
       router.push(`/account/approvals`);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : String(err));
+      setIsApproveDialogOpen(false);
     } finally {
       setIsProcessing(false);
     }
@@ -155,8 +196,13 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
       } else {
         await updateApproverComment(comment);
       }
-      setActionSuccess(t('requestorCommentUpdated'));
       setComment('');
+      setIsCommentFormOpen(false);
+      notify({
+        title: t('success'),
+        description: isRequestor ? t('requestorCommentUpdated') : t('approverCommentUpdated'),
+        type: ToastType.Success,
+      });
     } catch (err) {
       setActionError(err instanceof Error ? err.message : String(err));
     }
@@ -269,42 +315,58 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
 
     content = (
       <div className="space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-6">
+        {/* Stack Decline / Approve / Comment one-per-line only below sm (true mobile). */}
+        <div
+          className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+          data-testid="approval-detail-header"
+        >
           <div className="flex items-center gap-6">
             <H3>
               {t('approval')}: {approval.id}
             </H3>
             <ApprovalStatusBadge status={approval.status} />
           </div>
-          <div className="flex flex-wrap items-center gap-4">
+          <div
+            className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end"
+            data-testid="approval-detail-actions"
+          >
             {canApprove && (
               <>
-                <Button variant="outlineError" size="small" onClick={handleDeclineClick} disabled={isProcessing}>
+                <Button
+                  variant="outlineError"
+                  size="small"
+                  onClick={handleDeclineClick}
+                  disabled={isProcessing}
+                  className="w-full gap-2 sm:w-auto"
+                >
                   <CircleX className="h-5 w-5" />
                   {t('decline')}
                 </Button>
-                <Button variant="outlineSuccess" size="small" onClick={handleApprove} disabled={isProcessing}>
+                <Button
+                  variant="outlineSuccess"
+                  size="small"
+                  onClick={handleApproveClick}
+                  disabled={isProcessing}
+                  className="w-full gap-2 sm:w-auto"
+                >
                   <CircleCheck className="h-5 w-5" />
                   {t('approve')}
                 </Button>
               </>
             )}
             {canComment && (
-              <Button variant="secondary" size="small" onClick={() => setIsCommentFormOpen((isOpen) => !isOpen)}>
+              <Button
+                variant="secondary"
+                size="small"
+                onClick={() => setIsCommentFormOpen((isOpen) => !isOpen)}
+                className="w-full gap-2 sm:w-auto"
+              >
                 <MessageSquareText className="h-5 w-5" />
                 {t('addComment')}
               </Button>
             )}
           </div>
         </div>
-
-        {actionSuccess && (
-          <Alert variant="default">
-            <CheckCircle2 className="h-4 w-4" />
-            <AlertTitle>{t('success')}</AlertTitle>
-            <AlertDescription>{actionSuccess}</AlertDescription>
-          </Alert>
-        )}
 
         {actionError && (
           <Alert variant="destructive">
@@ -324,16 +386,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
               </div>
               <div className="flex flex-col gap-1">
                 <H5>{t('totalNetAmount')}</H5>
-                <span className="text-base font-body text-text-body">
-                  {approval.resource.totalPrice
-                    ? (approval.resource.totalPrice.formattedAmount ??
-                      formatCurrency(
-                        approval.resource.totalPrice.amount,
-                        approval.resource.totalPrice.currency,
-                        locale,
-                      ))
-                    : '-'}
-                </span>
+                <span className="text-base font-body text-text-body">{formatApprovalNetAmount(approval, locale)}</span>
               </div>
             </div>
             <div className="flex flex-col gap-4">
@@ -344,7 +397,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
                 </span>
               </div>
               <div className="flex flex-col gap-1">
-                <H5>{t('relatedOrder')}</H5>
+                <H5>{approval.resourceType === 'QUOTE' ? t('relatedQuote') : t('relatedOrder')}</H5>
                 {approval.resourceType === 'QUOTE' ? (
                   <Link
                     href={`/account/quotes/${approval.resource.id}`}
@@ -385,23 +438,39 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
           </div>
         )}
 
-        <div className="rounded-md bg-surface-primary p-4 shadow-sm">
+        <div className="rounded-md bg-surface-primary p-4 shadow-sm" data-testid="approval-history">
           <H4 className="mb-4">{t('approvalHistory')}</H4>
-          <div className="hidden grid-cols-[minmax(140px,1fr)_minmax(220px,2fr)_minmax(160px,1fr)_120px_minmax(160px,1fr)_minmax(160px,1fr)] gap-6 border-b border-border-primary pb-4 sm:grid">
+          <div className="hidden grid-cols-[minmax(140px,1fr)_minmax(220px,2fr)_minmax(160px,1fr)_minmax(160px,1fr)_minmax(160px,1fr)] gap-6 border-b border-border-primary pb-4 sm:grid">
             <span className="text-sm font-bold text-text-headings">{t('date')}</span>
             <span className="text-sm font-bold text-text-headings">{t('event')}</span>
             <span className="text-sm font-bold text-text-headings">{t('changedBy')}</span>
-            <span className="text-sm font-bold text-text-headings">{t('status')}</span>
             <span className="text-sm font-bold text-text-headings">{t('comment')}</span>
             <span className="text-sm font-bold text-text-headings">{t('changeReason')}</span>
           </div>
-          <div className="grid grid-cols-1 gap-3 py-4 text-base font-body text-text-body sm:grid-cols-[minmax(140px,1fr)_minmax(220px,2fr)_minmax(160px,1fr)_120px_minmax(160px,1fr)_minmax(160px,1fr)] sm:gap-6">
+          {/* Approver comment is a separate top row (finding 25) — never mixed with requestor comment. */}
+          {approval.approverComment ? (
+            <div
+              className="grid grid-cols-1 gap-3 py-4 text-base font-body text-text-body sm:grid-cols-[minmax(140px,1fr)_minmax(220px,2fr)_minmax(160px,1fr)_minmax(160px,1fr)_minmax(160px,1fr)] sm:gap-6"
+              data-testid="approval-history-approver-comment"
+            >
+              <span>-</span>
+              <span>{t('approverComment')}</span>
+              <span>
+                {approval.approver.firstName} {approval.approver.lastName} ({t('roleApprover')})
+              </span>
+              <span>{approval.approverComment}</span>
+              <span>-</span>
+            </div>
+          ) : null}
+          <div
+            className="grid grid-cols-1 gap-3 py-4 text-base font-body text-text-body sm:grid-cols-[minmax(140px,1fr)_minmax(220px,2fr)_minmax(160px,1fr)_minmax(160px,1fr)_minmax(160px,1fr)] sm:gap-6"
+            data-testid="approval-history-request"
+          >
             <span>{formatDate(approval.createdAt)}</span>
             <span>{t('approvalRequestCreated')}</span>
             <span>
               {approval.requestor.firstName} {approval.requestor.lastName} ({t('roleCustomer')})
             </span>
-            <ApprovalStatusBadge status={approval.status} className="w-fit" />
             <span>{approval.comment || '-'}</span>
             <span>-</span>
           </div>
@@ -440,25 +509,38 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
     );
   }
 
+  const approveResourceId = approval?.resource.id ?? '';
+  const approveNetAmount = approval ? formatApprovalNetAmount(approval, locale) : '-';
+
   return (
     <>
       {content}
-      <Dialog open={isDeclineDialogOpen} onOpenChange={handleDeclineDialogOpenChange}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('declineApprovalTitle')}</DialogTitle>
-            <DialogDescription>{t('declineApprovalDescription')}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="secondary" onClick={handleCancelDecline} disabled={isProcessing}>
-              {t('cancel')}
-            </Button>
-            <Button variant="outlineError" onClick={handleConfirmDecline} disabled={isProcessing}>
-              {t('decline')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmationDialog
+        open={isDeclineDialogOpen}
+        onOpenChange={handleDeclineDialogOpenChange}
+        title={t('declineApprovalTitle')}
+        description={t('declineApprovalDescription')}
+        cancelLabel={t('cancel')}
+        confirmLabel={t('decline')}
+        onCancel={handleCancelDecline}
+        onConfirm={() => void handleConfirmDecline()}
+        pending={isProcessing}
+      />
+      <ConfirmationDialog
+        open={isApproveDialogOpen}
+        onOpenChange={handleApproveDialogOpenChange}
+        title={t('approveApprovalTitle')}
+        description={t('approveApprovalDescription', {
+          resourceId: approveResourceId,
+          netAmount: approveNetAmount,
+        })}
+        cancelLabel={t('cancel')}
+        confirmLabel={t('approve')}
+        onCancel={handleCancelApprove}
+        onConfirm={() => void handleConfirmApprove()}
+        pending={isProcessing}
+        confirmVariant="outlineSuccess"
+      />
     </>
   );
 }

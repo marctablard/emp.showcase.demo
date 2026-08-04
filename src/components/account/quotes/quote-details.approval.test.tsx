@@ -37,6 +37,42 @@ jest.mock('@/hooks/quotes/useQuoteHistory', () => ({
   }),
 }));
 
+let mockRelatedApproval: {
+  id: string;
+  status: string;
+  resourceType: string;
+  action: string;
+  resource: { id: string };
+  requestor: { userId: string; firstName: string; lastName: string; email: string };
+  approver: { userId: string; firstName: string; lastName: string };
+  createdAt: string;
+  updatedAt: string;
+} | null = null;
+
+jest.mock('@/hooks/approval/useApproval', () => ({
+  useApproval: () => ({
+    approval: mockRelatedApproval,
+    loading: false,
+    error: null,
+    updateApprovalStatus: jest.fn(),
+    updateApproverComment: jest.fn(),
+    updateRequestorComment: jest.fn(),
+    deleteApproval: jest.fn(),
+    refreshApproval: jest.fn(),
+  }),
+}));
+
+jest.mock('@/hooks/customer/useCustomer', () => ({
+  __esModule: true,
+  default: () => ({
+    customer: { id: 'customer-1' },
+    loading: false,
+    error: null,
+    fetchCustomer: jest.fn(),
+    reset: jest.fn(),
+  }),
+}));
+
 jest.mock('@/components/account/quotes/quote-summary', () => ({
   QuoteSummary: () => <div>QuoteSummary</div>,
 }));
@@ -49,7 +85,21 @@ jest.mock('@/components/product/product-list-resolver', () => ({
 
 jest.mock('@/components/ui/link', () => ({
   __esModule: true,
-  default: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
+  default: ({
+    children,
+    href,
+    className,
+    title,
+  }: {
+    children: React.ReactNode;
+    href?: string;
+    className?: string;
+    title?: string;
+  }) => (
+    <a href={href} className={className} title={title}>
+      {children}
+    </a>
+  ),
 }));
 
 jest.mock('@/platform/services/approval/errors', () => ({
@@ -131,6 +181,7 @@ describe('QuoteDetails approval flow', () => {
     pushMock.mockReset();
     fetchMock.mockReset();
     mockProductListResolver.mockClear();
+    mockRelatedApproval = null;
     global.fetch = fetchMock as unknown as typeof fetch;
   });
 
@@ -158,6 +209,19 @@ describe('QuoteDetails approval flow', () => {
           }),
         }),
       }),
+    );
+  });
+
+  it('stacks header actions one-per-line on mobile (flex-col below sm)', () => {
+    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+
+    expect(screen.getByTestId('quote-detail-header')).toHaveClass('flex', 'flex-col', 'sm:flex-row');
+    expect(screen.getByTestId('quote-detail-header-actions')).toHaveClass(
+      'flex',
+      'w-full',
+      'flex-col',
+      'sm:w-auto',
+      'sm:flex-row',
     );
   });
 
@@ -550,5 +614,57 @@ describe('QuoteDetails approval flow', () => {
     expect(acceptButton).toBeDisabled();
 
     expect(checkApprovalPermitted).toHaveBeenCalledTimes(1);
+  });
+
+  it('ellipsizes Related Approval id and links via getApprovalHref for requestors (finding 21)', async () => {
+    checkApprovalPermitted.mockResolvedValue({
+      action: 'CHECKOUT',
+      permitted: false,
+      approvalId: 'approval-ellipsis-1',
+    });
+    mockRelatedApproval = {
+      id: 'approval-ellipsis-1',
+      status: 'PENDING',
+      resourceType: 'QUOTE',
+      action: 'CHECKOUT',
+      resource: { id: 'Q-1000' },
+      requestor: {
+        userId: 'customer-1',
+        firstName: 'Customer',
+        lastName: 'One',
+        email: 'customer@example.com',
+      },
+      approver: {
+        userId: 'approver-1',
+        firstName: 'Approver',
+        lastName: 'One',
+      },
+      createdAt: '2026-05-31T10:00:00.000Z',
+      updatedAt: '2026-05-31T10:00:00.000Z',
+    };
+
+    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+
+    const relatedApprovalLink = await screen.findByRole('link', { name: 'approval-ellipsis-1' });
+    expect(relatedApprovalLink).toHaveAttribute('href', '/account/quotes/Q-1000');
+    expect(relatedApprovalLink).not.toHaveAttribute('href', '/account/approval/approval-ellipsis-1');
+    expect(relatedApprovalLink).toHaveClass('block', 'min-w-0', 'max-w-full', 'truncate');
+    expect(relatedApprovalLink.parentElement).toHaveClass('min-w-0');
+    expect(relatedApprovalLink.parentElement).toHaveAttribute('title', 'approval-ellipsis-1');
+  });
+
+  it('only shows a sort control on Change Date and defaults Quote History to DESC', () => {
+    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+
+    const sortButton = screen.getByTestId('quote-history-sort-change-date');
+    expect(sortButton.parentElement).toHaveAttribute('aria-sort', 'descending');
+    expect(sortButton.querySelector('svg')).not.toBeNull();
+
+    expect(screen.getByText('account.quoteDetails.event').querySelector('svg')).toBeNull();
+    expect(screen.getByText('account.quoteDetails.changedBy').querySelector('svg')).toBeNull();
+    expect(screen.getByText('account.quoteDetails.status').querySelector('svg')).toBeNull();
+    expect(screen.getByText('account.quoteDetails.comment').querySelector('svg')).toBeNull();
+
+    expect(screen.getByTestId('quote-history-row-initial')).toBeInTheDocument();
   });
 });

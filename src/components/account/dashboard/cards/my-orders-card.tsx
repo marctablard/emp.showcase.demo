@@ -159,7 +159,7 @@ export function MyOrdersCard({
   if (pageMode) {
     return (
       <div className={cn('space-y-6', className)}>
-        <H1>{title || t('title')}</H1>
+        <H1>{title || t('orderHistory')}</H1>
         <TableCard className="overflow-hidden">
           {searchInput}
           <div className="flex flex-col">{table}</div>

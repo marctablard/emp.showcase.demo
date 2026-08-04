@@ -142,12 +142,12 @@ function ReturnTrailingDesktopAmount({
   grossLabel,
 }: ReturnTrailingDesktopAmountProps) {
   return (
-    <div className="flex flex-col gap-1 sm:items-end">
-      <span className="text-2xl font-bold font-headlines text-text-headings">
+    <div className="flex min-w-0 flex-col gap-1 sm:items-end">
+      <span className="break-words text-2xl font-bold font-headlines text-text-headings">
         {formatReturnCurrency(refundNetValue, refundNetCurrency, locale)}
       </span>
       {refundGrossValue !== undefined && (
-        <span className="text-sm font-body text-text-placeholders">
+        <span className="break-words text-sm font-body text-text-placeholders">
           {grossLabel} {formatReturnCurrency(refundGrossValue, refundGrossCurrency, locale)}
         </span>
       )}
@@ -233,6 +233,8 @@ function renderTrailingDesktopAmount(
 }
 
 function ReturnOverview({ returnItem, locale, t }: ReturnOverviewProps) {
+  // Total return value: single gross amount (finalPrice.grossValue). No Gross prefix.
+  // When gross is absent, show '-' (do not invent a total from net or helpers).
   const totalGrossValue = returnItem.calculatedPrice?.finalPrice?.grossValue;
   const totalNetValue = returnItem.calculatedPrice?.finalPrice?.netValue ?? returnItem.total?.value;
   const totalCurrency = returnItem.calculatedPrice?.finalPrice?.currency ?? returnItem.total?.currency;
@@ -250,15 +252,9 @@ function ReturnOverview({ returnItem, locale, t }: ReturnOverviewProps) {
         </div>
         <div className="flex items-start justify-between gap-4 pt-2">
           <H5>{t('totalReturnValue')}</H5>
-          <div className="text-right">
-            <H5>{formatReturnCurrency(totalNetValue, totalCurrency, locale)}</H5>
-            <div className="flex items-center justify-end gap-1 text-sm font-body text-text-placeholders">
-              <span>{t('gross')}</span>
-              <span>
-                {totalGrossValue !== undefined ? formatReturnCurrency(totalGrossValue, totalCurrency, locale) : '-'}
-              </span>
-            </div>
-          </div>
+          <H5 className="text-right">
+            {totalGrossValue !== undefined ? formatReturnCurrency(totalGrossValue, totalCurrency, locale) : '-'}
+          </H5>
         </div>
       </div>
     </div>
@@ -303,6 +299,7 @@ function ReturnItemsList({ items, locale, t }: ReturnItemsListProps) {
         },
         showGrossSecondary: true,
         showTrailingDesktopAmount: true,
+        omitMobileUnitPrice: true,
         trailingDesktopAmount: (productItem) => renderTrailingDesktopAmount(productItem, { locale, grossLabel }),
         mobileMetadataSlots: [
           {
@@ -477,14 +474,18 @@ export function ReturnDetail({ returnId, initialReturn }: ReturnDetailProps) {
 
   const returnItem: ExtendedReturn | null = (apiReturnItem as ExtendedReturn) || null;
 
+  // H1 identity: returnDetails / returnLabel + id (not list title "Returns & Claims").
+  // Match Order Details pattern (short label + id) using returnLabel; keep status badge.
+  const returnHeading = (id: string) => (
+    <H1 variant="h3">
+      {t('returnLabel')}: {id}
+    </H1>
+  );
+
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <H1 variant="h3">
-            {t('title')}: {returnId}
-          </H1>
-        </div>
+        <div className="flex items-center gap-4">{returnHeading(returnId)}</div>
         <Card>
           <CardContent className="flex justify-center py-12">
             <div className="flex flex-col items-center space-y-2">
@@ -500,11 +501,7 @@ export function ReturnDetail({ returnId, initialReturn }: ReturnDetailProps) {
   if (error || !returnItem) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <H1 variant="h3">
-            {t('title')}: {returnId}
-          </H1>
-        </div>
+        <div className="flex items-center gap-4">{returnHeading(returnId)}</div>
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>{t('error')}</AlertTitle>
@@ -526,9 +523,7 @@ export function ReturnDetail({ returnId, initialReturn }: ReturnDetailProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4 flex-wrap">
-        <H1 variant="h3">
-          {t('title')}: {returnItem.id}
-        </H1>
+        {returnHeading(returnItem.id)}
         <ReturnStatusBadge status={returnItem.status} isExpired={returnItem.isExpired} />
       </div>
 

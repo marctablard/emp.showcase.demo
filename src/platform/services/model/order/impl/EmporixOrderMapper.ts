@@ -201,11 +201,12 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
 
   private mapShipping(
     shipping?: EmporixShipping,
-    calculatedPrice?: { totalShipping?: { netValue: number } },
+    calculatedPrice?: { totalShipping?: { netValue: number; taxValue?: number } },
     currency?: string,
   ): OrderShipping | undefined {
     const shippingValue = calculatedPrice?.totalShipping?.netValue ?? shipping?.total.amount;
     const shippingCurrency = shipping?.total.currency ?? currency;
+    const shippingTax = calculatedPrice?.totalShipping?.taxValue;
 
     if (shippingValue === undefined || !shippingCurrency) {
       return undefined;
@@ -215,6 +216,7 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
       total: {
         value: shippingValue,
         currency: shippingCurrency,
+        ...(shippingTax !== undefined ? { tax: shippingTax } : {}),
       },
       methods: shipping?.lines?.map((line) => {
         const localizedName = line.localizedName;

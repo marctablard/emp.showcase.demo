@@ -64,7 +64,7 @@ export default async function ApprovalDetailPage({
   const breadcrumbs = [
     {
       href: '/account',
-      label: tAccount('title'),
+      label: tAccount('accountDetails'),
     },
     {
       href: '/account/approvals',

@@ -22,6 +22,8 @@ export interface Quote {
   totalGross: number;
   totalNet: number;
   totalVat: number;
+  /** Prefer from Emporix `taxAggregate.lines[].rate` when present (finding 11). */
+  vatRate?: number;
   items: QuoteItem[];
   cartId?: string;
   shippingAddress: CheckoutAddress;

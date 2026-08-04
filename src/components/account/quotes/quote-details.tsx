@@ -2,7 +2,8 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { ChevronsUpDown, CircleCheck, CircleX, Pencil } from 'lucide-react';
+import { ArrowDown, ArrowUp, CircleCheck, CircleX, Pencil } from 'lucide-react';
+import { getApprovalHref } from '@/components/account/approvals/approval-routing';
 import { QuoteStatusBadge } from '@/components/account/quotes/quote-status-badge';
 import { QuoteSummary } from '@/components/account/quotes/quote-summary';
 import { ProductListResolver } from '@/components/product/product-list-resolver';
@@ -25,8 +26,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { ToastType, notify } from '@/components/ui/toast-notification';
+import { useApproval } from '@/hooks/approval/useApproval';
 import { useApproverSearch } from '@/hooks/approval/useApproverSearch';
 import { startEffectTask } from '@/hooks/common/start-effect-task';
+import useCustomer from '@/hooks/customer/useCustomer';
 import { useQuoteHistory } from '@/hooks/quotes/useQuoteHistory';
 import { useQuote } from '@/hooks/quotes/useQuotes';
 import { useRouter } from '@/i18n/navigation';
@@ -206,6 +209,41 @@ function formatHistoryDate(dateString: string | undefined, locale: string): stri
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+type QuoteHistorySortDirection = 'asc' | 'desc';
+
+type QuoteHistoryDisplayRow =
+  { kind: 'initial'; dateMs: number } | { kind: 'item'; dateMs: number; item: QuoteHistoryItem };
+
+function getHistoryItemDateMs(item: Pick<QuoteHistoryItem, 'rawModifiedAt' | 'modifiedAt'>): number {
+  const dateString = item.rawModifiedAt || item.modifiedAt;
+  if (!dateString || dateString === '-') {
+    return 0;
+  }
+  const timestamp = new Date(dateString).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function buildSortedQuoteHistoryRows(
+  submittedDate: string | undefined,
+  history: QuoteHistoryItem[],
+  sortDirection: QuoteHistorySortDirection,
+): QuoteHistoryDisplayRow[] {
+  const rows: QuoteHistoryDisplayRow[] = [];
+  const submittedTimestamp = submittedDate ? new Date(submittedDate).getTime() : Number.NaN;
+
+  if (!Number.isNaN(submittedTimestamp)) {
+    rows.push({ kind: 'initial', dateMs: submittedTimestamp });
+  }
+
+  for (const item of history) {
+    rows.push({ kind: 'item', dateMs: getHistoryItemDateMs(item), item });
+  }
+
+  return rows.sort((left, right) =>
+    sortDirection === 'desc' ? right.dateMs - left.dateMs : left.dateMs - right.dateMs,
+  );
 }
 
 function formatPrice(price: number | undefined, currency: string | undefined): string {
@@ -489,6 +527,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   const tQuoteStatus = useTranslations('account.quoteStatus');
   const tApproval = useTranslations('checkout.approval');
   const router = useRouter();
+  const { customer } = useCustomer();
 
   // State for confirmation dialogs
   const [showAcceptConfirmation, setShowAcceptConfirmation] = useState(false);
@@ -504,7 +543,12 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   const [showApprovalInquiryDialog, setShowApprovalInquiryDialog] = useState(false);
   const [selectedApproverId, setSelectedApproverId] = useState<string | null>(null);
   const [approvalInquiryComment, setApprovalInquiryComment] = useState('');
+  const [historySortDirection, setHistorySortDirection] = useState<QuoteHistorySortDirection>('desc');
   const acceptCommentRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Call unconditionally — useApproval no-ops on empty id (Rules of Hooks).
+  const relatedApprovalId = approvalPermission?.approvalId ?? '';
+  const { approval: relatedApproval } = useApproval(relatedApprovalId);
 
   const {
     approvers,
@@ -543,6 +587,18 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
 
   // Use initialQuote if provided, otherwise use fetched quote
   const quote = initialQuote || fetchedQuote;
+
+  const sortedHistoryRows = useMemo(() => {
+    if (!quote) {
+      return [];
+    }
+
+    return buildSortedQuoteHistoryRows(quote.submittedDate, quoteHistory, historySortDirection);
+  }, [quote, quoteHistory, historySortDirection]);
+
+  const toggleHistorySortDirection = () => {
+    setHistorySortDirection((current) => (current === 'desc' ? 'asc' : 'desc'));
+  };
 
   useEffect(() => {
     let isCancelled = false;
@@ -792,19 +848,26 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         </DialogContent>
       </Dialog>
 
-      <div className="flex flex-wrap items-center gap-6 px-6">
-        <div className="flex items-center gap-6">
+      {/* Header: identity + actions on one band from sm; one button per line only below sm (mobile). */}
+      <div
+        className="flex flex-col gap-4 px-6 sm:flex-row sm:items-center sm:justify-between"
+        data-testid="quote-detail-header"
+      >
+        <div className="flex flex-wrap items-center gap-6">
           <H3>
             {t('headerTitle')}: {quote.reference || quoteId}
           </H3>
           <QuoteStatusBadge status={quote.status} />
         </div>
         {!showAcceptConfirmation && !activeDecisionDialog && (
-          <div className="ml-auto flex flex-wrap items-center justify-end gap-6">
+          <div
+            className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end"
+            data-testid="quote-detail-header-actions"
+          >
             <Button
               variant="outlineError"
               size="small"
-              className={cn('gap-2 disabled:border-none')}
+              className={cn('w-full gap-2 disabled:border-none sm:w-auto')}
               disabled={!(quote.status === 'OPEN')}
               onClick={() => {
                 handleDecisionDialogChange('DECLINE');
@@ -817,7 +880,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
             <Button
               variant="outlineSuccess"
               size="small"
-              className={cn('gap-2 disabled:border-none')}
+              className={cn('w-full gap-2 disabled:border-none sm:w-auto')}
               disabled={isPrimaryActionDisabled}
               onClick={() => {
                 void handleQuotePrimaryAction();
@@ -830,7 +893,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
             <Button
               variant="secondary"
               size="small"
-              className={cn('gap-2 disabled:border-none')}
+              className={cn('w-full gap-2 disabled:border-none sm:w-auto')}
               disabled={quote.status !== 'OPEN'}
               onClick={() => {
                 handleDecisionDialogChange('CHANGE');
@@ -865,7 +928,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                 </div>
               )}
               {quote.orderId ? (
-                <div className="flex flex-col gap-1">
+                <div className="flex min-w-0 flex-col gap-1">
                   <H5>{t('relatedOrder')}</H5>
                   <UiLink
                     type="Link"
@@ -878,16 +941,22 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                 </div>
               ) : null}
               {approvalPermission?.approvalId ? (
-                <div className="flex flex-col gap-1">
+                <div className="flex min-w-0 flex-col gap-1" title={approvalPermission.approvalId}>
                   <H5>{t('relatedApproval')}</H5>
-                  <UiLink
-                    type="Link"
-                    href={`/account/approval/${approvalPermission.approvalId}`}
-                    variant="textNoUnderline"
-                    className="w-fit"
-                  >
-                    {approvalPermission.approvalId}
-                  </UiLink>
+                  {relatedApproval ? (
+                    <UiLink
+                      type="Link"
+                      href={getApprovalHref(relatedApproval, customer?.id)}
+                      variant="textNoUnderline"
+                      className="block min-w-0 max-w-full truncate"
+                    >
+                      {approvalPermission.approvalId}
+                    </UiLink>
+                  ) : (
+                    <span className="block min-w-0 max-w-full truncate text-base font-body text-text-body">
+                      {approvalPermission.approvalId}
+                    </span>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -1101,48 +1170,91 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
             <div className="overflow-x-auto">
               <div className="min-w-[900px]">
                 <div className="grid h-14 grid-cols-5 gap-4 px-2">
-                  {[t('changeDate'), t('event'), t('changedBy'), t('status'), t('comment')].map((heading) => (
+                  <div
+                    className="flex items-center gap-2 text-2xl font-bold font-headlines text-text-headings"
+                    aria-sort={historySortDirection === 'asc' ? 'ascending' : 'descending'}
+                  >
+                    <button
+                      type="button"
+                      onClick={toggleHistorySortDirection}
+                      className="flex items-center gap-2 hover:text-text-action"
+                      data-testid="quote-history-sort-change-date"
+                    >
+                      {t('changeDate')}
+                      {historySortDirection === 'asc' ? (
+                        <ArrowUp aria-hidden="true" className="h-4 w-4" />
+                      ) : (
+                        <ArrowDown aria-hidden="true" className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                  {[t('event'), t('changedBy'), t('status'), t('comment')].map((heading) => (
                     <div
                       key={heading}
-                      className="flex items-center gap-2 text-2xl font-bold font-headlines text-text-headings"
+                      className="flex items-center text-2xl font-bold font-headlines text-text-headings"
                     >
                       {heading}
-                      <ChevronsUpDown aria-hidden="true" className="h-4 w-4 text-text-on-disabled" />
                     </div>
                   ))}
                 </div>
 
-                <div className="grid min-h-15 grid-cols-5 gap-4 border-t border-border-primary px-2 py-4 text-base font-body text-text-body">
-                  <p>{formatDate(quote.submittedDate, locale)}</p>
-                  <p>{t('initialQuoteRequest')}</p>
-                  <p>{quote.customerName || 'Unknown User'}</p>
-                  <p>-</p>
-                  <p>{quote.userComment || '-'}</p>
-                </div>
-
                 {historyLoading ? (
-                  <div className="grid min-h-15 grid-cols-5 gap-4 border-t border-border-primary px-2 py-4 text-base font-body text-text-body">
-                    <p>{t('loadingHistory')}</p>
-                  </div>
-                ) : (
-                  quoteHistory.map((historyItem) => (
+                  <>
                     <div
-                      key={historyItem.id}
+                      key="quote-history-initial"
                       className="grid min-h-15 grid-cols-5 gap-4 border-t border-border-primary px-2 py-4 text-base font-body text-text-body"
+                      data-testid="quote-history-row-initial"
                     >
-                      <p>{formatHistoryDate(historyItem.rawModifiedAt || historyItem.modifiedAt, locale)}</p>
-                      <p>{getHistoryAction(historyItem)}</p>
-                      <p>{getHistoryUserName(historyItem)}</p>
-                      <div>
-                        {historyItem.statusValue && isQuoteStatusValue(historyItem.statusValue) ? (
-                          <QuoteStatusBadge status={historyItem.statusValue} />
-                        ) : (
-                          '-'
-                        )}
-                      </div>
-                      <p>{getHistoryCommentWithReason(historyItem, t)}</p>
+                      <p>{formatDate(quote.submittedDate, locale)}</p>
+                      <p>{t('initialQuoteRequest')}</p>
+                      <p>{quote.customerName || 'Unknown User'}</p>
+                      <p>-</p>
+                      <p>{quote.userComment || '-'}</p>
                     </div>
-                  ))
+                    <div className="grid min-h-15 grid-cols-5 gap-4 border-t border-border-primary px-2 py-4 text-base font-body text-text-body">
+                      <p>{t('loadingHistory')}</p>
+                    </div>
+                  </>
+                ) : (
+                  sortedHistoryRows.map((row) => {
+                    if (row.kind === 'initial') {
+                      return (
+                        <div
+                          key="quote-history-initial"
+                          className="grid min-h-15 grid-cols-5 gap-4 border-t border-border-primary px-2 py-4 text-base font-body text-text-body"
+                          data-testid="quote-history-row-initial"
+                        >
+                          <p>{formatDate(quote.submittedDate, locale)}</p>
+                          <p>{t('initialQuoteRequest')}</p>
+                          <p>{quote.customerName || 'Unknown User'}</p>
+                          <p>-</p>
+                          <p>{quote.userComment || '-'}</p>
+                        </div>
+                      );
+                    }
+
+                    const { item: historyItem } = row;
+
+                    return (
+                      <div
+                        key={historyItem.id}
+                        className="grid min-h-15 grid-cols-5 gap-4 border-t border-border-primary px-2 py-4 text-base font-body text-text-body"
+                        data-testid={`quote-history-row-${historyItem.id}`}
+                      >
+                        <p>{formatHistoryDate(historyItem.rawModifiedAt || historyItem.modifiedAt, locale)}</p>
+                        <p>{getHistoryAction(historyItem)}</p>
+                        <p>{getHistoryUserName(historyItem)}</p>
+                        <div>
+                          {historyItem.statusValue && isQuoteStatusValue(historyItem.statusValue) ? (
+                            <QuoteStatusBadge status={historyItem.statusValue} />
+                          ) : (
+                            '-'
+                          )}
+                        </div>
+                        <p>{getHistoryCommentWithReason(historyItem, t)}</p>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>

@@ -78,8 +78,8 @@ export function ReturnItemSelector({
                   <div className="w-20 h-13 relative flex-shrink-0 bg-surface-image-background rounded">
                     <Image src={getItemImage(item)} alt={item.name || ''} fill className="object-contain p-1" />
                   </div>
-                  <div className="flex flex-col gap-1">
-                    {item.sku && <span className="text-sm text-text-on-disabled">{item.sku}</span>}
+                  <div className="flex flex-col gap-1" data-testid={`return-item-product-desktop-${item.id}`}>
+                    {item.vendorName && <span className="text-base font-body text-text-body">{item.vendorName}</span>}
                     <span className="font-medium">{item.name}</span>
                     <span className="text-sm text-text-on-disabled">
                       {t('itemNumber')}: {item.sku || item.productId || '-'}
@@ -180,8 +180,8 @@ export function ReturnItemSelector({
 
               {/* Mobile Layout */}
               <div className="flex flex-col gap-4 md:hidden w-full min-w-0">
-                <div className="flex flex-col gap-1">
-                  {item.sku && <span className="text-xs text-text-body">{item.sku}</span>}
+                <div className="flex flex-col gap-1" data-testid={`return-item-product-mobile-${item.id}`}>
+                  {item.vendorName && <span className="text-sm font-body text-text-body">{item.vendorName}</span>}
                   <span className="text-sm font-bold text-text-headings">{item.name}</span>
                 </div>
 

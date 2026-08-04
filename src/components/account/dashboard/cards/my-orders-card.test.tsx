@@ -97,6 +97,13 @@ describe('MyOrdersCard', () => {
     expect(tableCard.querySelector('[data-slot="table-pagination"]')).not.toBeNull();
   });
 
+  it('renders the page-mode H1 as Order History (orderHistory), not the generic Orders title', () => {
+    render(<MyOrdersCard pageMode initialOrders={[buildOrder('initial-1')]} initialTotalCount={14} />);
+
+    expect(screen.getByRole('heading', { level: 1, name: 'orderHistory' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1, name: 'title' })).not.toBeInTheDocument();
+  });
+
   it('requests orders with server-page, query and sort state plus the canonical initial request seed', () => {
     render(<MyOrdersCard pageMode initialOrders={[buildOrder('initial-1')]} initialTotalCount={14} />);
 

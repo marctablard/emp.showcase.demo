@@ -7,6 +7,7 @@ import { Ban, CreditCard, ReceiptText, RotateCcw, Truck } from 'lucide-react';
 import { ProductList, type ProductListItem } from '@/components/product/product-list';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { H3, H4, H5 } from '@/components/ui/h';
 import UiLink from '@/components/ui/link';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -92,6 +93,8 @@ export function OrderDetail({
   const tPaymentModes = useTranslations('checkout.PaymentModes');
   const locale = useLocale();
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [returnability, setReturnability] = useState<OrderReturnability | null>(null);
 
   const { order, loading, error, cancelOrder, statusTransitions } = useOrder({ orderId, initialOrder });
@@ -159,10 +162,26 @@ export function OrderDetail({
   const hasHeaderActions = showCancelButton || showReturnButton || showTrackShipmentControl;
   const productItems = order.items.map((item) => toOrderProductListItem(item));
 
-  const handleCancelOrder = async () => {
-    if (!cancelOrder) return;
+  const handleCancelDialogOpenChange = (open: boolean) => {
+    if (open) {
+      setCancelDialogOpen(true);
+      return;
+    }
+    if (isCancelling) return;
+    setCancelDialogOpen(false);
+  };
+
+  const handleDismissCancelDialog = () => {
+    if (isCancelling) return;
+    setCancelDialogOpen(false);
+  };
+
+  const handleConfirmCancelOrder = async () => {
+    if (!cancelOrder || isCancelling) return;
     try {
+      setIsCancelling(true);
       await cancelOrder();
+      setCancelDialogOpen(false);
     } catch (err) {
       getLogger().error({ err }, 'Failed to cancel order');
       const message = err instanceof Error ? err.message : '';
@@ -175,13 +194,20 @@ export function OrderDetail({
         description,
         type: ToastType.Error,
       });
+      setCancelDialogOpen(false);
+    } finally {
+      setIsCancelling(false);
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header: order identity + status on the left, order actions on the right */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* Header: same-line identity + actions from sm (768px) through ~1298px; stack
+          Cancel / Return / Track one-per-line only below sm (true mobile). */}
+      <div
+        className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+        data-testid="order-detail-header"
+      >
         <div className="flex flex-wrap items-center gap-3">
           <H3>
             {tOrder('orderIdHeading')}: {order.id}
@@ -190,9 +216,12 @@ export function OrderDetail({
         </div>
 
         {hasHeaderActions && (
-          <div className="flex flex-wrap items-center gap-4">
+          <div
+            className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center"
+            data-testid="order-detail-header-actions"
+          >
             {showCancelButton && cancelOrder && (
-              <Button variant="secondary" onClick={() => void handleCancelOrder()}>
+              <Button variant="secondary" onClick={() => setCancelDialogOpen(true)}>
                 <Ban className="h-6 w-6" />
                 {tOrder('cancelOrder')}
               </Button>
@@ -201,8 +230,8 @@ export function OrderDetail({
               (returnability?.hasAnyReturnableItem === false ? (
                 <Tooltip delayDuration={200}>
                   <TooltipTrigger asChild>
-                    <span>
-                      <Button variant="secondary" disabled>
+                    <span className="w-full sm:w-auto">
+                      <Button variant="secondary" disabled className="w-full sm:w-auto">
                         <RotateCcw className="h-6 w-6" />
                         {tOrder('returnOrder')}
                       </Button>
@@ -229,7 +258,7 @@ export function OrderDetail({
       </div>
 
       {/* Compact Order Details strip: single surface-primary card, theme shadow, p-6, H4 title */}
-      <div className="rounded-md bg-surface-primary shadow-sm p-6">
+      <div className="rounded-md bg-surface-primary shadow-sm p-6" data-testid="order-details-strip">
         <div className="flex flex-col items-start gap-6">
           <H4>{tOrder('orderDetails')}</H4>
           <div className="grid w-full grid-cols-1 gap-2 pb-1 sm:grid-cols-2">
@@ -239,6 +268,13 @@ export function OrderDetail({
             <SummaryField label={tOrder('orderDate')} valueClassName="text-sm">
               {order.createdAt ? format(new Date(order.createdAt), 'PPP') : '-'}
             </SummaryField>
+            {order.quoteId && (
+              <SummaryField label={tOrder('relatedQuote')} valueClassName="text-sm">
+                <UiLink href={`/account/quotes/${order.quoteId}`} type="Link" variant="textNoUnderline">
+                  {order.quoteId}
+                </UiLink>
+              </SummaryField>
+            )}
           </div>
         </div>
       </div>
@@ -254,26 +290,13 @@ export function OrderDetail({
             icon={<ReceiptText className="h-8 w-8 text-text-action" />}
             hasHeadline
           >
-            {order.quoteId && (
-              <SummaryField label={tOrder('relatedQuote')}>
-                <UiLink href={`/account/quotes/${order.quoteId}`} type="Link" variant="textNoUnderline">
-                  {order.quoteId}
-                </UiLink>
-              </SummaryField>
-            )}
-
             {order.price && (
               <div className="space-y-2 text-base font-body text-text-body">
                 <div className="flex justify-between items-start gap-4 border-b border-border-primary pb-4">
                   <span>{tOrder('netValueOfGoods')}</span>
-                  <div className="text-right font-normal">
-                    <div className="font-normal">
-                      {order.price.subtotal.net} {order.price.subtotal.currency}
-                    </div>
-                    <div className="text-sm text-text-placeholders">
-                      {tOrder('gross')}: {order.price.subtotal.gross} {order.price.subtotal.currency}
-                    </div>
-                  </div>
+                  <span className="text-right font-normal">
+                    {order.price.subtotal.net} {order.price.subtotal.currency}
+                  </span>
                 </div>
 
                 <div className="flex justify-between gap-4 pt-2">
@@ -299,6 +322,15 @@ export function OrderDetail({
                   </div>
                 )}
 
+                {order.shipping?.total.tax !== undefined && (
+                  <div className="flex justify-between gap-4 pt-2">
+                    <span>{tOrder('shippingVat')}</span>
+                    <span>
+                      {order.shipping.total.tax} {order.shipping.total.currency}
+                    </span>
+                  </div>
+                )}
+
                 {order.discounts && order.discounts.length > 0 && (
                   <div className="flex justify-between gap-4 pt-2">
                     <span>{tOrder('discount')}</span>
@@ -310,14 +342,9 @@ export function OrderDetail({
 
                 <div className="flex justify-between items-start gap-4 pt-2">
                   <H5>{tOrder('totalValue')}</H5>
-                  <div className="text-right">
-                    <H5>
-                      {order.price.total.net} {order.price.total.currency}
-                    </H5>
-                    <div className="text-sm font-normal text-text-placeholders">
-                      {tOrder('gross')}: {order.price.total.gross} {order.price.total.currency}
-                    </div>
-                  </div>
+                  <H5>
+                    {order.price.total.gross} {order.price.total.currency}
+                  </H5>
                 </div>
               </div>
             )}
@@ -394,6 +421,18 @@ export function OrderDetail({
           returnability={returnability ?? undefined}
         />
       )}
+
+      <ConfirmationDialog
+        open={cancelDialogOpen}
+        onOpenChange={handleCancelDialogOpenChange}
+        title={tOrder('cancelOrderConfirmTitle')}
+        description={tOrder('cancelOrderConfirmDescription')}
+        cancelLabel={tOrder('keepOrder')}
+        confirmLabel={tOrder('cancelOrder')}
+        onCancel={handleDismissCancelDialog}
+        onConfirm={() => void handleConfirmCancelOrder()}
+        pending={isCancelling}
+      />
     </div>
   );
 }
