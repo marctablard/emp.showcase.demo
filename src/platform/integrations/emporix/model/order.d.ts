@@ -132,7 +132,7 @@ export interface EmporixOrderCalculatedPrice {
   totalShipping?: {
     netValue: number;
     grossValue: number;
-    taxValue: number;
+    taxValue?: number;
     taxCode?: string;
     taxRate?: number;
   };

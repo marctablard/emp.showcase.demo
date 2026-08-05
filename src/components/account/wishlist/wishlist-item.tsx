@@ -42,15 +42,10 @@ type WishlistStatusFlags = {
   requestedQuantity: number;
 };
 
-function WishlistStatusLine({
-  flags,
-  t,
-  tCart,
-}: Readonly<{
-  flags: WishlistStatusFlags;
-  t: ReturnType<typeof useTranslations>;
-  tCart: ReturnType<typeof useTranslations>;
-}>) {
+function WishlistStatusLine({ flags }: Readonly<{ flags: WishlistStatusFlags }>) {
+  const t = useTranslations('account.wishlist');
+  const tCart = useTranslations('cart');
+
   if (flags.showUnavailable) {
     return (
       <p className="flex items-center gap-2 text-sm text-text-warning">
@@ -72,7 +67,7 @@ function WishlistStatusLine({
       <p className="flex items-center gap-2 text-sm text-text-warning">
         <Package className="h-4 w-4" aria-hidden="true" />
         {tCart('substitution.availableDescription', {
-          available: flags.availableQuantity,
+          available: flags.availableQuantity ?? 0,
           total: flags.requestedQuantity,
         })}
       </p>
@@ -93,7 +88,6 @@ function WishlistPriceBlock({
   grossOriginalAmount,
   netAmount,
   currency,
-  t,
 }: Readonly<{
   hasPriceToShow: boolean;
   hasDiscount: boolean;
@@ -101,8 +95,9 @@ function WishlistPriceBlock({
   grossOriginalAmount?: number;
   netAmount?: number;
   currency?: string;
-  t: ReturnType<typeof useTranslations>;
 }>) {
+  const t = useTranslations('account.wishlist');
+
   if (!hasPriceToShow || grossAmount === undefined || currency === undefined) {
     return (
       <div>
@@ -135,8 +130,6 @@ function WishlistPriceBlock({
 
 export function WishlistItem({ item, onMovedToCart }: WishlistItemProps) {
   const t = useTranslations('account.wishlist');
-  // Reuses cart's "X of Y available" phrasing instead of duplicating the plural key.
-  const tCart = useTranslations('cart');
   const tProduct = useTranslations('product');
   const { l10n } = useL10n();
   const { updateItemQuantity, removeItem, moveItemToCart, loading } = useWishlist();
@@ -322,7 +315,6 @@ export function WishlistItem({ item, onMovedToCart }: WishlistItemProps) {
       grossOriginalAmount={grossOriginalAmount}
       netAmount={netAmount}
       currency={currency}
-      t={t}
     />
   );
 
@@ -355,8 +347,6 @@ export function WishlistItem({ item, onMovedToCart }: WishlistItemProps) {
         availableQuantity: availability?.availableQuantity,
         requestedQuantity: item.quantity,
       }}
-      t={t}
-      tCart={tCart}
     />
   );
 
