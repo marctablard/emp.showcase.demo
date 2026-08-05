@@ -4,8 +4,15 @@ import React from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { CreditCard, List, NotebookPen, ReceiptText, Truck } from 'lucide-react';
 import { resolveApprovalNetAmount } from '@/components/account/approvals/approval-net-amount';
+import {
+  type ApprovalPriceCardBreakdown,
+  resolveApprovalBasePriceBreakdown,
+  resolveApprovalQuotedPriceBreakdown,
+} from '@/components/account/approvals/approval-price-summary';
+import { detailTaxRateSuffix, shouldDisplayTaxLine } from '@/components/account/shared/detail-tax-line';
+import { formatShippingFeeDisplay } from '@/components/account/shared/format-shipping-fee';
 import { H5 } from '@/components/ui/h';
-import { SummaryCard, SummaryRow } from '@/components/ui/summary-card';
+import { SummaryCard, SummaryField } from '@/components/ui/summary-card';
 import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import { formatCurrency } from '@/lib/utils';
 import type { Approval, ApprovalResourceItem } from '@/platform/services/model/approval';
@@ -28,9 +35,24 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
     approval.resource.subTotalPrice?.currency ||
     getPublicDefaultCurrency();
 
-  const valueOfGoods = items.reduce((sum: number, it: ApprovalResourceItem) => sum + (it.itemPrice?.amount || 0), 0);
+  // CART overview: prefer mapped net line values; fall back to amount for legacy fixtures.
+  const valueOfGoods = items.reduce((sum: number, it: ApprovalResourceItem) => {
+    const price = it.itemPrice;
+    if (typeof price?.netValue === 'number') {
+      return sum + price.netValue;
+    }
+    if (typeof price?.newUnitPrice === 'number') {
+      return sum + price.newUnitPrice * (it.quantity || 1);
+    }
+    return sum + (price?.amount || 0);
+  }, 0);
   const shippingCost = details?.shipping?.amount ?? 0;
   const vat = approval.resource.subtotalAggregate?.taxValue ?? 0;
+  const taxLine = {
+    taxAmount: vat,
+    netAmount: valueOfGoods > 0 ? valueOfGoods : approval.resource.subtotalAggregate?.netValue,
+  };
+  const showTaxLine = shouldDisplayTaxLine(taxLine);
   // Finding 26: model-backed net only — never totalPrice.amount or invented goods+shipping+vat.
   const formattedNetTotal = netTotal ? formatCurrency(netTotal.amount, netTotal.currency, locale) : '-';
 
@@ -38,9 +60,10 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
   const billingAddress = details?.addresses?.find?.((a: any) => a?.type === 'BILLING') || details?.addresses?.[1];
   const payment = details?.paymentMethods?.[0];
   const isQuote = approval.resourceType === 'QUOTE';
+  const baseBreakdown = isQuote ? resolveApprovalBasePriceBreakdown(approval) : null;
+  const quotedBreakdown = isQuote ? resolveApprovalQuotedPriceBreakdown(approval) : null;
 
   const fmt = (amount: number) => formatCurrency(amount, currency, locale);
-  const vatRateSuffix = valueOfGoods > 0 ? ` (${Math.round((vat / valueOfGoods) * 100)}%)` : '';
 
   const renderAddress = (addr: any) =>
     addr ? (
@@ -58,31 +81,48 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
       <span className="text-sm text-text-placeholders">{t('notProvided')}</span>
     );
 
-  const renderQuotePriceRows = (heading: string) => (
-    <div className="space-y-4 text-base font-body text-text-body">
-      <div className="flex justify-between gap-4">
-        <span>{t('netValueOfGoods')}</span>
-        <span>{fmt(valueOfGoods)}</span>
-      </div>
-      <div className="flex justify-between gap-4">
-        <span>
-          {t('vat')}
-          {vatRateSuffix}
-        </span>
-        <span>{fmt(vat)}</span>
-      </div>
-      <div className="flex justify-between gap-4">
-        <span>{t('shippingFee')}</span>
-        <span>{fmt(shippingCost)}</span>
-      </div>
-      <div className="flex items-start justify-between gap-4 pt-2">
-        <H5>{heading}</H5>
-        <H5>{formattedNetTotal}</H5>
-      </div>
-    </div>
-  );
+  const renderQuotePriceRows = (breakdown: ApprovalPriceCardBreakdown, totalLabel: string, showDiscount: boolean) => {
+    const line = {
+      taxRate: breakdown.taxRate,
+      taxAmount: breakdown.tax,
+      netAmount: breakdown.netValueOfGoods,
+    };
+    const showTax = shouldDisplayTaxLine(line);
 
-  if (isQuote) {
+    return (
+      <div className="space-y-4 text-base font-body text-text-body">
+        <div className="flex justify-between gap-4">
+          <span>{t('netValueOfGoods')}</span>
+          <span>{fmt(breakdown.netValueOfGoods)}</span>
+        </div>
+        {showDiscount && breakdown.discountAmount > 0 ? (
+          <div className="flex justify-between gap-4">
+            <span>{t('discount')}</span>
+            <span>−{fmt(breakdown.discountAmount)}</span>
+          </div>
+        ) : null}
+        {showTax && (
+          <div className="flex justify-between gap-4">
+            <span>
+              {t('tax')}
+              {detailTaxRateSuffix(line)}
+            </span>
+            <span>{fmt(breakdown.tax)}</span>
+          </div>
+        )}
+        <div className="flex justify-between gap-4">
+          <span>{t('shippingFee')}</span>
+          <span>{formatShippingFeeDisplay(breakdown.shippingFee, fmt, t('free'))}</span>
+        </div>
+        <div className="flex items-start justify-between gap-4 pt-2">
+          <H5>{totalLabel}</H5>
+          <H5>{fmt(breakdown.total)}</H5>
+        </div>
+      </div>
+    );
+  };
+
+  if (isQuote && baseBreakdown && quotedBreakdown) {
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm">
@@ -94,14 +134,8 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
             icon={<NotebookPen className="h-8 w-8 text-text-action" />}
             hasHeadline
           >
-            <div>
-              <div className="text-sm text-text-on-disabled">{t('quoteReference')}</div>
-              <H5>{approval.resource.id}</H5>
-            </div>
-            <div>
-              <div className="text-sm text-text-on-disabled">{t('numberOfProducts')}</div>
-              <H5>{items.length}</H5>
-            </div>
+            <SummaryField label={t('quoteReference')}>{approval.resource.id}</SummaryField>
+            <SummaryField label={t('numberOfProducts')}>{items.length}</SummaryField>
           </SummaryCard>
         </div>
 
@@ -114,7 +148,7 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
             icon={<List className="h-8 w-8 text-text-action" />}
             hasHeadline
           >
-            {renderQuotePriceRows(t('baseTotal'))}
+            {renderQuotePriceRows(baseBreakdown, t('baseTotal'), true)}
           </SummaryCard>
         </div>
 
@@ -128,7 +162,7 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
             icon={<ReceiptText className="h-8 w-8 text-text-action" />}
             hasHeadline
           >
-            {renderQuotePriceRows(t('quotedTotal'))}
+            {renderQuotePriceRows(quotedBreakdown, t('quotedTotal'), false)}
           </SummaryCard>
         </div>
       </div>
@@ -147,18 +181,29 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
           icon={<ReceiptText className="h-8 w-8 text-text-action" />}
           hasHeadline
         >
-          <SummaryRow label={t('netValueOfGoods')} mutedLabel>
-            {fmt(valueOfGoods)}
-          </SummaryRow>
-          <SummaryRow label={t('vat')} mutedLabel>
-            {fmt(vat)}
-          </SummaryRow>
-          <SummaryRow label={t('shippingFee')} mutedLabel>
-            {fmt(shippingCost)}
-          </SummaryRow>
-          <SummaryRow label={t('totalValue')} strong>
-            {formattedNetTotal}
-          </SummaryRow>
+          <div className="space-y-2 text-base font-body text-text-body">
+            <div className="flex justify-between items-start gap-4 border-b border-border-primary pb-4">
+              <span>{t('netValueOfGoods')}</span>
+              <span className="text-right font-normal">{fmt(valueOfGoods)}</span>
+            </div>
+            {showTaxLine && (
+              <div className="flex justify-between gap-4 pt-2">
+                <span>
+                  {t('tax')}
+                  {detailTaxRateSuffix(taxLine)}
+                </span>
+                <span>{fmt(vat)}</span>
+              </div>
+            )}
+            <div className="flex justify-between gap-4 pt-2">
+              <span>{t('shippingFee')}</span>
+              <span>{formatShippingFeeDisplay(shippingCost, fmt, t('free'))}</span>
+            </div>
+            <div className="flex justify-between items-start gap-4 pt-2">
+              <H5>{t('totalValue')}</H5>
+              <H5>{formattedNetTotal}</H5>
+            </div>
+          </div>
         </SummaryCard>
       </div>
 
@@ -171,13 +216,10 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
           icon={<Truck className="h-8 w-8 text-text-action" />}
           hasHeadline
         >
-          <SummaryRow label={<span className="font-semibold">{t('shippingMethod')}</span>}>
+          <SummaryField label={t('shippingMethod')}>
             {details?.shipping?.methodName || details?.shipping?.methodId || t('notProvided')}
-          </SummaryRow>
-          <div>
-            <div className="text-sm font-semibold">{t('shippingAddress')}</div>
-            {renderAddress(shippingAddress)}
-          </div>
+          </SummaryField>
+          <SummaryField label={t('shippingAddress')}>{renderAddress(shippingAddress)}</SummaryField>
         </SummaryCard>
       </div>
 
@@ -190,13 +232,8 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
           icon={<CreditCard className="h-8 w-8 text-text-action" />}
           hasHeadline
         >
-          <SummaryRow label={<span className="font-semibold">{t('paymentMethod')}</span>}>
-            {payment?.name || payment?.type || t('notProvided')}
-          </SummaryRow>
-          <div>
-            <div className="text-sm font-semibold">{t('billingAddress')}</div>
-            {renderAddress(billingAddress)}
-          </div>
+          <SummaryField label={t('paymentMethod')}>{payment?.name || payment?.type || t('notProvided')}</SummaryField>
+          <SummaryField label={t('billingAddress')}>{renderAddress(billingAddress)}</SummaryField>
         </SummaryCard>
       </div>
 
@@ -209,10 +246,9 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
           icon={<NotebookPen className="h-8 w-8 text-text-action" />}
           hasHeadline
         >
-          <div>
-            <div className="text-sm font-semibold">{t('note')}</div>
-            <div className="text-sm text-text-placeholders">{approval.comment || t('noRequestorComment')}</div>
-          </div>
+          <SummaryField label={t('note')} valueClassName="text-sm text-text-placeholders">
+            {approval.comment || t('noRequestorComment')}
+          </SummaryField>
         </SummaryCard>
       </div>
     </div>

@@ -49,32 +49,149 @@ describe('QuoteSummary', () => {
   it('shows VAT rate from taxAggregate (vatRate) when present', () => {
     render(<QuoteSummary quote={{ ...baseQuote, vatRate: 19, totalNet: 0, totalVat: 36.09 }} />);
 
-    expect(screen.getAllByText('vat (19%)').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('tax (19%)').length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows VAT rate percent when totalNet > 0 and formats amounts with locale currency symbols', () => {
     render(<QuoteSummary quote={baseQuote} />);
 
-    expect(screen.getAllByText('vat (19%)').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('tax (19%)').length).toBeGreaterThanOrEqual(1);
     // de-DE EUR → "100,00 €" (narrow/no-break space variants allowed)
     expect(screen.getAllByText(/100,00\s*€/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/19,00\s*€/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/5,00\s*€/).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('omits VAT rate percent when totalNet is not positive and vatRate is absent', () => {
+  it('omits the tax row when totalVat is 0 and vatRate is absent', () => {
     render(<QuoteSummary quote={{ ...baseQuote, totalNet: 0, totalVat: 0, vatRate: undefined }} />);
 
-    expect(screen.queryByText(/vat \(/)).not.toBeInTheDocument();
-    expect(screen.getAllByText('vat').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/tax/)).not.toBeInTheDocument();
   });
 
-  it('renders shipping method name and Shipping method / Shipping address labels', () => {
+  it('omits the tax row when vatRate is 0%', () => {
+    render(<QuoteSummary quote={{ ...baseQuote, vatRate: 0, totalVat: 0 }} />);
+
+    expect(screen.queryByText(/tax/)).not.toBeInTheDocument();
+  });
+
+  it('shows Free for shipping fee when shippingCost is 0 on Base and Quoted price cards', () => {
+    render(<QuoteSummary quote={{ ...baseQuote, shippingCost: 0 }} />);
+
+    expect(screen.getAllByText('free').length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryAllByText(/5,00\s*€/)).toHaveLength(0);
+  });
+
+  it('renders Quoted Price shipping tax when shipping.value > 0 and hides it when shipping is free', () => {
+    const { rerender } = render(
+      <QuoteSummary
+        quote={{
+          ...baseQuote,
+          subtotalNet: 100,
+          subtotalVat: 19,
+          shippingCost: 5,
+          shippingGross: 5.95,
+          totalGross: 124.95,
+        }}
+      />,
+    );
+
+    // Base + Quoted both show shipping tax when shipping is paid
+    expect(screen.getAllByText(/shippingTax/).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(/0,95\s*€/).length).toBeGreaterThanOrEqual(2);
+
+    rerender(
+      <QuoteSummary
+        quote={{
+          ...baseQuote,
+          subtotalNet: 100,
+          subtotalVat: 19,
+          shippingCost: 0,
+          shippingGross: 0,
+          totalGross: 119,
+        }}
+      />,
+    );
+
+    expect(screen.queryByText(/shippingTax/)).not.toBeInTheDocument();
+  });
+
+  it('renders Base Price from unitPrice and Quoted Price from API totals', () => {
+    render(
+      <QuoteSummary
+        quote={{
+          ...baseQuote,
+          totalNet: 1194.79,
+          totalVat: 227.01,
+          shippingCost: 11,
+          items: [
+            {
+              product: {
+                id: 'p1',
+                quantity: 1,
+                itemPrice: {
+                  amount: 100.56,
+                  currency: 'EUR',
+                  unitPrice: 130,
+                  newUnitPrice: 84.5,
+                  discount: 35,
+                  taxRate: 19,
+                  netValue: 84.5,
+                },
+              },
+              quantity: { quantity: 1, unitCode: 'pc' },
+            },
+            {
+              product: {
+                id: 'p2',
+                quantity: 1,
+                itemPrice: {
+                  amount: 1321.25,
+                  currency: 'EUR',
+                  unitPrice: 1850.49,
+                  newUnitPrice: 1110.29,
+                  discount: 40,
+                  taxRate: 19,
+                  netValue: 1110.29,
+                },
+              },
+              quantity: { quantity: 1, unitCode: 'pc' },
+            },
+          ],
+        }}
+      />,
+    );
+
+    // Base net = 130 + 1850.49
+    expect(screen.getByText(/1\.980,49\s*€/)).toBeInTheDocument();
+    // Quoted net
+    expect(screen.getByText(/1\.194,79\s*€/)).toBeInTheDocument();
+    // Discount savings row on Base card
+    expect(screen.getByText('discount')).toBeInTheDocument();
+  });
+
+  it('uses Total net amount label copy in EN/DE quoteDetails', () => {
+    expect(enAccountTranslations.quoteDetails.totalAmount).toBe('Total net amount');
+    expect(deAccountTranslations.quoteDetails.totalAmount).toBe('Nettogesamtwert');
+  });
+
+  it('uses Base Net Unit Price / Discount label copy in EN/DE quoteDetails', () => {
+    expect(enAccountTranslations.quoteDetails.baseNetUnitPrice).toBe('Base Net Unit Price');
+    expect(enAccountTranslations.quoteDetails.discount).toBe('Discount');
+    expect(deAccountTranslations.quoteDetails.baseNetUnitPrice).toBe('Basis-Nettostückpreis');
+    expect(deAccountTranslations.quoteDetails.discount).toBe('Rabatt');
+  });
+
+  it('uses Free label copy in EN/DE quoteDetails', () => {
+    expect(enAccountTranslations.quoteDetails.free).toBe('Free');
+    expect(deAccountTranslations.quoteDetails.free).toBe('Kostenlos');
+  });
+
+  it('renders shipping method name and Shipping method / Shipping address labels as H5', () => {
     render(<QuoteSummary quote={baseQuote} />);
 
-    expect(screen.getByText('shippingMethod')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 5, name: 'shippingMethod' })).toBeInTheDocument();
     expect(screen.getByText('DHL Standard')).toBeInTheDocument();
-    expect(screen.getByText('shippingAddress')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 5, name: 'shippingAddress' })).toBeInTheDocument();
     expect(screen.queryByText('transportCondition')).not.toBeInTheDocument();
     expect(screen.queryByText('deliveryAddress')).not.toBeInTheDocument();
   });

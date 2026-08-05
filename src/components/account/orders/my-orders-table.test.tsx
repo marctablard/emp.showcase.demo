@@ -326,6 +326,19 @@ describe('MyOrdersTable', () => {
     expect(within(cells[3]).queryByRole('link')).not.toBeInTheDocument();
   });
 
+  it('opens order details when clicking the Related Quote placeholder for an order without a quote', () => {
+    const order = buildOrder({ id: 'order-no-quote' });
+    delete (order as { quoteId?: string }).quoteId;
+
+    renderTable({ orders: [order] });
+
+    const row = screen.getByText('order-no-quote').closest('tr') as HTMLTableRowElement;
+    const quoteCell = within(row).getAllByRole('cell')[3];
+    fireEvent.click(quoteCell);
+
+    expect(push).toHaveBeenCalledWith('/account/orders/order-no-quote');
+  });
+
   it('does not flash the empty state while reloading and no rows have loaded yet', () => {
     const { rerender } = renderTable({ orders: [], loading: true, totalCount: 0 });
     expect(screen.queryByText('noOrders')).not.toBeInTheDocument();

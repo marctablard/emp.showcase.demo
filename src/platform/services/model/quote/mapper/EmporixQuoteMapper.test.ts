@@ -96,6 +96,84 @@ describe('EmporixQuoteMapper', () => {
       grossValue: 154.7,
       netValue: 130,
       currency: 'EUR',
+      unitPrice: 130,
+    });
+  });
+
+  it('maps subtotalPrice into subtotalNet/subtotalVat for Quoted Price goods-only display', async () => {
+    const mapper = new EmporixQuoteMapper(siteService as never);
+
+    const result = await mapper.mapToService(
+      buildQuote({
+        totalPrice: {
+          currency: 'USD',
+          netValue: 767.9,
+          grossValue: 900.72,
+          taxValue: 143.82,
+        },
+        subtotalPrice: {
+          currency: 'USD',
+          netValue: 756.9,
+          grossValue: 900.72,
+          taxValue: 143.82,
+        },
+        shipping: { value: 11 },
+      }),
+    );
+
+    expect(result.totalNet).toBe(767.9);
+    expect(result.subtotalNet).toBe(756.9);
+    expect(result.subtotalVat).toBe(143.82);
+    expect(result.shippingCost).toBe(11);
+  });
+
+  it('maps shipping.grossValue for Quoted Price shipping tax', async () => {
+    const mapper = new EmporixQuoteMapper(siteService as never);
+
+    const result = await mapper.mapToService(
+      buildQuote({
+        shipping: { value: 11, grossValue: 13.09 },
+      }),
+    );
+
+    expect(result.shippingCost).toBe(11);
+    expect(result.shippingGross).toBe(13.09);
+  });
+
+  it('maps unitPrice, newUnitPrice, discount and taxRate for base/quoted display', async () => {
+    const mapper = new EmporixQuoteMapper(siteService as never);
+
+    const result = await mapper.mapToService(
+      buildQuote({
+        items: [
+          {
+            id: 'item-1',
+            quantity: { quantity: 1, unitCode: 'pc' },
+            price: {
+              priceId: 'price-1',
+              unitPrice: 130,
+              newUnitPrice: 84.5,
+              discount: 35,
+              totalNetValue: 84.5,
+              tax: {
+                taxClass: 'STANDARD',
+                taxRate: 19,
+                prices: { grossValue: 100.56, netValue: 84.5 },
+              },
+            },
+            product: { productId: 'product-1' },
+          },
+        ],
+      }),
+    );
+
+    expect(result.items[0].product.itemPrice).toMatchObject({
+      unitPrice: 130,
+      newUnitPrice: 84.5,
+      discount: 35,
+      taxRate: 19,
+      netValue: 84.5,
+      grossValue: 100.56,
     });
   });
 

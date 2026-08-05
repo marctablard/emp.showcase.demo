@@ -47,6 +47,10 @@ jest.mock('@/components/account/orders/tracking-dialog', () => ({
   TrackingDialog: () => null,
 }));
 
+jest.mock('@/components/product/product-list-resolver', () => ({
+  ProductListResolver: () => <div>ProductListResolver</div>,
+}));
+
 jest.mock('@/lib/client/returns', () => ({
   fetchReturnsForOrder: jest.fn(),
 }));

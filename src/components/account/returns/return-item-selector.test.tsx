@@ -53,6 +53,18 @@ const defaultProps = {
 };
 
 describe('ReturnItemSelector', () => {
+  it('renders desktop column headers as H6 like ProductList (Order Details)', () => {
+    render(<ReturnItemSelector {...defaultProps} />);
+
+    expect(screen.getByRole('heading', { level: 6, name: 'productDetails' })).toHaveClass(
+      'text-sm',
+      'font-bold',
+      'text-text-headings',
+    );
+    expect(screen.getByRole('heading', { level: 6, name: 'quantity' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 6, name: 'unitPrice' })).toHaveClass('text-right');
+  });
+
   it('shows vendorName (Brand) above the product name on desktop and mobile, not bare SKU', () => {
     render(<ReturnItemSelector {...defaultProps} />);
 

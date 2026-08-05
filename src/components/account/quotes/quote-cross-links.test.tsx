@@ -232,14 +232,30 @@ describe('Quote cross-links', () => {
     expect(enAccountTranslations.quoteDetails.netValue).toBe('Net value of goods');
   });
 
-  it('stacks Quote header actions one-per-line on mobile and keeps them on one band from sm', () => {
+  it('keeps title+status together and wraps actions as one horizontal row from sm (Figma header/actions stack)', () => {
     render(<QuoteDetails quoteId={baseQuote.id} initialQuote={baseQuote} />);
 
     const header = screen.getByTestId('quote-detail-header');
-    expect(header).toHaveClass('flex', 'flex-col', 'sm:flex-row', 'sm:items-center', 'sm:justify-between');
+    expect(header).toHaveClass(
+      'flex',
+      'flex-col',
+      'sm:flex-row',
+      'sm:flex-wrap',
+      'sm:items-center',
+      'sm:justify-between',
+    );
 
     const actions = screen.getByTestId('quote-detail-header-actions');
-    expect(actions).toHaveClass('flex', 'w-full', 'flex-col', 'gap-4', 'sm:w-auto', 'sm:flex-row');
+    expect(actions).toHaveClass(
+      'flex',
+      'w-full',
+      'flex-col',
+      'gap-4',
+      'sm:w-auto',
+      'sm:shrink-0',
+      'sm:flex-row',
+      'sm:flex-nowrap',
+    );
     expect(screen.getByRole('button', { name: 'account.quoteDetails.reject' }).parentElement).toBe(actions);
     expect(screen.getByRole('button', { name: 'account.quoteDetails.accept' }).parentElement).toBe(actions);
     expect(screen.getByRole('button', { name: 'account.quoteDetails.requestChange' }).parentElement).toBe(actions);
@@ -254,17 +270,20 @@ describe('Quote cross-links', () => {
         showGrossUnderNet: true,
         presentationConfig: expect.objectContaining({
           showGrossSecondary: true,
+          showDiscountColumns: false,
           labels: expect.objectContaining({
             product: 'account.quoteDetails.product',
             quantity: 'account.quoteDetails.quantity',
             unitPrice: 'account.quoteDetails.unitPrice',
+            baseNetUnitPrice: 'account.quoteDetails.baseNetUnitPrice',
+            discount: 'account.quoteDetails.discount',
           }),
         }),
         items: [
           expect.objectContaining({
             productId: 'product-1',
             quantity: 1,
-            unitPrice: 120,
+            unitPrice: 100,
             currency: 'EUR',
             grossUnitPrice: 120,
             netUnitPrice: 100,

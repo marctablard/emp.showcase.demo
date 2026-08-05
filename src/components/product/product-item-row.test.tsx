@@ -79,30 +79,34 @@ describe('ProductItemRow brand typography', () => {
 });
 
 describe('ProductItemRow product name typography', () => {
-  it('uses H5 (text-3xl) on mobile and H6 (text-2xl) on desktop', () => {
+  it('uses semantic H5 (text-3xl) on mobile and H6 (text-2xl) on desktop', () => {
     render(<ProductItemRow item={item} />);
 
     const mobileName = screen.getByTestId(`product-name-mobile-${item.id}`);
     const desktopName = screen.getByTestId(`product-name-desktop-${item.id}`);
 
+    expect(mobileName.tagName).toBe('H5');
     expect(mobileName).toHaveTextContent(item.name);
     expect(mobileName).toHaveClass('text-3xl', 'font-bold', 'font-headlines', 'text-text-headings');
     expect(mobileName).not.toHaveClass('text-2xl');
 
+    expect(desktopName.tagName).toBe('H6');
     expect(desktopName).toHaveTextContent(item.name);
     expect(desktopName).toHaveClass('text-2xl', 'font-bold', 'font-headlines', 'text-text-headings');
     expect(desktopName).not.toHaveClass('text-3xl');
   });
 
-  it('keeps H5 mobile / H6 desktop name classes when the name is a product link', () => {
+  it('keeps H5 mobile / H6 desktop headings when the name is a product link', () => {
     render(<ProductItemRow item={{ ...item, href: '/p/sample-product' }} />);
 
     const mobileName = screen.getByTestId(`product-name-mobile-${item.id}`);
     const desktopName = screen.getByTestId(`product-name-desktop-${item.id}`);
 
-    expect(mobileName.tagName).toBe('A');
+    expect(mobileName.tagName).toBe('H5');
+    expect(desktopName.tagName).toBe('H6');
+    expect(within(mobileName).getByRole('link', { name: item.name })).toHaveAttribute('href', '/p/sample-product');
+    expect(within(desktopName).getByRole('link', { name: item.name })).toHaveAttribute('href', '/p/sample-product');
     expect(mobileName).toHaveClass('text-3xl');
-    expect(desktopName.tagName).toBe('A');
     expect(desktopName).toHaveClass('text-2xl');
   });
 });

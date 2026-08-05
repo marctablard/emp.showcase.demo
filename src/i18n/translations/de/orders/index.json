@@ -30,7 +30,7 @@
   "shipping": "Versand",
   "free": "Kostenlos",
   "discount": "Rabatt",
-  "vat": "MwSt.",
+  "vat": "Tax",
   "total": "Gesamt",
   "email": "E-Mail",
   "loading": "Bestellungen werden geladen...",
@@ -48,7 +48,7 @@
   "gross": "Brutto",
   "netValueOfGoods": "Netto-Warenwert",
   "shippingFee": "Versandgebühr",
-  "shippingVat": "Versand-MwSt.",
+  "shippingVat": "Shipping Tax",
   "totalValue": "Gesamtwert",
   "keepOrder": "Bestellung behalten",
   "cancelOrderConfirmTitle": "Bestellung stornieren?",
@@ -237,7 +237,7 @@
     "orderOverview": "Bestellübersicht",
     "netValueOfGoods": "Netto-Warenwert",
     "shippingFee": "Versandgebühr",
-    "vat": "MwSt.",
+    "vat": "Tax",
     "totalValue": "Gesamtbetrag",
     "shipping": "Versand",
     "shippingMethod": "Versandart",
@@ -268,7 +268,12 @@
     "next": "Weiter",
     "pageIndicator": "Seite {current} / {total}",
     "searchPlaceholder": "Nach Freigabe-ID suchen...",
-    "noMatches": "Keine Freigaben entsprechen Ihrer Suche"
+    "noMatches": "Keine Freigaben entsprechen Ihrer Suche",
+    "tax": "Tax",
+    "shippingTax": "Shipping Tax",
+    "free": "Kostenlos",
+    "baseNetUnitPrice": "Basis-Nettostückpreis",
+    "discount": "Rabatt"
   },
   "ApprovalAction": {
     "CHECKOUT": "Bestellung"
@@ -312,5 +317,7 @@
   "viewOrders": "Bestellungen anzeigen",
   "deliveryDate": "Lieferdatum",
   "deliveryAddress": "Lieferadresse",
-  "orderValue": "Bestellwert"
+  "orderValue": "Bestellwert",
+  "tax": "Tax",
+  "shippingTax": "Shipping Tax"
 }

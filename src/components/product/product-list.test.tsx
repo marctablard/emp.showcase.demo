@@ -191,4 +191,36 @@ describe('ProductList', () => {
       inlineMeta.compareDocumentPosition(secondInlineMeta as Element) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
+
+  it('inserts Base Net Unit Price and Discount columns between Quantity and Unit Price when enabled', () => {
+    const discountedItem: ProductListItem = {
+      ...quoteStyleItem,
+      baseNetUnitPrice: 500,
+      discountPercent: 35,
+      netUnitPrice: 325,
+    };
+
+    render(
+      <ProductList
+        items={[discountedItem]}
+        locale="de-DE"
+        presentationConfig={{
+          labels: {
+            product: 'Product',
+            quantity: 'Quantity',
+            unitPrice: 'Unit Price',
+            baseNetUnitPrice: 'Base Net Unit Price',
+            discount: 'Discount',
+          },
+          showDiscountColumns: true,
+          showGrossSecondary: true,
+        }}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { level: 6, name: 'Base Net Unit Price' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 6, name: 'Discount' })).toBeInTheDocument();
+    expect(screen.getByTestId(`product-base-net-cell-${discountedItem.id}`)).toHaveTextContent(/500,00/);
+    expect(screen.getByTestId(`product-discount-cell-${discountedItem.id}`)).toHaveTextContent('35%');
+  });
 });

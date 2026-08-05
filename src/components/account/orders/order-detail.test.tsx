@@ -10,6 +10,13 @@ import { OrderDetail } from './order-detail';
 const useOrderMock = jest.fn();
 const cancelOrderMock = jest.fn();
 const fetchReturnsForOrderMock = jest.fn();
+const useProductsMock = jest.fn(() => ({
+  products: [],
+  loading: false,
+  error: null,
+  refetch: jest.fn(),
+  setAsCurrent: jest.fn(),
+}));
 
 jest.mock('next-intl', () => ({
   useLocale: () => 'en',
@@ -38,6 +45,16 @@ jest.mock('@/i18n/navigation', () => ({
 
 jest.mock('@/hooks/order/useOrder', () => ({
   useOrder: (...args: unknown[]) => useOrderMock(...args),
+}));
+
+jest.mock('@/hooks/product/useProducts', () => ({
+  useProducts: (...args: any[]) => (useProductsMock as (...a: any[]) => unknown)(...args),
+}));
+
+jest.mock('@/hooks/useL10n', () => ({
+  useL10n: () => ({
+    l10n: (value: unknown) => (typeof value === 'string' ? value : ''),
+  }),
 }));
 
 jest.mock('@/components/ui/link', () => ({
@@ -112,6 +129,14 @@ describe('OrderDetail', () => {
     cancelOrderMock.mockReset();
     fetchReturnsForOrderMock.mockReset();
     fetchReturnsForOrderMock.mockResolvedValue([]);
+    useProductsMock.mockReset();
+    useProductsMock.mockReturnValue({
+      products: [],
+      loading: false,
+      error: null,
+      refetch: jest.fn(),
+      setAsCurrent: jest.fn(),
+    });
   });
 
   it('shows a loading skeleton while the order is loading', () => {
@@ -361,7 +386,7 @@ describe('OrderDetail', () => {
     expect(strip).toHaveTextContent(baseOrder.id);
   });
 
-  it('keeps header actions on the same row as the Order heading from sm (768px), stacking one-per-line only below sm', () => {
+  it('keeps title+status together and wraps actions as one horizontal row from sm on small tablets', () => {
     // CREATED + DECLINED transition shows Cancel; SHIPPED lifecycle also shows Track — use CREATED
     // with DECLINED so Cancel is present without changing eligibility guards.
     mockUseOrder({ order: { ...baseOrder, status: 'CREATED' }, statusTransitions: ['DECLINED'] });
@@ -369,12 +394,26 @@ describe('OrderDetail', () => {
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
     const header = screen.getByTestId('order-detail-header');
-    // Default column below sm; sm:flex-row keeps identity + actions on one band through ~1298px
-    // (project sm = 768px, md = 1024px, lg = 1280px — not stacked at 1024–1298).
-    expect(header).toHaveClass('flex', 'flex-col', 'sm:flex-row', 'sm:items-center', 'sm:justify-between');
+    expect(header).toHaveClass(
+      'flex',
+      'flex-col',
+      'sm:flex-row',
+      'sm:flex-wrap',
+      'sm:items-center',
+      'sm:justify-between',
+    );
 
     const actions = screen.getByTestId('order-detail-header-actions');
-    expect(actions).toHaveClass('flex', 'w-full', 'flex-col', 'gap-4', 'sm:w-auto', 'sm:flex-row');
+    expect(actions).toHaveClass(
+      'flex',
+      'w-full',
+      'flex-col',
+      'gap-4',
+      'sm:w-auto',
+      'sm:shrink-0',
+      'sm:flex-row',
+      'sm:flex-nowrap',
+    );
     expect(screen.getByText('cancelOrder')).toBeInTheDocument();
   });
 
@@ -422,8 +461,9 @@ describe('OrderDetail', () => {
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    const label = screen.getByText('shippingMethod');
+    const label = screen.getByRole('heading', { level: 5, name: 'shippingMethod' });
     const value = screen.getByText('Pickup');
+    expect(label.tagName).toBe('H5');
     expect(label).toHaveClass('text-3xl', 'font-bold', 'font-headlines');
     expect(value).toHaveClass('text-base', 'font-normal', 'font-body');
     expect(label.parentElement).toHaveClass('flex', 'flex-col', 'gap-1');
@@ -458,7 +498,7 @@ describe('OrderDetail', () => {
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    const label = screen.getByText('shippingMethod');
+    const label = screen.getByRole('heading', { level: 5, name: 'shippingMethod' });
     const value = screen.getByText('Pickup');
     expect(label).toHaveClass('text-3xl', 'font-bold', 'font-headlines');
     expect(value).toHaveClass('text-base', 'font-normal', 'font-body');
@@ -504,14 +544,42 @@ describe('OrderDetail', () => {
     expect(vendorNames[1]).toHaveClass('text-base', 'font-body', 'text-text-body');
 
     const productNames = screen.getAllByRole('link', { name: 'Sample Product' });
-    expect(productNames[0]).toHaveClass('text-3xl', 'font-bold', 'font-headlines');
-    expect(productNames[1]).toHaveClass('text-2xl', 'font-bold', 'font-headlines');
+    expect(productNames[0].closest('h5')).toHaveClass('text-3xl', 'font-bold', 'font-headlines');
+    expect(productNames[1].closest('h6')).toHaveClass('text-2xl', 'font-bold', 'font-headlines');
 
     // vendorName precedes the product name in the DOM (brand above name).
     expect(vendorNames[0].compareDocumentPosition(productNames[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     // The second item has no vendorName and renders no vendor element.
     expect(screen.getAllByText(/Legacy Priced Product/i)[0]?.parentElement).not.toHaveTextContent('Acme Vendor');
+  });
+
+  it('fills brand from catalog when order line has no vendorName', () => {
+    useProductsMock.mockReturnValue({
+      products: [
+        {
+          id: baseOrder.items[0].productId,
+          brand: { id: 'victron', name: 'Victron Energy' },
+          name: 'BlueSolar 55 W',
+          images: [],
+        },
+      ] as any,
+      loading: false,
+      error: null,
+      refetch: jest.fn(),
+      setAsCurrent: jest.fn(),
+    });
+
+    mockUseOrder({
+      order: {
+        ...baseOrder,
+        items: [{ ...baseOrder.items[0], vendorName: undefined }],
+      },
+    });
+
+    render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
+
+    expect(screen.getAllByText('Victron Energy').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders the item quantity as regular body-md', () => {
@@ -609,7 +677,7 @@ describe('OrderDetail', () => {
     const text = overviewCard?.textContent ?? '';
 
     const netValueOfGoodsIndex = text.indexOf('netValueOfGoods');
-    const vatIndex = text.indexOf('vat');
+    const vatIndex = text.indexOf('tax');
     const shippingFeeIndex = text.indexOf('shippingFee');
     const totalValueIndex = text.indexOf('totalValue');
 
@@ -619,30 +687,63 @@ describe('OrderDetail', () => {
     expect(totalValueIndex).toBeGreaterThan(shippingFeeIndex);
   });
 
-  it('omits an optional Shipping VAT row when the order model has no independent shipping-tax value', () => {
+  it('omits an optional Shipping Tax row when the order model has no independent shipping-tax value', () => {
     mockUseOrder();
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    expect(screen.queryByText('shippingVat')).not.toBeInTheDocument();
+    expect(screen.queryByText('shippingTax')).not.toBeInTheDocument();
   });
 
-  it('renders Shipping VAT from the model tax field and Total from price.total.gross only', () => {
+  it('omits Shipping Tax when shipping tax rate is 0%', () => {
+    const orderWithZeroShippingTax: Order = {
+      ...baseOrder,
+      shipping: {
+        methods: [{ id: 'pickup', name: 'Pickup', price: 3.45, currency: 'EUR' }],
+        total: { value: 3.45, currency: 'EUR', tax: 0, taxRate: 0 },
+      },
+    };
+    mockUseOrder({ order: orderWithZeroShippingTax });
+
+    render(<OrderDetail orderId={orderWithZeroShippingTax.id} initialOrder={orderWithZeroShippingTax} />);
+
+    expect(screen.getByText('shippingFee')).toBeInTheDocument();
+    expect(screen.queryByText(/shippingTax/)).not.toBeInTheDocument();
+  });
+
+  it('omits Shipping Tax when tax amount is 0 even if rate is positive (free shipping)', () => {
+    const orderWithFreeShippingTaxRate: Order = {
+      ...baseOrder,
+      shipping: {
+        methods: [{ id: 'free', name: 'Free', price: 0, currency: 'EUR' }],
+        total: { value: 0, currency: 'EUR', tax: 0, taxRate: 7 },
+      },
+    };
+    mockUseOrder({ order: orderWithFreeShippingTaxRate });
+
+    render(<OrderDetail orderId={orderWithFreeShippingTaxRate.id} initialOrder={orderWithFreeShippingTaxRate} />);
+
+    expect(screen.getByText('shippingFee')).toBeInTheDocument();
+    expect(screen.queryByText(/shippingTax/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/7%/)).not.toBeInTheDocument();
+  });
+
+  it('renders Shipping Tax from the model tax field and Total from price.total.gross only', () => {
     const orderWithShippingTax: Order = {
       ...baseOrder,
       price: {
-        subtotal: { net: 100, gross: 119, tax: 19, currency: 'EUR' },
+        subtotal: { net: 100, gross: 119, tax: 19, currency: 'EUR', taxRate: 19 },
         total: { net: 100, gross: 129.71, tax: 19, currency: 'EUR' },
       },
       shipping: {
         methods: [{ id: 'std', name: 'Standard', price: 9, currency: 'EUR' }],
-        total: { value: 9, currency: 'EUR', tax: 1.71 },
+        total: { value: 9, currency: 'EUR', tax: 1.71, taxRate: 19 },
       },
     };
 
     const lineSum =
       orderWithShippingTax.price!.subtotal.net +
-      orderWithShippingTax.price!.total.tax +
+      orderWithShippingTax.price!.subtotal.tax +
       orderWithShippingTax.shipping!.total.value +
       (orderWithShippingTax.shipping!.total.tax ?? 0);
     expect(orderWithShippingTax.price!.total.gross).toBe(lineSum);
@@ -651,8 +752,9 @@ describe('OrderDetail', () => {
 
     render(<OrderDetail orderId={orderWithShippingTax.id} initialOrder={orderWithShippingTax} />);
 
-    expect(screen.getByText('shippingVat')).toBeInTheDocument();
+    expect(screen.getByText('shippingTax (19%)')).toBeInTheDocument();
     expect(screen.getByText('1.71 EUR')).toBeInTheDocument();
+    expect(screen.getByText('tax (19%)')).toBeInTheDocument();
 
     const overviewHeading = screen.getByRole('heading', { level: 4, name: 'orderOverview' });
     const overviewCard = overviewHeading.closest('[data-slot="card"]') as HTMLElement;
@@ -694,7 +796,8 @@ describe('OrderDetail', () => {
     expect(screen.queryByText('contact')).not.toBeInTheDocument();
     const overviewHeading = screen.getByRole('heading', { level: 4, name: 'orderOverview' });
     const grid = overviewHeading.closest('[data-slot="card"]')?.parentElement?.parentElement;
-    expect(grid).toHaveClass('grid-cols-1', 'sm:grid-cols-2', 'lg:grid-cols-4');
+    expect(grid).toHaveClass('grid-cols-1', 'sm:grid-cols-2', 'lg:grid-cols-3');
+    expect(grid).not.toHaveClass('lg:grid-cols-4');
     expect(container).toBeInTheDocument();
   });
 });

@@ -50,7 +50,11 @@ describe('ProductList contract', () => {
   it('uses the canonical core order of Product, Quantity, and Unit Price on desktop', () => {
     render(<ProductList items={[contractItem]} />);
 
-    const headings = screen.getAllByRole('heading', { level: 6 }).map((heading) => heading.textContent);
+    const header = screen.getByTestId('product-list-scroll').querySelector('.border-b');
+    expect(header).toBeTruthy();
+    const headings = within(header as HTMLElement)
+      .getAllByRole('heading', { level: 6 })
+      .map((heading) => heading.textContent);
 
     expect(headings).toEqual(['product', 'quantity', 'unitPrice']);
   });
@@ -127,7 +131,11 @@ describe('ProductList contract', () => {
   it('renders no trailing amount column or heading when the trailing amount is not configured', () => {
     render(<ProductList items={[contractItem]} />);
 
-    const headings = screen.getAllByRole('heading', { level: 6 }).map((heading) => heading.textContent);
+    const header = screen.getByTestId('product-list-scroll').querySelector('.border-b');
+    expect(header).toBeTruthy();
+    const headings = within(header as HTMLElement)
+      .getAllByRole('heading', { level: 6 })
+      .map((heading) => heading.textContent);
 
     expect(headings).toEqual(['product', 'quantity', 'unitPrice']);
     expect(screen.queryByTestId(`desktop-amount-${contractItem.id}`)).not.toBeInTheDocument();

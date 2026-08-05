@@ -22,6 +22,16 @@ jest.mock('@/hooks/return/useReturn', () => ({
   useReturn: (...args: unknown[]) => mockUseReturn(...args),
 }));
 
+jest.mock('@/hooks/product/useProducts', () => ({
+  useProducts: () => ({ products: [], loading: false, error: null, refetch: jest.fn(), setAsCurrent: jest.fn() }),
+}));
+
+jest.mock('@/hooks/useL10n', () => ({
+  useL10n: () => ({
+    l10n: (value: unknown) => (typeof value === 'string' ? value : ''),
+  }),
+}));
+
 jest.mock('@/i18n/navigation', () => ({
   Link: ({ href, children, ...rest }: { href: string; children: React.ReactNode } & Record<string, unknown>) => (
     <a href={href} {...rest}>
@@ -56,6 +66,7 @@ function buildReturn(): Return {
             vendorName: 'Nature Home',
             itemNumber: 'blue-solar-55w',
             productId: 'blue-solar',
+            brand: 'Nature Home',
             images: ['https://example.com/blue-solar.jpg'],
             reason: { code: 'CHANGED_MIND', details: 'Item reason details.' },
             calculatedUnitPrice: { netValue: 100, grossValue: 119, taxValue: 19, currency: 'EUR' },
@@ -118,18 +129,41 @@ describe('ReturnDetail', () => {
     expect(screen.getByText('The wrong item was delivered.')).toBeInTheDocument();
   });
 
-  it('renders Return Overview with Net value of goods and a single gross Total return value', () => {
+  it('renders Return Overview with Net value of goods, Tax when rate > 0, and a single gross Total return value', () => {
     render(<ReturnDetail returnId="return-123" />);
 
     const netLabel = screen.getByText('netValueOfGoods');
+    const taxLabel = screen.getByText('tax (19%)');
     const totalLabel = screen.getByText('totalReturnValue');
-    expect(netLabel.compareDocumentPosition(totalLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(netLabel.compareDocumentPosition(taxLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(taxLabel.compareDocumentPosition(totalLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     const overview = screen.getByText('returnOverview').closest('.bg-surface-primary') as HTMLElement;
-    // Net row keeps net; Total is a single gross amount (finalPrice.grossValue) with no Gross prefix.
+    // Net row keeps net; Tax from finalPrice; Total is a single gross amount with no Gross prefix.
     expect(within(overview).getByText('€100.00')).toBeInTheDocument();
+    expect(within(overview).getByText('€19.00')).toBeInTheDocument();
     expect(within(overview).getByText('€119.00')).toBeInTheDocument();
     expect(within(overview).queryByText('gross')).not.toBeInTheDocument();
+  });
+
+  it('omits Tax from Return Overview when tax rate is 0%', () => {
+    mockUseReturn.mockReturnValue({
+      returnItem: {
+        ...buildReturn(),
+        calculatedPrice: {
+          finalPrice: { netValue: 100, grossValue: 100, taxValue: 0, taxRate: 0, currency: 'EUR' },
+        },
+      },
+      loading: false,
+      error: null,
+      refreshReturn: jest.fn(),
+    });
+
+    render(<ReturnDetail returnId="return-123" />);
+
+    const overview = screen.getByText('returnOverview').closest('.bg-surface-primary') as HTMLElement;
+    expect(within(overview).queryByText(/tax/)).not.toBeInTheDocument();
+    expect(within(overview).getAllByText('€100.00').length).toBe(2);
   });
 
   it('shows Total return value as "-" when finalPrice.grossValue is missing', () => {
@@ -167,6 +201,22 @@ describe('ReturnDetail', () => {
     expect(within(desktopRow).getByText('gross €119.00')).toBeInTheDocument();
     expect(within(mobileRow).getByText('claimReasons.CHANGED_MIND')).toBeInTheDocument();
     expect(within(mobileRow).getByText('Item reason details.')).toBeInTheDocument();
+  });
+
+  it('renders return reason and description under item number in the product column, not under unit price', () => {
+    render(<ReturnDetail returnId="return-123" />);
+
+    const desktopRow = screen.getByTestId('product-item-desktop-item-123');
+    const productMeta = within(desktopRow).getByTestId('product-column-meta-reason-badge-item-123');
+    const trailingCell = within(desktopRow).getByTestId('product-trailing-amount-cell-item-123');
+
+    expect(within(productMeta).getByText('claimReasons.CHANGED_MIND')).toBeInTheDocument();
+    expect(within(productMeta).getByText('Item reason details.')).toBeInTheDocument();
+    expect(within(trailingCell).queryByText('claimReasons.CHANGED_MIND')).not.toBeInTheDocument();
+    expect(within(trailingCell).queryByText('Item reason details.')).not.toBeInTheDocument();
+
+    const itemNumber = within(desktopRow).getByText(/blue-solar-55w/);
+    expect(itemNumber.compareDocumentPosition(productMeta) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('omits unit price on mobile and shows refund net/gross instead (desktop still shows unit price)', () => {

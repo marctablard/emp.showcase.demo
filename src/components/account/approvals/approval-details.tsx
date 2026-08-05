@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { AlertCircle, CircleCheck, CircleX, MessageSquareText } from 'lucide-react';
 import { resolveApprovalNetAmount } from '@/components/account/approvals/approval-net-amount';
 import { ApprovalSummary } from '@/components/account/approvals/approval-summary';
+import { resolveItemDiscountPercent } from '@/components/account/shared/item-discount';
 import { ProductListResolver } from '@/components/product/product-list-resolver';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -476,35 +477,49 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
           </div>
         </div>
 
-        <Card>
-          <CardContent className="space-y-6 pt-6">
-            <ApprovalSummary approval={approval} />
+        <div className="space-y-6">
+          <ApprovalSummary approval={approval} />
 
-            {approval.resource.items && approval.resource.items.length > 0 && (
-              <ProductListResolver
-                locale={locale}
-                showGrossUnderNet
-                presentationConfig={{
-                  labels: {
-                    product: t('product'),
-                    quantity: t('quantity'),
-                    unitPrice: t('unitPrice'),
-                  },
-                  showGrossSecondary: true,
-                }}
-                items={approval.resource.items.map((it) => ({
+          {approval.resource.items && approval.resource.items.length > 0 && (
+            <ProductListResolver
+              locale={locale}
+              showGrossUnderNet
+              presentationConfig={{
+                labels: {
+                  product: t('product'),
+                  quantity: t('quantity'),
+                  unitPrice: t('unitPrice'),
+                  baseNetUnitPrice: t('baseNetUnitPrice'),
+                  discount: t('discount'),
+                },
+                showGrossSecondary: true,
+                showDiscountColumns: approval.resource.items.some((it) => {
+                  const percent = resolveItemDiscountPercent(it.itemPrice);
+                  return typeof percent === 'number' && percent > 0;
+                }),
+              }}
+              items={approval.resource.items.map((it) => {
+                let quotedNet = it.itemPrice.amount;
+                if (typeof it.itemPrice.newUnitPrice === 'number') {
+                  quotedNet = it.itemPrice.newUnitPrice;
+                } else if (typeof it.itemPrice.netValue === 'number') {
+                  quotedNet = it.itemPrice.netValue;
+                }
+                return {
                   productId: it.productId,
                   itemYrn: it.itemYrn,
                   quantity: it.quantity,
-                  unitPrice: it.itemPrice.amount,
+                  unitPrice: quotedNet,
                   currency: it.itemPrice.currency,
                   grossUnitPrice: it.itemPrice.grossValue,
-                  netUnitPrice: it.itemPrice.netValue,
-                }))}
-              />
-            )}
-          </CardContent>
-        </Card>
+                  netUnitPrice: quotedNet,
+                  baseNetUnitPrice: it.itemPrice.unitPrice,
+                  discountPercent: resolveItemDiscountPercent(it.itemPrice),
+                };
+              })}
+            />
+          )}
+        </div>
       </div>
     );
   }

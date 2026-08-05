@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { AlertCircle, Minus, Plus, ReceiptText, Trash2 } from 'lucide-react';
+import { detailTaxRateSuffix, shouldDisplayTaxLine } from '@/components/account/shared/detail-tax-line';
 import { ProductList, type ProductListItem } from '@/components/product/product-list';
+import { coalesceBrandLabel, resolveProductBrandLabel } from '@/components/product/resolve-product-brand';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,7 +18,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Spinner } from '@/components/ui/spinner';
 import { SummaryField } from '@/components/ui/summary-card';
 import { Textarea } from '@/components/ui/textarea';
+import { useProducts } from '@/hooks/product/useProducts';
 import { useReturn } from '@/hooks/return/useReturn';
+import { useL10n } from '@/hooks/useL10n';
 import { Link } from '@/i18n/navigation';
 import type { Return } from '@/platform/services/model/return';
 import { formatReturnCurrency } from './helpers';
@@ -235,9 +239,16 @@ function renderTrailingDesktopAmount(
 function ReturnOverview({ returnItem, locale, t }: ReturnOverviewProps) {
   // Total return value: single gross amount (finalPrice.grossValue). No Gross prefix.
   // When gross is absent, show '-' (do not invent a total from net or helpers).
-  const totalGrossValue = returnItem.calculatedPrice?.finalPrice?.grossValue;
-  const totalNetValue = returnItem.calculatedPrice?.finalPrice?.netValue ?? returnItem.total?.value;
-  const totalCurrency = returnItem.calculatedPrice?.finalPrice?.currency ?? returnItem.total?.currency;
+  const finalPrice = returnItem.calculatedPrice?.finalPrice;
+  const totalGrossValue = finalPrice?.grossValue;
+  const totalNetValue = finalPrice?.netValue ?? returnItem.total?.value;
+  const totalCurrency = finalPrice?.currency ?? returnItem.total?.currency;
+  const taxLine = {
+    taxRate: finalPrice?.taxRate,
+    taxAmount: finalPrice?.taxValue,
+    netAmount: finalPrice?.netValue,
+  };
+  const showTaxLine = shouldDisplayTaxLine(taxLine);
 
   return (
     <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm">
@@ -250,10 +261,21 @@ function ReturnOverview({ returnItem, locale, t }: ReturnOverviewProps) {
           <H5>{t('netValueOfGoods')}</H5>
           <H5 className="text-right">{formatReturnCurrency(totalNetValue, totalCurrency, locale)}</H5>
         </div>
+        {showTaxLine && (
+          <div className="flex items-start justify-between gap-4 pt-2">
+            <span className="text-base font-body text-text-body">
+              {t('tax')}
+              {detailTaxRateSuffix(taxLine)}
+            </span>
+            <span className="text-base font-body text-text-body text-right">
+              {formatReturnCurrency(finalPrice?.taxValue, totalCurrency, locale)}
+            </span>
+          </div>
+        )}
         <div className="flex items-start justify-between gap-4 pt-2">
           <H5>{t('totalReturnValue')}</H5>
           <H5 className="text-right">
-            {totalGrossValue !== undefined ? formatReturnCurrency(totalGrossValue, totalCurrency, locale) : '-'}
+            {totalGrossValue === undefined ? '-' : formatReturnCurrency(totalGrossValue, totalCurrency, locale)}
           </H5>
         </div>
       </div>
@@ -265,22 +287,27 @@ function ReturnItemsList({ items, locale, t }: ReturnItemsListProps) {
   const reasonBadgeClassName =
     'inline-flex !rounded-sm !border-border-primary !bg-surface-disabled !p-1 !text-sm !font-bold normal-case !tracking-normal text-text-headings font-body';
   const grossLabel = t('gross');
+  const { l10n } = useL10n();
+  const productIds = items.map((item) => item.productId).filter((id): id is string => Boolean(id));
+  const { products } = useProducts(productIds);
+  const productById = Object.fromEntries((products || []).map((product) => [product.id, product]));
 
   const mappedItems: ReturnProductListItem[] = items.map((item) => {
     const unitPrice = getReturnItemUnitPrice(item);
     const primaryUnitPriceValue = unitPrice.netValue ?? unitPrice.grossValue;
+    const catalogProduct = item.productId ? productById[item.productId] : undefined;
 
     return {
       id: item.id,
       name: item.name,
-      brand: item.vendorName,
+      brand: coalesceBrandLabel(item.brand ?? item.vendorName, resolveProductBrandLabel(catalogProduct, l10n)),
       itemNumber: item.itemNumber,
       quantity: item.quantity,
       unitPrice: primaryUnitPriceValue ?? 0,
       currency: unitPrice.currency ?? '',
       netUnitPrice: unitPrice.netValue,
       grossUnitPrice: unitPrice.grossValue,
-      imageUrl: item.images?.[0],
+      imageUrl: item.images?.[0] ?? catalogProduct?.images?.[0]?.url,
       href: item.productId ? `/product/${item.productId}` : undefined,
       __returnItem: item,
     };
@@ -318,7 +345,8 @@ function ReturnItemsList({ items, locale, t }: ReturnItemsListProps) {
             },
           },
         ],
-        inlineMetadataSlots: [
+        // Figma Image-Details: reason badge + description sit under item number in the product column.
+        productColumnMetadataSlots: [
           {
             key: 'reason-badge',
             render: (productItem) => {

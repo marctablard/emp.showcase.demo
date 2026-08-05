@@ -59,6 +59,8 @@ export interface OrderShipping {
     currency: string;
     /** Shipping tax from `calculatedPrice.totalShipping.taxValue` when present. */
     tax?: number;
+    /** Shipping tax rate (%) from `calculatedPrice.totalShipping.taxRate` or shipping line tax.rate. */
+    taxRate?: number;
   };
   methods?: Array<{
     id: string;
@@ -89,6 +91,8 @@ export interface OrderPrice {
     gross: number;
     tax: number;
     currency: string;
+    /** Goods tax rate (%) from `calculatedPrice.price.taxRate` when present. */
+    taxRate?: number;
   };
   total: {
     net: number;

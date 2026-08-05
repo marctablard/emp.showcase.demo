@@ -215,13 +215,15 @@ describe('QuoteDetails approval flow', () => {
   it('stacks header actions one-per-line on mobile (flex-col below sm)', () => {
     render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
 
-    expect(screen.getByTestId('quote-detail-header')).toHaveClass('flex', 'flex-col', 'sm:flex-row');
+    expect(screen.getByTestId('quote-detail-header')).toHaveClass('flex', 'flex-col', 'sm:flex-row', 'sm:flex-wrap');
     expect(screen.getByTestId('quote-detail-header-actions')).toHaveClass(
       'flex',
       'w-full',
       'flex-col',
       'sm:w-auto',
+      'sm:shrink-0',
       'sm:flex-row',
+      'sm:flex-nowrap',
     );
   });
 
@@ -472,6 +474,36 @@ describe('QuoteDetails approval flow', () => {
     });
 
     fireEvent.click(acceptButton);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('account.quoteDetails.yourComment')).toHaveFocus();
+    });
+  });
+
+  it('focuses the reject comment textarea when the decline panel opens', async () => {
+    checkApprovalPermitted.mockResolvedValue({
+      action: 'CHECKOUT',
+      permitted: true,
+    });
+
+    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'account.quoteDetails.reject' }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('account.quoteDetails.yourComment')).toHaveFocus();
+    });
+  });
+
+  it('focuses the request-change comment textarea when the change panel opens', async () => {
+    checkApprovalPermitted.mockResolvedValue({
+      action: 'CHECKOUT',
+      permitted: true,
+    });
+
+    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'account.quoteDetails.requestChange' }));
 
     await waitFor(() => {
       expect(screen.getByLabelText('account.quoteDetails.yourComment')).toHaveFocus();

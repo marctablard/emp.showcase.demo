@@ -15,13 +15,23 @@ export interface ProductListPresentationConfig {
     readonly quantity?: string;
     readonly unitPrice?: string;
     readonly amount?: string;
+    readonly baseNetUnitPrice?: string;
+    readonly discount?: string;
   };
   readonly showGrossSecondary?: boolean;
   readonly showTrailingDesktopAmount?: boolean;
   /** When true, mobile omits the core unit-price block (Return); Quote/Approval leave this unset. */
   readonly omitMobileUnitPrice?: boolean;
+  /**
+   * When true, insert Base Net Unit Price + Discount columns between Quantity and Unit Price
+   * (Quote/Approval when any line has discount > 0).
+   */
+  readonly showDiscountColumns?: boolean;
   readonly trailingDesktopAmount?: (item: ProductListItem) => ReactNode;
+  /** Rendered in the product column under item number (e.g. Return reason + details). */
+  readonly productColumnMetadataSlots?: ProductListMetadataSlot[];
   readonly mobileMetadataSlots?: ProductListMetadataSlot[];
+  /** Rendered under the unit-price stack on desktop (legacy; prefer productColumnMetadataSlots for product details). */
   readonly inlineMetadataSlots?: ProductListMetadataSlot[];
 }
 
@@ -35,6 +45,10 @@ export interface ProductListItem {
   currency: string;
   grossUnitPrice?: number;
   netUnitPrice?: number;
+  /** Pre-discount net unit price (`unitPrice` from quote/approval API). */
+  baseNetUnitPrice?: number;
+  /** Discount percentage (e.g. 35 for 35%). */
+  discountPercent?: number;
   imageUrl?: string | null;
   href?: string; // optional product link
 }
@@ -47,6 +61,9 @@ export interface ProductListItem {
 export const PRODUCT_DESKTOP_GRID_COLS = 'sm:grid-cols-[minmax(280px,1.6fr)_100px_minmax(140px,1fr)]';
 export const PRODUCT_DESKTOP_GRID_COLS_WITH_AMOUNT =
   'sm:grid-cols-[minmax(0,1.6fr)_minmax(4rem,100px)_minmax(0,1fr)_minmax(0,1fr)]';
+/** Product | Quantity | Base Net Unit Price | Discount | Unit Price */
+export const PRODUCT_DESKTOP_GRID_COLS_WITH_DISCOUNT =
+  'sm:grid-cols-[minmax(200px,1.4fr)_minmax(4rem,80px)_minmax(0,1fr)_minmax(4rem,72px)_minmax(0,1fr)]';
 
 interface ProductListProps {
   readonly items: ProductListItem[];
@@ -54,6 +71,21 @@ interface ProductListProps {
   readonly locale?: string;
   readonly presentationConfig?: ProductListPresentationConfig;
   readonly showGrossUnderNet?: boolean;
+}
+
+export function resolveProductDesktopGridCols(
+  presentationConfig?: ProductListPresentationConfig,
+):
+  | typeof PRODUCT_DESKTOP_GRID_COLS
+  | typeof PRODUCT_DESKTOP_GRID_COLS_WITH_AMOUNT
+  | typeof PRODUCT_DESKTOP_GRID_COLS_WITH_DISCOUNT {
+  if (presentationConfig?.showTrailingDesktopAmount && presentationConfig?.trailingDesktopAmount) {
+    return PRODUCT_DESKTOP_GRID_COLS_WITH_AMOUNT;
+  }
+  if (presentationConfig?.showDiscountColumns) {
+    return PRODUCT_DESKTOP_GRID_COLS_WITH_DISCOUNT;
+  }
+  return PRODUCT_DESKTOP_GRID_COLS;
 }
 
 export function ProductList({
@@ -71,11 +103,15 @@ export function ProductList({
       quantity: presentationConfig?.labels?.quantity ?? tQuoteDetails('quantity'),
       unitPrice: presentationConfig?.labels?.unitPrice ?? tQuoteDetails('unitPrice'),
       amount: presentationConfig?.labels?.amount,
+      baseNetUnitPrice: presentationConfig?.labels?.baseNetUnitPrice ?? tQuoteDetails('baseNetUnitPrice'),
+      discount: presentationConfig?.labels?.discount ?? tQuoteDetails('discount'),
     },
     showGrossSecondary: presentationConfig?.showGrossSecondary ?? showGrossUnderNet,
     showTrailingDesktopAmount: presentationConfig?.showTrailingDesktopAmount ?? false,
+    showDiscountColumns: presentationConfig?.showDiscountColumns ?? false,
     omitMobileUnitPrice: presentationConfig?.omitMobileUnitPrice ?? false,
     trailingDesktopAmount: presentationConfig?.trailingDesktopAmount,
+    productColumnMetadataSlots: presentationConfig?.productColumnMetadataSlots ?? [],
     mobileMetadataSlots: presentationConfig?.mobileMetadataSlots ?? [],
     inlineMetadataSlots: presentationConfig?.inlineMetadataSlots ?? [],
   } satisfies ProductListPresentationConfig;
@@ -83,10 +119,11 @@ export function ProductList({
   const hasTrailingDesktopAmount = Boolean(
     resolvedPresentationConfig.showTrailingDesktopAmount && resolvedPresentationConfig.trailingDesktopAmount,
   );
-
+  const showDiscountColumns = Boolean(resolvedPresentationConfig.showDiscountColumns);
+  const desktopGridCols = resolveProductDesktopGridCols(resolvedPresentationConfig);
   const desktopGridClassName = hasTrailingDesktopAmount
-    ? `hidden min-w-0 sm:grid ${PRODUCT_DESKTOP_GRID_COLS_WITH_AMOUNT} items-start gap-4 lg:gap-6`
-    : `hidden sm:grid ${PRODUCT_DESKTOP_GRID_COLS} items-start gap-6`;
+    ? `hidden min-w-0 sm:grid ${desktopGridCols} items-start gap-4 lg:gap-6`
+    : `hidden sm:grid ${desktopGridCols} items-start gap-6`;
 
   return (
     <Card
@@ -101,6 +138,16 @@ export function ProductList({
           <H6 className="text-left text-sm font-bold text-text-headings">
             {resolvedPresentationConfig.labels.quantity}
           </H6>
+          {showDiscountColumns ? (
+            <>
+              <H6 className="min-w-0 text-right text-sm font-bold text-text-headings">
+                {resolvedPresentationConfig.labels.baseNetUnitPrice}
+              </H6>
+              <H6 className="min-w-0 text-right text-sm font-bold text-text-headings">
+                {resolvedPresentationConfig.labels.discount}
+              </H6>
+            </>
+          ) : null}
           <H6 className="min-w-0 text-right text-sm font-bold text-text-headings">
             {resolvedPresentationConfig.labels.unitPrice}
           </H6>

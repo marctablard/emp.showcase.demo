@@ -3,12 +3,19 @@
 import React from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { List, ReceiptText, Truck } from 'lucide-react';
+import { detailTaxRateSuffix, shouldDisplayTaxLine } from '@/components/account/shared/detail-tax-line';
+import { formatShippingFeeDisplay } from '@/components/account/shared/format-shipping-fee';
 import { H5 } from '@/components/ui/h';
 import { SummaryCard, SummaryField } from '@/components/ui/summary-card';
 import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import { formatCurrency } from '@/lib/utils';
 import type { CheckoutAddress } from '@/platform/services/model/checkout';
 import type { Quote } from '@/platform/services/model/quote';
+import {
+  type QuotePriceCardBreakdown,
+  resolveQuoteBasePriceBreakdown,
+  resolveQuoteQuotedPriceBreakdown,
+} from './quote-price-summary';
 
 interface QuoteSummaryProps {
   quote: Quote;
@@ -49,51 +56,71 @@ function shippingAddressLines(address: CheckoutAddress): string[] {
   ].filter((line): line is string => Boolean(line));
 }
 
-/** Prefer model-backed taxAggregate rate; fall back to computed only if missing. */
-function resolveQuoteVatRatePercent(quote: Quote): number | undefined {
-  if (typeof quote.vatRate === 'number') {
-    return Math.round(quote.vatRate);
-  }
-  if (quote.totalNet > 0) {
-    return Math.round((quote.totalVat / quote.totalNet) * 100);
-  }
-  return undefined;
-}
-
 export const QuoteSummary: React.FC<QuoteSummaryProps> = ({ quote }) => {
   const t = useTranslations('account.quoteDetails');
   const locale = useLocale();
 
   const currency = quote.currency || getPublicDefaultCurrency();
   const fmt = (amount: number) => formatCurrency(amount, currency, locale);
-  const vatRate = resolveQuoteVatRatePercent(quote);
-  const vatRateSuffix = typeof vatRate === 'number' ? ` (${vatRate}%)` : '';
   const shippingMethod = quote.shippingMethod?.trim() || '';
   const addressLines = shippingAddressLines(quote.shippingAddress);
+  const baseBreakdown = resolveQuoteBasePriceBreakdown(quote);
+  const quotedBreakdown = resolveQuoteQuotedPriceBreakdown(quote);
 
-  const renderPriceRows = (totalLabel: string) => (
-    <div className="space-y-4 text-base font-body text-text-body">
-      <div className="flex justify-between gap-4">
-        <span>{t('netValue')}</span>
-        <span>{fmt(quote.totalNet)}</span>
+  const renderPriceRows = (breakdown: QuotePriceCardBreakdown, totalLabel: string, showDiscount: boolean) => {
+    const taxLine = {
+      taxRate: breakdown.taxRate,
+      taxAmount: breakdown.tax,
+      netAmount: breakdown.netValueOfGoods,
+    };
+    const showTaxLine = shouldDisplayTaxLine(taxLine);
+    const shippingTaxLine = {
+      taxAmount: breakdown.shippingTax,
+      netAmount: breakdown.shippingFee,
+    };
+    const showShippingTax = breakdown.showShippingTax && shouldDisplayTaxLine(shippingTaxLine);
+
+    return (
+      <div className="space-y-4 text-base font-body text-text-body">
+        <div className="flex justify-between gap-4">
+          <span>{t('netValue')}</span>
+          <span>{fmt(breakdown.netValueOfGoods)}</span>
+        </div>
+        {showDiscount && breakdown.discountAmount > 0 ? (
+          <div className="flex justify-between gap-4">
+            <span>{t('discount')}</span>
+            <span>−{fmt(breakdown.discountAmount)}</span>
+          </div>
+        ) : null}
+        {showTaxLine && (
+          <div className="flex justify-between gap-4">
+            <span>
+              {t('tax')}
+              {detailTaxRateSuffix(taxLine)}
+            </span>
+            <span>{fmt(breakdown.tax)}</span>
+          </div>
+        )}
+        <div className="flex justify-between gap-4">
+          <span>{t('shippingFee')}</span>
+          <span>{formatShippingFeeDisplay(breakdown.shippingFee, fmt, t('free'))}</span>
+        </div>
+        {showShippingTax ? (
+          <div className="flex justify-between gap-4">
+            <span>
+              {t('shippingTax')}
+              {detailTaxRateSuffix(shippingTaxLine)}
+            </span>
+            <span>{fmt(breakdown.shippingTax)}</span>
+          </div>
+        ) : null}
+        <div className="flex items-start justify-between gap-4 pt-2">
+          <H5>{totalLabel}</H5>
+          <H5>{fmt(breakdown.total)}</H5>
+        </div>
       </div>
-      <div className="flex justify-between gap-4">
-        <span>
-          {t('vat')}
-          {vatRateSuffix}
-        </span>
-        <span>{fmt(quote.totalVat)}</span>
-      </div>
-      <div className="flex justify-between gap-4">
-        <span>{t('shippingFee')}</span>
-        <span>{fmt(quote.shippingCost)}</span>
-      </div>
-      <div className="flex items-start justify-between gap-4 pt-2">
-        <H5>{totalLabel}</H5>
-        <H5>{fmt(quote.totalNet + quote.totalVat + quote.shippingCost)}</H5>
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -107,7 +134,7 @@ export const QuoteSummary: React.FC<QuoteSummaryProps> = ({ quote }) => {
           icon={<List className="h-8 w-8 text-text-action" />}
           hasHeadline
         >
-          {renderPriceRows(t('baseTotal'))}
+          {renderPriceRows(baseBreakdown, t('baseTotal'), true)}
         </SummaryCard>
       </div>
 
@@ -143,7 +170,7 @@ export const QuoteSummary: React.FC<QuoteSummaryProps> = ({ quote }) => {
           icon={<ReceiptText className="h-8 w-8 text-text-action" />}
           hasHeadline
         >
-          {renderPriceRows(t('quotedTotal'))}
+          {renderPriceRows(quotedBreakdown, t('quotedTotal'), false)}
         </SummaryCard>
       </div>
     </div>

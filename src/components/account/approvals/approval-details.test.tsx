@@ -157,8 +157,11 @@ describe('ApprovalDetails', () => {
             product: 'product',
             quantity: 'quantity',
             unitPrice: 'unitPrice',
+            baseNetUnitPrice: 'baseNetUnitPrice',
+            discount: 'discount',
           }),
           showGrossSecondary: true,
+          showDiscountColumns: false,
         }),
         items: [
           expect.objectContaining({

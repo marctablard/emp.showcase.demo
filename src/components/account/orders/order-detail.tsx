@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { format } from 'date-fns';
 import { Ban, CreditCard, ReceiptText, RotateCcw, Truck } from 'lucide-react';
-import { ProductList, type ProductListItem } from '@/components/product/product-list';
+import { detailTaxRateSuffix, shouldDisplayTaxLine } from '@/components/account/shared/detail-tax-line';
+import { formatShippingFeeDisplay } from '@/components/account/shared/format-shipping-fee';
+import { ProductListResolver } from '@/components/product/product-list-resolver';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
@@ -46,22 +48,6 @@ function shouldShowReturnButton(status: OrderStatus): boolean {
 
 function shouldShowTrackShipmentControl(status: OrderStatus): boolean {
   return TRACKING_ELIGIBLE_STATUSES.has(status);
-}
-
-function toOrderProductListItem(item: Order['items'][number]): ProductListItem {
-  return {
-    id: item.id,
-    name: item.name || item.productId,
-    brand: item.vendorName,
-    itemNumber: item.sku,
-    quantity: item.quantity,
-    unitPrice: item.price?.value ?? 0,
-    currency: item.price?.currency ?? '',
-    netUnitPrice: item.price?.netValue,
-    grossUnitPrice: item.price?.grossValue,
-    imageUrl: item.images?.[0],
-    href: `/product/${item.productId}`,
-  };
 }
 
 function renderAddress(address: Address) {
@@ -160,7 +146,20 @@ export function OrderDetail({
   const showReturnButton = shouldShowReturnButton(order.status);
   const showTrackShipmentControl = shouldShowTrackShipmentControl(order.status);
   const hasHeaderActions = showCancelButton || showReturnButton || showTrackShipmentControl;
-  const productItems = order.items.map((item) => toOrderProductListItem(item));
+  const productItems = order.items.map((item) => ({
+    id: item.id,
+    productId: item.productId,
+    name: item.name || item.productId,
+    brand: item.vendorName,
+    itemNumber: item.sku,
+    quantity: item.quantity,
+    unitPrice: item.price?.value ?? 0,
+    currency: item.price?.currency ?? '',
+    netUnitPrice: item.price?.netValue,
+    grossUnitPrice: item.price?.grossValue,
+    imageUrl: item.images?.[0] ?? null,
+    href: `/product/${item.productId}`,
+  }));
 
   const handleCancelDialogOpenChange = (open: boolean) => {
     if (open) {
@@ -202,22 +201,24 @@ export function OrderDetail({
 
   return (
     <div className="space-y-6">
-      {/* Header: same-line identity + actions from sm (768px) through ~1298px; stack
-          Cancel / Return / Track one-per-line only below sm (true mobile). */}
+      {/* Header: title + status stay together; from sm, actions wrap as one horizontal row
+          under that band on small tablets when space is tight (same pattern as Quote). */}
       <div
-        className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+        className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
         data-testid="order-detail-header"
       >
-        <div className="flex flex-wrap items-center gap-3">
-          <H3>
+        <div className="flex min-w-0 flex-nowrap items-center gap-3">
+          <H3 className="min-w-0 break-words">
             {tOrder('orderIdHeading')}: {order.id}
           </H3>
-          <OrderStatusBadge status={order.status} />
+          <div className="shrink-0">
+            <OrderStatusBadge status={order.status} />
+          </div>
         </div>
 
         {hasHeaderActions && (
           <div
-            className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center"
+            className="flex w-full flex-col gap-4 sm:w-auto sm:shrink-0 sm:flex-row sm:flex-nowrap sm:items-center sm:justify-end"
             data-testid="order-detail-header-actions"
           >
             {showCancelButton && cancelOrder && (
@@ -279,8 +280,8 @@ export function OrderDetail({
         </div>
       </div>
 
-      {/* Detail cards: Order Overview (with totals), Shipping, Payment */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Detail cards: Order Overview, Shipping, Payment — 3 cols from lg so cards fill width (no empty 4th track). */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
           <SummaryCard
             heading={tOrder('orderOverview')}
@@ -299,37 +300,57 @@ export function OrderDetail({
                   </span>
                 </div>
 
-                <div className="flex justify-between gap-4 pt-2">
-                  <span>
-                    {tOrder('vat')}
-                    {order.price.total.net > 0
-                      ? ` (${Math.round((order.price.total.tax / order.price.total.net) * 100)}%)`
-                      : ''}
-                  </span>
-                  <span>
-                    {order.price.total.tax} {order.price.total.currency}
-                  </span>
-                </div>
+                {shouldDisplayTaxLine({
+                  taxRate: order.price.subtotal.taxRate,
+                  taxAmount: order.price.subtotal.tax,
+                  netAmount: order.price.subtotal.net,
+                }) && (
+                  <div className="flex justify-between gap-4 pt-2">
+                    <span>
+                      {tOrder('tax')}
+                      {detailTaxRateSuffix({
+                        taxRate: order.price.subtotal.taxRate,
+                        taxAmount: order.price.subtotal.tax,
+                        netAmount: order.price.subtotal.net,
+                      })}
+                    </span>
+                    <span>
+                      {order.price.subtotal.tax} {order.price.subtotal.currency}
+                    </span>
+                  </div>
+                )}
 
                 {order.shipping && (
                   <div className="flex justify-between gap-4 pt-2">
                     <span>{tOrder('shippingFee')}</span>
                     <span>
-                      {order.shipping.total.value === 0
-                        ? tOrder('free')
-                        : `${order.shipping.total.value} ${order.shipping.total.currency}`}
+                      {formatShippingFeeDisplay(
+                        order.shipping.total.value,
+                        (amount) => `${amount} ${order.shipping!.total.currency}`,
+                        tOrder('free'),
+                      )}
                     </span>
                   </div>
                 )}
 
-                {order.shipping?.total.tax !== undefined && (
-                  <div className="flex justify-between gap-4 pt-2">
-                    <span>{tOrder('shippingVat')}</span>
-                    <span>
-                      {order.shipping.total.tax} {order.shipping.total.currency}
-                    </span>
-                  </div>
-                )}
+                {shouldDisplayTaxLine({
+                  taxRate: order.shipping?.total.taxRate,
+                  taxAmount: order.shipping?.total.tax,
+                }) &&
+                  order.shipping?.total.tax !== undefined && (
+                    <div className="flex justify-between gap-4 pt-2">
+                      <span>
+                        {tOrder('shippingTax')}
+                        {detailTaxRateSuffix({
+                          taxRate: order.shipping.total.taxRate,
+                          taxAmount: order.shipping.total.tax,
+                        })}
+                      </span>
+                      <span>
+                        {order.shipping.total.tax} {order.shipping.total.currency}
+                      </span>
+                    </div>
+                  )}
 
                 {order.discounts && order.discounts.length > 0 && (
                   <div className="flex justify-between gap-4 pt-2">
@@ -397,11 +418,12 @@ export function OrderDetail({
         )}
       </div>
 
-      {/* Product list, following the Returns & Claims product presentation */}
-      <ProductList
+      {/* Product list — catalog brand enrichment via ProductListResolver (same as Quote/Approval). */}
+      <ProductListResolver
         items={productItems}
         locale={locale}
         className="border border-border-primary shadow-sm"
+        showGrossUnderNet
         presentationConfig={{
           labels: {
             product: tOrder('product'),

@@ -4,6 +4,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ArrowDown, ArrowUp, CircleCheck, CircleX, Pencil } from 'lucide-react';
 import { getApprovalHref } from '@/components/account/approvals/approval-routing';
+import {
+  quoteHasItemDiscounts,
+  resolveItemDiscountPercent,
+  resolveQuoteTotalNetAmount,
+  resolveQuotedGrossUnitPrice,
+  resolveQuotedNetUnitPrice,
+} from '@/components/account/quotes/quote-price-summary';
 import { QuoteStatusBadge } from '@/components/account/quotes/quote-status-badge';
 import { QuoteSummary } from '@/components/account/quotes/quote-summary';
 import { ProductListResolver } from '@/components/product/product-list-resolver';
@@ -645,6 +652,8 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
   const [approvalInquiryComment, setApprovalInquiryComment] = useState('');
   const [historySortDirection, setHistorySortDirection] = useState<QuoteHistorySortDirection>('desc');
   const acceptCommentRef = useRef<HTMLTextAreaElement | null>(null);
+  const rejectCommentRef = useRef<HTMLTextAreaElement | null>(null);
+  const changeCommentRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Call unconditionally — useApproval no-ops on empty id (Rules of Hooks).
   const relatedApprovalId = approvalPermission?.approvalId ?? '';
@@ -722,6 +731,17 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
 
     acceptCommentRef.current?.focus();
   }, [showAcceptConfirmation]);
+
+  useEffect(() => {
+    if (activeDecisionDialog === 'DECLINE') {
+      rejectCommentRef.current?.focus();
+      return;
+    }
+
+    if (activeDecisionDialog === 'CHANGE') {
+      changeCommentRef.current?.focus();
+    }
+  }, [activeDecisionDialog]);
 
   const handleApprovalInquiryDialogChange = (open: boolean): void => {
     setShowApprovalInquiryDialog(open);
@@ -903,20 +923,23 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
         </DialogContent>
       </Dialog>
 
-      {/* Header: identity + actions on one band from sm; one button per line only below sm (mobile). */}
+      {/* Header: title + status stay together; from sm, actions wrap as one horizontal row
+          under that band when space is tight (Figma 11936:178520 — Actions y below Header). */}
       <div
-        className="flex flex-col gap-4 px-6 sm:flex-row sm:items-center sm:justify-between"
+        className="flex flex-col gap-4 px-6 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
         data-testid="quote-detail-header"
       >
-        <div className="flex flex-wrap items-center gap-6">
-          <H3>
+        <div className="flex min-w-0 flex-nowrap items-center gap-6">
+          <H3 className="min-w-0 break-words">
             {t('headerTitle')}: {quote.reference || quoteId}
           </H3>
-          <QuoteStatusBadge status={quote.status} />
+          <div className="shrink-0">
+            <QuoteStatusBadge status={quote.status} />
+          </div>
         </div>
         {!showAcceptConfirmation && !activeDecisionDialog && (
           <div
-            className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end"
+            className="flex w-full flex-col gap-4 sm:w-auto sm:shrink-0 sm:flex-row sm:flex-nowrap sm:items-center sm:justify-end"
             data-testid="quote-detail-header-actions"
           >
             <Button
@@ -961,7 +984,7 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
         )}
       </div>
 
-      <CardContent className="space-y-6 mt-6">
+      <div className="mt-6 space-y-6">
         <div className="rounded-md bg-surface-primary p-6 shadow-sm">
           <div className="flex flex-col gap-6">
             <H4>{t('title')}</H4>
@@ -973,7 +996,7 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
               <div className="flex flex-col gap-1">
                 <H5>{t('totalAmount')}</H5>
                 <span className="text-base font-body text-text-body">
-                  {formatPrice(quote.totalGross, quote.currency)}
+                  {formatPrice(resolveQuoteTotalNetAmount(quote), quote.currency)}
                 </span>
               </div>
               {quote.customerId && (
@@ -1107,6 +1130,7 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
                     <Label htmlFor="quote-decision-comment">{t('yourComment')}</Label>
                     <Textarea
                       id="quote-decision-comment"
+                      ref={rejectCommentRef}
                       placeholder={t('rejectCommentPlaceholder')}
                       className="min-h-32 resize-none"
                       value={decisionComment}
@@ -1171,6 +1195,7 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
                     <Label htmlFor="quote-change-comment">{t('yourComment')}</Label>
                     <Textarea
                       id="quote-change-comment"
+                      ref={changeCommentRef}
                       placeholder={t('requestChangeCommentPlaceholder')}
                       className="min-h-32 resize-none"
                       value={decisionComment}
@@ -1316,20 +1341,29 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
                 product: t('product'),
                 quantity: t('quantity'),
                 unitPrice: t('unitPrice'),
+                baseNetUnitPrice: t('baseNetUnitPrice'),
+                discount: t('discount'),
               },
               showGrossSecondary: true,
+              showDiscountColumns: quoteHasItemDiscounts(quote),
             }}
-            items={quote.items.map((it) => ({
-              productId: it.product.id,
-              quantity: it.quantity.quantity, // Extract just the numeric quantity value
-              unitPrice: it.product.itemPrice.amount,
-              currency: it.product.itemPrice.currency,
-              grossUnitPrice: it.product.itemPrice.grossValue,
-              netUnitPrice: it.product.itemPrice.netValue,
-            }))}
+            items={quote.items.map((it) => {
+              const qty = it.quantity.quantity;
+              const price = it.product.itemPrice;
+              return {
+                productId: it.product.id,
+                quantity: qty,
+                unitPrice: resolveQuotedNetUnitPrice(price, qty),
+                currency: price.currency,
+                grossUnitPrice: resolveQuotedGrossUnitPrice(price, qty),
+                netUnitPrice: resolveQuotedNetUnitPrice(price, qty),
+                baseNetUnitPrice: price.unitPrice,
+                discountPercent: resolveItemDiscountPercent(price),
+              };
+            })}
           />
         }
-      </CardContent>
+      </div>
     </div>
   );
 }

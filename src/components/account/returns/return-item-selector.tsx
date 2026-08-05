@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { H6 } from '@/components/ui/h';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import type { ReturnReasonCode } from '@/lib/client/returns';
@@ -54,10 +55,10 @@ export function ReturnItemSelector({
 
   return (
     <div className="py-4 w-full min-w-0">
-      <div className="hidden md:grid grid-cols-[1fr_154px_100px] gap-4 pb-4 text-sm font-medium text-text-on-disabled">
-        <div>{tReturns('productDetails')}</div>
-        <div>{tReturns('quantity')}</div>
-        <div className="text-right">{tReturns('unitPrice')}</div>
+      <div className="hidden md:grid grid-cols-[1fr_154px_100px] gap-4 border-b border-border-primary pb-4">
+        <H6 className="min-w-0 text-sm font-bold text-text-headings">{tReturns('productDetails')}</H6>
+        <H6 className="text-left text-sm font-bold text-text-headings">{tReturns('quantity')}</H6>
+        <H6 className="min-w-0 text-right text-sm font-bold text-text-headings">{tReturns('unitPrice')}</H6>
       </div>
 
       <div className="space-y-4 w-full min-w-0">
@@ -71,7 +72,7 @@ export function ReturnItemSelector({
           const priceCurrency = item.price?.currency;
 
           return (
-            <div key={item.id} className="py-4 border-b border-border-secondary w-full min-w-0">
+            <div key={item.id} className="py-4 border-b border-border-primary w-full min-w-0">
               {/* Desktop Layout */}
               <div className="hidden md:grid grid-cols-[1fr_154px_100px] gap-4 items-start">
                 <div className="flex gap-4">

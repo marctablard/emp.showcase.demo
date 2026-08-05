@@ -75,6 +75,8 @@ export class EmporixQuoteMapper implements QuoteMapper<EmporixQuote> {
       totalGross: emporixQuote.totalPrice?.grossValue || 0,
       totalNet: emporixQuote.totalPrice.netValue,
       totalVat: emporixQuote.totalPrice.taxValue,
+      subtotalNet: emporixQuote.subtotalPrice?.netValue,
+      subtotalVat: emporixQuote.subtotalPrice?.taxValue,
       vatRate: resolveQuoteVatRate(emporixQuote.taxAggregate),
       items: (emporixQuote.items || []).map((item) => ({
         product: {
@@ -88,6 +90,10 @@ export class EmporixQuoteMapper implements QuoteMapper<EmporixQuote> {
             tax: (item.price?.tax?.prices?.grossValue || 0) - (item.price?.totalNetValue || 0),
             grossValue: item.price?.tax?.prices?.grossValue,
             netValue: item.price?.tax?.prices?.netValue,
+            unitPrice: item.price?.unitPrice,
+            newUnitPrice: item.price?.newUnitPrice,
+            discount: item.price?.discount,
+            taxRate: item.price?.tax?.taxRate,
           },
         },
         quantity: {
@@ -108,6 +114,7 @@ export class EmporixQuoteMapper implements QuoteMapper<EmporixQuote> {
         country: countryName,
       },
       shippingCost: emporixQuote.shipping?.value || 0,
+      shippingGross: emporixQuote.shipping?.grossValue,
       // Prefer localized methodName over methodId (OQ6 / Task 3.1)
       shippingMethod: resolveQuoteShippingMethodName(emporixQuote.shipping),
       reference: emporixQuote.customerReference || emporixQuote.mixins?.additionalInfo?.reference,

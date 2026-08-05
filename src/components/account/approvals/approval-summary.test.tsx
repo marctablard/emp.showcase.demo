@@ -70,6 +70,12 @@ describe('ApprovalSummary', () => {
     expect(screen.getByRole('heading', { level: 4, name: 'shipping' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 4, name: 'payment' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 4, name: 'other' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 5, name: 'shippingMethod' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 5, name: 'shippingAddress' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 5, name: 'paymentMethod' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 5, name: 'billingAddress' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 5, name: 'totalValue' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 5, name: 'note' })).toBeInTheDocument();
   });
 
   it('uses a 2-column box layout for CART approval cards at sm+ (1024px Figma layout)', () => {
@@ -107,6 +113,22 @@ describe('ApprovalSummary', () => {
     expect(screen.getByRole('heading', { level: 4, name: 'quotedPrice' })).toBeInTheDocument();
   });
 
+  it('renders Quote Reference / Number of products as H5 field headings (SummaryField)', () => {
+    const approval: Approval = {
+      ...baseApproval,
+      resourceType: 'QUOTE',
+      details: {
+        currency: 'EUR',
+        shipping: { amount: 0 } as any,
+      },
+    };
+
+    render(<ApprovalSummary approval={approval} />);
+
+    expect(screen.getByRole('heading', { level: 5, name: 'quoteReference' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 5, name: 'numberOfProducts' })).toBeInTheDocument();
+  });
+
   it('shows VAT rate percent on Base/Quoted Price when value of goods is positive and formats with formatCurrency', () => {
     const approval: Approval = {
       ...baseApproval,
@@ -119,13 +141,43 @@ describe('ApprovalSummary', () => {
 
     render(<ApprovalSummary approval={approval} />);
 
-    expect(screen.getAllByText('vat (19%)').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('tax (19%)').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/100,00\s*€/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/19,00\s*€/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/5,00\s*€/).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('omits VAT rate percent when value of goods is not positive', () => {
+  it('shows Free for shipping fee when shipping amount is 0 on Base and Quoted price cards', () => {
+    const approval: Approval = {
+      ...baseApproval,
+      resourceType: 'QUOTE',
+      details: {
+        currency: 'EUR',
+        shipping: { amount: 0 } as any,
+      },
+    };
+
+    render(<ApprovalSummary approval={approval} />);
+
+    expect(screen.getAllByText('free').length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryAllByText(/5,00\s*€/)).toHaveLength(0);
+  });
+
+  it('shows Free for shipping fee on CART order overview when shipping is 0', () => {
+    const approval: Approval = {
+      ...baseApproval,
+      details: {
+        currency: 'EUR',
+        shipping: { amount: 0 } as any,
+      },
+    };
+
+    render(<ApprovalSummary approval={approval} />);
+
+    expect(screen.getByText('free')).toBeInTheDocument();
+  });
+
+  it('omits the tax row when tax value is 0', () => {
     const approval: Approval = {
       ...baseApproval,
       resourceType: 'QUOTE',
@@ -147,8 +199,7 @@ describe('ApprovalSummary', () => {
 
     render(<ApprovalSummary approval={approval} />);
 
-    expect(screen.queryByText(/vat \(/)).not.toBeInTheDocument();
-    expect(screen.getAllByText('vat').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/tax/)).not.toBeInTheDocument();
   });
 
   it('styles Quoted Price with success surface and without dual blue+green border', () => {
@@ -199,7 +250,70 @@ describe('ApprovalSummary', () => {
     expect(screen.queryByText(/63,05.*€/)).not.toBeInTheDocument();
   });
 
-  it('does not invent Total from valueOfGoods + shipping + vat when a model net exists', () => {
+  it('renders Base Price from unitPrice and Quoted Price from aggregate nets', () => {
+    const approval: Approval = {
+      ...baseApproval,
+      resourceType: 'QUOTE',
+      resource: {
+        id: 'Q1000457',
+        items: [
+          {
+            quantity: 1,
+            itemPrice: {
+              currency: 'EUR',
+              amount: 183.14,
+              unitPrice: 171,
+              newUnitPrice: 153.9,
+              netValue: 153.9,
+              grossValue: 183.14,
+              taxValue: 29.24,
+            },
+          },
+          {
+            quantity: 1,
+            itemPrice: {
+              currency: 'EUR',
+              amount: 24.69,
+              unitPrice: 23.05,
+              newUnitPrice: 20.75,
+              netValue: 20.75,
+              grossValue: 24.69,
+              taxValue: 3.94,
+            },
+          },
+          {
+            quantity: 1,
+            itemPrice: {
+              currency: 'EUR',
+              amount: 18.21,
+              unitPrice: 17,
+              newUnitPrice: 15.3,
+              netValue: 15.3,
+              grossValue: 18.21,
+              taxValue: 2.91,
+            },
+          },
+        ],
+        subtotalAggregate: { currency: 'EUR', netValue: 189.95, grossValue: 226.04, taxValue: 36.09 },
+      },
+      details: {
+        currency: 'EUR',
+        shipping: { amount: 0 } as any,
+      },
+    };
+
+    render(<ApprovalSummary approval={approval} />);
+
+    // Base net = 171 + 23.05 + 17
+    expect(screen.getByText(/211,05\s*€/)).toBeInTheDocument();
+    // Quoted net from aggregate
+    expect(screen.getByText(/189,95\s*€/)).toBeInTheDocument();
+    // Quoted total = 189.95 + 36.09 (must not use gross amount sum as Base *net*)
+    expect(screen.getByText(/226,04\s*€/)).toBeInTheDocument();
+    expect(screen.getByText('discount')).toBeInTheDocument();
+  });
+
+  it('uses Quote-style Base/Quoted card totals (net + tax + shipping) when unit prices are absent', () => {
     const approval: Approval = {
       ...baseApproval,
       resourceType: 'QUOTE',
@@ -217,8 +331,7 @@ describe('ApprovalSummary', () => {
 
     render(<ApprovalSummary approval={approval} />);
 
-    // Model net is 100; invented sum would be 100+5+19=124
-    expect(screen.getAllByText(/100,00.*€/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.queryByText(/124,00.*€/)).not.toBeInTheDocument();
+    // 100 + 19 + 5
+    expect(screen.getAllByText(/124,00.*€/).length).toBeGreaterThanOrEqual(1);
   });
 });

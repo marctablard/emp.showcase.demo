@@ -259,9 +259,14 @@ export function MyOrdersTable({
           <TableCell className="px-2 py-4">
             <OrderStatusBadge status={order.status} />
           </TableCell>
-          <TableCell className="px-2 py-4" onClick={(event) => event.stopPropagation()}>
+          <TableCell className="px-2 py-4">
             {order.quoteId ? (
-              <UiLink type="Link" href={`/account/quotes/${order.quoteId}`} variant="table">
+              <UiLink
+                type="Link"
+                href={`/account/quotes/${order.quoteId}`}
+                variant="table"
+                onClick={(event) => event.stopPropagation()}
+              >
                 {order.quoteId}
               </UiLink>
             ) : (

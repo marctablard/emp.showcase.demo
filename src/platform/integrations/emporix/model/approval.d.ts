@@ -22,6 +22,7 @@ export interface EmporixApprovalPrice {
   amount: number;
   unitPrice?: number;
   newUnitPrice?: number;
+  discount?: number;
   netValue?: number;
   grossValue?: number;
   taxValue?: number;
@@ -134,11 +135,7 @@ export interface EmporixApprovalSearchUsersRequest {
 
 export type EmporixApprovalUpdateOperation = 'add' | 'remove' | 'replace';
 export type EmporixApprovalUpdatePath =
-  | '/status'
-  | '/details'
-  | '/comment'
-  | '/approverComment'
-  | '/resource/deliveryWindow';
+  '/status' | '/details' | '/comment' | '/approverComment' | '/resource/deliveryWindow';
 
 export interface EmporixApprovalUpdateRequest {
   op: EmporixApprovalUpdateOperation;
