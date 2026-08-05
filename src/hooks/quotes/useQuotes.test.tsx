@@ -4,7 +4,13 @@
 import '@testing-library/jest-dom';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { Quote } from '@/platform/services/model/quote';
+// eslint-disable-next-line import/first, import/order
 import { useQuotes } from './useQuotes';
+
+const mockUseSession = jest.fn();
+jest.mock('@/hooks/session/useSession', () => ({
+  useSession: () => mockUseSession(),
+}));
 
 const fetchMock = jest.fn();
 
@@ -49,6 +55,7 @@ describe('useQuotes', () => {
   beforeEach(() => {
     fetchMock.mockReset();
     globalThis.fetch = fetchMock as unknown as typeof fetch;
+    mockUseSession.mockReturnValue({ session: { legalEntityId: 'entity-A' } });
   });
 
   it('reuses SSR initial data when filters are value-equivalent despite different object identity', async () => {
@@ -174,5 +181,34 @@ describe('useQuotes', () => {
     });
     await waitFor(() => expect(result.current.quotes).toEqual(fetchedPageZero));
     expect(result.current.quotes).not.toEqual(fetchedPageOne);
+  });
+
+  it('refetches when the session legal entity id changes after mount', async () => {
+    const entityAQuotes = [buildQuote('Q-ENTITY-A')];
+    const entityBQuotes = [buildQuote('Q-ENTITY-B')];
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ items: entityAQuotes, total: 1, page: 0, pageSize: 10, availableFilters: [] }),
+        statusText: 'OK',
+      } as unknown as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ items: entityBQuotes, total: 1, page: 0, pageSize: 10, availableFilters: [] }),
+        statusText: 'OK',
+      } as unknown as Response);
+
+    mockUseSession.mockReturnValue({ session: { legalEntityId: 'entity-A' } });
+    const { result, rerender } = renderHook(() => useQuotes(undefined, { page: 0, size: 10 }));
+
+    await waitFor(() => expect(result.current.quotes).toEqual(entityAQuotes));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    mockUseSession.mockReturnValue({ session: { legalEntityId: 'entity-B' } });
+    rerender();
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.quotes).toEqual(entityBQuotes));
   });
 });

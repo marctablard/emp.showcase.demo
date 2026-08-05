@@ -169,9 +169,9 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
     );
   }
 
-  // 1024+ box layout: 2×2 cards (Figma 11895-138509)
+  // CART: 1 col → 2×2 from sm (Figma 11895-138509 @1024) → single row of 4 from lg.
   return (
-    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
       <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm">
         <SummaryCard
           heading={t('orderOverview')}

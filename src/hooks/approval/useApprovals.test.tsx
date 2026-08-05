@@ -4,7 +4,14 @@
 import '@testing-library/jest-dom';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { Approval } from '@/platform/services/model/approval';
+// Import after mock so the hook picks up the mocked useSession.
+// eslint-disable-next-line import/first, import/order
 import { useApprovals } from './useApprovals';
+
+const mockUseSession = jest.fn();
+jest.mock('@/hooks/session/useSession', () => ({
+  useSession: () => mockUseSession(),
+}));
 
 const fetchMock = jest.fn();
 
@@ -35,6 +42,7 @@ describe('useApprovals', () => {
   beforeEach(() => {
     fetchMock.mockReset();
     globalThis.fetch = fetchMock as unknown as typeof fetch;
+    mockUseSession.mockReturnValue({ session: { legalEntityId: 'entity-A' } });
   });
 
   it('uses one-extra-page fallback when x-total-count is not finite and page is full', async () => {
@@ -141,5 +149,56 @@ describe('useApprovals', () => {
     });
     await waitFor(() => expect(result.current.approvals).toEqual(fetchedPageOne));
     expect(result.current.approvals).not.toEqual(fetchedPageTwo);
+  });
+
+  it('refetches when the session legal entity id changes after mount', async () => {
+    const entityAApprovals = [buildApproval('A-ENTITY-A')];
+    const entityBApprovals = [buildApproval('A-ENTITY-B')];
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => null },
+        json: async () => entityAApprovals,
+        statusText: 'OK',
+      } as unknown as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => null },
+        json: async () => entityBApprovals,
+        statusText: 'OK',
+      } as unknown as Response);
+
+    mockUseSession.mockReturnValue({ session: { legalEntityId: 'entity-A' } });
+    const { result, rerender } = renderHook(() => useApprovals(undefined, { pageNumber: 1, pageSize: 5 }));
+
+    await waitFor(() => expect(result.current.approvals).toEqual(entityAApprovals));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    mockUseSession.mockReturnValue({ session: { legalEntityId: 'entity-B' } });
+    rerender();
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.approvals).toEqual(entityBApprovals));
+  });
+
+  it('does not refetch on rerender when legal entity id is unchanged', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      headers: { get: () => null },
+      json: async () => [buildApproval('A-1')],
+      statusText: 'OK',
+    } as unknown as Response);
+
+    mockUseSession.mockReturnValue({ session: { legalEntityId: 'entity-A' } });
+    const { result, rerender } = renderHook(() => useApprovals(undefined, { pageNumber: 1, pageSize: 5 }));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    rerender();
+    rerender();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

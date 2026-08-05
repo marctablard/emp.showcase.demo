@@ -1,12 +1,18 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { createOrderRequestKey } from '@/lib/order/create-order-request-key';
 import type { Order } from '@/platform/services/model/order/order';
+// eslint-disable-next-line import/first, import/order
 import { useOrders } from './useOrders';
 
 const mockUseOrderStore = jest.fn();
+const mockUseSession = jest.fn();
 
 jest.mock('@/providers/StoreProvider', () => ({
   useOrderStore: () => mockUseOrderStore(),
+}));
+
+jest.mock('@/hooks/session/useSession', () => ({
+  useSession: () => mockUseSession(),
 }));
 
 jest.mock('@/lib/logger/use-logger-client', () => ({
@@ -27,6 +33,7 @@ interface MockOrderStore {
   getLoading: jest.Mock<boolean, [string]>;
   getError: jest.Mock<Error | null, [string]>;
   fetchOrders: jest.Mock<Promise<Order[]>, [number, number, boolean, string?, string?]>;
+  reset: jest.Mock<void, []>;
 }
 
 function createOrder(id: string): Order {
@@ -56,9 +63,13 @@ describe('useOrders', () => {
       getLoading: jest.fn((_query: string) => false),
       getError: jest.fn((_query: string) => null),
       fetchOrders: jest.fn().mockResolvedValue([]),
+      reset: jest.fn(() => {
+        ordersByQuery = {};
+      }),
     };
 
     mockUseOrderStore.mockReturnValue(store);
+    mockUseSession.mockReturnValue({ session: { legalEntityId: 'entity-A' } });
   });
 
   afterEach(() => {
@@ -264,6 +275,40 @@ describe('useOrders', () => {
     rerender({ query: 'same' });
 
     expect(result.current.pageNumber).toBe(2);
+  });
+
+  it('resets the order store and force-refreshes when the session legal entity id changes after mount', async () => {
+    mockUseSession.mockReturnValue({ session: { legalEntityId: 'entity-A' } });
+    const { rerender } = renderHook(() => useOrders());
+
+    await waitFor(() => {
+      expect(store.fetchOrders).toHaveBeenCalledWith(50, 1, false, undefined, undefined);
+    });
+    expect(store.reset).not.toHaveBeenCalled();
+
+    mockUseSession.mockReturnValue({ session: { legalEntityId: 'entity-B' } });
+    rerender();
+
+    await waitFor(() => {
+      expect(store.reset).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(store.fetchOrders).toHaveBeenCalledWith(50, 1, true, undefined, undefined);
+    });
+  });
+
+  it('does not reset the order store on rerender when legal entity id is unchanged', async () => {
+    mockUseSession.mockReturnValue({ session: { legalEntityId: 'entity-A' } });
+    const { rerender } = renderHook(() => useOrders());
+
+    await waitFor(() => {
+      expect(store.fetchOrders).toHaveBeenCalledWith(50, 1, false, undefined, undefined);
+    });
+
+    rerender();
+    rerender();
+
+    expect(store.reset).not.toHaveBeenCalled();
   });
 
   it('resets to page one synchronously when clearing query, never fetching {empty query, old page}', async () => {

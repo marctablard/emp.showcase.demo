@@ -1,24 +1,24 @@
+async function loadModule() {
+  jest.resetModules();
+
+  const services = new Map<string, unknown>();
+
+  jest.doMock('@/platform/ssr', () => ({
+    __esModule: true,
+    default: {
+      get: jest.fn((id: string) => services.get(id)),
+    },
+  }));
+
+  const { getCategoryAncestorTrail } = await import('./category-ancestor-trail');
+
+  return {
+    getCategoryAncestorTrail,
+    services,
+  };
+}
+
 describe('getCategoryAncestorTrail', () => {
-  async function loadModule() {
-    jest.resetModules();
-
-    const services = new Map<string, unknown>();
-
-    jest.doMock('@/platform/ssr', () => ({
-      __esModule: true,
-      default: {
-        get: jest.fn((id: string) => services.get(id)),
-      },
-    }));
-
-    const { getCategoryAncestorTrail } = await import('./category-ancestor-trail');
-
-    return {
-      getCategoryAncestorTrail,
-      services,
-    };
-  }
-
   it('returns root-to-leaf trail with leaf appended after multi-level parents', async () => {
     const { getCategoryAncestorTrail, services } = await loadModule();
 

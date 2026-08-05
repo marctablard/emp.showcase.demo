@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { startEffectTask } from '@/hooks/common/start-effect-task';
+import { useSession } from '@/hooks/session/useSession';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { SearchFilterLeafValue, SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { Quote } from '@/platform/services/model/quote';
@@ -96,6 +97,11 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
   const initialRequest = params?.initialRequest;
   const normalizedFilters = normalizeQuoteFilters(filters);
   const normalizedInitialRequestFilters = normalizeQuoteFilters(initialRequest?.filters);
+
+  const { session } = useSession();
+  // Legal-entity scoped: refetch when the header dropdown switches company so
+  // the list reflects the new LE's quotes rather than the previous session's.
+  const legalEntityId = typeof session?.legalEntityId === 'string' ? session.legalEntityId.trim() : '';
 
   const canReuseInitialData =
     !!initialQuotes &&
@@ -205,6 +211,18 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
     }
     return startEffectTask(fetchQuotes);
   }, [fetchQuotes]);
+
+  // Dedicated LE watcher: mirrors `useApprovals`/`useReturns`. Kept out of the
+  // main effect deps so lint doesn't flag LE (not a URL arg) and the initial
+  // SSR-skip stays intact.
+  const previousLegalEntityIdRef = useRef(legalEntityId);
+  useEffect(() => {
+    if (previousLegalEntityIdRef.current === legalEntityId) {
+      return;
+    }
+    previousLegalEntityIdRef.current = legalEntityId;
+    return startEffectTask(fetchQuotes);
+  }, [legalEntityId, fetchQuotes]);
 
   return {
     loading,

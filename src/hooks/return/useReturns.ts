@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { startEffectTask } from '@/hooks/common/start-effect-task';
+import { useSession } from '@/hooks/session/useSession';
 import { fetchReturnsPage } from '@/lib/client/returns';
 import type { Return } from '@/platform/services/model/return';
 
@@ -36,6 +37,10 @@ interface UseReturnsOptions {
  */
 export function useReturns(initialReturns?: Return[], options: UseReturnsOptions = {}): UseReturnsReturn {
   const { pageSize, pageNumber, sort, query, forceRefreshOnMount = false, initialTotalCount, initialRequest } = options;
+  const { session } = useSession();
+  // Refetch (bypassing the client returns cache) when the header company switch
+  // updates the session's legalEntityId, since the response is LE-scoped.
+  const legalEntityId = typeof session?.legalEntityId === 'string' ? session.legalEntityId.trim() : '';
   const [returns, setReturns] = useState<Return[]>(initialReturns || []);
   const [totalCount, setTotalCount] = useState<number | undefined>(initialTotalCount);
 
@@ -82,6 +87,19 @@ export function useReturns(initialReturns?: Return[], options: UseReturnsOptions
     }
     return startEffectTask(() => fetchReturnsData(forceRefreshOnMount));
   }, [forceRefreshOnMount, fetchReturnsData]);
+
+  // Dedicated LE watcher: separate from the main effect so that when the legal
+  // entity changes we always bypass the client cache (`forceRefresh: true`) —
+  // baking `legalEntityId` into `fetchReturnsData`'s deps would instead call it
+  // with `forceRefreshOnMount` and let the LE-stale cache win.
+  const previousLegalEntityIdRef = useRef(legalEntityId);
+  useEffect(() => {
+    if (previousLegalEntityIdRef.current === legalEntityId) {
+      return;
+    }
+    previousLegalEntityIdRef.current = legalEntityId;
+    return startEffectTask(() => fetchReturnsData(true));
+  }, [legalEntityId, fetchReturnsData]);
 
   return {
     returns,
