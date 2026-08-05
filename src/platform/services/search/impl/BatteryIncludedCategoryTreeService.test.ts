@@ -70,7 +70,12 @@ describe('BatteryIncludedCategoryTreeService', () => {
       { id: 'child1', description: 'Enriched Child Description' },
     ]);
 
-    const snapshot = await service.getSnapshot({ siteCode: 'TEST', locale: 'en', country: 'none' });
+    const snapshot = await service.getSnapshot({
+      siteCode: 'TEST',
+      locale: 'en',
+      country: 'none',
+      showUnpublished: false,
+    });
 
     expect(snapshot).toBeDefined();
     expect(categoryService.getCategoriesByIds).toHaveBeenCalledTimes(1);
@@ -100,9 +105,12 @@ describe('BatteryIncludedCategoryTreeService', () => {
       },
     });
 
-    const root = snapshot!.roots[0];
+    const root = snapshot!.roots[0] as {
+      description?: unknown;
+      children?: Array<{ id: string; description?: unknown }>;
+    };
     expect(root.description).toBe('Enriched Root Description');
-    expect(root.children[0].description).toBe('Enriched Child Description');
+    expect(root.children?.[0]?.description).toBe('Enriched Child Description');
     expect(snapshot!.roots.length).toBe(1);
   });
 
@@ -142,11 +150,19 @@ describe('BatteryIncludedCategoryTreeService', () => {
 
     categoryService.getCategoriesByIds.mockResolvedValue([{ id: 'root1', description: 'Enriched Root Description' }]);
 
-    const snapshot = await service.getSnapshot({ siteCode: 'TEST', locale: 'en', country: 'none' });
-    const root = snapshot!.roots[0];
+    const snapshot = await service.getSnapshot({
+      siteCode: 'TEST',
+      locale: 'en',
+      country: 'none',
+      showUnpublished: false,
+    });
+    const root = snapshot!.roots[0] as {
+      description?: unknown;
+      children?: Array<{ id: string; description?: unknown }>;
+    };
     expect(root.description).toBe('Enriched Root Description');
-    expect(root.children[0].description).toBeUndefined();
-    expect(root.children[0].id).toBe('child1');
+    expect(root.children?.[0]?.description).toBeUndefined();
+    expect(root.children?.[0]?.id).toBe('child1');
   });
 
   it('separates cached snapshots by showUnpublished flag', async () => {
@@ -185,7 +201,12 @@ describe('BatteryIncludedCategoryTreeService', () => {
   it('short-circuits bootstrap when no published roots exist', async () => {
     catalogPublishedRootCategoryService.getRootCategoryIdsForSite.mockResolvedValue([]);
 
-    const snapshot = await service.getSnapshot({ siteCode: 'TEST', locale: 'en', country: 'none' });
+    const snapshot = await service.getSnapshot({
+      siteCode: 'TEST',
+      locale: 'en',
+      country: 'none',
+      showUnpublished: false,
+    });
 
     expect(snapshot).toBeNull();
     expect(shopApi.browseCategoryTreeBootstrap).not.toHaveBeenCalled();

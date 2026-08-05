@@ -77,7 +77,7 @@ async function enrichReturnWithOrderData(returnData: Return): Promise<Return> {
           images: item.images ?? orderItem.images,
           itemNumber: item.itemNumber ?? orderItem.sku,
           brand: item.brand ?? orderItem.vendorName,
-          vendorName: orderItem.vendorName,
+          vendorName: item.vendorName ?? orderItem.vendorName,
           calculatedUnitPrice:
             item.calculatedUnitPrice && !item.calculatedUnitPrice.currency && orderItem.currency
               ? { ...item.calculatedUnitPrice, currency: orderItem.currency }

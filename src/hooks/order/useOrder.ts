@@ -1,13 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import {
   fetchOrderById as apiFetchOrderById,
   fetchOrderStatusTransitions as apiFetchOrderStatusTransitions,
   postCustomerOrderDecline as apiPostCustomerOrderDecline,
   isOrderAccessDeniedError,
 } from '@/lib/client/orders';
-import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { ORDER_CUSTOMER_DECLINE_NOT_ALLOWED_MESSAGE } from '@/lib/common/order-customer-decline-not-allowed';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { Order } from '@/platform/services/model/order/order';

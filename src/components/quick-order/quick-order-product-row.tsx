@@ -57,7 +57,7 @@ export function QuickOrderProductRow({ product, quantity, onRemove, onUpdateQuan
           </div>
           <div className="min-w-0">
             {brandName && (
-              <p className="text-sm text-text-placeholders">
+              <p className="text-sm font-body text-text-body">
                 <HighlightedText text={brandName} />
               </p>
             )}

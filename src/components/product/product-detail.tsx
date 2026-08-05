@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
@@ -13,6 +12,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ToastType, notify } from '@/components/ui/toast-notification';
 import { WishlistPinButton } from '@/components/wishlist/wishlist-pin-button';
 import { useValidateAddToCart } from '@/hooks/cart/useValidateAddToCart';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { useShopContextReady } from '@/hooks/common/useShopContextReady';
 import { useComparison } from '@/hooks/comparison/useComparison';
 import { useValidateAddToComparison } from '@/hooks/comparison/useValidateAddToComparison';

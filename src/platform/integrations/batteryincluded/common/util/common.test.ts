@@ -100,7 +100,7 @@ describe('Common Utilities', () => {
     it('should serialize the explicit BI visibility hard filters in the existing GET shape', () => {
       const params = {
         filters: {
-          '_product.published': true,
+          '_product.published': 'true',
           '_product.categoryIds': ['root-a', 'root-b'],
         },
       } as BatteryIncludedSearchParams<any>;

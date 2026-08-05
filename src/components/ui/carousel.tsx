@@ -1,11 +1,11 @@
 'use client';
 
 import * as React from 'react';
-import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { useTranslations } from 'next-intl';
 import useEmblaCarousel, { type UseEmblaCarouselType } from 'embla-carousel-react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { cn } from '@/lib/utils';
 
 type CarouselType = UseEmblaCarouselType[1];

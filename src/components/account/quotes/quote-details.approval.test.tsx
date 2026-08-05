@@ -37,17 +37,69 @@ jest.mock('@/hooks/quotes/useQuoteHistory', () => ({
   }),
 }));
 
+let mockRelatedApproval: {
+  id: string;
+  status: string;
+  resourceType: string;
+  action: string;
+  resource: { id: string };
+  requestor: { userId: string; firstName: string; lastName: string; email: string };
+  approver: { userId: string; firstName: string; lastName: string };
+  createdAt: string;
+  updatedAt: string;
+} | null = null;
+
+jest.mock('@/hooks/approval/useApproval', () => ({
+  useApproval: () => ({
+    approval: mockRelatedApproval,
+    loading: false,
+    error: null,
+    updateApprovalStatus: jest.fn(),
+    updateApproverComment: jest.fn(),
+    updateRequestorComment: jest.fn(),
+    deleteApproval: jest.fn(),
+    refreshApproval: jest.fn(),
+  }),
+}));
+
+jest.mock('@/hooks/customer/useCustomer', () => ({
+  __esModule: true,
+  default: () => ({
+    customer: { id: 'customer-1' },
+    loading: false,
+    error: null,
+    fetchCustomer: jest.fn(),
+    reset: jest.fn(),
+  }),
+}));
+
 jest.mock('@/components/account/quotes/quote-summary', () => ({
   QuoteSummary: () => <div>QuoteSummary</div>,
 }));
 
+const mockProductListResolver = jest.fn((_props: unknown) => <div>ProductListResolver</div>);
+
 jest.mock('@/components/product/product-list-resolver', () => ({
-  ProductListResolver: () => <div>ProductListResolver</div>,
+  ProductListResolver: (props: unknown) => mockProductListResolver(props),
 }));
 
 jest.mock('@/components/ui/link', () => ({
   __esModule: true,
-  default: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
+  default: ({
+    children,
+    href,
+    className,
+    title,
+  }: {
+    children: React.ReactNode;
+    href?: string;
+    className?: string;
+    title?: string;
+  }) => (
+    <a href={href} className={className} title={title}>
+      {children}
+    </a>
+  ),
 }));
 
 jest.mock('@/platform/services/approval/errors', () => ({
@@ -128,6 +180,8 @@ describe('QuoteDetails approval flow', () => {
     notifyMock.mockReset();
     pushMock.mockReset();
     fetchMock.mockReset();
+    mockProductListResolver.mockClear();
+    mockRelatedApproval = null;
     global.fetch = fetchMock as unknown as typeof fetch;
   });
 
@@ -137,6 +191,40 @@ describe('QuoteDetails approval flow', () => {
 
   afterAll(() => {
     global.fetch = originalFetch;
+  });
+
+  it('passes locale and canonical presentation config to the shared product grid', () => {
+    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+
+    expect(mockProductListResolver).toHaveBeenCalledWith(
+      expect.objectContaining({
+        locale: 'en',
+        showGrossUnderNet: true,
+        presentationConfig: expect.objectContaining({
+          showGrossSecondary: true,
+          labels: expect.objectContaining({
+            product: 'account.quoteDetails.product',
+            quantity: 'account.quoteDetails.quantity',
+            unitPrice: 'account.quoteDetails.unitPrice',
+          }),
+        }),
+      }),
+    );
+  });
+
+  it('stacks header actions one-per-line on mobile (flex-col below sm)', () => {
+    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+
+    expect(screen.getByTestId('quote-detail-header')).toHaveClass('flex', 'flex-col', 'sm:flex-row', 'sm:flex-wrap');
+    expect(screen.getByTestId('quote-detail-header-actions')).toHaveClass(
+      'flex',
+      'w-full',
+      'flex-col',
+      'sm:w-auto',
+      'sm:shrink-0',
+      'sm:flex-row',
+      'sm:flex-nowrap',
+    );
   });
 
   it('routes to the linked approval when direct quote acceptance is not permitted', async () => {
@@ -392,6 +480,36 @@ describe('QuoteDetails approval flow', () => {
     });
   });
 
+  it('focuses the reject comment textarea when the decline panel opens', async () => {
+    checkApprovalPermitted.mockResolvedValue({
+      action: 'CHECKOUT',
+      permitted: true,
+    });
+
+    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'account.quoteDetails.reject' }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('account.quoteDetails.yourComment')).toHaveFocus();
+    });
+  });
+
+  it('focuses the request-change comment textarea when the change panel opens', async () => {
+    checkApprovalPermitted.mockResolvedValue({
+      action: 'CHECKOUT',
+      permitted: true,
+    });
+
+    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'account.quoteDetails.requestChange' }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('account.quoteDetails.yourComment')).toHaveFocus();
+    });
+  });
+
   it('shows a trimmed toast error and no inline alert when create-order fails', async () => {
     checkApprovalPermitted.mockResolvedValue({
       action: 'CHECKOUT',
@@ -506,5 +624,79 @@ describe('QuoteDetails approval flow', () => {
     const requestChangePanel = requestChangeTitle.closest('.bg-surface-page');
 
     expect(requestChangePanel).toHaveClass('border-2', 'border-border-action');
+  });
+
+  it('clears the inquiry CTA synchronously when the quote transitions away from OPEN, without an extra permission request', async () => {
+    checkApprovalPermitted.mockResolvedValue({
+      action: 'CHECKOUT',
+      permitted: false,
+    });
+
+    const { rerender } = render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+
+    expect(await screen.findByRole('button', { name: 'account.quoteDetails.inquireApproval' })).toBeInTheDocument();
+    expect(checkApprovalPermitted).toHaveBeenCalledTimes(1);
+
+    const acceptedQuote = { ...initialQuote, status: 'ACCEPTED' };
+    rerender(<QuoteDetails quoteId="Q-1000" initialQuote={acceptedQuote as never} />);
+
+    expect(screen.queryByRole('button', { name: 'account.quoteDetails.inquireApproval' })).not.toBeInTheDocument();
+
+    const acceptButton = screen.getByRole('button', { name: 'account.quoteDetails.accept' });
+    expect(acceptButton).toBeDisabled();
+
+    expect(checkApprovalPermitted).toHaveBeenCalledTimes(1);
+  });
+
+  it('ellipsizes Related Approval id and links via getApprovalHref for requestors (finding 21)', async () => {
+    checkApprovalPermitted.mockResolvedValue({
+      action: 'CHECKOUT',
+      permitted: false,
+      approvalId: 'approval-ellipsis-1',
+    });
+    mockRelatedApproval = {
+      id: 'approval-ellipsis-1',
+      status: 'PENDING',
+      resourceType: 'QUOTE',
+      action: 'CHECKOUT',
+      resource: { id: 'Q-1000' },
+      requestor: {
+        userId: 'customer-1',
+        firstName: 'Customer',
+        lastName: 'One',
+        email: 'customer@example.com',
+      },
+      approver: {
+        userId: 'approver-1',
+        firstName: 'Approver',
+        lastName: 'One',
+      },
+      createdAt: '2026-05-31T10:00:00.000Z',
+      updatedAt: '2026-05-31T10:00:00.000Z',
+    };
+
+    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+
+    const relatedApprovalLink = await screen.findByRole('link', { name: 'approval-ellipsis-1' });
+    expect(relatedApprovalLink).toHaveAttribute('href', '/account/quotes/Q-1000');
+    expect(relatedApprovalLink).not.toHaveAttribute('href', '/account/approval/approval-ellipsis-1');
+    expect(relatedApprovalLink).toHaveClass('block', 'min-w-0', 'max-w-full', 'truncate');
+    expect(relatedApprovalLink.parentElement).toHaveClass('min-w-0');
+    expect(relatedApprovalLink.parentElement).toHaveAttribute('title', 'approval-ellipsis-1');
+  });
+
+  it('only shows a sort control on Change Date and defaults Quote History to DESC', () => {
+    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+
+    const sortButton = screen.getByTestId('quote-history-sort-change-date');
+    expect(sortButton.parentElement).toHaveAttribute('aria-sort', 'descending');
+    expect(sortButton.querySelector('svg')).not.toBeNull();
+
+    expect(screen.getByText('account.quoteDetails.event').querySelector('svg')).toBeNull();
+    expect(screen.getByText('account.quoteDetails.changedBy').querySelector('svg')).toBeNull();
+    expect(screen.getByText('account.quoteDetails.status').querySelector('svg')).toBeNull();
+    expect(screen.getByText('account.quoteDetails.comment').querySelector('svg')).toBeNull();
+
+    expect(screen.getByTestId('quote-history-row-initial')).toBeInTheDocument();
   });
 });

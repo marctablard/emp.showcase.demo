@@ -271,7 +271,9 @@
         "SIZE_FIT": "Größen-/Passformproblem",
         "OTHER": "Sonstiges"
       }
-    }
+    },
+    "vat": "Tax",
+    "tax": "Tax"
   },
   "approvals": "Freigaben",
   "ordersInProgress": "{count} in Bearbeitung",
@@ -335,7 +337,7 @@
     "price": "Preis",
     "unitPrice": "Stückpreis",
     "quotationDate": "Angebotsdatum",
-    "totalAmount": "Gesamtbetrag",
+    "totalAmount": "Nettogesamtwert",
     "editor": "Bearbeiter",
     "action": "Aktion",
     "comment": "Kommentar",
@@ -356,7 +358,7 @@
     "transportCondition": "Transportbedingung",
     "deliveryAddress": "Lieferadresse",
     "netValue": "Nettowert der Waren",
-    "vat": "MwSt.",
+    "vat": "Tax",
     "deliveryCosts": "Lieferkosten",
     "shippingFee": "Versandgebühr",
     "baseTotal": "Gesamtgrundpreis",
@@ -405,7 +407,14 @@
     "loadingHistory": "Verlauf wird geladen...",
     "quoteActionFailedTitle": "Die Aktion konnte nicht ausgeführt werden",
     "quoteActionFailedDescription": "Bitte versuchen Sie es erneut oder wenden Sie sich an den Support.",
-    "relatedOrder": "Zugehörige Bestellung"
+    "relatedOrder": "Zugehörige Bestellung",
+    "shippingMethod": "Versandart",
+    "shippingAddress": "Versandadresse",
+    "tax": "Tax",
+    "shippingTax": "Shipping Tax",
+    "free": "Kostenlos",
+    "baseNetUnitPrice": "Basis-Nettostückpreis",
+    "discount": "Rabatt"
   },
   "quotesList": {
     "title": "Angebote",

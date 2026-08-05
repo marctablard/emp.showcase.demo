@@ -54,11 +54,11 @@ export function isReturnStatusCounted(status: ReturnStatus): boolean {
 export function computeOrderReturnability(
   orderId: string,
   orderItems: OrderItemInput[],
-  historicalReturns: HistoricalReturn[],
+  historicalReturns?: HistoricalReturn[],
 ): OrderReturnability {
   const returnedByItem = new Map<string, number>();
 
-  for (const ret of historicalReturns) {
+  for (const ret of historicalReturns ?? []) {
     if (!isReturnStatusCounted(ret.status)) {
       continue;
     }

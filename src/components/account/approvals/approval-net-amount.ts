@@ -1,0 +1,37 @@
+import type { Approval } from '@/platform/services/model/approval';
+
+/**
+ * Resolves the model-backed net total for Approval Details / Summary.
+ *
+ * Finding 26: do not use `resource.totalPrice.amount` for net display — that field
+ * is often VAT-inclusive (e.g. 63.05) while net of goods is `subtotalAggregate.netValue`
+ * (e.g. 60.05). Matches ApprovalsTable Net Total (`resource.subtotalAggregate.netValue`).
+ *
+ * Preference (model fields only, no UI arithmetic):
+ * 1. `subtotalAggregate.netValue`
+ * 2. `subTotalPrice.netValue` ?? `subTotalPrice.amount`
+ * 3. `totalPrice.netValue` when explicitly present
+ *
+ * Never falls back to `totalPrice.amount`.
+ */
+export function resolveApprovalNetAmount(approval: Approval): { amount: number; currency: string } | null {
+  const aggregate = approval.resource.subtotalAggregate;
+  if (aggregate) {
+    return { amount: aggregate.netValue, currency: aggregate.currency };
+  }
+
+  const subTotal = approval.resource.subTotalPrice;
+  if (subTotal) {
+    return {
+      amount: subTotal.netValue ?? subTotal.amount,
+      currency: subTotal.currency,
+    };
+  }
+
+  const totalPrice = approval.resource.totalPrice;
+  if (totalPrice?.netValue != null) {
+    return { amount: totalPrice.netValue, currency: totalPrice.currency };
+  }
+
+  return null;
+}

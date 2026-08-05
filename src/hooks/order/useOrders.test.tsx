@@ -191,7 +191,7 @@ describe('useOrders', () => {
   it('still refetches explicitly for a request key that has a stored error', async () => {
     const searchQuery = 'boom';
     const storedError = new Error('failed to load orders');
-    store.getError = jest.fn(() => storedError);
+    store.getError = jest.fn((_query: string) => storedError);
 
     const { result } = renderHook(() => useOrders({ query: searchQuery }));
 
@@ -268,7 +268,7 @@ describe('useOrders', () => {
 
   it('resets to page one synchronously when clearing query, never fetching {empty query, old page}', async () => {
     const { result, rerender } = renderHook(({ query }: { query?: string }) => useOrders({ query }), {
-      initialProps: { query: 'status:CREATED' },
+      initialProps: { query: 'status:CREATED' as string | undefined },
     });
 
     await waitFor(() => {

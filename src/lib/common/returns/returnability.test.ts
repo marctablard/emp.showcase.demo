@@ -42,6 +42,15 @@ describe('computeOrderReturnability', () => {
     ]);
   });
 
+  it('treats undefined historical returns as no returns', () => {
+    const result = computeOrderReturnability(orderId, [{ id: 'item-a', quantity: 5 }]);
+
+    expect(result.hasAnyReturnableItem).toBe(true);
+    expect(result.orderItemSummaries).toEqual([
+      { itemId: 'item-a', orderedQuantity: 5, alreadyReturned: 0, remaining: 5 },
+    ]);
+  });
+
   it('reduces remaining by counted return quantities', () => {
     const result = computeOrderReturnability(
       orderId,

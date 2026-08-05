@@ -60,6 +60,27 @@ function normalizeQuoteFilters(filters?: SearchParams<Quote>['filters']): string
   return JSON.stringify(sortedTopLevel);
 }
 
+function appendNormalizedQuoteFilters(queryParams: URLSearchParams, normalizedFilters?: string): void {
+  if (!normalizedFilters) {
+    return;
+  }
+
+  const parsedFilters = JSON.parse(normalizedFilters) as Array<
+    [string, SearchFilterLeafValue | Array<[string, SearchFilterLeafValue]>]
+  >;
+
+  parsedFilters.forEach(([key, value]) => {
+    if (Array.isArray(value) && value.every((entry) => Array.isArray(entry))) {
+      value.forEach(([nestedKey, nestedValue]) => {
+        appendQuoteFilterParam(queryParams, `${key}[${nestedKey}]`, nestedValue);
+      });
+      return;
+    }
+
+    appendQuoteFilterParam(queryParams, key, value as SearchFilterLeafValue);
+  });
+}
+
 /**
  * Hook for fetching quotes
  * @param initialQuotes Optional initial quotes data (from SSR)
@@ -138,19 +159,7 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
       if (searchQuery !== undefined) {
         queryParams.append('q', searchQuery);
       }
-      if (filters) {
-        Object.entries(filters).forEach(([key, value]) => {
-          if (Array.isArray(value)) {
-            appendQuoteFilterParam(queryParams, key, value);
-          } else if (typeof value === 'object' && value !== null) {
-            Object.entries(value).forEach(([nestedKey, nestedValue]) => {
-              appendQuoteFilterParam(queryParams, `${key}[${nestedKey}]`, nestedValue);
-            });
-          } else {
-            appendQuoteFilterParam(queryParams, key, value);
-          }
-        });
-      }
+      appendNormalizedQuoteFilters(queryParams, normalizedFilters);
 
       const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
       const res = await fetch(`/api/quotes${queryString}`);
@@ -177,10 +186,6 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
     } finally {
       setLoading(false);
     }
-    // normalizedFilters is the value identity of the caller's `filters` object, which is freshly
-    // allocated on every render; depending on the object itself re-creates this callback and
-    // re-runs the effect below on every single render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, size, sort, searchQuery, normalizedFilters]);
 
   const refetchQuotes = useCallback(async () => {

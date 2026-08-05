@@ -58,8 +58,8 @@ export function LoginForm({
   );
 
   const searchParams = useSearchParams();
-  const email = emailProp ?? (searchParams.get('email') ?? undefined);
-  const callbackUrl = callbackUrlProp ?? (searchParams.get('callbackUrl') ?? '/account');
+  const email = emailProp ?? searchParams.get('email') ?? undefined;
+  const callbackUrl = callbackUrlProp ?? searchParams.get('callbackUrl') ?? '/account';
   const guestCheckout = guestCheckoutProp || searchParams.get('guestCheckout') === 'true';
 
   // Adjust state during render when the email changes, rather than from an effect:

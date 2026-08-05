@@ -274,7 +274,34 @@ export default function Navigation() {
 }
 ```
 
-### 5. Integration with Services
+### 5. Interactive Locale Switching (Client Navigation Boundary)
+
+Interactive locale changes triggered from client components (for example, the header language switcher) must use the application navigation API from `@/i18n/navigation`.
+
+- Keep the href logical and sanitized in the client component; do not precompute a locale-specific pathname with `getPathname(...)` for the transition.
+- Navigate with the client router by calling `router.push(href, { locale, site })` so the shared site-aware router resolves the locale-aware pathname through next-intl first and applies the site segment as the outer prefix afterward.
+- For changed-locale `push`/`replace`, the shared router performs a document navigation to the final canonical path, allowing existing `next-intl/middleware` to own locale-cookie synchronization.
+- Do not use raw `next/navigation` routing directly for interactive locale changes.
+- Do not invoke server redirect helpers inside client event handlers.
+
+This keeps locale transitions aligned with combined site and locale routing rules without hardcoding URL segments or bypassing the shared router contract.
+
+### 6. Browser Regression Coverage for Locale Route + Cookie Sync
+
+The language-switch behavior is verified with Playwright browser coverage:
+
+- Fixture: `e2e/fixtures/multilingual-site.ts`
+- Spec: `e2e/language-switcher.spec.ts`
+
+The fixture discovers an eligible multilingual site via `/api/site`, opens its English browse route, and asserts `html[lang="en"]` before interaction. The spec then selects German from the visible language menu and verifies:
+
+- Route transition to the German browse route
+- Rendered document locale (`html[lang="de"]`)
+- Locale cookie synchronization using `NEXT_PUBLIC_LOCALE_COOKIE` with `NEXT_LOCALE` fallback
+
+The browser regression in `e2e/language-switcher.spec.ts` remains the contract for both directions and route ordering: default-site English-to-German, reverse German-to-English transition back to `/browse`, and non-default literal `/{site}/de/browse` after English-to-German with the resolved locale cookie values.
+
+### 7. Integration with Services
 
 When working with our service layer, translations should be handled at the UI level, not in the services themselves. This keeps the service layer focused on business logic rather than presentation concerns:
 

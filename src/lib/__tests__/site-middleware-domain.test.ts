@@ -9,6 +9,7 @@ jest.mock('next-intl/middleware', () => {
     __esModule: true,
     default: () => (req: { headers: Headers; url: string }) => {
       const mode = req.headers.get('x-intl-mode');
+      const cookieMode = req.headers.get('x-intl-cookie-mode');
       const localeHeader = 'x-middleware-request-x-next-intl-locale';
 
       if (mode === 'redirect') {
@@ -25,6 +26,20 @@ jest.mock('next-intl/middleware', () => {
 
       const res = NextResponse.next();
       res.headers.set(localeHeader, 'en');
+
+      if (cookieMode === 'secure-locale') {
+        const localeCookieName = process.env.NEXT_PUBLIC_LOCALE_COOKIE?.trim() || 'NEXT_LOCALE';
+        res.cookies.set({
+          name: localeCookieName,
+          value: 'de',
+          secure: true,
+          httpOnly: true,
+          sameSite: 'strict',
+          maxAge: 7200,
+          path: '/intl',
+        });
+      }
+
       return res;
     },
   };
@@ -270,6 +285,36 @@ describe('createSiteMiddleware redirect/rewrite behavior', () => {
     const response = middleware(req);
 
     expect(response?.headers.get('location')).toBe('https://example.com/tenant1/en');
+  });
+
+  test('forwards next-intl locale cookie attributes once without re-emitting locale cookie policy', () => {
+    const middleware = createSiteMiddleware(routingConfig);
+    const req = createRequest(
+      'https://example.com/en/products',
+      { NEXT_SITE: 'main' },
+      {
+        'x-intl-cookie-mode': 'secure-locale',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+    );
+    const response = middleware(req);
+
+    const localeCookieName = process.env.NEXT_PUBLIC_LOCALE_COOKIE?.trim() || 'NEXT_LOCALE';
+    const localeCookies = response?.cookies.getAll().filter((cookie) => cookie.name === localeCookieName) || [];
+
+    expect(localeCookies).toHaveLength(1);
+    expect(localeCookies[0]).toMatchObject({
+      name: localeCookieName,
+      value: 'de',
+      secure: true,
+      httpOnly: true,
+      sameSite: 'strict',
+      maxAge: 7200,
+      path: '/intl',
+    });
+
+    const setCookieHeader = response?.headers.get('set-cookie') || '';
+    expect((setCookieHeader.match(new RegExp(`${localeCookieName}=`, 'g')) || []).length).toBe(1);
   });
 });
 
