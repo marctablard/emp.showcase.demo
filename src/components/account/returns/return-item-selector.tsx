@@ -56,9 +56,9 @@ export function ReturnItemSelector({
   return (
     <div className="py-4 w-full min-w-0">
       <div className="hidden md:grid grid-cols-[1fr_154px_100px] gap-4 border-b border-border-primary pb-4">
-        <H6 className="min-w-0 text-sm font-bold text-text-headings">{tReturns('productDetails')}</H6>
-        <H6 className="text-left text-sm font-bold text-text-headings">{tReturns('quantity')}</H6>
-        <H6 className="min-w-0 text-right text-sm font-bold text-text-headings">{tReturns('unitPrice')}</H6>
+        <H6 className="min-w-0">{tReturns('productDetails')}</H6>
+        <H6 className="text-left">{tReturns('quantity')}</H6>
+        <H6 className="min-w-0 text-right">{tReturns('unitPrice')}</H6>
       </div>
 
       <div className="space-y-4 w-full min-w-0">

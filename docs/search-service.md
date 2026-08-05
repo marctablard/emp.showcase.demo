@@ -91,16 +91,45 @@ When the BI search request includes same-field category selection, the service n
 
 ## PDP Breadcrumb Strategy
 
-The active `SearchService` binding also determines the breadcrumb-generation strategy on the Product Detail Page (PDP):
+PDP breadcrumbs are **always-on**: whenever product data resolves, `UiBreadcrumb` renders on cold start and client navigation. Composition is **independent of** `NEXT_SSR_PRODUCT` / `isProductSsrEnabled()` — that flag may still gate ProductDetail enrichment (prices, variants, stock) and JSON-LD, but it does **not** gate breadcrumbs.
 
-- **BatteryIncludedSearchService**: BI PDP breadcrumbs resolve from the cached BI category snapshot. The product's `categoryId` is matched against the snapshot to generate a cumulative hierarchy of localized `displayPath` browse links. That keeps PDP breadcrumbs perfectly aligned with BI search facets.
-- **EmporixSearchService**: Emporix PDP breadcrumbs use the product's Emporix parent-category ancestry to generate category-id browse links.
+Breadcrumbs show the **full category-tree ancestry** from the publication-/navigation-rooted trail to the leaf category assigned to the product, then the product name as the last (unclickable) crumb. `UiBreadcrumb` always prepends the translated storefront Home link. Labels come from the live nav category tree (node names / BI `labelPath`) for the tenant — illustrative shapes such as `Home > All Products > Home > Furniture > …` are depth/shape guidance only and must **not** be hard-coded.
 
-**Fallback behavior:** If BI search is active but the snapshot resolution fails, breadcrumbs fall back gracefully to the Emporix parent chain. If no parent chain exists, they fall back to a `Home > product` default instead of generating malformed URLs.
+### Primary ancestry (flyout / nav category tree)
 
-**Limitations**:
-- The non-SSR browser-rendered PDP variant currently does not support category breadcrumbs; that is a known out-of-scope limitation.
-- The existing `Back` link preserves current component behavior and does not represent browser-history navigation.
+The same forest as the header flyout drives the primary trail:
+
+1. Load product (`getProductById`) — `categoryIds` / optional `primaryCategory` are available without full category enrichment.
+2. Load `getCachedNavigationCategoryTrees(site, locale)` (React `cache()` dedupes with `(nav-shell)/layout.tsx` in the same request).
+3. Among product category candidates (`primaryCategory?.id`, `categoryIds`, `categories[].id`), pick the **deepest** path via `findDeepestCategoryPath` / `findCategoryPath`.
+4. Build crumbs with `generateVisibleBreadcrumbForPdp` (navigation roots / path first).
+
+### Dual-engine browse hrefs (BI-safe)
+
+Href selection is driven by BI metadata on nav path nodes, not by inventing filter params per page:
+
+| Path metadata | Browse href contract |
+| --- | --- |
+| **BatteryIncluded** (`source === 'batteryincluded'`) | Prefer the leaf node's `displayPath` (when present) and emit **cumulative** levels via `buildBrowseHrefForBreadcrumbDisplayPath`. When a node has BI metadata with `labelPath` but missing `displayPath` / `facetValue`, use `buildBrowseHrefForBreadcrumbDisplayPath(meta.displayPath ?? meta.labelPath)`. **Never** emit `filters[categoryIds]` while BI metadata is present. Field: `filters[_product_i18n.categoryBreadcrumbs.displayPath]=…` |
+| **Emporix / no BI metadata** | `filters[categoryIds]=…` via `buildBrowseHrefForCategoryId` |
+
+Do **not** call `buildBrowseHrefForCategoryId` alone as the BI primary path — ancestor BI nodes may lack `displayPath`/`facetValue` while still having cumulative `labelPath`, and that helper would incorrectly fall through to `categoryIds` under BI.
+
+### Secondary fallbacks
+
+When none of the product category ids exist in the nav forest:
+
+1. **BI snapshot** — deepest match in `getCachedBatteryIncludedCategorySnapshot` (`byId`, longest `idPath` / `displayPath` levels), then cumulative displayPath crumbs.
+2. **Emporix `/parents`** — ordered root→leaf trail from `CategoryService.getCategoryParents` via `getCategoryAncestorTrail` (`emporixAncestorTrail`). Legacy enriched `.parent` walk is last resort when no trail is provided.
+3. **Product-only** — `Home > product` (Home from `UiBreadcrumb`) — an **accepted exception** when ancestry cannot be resolved, not a Full Flow regression when the nav forest (and secondary sources) miss.
+
+The builder never invents category labels or reconstructs BI `displayPath` from Emporix names. `getActiveSearchEngine` remains useful for optional engine-aware fallback selection; primary dual-engine hrefs come from Category metadata on nav nodes.
+
+**SEO decoupling:** Visible crumbs use `generateVisibleBreadcrumbForPdp`. JSON-LD / SEO continues to use `generateBreadcrumbForProduct` and is intentionally not aligned with the visible nav/BI trail in this work.
+
+**Limitations** (out of scope for this feature):
+
+- The existing `Back` link on `UiBreadcrumb` preserves current component behavior and does **not** represent browser-history navigation.
 
 ## Important Notes
 

@@ -1,29 +1,15 @@
 import type { Approval } from '@/platform/services/model/approval';
 
 /**
- * Resolves the destination for the Approval ID / row / Action arrow. Preserves the
- * exact pre-existing routing semantics:
- * - A QUOTE approval where the current user is the designated approver (and not
- *   also the requestor) routes to the standalone approval review page.
- * - Other QUOTE approvals route to the quote detail page.
- * - CART (and any other non-QUOTE) approvals route to the approval detail page.
+ * Canonical approval detail destination. Always `/account/approvals/:id` so
+ * requestors and approvers can open the approval details page.
  *
- * Kept in a server-safe module (no client-only imports) so the canonical approval
- * detail route can reuse the same decision and avoid diverging routing logic.
+ * Related quote navigation stays on dedicated Quote ID links (table column /
+ * approval details resource link), not on the Approval ID / row destination.
+ *
+ * Kept in a server-safe module (no client-only imports) so list and detail
+ * routes share a single source of truth.
  */
-export function getApprovalHref(approval: Approval, currentUserId?: string): string {
-  if (
-    approval.resourceType === 'QUOTE' &&
-    currentUserId &&
-    approval.approver.userId === currentUserId &&
-    approval.requestor.userId !== currentUserId
-  ) {
-    return `/account/approval/${approval.id}`;
-  }
-
-  if (approval.resourceType === 'QUOTE') {
-    return `/account/quotes/${approval.resource.id}`;
-  }
-
+export function getApprovalHref(approval: Approval, _currentUserId?: string): string {
   return `/account/approvals/${approval.id}`;
 }

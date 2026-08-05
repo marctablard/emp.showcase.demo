@@ -3,7 +3,15 @@ import { Slot } from '@radix-ui/react-slot';
 import { type VariantProps, cva } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
-const headingVariants = cva('text-text-headings font-headlines', {
+/**
+ * Heading defaults map to Figma Desktop/Mobile heading tokens via `@theme` in `globals.css`:
+ * - `text-7xl`…`text-2xl` → `--token-text-h1`…`--token-text-h6` (size + line-height + weight)
+ * - color → `--color-text-headings`
+ * - family → `--font-headlines` (Ubuntu / primary)
+ *
+ * Pass `className` only for layout/alignment/overrides; defaults already include Figma type styles.
+ */
+const headingVariants = cva('font-headlines font-bold text-text-headings not-italic', {
   variants: {
     variant: {
       h1: 'text-7xl',
@@ -12,8 +20,11 @@ const headingVariants = cva('text-text-headings font-headlines', {
       h4: 'text-4xl',
       h5: 'text-3xl',
       h6: 'text-2xl',
-      overline: 'text-xl md:text-text-action uppercase tracking-widest',
+      overline: 'text-xl uppercase tracking-widest md:text-text-action',
     },
+  },
+  defaultVariants: {
+    variant: 'h1',
   },
 });
 
@@ -25,7 +36,8 @@ interface HeadingProps extends React.HTMLAttributes<HTMLHeadingElement>, Variant
 const Heading = React.forwardRef<HTMLHeadingElement, HeadingProps>(
   ({ className, variant, as, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : as || (variant as string) || 'h1';
-    return <Comp className={cn(headingVariants({ variant, className }))} ref={ref} {...props} />;
+    // Merge variant defaults first so `className` can intentionally override (e.g. text-sm).
+    return <Comp className={cn(headingVariants({ variant }), className)} ref={ref} {...props} />;
   },
 );
 

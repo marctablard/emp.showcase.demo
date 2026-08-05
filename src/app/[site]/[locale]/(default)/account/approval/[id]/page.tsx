@@ -10,8 +10,7 @@ const { getPathname } = createIntlNavigation(intlRouting);
  * Legacy singular approval route.
  *
  * Consolidated into a site- and locale-preserving redirect to the canonical
- * plural route `/account/approvals/[id]`, which owns the single approval detail
- * implementation (including the quote-approval redirect).
+ * plural route `/account/approvals/[id]`, which owns the approval detail page.
  */
 export default async function LegacyApprovalDetailPage({
   params,

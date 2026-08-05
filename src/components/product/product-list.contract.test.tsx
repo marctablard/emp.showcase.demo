@@ -53,7 +53,7 @@ describe('ProductList contract', () => {
     const header = screen.getByTestId('product-list-scroll').querySelector('.border-b');
     expect(header).toBeTruthy();
     const headings = within(header as HTMLElement)
-      .getAllByRole('heading', { level: 6 })
+      .getAllByRole('heading', { level: 5 })
       .map((heading) => heading.textContent);
 
     expect(headings).toEqual(['product', 'quantity', 'unitPrice']);
@@ -125,7 +125,7 @@ describe('ProductList contract', () => {
         (_, node) => node?.textContent === formatCurrency(contractItem.unitPrice, contractItem.currency, 'de-DE'),
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 6, name: 'Erstattungsbetrag' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 5, name: 'Erstattungsbetrag' })).toBeInTheDocument();
   });
 
   it('renders no trailing amount column or heading when the trailing amount is not configured', () => {
@@ -134,7 +134,7 @@ describe('ProductList contract', () => {
     const header = screen.getByTestId('product-list-scroll').querySelector('.border-b');
     expect(header).toBeTruthy();
     const headings = within(header as HTMLElement)
-      .getAllByRole('heading', { level: 6 })
+      .getAllByRole('heading', { level: 5 })
       .map((heading) => heading.textContent);
 
     expect(headings).toEqual(['product', 'quantity', 'unitPrice']);
@@ -242,7 +242,11 @@ describe('ProductList contract', () => {
     expect(desktopRow.className).not.toContain('minmax(280px');
     expect(desktopRow.className).not.toContain('minmax(140px');
     expect(trailingCell).toHaveClass('min-w-0');
-    expect(screen.getByRole('heading', { level: 6, name: 'Refund Amount' })).toHaveClass('min-w-0');
+    expect(screen.getByRole('heading', { level: 5, name: 'Refund Amount' }).parentElement).toHaveClass('min-w-0');
+    expect(screen.getByRole('heading', { level: 6, name: 'Refund Amount', hidden: true })).toHaveClass(
+      'hidden',
+      'md:block',
+    );
   });
 
   it('keeps the three-column Quote/Approval grid track mins when trailing amount is absent', () => {

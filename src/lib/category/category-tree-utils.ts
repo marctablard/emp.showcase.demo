@@ -96,6 +96,30 @@ export function findCategoryPath(roots: readonly Category[] | undefined, id: str
 }
 
 /**
+ * Return the deepest matching path among candidate ids.
+ * Ties keep the first longest match in candidate order.
+ */
+export function findDeepestCategoryPath(
+  roots: readonly Category[] | undefined,
+  candidateIds: readonly string[],
+): Category[] {
+  if (!roots || roots.length === 0 || candidateIds.length === 0) {
+    return [];
+  }
+  let deepestPath: Category[] = [];
+  for (const candidateId of candidateIds) {
+    if (!candidateId) {
+      continue;
+    }
+    const path = findCategoryPath(roots, candidateId);
+    if (path.length > deepestPath.length) {
+      deepestPath = path;
+    }
+  }
+  return deepestPath;
+}
+
+/**
  * Immediate `Category` children of the node matching `parentId`. Returns the supplied
  * roots when `parentId` is empty / unknown — callers can use that as a "show top-level"
  * fallback without branching themselves.

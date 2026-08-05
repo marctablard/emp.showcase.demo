@@ -264,7 +264,7 @@ describe('ApprovalsList', () => {
     expect(refreshApprovals).toHaveBeenCalledTimes(1);
   });
 
-  it('routes QUOTE approvals for designated approvers to the standalone approval page via the table', () => {
+  it('routes QUOTE approvals to the canonical approval details page via the table', () => {
     const approval = buildApproval({
       id: 'approval-quote-1',
       resourceType: 'QUOTE',
@@ -277,7 +277,7 @@ describe('ApprovalsList', () => {
 
     expect(screen.getByRole('link', { name: 'approval-quote-1' })).toHaveAttribute(
       'href',
-      '/account/approval/approval-quote-1',
+      '/account/approvals/approval-quote-1',
     );
   });
 

@@ -128,9 +128,13 @@ src/
   app/
     [site]/[locale]/
       layout.tsx             # Root layout with site + locale handling
-      (default)/page.tsx     # Home page
-      (default)/hello/       # Example feature directory
-        page.tsx             # Feature-specific page
+      (nav-shell)/
+        (default)/           # Catalog, cart, account, login, etc.
+        (no-margin)/
+          page.tsx           # CMS / home page
+          [...slug]/         # CMS dynamic pages
+      (reduced)/             # Checkout / confirmation
+      @dialog/               # Intercepting auth dialogs
 ```
 
 ### Root Layout (`src/app/[site]/[locale]/layout.tsx`)
@@ -192,7 +196,7 @@ Key features:
 - `setRequestLocale()` enables static rendering with the correct locale
 - `NextIntlClientProvider` makes translations available to client components
 
-### Page Component (`src/app/[site]/[locale]/(default)/page.tsx`)
+### Page Component (`src/app/[site]/[locale]/(nav-shell)/(no-margin)/page.tsx`)
 
 ```tsx
 import { useTranslations } from 'next-intl';

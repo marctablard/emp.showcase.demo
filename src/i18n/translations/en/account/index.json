@@ -412,6 +412,7 @@
     "approver": "Approver",
     "accept": "ACCEPT",
     "inquireApproval": "INQUIRE APPROVAL",
+    "goToApproval": "GO TO APPROVAL",
     "reject": "REJECT",
     "requestChange": "REQUEST CHANGE",
     "confirmationTitle": "Do you want to accept the quote and create an order?",

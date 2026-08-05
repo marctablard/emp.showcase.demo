@@ -355,15 +355,13 @@ describe('Quote cross-links', () => {
     expect(historyTimestamp).toHaveTextContent(/\d{2}:\d{2}/);
   });
 
-  it('ellipsizes the related approval id while linking via getApprovalHref for requestors (finding 21)', async () => {
+  it('ellipsizes the related approval id while linking to the approval details page (finding 21)', async () => {
     render(<QuoteDetails quoteId="quote-open-1" initialQuote={{ ...baseQuote, status: 'OPEN' }} />);
 
     expect(await screen.findByText('account.quoteDetails.relatedApproval')).toBeInTheDocument();
 
     const relatedApprovalLink = screen.getByRole('link', { name: 'approval-123' });
-    // Requestor (customer-1) must not bounce through /account/approval/{id}
-    expect(relatedApprovalLink).toHaveAttribute('href', '/account/quotes/quote-open-1');
-    expect(relatedApprovalLink).not.toHaveAttribute('href', '/account/approval/approval-123');
+    expect(relatedApprovalLink).toHaveAttribute('href', '/account/approvals/approval-123');
     expect(relatedApprovalLink).toHaveClass('block', 'min-w-0', 'max-w-full', 'truncate');
     expect(relatedApprovalLink.parentElement).toHaveClass('min-w-0');
     expect(relatedApprovalLink.parentElement).toHaveAttribute('title', 'approval-123');
@@ -378,7 +376,7 @@ describe('Quote cross-links', () => {
     expect(await screen.findByText('account.quoteDetails.relatedApproval')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'approval-123' })).toHaveAttribute(
       'href',
-      '/account/approval/approval-123',
+      '/account/approvals/approval-123',
     );
   });
 
