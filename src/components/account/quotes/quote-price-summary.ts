@@ -1,6 +1,8 @@
 import { resolveItemDiscountPercent } from '@/components/account/shared/item-discount';
 import type { Quote, QuoteItemPrice } from '@/platform/services/model/quote';
 
+export { resolveItemDiscountPercent } from '@/components/account/shared/item-discount';
+
 /**
  * Header “Total net amount”: net value of goods + net shipping (excludes shipping tax).
  * Prefer goods-only `subtotalNet` when present — `totalNet` may already include shipping.
@@ -35,9 +37,6 @@ export function sumQuotePriceCardLines(
 ): number {
   return breakdown.netValueOfGoods + breakdown.tax + breakdown.shippingFee + breakdown.shippingTax;
 }
-
-/** @deprecated Prefer {@link sumQuotePriceCardLines}. */
-export const sumQuoteQuotedPriceLines = sumQuotePriceCardLines;
 
 function resolveShippingTax(quote: Quote): { shippingTax: number; showShippingTax: boolean } {
   const shippingFee = quote.shippingCost || 0;
@@ -192,5 +191,3 @@ export function quoteHasItemDiscounts(quote: Quote): boolean {
     return typeof percent === 'number' && percent > 0;
   });
 }
-
-export { resolveItemDiscountPercent };

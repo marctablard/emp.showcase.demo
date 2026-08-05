@@ -8,7 +8,6 @@ import {
   resolveQuotedGrossUnitPrice,
   resolveQuotedNetUnitPrice,
   sumQuotePriceCardLines,
-  sumQuoteQuotedPriceLines,
 } from './quote-price-summary';
 
 const baseQuote: Quote = {
@@ -98,8 +97,8 @@ describe('quote-price-summary', () => {
     expect(quoted.shippingTax).toBe(0);
     expect(quoted.showShippingTax).toBe(false);
     expect(quoted.total).toBe(911.72);
-    expect(sumQuoteQuotedPriceLines(quoted)).toBeCloseTo(911.72, 2);
-    expect(sumQuoteQuotedPriceLines(quoted)).toBeCloseTo(quoted.total, 2);
+    expect(sumQuotePriceCardLines(quoted)).toBeCloseTo(911.72, 2);
+    expect(sumQuotePriceCardLines(quoted)).toBeCloseTo(quoted.total, 2);
   });
 
   it('includes shipping tax when shipping.value > 0 and grossValue exceeds value', () => {
@@ -117,9 +116,9 @@ describe('quote-price-summary', () => {
 
     expect(quoted.shippingTax).toBeCloseTo(2.1, 5);
     expect(quoted.showShippingTax).toBe(true);
-    expect(sumQuoteQuotedPriceLines(quoted)).toBeCloseTo(756.9 + 143.82 + 11 + 2.1, 2);
+    expect(sumQuotePriceCardLines(quoted)).toBeCloseTo(756.9 + 143.82 + 11 + 2.1, 2);
     expect(quoted.total).toBe(913.82);
-    expect(sumQuoteQuotedPriceLines(quoted)).toBeCloseTo(quoted.total, 2);
+    expect(sumQuotePriceCardLines(quoted)).toBeCloseTo(quoted.total, 2);
   });
 
   it('hides shipping tax when shipping.value is 0 even if grossValue is present', () => {
@@ -138,9 +137,9 @@ describe('quote-price-summary', () => {
     expect(quoted.shippingFee).toBe(0);
     expect(quoted.shippingTax).toBe(0);
     expect(quoted.showShippingTax).toBe(false);
-    expect(sumQuoteQuotedPriceLines(quoted)).toBeCloseTo(900.72, 2);
+    expect(sumQuotePriceCardLines(quoted)).toBeCloseTo(900.72, 2);
     expect(quoted.total).toBe(900.72);
-    expect(sumQuoteQuotedPriceLines(quoted)).toBeCloseTo(quoted.total, 2);
+    expect(sumQuotePriceCardLines(quoted)).toBeCloseTo(quoted.total, 2);
   });
 
   it('builds Base Price from Σ(unitPrice×qty), tax, shipping, shipping tax — total equals line sum', () => {

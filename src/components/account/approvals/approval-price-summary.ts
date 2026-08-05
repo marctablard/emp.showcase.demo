@@ -88,7 +88,7 @@ function quotedTaxFromResource(approval: Approval, items: ApprovalResourceItem[]
 }
 
 function roundedTaxRate(tax: number, net: number): number | undefined {
-  if (!(net > 0) || !(tax > 0)) {
+  if (net <= 0 || tax <= 0) {
     return undefined;
   }
   return Math.round((tax / net) * 100);
