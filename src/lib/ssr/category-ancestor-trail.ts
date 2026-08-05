@@ -26,7 +26,7 @@ export async function getCategoryAncestorTrail(
     }
 
     const resolvedLeafCategory =
-      leafCategory && leafCategory.id === normalizedLeafCategoryId
+      leafCategory?.id === normalizedLeafCategoryId
         ? leafCategory
         : await categoryService.getCategoryById(normalizedLeafCategoryId);
 

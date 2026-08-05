@@ -589,11 +589,10 @@ function getQuotePrimaryActionPresentation(deps: {
   const { quote, approvalPermission, isProcessing, isCheckingApprovalPermission, t } = deps;
   const showInquiryCta = quote?.status === 'OPEN' && approvalPermission?.permitted === false;
   const hasRelatedApproval = Boolean(approvalPermission?.approvalId);
-  const primaryActionLabel = showInquiryCta
-    ? hasRelatedApproval
-      ? t('goToApproval')
-      : t('inquireApproval')
-    : t('accept');
+  let primaryActionLabel = t('accept');
+  if (showInquiryCta) {
+    primaryActionLabel = hasRelatedApproval ? t('goToApproval') : t('inquireApproval');
+  }
   const isPrimaryActionDisabled = quote?.status !== 'OPEN' || isProcessing || isCheckingApprovalPermission;
 
   return {

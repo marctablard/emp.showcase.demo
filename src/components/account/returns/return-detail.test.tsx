@@ -107,7 +107,7 @@ describe('ReturnDetail', () => {
 
     const returnDetails = screen.getByText('returnDetails');
     const overview = screen.getByText('returnOverview');
-    const productsHeader = screen.getByText('product');
+    const productsHeader = screen.getByRole('heading', { level: 6, name: 'product', hidden: true });
     expect(returnDetails.compareDocumentPosition(overview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(overview.compareDocumentPosition(productsHeader) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
@@ -270,11 +270,12 @@ describe('ReturnDetail', () => {
 
     expect(screen.queryByText('returnedProducts')).not.toBeInTheDocument();
 
-    const header = screen.getByText('product').closest('.pb-4') as HTMLElement;
-    expect(screen.getByText('product').tagName).toBe('H6');
-    expect(within(header).getByText('price').tagName).toBe('H6');
-    expect(within(header).getByText('quantity').tagName).toBe('H6');
-    expect(within(header).getByText('refundAmount').tagName).toBe('H6');
+    const productHeader = screen.getByRole('heading', { level: 6, name: 'product', hidden: true });
+    const header = productHeader.closest('.pb-4') as HTMLElement;
+    expect(productHeader.tagName).toBe('H6');
+    expect(within(header).getByRole('heading', { level: 6, name: 'price', hidden: true }).tagName).toBe('H6');
+    expect(within(header).getByRole('heading', { level: 6, name: 'quantity', hidden: true }).tagName).toBe('H6');
+    expect(within(header).getByRole('heading', { level: 6, name: 'refundAmount', hidden: true }).tagName).toBe('H6');
   });
 
   it('keeps product Price and Refund Amount net first with gross shown as the secondary value', () => {

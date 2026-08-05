@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { ProductItemRow } from './product-item-row';
 
 /** Column headers: Mobile/heading/h5 below desktop, Desktop/heading/h6 from `md` up (both 16px). */
-function ProductListColumnHeading({ children, className }: { children: ReactNode; className?: string }) {
+function ProductListColumnHeading({ children, className }: Readonly<{ children: ReactNode; className?: string }>) {
   return (
     <div className={cn('min-w-0', className)}>
       <H5 className="md:hidden">{children}</H5>

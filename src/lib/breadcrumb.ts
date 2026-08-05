@@ -37,9 +37,9 @@ function buildBreadcrumbsFromNavigationPath(path: Category[], locale: string): B
   }
 
   const metadataByLevel = path.map((category) => getBatteryIncludedCategoryMetadata(category));
-  const hasBiMetadata = metadataByLevel.some((metadata) => Boolean(metadata));
+  const hasBiMetadata = metadataByLevel.some(Boolean);
   const leafMetadataWithDisplayPath = [...metadataByLevel].reverse().find((metadata) => Boolean(metadata?.displayPath));
-  const leafMetadata = [...metadataByLevel].reverse().find((metadata) => Boolean(metadata));
+  const leafMetadata = [...metadataByLevel].reverse().find(Boolean);
 
   if (hasBiMetadata && leafMetadataWithDisplayPath?.displayPath) {
     const displayLevels = splitPathLevels(leafMetadataWithDisplayPath.displayPath);
