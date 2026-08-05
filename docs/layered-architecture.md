@@ -113,7 +113,7 @@ Let's consider a get product feature:
 - Applies business rules (e.g., visibility, availability)
 - Transforms raw data into domain models through Mappers
 
-**React Application Level** (`src/app/[site]/[locale]/(default)/product/[id]/page.tsx`):
+**React Application Level** (`src/app/[site]/[locale]/(nav-shell)/(default)/product/[id]/page.tsx`):
 
 - Invokes EmporixProductService from Service layer either directly or through Next-API
 - Renders the product data in the UI

@@ -274,11 +274,11 @@ describe('ApprovalsTable', () => {
     const row = screen.getByRole('row', { name: 'viewApprovalAriaLabel:APR-42' });
 
     fireEvent.keyDown(row, { key: 'Enter' });
-    expect(push).toHaveBeenCalledWith('/account/quotes/quote-1');
+    expect(push).toHaveBeenCalledWith('/account/approvals/APR-42');
 
     push.mockClear();
     fireEvent.keyDown(row, { key: ' ' });
-    expect(push).toHaveBeenCalledWith('/account/quotes/quote-1');
+    expect(push).toHaveBeenCalledWith('/account/approvals/APR-42');
   });
 
   it('does not row-navigate when Enter or Space is pressed on nested links', () => {
@@ -352,17 +352,17 @@ describe('ApprovalsTable', () => {
 });
 
 describe('getApprovalHref', () => {
-  it('routes QUOTE approvals for designated approvers to the standalone approval page', () => {
+  it('routes QUOTE approvals to the canonical approval details page for designated approvers', () => {
     const approval = buildApproval({
       resourceType: 'QUOTE',
       requestor: { userId: 'requestor-1', firstName: 'R', lastName: 'One', email: 'r@example.com' },
       approver: { userId: 'approver-1', firstName: 'A', lastName: 'One' },
     });
 
-    expect(getApprovalHref(approval, 'approver-1')).toBe('/account/approval/APR-1000');
+    expect(getApprovalHref(approval, 'approver-1')).toBe('/account/approvals/APR-1000');
   });
 
-  it('keeps QUOTE approvals on the quote page for requestors even when they are also the approver', () => {
+  it('routes QUOTE approvals to the canonical approval details page for requestors', () => {
     const approval = buildApproval({
       resourceType: 'QUOTE',
       requestor: { userId: 'shared-user', firstName: 'Shared', lastName: 'User', email: 's@example.com' },
@@ -370,7 +370,7 @@ describe('getApprovalHref', () => {
       resource: { id: 'quote-shared' },
     });
 
-    expect(getApprovalHref(approval, 'shared-user')).toBe('/account/quotes/quote-shared');
+    expect(getApprovalHref(approval, 'shared-user')).toBe('/account/approvals/APR-1000');
   });
 
   it('routes non-QUOTE approvals to the approval details route', () => {

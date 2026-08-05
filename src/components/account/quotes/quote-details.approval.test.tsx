@@ -236,9 +236,10 @@ describe('QuoteDetails approval flow', () => {
 
     render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
 
-    expect(await screen.findByRole('button', { name: 'account.quoteDetails.inquireApproval' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'account.quoteDetails.goToApproval' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'account.quoteDetails.inquireApproval' })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'account.quoteDetails.inquireApproval' }));
+    fireEvent.click(screen.getByRole('button', { name: 'account.quoteDetails.goToApproval' }));
 
     await waitFor(() => {
       expect(checkApprovalPermitted).toHaveBeenLastCalledWith({
@@ -250,7 +251,7 @@ describe('QuoteDetails approval flow', () => {
 
     expect(checkApprovalPermitted).toHaveBeenCalledTimes(2);
 
-    expect(pushMock).toHaveBeenCalledWith('/account/approval/approval-1');
+    expect(pushMock).toHaveBeenCalledWith('/account/approvals/approval-1');
   });
 
   it('opens an approver inquiry dialog and loads quote-scoped approvers when approval is required', async () => {
@@ -358,7 +359,7 @@ describe('QuoteDetails approval flow', () => {
       });
     });
 
-    expect(pushMock).toHaveBeenCalledWith('/account/approval/approval-1');
+    expect(pushMock).toHaveBeenCalledWith('/account/approvals/approval-1');
     expect(notifyMock).not.toHaveBeenCalled();
   });
 
@@ -386,7 +387,7 @@ describe('QuoteDetails approval flow', () => {
     fireEvent.click(screen.getByTestId('quote-approval-submitButton'));
 
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith('/account/approval/approval-2');
+      expect(pushMock).toHaveBeenCalledWith('/account/approvals/approval-2');
     });
 
     expect(notifyMock).not.toHaveBeenCalled();
@@ -678,11 +679,12 @@ describe('QuoteDetails approval flow', () => {
     render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
 
     const relatedApprovalLink = await screen.findByRole('link', { name: 'approval-ellipsis-1' });
-    expect(relatedApprovalLink).toHaveAttribute('href', '/account/quotes/Q-1000');
-    expect(relatedApprovalLink).not.toHaveAttribute('href', '/account/approval/approval-ellipsis-1');
+    expect(relatedApprovalLink).toHaveAttribute('href', '/account/approvals/approval-ellipsis-1');
     expect(relatedApprovalLink).toHaveClass('block', 'min-w-0', 'max-w-full', 'truncate');
     expect(relatedApprovalLink.parentElement).toHaveClass('min-w-0');
     expect(relatedApprovalLink.parentElement).toHaveAttribute('title', 'approval-ellipsis-1');
+    expect(screen.getByRole('button', { name: 'account.quoteDetails.goToApproval' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'account.quoteDetails.inquireApproval' })).not.toBeInTheDocument();
   });
 
   it('only shows a sort control on Change Date and defaults Quote History to DESC', () => {

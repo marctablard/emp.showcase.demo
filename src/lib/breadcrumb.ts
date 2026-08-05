@@ -1,6 +1,8 @@
 import type { Category } from '@/platform/services/model/category';
+import { getBatteryIncludedCategoryMetadata } from '@/platform/services/model/category/batteryincluded-category';
 import type { Product } from '@/platform/services/model/product';
 import type { BatteryIncludedCategoryTreeSnapshot } from '@/platform/services/search/impl/batteryincluded-category-tree';
+import { findDeepestCategoryPath } from './category/category-tree-utils';
 import { L10N_MISSING_LABEL, l10n } from './l10n';
 import {
   buildBrowseHrefForBreadcrumbDisplayPath,
@@ -10,6 +12,123 @@ import {
 export interface BreadcrumbContent {
   href: string;
   label: string;
+}
+
+function splitPathLevels(path: string): string[] {
+  return path
+    .split(' > ')
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+}
+
+function getProductCategoryCandidates(product: Product): string[] {
+  const candidateIds = [
+    product.primaryCategory?.id,
+    ...(product.categoryIds ?? []),
+    ...(product.categories?.map((category) => category.id) ?? []),
+  ].filter((id): id is string => Boolean(id));
+
+  return Array.from(new Set(candidateIds));
+}
+
+function buildBreadcrumbsFromNavigationPath(path: Category[], locale: string): BreadcrumbContent[] {
+  if (path.length === 0) {
+    return [];
+  }
+
+  const metadataByLevel = path.map((category) => getBatteryIncludedCategoryMetadata(category));
+  const hasBiMetadata = metadataByLevel.some(Boolean);
+  const leafMetadataWithDisplayPath = [...metadataByLevel].reverse().find((metadata) => Boolean(metadata?.displayPath));
+  const leafMetadata = [...metadataByLevel].reverse().find(Boolean);
+
+  if (hasBiMetadata && leafMetadataWithDisplayPath?.displayPath) {
+    const displayLevels = splitPathLevels(leafMetadataWithDisplayPath.displayPath);
+    return path.map((category, index) => {
+      const cumulativeDisplayPath = displayLevels.slice(0, index + 1).join(' > ');
+      const perLevelMetadata = metadataByLevel[index];
+      const fallbackDisplayPath =
+        perLevelMetadata?.displayPath ??
+        perLevelMetadata?.labelPath ??
+        splitPathLevels(leafMetadataWithDisplayPath.labelPath)
+          .slice(0, index + 1)
+          .join(' > ');
+
+      return {
+        href: buildBrowseHrefForBreadcrumbDisplayPath(cumulativeDisplayPath || fallbackDisplayPath),
+        label: l10n(category.name, locale),
+      };
+    });
+  }
+
+  if (hasBiMetadata) {
+    return path.map((category, index) => {
+      const perLevelMetadata = metadataByLevel[index];
+      const fallbackFromLeafLabelPath = splitPathLevels(leafMetadata?.labelPath ?? '')
+        .slice(0, index + 1)
+        .join(' > ');
+      return {
+        href: buildBrowseHrefForBreadcrumbDisplayPath(
+          perLevelMetadata?.displayPath ?? perLevelMetadata?.labelPath ?? fallbackFromLeafLabelPath,
+        ),
+        label: l10n(category.name, locale),
+      };
+    });
+  }
+
+  return path.map((category) => ({
+    href: buildBrowseHrefForCategoryId(category.id, category),
+    label: l10n(category.name, locale),
+  }));
+}
+
+function getDeepestBatteryIncludedEntry(
+  product: Product,
+  biSnapshot: BatteryIncludedCategoryTreeSnapshot,
+): BatteryIncludedCategoryTreeSnapshot['byId'][string] | null {
+  let selectedEntry: BatteryIncludedCategoryTreeSnapshot['byId'][string] | null = null;
+
+  getProductCategoryCandidates(product).forEach((categoryId) => {
+    const entry = biSnapshot.byId[categoryId];
+    if (!entry?.displayPath) {
+      return;
+    }
+
+    const selectedIdPathLength = selectedEntry?.idPath.length ?? -1;
+    const currentIdPathLength = entry.idPath.length;
+
+    if (currentIdPathLength > selectedIdPathLength) {
+      selectedEntry = entry;
+      return;
+    }
+
+    if (currentIdPathLength < selectedIdPathLength) {
+      return;
+    }
+
+    const selectedDisplayPathLevelCount = splitPathLevels(selectedEntry?.displayPath ?? '').length;
+    const currentDisplayPathLevelCount = splitPathLevels(entry.displayPath).length;
+
+    if (currentDisplayPathLevelCount > selectedDisplayPathLevelCount) {
+      selectedEntry = entry;
+    }
+  });
+
+  return selectedEntry;
+}
+
+function buildEmporixParentChain(primaryCategory: Category | null): Category[] {
+  if (!primaryCategory?.id) {
+    return [];
+  }
+
+  const parentChain: Category[] = [];
+  let current: Category | undefined | null = primaryCategory;
+  while (current) {
+    parentChain.unshift(current);
+    current = current.parent && typeof current.parent === 'object' ? current.parent : null;
+  }
+
+  return parentChain;
 }
 
 function getCategorySlug(category: Category, locale: string): string {
@@ -84,49 +203,37 @@ export function generateVisibleBreadcrumbForPdp(
   locale: string,
   engine: 'batteryincluded' | 'emporix',
   biSnapshot: BatteryIncludedCategoryTreeSnapshot | null,
+  emporixAncestorTrail?: Category[] | null,
+  navigationRoots?: Category[] | null,
 ): BreadcrumbContent[] {
-  const breadcrumbs: BreadcrumbContent[] = [];
   const primaryCategory = product.primaryCategory || product.categories?.[0] || null;
+  const navigationPath = findDeepestCategoryPath(navigationRoots ?? undefined, getProductCategoryCandidates(product));
+  const breadcrumbs: BreadcrumbContent[] = buildBreadcrumbsFromNavigationPath(navigationPath, locale);
 
-  // Primary strategy for BI
-  if (engine === 'batteryincluded' && biSnapshot) {
-    const targetCategoryId = product.primaryCategory?.id || product.categoryIds?.[0] || product.categories?.[0]?.id;
+  // Secondary fallback chain starts only when nav forest misses.
+  if (breadcrumbs.length === 0 && engine === 'batteryincluded' && biSnapshot) {
+    const lookupEntry = getDeepestBatteryIncludedEntry(product, biSnapshot);
+    if (lookupEntry?.displayPath) {
+      // BI mode: split displayPath into levels and build cumulative displayPath links.
+      const rawLevels = splitPathLevels(lookupEntry.displayPath);
+      const labels = splitPathLevels(lookupEntry.labelPath);
 
-    if (targetCategoryId) {
-      const lookupEntry = biSnapshot.byId[targetCategoryId];
-      if (lookupEntry?.displayPath) {
-        // Bi mode: split displayPath into levels and build cumulative displayPath links
-        const rawLevels = lookupEntry.displayPath
-          .split(' > ')
-          .map((s) => s.trim())
-          .filter(Boolean);
-        const labels = lookupEntry.labelPath
-          .split(' > ')
-          .map((s) => s.trim())
-          .filter(Boolean);
-
-        let cumulative = '';
-        rawLevels.forEach((level, index) => {
-          cumulative = cumulative ? `${cumulative} > ${level}` : level;
-          breadcrumbs.push({
-            href: buildBrowseHrefForBreadcrumbDisplayPath(cumulative),
-            label: labels[index] || level,
-          });
+      let cumulative = '';
+      rawLevels.forEach((level, index) => {
+        cumulative = cumulative ? `${cumulative} > ${level}` : level;
+        breadcrumbs.push({
+          href: buildBrowseHrefForBreadcrumbDisplayPath(cumulative),
+          label: labels[index] || level,
         });
-      }
+      });
     }
   }
 
-  // Fallback to Emporix ancestry
-  if (breadcrumbs.length === 0 && primaryCategory && primaryCategory.id) {
-    const parentChain: Category[] = [];
-    let current: Category | undefined | null = primaryCategory;
-    while (current) {
-      parentChain.unshift(current);
-      current = current.parent && typeof current.parent === 'object' ? current.parent : null;
-    }
+  // Fallback to Emporix ancestry.
+  if (breadcrumbs.length === 0) {
+    const ancestry = emporixAncestorTrail?.length ? emporixAncestorTrail : buildEmporixParentChain(primaryCategory);
 
-    parentChain.forEach((cat) => {
+    ancestry.forEach((cat) => {
       breadcrumbs.push({
         href: buildBrowseHrefForCategoryId(cat.id, cat),
         label: l10n(cat.name, locale),

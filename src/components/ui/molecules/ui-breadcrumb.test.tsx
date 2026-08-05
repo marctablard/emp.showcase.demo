@@ -28,7 +28,7 @@ describe('UiBreadcrumb', () => {
 
     render(<UiBreadcrumb items={items} />);
 
-    expect(screen.getByRole('link', { name: 'backLinkAriaLabel' })).toHaveAttribute('href', '/account');
+    expect(screen.getByRole('link', { name: 'backLink' })).toHaveAttribute('href', '/account');
   });
 
   it('targets Back to the immediate parent on deeper breadcrumb paths', () => {
@@ -40,7 +40,7 @@ describe('UiBreadcrumb', () => {
 
     render(<UiBreadcrumb items={items} />);
 
-    expect(screen.getByRole('link', { name: 'backLinkAriaLabel' })).toHaveAttribute('href', '/account/returns');
+    expect(screen.getByRole('link', { name: 'backLink' })).toHaveAttribute('href', '/account/returns');
   });
 
   it('falls back to the only item href when no parent breadcrumb exists', () => {
@@ -48,6 +48,40 @@ describe('UiBreadcrumb', () => {
 
     render(<UiBreadcrumb items={items} />);
 
-    expect(screen.getByRole('link', { name: 'backLinkAriaLabel' })).toHaveAttribute('href', '/quick-order');
+    expect(screen.getByRole('link', { name: 'backLink' })).toHaveAttribute('href', '/quick-order');
+  });
+
+  it('exposes a single Back accessible name without duplicate text', () => {
+    const items: BreadcrumbContent[] = [
+      { href: '/account', label: 'Account Details' },
+      { href: '/account/returns', label: 'Returns' },
+    ];
+
+    render(<UiBreadcrumb items={items} />);
+
+    const backLink = screen.getByRole('link', { name: 'backLink' });
+    expect(backLink).toHaveAccessibleName('backLink');
+    expect(backLink).not.toHaveAccessibleName('backLinkbackLink');
+  });
+
+  it.each([
+    { caseName: 'when disabledCategories is unset' },
+    { caseName: 'when disabledCategories is false', disabledCategories: false },
+  ])('renders clickable non-last category crumbs and non-clickable last crumb $caseName', ({ disabledCategories }) => {
+    const items: BreadcrumbContent[] = [
+      { href: '/products', label: 'All Products' },
+      { href: '/products/furniture', label: 'Furniture' },
+      { href: '/product/ecoflow-extension-cable', label: 'EcoFlow Extension Cable' },
+    ];
+
+    render(<UiBreadcrumb items={items} maxItems={10} disabledCategories={disabledCategories} />);
+
+    expect(screen.getByRole('link', { name: 'homeLink' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'All Products' })).toHaveAttribute('href', '/products');
+    expect(screen.getByRole('link', { name: 'Furniture' })).toHaveAttribute('href', '/products/furniture');
+    const currentPageCrumb = screen.getByText('EcoFlow Extension Cable');
+    expect(currentPageCrumb).toHaveAttribute('aria-current', 'page');
+    expect(currentPageCrumb).not.toHaveAttribute('role', 'link');
+    expect(currentPageCrumb.closest('a')).toBeNull();
   });
 });

@@ -1,8 +1,19 @@
 import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/components/ui/card';
-import { H6 } from '@/components/ui/h';
+import { H5, H6 } from '@/components/ui/h';
+import { cn } from '@/lib/utils';
 import { ProductItemRow } from './product-item-row';
+
+/** Column headers: Mobile/heading/h5 below desktop, Desktop/heading/h6 from `md` up (both 16px). */
+function ProductListColumnHeading({ children, className }: Readonly<{ children: ReactNode; className?: string }>) {
+  return (
+    <div className={cn('min-w-0', className)}>
+      <H5 className="md:hidden">{children}</H5>
+      <H6 className="hidden md:block">{children}</H6>
+    </div>
+  );
+}
 
 export interface ProductListMetadataSlot {
   readonly key: string;
@@ -134,27 +145,29 @@ export function ProductList({
           so it does not stack with CardContent padding (Jira #14a / #19 gap). */}
       <CardContent className="min-w-0 overflow-x-auto p-4 sm:p-6" data-testid="product-list-scroll">
         <div className={`${desktopGridClassName} border-b border-border-primary pb-4`}>
-          <H6 className="min-w-0 text-sm font-bold text-text-headings">{resolvedPresentationConfig.labels.product}</H6>
-          <H6 className="text-left text-sm font-bold text-text-headings">
+          <ProductListColumnHeading className="min-w-0">
+            {resolvedPresentationConfig.labels.product}
+          </ProductListColumnHeading>
+          <ProductListColumnHeading className="text-left">
             {resolvedPresentationConfig.labels.quantity}
-          </H6>
+          </ProductListColumnHeading>
           {showDiscountColumns ? (
             <>
-              <H6 className="min-w-0 text-right text-sm font-bold text-text-headings">
+              <ProductListColumnHeading className="min-w-0 text-right">
                 {resolvedPresentationConfig.labels.baseNetUnitPrice}
-              </H6>
-              <H6 className="min-w-0 text-right text-sm font-bold text-text-headings">
+              </ProductListColumnHeading>
+              <ProductListColumnHeading className="min-w-0 text-right">
                 {resolvedPresentationConfig.labels.discount}
-              </H6>
+              </ProductListColumnHeading>
             </>
           ) : null}
-          <H6 className="min-w-0 text-right text-sm font-bold text-text-headings">
+          <ProductListColumnHeading className="min-w-0 text-right">
             {resolvedPresentationConfig.labels.unitPrice}
-          </H6>
+          </ProductListColumnHeading>
           {hasTrailingDesktopAmount && (
-            <H6 className="min-w-0 text-right text-sm font-bold text-text-headings">
+            <ProductListColumnHeading className="min-w-0 text-right">
               {resolvedPresentationConfig.labels.amount}
-            </H6>
+            </ProductListColumnHeading>
           )}
         </div>
         <div className="divide-y divide-border-primary">

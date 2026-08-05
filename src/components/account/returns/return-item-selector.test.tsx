@@ -57,9 +57,9 @@ describe('ReturnItemSelector', () => {
     render(<ReturnItemSelector {...defaultProps} />);
 
     expect(screen.getByRole('heading', { level: 6, name: 'productDetails' })).toHaveClass(
-      'text-sm',
       'font-bold',
       'text-text-headings',
+      'text-2xl',
     );
     expect(screen.getByRole('heading', { level: 6, name: 'quantity' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 6, name: 'unitPrice' })).toHaveClass('text-right');

@@ -596,9 +596,12 @@ describe('OrderDetail', () => {
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    const quantityHeader = screen.getByText('quantity');
-    expect(quantityHeader).toHaveClass('text-left');
-    expect(quantityHeader).not.toHaveClass('text-right');
+    const quantityHeaderTablet = screen.getByRole('heading', { level: 5, name: 'quantity' });
+    const quantityHeaderDesktop = screen.getByRole('heading', { level: 6, name: 'quantity', hidden: true });
+    expect(quantityHeaderTablet.parentElement).toHaveClass('text-left');
+    expect(quantityHeaderTablet.parentElement).not.toHaveClass('text-right');
+    expect(quantityHeaderDesktop.parentElement).toHaveClass('text-left');
+    expect(quantityHeaderDesktop.parentElement).not.toHaveClass('text-right');
 
     const quantityValue = screen.getAllByText('2', { selector: 'span.text-base' })[0];
     expect(screen.getByTestId('product-quantity-cell-item-1')).toBeTruthy();
@@ -610,8 +613,10 @@ describe('OrderDetail', () => {
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    // Only the desktop column header renders the literal quantity label; no per-item mobile label duplicates it.
-    expect(screen.getAllByText('quantity')).toHaveLength(1);
+    // Responsive column headers (H5 tablet + H6 desktop); no per-item mobile label duplicates them.
+    expect(screen.getAllByText('quantity')).toHaveLength(2);
+    expect(screen.getByRole('heading', { level: 5, name: 'quantity' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 6, name: 'quantity', hidden: true })).toBeInTheDocument();
   });
 
   it('renders the item price as a bold H5-equivalent primary with the secondary Gross value as body-sm', () => {

@@ -374,7 +374,7 @@ async function runQuotePrimaryAction(deps: {
     }
 
     if (permission.approvalId) {
-      router.push(`/account/approval/${permission.approvalId}`);
+      router.push(`/account/approvals/${permission.approvalId}`);
       return;
     }
 
@@ -436,7 +436,7 @@ async function runQuoteApprovalInquiry(deps: {
       permitted: false,
     });
     closeApprovalInquiryDialog();
-    router.push(`/account/approval/${approval.id}`);
+    router.push(`/account/approvals/${approval.id}`);
   } catch (error) {
     if (error instanceof ApprovalAlreadyExistsError) {
       setApprovalPermission({
@@ -444,7 +444,7 @@ async function runQuoteApprovalInquiry(deps: {
         permitted: false,
       });
       closeApprovalInquiryDialog();
-      router.push(`/account/approval/${error.approvalId}`);
+      router.push(`/account/approvals/${error.approvalId}`);
       return;
     }
 
@@ -588,7 +588,11 @@ function getQuotePrimaryActionPresentation(deps: {
 } {
   const { quote, approvalPermission, isProcessing, isCheckingApprovalPermission, t } = deps;
   const showInquiryCta = quote?.status === 'OPEN' && approvalPermission?.permitted === false;
-  const primaryActionLabel = showInquiryCta ? t('inquireApproval') : t('accept');
+  const hasRelatedApproval = Boolean(approvalPermission?.approvalId);
+  let primaryActionLabel = t('accept');
+  if (showInquiryCta) {
+    primaryActionLabel = hasRelatedApproval ? t('goToApproval') : t('inquireApproval');
+  }
   const isPrimaryActionDisabled = quote?.status !== 'OPEN' || isProcessing || isCheckingApprovalPermission;
 
   return {

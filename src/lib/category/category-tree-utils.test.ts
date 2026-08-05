@@ -1,5 +1,6 @@
 import {
   findCategoryPath,
+  findDeepestCategoryPath,
   getCategoryChildren,
   getImmediateChildren,
   pruneEmptyBranches,
@@ -114,6 +115,24 @@ describe('category-tree-utils', () => {
       expect(path).toHaveLength(10);
       expect(path[0]).toBe('n-1');
       expect(path[9]).toBe('n-10');
+    });
+  });
+
+  describe('findDeepestCategoryPath', () => {
+    it('returns the deepest matching path among candidates', () => {
+      const path = findDeepestCategoryPath(sampleRoots, ['a-2', 'a-1-2-x', 'b-1']).map((c) => c.id);
+      expect(path).toEqual(['root-a', 'a-1', 'a-1-2', 'a-1-2-x']);
+    });
+
+    it('keeps candidate order tie-break when longest depths are equal', () => {
+      const path = findDeepestCategoryPath(sampleRoots, ['a-1-1', 'b-1']).map((c) => c.id);
+      expect(path).toEqual(['root-a', 'a-1', 'a-1-1']);
+    });
+
+    it('returns empty array for empty candidates, no-match, or missing roots', () => {
+      expect(findDeepestCategoryPath(sampleRoots, [])).toEqual([]);
+      expect(findDeepestCategoryPath(sampleRoots, ['ghost', 'missing'])).toEqual([]);
+      expect(findDeepestCategoryPath(undefined, ['a-1-2-x'])).toEqual([]);
     });
   });
 
