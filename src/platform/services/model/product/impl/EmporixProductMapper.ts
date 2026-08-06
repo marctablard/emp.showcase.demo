@@ -65,7 +65,7 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
             ...(typeof spec.group === 'string' && spec.group ? { group: spec.group } : {}),
             ...(groupLabel ? { groupLabel } : {}),
             ...(unit ? { unit } : {}),
-            ...(highlight !== undefined ? { highlight } : {}),
+            ...(typeof highlight === 'boolean' ? { highlight } : {}),
           };
         });
 

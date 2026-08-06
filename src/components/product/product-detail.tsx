@@ -35,6 +35,7 @@ import {
   isProductPriceDisplayableForPurchase,
   isPurchaseShopContextReady,
 } from '@/lib/common/product-price-site-context';
+import type { L10nInput } from '@/lib/l10n';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
 import type { StockAvailability } from '@/platform/services/model/common';
@@ -67,7 +68,279 @@ export interface ProductDetailProps {
   className?: string;
 }
 
-export default function ProductDetail({ product: initialProduct, options, className }: ProductDetailProps) {
+function PdpPriceBlock({ price }: Readonly<{ price: ProductPrice | null | undefined }>): React.ReactElement {
+  if (price === undefined) {
+    return <ProductPriceSkeleton />;
+  }
+  if (price === null) {
+    return <ProductPriceUnavailable />;
+  }
+  return <ProductPriceComponent price={price} />;
+}
+
+function PdpBrandName({ name }: Readonly<{ name: string }>): React.ReactElement {
+  // TODO: Dedicated brand-listing route missing — brand-filtered PLP // NOSONAR
+  // `/browse?filters[brand.name][]=…` probe returned 0 hits for Victron Energy
+  // (2026-08-06); keep non-interactive H5 to avoid a dead empty-result link (D10).
+  return <H5 className="text-text-action">{name}</H5>;
+}
+
+function PdpTechnicalInformation({
+  groups,
+  className,
+  l10n,
+  title,
+}: Readonly<{
+  groups: GroupedSpecification[];
+  className?: string;
+  l10n: (value: L10nInput) => string;
+  title: string;
+}>): React.ReactElement {
+  const fewGroups = groups.length > 0 && groups.length < 4;
+
+  return (
+    <div id={PDP_TECHNICAL_INFORMATION_SECTION_ID} className={cn(className)}>
+      <H2 variant="h3" className="my-6">
+        {' '}
+        {title}
+      </H2>
+      <div
+        className={cn(
+          'mb-16 gap-x-6 gap-y-6 md:gap-y-16 grid grid-cols-1 md:grid-cols-2',
+          // D4: 1–3 groups fill the row equally at lg; 4+ keep four-per-row grid.
+          fewGroups ? 'lg:flex lg:flex-row' : 'lg:grid-cols-4',
+        )}
+      >
+        {groups.map((spec: GroupedSpecification) => {
+          const groupKey = typeof spec.groupName === 'string' ? spec.groupName : l10n(spec.groupName);
+          return (
+            <div className={cn('flex flex-col', fewGroups && 'lg:min-w-0 lg:flex-1')} key={groupKey}>
+              <p className="font-bold font-headlines font-sm p-4 border-b border-border-primary">
+                {l10n(spec.groupName)}
+              </p>
+              {spec.item.map((i) => (
+                <div className="font-sm p-4 border-b border-border-primary flex gap-4" key={l10n(i.label)}>
+                  <p className="w-1/2">{l10n(i.label)}</p>
+                  <p className="w-1/2">
+                    {l10n(i.value)} {l10n(i.unit)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function PdpGallery({
+  product,
+  l10nOrEmpty,
+  unlabeledAltWithId,
+}: Readonly<{
+  product: Product;
+  l10nOrEmpty: (value: L10nInput) => string;
+  unlabeledAltWithId: (id: string) => string;
+}>): React.ReactElement {
+  const images = product.images;
+
+  let media: React.ReactNode;
+  if (!images || images.length === 0) {
+    media = (
+      <div className="bg-surface-image-background flex items-center justify-center">
+        <Image src={'/images/no_image_alt.png'} alt={l10nOrEmpty(product.name) || ''} width={90} height={90} />
+      </div>
+    );
+  } else if (images.length === 1) {
+    media = (
+      <div className="relative aspect-square">
+        <Image
+          src={images[0].url}
+          alt={
+            images[0].altText
+              ? l10nOrEmpty(images[0].altText) || l10nOrEmpty(product.name) || unlabeledAltWithId(product.id)
+              : l10nOrEmpty(product.name) || unlabeledAltWithId(product.id)
+          }
+          fill
+          className="object-contain object-center"
+        />
+      </div>
+    );
+  } else {
+    media = <ProductCarousel images={images} />;
+  }
+
+  return (
+    <Card variant="gray" rounded="lg" className="order-3 md:order-0 p-6 md:p-8 mb-6 md:mb-0">
+      <CardContent className="px-0">
+        <div className="overflow-hidden">{media}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function renderKeySpecValue(spec: ProductSpecification, l10n: (value: L10nInput) => string): React.ReactNode {
+  const rawValue = l10n(spec.value);
+  const unit = spec.unit ? l10n(spec.unit) : undefined;
+
+  if (isEnergyEfficiencyClass(rawValue)) {
+    return (
+      <span className="flex items-center gap-1.5">
+        <EnergyBadge rating={rawValue} />
+        {unit ? <span className="font-normal text-base">{unit}</span> : null}
+      </span>
+    );
+  }
+
+  return unit ? `${rawValue} ${unit}` : rawValue;
+}
+
+function PdpKeySpecsCard({
+  product,
+  flaggedKeySpecs,
+  l10n,
+  t,
+  onCopyItemNumber,
+}: Readonly<{
+  product: Product;
+  flaggedKeySpecs: ProductSpecification[];
+  l10n: (value: L10nInput) => string;
+  t: ReturnType<typeof useTranslations<'product'>>;
+  onCopyItemNumber: () => void;
+}>): React.ReactElement | null {
+  if (!hasKeySpecifications(product)) {
+    return null;
+  }
+
+  return (
+    <Card variant="primary" rounded="lg" className="order-5 md:order-0 p-4 md:px-8 md:pb-8 md:pt-6 mb-10 md:mb-0">
+      <CardContent className="p-0">
+        <div className="flex flex-col gap-6">
+          <H2 variant="h4" className="text-text-on-action">
+            {t('keySpecs')}
+          </H2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-y-6 gap-x-12">
+            {flaggedKeySpecs.length > 0 ? (
+              flaggedKeySpecs.map((spec: ProductSpecification) => (
+                <BulletPoint
+                  key={spec.key}
+                  label={l10n(spec.label)}
+                  labelClassName="font-headlines text-2xl font-bold"
+                  variant="white"
+                  iconColor="white"
+                  iconSize="lg"
+                  value={renderKeySpecValue(spec, l10n)}
+                  valueClassName="font-normal"
+                />
+              ))
+            ) : (
+              <>
+                {product.variantAttributes?.map((attribute: ProductVariantAttribute) => (
+                  <BulletPoint
+                    key={attribute.key}
+                    label={l10n(
+                      t(dk<ProductVariantAttributeKey>(`filters.mixins.productVariantAttributes.${attribute.key}`), {
+                        defaultValue: attribute.key,
+                      }),
+                    )}
+                    labelClassName="font-headlines text-2xl font-bold"
+                    variant="white"
+                    iconColor="white"
+                    iconSize="lg"
+                    value={l10n(product.variantAttributeValues?.[attribute.key] ?? '')}
+                    valueClassName="font-normal"
+                  />
+                ))}
+                {Object.keys(product.templateAttributes || {}).map((attribute: string) => (
+                  <BulletPoint
+                    key={attribute}
+                    label={t(dk<ProductTemplateAttributeKey>(`filters.mixins.productTemplateAttributes.${attribute}`), {
+                      defaultValue: attribute,
+                    })}
+                    labelClassName="font-headlines text-2xl font-bold"
+                    variant="white"
+                    iconColor="white"
+                    iconSize="lg"
+                    value={l10n(product.templateAttributes?.[attribute] ?? '')}
+                    valueClassName="font-normal"
+                  />
+                ))}
+              </>
+            )}
+          </div>
+
+          {/* D6 (COP-6020): keep "More product features" despite newest Figma Specs List Area omitting it */}
+          {hasTechnicalInformation(product) ? (
+            <div className="flex items-center mt-2">
+              <UiLink
+                type="A"
+                href={getPdpTechnicalInformationHref()}
+                variant="textBold"
+                size="m"
+                iconAfter={<ArrowDown aria-hidden="true" />}
+              >
+                {t('more')}
+              </UiLink>
+            </div>
+          ) : null}
+
+          <div className="flex items-center mt-2">
+            <span className="text-text-on-action font-bold">{t('itemNumber')}:</span>
+            <span className="text-text-action ml-2 bg-surface-page py-2 px-3 rounded flex items-center gap-3">
+              <p>{product.id}</p>
+              <button
+                type="button"
+                onClick={onCopyItemNumber}
+                aria-label={t('copy')}
+                className="inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded text-text-action outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-1"
+              >
+                <Copy aria-hidden="true" className="size-6" />
+              </button>
+            </span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PdpHighlights({
+  product,
+  locale,
+  title,
+}: Readonly<{
+  product: Product;
+  locale: string;
+  title: string;
+}>): React.ReactElement | null {
+  if (!hasLocalizedHighlights(product, locale)) {
+    return null;
+  }
+
+  return (
+    <div className="order-6 md:order-0 mt-8 md:mt-10">
+      <H2 variant="h3" className="text-text-action mb-8">
+        {title}
+      </H2>
+      <div className="mb-10 md:mb-0">
+        {(product.highlights?.[locale] ?? []).map((highlight) => (
+          <BulletPoint
+            key={highlight}
+            label={highlight}
+            iconColor="primary"
+            variant="default"
+            size="lg"
+            icon={Sun}
+            className="mb-6 gap-4"
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function ProductDetail({ product: initialProduct, options, className }: Readonly<ProductDetailProps>) {
   const { ready: shopContextReady } = useShopContextReady();
   const { product, loading, setAsCurrent } = useProduct(initialProduct, options);
   const { session } = useSession();
@@ -265,23 +538,6 @@ export default function ProductDetail({ product: initialProduct, options, classN
 
   const flaggedKeySpecs = product.specifications?.filter((spec: ProductSpecification) => spec.highlight === true) ?? [];
   const technicalInfoGroups = product.groupedSpecifications ?? [];
-  const fewTechnicalInfoGroups = technicalInfoGroups.length > 0 && technicalInfoGroups.length < 4;
-
-  const renderKeySpecValue = (spec: ProductSpecification): React.ReactNode => {
-    const rawValue = l10n(spec.value);
-    const unit = spec.unit ? l10n(spec.unit) : undefined;
-
-    if (isEnergyEfficiencyClass(rawValue)) {
-      return (
-        <span className="flex items-center gap-1.5">
-          <EnergyBadge rating={rawValue} />
-          {unit ? <span className="font-normal text-base">{unit}</span> : null}
-        </span>
-      );
-    }
-
-    return unit ? `${rawValue} ${unit}` : rawValue;
-  };
 
   const handleCopyItemNumber = async (): Promise<void> => {
     try {
@@ -310,167 +566,23 @@ export default function ProductDetail({ product: initialProduct, options, classN
       */}
       <div className={cn('grid grid-cols-1 gap-x-4 md:gap-x-12 lg:gap-x-20 md:grid-cols-2 mb-6', className)}>
         <div className="contents md:flex md:flex-col md:gap-6">
-          <Card variant="gray" rounded="lg" className="order-3 md:order-0 p-6 md:p-8 mb-6 md:mb-0">
-            <CardContent className="px-0">
-              <div className="overflow-hidden">
-                {product.images && product.images.length > 0 ? (
-                  product.images.length === 1 ? (
-                    <div className="relative aspect-square">
-                      <Image
-                        src={product.images[0].url}
-                        alt={
-                          product.images[0].altText
-                            ? l10nOrEmpty(product.images[0].altText) ||
-                              l10nOrEmpty(product.name) ||
-                              t('primaryImageAltUnlabeled', { id: product.id })
-                            : l10nOrEmpty(product.name) || t('primaryImageAltUnlabeled', { id: product.id })
-                        }
-                        fill
-                        className="object-contain object-center"
-                      />
-                    </div>
-                  ) : (
-                    <ProductCarousel images={product.images} />
-                  )
-                ) : (
-                  <div className="bg-surface-image-background flex items-center justify-center">
-                    <Image
-                      src={'/images/no_image_alt.png'}
-                      alt={l10nOrEmpty(product.name) || ''}
-                      width={90}
-                      height={90}
-                    />
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <PdpGallery
+            product={product}
+            l10nOrEmpty={l10nOrEmpty}
+            unlabeledAltWithId={(id) => t('primaryImageAltUnlabeled', { id })}
+          />
 
-          {hasKeySpecifications(product) ? (
-            <Card
-              variant="primary"
-              rounded="lg"
-              className="order-5 md:order-0 p-4 md:px-8 md:pb-8 md:pt-6 mb-10 md:mb-0"
-            >
-              <CardContent className="p-0">
-                <div className="flex flex-col gap-6">
-                  <H2 variant="h4" className="text-text-on-action">
-                    {t('keySpecs')}
-                  </H2>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-y-6 gap-x-12">
-                    {flaggedKeySpecs.length > 0 ? (
-                      flaggedKeySpecs.map((spec: ProductSpecification) => (
-                        <BulletPoint
-                          key={spec.key}
-                          label={l10n(spec.label)}
-                          labelClassName="font-headlines text-2xl font-bold"
-                          variant="white"
-                          iconColor="white"
-                          iconSize="lg"
-                          value={renderKeySpecValue(spec)}
-                          valueClassName="font-normal"
-                        />
-                      ))
-                    ) : (
-                      <>
-                        {product.variantAttributes?.map((attribute: ProductVariantAttribute) => (
-                          <BulletPoint
-                            key={attribute.key}
-                            label={l10n(
-                              t(
-                                dk<ProductVariantAttributeKey>(
-                                  `filters.mixins.productVariantAttributes.${attribute.key}`,
-                                ),
-                                {
-                                  defaultValue: attribute.key,
-                                },
-                              ),
-                            )}
-                            labelClassName="font-headlines text-2xl font-bold"
-                            variant="white"
-                            iconColor="white"
-                            iconSize="lg"
-                            value={l10n(product.variantAttributeValues?.[attribute.key] ?? '')}
-                            valueClassName="font-normal"
-                          />
-                        ))}
-                        {Object.keys(product.templateAttributes || {}).map((attribute: string) => (
-                          <BulletPoint
-                            key={attribute}
-                            label={t(
-                              dk<ProductTemplateAttributeKey>(`filters.mixins.productTemplateAttributes.${attribute}`),
-                              {
-                                defaultValue: attribute,
-                              },
-                            )}
-                            labelClassName="font-headlines text-2xl font-bold"
-                            variant="white"
-                            iconColor="white"
-                            iconSize="lg"
-                            value={l10n(product.templateAttributes?.[attribute] ?? '')}
-                            valueClassName="font-normal"
-                          />
-                        ))}
-                      </>
-                    )}
-                  </div>
+          <PdpKeySpecsCard
+            product={product}
+            flaggedKeySpecs={flaggedKeySpecs}
+            l10n={l10n}
+            t={t}
+            onCopyItemNumber={() => {
+              void handleCopyItemNumber();
+            }}
+          />
 
-                  {/* D6 (COP-6020): keep "More product features" despite newest Figma Specs List Area omitting it */}
-                  {hasTechnicalInformation(product) && (
-                    <div className="flex items-center mt-2">
-                      <UiLink
-                        type="A"
-                        href={getPdpTechnicalInformationHref()}
-                        variant="textBold"
-                        size="m"
-                        iconAfter={<ArrowDown aria-hidden="true" />}
-                      >
-                        {t('more')}
-                      </UiLink>
-                    </div>
-                  )}
-
-                  <div className="flex items-center mt-2">
-                    <span className="text-text-on-action font-bold">{t('itemNumber')}:</span>
-                    <span className="text-text-action ml-2 bg-surface-page py-2 px-3 rounded flex items-center gap-3">
-                      <p>{product.id}</p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void handleCopyItemNumber();
-                        }}
-                        aria-label={t('copy')}
-                        className="inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded text-text-action outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-1"
-                      >
-                        <Copy aria-hidden="true" className="size-6" />
-                      </button>
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ) : null}
-
-          {hasLocalizedHighlights(product, locale) ? (
-            <div className="order-6 md:order-0 mt-8 md:mt-10">
-              <H2 variant="h3" className="text-text-action mb-8">
-                {t('productHighlights')}
-              </H2>
-              <div className="mb-10 md:mb-0">
-                {(product.highlights?.[locale] ?? []).map((highlight) => (
-                  <BulletPoint
-                    key={highlight}
-                    label={highlight}
-                    iconColor="primary"
-                    variant="default"
-                    size="lg"
-                    icon={Sun}
-                    className="mb-6 gap-4"
-                  />
-                ))}
-              </div>
-            </div>
-          ) : null}
+          <PdpHighlights product={product} locale={locale} title={t('productHighlights')} />
         </div>
 
         <div className="contents md:flex md:flex-col">
@@ -540,12 +652,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
                     width={70}
                   />
                 )}
-                {product.brand.name ? (
-                  // TODO: Dedicated brand-listing route missing — brand-filtered PLP
-                  // `/browse?filters[brand.name][]=…` probe returned 0 hits for Victron Energy
-                  // (2026-08-06); keep non-interactive H5 to avoid a dead empty-result link (D10).
-                  <H5 className="text-text-action">{l10n(product.brand.name)}</H5>
-                ) : null}
+                {product.brand.name ? <PdpBrandName name={l10n(product.brand.name)} /> : null}
               </div>
             )}
             <H1>{l10n(product.name)}</H1>
@@ -563,13 +670,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
               ref={addToCartButton}
             >
               <div className="col-start-1 sm:row-start-1 md:col-end-4 xl-col-end-5">
-                {price === undefined ? (
-                  <ProductPriceSkeleton />
-                ) : price === null ? (
-                  <ProductPriceUnavailable />
-                ) : (
-                  <ProductPriceComponent price={price} />
-                )}
+                <PdpPriceBlock price={price} />
               </div>
             </div>
             <ProductAddToCart
@@ -608,37 +709,12 @@ export default function ProductDetail({ product: initialProduct, options, classN
         />
       </div>
       {hasTechnicalInformation(product) ? (
-        <div id={PDP_TECHNICAL_INFORMATION_SECTION_ID} className={cn(className)}>
-          <H2 variant="h3" className="my-6">
-            {' '}
-            {t('technicalInformation')}
-          </H2>
-          <div
-            className={cn(
-              'mb-16 gap-x-6 gap-y-6 md:gap-y-16 grid grid-cols-1 md:grid-cols-2',
-              // D4: 1–3 groups fill the row equally at lg; 4+ keep four-per-row grid.
-              fewTechnicalInfoGroups ? 'lg:flex lg:flex-row' : 'lg:grid-cols-4',
-            )}
-          >
-            {technicalInfoGroups.map((spec: GroupedSpecification, index) => {
-              return (
-                <div className={cn('flex flex-col', fewTechnicalInfoGroups && 'lg:min-w-0 lg:flex-1')} key={index}>
-                  <p className="font-bold font-headlines font-sm p-4 border-b border-border-primary">
-                    {l10n(spec.groupName)}
-                  </p>
-                  {spec.item.map((i) => (
-                    <div className="font-sm p-4 border-b border-border-primary flex gap-4" key={l10n(i.label)}>
-                      <p className="w-1/2">{l10n(i.label)}</p>
-                      <p className="w-1/2">
-                        {l10n(i.value)} {l10n(i.unit)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <PdpTechnicalInformation
+          groups={technicalInfoGroups}
+          className={className}
+          l10n={l10n}
+          title={t('technicalInformation')}
+        />
       ) : null}
 
       <Recommendations

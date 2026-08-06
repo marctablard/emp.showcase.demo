@@ -16,7 +16,7 @@ interface ProductPriceProps {
 /** Figma Discount Info / gross column width (`12830:188985` / `12830:188992`). */
 const PRICE_LEFT_COLUMN_CLASS = 'w-[200px] shrink-0';
 
-export function ProductPriceComponent({ price, isAddToCartBar }: ProductPriceProps) {
+export function ProductPriceComponent({ price, isAddToCartBar }: Readonly<ProductPriceProps>) {
   const t = useTranslations('product.price');
   const { ready: syncReady } = useGlobalSyncReady();
 
@@ -25,7 +25,7 @@ export function ProductPriceComponent({ price, isAddToCartBar }: ProductPricePro
   }
 
   // Gross-first (D1): when price is net-based, large figure is tax.grossValue.
-  const displayAmount = price.tax != null && !price.includesTax ? price.tax.grossValue : price.amount;
+  const displayAmount = price.tax != null && price.includesTax === false ? price.tax.grossValue : price.amount;
   const parts = formatCurrencyToParts(displayAmount, price.currency);
   let priceFragment: React.ReactNode[];
   if (parts.length === 0) {
@@ -34,20 +34,21 @@ export function ProductPriceComponent({ price, isAddToCartBar }: ProductPricePro
     const decimal = parts.find((part) => part.type === 'decimal')?.value || '.';
 
     priceFragment = [
-      parts.map((part, index) => {
+      parts.map((part) => {
+        const key = `${part.type}:${part.value}`;
         if (part.type === 'currency') {
           return (
-            <span id="currency" key={index} className="text-4xl font-headlines">
+            <span id="currency" key={key} className="text-4xl font-headlines">
               {part.value}
             </span>
           );
         }
         if (part.type === 'literal') {
-          return <span key={index}>{part.value}</span>;
+          return <span key={key}>{part.value}</span>;
         }
         if (part.type === 'integer') {
           return (
-            <span id="price" key={index} className="text-4xl font-headlines">
+            <span id="price" key={key} className="text-4xl font-headlines">
               {Math.floor(Number(part.value))}
               {decimal}
             </span>
@@ -55,11 +56,12 @@ export function ProductPriceComponent({ price, isAddToCartBar }: ProductPricePro
         }
         if (part.type === 'fraction') {
           return (
-            <span key={index} className="text-2xl align-top font-headlines">
+            <span key={key} className="text-2xl align-top font-headlines">
               {part.value}
             </span>
           );
         }
+        return null;
       }),
     ];
   }

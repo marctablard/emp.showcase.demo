@@ -54,7 +54,7 @@ export function BulletPoint({
   className,
   valueClassName,
   ...props
-}: BulletPointProps) {
+}: Readonly<BulletPointProps>) {
   return (
     <div className={cn(bulletPointVariants({ size, variant }), className)} {...props}>
       <Icon

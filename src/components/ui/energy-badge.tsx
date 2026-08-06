@@ -12,10 +12,9 @@ interface EnergyBadgeProps extends HTMLAttributes<HTMLSpanElement> {
 const ENERGY_BADGE_PATH =
   'M0 4C0 1.79086 1.79086 0 4 0H48.4553C49.7607 0 50.984 0.636961 51.7325 1.70643L58.7312 11.7064C59.695 13.0836 59.695 14.9164 58.7312 16.2936L51.7325 26.2936C50.984 27.363 49.7607 28 48.4553 28H4C1.79086 28 0 26.2091 0 24V4Z';
 
-export function EnergyBadge({ rating, className, ...props }: EnergyBadgeProps): JSX.Element {
+export function EnergyBadge({ rating, className, ...props }: Readonly<EnergyBadgeProps>): JSX.Element {
   return (
     <span
-      role="img"
       aria-label={rating}
       className={cn('relative inline-flex h-7 min-w-15 items-center justify-start pl-2 pr-5', className)}
       {...props}
@@ -29,7 +28,9 @@ export function EnergyBadge({ rating, className, ...props }: EnergyBadgeProps): 
         <path d={ENERGY_BADGE_PATH} fill="currentColor" />
       </svg>
       {/* Figma Energy letter uses Inter 14/20 semibold; closest body token is text-sm */}
-      <span className="relative z-10 text-sm font-semibold leading-5 text-text-on-action">{rating}</span>
+      <span aria-hidden="true" className="relative z-10 text-sm font-semibold leading-5 text-text-on-action">
+        {rating}
+      </span>
     </span>
   );
 }

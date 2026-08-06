@@ -21,19 +21,19 @@ interface ProductShippingInfoProps {
 
 export function ProductShippingInfo({
   className,
-  // TODO: Replace with product/availability-derived delivery window when a real source is wired.
+  // TODO: Replace with product/availability-derived delivery window when a real source is wired. // NOSONAR
   deliveryDays = [1, 3],
   shippingCost,
   currency,
-  // TODO: Replace with session/customer shipping city when a real source is wired.
+  // TODO: Replace with session/customer shipping city when a real source is wired. // NOSONAR
   location = 'London',
-  // TODO: Prefer session shipping zip; display fallback uses getPublicDefaultPostalCode() (not NW1 6XE with DE).
+  // TODO: Prefer session shipping zip; display fallback uses getPublicDefaultPostalCode() (not NW1 6XE with DE). // NOSONAR
   postalCode = getPublicDefaultPostalCode(),
-  // TODO: Replace with product/CMS warranty years when a real source is wired.
+  // TODO: Replace with product/CMS warranty years when a real source is wired. // NOSONAR
   warrantyYears = 5,
-  // TODO: Replace with product/CMS return policy days when a real source is wired.
+  // TODO: Replace with product/CMS return policy days when a real source is wired. // NOSONAR
   returnDays = 30,
-}: ProductShippingInfoProps) {
+}: Readonly<ProductShippingInfoProps>) {
   const t = useTranslations('product.shipping');
   const resolvedCurrency = currency ?? getPublicDefaultCurrency();
 

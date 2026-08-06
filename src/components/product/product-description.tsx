@@ -63,7 +63,7 @@ export interface ProductDescriptionProps {
  * Localized product description: sanitized HTML, CSS line-clamp from the shared public env
  * constant, and a Show more / Show less toggle when content overflows.
  */
-export function ProductDescription({ html, className }: ProductDescriptionProps): JSX.Element {
+export function ProductDescription({ html, className }: Readonly<ProductDescriptionProps>): JSX.Element {
   const t = useTranslations('product');
   const contentRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);

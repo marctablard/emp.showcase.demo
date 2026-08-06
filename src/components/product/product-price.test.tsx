@@ -50,7 +50,12 @@ function buildPrice(overrides: Partial<ProductPrice> = {}): ProductPrice {
 }
 
 function normalizedText(node: Element | null): string {
-  return (node?.textContent ?? '').replaceAll(/\s+/g, ' ').trim();
+  return normalizeWhitespace(node?.textContent ?? '');
+}
+
+/** Collapse NBSP / narrow spaces from `formatCurrency` so CI locales match DOM textContent. */
+function normalizeWhitespace(value: string): string {
+  return value.replaceAll(/\s+/g, ' ').trim();
 }
 
 function expectLargeFigure(amount: number): void {
@@ -70,7 +75,7 @@ describe('ProductPriceComponent gross-first hierarchy', () => {
 
     expectLargeFigure(price.tax!.grossValue);
     expect(text).toContain(`incl. ${price.tax!.taxRate}% VAT`);
-    expect(text).toContain(formatCurrency(price.tax!.netValue, price.currency));
+    expect(text).toContain(normalizeWhitespace(formatCurrency(price.tax!.netValue, price.currency)));
     expect(text).toContain('net');
     expect(text).not.toContain('excl.');
     expect(text).not.toContain('excludingTax');
@@ -96,7 +101,7 @@ describe('ProductPriceComponent gross-first hierarchy', () => {
 
     expectLargeFigure(price.amount);
     expect(text).toContain(`incl. ${price.tax!.taxRate}% VAT`);
-    expect(text).toContain(formatCurrency(price.tax!.netValue, price.currency));
+    expect(text).toContain(normalizeWhitespace(formatCurrency(price.tax!.netValue, price.currency)));
     expect(text).toContain('net');
     expect(text).not.toContain('excl.');
   });
@@ -110,7 +115,7 @@ describe('ProductPriceComponent gross-first hierarchy', () => {
 
     expectLargeFigure(price.tax!.grossValue);
     expect(text).toContain(`incl. ${price.tax!.taxRate}% VAT`);
-    expect(text).toContain(formatCurrency(price.tax!.netValue, price.currency));
+    expect(text).toContain(normalizeWhitespace(formatCurrency(price.tax!.netValue, price.currency)));
     expect(text).toContain('net');
     expect(text).not.toContain('excl.');
   });
@@ -191,7 +196,7 @@ describe('ProductPriceComponent discount wording and list price', () => {
     render(<ProductPriceComponent price={price} />);
 
     const root = screen.getByTestId('product-price');
-    const listPriceText = formatCurrency(price.originalAmount!, price.currency);
+    const listPriceText = normalizeWhitespace(formatCurrency(price.originalAmount!, price.currency));
     expect(normalizedText(root)).toContain(listPriceText);
     const struck = root.querySelector('.line-through');
     expect(struck).not.toBeNull();

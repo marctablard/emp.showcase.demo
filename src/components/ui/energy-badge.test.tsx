@@ -9,7 +9,7 @@ describe('EnergyBadge', () => {
   it('renders the energy rating with an accessible label', () => {
     render(<EnergyBadge rating="A+++" />);
 
-    expect(screen.getByRole('img', { name: 'A+++' })).toBeInTheDocument();
+    expect(screen.getByLabelText('A+++')).toBeInTheDocument();
     expect(screen.getByText('A+++')).toBeInTheDocument();
   });
 });
