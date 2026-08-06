@@ -75,7 +75,10 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
     const name = [addr.firstName || addr.name || addr.companyName, addr.lastName].filter(Boolean).join(' ').trim();
     const street = [addr.street, addr.houseNumber].filter(Boolean).join(' ').trim();
     const cityLine = [addr.postalCode, addr.city].filter(Boolean).join(' ').trim();
-    const cityWithRegion = addr.region ? `${cityLine}${cityLine ? ', ' : ''}${addr.region}` : cityLine;
+    let cityWithRegion = cityLine;
+    if (addr.region) {
+      cityWithRegion = cityLine ? `${cityLine}, ${addr.region}` : String(addr.region);
+    }
     const lines = [name, street, cityWithRegion, addr.country].map((line) => String(line ?? '').trim()).filter(Boolean);
 
     if (lines.length === 0) {
