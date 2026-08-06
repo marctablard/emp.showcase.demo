@@ -20,6 +20,7 @@ export interface ProductSpecification {
   label: LocalizedString;
   value: LocalizedString;
   unit?: LocalizedString;
+  highlight?: boolean;
 }
 
 export interface GroupedSpecification {

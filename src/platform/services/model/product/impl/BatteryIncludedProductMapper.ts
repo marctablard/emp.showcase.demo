@@ -11,6 +11,7 @@ import type { SuggestionsMapper } from '../../search/SuggestionsMapper';
 import type { ProductMapper } from '../ProductMapper';
 import type { Product } from '../index';
 import type { EmporixProductMapper } from './EmporixProductMapper';
+import { normalizeLocalizedHighlights } from './normalizeLocalizedHighlights';
 import { normalizeProductAttributeStringMap } from './normalizeProductAttributeStringMap';
 
 const BATTERY_INCLUDED_SELECTION_CONTEXT_KEY = '__batteryIncludedSelection';
@@ -70,64 +71,7 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
   }
 
   private mapLocalizedHighlights(value: unknown): Product['highlights'] {
-    if (!value) {
-      return undefined;
-    }
-
-    if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
-      return value.length > 0 ? { en: value } : undefined;
-    }
-
-    if (Array.isArray(value)) {
-      const localizedHighlights = value.reduce<Record<string, string[]>>((accumulator, item) => {
-        if (!item || typeof item !== 'object' || typeof item.language !== 'string') {
-          return accumulator;
-        }
-
-        if (typeof item.value === 'string') {
-          accumulator[item.language] = [...(accumulator[item.language] ?? []), item.value];
-        }
-
-        if (Array.isArray(item.value)) {
-          const localizedValues = item.value.filter(
-            (nestedItem: unknown): nestedItem is string => typeof nestedItem === 'string',
-          );
-          if (localizedValues.length > 0) {
-            accumulator[item.language] = [...(accumulator[item.language] ?? []), ...localizedValues];
-          }
-        }
-
-        return accumulator;
-      }, {});
-
-      return Object.keys(localizedHighlights).length > 0 ? localizedHighlights : undefined;
-    }
-
-    if (typeof value === 'object') {
-      const localizedHighlights = Object.entries(value as Record<string, unknown>).reduce<Record<string, string[]>>(
-        (accumulator, [locale, item]) => {
-          if (typeof item === 'string') {
-            accumulator[locale] = [item];
-          }
-
-          if (Array.isArray(item)) {
-            const localizedValues = item.filter(
-              (nestedItem: unknown): nestedItem is string => typeof nestedItem === 'string',
-            );
-            if (localizedValues.length > 0) {
-              accumulator[locale] = localizedValues;
-            }
-          }
-
-          return accumulator;
-        },
-        {},
-      );
-
-      return Object.keys(localizedHighlights).length > 0 ? localizedHighlights : undefined;
-    }
-
-    return undefined;
+    return normalizeLocalizedHighlights(value);
   }
 
   private mergeSiteAwareBranch(documentValue: unknown, highlightedValue: unknown): unknown {

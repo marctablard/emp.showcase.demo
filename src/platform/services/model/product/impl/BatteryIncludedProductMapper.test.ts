@@ -311,6 +311,42 @@ describe('BatteryIncludedProductMapper', () => {
     expect(result.highlights).not.toHaveProperty('en');
   });
 
+  it('maps array-of-arrays highlights to per-locale arrays', () => {
+    const result = mapper.mapToService({
+      _product: {
+        id: 'array-of-arrays-highlights-product',
+        code: 'array-of-arrays-highlights-product',
+        productType: 'BASIC',
+      },
+      _product_i18n: {
+        name: 'Array of Arrays Highlights Product',
+        mixins: {
+          highlights: {
+            highlights: [
+              [
+                { language: 'de', value: 'SG-Ready' },
+                { language: 'en', value: 'SG-Ready' },
+              ],
+              [
+                { language: 'de', value: 'Das ist keine Fälschung' },
+                { language: 'en', value: 'This is not fake' },
+              ],
+              [
+                { language: 'de', value: 'Energieeffizient' },
+                { language: 'en', value: 'Energy efficient' },
+              ],
+            ] as unknown as string[],
+          },
+        },
+      },
+    });
+
+    expect(result.highlights).toEqual({
+      de: ['SG-Ready', 'Das ist keine Fälschung', 'Energieeffizient'],
+      en: ['SG-Ready', 'This is not fake', 'Energy efficient'],
+    });
+  });
+
   it('maps price from country-keyed countryAware payloads', () => {
     const result = mapper.mapToService({
       _product: {

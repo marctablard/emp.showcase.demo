@@ -50,6 +50,21 @@ Thanks to cva and Tailwind, you can easily extend or customize components by pas
 - Use the variant system instead of custom classes when possible.
 - Refer to the source code for advanced usage or to add new variants.
 
+## Product Detail Page (PDP)
+
+Domain composition for the basic-product PDP lives outside `src/components/ui` but depends on the same tokens and primitives:
+
+| Component | Path | Role |
+|---|---|---|
+| `ProductDetail` | `src/components/product/product-detail.tsx` | Page shell: media, title block, key specs / highlights, purchase column, technical information |
+| `ProductPriceComponent` | `src/components/product/product-price.tsx` | Gross-first price row, discount badge wording, inline list price |
+| `ProductShippingInfo` | `src/components/product/product-shipping-info.tsx` | Delivery details + USP card |
+| `ProductDescription` | `src/components/product/product-description.tsx` | Sanitized, line-clamped description with Show more / Show less |
+
+**Key specifications vs Technical Information:** Key specifications lists only specifications flagged `highlight: true` (with a legacy variant/template-attribute fallback when none are flagged). Technical Information still renders every specification via `groupedSpecifications`.
+
+**Delivery card columns (decision D3):** `ProductShippingInfo` uses one column from 0–1023px and two columns from `md` (1024px) upward (`grid-cols-1 md:grid-cols-2`). This is an intentional ticket-driven override of the Figma tablet frame that shows two columns at 768.
+
 ## References
 - [shadcn/ui Documentation](https://ui.shadcn.com/docs)
 - [Tailwind CSS Documentation](https://tailwindcss.com/docs)

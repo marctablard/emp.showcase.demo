@@ -5,5 +5,5 @@ type Props = {
 };
 
 export default function DefaultMainLayout({ children }: Props) {
-  return <main className="flex-grow mt-17 sm:mt-36 md:mt-52">{children}</main>;
+  return <main className="flex-grow mt-17 sm:mt-30 md:mt-44">{children}</main>;
 }

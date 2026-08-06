@@ -84,6 +84,38 @@ describe('EmporixProductMapper', () => {
       expect(result.variantAttributeValues).toBeUndefined();
     });
 
+    it('4b. array-of-arrays highlights mixin maps to both locales', () => {
+      const input = {
+        id: 'p1',
+        code: 'p1',
+        productType: 'BASIC',
+        mixins: {
+          highlights: {
+            highlights: [
+              [
+                { language: 'de', value: 'SG-Ready' },
+                { language: 'en', value: 'SG-Ready' },
+              ],
+              [
+                { language: 'de', value: 'Das ist keine Fälschung' },
+                { language: 'en', value: 'This is not fake' },
+              ],
+              [
+                { language: 'de', value: 'Energieeffizient' },
+                { language: 'en', value: 'Energy efficient' },
+              ],
+            ],
+          },
+        },
+      } as any;
+
+      const result = mapper.mapToService(input);
+      expect(result.highlights).toEqual({
+        de: ['SG-Ready', 'Das ist keine Fälschung', 'Energieeffizient'],
+        en: ['SG-Ready', 'This is not fake', 'Energy efficient'],
+      });
+    });
+
     it('5. unknown/custom variant attribute key is mapped', () => {
       const input = {
         id: 'p1',
@@ -127,6 +159,92 @@ describe('EmporixProductMapper', () => {
           label: { en: 'Width' },
           value: { en: '40' },
         }),
+      );
+    });
+
+    it('7. passes specifications[].highlight through and keeps all specs in groupedSpecifications', () => {
+      const input = {
+        id: 'p1',
+        code: 'p1',
+        productType: 'BASIC',
+        mixins: {
+          specifications: {
+            specifications: [
+              {
+                key: 'energy',
+                group: 'electrical',
+                groupLabel: [{ language: 'en', value: 'Electrical' }],
+                label: [{ language: 'en', value: 'Energy' }],
+                value: [{ language: 'en', value: '55W' }],
+                highlight: true,
+              },
+              {
+                key: 'weight',
+                group: 'physical',
+                groupLabel: [{ language: 'en', value: 'Physical' }],
+                label: [{ language: 'en', value: 'Weight' }],
+                value: [{ language: 'en', value: '4kg' }],
+                highlight: null,
+              },
+              {
+                key: 'color',
+                group: 'physical',
+                groupLabel: [{ language: 'en', value: 'Physical' }],
+                label: [{ language: 'en', value: 'Color' }],
+                value: [{ language: 'en', value: 'Black' }],
+              },
+            ],
+          },
+        },
+      } as any;
+
+      const result = mapper.mapToService(input);
+
+      expect(result.specifications).toHaveLength(3);
+      expect(result.specifications?.[0]).toEqual(
+        expect.objectContaining({
+          key: 'energy',
+          highlight: true,
+        }),
+      );
+      expect(result.specifications?.[1]).toEqual(
+        expect.objectContaining({
+          key: 'weight',
+        }),
+      );
+      expect(result.specifications?.[1]).not.toHaveProperty('highlight');
+      expect(result.specifications?.[2]).toEqual(
+        expect.objectContaining({
+          key: 'color',
+        }),
+      );
+      expect(result.specifications?.[2]).not.toHaveProperty('highlight');
+
+      // R-05 / Task 2.5: Technical Information keeps every specification — do not filter by highlight in the mapper.
+      // groupSpecificationsByGroup projects { label, value, unit } only; completeness is by content, not key/highlight.
+      const groupedItems = result.groupedSpecifications?.flatMap((group) => group.item) ?? [];
+      expect(groupedItems).toHaveLength(3);
+      expect(groupedItems).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ label: { en: 'Energy' }, value: { en: '55W' } }),
+          expect.objectContaining({ label: { en: 'Weight' }, value: { en: '4kg' } }),
+          expect.objectContaining({ label: { en: 'Color' }, value: { en: 'Black' } }),
+        ]),
+      );
+      expect(result.groupedSpecifications).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            groupName: { en: 'Electrical' },
+            item: expect.arrayContaining([expect.objectContaining({ label: { en: 'Energy' }, value: { en: '55W' } })]),
+          }),
+          expect.objectContaining({
+            groupName: { en: 'Physical' },
+            item: expect.arrayContaining([
+              expect.objectContaining({ label: { en: 'Weight' }, value: { en: '4kg' } }),
+              expect.objectContaining({ label: { en: 'Color' }, value: { en: 'Black' } }),
+            ]),
+          }),
+        ]),
       );
     });
   });

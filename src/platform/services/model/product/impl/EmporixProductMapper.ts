@@ -7,6 +7,7 @@ import type {
   ProductVariantAttribute,
 } from '@/platform/services/model/product';
 import type { ProductMapper } from '../ProductMapper';
+import { normalizeLocalizedHighlights } from './normalizeLocalizedHighlights';
 import { normalizeLocalizedLeaf } from './normalizeLocalizedLeaf';
 import { normalizeProductAttributeStringMap } from './normalizeProductAttributeStringMap';
 
@@ -42,23 +43,29 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
     const templateAttributes = normalizeProductAttributeStringMap(
       source.mixins?.productTemplateAttributes as Record<string, unknown> | undefined,
     );
-    const highlights = Array.isArray(source.mixins?.highlights?.highlights)
-      ? { en: source.mixins.highlights.highlights.map((highlight: any) => highlight?.value).filter(Boolean) }
-      : undefined;
+    const highlights = normalizeLocalizedHighlights(source.mixins?.highlights?.highlights);
     const mappedSpecs = !Array.isArray(source.mixins?.specifications?.specifications)
       ? []
-      : source.mixins.specifications.specifications.map((spec: any) => {
+      : source.mixins.specifications.specifications.map((rawSpec: unknown): ProductSpecification => {
+          const spec =
+            rawSpec !== null && typeof rawSpec === 'object' && !Array.isArray(rawSpec)
+              ? (rawSpec as Record<string, unknown>)
+              : {};
           // normalizeLocalizedLeaf() can return undefined for empty arrays/objects; only spread the
           // optional props when a defined value exists so we never emit { groupLabel: undefined }.
-          const groupLabel = normalizeLocalizedLeaf(spec?.groupLabel);
-          const unit = normalizeLocalizedLeaf(spec?.unit);
+          const groupLabel = normalizeLocalizedLeaf(spec.groupLabel);
+          const unit = normalizeLocalizedLeaf(spec.unit);
+          const key = typeof spec.key === 'string' ? spec.key : '';
+          // Schema is boolean | null — coerce null / missing to omitted (never emit highlight: undefined).
+          const highlight = typeof spec.highlight === 'boolean' ? spec.highlight : undefined;
           return {
-            key: spec?.key || '',
-            label: normalizeLocalizedLeaf(spec?.label, spec?.key) || { en: spec?.key || '' },
-            value: normalizeLocalizedLeaf(spec?.value) || { en: '' },
-            ...(spec?.group ? { group: spec.group } : {}),
+            key,
+            label: normalizeLocalizedLeaf(spec.label, key) || { en: key },
+            value: normalizeLocalizedLeaf(spec.value) || { en: '' },
+            ...(typeof spec.group === 'string' && spec.group ? { group: spec.group } : {}),
             ...(groupLabel ? { groupLabel } : {}),
             ...(unit ? { unit } : {}),
+            ...(highlight !== undefined ? { highlight } : {}),
           };
         });
 
