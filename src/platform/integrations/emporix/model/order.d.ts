@@ -88,6 +88,15 @@ export interface EmporixShipping {
     description?: string;
     amount: number;
     currency: string;
+    shippingTaxCode?: string;
+    tax?: {
+      rate?: number;
+      total?: {
+        amount: number;
+        currency: string;
+        inclusive?: boolean;
+      };
+    };
   }>;
 }
 
@@ -110,16 +119,22 @@ export interface EmporixOrderCalculatedPrice {
     netValue: number;
     grossValue: number;
     taxValue: number;
+    taxCode?: string;
+    taxRate?: number;
   };
   finalPrice: {
     netValue: number;
     grossValue: number;
     taxValue: number;
+    taxCode?: string;
+    taxRate?: number;
   };
   totalShipping?: {
     netValue: number;
     grossValue: number;
-    taxValue: number;
+    taxValue?: number;
+    taxCode?: string;
+    taxRate?: number;
   };
 }
 

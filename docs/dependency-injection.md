@@ -312,7 +312,7 @@ export function getProductById(id: string): Promise<Product | null> {
 }
 ```
 
-This is then used in a Server Component like `src/app/[site]/[locale]/(default)/product/[id]/page.tsx`:
+This is then used in a Server Component like `src/app/[site]/[locale]/(nav-shell)/(default)/product/[id]/page.tsx`:
 
 ```typescript
 // Fetch product data server-side using the SSR container

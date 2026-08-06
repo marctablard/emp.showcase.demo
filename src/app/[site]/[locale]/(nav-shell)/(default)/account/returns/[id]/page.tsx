@@ -38,7 +38,7 @@ export default async function ReturnDetailPage({ params }: { params: Promise<{ l
   const breadcrumbs = [
     {
       href: '/account',
-      label: tAccount('title'),
+      label: tAccount('accountDetails'),
     },
     {
       href: '/account/returns',

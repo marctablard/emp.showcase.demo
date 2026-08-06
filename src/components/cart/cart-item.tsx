@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useSyncedState } from '@/hooks/common/use-synced-state';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Coins, Loader2, Minus, Package, Plus, ShoppingCart, Trash2 } from 'lucide-react';
@@ -9,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import UiLink from '@/components/ui/link';
 import { UINotification } from '@/components/ui/molecules/ui-notification';
 import { useCart } from '@/hooks/cart/useCart';
+import { useSyncedState } from '@/hooks/common/use-synced-state';
 import { useNotifications } from '@/hooks/notifications/useNotifications';
 import { useAvailability } from '@/hooks/product/useAvailability';
 import { useL10n } from '@/hooks/useL10n';

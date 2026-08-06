@@ -323,7 +323,9 @@
         "SIZE_FIT": "Size/Fit Issue",
         "OTHER": "Other"
       }
-    }
+    },
+    "vat": "Tax",
+    "tax": "Tax"
   },
   "approvals": "Approvals",
   "ordersInProgress": "{count} in progress",
@@ -379,7 +381,7 @@
     "price": "Price",
     "unitPrice": "Unit price",
     "quotationDate": "Quotation Date",
-    "totalAmount": "Total Amount",
+    "totalAmount": "Total net amount",
     "editor": "Editor",
     "action": "Action",
     "comment": "Comment",
@@ -400,7 +402,7 @@
     "transportCondition": "Transport condition",
     "deliveryAddress": "Delivery address",
     "netValue": "Net value of goods",
-    "vat": "VAT",
+    "vat": "Tax",
     "deliveryCosts": "Delivery costs",
     "shippingFee": "Shipping fee",
     "baseTotal": "Base total",
@@ -410,6 +412,7 @@
     "approver": "Approver",
     "accept": "ACCEPT",
     "inquireApproval": "INQUIRE APPROVAL",
+    "goToApproval": "GO TO APPROVAL",
     "reject": "REJECT",
     "requestChange": "REQUEST CHANGE",
     "confirmationTitle": "Do you want to accept the quote and create an order?",
@@ -449,7 +452,14 @@
     "loadingHistory": "Loading history...",
     "quoteActionFailedTitle": "We couldn't complete this action",
     "quoteActionFailedDescription": "Please try again or contact support if the problem persists.",
-    "relatedOrder": "Related Order"
+    "relatedOrder": "Related Order",
+    "shippingMethod": "Shipping method",
+    "shippingAddress": "Shipping address",
+    "tax": "Tax",
+    "shippingTax": "Shipping Tax",
+    "free": "Free",
+    "baseNetUnitPrice": "Base Net Unit Price",
+    "discount": "Discount"
   },
   "quotesList": {
     "title": "Quotes",

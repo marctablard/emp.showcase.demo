@@ -3,6 +3,7 @@
   "next": "Nächste",
   "pageIndicator": "Seite {current} / {total}",
   "title": "Bestellungen",
+  "orderHistory": "Bestellhistorie",
   "myOrders": "Meine Bestellungen",
   "showAllOrders": "Alle Bestellungen anzeigen",
   "orderIdHeading": "Bestellung",
@@ -29,7 +30,7 @@
   "shipping": "Versand",
   "free": "Kostenlos",
   "discount": "Rabatt",
-  "vat": "MwSt.",
+  "vat": "Tax",
   "total": "Gesamt",
   "email": "E-Mail",
   "loading": "Bestellungen werden geladen...",
@@ -47,7 +48,11 @@
   "gross": "Brutto",
   "netValueOfGoods": "Netto-Warenwert",
   "shippingFee": "Versandgebühr",
+  "shippingVat": "Shipping Tax",
   "totalValue": "Gesamtwert",
+  "keepOrder": "Bestellung behalten",
+  "cancelOrderConfirmTitle": "Bestellung stornieren?",
+  "cancelOrderConfirmDescription": "Möchten Sie diese Bestellung wirklich stornieren? Diese Aktion kann nicht rückgängig gemacht werden.",
   "search": {
     "placeholder": "Bestellungen durchsuchen..."
   },
@@ -148,6 +153,7 @@
     "comment": "Kommentar",
     "changeReason": "Änderungsgrund",
     "roleCustomer": "KUNDE",
+    "roleApprover": "APPROVER",
     "roleEmployee": "MITARBEITER",
     "approvalRequestCreated": "Freigabeanfrage erstellt",
     "approvalDetailsDescription": "Details der Freigabeanfrage anzeigen und verwalten",
@@ -183,8 +189,12 @@
     "updatedAt": "Aktualisiert am",
     "requestedBy": "Angefordert von",
     "relatedOrder": "Zugehörige Bestellung",
+    "relatedQuote": "Zugehöriges Angebot",
     "totalAmount": "Gesamtbetrag",
     "totalNetAmount": "Netto-Gesamtbetrag",
+    "product": "Produkt",
+    "quantity": "Menge",
+    "unitPrice": "Stückpreis",
     "actions": "Aktionen",
     "view": "Anzeigen",
     "back": "Zurück",
@@ -193,6 +203,8 @@
     "confirmDeleteApproval": "Sind Sie sicher, dass Sie diese Freigabe löschen möchten?",
     "declineApprovalTitle": "Genehmigung ablehnen?",
     "declineApprovalDescription": "Möchten Sie diese Genehmigung wirklich ablehnen?",
+    "approveApprovalTitle": "Diese Anfrage genehmigen?",
+    "approveApprovalDescription": "Möchten Sie {resourceId} mit einem Nettobetrag von {netAmount} wirklich genehmigen?",
     "approvalSuccessfullyDeleted": "Freigabe erfolgreich gelöscht",
     "requestorComment": "Kommentar des Anforderers",
     "approverComment": "Kommentar des Genehmigers",
@@ -225,7 +237,7 @@
     "orderOverview": "Bestellübersicht",
     "netValueOfGoods": "Netto-Warenwert",
     "shippingFee": "Versandgebühr",
-    "vat": "MwSt.",
+    "vat": "Tax",
     "totalValue": "Gesamtbetrag",
     "shipping": "Versand",
     "shippingMethod": "Versandart",
@@ -256,7 +268,12 @@
     "next": "Weiter",
     "pageIndicator": "Seite {current} / {total}",
     "searchPlaceholder": "Nach Freigabe-ID suchen...",
-    "noMatches": "Keine Freigaben entsprechen Ihrer Suche"
+    "noMatches": "Keine Freigaben entsprechen Ihrer Suche",
+    "tax": "Tax",
+    "shippingTax": "Shipping Tax",
+    "free": "Kostenlos",
+    "baseNetUnitPrice": "Basis-Nettostückpreis",
+    "discount": "Rabatt"
   },
   "ApprovalAction": {
     "CHECKOUT": "Bestellung"
@@ -300,5 +317,7 @@
   "viewOrders": "Bestellungen anzeigen",
   "deliveryDate": "Lieferdatum",
   "deliveryAddress": "Lieferadresse",
-  "orderValue": "Bestellwert"
+  "orderValue": "Bestellwert",
+  "tax": "Tax",
+  "shippingTax": "Shipping Tax"
 }

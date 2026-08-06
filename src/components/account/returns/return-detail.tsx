@@ -4,18 +4,23 @@ import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { AlertCircle, Minus, Plus, ReceiptText, Trash2 } from 'lucide-react';
+import { detailTaxRateSuffix, shouldDisplayTaxLine } from '@/components/account/shared/detail-tax-line';
+import { ProductList, type ProductListItem } from '@/components/product/product-list';
+import { coalesceBrandLabel, resolveProductBrandLabel } from '@/components/product/resolve-product-brand';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { H1, H4, H5, H6 } from '@/components/ui/h';
+import { H1, H4, H5 } from '@/components/ui/h';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { SummaryField } from '@/components/ui/summary-card';
 import { Textarea } from '@/components/ui/textarea';
+import { useProducts } from '@/hooks/product/useProducts';
 import { useReturn } from '@/hooks/return/useReturn';
+import { useL10n } from '@/hooks/useL10n';
 import { Link } from '@/i18n/navigation';
 import type { Return } from '@/platform/services/model/return';
 import { formatReturnCurrency } from './helpers';
@@ -92,10 +97,158 @@ interface ReturnItemsListProps {
   readonly t: ReturnType<typeof useTranslations<'account.returns'>>;
 }
 
+type ReturnProductListItem = ProductListItem & {
+  readonly __returnItem?: ExtendedReturnItem;
+};
+
+interface ReturnReasonMetadataProps {
+  readonly reasonCode?: string;
+  readonly reasonDetails?: string;
+  readonly t: ReturnType<typeof useTranslations<'account.returns'>>;
+  readonly reasonBadgeClassName: string;
+  readonly containerClassName: string;
+}
+
+interface ReturnTrailingDesktopAmountProps {
+  readonly refundNetValue?: number;
+  readonly refundNetCurrency?: string;
+  readonly refundGrossValue?: number;
+  readonly refundGrossCurrency?: string;
+  readonly locale: string;
+  readonly grossLabel: string;
+}
+
+function ReturnReasonMetadata({
+  reasonCode,
+  reasonDetails,
+  t,
+  reasonBadgeClassName,
+  containerClassName,
+}: ReturnReasonMetadataProps) {
+  if (reasonCode != null || reasonDetails != null) {
+    return (
+      <div className={containerClassName}>
+        {reasonCode && <Badge className={reasonBadgeClassName}>{renderReturnReasonLabel(t, reasonCode)}</Badge>}
+        {reasonDetails && <p className="text-sm font-body text-text-body">{reasonDetails}</p>}
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function ReturnTrailingDesktopAmount({
+  refundNetValue,
+  refundNetCurrency,
+  refundGrossValue,
+  refundGrossCurrency,
+  locale,
+  grossLabel,
+}: ReturnTrailingDesktopAmountProps) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1 sm:items-end">
+      <span className="break-words text-2xl font-bold font-headlines text-text-headings">
+        {formatReturnCurrency(refundNetValue, refundNetCurrency, locale)}
+      </span>
+      {refundGrossValue !== undefined && (
+        <span className="break-words text-sm font-body text-text-placeholders">
+          {grossLabel} {formatReturnCurrency(refundGrossValue, refundGrossCurrency, locale)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function isReturnProductListItem(productItem: ProductListItem): productItem is ReturnProductListItem {
+  return '__returnItem' in productItem;
+}
+
+function getReturnItemRefund(item: ExtendedReturnItem): { value?: number; currency?: string } {
+  if (item.calculatedPrice?.finalPrice?.grossValue !== undefined) {
+    return {
+      value: item.calculatedPrice.finalPrice.grossValue,
+      currency: item.calculatedPrice.finalPrice.currency ?? item.total?.currency ?? item.unitPrice?.currency,
+    };
+  }
+  if (item.grossUnitPrice?.value !== undefined && item.grossUnitPrice?.currency) {
+    return { value: item.grossUnitPrice.value * item.quantity, currency: item.grossUnitPrice.currency };
+  }
+  if (item.unitPrice?.value !== undefined && item.unitPrice?.currency) {
+    return { value: item.unitPrice.value * item.quantity, currency: item.unitPrice.currency };
+  }
+  if (item.total?.value !== undefined && item.total?.currency) {
+    return { value: item.total.value, currency: item.total.currency };
+  }
+  return { value: undefined, currency: undefined };
+}
+
+function getReturnItemUnitPrice(item: ExtendedReturnItem): {
+  grossValue?: number;
+  netValue?: number;
+  currency?: string;
+} {
+  return {
+    grossValue: item.calculatedUnitPrice?.grossValue ?? item.grossUnitPrice?.value ?? item.unitPrice?.value,
+    netValue: item.calculatedUnitPrice?.netValue ?? item.netPrice?.value ?? item.unitPrice?.value,
+    currency:
+      item.calculatedUnitPrice?.currency ??
+      item.grossUnitPrice?.currency ??
+      item.netPrice?.currency ??
+      item.unitPrice?.currency,
+  };
+}
+
+function getReturnItemRefundNet(item: ExtendedReturnItem): { value?: number; currency?: string } {
+  if (item.calculatedPrice?.finalPrice?.netValue !== undefined) {
+    return {
+      value: item.calculatedPrice.finalPrice.netValue,
+      currency: item.calculatedPrice.finalPrice.currency ?? item.total?.currency ?? item.unitPrice?.currency,
+    };
+  }
+
+  return {
+    value: (item.netPrice?.value ?? item.unitPrice?.value ?? 0) * item.quantity,
+    currency: item.netPrice?.currency ?? item.unitPrice?.currency,
+  };
+}
+
+function renderTrailingDesktopAmount(
+  productItem: ProductListItem,
+  { locale, grossLabel }: { locale: string; grossLabel: string },
+): React.ReactNode {
+  const returnItem = isReturnProductListItem(productItem) ? productItem.__returnItem : undefined;
+  if (returnItem == null) {
+    return null;
+  }
+
+  const refund = getReturnItemRefund(returnItem);
+  const refundNet = getReturnItemRefundNet(returnItem);
+
+  return (
+    <ReturnTrailingDesktopAmount
+      refundNetValue={refundNet.value}
+      refundNetCurrency={refundNet.currency}
+      refundGrossValue={refund.value}
+      refundGrossCurrency={refund.currency}
+      locale={locale}
+      grossLabel={grossLabel}
+    />
+  );
+}
+
 function ReturnOverview({ returnItem, locale, t }: ReturnOverviewProps) {
-  const totalGrossValue = returnItem.calculatedPrice?.finalPrice?.grossValue;
-  const totalNetValue = returnItem.calculatedPrice?.finalPrice?.netValue ?? returnItem.total?.value;
-  const totalCurrency = returnItem.calculatedPrice?.finalPrice?.currency ?? returnItem.total?.currency;
+  // Total return value: single gross amount (finalPrice.grossValue). No Gross prefix.
+  // When gross is absent, show '-' (do not invent a total from net or helpers).
+  const finalPrice = returnItem.calculatedPrice?.finalPrice;
+  const totalGrossValue = finalPrice?.grossValue;
+  const totalNetValue = finalPrice?.netValue ?? returnItem.total?.value;
+  const totalCurrency = finalPrice?.currency ?? returnItem.total?.currency;
+  const taxLine = {
+    taxRate: finalPrice?.taxRate,
+    taxAmount: finalPrice?.taxValue,
+    netAmount: finalPrice?.netValue,
+  };
+  const showTaxLine = shouldDisplayTaxLine(taxLine);
 
   return (
     <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm">
@@ -108,17 +261,22 @@ function ReturnOverview({ returnItem, locale, t }: ReturnOverviewProps) {
           <H5>{t('netValueOfGoods')}</H5>
           <H5 className="text-right">{formatReturnCurrency(totalNetValue, totalCurrency, locale)}</H5>
         </div>
+        {showTaxLine && (
+          <div className="flex items-start justify-between gap-4 pt-2">
+            <span className="text-base font-body text-text-body">
+              {t('tax')}
+              {detailTaxRateSuffix(taxLine)}
+            </span>
+            <span className="text-base font-body text-text-body text-right">
+              {formatReturnCurrency(finalPrice?.taxValue, totalCurrency, locale)}
+            </span>
+          </div>
+        )}
         <div className="flex items-start justify-between gap-4 pt-2">
           <H5>{t('totalReturnValue')}</H5>
-          <div className="text-right">
-            <H5>{formatReturnCurrency(totalNetValue, totalCurrency, locale)}</H5>
-            <div className="flex items-center justify-end gap-1 text-sm font-body text-text-placeholders">
-              <span>{t('gross')}</span>
-              <span>
-                {totalGrossValue !== undefined ? formatReturnCurrency(totalGrossValue, totalCurrency, locale) : '-'}
-              </span>
-            </div>
-          </div>
+          <H5 className="text-right">
+            {totalGrossValue === undefined ? '-' : formatReturnCurrency(totalGrossValue, totalCurrency, locale)}
+          </H5>
         </div>
       </div>
     </div>
@@ -128,145 +286,85 @@ function ReturnOverview({ returnItem, locale, t }: ReturnOverviewProps) {
 function ReturnItemsList({ items, locale, t }: ReturnItemsListProps) {
   const reasonBadgeClassName =
     'inline-flex !rounded-sm !border-border-primary !bg-surface-disabled !p-1 !text-sm !font-bold normal-case !tracking-normal text-text-headings font-body';
+  const grossLabel = t('gross');
+  const { l10n } = useL10n();
+  const productIds = items.map((item) => item.productId).filter((id): id is string => Boolean(id));
+  const { products } = useProducts(productIds);
+  const productById = Object.fromEntries((products || []).map((product) => [product.id, product]));
 
-  const getItemRefund = (item: ExtendedReturnItem) => {
-    if (item.calculatedPrice?.finalPrice?.grossValue !== undefined) {
-      return {
-        value: item.calculatedPrice.finalPrice.grossValue,
-        currency: item.calculatedPrice.finalPrice.currency ?? item.total?.currency ?? item.unitPrice?.currency,
-      };
-    }
-    if (item.grossUnitPrice?.value !== undefined && item.grossUnitPrice?.currency) {
-      return { value: item.grossUnitPrice.value * item.quantity, currency: item.grossUnitPrice.currency };
-    }
-    if (item.unitPrice?.value !== undefined && item.unitPrice?.currency) {
-      return { value: item.unitPrice.value * item.quantity, currency: item.unitPrice.currency };
-    }
-    if (item.total?.value !== undefined && item.total?.currency) {
-      return { value: item.total.value, currency: item.total.currency };
-    }
-    return { value: undefined, currency: undefined };
-  };
-
-  const getItemUnitPrice = (item: ExtendedReturnItem) => ({
-    grossValue: item.calculatedUnitPrice?.grossValue ?? item.grossUnitPrice?.value ?? item.unitPrice?.value,
-    netValue: item.calculatedUnitPrice?.netValue ?? item.netPrice?.value ?? item.unitPrice?.value,
-    currency:
-      item.calculatedUnitPrice?.currency ??
-      item.grossUnitPrice?.currency ??
-      item.netPrice?.currency ??
-      item.unitPrice?.currency,
-  });
-
-  const getItemRefundNet = (item: ExtendedReturnItem) => {
-    if (item.calculatedPrice?.finalPrice?.netValue !== undefined) {
-      return {
-        value: item.calculatedPrice.finalPrice.netValue,
-        currency: item.calculatedPrice.finalPrice.currency ?? item.total?.currency ?? item.unitPrice?.currency,
-      };
-    }
+  const mappedItems: ReturnProductListItem[] = items.map((item) => {
+    const unitPrice = getReturnItemUnitPrice(item);
+    const primaryUnitPriceValue = unitPrice.netValue ?? unitPrice.grossValue;
+    const catalogProduct = item.productId ? productById[item.productId] : undefined;
 
     return {
-      value: (item.netPrice?.value ?? item.unitPrice?.value ?? 0) * item.quantity,
-      currency: item.netPrice?.currency ?? item.unitPrice?.currency,
+      id: item.id,
+      name: item.name,
+      brand: coalesceBrandLabel(item.brand ?? item.vendorName, resolveProductBrandLabel(catalogProduct, l10n)),
+      itemNumber: item.itemNumber,
+      quantity: item.quantity,
+      unitPrice: primaryUnitPriceValue ?? 0,
+      currency: unitPrice.currency ?? '',
+      netUnitPrice: unitPrice.netValue,
+      grossUnitPrice: unitPrice.grossValue,
+      imageUrl: item.images?.[0] ?? catalogProduct?.images?.[0]?.url,
+      href: item.productId ? `/product/${item.productId}` : undefined,
+      __returnItem: item,
     };
-  };
+  });
 
   return (
-    <Card className="border border-border-primary shadow-sm">
-      <CardContent className="p-6">
-        <div className="hidden sm:grid grid-cols-[minmax(280px,1.6fr)_minmax(120px,1fr)_80px_minmax(140px,1fr)] gap-6 items-start pb-4 border-b border-border-primary">
-          <H6 className="text-sm">{t('product')}</H6>
-          <H6 className="text-sm">{t('price')}</H6>
-          <H6 className="text-sm">{t('quantity')}</H6>
-          <H6 className="text-sm text-right">{t('refundAmount')}</H6>
-        </div>
-        <div className="divide-y divide-border-primary">
-          {items.map((item) => {
-            const refund = getItemRefund(item);
-            const refundNet = getItemRefundNet(item);
-            const unitPrice = getItemUnitPrice(item);
-            const primaryUnitPriceValue = unitPrice.netValue ?? unitPrice.grossValue;
-            const firstImage = item.images?.[0];
-            return (
-              <div
-                key={item.id}
-                className="py-6 first:pt-4 flex flex-col gap-3 sm:grid sm:grid-cols-[minmax(280px,1.6fr)_minmax(120px,1fr)_80px_minmax(140px,1fr)] sm:gap-6 sm:items-start"
-              >
-                <div className="flex flex-col-reverse items-start gap-4 min-w-0 sm:flex-row">
-                  <div className="bg-surface-image-background w-[80px] h-[52px] shrink-0 rounded-tl-lg rounded-br-lg overflow-hidden flex items-center justify-center">
-                    {firstImage ? (
-                      <Image
-                        src={firstImage}
-                        alt={item.name}
-                        width={80}
-                        height={52}
-                        className="object-contain w-full h-full"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-surface-image-background" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0 flex flex-col gap-2">
-                    <div className="flex flex-col gap-1">
-                      {item.vendorName && <span className="text-sm font-body text-text-body">{item.vendorName}</span>}
-                      {item.productId ? (
-                        <Link
-                          href={`/product/${item.productId}`}
-                          className="text-2xl font-bold font-headlines text-text-headings hover:underline break-words"
-                        >
-                          {item.name}
-                        </Link>
-                      ) : (
-                        <span className="text-2xl font-bold font-headlines text-text-headings break-words">
-                          {item.name}
-                        </span>
-                      )}
-                    </div>
-                    {item.itemNumber && (
-                      <span className="text-sm text-text-body">
-                        {t('itemNumberLabel')}: {item.itemNumber}
-                      </span>
-                    )}
-                    {item.reason?.code && (
-                      <Badge className={reasonBadgeClassName}>{renderReturnReasonLabel(t, item.reason.code)}</Badge>
-                    )}
-                    {item.reason?.details && <p className="text-sm font-body text-text-body">{item.reason.details}</p>}
-                  </div>
-                </div>
-                <div className="flex justify-between sm:block">
-                  <span className="text-sm text-text-body sm:hidden">{t('price')}</span>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-base font-body text-text-body">
-                      {formatReturnCurrency(primaryUnitPriceValue, unitPrice.currency, locale)}
-                    </span>
-                    {unitPrice.grossValue !== undefined && (
-                      <span className="text-sm text-text-placeholders">
-                        {t('gross')} {formatReturnCurrency(unitPrice.grossValue, unitPrice.currency, locale)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="text-left">
-                  <span className="text-base font-body text-text-body">{item.quantity}</span>
-                </div>
-                <div className="flex justify-between text-right sm:block">
-                  <span className="text-sm text-text-body sm:hidden">{t('refundAmount')}</span>
-                  <div className="flex flex-col gap-1 sm:items-end">
-                    <H6>{formatReturnCurrency(refundNet.value, refundNet.currency, locale)}</H6>
-                    {refund.value !== undefined && (
-                      <span className="text-sm text-text-placeholders">
-                        {t('gross')} {formatReturnCurrency(refund.value, refund.currency, locale)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
+    <ProductList
+      items={mappedItems}
+      locale={locale}
+      presentationConfig={{
+        labels: {
+          product: t('product'),
+          quantity: t('quantity'),
+          unitPrice: t('price'),
+          amount: t('refundAmount'),
+        },
+        showGrossSecondary: true,
+        showTrailingDesktopAmount: true,
+        omitMobileUnitPrice: true,
+        trailingDesktopAmount: (productItem) => renderTrailingDesktopAmount(productItem, { locale, grossLabel }),
+        mobileMetadataSlots: [
+          {
+            key: 'reason-badge',
+            render: (productItem) => {
+              const returnItem = isReturnProductListItem(productItem) ? productItem.__returnItem : undefined;
+              return (
+                <ReturnReasonMetadata
+                  reasonCode={returnItem?.reason?.code}
+                  reasonDetails={returnItem?.reason?.details}
+                  t={t}
+                  reasonBadgeClassName={reasonBadgeClassName}
+                  containerClassName="flex flex-col gap-2"
+                />
+              );
+            },
+          },
+        ],
+        // Figma Image-Details: reason badge + description sit under item number in the product column.
+        productColumnMetadataSlots: [
+          {
+            key: 'reason-badge',
+            render: (productItem) => {
+              const returnItem = isReturnProductListItem(productItem) ? productItem.__returnItem : undefined;
+              return (
+                <ReturnReasonMetadata
+                  reasonCode={returnItem?.reason?.code}
+                  reasonDetails={returnItem?.reason?.details}
+                  t={t}
+                  reasonBadgeClassName={reasonBadgeClassName}
+                  containerClassName="flex flex-col gap-2 pt-2"
+                />
+              );
+            },
+          },
+        ],
+      }}
+    />
   );
 }
 
@@ -288,7 +386,10 @@ function ProductDetailCard({ item, locale: _locale, t }: ProductDetailCardProps)
             <Label className="text-base font-bold mb-3 block">{t('photos')}</Label>
             <div className="grid grid-cols-2 gap-3">
               {images.slice(0, 3).map((imageUrl, index) => (
-                <div key={index} className="aspect-[3/2] relative bg-surface-muted overflow-hidden">
+                <div
+                  key={`${item.id}-${imageUrl ?? index}`}
+                  className="aspect-[3/2] relative bg-surface-muted overflow-hidden"
+                >
                   <Image
                     src={imageUrl}
                     alt={`${item.name} - ${index + 1}`}
@@ -321,7 +422,7 @@ function ProductDetailCard({ item, locale: _locale, t }: ProductDetailCardProps)
                   <Input
                     type="number"
                     value={quantity}
-                    onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                    onChange={(e) => setQuantity(Math.max(1, Number.parseInt(e.target.value) || 1))}
                     className="h-12 w-15 text-center border-0 rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   <Button
@@ -401,14 +502,18 @@ export function ReturnDetail({ returnId, initialReturn }: ReturnDetailProps) {
 
   const returnItem: ExtendedReturn | null = (apiReturnItem as ExtendedReturn) || null;
 
+  // H1 identity: returnDetails / returnLabel + id (not list title "Returns & Claims").
+  // Match Order Details pattern (short label + id) using returnLabel; keep status badge.
+  const returnHeading = (id: string) => (
+    <H1 variant="h3">
+      {t('returnLabel')}: {id}
+    </H1>
+  );
+
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <H1 variant="h3">
-            {t('title')}: {returnId}
-          </H1>
-        </div>
+        <div className="flex items-center gap-4">{returnHeading(returnId)}</div>
         <Card>
           <CardContent className="flex justify-center py-12">
             <div className="flex flex-col items-center space-y-2">
@@ -424,11 +529,7 @@ export function ReturnDetail({ returnId, initialReturn }: ReturnDetailProps) {
   if (error || !returnItem) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <H1 variant="h3">
-            {t('title')}: {returnId}
-          </H1>
-        </div>
+        <div className="flex items-center gap-4">{returnHeading(returnId)}</div>
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>{t('error')}</AlertTitle>
@@ -450,9 +551,7 @@ export function ReturnDetail({ returnId, initialReturn }: ReturnDetailProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4 flex-wrap">
-        <H1 variant="h3">
-          {t('title')}: {returnItem.id}
-        </H1>
+        {returnHeading(returnItem.id)}
         <ReturnStatusBadge status={returnItem.status} isExpired={returnItem.isExpired} />
       </div>
 

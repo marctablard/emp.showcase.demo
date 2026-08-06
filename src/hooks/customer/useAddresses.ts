@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { useSession } from 'next-auth/react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import {
   createCustomerAddress,
   deleteCustomerAddress,

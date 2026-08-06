@@ -100,7 +100,7 @@ Use it to pre-render a limited set of pages that are important for SEO/performan
 
 Example in this project:
 
-- `src/app/[site]/[locale]/(default)/product/[id]/page.tsx`
+- `src/app/[site]/[locale]/(nav-shell)/(default)/product/[id]/page.tsx`
   - uses `generateStaticParams()` to generate a subset of product IDs
   - controlled by `NEXT_SSG_PRODUCT_COUNT`
   - if `NEXT_SSG_PRODUCT_COUNT <= 0`, it returns `[]` (effectively disabling SSG for that route)

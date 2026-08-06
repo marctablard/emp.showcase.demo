@@ -7,7 +7,7 @@ import TopBarSwitcher from '@/components/ui/molecules/ui-topbar-switcher';
 import { Spinner } from '@/components/ui/spinner';
 import { useSite } from '@/hooks/site/useSite';
 import { type LanguageKey, dk } from '@/i18n/dynamic-key';
-import { redirect, usePathname } from '@/i18n/navigation';
+import { usePathname, useRouter } from '@/i18n/navigation';
 import { routing } from '@/i18n/routing';
 import { updateSessionLanguage } from '@/lib/client/session';
 import { getLogger } from '@/lib/logger/use-logger-client';
@@ -34,6 +34,7 @@ export function LanguageSwitcher() {
   const currentLocale = useLocale();
   const { site, loading: siteLoading } = useSite();
   const pathname = usePathname();
+  const router = useRouter();
 
   // Memoize the language options to avoid recreating objects on each render
   const languageOptions = useMemo(() => {
@@ -67,13 +68,16 @@ export function LanguageSwitcher() {
         'updateSessionLanguage failed during language switch',
       );
     }
-    const sanitizedSearch = stripLocalizedBreadcrumbFilter(window.location.search);
-    const href = sanitizedSearch
-      ? `${pathname}?${sanitizedSearch}`
-      : pathname.endsWith('/browse')
-        ? '/browse'
-        : pathname;
-    redirect({ href, locale: newLocale, site: site.code, forcePrefix: true });
+    const sanitizedSearch = stripLocalizedBreadcrumbFilter(globalThis.location.search);
+    const isBrowsePath = pathname.endsWith('/browse');
+    let href = pathname;
+    if (sanitizedSearch) {
+      href = `${pathname}?${sanitizedSearch}`;
+    }
+    if (!sanitizedSearch && isBrowsePath) {
+      href = '/browse';
+    }
+    router.push(href, { locale: newLocale, site: site.code });
   };
 
   if (siteLoading) {

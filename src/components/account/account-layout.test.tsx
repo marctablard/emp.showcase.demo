@@ -86,4 +86,22 @@ describe('AccountLayout responsive sidebar/mobile-menu switching', () => {
     expect(container.firstChild).toHaveClass('md:mx-9');
     expect(container.firstChild).not.toHaveClass('lg:mx-9');
   });
+
+  it('keeps 1rem gaps around the account content row and does not stretch to viewport height', () => {
+    setViewportWidth(breakpoints.md);
+
+    const { container } = render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    const row = container.querySelector('.flex.items-start');
+    expect(row).toBeInTheDocument();
+    expect(row).toHaveClass('mt-4', 'mb-4');
+    expect(row).not.toHaveClass('min-h-screen');
+
+    const main = container.querySelector('main');
+    expect(main).not.toHaveClass('pb-8');
+  });
 });

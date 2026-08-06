@@ -6,13 +6,27 @@ import { cn } from '@/lib/utils';
 function Table({
   className,
   containerClassName,
+  card = false,
+  children,
   ...props
-}: React.ComponentProps<'table'> & { containerClassName?: string }) {
-  return (
-    <div data-slot="table-container" className={cn('relative w-full overflow-x-auto', containerClassName)}>
-      <table data-slot="table" className={cn('w-full caption-bottom text-sm', className)} {...props} />
+}: React.ComponentProps<'table'> & { containerClassName?: string; card?: boolean }) {
+  const table = (
+    <table data-slot="table" className={cn('w-full caption-bottom text-sm', className)} {...props}>
+      {children}
+    </table>
+  );
+
+  const content = (
+    <div data-slot="table-container" className={cn('relative w-full max-w-full overflow-x-auto', containerClassName)}>
+      {table}
     </div>
   );
+
+  if (!card) {
+    return content;
+  }
+
+  return <TableCard>{content}</TableCard>;
 }
 
 function TableHeader({ className, ...props }: React.ComponentProps<'thead'>) {

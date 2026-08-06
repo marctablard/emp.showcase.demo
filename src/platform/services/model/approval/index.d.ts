@@ -21,6 +21,8 @@ export interface ApprovalPrice {
   formattedAmount?: string;
   unitPrice?: number;
   newUnitPrice?: number;
+  /** Discount percentage when present on the cart/quote price (e.g. 35 for 35%). */
+  discount?: number;
   netValue?: number;
   grossValue?: number;
   taxValue?: number;

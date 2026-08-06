@@ -6,7 +6,7 @@ import '@testing-library/jest-dom';
 import { render, screen, within } from '@testing-library/react';
 import { formatCurrency } from '@/lib/utils';
 import { ProductList } from './product-list';
-import type { ProductListItem } from './product-list';
+import type { ProductListItem, ProductListPresentationConfig } from './product-list';
 
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -64,16 +64,22 @@ function byNormalizedText(expected: string) {
 }
 
 describe('ProductList', () => {
-  it('renders desktop headers as H6 with a left-aligned Quantity column and a right-aligned price column', () => {
+  it('renders column headers as Mobile H5 below desktop and Desktop H6 on desktop, with left Quantity and right price alignment', () => {
     render(<ProductList items={[quoteStyleItem]} />);
 
-    const quantityHeading = screen.getByRole('heading', { level: 6, name: 'quantity' });
-    const priceHeading = screen.getByRole('heading', { level: 6, name: 'unitPrice' });
+    const quantityHeadingTablet = screen.getByRole('heading', { level: 5, name: 'quantity' });
+    const quantityHeadingDesktop = screen.getByRole('heading', { level: 6, name: 'quantity', hidden: true });
+    const priceHeadingTablet = screen.getByRole('heading', { level: 5, name: 'unitPrice' });
+    const priceHeadingDesktop = screen.getByRole('heading', { level: 6, name: 'unitPrice', hidden: true });
 
-    expect(quantityHeading.tagName).toBe('H6');
-    expect(quantityHeading.className).toContain('text-left');
-    expect(quantityHeading.className).not.toContain('text-right');
-    expect(priceHeading.className).toContain('text-right');
+    expect(quantityHeadingTablet.tagName).toBe('H5');
+    expect(quantityHeadingTablet).toHaveClass('md:hidden');
+    expect(quantityHeadingDesktop.tagName).toBe('H6');
+    expect(quantityHeadingDesktop).toHaveClass('hidden', 'md:block');
+    expect(quantityHeadingTablet.parentElement).toHaveClass('text-left');
+    expect(quantityHeadingTablet.parentElement).not.toHaveClass('text-right');
+    expect(priceHeadingTablet.parentElement).toHaveClass('text-right');
+    expect(priceHeadingDesktop.parentElement).toHaveClass('text-right');
   });
 
   it('renders Quote-style items net-first with gross as the secondary value on desktop and mobile', () => {
@@ -149,5 +155,90 @@ describe('ProductList', () => {
     expect(desktopScope.getByText(quoteStyleItem.name)).toBeInTheDocument();
     expect(desktopScope.getByText(`itemNumber: ${quoteStyleItem.itemNumber}`)).toBeInTheDocument();
     expect(desktopScope.getByText(String(quoteStyleItem.quantity))).toBeInTheDocument();
+  });
+
+  it('uses explicit headers, locale formatting, and ordered extension slots for desktop/mobile metadata', () => {
+    const presentationConfig: ProductListPresentationConfig = {
+      labels: { product: 'Product', quantity: 'Quantity', unitPrice: 'Unit Price', amount: 'Amount' },
+      showGrossSecondary: true,
+      showTrailingDesktopAmount: true,
+      trailingDesktopAmount: (item) => (
+        <div data-testid={`desktop-amount-${item.id}`}>{formatCurrency(item.unitPrice, item.currency, 'de-DE')}</div>
+      ),
+      mobileMetadataSlots: [
+        { key: 'mobile-meta-1', render: (item) => <div key="mobile-meta-1">Mobile meta {item.itemNumber}</div> },
+      ],
+      inlineMetadataSlots: [
+        { key: 'inline-meta-1', render: (item) => <div key="inline-meta-1">Inline meta {item.itemNumber}</div> },
+        { key: 'inline-meta-2', render: (item) => <div key="inline-meta-2">Inline meta 2 {item.quantity}</div> },
+      ],
+    };
+
+    render(<ProductList items={[quoteStyleItem]} locale="de-DE" presentationConfig={presentationConfig} />);
+
+    expect(screen.getByRole('heading', { level: 5, name: 'Product' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 5, name: 'Quantity' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 5, name: 'Unit Price' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 5, name: 'Amount' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 6, name: 'Product', hidden: true })).toHaveClass('hidden', 'md:block');
+    expect(screen.getByRole('heading', { level: 6, name: 'Quantity', hidden: true })).toHaveClass('hidden', 'md:block');
+    expect(screen.getByRole('heading', { level: 6, name: 'Unit Price', hidden: true })).toHaveClass(
+      'hidden',
+      'md:block',
+    );
+    expect(screen.getByRole('heading', { level: 6, name: 'Amount', hidden: true })).toHaveClass('hidden', 'md:block');
+
+    const desktopRow = screen.getByTestId(`product-item-desktop-${quoteStyleItem.id}`);
+    const desktopScope = within(desktopRow);
+    expect(desktopScope.getByTestId(`desktop-amount-${quoteStyleItem.id}`)).toBeInTheDocument();
+    expect(desktopScope.getByText(`Inline meta ${quoteStyleItem.itemNumber}`)).toBeInTheDocument();
+    expect(desktopScope.getByText(`Inline meta 2 ${quoteStyleItem.quantity}`)).toBeInTheDocument();
+
+    const mobileRow = screen.getByTestId(`product-item-mobile-${quoteStyleItem.id}`);
+    const mobileScope = within(mobileRow);
+    expect(mobileScope.getByText(`Mobile meta ${quoteStyleItem.itemNumber}`)).toBeInTheDocument();
+
+    const inlineMeta = desktopScope.getByText(`Inline meta ${quoteStyleItem.itemNumber}`);
+    const secondInlineMeta = desktopScope.getByText(`Inline meta 2 ${quoteStyleItem.quantity}`);
+    expect(
+      inlineMeta.compareDocumentPosition(secondInlineMeta as Element) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('inserts Base Net Unit Price and Discount columns between Quantity and Unit Price when enabled', () => {
+    const discountedItem: ProductListItem = {
+      ...quoteStyleItem,
+      baseNetUnitPrice: 500,
+      discountPercent: 35,
+      netUnitPrice: 325,
+    };
+
+    render(
+      <ProductList
+        items={[discountedItem]}
+        locale="de-DE"
+        presentationConfig={{
+          labels: {
+            product: 'Product',
+            quantity: 'Quantity',
+            unitPrice: 'Unit Price',
+            baseNetUnitPrice: 'Base Net Unit Price',
+            discount: 'Discount',
+          },
+          showDiscountColumns: true,
+          showGrossSecondary: true,
+        }}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { level: 5, name: 'Base Net Unit Price' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 5, name: 'Discount' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 6, name: 'Base Net Unit Price', hidden: true })).toHaveClass(
+      'hidden',
+      'md:block',
+    );
+    expect(screen.getByRole('heading', { level: 6, name: 'Discount', hidden: true })).toHaveClass('hidden', 'md:block');
+    expect(screen.getByTestId(`product-base-net-cell-${discountedItem.id}`)).toHaveTextContent(/500,00/);
+    expect(screen.getByTestId(`product-discount-cell-${discountedItem.id}`)).toHaveTextContent('35%');
   });
 });

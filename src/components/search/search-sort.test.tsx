@@ -54,7 +54,6 @@ describe('SearchSort', () => {
             sort: {
               placeholder: 'Sort by',
               price: 'Price',
-              popularity: 'Popularity',
               direction: { asc: 'Ascending', desc: 'Descending' },
             },
           },
@@ -108,7 +107,6 @@ describe('SearchSort', () => {
             sort: {
               placeholder: 'Sort by',
               price: 'Price',
-              popularity: 'Popularity',
               direction: { asc: 'Ascending', desc: 'Descending' },
             },
           },

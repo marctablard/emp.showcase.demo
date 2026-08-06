@@ -99,7 +99,74 @@ describe('EmporixOrderMapper', () => {
       }),
     );
 
+    expect(result.shipping?.total).toEqual({ value: 9, currency: 'EUR', tax: 1.71 });
+  });
+
+  it('omits shipping tax when calculatedPrice.totalShipping.taxValue is absent', () => {
+    const result = mapper.mapToService(
+      buildOrder({
+        currency: 'EUR',
+        shipping: {
+          total: { amount: 15, currency: 'EUR' },
+        },
+        calculatedPrice: {
+          price: { netValue: 100, grossValue: 119, taxValue: 19 },
+          finalPrice: { netValue: 115, grossValue: 136.85, taxValue: 21.85 },
+          totalShipping: { netValue: 9, grossValue: 10.71 },
+        },
+      }),
+    );
+
     expect(result.shipping?.total).toEqual({ value: 9, currency: 'EUR' });
+    expect(result.shipping?.total).not.toHaveProperty('tax');
+  });
+
+  it('maps shipping taxRate from calculatedPrice.totalShipping and goods taxRate from price', () => {
+    const result = mapper.mapToService(
+      buildOrder({
+        currency: 'EUR',
+        shipping: {
+          total: { amount: 3.45, currency: 'EUR' },
+          lines: [
+            {
+              code: 'pickup',
+              name: 'Pickup',
+              amount: 3.45,
+              currency: 'EUR',
+              tax: { rate: 0, total: { amount: 0, currency: 'EUR', inclusive: false } },
+              shippingTaxCode: 'ZERO',
+            },
+          ],
+        },
+        calculatedPrice: {
+          price: { netValue: 330, grossValue: 392.7, taxValue: 62.7, taxRate: 19 },
+          finalPrice: { netValue: 333.45, grossValue: 396.15, taxValue: 62.7 },
+          totalShipping: { netValue: 3.45, grossValue: 3.45, taxValue: 0, taxRate: 0 },
+        },
+      }),
+    );
+
+    expect(result.shipping?.total).toEqual({ value: 3.45, currency: 'EUR', tax: 0, taxRate: 0 });
+    expect(result.price?.subtotal).toMatchObject({ tax: 62.7, taxRate: 19 });
+  });
+
+  it('falls back to shipping line tax.rate when totalShipping.taxRate is absent', () => {
+    const result = mapper.mapToService(
+      buildOrder({
+        currency: 'EUR',
+        shipping: {
+          total: { amount: 10, currency: 'EUR' },
+          lines: [{ code: 'std', amount: 10, currency: 'EUR', tax: { rate: 19 } }],
+        },
+        calculatedPrice: {
+          price: { netValue: 100, grossValue: 119, taxValue: 19 },
+          finalPrice: { netValue: 110, grossValue: 130.9, taxValue: 20.9 },
+          totalShipping: { netValue: 10, grossValue: 11.9, taxValue: 1.9 },
+        },
+      }),
+    );
+
+    expect(result.shipping?.total).toEqual({ value: 10, currency: 'EUR', tax: 1.9, taxRate: 19 });
   });
 
   it('falls back to shipping.total.amount when calculatedPrice.totalShipping is missing', () => {

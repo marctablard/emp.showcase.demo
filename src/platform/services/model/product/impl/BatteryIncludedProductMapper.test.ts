@@ -298,7 +298,7 @@ describe('BatteryIncludedProductMapper', () => {
                 language: 'fr',
                 value: ['Highlight FR 1'],
               },
-            ],
+            ] as unknown as string[],
           },
         },
       },

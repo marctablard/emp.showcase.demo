@@ -184,6 +184,7 @@ const renderLayout = (options?: {
       hasMore={false}
       loadingMore={false}
       loadMore={jest.fn()}
+      changeSort={mockChangeSort}
       batteryIncludedFacets={options?.facets ?? batteryIncludedFacets}
       activeFilters={{}}
       applyFacet={jest.fn()}
