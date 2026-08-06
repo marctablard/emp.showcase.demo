@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSession } from '@/hooks/session/useSession';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { createOrderRequestKey } from '@/lib/order/create-order-request-key';
 import type { Order } from '@/platform/services/model/order/order';
@@ -67,7 +68,14 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
     getLoading: getStoreLoading,
     getError: getStoreError,
     fetchOrders: storeFetchOrders,
+    reset: resetOrderStore,
   } = useOrderStore();
+
+  const { session } = useSession();
+  // `createOrderRequestKey` is not LE-aware, so a company switch would otherwise
+  // let the previous LE's cached page win. Track LE to reset the store and force
+  // a refetch when the header dropdown updates the session.
+  const legalEntityId = typeof session?.legalEntityId === 'string' ? session.legalEntityId.trim() : '';
 
   // Local state for pagination
   const [pageSize, setPageSize] = useState<number>(initialPageSize);
@@ -130,6 +138,20 @@ export const useOrders = (options: UseOrdersOptions = {}): UseOrdersResult => {
       refetchOrders();
     }
   }, [pageSize, effectivePageNumber, searchQuery, orders, loading, error, refetchOrders]);
+
+  // On legal-entity change after mount, drop the LE-agnostic order cache and
+  // force-refresh the current view so the response reflects the new session.
+  const previousLegalEntityIdRef = useRef(legalEntityId);
+  useEffect(() => {
+    if (previousLegalEntityIdRef.current === legalEntityId) {
+      return;
+    }
+    previousLegalEntityIdRef.current = legalEntityId;
+    resetOrderStore();
+    storeFetchOrders(pageSize, effectivePageNumber, true, searchQuery, sort).catch((err) => {
+      getLogger().error({ err, pageSize, pageNumber: effectivePageNumber }, 'Error refetching orders after LE change');
+    });
+  }, [legalEntityId, resetOrderStore, storeFetchOrders, pageSize, effectivePageNumber, searchQuery, sort]);
 
   return {
     orders,

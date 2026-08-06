@@ -78,7 +78,7 @@ describe('ApprovalSummary', () => {
     expect(screen.getByRole('heading', { level: 5, name: 'note' })).toBeInTheDocument();
   });
 
-  it('uses a 2-column box layout for CART approval cards at sm+ (1024px Figma layout)', () => {
+  it('uses 2 columns from sm and 4 columns from lg for CART approval cards', () => {
     const approval: Approval = {
       ...baseApproval,
       resourceType: 'CART',
@@ -92,8 +92,30 @@ describe('ApprovalSummary', () => {
 
     const { container } = render(<ApprovalSummary approval={approval} />);
     const grid = container.firstElementChild;
-    expect(grid).toHaveClass('grid', 'grid-cols-1', 'sm:grid-cols-2');
-    expect(grid).not.toHaveClass('lg:grid-cols-4');
+    expect(grid).toHaveClass('grid', 'grid-cols-1', 'sm:grid-cols-2', 'lg:grid-cols-4');
+  });
+
+  it('omits blank leading contact-name lines from shipping and billing addresses', () => {
+    const approval: Approval = {
+      ...baseApproval,
+      resourceType: 'CART',
+      details: {
+        currency: 'EUR',
+        shipping: { amount: 0, methodName: 'DHL Standard' } as any,
+        addresses: [
+          { type: 'SHIPPING', street: 'Hauptstraße', houseNumber: '123', city: 'Berlin', country: 'DE' } as any,
+          { type: 'BILLING', street: 'Hauptstraße', houseNumber: '123', city: 'Berlin', country: 'DE' } as any,
+        ],
+        paymentMethods: [{ name: 'Card' } as any],
+      },
+    };
+
+    render(<ApprovalSummary approval={approval} />);
+
+    const shippingAddressHeading = screen.getByRole('heading', { level: 5, name: 'shippingAddress' });
+    const shippingAddressValue = shippingAddressHeading.parentElement?.querySelector('.text-base');
+    expect(shippingAddressValue?.textContent).toBe('Hauptstraße 123BerlinDE');
+    expect(shippingAddressValue?.innerHTML.startsWith('<br')).toBe(false);
   });
 
   it('renders the quote details, base price, and quoted price cards with H4 headings for a QUOTE approval', () => {

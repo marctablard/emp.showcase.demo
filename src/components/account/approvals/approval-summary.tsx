@@ -65,21 +65,37 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
 
   const fmt = (amount: number) => formatCurrency(amount, currency, locale);
 
-  const renderAddress = (addr: any) =>
-    addr ? (
-      <div className="text-sm">
-        {addr.firstName || addr.name || addr.companyName} {addr.lastName}
-        <br />
-        {addr.street} {addr.houseNumber}
-        <br />
-        {addr.postalCode} {addr.city}
-        {addr.region ? `, ${addr.region}` : ''}
-        <br />
-        {addr.country}
+  // Body/md (text-base) — same as shipping/payment method values (Figma 11895-138610).
+  // Skip blank lines (e.g. missing contact name) so the block does not start with an empty row.
+  const renderAddress = (addr: any) => {
+    if (!addr) {
+      return <span className="text-text-placeholders">{t('notProvided')}</span>;
+    }
+
+    const name = [addr.firstName || addr.name || addr.companyName, addr.lastName].filter(Boolean).join(' ').trim();
+    const street = [addr.street, addr.houseNumber].filter(Boolean).join(' ').trim();
+    const cityLine = [addr.postalCode, addr.city].filter(Boolean).join(' ').trim();
+    let cityWithRegion = cityLine;
+    if (addr.region) {
+      cityWithRegion = cityLine ? `${cityLine}, ${addr.region}` : String(addr.region);
+    }
+    const lines = [name, street, cityWithRegion, addr.country].map((line) => String(line ?? '').trim()).filter(Boolean);
+
+    if (lines.length === 0) {
+      return <span className="text-text-placeholders">{t('notProvided')}</span>;
+    }
+
+    return (
+      <div>
+        {lines.map((line, index) => (
+          <span key={`${index}-${line}`}>
+            {index > 0 ? <br /> : null}
+            {line}
+          </span>
+        ))}
       </div>
-    ) : (
-      <span className="text-sm text-text-placeholders">{t('notProvided')}</span>
     );
+  };
 
   const renderQuotePriceRows = (breakdown: ApprovalPriceCardBreakdown, totalLabel: string, showDiscount: boolean) => {
     const line = {
@@ -169,9 +185,9 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
     );
   }
 
-  // 1024+ box layout: 2×2 cards (Figma 11895-138509)
+  // CART: 1 col → 2×2 from sm (Figma 11895-138509 @1024) → single row of 4 from lg.
   return (
-    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
       <div className="rounded-md bg-surface-action-hover-2 p-6 shadow-sm">
         <SummaryCard
           heading={t('orderOverview')}
@@ -246,7 +262,7 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
           icon={<NotebookPen className="h-8 w-8 text-text-action" />}
           hasHeadline
         >
-          <SummaryField label={t('note')} valueClassName="text-sm text-text-placeholders">
+          <SummaryField label={t('note')} valueClassName={approval.comment ? undefined : 'text-text-placeholders'}>
             {approval.comment || t('noRequestorComment')}
           </SummaryField>
         </SummaryCard>
