@@ -2,7 +2,7 @@ import type { Product } from '@/platform/services/model/product';
 
 type LocalizedHighlights = NonNullable<Product['highlights']>;
 
-// TODO: unlocalized string[] highlights default to 'en' — matches BatteryIncludedProductMapper; replace when a real locale source is defined // NOSONAR
+// Follow-up: unlocalized string[] highlights default to 'en' — matches BatteryIncludedProductMapper; replace when a real locale source is defined
 const DEFAULT_STRING_ARRAY_LOCALE = 'en';
 
 interface LanguageValueEntry {

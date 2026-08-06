@@ -70,12 +70,12 @@ export function ProductPriceComponent({ price, isAddToCartBar }: Readonly<Produc
   const showListPrice = price.originalAmount != null && price.originalAmount > price.amount;
 
   const taxSmallPrint =
-    price.tax != null ? (
+    price.tax == null ? null : (
       <>
         {t('includingTax', { taxRate: price.tax.taxRate })} / {formatCurrency(price.tax.netValue, price.currency)}{' '}
         {t('net')}
       </>
-    ) : null;
+    );
 
   const discountInfo = (
     <div className={cn('flex items-center gap-1', showListPrice && PRICE_LEFT_COLUMN_CLASS)}>

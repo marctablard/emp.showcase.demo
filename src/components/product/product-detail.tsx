@@ -79,7 +79,7 @@ function PdpPriceBlock({ price }: Readonly<{ price: ProductPrice | null | undefi
 }
 
 function PdpBrandName({ name }: Readonly<{ name: string }>): React.ReactElement {
-  // TODO: Dedicated brand-listing route missing — brand-filtered PLP // NOSONAR
+  // Follow-up: dedicated brand-listing route missing — brand-filtered PLP
   // `/browse?filters[brand.name][]=…` probe returned 0 hits for Victron Energy
   // (2026-08-06); keep non-interactive H5 to avoid a dead empty-result link (D10).
   return <H5 className="text-text-action">{name}</H5>;

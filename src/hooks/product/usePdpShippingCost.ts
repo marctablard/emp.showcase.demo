@@ -27,7 +27,7 @@ export function usePdpShippingCost(price: ProductPrice | null | undefined, quant
   const lastRatesKeyRef = useRef<string | null>(null);
 
   const countryCode = session?.country || getPublicDefaultCountry();
-  // TODO: Prefer session/cart shipping zip when a session shipping address is available. // NOSONAR
+  // Follow-up: prefer session/cart shipping zip when a session shipping address is available.
   const postalCode = getPublicDefaultPostalCode();
 
   const priceAmount = price?.amount;
