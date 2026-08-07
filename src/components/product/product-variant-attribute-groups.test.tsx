@@ -33,6 +33,19 @@ describe('ProductVariantAttributeGroups', () => {
     expect(screen.getAllByTestId('product-variant-attribute-chip')).toHaveLength(3);
   });
 
+  it('renders numeric-looking value keys as visible chip text', () => {
+    render(
+      <ProductVariantAttributeGroups
+        groups={[{ key: 'width', name: 'width', values: ['15', '20', '100'] }]}
+        selectedValues={{ width: '15' }}
+      />,
+    );
+
+    expect(screen.getByText('15')).toHaveAttribute('data-chip-state', 'selected');
+    expect(screen.getByText('20')).toBeInTheDocument();
+    expect(screen.getByText('100')).toBeInTheDocument();
+  });
+
   it('highlights the current product value and grays out incompatible values', () => {
     render(
       <ProductVariantAttributeGroups

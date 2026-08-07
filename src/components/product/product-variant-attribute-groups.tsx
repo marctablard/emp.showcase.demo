@@ -76,11 +76,13 @@ export function ProductVariantAttributeGroups({
             <H6>{label}</H6>
             <div className="flex flex-wrap items-center gap-3">
               {visibleValues.map((value) => {
-                const state = resolveChipState(group.key, value, selectedValues, compatibleValuesByAttribute);
+                // Value keys are normalized to strings upstream; coerce for display safety.
+                const displayValue = typeof value === 'string' ? value : String(value);
+                const state = resolveChipState(group.key, displayValue, selectedValues, compatibleValuesByAttribute);
 
                 return (
                   <div
-                    key={value}
+                    key={displayValue}
                     className={cn(
                       'rounded-sm px-2 py-2 text-base',
                       state === 'selected' && 'border-2 border-border-black text-text-body',
@@ -92,7 +94,7 @@ export function ProductVariantAttributeGroups({
                     aria-current={state === 'selected' ? 'true' : undefined}
                     aria-disabled={state === 'unavailable' ? true : undefined}
                   >
-                    {l10n(value)}
+                    {displayValue}
                   </div>
                 );
               })}

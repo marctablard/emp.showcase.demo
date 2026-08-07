@@ -308,5 +308,46 @@ describe('EmporixProductMapper', () => {
         ]),
       );
     });
+
+    it('7. stringifies numeric variant attribute value keys', () => {
+      const input = {
+        id: 'parent-1',
+        code: 'parent-1',
+        productType: 'PARENT_VARIANT',
+        variantAttributes: {
+          width: [{ key: 15 }, { key: 20 }, { key: 100 }],
+          height: [{ key: 'Short' }, { key: 'Medium' }, { key: 'Long' }],
+        },
+        template: {
+          id: 'tpl-1',
+          attributes: [
+            { key: 'width', name: { en: 'width' } },
+            { key: 'height', name: { en: 'height' } },
+          ],
+        },
+      } as any;
+
+      const result = mapper.mapToService(input);
+      expect(result.variantAttributes).toEqual([
+        {
+          key: 'width',
+          name: { en: 'width' },
+          values: [
+            { key: '15', selected: false },
+            { key: '20', selected: false },
+            { key: '100', selected: false },
+          ],
+        },
+        {
+          key: 'height',
+          name: { en: 'height' },
+          values: [
+            { key: 'Short', selected: false },
+            { key: 'Medium', selected: false },
+            { key: 'Long', selected: false },
+          ],
+        },
+      ]);
+    });
   });
 });

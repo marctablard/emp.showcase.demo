@@ -55,6 +55,41 @@ describe('collectVariantAttributeGroups', () => {
     ]);
   });
 
+  it('stringifies numeric and boolean parent catalog value keys for display', () => {
+    const parent: Product = {
+      id: 'parent',
+      name: 'Parent',
+      description: '',
+      purchasable: false,
+      variantAttributes: [
+        {
+          key: 'width',
+          name: { en: 'width' },
+          // Runtime Emporix payloads may send numbers before mapper coercion.
+          values: [
+            { key: 15 as unknown as string, selected: true },
+            { key: 20 as unknown as string, selected: false },
+            { key: 100 as unknown as string, selected: false },
+          ],
+        },
+        {
+          key: 'height',
+          name: { en: 'height' },
+          values: [
+            { key: 'Short', selected: false },
+            { key: 'Medium', selected: true },
+            { key: 'Long', selected: false },
+          ],
+        },
+      ],
+    };
+
+    expect(collectVariantAttributeGroups(parent, [])).toEqual([
+      { key: 'width', name: { en: 'width' }, values: ['15', '20', '100'] },
+      { key: 'height', name: { en: 'height' }, values: ['Short', 'Medium', 'Long'] },
+    ]);
+  });
+
   it('falls back to parent value catalog when variants have no attributes', () => {
     const parent: Product = {
       id: 'parent',

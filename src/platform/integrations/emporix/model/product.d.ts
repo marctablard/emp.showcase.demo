@@ -78,7 +78,8 @@ export interface EmporixProduct {
    */
   template?: EmporixProductTemplate;
   variantAttributes?: {
-    [key: string]: [{ key: string }];
+    /** Value keys may be string, number, or boolean from Product Service. */
+    [key: string]: Array<{ key: string | number | boolean }>;
   };
   /** Catalog / navigation root category ids (Product Service). */
   categoryIds?: string[];

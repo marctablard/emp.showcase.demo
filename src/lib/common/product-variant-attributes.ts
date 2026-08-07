@@ -7,6 +7,23 @@ export interface ProductVariantAttributeGroup {
 }
 
 /**
+ * Coerce Product Service variant value keys (string | number | boolean) to display/compare strings.
+ * Returns undefined for nullish / empty string so callers can skip invalid entries.
+ */
+export function normalizeVariantAttributeValueKey(key: unknown): string | undefined {
+  if (typeof key === 'string') {
+    return key.length > 0 ? key : undefined;
+  }
+  if (typeof key === 'number' && Number.isFinite(key)) {
+    return String(key);
+  }
+  if (typeof key === 'boolean') {
+    return String(key);
+  }
+  return undefined;
+}
+
+/**
  * Collect unique variant attribute values across all sellable variants,
  * ordered by the parent product's `variantAttributes` definition when present.
  */
@@ -20,18 +37,26 @@ export function collectVariantAttributeGroups(product: Product, variants: Produc
     }
   };
 
+  const addValue = (attributeKey: string, rawKey: unknown): void => {
+    const valueKey = normalizeVariantAttributeValueKey(rawKey);
+    if (valueKey === undefined) {
+      return;
+    }
+    if (!valuesByKey.has(attributeKey)) {
+      valuesByKey.set(attributeKey, new Set());
+    }
+    valuesByKey.get(attributeKey)?.add(valueKey);
+  };
+
   product.variantAttributes?.forEach(rememberName);
 
   // Possible values come from sellable variants (selected value on each attribute axis).
   variants.forEach((variant) => {
     variant.variantAttributes?.forEach((attribute) => {
       rememberName(attribute);
-      if (!valuesByKey.has(attribute.key)) {
-        valuesByKey.set(attribute.key, new Set());
-      }
       attribute.values?.forEach((value) => {
-        if (value.selected && value.key) {
-          valuesByKey.get(attribute.key)?.add(value.key);
+        if (value.selected) {
+          addValue(attribute.key, value.key);
         }
       });
     });
@@ -40,13 +65,8 @@ export function collectVariantAttributeGroups(product: Product, variants: Produc
   // Fallback: if variants lack attribute payloads, use the parent's value catalog.
   if (valuesByKey.size === 0) {
     product.variantAttributes?.forEach((attribute) => {
-      if (!valuesByKey.has(attribute.key)) {
-        valuesByKey.set(attribute.key, new Set());
-      }
       attribute.values?.forEach((value) => {
-        if (value.key) {
-          valuesByKey.get(attribute.key)?.add(value.key);
-        }
+        addValue(attribute.key, value.key);
       });
     });
   }
@@ -94,8 +114,9 @@ export function getSelectedVariantAttributeValues(variant: Product): Record<stri
   const selected: Record<string, string> = {};
   variant.variantAttributes?.forEach((attribute) => {
     const selectedValue = attribute.values?.find((value) => value.selected);
-    if (selectedValue) {
-      selected[attribute.key] = selectedValue.key;
+    const valueKey = normalizeVariantAttributeValueKey(selectedValue?.key);
+    if (valueKey !== undefined) {
+      selected[attribute.key] = valueKey;
     }
   });
   return selected;

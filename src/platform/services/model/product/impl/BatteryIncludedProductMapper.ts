@@ -590,6 +590,10 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
       for (const [key, value] of Object.entries(pva)) {
         if (typeof value === 'string' && value.trim() !== '') {
           synthesizedVariantAttributes[key] = [{ key: value }];
+        } else if (typeof value === 'number' && Number.isFinite(value)) {
+          synthesizedVariantAttributes[key] = [{ key: value }];
+        } else if (typeof value === 'boolean') {
+          synthesizedVariantAttributes[key] = [{ key: value }];
         }
       }
     }

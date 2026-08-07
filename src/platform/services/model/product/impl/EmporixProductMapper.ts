@@ -233,13 +233,19 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
       return [];
     }
     return Object.keys(variantAttributes).map((key) => {
-      const values = variantAttributes[key].map((value) => {
-        return {
-          key: value.key,
-          selected:
-            source.productType === 'VARIANT' ? source.mixins?.productVariantAttributes[key] === value.key : false,
-        };
-      });
+      const selectedMixinValue = source.mixins?.productVariantAttributes?.[key];
+      const selectedKey =
+        selectedMixinValue === null || selectedMixinValue === undefined ? undefined : String(selectedMixinValue);
+      const values = variantAttributes[key]
+        .map((value) => {
+          // Product Service may return numeric/boolean value keys (e.g. width: 15).
+          const valueKey = String(value.key);
+          return {
+            key: valueKey,
+            selected: source.productType === 'VARIANT' ? selectedKey === valueKey : false,
+          };
+        })
+        .filter((value) => value.key.length > 0);
       const name = normalizeLocalizedLeaf(source.template?.attributes?.find((attr) => attr.key === key)?.name, key);
       return {
         key: key,
