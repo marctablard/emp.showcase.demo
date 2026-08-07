@@ -49,12 +49,7 @@ export function usePdpPurchaseData(
       }
 
       const embedded = product.price;
-      if (
-        embedded !== undefined &&
-        embedded !== null &&
-        embedded.currency &&
-        isProductPriceDisplayableForPurchase(embedded.currency, session, site)
-      ) {
+      if (embedded?.currency && isProductPriceDisplayableForPurchase(embedded.currency, session, site)) {
         setPrice(embedded);
         return;
       }

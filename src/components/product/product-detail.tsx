@@ -46,9 +46,10 @@ import {
 import { formatTemplateAttributeValue } from '@/lib/common/product-template-attributes';
 import type { L10nInput } from '@/lib/l10n';
 import { cn } from '@/lib/utils';
-import type { LocalizedString } from '@/platform/services/model/common';
+import type { LocalizedString, StockAvailability } from '@/platform/services/model/common';
 import type { ProductPrice } from '@/platform/services/model/price';
 import type { GroupedSpecification, Product, ProductSpecification } from '@/platform/services/model/product';
+import type { Session } from '@/platform/services/model/session/session';
 import type { ProductFetchOptions } from '@/platform/services/product';
 import { MAX_COMPARISON_PRODUCTS } from '@/stores/comparison-store';
 import Recommendations from '../cms/recommendations';
@@ -198,6 +199,18 @@ async function copyProductItemNumber(
       'Failed to copy item number to clipboard',
     );
   }
+}
+
+function resolvePdpDeliveryDays(availability: StockAvailability | undefined): [number, number] {
+  if (availability?.isAvailable) {
+    return [0, 0];
+  }
+  const days = availability?.availableInDays || 1;
+  return [days, days + 2];
+}
+
+function hasProductLabels(product: Product): boolean {
+  return Boolean(product.labels?.length);
 }
 
 function resolveTechnicalGroupTitle(
@@ -498,12 +511,21 @@ function PdpHighlights({
   );
 }
 
-export default function ProductDetail({ product: initialProduct, options, className }: Readonly<ProductDetailProps>) {
-  const { ready: shopContextReady } = useShopContextReady();
-  const { product, loading, setAsCurrent } = useProduct(initialProduct, options);
-  const { session } = useSession();
-  const { site } = useSite();
-  const { price, availability } = usePdpPurchaseData(product, session, site);
+interface PdpDetailViewProps {
+  product: Product;
+  className?: string;
+  price: ProductPrice | null | undefined;
+  availability: StockAvailability | undefined;
+  session: Session | null | undefined;
+}
+
+function PdpDetailView({
+  product,
+  className,
+  price,
+  availability,
+  session,
+}: Readonly<PdpDetailViewProps>): React.ReactElement {
   const locale = useLocale();
   const { l10n, l10nOrEmpty } = useL10n(locale);
   const t = useTranslations('product');
@@ -514,20 +536,18 @@ export default function ProductDetail({ product: initialProduct, options, classN
   const addToCartButton = useRef<HTMLDivElement>(null);
   const addToCartBar = useRef<HTMLDivElement>(null);
   const { addToWishlist, isAdding: isAddingToWishlist, loginDialog } = useWishlistAddWithAuth();
-  const { disabled: wishlistDisabled, tooltip: wishlistTooltip } = useValidateAddToCart(
-    product ?? undefined,
-    price,
-    'wishlist',
-  );
+  const { disabled: wishlistDisabled, tooltip: wishlistTooltip } = useValidateAddToCart(product, price, 'wishlist');
   const [quantity, setQuantity] = useState(1);
   const { shippingCost, postalCode: shippingPostalCode } = usePdpShippingCost(price, quantity);
-  usePdpCurrentProduct(product, setAsCurrent);
   const stickyAtcVisible = usePdpStickyAtcVisibility(addToCartButton, isAboveMediumScreen);
+  const showLabels = hasProductLabels(product);
+  const showTierPrices = price != null && price.tierValues.length > 1;
+  const deliveryDays = resolvePdpDeliveryDays(availability);
+  const keySpecGroups = getKeySpecificationGroups(product);
+  const technicalInfoGroups = getTechnicalInformationGroups(product);
+  const compareActive = isInComparison(product.id);
 
   useEffect(() => {
-    if (!product) {
-      return;
-    }
     logger.info(
       {
         productId: product.id,
@@ -542,39 +562,22 @@ export default function ProductDetail({ product: initialProduct, options, classN
     );
   }, [product, price, availability, quantity, shippingCost, shippingPostalCode, logger]);
 
-  const handleAddToWishlist = (e: React.MouseEvent) => {
+  const handleAddToWishlist = (e: React.MouseEvent): void => {
     e.stopPropagation();
     e.preventDefault();
-    if (!product) return;
     addToWishlist(product.id, quantity);
   };
 
-  const handleCompareClick = () => {
-    if (!product) return;
+  const handleCompareClick = (): void => {
     applyProductComparisonToggle({
       productId: product.id,
       productName: l10n(product.name),
-      isInComparison: isInComparison(product.id),
+      isInComparison: compareActive,
       isFull,
       toggleProduct,
       t,
     });
   };
-
-  if (!shopContextReady || loading) {
-    return (
-      <div className={cn('flex justify-center items-center min-h-[400px] mb-6', className)}>
-        <Spinner variant="lg" />
-      </div>
-    );
-  }
-
-  if (product === null) {
-    return notFound();
-  }
-
-  const keySpecGroups = getKeySpecificationGroups(product);
-  const technicalInfoGroups = getTechnicalInformationGroups(product);
 
   const handleCopyItemNumber = (): void => {
     void copyProductItemNumber(product.id, t('itemNumberCopied'), (context, message) => {
@@ -615,19 +618,19 @@ export default function ProductDetail({ product: initialProduct, options, classN
           <div
             className={cn(
               'order-2 md:order-0 flex flex-col gap-2 sm:flex-row sm:items-start mb-4 md:mb-0',
-              product.labels && product.labels.length > 0 ? 'sm:justify-between' : 'sm:justify-end',
+              showLabels ? 'sm:justify-between' : 'sm:justify-end',
             )}
           >
-            {product.labels && product.labels.length > 0 ? <ProductLabels labels={product.labels} /> : null}
+            {showLabels && product.labels ? <ProductLabels labels={product.labels} /> : null}
             <div className="flex gap-2">
               <Tooltip delayDuration={200}>
                 <TooltipTrigger asChild>
                   <span className="inline-flex">
                     <Button
                       size="icon"
-                      variant={isInComparison(product.id) ? 'primary' : 'secondary'}
+                      variant={compareActive ? 'primary' : 'secondary'}
                       aria-label={t('compare')}
-                      aria-pressed={isInComparison(product.id)}
+                      aria-pressed={compareActive}
                       onClick={handleCompareClick}
                       disabled={compareDisabled}
                     >
@@ -636,7 +639,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {compareTooltip ?? (isInComparison(product.id) ? t('compareTooltipRemove') : t('compareTooltipAdd'))}
+                  {compareTooltip ?? (compareActive ? t('compareTooltipRemove') : t('compareTooltipAdd'))}
                 </TooltipContent>
               </Tooltip>
               <WishlistPinButton
@@ -692,19 +695,13 @@ export default function ProductDetail({ product: initialProduct, options, classN
               onQuantityChange={setQuantity}
               className="mt-6"
             />
-            {product.variantAttributes && <ProductVariantSelector product={product} className="mt-6" />}
-            {price != null && price.tierValues.length > 1 ? (
-              <ProductTierPrices price={price} quantity={quantity} />
-            ) : null}
+            {product.variantAttributes ? <ProductVariantSelector product={product} className="mt-6" /> : null}
+            {showTierPrices && price ? <ProductTierPrices price={price} quantity={quantity} /> : null}
             <ProductShippingInfo
               currency={price?.currency ?? session?.currency}
               shippingCost={shippingCost}
               postalCode={shippingPostalCode}
-              deliveryDays={
-                availability?.isAvailable
-                  ? [0, 0]
-                  : [availability?.availableInDays || 1, (availability?.availableInDays || 1) + 2]
-              }
+              deliveryDays={deliveryDays}
             />
           </div>
         </div>
@@ -742,5 +739,36 @@ export default function ProductDetail({ product: initialProduct, options, classN
       />
       {loginDialog}
     </>
+  );
+}
+
+export default function ProductDetail({ product: initialProduct, options, className }: Readonly<ProductDetailProps>) {
+  const { ready: shopContextReady } = useShopContextReady();
+  const { product, loading, setAsCurrent } = useProduct(initialProduct, options);
+  const { session } = useSession();
+  const { site } = useSite();
+  const { price, availability } = usePdpPurchaseData(product, session, site);
+  usePdpCurrentProduct(product, setAsCurrent);
+
+  if (!shopContextReady || loading) {
+    return (
+      <div className={cn('flex justify-center items-center min-h-[400px] mb-6', className)}>
+        <Spinner variant="lg" />
+      </div>
+    );
+  }
+
+  if (product === null) {
+    return notFound();
+  }
+
+  return (
+    <PdpDetailView
+      product={product}
+      className={className}
+      price={price}
+      availability={availability}
+      session={session}
+    />
   );
 }
