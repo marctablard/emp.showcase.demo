@@ -203,7 +203,10 @@ function CarouselItem({ size, className, ...props }: Readonly<CarouselItemProps>
   );
 }
 
-function CarouselDots({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): React.JSX.Element | null {
+function CarouselDots({
+  className,
+  ...props
+}: Readonly<React.HTMLAttributes<HTMLDivElement>>): React.JSX.Element | null {
   const { selectedIndex, scrollSnapCount, scrollTo } = useCarousel();
   const t = useTranslations('common.UI.Carousel');
 

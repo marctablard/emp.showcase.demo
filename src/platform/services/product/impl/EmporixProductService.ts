@@ -151,64 +151,93 @@ class EmporixProductService implements ProductService {
       variantMap: Map<string, Product[]>;
     },
   ): void {
-    const { brandMap, labelMap, templateMap, productCategoriesMap, priceMap, variantMap } = maps;
+    this.applyBrandToProduct(product, maps.brandMap);
+    this.applyLabelsToProduct(product, maps.labelMap);
+    this.applyTemplateMetaToProduct(product, maps.templateMap);
+    this.applyIdBoundDataToProduct(product, maps);
+  }
 
-    if (product.brand) {
-      const brand = brandMap.get(product.brand.id);
-      if (brand) {
-        product.brand = {
-          id: brand.id,
-          name: brand.name,
-          logo: {
-            url: brand.image ?? '',
-            altText: brand.name,
-          },
-        };
-      }
+  private applyBrandToProduct(
+    product: Product,
+    brandMap: Map<string, { id: string; name: string; image?: string }>,
+  ): void {
+    if (!product.brand) {
+      return;
     }
-
-    if (product.labels && product.labels.length > 0) {
-      product.labels = product.labels
-        .map((label: ProductLabel) => labelMap.get(label.id))
-        .filter((label?: EmporixLabel): label is EmporixLabel => Boolean(label))
-        .map((label: EmporixLabel) => this.mapLabel(label));
+    const brand = brandMap.get(product.brand.id);
+    if (!brand) {
+      return;
     }
+    product.brand = {
+      id: brand.id,
+      name: brand.name,
+      logo: {
+        url: brand.image ?? '',
+        altText: brand.name,
+      },
+    };
+  }
 
-    if (product.template?.id) {
-      const template =
-        templateMap.get(templateCacheKey(product.template.id, product.template.version)) ??
-        templateMap.get(product.template.id);
-      if (template) {
-        product.templateAttributeLabels = this.mapTemplateAttributeLabels(template);
-        product.templateAttributeTypes = this.mapTemplateAttributeTypes(template);
-        if (product.variantAttributes?.length) {
-          product.variantAttributes = product.variantAttributes.map((attr) => {
-            const label = product.templateAttributeLabels?.[attr.key];
-            return label ? { ...attr, name: label } : attr;
-          });
-        }
-      }
+  private applyLabelsToProduct(product: Product, labelMap: Map<string, EmporixLabel>): void {
+    if (!product.labels?.length) {
+      return;
     }
+    product.labels = product.labels
+      .map((label: ProductLabel) => labelMap.get(label.id))
+      .filter((label?: EmporixLabel): label is EmporixLabel => Boolean(label))
+      .map((label: EmporixLabel) => this.mapLabel(label));
+  }
 
-    if (product.id) {
-      const categories = productCategoriesMap.get(product.id);
-      if (categories && categories.length > 0) {
-        // currently theres no way to determine the primary Category, so we use the first
-        // this is important for SEO so canonical URLs don't change when the product is
-        // being browsed to from different Categories
-        product.primaryCategory = categories[0];
-        product.categories = categories;
-      }
+  private applyTemplateMetaToProduct(
+    product: Product,
+    templateMap: Map<string, EmporixProductTemplateDefinition>,
+  ): void {
+    if (!product.template?.id) {
+      return;
+    }
+    const template =
+      templateMap.get(templateCacheKey(product.template.id, product.template.version)) ??
+      templateMap.get(product.template.id);
+    if (!template) {
+      return;
+    }
+    product.templateAttributeLabels = this.mapTemplateAttributeLabels(template);
+    product.templateAttributeTypes = this.mapTemplateAttributeTypes(template);
+    if (!product.variantAttributes?.length) {
+      return;
+    }
+    product.variantAttributes = product.variantAttributes.map((attr) => {
+      const label = product.templateAttributeLabels?.[attr.key];
+      return label ? { ...attr, name: label } : attr;
+    });
+  }
 
-      const price = priceMap.get(product.id);
-      if (price) {
-        product.price = price;
-      }
-
-      const variants = variantMap.get(product.id);
-      if (variants) {
-        product.variants = variants;
-      }
+  private applyIdBoundDataToProduct(
+    product: Product,
+    maps: {
+      productCategoriesMap: Map<string, Category[]>;
+      priceMap: Map<string, ProductPrice>;
+      variantMap: Map<string, Product[]>;
+    },
+  ): void {
+    if (!product.id) {
+      return;
+    }
+    const categories = maps.productCategoriesMap.get(product.id);
+    if (categories && categories.length > 0) {
+      // currently theres no way to determine the primary Category, so we use the first
+      // this is important for SEO so canonical URLs don't change when the product is
+      // being browsed to from different Categories
+      product.primaryCategory = categories[0];
+      product.categories = categories;
+    }
+    const price = maps.priceMap.get(product.id);
+    if (price) {
+      product.price = price;
+    }
+    const variants = maps.variantMap.get(product.id);
+    if (variants) {
+      product.variants = variants;
     }
   }
 

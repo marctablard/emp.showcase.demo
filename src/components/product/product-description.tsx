@@ -55,8 +55,20 @@ const DOMPURIFY_CONFIG = {
   ],
   ALLOWED_ATTR: ['href', 'title', 'target', 'rel', 'src', 'alt', 'width', 'height', 'class', 'id'],
   ALLOW_DATA_ATTR: false,
-  ADD_ATTR: ['target'],
+  ADD_ATTR: ['target', 'rel'],
 };
+
+const BLANK_TARGET_REL = 'noopener noreferrer';
+
+/** Force safe `rel` on `target="_blank"` links (reverse-tabnabbing). */
+function enforceBlankTargetRel(html: string): string {
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  for (const anchor of Array.from(container.querySelectorAll('a[target="_blank"]'))) {
+    anchor.setAttribute('rel', BLANK_TARGET_REL);
+  }
+  return container.innerHTML;
+}
 
 export interface ProductDescriptionProps {
   html: string;
@@ -65,7 +77,7 @@ export interface ProductDescriptionProps {
 
 function sanitizeDescriptionHtml(html: string): string {
   try {
-    return DOMPurify.sanitize(html, DOMPURIFY_CONFIG);
+    return enforceBlankTargetRel(DOMPurify.sanitize(html, DOMPURIFY_CONFIG));
   } catch (err) {
     getLogger().error({ err }, '[ProductDescription] Sanitization error');
     return '';

@@ -13,20 +13,20 @@ import { Separator } from '@/components/ui/separator';
 import { ToastType, notify } from '@/components/ui/toast-notification';
 import { WishlistPinButton } from '@/components/wishlist/wishlist-pin-button';
 import { useValidateAddToCart } from '@/hooks/cart/useValidateAddToCart';
-import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { useLogger } from '@/hooks/common/useLogger';
 import { useShopContextReady } from '@/hooks/common/useShopContextReady';
 import { useComparison } from '@/hooks/comparison/useComparison';
 import { useValidateAddToComparison } from '@/hooks/comparison/useValidateAddToComparison';
+import { usePdpCurrentProduct } from '@/hooks/product/usePdpCurrentProduct';
+import { usePdpPurchaseData } from '@/hooks/product/usePdpPurchaseData';
 import { usePdpShippingCost } from '@/hooks/product/usePdpShippingCost';
+import { usePdpStickyAtcVisibility } from '@/hooks/product/usePdpStickyAtcVisibility';
 import { useProduct } from '@/hooks/product/useProduct';
 import { useSession } from '@/hooks/session/useSession';
 import { useSite } from '@/hooks/site/useSite';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useL10n } from '@/hooks/useL10n';
 import { useWishlistAddWithAuth } from '@/hooks/wishlist/useWishlistAddWithAuth';
-import { fetchProductAvailability } from '@/lib/client/availability';
-import { fetchProductPrice } from '@/lib/client/prices';
 import { isEnergyEfficiencyClass } from '@/lib/common/energy-efficiency';
 import {
   PDP_TECHNICAL_INFORMATION_SECTION_ID,
@@ -43,15 +43,10 @@ import {
   hasLocalizedHighlights,
   hasTechnicalInformation,
 } from '@/lib/common/product-content';
-import {
-  isProductPriceDisplayableForPurchase,
-  isPurchaseShopContextReady,
-} from '@/lib/common/product-price-site-context';
 import { formatTemplateAttributeValue } from '@/lib/common/product-template-attributes';
 import type { L10nInput } from '@/lib/l10n';
-import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
-import type { LocalizedString, StockAvailability } from '@/platform/services/model/common';
+import type { LocalizedString } from '@/platform/services/model/common';
 import type { ProductPrice } from '@/platform/services/model/price';
 import type { GroupedSpecification, Product, ProductSpecification } from '@/platform/services/model/product';
 import type { ProductFetchOptions } from '@/platform/services/product';
@@ -183,6 +178,26 @@ function applyProductComparisonToggle({
   }
   toggleProduct(productId);
   notify({ title: t('addedToComparison', { name: productName }), type: ToastType.Success });
+}
+
+async function copyProductItemNumber(
+  productId: string,
+  copiedTitle: string,
+  logError: (context: { error: string; productId: string }, message: string) => void,
+): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(productId);
+    notify({
+      title: copiedTitle,
+      type: ToastType.Success,
+      duration: 1000,
+    });
+  } catch (error) {
+    logError(
+      { error: error instanceof Error ? error.message : String(error), productId },
+      'Failed to copy item number to clipboard',
+    );
+  }
 }
 
 function resolveTechnicalGroupTitle(
@@ -488,8 +503,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
   const { product, loading, setAsCurrent } = useProduct(initialProduct, options);
   const { session } = useSession();
   const { site } = useSite();
-  const [price, setPrice] = useState<ProductPrice | null | undefined>(product?.price);
-  const [availability, setAvailability] = useState<StockAvailability | undefined>(product?.availability);
+  const { price, availability } = usePdpPurchaseData(product, session, site);
   const locale = useLocale();
   const { l10n, l10nOrEmpty } = useL10n(locale);
   const t = useTranslations('product');
@@ -507,26 +521,8 @@ export default function ProductDetail({ product: initialProduct, options, classN
   );
   const [quantity, setQuantity] = useState(1);
   const { shippingCost, postalCode: shippingPostalCode } = usePdpShippingCost(price, quantity);
-  const handleAddToWishlist = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (!product) return;
-    addToWishlist(product.id, quantity);
-  };
-  const priceSyncGenerationRef = useRef(0);
-  const availabilitySyncGenerationRef = useRef(0);
-  const availabilityShopContextRef = useRef('');
-  const [opacity, setOpacity] = React.useState(false);
-  //   const { recommendations, loading: recLoading } = useRecommendations(product?.id);
-  useEffect(() => {
-    if (product) {
-      setAsCurrent();
-    }
-    return () => {
-      setAsCurrent(false);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [product]);
+  usePdpCurrentProduct(product, setAsCurrent);
+  const stickyAtcVisible = usePdpStickyAtcVisibility(addToCartButton, isAboveMediumScreen);
 
   useEffect(() => {
     if (!product) {
@@ -546,131 +542,12 @@ export default function ProductDetail({ product: initialProduct, options, classN
     );
   }, [product, price, availability, quantity, shippingCost, shippingPostalCode, logger]);
 
-  // Price: keep aligned with session site/currency (store cache can hold another site's price until useProduct refetches).
-  useEffect(() => {
-    const syncGeneration = ++priceSyncGenerationRef.current;
-    let cancelled = false;
-
-    // Whole body runs off the effect's synchronous path so the setPrice calls below never
-    // cascade inside this commit.
-    const syncPrice = async () => {
-      if (!product?.id) {
-        setPrice(undefined);
-        return;
-      }
-
-      if (!session?.currency || !session?.siteCode || !isPurchaseShopContextReady(session, site)) {
-        setPrice(undefined);
-        return;
-      }
-
-      const embedded = product.price;
-      if (
-        embedded !== undefined &&
-        embedded !== null &&
-        embedded.currency &&
-        isProductPriceDisplayableForPurchase(embedded.currency, session, site)
-      ) {
-        setPrice(embedded);
-        return;
-      }
-
-      const nextPrice = await fetchProductPrice(product.id, undefined, undefined, session.currency);
-      if (cancelled || syncGeneration !== priceSyncGenerationRef.current) {
-        return;
-      }
-      if (nextPrice?.currency && !isProductPriceDisplayableForPurchase(nextPrice.currency, session, site)) {
-        getLogger().warn(
-          {
-            productId: product.id,
-            currency: nextPrice.currency,
-            sessionCurrency: session.currency,
-            siteCode: site?.code,
-          },
-          'Rejected product price API response — currency not allowed for current shop context',
-        );
-        setPrice(null);
-        return;
-      }
-      setPrice(nextPrice);
-    };
-
-    const cancelStart = startEffectTask(syncPrice);
-
-    return () => {
-      cancelled = true;
-      cancelStart();
-    };
-  }, [product, session, site]);
-
-  // Stock / delivery context is site+session scoped — refetch when shop context changes (do not reuse another site's row).
-  useEffect(() => {
-    const syncGeneration = ++availabilitySyncGenerationRef.current;
-    let cancelled = false;
-
-    // Whole body runs off the effect's synchronous path so the setAvailability calls below
-    // never cascade inside this commit.
-    const syncAvailability = async () => {
-      if (!product?.id) {
-        setAvailability(undefined);
-        return;
-      }
-
-      if (!session?.currency || !session?.siteCode || !isPurchaseShopContextReady(session, site)) {
-        setAvailability(undefined);
-        return;
-      }
-
-      const shopSyncKey = `${session.siteCode}|${session.currency}|${site?.code ?? ''}|${product.id}`;
-      availabilityShopContextRef.current = shopSyncKey;
-
-      setAvailability(undefined);
-
-      try {
-        const nextAvailability = await fetchProductAvailability(product.id);
-        if (cancelled || syncGeneration !== availabilitySyncGenerationRef.current) {
-          return;
-        }
-        setAvailability(nextAvailability);
-      } catch {
-        if (cancelled || syncGeneration !== availabilitySyncGenerationRef.current) {
-          return;
-        }
-        setAvailability(undefined);
-      }
-    };
-
-    const cancelStart = startEffectTask(syncAvailability);
-
-    return () => {
-      cancelled = true;
-      cancelStart();
-    };
-  }, [product?.id, session, site]);
-
-  useEffect(() => {
-    if (addToCartButton.current !== null && isAboveMediumScreen) {
-      const observer = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting) {
-              setOpacity(false);
-            } else {
-              setOpacity(true);
-            }
-          });
-        },
-        {
-          root: null,
-          rootMargin: '0px',
-          threshold: 1.0,
-        },
-      );
-
-      // Observe an element
-      observer.observe(addToCartButton.current);
-    }
-  });
+  const handleAddToWishlist = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!product) return;
+    addToWishlist(product.id, quantity);
+  };
 
   const handleCompareClick = () => {
     if (!product) return;
@@ -699,20 +576,10 @@ export default function ProductDetail({ product: initialProduct, options, classN
   const keySpecGroups = getKeySpecificationGroups(product);
   const technicalInfoGroups = getTechnicalInformationGroups(product);
 
-  const handleCopyItemNumber = async (): Promise<void> => {
-    try {
-      await navigator.clipboard.writeText(product.id);
-      notify({
-        title: t('itemNumberCopied'),
-        type: ToastType.Success,
-        duration: 1000,
-      });
-    } catch (error) {
-      logger.error(
-        { error: error instanceof Error ? error.message : String(error), productId: product.id },
-        'Failed to copy item number to clipboard',
-      );
-    }
+  const handleCopyItemNumber = (): void => {
+    void copyProductItemNumber(product.id, t('itemNumberCopied'), (context, message) => {
+      logger.error(context, message);
+    });
   };
 
   return (
@@ -737,9 +604,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
             keySpecGroups={keySpecGroups}
             l10n={l10n}
             t={t}
-            onCopyItemNumber={() => {
-              void handleCopyItemNumber();
-            }}
+            onCopyItemNumber={handleCopyItemNumber}
           />
 
           <PdpHighlights product={product} locale={locale} title={t('productHighlights')} />
@@ -845,7 +710,10 @@ export default function ProductDetail({ product: initialProduct, options, classN
         </div>
       </div>
       <div
-        className={cn(opacity ? 'opacity-100' : 'opacity-0', 'transition-opacity ease-in-out delay-150 duration-300')}
+        className={cn(
+          stickyAtcVisible ? 'opacity-100' : 'opacity-0',
+          'transition-opacity ease-in-out delay-150 duration-300',
+        )}
         ref={addToCartBar}
       >
         <ProductAddToCartBar

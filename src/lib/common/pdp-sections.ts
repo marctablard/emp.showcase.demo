@@ -20,7 +20,7 @@ export function getPdpTechnicalInformationHref(): string {
 
 function isEffectivelyVisible(element: Element): boolean {
   let node: Element | null = element;
-  while (node && node !== document.documentElement) {
+  while (node && node !== globalThis.document.documentElement) {
     const style = globalThis.getComputedStyle(node);
     if (style.display === 'none' || style.visibility === 'hidden') {
       return false;
@@ -39,12 +39,12 @@ function isEffectivelyVisible(element: Element): boolean {
  * viewport top to the lowest overlay bottom — used as `scroll-margin-top` / scroll offset.
  */
 export function getPdpStickyOverlayOffsetPx(extraGapPx: number = PDP_ANCHOR_EXTRA_GAP_PX): number {
-  if (typeof document === 'undefined') {
+  if (globalThis.document === undefined) {
     return extraGapPx;
   }
 
   let lowestBottom = 0;
-  const overlays = document.querySelectorAll(`[${PDP_STICKY_OVERLAY_ATTR}]`);
+  const overlays = globalThis.document.querySelectorAll(`[${PDP_STICKY_OVERLAY_ATTR}]`);
   overlays.forEach((overlay) => {
     if (!isEffectivelyVisible(overlay)) {
       return;
@@ -72,11 +72,11 @@ export function applyPdpAnchorScrollMargin(element: HTMLElement | null): void {
  * Updates the URL hash without a second native jump.
  */
 export function scrollToPdpAnchor(sectionId: string): void {
-  if (typeof document === 'undefined' || typeof globalThis.window === 'undefined') {
+  if (globalThis.document === undefined || globalThis.window === undefined) {
     return;
   }
 
-  const target = document.getElementById(sectionId);
+  const target = globalThis.document.getElementById(sectionId);
   if (!target) {
     return;
   }

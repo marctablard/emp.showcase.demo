@@ -78,6 +78,15 @@ describe('ProductDescription', () => {
     expect(content.innerHTML).not.toContain('<script>');
   });
 
+  it('enforces noopener noreferrer on target=_blank links', async () => {
+    render(<ProductDescription html={'<p><a href="https://example.com" target="_blank">Docs</a></p>'} />);
+
+    const content = await waitForSanitizedContent(/Docs/);
+    const anchor = content.querySelector('a');
+    expect(anchor).toHaveAttribute('target', '_blank');
+    expect(anchor).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
   it('shows the Show more toggle when content overflows and switches labels on expand/collapse', async () => {
     render(<ProductDescription html="<p>Long product description that needs clamping across multiple lines.</p>" />);
 
