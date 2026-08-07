@@ -51,7 +51,7 @@ export interface EmporixProductTemplateDefinition {
  * Kept as a union-friendly alias while callers migrate.
  */
 export type EmporixProductTemplate = EmporixProductTemplateRef &
-  Partial<Pick<EmporixProductTemplateDefinition, 'name' | 'attributes'>>;
+  Partial<Pick<EmporixProductTemplateDefinition, 'name' | 'attributes' | 'metadata'>>;
 
 export interface EmporixProduct {
   id?: string;

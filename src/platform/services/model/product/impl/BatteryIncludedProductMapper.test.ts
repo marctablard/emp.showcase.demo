@@ -1036,7 +1036,7 @@ describe('BatteryIncludedProductMapper', () => {
     expect(result.variantAttributes).toEqual([
       {
         key: 'nominal-power',
-        name: 'nominal-power',
+        name: { en: 'nominal-power' },
         values: [
           {
             key: '300W',
@@ -1046,7 +1046,7 @@ describe('BatteryIncludedProductMapper', () => {
       },
       {
         key: 'color',
-        name: 'color',
+        name: { en: 'color' },
         values: [
           {
             key: 'Black',

@@ -121,6 +121,9 @@ function PdpBrand({
               height={48}
               width={240}
               className="max-h-12 h-auto w-auto object-contain"
+              // Brand assets are often SVG (no file extension on Cloudinary). Next/Image
+              // optimizer rejects SVG → blank logo; serve the origin URL instead.
+              unoptimized
             />
           </span>
         </TooltipTrigger>

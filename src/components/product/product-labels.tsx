@@ -38,8 +38,8 @@ export function ProductLabels({ labels, className, badgeClassName }: Readonly<Pr
                   data-testid={`product-label-icon-${label.id}`}
                   aria-label={name}
                 >
-                  {/* Arbitrary tenant/CDN hosts — not limited to next/image remotePatterns.
-                      Height matches toolbar icon buttons (`size="icon"` → p-3 + 24px glyph ≈ h-12). */}
+                  {/* Arbitrary tenant/CDN hosts (often SVG without extension) — next/image rejects SVG. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={imageUrl} alt={name} className="h-full w-auto object-contain" />
                 </span>
               </TooltipTrigger>

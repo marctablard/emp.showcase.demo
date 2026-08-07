@@ -79,10 +79,14 @@ function sanitizeDescriptionHtml(html: string): string {
  * Expand/collapse animates `max-height` between the measured collapsed and expanded heights
  * so both directions interpolate (a huge CSS max-height like `80rem` would skip compact motion).
  *
- * DOMPurify needs a browser DOM, so sanitize runs after mount. SSR + the first client render
- * both use an empty string to avoid a hydration mismatch.
+ * Remount on `html` change (`key`) so expand/overflow state resets without render-time setState.
+ * DOMPurify needs a browser DOM, so sanitize runs after mount; SSR + first paint stay empty.
  */
 export function ProductDescription({ html, className }: Readonly<ProductDescriptionProps>): JSX.Element {
+  return <ProductDescriptionContent key={html} html={html} className={className} />;
+}
+
+function ProductDescriptionContent({ html, className }: Readonly<ProductDescriptionProps>): JSX.Element {
   const t = useTranslations('product');
   const contentRef = useRef<HTMLDivElement>(null);
   const collapsedHeightRef = useRef<number | null>(null);
@@ -91,28 +95,27 @@ export function ProductDescription({ html, className }: Readonly<ProductDescript
   const [clamped, setClamped] = useState(true);
   const [maxHeightPx, setMaxHeightPx] = useState<number | undefined>(undefined);
   const [isOverflowing, setIsOverflowing] = useState(false);
-  const [contentKey, setContentKey] = useState(html);
   // Empty on SSR / first paint — DOMPurify is browser-only and would otherwise hydrate as "".
   const [sanitizedHtml, setSanitizedHtml] = useState('');
-  const [sanitizedSource, setSanitizedSource] = useState<string | null>(null);
 
   const clampLines = getPublicPdpDescriptionClampLines();
   const clampClass = getPublicPdpDescriptionClampClass(clampLines);
   const collapsedMaxHeightClass = getPublicPdpDescriptionCollapsedMaxHeightClass(clampLines);
 
-  expandedRef.current = expanded;
-
   const toggleExpanded = (): void => {
     const el = contentRef.current;
     if (!el) {
-      setExpanded((current) => !current);
-      setClamped((current) => !current);
+      const next = !expandedRef.current;
+      expandedRef.current = next;
+      setExpanded(next);
+      setClamped(!next);
       return;
     }
 
     if (clamped) {
       const startHeight = el.clientHeight;
       collapsedHeightRef.current = startHeight;
+      expandedRef.current = true;
       setExpanded(true);
       setClamped(false);
       setMaxHeightPx(startHeight);
@@ -129,6 +132,7 @@ export function ProductDescription({ html, className }: Readonly<ProductDescript
 
     const startHeight = el.scrollHeight;
     const endHeight = collapsedHeightRef.current ?? el.clientHeight;
+    expandedRef.current = false;
     setExpanded(false);
     setMaxHeightPx(startHeight);
     requestAnimationFrame(() => {
@@ -157,24 +161,10 @@ export function ProductDescription({ html, className }: Readonly<ProductDescript
     setMaxHeightPx(undefined);
   };
 
-  // Reset expand/overflow when the description HTML changes (React “adjust state while rendering”).
-  if (html !== contentKey) {
-    setContentKey(html);
-    setExpanded(false);
-    expandedRef.current = false;
-    setClamped(true);
-    setMaxHeightPx(undefined);
-    setIsOverflowing(false);
-    setSanitizedHtml('');
-    setSanitizedSource(null);
-    collapsedHeightRef.current = null;
-  }
-
-  // Sanitize on the client during render once a browser DOM is available (same pattern as contentKey).
-  if (typeof window !== 'undefined' && sanitizedSource !== html) {
-    setSanitizedSource(html);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- DOMPurify needs a browser DOM; empty first paint avoids hydration mismatch
     setSanitizedHtml(sanitizeDescriptionHtml(html));
-  }
+  }, [html]);
 
   useEffect(() => {
     const el = contentRef.current;

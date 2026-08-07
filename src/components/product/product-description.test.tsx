@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import '@testing-library/jest-dom';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ProductDescription } from './product-description';
 
 jest.mock('next-intl', () => ({
@@ -51,30 +51,37 @@ class ResizeObserverMock {
 
 Object.defineProperty(window, 'ResizeObserver', { writable: true, value: ResizeObserverMock });
 
+async function waitForSanitizedContent(matcher: string | RegExp): Promise<HTMLDivElement> {
+  const content = screen.getByTestId('product-description').firstElementChild as HTMLDivElement;
+  await waitFor(() => {
+    expect(content.innerHTML).toMatch(matcher);
+  });
+  return content;
+}
+
 describe('ProductDescription', () => {
-  it('applies the shared static line-clamp class when collapsed', () => {
+  it('applies the shared static line-clamp class when collapsed', async () => {
     render(<ProductDescription html="<p>Short description</p>" />);
 
     const root = screen.getByTestId('product-description');
     expect(root).toHaveClass('gap-1');
-    const content = root.firstElementChild;
+    const content = await waitForSanitizedContent(/Short description/);
     expect(content).toHaveClass('line-clamp-3', 'max-h-24', 'transition-[max-height]');
     expect(content).toHaveAttribute('data-expanded', 'false');
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
-  it('sanitizes script tags before rendering HTML', () => {
+  it('sanitizes script tags before rendering HTML', async () => {
     render(<ProductDescription html={'<p>Safe</p><script>alert(1)</script>'} />);
 
-    const content = screen.getByTestId('product-description').firstElementChild;
-    expect(content?.innerHTML).toContain('<p>Safe</p>');
-    expect(content?.innerHTML).not.toContain('<script>');
+    const content = await waitForSanitizedContent(/<p>Safe<\/p>/);
+    expect(content.innerHTML).not.toContain('<script>');
   });
 
-  it('shows the Show more toggle when content overflows and switches labels on expand/collapse', () => {
+  it('shows the Show more toggle when content overflows and switches labels on expand/collapse', async () => {
     render(<ProductDescription html="<p>Long product description that needs clamping across multiple lines.</p>" />);
 
-    const content = screen.getByTestId('product-description').firstElementChild as HTMLDivElement;
+    const content = await waitForSanitizedContent(/Long product description/);
 
     Object.defineProperty(content, 'scrollHeight', { configurable: true, get: () => 160 });
     Object.defineProperty(content, 'clientHeight', { configurable: true, get: () => 96 });
@@ -83,7 +90,7 @@ describe('ProductDescription', () => {
       window.dispatchEvent(new Event('resize'));
     });
 
-    const toggle = screen.getByRole('button', { name: 'showMore' });
+    const toggle = await screen.findByRole('button', { name: 'showMore' });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(content).toHaveClass('line-clamp-3', 'max-h-24');
     expect(toggle).toHaveClass('font-bold', 'text-text-action', 'underline');
@@ -109,10 +116,10 @@ describe('ProductDescription', () => {
     expect(content.style.maxHeight).toBe('');
   });
 
-  it('does not render a toggle for short non-overflowing content', () => {
+  it('does not render a toggle for short non-overflowing content', async () => {
     render(<ProductDescription html="<p>Tiny</p>" />);
 
-    const content = screen.getByTestId('product-description').firstElementChild as HTMLDivElement;
+    const content = await waitForSanitizedContent(/Tiny/);
     Object.defineProperty(content, 'scrollHeight', { configurable: true, get: () => 32 });
     Object.defineProperty(content, 'clientHeight', { configurable: true, get: () => 96 });
 
