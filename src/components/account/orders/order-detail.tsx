@@ -76,6 +76,7 @@ export function OrderDetail({
   readonly initialOrder?: Order | null;
 }) {
   const tOrder = useTranslations('orders');
+  const tCommon = useTranslations('common');
   const tPaymentModes = useTranslations('checkout.PaymentModes');
   const locale = useLocale();
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
@@ -307,7 +308,7 @@ export function OrderDetail({
                 }) && (
                   <div className="flex justify-between gap-4 pt-2">
                     <span>
-                      {tOrder('tax')}
+                      {tCommon('tax')}
                       {detailTaxRateSuffix({
                         taxRate: order.price.subtotal.taxRate,
                         taxAmount: order.price.subtotal.tax,

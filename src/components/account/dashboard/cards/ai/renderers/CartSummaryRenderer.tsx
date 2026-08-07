@@ -13,6 +13,7 @@ interface CartSummaryRendererProps {
 
 export const CartSummaryRenderer: React.FC<CartSummaryRendererProps> = ({ data }) => {
   const t = useTranslations('account.AiHelper');
+  const tCommon = useTranslations('common');
 
   const displayCurrency = data.currency || data.total?.currency || getPublicDefaultCurrency();
 
@@ -43,7 +44,7 @@ export const CartSummaryRenderer: React.FC<CartSummaryRendererProps> = ({ data }
         <div className="grid grid-cols-4 gap-4 mb-3 pb-2 border-b border-border-primary/30">
           <div className="text-sm font-semibold text-text-on-action/80"></div>
           <div className="text-sm font-semibold text-text-on-action text-center">{t('net')}</div>
-          <div className="text-sm font-semibold text-text-on-action text-center">{t('vat')}</div>
+          <div className="text-sm font-semibold text-text-on-action text-center">{tCommon('tax')}</div>
           <div className="text-sm font-semibold text-text-on-action text-center">{t('gross')}</div>
         </div>
 

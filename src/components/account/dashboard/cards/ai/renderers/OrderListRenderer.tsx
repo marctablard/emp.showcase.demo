@@ -14,6 +14,7 @@ interface OrderListRendererProps {
 
 export const OrderListRenderer: React.FC<OrderListRendererProps> = ({ data }) => {
   const t = useTranslations('account.AiHelper');
+  const tCommon = useTranslations('common');
 
   return (
     <div className="space-y-3">
@@ -80,7 +81,7 @@ export const OrderListRenderer: React.FC<OrderListRendererProps> = ({ data }) =>
                         {totalNet > 0 && totalTax > 0 && ' • '}
                         {totalTax > 0 && (
                           <>
-                            {t('tax')} {formatPrice(totalTax, orderCurrency)}
+                            {tCommon('tax')} {formatPrice(totalTax, orderCurrency)}
                           </>
                         )}
                       </div>
@@ -134,7 +135,7 @@ export const OrderListRenderer: React.FC<OrderListRendererProps> = ({ data }) =>
                                   {itemPrice.net > 0 && itemPrice.tax > 0 && ' • '}
                                   {itemPrice.tax > 0 && (
                                     <>
-                                      {t('vat')} {formatPrice(itemPrice.tax, itemCurrency)}
+                                      {tCommon('tax')} {formatPrice(itemPrice.tax, itemCurrency)}
                                     </>
                                   )}
                                   {(itemPrice.net > 0 || itemPrice.tax > 0) && itemPrice.gross > 0 && ' • '}

@@ -36,7 +36,6 @@
   "contact": "Contact",
   "phone": "Phone",
   "gross": "Gross",
-  "vat": "Tax",
   "subtotal": "Subtotal",
   "netValueOfGoods": "Net value of goods",
   "shippingFee": "Shipping fee",
@@ -241,7 +240,6 @@
     "orderOverview": "Order Overview",
     "netValueOfGoods": "Net value of goods",
     "shippingFee": "Shipping fee",
-    "vat": "Tax",
     "totalValue": "Total value",
     "shipping": "Shipping",
     "shippingMethod": "Shipping method",
@@ -272,7 +270,6 @@
     "pageIndicator": "Page {current} / {total}",
     "searchPlaceholder": "Search by approval ID...",
     "noMatches": "No approvals match your search",
-    "tax": "Tax",
     "shippingTax": "Shipping Tax",
     "free": "Free",
     "baseNetUnitPrice": "Base Net Unit Price",
@@ -318,6 +315,5 @@
   "orderAccessDenied": "You don't have permission to view this order.",
   "errorFetchingOrder": "Error fetching order details",
   "viewOrders": "View Orders",
-  "tax": "Tax",
   "shippingTax": "Shipping Tax"
 }

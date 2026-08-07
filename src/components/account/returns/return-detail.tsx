@@ -237,6 +237,7 @@ function renderTrailingDesktopAmount(
 }
 
 function ReturnOverview({ returnItem, locale, t }: ReturnOverviewProps) {
+  const tCommon = useTranslations('common');
   // Total return value: single gross amount (finalPrice.grossValue). No Gross prefix.
   // When gross is absent, show '-' (do not invent a total from net or helpers).
   const finalPrice = returnItem.calculatedPrice?.finalPrice;
@@ -264,7 +265,7 @@ function ReturnOverview({ returnItem, locale, t }: ReturnOverviewProps) {
         {showTaxLine && (
           <div className="flex items-start justify-between gap-4 pt-2">
             <span className="text-base font-body text-text-body">
-              {t('tax')}
+              {tCommon('tax')}
               {detailTaxRateSuffix(taxLine)}
             </span>
             <span className="text-base font-body text-text-body text-right">

@@ -7,6 +7,7 @@ import { ProductCharacteristic } from '@/components/product/product-characterist
 import { ProductColorTile } from '@/components/product/product-color-tile';
 import { ProductLabels } from '@/components/product/product-labels';
 import { ProductTag } from '@/components/product/product-tag';
+import { TemplateAttributeValue } from '@/components/product/template-attribute-value';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,8 +22,8 @@ import { useAvailableVariantValues } from '@/hooks/useAvailableVariantValues';
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll';
 import { useL10n } from '@/hooks/useL10n';
 import { useWishlistAddWithAuth } from '@/hooks/wishlist/useWishlistAddWithAuth';
-import { type ProductTemplateAttributeKey, dk } from '@/i18n/dynamic-key';
 import { Link } from '@/i18n/navigation';
+import { resolveTemplateAttributeLabel } from '@/lib/common/product-template-attributes';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency, imageSizes } from '@/lib/utils';
 import type { Product, ProductUSP } from '@/platform/services/model/product';
@@ -265,14 +266,14 @@ export function ProductTile({
                   {Object.entries(product.templateAttributes).map(([key, value]) => (
                     <div key={key} className="flex justify-between">
                       <p className="text-sm">
-                        {product.templateAttributeLabels?.[key]
-                          ? l10n(product.templateAttributeLabels[key])
-                          : t(dk<ProductTemplateAttributeKey>(`filters.mixins.productTemplateAttributes.${key}`), {
-                              defaultValue: key,
-                            })}
+                        {resolveTemplateAttributeLabel(key, product.templateAttributeLabels, l10n)}
                       </p>
-                      <p className="text-sm font-bold capitalize">
-                        {value}
+                      <p className="flex items-center text-sm font-bold capitalize">
+                        <TemplateAttributeValue
+                          value={value}
+                          type={product.templateAttributeTypes?.[key]}
+                          locale={locale ?? 'en'}
+                        />
                         {key === 'length' || key === 'width' || key === 'height' ? 'cm' : ''}
                       </p>
                     </div>

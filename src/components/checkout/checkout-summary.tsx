@@ -35,6 +35,7 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
   const { requiresApproval, loading: approvalLoading, setCartId } = useApprovalCheckout(cart?.id?.toString());
   const loading = checkoutLoading || approvalLoading;
   const t = useTranslations('checkout.summary');
+  const tCommon = useTranslations('common');
   const tCheckout = useTranslations('checkout');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [disabled, setDisabled] = useState(true);
@@ -110,7 +111,7 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
               </div>
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between font-medium text-base">
-                  <span>{t('vat')}</span>
+                  <span>{tCommon('tax')}</span>
                   <span>{formatCurrency(cart?.tax?.amount, cart?.tax?.currency)}</span>
                 </div>
                 <div className="flex justify-between font-medium text-base">

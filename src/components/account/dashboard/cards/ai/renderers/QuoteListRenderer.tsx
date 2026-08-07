@@ -14,6 +14,7 @@ interface QuoteListRendererProps {
 
 export const QuoteListRenderer: React.FC<QuoteListRendererProps> = ({ data }) => {
   const t = useTranslations('account.AiHelper');
+  const tCommon = useTranslations('common');
   const tQuoteStatus = useTranslations('account.quoteStatus');
 
   return (
@@ -73,7 +74,7 @@ export const QuoteListRenderer: React.FC<QuoteListRendererProps> = ({ data }) =>
                   {quote.totalNet && (
                     <div className="text-sm text-text-on-action/90">
                       {t('net')} {formatPrice(quote.totalNet, quote.currency)}
-                      {quote.totalVat && ` | ${t('tax')} ${formatPrice(quote.totalVat, quote.currency)}`}
+                      {quote.totalVat && ` | ${tCommon('tax')} ${formatPrice(quote.totalVat, quote.currency)}`}
                     </div>
                   )}
                 </div>

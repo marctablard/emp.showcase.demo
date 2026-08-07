@@ -21,8 +21,26 @@ import type { SessionService } from '../../session/SessionService';
 /** Page size for tenant label catalog fetch (`GET /label/labels`). */
 const LABEL_CATALOG_PAGE_SIZE = 100;
 
+/** Bound `q=id:(…)` chunks when resolving missing template refs for BI/list products. */
+const TEMPLATE_REF_ID_CHUNK_SIZE = 50;
+
 function templateCacheKey(id: string, version?: string): string {
   return version ? `${id}@${version}` : id;
+}
+
+function resolveTemplateVersionFromEmporix(template: EmporixProduct['template']): string | undefined {
+  if (!template) {
+    return undefined;
+  }
+  const version = template.version;
+  if (typeof version === 'string' || typeof version === 'number') {
+    return String(version);
+  }
+  const metadataVersion = template.metadata?.version;
+  if (typeof metadataVersion === 'string' || typeof metadataVersion === 'number') {
+    return String(metadataVersion);
+  }
+  return undefined;
 }
 
 /**
@@ -121,6 +139,9 @@ class EmporixProductService implements ProductService {
    * @returns Enhanced products with additional data
    */
   public async addAdditionalData(products: Product[], options?: ProductFetchOptions): Promise<Product[]> {
+    // BI/search hits often carry templateAttributes without template.id — resolve refs first.
+    await this.resolveMissingTemplateRefs(products);
+
     // Get additional data (brands, labels, templates, and categories)
     const { brandMap, labelMap, templateMap, productCategoriesMap, priceMap, variantMap } =
       await this.getAdditionalData(products, options);
@@ -210,6 +231,55 @@ class EmporixProductService implements ProductService {
       const label = product.templateAttributeLabels?.[attr.key];
       return label ? { ...attr, name: label } : attr;
     });
+  }
+
+  /**
+   * Battery Included (and similar) mappers often set `templateAttributes` without `template.id`.
+   * Resolve refs via product search `expand=template`, then Templates API can supply labels/types.
+   */
+  private async resolveMissingTemplateRefs(products: Product[]): Promise<void> {
+    const needingRefs = products.filter(
+      (product) =>
+        Boolean(product.id) &&
+        !product.template?.id &&
+        !product.templateAttributeLabels &&
+        product.templateAttributes &&
+        Object.keys(product.templateAttributes).length > 0,
+    );
+    if (needingRefs.length === 0) {
+      return;
+    }
+
+    const ids = needingRefs.map((product) => product.id);
+    const templateByProductId = new Map<string, { id: string; version?: string }>();
+
+    for (let offset = 0; offset < ids.length; offset += TEMPLATE_REF_ID_CHUNK_SIZE) {
+      const chunk = ids.slice(offset, offset + TEMPLATE_REF_ID_CHUNK_SIZE);
+      const response = await this.productApi.searchProducts({
+        page: 1,
+        size: chunk.length,
+        criteria: { id: `(${chunk.join(',')})` },
+        expand: ['template'],
+      });
+
+      for (const item of response.items ?? []) {
+        if (!item.id || !item.template?.id) {
+          continue;
+        }
+        const version = resolveTemplateVersionFromEmporix(item.template);
+        templateByProductId.set(item.id, {
+          id: item.template.id,
+          ...(version ? { version } : {}),
+        });
+      }
+    }
+
+    for (const product of needingRefs) {
+      const ref = templateByProductId.get(product.id);
+      if (ref) {
+        product.template = ref;
+      }
+    }
   }
 
   private applyIdBoundDataToProduct(

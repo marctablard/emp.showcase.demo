@@ -23,6 +23,7 @@ interface ApprovalSummaryProps {
 
 export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) => {
   const t = useTranslations('orders.Approval');
+  const tCommon = useTranslations('common');
   const locale = useLocale();
 
   const details = approval.details;
@@ -120,7 +121,7 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
         {showTax && (
           <div className="flex justify-between gap-4">
             <span>
-              {t('tax')}
+              {tCommon('tax')}
               {detailTaxRateSuffix(line)}
             </span>
             <span>{fmt(breakdown.tax)}</span>
@@ -205,7 +206,7 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
             {showTaxLine && (
               <div className="flex justify-between gap-4 pt-2">
                 <span>
-                  {t('tax')}
+                  {tCommon('tax')}
                   {detailTaxRateSuffix(taxLine)}
                 </span>
                 <span>{fmt(vat)}</span>

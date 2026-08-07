@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { ArrowDown, Copy, FlipHorizontal2, Share2, Sun } from 'lucide-react';
 import { ProductCarousel } from '@/components/product/product-carousel';
+import { TemplateAttributeValue } from '@/components/product/template-attribute-value';
 import { BulletPoint } from '@/components/ui/bullet-point';
 import { Card, CardContent } from '@/components/ui/card';
 import { EnergyBadge } from '@/components/ui/energy-badge';
@@ -43,7 +44,7 @@ import {
   hasLocalizedHighlights,
   hasTechnicalInformation,
 } from '@/lib/common/product-content';
-import { formatTemplateAttributeValue } from '@/lib/common/product-template-attributes';
+import { parseBooleanTemplateAttributeValue } from '@/lib/common/product-template-attributes';
 import type { L10nInput } from '@/lib/l10n';
 import { cn } from '@/lib/utils';
 import type { LocalizedString, StockAvailability } from '@/platform/services/model/common';
@@ -285,14 +286,16 @@ function PdpTechnicalInformation({
                 const itemLabel = resolveTechnicalItemLabel(i.label, l10n);
                 const unit = typeof i.unit === 'string' ? i.unit.trim() : l10n(i.unit).trim();
                 const rawValue = l10n(i.value);
-                const displayValue = i.attributeKey
-                  ? formatTemplateAttributeValue(rawValue, templateAttributeTypes?.[i.attributeKey], locale)
-                  : rawValue;
+                const attributeType = i.attributeKey ? templateAttributeTypes?.[i.attributeKey] : undefined;
                 return (
                   <div className="font-sm p-4 border-b border-border-primary flex gap-4" key={itemLabel}>
                     <p className="w-1/2 min-w-0 wrap-break-word">{itemLabel}</p>
-                    <p className="w-1/2 min-w-0 wrap-break-word">
-                      {displayValue}
+                    <p className="flex w-1/2 min-w-0 items-center gap-1 wrap-break-word">
+                      {i.attributeKey ? (
+                        <TemplateAttributeValue value={rawValue} type={attributeType} locale={locale} />
+                      ) : (
+                        rawValue
+                      )}
                       {unit ? ` ${unit}` : ''}
                     </p>
                   </div>
@@ -361,9 +364,7 @@ function renderKeySpecValue(
   const rawValue = l10n(spec.value).trim();
   const unit = spec.unit ? l10n(spec.unit).trim() : '';
   const attributeKey = spec.key.startsWith('template-') ? spec.key.slice('template-'.length) : undefined;
-  const displayValue = attributeKey
-    ? formatTemplateAttributeValue(rawValue, templateAttributeTypes?.[attributeKey], locale)
-    : rawValue;
+  const attributeType = attributeKey ? templateAttributeTypes?.[attributeKey] : undefined;
 
   if (isEnergyEfficiencyClass(rawValue)) {
     return (
@@ -374,7 +375,17 @@ function renderKeySpecValue(
     );
   }
 
-  return unit ? `${displayValue} ${unit}` : displayValue;
+  if (attributeKey) {
+    const isBoolean = parseBooleanTemplateAttributeValue(rawValue, attributeType) !== undefined;
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        <TemplateAttributeValue value={rawValue} type={attributeType} locale={locale} />
+        {unit && !isBoolean ? <span className="font-normal text-base">{unit}</span> : null}
+      </span>
+    );
+  }
+
+  return unit ? `${rawValue} ${unit}` : rawValue;
 }
 
 function PdpKeySpecsCard({

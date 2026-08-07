@@ -17,6 +17,7 @@ interface HeaderMiniCartContentProps {
 
 export function HeaderMiniCartContent({ loading, cart, scrollHeight, scrollContainer }: HeaderMiniCartContentProps) {
   const t = useTranslations('cart');
+  const tCommon = useTranslations('common');
   const { cartTotal, shippingCosts, currency } = useCartTotal();
   const router = useRouter();
 
@@ -45,7 +46,7 @@ export function HeaderMiniCartContent({ loading, cart, scrollHeight, scrollConta
                 <span>{formatCurrency(cart?.subTotalPrice.amount, cart?.subTotalPrice.currency)}</span>
               </div>
               <div className="flex justify-between">
-                <span>{t('summary.vat')}</span>
+                <span>{tCommon('tax')}</span>
                 <span>{formatCurrency(cart.tax.amount, cart.tax.currency)}</span>
               </div>
               <div className="flex justify-between">

@@ -37,7 +37,11 @@ class EmporixProductApi implements IEmporixProductApi {
   }
 
   async searchProducts(params: EmporixSearchParams<EmporixProduct>): Promise<EmporixPaginatedResponse<EmporixProduct>> {
-    const { body, query } = buildSearchQuery(params);
+    // Always expand template ref so PLP enrichment can resolve attribute labels/types.
+    const { body, query } = buildSearchQuery({
+      ...params,
+      expand: params.expand?.includes('template') ? params.expand : [...(params.expand ?? []), 'template'],
+    });
     const response = await this.apiClient.authenticatedFetch(
       `/product/${this.config.tenant}/products/search?${query}`,
       {
