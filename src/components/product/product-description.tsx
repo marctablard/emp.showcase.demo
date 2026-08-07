@@ -181,11 +181,11 @@ function ProductDescriptionContent({ html, className }: Readonly<ProductDescript
 
     const resizeObserver = new ResizeObserver(measure);
     resizeObserver.observe(el);
-    window.addEventListener('resize', measure);
+    globalThis.window.addEventListener('resize', measure);
 
     return () => {
       resizeObserver.disconnect();
-      window.removeEventListener('resize', measure);
+      globalThis.window.removeEventListener('resize', measure);
     };
   }, [sanitizedHtml, clamped, clampClass]);
 

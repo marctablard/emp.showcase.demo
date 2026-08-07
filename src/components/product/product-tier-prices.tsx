@@ -138,12 +138,12 @@ export function ProductTierPrices({
           <div className="flex min-w-0 flex-1 flex-col items-start py-2 pl-2">
             <p className={cn('text-base text-text-body', row.isActive ? 'font-bold' : 'font-normal')}>
               <span>{formatCurrency(row.net, price.currency)}</span>
-              {taxRate != null ? (
+              {taxRate == null ? null : (
                 <span className="text-xs font-bold">
                   {' '}
                   ({t('includingTax', { taxRate })} / {formatCurrency(row.gross, price.currency)} {t('gross')})
                 </span>
-              ) : null}
+              )}
             </p>
             {row.savePercent > 0 ? (
               <p className="text-xs text-text-success">

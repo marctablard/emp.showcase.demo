@@ -143,6 +143,48 @@ function resolveKeySpecLabel(spec: ProductSpecification, l10n: (value: L10nInput
   return l10n(spec.label);
 }
 
+function resolveKeySpecGroupLabel(
+  group: KeySpecificationGroup,
+  t: ReturnType<typeof useTranslations<'product'>>,
+  l10n: (value: L10nInput) => string,
+): string {
+  if (group.id === KEY_SPEC_BASIC_GROUP_ID) {
+    return t('basicSpecifications');
+  }
+  if (group.groupName) {
+    return l10n(group.groupName).trim();
+  }
+  return '';
+}
+
+function applyProductComparisonToggle({
+  productId,
+  productName,
+  isInComparison,
+  isFull,
+  toggleProduct,
+  t,
+}: Readonly<{
+  productId: string;
+  productName: string;
+  isInComparison: boolean;
+  isFull: boolean;
+  toggleProduct: (id: string) => void;
+  t: ReturnType<typeof useTranslations<'product'>>;
+}>): void {
+  if (isInComparison) {
+    toggleProduct(productId);
+    notify({ title: t('removedFromComparison', { name: productName }), type: ToastType.Info });
+    return;
+  }
+  if (isFull) {
+    notify({ title: t('comparisonFull', { max: MAX_COMPARISON_PRODUCTS }), type: ToastType.Warning });
+    return;
+  }
+  toggleProduct(productId);
+  notify({ title: t('addedToComparison', { name: productName }), type: ToastType.Success });
+}
+
 function resolveTechnicalGroupTitle(
   groupName: string | LocalizedString,
   l10n: (value: L10nInput) => string,
@@ -335,12 +377,7 @@ function PdpKeySpecsCard({
               </H2>
               <div className="flex flex-col gap-6">
                 {keySpecGroups.map((group) => {
-                  const groupLabel =
-                    group.id === KEY_SPEC_BASIC_GROUP_ID
-                      ? t('basicSpecifications')
-                      : group.groupName
-                        ? l10n(group.groupName).trim()
-                        : '';
+                  const groupLabel = resolveKeySpecGroupLabel(group, t, l10n);
                   return (
                     <div key={group.id} className="flex flex-col gap-4" data-testid="product-key-spec-group">
                       {showGroupHeaders && groupLabel ? (
@@ -637,15 +674,14 @@ export default function ProductDetail({ product: initialProduct, options, classN
 
   const handleCompareClick = () => {
     if (!product) return;
-    if (isInComparison(product.id)) {
-      toggleProduct(product.id);
-      notify({ title: t('removedFromComparison', { name: l10n(product.name) }), type: ToastType.Info });
-    } else if (isFull) {
-      notify({ title: t('comparisonFull', { max: MAX_COMPARISON_PRODUCTS }), type: ToastType.Warning });
-    } else {
-      toggleProduct(product.id);
-      notify({ title: t('addedToComparison', { name: l10n(product.name) }), type: ToastType.Success });
-    }
+    applyProductComparisonToggle({
+      productId: product.id,
+      productName: l10n(product.name),
+      isInComparison: isInComparison(product.id),
+      isFull,
+      toggleProduct,
+      t,
+    });
   };
 
   if (!shopContextReady || loading) {

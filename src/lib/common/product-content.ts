@@ -51,6 +51,16 @@ function templateAttributesToGroupedItems(
   }));
 }
 
+function resolveSpecGroupName(spec: ProductSpecification): string | LocalizedString | undefined {
+  if (isNonEmptyLocalized(spec.groupLabel)) {
+    return spec.groupLabel;
+  }
+  if (typeof spec.group === 'string' && spec.group.trim()) {
+    return spec.group;
+  }
+  return undefined;
+}
+
 function groupFlatSpecifications(specifications: ProductSpecification[]): KeySpecificationGroup[] {
   const hasAnyGroupMeta = specifications.some(
     (spec) => isNonEmptyLocalized(spec.groupLabel) || (typeof spec.group === 'string' && spec.group.trim().length > 0),
@@ -72,11 +82,7 @@ function groupFlatSpecifications(specifications: ProductSpecification[]): KeySpe
       return;
     }
     byGroup.set(groupKey, {
-      groupName: isNonEmptyLocalized(spec.groupLabel)
-        ? spec.groupLabel
-        : typeof spec.group === 'string' && spec.group.trim()
-          ? spec.group
-          : undefined,
+      groupName: resolveSpecGroupName(spec),
       items: [spec],
     });
   });

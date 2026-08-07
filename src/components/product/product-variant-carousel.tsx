@@ -222,7 +222,7 @@ export function ProductVariantCarousel({
                     ))}
                   </div>
                   <span className="font-bold">
-                    {netAmount != null ? formatCurrency(netAmount, price?.currency) : t('price.notAvailable')}
+                    {netAmount == null ? t('price.notAvailable') : formatCurrency(netAmount, price?.currency)}
                   </span>
                 </div>
               </button>

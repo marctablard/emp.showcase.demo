@@ -72,7 +72,7 @@ export function applyPdpAnchorScrollMargin(element: HTMLElement | null): void {
  * Updates the URL hash without a second native jump.
  */
 export function scrollToPdpAnchor(sectionId: string): void {
-  if (typeof document === 'undefined' || typeof window === 'undefined') {
+  if (typeof document === 'undefined' || typeof globalThis.window === 'undefined') {
     return;
   }
 
@@ -82,11 +82,11 @@ export function scrollToPdpAnchor(sectionId: string): void {
   }
 
   applyPdpAnchorScrollMargin(target);
-  const top = target.getBoundingClientRect().top + window.scrollY - getPdpStickyOverlayOffsetPx();
-  window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+  const top = target.getBoundingClientRect().top + globalThis.window.scrollY - getPdpStickyOverlayOffsetPx();
+  globalThis.window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
 
   const nextHash = `#${sectionId}`;
-  if (window.location.hash !== nextHash) {
-    window.history.pushState(null, '', nextHash);
+  if (globalThis.location.hash !== nextHash) {
+    globalThis.history.pushState(null, '', nextHash);
   }
 }

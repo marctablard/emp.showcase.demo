@@ -47,8 +47,8 @@ export interface EmporixProductTemplateDefinition {
 }
 
 /**
- * @deprecated Prefer EmporixProductTemplateRef on products and EmporixProductTemplateDefinition from the templates API.
- * Kept as a union-friendly alias while callers migrate.
+ * Expanded product template shape returned when products are fetched with `expand=template`.
+ * Combines the product's template ref with optional definition fields from the expand payload.
  */
 export type EmporixProductTemplate = EmporixProductTemplateRef &
   Partial<Pick<EmporixProductTemplateDefinition, 'name' | 'attributes' | 'metadata'>>;

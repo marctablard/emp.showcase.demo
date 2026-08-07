@@ -21,6 +21,18 @@ function asTemplateAttributeType(value: unknown): ProductTemplateAttributeType |
     : undefined;
 }
 
+function resolveTemplateVersion(template: EmporixProductTemplate | undefined): string | undefined {
+  const version = template?.version;
+  if (typeof version === 'string' || typeof version === 'number') {
+    return String(version);
+  }
+  const metadataVersion = template?.metadata?.version;
+  if (typeof metadataVersion === 'string' || typeof metadataVersion === 'number') {
+    return String(metadataVersion);
+  }
+  return undefined;
+}
+
 /** Labels + types from an expanded product template (`expand=template`). */
 function mapTemplateAttributeMeta(template: EmporixProductTemplate | undefined): {
   labels?: Record<string, LocalizedString>;
@@ -115,12 +127,7 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
     const { labels: templateAttributeLabels, types: templateAttributeTypes } = mapTemplateAttributeMeta(
       source.template,
     );
-    const templateVersion =
-      source.template?.version != null
-        ? String(source.template.version)
-        : source.template?.metadata?.version != null
-          ? String(source.template.metadata.version)
-          : undefined;
+    const templateVersion = resolveTemplateVersion(source.template);
 
     return {
       id: source.id || source.code,

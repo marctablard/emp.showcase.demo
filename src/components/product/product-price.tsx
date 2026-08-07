@@ -41,7 +41,7 @@ function buildStyledCurrencyParts(parts: Intl.NumberFormatPart[], notAvailableLa
     integerSpanEmitted = true;
   };
 
-  parts.forEach((part, index) => {
+  parts.forEach((part) => {
     if (part.type === 'integer' || part.type === 'group') {
       integerWithGroups += part.value;
       return;
@@ -70,7 +70,7 @@ function buildStyledCurrencyParts(parts: Intl.NumberFormatPart[], notAvailableLa
       return;
     }
     if (part.type === 'literal') {
-      nodes.push(<span key={`literal-${index}`}>{part.value}</span>);
+      nodes.push(<span key={`literal-${part.type}-${part.value}-${nodes.length}`}>{part.value}</span>);
     }
   });
 

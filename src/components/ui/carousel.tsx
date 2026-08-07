@@ -128,22 +128,38 @@ function Carousel({
     };
   }, [api, onSelect]);
 
+  const resolvedOrientation = orientation || (opts?.axis === 'y' ? 'vertical' : 'horizontal');
+  const contextValue = React.useMemo(
+    () => ({
+      carouselRef,
+      api,
+      opts,
+      orientation: resolvedOrientation,
+      scrollPrev,
+      scrollNext,
+      canScrollPrev,
+      canScrollNext,
+      scrollTo,
+      selectedIndex,
+      scrollSnapCount,
+    }),
+    [
+      carouselRef,
+      api,
+      opts,
+      resolvedOrientation,
+      scrollPrev,
+      scrollNext,
+      canScrollPrev,
+      canScrollNext,
+      scrollTo,
+      selectedIndex,
+      scrollSnapCount,
+    ],
+  );
+
   return (
-    <CarouselContext.Provider
-      value={{
-        carouselRef,
-        api: api,
-        opts,
-        orientation: orientation || (opts?.axis === 'y' ? 'vertical' : 'horizontal'),
-        scrollPrev,
-        scrollNext,
-        canScrollPrev,
-        canScrollNext,
-        scrollTo,
-        selectedIndex,
-        scrollSnapCount,
-      }}
-    >
+    <CarouselContext.Provider value={contextValue}>
       <div
         onKeyDownCapture={handleKeyDown}
         className={cn('relative', className)}
@@ -168,7 +184,7 @@ function CarouselContent({ className, ...props }: React.ComponentProps<'div'>): 
   );
 }
 
-function CarouselItem({ size, className, ...props }: CarouselItemProps): React.JSX.Element {
+function CarouselItem({ size, className, ...props }: Readonly<CarouselItemProps>): React.JSX.Element {
   const { orientation } = useCarousel();
 
   return (

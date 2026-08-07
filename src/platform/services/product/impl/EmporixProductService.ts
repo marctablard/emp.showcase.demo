@@ -37,7 +37,7 @@ class EmporixProductService implements ProductService {
     @inject('EmporixProductApi') private productApi: EmporixProductApi,
     @inject('EmporixBrandApi') private brandApi: EmporixBrandApi,
     @inject('EmporixLabelApi') private labelApi: EmporixLabelApi,
-    @inject('EmporixProductTemplateApi') private productTemplateApi: EmporixProductTemplateApi,
+    @inject('EmporixProductTemplateApi') private readonly productTemplateApi: EmporixProductTemplateApi,
     @inject('CategoryService') private categoryService: CategoryService,
     @inject('SegmentFilterService') private segmentFilterService: SegmentFilterService,
     @inject('SessionService') private sessionService: SessionService,
@@ -127,76 +127,89 @@ class EmporixProductService implements ProductService {
 
     // Enhance each product with brand, label, template labels, and category information
     products.forEach((product: Product) => {
-      // Add brand information
-      if (product.brand) {
-        const brand = brandMap.get(product.brand.id);
-        if (brand) {
-          product.brand = {
-            id: brand.id,
-            name: brand.name,
-            logo: {
-              url: brand.image,
-              altText: brand.name,
-            },
-          };
-        }
-      }
-
-      // Add label information
-      if (product.labels && product.labels.length > 0) {
-        product.labels = product.labels
-          .map((label: ProductLabel) => labelMap.get(label.id))
-          .filter((label?: EmporixLabel): label is EmporixLabel => Boolean(label))
-          .map((label: EmporixLabel) => this.mapLabel(label));
-      }
-
-      // Resolve localized template / variant attribute labels from Product Templates API
-      if (product.template?.id) {
-        const template =
-          templateMap.get(templateCacheKey(product.template.id, product.template.version)) ??
-          templateMap.get(product.template.id);
-        if (template) {
-          product.templateAttributeLabels = this.mapTemplateAttributeLabels(template);
-          product.templateAttributeTypes = this.mapTemplateAttributeTypes(template);
-          if (product.variantAttributes?.length) {
-            product.variantAttributes = product.variantAttributes.map((attr) => {
-              const label = product.templateAttributeLabels?.[attr.key];
-              return label ? { ...attr, name: label } : attr;
-            });
-          }
-        }
-      }
-
-      // Add categories if available
-      if (product.id) {
-        const categories = productCategoriesMap.get(product.id);
-        if (categories && categories.length > 0) {
-          // currently theres no way to determine the primary Category, so we use the first
-          // this is important for SEO so canonical URLs don't change when the product is
-          // being browsed to from different Categories
-          product.primaryCategory = categories[0];
-          product.categories = categories;
-        }
-      }
-
-      // Add price information if available
-      if (product.id) {
-        const price = priceMap.get(product.id);
-        if (price) {
-          product.price = price;
-        }
-      }
-
-      // Add variant information if available
-      if (product.id) {
-        const variants = variantMap.get(product.id);
-        if (variants) {
-          product.variants = variants;
-        }
-      }
+      this.applyAdditionalDataToProduct(product, {
+        brandMap,
+        labelMap,
+        templateMap,
+        productCategoriesMap,
+        priceMap,
+        variantMap,
+      });
     });
 
     return products;
+  }
+
+  private applyAdditionalDataToProduct(
+    product: Product,
+    maps: {
+      brandMap: Map<string, { id: string; name: string; image?: string }>;
+      labelMap: Map<string, EmporixLabel>;
+      templateMap: Map<string, EmporixProductTemplateDefinition>;
+      productCategoriesMap: Map<string, Category[]>;
+      priceMap: Map<string, ProductPrice>;
+      variantMap: Map<string, Product[]>;
+    },
+  ): void {
+    const { brandMap, labelMap, templateMap, productCategoriesMap, priceMap, variantMap } = maps;
+
+    if (product.brand) {
+      const brand = brandMap.get(product.brand.id);
+      if (brand) {
+        product.brand = {
+          id: brand.id,
+          name: brand.name,
+          logo: {
+            url: brand.image ?? '',
+            altText: brand.name,
+          },
+        };
+      }
+    }
+
+    if (product.labels && product.labels.length > 0) {
+      product.labels = product.labels
+        .map((label: ProductLabel) => labelMap.get(label.id))
+        .filter((label?: EmporixLabel): label is EmporixLabel => Boolean(label))
+        .map((label: EmporixLabel) => this.mapLabel(label));
+    }
+
+    if (product.template?.id) {
+      const template =
+        templateMap.get(templateCacheKey(product.template.id, product.template.version)) ??
+        templateMap.get(product.template.id);
+      if (template) {
+        product.templateAttributeLabels = this.mapTemplateAttributeLabels(template);
+        product.templateAttributeTypes = this.mapTemplateAttributeTypes(template);
+        if (product.variantAttributes?.length) {
+          product.variantAttributes = product.variantAttributes.map((attr) => {
+            const label = product.templateAttributeLabels?.[attr.key];
+            return label ? { ...attr, name: label } : attr;
+          });
+        }
+      }
+    }
+
+    if (product.id) {
+      const categories = productCategoriesMap.get(product.id);
+      if (categories && categories.length > 0) {
+        // currently theres no way to determine the primary Category, so we use the first
+        // this is important for SEO so canonical URLs don't change when the product is
+        // being browsed to from different Categories
+        product.primaryCategory = categories[0];
+        product.categories = categories;
+      }
+
+      const price = priceMap.get(product.id);
+      if (price) {
+        product.price = price;
+      }
+
+      const variants = variantMap.get(product.id);
+      if (variants) {
+        product.variants = variants;
+      }
+    }
   }
 
   private mapTemplateAttributeLabels(template: EmporixProductTemplateDefinition): Record<string, LocalizedString> {
@@ -273,6 +286,34 @@ class EmporixProductService implements ProductService {
   }
 
   /**
+   * Resolves catalog page total for label pagination, or `'break'` when the catalog is exhausted.
+   */
+  private resolveLabelCatalogTotal(response: { items: EmporixLabel[]; total: number }, page: number): number | 'break' {
+    if (response.total >= 0) {
+      return response.total;
+    }
+    if (response.items.length === 0) {
+      return 'break';
+    }
+    const hasMorePage = response.items.length < LABEL_CATALOG_PAGE_SIZE ? 0 : 1;
+    return (page + 1) * LABEL_CATALOG_PAGE_SIZE + hasMorePage;
+  }
+
+  /** Fetches any requested label IDs still missing after the catalog scan. */
+  private async mergeMissingLabelsById(labelIds: Set<string>, labelMap: Map<string, EmporixLabel>): Promise<void> {
+    const missingIds = [...labelIds].filter((id) => !labelMap.has(id));
+    if (missingIds.length === 0) {
+      return;
+    }
+    const missingLabels = await Promise.all(missingIds.map((id) => this.labelApi.getLabel(id)));
+    for (const label of missingLabels) {
+      if (label) {
+        labelMap.set(label.id, label);
+      }
+    }
+  }
+
+  /**
    * Loads needed labels from the tenant catalog (`GET /label/labels`) with pagination,
    * then falls back to per-id GET for any IDs still missing.
    */
@@ -287,13 +328,11 @@ class EmporixProductService implements ProductService {
 
     while (labelMap.size < labelIds.size && page * LABEL_CATALOG_PAGE_SIZE < total) {
       const response = await this.labelApi.getLabels(page, LABEL_CATALOG_PAGE_SIZE);
-      if (response.total >= 0) {
-        total = response.total;
-      } else if (response.items.length === 0) {
+      const resolvedTotal = this.resolveLabelCatalogTotal(response, page);
+      if (resolvedTotal === 'break') {
         break;
-      } else {
-        total = (page + 1) * LABEL_CATALOG_PAGE_SIZE + (response.items.length < LABEL_CATALOG_PAGE_SIZE ? 0 : 1);
       }
+      total = resolvedTotal;
 
       for (const label of response.items) {
         if (labelIds.has(label.id)) {
@@ -308,15 +347,7 @@ class EmporixProductService implements ProductService {
       page += 1;
     }
 
-    const missingIds = [...labelIds].filter((id) => !labelMap.has(id));
-    if (missingIds.length > 0) {
-      const missingLabels = await Promise.all(missingIds.map((id) => this.labelApi.getLabel(id)));
-      for (const label of missingLabels) {
-        if (label) {
-          labelMap.set(label.id, label);
-        }
-      }
-    }
+    await this.mergeMissingLabelsById(labelIds, labelMap);
 
     return labelMap;
   }

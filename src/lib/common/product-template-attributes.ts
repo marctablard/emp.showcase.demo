@@ -14,7 +14,7 @@ export const PRODUCT_TEMPLATE_ATTRIBUTE_TYPE = {
  */
 export function formatTemplateAttributeValue(
   value: string,
-  type: ProductTemplateAttributeType | string | undefined,
+  type: ProductTemplateAttributeType | undefined,
   locale: string,
 ): string {
   if (type === PRODUCT_TEMPLATE_ATTRIBUTE_TYPE.DATETIME) {
