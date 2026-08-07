@@ -1,12 +1,14 @@
 import { inject } from 'inversify';
+import { resolveProductLabelImageUrl } from '@/lib/common/product-label-image';
 import { injectable } from '@/platform/core/di/injectable';
-import type { EmporixLabel } from '@/platform/integrations/emporix/model';
+import type { EmporixLabel, EmporixProductTemplateDefinition } from '@/platform/integrations/emporix/model';
 import type { EmporixProduct } from '@/platform/integrations/emporix/model/product';
 import type { EmporixBrandApi } from '@/platform/integrations/emporix/product/EmporixBrandApi';
 import type { EmporixLabelApi } from '@/platform/integrations/emporix/product/EmporixLabelApi';
 import type { EmporixProductApi } from '@/platform/integrations/emporix/product/EmporixProductApi';
-import type { Paginated } from '@/platform/services/model/common';
-import type { Product, ProductLabel } from '@/platform/services/model/product';
+import type { EmporixProductTemplateApi } from '@/platform/integrations/emporix/product/EmporixProductTemplateApi';
+import type { LocalizedString, Paginated } from '@/platform/services/model/common';
+import type { Product, ProductLabel, ProductTemplateAttributeType } from '@/platform/services/model/product';
 import type { ProductFetchOptions, ProductService } from '@/platform/services/product/ProductService';
 import type { CategoryService } from '../../category/CategoryService';
 import type { Category } from '../../model/category';
@@ -15,6 +17,13 @@ import type { ProductMapper } from '../../model/product/ProductMapper';
 import type { PriceService } from '../../price';
 import type SegmentFilterService from '../../search/impl/SegmentFilterService';
 import type { SessionService } from '../../session/SessionService';
+
+/** Page size for tenant label catalog fetch (`GET /label/labels`). */
+const LABEL_CATALOG_PAGE_SIZE = 100;
+
+function templateCacheKey(id: string, version?: string): string {
+  return version ? `${id}@${version}` : id;
+}
 
 /**
  * Implementation of ProductService for Emporix product data.
@@ -28,6 +37,7 @@ class EmporixProductService implements ProductService {
     @inject('EmporixProductApi') private productApi: EmporixProductApi,
     @inject('EmporixBrandApi') private brandApi: EmporixBrandApi,
     @inject('EmporixLabelApi') private labelApi: EmporixLabelApi,
+    @inject('EmporixProductTemplateApi') private productTemplateApi: EmporixProductTemplateApi,
     @inject('CategoryService') private categoryService: CategoryService,
     @inject('SegmentFilterService') private segmentFilterService: SegmentFilterService,
     @inject('SessionService') private sessionService: SessionService,
@@ -111,13 +121,11 @@ class EmporixProductService implements ProductService {
    * @returns Enhanced products with additional data
    */
   public async addAdditionalData(products: Product[], options?: ProductFetchOptions): Promise<Product[]> {
-    // Get additional data (brands, labels, and categories)
-    const { brandMap, labelMap, productCategoriesMap, priceMap, variantMap } = await this.getAdditionalData(
-      products,
-      options,
-    );
+    // Get additional data (brands, labels, templates, and categories)
+    const { brandMap, labelMap, templateMap, productCategoriesMap, priceMap, variantMap } =
+      await this.getAdditionalData(products, options);
 
-    // Enhance each product with brand, label, and category information
+    // Enhance each product with brand, label, template labels, and category information
     products.forEach((product: Product) => {
       // Add brand information
       if (product.brand) {
@@ -140,6 +148,23 @@ class EmporixProductService implements ProductService {
           .map((label: ProductLabel) => labelMap.get(label.id))
           .filter((label?: EmporixLabel): label is EmporixLabel => Boolean(label))
           .map((label: EmporixLabel) => this.mapLabel(label));
+      }
+
+      // Resolve localized template / variant attribute labels from Product Templates API
+      if (product.template?.id) {
+        const template =
+          templateMap.get(templateCacheKey(product.template.id, product.template.version)) ??
+          templateMap.get(product.template.id);
+        if (template) {
+          product.templateAttributeLabels = this.mapTemplateAttributeLabels(template);
+          product.templateAttributeTypes = this.mapTemplateAttributeTypes(template);
+          if (product.variantAttributes?.length) {
+            product.variantAttributes = product.variantAttributes.map((attr) => {
+              const label = product.templateAttributeLabels?.[attr.key];
+              return label ? { ...attr, name: label } : attr;
+            });
+          }
+        }
       }
 
       // Add categories if available
@@ -174,6 +199,65 @@ class EmporixProductService implements ProductService {
     return products;
   }
 
+  private mapTemplateAttributeLabels(template: EmporixProductTemplateDefinition): Record<string, LocalizedString> {
+    const labels: Record<string, LocalizedString> = {};
+    for (const attribute of template.attributes ?? []) {
+      if (attribute.key && attribute.name) {
+        labels[attribute.key] = attribute.name;
+      }
+    }
+    return labels;
+  }
+
+  private mapTemplateAttributeTypes(
+    template: EmporixProductTemplateDefinition,
+  ): Record<string, ProductTemplateAttributeType> {
+    const types: Record<string, ProductTemplateAttributeType> = {};
+    for (const attribute of template.attributes ?? []) {
+      if (
+        attribute.key &&
+        (attribute.type === 'TEXT' ||
+          attribute.type === 'NUMBER' ||
+          attribute.type === 'BOOLEAN' ||
+          attribute.type === 'DATETIME')
+      ) {
+        types[attribute.key] = attribute.type;
+      }
+    }
+    return types;
+  }
+
+  private async fetchProductTemplates(
+    refs: Array<{ id: string; version?: string }>,
+  ): Promise<Map<string, EmporixProductTemplateDefinition>> {
+    const templateMap = new Map<string, EmporixProductTemplateDefinition>();
+    if (refs.length === 0) {
+      return templateMap;
+    }
+
+    const unique = new Map<string, { id: string; version?: string }>();
+    for (const ref of refs) {
+      unique.set(templateCacheKey(ref.id, ref.version), ref);
+    }
+
+    const fetched = await Promise.all(
+      [...unique.values()].map(async (ref) => {
+        const template = await this.productTemplateApi.getProductTemplate(ref.id, ref.version);
+        return { ref, template };
+      }),
+    );
+
+    for (const { ref, template } of fetched) {
+      if (!template) {
+        continue;
+      }
+      templateMap.set(templateCacheKey(ref.id, ref.version), template);
+      templateMap.set(ref.id, template);
+    }
+
+    return templateMap;
+  }
+
   /**
    * Maps an Emporix Label to the internal ProductLabel format
    */
@@ -181,10 +265,60 @@ class EmporixProductService implements ProductService {
     return {
       id: label.id,
       name: label.name,
-      image: label.image || label.cloudinaryUrl,
+      // Prefer absolute `image` URL; never treat `cloudinaryUrl` storage path as an img src.
+      image: resolveProductLabelImageUrl(label.image),
       description: label.description,
       overlay: label.overlay,
     };
+  }
+
+  /**
+   * Loads needed labels from the tenant catalog (`GET /label/labels`) with pagination,
+   * then falls back to per-id GET for any IDs still missing.
+   */
+  private async fetchLabelsByIds(labelIds: Set<string>): Promise<Map<string, EmporixLabel>> {
+    const labelMap = new Map<string, EmporixLabel>();
+    if (labelIds.size === 0) {
+      return labelMap;
+    }
+
+    let page = 0;
+    let total = Number.POSITIVE_INFINITY;
+
+    while (labelMap.size < labelIds.size && page * LABEL_CATALOG_PAGE_SIZE < total) {
+      const response = await this.labelApi.getLabels(page, LABEL_CATALOG_PAGE_SIZE);
+      if (response.total >= 0) {
+        total = response.total;
+      } else if (response.items.length === 0) {
+        break;
+      } else {
+        total = (page + 1) * LABEL_CATALOG_PAGE_SIZE + (response.items.length < LABEL_CATALOG_PAGE_SIZE ? 0 : 1);
+      }
+
+      for (const label of response.items) {
+        if (labelIds.has(label.id)) {
+          labelMap.set(label.id, label);
+        }
+      }
+
+      if (response.items.length < LABEL_CATALOG_PAGE_SIZE) {
+        break;
+      }
+
+      page += 1;
+    }
+
+    const missingIds = [...labelIds].filter((id) => !labelMap.has(id));
+    if (missingIds.length > 0) {
+      const missingLabels = await Promise.all(missingIds.map((id) => this.labelApi.getLabel(id)));
+      for (const label of missingLabels) {
+        if (label) {
+          labelMap.set(label.id, label);
+        }
+      }
+    }
+
+    return labelMap;
   }
 
   /**
@@ -198,27 +332,34 @@ class EmporixProductService implements ProductService {
   ): Promise<{
     brandMap: Map<string, any>;
     labelMap: Map<string, EmporixLabel>;
+    templateMap: Map<string, EmporixProductTemplateDefinition>;
     productCategoriesMap: Map<string, Category[]>;
     priceMap: Map<string, ProductPrice>;
     variantMap: Map<string, Product[]>;
   }> {
-    // Collect all brand IDs and label IDs from products
+    // Collect all brand IDs, label IDs, template refs, and product IDs
     const brandIds = new Set<string>();
     const labelIds = new Set<string>();
+    const templateRefs: Array<{ id: string; version?: string }> = [];
     const productIds = new Set<string>();
 
     products.forEach((product: Product) => {
       if (product.brand) brandIds.add(product.brand.id);
       if (product.labels) product.labels.forEach((label: ProductLabel) => labelIds.add(label.id));
+      // Prefer labels from expand=template (mapped already). Fall back to Templates API only when missing.
+      if (product.template?.id && !product.templateAttributeLabels) {
+        templateRefs.push({ id: product.template.id, version: product.template.version });
+      }
       if (product.id) productIds.add(product.id);
     });
 
     let sessionForProductPrices: Awaited<ReturnType<SessionService['getCurrent']>> | null = null;
 
-    // Fetch all brands, labels, and categories in parallel
-    const [brands, labels, productCategoriesArray, batchPriceMap, variantArray] = await Promise.all([
+    // Fetch brands, labels, product templates, and categories in parallel
+    const [brands, labelMap, templateMap, productCategoriesArray, batchPriceMap, variantArray] = await Promise.all([
       Promise.all([...brandIds].map((id) => this.brandApi.getBrand(id))),
-      Promise.all([...labelIds].map((id) => this.labelApi.getLabel(id))),
+      this.fetchLabelsByIds(labelIds),
+      this.fetchProductTemplates(templateRefs),
       Promise.all(
         [...productIds].map((id) =>
           options?.categories ? this.categoryService.getCategoriesForProduct(id, true) : undefined,
@@ -244,12 +385,9 @@ class EmporixProductService implements ProductService {
       Promise.all([...productIds].map((id) => (options?.variants ? this.getVariantProducts(id) : undefined))),
     ]);
 
-    // Create lookup maps for brands and labels
+    // Create lookup maps for brands
     const brandMap = new Map<string, any>();
     brands.filter(Boolean).forEach((brand: any) => brand && brandMap.set(brand.id, brand));
-
-    const labelMap = new Map<string, EmporixLabel>();
-    labels.filter(Boolean).forEach((label: EmporixLabel) => label && labelMap.set(label.id, label));
 
     // Create lookup map for product categories
     const productCategoriesMap = new Map<string, Category[]>();
@@ -282,7 +420,7 @@ class EmporixProductService implements ProductService {
           variants?.length > 0 && variants[0].parentVariantId && variantMap.set(variants[0].parentVariantId, variants),
       );
 
-    return { brandMap, labelMap, productCategoriesMap, priceMap, variantMap };
+    return { brandMap, labelMap, templateMap, productCategoriesMap, priceMap, variantMap };
   }
 }
 

@@ -70,6 +70,67 @@ describe('EmporixProductMapper', () => {
       expect(result.templateAttributes).toBeUndefined();
     });
 
+    it('3b. maps template id/version ref from product', () => {
+      const input = {
+        id: 'p1',
+        code: 'p1',
+        productType: 'BASIC',
+        template: { id: '6a75a5e7a472846eb834f96b', version: 1 },
+        mixins: {
+          productTemplateAttributes: {
+            'required-width': 1705,
+          },
+        },
+      } as any;
+
+      const result = mapper.mapToService(input);
+      expect(result.template).toEqual({ id: '6a75a5e7a472846eb834f96b', version: '1' });
+      expect(result.templateAttributes).toEqual({ 'required-width': '1705' });
+    });
+
+    it('3c. maps localized labels from expand=template attributes', () => {
+      const input = {
+        id: 'basic456',
+        code: 'basic456',
+        productType: 'BASIC',
+        template: {
+          id: '6a75a5e7a472846eb834f96b',
+          metadata: { version: 1 },
+          attributes: [
+            {
+              key: 'pick-a-list-optional',
+              name: { en: 'Pick a list (optional)' },
+              type: 'TEXT',
+              metadata: { mandatory: false, variantAttribute: false },
+            },
+            {
+              key: 'required-width',
+              name: { en: 'Required Width' },
+              type: 'NUMBER',
+              metadata: { mandatory: true, variantAttribute: false },
+            },
+          ],
+        },
+        mixins: {
+          productTemplateAttributes: {
+            'pick-a-list-optional': 'value 4',
+            'required-width': 1705,
+          },
+        },
+      } as any;
+
+      const result = mapper.mapToService(input);
+      expect(result.template).toEqual({ id: '6a75a5e7a472846eb834f96b', version: '1' });
+      expect(result.templateAttributeLabels).toEqual({
+        'pick-a-list-optional': { en: 'Pick a list (optional)' },
+        'required-width': { en: 'Required Width' },
+      });
+      expect(result.templateAttributeTypes).toEqual({
+        'pick-a-list-optional': 'TEXT',
+        'required-width': 'NUMBER',
+      });
+    });
+
     it('4. missing highlights, specifications, and productVariantAttributes individually do not throw and yield empty/undefined', () => {
       const input = {
         id: 'p1',

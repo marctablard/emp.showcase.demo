@@ -1,15 +1,56 @@
 import { injectable } from '@/platform/core/di/injectable';
-import type { EmporixProduct } from '@/platform/integrations/emporix/model/product';
+import type { EmporixProduct, EmporixProductTemplate } from '@/platform/integrations/emporix/model/product';
+import type { LocalizedString } from '@/platform/services/model/common';
 import type {
   GroupedSpecification,
   Product,
   ProductSpecification,
+  ProductTemplateAttributeType,
   ProductVariantAttribute,
 } from '@/platform/services/model/product';
 import type { ProductMapper } from '../ProductMapper';
 import { normalizeLocalizedHighlights } from './normalizeLocalizedHighlights';
 import { normalizeLocalizedLeaf } from './normalizeLocalizedLeaf';
 import { normalizeProductAttributeStringMap } from './normalizeProductAttributeStringMap';
+
+const TEMPLATE_ATTRIBUTE_TYPES = new Set<ProductTemplateAttributeType>(['TEXT', 'NUMBER', 'BOOLEAN', 'DATETIME']);
+
+function asTemplateAttributeType(value: unknown): ProductTemplateAttributeType | undefined {
+  return typeof value === 'string' && TEMPLATE_ATTRIBUTE_TYPES.has(value as ProductTemplateAttributeType)
+    ? (value as ProductTemplateAttributeType)
+    : undefined;
+}
+
+/** Labels + types from an expanded product template (`expand=template`). */
+function mapTemplateAttributeMeta(template: EmporixProductTemplate | undefined): {
+  labels?: Record<string, LocalizedString>;
+  types?: Record<string, ProductTemplateAttributeType>;
+} {
+  if (!template?.attributes?.length) {
+    return {};
+  }
+
+  const labels: Record<string, LocalizedString> = {};
+  const types: Record<string, ProductTemplateAttributeType> = {};
+  for (const attribute of template.attributes) {
+    if (!attribute.key) {
+      continue;
+    }
+    const name = normalizeLocalizedLeaf(attribute.name, attribute.key);
+    if (name) {
+      labels[attribute.key] = name;
+    }
+    const type = asTemplateAttributeType(attribute.type);
+    if (type) {
+      types[attribute.key] = type;
+    }
+  }
+
+  return {
+    ...(Object.keys(labels).length > 0 ? { labels } : {}),
+    ...(Object.keys(types).length > 0 ? { types } : {}),
+  };
+}
 
 /**
  * Implementation of ProductMapper for Emporix product data.
@@ -71,6 +112,15 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
 
     // Also create a grouped version of specifications
     const groupedSpecifications = mappedSpecs.length > 0 ? this.groupSpecificationsByGroup(mappedSpecs) : [];
+    const { labels: templateAttributeLabels, types: templateAttributeTypes } = mapTemplateAttributeMeta(
+      source.template,
+    );
+    const templateVersion =
+      source.template?.version != null
+        ? String(source.template.version)
+        : source.template?.metadata?.version != null
+          ? String(source.template.metadata.version)
+          : undefined;
 
     return {
       id: source.id || source.code,
@@ -86,7 +136,17 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
       specifications: mappedSpecs,
       groupedSpecifications: groupedSpecifications,
       highlights,
+      ...(source.template?.id
+        ? {
+            template: {
+              id: source.template.id,
+              ...(templateVersion ? { version: templateVersion } : {}),
+            },
+          }
+        : {}),
       templateAttributes,
+      ...(templateAttributeLabels ? { templateAttributeLabels } : {}),
+      ...(templateAttributeTypes ? { templateAttributeTypes } : {}),
       variantAttributes: this.mapVariantAttributes(source),
       purchasable: source.productType !== 'PARENT_VARIANT',
       variantAttributeValues: normalizeProductAttributeStringMap(
@@ -173,10 +233,10 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
             source.productType === 'VARIANT' ? source.mixins?.productVariantAttributes[key] === value.key : false,
         };
       });
-      const name = source.template?.attributes?.find((attr) => attr.key === key)?.name || key;
+      const name = normalizeLocalizedLeaf(source.template?.attributes?.find((attr) => attr.key === key)?.name, key);
       return {
         key: key,
-        name: name,
+        name: name ?? key,
         values: values,
       };
     });

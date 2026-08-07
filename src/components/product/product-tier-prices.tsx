@@ -88,7 +88,8 @@ export function ProductTierPrices({
   const t = useTranslations('product.price');
   const rows = buildTierDisplayRows(price, quantity);
 
-  if (rows.length === 0) {
+  // Single-tier (e.g. "Buy 1+") is not useful as a table — only show true volume breaks.
+  if (rows.length <= 1) {
     return null;
   }
 

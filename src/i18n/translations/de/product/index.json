@@ -39,6 +39,8 @@
   "sku": "Artikelnummer",
   "productHighlights": "Produkt-Highlights",
   "keySpecs": "Schlüssel-Spezifikationen",
+  "basicSpecifications": "Basis-Spezifikationen",
+  "basicAttributes": "Basis-Attribute",
   "more": "Mehr Produktfunktionen",
   "showMore": "Mehr anzeigen…",
   "showLess": "Weniger anzeigen",

@@ -1,10 +1,14 @@
 'use client';
 
-import { type JSX, useEffect, useRef, useState } from 'react';
+import { type JSX, type TransitionEvent, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import DOMPurify from 'dompurify';
 import UiLink from '@/components/ui/link';
-import { getPublicPdpDescriptionClampClass, getPublicPdpDescriptionClampLines } from '@/lib/common/public-default-env';
+import {
+  getPublicPdpDescriptionClampClass,
+  getPublicPdpDescriptionClampLines,
+  getPublicPdpDescriptionCollapsedMaxHeightClass,
+} from '@/lib/common/public-default-env';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
 
@@ -72,13 +76,20 @@ function sanitizeDescriptionHtml(html: string): string {
  * Localized product description: sanitized HTML, CSS line-clamp from the shared public env
  * constant, and a Show more / Show less toggle when content overflows.
  *
+ * Expand/collapse animates `max-height` between the measured collapsed and expanded heights
+ * so both directions interpolate (a huge CSS max-height like `80rem` would skip compact motion).
+ *
  * DOMPurify needs a browser DOM, so sanitize runs after mount. SSR + the first client render
  * both use an empty string to avoid a hydration mismatch.
  */
 export function ProductDescription({ html, className }: Readonly<ProductDescriptionProps>): JSX.Element {
   const t = useTranslations('product');
   const contentRef = useRef<HTMLDivElement>(null);
+  const collapsedHeightRef = useRef<number | null>(null);
+  const expandedRef = useRef(false);
   const [expanded, setExpanded] = useState(false);
+  const [clamped, setClamped] = useState(true);
+  const [maxHeightPx, setMaxHeightPx] = useState<number | undefined>(undefined);
   const [isOverflowing, setIsOverflowing] = useState(false);
   const [contentKey, setContentKey] = useState(html);
   // Empty on SSR / first paint — DOMPurify is browser-only and would otherwise hydrate as "".
@@ -87,14 +98,76 @@ export function ProductDescription({ html, className }: Readonly<ProductDescript
 
   const clampLines = getPublicPdpDescriptionClampLines();
   const clampClass = getPublicPdpDescriptionClampClass(clampLines);
+  const collapsedMaxHeightClass = getPublicPdpDescriptionCollapsedMaxHeightClass(clampLines);
+
+  expandedRef.current = expanded;
+
+  const toggleExpanded = (): void => {
+    const el = contentRef.current;
+    if (!el) {
+      setExpanded((current) => !current);
+      setClamped((current) => !current);
+      return;
+    }
+
+    if (clamped) {
+      const startHeight = el.clientHeight;
+      collapsedHeightRef.current = startHeight;
+      setExpanded(true);
+      setClamped(false);
+      setMaxHeightPx(startHeight);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const content = contentRef.current;
+          if (content) {
+            setMaxHeightPx(content.scrollHeight);
+          }
+        });
+      });
+      return;
+    }
+
+    const startHeight = el.scrollHeight;
+    const endHeight = collapsedHeightRef.current ?? el.clientHeight;
+    setExpanded(false);
+    setMaxHeightPx(startHeight);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setMaxHeightPx(endHeight);
+      });
+    });
+  };
+
+  const handleTransitionEnd = (event: TransitionEvent<HTMLDivElement>): void => {
+    // Ignore bubbled transitions from nested markup; jsdom may omit propertyName.
+    if (event.target !== event.currentTarget) {
+      return;
+    }
+    if (event.propertyName && event.propertyName !== 'max-height') {
+      return;
+    }
+
+    if (!expandedRef.current) {
+      setClamped(true);
+      setMaxHeightPx(undefined);
+      return;
+    }
+
+    // Expanded steady state: drop the inline cap so content can reflow freely.
+    setMaxHeightPx(undefined);
+  };
 
   // Reset expand/overflow when the description HTML changes (React “adjust state while rendering”).
   if (html !== contentKey) {
     setContentKey(html);
     setExpanded(false);
+    expandedRef.current = false;
+    setClamped(true);
+    setMaxHeightPx(undefined);
     setIsOverflowing(false);
     setSanitizedHtml('');
     setSanitizedSource(null);
+    collapsedHeightRef.current = null;
   }
 
   // Sanitize on the client during render once a browser DOM is available (same pattern as contentKey).
@@ -105,11 +178,12 @@ export function ProductDescription({ html, className }: Readonly<ProductDescript
 
   useEffect(() => {
     const el = contentRef.current;
-    if (!el || expanded || !sanitizedHtml) {
+    if (!el || !clamped || !sanitizedHtml) {
       return;
     }
 
     const measure = (): void => {
+      collapsedHeightRef.current = el.clientHeight;
       setIsOverflowing(el.scrollHeight > el.clientHeight + 1);
     };
 
@@ -123,26 +197,25 @@ export function ProductDescription({ html, className }: Readonly<ProductDescript
       resizeObserver.disconnect();
       window.removeEventListener('resize', measure);
     };
-  }, [sanitizedHtml, expanded, clampClass]);
+  }, [sanitizedHtml, clamped, clampClass]);
 
   return (
     <div className={cn('flex flex-col items-start gap-1', className)} data-testid="product-description">
       <div
         ref={contentRef}
-        className={cn('text-lg text-text-body', !expanded && clampClass)}
+        className={cn(
+          'text-lg text-text-body overflow-hidden transition-[max-height] duration-300 ease-in-out',
+          clamped && clampClass,
+          clamped && maxHeightPx === undefined && collapsedMaxHeightClass,
+        )}
+        // Measured expand/collapse heights — CSS max-h-[80rem] cannot animate compact smoothly.
+        style={maxHeightPx === undefined ? undefined : { maxHeight: `${maxHeightPx}px` }}
         data-expanded={expanded ? 'true' : 'false'}
+        onTransitionEnd={handleTransitionEnd}
         dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
       />
       {isOverflowing && (
-        <UiLink
-          type="Button"
-          variant="textBold"
-          size="m"
-          aria-expanded={expanded}
-          onClick={() => {
-            setExpanded((current) => !current);
-          }}
-        >
+        <UiLink type="Button" variant="textBold" size="m" aria-expanded={expanded} onClick={toggleExpanded}>
           {expanded ? t('showLess') : t('showMore')}
         </UiLink>
       )}

@@ -6,10 +6,10 @@ import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { ArrowDown, Copy, FlipHorizontal2, Share2, Sun } from 'lucide-react';
 import { ProductCarousel } from '@/components/product/product-carousel';
-import { Badge } from '@/components/ui/badge';
 import { BulletPoint } from '@/components/ui/bullet-point';
 import { Card, CardContent } from '@/components/ui/card';
 import { EnergyBadge } from '@/components/ui/energy-badge';
+import { Separator } from '@/components/ui/separator';
 import { ToastType, notify } from '@/components/ui/toast-notification';
 import { WishlistPinButton } from '@/components/wishlist/wishlist-pin-button';
 import { useValidateAddToCart } from '@/hooks/cart/useValidateAddToCart';
@@ -25,7 +25,6 @@ import { useSite } from '@/hooks/site/useSite';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useL10n } from '@/hooks/useL10n';
 import { useWishlistAddWithAuth } from '@/hooks/wishlist/useWishlistAddWithAuth';
-import { type ProductTemplateAttributeKey, type ProductVariantAttributeKey, dk } from '@/i18n/dynamic-key';
 import { fetchProductAvailability } from '@/lib/client/availability';
 import { fetchProductPrice } from '@/lib/client/prices';
 import { isEnergyEfficiencyClass } from '@/lib/common/energy-efficiency';
@@ -35,22 +34,26 @@ import {
   getPdpTechnicalInformationHref,
   scrollToPdpAnchor,
 } from '@/lib/common/pdp-sections';
-import { hasKeySpecifications, hasLocalizedHighlights, hasTechnicalInformation } from '@/lib/common/product-content';
+import {
+  KEY_SPEC_BASIC_GROUP_ID,
+  type KeySpecificationGroup,
+  TECHNICAL_INFO_BASIC_GROUP_ID,
+  getKeySpecificationGroups,
+  getTechnicalInformationGroups,
+  hasLocalizedHighlights,
+  hasTechnicalInformation,
+} from '@/lib/common/product-content';
 import {
   isProductPriceDisplayableForPurchase,
   isPurchaseShopContextReady,
 } from '@/lib/common/product-price-site-context';
+import { formatTemplateAttributeValue } from '@/lib/common/product-template-attributes';
 import type { L10nInput } from '@/lib/l10n';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { cn } from '@/lib/utils';
-import type { StockAvailability } from '@/platform/services/model/common';
+import type { LocalizedString, StockAvailability } from '@/platform/services/model/common';
 import type { ProductPrice } from '@/platform/services/model/price';
-import type {
-  GroupedSpecification,
-  Product,
-  ProductSpecification,
-  ProductVariantAttribute,
-} from '@/platform/services/model/product';
+import type { GroupedSpecification, Product, ProductSpecification } from '@/platform/services/model/product';
 import type { ProductFetchOptions } from '@/platform/services/product';
 import { MAX_COMPARISON_PRODUCTS } from '@/stores/comparison-store';
 import Recommendations from '../cms/recommendations';
@@ -63,6 +66,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import ProductAddToCart from './product-add-to-cart';
 import ProductAddToCartBar from './product-add-to-cart-bar';
 import { ProductDescription } from './product-description';
+import { ProductLabels } from './product-labels';
 import { ProductPriceComponent, ProductPriceSkeleton, ProductPriceUnavailable } from './product-price';
 import { ProductShippingInfo } from './product-shipping-info';
 import { ProductTierPrices } from './product-tier-prices';
@@ -91,17 +95,82 @@ function PdpBrandName({ name }: Readonly<{ name: string }>): React.ReactElement 
   return <H5 className="text-text-action">{name}</H5>;
 }
 
+function PdpBrand({
+  name,
+  logoUrl,
+}: Readonly<{
+  name?: string;
+  logoUrl?: string;
+}>): React.ReactElement | null {
+  const trimmedLogoUrl = logoUrl?.trim();
+
+  // Logo present → image only; name moves to tooltip.
+  // Cap tall logos at toolbar height (max-h-12); smaller logos keep their intrinsic size.
+  if (trimmedLogoUrl) {
+    return (
+      <Tooltip delayDuration={200}>
+        <TooltipTrigger asChild>
+          <span
+            className="inline-flex max-h-12 shrink-0 items-center"
+            aria-label={name || undefined}
+            data-testid="product-brand-logo"
+          >
+            <Image
+              src={trimmedLogoUrl}
+              alt={name ?? ''}
+              height={48}
+              width={240}
+              className="max-h-12 h-auto w-auto object-contain"
+            />
+          </span>
+        </TooltipTrigger>
+        {name ? <TooltipContent>{name}</TooltipContent> : null}
+      </Tooltip>
+    );
+  }
+
+  if (name) {
+    return <PdpBrandName name={name} />;
+  }
+
+  return null;
+}
+
+function resolveKeySpecLabel(spec: ProductSpecification, l10n: (value: L10nInput) => string): string {
+  return l10n(spec.label);
+}
+
+function resolveTechnicalGroupTitle(
+  groupName: string | LocalizedString,
+  l10n: (value: L10nInput) => string,
+  t: ReturnType<typeof useTranslations<'product'>>,
+): string {
+  if (groupName === TECHNICAL_INFO_BASIC_GROUP_ID) {
+    return t('basicAttributes');
+  }
+  return l10n(groupName);
+}
+
+function resolveTechnicalItemLabel(label: string | LocalizedString, l10n: (value: L10nInput) => string): string {
+  return l10n(label);
+}
+
 function PdpTechnicalInformation({
   groups,
   className,
   l10n,
+  t,
   title,
+  templateAttributeTypes,
 }: Readonly<{
   groups: GroupedSpecification[];
   className?: string;
   l10n: (value: L10nInput) => string;
+  t: ReturnType<typeof useTranslations<'product'>>;
   title: string;
+  templateAttributeTypes?: Product['templateAttributeTypes'];
 }>): React.ReactElement {
+  const locale = useLocale();
   const sectionRef = useRef<HTMLDivElement>(null);
   const fewGroups = groups.length > 0 && groups.length < 4;
 
@@ -122,7 +191,6 @@ function PdpTechnicalInformation({
   return (
     <div id={PDP_TECHNICAL_INFORMATION_SECTION_ID} ref={sectionRef} className={cn(className)}>
       <H2 variant="h3" className="my-6">
-        {' '}
         {title}
       </H2>
       <div
@@ -132,21 +200,31 @@ function PdpTechnicalInformation({
           fewGroups ? 'lg:flex lg:flex-row' : 'lg:grid-cols-4',
         )}
       >
-        {groups.map((spec: GroupedSpecification) => {
-          const groupKey = typeof spec.groupName === 'string' ? spec.groupName : l10n(spec.groupName);
+        {groups.map((spec: GroupedSpecification, groupIndex) => {
+          const groupTitle = resolveTechnicalGroupTitle(spec.groupName, l10n, t);
           return (
-            <div className={cn('flex flex-col', fewGroups && 'lg:min-w-0 lg:flex-1')} key={groupKey}>
-              <p className="font-bold font-headlines font-sm p-4 border-b border-border-primary">
-                {l10n(spec.groupName)}
-              </p>
-              {spec.item.map((i) => (
-                <div className="font-sm p-4 border-b border-border-primary flex gap-4" key={l10n(i.label)}>
-                  <p className="w-1/2">{l10n(i.label)}</p>
-                  <p className="w-1/2">
-                    {l10n(i.value)} {l10n(i.unit)}
-                  </p>
-                </div>
-              ))}
+            <div
+              className={cn('flex flex-col', fewGroups && 'lg:min-w-0 lg:flex-1')}
+              key={`${groupTitle}-${groupIndex}`}
+            >
+              <p className="font-bold font-headlines font-sm p-4 border-b border-border-primary">{groupTitle}</p>
+              {spec.item.map((i) => {
+                const itemLabel = resolveTechnicalItemLabel(i.label, l10n);
+                const unit = typeof i.unit === 'string' ? i.unit.trim() : l10n(i.unit).trim();
+                const rawValue = l10n(i.value);
+                const displayValue = i.attributeKey
+                  ? formatTemplateAttributeValue(rawValue, templateAttributeTypes?.[i.attributeKey], locale)
+                  : rawValue;
+                return (
+                  <div className="font-sm p-4 border-b border-border-primary flex gap-4" key={itemLabel}>
+                    <p className="w-1/2 min-w-0 wrap-break-word">{itemLabel}</p>
+                    <p className="w-1/2 min-w-0 wrap-break-word">
+                      {displayValue}
+                      {unit ? ` ${unit}` : ''}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           );
         })}
@@ -201,9 +279,18 @@ function PdpGallery({
   );
 }
 
-function renderKeySpecValue(spec: ProductSpecification, l10n: (value: L10nInput) => string): React.ReactNode {
-  const rawValue = l10n(spec.value);
-  const unit = spec.unit ? l10n(spec.unit) : undefined;
+function renderKeySpecValue(
+  spec: ProductSpecification,
+  l10n: (value: L10nInput) => string,
+  locale: string,
+  templateAttributeTypes?: Product['templateAttributeTypes'],
+): React.ReactNode {
+  const rawValue = l10n(spec.value).trim();
+  const unit = spec.unit ? l10n(spec.unit).trim() : '';
+  const attributeKey = spec.key.startsWith('template-') ? spec.key.slice('template-'.length) : undefined;
+  const displayValue = attributeKey
+    ? formatTemplateAttributeValue(rawValue, templateAttributeTypes?.[attributeKey], locale)
+    : rawValue;
 
   if (isEnergyEfficiencyClass(rawValue)) {
     return (
@@ -214,92 +301,98 @@ function renderKeySpecValue(spec: ProductSpecification, l10n: (value: L10nInput)
     );
   }
 
-  return unit ? `${rawValue} ${unit}` : rawValue;
+  return unit ? `${displayValue} ${unit}` : displayValue;
 }
 
 function PdpKeySpecsCard({
   product,
-  flaggedKeySpecs,
+  keySpecGroups,
   l10n,
   t,
   onCopyItemNumber,
 }: Readonly<{
   product: Product;
-  flaggedKeySpecs: ProductSpecification[];
+  keySpecGroups: KeySpecificationGroup[];
   l10n: (value: L10nInput) => string;
   t: ReturnType<typeof useTranslations<'product'>>;
   onCopyItemNumber: () => void;
-}>): React.ReactElement | null {
-  if (!hasKeySpecifications(product)) {
-    return null;
-  }
+}>): React.ReactElement {
+  const locale = useLocale();
+  const hasSpecs = keySpecGroups.some((group) => group.items.length > 0);
+  const showGroupHeaders = keySpecGroups.length > 1;
 
   return (
     <Card variant="primary" rounded="lg" className="order-5 md:order-0 p-4 md:px-8 md:pb-8 md:pt-6 mb-10 md:mb-0">
       <CardContent className="p-0">
         <div className="flex flex-col gap-6">
-          <H2 variant="h4" className="text-text-on-action">
-            {t('keySpecs')}
-          </H2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-y-6 gap-x-12">
-            {flaggedKeySpecs.length > 0 ? (
-              flaggedKeySpecs.map((spec: ProductSpecification) => (
-                <BulletPoint
-                  key={spec.key}
-                  label={l10n(spec.label)}
-                  labelClassName="font-headlines text-2xl font-bold"
-                  variant="white"
-                  iconColor="white"
-                  iconSize="lg"
-                  value={renderKeySpecValue(spec, l10n)}
-                  valueClassName="font-normal"
-                />
-              ))
-            ) : (
-              <>
-                {product.variantAttributes?.map((attribute: ProductVariantAttribute) => (
-                  <BulletPoint
-                    key={attribute.key}
-                    label={l10n(
-                      t(dk<ProductVariantAttributeKey>(`filters.mixins.productVariantAttributes.${attribute.key}`), {
-                        defaultValue: attribute.key,
-                      }),
-                    )}
-                    labelClassName="font-headlines text-2xl font-bold"
-                    variant="white"
-                    iconColor="white"
-                    iconSize="lg"
-                    value={l10n(product.variantAttributeValues?.[attribute.key] ?? '')}
-                    valueClassName="font-normal"
-                  />
-                ))}
-                {Object.keys(product.templateAttributes || {}).map((attribute: string) => (
-                  <BulletPoint
-                    key={attribute}
-                    label={t(dk<ProductTemplateAttributeKey>(`filters.mixins.productTemplateAttributes.${attribute}`), {
-                      defaultValue: attribute,
-                    })}
-                    labelClassName="font-headlines text-2xl font-bold"
-                    variant="white"
-                    iconColor="white"
-                    iconSize="lg"
-                    value={l10n(product.templateAttributes?.[attribute] ?? '')}
-                    valueClassName="font-normal"
-                  />
-                ))}
-              </>
-            )}
-          </div>
+          {hasSpecs ? (
+            <>
+              <H2 variant="h4" className="text-text-on-action">
+                {t('keySpecs')}
+              </H2>
+              <div className="flex flex-col gap-6">
+                {keySpecGroups.map((group) => {
+                  const groupLabel =
+                    group.id === KEY_SPEC_BASIC_GROUP_ID
+                      ? t('basicSpecifications')
+                      : group.groupName
+                        ? l10n(group.groupName).trim()
+                        : '';
+                  return (
+                    <div key={group.id} className="flex flex-col gap-4" data-testid="product-key-spec-group">
+                      {showGroupHeaders && groupLabel ? (
+                        <div className="flex items-center gap-3">
+                          <p className="shrink-0 font-headlines text-lg font-bold text-text-on-action">{groupLabel}</p>
+                          <Separator className="min-w-0 flex-1 bg-text-on-action/40" />
+                        </div>
+                      ) : null}
+                      <div className="grid grid-cols-1 gap-x-12 gap-y-6 lg:grid-cols-2">
+                        {group.items.map((spec: ProductSpecification) => (
+                          <BulletPoint
+                            key={spec.key}
+                            label={resolveKeySpecLabel(spec, l10n)}
+                            className="min-w-0 items-start"
+                            labelClassName="min-w-0 shrink font-headlines text-2xl font-bold"
+                            variant="white"
+                            iconColor="white"
+                            iconSize="lg"
+                            value={renderKeySpecValue(spec, l10n, locale, product.templateAttributeTypes)}
+                            valueClassName="min-w-0 max-w-[60%] shrink-0 text-right font-normal break-words whitespace-normal"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : null}
 
-          {/* D6 (COP-6020): keep "More product features" despite newest Figma Specs List Area omitting it */}
-          {hasTechnicalInformation(product) ? (
-            <div className="flex items-center mt-2">
+          {/* D6 (COP-6020): keep "More product features" despite newest Figma Specs List Area omitting it.
+              Same row as item number (right-aligned); wraps as a unit when the row is too narrow. */}
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <div className="flex min-w-0 max-w-full items-center">
+              <span className="shrink-0 text-text-on-action font-bold">{t('itemNumber')}:</span>
+              <span className="text-text-action ml-2 bg-surface-page py-2 px-3 rounded flex min-w-0 items-center gap-3">
+                <p className="min-w-0 break-all">{product.id}</p>
+                <button
+                  type="button"
+                  onClick={onCopyItemNumber}
+                  aria-label={t('copy')}
+                  className="inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded text-text-action outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-1"
+                >
+                  <Copy aria-hidden="true" className="size-6" />
+                </button>
+              </span>
+            </div>
+            {hasTechnicalInformation(product) ? (
               <UiLink
                 type="A"
                 href={getPdpTechnicalInformationHref()}
-                variant="textBold"
+                variant="clean"
                 size="m"
-                iconAfter={<ArrowDown aria-hidden="true" />}
+                className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-bold text-text-on-action underline hover:text-text-on-action"
+                iconAfter={<ArrowDown aria-hidden="true" className="size-4 shrink-0" />}
                 onClick={(event) => {
                   event.preventDefault();
                   scrollToPdpAnchor(PDP_TECHNICAL_INFORMATION_SECTION_ID);
@@ -307,22 +400,7 @@ function PdpKeySpecsCard({
               >
                 {t('more')}
               </UiLink>
-            </div>
-          ) : null}
-
-          <div className="flex items-center mt-2">
-            <span className="text-text-on-action font-bold">{t('itemNumber')}:</span>
-            <span className="text-text-action ml-2 bg-surface-page py-2 px-3 rounded flex items-center gap-3">
-              <p>{product.id}</p>
-              <button
-                type="button"
-                onClick={onCopyItemNumber}
-                aria-label={t('copy')}
-                className="inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded text-text-action outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-1"
-              >
-                <Copy aria-hidden="true" className="size-6" />
-              </button>
-            </span>
+            ) : null}
           </div>
         </div>
       </CardContent>
@@ -579,8 +657,8 @@ export default function ProductDetail({ product: initialProduct, options, classN
     return notFound();
   }
 
-  const flaggedKeySpecs = product.specifications?.filter((spec: ProductSpecification) => spec.highlight === true) ?? [];
-  const technicalInfoGroups = product.groupedSpecifications ?? [];
+  const keySpecGroups = getKeySpecificationGroups(product);
+  const technicalInfoGroups = getTechnicalInformationGroups(product);
 
   const handleCopyItemNumber = async (): Promise<void> => {
     try {
@@ -588,7 +666,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
       notify({
         title: t('itemNumberCopied'),
         type: ToastType.Success,
-        duration: 2000,
+        duration: 1000,
       });
     } catch (error) {
       logger.error(
@@ -617,7 +695,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
 
           <PdpKeySpecsCard
             product={product}
-            flaggedKeySpecs={flaggedKeySpecs}
+            keySpecGroups={keySpecGroups}
             l10n={l10n}
             t={t}
             onCopyItemNumber={() => {
@@ -636,15 +714,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
               product.labels && product.labels.length > 0 ? 'sm:justify-between' : 'sm:justify-end',
             )}
           >
-            {product.labels && product.labels.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {product.labels.map((label) => (
-                  <Badge key={label.id} variant="info" rounded="roundedRight" className="h-7">
-                    {label.name}
-                  </Badge>
-                ))}
-              </div>
-            ) : null}
+            {product.labels && product.labels.length > 0 ? <ProductLabels labels={product.labels} /> : null}
             <div className="flex gap-2">
               <Tooltip delayDuration={200}>
                 <TooltipTrigger asChild>
@@ -685,19 +755,12 @@ export default function ProductDetail({ product: initialProduct, options, classN
           </div>
 
           <div className="order-1 md:order-0 flex flex-col gap-2">
-            {product.brand && (
-              <div className="flex items-center gap-2">
-                {product.brand.logo?.url && (
-                  <Image
-                    src={product.brand.logo.url}
-                    alt={product.brand.name ? l10nOrEmpty(product.brand.name) : ''}
-                    height={70}
-                    width={70}
-                  />
-                )}
-                {product.brand.name ? <PdpBrandName name={l10n(product.brand.name)} /> : null}
-              </div>
-            )}
+            {product.brand ? (
+              <PdpBrand
+                name={product.brand.name ? l10n(product.brand.name) : undefined}
+                logoUrl={product.brand.logo?.url}
+              />
+            ) : null}
             <H1>{l10n(product.name)}</H1>
             {product.description ? <ProductDescription html={l10n(product.description)} /> : null}
             <div className="mb-6 md:mb-0 flex gap-2 items-center">
@@ -726,7 +789,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
               className="mt-6"
             />
             {product.variantAttributes && <ProductVariantSelector product={product} className="mt-6" />}
-            {price != null && price.tierValues.length > 0 ? (
+            {price != null && price.tierValues.length > 1 ? (
               <ProductTierPrices price={price} quantity={quantity} />
             ) : null}
             <ProductShippingInfo
@@ -758,7 +821,9 @@ export default function ProductDetail({ product: initialProduct, options, classN
           groups={technicalInfoGroups}
           className={className}
           l10n={l10n}
+          t={t}
           title={t('technicalInformation')}
+          templateAttributeTypes={product.templateAttributeTypes}
         />
       ) : null}
 

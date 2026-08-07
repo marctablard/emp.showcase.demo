@@ -87,6 +87,20 @@ export const PUBLIC_PDP_DESCRIPTION_CLAMP_CLASS_BY_LINES = {
 
 export type PublicPdpDescriptionClampLines = keyof typeof PUBLIC_PDP_DESCRIPTION_CLAMP_CLASS_BY_LINES;
 
+/**
+ * Collapsed `max-h-*` literals for PDP description expand animation.
+ * Sized for `text-lg` body line-height (32px / `--scale-800-32`) so height can transition
+ * without runtime `style={{…}}`.
+ */
+export const PUBLIC_PDP_DESCRIPTION_COLLAPSED_MAX_HEIGHT_CLASS_BY_LINES = {
+  1: 'max-h-8',
+  2: 'max-h-16',
+  3: 'max-h-24',
+  4: 'max-h-32',
+  5: 'max-h-40',
+  6: 'max-h-48',
+} as const;
+
 export function getPublicPdpDescriptionClampLines(): number {
   const raw = process.env.NEXT_PUBLIC_PDP_DESCRIPTION_CLAMP_LINES;
   const parsed = typeof raw === 'string' ? Number(raw.trim()) : Number.NaN;
@@ -95,8 +109,8 @@ export function getPublicPdpDescriptionClampLines(): number {
     return parsed;
   }
 
-  // Follow-up: keep this fallback aligned with Figma PDP description clamp (2 lines / 64px at 32px line-height) until a different config source is introduced.
-  return 2;
+  // Follow-up: keep this fallback aligned with Figma PDP description clamp (3 lines / 96px at 32px line-height) until a different config source is introduced.
+  return 3;
 }
 
 export function getPublicPdpDescriptionClampClass(lines: number): string {
@@ -104,6 +118,15 @@ export function getPublicPdpDescriptionClampClass(lines: number): string {
     return PUBLIC_PDP_DESCRIPTION_CLAMP_CLASS_BY_LINES[lines as PublicPdpDescriptionClampLines];
   }
 
-  // Follow-up: keep this fallback class aligned with getPublicPdpDescriptionClampLines default (2) until the supported range is expanded.
-  return 'line-clamp-2';
+  // Follow-up: keep this fallback class aligned with getPublicPdpDescriptionClampLines default (3) until the supported range is expanded.
+  return 'line-clamp-3';
+}
+
+export function getPublicPdpDescriptionCollapsedMaxHeightClass(lines: number): string {
+  if (Object.hasOwn(PUBLIC_PDP_DESCRIPTION_COLLAPSED_MAX_HEIGHT_CLASS_BY_LINES, lines)) {
+    return PUBLIC_PDP_DESCRIPTION_COLLAPSED_MAX_HEIGHT_CLASS_BY_LINES[lines as PublicPdpDescriptionClampLines];
+  }
+
+  // Follow-up: keep this fallback class aligned with getPublicPdpDescriptionClampLines default (3).
+  return 'max-h-24';
 }

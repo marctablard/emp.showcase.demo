@@ -74,6 +74,18 @@ describe('ProductTierPrices', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('returns null when there is only one tier', () => {
+    const { container } = render(
+      <ProductTierPrices
+        price={buildPrice({
+          tierValues: [{ id: 't1', minQuantity: 0, unit: 'pc', price: 1000 }],
+        })}
+        quantity={1}
+      />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('renders a two-column header and quantity ranges from tierValues', () => {
     render(<ProductTierPrices price={buildPrice()} quantity={1} />);
 

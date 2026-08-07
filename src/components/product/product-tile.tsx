@@ -5,6 +5,7 @@ import type { LucideIcon } from 'lucide-react';
 import { Circle, DropletOff, FlipHorizontal2, Globe, MapPin, Shield, ShoppingCart, Trees, Truck } from 'lucide-react';
 import { ProductCharacteristic } from '@/components/product/product-characteristic';
 import { ProductColorTile } from '@/components/product/product-color-tile';
+import { ProductLabels } from '@/components/product/product-labels';
 import { ProductTag } from '@/components/product/product-tag';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -253,13 +254,9 @@ export function ProductTile({
                 )}
               </div>
 
-              <div className="absolute top-4 -left-6 flex flex-col gap-2">
-                {product.labels?.map((label) => (
-                  <Badge key={label.id} variant="info" rounded="roundedRight">
-                    {label.name}
-                  </Badge>
-                ))}
-              </div>
+              {product.labels && product.labels.length > 0 ? (
+                <ProductLabels labels={product.labels} className="absolute top-4 -left-6 flex-col" />
+              ) : null}
             </div>
 
             <div className="flex flex-col gap-2">
@@ -268,9 +265,11 @@ export function ProductTile({
                   {Object.entries(product.templateAttributes).map(([key, value]) => (
                     <div key={key} className="flex justify-between">
                       <p className="text-sm">
-                        {t(dk<ProductTemplateAttributeKey>(`filters.mixins.productTemplateAttributes.${key}`), {
-                          defaultValue: key,
-                        })}
+                        {product.templateAttributeLabels?.[key]
+                          ? l10n(product.templateAttributeLabels[key])
+                          : t(dk<ProductTemplateAttributeKey>(`filters.mixins.productTemplateAttributes.${key}`), {
+                              defaultValue: key,
+                            })}
                       </p>
                       <p className="text-sm font-bold capitalize">
                         {value}

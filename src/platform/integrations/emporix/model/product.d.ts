@@ -11,27 +11,47 @@ export interface EmporixLabel {
   name: string;
   image?: string;
   cloudinaryUrl?: string;
+  mediaId?: string;
   overlay?: EmporixLabelOverlay;
   description: string | EmporixLocalizedString;
   metadata?: EmporixMetadata;
 }
 
-export interface EmporixProductTemplate {
+/** Product → template reference (`expand=template` returns id/version only). */
+export interface EmporixProductTemplateRef {
+  id: string;
+  version?: string | number;
+}
+
+export interface EmporixProductTemplateAttribute {
+  key: string;
+  name: EmporixLocalizedString;
+  type?: string;
+  metadata?: {
+    mandatory?: boolean;
+    variantAttribute?: boolean;
+    defaultValue?: string | boolean | number | null;
+  };
+  values?: Array<{ key: string | number | boolean }>;
+}
+
+/** Full product template from `GET /product/{tenant}/product-templates/{id}`. */
+export interface EmporixProductTemplateDefinition {
   id: string;
   name: EmporixLocalizedString;
-  attributes: [
-    {
-      key: string;
-      name: EmporixLocalizedString;
-      metadata: {
-        mandatory: true;
-        variantAttribute: true;
-      };
-      values: [{ key: string }];
-    },
-  ];
-  metadata: EmporixMetadata;
+  attributes: EmporixProductTemplateAttribute[];
+  metadata?: EmporixMetadata & {
+    variantAttributesSchema?: string;
+    templateAttributesSchema?: string;
+  };
 }
+
+/**
+ * @deprecated Prefer EmporixProductTemplateRef on products and EmporixProductTemplateDefinition from the templates API.
+ * Kept as a union-friendly alias while callers migrate.
+ */
+export type EmporixProductTemplate = EmporixProductTemplateRef &
+  Partial<Pick<EmporixProductTemplateDefinition, 'name' | 'attributes'>>;
 
 export interface EmporixProduct {
   id?: string;
@@ -52,6 +72,10 @@ export interface EmporixProduct {
   published?: boolean;
   metadata?: EmporixMetadata;
   prices?: EmporixPrice[];
+  /**
+   * Template ref, or expanded definition when `expand=template` is requested.
+   * Expanded responses include `attributes[].name` (localized label maps).
+   */
   template?: EmporixProductTemplate;
   variantAttributes?: {
     [key: string]: [{ key: string }];

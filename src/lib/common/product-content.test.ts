@@ -1,5 +1,14 @@
 import type { Product, ProductSpecification } from '@/platform/services/model/product';
-import { hasKeySpecifications, hasLocalizedHighlights, hasTechnicalInformation } from './product-content';
+import {
+  KEY_SPEC_BASIC_GROUP_ID,
+  TECHNICAL_INFO_BASIC_GROUP_ID,
+  getKeySpecificationGroups,
+  getKeySpecifications,
+  getTechnicalInformationGroups,
+  hasKeySpecifications,
+  hasLocalizedHighlights,
+  hasTechnicalInformation,
+} from './product-content';
 
 function baseProduct(overrides: Partial<Product> = {}): Product {
   return {
@@ -40,82 +49,115 @@ const victronBluesolarFlaggedSpecs: ProductSpecification[] = [
   },
 ];
 
-/** Shape of `PWC-001`: 12 specs across groups, 2 with `highlight: true`. */
-const pwc001FlaggedSpecs: ProductSpecification[] = [
-  {
-    key: 'capacity',
-    label: { en: 'Capacity' },
-    value: { en: '100' },
-    unit: { en: 'Ah' },
-    highlight: true,
-  },
-  {
-    key: 'cycles',
-    label: { en: 'Cycles' },
-    value: { en: '3000' },
-    highlight: true,
-  },
-  {
-    key: 'chemistry',
-    label: { en: 'Chemistry' },
-    value: { en: 'LiFePO4' },
-  },
-];
-
 describe('product-content predicates', () => {
-  describe('hasKeySpecifications', () => {
-    it('returns false for empty variantAttributes, templateAttributes, and specifications', () => {
+  describe('getKeySpecificationGroups / hasKeySpecifications', () => {
+    it('returns empty when no flagged specs and no templateAttributes', () => {
       expect(
-        hasKeySpecifications(
+        getKeySpecificationGroups(
           baseProduct({
-            variantAttributes: [],
-            templateAttributes: {},
-            specifications: [],
-          }),
-        ),
-      ).toBe(false);
-    });
-
-    it('returns false when specifications are absent and legacy attributes are empty', () => {
-      expect(
-        hasKeySpecifications(
-          baseProduct({
-            variantAttributes: [],
+            specifications: victronBluesolarFlaggedSpecs.map((spec) =>
+              spec.key === 'power' ? { ...spec, highlight: false } : spec,
+            ),
             templateAttributes: {},
           }),
         ),
-      ).toBe(false);
+      ).toEqual([]);
+      expect(hasKeySpecifications(baseProduct())).toBe(false);
     });
 
-    it('returns true for victron-bluesolar-55w shape (one flagged spec)', () => {
+    it('includes only highlight:true specs', () => {
+      const product = baseProduct({
+        id: 'victron-bluesolar-55w',
+        specifications: victronBluesolarFlaggedSpecs,
+      });
+      expect(getKeySpecifications(product)).toEqual([victronBluesolarFlaggedSpecs[0]]);
+      expect(hasKeySpecifications(product)).toBe(true);
+    });
+
+    it('groups flagged specs when they span more than one group', () => {
+      const product = baseProduct({
+        specifications: [
+          {
+            key: 'power',
+            group: 'electrical',
+            groupLabel: { en: 'Electrical' },
+            label: { en: 'Power' },
+            value: { en: '55' },
+            highlight: true,
+          },
+          {
+            key: 'weight',
+            group: 'physical',
+            groupLabel: { en: 'Physical' },
+            label: { en: 'Weight' },
+            value: { en: '4.3' },
+            highlight: true,
+          },
+        ],
+      });
+
+      expect(getKeySpecificationGroups(product)).toEqual([
+        {
+          id: 'electrical',
+          groupName: { en: 'Electrical' },
+          items: [product.specifications![0]],
+        },
+        {
+          id: 'physical',
+          groupName: { en: 'Physical' },
+          items: [product.specifications![1]],
+        },
+      ]);
+    });
+
+    it('appends templateAttributes as Basic Specifications', () => {
+      const product = baseProduct({
+        specifications: [victronBluesolarFlaggedSpecs[0]],
+        templateAttributes: { length: '167', width: '181' },
+        templateAttributeLabels: {
+          length: { en: 'Length (m)', de: 'Länge (m)' },
+          width: { en: 'Width' },
+        },
+      });
+
+      const groups = getKeySpecificationGroups(product);
+      expect(groups).toHaveLength(2);
+      expect(groups[1]).toEqual({
+        id: KEY_SPEC_BASIC_GROUP_ID,
+        groupName: KEY_SPEC_BASIC_GROUP_ID,
+        items: [
+          { key: 'template-length', label: { en: 'Length (m)', de: 'Länge (m)' }, value: { en: '167' } },
+          { key: 'template-width', label: { en: 'Width' }, value: { en: '181' } },
+        ],
+      });
+    });
+
+    it('falls back to attribute key when templateAttributeLabels are missing', () => {
+      const product = baseProduct({
+        templateAttributes: { 'required-width': '1705' },
+      });
+
+      expect(getKeySpecificationGroups(product)[0].items[0].label).toEqual({ en: 'required-width' });
+    });
+
+    it('does not fall back to unflagged specs or variantAttributes', () => {
       expect(
         hasKeySpecifications(
           baseProduct({
-            id: 'victron-bluesolar-55w',
-            specifications: victronBluesolarFlaggedSpecs,
-            variantAttributes: [],
-          }),
-        ),
-      ).toBe(true);
-    });
-
-    it('returns true for PWC-001 shape (two flagged specs)', () => {
-      expect(
-        hasKeySpecifications(
-          baseProduct({
-            id: 'PWC-001',
-            specifications: pwc001FlaggedSpecs,
-            variantAttributes: [],
-          }),
-        ),
-      ).toBe(true);
-    });
-
-    it('returns true for non-empty legacy variantAttributes when no flagged specs', () => {
-      expect(
-        hasKeySpecifications(
-          baseProduct({
-            specifications: [],
+            specifications: [
+              {
+                key: 'capacity',
+                label: { en: 'Capacity' },
+                value: { en: '60 Ah' },
+                highlight: false,
+              },
+            ],
+            groupedSpecifications: [
+              {
+                groupName: { en: 'Specifications' },
+                item: [{ label: { en: 'Model' }, value: { en: 'X' }, unit: '' }],
+              },
+            ],
             variantAttributes: [
               {
                 key: 'color',
@@ -124,18 +166,58 @@ describe('product-content predicates', () => {
             ],
           }),
         ),
-      ).toBe(true);
+      ).toBe(false);
+    });
+  });
+
+  describe('getTechnicalInformationGroups / hasTechnicalInformation', () => {
+    it('returns false when groupedSpecifications and templateAttributes are empty', () => {
+      expect(hasTechnicalInformation(baseProduct({ groupedSpecifications: [] }))).toBe(false);
+      expect(hasTechnicalInformation(baseProduct())).toBe(false);
     });
 
-    it('returns true for non-empty legacy templateAttributes when no flagged specs', () => {
-      expect(
-        hasKeySpecifications(
-          baseProduct({
-            specifications: [],
-            templateAttributes: { material: 'steel' },
-          }),
-        ),
-      ).toBe(true);
+    it('prepends Basic Attributes from templateAttributes before grouped specs', () => {
+      const product = baseProduct({
+        templateAttributes: { length: '167' },
+        templateAttributeLabels: { length: { en: 'Length', de: 'Länge' } },
+        groupedSpecifications: [
+          {
+            groupName: { en: 'Specifications', de: 'Specifications' },
+            item: [
+              {
+                label: { en: 'Model', de: 'Model' },
+                value: { en: 'LiFePO4', de: 'LiFePO4' },
+                unit: '',
+              },
+            ],
+          },
+        ],
+      });
+
+      expect(getTechnicalInformationGroups(product)).toEqual([
+        {
+          groupName: TECHNICAL_INFO_BASIC_GROUP_ID,
+          item: [
+            {
+              label: { en: 'Length', de: 'Länge' },
+              value: { en: '167' },
+              unit: '',
+              attributeKey: 'length',
+            },
+          ],
+        },
+        product.groupedSpecifications![0],
+      ]);
+      expect(hasTechnicalInformation(product)).toBe(true);
+    });
+
+    it('shows Basic Attributes alone when only templateAttributes exist', () => {
+      expect(getTechnicalInformationGroups(baseProduct({ templateAttributes: { material: 'steel' } }))).toEqual([
+        {
+          groupName: TECHNICAL_INFO_BASIC_GROUP_ID,
+          item: [{ label: { en: 'material' }, value: { en: 'steel' }, unit: '', attributeKey: 'material' }],
+        },
+      ]);
     });
   });
 
@@ -167,35 +249,10 @@ describe('product-content predicates', () => {
         hasLocalizedHighlights(
           baseProduct({
             highlights: {
-              en: ['SG-Ready', 'IP65', 'Bluetooth'],
+              en: ['SG-Ready'],
             },
           }),
           'en',
-        ),
-      ).toBe(true);
-    });
-  });
-
-  describe('hasTechnicalInformation', () => {
-    it('returns false for groupedSpecifications: []', () => {
-      expect(hasTechnicalInformation(baseProduct({ groupedSpecifications: [] }))).toBe(false);
-    });
-
-    it('returns false when groupedSpecifications is absent', () => {
-      expect(hasTechnicalInformation(baseProduct())).toBe(false);
-    });
-
-    it('returns true when at least one group is present', () => {
-      expect(
-        hasTechnicalInformation(
-          baseProduct({
-            groupedSpecifications: [
-              {
-                groupName: 'General',
-                item: [{ label: 'Power', value: '55', unit: 'W' }],
-              },
-            ],
-          }),
         ),
       ).toBe(true);
     });

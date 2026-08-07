@@ -68,8 +68,8 @@ export function BulletPoint({
           iconSize === 'sm' ? 'h-4 w-4' : iconSize === 'md' ? 'h-5 w-5' : iconSize === 'lg' ? 'h-6 w-6' : 'h-8 w-8',
         )}
       />
-      <div className={cn('grow', labelClassName)}>{label}</div>
-      {value && <div className={cn('ml-auto font-medium', valueClassName)}>{value}</div>}
+      <div className={cn('min-w-0 grow', labelClassName)}>{label}</div>
+      {value ? <div className={cn('ml-auto min-w-0 font-medium', valueClassName)}>{value}</div> : null}
     </div>
   );
 }
