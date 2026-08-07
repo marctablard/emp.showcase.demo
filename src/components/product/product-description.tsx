@@ -1,6 +1,6 @@
 'use client';
 
-import { type JSX, useEffect, useMemo, useRef, useState } from 'react';
+import { type JSX, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import DOMPurify from 'dompurify';
 import UiLink from '@/components/ui/link';
@@ -59,9 +59,21 @@ export interface ProductDescriptionProps {
   className?: string;
 }
 
+function sanitizeDescriptionHtml(html: string): string {
+  try {
+    return DOMPurify.sanitize(html, DOMPURIFY_CONFIG);
+  } catch (err) {
+    getLogger().error({ err }, '[ProductDescription] Sanitization error');
+    return '';
+  }
+}
+
 /**
  * Localized product description: sanitized HTML, CSS line-clamp from the shared public env
  * constant, and a Show more / Show less toggle when content overflows.
+ *
+ * DOMPurify needs a browser DOM, so sanitize runs after mount. SSR + the first client render
+ * both use an empty string to avoid a hydration mismatch.
  */
 export function ProductDescription({ html, className }: Readonly<ProductDescriptionProps>): JSX.Element {
   const t = useTranslations('product');
@@ -69,29 +81,31 @@ export function ProductDescription({ html, className }: Readonly<ProductDescript
   const [expanded, setExpanded] = useState(false);
   const [isOverflowing, setIsOverflowing] = useState(false);
   const [contentKey, setContentKey] = useState(html);
+  // Empty on SSR / first paint — DOMPurify is browser-only and would otherwise hydrate as "".
+  const [sanitizedHtml, setSanitizedHtml] = useState('');
+  const [sanitizedSource, setSanitizedSource] = useState<string | null>(null);
 
   const clampLines = getPublicPdpDescriptionClampLines();
   const clampClass = getPublicPdpDescriptionClampClass(clampLines);
-
-  const sanitizedHtml = useMemo(() => {
-    try {
-      return DOMPurify.sanitize(html, DOMPURIFY_CONFIG);
-    } catch (err) {
-      getLogger().error({ err }, '[ProductDescription] Sanitization error');
-      return '';
-    }
-  }, [html]);
 
   // Reset expand/overflow when the description HTML changes (React “adjust state while rendering”).
   if (html !== contentKey) {
     setContentKey(html);
     setExpanded(false);
     setIsOverflowing(false);
+    setSanitizedHtml('');
+    setSanitizedSource(null);
+  }
+
+  // Sanitize on the client during render once a browser DOM is available (same pattern as contentKey).
+  if (typeof window !== 'undefined' && sanitizedSource !== html) {
+    setSanitizedSource(html);
+    setSanitizedHtml(sanitizeDescriptionHtml(html));
   }
 
   useEffect(() => {
     const el = contentRef.current;
-    if (!el || expanded) {
+    if (!el || expanded || !sanitizedHtml) {
       return;
     }
 

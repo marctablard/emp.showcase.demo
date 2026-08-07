@@ -65,23 +65,24 @@ function expectLargeFigure(amount: number): void {
   expect(normalizedText(priceNode)).toContain(integerPart);
 }
 
-describe('ProductPriceComponent gross-first hierarchy', () => {
-  it('with includesTax:false shows gross as large figure and includingTax + net as small print', () => {
+describe('ProductPriceComponent net-first hierarchy (COP-6056)', () => {
+  it('with includesTax:false shows net as large figure and includingTax + gross as small print', () => {
     const price = buildPrice({ includesTax: false });
     render(<ProductPriceComponent price={price} />);
 
     const root = screen.getByTestId('product-price');
     const text = normalizedText(root);
 
-    expectLargeFigure(price.tax!.grossValue);
+    expectLargeFigure(price.tax!.netValue);
     expect(text).toContain(`incl. ${price.tax!.taxRate}% VAT`);
-    expect(text).toContain(normalizeWhitespace(formatCurrency(price.tax!.netValue, price.currency)));
-    expect(text).toContain('net');
+    expect(text).toContain(normalizeWhitespace(formatCurrency(price.tax!.grossValue, price.currency)));
+    expect(text).toContain('gross');
+    expect(text).not.toMatch(/\bnet\b/);
     expect(text).not.toContain('excl.');
     expect(text).not.toContain('excludingTax');
   });
 
-  it('with includesTax:true shows tax-inclusive amount as large figure and includingTax + net as small print', () => {
+  it('with includesTax:true still shows net as large figure and gross in small print', () => {
     const price = buildPrice({
       includesTax: true,
       amount: 443.38,
@@ -99,25 +100,25 @@ describe('ProductPriceComponent gross-first hierarchy', () => {
     const root = screen.getByTestId('product-price');
     const text = normalizedText(root);
 
-    expectLargeFigure(price.amount);
+    expectLargeFigure(price.tax!.netValue);
     expect(text).toContain(`incl. ${price.tax!.taxRate}% VAT`);
-    expect(text).toContain(normalizeWhitespace(formatCurrency(price.tax!.netValue, price.currency)));
-    expect(text).toContain('net');
-    expect(text).not.toContain('excl.');
+    expect(text).toContain(normalizeWhitespace(formatCurrency(price.tax!.grossValue, price.currency)));
+    expect(text).toContain('gross');
+    expect(text).not.toMatch(/\bnet\b/);
   });
 
-  it('isAddToCartBar uses the same includingTax + net small print for includesTax:false', () => {
+  it('isAddToCartBar uses the same net-large / gross-small hierarchy for includesTax:false', () => {
     const price = buildPrice({ includesTax: false });
     render(<ProductPriceComponent price={price} isAddToCartBar />);
 
     const root = screen.getByTestId('product-price');
     const text = normalizedText(root);
 
-    expectLargeFigure(price.tax!.grossValue);
+    expectLargeFigure(price.tax!.netValue);
     expect(text).toContain(`incl. ${price.tax!.taxRate}% VAT`);
-    expect(text).toContain(normalizeWhitespace(formatCurrency(price.tax!.netValue, price.currency)));
-    expect(text).toContain('net');
-    expect(text).not.toContain('excl.');
+    expect(text).toContain(normalizeWhitespace(formatCurrency(price.tax!.grossValue, price.currency)));
+    expect(text).toContain('gross');
+    expect(text).not.toMatch(/\bnet\b/);
   });
 });
 
@@ -224,5 +225,34 @@ describe('ProductPriceComponent discount wording and list price', () => {
     expect(text).toContain('discount');
     expect(text).toContain(`incl. ${price.tax!.taxRate}% VAT`);
     expect(root.querySelector('.line-through')).not.toBeNull();
+  });
+
+  it('keeps thousand grouping intact for net amounts ≥ 1000 (900 stays 900; gross 1071 in small print)', () => {
+    const price = buildPrice({
+      includesTax: false,
+      amount: 900,
+      originalAmount: 1000,
+      discountPercentage: 10,
+      tax: {
+        taxCode: 'STANDARD',
+        taxRate: 19,
+        netValue: 900,
+        grossValue: 1071,
+        amount: 171,
+        currency: 'EUR',
+      },
+    });
+    render(<ProductPriceComponent price={price} />);
+
+    const priceNode = document.getElementById('price');
+    expect(priceNode).not.toBeNull();
+    const largeDigits = normalizedText(priceNode).replaceAll(/\D/g, '');
+    expect(largeDigits.startsWith('900')).toBe(true);
+    expect(largeDigits.startsWith('1071')).toBe(false);
+    expect(largeDigits.startsWith('171')).toBe(false);
+
+    const text = normalizedText(screen.getByTestId('product-price'));
+    expect(text).toContain(normalizeWhitespace(formatCurrency(1071, 'EUR')));
+    expect(text).toContain('gross');
   });
 });

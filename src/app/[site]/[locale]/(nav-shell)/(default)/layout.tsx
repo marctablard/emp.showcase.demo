@@ -5,5 +5,6 @@ type Props = {
 };
 
 export default function DefaultMainLayout({ children }: Props) {
-  return <main className="flex-grow mt-17 sm:mt-30 md:mt-44">{children}</main>;
+  // Clearance for the fixed header (same tokens as CMS pages / pre-COP-4863).
+  return <main className="flex-grow mt-17 sm:mt-36 md:mt-52">{children}</main>;
 }

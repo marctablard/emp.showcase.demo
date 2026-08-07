@@ -29,6 +29,7 @@ type CarouselContextProps = {
   canScrollPrev: boolean;
   canScrollNext: boolean;
   selectedIndex: number;
+  scrollSnapCount: number;
   scrollTo: (index: number) => void;
 } & CarouselProps;
 
@@ -69,12 +70,14 @@ function Carousel({
   const [canScrollPrev, setCanScrollPrev] = React.useState(false);
   const [canScrollNext, setCanScrollNext] = React.useState(false);
   const [selectedIndex, setSelectedIndex] = React.useState(0);
+  const [scrollSnapCount, setScrollSnapCount] = React.useState(0);
 
   const onSelect = React.useCallback((api: CarouselType) => {
     if (!api) return;
     setCanScrollPrev(api.canScrollPrev());
     setCanScrollNext(api.canScrollNext());
     setSelectedIndex(api.selectedScrollSnap());
+    setScrollSnapCount(api.scrollSnapList().length);
   }, []);
 
   const scrollPrev = React.useCallback(() => {
@@ -120,7 +123,8 @@ function Carousel({
 
     return () => {
       cancelSeed();
-      api?.off('select', onSelect);
+      api.off('select', onSelect);
+      api.off('reInit', onSelect);
     };
   }, [api, onSelect]);
 
@@ -137,6 +141,7 @@ function Carousel({
         canScrollNext,
         scrollTo,
         selectedIndex,
+        scrollSnapCount,
       }}
     >
       <div
@@ -153,7 +158,7 @@ function Carousel({
   );
 }
 
-function CarouselContent({ className, ...props }: React.ComponentProps<'div'>) {
+function CarouselContent({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   const { carouselRef, orientation } = useCarousel();
 
   return (
@@ -163,7 +168,7 @@ function CarouselContent({ className, ...props }: React.ComponentProps<'div'>) {
   );
 }
 
-function CarouselItem({ size, className, ...props }: CarouselItemProps) {
+function CarouselItem({ size, className, ...props }: CarouselItemProps): React.JSX.Element {
   const { orientation } = useCarousel();
 
   return (
@@ -182,9 +187,13 @@ function CarouselItem({ size, className, ...props }: CarouselItemProps) {
   );
 }
 
-function CarouselDots({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  const { api, selectedIndex, scrollTo } = useCarousel();
+function CarouselDots({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): React.JSX.Element | null {
+  const { selectedIndex, scrollSnapCount, scrollTo } = useCarousel();
   const t = useTranslations('common.UI.Carousel');
+
+  if (scrollSnapCount <= 1) {
+    return null;
+  }
 
   return (
     <div
@@ -192,9 +201,10 @@ function CarouselDots({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
       className={cn('mb-2 flex w-full items-center justify-center gap-4', className)}
       {...props}
     >
-      {api?.scrollSnapList().map((_, index) => (
+      {Array.from({ length: scrollSnapCount }, (_, index) => (
         <button
           key={index}
+          type="button"
           title={t('pageTitle', { index: index + 1 })}
           className={cn(
             'cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 transition',
@@ -209,7 +219,7 @@ function CarouselDots({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
   );
 }
 
-function CarouselPrevious({ className, ...props }: React.ComponentProps<typeof Button>) {
+function CarouselPrevious({ className, ...props }: React.ComponentProps<typeof Button>): React.JSX.Element {
   const { scrollPrev, canScrollPrev } = useCarousel();
   const t = useTranslations('common.UI.Carousel');
 
@@ -229,7 +239,7 @@ function CarouselPrevious({ className, ...props }: React.ComponentProps<typeof B
   );
 }
 
-function CarouselNext({ className, ...props }: React.ComponentProps<typeof Button>) {
+function CarouselNext({ className, ...props }: React.ComponentProps<typeof Button>): React.JSX.Element {
   const { scrollNext, canScrollNext } = useCarousel();
   const t = useTranslations('common.UI.Carousel');
 

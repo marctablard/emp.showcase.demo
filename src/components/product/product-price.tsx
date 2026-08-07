@@ -16,6 +16,71 @@ interface ProductPriceProps {
 /** Figma Discount Info / gross column width (`12830:188985` / `12830:188992`). */
 const PRICE_LEFT_COLUMN_CLASS = 'w-[200px] shrink-0';
 
+/**
+ * Assemble Intl currency parts into the Figma split (large integer+decimal, small fraction).
+ * Locales like `de` emit multiple `integer` segments plus `group` separators for ≥1000 —
+ * mapping each integer alone (and dropping `group`) mangled 1071 into "1.71".
+ */
+function buildStyledCurrencyParts(parts: Intl.NumberFormatPart[], notAvailableLabel: string): React.ReactNode[] {
+  if (parts.length === 0) {
+    return [<>{notAvailableLabel}</>];
+  }
+
+  const nodes: React.ReactNode[] = [];
+  let integerWithGroups = '';
+  let integerSpanEmitted = false;
+
+  const flushInteger = (decimalValue: string): void => {
+    nodes.push(
+      <span id="price" key="price-integer" className="text-4xl font-headlines">
+        {integerWithGroups}
+        {decimalValue}
+      </span>,
+    );
+    integerWithGroups = '';
+    integerSpanEmitted = true;
+  };
+
+  parts.forEach((part, index) => {
+    if (part.type === 'integer' || part.type === 'group') {
+      integerWithGroups += part.value;
+      return;
+    }
+    if (part.type === 'decimal') {
+      flushInteger(part.value);
+      return;
+    }
+    if (part.type === 'fraction') {
+      if (!integerSpanEmitted && integerWithGroups) {
+        flushInteger('.');
+      }
+      nodes.push(
+        <span key="price-fraction" className="text-2xl align-top font-headlines">
+          {part.value}
+        </span>,
+      );
+      return;
+    }
+    if (part.type === 'currency') {
+      nodes.push(
+        <span id="currency" key="currency" className="text-4xl font-headlines">
+          {part.value}
+        </span>,
+      );
+      return;
+    }
+    if (part.type === 'literal') {
+      nodes.push(<span key={`literal-${index}`}>{part.value}</span>);
+    }
+  });
+
+  if (integerWithGroups) {
+    flushInteger('');
+  }
+
+  return nodes;
+}
+
 export function ProductPriceComponent({ price, isAddToCartBar }: Readonly<ProductPriceProps>) {
   const t = useTranslations('product.price');
   const { ready: syncReady } = useGlobalSyncReady();
@@ -24,56 +89,20 @@ export function ProductPriceComponent({ price, isAddToCartBar }: Readonly<Produc
     return null;
   }
 
-  // Gross-first (D1): when price is net-based, large figure is tax.grossValue.
-  const displayAmount = price.tax != null && price.includesTax === false ? price.tax.grossValue : price.amount;
+  // Net-first (COP-6056 / B2B): large figure is always net; gross stays in small print.
+  // Figma may still show gross-first — Jira requirements win unless a ticket explicitly overrides.
+  const displayAmount = resolveNetDisplayAmount(price);
   const parts = formatCurrencyToParts(displayAmount, price.currency);
-  let priceFragment: React.ReactNode[];
-  if (parts.length === 0) {
-    priceFragment = [<>{t('notAvailable')}</>];
-  } else {
-    const decimal = parts.find((part) => part.type === 'decimal')?.value || '.';
-
-    priceFragment = [
-      parts.map((part) => {
-        const key = `${part.type}:${part.value}`;
-        if (part.type === 'currency') {
-          return (
-            <span id="currency" key={key} className="text-4xl font-headlines">
-              {part.value}
-            </span>
-          );
-        }
-        if (part.type === 'literal') {
-          return <span key={key}>{part.value}</span>;
-        }
-        if (part.type === 'integer') {
-          return (
-            <span id="price" key={key} className="text-4xl font-headlines">
-              {Math.floor(Number(part.value))}
-              {decimal}
-            </span>
-          );
-        }
-        if (part.type === 'fraction') {
-          return (
-            <span key={key} className="text-2xl align-top font-headlines">
-              {part.value}
-            </span>
-          );
-        }
-        return null;
-      }),
-    ];
-  }
+  const priceFragment = buildStyledCurrencyParts(parts, t('notAvailable'));
 
   const hasDiscount = price.discountPercentage > 0;
   const showListPrice = price.originalAmount != null && price.originalAmount > price.amount;
+  const grossAmount = resolveGrossDisplayAmount(price);
 
   const taxSmallPrint =
-    price.tax == null ? null : (
+    price.tax == null || grossAmount == null ? null : (
       <>
-        {t('includingTax', { taxRate: price.tax.taxRate })} / {formatCurrency(price.tax.netValue, price.currency)}{' '}
-        {t('net')}
+        {t('includingTax', { taxRate: price.tax.taxRate })} / {formatCurrency(grossAmount, price.currency)} {t('gross')}
       </>
     );
 
@@ -144,6 +173,25 @@ export function ProductPriceComponent({ price, isAddToCartBar }: Readonly<Produc
       */}
     </div>
   );
+}
+
+/** Net amount for the primary (large) figure — B2B default. */
+function resolveNetDisplayAmount(price: ProductPrice): number {
+  if (price.tax?.netValue != null) {
+    return price.tax.netValue;
+  }
+  return price.amount;
+}
+
+/** Gross amount for secondary small print; null when tax data is unavailable. */
+function resolveGrossDisplayAmount(price: ProductPrice): number | null {
+  if (price.tax?.grossValue != null) {
+    return price.tax.grossValue;
+  }
+  if (price.includesTax === true) {
+    return price.amount;
+  }
+  return null;
 }
 
 export function ProductPriceSkeleton() {

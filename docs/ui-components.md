@@ -57,7 +57,11 @@ Domain composition for the basic-product PDP lives outside `src/components/ui` b
 | Component | Path | Role |
 |---|---|---|
 | `ProductDetail` | `src/components/product/product-detail.tsx` | Page shell: media, title block, key specs / highlights, purchase column, technical information |
-| `ProductPriceComponent` | `src/components/product/product-price.tsx` | Gross-first price row, discount badge wording, inline list price |
+| `ProductPriceComponent` | `src/components/product/product-price.tsx` | Net-first price row (COP-6056 / B2B): large net, small gross + VAT; discount badge wording; inline list price |
+| `ProductTierPrices` | `src/components/product/product-tier-prices.tsx` | Figma Tier Prices Table (`12799:113152`): Quantity / Price per unit from `price.tierValues`; active row by PDP quantity; net-first unit prices |
+| `ProductVariantSelector` | `src/components/product/product-variant-selector.tsx` | Loads sellable variants + batch prices; composes attribute chips + carousel |
+| `ProductVariantAttributeGroups` | `src/components/product/product-variant-attribute-groups.tsx` | Figma Variant Selection (`12799:113082`): display-only chips grouped by `productVariantAttributes` (filters later) |
+| `ProductVariantCarousel` | `src/components/product/product-variant-carousel.tsx` | Figma Sellable variants (`12799:113107`): horizontal cards with image, attribute values, net price; click navigates to variant PDP |
 | `ProductShippingInfo` | `src/components/product/product-shipping-info.tsx` | Delivery details + USP card |
 | `ProductDescription` | `src/components/product/product-description.tsx` | Sanitized, line-clamped description with Show more / Show less |
 

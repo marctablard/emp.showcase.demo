@@ -29,7 +29,12 @@ import { type ProductTemplateAttributeKey, type ProductVariantAttributeKey, dk }
 import { fetchProductAvailability } from '@/lib/client/availability';
 import { fetchProductPrice } from '@/lib/client/prices';
 import { isEnergyEfficiencyClass } from '@/lib/common/energy-efficiency';
-import { PDP_TECHNICAL_INFORMATION_SECTION_ID, getPdpTechnicalInformationHref } from '@/lib/common/pdp-sections';
+import {
+  PDP_TECHNICAL_INFORMATION_SECTION_ID,
+  applyPdpAnchorScrollMargin,
+  getPdpTechnicalInformationHref,
+  scrollToPdpAnchor,
+} from '@/lib/common/pdp-sections';
 import { hasKeySpecifications, hasLocalizedHighlights, hasTechnicalInformation } from '@/lib/common/product-content';
 import {
   isProductPriceDisplayableForPurchase,
@@ -60,6 +65,7 @@ import ProductAddToCartBar from './product-add-to-cart-bar';
 import { ProductDescription } from './product-description';
 import { ProductPriceComponent, ProductPriceSkeleton, ProductPriceUnavailable } from './product-price';
 import { ProductShippingInfo } from './product-shipping-info';
+import { ProductTierPrices } from './product-tier-prices';
 import ProductVariantSelector from './product-variant-selector';
 
 export interface ProductDetailProps {
@@ -96,10 +102,25 @@ function PdpTechnicalInformation({
   l10n: (value: L10nInput) => string;
   title: string;
 }>): React.ReactElement {
+  const sectionRef = useRef<HTMLDivElement>(null);
   const fewGroups = groups.length > 0 && groups.length < 4;
 
+  // Keep scroll-margin aligned with sticky header + ATC bar (heights change on scroll/resize).
+  useEffect(() => {
+    const syncMargin = (): void => {
+      applyPdpAnchorScrollMargin(sectionRef.current);
+    };
+    syncMargin();
+    window.addEventListener('resize', syncMargin);
+    window.addEventListener('scroll', syncMargin, { passive: true });
+    return () => {
+      window.removeEventListener('resize', syncMargin);
+      window.removeEventListener('scroll', syncMargin);
+    };
+  }, []);
+
   return (
-    <div id={PDP_TECHNICAL_INFORMATION_SECTION_ID} className={cn(className)}>
+    <div id={PDP_TECHNICAL_INFORMATION_SECTION_ID} ref={sectionRef} className={cn(className)}>
       <H2 variant="h3" className="my-6">
         {' '}
         {title}
@@ -279,6 +300,10 @@ function PdpKeySpecsCard({
                 variant="textBold"
                 size="m"
                 iconAfter={<ArrowDown aria-hidden="true" />}
+                onClick={(event) => {
+                  event.preventDefault();
+                  scrollToPdpAnchor(PDP_TECHNICAL_INFORMATION_SECTION_ID);
+                }}
               >
                 {t('more')}
               </UiLink>
@@ -384,6 +409,24 @@ export default function ProductDetail({ product: initialProduct, options, classN
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product]);
+
+  useEffect(() => {
+    if (!product) {
+      return;
+    }
+    logger.info(
+      {
+        productId: product.id,
+        product,
+        price,
+        availability,
+        quantity,
+        shippingCost,
+        shippingPostalCode,
+      },
+      'PDP hydrate snapshot',
+    );
+  }, [product, price, availability, quantity, shippingCost, shippingPostalCode, logger]);
 
   // Price: keep aligned with session site/currency (store cache can hold another site's price until useProduct refetches).
   useEffect(() => {
@@ -545,7 +588,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
       notify({
         title: t('itemNumberCopied'),
         type: ToastType.Success,
-        duration: 300,
+        duration: 2000,
       });
     } catch (error) {
       logger.error(
@@ -664,7 +707,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
             </div>
           </div>
 
-          <div className="order-4 md:order-0">
+          <div className="order-4 md:order-0 min-w-0">
             <div
               className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 md:grid-cols-3 lg:grid-cols-4"
               ref={addToCartButton}
@@ -682,8 +725,10 @@ export default function ProductDetail({ product: initialProduct, options, classN
               onQuantityChange={setQuantity}
               className="mt-6"
             />
-            {/* COP-4811: empty ProductVariantSelector mount left as-is */}
             {product.variantAttributes && <ProductVariantSelector product={product} className="mt-6" />}
+            {price != null && price.tierValues.length > 0 ? (
+              <ProductTierPrices price={price} quantity={quantity} />
+            ) : null}
             <ProductShippingInfo
               currency={price?.currency ?? session?.currency}
               shippingCost={shippingCost}

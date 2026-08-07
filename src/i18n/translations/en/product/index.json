@@ -26,6 +26,10 @@
   "showLess": "Show less",
   "technicalInformation": "Technical Information",
   "otherVariants": "Other variants",
+  "variants": {
+    "sellableVariants": "Sellable variants",
+    "count": "({count, plural, one {# variant} other {# variants}})"
+  },
   "addToCartResult": {
     "successTitle": "Added to Cart",
     "pendingTitle": "Processing Your Request",
@@ -67,7 +71,14 @@
     "includingTax": "incl. {taxRate}% VAT",
     "excludingTax": "excl. {taxRate}% VAT",
     "net": "net",
-    "gross": "gross"
+    "gross": "gross",
+    "tiers": {
+      "quantity": "Quantity",
+      "pricePerUnit": "Price per unit",
+      "buyRange": "Buy {min}-{max}",
+      "buyFrom": "Buy {min}+",
+      "saveWhenOrdering": "Save {percent}% when you order {min}+"
+    }
   },
   "filters": {
     "mixins": {

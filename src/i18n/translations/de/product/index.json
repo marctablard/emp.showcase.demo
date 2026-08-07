@@ -44,6 +44,10 @@
   "showLess": "Weniger anzeigen",
   "technicalInformation": "Technische Informationen",
   "otherVariants": "Andere Varianten",
+  "variants": {
+    "sellableVariants": "Verkaufsfähige Varianten",
+    "count": "({count, plural, one {# Variante} other {# Varianten}})"
+  },
   "shipping": {
     "deliveryDetails": "Lieferdetails",
     "immediatelyDeliverable": "Sofort Lieferbar",
@@ -67,7 +71,14 @@
     "includingTax": "inkl. {taxRate}% MwSt",
     "excludingTax": "exkl. {taxRate}% MwSt",
     "net": "netto",
-    "gross": "brutto"
+    "gross": "brutto",
+    "tiers": {
+      "quantity": "Menge",
+      "pricePerUnit": "Preis pro Einheit",
+      "buyRange": "Kauf {min}-{max}",
+      "buyFrom": "Kauf {min}+",
+      "saveWhenOrdering": "Sparen Sie {percent}%, wenn Sie {min}+ bestellen"
+    }
   },
   "filters": {
     "mixins": {
