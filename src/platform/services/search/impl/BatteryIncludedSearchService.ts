@@ -56,7 +56,7 @@ class BatteryIncludedSearchService implements SearchService {
   private productMapper: ProductMapper<BatteryIncludedProduct>;
   private suggestionsMapper: SuggestionsMapper;
   private sessionService: SessionService;
-  private productService: ProductService;
+  private readonly productService: ProductService;
   private segmentFilterService: SegmentFilterService;
   private customerService: CustomerService;
   private categoryTreeService: BatteryIncludedCategoryTreeService;
