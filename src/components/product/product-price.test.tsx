@@ -231,11 +231,12 @@ describe('ProductPriceComponent discount wording and list price', () => {
     const tax = screen.getByTestId('product-price-tax');
 
     // Figma gap-4 when wide; gap-0 by default so columns can sit flush when the strip is tight.
-    expect(root).toHaveClass('gap-0', 'min-w-0', '@container/atc-price', '@[260px]/atc-price:gap-4');
-    expect(currentColumn).toHaveClass('min-w-0', 'flex-1', 'overflow-hidden');
+    // w-max keeps the block content-sized under `@container` inline-size containment.
+    expect(root).toHaveClass('gap-0', 'w-max', 'max-w-full', '@container/atc-price', '@[260px]/atc-price:gap-4');
+    expect(currentColumn).toHaveClass('shrink-0');
     expect(currentColumn).toContainElement(document.getElementById('price'));
     expect(currentColumn).toContainElement(tax);
-    expect(tax).toHaveClass('truncate', 'text-sm', 'min-w-0', 'flex-1');
+    expect(tax).toHaveClass('text-sm', 'shrink-0', 'whitespace-nowrap');
     expect(normalizedText(tax)).toContain(`plus ${price.tax!.taxRate}% VAT`);
     expect(listColumn).toContainElement(root.querySelector('.line-through'));
     expect(document.getElementById('price')).toHaveClass('text-3xl');

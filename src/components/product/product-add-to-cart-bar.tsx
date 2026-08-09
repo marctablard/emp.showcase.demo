@@ -48,8 +48,10 @@ export default function ProductAddToCartBar({
       data-testid="product-add-to-cart-bar"
       className={cn('fixed top-0 left-0 right-0 mt-20 pt-4 z-50 max-w-6xl mx-auto hidden md:block', className)}
     >
-      {/* Figma 2504:75394 — fixed 56px strip (h-14); thumbnail 120×56 with inset; title Desktop/heading/h5 */}
-      <div className="bg-surface-action shadow-lg rounded-lg overflow-hidden relative flex items-center justify-between mx-4 md:mx-9 h-14">
+      {/* Figma 2504:75394 — fixed 56px strip (h-14); thumbnail 120×56 with inset; title Desktop/heading/h5.
+          Container lives on the strip (not the Price+CTA flex item): `@container` applies inline-size
+          containment, which collapsed the price to 0 width when combined with min-w-0/shrink. */}
+      <div className="@container/atc-bar bg-surface-action shadow-lg rounded-lg overflow-hidden relative flex items-center justify-between mx-4 md:mx-9 h-14">
         {product && (
           <div
             className={cn('flex min-w-0 flex-1 items-center gap-6', !showThumbnail && 'pl-6')}
@@ -77,10 +79,10 @@ export default function ProductAddToCartBar({
             </div>
           </div>
         )}
-        {/* Figma Price+CTA `2504:75400` — gap-10 (40px) when room; collapse when the right cluster is tight */}
-        <div className="@container/atc-right flex min-w-0 shrink items-center justify-end gap-0 p-1 pr-6 @[420px]/atc-right:gap-10">
-          <div className="min-w-0 overflow-hidden text-text-on-action" data-testid="product-add-to-cart-bar-price">
-            {price && <ProductPriceComponent price={price} isAddToCartBar />}
+        {/* Figma Price+CTA `2504:75400` — gap-10 when room; collapse when the strip is tight. shrink-0 keeps price visible. */}
+        <div className="flex shrink-0 items-center justify-end gap-0 p-1 pr-6 @[420px]/atc-bar:gap-10">
+          <div className="text-text-on-action" data-testid="product-add-to-cart-bar-price">
+            {price ? <ProductPriceComponent price={price} isAddToCartBar /> : null}
           </div>
           {/* Figma CTA Group `2504:75425` — button ↔ toolbar gap 24px */}
           <div className="flex shrink-0 items-center gap-6">

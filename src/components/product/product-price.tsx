@@ -136,7 +136,9 @@ function AddToCartBarPrice({
   return (
     <div
       className={cn(
-        '@container/atc-price flex min-w-0 max-w-full items-start gap-0 transition-opacity',
+        // w-max: size to content despite `@container` inline-size containment (avoids 0-width collapse).
+        // Figma `2504:75401` — two columns, gap-4 when the price block is wide enough; flush when tight.
+        '@container/atc-price flex w-max max-w-full items-start gap-0 transition-opacity',
         '@[260px]/atc-price:gap-4',
         !syncReady && 'opacity-60',
       )}
@@ -144,11 +146,8 @@ function AddToCartBarPrice({
       data-product-currency={price.currency}
       aria-busy={!syncReady || undefined}
     >
-      <div
-        className="flex min-w-0 flex-1 flex-col items-start overflow-hidden"
-        data-testid="product-price-current-column"
-      >
-        <div className="flex min-w-0 max-w-full items-center gap-1 overflow-hidden" data-testid="product-price-labels">
+      <div className="flex shrink-0 flex-col items-start" data-testid="product-price-current-column">
+        <div className="flex items-center gap-1" data-testid="product-price-labels">
           <span className="shrink-0 text-sm font-bold">{t('yourPrice')}</span>
           {hasDiscount ? (
             <>
@@ -156,18 +155,14 @@ function AddToCartBarPrice({
               <Badge variant="sale" rounded="none" fontWeight="bold" className="shrink-0 rounded-sm px-1 py-0">
                 -{Math.round(price.discountPercentage)}%
               </Badge>
-              <span className="min-w-0 truncate text-sm">{t('discount')}</span>
+              <span className="shrink-0 text-sm">{t('discount')}</span>
             </>
           ) : null}
         </div>
-        <div className="flex min-w-0 max-w-full items-center gap-2" data-testid="product-price-amounts">
+        <div className="flex items-center gap-2" data-testid="product-price-amounts">
           <div className="shrink-0 font-bold font-headlines text-text-on-action">{priceFragment}</div>
           {taxSmallPrintText ? (
-            <div
-              className="min-w-0 flex-1 truncate whitespace-nowrap text-sm text-text-on-action"
-              data-testid="product-price-tax"
-              title={taxSmallPrintText}
-            >
+            <div className="shrink-0 whitespace-nowrap text-sm text-text-on-action" data-testid="product-price-tax">
               {taxSmallPrintText}
             </div>
           ) : null}
