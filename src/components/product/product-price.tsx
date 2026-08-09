@@ -105,6 +105,86 @@ function buildStyledCurrencyParts(
   return nodes;
 }
 
+function resolveTaxSmallPrintText(
+  price: ProductPrice,
+  t: ReturnType<typeof useTranslations<'product.price'>>,
+): string | null {
+  const grossAmount = resolveGrossDisplayAmount(price);
+  if (price.tax == null || grossAmount == null) {
+    return null;
+  }
+  return `${t('plusTax', { taxRate: price.tax.taxRate })} / ${formatCurrency(grossAmount, price.currency)} ${t('gross')}`;
+}
+
+/** Sticky strip layout (Figma `2504:75401`) — kept separate so ProductPriceComponent stays under Sonar complexity. */
+function AddToCartBarPrice({
+  price,
+  priceFragment,
+  taxSmallPrintText,
+  syncReady,
+  t,
+}: Readonly<{
+  price: ProductPrice;
+  priceFragment: React.ReactNode;
+  taxSmallPrintText: string | null;
+  syncReady: boolean;
+  t: ReturnType<typeof useTranslations<'product.price'>>;
+}>): React.ReactElement {
+  const hasDiscount = price.discountPercentage > 0;
+  const showListPrice = price.originalAmount != null && price.originalAmount > price.amount;
+
+  return (
+    <div
+      className={cn(
+        '@container/atc-price flex min-w-0 max-w-full items-start gap-0 transition-opacity',
+        '@[260px]/atc-price:gap-4',
+        !syncReady && 'opacity-60',
+      )}
+      data-testid="product-price"
+      data-product-currency={price.currency}
+      aria-busy={!syncReady || undefined}
+    >
+      <div
+        className="flex min-w-0 flex-1 flex-col items-start overflow-hidden"
+        data-testid="product-price-current-column"
+      >
+        <div className="flex min-w-0 max-w-full items-center gap-1 overflow-hidden" data-testid="product-price-labels">
+          <span className="shrink-0 text-sm font-bold">{t('yourPrice')}</span>
+          {hasDiscount ? (
+            <>
+              <span className="shrink-0 text-sm">, {t('including')}</span>
+              <Badge variant="sale" rounded="none" fontWeight="bold" className="shrink-0 rounded-sm px-1 py-0">
+                -{Math.round(price.discountPercentage)}%
+              </Badge>
+              <span className="min-w-0 truncate text-sm">{t('discount')}</span>
+            </>
+          ) : null}
+        </div>
+        <div className="flex min-w-0 max-w-full items-center gap-2" data-testid="product-price-amounts">
+          <div className="shrink-0 font-bold font-headlines text-text-on-action">{priceFragment}</div>
+          {taxSmallPrintText != null ? (
+            <div
+              className="min-w-0 flex-1 truncate whitespace-nowrap text-sm text-text-on-action"
+              data-testid="product-price-tax"
+              title={taxSmallPrintText}
+            >
+              {taxSmallPrintText}
+            </div>
+          ) : null}
+        </div>
+      </div>
+      {showListPrice && price.originalAmount != null ? (
+        <div className="flex shrink-0 flex-col items-start whitespace-nowrap" data-testid="product-price-list-column">
+          <span className="h-5 text-sm font-bold">{t('listPrice')}</span>
+          <div className="line-through whitespace-nowrap text-base text-text-on-action">
+            {formatCurrency(price.originalAmount, price.currency)}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function ProductPriceComponent({ price, isAddToCartBar }: Readonly<ProductPriceProps>) {
   const t = useTranslations('product.price');
   const { ready: syncReady } = useGlobalSyncReady();
@@ -119,25 +199,25 @@ export function ProductPriceComponent({ price, isAddToCartBar }: Readonly<Produc
   const partSizes = isAddToCartBar ? CURRENCY_PART_SIZES.addToCartBar : CURRENCY_PART_SIZES.default;
   const parts = formatCurrencyToParts(displayAmount, price.currency);
   const priceFragment = buildStyledCurrencyParts(parts, t('notAvailable'), partSizes);
+  const taxSmallPrintText = resolveTaxSmallPrintText(price, t);
+
+  if (isAddToCartBar) {
+    return (
+      <AddToCartBarPrice
+        price={price}
+        priceFragment={priceFragment}
+        taxSmallPrintText={taxSmallPrintText}
+        syncReady={syncReady}
+        t={t}
+      />
+    );
+  }
 
   const hasDiscount = price.discountPercentage > 0;
   const showListPrice = price.originalAmount != null && price.originalAmount > price.amount;
-  const grossAmount = resolveGrossDisplayAmount(price);
-
-  const taxSmallPrintText =
-    price.tax == null || grossAmount == null
-      ? null
-      : `${t('plusTax', { taxRate: price.tax.taxRate })} / ${formatCurrency(grossAmount, price.currency)} ${t('gross')}`;
 
   const discountInfo = (
-    <div
-      className={cn(
-        'flex items-center gap-1',
-        !isAddToCartBar && showListPrice && PRICE_LEFT_COLUMN_CLASS,
-        // Figma Discount Info `2504:75403` — body/s (+ bold); allow shrink in the sticky strip.
-        isAddToCartBar && 'min-w-0 max-w-full overflow-hidden',
-      )}
-    >
+    <div className={cn('flex items-center gap-1', showListPrice && PRICE_LEFT_COLUMN_CLASS)}>
       <span className="shrink-0 text-sm font-bold">{t('yourPrice')}</span>
       {hasDiscount && (
         <>
@@ -145,7 +225,7 @@ export function ProductPriceComponent({ price, isAddToCartBar }: Readonly<Produc
           <Badge variant="sale" rounded="none" fontWeight="bold" className="shrink-0 rounded-sm px-1 py-0">
             -{Math.round(price.discountPercentage)}%
           </Badge>
-          <span className={cn('text-sm', isAddToCartBar && 'min-w-0 truncate')}>{t('discount')}</span>
+          <span className="text-sm">{t('discount')}</span>
         </>
       )}
     </div>
@@ -153,11 +233,7 @@ export function ProductPriceComponent({ price, isAddToCartBar }: Readonly<Produc
 
   const currentPriceFigure = (
     <div
-      className={cn(
-        'font-bold font-headlines shrink-0',
-        isAddToCartBar ? 'text-text-on-action' : 'text-text-headings',
-        !isAddToCartBar && showListPrice && PRICE_LEFT_COLUMN_CLASS,
-      )}
+      className={cn('font-bold font-headlines shrink-0 text-text-headings', showListPrice && PRICE_LEFT_COLUMN_CLASS)}
     >
       {priceFragment}
     </div>
@@ -165,60 +241,10 @@ export function ProductPriceComponent({ price, isAddToCartBar }: Readonly<Produc
 
   const listPriceAmount =
     showListPrice && price.originalAmount != null ? (
-      <div
-        className={cn(
-          'line-through whitespace-nowrap',
-          // Figma `2504:75401` strike = Desktop/body/m (text-base); PDP keeps text-lg.
-          isAddToCartBar ? 'text-base text-text-on-action' : 'text-lg text-text-on-disabled',
-        )}
-      >
+      <div className="line-through whitespace-nowrap text-lg text-text-on-disabled">
         {formatCurrency(price.originalAmount, price.currency)}
       </div>
     ) : null;
-
-  // Sticky strip (Figma `2504:75401`): col1 = net + plusTax/gross; col2 = list/strike. COP-6056 net-first.
-  // Column gap is Figma 16px (`gap-4`); collapse to 0 when the price host is too narrow to keep both columns.
-  if (isAddToCartBar) {
-    return (
-      <div
-        className={cn(
-          '@container/atc-price flex min-w-0 max-w-full items-start gap-0 transition-opacity',
-          '@[260px]/atc-price:gap-4',
-          !syncReady && 'opacity-60',
-        )}
-        data-testid="product-price"
-        data-product-currency={price.currency}
-        aria-busy={!syncReady || undefined}
-      >
-        <div
-          className="flex min-w-0 flex-1 flex-col items-start overflow-hidden"
-          data-testid="product-price-current-column"
-        >
-          <div className="min-w-0 max-w-full" data-testid="product-price-labels">
-            {discountInfo}
-          </div>
-          <div className="flex min-w-0 max-w-full items-center gap-2" data-testid="product-price-amounts">
-            {currentPriceFigure}
-            {taxSmallPrintText != null && (
-              <div
-                className="min-w-0 flex-1 truncate whitespace-nowrap text-sm text-text-on-action"
-                data-testid="product-price-tax"
-                title={taxSmallPrintText}
-              >
-                {taxSmallPrintText}
-              </div>
-            )}
-          </div>
-        </div>
-        {showListPrice && (
-          <div className="flex shrink-0 flex-col items-start whitespace-nowrap" data-testid="product-price-list-column">
-            <span className="h-5 text-sm font-bold">{t('listPrice')}</span>
-            {listPriceAmount}
-          </div>
-        )}
-      </div>
-    );
-  }
 
   return (
     <div
