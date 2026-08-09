@@ -136,10 +136,9 @@ function AddToCartBarPrice({
   return (
     <div
       className={cn(
-        // w-max: size to content despite `@container` inline-size containment (avoids 0-width collapse).
-        // Figma `2504:75401` — two columns, gap-4 when the price block is wide enough; flush when tight.
-        '@container/atc-price flex w-max max-w-full items-start gap-0 transition-opacity',
-        '@[260px]/atc-price:gap-4',
+        // Figma `2504:75401` — two columns, gap-4. No `@container`: inline-size containment +
+        // max-w-full collapses this block to 0 width inside a min-w-0/overflow-hidden flex parent.
+        'flex w-max shrink-0 items-start gap-4 transition-opacity',
         !syncReady && 'opacity-60',
       )}
       data-testid="product-price"

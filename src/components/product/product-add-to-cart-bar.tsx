@@ -49,9 +49,9 @@ export default function ProductAddToCartBar({
       className={cn('fixed top-0 left-0 right-0 mt-20 pt-4 z-50 max-w-6xl mx-auto hidden md:block', className)}
     >
       {/* Figma 2504:75394 — fixed 56px strip (h-14); thumbnail 120×56 with inset; title Desktop/heading/h5.
-          Three in-flow flex siblings (never absolute overlay): image | middle | actions.
-          Middle is min-w-0 + overflow-hidden so name+price cannot paint into the button zone;
-          only the name shrinks (min-w-0 flex-1). Do not put `@container` on a min-w-0/shrink flex item. */}
+          Three in-flow flex siblings: image | middle (name + price) | actions.
+          Middle: name min-w-0 flex-1 (may shrink/clamp); price shrink-0/w-max (always visible).
+          Never put `@container` on the price — it collapses to 0 width under overflow-hidden. */}
       <div className="bg-surface-action shadow-lg rounded-lg overflow-hidden relative flex items-center mx-4 md:mx-9 h-14 pr-6">
         {showThumbnail ? (
           <div
@@ -70,21 +70,17 @@ export default function ProductAddToCartBar({
 
         {product ? (
           <div
-            className={cn(
-              // overflow-hidden: flex min-w-0 alone still lets shrink-0/w-max prices paint under later siblings.
-              'flex min-w-0 flex-1 items-center gap-6 overflow-hidden',
-              showThumbnail ? 'ml-6' : 'pl-6',
-            )}
+            className={cn('flex min-w-0 flex-1 items-center gap-6 overflow-hidden', showThumbnail ? 'ml-6' : 'pl-6')}
             data-testid="product-add-to-cart-bar-middle"
           >
             <div
-              className="min-w-0 flex-1 overflow-hidden line-clamp-2 text-3xl text-text-on-action font-headlines font-bold"
+              className="min-w-0 flex-1 line-clamp-2 text-3xl text-text-on-action font-headlines font-bold"
               data-testid="product-add-to-cart-bar-name"
             >
               {l10n(product.name)}
             </div>
-            {/* Prices keep intrinsic size; name is the only flexible/shrinkable middle child. */}
-            <div className="shrink-0 text-text-on-action" data-testid="product-add-to-cart-bar-price">
+            {/* Sibling of name — intrinsic width; never flex-1 / min-w-0 / @container. */}
+            <div className="w-max shrink-0 text-text-on-action" data-testid="product-add-to-cart-bar-price">
               {price ? <ProductPriceComponent price={price} isAddToCartBar /> : null}
             </div>
           </div>

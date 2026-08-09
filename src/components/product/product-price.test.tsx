@@ -230,9 +230,9 @@ describe('ProductPriceComponent discount wording and list price', () => {
     const listColumn = screen.getByTestId('product-price-list-column');
     const tax = screen.getByTestId('product-price-tax');
 
-    // Figma gap-4 when wide; gap-0 by default so columns can sit flush when the strip is tight.
-    // w-max keeps the block content-sized under `@container` inline-size containment.
-    expect(root).toHaveClass('gap-0', 'w-max', 'max-w-full', '@container/atc-price', '@[260px]/atc-price:gap-4');
+    // Figma `2504:75401` two-column gap-4; no `@container` (collapses to 0 width in the sticky bar).
+    expect(root).toHaveClass('w-max', 'shrink-0', 'gap-4');
+    expect(root).not.toHaveClass('max-w-full', '@container/atc-price', '@[260px]/atc-price:gap-4');
     expect(currentColumn).toHaveClass('shrink-0');
     expect(currentColumn).toContainElement(document.getElementById('price'));
     expect(currentColumn).toContainElement(tax);

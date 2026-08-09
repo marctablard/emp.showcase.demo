@@ -161,14 +161,17 @@ describe('ProductAddToCartBar', () => {
     // Middle must contain overflow so name+price cannot paint under the CTA siblings.
     expect(middle).toHaveClass('min-w-0', 'flex-1', 'overflow-hidden');
     expect(middle).not.toHaveClass('pl-6', 'absolute', 'w-full');
-    expect(middle.contains(name)).toBe(true);
-    expect(middle.contains(priceHost)).toBe(true);
+    // Middle must expose name + price as direct siblings (not name alone / price under actions).
+    expect(middle.children).toHaveLength(2);
+    expect(middle.children[0]).toBe(name);
+    expect(middle.children[1]).toBe(priceHost);
     expect(actions.contains(priceHost)).toBe(false);
 
-    expect(name).toHaveClass('min-w-0', 'flex-1', 'overflow-hidden', 'line-clamp-2', 'text-3xl');
+    expect(name).toHaveClass('min-w-0', 'flex-1', 'line-clamp-2', 'text-3xl');
     expect(name).not.toHaveClass('truncate', 'text-sm');
 
-    expect(priceHost).toHaveClass('shrink-0');
+    expect(priceHost).toHaveClass('w-max', 'shrink-0');
+    expect(priceHost).not.toHaveClass('min-w-0', 'flex-1', 'overflow-hidden', '@container/atc-price');
     expect(actions).toHaveClass('shrink-0');
     expect(actions.className.split(/\s+/)).not.toContain('shrink');
     // Buttons stay in flex flow after middle — never absolute overlay over prices.
@@ -207,22 +210,25 @@ describe('ProductAddToCartBar', () => {
     const actions = screen.getByTestId('product-add-to-cart-bar-actions');
     const middle = screen.getByTestId('product-add-to-cart-bar-middle');
 
-    expect(middle).toContainElement(priceHost);
+    const name = screen.getByTestId('product-add-to-cart-bar-name');
+    expect(middle.children).toHaveLength(2);
+    expect(middle.children[0]).toBe(name);
+    expect(middle.children[1]).toBe(priceHost);
     expect(priceHost).toContainElement(productPrice);
     expect(actions).not.toContainElement(priceHost);
 
-    // Regression: price must not collapse or paint under CTA icons (middle clips; actions stay in-flow).
+    // Regression: price stays content-sized beside name — no CQ / min-w-0 collapse under overflow-hidden.
     expect(middle).toHaveClass('overflow-hidden', 'min-w-0', 'flex-1');
-    expect(priceHost).toHaveClass('shrink-0');
-    expect(priceHost).not.toHaveClass('min-w-0');
-    expect(priceHost).not.toHaveClass('overflow-hidden');
-    expect(productPrice).toHaveClass('w-max');
-    expect(productPrice).not.toHaveClass('min-w-0');
+    expect(priceHost).toHaveClass('w-max', 'shrink-0');
+    expect(priceHost).not.toHaveClass('min-w-0', 'flex-1', 'overflow-hidden');
+    expect(productPrice).toHaveClass('w-max', 'shrink-0', 'gap-4');
+    expect(productPrice).not.toHaveClass('min-w-0', 'max-w-full', '@container/atc-price');
     expect(actions).not.toHaveClass('absolute', 'fixed', 'right-0');
 
     const integerPart = String(Math.floor(price.tax!.netValue));
     expect(document.getElementById('price')).not.toBeNull();
     expect(normalizeWhitespace(document.getElementById('price')!.textContent ?? '')).toContain(integerPart);
+    expect(normalizeWhitespace(priceHost.textContent ?? '')).toContain(integerPart);
 
     expect(screen.getByTestId('product-price-tax')).toHaveTextContent(`plus ${price.tax!.taxRate}% VAT`);
     expect(screen.getByTestId('product-price-list-column')).toHaveTextContent(
