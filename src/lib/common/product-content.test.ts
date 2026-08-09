@@ -132,6 +132,23 @@ describe('product-content predicates', () => {
       });
     });
 
+    it('orders Basic Specifications by templateAttributeOrder, not A–Z', () => {
+      const product = baseProduct({
+        templateAttributes: {
+          zebra: 'z',
+          alpha: 'a',
+          middle: 'm',
+        },
+        templateAttributeOrder: ['middle', 'zebra', 'alpha'],
+      });
+
+      expect(getKeySpecificationGroups(product)[0].items.map((item) => item.key)).toEqual([
+        'template-middle',
+        'template-zebra',
+        'template-alpha',
+      ]);
+    });
+
     it('falls back to attribute key when templateAttributeLabels are missing', () => {
       const product = baseProduct({
         templateAttributes: { 'required-width': '1705' },
@@ -217,6 +234,23 @@ describe('product-content predicates', () => {
           groupName: TECHNICAL_INFO_BASIC_GROUP_ID,
           item: [{ label: { en: 'material' }, value: { en: 'steel' }, unit: '', attributeKey: 'material' }],
         },
+      ]);
+    });
+
+    it('orders Basic Attributes by templateAttributeOrder, not A–Z', () => {
+      const product = baseProduct({
+        templateAttributes: {
+          zebra: 'z',
+          alpha: 'a',
+          middle: 'm',
+        },
+        templateAttributeOrder: ['middle', 'zebra', 'alpha'],
+      });
+
+      expect(getTechnicalInformationGroups(product)[0].item.map((item) => item.attributeKey)).toEqual([
+        'middle',
+        'zebra',
+        'alpha',
       ]);
     });
   });

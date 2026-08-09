@@ -96,6 +96,7 @@ describe('EmporixProductService template meta enrichment', () => {
       'pick-a-list-optional': 'TEXT',
       'to-be-or-not-to-be': 'BOOLEAN',
     });
+    expect(enriched.templateAttributeOrder).toEqual(['pick-a-list-optional', 'to-be-or-not-to-be']);
   });
 
   it('skips product search when template.id is already present', async () => {

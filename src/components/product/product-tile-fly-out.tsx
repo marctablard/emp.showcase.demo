@@ -10,6 +10,7 @@ import { Link } from '@/i18n/navigation';
 import { clearMarkHighlights } from '@/lib/common/clear-mark-highlights';
 import {
   formatTemplateAttributeValue,
+  orderedTemplateAttributeEntries,
   parseBooleanTemplateAttributeValue,
   resolveTemplateAttributeLabel,
 } from '@/lib/common/product-template-attributes';
@@ -201,10 +202,12 @@ export function ProductTileFlyOut({ product, onProductClick, keyword }: ProductT
             // Extract dimensions from template attributes if they exist
             const dimensionsLine = templateAttributes ? extractDimensions(templateAttributes) : null;
 
-            // Create a filtered template attributes object without height, width, length
+            // Filtered attrs without height/width/length, preserving Product Templates `attributes[]` order
             const filteredTemplateAttributes = templateAttributes
               ? Object.fromEntries(
-                  Object.entries(templateAttributes).filter(([key]) => !['height', 'width', 'length'].includes(key)),
+                  orderedTemplateAttributeEntries(templateAttributes, product.templateAttributeOrder).filter(
+                    ([key]) => !['height', 'width', 'length'].includes(key),
+                  ),
                 )
               : undefined;
 

@@ -23,7 +23,10 @@ import { useHorizontalScroll } from '@/hooks/useHorizontalScroll';
 import { useL10n } from '@/hooks/useL10n';
 import { useWishlistAddWithAuth } from '@/hooks/wishlist/useWishlistAddWithAuth';
 import { Link } from '@/i18n/navigation';
-import { resolveTemplateAttributeLabel } from '@/lib/common/product-template-attributes';
+import {
+  orderedTemplateAttributeEntries,
+  resolveTemplateAttributeLabel,
+} from '@/lib/common/product-template-attributes';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency, imageSizes } from '@/lib/utils';
 import type { Product, ProductUSP } from '@/platform/services/model/product';
@@ -263,21 +266,23 @@ export function ProductTile({
             <div className="flex flex-col gap-2">
               {product.templateAttributes && (
                 <div className="w-full">
-                  {Object.entries(product.templateAttributes).map(([key, value]) => (
-                    <div key={key} className="flex justify-between">
-                      <p className="text-sm">
-                        {resolveTemplateAttributeLabel(key, product.templateAttributeLabels, l10n)}
-                      </p>
-                      <p className="flex items-center text-sm font-bold capitalize">
-                        <TemplateAttributeValue
-                          value={value}
-                          type={product.templateAttributeTypes?.[key]}
-                          locale={locale ?? 'en'}
-                        />
-                        {key === 'length' || key === 'width' || key === 'height' ? 'cm' : ''}
-                      </p>
-                    </div>
-                  ))}
+                  {orderedTemplateAttributeEntries(product.templateAttributes, product.templateAttributeOrder).map(
+                    ([key, value]) => (
+                      <div key={key} className="flex justify-between">
+                        <p className="text-sm">
+                          {resolveTemplateAttributeLabel(key, product.templateAttributeLabels, l10n)}
+                        </p>
+                        <p className="flex items-center text-sm font-bold capitalize">
+                          <TemplateAttributeValue
+                            value={value}
+                            type={product.templateAttributeTypes?.[key]}
+                            locale={locale ?? 'en'}
+                          />
+                          {key === 'length' || key === 'width' || key === 'height' ? 'cm' : ''}
+                        </p>
+                      </div>
+                    ),
+                  )}
                 </div>
               )}
               <div ref={horizontalScrollRef} className="hide-scrollbar flex max-w-full gap-2 overflow-x-scroll">

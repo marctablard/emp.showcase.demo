@@ -10,8 +10,8 @@ import { ProductTierPrices } from './product-tier-prices';
 
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, string | number>) => {
-    if (key === 'includingTax' && values?.taxRate != null) {
-      return `incl. ${values.taxRate}% VAT`;
+    if (key === 'plusTax' && values?.taxRate != null) {
+      return `plus ${values.taxRate}% VAT`;
     }
     if (key === 'tiers.buyRange') {
       return `Buy ${values?.min}-${values?.max}`;
@@ -102,7 +102,7 @@ describe('ProductTierPrices', () => {
     const firstRow = screen.getAllByTestId('product-tier-prices-row')[0];
     const text = normalizeWhitespace(firstRow.textContent ?? '');
     expect(text).toContain(normalizeWhitespace(formatCurrency(1000, 'EUR')));
-    expect(text).toContain('incl. 19% VAT');
+    expect(text).toContain('plus 19% VAT');
     expect(text).toContain(normalizeWhitespace(formatCurrency(1190, 'EUR')));
     expect(text).toContain('gross');
   });

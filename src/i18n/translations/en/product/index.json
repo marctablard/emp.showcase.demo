@@ -72,6 +72,7 @@
     "priceNotAvailable": "Price not available",
     "includingTax": "incl. {taxRate}% VAT",
     "excludingTax": "excl. {taxRate}% VAT",
+    "plusTax": "plus {taxRate}% VAT",
     "net": "net",
     "gross": "gross",
     "tiers": {
@@ -133,6 +134,7 @@
   },
   "loadingVariants": "Loading variants...",
   "variantSelectPlaceholder": "Select variant",
+  "variantAttributeSelectViaListTooltip": "Please use sellable product list to select a variant",
   "addedToComparison": "{name} added to comparison list",
   "removedFromComparison": "{name} removed from comparison list",
   "comparisonFull": "Comparison list is full (max {max} products)",

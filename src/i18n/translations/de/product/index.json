@@ -72,6 +72,7 @@
     "priceNotAvailable": "Preis nicht verfügbar",
     "includingTax": "inkl. {taxRate}% MwSt",
     "excludingTax": "exkl. {taxRate}% MwSt",
+    "plusTax": "zzgl. {taxRate}% MwSt",
     "net": "netto",
     "gross": "brutto",
     "tiers": {
@@ -133,6 +134,7 @@
   },
   "loadingVariants": "Varianten werden geladen...",
   "variantSelectPlaceholder": "Variante auswählen",
+  "variantAttributeSelectViaListTooltip": "Bitte wählen Sie eine Variante über die Liste der verkaufbaren Produkte",
   "addedToComparison": "{name} wurde zur Vergleichsliste hinzugefügt",
   "removedFromComparison": "{name} wurde aus der Vergleichsliste entfernt",
   "comparisonFull": "Vergleichsliste ist voll (max. {max} Produkte)",

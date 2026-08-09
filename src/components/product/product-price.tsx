@@ -102,7 +102,7 @@ export function ProductPriceComponent({ price, isAddToCartBar }: Readonly<Produc
   const taxSmallPrint =
     price.tax == null || grossAmount == null ? null : (
       <>
-        {t('includingTax', { taxRate: price.tax.taxRate })} / {formatCurrency(grossAmount, price.currency)} {t('gross')}
+        {t('plusTax', { taxRate: price.tax.taxRate })} / {formatCurrency(grossAmount, price.currency)} {t('gross')}
       </>
     );
 

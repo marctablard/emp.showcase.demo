@@ -129,6 +129,7 @@ describe('EmporixProductMapper', () => {
         'pick-a-list-optional': 'TEXT',
         'required-width': 'NUMBER',
       });
+      expect(result.templateAttributeOrder).toEqual(['pick-a-list-optional', 'required-width']);
     });
 
     it('4. missing highlights, specifications, and productVariantAttributes individually do not throw and yield empty/undefined', () => {

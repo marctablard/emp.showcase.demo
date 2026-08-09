@@ -55,7 +55,7 @@ import type { ProductFetchOptions } from '@/platform/services/product';
 import { MAX_COMPARISON_PRODUCTS } from '@/stores/comparison-store';
 import Recommendations from '../cms/recommendations';
 import { Button } from '../ui/button';
-import { H1, H2, H5 } from '../ui/h';
+import { H1, H3, H4, H5 } from '../ui/h';
 import UiLink from '../ui/link';
 import { RatingStarRow } from '../ui/rating';
 import { Spinner } from '../ui/spinner';
@@ -264,9 +264,7 @@ function PdpTechnicalInformation({
 
   return (
     <div id={PDP_TECHNICAL_INFORMATION_SECTION_ID} ref={sectionRef} className={cn(className)}>
-      <H2 variant="h3" className="my-6">
-        {title}
-      </H2>
+      <H3 className="my-6">{title}</H3>
       <div
         className={cn(
           'mb-16 gap-x-6 gap-y-6 md:gap-y-16 grid grid-cols-1 md:grid-cols-2',
@@ -406,14 +404,12 @@ function PdpKeySpecsCard({
   const showGroupHeaders = keySpecGroups.length > 1;
 
   return (
-    <Card variant="primary" rounded="lg" className="order-5 md:order-0 p-4 md:px-8 md:pb-8 md:pt-6 mb-10 md:mb-0">
+    <Card variant="primary" rounded="lg" className="order-5 md:order-0 p-4 md:px-8 md:pb-8 md:pt-6 mb-8 md:mb-0">
       <CardContent className="p-0">
         <div className="flex flex-col gap-6">
           {hasSpecs ? (
             <>
-              <H2 variant="h4" className="text-text-on-action">
-                {t('keySpecs')}
-              </H2>
+              <H4 className="text-text-on-action">{t('keySpecs')}</H4>
               <div className="flex flex-col gap-6">
                 {keySpecGroups.map((group) => {
                   const groupLabel = resolveKeySpecGroupLabel(group, t, l10n);
@@ -501,11 +497,9 @@ function PdpHighlights({
   }
 
   return (
-    <div className="order-6 md:order-0 mt-8 md:mt-10">
-      <H2 variant="h3" className="text-text-action mb-8">
-        {title}
-      </H2>
-      <div className="mb-10 md:mb-0">
+    <div className="order-6 md:order-0 md:mt-10">
+      <H3 className="text-text-action mb-8">{title}</H3>
+      <div className="mb-8 md:mb-0">
         {(product.highlights?.[locale] ?? []).map((highlight) => (
           <BulletPoint
             key={highlight}

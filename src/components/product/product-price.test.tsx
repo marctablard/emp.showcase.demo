@@ -10,6 +10,9 @@ import { ProductPriceComponent } from './product-price';
 
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, string | number>) => {
+    if (key === 'plusTax' && values?.taxRate != null) {
+      return `plus ${values.taxRate}% VAT`;
+    }
     if (key === 'includingTax' && values?.taxRate != null) {
       return `incl. ${values.taxRate}% VAT`;
     }
@@ -66,7 +69,7 @@ function expectLargeFigure(amount: number): void {
 }
 
 describe('ProductPriceComponent net-first hierarchy (COP-6056)', () => {
-  it('with includesTax:false shows net as large figure and includingTax + gross as small print', () => {
+  it('with includesTax:false shows net as large figure and plusTax + gross as small print', () => {
     const price = buildPrice({ includesTax: false });
     render(<ProductPriceComponent price={price} />);
 
@@ -74,11 +77,13 @@ describe('ProductPriceComponent net-first hierarchy (COP-6056)', () => {
     const text = normalizedText(root);
 
     expectLargeFigure(price.tax!.netValue);
-    expect(text).toContain(`incl. ${price.tax!.taxRate}% VAT`);
+    expect(text).toContain(`plus ${price.tax!.taxRate}% VAT`);
     expect(text).toContain(normalizeWhitespace(formatCurrency(price.tax!.grossValue, price.currency)));
     expect(text).toContain('gross');
     expect(text).not.toMatch(/\bnet\b/);
+    expect(text).not.toContain('incl.');
     expect(text).not.toContain('excl.');
+    expect(text).not.toContain('includingTax');
     expect(text).not.toContain('excludingTax');
   });
 
@@ -101,7 +106,7 @@ describe('ProductPriceComponent net-first hierarchy (COP-6056)', () => {
     const text = normalizedText(root);
 
     expectLargeFigure(price.tax!.netValue);
-    expect(text).toContain(`incl. ${price.tax!.taxRate}% VAT`);
+    expect(text).toContain(`plus ${price.tax!.taxRate}% VAT`);
     expect(text).toContain(normalizeWhitespace(formatCurrency(price.tax!.grossValue, price.currency)));
     expect(text).toContain('gross');
     expect(text).not.toMatch(/\bnet\b/);
@@ -115,7 +120,7 @@ describe('ProductPriceComponent net-first hierarchy (COP-6056)', () => {
     const text = normalizedText(root);
 
     expectLargeFigure(price.tax!.netValue);
-    expect(text).toContain(`incl. ${price.tax!.taxRate}% VAT`);
+    expect(text).toContain(`plus ${price.tax!.taxRate}% VAT`);
     expect(text).toContain(normalizeWhitespace(formatCurrency(price.tax!.grossValue, price.currency)));
     expect(text).toContain('gross');
     expect(text).not.toMatch(/\bnet\b/);
@@ -216,14 +221,14 @@ describe('ProductPriceComponent discount wording and list price', () => {
     expect(fraction).not.toBeNull();
   });
 
-  it('keeps includingTax small print beside price when isAddToCartBar', () => {
+  it('keeps plusTax small print beside price when isAddToCartBar', () => {
     const price = buildPrice({ includesTax: false, discountPercentage: 3, originalAmount: 459.99 });
     render(<ProductPriceComponent price={price} isAddToCartBar />);
 
     const root = screen.getByTestId('product-price');
     const text = normalizedText(root);
     expect(text).toContain('discount');
-    expect(text).toContain(`incl. ${price.tax!.taxRate}% VAT`);
+    expect(text).toContain(`plus ${price.tax!.taxRate}% VAT`);
     expect(root.querySelector('.line-through')).not.toBeNull();
   });
 

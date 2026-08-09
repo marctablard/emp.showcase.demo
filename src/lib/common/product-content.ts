@@ -1,3 +1,4 @@
+import { orderedTemplateAttributeEntries } from '@/lib/common/product-template-attributes';
 import type { LocalizedString } from '@/platform/services/model/common';
 import type { GroupedSpecification, Product, ProductSpecification } from '@/platform/services/model/product';
 
@@ -24,12 +25,13 @@ function isNonEmptyLocalized(value: string | LocalizedString | undefined | null)
 function templateAttributesToSpecs(
   templateAttributes: Record<string, string> | undefined,
   templateAttributeLabels?: Record<string, LocalizedString>,
+  templateAttributeOrder?: readonly string[],
 ): ProductSpecification[] {
   if (!templateAttributes) {
     return [];
   }
 
-  return Object.entries(templateAttributes)
+  return orderedTemplateAttributeEntries(templateAttributes, templateAttributeOrder)
     .filter(([, value]) => typeof value === 'string' && value.trim().length > 0)
     .map(([key, value]) => ({
       key: `template-${key}`,
@@ -42,8 +44,9 @@ function templateAttributesToSpecs(
 function templateAttributesToGroupedItems(
   templateAttributes: Record<string, string> | undefined,
   templateAttributeLabels?: Record<string, LocalizedString>,
+  templateAttributeOrder?: readonly string[],
 ): GroupedSpecification['item'] {
-  return templateAttributesToSpecs(templateAttributes, templateAttributeLabels).map((spec) => ({
+  return templateAttributesToSpecs(templateAttributes, templateAttributeLabels, templateAttributeOrder).map((spec) => ({
     label: spec.label,
     value: spec.value,
     unit: '',
@@ -109,7 +112,11 @@ export function getKeySpecificationGroups(product: Product): KeySpecificationGro
     groups[0] = { id: groups[0].id, items: groups[0].items };
   }
 
-  const basicItems = templateAttributesToSpecs(product.templateAttributes, product.templateAttributeLabels);
+  const basicItems = templateAttributesToSpecs(
+    product.templateAttributes,
+    product.templateAttributeLabels,
+    product.templateAttributeOrder,
+  );
   if (basicItems.length > 0) {
     groups.push({
       id: KEY_SPEC_BASIC_GROUP_ID,
@@ -140,7 +147,11 @@ export function hasKeySpecifications(product: Product): boolean {
  */
 export function getTechnicalInformationGroups(product: Product): GroupedSpecification[] {
   const groups: GroupedSpecification[] = [];
-  const basicItems = templateAttributesToGroupedItems(product.templateAttributes, product.templateAttributeLabels);
+  const basicItems = templateAttributesToGroupedItems(
+    product.templateAttributes,
+    product.templateAttributeLabels,
+    product.templateAttributeOrder,
+  );
 
   if (basicItems.length > 0) {
     groups.push({

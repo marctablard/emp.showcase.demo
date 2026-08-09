@@ -184,6 +184,33 @@ describe('ProductTile', () => {
     expect(screen.getByText('Value 4')).toBeInTheDocument();
   });
 
+  it('renders template attributes in templateAttributeOrder, not A–Z', () => {
+    const { container } = render(
+      <ProductTile
+        product={makeProduct({
+          templateAttributes: {
+            zebra: 'z',
+            alpha: 'a',
+            middle: 'm',
+          },
+          templateAttributeOrder: ['middle', 'zebra', 'alpha'],
+          templateAttributeLabels: {
+            zebra: { en: 'Zebra' },
+            alpha: { en: 'Alpha' },
+            middle: { en: 'Middle' },
+          },
+        })}
+        locale="en"
+        skipVariantFetch
+      />,
+    );
+
+    const labels = Array.from(container.querySelectorAll('.flex.justify-between > p:first-child')).map(
+      (el) => el.textContent,
+    );
+    expect(labels).toEqual(['Middle', 'Zebra', 'Alpha']);
+  });
+
   it('renders BOOLEAN template attribute values as Lucide icons', () => {
     render(
       <ProductTile

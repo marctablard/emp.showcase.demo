@@ -2,6 +2,7 @@ import { formatDate } from '@/lib/date-utils';
 import {
   PRODUCT_TEMPLATE_ATTRIBUTE_TYPE,
   formatTemplateAttributeValue,
+  orderedTemplateAttributeEntries,
   parseBooleanTemplateAttributeValue,
   resolveTemplateAttributeLabel,
 } from './product-template-attributes';
@@ -54,5 +55,51 @@ describe('parseBooleanTemplateAttributeValue', () => {
   it('does not coerce non-BOOLEAN typed values', () => {
     expect(parseBooleanTemplateAttributeValue('true', PRODUCT_TEMPLATE_ATTRIBUTE_TYPE.TEXT)).toBeUndefined();
     expect(parseBooleanTemplateAttributeValue('false', PRODUCT_TEMPLATE_ATTRIBUTE_TYPE.NUMBER)).toBeUndefined();
+  });
+});
+
+describe('orderedTemplateAttributeEntries', () => {
+  it('returns empty for missing templateAttributes', () => {
+    expect(orderedTemplateAttributeEntries(undefined, ['a'])).toEqual([]);
+  });
+
+  it('follows Product Templates attributes[] order, not A–Z or object key order', () => {
+    // Keys inserted alphabetically so raw Object.entries would be A→Z if order were ignored.
+    const attrs = {
+      zebra: 'z',
+      alpha: 'a',
+      middle: 'm',
+    };
+    expect(orderedTemplateAttributeEntries(attrs, ['middle', 'zebra', 'alpha'])).toEqual([
+      ['middle', 'm'],
+      ['zebra', 'z'],
+      ['alpha', 'a'],
+    ]);
+  });
+
+  it('skips order keys absent from the mixin map and ignores duplicates in order', () => {
+    expect(
+      orderedTemplateAttributeEntries({ width: '10', length: '20' }, ['length', 'missing', 'length', 'width']),
+    ).toEqual([
+      ['length', '20'],
+      ['width', '10'],
+    ]);
+  });
+
+  it('appends mixin-only keys after order, preserving map insertion order', () => {
+    const attrs = { width: '10', extra: 'x', length: '20' };
+    expect(orderedTemplateAttributeEntries(attrs, ['length'])).toEqual([
+      ['length', '20'],
+      ['width', '10'],
+      ['extra', 'x'],
+    ]);
+  });
+
+  it('falls back to Object.entries order when order is missing', () => {
+    const attrs = { first: '1', second: '2' };
+    expect(orderedTemplateAttributeEntries(attrs)).toEqual([
+      ['first', '1'],
+      ['second', '2'],
+    ]);
   });
 });

@@ -4,6 +4,7 @@ import { type JSX, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { H6 } from '@/components/ui/h';
 import UiLink from '@/components/ui/link';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useL10n } from '@/hooks/useL10n';
 import { type ProductVariantAttributeKey, dk } from '@/i18n/dynamic-key';
 import type { ProductVariantAttributeGroup } from '@/lib/common/product-variant-attributes';
@@ -16,43 +17,39 @@ export interface ProductVariantAttributeGroupsProps {
   groups: ProductVariantAttributeGroup[];
   /** Current product's selected value per attribute key. */
   selectedValues?: Record<string, string>;
-  /** Values compatible with the current selection per attribute key. */
+  /**
+   * Values compatible with the current selection per attribute key.
+   * Reserved for COP-4811 interactive filtering — chips are display-only for now.
+   */
   compatibleValuesByAttribute?: Record<string, ReadonlySet<string>>;
   className?: string;
 }
 
-type ChipVisualState = 'selected' | 'available' | 'unavailable';
+type ChipVisualState = 'selected' | 'inactive';
 
 function resolveChipState(
   attributeKey: string,
   value: string,
   selectedValues: Record<string, string> | undefined,
-  compatibleValuesByAttribute: Record<string, ReadonlySet<string>> | undefined,
 ): ChipVisualState {
-  if (selectedValues?.[attributeKey] === value) {
-    return 'selected';
-  }
-  const compatible = compatibleValuesByAttribute?.[attributeKey];
-  if (compatible && !compatible.has(value)) {
-    return 'unavailable';
-  }
-  return 'available';
+  return selectedValues?.[attributeKey] === value ? 'selected' : 'inactive';
 }
 
 /**
  * Figma Variant Selection (`12799:113082`) — chips of possible values grouped by
- * `productVariantAttributes`. Display-only for now (COP-4811 filters later).
- * Selected: `12808:48427`; unavailable: `12808:48434`.
+ * `productVariantAttributes`. Display-only for now (COP-4811 filters later):
+ * selected chip keeps the strong border; all others are grayed with not-allowed cursor
+ * and a tooltip pointing shoppers to the sellable variant list.
  */
 export function ProductVariantAttributeGroups({
   groups,
   selectedValues,
-  compatibleValuesByAttribute,
   className,
 }: Readonly<ProductVariantAttributeGroupsProps>): JSX.Element | null {
   const t = useTranslations('product');
   const { l10n } = useL10n();
   const [expandedKeys, setExpandedKeys] = useState<Record<string, boolean>>({});
+  const selectViaListTooltip = t('variantAttributeSelectViaListTooltip');
 
   if (groups.length === 0) {
     return null;
@@ -78,24 +75,27 @@ export function ProductVariantAttributeGroups({
               {visibleValues.map((value) => {
                 // Value keys are normalized to strings upstream; coerce for display safety.
                 const displayValue = typeof value === 'string' ? value : String(value);
-                const state = resolveChipState(group.key, displayValue, selectedValues, compatibleValuesByAttribute);
+                const state = resolveChipState(group.key, displayValue, selectedValues);
 
                 return (
-                  <div
-                    key={displayValue}
-                    className={cn(
-                      'rounded-sm px-2 py-2 text-base',
-                      state === 'selected' && 'border-2 border-border-black text-text-body',
-                      state === 'available' && 'border border-border-primary text-text-body',
-                      state === 'unavailable' && 'border border-border-primary bg-surface-disabled text-text-disabled',
-                    )}
-                    data-testid="product-variant-attribute-chip"
-                    data-chip-state={state}
-                    aria-current={state === 'selected' ? 'true' : undefined}
-                    aria-disabled={state === 'unavailable' ? true : undefined}
-                  >
-                    {displayValue}
-                  </div>
+                  <Tooltip key={displayValue} delayDuration={200}>
+                    <TooltipTrigger asChild>
+                      <div
+                        className={cn(
+                          'cursor-not-allowed rounded-sm px-2 py-2 text-base',
+                          state === 'selected' && 'border-2 border-border-black text-text-body',
+                          state === 'inactive' && 'border border-border-primary bg-surface-disabled text-text-disabled',
+                        )}
+                        data-testid="product-variant-attribute-chip"
+                        data-chip-state={state}
+                        aria-current={state === 'selected' ? 'true' : undefined}
+                        aria-disabled="true"
+                      >
+                        {displayValue}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>{selectViaListTooltip}</TooltipContent>
+                  </Tooltip>
                 );
               })}
               {hasOverflow ? (

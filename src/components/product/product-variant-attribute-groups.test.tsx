@@ -17,6 +17,14 @@ jest.mock('@/hooks/useL10n', () => ({
   }),
 }));
 
+jest.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  TooltipTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  TooltipContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="product-variant-attribute-chip-tooltip">{children}</div>
+  ),
+}));
+
 describe('ProductVariantAttributeGroups', () => {
   it('renders attribute labels and chips', () => {
     render(
@@ -46,7 +54,7 @@ describe('ProductVariantAttributeGroups', () => {
     expect(screen.getByText('100')).toBeInTheDocument();
   });
 
-  it('highlights the current product value and grays out incompatible values', () => {
+  it('keeps the selected chip emphasized and grays out all other values', () => {
     render(
       <ProductVariantAttributeGroups
         groups={[
@@ -54,17 +62,21 @@ describe('ProductVariantAttributeGroups', () => {
           { key: 'voltage', name: 'Voltage', values: ['12 V', '24 V'] },
         ]}
         selectedValues={{ capacity: '12 Ah', voltage: '12 V' }}
-        compatibleValuesByAttribute={{
-          capacity: new Set(['12 Ah', '60 Ah']),
-          voltage: new Set(['12 V']),
-        }}
       />,
     );
 
-    expect(screen.getByText('12 Ah')).toHaveAttribute('data-chip-state', 'selected');
-    expect(screen.getByText('60 Ah')).toHaveAttribute('data-chip-state', 'available');
+    const selected = screen.getByText('12 Ah');
+    const inactive = screen.getByText('60 Ah');
+
+    expect(selected).toHaveAttribute('data-chip-state', 'selected');
+    expect(selected).toHaveClass('cursor-not-allowed');
+    expect(inactive).toHaveAttribute('data-chip-state', 'inactive');
+    expect(inactive).toHaveClass('cursor-not-allowed', 'bg-surface-disabled', 'text-text-disabled');
     expect(screen.getByText('12 V')).toHaveAttribute('data-chip-state', 'selected');
-    expect(screen.getByText('24 V')).toHaveAttribute('data-chip-state', 'unavailable');
+    expect(screen.getByText('24 V')).toHaveAttribute('data-chip-state', 'inactive');
+    expect(screen.getAllByTestId('product-variant-attribute-chip-tooltip')[0]).toHaveTextContent(
+      'variantAttributeSelectViaListTooltip',
+    );
   });
 
   it('collapses long value lists behind show more', () => {

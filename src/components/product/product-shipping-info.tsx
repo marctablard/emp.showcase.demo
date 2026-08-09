@@ -38,7 +38,7 @@ export function ProductShippingInfo({
   const resolvedCurrency = currency ?? getPublicDefaultCurrency();
 
   return (
-    <Card variant="gray" rounded="lg" className={cn('mt-8 p-0', className)}>
+    <Card variant="gray" rounded="lg" className={cn('mt-8 mb-8 md:mb-0 p-0', className)}>
       {/* D3: single column through tablet (0–1023); two columns from md (1024+). Intentional override of Figma 12823:84897. */}
       <CardContent className="px-6 md:px-8 pt-6 pb-6 md:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>

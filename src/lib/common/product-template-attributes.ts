@@ -67,3 +67,38 @@ export function parseBooleanTemplateAttributeValue(
   }
   return normalized === 'true';
 }
+
+/**
+ * Lists template-attribute entries for display.
+ * Prefer `order` from Product Templates `attributes[]`; never sort A–Z.
+ * Keys present only on the mixin map (not in `order`) are appended in their original map order.
+ */
+export function orderedTemplateAttributeEntries(
+  templateAttributes: Record<string, string> | undefined,
+  order?: readonly string[],
+): Array<[string, string]> {
+  if (!templateAttributes) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const entries: Array<[string, string]> = [];
+
+  for (const key of order ?? []) {
+    if (!Object.prototype.hasOwnProperty.call(templateAttributes, key) || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    entries.push([key, templateAttributes[key]]);
+  }
+
+  for (const [key, value] of Object.entries(templateAttributes)) {
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    entries.push([key, value]);
+  }
+
+  return entries;
+}

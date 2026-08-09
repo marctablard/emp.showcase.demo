@@ -141,7 +141,7 @@ export function ProductTierPrices({
               {taxRate == null ? null : (
                 <span className="text-xs font-bold">
                   {' '}
-                  ({t('includingTax', { taxRate })} / {formatCurrency(row.gross, price.currency)} {t('gross')})
+                  ({t('plusTax', { taxRate })} / {formatCurrency(row.gross, price.currency)} {t('gross')})
                 </span>
               )}
             </p>

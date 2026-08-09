@@ -33,10 +33,11 @@ function resolveTemplateVersion(template: EmporixProductTemplate | undefined): s
   return undefined;
 }
 
-/** Labels + types from an expanded product template (`expand=template`). */
+/** Labels, types, and definition order from an expanded product template (`expand=template`). */
 function mapTemplateAttributeMeta(template: EmporixProductTemplate | undefined): {
   labels?: Record<string, LocalizedString>;
   types?: Record<string, ProductTemplateAttributeType>;
+  order?: string[];
 } {
   if (!template?.attributes?.length) {
     return {};
@@ -44,10 +45,12 @@ function mapTemplateAttributeMeta(template: EmporixProductTemplate | undefined):
 
   const labels: Record<string, LocalizedString> = {};
   const types: Record<string, ProductTemplateAttributeType> = {};
+  const order: string[] = [];
   for (const attribute of template.attributes) {
     if (!attribute.key) {
       continue;
     }
+    order.push(attribute.key);
     const name = normalizeLocalizedLeaf(attribute.name, attribute.key);
     if (name) {
       labels[attribute.key] = name;
@@ -61,6 +64,7 @@ function mapTemplateAttributeMeta(template: EmporixProductTemplate | undefined):
   return {
     ...(Object.keys(labels).length > 0 ? { labels } : {}),
     ...(Object.keys(types).length > 0 ? { types } : {}),
+    ...(order.length > 0 ? { order } : {}),
   };
 }
 
@@ -124,9 +128,11 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
 
     // Also create a grouped version of specifications
     const groupedSpecifications = mappedSpecs.length > 0 ? this.groupSpecificationsByGroup(mappedSpecs) : [];
-    const { labels: templateAttributeLabels, types: templateAttributeTypes } = mapTemplateAttributeMeta(
-      source.template,
-    );
+    const {
+      labels: templateAttributeLabels,
+      types: templateAttributeTypes,
+      order: templateAttributeOrder,
+    } = mapTemplateAttributeMeta(source.template);
     const templateVersion = resolveTemplateVersion(source.template);
 
     return {
@@ -152,6 +158,7 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
           }
         : {}),
       templateAttributes,
+      ...(templateAttributeOrder ? { templateAttributeOrder } : {}),
       ...(templateAttributeLabels ? { templateAttributeLabels } : {}),
       ...(templateAttributeTypes ? { templateAttributeTypes } : {}),
       variantAttributes: this.mapVariantAttributes(source),

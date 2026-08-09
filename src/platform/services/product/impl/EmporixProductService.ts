@@ -224,6 +224,7 @@ class EmporixProductService implements ProductService {
     }
     product.templateAttributeLabels = this.mapTemplateAttributeLabels(template);
     product.templateAttributeTypes = this.mapTemplateAttributeTypes(template);
+    product.templateAttributeOrder = this.mapTemplateAttributeOrder(template);
     if (!product.variantAttributes?.length) {
       return;
     }
@@ -337,6 +338,17 @@ class EmporixProductService implements ProductService {
       }
     }
     return types;
+  }
+
+  /** Preserve Product Templates `attributes[]` order for PLP/PDP display. */
+  private mapTemplateAttributeOrder(template: EmporixProductTemplateDefinition): string[] {
+    const order: string[] = [];
+    for (const attribute of template.attributes ?? []) {
+      if (attribute.key) {
+        order.push(attribute.key);
+      }
+    }
+    return order;
   }
 
   private async fetchProductTemplates(

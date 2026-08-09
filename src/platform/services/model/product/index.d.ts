@@ -92,6 +92,11 @@ export interface Product {
   /** Template attribute values from mixins.productTemplateAttributes (key → raw value). */
   templateAttributes?: Record<string, string>;
   /**
+   * Attribute key order from Product Templates `attributes[]` (BE definition order).
+   * Used so PLP/PDP display matches the template, not alphabetical Object key order.
+   */
+  templateAttributeOrder?: string[];
+  /**
    * Localized display names for template attribute keys, resolved from
    * `GET /product/{tenant}/product-templates/{id}` (`attributes[].name`).
    */
