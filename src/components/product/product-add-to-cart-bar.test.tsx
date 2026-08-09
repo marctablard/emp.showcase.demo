@@ -158,18 +158,22 @@ describe('ProductAddToCartBar', () => {
     expect(image).toHaveClass('w-30', 'h-14', 'p-1.5', 'shrink-0');
     expect(image.querySelector('img')).toHaveClass('object-contain');
 
-    expect(middle).toHaveClass('min-w-0', 'flex-1');
-    expect(middle).not.toHaveClass('pl-6');
+    // Middle must contain overflow so name+price cannot paint under the CTA siblings.
+    expect(middle).toHaveClass('min-w-0', 'flex-1', 'overflow-hidden');
+    expect(middle).not.toHaveClass('pl-6', 'absolute', 'w-full');
     expect(middle.contains(name)).toBe(true);
     expect(middle.contains(priceHost)).toBe(true);
     expect(actions.contains(priceHost)).toBe(false);
 
-    expect(name).toHaveClass('min-w-0', 'flex-1', 'line-clamp-2', 'text-3xl');
+    expect(name).toHaveClass('min-w-0', 'flex-1', 'overflow-hidden', 'line-clamp-2', 'text-3xl');
     expect(name).not.toHaveClass('truncate', 'text-sm');
 
     expect(priceHost).toHaveClass('shrink-0');
     expect(actions).toHaveClass('shrink-0');
     expect(actions.className.split(/\s+/)).not.toContain('shrink');
+    // Buttons stay in flex flow after middle — never absolute overlay over prices.
+    expect(actions).not.toHaveClass('absolute', 'fixed', 'right-0', 'inset-y-0');
+    expect(actions.className).not.toMatch(/\b(absolute|fixed|right-0)\b/);
   });
 
   it('shows primaryImage when images array has no usable URL', () => {
@@ -207,12 +211,14 @@ describe('ProductAddToCartBar', () => {
     expect(priceHost).toContainElement(productPrice);
     expect(actions).not.toContainElement(priceHost);
 
-    // Regression: price must not collapse (empty middle) or sit under CTA icons.
+    // Regression: price must not collapse or paint under CTA icons (middle clips; actions stay in-flow).
+    expect(middle).toHaveClass('overflow-hidden', 'min-w-0', 'flex-1');
     expect(priceHost).toHaveClass('shrink-0');
     expect(priceHost).not.toHaveClass('min-w-0');
     expect(priceHost).not.toHaveClass('overflow-hidden');
     expect(productPrice).toHaveClass('w-max');
     expect(productPrice).not.toHaveClass('min-w-0');
+    expect(actions).not.toHaveClass('absolute', 'fixed', 'right-0');
 
     const integerPart = String(Math.floor(price.tax!.netValue));
     expect(document.getElementById('price')).not.toBeNull();
