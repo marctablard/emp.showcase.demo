@@ -162,7 +162,7 @@ function AddToCartBarPrice({
         </div>
         <div className="flex min-w-0 max-w-full items-center gap-2" data-testid="product-price-amounts">
           <div className="shrink-0 font-bold font-headlines text-text-on-action">{priceFragment}</div>
-          {taxSmallPrintText != null ? (
+          {taxSmallPrintText ? (
             <div
               className="min-w-0 flex-1 truncate whitespace-nowrap text-sm text-text-on-action"
               data-testid="product-price-tax"
@@ -265,7 +265,7 @@ export function ProductPriceComponent({ price, isAddToCartBar }: Readonly<Produc
         </div>
       </div>
 
-      {taxSmallPrintText != null && <div className="text-sm mb-2 text-text-on-disabled">{taxSmallPrintText}</div>}
+      {taxSmallPrintText ? <div className="text-sm mb-2 text-text-on-disabled">{taxSmallPrintText}</div> : null}
 
       {/* Wait for a proper styling for List Prices
       {price.tierValues?.length > 0 && (
