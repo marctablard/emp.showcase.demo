@@ -504,6 +504,92 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
     return this.mapLocalizedHighlights(localizedHighlightsData);
   }
 
+  private mergeI18nSpecifications(
+    mergedMixins: Record<string, unknown>,
+    i18nMixins: Record<string, unknown> | undefined,
+  ): void {
+    if (!i18nMixins?.specifications) {
+      return;
+    }
+
+    const i18nSpecs = (i18nMixins.specifications as Record<string, unknown>).specifications;
+    const rootSpecsObj = mergedMixins.specifications as Record<string, unknown> | undefined;
+    const rootSpecs = rootSpecsObj?.specifications;
+
+    if (!Array.isArray(i18nSpecs)) {
+      // If i18n isn't array, gently assign if base didn't exist or just let it pass
+      if (!mergedMixins.specifications) {
+        mergedMixins.specifications = i18nMixins.specifications;
+      }
+      return;
+    }
+
+    const mergedSpecsTemp = Array.isArray(rootSpecs) ? [...rootSpecs] : [];
+
+    i18nSpecs.forEach((i18nSpec) => {
+      if (!i18nSpec || typeof i18nSpec !== 'object') {
+        mergedSpecsTemp.push(i18nSpec);
+        return;
+      }
+
+      const specObj = i18nSpec as Record<string, unknown>;
+      // Drop pure grouping shells (only groupLabel, no key/value/label) so they do not
+      // become phantom blank specs. Keep key-less value-only specs (e.g. suggest documents).
+      if (!specObj.key && specObj.value === undefined && specObj.label === undefined) {
+        return;
+      }
+
+      const existingSpecIndex = mergedSpecsTemp.findIndex(
+        (s) => s && typeof s === 'object' && s.key && s.key === specObj.key,
+      );
+
+      // Normalize the i18n value as it can be a plain string
+      const normalizedSpec = { ...specObj };
+      if (typeof specObj.value === 'string') {
+        normalizedSpec.value = [{ language: 'en', value: specObj.value }];
+      }
+
+      if (existingSpecIndex !== -1) {
+        mergedSpecsTemp[existingSpecIndex] = {
+          ...mergedSpecsTemp[existingSpecIndex],
+          ...normalizedSpec,
+        };
+      } else {
+        mergedSpecsTemp.push(normalizedSpec);
+      }
+    });
+
+    mergedMixins.specifications = { specifications: mergedSpecsTemp };
+  }
+
+  private synthesizeVariantAttributesFromMixins(
+    rootProduct: Record<string, any>,
+  ): EmporixProduct['variantAttributes'] | undefined {
+    // W1: Synthesize minimal variant-attribute structures from _product.mixins.productVariantAttributes
+    // Chips are intentionally single-value per attribute for BI in this iteration;
+    // PARENT_VARIANT hits without mixins.productVariantAttributes produce empty variantAttributes by design.
+    if (rootProduct.variantAttributes) {
+      return rootProduct.variantAttributes as EmporixProduct['variantAttributes'];
+    }
+
+    const pva = rootProduct.mixins?.productVariantAttributes as Record<string, unknown> | undefined;
+    if (!pva) {
+      return undefined;
+    }
+
+    const synthesized: NonNullable<EmporixProduct['variantAttributes']> = {};
+    for (const [key, value] of Object.entries(pva)) {
+      const isScalarVariantValue =
+        (typeof value === 'string' && value.trim() !== '') ||
+        (typeof value === 'number' && Number.isFinite(value)) ||
+        typeof value === 'boolean';
+      if (isScalarVariantValue) {
+        synthesized[key] = [{ key: value }];
+      }
+    }
+    return synthesized;
+  }
+
   private normalizeEmporixSource(product: BatteryIncludedProduct): EmporixProduct {
     const rootProduct = this.getRootProduct(product);
     const localizedProduct = this.getLocalizedProduct(product);
@@ -511,58 +597,7 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
     const localizedDescription = this.mapLocalizedLeaf(localizedProduct.description);
 
     const mergedMixins = { ...(rootProduct.mixins as Record<string, unknown> | undefined) };
-    const i18nMixins = localizedProduct.mixins as Record<string, unknown> | undefined;
-
-    if (i18nMixins?.specifications) {
-      const i18nSpecs = (i18nMixins.specifications as Record<string, unknown>).specifications;
-      const rootSpecsObj = mergedMixins.specifications as Record<string, unknown> | undefined;
-      const rootSpecs = rootSpecsObj?.specifications;
-
-      if (Array.isArray(i18nSpecs)) {
-        // Merge root specifications with i18n specifications
-        const mergedSpecsTemp = Array.isArray(rootSpecs) ? [...rootSpecs] : [];
-
-        i18nSpecs.forEach((i18nSpec) => {
-          if (i18nSpec && typeof i18nSpec === 'object') {
-            const specObj = i18nSpec as Record<string, unknown>;
-            // Drop pure grouping shells (only groupLabel, no key/value/label) so they do not
-            // become phantom blank specs. Keep key-less value-only specs (e.g. suggest documents).
-            if (!specObj.key && specObj.value === undefined && specObj.label === undefined) {
-              return;
-            }
-
-            const existingSpecIndex = mergedSpecsTemp.findIndex(
-              (s) => s && typeof s === 'object' && s.key && s.key === specObj.key,
-            );
-
-            // Normalize the i18n value as it can be a plain string
-            const normalizedSpec = { ...specObj };
-            if (typeof specObj.value === 'string') {
-              normalizedSpec.value = [{ language: 'en', value: specObj.value }];
-            }
-
-            if (existingSpecIndex !== -1) {
-              // Merge if we match by key
-              mergedSpecsTemp[existingSpecIndex] = {
-                ...mergedSpecsTemp[existingSpecIndex],
-                ...normalizedSpec,
-              };
-            } else {
-              mergedSpecsTemp.push(normalizedSpec);
-            }
-          } else {
-            mergedSpecsTemp.push(i18nSpec);
-          }
-        });
-
-        mergedMixins.specifications = { specifications: mergedSpecsTemp };
-      } else {
-        // If i18n isn't array, gently assign if base didn't exist or just let it pass
-        if (!mergedMixins.specifications) {
-          mergedMixins.specifications = i18nMixins.specifications;
-        }
-      }
-    }
+    this.mergeI18nSpecifications(mergedMixins, localizedProduct.mixins as Record<string, unknown> | undefined);
 
     const normalizedSource: EmporixProduct = {
       ...(rootProduct as EmporixProduct),
@@ -579,25 +614,7 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
           : rootProduct.labelIds,
     };
 
-    // W1: Synthesize minimal variant-attribute structures from _product.mixins.productVariantAttributes
-    // Chips are intentionally single-value per attribute for BI in this iteration;
-    // PARENT_VARIANT hits without mixins.productVariantAttributes produce empty variantAttributes by design.
-    let synthesizedVariantAttributes = rootProduct.variantAttributes;
-    const pva = rootProduct.mixins?.productVariantAttributes as Record<string, unknown> | undefined;
-
-    if (!synthesizedVariantAttributes && pva) {
-      synthesizedVariantAttributes = {};
-      for (const [key, value] of Object.entries(pva)) {
-        if (typeof value === 'string' && value.trim() !== '') {
-          synthesizedVariantAttributes[key] = [{ key: value }];
-        } else if (typeof value === 'number' && Number.isFinite(value)) {
-          synthesizedVariantAttributes[key] = [{ key: value }];
-        } else if (typeof value === 'boolean') {
-          synthesizedVariantAttributes[key] = [{ key: value }];
-        }
-      }
-    }
-
+    const synthesizedVariantAttributes = this.synthesizeVariantAttributesFromMixins(rootProduct);
     if (synthesizedVariantAttributes) {
       if (normalizedSource.productType === 'VARIANT') {
         normalizedSource.parentVariant = {

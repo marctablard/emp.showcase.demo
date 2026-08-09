@@ -85,7 +85,7 @@ export function orderedTemplateAttributeEntries(
   const entries: Array<[string, string]> = [];
 
   for (const key of order ?? []) {
-    if (!Object.prototype.hasOwnProperty.call(templateAttributes, key) || seen.has(key)) {
+    if (!Object.hasOwn(templateAttributes, key) || seen.has(key)) {
       continue;
     }
     seen.add(key);

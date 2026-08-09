@@ -14,9 +14,7 @@ jest.mock('next-intl', () => ({
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ alt, fill: _fill, ...props }: React.ImgHTMLAttributes<HTMLImageElement> & { fill?: boolean }) => (
-    <img alt={alt} {...props} />
-  ),
+  default: ({ alt, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) => <img alt={alt} {...props} />,
 }));
 
 jest.mock('@/hooks/product/useProduct', () => ({
@@ -89,25 +87,30 @@ describe('ProductAddToCartBar', () => {
     expect(screen.queryByTestId('product-add-to-cart-bar-image')).not.toBeInTheDocument();
   });
 
-  it('keeps a full-height flush thumbnail beside the title (no text overlay)', () => {
+  it('shows the original padded thumbnail beside a single-line truncated title', () => {
     render(
       <ProductAddToCartBar
         product={buildProduct({
+          name: 'Very Long Product Name That Must Stay Inside The Stripe',
           images: [{ url: 'https://example.com/product.jpg', altText: 'Test Product' }],
         })}
       />,
     );
+
+    const strip = screen.getByTestId('product-add-to-cart-bar').firstElementChild;
+    expect(strip).toHaveClass('h-14');
+    expect(strip).not.toHaveClass('min-h-16', 'h-16');
 
     const left = screen.getByTestId('product-add-to-cart-bar-left');
     const image = screen.getByTestId('product-add-to-cart-bar-image');
     const name = screen.getByTestId('product-add-to-cart-bar-name');
 
     expect(left).not.toHaveClass('pl-6');
-    expect(left.contains(image)).toBe(false);
-    expect(image).toHaveClass('self-stretch', 'w-30');
-    expect(image).not.toHaveClass('p-2');
-    expect(image.querySelector('img')).toHaveClass('object-cover');
-    expect(name).toBeInTheDocument();
+    expect(left.contains(image)).toBe(true);
+    expect(image).toHaveClass('w-30', 'h-14', 'p-1.5');
+    expect(image.querySelector('img')).toHaveClass('object-contain');
+    expect(name).toHaveClass('truncate', 'text-3xl');
+    expect(name).not.toHaveClass('line-clamp-2', 'text-sm');
   });
 
   it('shows primaryImage when images array has no usable URL', () => {
@@ -123,27 +126,5 @@ describe('ProductAddToCartBar', () => {
     const left = screen.getByTestId('product-add-to-cart-bar-left');
     expect(left).not.toHaveClass('pl-6');
     expect(screen.getByTestId('product-add-to-cart-bar-image')).toBeInTheDocument();
-  });
-
-  it('grows with content and clamps long product names without padding the image', () => {
-    render(
-      <ProductAddToCartBar
-        product={buildProduct({
-          name: 'Very Long Product Name That Would Otherwise Overflow The Sticky Strip Height',
-          images: [{ url: 'https://example.com/product.jpg', altText: 'Test Product' }],
-        })}
-      />,
-    );
-
-    const strip = screen.getByTestId('product-add-to-cart-bar').firstElementChild;
-    expect(strip).toHaveClass('min-h-16', 'items-stretch');
-    expect(strip).not.toHaveClass('h-16', 'py-2');
-
-    const image = screen.getByTestId('product-add-to-cart-bar-image');
-    expect(image).toHaveClass('self-stretch');
-    expect(image).not.toHaveClass('p-2', 'py-2');
-
-    const name = screen.getByTestId('product-add-to-cart-bar-name');
-    expect(name).toHaveClass('line-clamp-2', 'text-sm', 'leading-tight', 'min-w-0');
   });
 });
