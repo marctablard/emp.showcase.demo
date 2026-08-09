@@ -77,36 +77,33 @@ export default function ProductAddToCartBar({
             </div>
           </div>
         )}
-        <div className="flex shrink-0 items-center p-1 pr-6">
-          <div className="flex items-center">
-            <div className="flex items-center gap-10">
-              <div className="text-text-on-action">
-                {price && <ProductPriceComponent price={price} isAddToCartBar />}
-              </div>
-              {product && (
-                <div className="px-6">
-                  <ProductAddToCartButton
-                    product={product}
-                    price={price}
-                    className="h-12 bg-surface-page text-text-action hover:bg-surface-page hover:text-text-action-hover"
-                    availability={availability}
-                    availabilityLoading={availabilityLoading}
-                  />
-                </div>
-              )}
-            </div>
+        {/* Figma Price+CTA `2504:75400` — gap-10 (40px) when room; collapse when the right cluster is tight */}
+        <div className="@container/atc-right flex min-w-0 shrink items-center justify-end gap-0 p-1 pr-6 @[420px]/atc-right:gap-10">
+          <div className="min-w-0 overflow-hidden text-text-on-action" data-testid="product-add-to-cart-bar-price">
+            {price && <ProductPriceComponent price={price} isAddToCartBar />}
           </div>
-
-          <div className="flex items-center justify-center gap-2">
-            <Button size="icon" variant="primary" aria-label={t('compare')} className="border-surface-page">
-              <FlipHorizontal2 />
-            </Button>
-            <Button size="icon" variant="primary" aria-label={t('addToWishlist')} className="border-surface-page">
-              <Pin />
-            </Button>
-            <Button size="icon" variant="primary" aria-label={t('share')} className="border-surface-page">
-              <Share2 />
-            </Button>
+          {/* Figma CTA Group `2504:75425` — button ↔ toolbar gap 24px */}
+          <div className="flex shrink-0 items-center gap-6">
+            {product && (
+              <ProductAddToCartButton
+                product={product}
+                price={price}
+                className="h-12 bg-surface-page text-text-action hover:bg-surface-page hover:text-text-action-hover"
+                availability={availability}
+                availabilityLoading={availabilityLoading}
+              />
+            )}
+            <div className="flex items-center justify-center gap-2">
+              <Button size="icon" variant="primary" aria-label={t('compare')} className="border-surface-page">
+                <FlipHorizontal2 />
+              </Button>
+              <Button size="icon" variant="primary" aria-label={t('addToWishlist')} className="border-surface-page">
+                <Pin />
+              </Button>
+              <Button size="icon" variant="primary" aria-label={t('share')} className="border-surface-page">
+                <Share2 />
+              </Button>
+            </div>
           </div>
         </div>
       </div>

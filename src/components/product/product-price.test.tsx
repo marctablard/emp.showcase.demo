@@ -221,15 +221,26 @@ describe('ProductPriceComponent discount wording and list price', () => {
     expect(fraction).not.toBeNull();
   });
 
-  it('keeps plusTax small print beside price when isAddToCartBar', () => {
+  it('keeps plusTax small print beside net price in column 1 when isAddToCartBar', () => {
     const price = buildPrice({ includesTax: false, discountPercentage: 3, originalAmount: 459.99 });
     render(<ProductPriceComponent price={price} isAddToCartBar />);
 
     const root = screen.getByTestId('product-price');
-    const text = normalizedText(root);
-    expect(text).toContain('discount');
-    expect(text).toContain(`plus ${price.tax!.taxRate}% VAT`);
-    expect(root.querySelector('.line-through')).not.toBeNull();
+    const currentColumn = screen.getByTestId('product-price-current-column');
+    const listColumn = screen.getByTestId('product-price-list-column');
+    const tax = screen.getByTestId('product-price-tax');
+
+    // Figma gap-4 when wide; gap-0 by default so columns can sit flush when the strip is tight.
+    expect(root).toHaveClass('gap-0', 'min-w-0', '@container/atc-price', '@[260px]/atc-price:gap-4');
+    expect(currentColumn).toHaveClass('min-w-0', 'flex-1', 'overflow-hidden');
+    expect(currentColumn).toContainElement(document.getElementById('price'));
+    expect(currentColumn).toContainElement(tax);
+    expect(tax).toHaveClass('truncate', 'text-sm', 'min-w-0', 'flex-1');
+    expect(normalizedText(tax)).toContain(`plus ${price.tax!.taxRate}% VAT`);
+    expect(listColumn).toContainElement(root.querySelector('.line-through'));
+    expect(document.getElementById('price')).toHaveClass('text-3xl');
+    expect(document.getElementById('currency')).toHaveClass('text-2xl');
+    expect(listColumn.querySelector('.line-through')).toHaveClass('text-base');
   });
 
   it('keeps thousand grouping intact for net amounts ≥ 1000 (900 stays 900; gross 1071 in small print)', () => {

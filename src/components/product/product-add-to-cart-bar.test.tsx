@@ -4,6 +4,7 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
+import type { ProductPrice } from '@/platform/services/model/price';
 import type { Product } from '@/platform/services/model/product';
 import ProductAddToCartBar from './product-add-to-cart-bar';
 
@@ -126,5 +127,47 @@ describe('ProductAddToCartBar', () => {
     const left = screen.getByTestId('product-add-to-cart-bar-left');
     expect(left).not.toHaveClass('pl-6');
     expect(screen.getByTestId('product-add-to-cart-bar-image')).toBeInTheDocument();
+  });
+
+  it('allows the price block to shrink so the strip does not overflow', () => {
+    render(
+      <ProductAddToCartBar
+        product={buildProduct({
+          images: [{ url: 'https://example.com/product.jpg', altText: 'Test Product' }],
+        })}
+        price={
+          {
+            id: 'p1',
+            productId: 'product-1',
+            currency: 'EUR',
+            amount: 100,
+            originalAmount: 120,
+            discountValue: 20,
+            discountPercentage: 10,
+            totalValue: 100,
+            quantity: { quantity: 1 },
+            includesTax: false,
+            tax: {
+              taxCode: 'STANDARD',
+              taxRate: 19,
+              netValue: 100,
+              grossValue: 119,
+              amount: 19,
+              currency: 'EUR',
+            },
+            tierValues: [],
+          } satisfies ProductPrice
+        }
+      />,
+    );
+
+    const priceHost = screen.getByTestId('product-add-to-cart-bar-price');
+    expect(priceHost).toHaveClass('min-w-0', 'overflow-hidden');
+    expect(priceHost).toContainElement(screen.getByTestId('product-price-stub'));
+
+    const rightCluster = priceHost.parentElement;
+    expect(rightCluster).not.toBeNull();
+    // Figma Price+CTA gap-10 when room; collapse to gap-0 when the right cluster is tight.
+    expect(rightCluster).toHaveClass('gap-0', '@container/atc-right', '@[420px]/atc-right:gap-10');
   });
 });
