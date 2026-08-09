@@ -49,63 +49,63 @@ export default function ProductAddToCartBar({
       className={cn('fixed top-0 left-0 right-0 mt-20 pt-4 z-50 max-w-6xl mx-auto hidden md:block', className)}
     >
       {/* Figma 2504:75394 — fixed 56px strip (h-14); thumbnail 120×56 with inset; title Desktop/heading/h5.
-          Container lives on the strip (not the Price+CTA flex item): `@container` applies inline-size
-          containment, which collapsed the price to 0 width when combined with min-w-0/shrink. */}
-      <div className="@container/atc-bar bg-surface-action shadow-lg rounded-lg overflow-hidden relative flex items-center justify-between mx-4 md:mx-9 h-14">
-        {product && (
+          Three siblings: image | name+prices (flex) | buttons (shrink-0). Prices stay outside the CTA cluster
+          so they never sit under compare/pin/share. Do not put `@container` on a min-w-0/shrink flex item. */}
+      <div className="bg-surface-action shadow-lg rounded-lg overflow-hidden relative flex items-center mx-4 md:mx-9 h-14 pr-6">
+        {showThumbnail ? (
           <div
-            className={cn('flex min-w-0 flex-1 items-center gap-6', !showThumbnail && 'pl-6')}
-            data-testid="product-add-to-cart-bar-left"
+            className="w-30 h-14 shrink-0 bg-surface-image-background p-1.5"
+            data-testid="product-add-to-cart-bar-image"
           >
-            {showThumbnail ? (
-              <div
-                className="w-30 h-14 shrink-0 bg-surface-image-background p-1.5"
-                data-testid="product-add-to-cart-bar-image"
-              >
-                <Image
-                  src={thumbnailUrl}
-                  alt={productImageAlt ?? ''}
-                  width={120}
-                  height={56}
-                  className="object-contain object-center w-full h-full"
-                />
-              </div>
-            ) : null}
+            <Image
+              src={thumbnailUrl}
+              alt={productImageAlt ?? ''}
+              width={120}
+              height={56}
+              className="object-contain object-center w-full h-full"
+            />
+          </div>
+        ) : null}
+
+        {product ? (
+          <div
+            className={cn('flex min-w-0 flex-1 items-center gap-6', showThumbnail ? 'ml-6' : 'pl-6')}
+            data-testid="product-add-to-cart-bar-middle"
+          >
             <div
-              className="min-w-0 truncate text-3xl text-text-on-action font-headlines font-bold"
+              className="min-w-0 flex-1 line-clamp-2 text-3xl text-text-on-action font-headlines font-bold"
               data-testid="product-add-to-cart-bar-name"
             >
               {l10n(product.name)}
             </div>
-          </div>
-        )}
-        {/* Figma Price+CTA `2504:75400` — gap-10 when room; collapse when the strip is tight. shrink-0 keeps price visible. */}
-        <div className="flex shrink-0 items-center justify-end gap-0 p-1 pr-6 @[420px]/atc-bar:gap-10">
-          <div className="text-text-on-action" data-testid="product-add-to-cart-bar-price">
-            {price ? <ProductPriceComponent price={price} isAddToCartBar /> : null}
-          </div>
-          {/* Figma CTA Group `2504:75425` — button ↔ toolbar gap 24px */}
-          <div className="flex shrink-0 items-center gap-6">
-            {product && (
-              <ProductAddToCartButton
-                product={product}
-                price={price}
-                className="h-12 bg-surface-page text-text-action hover:bg-surface-page hover:text-text-action-hover"
-                availability={availability}
-                availabilityLoading={availabilityLoading}
-              />
-            )}
-            <div className="flex items-center justify-center gap-2">
-              <Button size="icon" variant="primary" aria-label={t('compare')} className="border-surface-page">
-                <FlipHorizontal2 />
-              </Button>
-              <Button size="icon" variant="primary" aria-label={t('addToWishlist')} className="border-surface-page">
-                <Pin />
-              </Button>
-              <Button size="icon" variant="primary" aria-label={t('share')} className="border-surface-page">
-                <Share2 />
-              </Button>
+            {/* Prices keep intrinsic size; name is the only flexible/shrinkable middle child. */}
+            <div className="shrink-0 text-text-on-action" data-testid="product-add-to-cart-bar-price">
+              {price ? <ProductPriceComponent price={price} isAddToCartBar /> : null}
             </div>
+          </div>
+        ) : null}
+
+        {/* Figma CTA Group `2504:75425` — button ↔ toolbar gap 24px; ml-10 ≈ Figma Price↔CTA gap-40. */}
+        <div className="ml-10 flex shrink-0 items-center gap-6 p-1" data-testid="product-add-to-cart-bar-actions">
+          {product ? (
+            <ProductAddToCartButton
+              product={product}
+              price={price}
+              className="h-12 bg-surface-page text-text-action hover:bg-surface-page hover:text-text-action-hover"
+              availability={availability}
+              availabilityLoading={availabilityLoading}
+            />
+          ) : null}
+          <div className="flex items-center justify-center gap-2">
+            <Button size="icon" variant="primary" aria-label={t('compare')} className="border-surface-page">
+              <FlipHorizontal2 />
+            </Button>
+            <Button size="icon" variant="primary" aria-label={t('addToWishlist')} className="border-surface-page">
+              <Pin />
+            </Button>
+            <Button size="icon" variant="primary" aria-label={t('share')} className="border-surface-page">
+              <Share2 />
+            </Button>
           </div>
         </div>
       </div>

@@ -99,16 +99,22 @@ function normalizeWhitespace(value: string): string {
   return value.replaceAll(/\s+/g, ' ').trim();
 }
 
+function getStrip(): HTMLElement {
+  const strip = screen.getByTestId('product-add-to-cart-bar').firstElementChild;
+  expect(strip).toBeInstanceOf(HTMLElement);
+  return strip as HTMLElement;
+}
+
 describe('ProductAddToCartBar', () => {
-  it('pads the left content group when there is no thumbnail', () => {
+  it('pads the middle name+price zone when there is no thumbnail', () => {
     render(<ProductAddToCartBar product={buildProduct({ images: [] })} />);
 
-    const left = screen.getByTestId('product-add-to-cart-bar-left');
-    expect(left).toHaveClass('pl-6');
+    const middle = screen.getByTestId('product-add-to-cart-bar-middle');
+    expect(middle).toHaveClass('pl-6');
     expect(screen.queryByTestId('product-add-to-cart-bar-image')).not.toBeInTheDocument();
   });
 
-  it('pads the left content group when image URL is empty or whitespace', () => {
+  it('pads the middle name+price zone when image URL is empty or whitespace', () => {
     render(
       <ProductAddToCartBar
         product={buildProduct({
@@ -118,35 +124,52 @@ describe('ProductAddToCartBar', () => {
       />,
     );
 
-    const left = screen.getByTestId('product-add-to-cart-bar-left');
-    expect(left).toHaveClass('pl-6');
+    const middle = screen.getByTestId('product-add-to-cart-bar-middle');
+    expect(middle).toHaveClass('pl-6');
     expect(screen.queryByTestId('product-add-to-cart-bar-image')).not.toBeInTheDocument();
   });
 
-  it('shows the original padded thumbnail beside a single-line truncated title', () => {
+  it('uses a three-zone strip: image, flexible name+prices, unmovable buttons', () => {
     render(
       <ProductAddToCartBar
         product={buildProduct({
-          name: 'Very Long Product Name That Must Stay Inside The Stripe',
+          name: 'Very Long Product Name That Must Stay Inside The Stripe And Wrap To Two Lines',
           images: [{ url: 'https://example.com/product.jpg', altText: 'Test Product' }],
         })}
+        price={buildBarPrice()}
       />,
     );
 
-    const strip = screen.getByTestId('product-add-to-cart-bar').firstElementChild;
-    expect(strip).toHaveClass('h-14', '@container/atc-bar');
-    expect(strip).not.toHaveClass('min-h-16', 'h-16');
+    const strip = getStrip();
+    expect(strip).toHaveClass('h-14');
+    expect(strip).not.toHaveClass('min-h-16', 'h-16', '@container/atc-bar');
 
-    const left = screen.getByTestId('product-add-to-cart-bar-left');
     const image = screen.getByTestId('product-add-to-cart-bar-image');
+    const middle = screen.getByTestId('product-add-to-cart-bar-middle');
+    const actions = screen.getByTestId('product-add-to-cart-bar-actions');
     const name = screen.getByTestId('product-add-to-cart-bar-name');
+    const priceHost = screen.getByTestId('product-add-to-cart-bar-price');
 
-    expect(left).not.toHaveClass('pl-6');
-    expect(left.contains(image)).toBe(true);
-    expect(image).toHaveClass('w-30', 'h-14', 'p-1.5');
+    expect(strip.children).toHaveLength(3);
+    expect(strip.children[0]).toBe(image);
+    expect(strip.children[1]).toBe(middle);
+    expect(strip.children[2]).toBe(actions);
+
+    expect(image).toHaveClass('w-30', 'h-14', 'p-1.5', 'shrink-0');
     expect(image.querySelector('img')).toHaveClass('object-contain');
-    expect(name).toHaveClass('truncate', 'text-3xl');
-    expect(name).not.toHaveClass('line-clamp-2', 'text-sm');
+
+    expect(middle).toHaveClass('min-w-0', 'flex-1');
+    expect(middle).not.toHaveClass('pl-6');
+    expect(middle.contains(name)).toBe(true);
+    expect(middle.contains(priceHost)).toBe(true);
+    expect(actions.contains(priceHost)).toBe(false);
+
+    expect(name).toHaveClass('min-w-0', 'flex-1', 'line-clamp-2', 'text-3xl');
+    expect(name).not.toHaveClass('truncate', 'text-sm');
+
+    expect(priceHost).toHaveClass('shrink-0');
+    expect(actions).toHaveClass('shrink-0');
+    expect(actions.className.split(/\s+/)).not.toContain('shrink');
   });
 
   it('shows primaryImage when images array has no usable URL', () => {
@@ -159,12 +182,12 @@ describe('ProductAddToCartBar', () => {
       />,
     );
 
-    const left = screen.getByTestId('product-add-to-cart-bar-left');
-    expect(left).not.toHaveClass('pl-6');
+    const middle = screen.getByTestId('product-add-to-cart-bar-middle');
+    expect(middle).not.toHaveClass('pl-6');
     expect(screen.getByTestId('product-add-to-cart-bar-image')).toBeInTheDocument();
   });
 
-  it('renders visible net price, tax small print, and list price in the sticky strip', () => {
+  it('keeps ATC prices visible at full size beside the name, outside the button cluster', () => {
     const price = buildBarPrice();
     render(
       <ProductAddToCartBar
@@ -177,12 +200,19 @@ describe('ProductAddToCartBar', () => {
 
     const priceHost = screen.getByTestId('product-add-to-cart-bar-price');
     const productPrice = screen.getByTestId('product-price');
-    expect(priceHost).toContainElement(productPrice);
+    const actions = screen.getByTestId('product-add-to-cart-bar-actions');
+    const middle = screen.getByTestId('product-add-to-cart-bar-middle');
 
-    // Regression: price must not be collapsed away from the strip (empty middle).
+    expect(middle).toContainElement(priceHost);
+    expect(priceHost).toContainElement(productPrice);
+    expect(actions).not.toContainElement(priceHost);
+
+    // Regression: price must not collapse (empty middle) or sit under CTA icons.
+    expect(priceHost).toHaveClass('shrink-0');
     expect(priceHost).not.toHaveClass('min-w-0');
     expect(priceHost).not.toHaveClass('overflow-hidden');
     expect(productPrice).toHaveClass('w-max');
+    expect(productPrice).not.toHaveClass('min-w-0');
 
     const integerPart = String(Math.floor(price.tax!.netValue));
     expect(document.getElementById('price')).not.toBeNull();
@@ -193,12 +223,7 @@ describe('ProductAddToCartBar', () => {
       normalizeWhitespace(formatCurrency(price.originalAmount!, price.currency)),
     );
 
-    const rightCluster = priceHost.parentElement;
-    expect(rightCluster).not.toBeNull();
-    // Query the strip container — never put `@container` on this flex item (inline-size containment collapse).
-    expect(rightCluster).toHaveClass('shrink-0', 'gap-0', '@[420px]/atc-bar:gap-10');
-    expect(rightCluster).not.toHaveClass('@container/atc-right');
-    expect(rightCluster).not.toHaveClass('min-w-0');
-    expect(rightCluster?.className.split(/\s+/)).not.toContain('shrink');
+    expect(actions).toHaveClass('shrink-0', 'gap-6');
+    expect(actions).not.toHaveClass('@container/atc-right', 'min-w-0', 'flex-1');
   });
 });
