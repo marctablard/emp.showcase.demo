@@ -157,7 +157,7 @@ export function ProductItemRow({ item, locale, presentationConfig, showGrossUnde
                   t('gross').trim(),
                 )}
             {item.itemNumber && (
-              <p className="truncate text-sm text-text-placeholders">
+              <p className="break-all text-sm text-text-placeholders">
                 {tOrders('itemNumber')}: {item.itemNumber}
               </p>
             )}
@@ -192,7 +192,7 @@ export function ProductItemRow({ item, locale, presentationConfig, showGrossUnde
             {item.brand && <p className="truncate text-base font-body text-text-body">{item.brand}</p>}
             <ProductNameHeading item={item} variant="desktop" />
             {item.itemNumber && (
-              <p className="truncate text-sm text-text-placeholders">
+              <p className="break-all text-sm text-text-placeholders">
                 {tOrders('itemNumber')}: {item.itemNumber}
               </p>
             )}
