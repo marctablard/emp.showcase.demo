@@ -101,6 +101,26 @@ describe('RecommendationsCarousel — client island', () => {
     const { container } = render(<RecommendationsCarousel productId="p-1" />);
 
     expect(container.firstChild).toBeNull();
+    expect(container.querySelector('.py-8')).toBeNull();
+    expect(container.querySelector('.content-container')).toBeNull();
+  });
+
+  it('renders nothing (no py-8 shell) when useRecommendations finishes with undefined products', () => {
+    mockedUseRecs.mockReturnValue(buildRecs({ loading: false, recommendations: undefined }));
+
+    const { container } = render(<RecommendationsCarousel productId="p-1" className="should-not-appear" />);
+
+    expect(container.firstChild).toBeNull();
+    expect(container.querySelector('.py-8')).toBeNull();
+  });
+
+  it('keeps the py-8 shell while loading skeleton tiles (even before products arrive)', () => {
+    mockedUseRecs.mockReturnValue(buildRecs({ loading: true, recommendations: undefined }));
+
+    const { container } = render(<RecommendationsCarousel productId="p-1" />);
+
+    expect(container.firstChild).toHaveClass('py-8', 'content-container');
+    expect(container.querySelectorAll('[data-testid="mock-product-tile-skeleton"]')).toHaveLength(5);
   });
 
   it('renders the headline when provided and the carousel has products', () => {
@@ -110,8 +130,11 @@ describe('RecommendationsCarousel — client island', () => {
       }),
     );
 
-    const { getByText } = render(<RecommendationsCarousel productId="p-1" headline="Customers also bought" />);
+    const { getByText, container } = render(
+      <RecommendationsCarousel productId="p-1" headline="Customers also bought" />,
+    );
 
+    expect(container.firstChild).toHaveClass('py-8', 'content-container');
     expect(getByText('Customers also bought')).toBeInTheDocument();
   });
 
@@ -141,10 +164,7 @@ describe('RecommendationsCarousel — client island', () => {
     expect(container.querySelectorAll('[data-testid="mock-product-tile"]')).toHaveLength(2);
   });
 
-  it('renders five skeleton tiles while the source list is loading', () => {
-    // The early-return guard requires `recommendationsToShow.length > 0` before
-    // the skeleton-or-tiles branch runs at all. Provide one resolved product so
-    // the guard passes and the loading branch takes effect.
+  it('renders five skeleton tiles while the source list is loading with a prior product', () => {
     mockedUseRecs.mockReturnValue(
       buildRecs({
         loading: true,
