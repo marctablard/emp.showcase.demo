@@ -1,18 +1,22 @@
 /**
- * Browser smoke for **EMP-13 Phase D — Per-Site-Theming**.
+ * Browser smoke for **EMP-13 Phase D — Per-Site-Theming** (wiring + cascade
+ * verified at the computed-style level, which only a real browser can prove).
  *
  * What this proves
  * ----------------
  * 1. **SiteThemeStyle wiring** — registered sites load their
- *    `public/themes/<site>.css` via a `<link data-site-theme>` as the first
- *    `<body>` child.
- * 2. **Default palette** — registered theme files currently ship with no
- *    `:root` color overrides, so `--color-surface-action` resolves to the
- *    shared `mapped.css` default (`var(--color-primary-500)`), matching the
- *    pre–SHOW-323 storefront look.
- * 3. **Fallback** — a site without an explicit theme file resolves to the
- *    empty `_default_.css` and likewise keeps the mapped default (no cascade
- *    leak from another site).
+ *    `public/themes/<site>.css` via a `<link rel="stylesheet" data-site-theme>`
+ *    as the first `<body>` child. Asserted on the live document (not markup
+ *    alone): we read `--color-surface-action` via
+ *    `getComputedStyle(document.documentElement)`.
+ * 2. **Shared default palette** — registered theme files currently ship with
+ *    no `:root` color overrides (demo hex accents cleared), so
+ *    `--color-surface-action` resolves to the shared `mapped.css` default
+ *    (`var(--color-primary-500)`), matching the pre–SHOW-323 storefront look.
+ *    Raw custom-property values must not be a hex override (`/^#/`).
+ * 3. **Default fallback (no cascade leak)** — a site without an explicit theme
+ *    file resolves to the empty `_default_.css` and likewise keeps the mapped
+ *    default, so an un-themed site can never inherit another site's accent.
  *
  * Why two layers of coverage
  * --------------------------
@@ -22,10 +26,22 @@
  * default config. Coverage is split:
  *
  *  - **Real-route integration** (`describe` #1) for the two reachable sites
- *    (`/` = main, `/us-branch`).
+ *    (`/` = main, `/us-branch`). This exercises the genuine render path:
+ *    `SiteThemeStyle` (a server component) emits the `<link rel="stylesheet"
+ *    data-site-theme>` as the first `<body>` child, and we read the computed
+ *    token off the live document root.
  *
  *  - **Production-mount reproduction** (`describe` #2) for ALL four theme files
- *    against the real loaded `/` document (real `globals.css` in `<head>`).
+ *    against the real loaded `/` document (real `globals.css` in `<head>`). We
+ *    re-create the exact production mount — remove the existing
+ *    `[data-site-theme]` link and insert `<link href="/themes/<file>.css">` as
+ *    the first `<body>` child — then read the computed token. This is what
+ *    covers `showcase` and `_default_`, which have no reachable route.
+ *
+ * The reproduction is anchored to reality: `main` and `us-branch` are checked
+ * BOTH via real route and via the mount reproduction, and the two must agree
+ * (both keep the mapped default). That agreement is what licenses using the
+ * reproduction for `showcase` and `_default_`.
  *
  * Runs against the Playwright `webServer` (npm run dev) — no extra env gating,
  * it needs only the dev server + the Emporix backend that every page render
@@ -48,7 +64,8 @@ function readRootToken(page: Page, prop = '--color-surface-action'): Promise<str
 /**
  * Resolve a CSS color expression to its final `rgb(...)` via a throwaway probe
  * element. Unlike reading a custom property directly, this forces `var()`
- * substitution and gives a deterministic, cross-browser-comparable value.
+ * substitution and gives a deterministic, cross-browser-comparable value — used
+ * to prove surface-action resolves to exactly the `mapped.css` default.
  */
 function resolveColor(page: Page, expr: string): Promise<string> {
   return page.evaluate((e) => {
@@ -93,8 +110,11 @@ async function mountThemeLink(page: Page, href: string, siteCode: string): Promi
 test.describe('Per-site theming — real-route integration', () => {
   test('main (/) loads main.css and keeps the mapped surface-action default', async ({ page }) => {
     await page.goto('/');
+    // The server-rendered theme link is the first <body> child for site `main`.
     await expect(page.locator('link[data-site-theme="main"]')).toHaveAttribute('href', THEME_HREF.main);
 
+    // Positive proof: surface-action resolves to exactly the mapped default
+    // (theme file adds zero `:root` color overrides).
     const mappedDefault = await resolveColor(page, 'var(--color-primary-500)');
     const surfaceAction = await resolveColor(page, 'var(--color-surface-action)');
     expect(surfaceAction).toBe(mappedDefault);
@@ -116,15 +136,18 @@ test.describe('Per-site theming — real-route integration', () => {
 
 test.describe('Per-site theming — production mount across all four theme files', () => {
   test.beforeEach(async ({ page }) => {
+    // A real document with the real `globals.css` (mapped default) in <head>.
     await page.goto('/');
   });
 
   for (const site of ['main', 'us-branch', 'showcase', '_default_'] as const) {
     test(`${site}.css applied as first body child keeps mapped surface-action`, async ({ page }) => {
+      // Mapped default is, by definition, `--color-surface-action: var(--color-primary-500)`.
       const mappedDefault = await resolveColor(page, 'var(--color-primary-500)');
 
       await mountThemeLink(page, THEME_HREF[site], site);
 
+      // Empty / cleared theme files: computed color matches mapped, not a demo hex.
       const surfaceAction = await resolveColor(page, 'var(--color-surface-action)');
       expect(surfaceAction).toBe(mappedDefault);
 

@@ -43,6 +43,16 @@ const eslintConfig = defineConfig([
               name: '@/lib/client/service',
               message: 'Removed. Use @/lib/logger/browser-logger or @/lib/client/validation-registry.',
             },
+            {
+              // Dual-env reads legacy NEXT_PUBLIC_* via dynamic env[key]. Importing
+              // the alias from client-bundled code can re-inline those keys.
+              // Prefer @/lib/server/storyblok-env (server-only). Tier-1 healthcheck
+              // / the storyblok-env re-export may use a relative path to the pure
+              // module (see cms-dual-env.ts header).
+              name: '@/lib/common/cms-dual-env',
+              message:
+                'Do not import @/lib/common/cms-dual-env (legacy NEXT_PUBLIC_* dual-env). Use @/lib/server/storyblok-env in server code. Tier-1 healthcheck may import cms-dual-env via a relative path only.',
+            },
           ],
         },
       ],
@@ -53,9 +63,10 @@ const eslintConfig = defineConfig([
       // src/app/_actions/storyblok-bridge.ts and
       // src/app/_actions/cms-banner.ts). Legacy PUBLIC fallback for server
       // resolution lives only in `src/lib/common/cms-dual-env.ts` (dynamic
-      // `env[key]` — not caught by these literal selectors). Three AST
-      // selectors cover the common access shapes: dot-notation, computed
-      // (bracket) access, and destructuring. An aliased indirection
+      // `env[key]` — not caught by these literal selectors); the alias import
+      // is blocked above via no-restricted-imports. Three AST selectors cover
+      // the common access shapes: dot-notation, computed (bracket) access, and
+      // destructuring. An aliased indirection
       // (`const e = process.env; e.NEXT_PUBLIC_STORYBLOK_*`) is intentionally
       // not caught at the AST level — that vector is covered by the
       // bundle-content audit in scripts/preview-smoke.sh. String literals
