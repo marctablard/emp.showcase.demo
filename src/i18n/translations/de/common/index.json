@@ -53,5 +53,6 @@
       }
     }
   },
-  "optional": "(optional)"
+  "optional": "(optional)",
+  "tax": "MwSt"
 }

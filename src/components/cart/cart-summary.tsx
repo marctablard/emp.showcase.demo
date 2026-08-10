@@ -18,6 +18,7 @@ interface CartSummaryProps {
 
 export function CartSummary({ cart, boundingContent }: CartSummaryProps) {
   const t = useTranslations('cart.summary');
+  const tCommon = useTranslations('common');
   //const freeShippingValue = 400;
 
   const fixedContainer = useRef<HTMLDivElement>(null);
@@ -63,7 +64,7 @@ export function CartSummary({ cart, boundingContent }: CartSummaryProps) {
                 </div>
                 <div className="flex flex-col gap-2">
                   <div className="flex justify-between text-base">
-                    <span>{t('vat')}</span>
+                    <span>{tCommon('tax')}</span>
                     <span>{formatCurrency(cart.tax.amount, cart.tax.currency)}</span>
                   </div>
                   <div className="flex justify-between text-base">

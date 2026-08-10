@@ -439,41 +439,46 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
           </div>
         )}
 
-        <div className="rounded-md bg-surface-primary p-4 shadow-sm" data-testid="approval-history">
+        <div className="min-w-0 rounded-md bg-surface-primary p-4 shadow-sm" data-testid="approval-history">
           <H4 className="mb-4">{t('approvalHistory')}</H4>
-          <div className="hidden grid-cols-[minmax(140px,1fr)_minmax(220px,2fr)_minmax(160px,1fr)_minmax(160px,1fr)_minmax(160px,1fr)] gap-6 border-b border-border-primary pb-4 sm:grid">
-            <span className="text-sm font-bold text-text-headings">{t('date')}</span>
-            <span className="text-sm font-bold text-text-headings">{t('event')}</span>
-            <span className="text-sm font-bold text-text-headings">{t('changedBy')}</span>
-            <span className="text-sm font-bold text-text-headings">{t('comment')}</span>
-            <span className="text-sm font-bold text-text-headings">{t('changeReason')}</span>
-          </div>
-          {/* Approver comment is a separate top row (finding 25) — never mixed with requestor comment. */}
-          {approval.approverComment ? (
-            <div
-              className="grid grid-cols-1 gap-3 py-4 text-base font-body text-text-body sm:grid-cols-[minmax(140px,1fr)_minmax(220px,2fr)_minmax(160px,1fr)_minmax(160px,1fr)_minmax(160px,1fr)] sm:gap-6"
-              data-testid="approval-history-approver-comment"
-            >
-              <span>-</span>
-              <span>{t('approverComment')}</span>
-              <span>
-                {approval.approver.firstName} {approval.approver.lastName} ({t('roleApprover')})
-              </span>
-              <span>{approval.approverComment}</span>
-              <span>-</span>
+          <div className="min-w-0 overflow-x-auto" data-testid="approval-history-table-scroll">
+            {/* Column mins (~840px) + gap-6 × 4 ≈ 936px — keep sm+ table width; scroll instead of overflow. */}
+            <div className="sm:min-w-[940px]">
+              <div className="hidden grid-cols-[minmax(140px,1fr)_minmax(220px,2fr)_minmax(160px,1fr)_minmax(160px,1fr)_minmax(160px,1fr)] gap-6 border-b border-border-primary pb-4 sm:grid">
+                <span className="text-sm font-bold text-text-headings">{t('date')}</span>
+                <span className="text-sm font-bold text-text-headings">{t('event')}</span>
+                <span className="text-sm font-bold text-text-headings">{t('changedBy')}</span>
+                <span className="text-sm font-bold text-text-headings">{t('comment')}</span>
+                <span className="text-sm font-bold text-text-headings">{t('changeReason')}</span>
+              </div>
+              {/* Approver comment is a separate top row (finding 25) — never mixed with requestor comment. */}
+              {approval.approverComment ? (
+                <div
+                  className="grid grid-cols-1 gap-3 py-4 text-base font-body text-text-body sm:grid-cols-[minmax(140px,1fr)_minmax(220px,2fr)_minmax(160px,1fr)_minmax(160px,1fr)_minmax(160px,1fr)] sm:gap-6"
+                  data-testid="approval-history-approver-comment"
+                >
+                  <span>-</span>
+                  <span>{t('approverComment')}</span>
+                  <span>
+                    {approval.approver.firstName} {approval.approver.lastName} ({t('roleApprover')})
+                  </span>
+                  <span>{approval.approverComment}</span>
+                  <span>-</span>
+                </div>
+              ) : null}
+              <div
+                className="grid grid-cols-1 gap-3 py-4 text-base font-body text-text-body sm:grid-cols-[minmax(140px,1fr)_minmax(220px,2fr)_minmax(160px,1fr)_minmax(160px,1fr)_minmax(160px,1fr)] sm:gap-6"
+                data-testid="approval-history-request"
+              >
+                <span>{formatDate(approval.createdAt)}</span>
+                <span>{t('approvalRequestCreated')}</span>
+                <span>
+                  {approval.requestor.firstName} {approval.requestor.lastName} ({t('roleCustomer')})
+                </span>
+                <span>{approval.comment || '-'}</span>
+                <span>-</span>
+              </div>
             </div>
-          ) : null}
-          <div
-            className="grid grid-cols-1 gap-3 py-4 text-base font-body text-text-body sm:grid-cols-[minmax(140px,1fr)_minmax(220px,2fr)_minmax(160px,1fr)_minmax(160px,1fr)_minmax(160px,1fr)] sm:gap-6"
-            data-testid="approval-history-request"
-          >
-            <span>{formatDate(approval.createdAt)}</span>
-            <span>{t('approvalRequestCreated')}</span>
-            <span>
-              {approval.requestor.firstName} {approval.requestor.lastName} ({t('roleCustomer')})
-            </span>
-            <span>{approval.comment || '-'}</span>
-            <span>-</span>
           </div>
         </div>
 

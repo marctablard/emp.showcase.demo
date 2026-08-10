@@ -154,6 +154,91 @@ describe('ProductTile', () => {
     expect(screen.queryByTestId('parent-variant-count-badge')).not.toBeInTheDocument();
   });
 
+  it('renders template attribute labels and formats DATETIME values', () => {
+    render(
+      <ProductTile
+        product={makeProduct({
+          templateAttributes: {
+            'date-attribute': '2026-08-18T12:00:00.000Z',
+            'pick-a-list-optional': 'Value 4',
+          },
+          templateAttributeLabels: {
+            'date-attribute': { en: 'Date attribute' },
+            'pick-a-list-optional': { en: 'Pick a list (optional)' },
+          },
+          templateAttributeTypes: {
+            'date-attribute': 'DATETIME',
+            'pick-a-list-optional': 'TEXT',
+          },
+        })}
+        locale="en-US"
+        skipVariantFetch
+      />,
+    );
+
+    expect(screen.getByText('Date attribute')).toBeInTheDocument();
+    expect(screen.getByText('Pick a list (optional)')).toBeInTheDocument();
+    expect(screen.queryByText('pick-a-list-optional')).not.toBeInTheDocument();
+    expect(screen.queryByText(/product\.filters\.mixins\.productTemplateAttributes/)).not.toBeInTheDocument();
+    expect(screen.queryByText('2026-08-18T12:00:00.000Z')).not.toBeInTheDocument();
+    expect(screen.getByText('Value 4')).toBeInTheDocument();
+  });
+
+  it('renders template attributes in templateAttributeOrder, not A–Z', () => {
+    const { container } = render(
+      <ProductTile
+        product={makeProduct({
+          templateAttributes: {
+            zebra: 'z',
+            alpha: 'a',
+            middle: 'm',
+          },
+          templateAttributeOrder: ['middle', 'zebra', 'alpha'],
+          templateAttributeLabels: {
+            zebra: { en: 'Zebra' },
+            alpha: { en: 'Alpha' },
+            middle: { en: 'Middle' },
+          },
+        })}
+        locale="en"
+        skipVariantFetch
+      />,
+    );
+
+    const labels = Array.from(container.querySelectorAll('.flex.justify-between > p:first-child')).map(
+      (el) => el.textContent,
+    );
+    expect(labels).toEqual(['Middle', 'Zebra', 'Alpha']);
+  });
+
+  it('renders BOOLEAN template attribute values as Lucide icons', () => {
+    render(
+      <ProductTile
+        product={makeProduct({
+          templateAttributes: {
+            'to-be-or-not-to-be': 'True',
+            'another-flag': 'false',
+          },
+          templateAttributeLabels: {
+            'to-be-or-not-to-be': { en: 'To be or not to be' },
+            'another-flag': { en: 'Another flag' },
+          },
+          templateAttributeTypes: {
+            'to-be-or-not-to-be': 'BOOLEAN',
+            'another-flag': 'BOOLEAN',
+          },
+        })}
+        locale="en"
+        skipVariantFetch
+      />,
+    );
+
+    expect(screen.getByTestId('template-attribute-boolean-true')).toBeInTheDocument();
+    expect(screen.getByTestId('template-attribute-boolean-false')).toBeInTheDocument();
+    expect(screen.queryByText('True')).not.toBeInTheDocument();
+    expect(screen.queryByText('False')).not.toBeInTheDocument();
+  });
+
   it('does not emit duplicate React key warnings when USP translations are missing for the active locale', () => {
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 

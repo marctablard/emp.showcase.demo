@@ -17,6 +17,7 @@ const linkVariants = cva(
         secondary:
           'inline-flex items-center gap-1 text-text-body hover:underline hover:text-text-action disabled:hover:no-underline disabled:text-text-disabled disabled:[&_svg]:text-text-disabled aria-disabled:hover:no-underline aria-disabled:text-text-disabled aria-disabled:[&_svg]:text-text-disabled',
         text: 'text-text-action underline hover:text-text-action-hover',
+        textBold: 'font-bold text-text-action underline hover:text-text-action-hover',
         textNoUnderline: 'text-text-action no-underline hover:text-text-action-hover',
         table:
           'inline-flex items-center gap-1 no-underline hover:no-underline cursor-default font-secondary text-[16px] leading-[24px] text-text-action hover:text-text-action-hover',

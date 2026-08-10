@@ -50,6 +50,26 @@ Thanks to cva and Tailwind, you can easily extend or customize components by pas
 - Use the variant system instead of custom classes when possible.
 - Refer to the source code for advanced usage or to add new variants.
 
+## Product Detail Page (PDP)
+
+Domain composition for the basic-product PDP lives outside `src/components/ui` but depends on the same tokens and primitives:
+
+| Component | Path | Role |
+|---|---|---|
+| `ProductDetail` | `src/components/product/product-detail.tsx` | Page shell: media, title block, key specs / highlights, purchase column, technical information |
+| `ProductPriceComponent` | `src/components/product/product-price.tsx` | Net-first price row (COP-6056 / B2B): large net, small gross + VAT; discount badge wording; inline list price |
+| `ProductTierPrices` | `src/components/product/product-tier-prices.tsx` | Figma Tier Prices Table (`12799:113152`): Quantity / Price per unit; hidden when fewer than 2 tiers; active row by PDP quantity; net-first unit prices; trailing unit copy from `price.priceModelType` (`TIERED` → for units min–max / min+; `VOLUME` → for each unit) |
+| `ProductVariantSelector` | `src/components/product/product-variant-selector.tsx` | Loads sellable variants + batch prices; composes attribute chips + carousel |
+| `ProductVariantAttributeGroups` | `src/components/product/product-variant-attribute-groups.tsx` | Figma Variant Selection (`12799:113082`): display-only chips grouped by `productVariantAttributes` (filters later) |
+| `ProductVariantCarousel` | `src/components/product/product-variant-carousel.tsx` | Figma Sellable variants (`12799:113107`): horizontal cards with image, attribute values, net price; click navigates to variant PDP |
+| `ProductShippingInfo` | `src/components/product/product-shipping-info.tsx` | Delivery details + USP card |
+| `ProductDescription` | `src/components/product/product-description.tsx` | Sanitized, 3-line-clamped description with animated Show more / Show less |
+| `ProductLabels` | `src/components/product/product-labels.tsx` | Tenant product labels: icon image + name tooltip when `image` URL exists, else text badge |
+
+**Key specifications vs Technical Information:** Key specifications shows only `highlight: true` specs (group label + HR when 2+ groups) plus `templateAttributes` as “Basic Specifications”. Technical Information shows all `groupedSpecifications`, with `templateAttributes` as the first “Basic Attributes” column. Template attribute labels come from `product.templateAttributeLabels`, preferably from product `expand=template` → `template.attributes[].name` (locale maps). Fallback: service-scoped `GET /product/{tenant}/product-templates/{id}` (`product.product_template_read`) when expand did not include attributes. Not i18n keys.
+
+**Delivery card columns (decision D3):** `ProductShippingInfo` uses one column from 0–1023px and two columns from `md` (1024px) upward (`grid-cols-1 md:grid-cols-2`). This is an intentional ticket-driven override of the Figma tablet frame that shows two columns at 768.
+
 ## References
 - [shadcn/ui Documentation](https://ui.shadcn.com/docs)
 - [Tailwind CSS Documentation](https://tailwindcss.com/docs)

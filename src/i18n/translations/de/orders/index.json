@@ -30,7 +30,6 @@
   "shipping": "Versand",
   "free": "Kostenlos",
   "discount": "Rabatt",
-  "vat": "Tax",
   "total": "Gesamt",
   "email": "E-Mail",
   "loading": "Bestellungen werden geladen...",
@@ -237,7 +236,6 @@
     "orderOverview": "Bestellübersicht",
     "netValueOfGoods": "Netto-Warenwert",
     "shippingFee": "Versandgebühr",
-    "vat": "Tax",
     "totalValue": "Gesamtbetrag",
     "shipping": "Versand",
     "shippingMethod": "Versandart",
@@ -269,7 +267,6 @@
     "pageIndicator": "Seite {current} / {total}",
     "searchPlaceholder": "Nach Freigabe-ID suchen...",
     "noMatches": "Keine Freigaben entsprechen Ihrer Suche",
-    "tax": "Tax",
     "shippingTax": "Shipping Tax",
     "free": "Kostenlos",
     "baseNetUnitPrice": "Basis-Nettostückpreis",
@@ -318,6 +315,5 @@
   "deliveryDate": "Lieferdatum",
   "deliveryAddress": "Lieferadresse",
   "orderValue": "Bestellwert",
-  "tax": "Tax",
   "shippingTax": "Shipping Tax"
 }

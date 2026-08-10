@@ -271,9 +271,7 @@
         "SIZE_FIT": "Größen-/Passformproblem",
         "OTHER": "Sonstiges"
       }
-    },
-    "vat": "Tax",
-    "tax": "Tax"
+    }
   },
   "approvals": "Freigaben",
   "ordersInProgress": "{count} in Bearbeitung",
@@ -358,7 +356,6 @@
     "transportCondition": "Transportbedingung",
     "deliveryAddress": "Lieferadresse",
     "netValue": "Nettowert der Waren",
-    "vat": "Tax",
     "deliveryCosts": "Lieferkosten",
     "shippingFee": "Versandgebühr",
     "baseTotal": "Gesamtgrundpreis",
@@ -411,7 +408,6 @@
     "relatedOrder": "Zugehörige Bestellung",
     "shippingMethod": "Versandart",
     "shippingAddress": "Versandadresse",
-    "tax": "Tax",
     "shippingTax": "Shipping Tax",
     "free": "Kostenlos",
     "baseNetUnitPrice": "Basis-Nettostückpreis",
@@ -577,8 +573,6 @@
     "cartSummary": "Warenkorbübersicht",
     "totalItems": "Gesamtanzahl Artikel:",
     "netTotal": "Nettosumme:",
-    "tax": "Steuer:",
-    "vat": "MwSt.",
     "grandTotal": "Gesamtsumme:",
     "subtotal": "Zwischensumme:",
     "goToCheckout": "Zur Kasse",

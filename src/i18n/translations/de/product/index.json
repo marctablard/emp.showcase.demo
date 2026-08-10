@@ -34,13 +34,22 @@
   "addedToCartDescription": "wurde Ihrem Warenkorb hinzugefügt",
   "errorAddingToCart": "Fehler beim Hinzufügen zum Warenkorb",
   "itemNumber": "Artikelnummer",
+  "itemNumberCopied": "Artikelnummer wurde kopiert",
   "copy": "Kopieren",
   "sku": "Artikelnummer",
   "productHighlights": "Produkt-Highlights",
   "keySpecs": "Schlüssel-Spezifikationen",
+  "basicSpecifications": "Basis-Spezifikationen",
+  "basicAttributes": "Basis-Attribute",
   "more": "Mehr Produktfunktionen",
+  "showMore": "Mehr anzeigen…",
+  "showLess": "Weniger anzeigen",
   "technicalInformation": "Technische Informationen",
   "otherVariants": "Andere Varianten",
+  "variants": {
+    "sellableVariants": "verkäufliche Variante",
+    "count": "({count, plural, one {# Variante} other {# Varianten}})"
+  },
   "shipping": {
     "deliveryDetails": "Lieferdetails",
     "immediatelyDeliverable": "Sofort Lieferbar",
@@ -58,12 +67,23 @@
     "yourPrice": "Ihr Preis",
     "listPrice": "Listenpreis",
     "including": "inkl",
+    "discount": "Rabatt",
     "notAvailable": "N/V",
     "priceNotAvailable": "Preis nicht verfügbar",
     "includingTax": "inkl. {taxRate}% MwSt",
     "excludingTax": "exkl. {taxRate}% MwSt",
+    "plusTax": "zzgl. {taxRate}% MwSt",
     "net": "netto",
-    "gross": "brutto"
+    "gross": "brutto",
+    "tiers": {
+      "quantity": "Menge",
+      "pricePerUnit": "Preis pro Einheit",
+      "buyRange": "Kauf {min}-{max}",
+      "buyFrom": "Kauf {min}+",
+      "forUnitsRange": "für Einheiten {min}-{max}",
+      "forUnitsFrom": "für Einheiten {min}+",
+      "forEachUnit": "für jede Einheit"
+    }
   },
   "filters": {
     "mixins": {
@@ -116,6 +136,7 @@
   },
   "loadingVariants": "Varianten werden geladen...",
   "variantSelectPlaceholder": "Variante auswählen",
+  "variantAttributeSelectViaListTooltip": "Bitte wählen Sie eine Variante über die Liste der verkäuflichen Produktvarianten",
   "addedToComparison": "{name} wurde zur Vergleichsliste hinzugefügt",
   "removedFromComparison": "{name} wurde aus der Vergleichsliste entfernt",
   "comparisonFull": "Vergleichsliste ist voll (max. {max} Produkte)",

@@ -44,11 +44,15 @@ export function ProductCarousel({ images }: ProductCarouselProps) {
     );
   }
   return (
-    <div className="flex flex-col md:flex-row gap-5 md:gap-8 relative">
-      {/* Main Carousel */}
-      <div className="w-full md:w-[calc(100%-125px)] static md:relative p-6">
+    <div className="flex flex-col md:flex-row gap-5 md:gap-8">
+      {/*
+        Keep prev/next positioned against the main image carousel only.
+        On small screens a parent `relative` wrapping thumbnails too let the thumb track
+        paint over the absolute controls and steal clicks.
+      */}
+      <div className="relative w-full md:w-[calc(100%-125px)] p-6">
         <Carousel
-          className="static md:relative w-full h-full flex items-center"
+          className="relative w-full h-full flex items-center"
           orientation="horizontal"
           loop={true}
           setApi={setMainApi}
@@ -81,10 +85,10 @@ export function ProductCarousel({ images }: ProductCarouselProps) {
               </CarouselItem>
             ))}
           </CarouselContent>
-          <CarouselPrevious className="left-4 md:left-auto md:right-14 bottom-1 w-10 h-10 mr-2">
+          <CarouselPrevious className="left-4 z-10 md:left-auto md:right-14 bottom-1 w-10 h-10 mr-2">
             <ChevronLeft className="h-6 w-6 text-icon-action" />
           </CarouselPrevious>
-          <CarouselNext className="right-4 bottom-1 w-10 h-10">
+          <CarouselNext className="right-4 z-10 bottom-1 w-10 h-10">
             <ChevronRight className="h-6 w-6 text-icon-action" />
           </CarouselNext>
         </Carousel>

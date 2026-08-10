@@ -56,6 +56,8 @@ const eslintConfig = defineConfig([
     'build/**',
     'playwright-report/**',
     'test-results/**',
+    // Sonar scanner temp bundles — linting them OOMs Node (seen during concurrent local Sonar)
+    '.scannerwork/**',
     'next-env.d.ts',
     'scripts/**',
     'specifications/**',
