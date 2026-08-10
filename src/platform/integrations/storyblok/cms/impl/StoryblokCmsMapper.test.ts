@@ -409,6 +409,34 @@ describe('StoryblokCmsMapper — mapPage (story payload to CMSPage)', () => {
     expect(page.components[1]).toEqual(expect.objectContaining({ id: 'b2', type: 'hero' }));
   });
 
+  it('normalises Storyblok underscore component names to kebab-case map keys', () => {
+    // Storyblok technical names use underscores; cmsComponentMap / Zod
+    // discriminators use kebab-case. Without this, CmsRenderer returns null.
+    const page = newMapper().mapPage(
+      buildStory({
+        body: [
+          { _uid: 'qe-1', component: 'quick_entry', title: 'Ribbon' },
+          { _uid: 'mt-1', component: 'media_text', headline: 'Solar Panels' },
+          { _uid: 'ct-1', component: 'column_teaser', headline: 'Teaser' },
+          { _uid: 'cb-1', component: 'content_block', title: 'Block' },
+          { _uid: 'cs-1', component: 'content_slot' },
+          { _uid: 'tba-1', component: 'top_banner_announcement', title: 'Sale' },
+          { _uid: 'hero-1', component: 'hero', headline: 'Already kebab-safe' },
+        ],
+      }),
+    );
+
+    expect(page.components.map((c) => c.type)).toEqual([
+      'quick-entry',
+      'media-text',
+      'column-teaser',
+      'content-block',
+      'content-slot',
+      'top-banner-announcement',
+      'hero',
+    ]);
+  });
+
   it('does not carry the raw Storyblok `_uid` / `component` keys onto the mapped component', () => {
     const page = newMapper().mapPage(
       buildStory({ body: [{ _uid: 'b1', component: 'button', title: 'Click me', link: '/x' }] }),
@@ -591,6 +619,19 @@ describe('StoryblokCmsMapper — mapLayout (story payload to CMSLayout)', () => 
     expect(layout.type).toBe('layout');
     expect(layout.id).toBe('layout-uuid');
     expect(layout.body.map((c) => c.type)).toEqual(['top-banner-announcement', 'content-slot', 'navigation']);
+  });
+
+  it('normalises underscore component names in layout body the same way as mapPage', () => {
+    const layout = newMapper().mapLayout(
+      buildStory({
+        body: [
+          { _uid: 'banner-1', component: 'top_banner_announcement', title: 'Sale' },
+          { _uid: 'slot-1', component: 'content_slot' },
+        ],
+      }),
+    );
+
+    expect(layout.body.map((c) => c.type)).toEqual(['top-banner-announcement', 'content-slot']);
   });
 
   it('returns an empty body for a story with no body', () => {
