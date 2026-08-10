@@ -27,7 +27,11 @@ type ContainerMock = {
   get: jest.Mock;
 };
 
-const mockContainer: ContainerMock = {
+// `var` so the jest.mock factory (hoisted) can close over the binding before
+// `const` temporal-dead-zone would apply — required now that get-cms-service
+// statically imports `@/platform/ssr`.
+// eslint-disable-next-line no-var
+var mockContainer: ContainerMock = {
   isBound: jest.fn(),
   bind: jest.fn(),
   get: jest.fn(),

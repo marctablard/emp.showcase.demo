@@ -109,14 +109,19 @@ invisible to the render-graph container. A direct render-time
 `DelegatingCmsServiceSSR` whose `@inject('CmsAdapter')` finds nothing bound,
 and Inversify would throw `No bindings found for service: "CmsAdapter"`.
 
-`getCmsService()` resolves the SSR container at the call site and lazily binds
-the `CmsAdapter` alias on **that** container instance (one `isBound` check plus
-at most one idempotent rebind, since the resolved adapter is a Singleton). If
-the env-resolved target `CmsAdapter:<id>` is not bound on this container, it
-falls back to `CmsAdapter:none` so the app still boots on a partially
-configured container. The `instrumentation.ts` alias remains as the
-server-container / Route-Handler path; this helper is the render-path safety
-net. See ADR 0001 and the helper's own JSDoc for the full rationale.
+`getCmsService()` statically imports the SSR container at the call site and
+lazily binds the `CmsAdapter` alias on **that** container instance (one
+`isBound` check plus at most one idempotent rebind, since the resolved adapter
+is a Singleton). The static import is required so `generate:prod` DI prune can
+see `ssr.get('CMSService')` as a consumer seed — a dynamic `import()` left the
+CMS stack unreachable and pruned it from production. If the env-resolved
+target `CmsAdapter:<id>` is not bound on this container, it falls back to
+`CmsAdapter:none` so the app still boots on a partially configured container.
+`DelegatingCmsServiceSSR` is `@injectable` under its class id and aliased to
+`CMSService` via `depency.yml` (same pattern as SearchService). The
+`instrumentation.ts` alias remains as the server-container / Route-Handler
+path; this helper is the render-path safety net. See ADR 0001 and the helper's
+own JSDoc for the full rationale.
 
 This caveat generalises: any future programmatic DI alias bound in
 `instrumentation.ts` must ship an equivalent lazy-bind helper.
