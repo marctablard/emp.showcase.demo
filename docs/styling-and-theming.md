@@ -110,7 +110,7 @@ The mechanism is orthogonal to the CMS framework: it stays active even if the ac
 
 ### Pieces
 
-- **`public/themes/<site-code>.css`** — a static stylesheet served by Next from `public/`. Contains only `:root` overrides on existing token variables (`--color-surface-action`, `--color-text-body`, …). Loaded via a regular `<link rel="stylesheet">` so it sits outside the JS bundle.
+- **`public/themes/<site-code>.css`** — a static stylesheet served by Next from `public/`. May contain `:root` overrides on existing token variables (`--color-surface-action`, `--color-text-body`, …). Loaded via a regular `<link rel="stylesheet">` so it sits outside the JS bundle. Registered demo sites (`main`, `us-branch`, `showcase`) currently ship empty (no color overrides) so they match the shared `mapped.css` defaults; add overrides only when a site should diverge.
 - **`public/themes/_default_.css`** — the neutral fallback file. Deliberately empty (or near-empty); a site without an explicit theme inherits it instead of accidentally cascading another tenant's overrides.
 - **`src/app/styles/themes/index.ts`** — pure registry: `THEME_MAP` maps a site code to its public href, and `resolveThemeForSite(siteCode)` returns the matching href or `DEFAULT_THEME_HREF` when the site is unknown.
 - **`src/components/theme/site-theme-style.tsx`** — Server Component that renders the resolved `<link>`. Mounted as the FIRST `<body>` child in `[site]/[locale]/layout.tsx`, so it loads *after* `globals.css` (which is injected into `<head>`) and therefore wins the cascade for the `:root` token overrides it carries.

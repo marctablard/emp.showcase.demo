@@ -55,17 +55,19 @@ useful ones for re-branding:
 ### 1. Create the theme file
 
 Add `public/themes/<site-code>.css` containing **only** `:root` overrides for the tokens you want to
-change. A real example — `public/themes/main.css`:
+change. Example (hypothetical site accent — registered demo sites currently ship empty files so they
+keep the shared `mapped.css` defaults):
 
 ```css
 :root {
-  --color-surface-action: #1d4ed8;
-  --color-surface-action-hover: #1e40af;
+  --color-surface-action: var(--color-primary-500);
+  --color-surface-action-hover: var(--color-primary-700);
 }
 ```
 
-That is enough to re-skin every action surface on the `main` site (buttons, focus rings, …) — the
-rest of the design is inherited from the shared default.
+Prefer `var(--…)` chains that match `mapped.css` / `brand.css` when you only want the shared palette.
+Literal hex/OKLCH overrides are fine when a site must diverge. Either way, re-pointing these tokens
+re-skins every action surface (buttons, focus rings, …); the rest of the design stays shared.
 
 ### 2. Register the site
 

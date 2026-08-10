@@ -1,12 +1,11 @@
 /*
- * Per-site theme — `showcase` (the third test site for the per-site theming
- * acceptance smoke).
+ * Per-site theme — `showcase`.
  *
- * See `main.css` for the cascade rationale. Overrides only the action
- * surface tokens to a distinct accent so the three demo sites render three
- * different `--color-surface-action` values.
+ * Intentionally empty of `:root` color overrides so the shared storefront
+ * palette in `src/app/styles/mapped.css` stays authoritative
+ * (`--color-surface-action` → `var(--color-primary-500)`, etc.).
+ *
+ * The file stays registered in `THEME_MAP` and is loaded by `SiteThemeStyle`
+ * so the per-site theming mechanism remains wired; add `:root` token
+ * overrides here only when this site should diverge from the shared default.
  */
-:root {
-  --color-surface-action: #047857;
-  --color-surface-action-hover: #065f46;
-}
