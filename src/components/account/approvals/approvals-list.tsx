@@ -96,7 +96,7 @@ export function ApprovalsList({ initialApprovals, currentUserId, initialTotalCou
     <div className="space-y-6">
       <H1>{t('title')}</H1>
 
-      <TableCard>
+      <TableCard className="overflow-hidden">
         <div className="mb-4 flex flex-wrap gap-4">
           <div className="relative w-full max-w-[380px]">
             <Input

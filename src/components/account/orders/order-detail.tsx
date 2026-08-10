@@ -1,13 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
-import Image from 'next/image';
+import { useLocale, useTranslations } from 'next-intl';
 import { format } from 'date-fns';
 import { Ban, CreditCard, ReceiptText, RotateCcw, Truck } from 'lucide-react';
+import { detailTaxRateSuffix, shouldDisplayTaxLine } from '@/components/account/shared/detail-tax-line';
+import { formatShippingFeeDisplay } from '@/components/account/shared/format-shipping-fee';
+import { ProductListResolver } from '@/components/product/product-list-resolver';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { H3, H4, H5, H6 } from '@/components/ui/h';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { H3, H4, H5 } from '@/components/ui/h';
 import UiLink from '@/components/ui/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SummaryCard, SummaryField } from '@/components/ui/summary-card';
@@ -15,7 +18,6 @@ import { ToastType, notify } from '@/components/ui/toast-notification';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useOrder } from '@/hooks/order/useOrder';
 import { type PaymentModeKey, dk } from '@/i18n/dynamic-key';
-import { Link } from '@/i18n/navigation';
 import { isOrderAccessDeniedError } from '@/lib/client/orders';
 import { fetchReturnsForOrder } from '@/lib/client/returns';
 import { ORDER_CUSTOMER_DECLINE_NOT_ALLOWED_MESSAGE } from '@/lib/common/order-customer-decline-not-allowed';
@@ -62,40 +64,6 @@ function renderAddress(address: Address) {
   );
 }
 
-/** Item unit-price cell: net value primary as bold H5-equivalent text, gross value shown as the small secondary line. */
-function ItemPriceCell({
-  price,
-  tOrder,
-}: {
-  readonly price?: { value: number; netValue?: number; grossValue?: number; currency: string };
-  readonly tOrder: ReturnType<typeof useTranslations<'orders'>>;
-}) {
-  if (!price) {
-    return <>-</>;
-  }
-
-  const primaryValue = price.netValue ?? price.value;
-
-  if (price.grossValue === undefined) {
-    return (
-      <span className="text-3xl font-bold font-headlines text-text-headings">
-        {primaryValue} {price.currency}
-      </span>
-    );
-  }
-
-  return (
-    <div className="flex flex-col sm:items-end">
-      <span className="text-3xl font-bold font-headlines text-text-headings">
-        {primaryValue} {price.currency}
-      </span>
-      <span className="text-sm font-body text-text-placeholders">
-        {tOrder('gross')}: {price.grossValue} {price.currency}
-      </span>
-    </div>
-  );
-}
-
 /**
  * Order Detail component
  * Displays detailed information for a single order
@@ -109,7 +77,10 @@ export function OrderDetail({
 }) {
   const tOrder = useTranslations('orders');
   const tPaymentModes = useTranslations('checkout.PaymentModes');
+  const locale = useLocale();
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [returnability, setReturnability] = useState<OrderReturnability | null>(null);
 
   const { order, loading, error, cancelOrder, statusTransitions } = useOrder({ orderId, initialOrder });
@@ -175,11 +146,41 @@ export function OrderDetail({
   const showReturnButton = shouldShowReturnButton(order.status);
   const showTrackShipmentControl = shouldShowTrackShipmentControl(order.status);
   const hasHeaderActions = showCancelButton || showReturnButton || showTrackShipmentControl;
+  const productItems = order.items.map((item) => ({
+    id: item.id,
+    productId: item.productId,
+    name: item.name || item.productId,
+    brand: item.vendorName,
+    itemNumber: item.sku,
+    quantity: item.quantity,
+    unitPrice: item.price?.value ?? 0,
+    currency: item.price?.currency ?? '',
+    netUnitPrice: item.price?.netValue,
+    grossUnitPrice: item.price?.grossValue,
+    imageUrl: item.images?.[0] ?? null,
+    href: `/product/${item.productId}`,
+  }));
 
-  const handleCancelOrder = async () => {
-    if (!cancelOrder) return;
+  const handleCancelDialogOpenChange = (open: boolean) => {
+    if (open) {
+      setCancelDialogOpen(true);
+      return;
+    }
+    if (isCancelling) return;
+    setCancelDialogOpen(false);
+  };
+
+  const handleDismissCancelDialog = () => {
+    if (isCancelling) return;
+    setCancelDialogOpen(false);
+  };
+
+  const handleConfirmCancelOrder = async () => {
+    if (!cancelOrder || isCancelling) return;
     try {
+      setIsCancelling(true);
       await cancelOrder();
+      setCancelDialogOpen(false);
     } catch (err) {
       getLogger().error({ err }, 'Failed to cancel order');
       const message = err instanceof Error ? err.message : '';
@@ -192,24 +193,36 @@ export function OrderDetail({
         description,
         type: ToastType.Error,
       });
+      setCancelDialogOpen(false);
+    } finally {
+      setIsCancelling(false);
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header: order identity + status on the left, order actions on the right */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <H3>
+      {/* Header: title + status stay together; from sm, actions wrap as one horizontal row
+          under that band on small tablets when space is tight (same pattern as Quote). */}
+      <div
+        className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
+        data-testid="order-detail-header"
+      >
+        <div className="flex min-w-0 flex-nowrap items-center gap-3">
+          <H3 className="min-w-0 break-words">
             {tOrder('orderIdHeading')}: {order.id}
           </H3>
-          <OrderStatusBadge status={order.status} />
+          <div className="shrink-0">
+            <OrderStatusBadge status={order.status} />
+          </div>
         </div>
 
         {hasHeaderActions && (
-          <div className="flex flex-wrap items-center gap-4">
+          <div
+            className="flex w-full flex-col gap-4 sm:w-auto sm:shrink-0 sm:flex-row sm:flex-nowrap sm:items-center sm:justify-end"
+            data-testid="order-detail-header-actions"
+          >
             {showCancelButton && cancelOrder && (
-              <Button variant="secondary" onClick={() => void handleCancelOrder()}>
+              <Button variant="secondary" onClick={() => setCancelDialogOpen(true)}>
                 <Ban className="h-6 w-6" />
                 {tOrder('cancelOrder')}
               </Button>
@@ -218,8 +231,8 @@ export function OrderDetail({
               (returnability?.hasAnyReturnableItem === false ? (
                 <Tooltip delayDuration={200}>
                   <TooltipTrigger asChild>
-                    <span>
-                      <Button variant="secondary" disabled>
+                    <span className="w-full sm:w-auto">
+                      <Button variant="secondary" disabled className="w-full sm:w-auto">
                         <RotateCcw className="h-6 w-6" />
                         {tOrder('returnOrder')}
                       </Button>
@@ -246,7 +259,7 @@ export function OrderDetail({
       </div>
 
       {/* Compact Order Details strip: single surface-primary card, theme shadow, p-6, H4 title */}
-      <div className="rounded-md bg-surface-primary shadow-sm p-6">
+      <div className="rounded-md bg-surface-primary shadow-sm p-6" data-testid="order-details-strip">
         <div className="flex flex-col items-start gap-6">
           <H4>{tOrder('orderDetails')}</H4>
           <div className="grid w-full grid-cols-1 gap-2 pb-1 sm:grid-cols-2">
@@ -256,12 +269,19 @@ export function OrderDetail({
             <SummaryField label={tOrder('orderDate')} valueClassName="text-sm">
               {order.createdAt ? format(new Date(order.createdAt), 'PPP') : '-'}
             </SummaryField>
+            {order.quoteId && (
+              <SummaryField label={tOrder('relatedQuote')} valueClassName="text-sm">
+                <UiLink href={`/account/quotes/${order.quoteId}`} type="Link" variant="textNoUnderline">
+                  {order.quoteId}
+                </UiLink>
+              </SummaryField>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Detail cards: Order Overview (with totals), Shipping, Payment */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Detail cards: Order Overview, Shipping, Payment — 3 cols from lg so cards fill width (no empty 4th track). */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="p-6 rounded-md bg-surface-action-hover-2 shadow-sm">
           <SummaryCard
             heading={tOrder('orderOverview')}
@@ -271,50 +291,66 @@ export function OrderDetail({
             icon={<ReceiptText className="h-8 w-8 text-text-action" />}
             hasHeadline
           >
-            {order.quoteId && (
-              <SummaryField label={tOrder('relatedQuote')}>
-                <UiLink href={`/account/quotes/${order.quoteId}`} type="Link" variant="textNoUnderline">
-                  {order.quoteId}
-                </UiLink>
-              </SummaryField>
-            )}
-
             {order.price && (
               <div className="space-y-2 text-base font-body text-text-body">
                 <div className="flex justify-between items-start gap-4 border-b border-border-primary pb-4">
                   <span>{tOrder('netValueOfGoods')}</span>
-                  <div className="text-right font-normal">
-                    <div className="font-normal">
-                      {order.price.subtotal.net} {order.price.subtotal.currency}
-                    </div>
-                    <div className="text-sm text-text-placeholders">
-                      {tOrder('gross')}: {order.price.subtotal.gross} {order.price.subtotal.currency}
-                    </div>
-                  </div>
+                  <span className="text-right font-normal">
+                    {order.price.subtotal.net} {order.price.subtotal.currency}
+                  </span>
                 </div>
 
-                <div className="flex justify-between gap-4 pt-2">
-                  <span>
-                    {tOrder('vat')}
-                    {order.price.total.net > 0
-                      ? ` (${Math.round((order.price.total.tax / order.price.total.net) * 100)}%)`
-                      : ''}
-                  </span>
-                  <span>
-                    {order.price.total.tax} {order.price.total.currency}
-                  </span>
-                </div>
+                {shouldDisplayTaxLine({
+                  taxRate: order.price.subtotal.taxRate,
+                  taxAmount: order.price.subtotal.tax,
+                  netAmount: order.price.subtotal.net,
+                }) && (
+                  <div className="flex justify-between gap-4 pt-2">
+                    <span>
+                      {tOrder('tax')}
+                      {detailTaxRateSuffix({
+                        taxRate: order.price.subtotal.taxRate,
+                        taxAmount: order.price.subtotal.tax,
+                        netAmount: order.price.subtotal.net,
+                      })}
+                    </span>
+                    <span>
+                      {order.price.subtotal.tax} {order.price.subtotal.currency}
+                    </span>
+                  </div>
+                )}
 
                 {order.shipping && (
                   <div className="flex justify-between gap-4 pt-2">
                     <span>{tOrder('shippingFee')}</span>
                     <span>
-                      {order.shipping.total.value === 0
-                        ? tOrder('free')
-                        : `${order.shipping.total.value} ${order.shipping.total.currency}`}
+                      {formatShippingFeeDisplay(
+                        order.shipping.total.value,
+                        (amount) => `${amount} ${order.shipping!.total.currency}`,
+                        tOrder('free'),
+                      )}
                     </span>
                   </div>
                 )}
+
+                {shouldDisplayTaxLine({
+                  taxRate: order.shipping?.total.taxRate,
+                  taxAmount: order.shipping?.total.tax,
+                }) &&
+                  order.shipping?.total.tax !== undefined && (
+                    <div className="flex justify-between gap-4 pt-2">
+                      <span>
+                        {tOrder('shippingTax')}
+                        {detailTaxRateSuffix({
+                          taxRate: order.shipping.total.taxRate,
+                          taxAmount: order.shipping.total.tax,
+                        })}
+                      </span>
+                      <span>
+                        {order.shipping.total.tax} {order.shipping.total.currency}
+                      </span>
+                    </div>
+                  )}
 
                 {order.discounts && order.discounts.length > 0 && (
                   <div className="flex justify-between gap-4 pt-2">
@@ -327,14 +363,9 @@ export function OrderDetail({
 
                 <div className="flex justify-between items-start gap-4 pt-2">
                   <H5>{tOrder('totalValue')}</H5>
-                  <div className="text-right">
-                    <H5>
-                      {order.price.total.net} {order.price.total.currency}
-                    </H5>
-                    <div className="text-sm font-normal text-text-placeholders">
-                      {tOrder('gross')}: {order.price.total.gross} {order.price.total.currency}
-                    </div>
-                  </div>
+                  <H5>
+                    {order.price.total.gross} {order.price.total.currency}
+                  </H5>
                 </div>
               </div>
             )}
@@ -387,68 +418,22 @@ export function OrderDetail({
         )}
       </div>
 
-      {/* Product list, following the Returns & Claims product presentation */}
-      <Card className="border border-border-primary shadow-sm">
-        <CardContent className="p-6">
-          <div className="hidden sm:grid grid-cols-[minmax(280px,1.6fr)_100px_minmax(140px,1fr)] gap-6 items-start pb-4 border-b border-border-primary">
-            <H6 className="text-sm font-bold text-text-headings">{tOrder('product')}</H6>
-            <H6 className="text-sm font-bold text-text-headings text-left">{tOrder('quantity')}</H6>
-            <H6 className="text-sm font-bold text-text-headings text-right">{tOrder('price')}</H6>
-          </div>
-
-          <div className="divide-y divide-border-primary">
-            {order.items.map((item) => {
-              const firstImage = item.images?.[0];
-              return (
-                <div
-                  key={item.id}
-                  className="py-6 first:pt-4 flex flex-col gap-3 sm:grid sm:grid-cols-[minmax(280px,1.6fr)_100px_minmax(140px,1fr)] sm:gap-6 sm:items-center"
-                >
-                  {/* Smallest-mobile: product name/details render above the thumbnail via flex-col-reverse; desktop restores the thumbnail-left row via sm:flex-row. */}
-                  <div className="flex flex-col-reverse items-start gap-4 min-w-0 sm:flex-row">
-                    <div className="bg-surface-image-background w-[120px] h-[78px] shrink-0 rounded-tl-lg rounded-br-lg overflow-hidden flex items-center justify-center">
-                      {firstImage ? (
-                        <Image
-                          src={firstImage}
-                          alt={item.name || item.productId}
-                          width={120}
-                          height={78}
-                          className="object-contain w-full h-full"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-surface-image-background" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0 flex flex-col gap-1">
-                      {item.vendorName && <span className="text-base font-body text-text-body">{item.vendorName}</span>}
-                      <Link
-                        href={`/product/${item.productId}`}
-                        className="text-2xl font-bold font-headlines text-text-headings hover:underline break-words"
-                      >
-                        {item.name || item.productId}
-                      </Link>
-                      {item.sku && (
-                        <span className="text-sm text-text-placeholders">
-                          {tOrder('itemNumber')}: {item.sku}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* No Quantity label on smallest mobile; left-aligned at desktop widths. */}
-                  <div className="text-left">
-                    <span className="text-base font-body">{item.quantity}</span>
-                  </div>
-
-                  <div className="text-right">
-                    <ItemPriceCell price={item.price} tOrder={tOrder} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Product list — catalog brand enrichment via ProductListResolver (same as Quote/Approval). */}
+      <ProductListResolver
+        items={productItems}
+        locale={locale}
+        className="border border-border-primary shadow-sm"
+        showGrossUnderNet
+        presentationConfig={{
+          labels: {
+            product: tOrder('product'),
+            quantity: tOrder('quantity'),
+            unitPrice: tOrder('price'),
+            amount: tOrder('price'),
+          },
+          showGrossSecondary: true,
+        }}
+      />
 
       {order && (
         <CreateReturnDialog
@@ -458,6 +443,18 @@ export function OrderDetail({
           returnability={returnability ?? undefined}
         />
       )}
+
+      <ConfirmationDialog
+        open={cancelDialogOpen}
+        onOpenChange={handleCancelDialogOpenChange}
+        title={tOrder('cancelOrderConfirmTitle')}
+        description={tOrder('cancelOrderConfirmDescription')}
+        cancelLabel={tOrder('keepOrder')}
+        confirmLabel={tOrder('cancelOrder')}
+        onCancel={handleDismissCancelDialog}
+        onConfirm={() => void handleConfirmCancelOrder()}
+        pending={isCancelling}
+      />
     </div>
   );
 }

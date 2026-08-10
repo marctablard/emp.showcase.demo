@@ -33,7 +33,7 @@ export function TablePagination({
   const canNext = currentPage < totalPages;
 
   return (
-    <div className={cn('flex flex-wrap items-center justify-end gap-4 py-4', className)}>
+    <div data-slot="table-pagination" className={cn('flex flex-wrap items-center justify-end gap-4 py-4', className)}>
       <p className="font-body text-right text-sm leading-5 whitespace-nowrap text-text-body">{pageIndicator}</p>
       {canPrev && onPreviousPage ? (
         <Button variant="neutral" size="small" onClick={onPreviousPage}>

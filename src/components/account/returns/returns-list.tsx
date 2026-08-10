@@ -219,7 +219,7 @@ export function ReturnsList({
         {t('title')}
       </h1>
 
-      <TableCard>
+      <TableCard className="overflow-hidden">
         <div className="mb-4">
           <div className="relative w-full max-w-[380px]">
             <Input

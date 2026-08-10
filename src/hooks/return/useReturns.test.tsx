@@ -4,7 +4,13 @@
 import '@testing-library/jest-dom';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { Return } from '@/platform/services/model/return';
+// eslint-disable-next-line import/first, import/order
 import { useReturns } from './useReturns';
+
+const mockUseSession = jest.fn();
+jest.mock('@/hooks/session/useSession', () => ({
+  useSession: () => mockUseSession(),
+}));
 
 const mockFetchReturnsPage = jest.fn();
 
@@ -26,6 +32,7 @@ describe('useReturns', () => {
   beforeEach(() => {
     mockFetchReturnsPage.mockReset();
     mockFetchReturnsPage.mockResolvedValue({ items: [], totalCount: 0 });
+    mockUseSession.mockReturnValue({ session: { legalEntityId: 'entity-A' } });
   });
 
   it('reuses SSR-provided initialReturns for the default page-one, no-query/no-sort load without refetching', async () => {
@@ -191,5 +198,30 @@ describe('useReturns', () => {
     });
     await waitFor(() => expect(result.current.returns).toEqual(fetchedPageOne));
     expect(result.current.returns).not.toEqual(fetchedPageTwo);
+  });
+
+  it('force-refreshes when the session legal entity id changes after mount', async () => {
+    const initialReturns = [buildReturn('ssr-1')];
+    mockFetchReturnsPage.mockResolvedValueOnce({ items: [buildReturn('entity-b')], totalCount: 1 });
+
+    mockUseSession.mockReturnValue({ session: { legalEntityId: 'entity-A' } });
+    const { result, rerender } = renderHook(() =>
+      useReturns(initialReturns, {
+        pageNumber: 1,
+        pageSize: 5,
+        initialRequest: { pageNumber: 1, pageSize: 5, sort: undefined, query: undefined },
+      }),
+    );
+
+    expect(mockFetchReturnsPage).not.toHaveBeenCalled();
+    expect(result.current.returns).toEqual(initialReturns);
+
+    mockUseSession.mockReturnValue({ session: { legalEntityId: 'entity-B' } });
+    rerender();
+
+    await waitFor(() => {
+      expect(mockFetchReturnsPage).toHaveBeenCalledWith(5, 1, undefined, undefined, true);
+    });
+    await waitFor(() => expect(result.current.returns).toEqual([buildReturn('entity-b')]));
   });
 });

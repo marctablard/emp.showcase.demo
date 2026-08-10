@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { H4 } from '@/components/ui/h';
+import { H4, H5 } from '@/components/ui/h';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from './card';
 
@@ -74,8 +74,8 @@ interface SummaryFieldProps extends React.HTMLAttributes<HTMLDivElement> {
  * width (e.g. narrow cards), since `SummaryRow`'s side-by-side layout can cause the
  * label and value to wrap independently into an ambiguous fragment.
  *
- * Label defaults to bold Ubuntu h5 (20/24); value defaults to regular Open Sans body-md
- * (16/24). Fields are vertically stacked with a compact gap.
+ * Label is an H5 (Figma field heading: bold Ubuntu 20/24); value defaults to regular
+ * Open Sans body-md (16/24). Fields are vertically stacked with a compact gap.
  */
 export function SummaryField({
   label,
@@ -87,7 +87,7 @@ export function SummaryField({
 }: Readonly<SummaryFieldProps>) {
   return (
     <div className={cn('flex flex-col gap-1', className)} {...props}>
-      <div className={cn('text-3xl font-bold font-headlines text-text-headings', labelClassName)}>{label}</div>
+      <H5 className={cn('font-bold', labelClassName)}>{label}</H5>
       <div className={cn('text-base font-normal font-body text-text-body', valueClassName)}>{children}</div>
     </div>
   );

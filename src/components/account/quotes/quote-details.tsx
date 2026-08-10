@@ -2,7 +2,15 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { ChevronsUpDown, CircleCheck, CircleX, Pencil } from 'lucide-react';
+import { ArrowDown, ArrowUp, CircleCheck, CircleX, Pencil } from 'lucide-react';
+import { getApprovalHref } from '@/components/account/approvals/approval-routing';
+import {
+  quoteHasItemDiscounts,
+  resolveItemDiscountPercent,
+  resolveQuoteTotalNetAmount,
+  resolveQuotedGrossUnitPrice,
+  resolveQuotedNetUnitPrice,
+} from '@/components/account/quotes/quote-price-summary';
 import { QuoteStatusBadge } from '@/components/account/quotes/quote-status-badge';
 import { QuoteSummary } from '@/components/account/quotes/quote-summary';
 import { ProductListResolver } from '@/components/product/product-list-resolver';
@@ -25,8 +33,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { ToastType, notify } from '@/components/ui/toast-notification';
+import { useApproval } from '@/hooks/approval/useApproval';
 import { useApproverSearch } from '@/hooks/approval/useApproverSearch';
 import { startEffectTask } from '@/hooks/common/start-effect-task';
+import useCustomer from '@/hooks/customer/useCustomer';
 import { useQuoteHistory } from '@/hooks/quotes/useQuoteHistory';
 import { useQuote } from '@/hooks/quotes/useQuotes';
 import { useRouter } from '@/i18n/navigation';
@@ -42,6 +52,57 @@ import type { Quote, QuoteHistoryItem } from '@/platform/services/model/quote';
 interface QuoteDetailsProps {
   quoteId: string;
   initialQuote?: Quote;
+}
+
+type QuoteDetailsTranslate = ReturnType<typeof useTranslations<'account.quoteDetails'>>;
+
+function isQuoteDetailsReady(
+  loading: boolean,
+  error: Error | null | undefined,
+  quote: Quote | null | undefined,
+): quote is Quote {
+  return !loading && !error && Boolean(quote);
+}
+
+function renderQuoteDetailsUnavailableState(deps: {
+  loading: boolean;
+  error: Error | null | undefined;
+  t: QuoteDetailsTranslate;
+  onBack: () => void;
+}): React.ReactNode {
+  const { loading, error, t, onBack } = deps;
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('title')}</CardTitle>
+          <CardDescription>{t('title')}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex justify-center py-8">
+          <div className="flex flex-col items-center space-y-2">
+            <Spinner color="primary" variant="md" />
+            <div>{t('loading')}</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('title')}</CardTitle>
+        <CardDescription>{t('title')}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="bg-surface-error p-4 rounded-md text-text-error">{error?.message || 'Quote not found'}</div>
+      </CardContent>
+      <CardFooter>
+        <Button onClick={onBack}>{t('backToQuotes')}</Button>
+      </CardFooter>
+    </Card>
+  );
 }
 
 interface ApprovalPermissionState {
@@ -70,6 +131,27 @@ function getApproverSortValue(approver: {
   return approver.firstName?.trim() || approver.fullName?.trim() || approver.lastName?.trim() || approver.userId;
 }
 
+function sortApproversByLocale<T extends { userId: string; firstName?: string; lastName?: string; fullName?: string }>(
+  approvers: T[] | null | undefined,
+  locale: string,
+): T[] | undefined {
+  if (!approvers) {
+    return undefined;
+  }
+
+  return [...approvers].sort((left, right) => {
+    const firstNameComparison = getApproverSortValue(left).localeCompare(getApproverSortValue(right), locale, {
+      sensitivity: 'base',
+    });
+
+    if (firstNameComparison !== 0) {
+      return firstNameComparison;
+    }
+
+    return left.userId.localeCompare(right.userId, locale, { sensitivity: 'base' });
+  });
+}
+
 function trimQuoteStatusErrorMessage(message: string): string {
   const markerIndex = message.toLowerCase().indexOf(QUOTE_STATUS_ERROR_MARKER);
 
@@ -86,14 +168,477 @@ function trimQuoteStatusErrorMessage(message: string): string {
   return message.slice(descriptionStartIndex + 1).trim();
 }
 
+function getHistoryActionLabel(
+  historyItem: Pick<QuoteHistoryItem, 'fieldChanged' | 'statusValue'>,
+  t: QuoteDetailsTranslate,
+  tQuoteStatus: ReturnType<typeof useTranslations<'account.quoteStatus'>>,
+): string {
+  return historyItem.fieldChanged === '/comment' || historyItem.fieldChanged.startsWith('/mixins/')
+    ? t('commentAdded')
+    : t('statusChanged', {
+        currentStatus: historyItem.statusValue
+          ? getQuoteStatusDisplayLabel(historyItem.statusValue, tQuoteStatus)
+          : 'UNKNOWN',
+      });
+}
+
+function getHistoryReason(quoteReason: string | undefined, t: QuoteDetailsTranslate): string | undefined {
+  if (!quoteReason) {
+    return undefined;
+  }
+
+  return t.has(`decisionReasons.${quoteReason}` as any) ? t(`decisionReasons.${quoteReason}` as any) : quoteReason;
+}
+
+function getHistoryComment(historyItem: Pick<QuoteHistoryItem, 'comment'>): string {
+  if (!historyItem.comment || historyItem.comment === '-') {
+    return '-';
+  }
+
+  return historyItem.comment;
+}
+
+function getHistoryCommentWithReason(historyItem: QuoteHistoryItem, t: QuoteDetailsTranslate): string {
+  const comment = getHistoryComment(historyItem);
+  const reason = getHistoryReason(historyItem.quoteReason, t);
+
+  if (!reason) {
+    return comment;
+  }
+
+  return comment === '-' ? reason : `${comment} (${reason})`;
+}
+
 type QuoteDecisionMode = keyof typeof QUOTE_DECISION_REASON_OPTIONS;
 
-export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
+async function loadQuoteApprovalPermission({
+  quote,
+  quoteId,
+  isCancelled,
+  setApprovalPermission,
+  setIsCheckingApprovalPermission,
+}: {
+  quote: Quote | null | undefined;
+  quoteId: string;
+  isCancelled: () => boolean;
+  setApprovalPermission: React.Dispatch<React.SetStateAction<ApprovalPermissionState | null>>;
+  setIsCheckingApprovalPermission: React.Dispatch<React.SetStateAction<boolean>>;
+}): Promise<void> {
+  if (quote?.status !== 'OPEN') {
+    setApprovalPermission(null);
+    setIsCheckingApprovalPermission(false);
+    return;
+  }
+
+  try {
+    setIsCheckingApprovalPermission(true);
+
+    const permission = await checkApprovalPermitted({
+      resourceId: quoteId,
+      resourceType: QUOTE_APPROVAL_RESOURCE_TYPE,
+      action: QUOTE_APPROVAL_ACTION,
+    });
+
+    if (!isCancelled()) {
+      setApprovalPermission({
+        approvalId: permission.approvalId,
+        permitted: permission.permitted,
+      });
+    }
+  } catch (error) {
+    if (!isCancelled()) {
+      setApprovalPermission(null);
+      getLogger().error({ err: error, quoteId }, 'Failed to load quote approval permission');
+    }
+  } finally {
+    if (!isCancelled()) {
+      setIsCheckingApprovalPermission(false);
+    }
+  }
+}
+
+function shouldFetchApprovers(params: {
+  showApprovalInquiryDialog: boolean;
+  approvers: ReturnType<typeof useApproverSearch>['approvers'];
+  approverSearchLoading: boolean;
+  approverSearchError: ReturnType<typeof useApproverSearch>['error'];
+}): boolean {
+  const { showApprovalInquiryDialog, approvers, approverSearchLoading, approverSearchError } = params;
+
+  return showApprovalInquiryDialog && approvers === undefined && !approverSearchLoading && !approverSearchError;
+}
+
+function formatDate(dateString: string | undefined, locale: string): string {
+  if (!dateString) return '-';
+  return new Date(dateString).toLocaleDateString(locale, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
+function formatHistoryDate(dateString: string | undefined, locale: string): string {
+  if (!dateString || dateString === '-') return '-';
+  return new Date(dateString).toLocaleString(locale, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+type QuoteHistorySortDirection = 'asc' | 'desc';
+
+type QuoteHistoryDisplayRow =
+  { kind: 'initial'; dateMs: number } | { kind: 'item'; dateMs: number; item: QuoteHistoryItem };
+
+function getHistoryItemDateMs(item: Pick<QuoteHistoryItem, 'rawModifiedAt' | 'modifiedAt'>): number {
+  const dateString = item.rawModifiedAt || item.modifiedAt;
+  if (!dateString || dateString === '-') {
+    return 0;
+  }
+  const timestamp = new Date(dateString).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function buildSortedQuoteHistoryRows(
+  submittedDate: string | undefined,
+  history: QuoteHistoryItem[],
+  sortDirection: QuoteHistorySortDirection,
+): QuoteHistoryDisplayRow[] {
+  const rows: QuoteHistoryDisplayRow[] = [];
+  const submittedTimestamp = submittedDate ? new Date(submittedDate).getTime() : Number.NaN;
+
+  if (!Number.isNaN(submittedTimestamp)) {
+    rows.push({ kind: 'initial', dateMs: submittedTimestamp });
+  }
+
+  for (const item of history) {
+    rows.push({ kind: 'item', dateMs: getHistoryItemDateMs(item), item });
+  }
+
+  return rows.sort((left, right) =>
+    sortDirection === 'desc' ? right.dateMs - left.dateMs : left.dateMs - right.dateMs,
+  );
+}
+
+function formatPrice(price: number | undefined, currency: string | undefined): string {
+  if (price === undefined || currency === undefined) return '-';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+  }).format(price);
+}
+
+async function runQuotePrimaryAction(deps: {
+  quoteId: string;
+  t: QuoteDetailsTranslate;
+  router: ReturnType<typeof useRouter>;
+  setProcessError: (v: string | null) => void;
+  setIsProcessing: (v: boolean) => void;
+  setApprovalPermission: (v: ApprovalPermissionState | null) => void;
+  setShowAcceptConfirmation: (v: boolean) => void;
+  openApprovalInquiryDialog: () => void;
+}): Promise<void> {
+  const {
+    quoteId,
+    t,
+    router,
+    setProcessError,
+    setIsProcessing,
+    setApprovalPermission,
+    setShowAcceptConfirmation,
+    openApprovalInquiryDialog,
+  } = deps;
+
+  try {
+    setProcessError(null);
+    setIsProcessing(true);
+
+    const permission = await checkApprovalPermitted({
+      resourceId: quoteId,
+      resourceType: QUOTE_APPROVAL_RESOURCE_TYPE,
+      action: QUOTE_APPROVAL_ACTION,
+    });
+
+    setApprovalPermission({
+      approvalId: permission.approvalId,
+      permitted: permission.permitted,
+    });
+
+    if (permission.permitted) {
+      setShowAcceptConfirmation(true);
+      return;
+    }
+
+    if (permission.approvalId) {
+      router.push(`/account/approvals/${permission.approvalId}`);
+      return;
+    }
+
+    openApprovalInquiryDialog();
+  } catch (error) {
+    getLogger().error({ err: error, quoteId }, 'Failed to evaluate quote approval requirement');
+    const msg = error instanceof Error ? error.message : t('quoteActionFailedDescription');
+    setProcessError(msg);
+    notify({
+      title: t('quoteActionFailedTitle'),
+      description: msg,
+      type: ToastType.Error,
+    });
+  } finally {
+    setIsProcessing(false);
+  }
+}
+
+async function runQuoteApprovalInquiry(deps: {
+  selectedApproverId: string | null;
+  quoteId: string;
+  approvalInquiryComment: string;
+  t: QuoteDetailsTranslate;
+  router: ReturnType<typeof useRouter>;
+  setProcessError: (v: string | null) => void;
+  setIsProcessing: (v: boolean) => void;
+  setApprovalPermission: (v: ApprovalPermissionState | null) => void;
+  closeApprovalInquiryDialog: () => void;
+}): Promise<void> {
+  const {
+    selectedApproverId,
+    quoteId,
+    approvalInquiryComment,
+    t,
+    router,
+    setProcessError,
+    setIsProcessing,
+    setApprovalPermission,
+    closeApprovalInquiryDialog,
+  } = deps;
+
+  if (!selectedApproverId) {
+    return;
+  }
+
+  try {
+    setProcessError(null);
+    setIsProcessing(true);
+
+    const approval = await createApproval(
+      createQuoteApprovalRequest(quoteId, {
+        approverId: selectedApproverId,
+        comment: approvalInquiryComment.trim() || undefined,
+      }),
+    );
+
+    setApprovalPermission({
+      approvalId: approval.id,
+      permitted: false,
+    });
+    closeApprovalInquiryDialog();
+    router.push(`/account/approvals/${approval.id}`);
+  } catch (error) {
+    if (error instanceof ApprovalAlreadyExistsError) {
+      setApprovalPermission({
+        approvalId: error.approvalId,
+        permitted: false,
+      });
+      closeApprovalInquiryDialog();
+      router.push(`/account/approvals/${error.approvalId}`);
+      return;
+    }
+
+    getLogger().error({ err: error, quoteId }, 'Failed to create quote approval inquiry');
+    const msg = error instanceof Error ? error.message : t('quoteActionFailedDescription');
+    setProcessError(msg);
+    notify({
+      title: t('quoteActionFailedTitle'),
+      description: msg,
+      type: ToastType.Error,
+    });
+  } finally {
+    setIsProcessing(false);
+  }
+}
+
+async function runQuoteDecisionSubmit(deps: {
+  activeDecisionDialog: QuoteDecisionMode | null;
+  decisionReasonCode: string;
+  decisionComment: string;
+  quoteId: string;
+  t: QuoteDetailsTranslate;
+  updateQuoteStatus: (quoteId: string, status: string, comment?: string, reasonCode?: string) => Promise<void>;
+  setProcessError: (v: string | null) => void;
+  setIsProcessing: (v: boolean) => void;
+  closeDecisionDialog: () => void;
+}): Promise<void> {
+  const {
+    activeDecisionDialog,
+    decisionReasonCode,
+    decisionComment,
+    quoteId,
+    t,
+    updateQuoteStatus,
+    setProcessError,
+    setIsProcessing,
+    closeDecisionDialog,
+  } = deps;
+
+  if (!activeDecisionDialog || !decisionReasonCode) {
+    return;
+  }
+
+  try {
+    setProcessError(null);
+    setIsProcessing(true);
+
+    await updateQuoteStatus(
+      quoteId,
+      QUOTE_DECISION_STATUS[activeDecisionDialog],
+      decisionComment.trim() || undefined,
+      decisionReasonCode,
+    );
+
+    closeDecisionDialog();
+  } catch (error) {
+    getLogger().error({ err: error, quoteId, reasonCode: decisionReasonCode }, 'Failed to update quote decision');
+    const msg = error instanceof Error ? error.message : t('quoteActionFailedDescription');
+    setProcessError(msg);
+    notify({
+      title: t('quoteActionFailedTitle'),
+      description: msg,
+      type: ToastType.Error,
+    });
+  } finally {
+    setIsProcessing(false);
+  }
+}
+
+async function updateQuoteStatus(
+  quoteId: string,
+  status: string,
+  comment?: string,
+  reasonCode?: string,
+): Promise<void> {
+  const statusResponse = await fetch('/api/quote/update-status', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      quoteId,
+      status,
+      comment,
+      reasonCode,
+    }),
+  });
+
+  if (!statusResponse.ok) {
+    const errorData = await statusResponse.json();
+    throw new Error(errorData.error || 'Failed to update quote status');
+  }
+
+  // After successfully updating status, refresh the page to show updated status
+  globalThis.location.reload();
+}
+
+async function runQuoteAccept(deps: {
+  quoteId: string;
+  acceptComment: string;
+  t: QuoteDetailsTranslate;
+  setProcessError: (v: string | null) => void;
+  setIsProcessing: (v: boolean) => void;
+  setShowAcceptConfirmation: (v: boolean) => void;
+  setAcceptComment: (v: string) => void;
+}): Promise<void> {
+  const { quoteId, acceptComment, t, setProcessError, setIsProcessing, setShowAcceptConfirmation, setAcceptComment } =
+    deps;
+
+  try {
+    setProcessError(null);
+    setIsProcessing(true);
+
+    await updateQuoteStatus(quoteId, 'ACCEPTED', acceptComment);
+
+    setShowAcceptConfirmation(false);
+    setAcceptComment('');
+  } catch (error) {
+    getLogger().error({ err: error }, 'Failed to process quote');
+    const msg = error instanceof Error ? trimQuoteStatusErrorMessage(error.message) : t('quoteActionFailedDescription');
+    notify({
+      title: t('quoteActionFailedTitle'),
+      description: msg,
+      type: ToastType.Error,
+    });
+  } finally {
+    setIsProcessing(false);
+  }
+}
+
+function getQuotePrimaryActionPresentation(deps: {
+  quote: Quote | null | undefined;
+  approvalPermission: ApprovalPermissionState | null;
+  isProcessing: boolean;
+  isCheckingApprovalPermission: boolean;
+  t: QuoteDetailsTranslate;
+}): {
+  showInquiryCta: boolean;
+  primaryActionLabel: string;
+  isPrimaryActionDisabled: boolean;
+} {
+  const { quote, approvalPermission, isProcessing, isCheckingApprovalPermission, t } = deps;
+  const showInquiryCta = quote?.status === 'OPEN' && approvalPermission?.permitted === false;
+  const hasRelatedApproval = Boolean(approvalPermission?.approvalId);
+  let primaryActionLabel = t('accept');
+  if (showInquiryCta) {
+    primaryActionLabel = hasRelatedApproval ? t('goToApproval') : t('inquireApproval');
+  }
+  const isPrimaryActionDisabled = quote?.status !== 'OPEN' || isProcessing || isCheckingApprovalPermission;
+
+  return {
+    showInquiryCta,
+    primaryActionLabel,
+    isPrimaryActionDisabled,
+  };
+}
+
+function RelatedApprovalField({
+  approvalId,
+  relatedApproval,
+  currentUserId,
+  label,
+}: Readonly<{
+  approvalId: string;
+  relatedApproval: Parameters<typeof getApprovalHref>[0] | null | undefined;
+  currentUserId?: string;
+  label: string;
+}>) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1" title={approvalId}>
+      <H5>{label}</H5>
+      {relatedApproval ? (
+        <UiLink
+          type="Link"
+          href={getApprovalHref(relatedApproval, currentUserId)}
+          variant="textNoUnderline"
+          className="block min-w-0 max-w-full truncate"
+        >
+          {approvalId}
+        </UiLink>
+      ) : (
+        <span className="block min-w-0 max-w-full truncate text-base font-body text-text-body">{approvalId}</span>
+      )}
+    </div>
+  );
+}
+
+export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsProps>) {
   const locale = useLocale();
   const t = useTranslations('account.quoteDetails');
   const tQuoteStatus = useTranslations('account.quoteStatus');
   const tApproval = useTranslations('checkout.approval');
   const router = useRouter();
+  const { customer } = useCustomer();
 
   // State for confirmation dialogs
   const [showAcceptConfirmation, setShowAcceptConfirmation] = useState(false);
@@ -109,7 +654,14 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   const [showApprovalInquiryDialog, setShowApprovalInquiryDialog] = useState(false);
   const [selectedApproverId, setSelectedApproverId] = useState<string | null>(null);
   const [approvalInquiryComment, setApprovalInquiryComment] = useState('');
+  const [historySortDirection, setHistorySortDirection] = useState<QuoteHistorySortDirection>('desc');
   const acceptCommentRef = useRef<HTMLTextAreaElement | null>(null);
+  const rejectCommentRef = useRef<HTMLTextAreaElement | null>(null);
+  const changeCommentRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Call unconditionally — useApproval no-ops on empty id (Rules of Hooks).
+  const relatedApprovalId = approvalPermission?.approvalId ?? '';
+  const { approval: relatedApproval } = useApproval(relatedApprovalId);
 
   const {
     approvers,
@@ -122,51 +674,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
     action: QUOTE_APPROVAL_ACTION,
   });
 
-  const sortedApprovers = useMemo(() => {
-    if (!approvers) {
-      return undefined;
-    }
-
-    return [...approvers].sort((left, right) => {
-      const firstNameComparison = getApproverSortValue(left).localeCompare(getApproverSortValue(right), locale, {
-        sensitivity: 'base',
-      });
-
-      if (firstNameComparison !== 0) {
-        return firstNameComparison;
-      }
-
-      return left.userId.localeCompare(right.userId, locale, { sensitivity: 'base' });
-    });
-  }, [approvers, locale]);
-
-  const updateQuoteStatus = async (
-    quoteId: string,
-    status: string,
-    comment?: string,
-    reasonCode?: string,
-  ): Promise<void> => {
-    const statusResponse = await fetch('/api/quote/update-status', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        quoteId,
-        status,
-        comment,
-        reasonCode,
-      }),
-    });
-
-    if (!statusResponse.ok) {
-      const errorData = await statusResponse.json();
-      throw new Error(errorData.error || 'Failed to update quote status');
-    }
-
-    // After successfully updating status, refresh the page to show updated status
-    window.location.reload();
-  };
+  const sortedApprovers = useMemo(() => sortApproversByLocale(approvers, locale), [approvers, locale]);
 
   // Use the hook to fetch the quote if not provided as initialQuote
   const { quote: fetchedQuote, loading, error } = useQuote(initialQuote ? undefined : quoteId);
@@ -177,46 +685,27 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   // Use initialQuote if provided, otherwise use fetched quote
   const quote = initialQuote || fetchedQuote;
 
+  const sortedHistoryRows = useMemo(
+    () => (quote ? buildSortedQuoteHistoryRows(quote.submittedDate, quoteHistory, historySortDirection) : []),
+    [quote, quoteHistory, historySortDirection],
+  );
+
+  const toggleHistorySortDirection = () => {
+    setHistorySortDirection((current) => (current === 'desc' ? 'asc' : 'desc'));
+  };
+
   useEffect(() => {
     let isCancelled = false;
 
-    const loadApprovalPermission = async (): Promise<void> => {
-      if (!quote || quote.status !== 'OPEN') {
-        setApprovalPermission(null);
-        setIsCheckingApprovalPermission(false);
-        return;
-      }
-
-      try {
-        setIsCheckingApprovalPermission(true);
-
-        const permission = await checkApprovalPermitted({
-          resourceId: quoteId,
-          resourceType: QUOTE_APPROVAL_RESOURCE_TYPE,
-          action: QUOTE_APPROVAL_ACTION,
-        });
-
-        if (!isCancelled) {
-          setApprovalPermission({
-            approvalId: permission.approvalId,
-            permitted: permission.permitted,
-          });
-        }
-      } catch (error) {
-        if (!isCancelled) {
-          setApprovalPermission(null);
-          getLogger().error({ err: error, quoteId }, 'Failed to load quote approval permission');
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsCheckingApprovalPermission(false);
-        }
-      }
-    };
-
-    // Started off the effect's synchronous path so the state writes above do not cascade
-    // inside this commit.
-    const cancelStart = startEffectTask(loadApprovalPermission);
+    const cancelStart = startEffectTask(() =>
+      loadQuoteApprovalPermission({
+        quote,
+        quoteId,
+        isCancelled: () => isCancelled,
+        setApprovalPermission,
+        setIsCheckingApprovalPermission,
+      }),
+    );
 
     return () => {
       isCancelled = true;
@@ -225,7 +714,14 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   }, [quote, quoteId]);
 
   useEffect(() => {
-    if (!showApprovalInquiryDialog || approvers !== undefined || approverSearchLoading || approverSearchError) {
+    if (
+      !shouldFetchApprovers({
+        showApprovalInquiryDialog,
+        approvers,
+        approverSearchLoading,
+        approverSearchError,
+      })
+    ) {
       return;
     }
 
@@ -240,6 +736,17 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
     acceptCommentRef.current?.focus();
   }, [showAcceptConfirmation]);
 
+  useEffect(() => {
+    if (activeDecisionDialog === 'DECLINE') {
+      rejectCommentRef.current?.focus();
+      return;
+    }
+
+    if (activeDecisionDialog === 'CHANGE') {
+      changeCommentRef.current?.focus();
+    }
+  }, [activeDecisionDialog]);
+
   const handleApprovalInquiryDialogChange = (open: boolean): void => {
     setShowApprovalInquiryDialog(open);
     setProcessError(null);
@@ -251,90 +758,30 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   };
 
   const handleApprovalInquirySubmit = async (): Promise<void> => {
-    if (!selectedApproverId) {
-      return;
-    }
-
-    try {
-      setProcessError(null);
-      setIsProcessing(true);
-
-      const approval = await createApproval(
-        createQuoteApprovalRequest(quoteId, {
-          approverId: selectedApproverId,
-          comment: approvalInquiryComment.trim() || undefined,
-        }),
-      );
-
-      setApprovalPermission({
-        approvalId: approval.id,
-        permitted: false,
-      });
-      handleApprovalInquiryDialogChange(false);
-      router.push(`/account/approval/${approval.id}`);
-    } catch (error) {
-      if (error instanceof ApprovalAlreadyExistsError) {
-        setApprovalPermission({
-          approvalId: error.approvalId,
-          permitted: false,
-        });
-        handleApprovalInquiryDialogChange(false);
-        router.push(`/account/approval/${error.approvalId}`);
-        return;
-      }
-
-      getLogger().error({ err: error, quoteId }, 'Failed to create quote approval inquiry');
-      const msg = error instanceof Error ? error.message : t('quoteActionFailedDescription');
-      setProcessError(msg);
-      notify({
-        title: t('quoteActionFailedTitle'),
-        description: msg,
-        type: ToastType.Error,
-      });
-    } finally {
-      setIsProcessing(false);
-    }
+    await runQuoteApprovalInquiry({
+      selectedApproverId,
+      quoteId,
+      approvalInquiryComment,
+      t,
+      router,
+      setProcessError,
+      setIsProcessing,
+      setApprovalPermission,
+      closeApprovalInquiryDialog: () => handleApprovalInquiryDialogChange(false),
+    });
   };
 
   const handleQuotePrimaryAction = async (): Promise<void> => {
-    try {
-      setProcessError(null);
-      setIsProcessing(true);
-
-      const permission = await checkApprovalPermitted({
-        resourceId: quoteId,
-        resourceType: QUOTE_APPROVAL_RESOURCE_TYPE,
-        action: QUOTE_APPROVAL_ACTION,
-      });
-
-      setApprovalPermission({
-        approvalId: permission.approvalId,
-        permitted: permission.permitted,
-      });
-
-      if (!permission.permitted) {
-        if (permission.approvalId) {
-          router.push(`/account/approval/${permission.approvalId}`);
-          return;
-        }
-
-        handleApprovalInquiryDialogChange(true);
-        return;
-      }
-
-      setShowAcceptConfirmation(true);
-    } catch (error) {
-      getLogger().error({ err: error, quoteId }, 'Failed to evaluate quote approval requirement');
-      const msg = error instanceof Error ? error.message : t('quoteActionFailedDescription');
-      setProcessError(msg);
-      notify({
-        title: t('quoteActionFailedTitle'),
-        description: msg,
-        type: ToastType.Error,
-      });
-    } finally {
-      setIsProcessing(false);
-    }
+    await runQuotePrimaryAction({
+      quoteId,
+      t,
+      router,
+      setProcessError,
+      setIsProcessing,
+      setApprovalPermission,
+      setShowAcceptConfirmation,
+      openApprovalInquiryDialog: () => handleApprovalInquiryDialogChange(true),
+    });
   };
 
   const handleDecisionDialogChange = (nextMode: QuoteDecisionMode | null): void => {
@@ -345,144 +792,42 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
   };
 
   const handleQuoteDecisionSubmit = async (): Promise<void> => {
-    if (!activeDecisionDialog || !decisionReasonCode) {
-      return;
-    }
-
-    try {
-      setProcessError(null);
-      setIsProcessing(true);
-
-      await updateQuoteStatus(
-        quoteId,
-        QUOTE_DECISION_STATUS[activeDecisionDialog],
-        decisionComment.trim() || undefined,
-        decisionReasonCode,
-      );
-
-      handleDecisionDialogChange(null);
-    } catch (error) {
-      getLogger().error({ err: error, quoteId, reasonCode: decisionReasonCode }, 'Failed to update quote decision');
-      const msg = error instanceof Error ? error.message : t('quoteActionFailedDescription');
-      setProcessError(msg);
-      notify({
-        title: t('quoteActionFailedTitle'),
-        description: msg,
-        type: ToastType.Error,
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString(locale, {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
+    await runQuoteDecisionSubmit({
+      activeDecisionDialog,
+      decisionReasonCode,
+      decisionComment,
+      quoteId,
+      t,
+      updateQuoteStatus,
+      setProcessError,
+      setIsProcessing,
+      closeDecisionDialog: () => handleDecisionDialogChange(null),
     });
   };
 
-  const formatHistoryDate = (dateString?: string) => {
-    if (!dateString || dateString === '-') return '-';
-    return new Date(dateString).toLocaleString(locale, {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const formatPrice = (price: number | undefined, currency: string | undefined) => {
-    if (price === undefined || currency === undefined) return '-';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency,
-      minimumFractionDigits: 2,
-    }).format(price);
-  };
-
-  const getHistoryAction = (historyItem: Pick<QuoteHistoryItem, 'fieldChanged' | 'statusValue'>) => {
-    return historyItem.fieldChanged === '/comment' || historyItem.fieldChanged.startsWith('/mixins/')
-      ? t('commentAdded')
-      : t('statusChanged', {
-          currentStatus: historyItem.statusValue
-            ? getQuoteStatusDisplayLabel(historyItem.statusValue, tQuoteStatus)
-            : 'UNKNOWN',
-        });
-  };
+  const getHistoryAction = (historyItem: Pick<QuoteHistoryItem, 'fieldChanged' | 'statusValue'>) =>
+    getHistoryActionLabel(historyItem, t, tQuoteStatus);
 
   const getHistoryUserName = (historyItem: Pick<QuoteHistoryItem, 'userFullName'>) => {
     return historyItem.userFullName;
   };
 
-  const getHistoryReason = (quoteReason?: string): string | undefined => {
-    if (!quoteReason) {
-      return undefined;
-    }
+  const { primaryActionLabel, isPrimaryActionDisabled } = getQuotePrimaryActionPresentation({
+    quote,
+    approvalPermission,
+    isProcessing,
+    isCheckingApprovalPermission,
+    t,
+  });
 
-    return t.has(`decisionReasons.${quoteReason}` as any) ? t(`decisionReasons.${quoteReason}` as any) : quoteReason;
-  };
-
-  const getHistoryComment = (historyItem: Pick<QuoteHistoryItem, 'comment'>): string => {
-    if (!historyItem.comment || historyItem.comment === '-') {
-      return '-';
-    }
-
-    return historyItem.comment;
-  };
-
-  const getHistoryCommentWithReason = (historyItem: QuoteHistoryItem): string => {
-    const comment = getHistoryComment(historyItem);
-    const reason = getHistoryReason(historyItem.quoteReason);
-
-    if (!reason) {
-      return comment;
-    }
-
-    return comment === '-' ? reason : `${comment} (${reason})`;
-  };
-
-  const showInquiryCta = approvalPermission?.permitted === false;
-  const primaryActionLabel = showInquiryCta ? t('inquireApproval') : t('accept');
-  const isPrimaryActionDisabled = quote?.status !== 'OPEN' || isProcessing || isCheckingApprovalPermission;
-
-  // Loading state
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('title')}</CardTitle>
-          <CardDescription>{t('title')}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-center py-8">
-          <div className="flex flex-col items-center space-y-2">
-            <Spinner color="primary" variant="md" />
-            <div>{t('loading')}</div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Error state
-  if (error || !quote) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('title')}</CardTitle>
-          <CardDescription>{t('title')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="bg-surface-error p-4 rounded-md text-text-error">{error?.message || 'Quote not found'}</div>
-        </CardContent>
-        <CardFooter>
-          <Button onClick={() => router.back()}>{t('backToQuotes')}</Button>
-        </CardFooter>
-      </Card>
-    );
+  // Loading / not-found gate (extracted to keep QuoteDetails cognitive complexity ≤ 15)
+  if (!isQuoteDetailsReady(loading, error, quote)) {
+    return renderQuoteDetailsUnavailableState({
+      loading,
+      error,
+      t,
+      onBack: () => router.back(),
+    });
   }
 
   return (
@@ -582,19 +927,29 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         </DialogContent>
       </Dialog>
 
-      <div className="flex flex-wrap items-center gap-6 px-6">
-        <div className="flex items-center gap-6">
-          <H3>
+      {/* Header: title + status stay together; from sm, actions wrap as one horizontal row
+          under that band when space is tight (Figma 11936:178520 — Actions y below Header). */}
+      <div
+        className="flex flex-col gap-4 px-6 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
+        data-testid="quote-detail-header"
+      >
+        <div className="flex min-w-0 flex-nowrap items-center gap-6">
+          <H3 className="min-w-0 break-words">
             {t('headerTitle')}: {quote.reference || quoteId}
           </H3>
-          <QuoteStatusBadge status={quote.status} />
+          <div className="shrink-0">
+            <QuoteStatusBadge status={quote.status} />
+          </div>
         </div>
         {!showAcceptConfirmation && !activeDecisionDialog && (
-          <div className="ml-auto flex flex-wrap items-center justify-end gap-6">
+          <div
+            className="flex w-full flex-col gap-4 sm:w-auto sm:shrink-0 sm:flex-row sm:flex-nowrap sm:items-center sm:justify-end"
+            data-testid="quote-detail-header-actions"
+          >
             <Button
               variant="outlineError"
               size="small"
-              className={cn('gap-2 disabled:border-none')}
+              className={cn('w-full gap-2 disabled:border-none sm:w-auto')}
               disabled={!(quote.status === 'OPEN')}
               onClick={() => {
                 handleDecisionDialogChange('DECLINE');
@@ -607,7 +962,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
             <Button
               variant="outlineSuccess"
               size="small"
-              className={cn('gap-2 disabled:border-none')}
+              className={cn('w-full gap-2 disabled:border-none sm:w-auto')}
               disabled={isPrimaryActionDisabled}
               onClick={() => {
                 void handleQuotePrimaryAction();
@@ -620,7 +975,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
             <Button
               variant="secondary"
               size="small"
-              className={cn('gap-2 disabled:border-none')}
+              className={cn('w-full gap-2 disabled:border-none sm:w-auto')}
               disabled={quote.status !== 'OPEN'}
               onClick={() => {
                 handleDecisionDialogChange('CHANGE');
@@ -633,19 +988,19 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         )}
       </div>
 
-      <CardContent className="space-y-6 mt-6">
+      <div className="mt-6 space-y-6">
         <div className="rounded-md bg-surface-primary p-6 shadow-sm">
           <div className="flex flex-col gap-6">
             <H4>{t('title')}</H4>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
               <div className="flex flex-col gap-1">
                 <H5>{t('quotationDate')}</H5>
-                <span className="text-base font-body text-text-body">{formatDate(quote.submittedDate)}</span>
+                <span className="text-base font-body text-text-body">{formatDate(quote.submittedDate, locale)}</span>
               </div>
               <div className="flex flex-col gap-1">
                 <H5>{t('totalAmount')}</H5>
                 <span className="text-base font-body text-text-body">
-                  {formatPrice(quote.totalGross, quote.currency)}
+                  {formatPrice(resolveQuoteTotalNetAmount(quote), quote.currency)}
                 </span>
               </div>
               {quote.customerId && (
@@ -655,7 +1010,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                 </div>
               )}
               {quote.orderId ? (
-                <div className="flex flex-col gap-1">
+                <div className="flex min-w-0 flex-col gap-1">
                   <H5>{t('relatedOrder')}</H5>
                   <UiLink
                     type="Link"
@@ -668,17 +1023,12 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                 </div>
               ) : null}
               {approvalPermission?.approvalId ? (
-                <div className="flex flex-col gap-1">
-                  <H5>{t('relatedApproval')}</H5>
-                  <UiLink
-                    type="Link"
-                    href={`/account/approval/${approvalPermission.approvalId}`}
-                    variant="textNoUnderline"
-                    className="w-fit"
-                  >
-                    {approvalPermission.approvalId}
-                  </UiLink>
-                </div>
+                <RelatedApprovalField
+                  approvalId={approvalPermission.approvalId}
+                  relatedApproval={relatedApproval}
+                  currentUserId={customer?.id}
+                  label={t('relatedApproval')}
+                />
               ) : null}
             </div>
           </div>
@@ -739,29 +1089,16 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                     <Button
                       variant="primary"
                       disabled={isProcessing}
-                      onClick={async () => {
-                        try {
-                          setProcessError(null);
-                          setIsProcessing(true);
-
-                          await updateQuoteStatus(quoteId, 'ACCEPTED', acceptComment);
-
-                          setShowAcceptConfirmation(false);
-                          setAcceptComment('');
-                        } catch (error) {
-                          getLogger().error({ err: error }, 'Failed to process quote');
-                          const msg =
-                            error instanceof Error
-                              ? trimQuoteStatusErrorMessage(error.message)
-                              : t('quoteActionFailedDescription');
-                          notify({
-                            title: t('quoteActionFailedTitle'),
-                            description: msg,
-                            type: ToastType.Error,
-                          });
-                        } finally {
-                          setIsProcessing(false);
-                        }
+                      onClick={() => {
+                        void runQuoteAccept({
+                          quoteId,
+                          acceptComment,
+                          t,
+                          setProcessError,
+                          setIsProcessing,
+                          setShowAcceptConfirmation,
+                          setAcceptComment,
+                        });
                       }}
                     >
                       {isProcessing ? t('creating') : t('createOrder')}
@@ -797,6 +1134,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                     <Label htmlFor="quote-decision-comment">{t('yourComment')}</Label>
                     <Textarea
                       id="quote-decision-comment"
+                      ref={rejectCommentRef}
                       placeholder={t('rejectCommentPlaceholder')}
                       className="min-h-32 resize-none"
                       value={decisionComment}
@@ -861,6 +1199,7 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
                     <Label htmlFor="quote-change-comment">{t('yourComment')}</Label>
                     <Textarea
                       id="quote-change-comment"
+                      ref={changeCommentRef}
                       placeholder={t('requestChangeCommentPlaceholder')}
                       className="min-h-32 resize-none"
                       value={decisionComment}
@@ -904,48 +1243,91 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
             <div className="overflow-x-auto">
               <div className="min-w-[900px]">
                 <div className="grid h-14 grid-cols-5 gap-4 px-2">
-                  {[t('changeDate'), t('event'), t('changedBy'), t('status'), t('comment')].map((heading) => (
+                  <div
+                    className="flex items-center gap-2 text-2xl font-bold font-headlines text-text-headings"
+                    aria-sort={historySortDirection === 'asc' ? 'ascending' : 'descending'}
+                  >
+                    <button
+                      type="button"
+                      onClick={toggleHistorySortDirection}
+                      className="flex items-center gap-2 hover:text-text-action"
+                      data-testid="quote-history-sort-change-date"
+                    >
+                      {t('changeDate')}
+                      {historySortDirection === 'asc' ? (
+                        <ArrowUp aria-hidden="true" className="h-4 w-4" />
+                      ) : (
+                        <ArrowDown aria-hidden="true" className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                  {[t('event'), t('changedBy'), t('status'), t('comment')].map((heading) => (
                     <div
                       key={heading}
-                      className="flex items-center gap-2 text-2xl font-bold font-headlines text-text-headings"
+                      className="flex items-center text-2xl font-bold font-headlines text-text-headings"
                     >
                       {heading}
-                      <ChevronsUpDown aria-hidden="true" className="h-4 w-4 text-text-on-disabled" />
                     </div>
                   ))}
                 </div>
 
-                <div className="grid min-h-15 grid-cols-5 gap-4 border-t border-border-primary px-2 py-4 text-base font-body text-text-body">
-                  <p>{formatDate(quote.submittedDate)}</p>
-                  <p>{t('initialQuoteRequest')}</p>
-                  <p>{quote.customerName || 'Unknown User'}</p>
-                  <p>-</p>
-                  <p>{quote.userComment || '-'}</p>
-                </div>
-
                 {historyLoading ? (
-                  <div className="grid min-h-15 grid-cols-5 gap-4 border-t border-border-primary px-2 py-4 text-base font-body text-text-body">
-                    <p>{t('loadingHistory')}</p>
-                  </div>
-                ) : (
-                  quoteHistory.map((historyItem) => (
+                  <>
                     <div
-                      key={historyItem.id}
+                      key="quote-history-initial"
                       className="grid min-h-15 grid-cols-5 gap-4 border-t border-border-primary px-2 py-4 text-base font-body text-text-body"
+                      data-testid="quote-history-row-initial"
                     >
-                      <p>{formatHistoryDate(historyItem.rawModifiedAt || historyItem.modifiedAt)}</p>
-                      <p>{getHistoryAction(historyItem)}</p>
-                      <p>{getHistoryUserName(historyItem)}</p>
-                      <div>
-                        {historyItem.statusValue && isQuoteStatusValue(historyItem.statusValue) ? (
-                          <QuoteStatusBadge status={historyItem.statusValue} />
-                        ) : (
-                          '-'
-                        )}
-                      </div>
-                      <p>{getHistoryCommentWithReason(historyItem)}</p>
+                      <p>{formatDate(quote.submittedDate, locale)}</p>
+                      <p>{t('initialQuoteRequest')}</p>
+                      <p>{quote.customerName || 'Unknown User'}</p>
+                      <p>-</p>
+                      <p>{quote.userComment || '-'}</p>
                     </div>
-                  ))
+                    <div className="grid min-h-15 grid-cols-5 gap-4 border-t border-border-primary px-2 py-4 text-base font-body text-text-body">
+                      <p>{t('loadingHistory')}</p>
+                    </div>
+                  </>
+                ) : (
+                  sortedHistoryRows.map((row) => {
+                    if (row.kind === 'initial') {
+                      return (
+                        <div
+                          key="quote-history-initial"
+                          className="grid min-h-15 grid-cols-5 gap-4 border-t border-border-primary px-2 py-4 text-base font-body text-text-body"
+                          data-testid="quote-history-row-initial"
+                        >
+                          <p>{formatDate(quote.submittedDate, locale)}</p>
+                          <p>{t('initialQuoteRequest')}</p>
+                          <p>{quote.customerName || 'Unknown User'}</p>
+                          <p>-</p>
+                          <p>{quote.userComment || '-'}</p>
+                        </div>
+                      );
+                    }
+
+                    const { item: historyItem } = row;
+
+                    return (
+                      <div
+                        key={historyItem.id}
+                        className="grid min-h-15 grid-cols-5 gap-4 border-t border-border-primary px-2 py-4 text-base font-body text-text-body"
+                        data-testid={`quote-history-row-${historyItem.id}`}
+                      >
+                        <p>{formatHistoryDate(historyItem.rawModifiedAt || historyItem.modifiedAt, locale)}</p>
+                        <p>{getHistoryAction(historyItem)}</p>
+                        <p>{getHistoryUserName(historyItem)}</p>
+                        <div>
+                          {historyItem.statusValue && isQuoteStatusValue(historyItem.statusValue) ? (
+                            <QuoteStatusBadge status={historyItem.statusValue} />
+                          ) : (
+                            '-'
+                          )}
+                        </div>
+                        <p>{getHistoryCommentWithReason(historyItem, t)}</p>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -956,18 +1338,36 @@ export function QuoteDetails({ quoteId, initialQuote }: QuoteDetailsProps) {
         <QuoteSummary quote={quote} />
         {
           <ProductListResolver
+            locale={locale}
             showGrossUnderNet
-            items={quote.items.map((it) => ({
-              productId: it.product.id,
-              quantity: it.quantity.quantity, // Extract just the numeric quantity value
-              unitPrice: it.product.itemPrice.amount,
-              currency: it.product.itemPrice.currency,
-              grossUnitPrice: it.product.itemPrice.grossValue,
-              netUnitPrice: it.product.itemPrice.netValue,
-            }))}
+            presentationConfig={{
+              labels: {
+                product: t('product'),
+                quantity: t('quantity'),
+                unitPrice: t('unitPrice'),
+                baseNetUnitPrice: t('baseNetUnitPrice'),
+                discount: t('discount'),
+              },
+              showGrossSecondary: true,
+              showDiscountColumns: quoteHasItemDiscounts(quote),
+            }}
+            items={quote.items.map((it) => {
+              const qty = it.quantity.quantity;
+              const price = it.product.itemPrice;
+              return {
+                productId: it.product.id,
+                quantity: qty,
+                unitPrice: resolveQuotedNetUnitPrice(price, qty),
+                currency: price.currency,
+                grossUnitPrice: resolveQuotedGrossUnitPrice(price, qty),
+                netUnitPrice: resolveQuotedNetUnitPrice(price, qty),
+                baseNetUnitPrice: price.unitPrice,
+                discountPercent: resolveItemDiscountPercent(price),
+              };
+            })}
           />
         }
-      </CardContent>
+      </div>
     </div>
   );
 }

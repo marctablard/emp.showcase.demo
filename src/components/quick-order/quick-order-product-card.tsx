@@ -56,7 +56,7 @@ export function QuickOrderProductCard({ product, quantity, onRemove, onUpdateQua
 
         <div className="flex-1 min-w-0">
           {brandName && (
-            <p className="text-sm text-text-placeholders">
+            <p className="text-sm font-body text-text-body">
               <HighlightedText text={brandName} />
             </p>
           )}

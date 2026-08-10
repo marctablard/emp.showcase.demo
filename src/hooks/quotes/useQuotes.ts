@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { startEffectTask } from '@/hooks/common/start-effect-task';
+import { useSession } from '@/hooks/session/useSession';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { SearchFilterLeafValue, SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { Quote } from '@/platform/services/model/quote';
@@ -60,6 +61,27 @@ function normalizeQuoteFilters(filters?: SearchParams<Quote>['filters']): string
   return JSON.stringify(sortedTopLevel);
 }
 
+function appendNormalizedQuoteFilters(queryParams: URLSearchParams, normalizedFilters?: string): void {
+  if (!normalizedFilters) {
+    return;
+  }
+
+  const parsedFilters = JSON.parse(normalizedFilters) as Array<
+    [string, SearchFilterLeafValue | Array<[string, SearchFilterLeafValue]>]
+  >;
+
+  parsedFilters.forEach(([key, value]) => {
+    if (Array.isArray(value) && value.every((entry) => Array.isArray(entry))) {
+      value.forEach(([nestedKey, nestedValue]) => {
+        appendQuoteFilterParam(queryParams, `${key}[${nestedKey}]`, nestedValue);
+      });
+      return;
+    }
+
+    appendQuoteFilterParam(queryParams, key, value as SearchFilterLeafValue);
+  });
+}
+
 /**
  * Hook for fetching quotes
  * @param initialQuotes Optional initial quotes data (from SSR)
@@ -75,6 +97,11 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
   const initialRequest = params?.initialRequest;
   const normalizedFilters = normalizeQuoteFilters(filters);
   const normalizedInitialRequestFilters = normalizeQuoteFilters(initialRequest?.filters);
+
+  const { session } = useSession();
+  // Legal-entity scoped: refetch when the header dropdown switches company so
+  // the list reflects the new LE's quotes rather than the previous session's.
+  const legalEntityId = typeof session?.legalEntityId === 'string' ? session.legalEntityId.trim() : '';
 
   const canReuseInitialData =
     !!initialQuotes &&
@@ -138,19 +165,7 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
       if (searchQuery !== undefined) {
         queryParams.append('q', searchQuery);
       }
-      if (filters) {
-        Object.entries(filters).forEach(([key, value]) => {
-          if (Array.isArray(value)) {
-            appendQuoteFilterParam(queryParams, key, value);
-          } else if (typeof value === 'object' && value !== null) {
-            Object.entries(value).forEach(([nestedKey, nestedValue]) => {
-              appendQuoteFilterParam(queryParams, `${key}[${nestedKey}]`, nestedValue);
-            });
-          } else {
-            appendQuoteFilterParam(queryParams, key, value);
-          }
-        });
-      }
+      appendNormalizedQuoteFilters(queryParams, normalizedFilters);
 
       const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
       const res = await fetch(`/api/quotes${queryString}`);
@@ -177,10 +192,6 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
     } finally {
       setLoading(false);
     }
-    // normalizedFilters is the value identity of the caller's `filters` object, which is freshly
-    // allocated on every render; depending on the object itself re-creates this callback and
-    // re-runs the effect below on every single render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, size, sort, searchQuery, normalizedFilters]);
 
   const refetchQuotes = useCallback(async () => {
@@ -200,6 +211,18 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
     }
     return startEffectTask(fetchQuotes);
   }, [fetchQuotes]);
+
+  // Dedicated LE watcher: mirrors `useApprovals`/`useReturns`. Kept out of the
+  // main effect deps so lint doesn't flag LE (not a URL arg) and the initial
+  // SSR-skip stays intact.
+  const previousLegalEntityIdRef = useRef(legalEntityId);
+  useEffect(() => {
+    if (previousLegalEntityIdRef.current === legalEntityId) {
+      return;
+    }
+    previousLegalEntityIdRef.current = legalEntityId;
+    return startEffectTask(fetchQuotes);
+  }, [legalEntityId, fetchQuotes]);
 
   return {
     loading,

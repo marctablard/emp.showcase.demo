@@ -25,7 +25,7 @@ describe('EmporixApprovalService', () => {
 
   beforeEach(() => {
     mockApprovalApi = {
-      checkApprovalPermitted: jest.fn().mockResolvedValue({ permitted: false }),
+      checkApprovalPermitted: jest.fn().mockResolvedValue({ action: 'CHECKOUT', permitted: false }),
       searchApprovalUsers: jest.fn().mockResolvedValue([
         {
           userId: 'approver-1',
@@ -86,6 +86,7 @@ describe('EmporixApprovalService', () => {
 
   it('keeps duplicate prevention ahead of approver validation', async () => {
     mockApprovalApi.checkApprovalPermitted.mockResolvedValueOnce({
+      action: 'CHECKOUT',
       permitted: false,
       approvalId: 'approval-existing-1',
     });
@@ -103,8 +104,8 @@ describe('EmporixApprovalService', () => {
   it('maps create failures to duplicate approvals when a re-check finds the new approval', async () => {
     mockApprovalApi.createApproval.mockRejectedValueOnce(new Error('Failed to create approval'));
     mockApprovalApi.checkApprovalPermitted
-      .mockResolvedValueOnce({ permitted: false })
-      .mockResolvedValueOnce({ permitted: false, approvalId: 'approval-existing-2' });
+      .mockResolvedValueOnce({ action: 'CHECKOUT', permitted: false })
+      .mockResolvedValueOnce({ action: 'CHECKOUT', permitted: false, approvalId: 'approval-existing-2' });
 
     const createApprovalPromise = approvalService.createApproval(approvalRequest);
 
@@ -117,7 +118,7 @@ describe('EmporixApprovalService', () => {
 
     mockApprovalApi.createApproval.mockRejectedValueOnce(createError);
     mockApprovalApi.checkApprovalPermitted
-      .mockResolvedValueOnce({ permitted: false })
+      .mockResolvedValueOnce({ action: 'CHECKOUT', permitted: false })
       .mockRejectedValueOnce(new Error('Failed to re-check approval state'));
 
     await expect(approvalService.createApproval(approvalRequest)).rejects.toBe(createError);

@@ -124,7 +124,7 @@ export function ApprovalsTable({
   );
 
   return (
-    <div>
+    <>
       <div className={`transition-opacity ${loading ? 'opacity-70' : 'opacity-100'}`} aria-busy={loading}>
         <Table containerClassName="pr-1">
           <TableHeader>
@@ -251,6 +251,6 @@ export function ApprovalsTable({
         onPreviousPage={onPreviousPage}
         onNextPage={onNextPage}
       />
-    </div>
+    </>
   );
 }

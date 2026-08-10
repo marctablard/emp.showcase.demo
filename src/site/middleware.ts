@@ -2,7 +2,6 @@ import createIntlMiddleware from 'next-intl/middleware';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { routing as intlRouting } from '@/i18n/routing';
-import { getPublicDefaultLanguage } from '@/lib/common/public-default-env';
 import { edgeLog } from '@/lib/server/edge-stderr-log';
 import { PREVIEW_ROUTE_PREFIX, getPreviewDetector } from '@/platform/services/cms/preview/preview-detector-registry';
 import {
@@ -41,13 +40,7 @@ function isUnprefixedDefaultSiteCanonicalPath(
   return !siteRouting.availableSites.includes(first);
 }
 
-function syncSiteCookie(
-  req: NextRequest,
-  res: NextResponse,
-  routing: SiteConfig,
-  resolvedSite?: string,
-  resolvedLocale?: string,
-) {
+function syncSiteCookie(req: NextRequest, res: NextResponse, routing: SiteConfig, resolvedSite?: string) {
   if (!routing.cookie) {
     return;
   }
@@ -64,24 +57,6 @@ function syncSiteCookie(
         sameSite: 'lax',
         path: '/',
       });
-    }
-  }
-
-  if (resolvedLocale) {
-    const localeCookieName = process.env.NEXT_PUBLIC_LOCALE_COOKIE;
-    if (localeCookieName) {
-      const locale = req.cookies?.get(localeCookieName);
-      if (locale?.value !== resolvedLocale) {
-        const maxAge = routing.cookie.maxAge ?? 365 * 24 * 60 * 60;
-        res.cookies.set({
-          name: localeCookieName,
-          value: resolvedLocale,
-          maxAge: maxAge,
-          httpOnly: false,
-          sameSite: 'lax',
-          path: '/',
-        });
-      }
     }
   }
 }
@@ -172,12 +147,11 @@ const withCookies = function (
   req: NextRequest,
   routing: SiteConfig,
   resolvedSite?: string,
-  resolvedLocale?: string,
 ): NextResponse {
   from.cookies.getAll().forEach((cookie) => {
-    to.cookies.set(cookie.name, cookie.value);
+    to.cookies.set(cookie);
   });
-  syncSiteCookie(req, to, routing, resolvedSite, resolvedLocale);
+  syncSiteCookie(req, to, routing, resolvedSite);
   return to;
 };
 
@@ -266,6 +240,7 @@ function buildForwardHeaders(
 function rewriteForInvalidSite(
   req: NextRequest,
   intlResponse: NextResponse,
+  routing: SiteConfig,
   site: string,
   appPath: string,
   headers: Headers,
@@ -274,10 +249,7 @@ function rewriteForInvalidSite(
   const appSegment = appPath === '' || appPath === '/' ? '' : `/${appPath}`;
   rewrite.pathname = `/${site}${appSegment}`;
   const response = NextResponse.rewrite(rewrite, { request: { headers } });
-  intlResponse.cookies.getAll().forEach((cookie) => {
-    response.cookies.set(cookie.name, cookie.value);
-  });
-  return response;
+  return withCookies(intlResponse, response, req, routing, site);
 }
 
 /**
@@ -291,7 +263,6 @@ function resolveSitePrefixRedirect(
   routing: SiteConfig,
   site: string,
   appPath: string,
-  resolvedLocale: string,
   headers: Headers,
 ): NextResponse | null {
   const hasSitePrefix = req.nextUrl.pathname.startsWith(`/${site}`);
@@ -302,7 +273,7 @@ function resolveSitePrefixRedirect(
     }
     const redirect = new URL(req.nextUrl);
     redirect.pathname = `/${site}${redirect.pathname == '/' ? '' : redirect.pathname}`;
-    return withCookies(intlResponse, NextResponse.redirect(redirect, { headers }), req, routing, site, resolvedLocale);
+    return withCookies(intlResponse, NextResponse.redirect(redirect, { headers }), req, routing, site);
   }
 
   if (!hasSitePrefix) {
@@ -310,7 +281,7 @@ function resolveSitePrefixRedirect(
   }
   const redirect = new URL(req.nextUrl);
   redirect.pathname = appPath ? `/${appPath}` : '/';
-  return withCookies(intlResponse, NextResponse.redirect(redirect), req, routing, site, resolvedLocale);
+  return withCookies(intlResponse, NextResponse.redirect(redirect), req, routing, site);
 }
 
 /** Final hop: pass through when the path already carries the site, otherwise rewrite onto it. */
@@ -367,7 +338,6 @@ function resolveIntlRewrite(
   intlResponse: NextResponse,
   routing: SiteConfig,
   site: string,
-  resolvedLocale: string,
   headers: Headers,
 ): NextResponse | null {
   const intlRewrite = intlResponse.headers.get(NEXT_REWRITE_HEADER);
@@ -376,14 +346,7 @@ function resolveIntlRewrite(
   }
   const newRewrite = new URL(intlRewrite);
   newRewrite.pathname = `/${site}${newRewrite.pathname == '/' ? '' : newRewrite.pathname}`;
-  return withCookies(
-    intlResponse,
-    NextResponse.rewrite(newRewrite, { request: { headers } }),
-    req,
-    routing,
-    site,
-    resolvedLocale,
-  );
+  return withCookies(intlResponse, NextResponse.rewrite(newRewrite, { request: { headers } }), req, routing, site);
 }
 
 export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
@@ -420,31 +383,22 @@ export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
 
     // We can continue, but now we need to set the headers for Locale and Site
     const locale = intlResponse.headers.get(INTL_MIDDLEWARE_HEADER);
-    const resolvedLocale = locale || getPublicDefaultLanguage();
     const headers = buildForwardHeaders(req, appPath, locale, site, siteInvalid);
 
     if (siteInvalid) {
-      return rewriteForInvalidSite(req, intlResponse, site, appPath, headers);
+      return rewriteForInvalidSite(req, intlResponse, routing, site, appPath, headers);
     }
 
-    const prefixRedirect = resolveSitePrefixRedirect(
-      req,
-      intlResponse,
-      routing,
-      site,
-      appPath,
-      resolvedLocale,
-      headers,
-    );
+    const prefixRedirect = resolveSitePrefixRedirect(req, intlResponse, routing, site, appPath, headers);
     if (prefixRedirect) {
       return prefixRedirect;
     }
 
-    const intlRewrite = resolveIntlRewrite(req, intlResponse, routing, site, resolvedLocale, headers);
+    const intlRewrite = resolveIntlRewrite(req, intlResponse, routing, site, headers);
     if (intlRewrite) {
       return intlRewrite;
     }
 
-    return withCookies(intlResponse, buildSiteResponse(req, site, headers), req, routing, site, resolvedLocale);
+    return withCookies(intlResponse, buildSiteResponse(req, site, headers), req, routing, site);
   };
 }

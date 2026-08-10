@@ -40,6 +40,14 @@ The store maintains:
 - A reference to the currently selected product
 - Actions to get, add, and set products
 
+### Store Provider Hierarchy
+
+Nesting order in `src/providers/StoreProvider.tsx` matters — a store may only read from ancestors that wrap it:
+
+1. Site → 2. ShippingMethods → 3. Product → 4. Customer → 5. Order → 6. Cart → 7. Wishlist → 8. Checkout → 9. History → 10. Comparison → 11. Dashboard → 12. Session → 13. Notification → 14. Availability
+
+Components should use domain hooks (`@/hooks/**`), not raw store contexts.
+
 ### Store Provider
 
 The `StoreProvider` in `src/providers/StoreProvider.tsx` creates and provides the Zustand stores to the application:
@@ -173,7 +181,7 @@ This hook:
 
 ### Server Component (Product Page)
 
-In `src/app/[site]/[locale]/(default)/product/[id]/page.tsx`, the server component:
+In `src/app/[site]/[locale]/(nav-shell)/(default)/product/[id]/page.tsx`, the server component:
 
 ```typescript
 export default async function ProductPage({ params }: { params: Promise<{ id: string; locale: string; site: string }> }) {
