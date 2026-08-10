@@ -41,11 +41,11 @@ export function CartOverview({ initialCart }: CartOverviewProps) {
   if (showLoadingShell) {
     return (
       <div className="max-w-6xl mx-auto mt-8" aria-busy="true">
-        <div className="mx-4 lg:mx-9">
+        <div className="mx-4 md:mx-9">
           <div className="flex gap-3 align-end mb-8">
             <H3>{t('title')}</H3>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8 mb-11">
+          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_340px] lg:grid-cols-[minmax(0,1fr)_444px] gap-4 md:gap-6 mb-11">
             <div className="flex justify-center items-center col-span-full min-h-64">
               <Spinner variant="lg" />
             </div>
@@ -61,7 +61,7 @@ export function CartOverview({ initialCart }: CartOverviewProps) {
 
   return (
     <div className="max-w-6xl mx-auto mt-8">
-      <div className="mx-4 lg:mx-9">
+      <div className="mx-4 md:mx-9">
         <div className="flex gap-3 align-end mb-8">
           <H3>{t('title')}</H3>
           <div className="text-text-on-disabled text-lg m-0 leading-[2]">
@@ -71,8 +71,8 @@ export function CartOverview({ initialCart }: CartOverviewProps) {
           </div>
         </div>
         <CartAction />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8 mb-11">
-          <div className="col-span-1 lg:col-span-2" ref={leftContent}>
+        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_340px] lg:grid-cols-[minmax(0,1fr)_444px] gap-4 md:gap-6 mb-11">
+          <div className="min-w-0" ref={leftContent}>
             {false && customer && <CartDelivery />}
             <CartItemList cart={currentCart} />
           </div>

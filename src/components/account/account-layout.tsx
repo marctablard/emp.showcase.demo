@@ -38,9 +38,8 @@ interface AccountLayoutProps {
 export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
   const t = useTranslations('account');
   const [showSidebarOffcanvas, setShowSidebarOffcanvas] = useState(false);
-  // Persistent account rail is expected to be visible starting at 1024px (the 'md' breakpoint);
-  // below that width the off-canvas mobile menu is used instead.
-  const isDesktop = useBreakpoint('md');
+  // Figma: the persistent sidebar appears from tablet (768) up; only below that a drawer is used.
+  const isDesktop = useBreakpoint('sm');
 
   // Toggle sidebar offcanvas visibility
   const toggleSidebarOffcanvas = () => {
@@ -193,8 +192,8 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
   ];
 
   return (
-    <div className="md:mx-9">
-      {breadcrumbs && <UiBreadcrumb items={breadcrumbs} className="max-w-6xl mx-auto px-4 md:px-9 md:gap-x-6" />}
+    <div className="max-w-6xl mx-auto">
+      {breadcrumbs && <UiBreadcrumb items={breadcrumbs} className="content-container md:gap-x-6" />}
 
       {/* Mobile Menu Button - only visible on mobile */}
       {!isDesktop && (
@@ -209,13 +208,14 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
         items-start + no min-h-screen: the tall desktop sidebar must not stretch <main>
         and invent empty space above the site footer.
         mt-4 / mb-4 keep a 1rem gap under breadcrumbs and above the site footer.
+        sm:mx-4 / md:mx-9 (SHOW-320) align the side margins with the Figma grid.
       */}
-      <div className="mt-4 mb-4 flex items-start">
+      <div className="mt-4 mb-4 flex items-start sm:mx-4 md:mx-9">
         {/* Desktop Sidebar - always visible on desktop */}
         {isDesktop && <AccountSidebar items={sidebarItems} groups={sidebarGroups} />}
 
         {/* Mobile Off-canvas Sidebar */}
-        {showSidebarOffcanvas && (
+        {!isDesktop && showSidebarOffcanvas && (
           <>
             {/* Backdrop - closes the sidebar when clicked */}
             <div className="fixed inset-0 z-40 bg-black/20" onClick={toggleSidebarOffcanvas} aria-hidden="true" />
@@ -233,7 +233,7 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
           </>
         )}
 
-        <main className={`w-full min-w-0 px-4 ${isDesktop ? 'px-0 ml-4' : ''}`}>{children}</main>
+        <main className="@container w-full min-w-0 px-4 sm:px-0 sm:ml-4">{children}</main>
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { isEqual } from 'lodash';
+import { breakpoints } from '@/lib/breakpoints';
 import { useLocalDashboardStore } from '@/lib/client/dashboard';
 import { AiHelperCard } from './cards/ai-helper-card';
 import { DocumentsCard } from './cards/documents-card';
@@ -83,7 +84,7 @@ export default function Dashboard({ isCustomizable, layouts, layoutChanged }: Da
         measureBeforeMount={false}
         onBreakpointChange={onBreakpointChange}
         onLayoutChange={onLayoutChange}
-        breakpoints={{ lg: 1280, md: 1024, sm: 768 }}
+        breakpoints={{ lg: breakpoints.lg, md: breakpoints.md, sm: breakpoints.sm }}
         cols={{ lg: 3, md: 3, sm: 1 }}
         rowHeight={20}
         isDraggable={isCustomizable}
