@@ -15,6 +15,11 @@
  *
  * The container and `bindActiveCmsAdapter` are mocked — we are pinning the
  * `isBound` gate + the delegation, NOT re-testing the binding rules here.
+ *
+ * The SSR mock object is created inside the `jest.mock` factory (not closed
+ * over from outer scope) so static `import ssr` in `get-cms-service` cannot
+ * observe an uninitialized `default` when Jest hoists the factory ahead of
+ * test-file variable assignment.
  */
 import type { CMSService } from './CMSService';
 // Imported AFTER the mocks so the helper picks the mocked modules up.
@@ -27,27 +32,23 @@ type ContainerMock = {
   get: jest.Mock;
 };
 
-// `var` so the jest.mock factory (hoisted) can close over the binding before
-// `const` temporal-dead-zone would apply — required now that get-cms-service
-// statically imports `@/platform/ssr`.
-// eslint-disable-next-line no-var
-var mockContainer: ContainerMock = {
-  isBound: jest.fn(),
-  bind: jest.fn(),
-  get: jest.fn(),
-};
-
-const bindActiveCmsAdapterMock = jest.fn();
-
 jest.mock('@/platform/ssr', () => ({
   __esModule: true,
-  default: mockContainer,
+  default: {
+    isBound: jest.fn(),
+    bind: jest.fn(),
+    get: jest.fn(),
+  },
 }));
+
+const bindActiveCmsAdapterMock = jest.fn();
 
 jest.mock('./bind-active-cms-adapter', () => ({
   __esModule: true,
   bindActiveCmsAdapter: (...args: unknown[]) => bindActiveCmsAdapterMock(...args),
 }));
+
+const mockContainer = (jest.requireMock('@/platform/ssr') as { default: ContainerMock }).default;
 
 const FAKE_CMS_SERVICE = { __marker: 'cms-service' } as unknown as CMSService;
 
