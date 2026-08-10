@@ -42,7 +42,7 @@ function renderMobileUnitPriceStack(
       </span>
       {showGrossSecondary ? (
         <span className="text-sm font-body text-text-on-disabled">
-          {grossPrefix}: {grossPriceLabel}
+          {grossPrefix.trim()} {grossPriceLabel}
         </span>
       ) : null}
     </div>
@@ -232,7 +232,8 @@ export function ProductItemRow({ item, locale, presentationConfig, showGrossUnde
             </span>
             {showGrossSecondary && (
               <span className="break-words text-sm font-body text-text-on-disabled">
-                {t('gross').trim()}: {grossPriceLabel}
+                {/* Secondary price: "Gross $…" / "Brutto …" — space, no colon (Figma). */}
+                {t('gross').trim()} {grossPriceLabel}
               </span>
             )}
             {inlineMetadataSlots.map((slot) => {

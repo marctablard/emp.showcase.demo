@@ -74,12 +74,12 @@ describe('ProductList contract', () => {
 
     expect(
       within(desktopRow).getByText(
-        byNormalizedText(`gross: ${formatCurrency(contractItem.grossUnitPrice!, contractItem.currency)}`),
+        byNormalizedText(`gross ${formatCurrency(contractItem.grossUnitPrice!, contractItem.currency)}`),
       ),
     ).toBeInTheDocument();
     expect(
       within(mobileRow).getByText(
-        byNormalizedText(`gross: ${formatCurrency(contractItem.grossUnitPrice!, contractItem.currency)}`),
+        byNormalizedText(`gross ${formatCurrency(contractItem.grossUnitPrice!, contractItem.currency)}`),
       ),
     ).toBeInTheDocument();
 
@@ -88,8 +88,8 @@ describe('ProductList contract', () => {
     const missingGrossDesktopRow = screen.getByTestId(`product-item-desktop-${missingGrossItem.id}`);
     const missingGrossMobileRow = screen.getByTestId(`product-item-mobile-${missingGrossItem.id}`);
 
-    expect(within(missingGrossDesktopRow).getByText(byNormalizedText('gross: -'))).toBeInTheDocument();
-    expect(within(missingGrossMobileRow).getByText(byNormalizedText('gross: -'))).toBeInTheDocument();
+    expect(within(missingGrossDesktopRow).getByText(byNormalizedText('gross -'))).toBeInTheDocument();
+    expect(within(missingGrossMobileRow).getByText(byNormalizedText('gross -'))).toBeInTheDocument();
   });
 
   it('renders the empty-image state without an image element while keeping the product content', () => {
@@ -184,9 +184,9 @@ describe('ProductList contract', () => {
     const desktopRow = screen.getByTestId(`product-item-desktop-${derivedMoneyItem.id}`);
     const mobileRow = screen.getByTestId(`product-item-mobile-${derivedMoneyItem.id}`);
 
-    expect(within(desktopRow).getByText(byNormalizedText('gross: -'))).toBeInTheDocument();
-    expect(within(mobileRow).getByText(byNormalizedText('gross: -'))).toBeInTheDocument();
-    expect(within(desktopRow).queryByText(/gross: €|gross: EUR/i)).not.toBeInTheDocument();
+    expect(within(desktopRow).getByText(byNormalizedText('gross -'))).toBeInTheDocument();
+    expect(within(mobileRow).getByText(byNormalizedText('gross -'))).toBeInTheDocument();
+    expect(within(desktopRow).queryByText(/gross €|gross EUR/i)).not.toBeInTheDocument();
   });
 
   it('omits mobile unit price only when omitMobileUnitPrice is set, keeping Quote/Approval mobile unit price by default', () => {

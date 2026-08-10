@@ -198,7 +198,8 @@ describe('ReturnDetail', () => {
     const mobileRow = screen.getByTestId('product-item-mobile-item-123');
 
     expect(within(desktopRow).getAllByText('€100.00').length).toBeGreaterThanOrEqual(1);
-    expect(within(desktopRow).getByText('gross €119.00')).toBeInTheDocument();
+    // Unit-price secondary + refund-amount secondary both use "Gross $…" (no colon).
+    expect(within(desktopRow).getAllByText('gross €119.00').length).toBe(2);
     expect(within(mobileRow).getByText('claimReasons.CHANGED_MIND')).toBeInTheDocument();
     expect(within(mobileRow).getByText('Item reason details.')).toBeInTheDocument();
   });
@@ -285,7 +286,8 @@ describe('ReturnDetail', () => {
     const netValues = within(desktopRow).getAllByText('€100.00');
     const grossValues = within(desktopRow).getAllByText('gross €119.00');
     expect(netValues.length).toBeGreaterThanOrEqual(1);
-    expect(grossValues).toHaveLength(1);
+    // Price column + Refund Amount column each show a gross secondary line.
+    expect(grossValues).toHaveLength(2);
 
     expect(netValues[0].compareDocumentPosition(grossValues[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });

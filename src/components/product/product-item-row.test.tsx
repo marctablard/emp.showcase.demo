@@ -49,7 +49,8 @@ describe('ProductItemRow translation namespaces', () => {
     render(<ProductItemRow item={item} showGrossUnderNet />);
 
     expect(screen.getAllByText(`orders.itemNumber: ${item.itemNumber}`).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/cart\.gross:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/cart\.gross/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/cart\.gross:/)).not.toBeInTheDocument();
   });
 
   it('formats money with the supplied active locale', () => {

@@ -212,7 +212,7 @@ describe('OrderDetail', () => {
 
     // Item with both net/gross values available shows the net value primary, gross secondary.
     expect(screen.getAllByText('€42.00').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('gross: €50.00').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('gross €50.00').length).toBeGreaterThanOrEqual(1);
 
     // Item without net/gross falls back to the existing single value.
     expect(screen.getAllByText('€30.00').length).toBeGreaterThanOrEqual(1);
@@ -621,7 +621,7 @@ describe('OrderDetail', () => {
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
     const primaryPrice = screen.getAllByText('€42.00')[0];
-    const grossPrice = screen.getAllByText('gross: €50.00')[0];
+    const grossPrice = screen.getAllByText('gross €50.00')[0];
     expect(primaryPrice).toHaveClass('text-2xl', 'font-bold', 'font-headlines');
     expect(grossPrice).toHaveClass('text-sm', 'font-body');
 

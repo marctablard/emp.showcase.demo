@@ -91,11 +91,11 @@ describe('ProductList', () => {
 
     const desktopRow = screen.getByTestId(`product-item-desktop-${quoteStyleItem.id}`);
     expect(within(desktopRow).getByText(byNormalizedText(netPriceLabel))).toBeInTheDocument();
-    expect(within(desktopRow).getByText(byNormalizedText(`gross: ${grossPriceLabel}`))).toBeInTheDocument();
+    expect(within(desktopRow).getByText(byNormalizedText(`gross ${grossPriceLabel}`))).toBeInTheDocument();
 
     const mobileRow = screen.getByTestId(`product-item-mobile-${quoteStyleItem.id}`);
     expect(within(mobileRow).getByText(byNormalizedText(netPriceLabel))).toBeInTheDocument();
-    expect(within(mobileRow).getByText(byNormalizedText(`gross: ${grossPriceLabel}`))).toBeInTheDocument();
+    expect(within(mobileRow).getByText(byNormalizedText(`gross ${grossPriceLabel}`))).toBeInTheDocument();
   });
 
   it('renders a literal "-" secondary value for Approval-style items with no gross price, never deriving one', () => {
@@ -108,16 +108,16 @@ describe('ProductList', () => {
 
     const desktopRow = screen.getByTestId(`product-item-desktop-${approvalStyleItemMissingGross.id}`);
     expect(within(desktopRow).getByText(byNormalizedText(netPriceLabel))).toBeInTheDocument();
-    expect(within(desktopRow).getByText(byNormalizedText('gross: -'))).toBeInTheDocument();
+    expect(within(desktopRow).getByText(byNormalizedText('gross -'))).toBeInTheDocument();
 
     const mobileRow = screen.getByTestId(`product-item-mobile-${approvalStyleItemMissingGross.id}`);
-    expect(within(mobileRow).getByText(byNormalizedText('gross: -'))).toBeInTheDocument();
+    expect(within(mobileRow).getByText(byNormalizedText('gross -'))).toBeInTheDocument();
   });
 
   it('does not render a secondary price line when showGrossUnderNet is false', () => {
     render(<ProductList items={[quoteStyleItem]} />);
 
-    expect(screen.queryByText(/gross:/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\bgross\b/i)).not.toBeInTheDocument();
   });
 
   it('places brand/name above the thumbnail on smallest-mobile, hides the Quantity label, and keeps item number and quantity in the value stack', () => {
