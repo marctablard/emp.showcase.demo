@@ -1,4 +1,8 @@
-import { getCmsEnv, getStoryblokEnv } from '@/lib/server/storyblok-env';
+// Relative import of the pure dual-env helpers — this module is shared by
+// Edge middleware (`preview-detector-registry`) and must NOT pull in
+// `server-only` via `@/lib/server/storyblok-env`. Server-only call sites that
+// only need env helpers should import `@/lib/server/storyblok-env` directly.
+import { getCmsEnv, getStoryblokEnv } from '../../../lib/common/cms-dual-env';
 
 /**
  * Resolves the active CMS provider id from runtime environment variables.

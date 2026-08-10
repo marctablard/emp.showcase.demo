@@ -76,10 +76,19 @@ describe('preview-detector-registry — edge safety (source-text audit)', () => 
     const fs = require('node:fs');
     // eslint-disable-next-line @typescript-eslint/no-require-imports -- test-time source-text inspection
     const path = require('node:path');
-    const source = fs.readFileSync(path.resolve(__dirname, './preview-detector-registry.ts'), 'utf8') as string;
-    const code = source.replaceAll(/\/\*[\s\S]*?\*\//g, '').replaceAll(/\/\/[^\n]*/g, '');
+    const stripComments = (source: string) => source.replaceAll(/\/\*[\s\S]*?\*\//g, '').replaceAll(/\/\/[^\n]*/g, '');
 
-    expect(code).not.toMatch(/@storyblok\//);
-    expect(code).not.toMatch(/['"]server-only['"]/);
+    const registry = stripComments(
+      fs.readFileSync(path.resolve(__dirname, './preview-detector-registry.ts'), 'utf8') as string,
+    );
+    // Transitive Edge import: CmsProviderResolver must stay free of server-only too.
+    const resolver = stripComments(
+      fs.readFileSync(path.resolve(__dirname, '../CmsProviderResolver.ts'), 'utf8') as string,
+    );
+
+    expect(registry).not.toMatch(/@storyblok\//);
+    expect(registry).not.toMatch(/['"]server-only['"]/);
+    expect(resolver).not.toMatch(/['"]server-only['"]/);
+    expect(resolver).not.toMatch(/@\/lib\/server\/storyblok-env/);
   });
 });

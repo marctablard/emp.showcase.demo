@@ -6,9 +6,11 @@
  * `NEXT_PUBLIC_CMS_*`.
  *
  * This module is intentionally free of `server-only` so Tier-1 healthcheck /
- * Jest bootstrap can import it via a relative path. Call sites that must stay
- * server-bound should import the re-exports from `@/lib/server/storyblok-env`
- * instead (adds the `server-only` boundary).
+ * Jest bootstrap and Edge-shared helpers (`CmsProviderResolver` → middleware
+ * preview detector) can import it via a relative path. Call sites that must
+ * stay server-bound should import the re-exports from
+ * `@/lib/server/storyblok-env` instead (adds the `server-only` boundary).
+ * The `@/lib/common/cms-dual-env` alias is ESLint-restricted.
  *
  * Legacy `NEXT_PUBLIC_*` keys are read via dynamic `env[key]` so ESLint
  * `no-restricted-syntax` (literal `process.env.NEXT_PUBLIC_STORYBLOK_*`) stays
