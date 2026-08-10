@@ -276,19 +276,26 @@ describe('ApprovalDetails', () => {
     expect(screen.queryByText('relatedOrder')).not.toBeInTheDocument();
   });
 
-  it('stacks header actions one-per-line on mobile (flex-col below sm)', () => {
+  it('stacks full-width actions on mobile and keeps one horizontal row from sm (Figma 11895:141280 / 11895:138491)', () => {
     mockCustomer = { id: 'approver-1' };
     render(<ApprovalDetails approvalId="approval-requestor-1" />);
 
-    expect(screen.getByTestId('approval-detail-header')).toHaveClass('flex', 'flex-col', 'sm:flex-row');
+    expect(screen.getByTestId('approval-detail-header')).toHaveClass('flex', 'flex-col', 'sm:flex-row', 'sm:flex-wrap');
     expect(screen.getByTestId('approval-detail-actions')).toHaveClass(
       'flex',
       'w-full',
+      'shrink-0',
       'flex-col',
       'gap-4',
       'sm:w-auto',
       'sm:flex-row',
+      'sm:flex-nowrap',
+      'sm:items-center',
+      'sm:justify-end',
     );
+    expect(screen.getByRole('button', { name: /decline/ })).toHaveClass('w-full', 'sm:w-auto');
+    expect(screen.getByRole('button', { name: /approve/ })).toHaveClass('w-full', 'sm:w-auto');
+    expect(screen.getByRole('button', { name: /addComment/ })).toHaveClass('w-full', 'sm:w-auto');
   });
 
   it('omits the Status column from Approval History', () => {
