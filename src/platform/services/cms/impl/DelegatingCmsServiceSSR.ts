@@ -33,7 +33,12 @@ import { isCmsNoResult } from '../cms-no-result';
  * - `getEditableProps` -> empty object `{}` when the adapter omits it.
  * - `BridgeScript`     -> `null` (not `undefined`) when the adapter omits it.
  */
-@injectable('CMSService', 'Singleton')
+// Bound under the class id; `depency.yml` aliases `CMSService` → this target
+// (same pattern as SearchService → BatteryIncludedSearchService). Using the
+// interface id here would break `generate:prod` DI prune: the alias hop looks
+// up `DelegatingCmsServiceSSR` and would find no injectable, dropping the
+// whole CMS stack from the SSR container (prod digest 3980856108).
+@injectable('DelegatingCmsServiceSSR', 'Singleton')
 export class DelegatingCmsServiceSSR implements CMSService {
   constructor(@inject('CmsAdapter') private readonly adapter: CmsAdapter) {}
 

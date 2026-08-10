@@ -50,10 +50,10 @@ describe('ProductList contract', () => {
   it('uses the canonical core order of Product, Quantity, and Unit Price on desktop', () => {
     render(<ProductList items={[contractItem]} />);
 
-    const header = screen.getByTestId('product-list-scroll').querySelector('.border-b');
+    const header = screen.getByTestId('product-list-content').querySelector('.border-b');
     expect(header).toBeTruthy();
     const headings = within(header as HTMLElement)
-      .getAllByRole('heading', { level: 5 })
+      .getAllByRole('heading', { level: 6 })
       .map((heading) => heading.textContent);
 
     expect(headings).toEqual(['product', 'quantity', 'unitPrice']);
@@ -74,12 +74,12 @@ describe('ProductList contract', () => {
 
     expect(
       within(desktopRow).getByText(
-        byNormalizedText(`gross: ${formatCurrency(contractItem.grossUnitPrice!, contractItem.currency)}`),
+        byNormalizedText(`gross ${formatCurrency(contractItem.grossUnitPrice!, contractItem.currency)}`),
       ),
     ).toBeInTheDocument();
     expect(
       within(mobileRow).getByText(
-        byNormalizedText(`gross: ${formatCurrency(contractItem.grossUnitPrice!, contractItem.currency)}`),
+        byNormalizedText(`gross ${formatCurrency(contractItem.grossUnitPrice!, contractItem.currency)}`),
       ),
     ).toBeInTheDocument();
 
@@ -88,8 +88,8 @@ describe('ProductList contract', () => {
     const missingGrossDesktopRow = screen.getByTestId(`product-item-desktop-${missingGrossItem.id}`);
     const missingGrossMobileRow = screen.getByTestId(`product-item-mobile-${missingGrossItem.id}`);
 
-    expect(within(missingGrossDesktopRow).getByText(byNormalizedText('gross: -'))).toBeInTheDocument();
-    expect(within(missingGrossMobileRow).getByText(byNormalizedText('gross: -'))).toBeInTheDocument();
+    expect(within(missingGrossDesktopRow).getByText(byNormalizedText('gross -'))).toBeInTheDocument();
+    expect(within(missingGrossMobileRow).getByText(byNormalizedText('gross -'))).toBeInTheDocument();
   });
 
   it('renders the empty-image state without an image element while keeping the product content', () => {
@@ -125,16 +125,16 @@ describe('ProductList contract', () => {
         (_, node) => node?.textContent === formatCurrency(contractItem.unitPrice, contractItem.currency, 'de-DE'),
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 5, name: 'Erstattungsbetrag' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 6, name: 'Erstattungsbetrag' })).toBeInTheDocument();
   });
 
   it('renders no trailing amount column or heading when the trailing amount is not configured', () => {
     render(<ProductList items={[contractItem]} />);
 
-    const header = screen.getByTestId('product-list-scroll').querySelector('.border-b');
+    const header = screen.getByTestId('product-list-content').querySelector('.border-b');
     expect(header).toBeTruthy();
     const headings = within(header as HTMLElement)
-      .getAllByRole('heading', { level: 5 })
+      .getAllByRole('heading', { level: 6 })
       .map((heading) => heading.textContent);
 
     expect(headings).toEqual(['product', 'quantity', 'unitPrice']);
@@ -184,9 +184,9 @@ describe('ProductList contract', () => {
     const desktopRow = screen.getByTestId(`product-item-desktop-${derivedMoneyItem.id}`);
     const mobileRow = screen.getByTestId(`product-item-mobile-${derivedMoneyItem.id}`);
 
-    expect(within(desktopRow).getByText(byNormalizedText('gross: -'))).toBeInTheDocument();
-    expect(within(mobileRow).getByText(byNormalizedText('gross: -'))).toBeInTheDocument();
-    expect(within(desktopRow).queryByText(/gross: €|gross: EUR/i)).not.toBeInTheDocument();
+    expect(within(desktopRow).getByText(byNormalizedText('gross -'))).toBeInTheDocument();
+    expect(within(mobileRow).getByText(byNormalizedText('gross -'))).toBeInTheDocument();
+    expect(within(desktopRow).queryByText(/gross €|gross EUR/i)).not.toBeInTheDocument();
   });
 
   it('omits mobile unit price only when omitMobileUnitPrice is set, keeping Quote/Approval mobile unit price by default', () => {
@@ -219,7 +219,7 @@ describe('ProductList contract', () => {
     expect(within(desktopRow).getByText(byNormalizedText(unitPriceLabel))).toBeInTheDocument();
   });
 
-  it('contains the four-column trailing-amount grid inside an overflow-safe card for ~1024–1150px layouts', () => {
+  it('contains the four-column trailing-amount grid inside an overflow-safe card for ~1024–1150px layouts without horizontal scroll', () => {
     const presentationConfig: ProductListPresentationConfig = {
       labels: { amount: 'Refund Amount' },
       showTrailingDesktopAmount: true,
@@ -231,37 +231,43 @@ describe('ProductList contract', () => {
     render(<ProductList items={[contractItem]} presentationConfig={presentationConfig} />);
 
     const card = screen.getByTestId('product-list-card');
-    const scroll = screen.getByTestId('product-list-scroll');
+    const content = screen.getByTestId('product-list-content');
     const desktopRow = screen.getByTestId(`product-item-desktop-${contractItem.id}`);
+    const mobileRow = screen.getByTestId(`product-item-mobile-${contractItem.id}`);
     const trailingCell = screen.getByTestId(`product-trailing-amount-cell-${contractItem.id}`);
 
     expect(card).toHaveClass('min-w-0', 'max-w-full', 'overflow-hidden', 'shadow-sm', 'py-0', 'gap-0');
-    expect(scroll).toHaveClass('min-w-0', 'overflow-x-auto', 'p-4', 'sm:p-6');
-    expect(desktopRow.className).toContain('minmax(0,1.6fr)');
-    expect(desktopRow.className).toContain('minmax(0,1fr)_minmax(0,1fr)');
+    expect(content).toHaveClass('min-w-0', 'p-4', 'sm:p-6');
+    expect(content).not.toHaveClass('overflow-x-auto');
+    expect(desktopRow.className).toContain('hidden');
+    expect(desktopRow.className).toContain('sm:grid');
+    expect(desktopRow.className).toContain('minmax(0,4fr)');
+    expect(desktopRow.className).toContain('3rem');
+    expect(desktopRow.className).toContain('minmax(0,1fr)_minmax(0,1.1fr)');
     expect(desktopRow.className).not.toContain('minmax(280px');
     expect(desktopRow.className).not.toContain('minmax(140px');
+    expect(mobileRow).toHaveClass('sm:hidden');
     expect(trailingCell).toHaveClass('min-w-0');
-    expect(screen.getByRole('heading', { level: 5, name: 'Refund Amount' }).parentElement).toHaveClass('min-w-0');
-    expect(screen.getByRole('heading', { level: 6, name: 'Refund Amount', hidden: true })).toHaveClass(
-      'hidden',
-      'md:block',
-    );
+    expect(screen.getByRole('heading', { level: 6, name: 'Refund Amount' }).parentElement).toHaveClass('min-w-0');
   });
 
-  it('keeps the three-column Quote/Approval grid track mins when trailing amount is absent', () => {
+  it('uses shrink-fit three-column Quote/Approval tracks at sm+ without large min widths', () => {
     render(<ProductList items={[contractItem]} />);
 
     const desktopRow = screen.getByTestId(`product-item-desktop-${contractItem.id}`);
     const card = screen.getByTestId('product-list-card');
-    const scroll = screen.getByTestId('product-list-scroll');
+    const content = screen.getByTestId('product-list-content');
     const itemRow = screen.getByTestId(`product-item-row-${contractItem.id}`);
 
-    expect(desktopRow.className).toContain('minmax(280px,1.6fr)');
-    expect(desktopRow.className).toContain('minmax(140px,1fr)');
-    expect(desktopRow.className).not.toContain('minmax(0,1.6fr)');
+    expect(desktopRow.className).toContain('sm:grid');
+    expect(desktopRow.className).toContain('minmax(0,4fr)');
+    expect(desktopRow.className).toContain('3rem');
+    expect(desktopRow.className).toContain('minmax(0,1.2fr)');
+    expect(desktopRow.className).not.toContain('minmax(280px');
+    expect(desktopRow.className).not.toContain('minmax(140px');
     expect(card).toHaveClass('overflow-hidden');
-    expect(scroll).toHaveClass('p-4', 'sm:p-6');
+    expect(content).toHaveClass('p-4', 'sm:p-6');
+    expect(content).not.toHaveClass('overflow-x-auto');
     expect(itemRow).toHaveClass('py-4', 'first:pt-0', 'sm:py-6', 'sm:first:pt-4');
     expect(screen.queryByTestId(`product-trailing-amount-cell-${contractItem.id}`)).not.toBeInTheDocument();
   });

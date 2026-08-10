@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 import 'server-only';
 import { LayoutContentSchema } from '@/components/cms/component-schema';
 import { routingConfig } from '@/i18n/routing';
+import { getStoryblokEnv } from '@/lib/server/storyblok-env';
 import { injectable } from '@/platform/core/di/injectable';
 import type { CmsAdapter } from '@/platform/services/cms/CmsAdapter';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
@@ -160,7 +161,7 @@ export class StoryblokCmsAdapter implements CmsAdapter {
 
     let explicitSite: string | null = null;
     let rest = fullSlug;
-    if (process.env.NEXT_STORYBLOK_MULTI_SITE === 'true') {
+    if (getStoryblokEnv('MULTI_SITE') === 'true') {
       const slash = rest.indexOf('/');
       if (slash > 0) {
         explicitSite = rest.slice(0, slash);

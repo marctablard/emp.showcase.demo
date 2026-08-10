@@ -49,7 +49,8 @@ describe('ProductItemRow translation namespaces', () => {
     render(<ProductItemRow item={item} showGrossUnderNet />);
 
     expect(screen.getAllByText(`orders.itemNumber: ${item.itemNumber}`).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/cart\.gross:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/cart\.gross/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/cart\.gross:/)).not.toBeInTheDocument();
   });
 
   it('formats money with the supplied active locale', () => {
@@ -63,7 +64,7 @@ describe('ProductItemRow translation namespaces', () => {
 });
 
 describe('ProductItemRow brand typography', () => {
-  it('uses text-sm (12px body/sm) on mobile and text-base (16px body/md) on desktop', () => {
+  it('uses text-sm (body/sm) for brand on mobile and desktop table rows', () => {
     render(<ProductItemRow item={item} />);
 
     const mobileBrand = screen.getByTestId(`product-item-mobile-${item.id}`).querySelector('p');
@@ -74,7 +75,8 @@ describe('ProductItemRow brand typography', () => {
     expect(mobileBrand).not.toHaveClass('text-base');
 
     expect(desktopBrand).toHaveTextContent(item.brand as string);
-    expect(desktopBrand).toHaveClass('text-base', 'font-body', 'text-text-body');
+    expect(desktopBrand).toHaveClass('text-sm', 'font-body', 'text-text-body');
+    expect(desktopBrand).not.toHaveClass('text-base');
   });
 });
 

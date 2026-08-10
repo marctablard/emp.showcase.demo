@@ -386,7 +386,9 @@ The application supports multiple sites/storefronts:
 
 Storyblok and CMS configuration was previously exposed as `NEXT_PUBLIC_*`. Next.js inlines every `NEXT_PUBLIC_*` read into the browser bundle, which leaked the Storyblok access token and CMS provider IDs into every `.next/static/chunks/*.js` file — readable by any page visitor. All such reads are now **server-only**.
 
-Renamed keys (drop the `_PUBLIC` infix): `NEXT_STORYBLOK_ACCESS_TOKEN`, `NEXT_STORYBLOK_ACCESS_PREVIEW`, `NEXT_STORYBLOK_SPACE_ID`, `NEXT_STORYBLOK_MULTI_SITE`, `NEXT_CMS_PROVIDER`, `NEXT_CMS_FALLBACK_PROVIDER`, `NEXT_CMS_LOCAL_DEFAULT_SITE`, `NEXT_CMS_PAGE_CACHE_TTL_MS`, `NEXT_CMS_LAYOUT_CACHE_TTL_MS`. Vercel-ENV must be updated in lockstep; there is no backwards compatibility shim.
+Renamed keys (drop the `_PUBLIC` infix): `NEXT_STORYBLOK_ACCESS_TOKEN`, `NEXT_STORYBLOK_ACCESS_PREVIEW`, `NEXT_STORYBLOK_SPACE_ID`, `NEXT_STORYBLOK_MULTI_SITE`, `NEXT_CMS_PROVIDER`, `NEXT_CMS_FALLBACK_PROVIDER`, `NEXT_CMS_LOCAL_DEFAULT_SITE`, `NEXT_CMS_PAGE_CACHE_TTL_MS`, `NEXT_CMS_LAYOUT_CACHE_TTL_MS`.
+
+**Dual naming (legacy compat):** server code resolves these via [`getStoryblokEnv` / `getCmsEnv`](../src/lib/common/cms-dual-env.ts) (server re-export: [`src/lib/server/storyblok-env.ts`](../src/lib/server/storyblok-env.ts)) — prefer `NEXT_STORYBLOK_*` / `NEXT_CMS_*` when set; otherwise fall back to the matching `NEXT_PUBLIC_STORYBLOK_*` / `NEXT_PUBLIC_CMS_*`. New deploys should use the server-only names; the PUBLIC fallback exists so environments that still have the old keys (e.g. showcasedev) keep working. Prefer the server re-export in app/platform code so `server-only` blocks client imports.
 
 Where the browser legitimately needs a token-dependent value, it now goes through a server-action:
 

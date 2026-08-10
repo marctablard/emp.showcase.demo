@@ -1,5 +1,6 @@
 'use client';
 
+import type { HTMLAttributes } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ProductTile } from '@/components/product/product-tile';
 import { ProductTileSkeleton } from '@/components/product/product-tile-skeleton';
@@ -14,10 +15,11 @@ import {
 import { Heading } from '@/components/ui/h';
 import { useProducts } from '@/hooks/product/useProducts';
 import { useRecommendations } from '@/hooks/recommendations/useRecommendations';
+import { cn } from '@/lib/utils';
 import type { Product } from '@/platform/services/model/product';
 import { parseProductIds } from './parse-product-ids';
 
-interface RecommendationsCarouselProps {
+interface RecommendationsCarouselProps extends HTMLAttributes<HTMLDivElement> {
   overline?: string;
   headline?: string;
   productId?: Product['id'];
@@ -25,7 +27,15 @@ interface RecommendationsCarouselProps {
   locale?: string;
 }
 
-const RecommendationsCarousel = ({ overline, headline, productId, products, locale }: RecommendationsCarouselProps) => {
+const RecommendationsCarousel = ({
+  overline,
+  headline,
+  productId,
+  products,
+  locale,
+  className,
+  ...rest
+}: RecommendationsCarouselProps) => {
   const hasProductId = !!productId;
   // parse product ids from comma-separated string (tolerates any whitespace around commas)
   const transformProducts = products ? parseProductIds(products) : undefined;
@@ -36,18 +46,20 @@ const RecommendationsCarousel = ({ overline, headline, productId, products, loca
   const { products: productList, loading: productsLoading } = useProducts(transformProducts, { prices: true });
 
   const recommendationsToShow = hasProductId ? (recommendations?.products ?? []) : (productList ?? []);
+  const isLoading = (hasProductId && recLoading) || (hasProducts && productsLoading);
 
-  // Handle error state
+  // Handle error state — no padded shell
   if (error) {
     return null;
   }
 
-  if ((!hasProductId && !hasProducts) || recommendationsToShow.length === 0) {
+  // No source configured, or finished loading with nothing to show — no padded shell
+  if ((!hasProductId && !hasProducts) || (!isLoading && recommendationsToShow.length === 0)) {
     return null;
   }
 
   return (
-    <>
+    <div className={cn('py-8 content-container', className)} {...rest}>
       {overline && (
         <Heading variant="overline" as="div" className="mb-3">
           {overline}
@@ -63,7 +75,7 @@ const RecommendationsCarousel = ({ overline, headline, productId, products, loca
           )}
 
           <CarouselContent className="mt-8 mb-8">
-            {(hasProductId && recLoading) || (hasProducts && productsLoading) ? (
+            {isLoading ? (
               <>
                 {Array.from({ length: 5 }, (_, i) => (
                   <CarouselItem key={i + 1} size="basis-1/5.5">
@@ -97,7 +109,7 @@ const RecommendationsCarousel = ({ overline, headline, productId, products, loca
           </CarouselNext>
         </Carousel>
       </div>
-    </>
+    </div>
   );
 };
 

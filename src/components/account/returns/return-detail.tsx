@@ -151,7 +151,7 @@ function ReturnTrailingDesktopAmount({
         {formatReturnCurrency(refundNetValue, refundNetCurrency, locale)}
       </span>
       {refundGrossValue !== undefined && (
-        <span className="break-words text-sm font-body text-text-placeholders">
+        <span className="break-words text-sm font-body text-text-on-disabled">
           {grossLabel} {formatReturnCurrency(refundGrossValue, refundGrossCurrency, locale)}
         </span>
       )}
@@ -358,7 +358,7 @@ function ReturnItemsList({ items, locale, t }: ReturnItemsListProps) {
                   reasonDetails={returnItem?.reason?.details}
                   t={t}
                   reasonBadgeClassName={reasonBadgeClassName}
-                  containerClassName="flex flex-col gap-2 pt-2"
+                  containerClassName="flex flex-col gap-2"
                 />
               );
             },

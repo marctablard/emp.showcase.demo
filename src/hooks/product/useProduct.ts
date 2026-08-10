@@ -23,6 +23,58 @@ interface UseProductResult {
   setAsCurrent: (isCurrent?: boolean) => void;
 }
 
+/** Last-known same-id product from local state or store (SSR seed / prior fetch). */
+function resolvePriorSameIdProduct(
+  productId: string,
+  localProduct: Product | null,
+  getCached: (id: string) => Product | undefined | null,
+): Product | null {
+  if (localProduct?.id === productId) {
+    return localProduct;
+  }
+  const cached = getCached(productId);
+  if (cached?.id === productId) {
+    return cached;
+  }
+  return null;
+}
+
+function applyProductFetchMiss(
+  productId: string,
+  localProduct: Product | null,
+  getCached: (id: string) => Product | undefined | null,
+  setProduct: (product: Product | null) => void,
+  setError: (error: Error | null) => void,
+): void {
+  // Confirmed client miss (404 → null). Keep prior same-id product when present
+  // so SSR-seeded PDPs do not become Not Found–eligible empty success; true
+  // id-only fetches with no prior product still resolve to null.
+  const prior = resolvePriorSameIdProduct(productId, localProduct, getCached);
+  if (prior) {
+    setProduct(prior);
+    setError(new Error('Product refetch returned no data'));
+    return;
+  }
+  setProduct(null);
+}
+
+function applyProductFetchError(
+  productId: string,
+  localProduct: Product | null,
+  getCached: (id: string) => Product | undefined | null,
+  setProduct: (product: Product | null) => void,
+  setError: (error: Error | null) => void,
+  err: unknown,
+): void {
+  // Keep prior same-id product on failure (do not wipe to null); surface error instead.
+  const prior = resolvePriorSameIdProduct(productId, localProduct, getCached);
+  if (prior) {
+    setProduct(prior);
+  }
+  setError(err instanceof Error ? err : new Error('An unknown error occurred'));
+  getLogger().error({ err }, 'Error fetching product');
+}
+
 export const useProduct = (productOrId?: string | Product, options?: ProductFetchOptions): UseProductResult => {
   const { session, loading: sessionLoading } = useSession();
   const { site } = useSite();
@@ -65,6 +117,13 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
     }
     return getProduct(id);
   });
+  // Keep a sync ref so async fetch handlers can preserve last-known same-id product
+  // without relying on stale closures or post-await setState updater timing (COP-5787).
+  const productRef = useRef<Product | null>(product);
+
+  useEffect(() => {
+    productRef.current = product;
+  }, [product]);
 
   // Seed the product store with an SSR-provided product so the cache-check effect below
   // can reuse it instead of clearing local state and refetching once the session resolves.
@@ -94,11 +153,9 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
           }
         }
 
-        if (forceRefresh) {
-          setProduct(null);
-        } else {
-          setProduct((p) => (p && p.id !== id ? null : p));
-        }
+        // Preserve known same-id product during session-driven pricing/enrichment refetch.
+        // Only clear when switching to a different product id (COP-5787).
+        setProduct((p) => (p && p.id !== id ? null : p));
 
         const data = await fetchProductById(id, options, clientDedupeScope);
         const next =
@@ -107,11 +164,12 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
             : data;
         if (next) {
           addProduct(next);
+          setProduct(next);
+        } else {
+          applyProductFetchMiss(id, productRef.current, getProduct, setProduct, setError);
         }
-        setProduct(next);
       } catch (err) {
-        setError(err instanceof Error ? err : new Error('An unknown error occurred'));
-        getLogger().error({ err }, 'Error fetching product');
+        applyProductFetchError(id, productRef.current, getProduct, setProduct, setError, err);
       } finally {
         setLoading(false);
       }

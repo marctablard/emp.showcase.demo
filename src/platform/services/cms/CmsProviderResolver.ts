@@ -1,13 +1,21 @@
+// Relative import of the pure dual-env helpers — this module is shared by
+// Edge middleware (`preview-detector-registry`) and must NOT pull in
+// `server-only` via `@/lib/server/storyblok-env`. Server-only call sites that
+// only need env helpers should import `@/lib/server/storyblok-env` directly.
+import { getCmsEnv, getStoryblokEnv } from '../../../lib/common/cms-dual-env';
+
 /**
  * Resolves the active CMS provider id from runtime environment variables.
  *
  * Resolution rules:
- * - When `NEXT_CMS_PROVIDER` is explicitly set to one of the known
- *   provider ids (after trimming), that value wins.
- * - Otherwise auto-resolve: if `NEXT_STORYBLOK_ACCESS_TOKEN` is
- *   non-empty (after trimming), return `'storyblok'`. Else return `'none'`.
- * - Unknown / whitespace-only `NEXT_CMS_PROVIDER` values are treated
- *   as unset (fall through to auto-resolution).
+ * - When `NEXT_CMS_PROVIDER` (or legacy `NEXT_PUBLIC_CMS_PROVIDER`) is
+ *   explicitly set to one of the known provider ids (after trimming), that
+ *   value wins.
+ * - Otherwise auto-resolve: if `NEXT_STORYBLOK_ACCESS_TOKEN` (or legacy
+ *   `NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN`) is non-empty (after trimming),
+ *   return `'storyblok'`. Else return `'none'`.
+ * - Unknown / whitespace-only provider values are treated as unset
+ *   (fall through to auto-resolution).
  *
  * The resolved id is used by `instrumentation.ts` to alias-bind
  * `CmsAdapter` -> `CmsAdapter:<id>` in the DI container.
@@ -36,11 +44,11 @@ function isCmsProviderId(value: string): value is CmsProviderId {
 }
 
 export function resolveCmsProvider(env: NodeJS.ProcessEnv = process.env): CmsProviderId {
-  const explicit = env.NEXT_CMS_PROVIDER?.trim() ?? '';
+  const explicit = getCmsEnv('PROVIDER', env) ?? '';
   if (isCmsProviderId(explicit)) {
     return explicit;
   }
-  if (env.NEXT_STORYBLOK_ACCESS_TOKEN?.trim()) {
+  if (getStoryblokEnv('ACCESS_TOKEN', env)) {
     return 'storyblok';
   }
   return 'none';
@@ -48,8 +56,8 @@ export function resolveCmsProvider(env: NodeJS.ProcessEnv = process.env): CmsPro
 
 /**
  * Resolves the default-content fallback source provider from
- * `NEXT_CMS_FALLBACK_PROVIDER`, or `null` when no composite fallback
- * layer should be wired (EMP-16 Phase G).
+ * `NEXT_CMS_FALLBACK_PROVIDER` (or legacy `NEXT_PUBLIC_CMS_FALLBACK_PROVIDER`),
+ * or `null` when no composite fallback layer should be wired (EMP-16 Phase G).
  *
  * Resolution rules:
  * - Unset / empty / whitespace-only → `null` (composite layer is transparently
@@ -66,7 +74,7 @@ export function resolveCmsProvider(env: NodeJS.ProcessEnv = process.env): CmsPro
  * `CmsAdapter` in a `FallbackCmsAdapter` composite.
  */
 export function resolveCmsFallbackProvider(env: NodeJS.ProcessEnv = process.env): CmsProviderId | null {
-  const raw = env.NEXT_CMS_FALLBACK_PROVIDER?.trim() ?? '';
+  const raw = getCmsEnv('FALLBACK_PROVIDER', env) ?? '';
   if (!raw) {
     return null;
   }

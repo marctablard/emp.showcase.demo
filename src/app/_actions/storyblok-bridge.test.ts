@@ -43,6 +43,7 @@ jest.mock('@/platform/server', () => ({
 }));
 
 const ORIGINAL_TOKEN = process.env.NEXT_STORYBLOK_ACCESS_TOKEN;
+const ORIGINAL_LEGACY_TOKEN = process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN;
 
 beforeEach(() => {
   mockHeadersGet.mockReset();
@@ -74,6 +75,7 @@ beforeEach(() => {
   }));
 
   delete process.env.NEXT_STORYBLOK_ACCESS_TOKEN;
+  delete process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN;
 });
 
 afterAll(() => {
@@ -81,6 +83,11 @@ afterAll(() => {
     delete process.env.NEXT_STORYBLOK_ACCESS_TOKEN;
   } else {
     process.env.NEXT_STORYBLOK_ACCESS_TOKEN = ORIGINAL_TOKEN;
+  }
+  if (ORIGINAL_LEGACY_TOKEN === undefined) {
+    delete process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN;
+  } else {
+    process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN = ORIGINAL_LEGACY_TOKEN;
   }
 });
 

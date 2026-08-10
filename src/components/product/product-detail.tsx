@@ -762,8 +762,12 @@ export default function ProductDetail({ product: initialProduct, options, classN
   const { product, loading, setAsCurrent } = useProduct(initialProduct, options);
   const { session } = useSession();
   const { site } = useSite();
-  const { price, availability } = usePdpPurchaseData(product, session, site);
-  usePdpCurrentProduct(product, setAsCurrent);
+  // Usable SSR seed = full Product object (not an id string). Keep it as fallback during
+  // session/pricing bootstrap so a transient null/error does not become false Not Found (COP-5787).
+  const ssrSeedProduct = initialProduct && typeof initialProduct !== 'string' ? initialProduct : undefined;
+  const resolvedProduct = product ?? ssrSeedProduct ?? null;
+  const { price, availability } = usePdpPurchaseData(resolvedProduct, session, site);
+  usePdpCurrentProduct(resolvedProduct, setAsCurrent);
 
   if (!shopContextReady || loading) {
     return (
@@ -773,13 +777,14 @@ export default function ProductDetail({ product: initialProduct, options, classN
     );
   }
 
-  if (product === null) {
+  // Confirmed absence only: no client product and no SSR Product seed (id-only / undefined seed).
+  if (resolvedProduct === null) {
     return notFound();
   }
 
   return (
     <PdpDetailView
-      product={product}
+      product={resolvedProduct}
       className={className}
       price={price}
       availability={availability}

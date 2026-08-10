@@ -1,4 +1,5 @@
 import 'server-only';
+import ssr from '@/platform/ssr';
 import type { CMSService } from './CMSService';
 import { bindActiveCmsAdapter } from './bind-active-cms-adapter';
 
@@ -30,6 +31,11 @@ import { bindActiveCmsAdapter } from './bind-active-cms-adapter';
  * on the render graph and at boot — the wrap can never be present on one graph
  * but lost on the other.
  *
+ * Static `import ssr` (not a dynamic `import()`) is required so `generate:prod`
+ * DI prune can attribute `ssr.get('CMSService')` as an SSR consumer seed. A
+ * dynamic import left the CMS stack unreachable and pruned it from the
+ * production SSR container.
+ *
  * This module is `import 'server-only'` because it touches the SSR container,
  * so it must never be called from a Client Component or from a module that
  * ends up in the client bundle.
@@ -41,11 +47,9 @@ import { bindActiveCmsAdapter } from './bind-active-cms-adapter';
  * checks `isBound(alias)` and rebinds idempotently at the resolve site.
  */
 export async function getCmsService(): Promise<CMSService> {
-  const container = (await import('@/platform/ssr')).default;
-
-  if (!container.isBound('CmsAdapter')) {
-    bindActiveCmsAdapter(container);
+  if (!ssr.isBound('CmsAdapter')) {
+    bindActiveCmsAdapter(ssr);
   }
 
-  return container.get<CMSService>('CMSService');
+  return ssr.get<CMSService>('CMSService');
 }

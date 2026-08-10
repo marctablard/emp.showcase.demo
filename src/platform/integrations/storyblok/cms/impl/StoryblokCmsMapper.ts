@@ -19,8 +19,9 @@ const HEADING_LEVELS = new Set([1, 2, 3, 4, 5, 6]);
  *    (TipTap `blockquote` / `image` / `code_block`, and the `highlight` /
  *    `superscript` / `subscript` marks) are dropped rather than faked.
  *  - `mapPage` lifts a story payload into a `CMSPage`, turning each
- *    `content.body[]` blok into a `CMSComponent` (`component` → `type`,
- *    `_uid` → `id`) and pre-mapping richtext-typed fields to the AST.
+ *    `content.body[]` blok into a `CMSComponent` (`component` → `type`
+ *    with underscore→kebab normalisation, `_uid` → `id`) and pre-mapping
+ *    richtext-typed fields to the AST.
  */
 @injectable('StoryblokCmsMapper', 'Singleton')
 export class StoryblokCmsMapper {
@@ -79,7 +80,9 @@ export class StoryblokCmsMapper {
   private mapComponent(blok: Record<string, unknown>): CMSComponent {
     const { _uid, component, ...rest } = blok;
     const id = typeof _uid === 'string' ? _uid : '';
-    const type = typeof component === 'string' ? component : '';
+    // Storyblok technical names use underscores (`quick_entry`); the agnostic
+    // component map / Zod discriminators use kebab-case (`quick-entry`).
+    const type = typeof component === 'string' ? component.replaceAll('_', '-') : '';
 
     const mapped: Record<string, unknown> = { ...rest, id, type };
 

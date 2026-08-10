@@ -109,14 +109,19 @@ invisible to the render-graph container. A direct render-time
 `DelegatingCmsServiceSSR` whose `@inject('CmsAdapter')` finds nothing bound,
 and Inversify would throw `No bindings found for service: "CmsAdapter"`.
 
-`getCmsService()` resolves the SSR container at the call site and lazily binds
-the `CmsAdapter` alias on **that** container instance (one `isBound` check plus
-at most one idempotent rebind, since the resolved adapter is a Singleton). If
-the env-resolved target `CmsAdapter:<id>` is not bound on this container, it
-falls back to `CmsAdapter:none` so the app still boots on a partially
-configured container. The `instrumentation.ts` alias remains as the
-server-container / Route-Handler path; this helper is the render-path safety
-net. See ADR 0001 and the helper's own JSDoc for the full rationale.
+`getCmsService()` statically imports the SSR container at the call site and
+lazily binds the `CmsAdapter` alias on **that** container instance (one
+`isBound` check plus at most one idempotent rebind, since the resolved adapter
+is a Singleton). The static import is required so `generate:prod` DI prune can
+see `ssr.get('CMSService')` as a consumer seed — a dynamic `import()` left the
+CMS stack unreachable and pruned it from production. If the env-resolved
+target `CmsAdapter:<id>` is not bound on this container, it falls back to
+`CmsAdapter:none` so the app still boots on a partially configured container.
+`DelegatingCmsServiceSSR` is `@injectable` under its class id and aliased to
+`CMSService` via `depency.yml` (same pattern as SearchService). The
+`instrumentation.ts` alias remains as the server-container / Route-Handler
+path; this helper is the render-path safety net. See ADR 0001 and the helper's
+own JSDoc for the full rationale.
 
 This caveat generalises: any future programmatic DI alias bound in
 `instrumentation.ts` must ship an equivalent lazy-bind helper.
@@ -142,12 +147,14 @@ runtime guard.
 
 Resolution rules:
 
-- If `NEXT_CMS_PROVIDER` is explicitly set to one of the known ids
-  (after trimming), that value wins.
-- Otherwise auto-resolve: if `NEXT_STORYBLOK_ACCESS_TOKEN` is non-empty,
-  return `storyblok`; else return `none`.
-- Unknown or whitespace-only `NEXT_CMS_PROVIDER` values are treated as
-  unset and fall through to auto-resolution.
+- If `NEXT_CMS_PROVIDER` (or legacy `NEXT_PUBLIC_CMS_PROVIDER`) is
+  explicitly set to one of the known ids (after trimming), that value wins.
+- Otherwise auto-resolve: if `NEXT_STORYBLOK_ACCESS_TOKEN` (or legacy
+  `NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN`) is non-empty, return `storyblok`;
+  else return `none`. Resolution uses `getCmsEnv` / `getStoryblokEnv`
+  (`src/lib/common/cms-dual-env.ts`) — server-only names win when both are set.
+- Unknown or whitespace-only provider values are treated as unset and fall
+  through to auto-resolution.
 
 `instrumentation.ts` uses the resolved id to alias-bind
 `CmsAdapter -> CmsAdapter:<id>` at bootstrap; `getCmsService()` re-establishes

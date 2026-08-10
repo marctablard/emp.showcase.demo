@@ -1,6 +1,7 @@
 import { type ISbStoriesParams, type StoryblokClient, apiPlugin, storyblokInit } from '@storyblok/react/rsc';
 import { inject } from 'inversify';
 import 'server-only';
+import { getStoryblokEnv } from '@/lib/server/storyblok-env';
 import { injectable } from '@/platform/core/di/injectable';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { StoryblokCmsApi as StoryblokCmsApiContract, StoryblokStoryResult } from '../StoryblokCmsApi';
@@ -27,13 +28,8 @@ export class StoryblokCmsApi implements StoryblokCmsApiContract {
   }
 
   getSpaceId(): string | null {
-    // A whitespace-only value counts as unset, so this is deliberately not a
-    // nullish fallback — an empty string must collapse to null as well.
-    const spaceId = process.env.NEXT_STORYBLOK_SPACE_ID?.trim();
-    if (spaceId === undefined || spaceId === '') {
-      return null;
-    }
-    return spaceId;
+    // A whitespace-only value counts as unset (getStoryblokEnv trims / drops blanks).
+    return getStoryblokEnv('SPACE_ID') ?? null;
   }
 
   async getStory(
@@ -48,7 +44,7 @@ export class StoryblokCmsApi implements StoryblokCmsApiContract {
     }
 
     const fullSlug = this.resolveSlug(slug, site);
-    const resolvedVersion = version ?? (process.env.NEXT_STORYBLOK_ACCESS_PREVIEW === 'true' ? 'draft' : 'published');
+    const resolvedVersion = version ?? (getStoryblokEnv('ACCESS_PREVIEW') === 'true' ? 'draft' : 'published');
     const params: ISbStoriesParams = {
       version: resolvedVersion,
       language: locale,
@@ -67,11 +63,11 @@ export class StoryblokCmsApi implements StoryblokCmsApiContract {
   }
 
   private token(): string {
-    return process.env.NEXT_STORYBLOK_ACCESS_TOKEN?.trim() ?? '';
+    return getStoryblokEnv('ACCESS_TOKEN') ?? '';
   }
 
   private resolveSlug(slug: string, site?: string): string {
-    if (process.env.NEXT_STORYBLOK_MULTI_SITE === 'true' && site) {
+    if (getStoryblokEnv('MULTI_SITE') === 'true' && site) {
       return `${site}/${slug}`;
     }
     return slug;

@@ -2,6 +2,7 @@
 
 import { apiPlugin, storyblokInit } from '@storyblok/react/rsc';
 import 'server-only';
+import { getStoryblokEnv } from '@/lib/server/storyblok-env';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 
 /**
@@ -42,8 +43,7 @@ const getBannerClient = (token: string): StoryblokBannerClient | null => {
     // `api.get is not a function`. We must invoke the accessor to get the
     // client. Same pattern as `StoryblokCmsApi.ts:74-90`.
     const accessor = storyblokInit({ accessToken: token, use: [apiPlugin] }) as unknown as
-      | (() => StoryblokBannerClient | null)
-      | null;
+      (() => StoryblokBannerClient | null) | null;
     cachedBannerClient = { token, accessor };
   }
   // We defensively bail both when `storyblokInit` itself returns null and
@@ -73,13 +73,14 @@ const getLogger = (): LoggerService => {
  * rejects — in the fetch-error case a warn-log is emitted. Otherwise returns
  * the SDK's `response.data` payload unchanged.
  *
- * The token is read server-side from `NEXT_STORYBLOK_ACCESS_TOKEN`; the
- * preview switch is read from `NEXT_STORYBLOK_ACCESS_PREVIEW` (strict
+ * The token is read server-side via `getStoryblokEnv('ACCESS_TOKEN')`
+ * (`NEXT_STORYBLOK_*` preferred, legacy `NEXT_PUBLIC_STORYBLOK_*` fallback);
+ * the preview switch uses `getStoryblokEnv('ACCESS_PREVIEW')` (strict
  * `'true'` comparison — mismatched case yields `published`). Neither value
  * ever crosses to the browser.
  */
 export async function fetchTopBanner({ locale }: { locale: string }): Promise<TopBannerData | null> {
-  const token = process.env.NEXT_STORYBLOK_ACCESS_TOKEN?.trim();
+  const token = getStoryblokEnv('ACCESS_TOKEN');
   if (!token) {
     return null;
   }
@@ -89,7 +90,7 @@ export async function fetchTopBanner({ locale }: { locale: string }): Promise<To
     return null;
   }
 
-  const version: 'draft' | 'published' = process.env.NEXT_STORYBLOK_ACCESS_PREVIEW === 'true' ? 'draft' : 'published';
+  const version: 'draft' | 'published' = getStoryblokEnv('ACCESS_PREVIEW') === 'true' ? 'draft' : 'published';
 
   try {
     const response = await api.get(STORY_SLUG, { version, language: locale });

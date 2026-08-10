@@ -12,18 +12,25 @@
  *
  * Behaviour contract: when there is no data to show (neither `productId`
  * nor a non-empty `products`), the wrapper collapses to nothing
- * (`return null`) rather than rendering an empty wrapper.
+ * (`return null`) rather than rendering an empty wrapper. The padded
+ * `py-8 content-container` shell lives inside the client island so an
+ * empty/error final state cannot leave a spacer above the footer.
  *
  * Co-located with the implementation they pin.
  */
 import '@testing-library/jest-dom';
 import { render } from '@testing-library/react';
 import Recommendations, { type RecommendationsData, RecommendationsSchema } from './index';
+import RecommendationsCarousel from './recommendations-carousel';
 
 jest.mock('./recommendations-carousel', () => ({
   __esModule: true,
-  default: () => null,
+  default: jest.fn(({ className, ...rest }: { className?: string } & Record<string, unknown>) => (
+    <div className={['py-8', 'content-container', className].filter(Boolean).join(' ')} {...rest} />
+  )),
 }));
+
+const mockedCarousel = RecommendationsCarousel as unknown as jest.Mock;
 
 const MINIMAL: RecommendationsData = {
   id: 'rec-1',
@@ -45,6 +52,12 @@ const WITH_PRODUCTS: RecommendationsData = {
   headline: 'Spring picks',
   products: 'p-1, p-2, p-3',
 };
+
+beforeEach(() => {
+  mockedCarousel.mockImplementation(({ className, ...rest }: { className?: string } & Record<string, unknown>) => (
+    <div className={['py-8', 'content-container', className].filter(Boolean).join(' ')} {...rest} />
+  ));
+});
 
 describe('Recommendations — schema', () => {
   it('parses a minimal payload with only `id` and `type`', () => {
@@ -108,6 +121,16 @@ describe('Recommendations — no-data / error path returns null', () => {
     const { container } = render(<Recommendations {...EMPTY_RESULT} />);
 
     expect(container.firstChild).toBeNull();
+  });
+
+  it('does not leave a py-8 shell when the client island collapses to null', () => {
+    mockedCarousel.mockReturnValue(null);
+
+    const { container } = render(<Recommendations {...WITH_PRODUCT_ID} />);
+
+    expect(container.firstChild).toBeNull();
+    expect(container.querySelector('.py-8')).toBeNull();
+    expect(container.querySelector('.content-container')).toBeNull();
   });
 });
 

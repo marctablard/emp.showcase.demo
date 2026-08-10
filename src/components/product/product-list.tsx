@@ -1,16 +1,18 @@
 import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/components/ui/card';
-import { H5, H6 } from '@/components/ui/h';
+import { H6 } from '@/components/ui/h';
 import { cn } from '@/lib/utils';
 import { ProductItemRow } from './product-item-row';
 
-/** Column headers: Mobile/heading/h5 below desktop, Desktop/heading/h6 from `md` up (both 16px). */
+/**
+ * Column headers — Figma 11936:190927 Mobile/heading/h6.
+ * `text-2xl` token: 12px below 1024px, Desktop/heading/h6 (16px) from 1024px up.
+ */
 function ProductListColumnHeading({ children, className }: Readonly<{ children: ReactNode; className?: string }>) {
   return (
     <div className={cn('min-w-0', className)}>
-      <H5 className="md:hidden">{children}</H5>
-      <H6 className="hidden md:block">{children}</H6>
+      <H6>{children}</H6>
     </div>
   );
 }
@@ -66,15 +68,20 @@ export interface ProductListItem {
 
 /**
  * Desktop track templates shared by ProductList header and ProductItemRow.
- * Four-column (trailing amount / Return) uses shrinkable mins so Refund Amount
- * stays inside the card at ~1024–1150px account layouts with a sidebar.
+ *
+ * In this project `sm` = 768px and `md` = 1024px (see `src/lib/breakpoints.ts`).
+ * Table layout starts at `sm` (tablet+); below that stacked mobile cards are used.
+ * Tracks use `minmax(0, …)` / a compact Quantity so narrow account mains (~462–506px
+ * beside the sidebar) stay scroll-free.
+ *
+ * Figma 11936:190918 / 11936:190932 (~484px content): Product ≈257px (~4fr), each
+ * numeric track ≈60px; Quantity is a tight fixed track so Product keeps the share.
  */
-export const PRODUCT_DESKTOP_GRID_COLS = 'sm:grid-cols-[minmax(280px,1.6fr)_100px_minmax(140px,1fr)]';
-export const PRODUCT_DESKTOP_GRID_COLS_WITH_AMOUNT =
-  'sm:grid-cols-[minmax(0,1.6fr)_minmax(4rem,100px)_minmax(0,1fr)_minmax(0,1fr)]';
+export const PRODUCT_DESKTOP_GRID_COLS = 'sm:grid-cols-[minmax(0,4fr)_3rem_minmax(0,1.2fr)]';
+export const PRODUCT_DESKTOP_GRID_COLS_WITH_AMOUNT = 'sm:grid-cols-[minmax(0,4fr)_3rem_minmax(0,1fr)_minmax(0,1.1fr)]';
 /** Product | Quantity | Base Net Unit Price | Discount | Unit Price */
 export const PRODUCT_DESKTOP_GRID_COLS_WITH_DISCOUNT =
-  'sm:grid-cols-[minmax(200px,1.4fr)_minmax(4rem,80px)_minmax(0,1fr)_minmax(4rem,72px)_minmax(0,1fr)]';
+  'sm:grid-cols-[minmax(0,3.5fr)_3rem_minmax(0,1fr)_minmax(0,3.25rem)_minmax(0,1fr)]';
 
 interface ProductListProps {
   readonly items: ProductListItem[];
@@ -132,9 +139,7 @@ export function ProductList({
   );
   const showDiscountColumns = Boolean(resolvedPresentationConfig.showDiscountColumns);
   const desktopGridCols = resolveProductDesktopGridCols(resolvedPresentationConfig);
-  const desktopGridClassName = hasTrailingDesktopAmount
-    ? `hidden min-w-0 sm:grid ${desktopGridCols} items-start gap-4 lg:gap-6`
-    : `hidden sm:grid ${desktopGridCols} items-start gap-6`;
+  const desktopGridClassName = `hidden min-w-0 sm:grid ${desktopGridCols} items-start gap-4 lg:gap-6`;
 
   return (
     <Card
@@ -142,13 +147,14 @@ export function ProductList({
       data-testid="product-list-card"
     >
       {/* Mobile Figma Products frame: single spacing/4 inset. Card default py-6 must stay off
-          so it does not stack with CardContent padding (Jira #14a / #19 gap). */}
-      <CardContent className="min-w-0 overflow-x-auto p-4 sm:p-6" data-testid="product-list-scroll">
+          so it does not stack with CardContent padding (Jira #14a / #19 gap).
+          Stacked cards below sm (768px); table from sm up with shrink-fit columns (no overflow-x). */}
+      <CardContent className="min-w-0 p-4 sm:p-6" data-testid="product-list-content">
         <div className={`${desktopGridClassName} border-b border-border-primary pb-4`}>
           <ProductListColumnHeading className="min-w-0">
             {resolvedPresentationConfig.labels.product}
           </ProductListColumnHeading>
-          <ProductListColumnHeading className="text-left">
+          <ProductListColumnHeading className="min-w-0 text-left">
             {resolvedPresentationConfig.labels.quantity}
           </ProductListColumnHeading>
           {showDiscountColumns ? (

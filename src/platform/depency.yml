@@ -13,8 +13,17 @@ AlwaysInclude:
   Server:
     - EmporixSetupService
     - FileBasedSetupService
+    # CMS adapter plugins are selected at runtime by bindActiveCmsAdapter
+    # (`CmsAdapter:${NEXT_CMS_PROVIDER}`). Prune cannot see those string builds.
+    - CmsAdapter:none
+    - CmsAdapter:storyblok
+    - CmsAdapter:local
   Client: []
-  SSR: []
+  SSR:
+    - DelegatingCmsServiceSSR
+    - CmsAdapter:none
+    - CmsAdapter:storyblok
+    - CmsAdapter:local
 
 # Files whose container lookups resolve the service ID at runtime, so `DI_PRUNE` cannot
 # trace them. Listing a file acknowledges that every ID it can reach is pinned above under
@@ -22,3 +31,4 @@ AlwaysInclude:
 # pruned — set DI_PRUNE_ALLOW_DYNAMIC=true to downgrade that to a warning while iterating.
 AllowDynamicLookups:
   - src/app/api/setup/route.ts
+  - src/platform/services/cms/bind-active-cms-adapter.ts

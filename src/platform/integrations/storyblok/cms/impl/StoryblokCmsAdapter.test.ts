@@ -500,10 +500,12 @@ describe('StoryblokCmsAdapter — validateWebhookSignature (HMAC-SHA-256, consta
 
 describe('StoryblokCmsAdapter — mapWebhookPayload', () => {
   const originalMultiSite = process.env.NEXT_STORYBLOK_MULTI_SITE;
+  const originalLegacyMultiSite = process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE;
   const originalSites = process.env.NEXT_PUBLIC_AVAILABLE_SITES;
 
   beforeEach(() => {
     delete process.env.NEXT_STORYBLOK_MULTI_SITE;
+    delete process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE;
     // Single-site spaces fan out across the configured sites — pin a known set.
     process.env.NEXT_PUBLIC_AVAILABLE_SITES = 'main';
   });
@@ -513,6 +515,11 @@ describe('StoryblokCmsAdapter — mapWebhookPayload', () => {
       delete process.env.NEXT_STORYBLOK_MULTI_SITE;
     } else {
       process.env.NEXT_STORYBLOK_MULTI_SITE = originalMultiSite;
+    }
+    if (originalLegacyMultiSite === undefined) {
+      delete process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE;
+    } else {
+      process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE = originalLegacyMultiSite;
     }
     if (originalSites === undefined) {
       delete process.env.NEXT_PUBLIC_AVAILABLE_SITES;

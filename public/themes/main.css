@@ -1,14 +1,11 @@
 /*
  * Per-site theme — `main`.
  *
- * Overrides ONLY the tokens that differ from the neutral default
- * (src/app/styles/mapped.css). These `:root` rules load after globals.css
- * (the <link> is mounted as the first <body> child) so they win the cascade
- * for equal specificity. The Tailwind `@theme inline` block is untouched —
- * it reads `var(--color-surface-action)`, so overriding the variable
- * re-skins every action surface (buttons, focus rings) without new utilities.
+ * Intentionally empty of `:root` color overrides so the shared storefront
+ * palette in `src/app/styles/mapped.css` stays authoritative
+ * (`--color-surface-action` → `var(--color-primary-500)`, etc.).
+ *
+ * The file stays registered in `THEME_MAP` and is loaded by `SiteThemeStyle`
+ * so the per-site theming mechanism remains wired; add `:root` token
+ * overrides here only when this site should diverge from the shared default.
  */
-:root {
-  --color-surface-action: #1d4ed8;
-  --color-surface-action-hover: #1e40af;
-}

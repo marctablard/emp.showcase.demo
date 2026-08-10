@@ -316,19 +316,22 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
 
     content = (
       <div className="space-y-6">
-        {/* Stack Decline / Approve / Comment one-per-line only below sm (true mobile). */}
+        {/* Header: mobile stacks full-width CTAs (Figma 11895:141280); from sm, actions stay one
+            horizontal row and wrap as a unit under the ID band when space is tight (11895:138491). */}
         <div
-          className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+          className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
           data-testid="approval-detail-header"
         >
-          <div className="flex items-center gap-6">
-            <H3>
+          <div className="flex min-w-0 flex-nowrap items-center gap-6">
+            <H3 className="min-w-0 break-words">
               {t('approval')}: {approval.id}
             </H3>
-            <ApprovalStatusBadge status={approval.status} />
+            <div className="shrink-0">
+              <ApprovalStatusBadge status={approval.status} />
+            </div>
           </div>
           <div
-            className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end"
+            className="flex w-full shrink-0 flex-col gap-4 sm:w-auto sm:flex-row sm:flex-nowrap sm:items-center sm:justify-end"
             data-testid="approval-detail-actions"
           >
             {canApprove && (

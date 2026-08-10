@@ -198,7 +198,8 @@ describe('ReturnDetail', () => {
     const mobileRow = screen.getByTestId('product-item-mobile-item-123');
 
     expect(within(desktopRow).getAllByText('€100.00').length).toBeGreaterThanOrEqual(1);
-    expect(within(desktopRow).getByText('gross €119.00')).toBeInTheDocument();
+    // Unit-price secondary + refund-amount secondary both use "Gross $…" (no colon).
+    expect(within(desktopRow).getAllByText('gross €119.00').length).toBe(2);
     expect(within(mobileRow).getByText('claimReasons.CHANGED_MIND')).toBeInTheDocument();
     expect(within(mobileRow).getByText('Item reason details.')).toBeInTheDocument();
   });
@@ -285,7 +286,8 @@ describe('ReturnDetail', () => {
     const netValues = within(desktopRow).getAllByText('€100.00');
     const grossValues = within(desktopRow).getAllByText('gross €119.00');
     expect(netValues.length).toBeGreaterThanOrEqual(1);
-    expect(grossValues).toHaveLength(1);
+    // Price column + Refund Amount column each show a gross secondary line.
+    expect(grossValues).toHaveLength(2);
 
     expect(netValues[0].compareDocumentPosition(grossValues[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -397,17 +399,19 @@ describe('ReturnDetail', () => {
     expect(container.querySelector('img[alt="BlueSolar 55 W"]')).toHaveAttribute('width', '120');
   });
 
-  it('keeps Refund Amount contained in the product-list card at medium breakpoints (~1024–1150)', () => {
+  it('keeps Refund Amount contained in the product-list card at sm+ (incl. narrow sidebar main) without horizontal scroll', () => {
     render(<ReturnDetail returnId="return-123" />);
 
     const card = screen.getByTestId('product-list-card');
-    const scroll = screen.getByTestId('product-list-scroll');
+    const content = screen.getByTestId('product-list-content');
     const desktopRow = screen.getByTestId('product-item-desktop-item-123');
     const trailingCell = screen.getByTestId('product-trailing-amount-cell-item-123');
 
     expect(card).toHaveClass('min-w-0', 'max-w-full', 'overflow-hidden', 'shadow-sm');
-    expect(scroll).toHaveClass('min-w-0', 'overflow-x-auto');
-    expect(desktopRow.className).toMatch(/minmax\(0,1\.6fr\).*minmax\(0,1fr\)_minmax\(0,1fr\)/);
+    expect(content).toHaveClass('min-w-0');
+    expect(content).not.toHaveClass('overflow-x-auto');
+    expect(desktopRow.className).toMatch(/minmax\(0,4fr\)_3rem_minmax\(0,1fr\)_minmax\(0,1\.1fr\)/);
+    expect(desktopRow.className).toContain('sm:grid');
     expect(trailingCell).toHaveClass('min-w-0', 'text-right');
     expect(within(trailingCell).getByText('€100.00')).toBeInTheDocument();
   });

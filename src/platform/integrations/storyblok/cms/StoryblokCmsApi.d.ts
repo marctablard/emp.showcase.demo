@@ -23,7 +23,8 @@ export interface StoryblokCmsApi {
 
   /**
    * Returns the configured Storyblok space id (from
-   * `NEXT_STORYBLOK_SPACE_ID`, trimmed), or `null` when unset / blank.
+   * `NEXT_STORYBLOK_SPACE_ID` / legacy `NEXT_PUBLIC_STORYBLOK_SPACE_ID`,
+   * trimmed), or `null` when unset / blank.
    * The preview adapter compares it against the signed
    * `_storyblok_tk[space_id]`; a `null` here means the adapter SKIPS that
    * check (documented residual risk, FU-004).
