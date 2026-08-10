@@ -1,42 +1,32 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { type Breakpoint, breakpoints } from '@/lib/breakpoints';
+
+// Re-exported so existing `@/hooks/useBreakpoint` imports of the constant keep working.
+export { breakpoints } from '@/lib/breakpoints';
+export type { Breakpoint } from '@/lib/breakpoints';
 
 /**
- * Standard Tailwind CSS breakpoints in pixels
- * These match the min-width values defined in Tailwind's default configuration
- * @see https://tailwindcss.com/docs/responsive-design
- */
-export const breakpoints = {
-  sm: 768, // Small screens, like mobile phones in landscape
-  md: 1024, // Medium screens, like tablets
-  lg: 1280, // Large screens, like laptops
-};
-
-/**
- * Type representing valid Tailwind breakpoint names
- */
-type Breakpoint = keyof typeof breakpoints;
-
-/**
- * React hook that detects if the current viewport width is at or above a specified Tailwind breakpoint
+ * React hook that detects whether the current viewport width is at or above a given
+ * design-system breakpoint.
  *
- * @param breakpoint - The Tailwind breakpoint to check against ('sm', 'md', 'lg')
- * @returns boolean - True if the current viewport width is >= the specified breakpoint width, otherwise false
+ * The breakpoints (`sm` 768 / `md` 1024 / `lg` 1280) are this project's own scale,
+ * defined once in `@/lib/breakpoints` and mirrored in `globals.css`. They are NOT
+ * Tailwind's defaults (which would be 640/768/1024/1280/1536).
+ *
+ * @param breakpoint - 'sm' | 'md' | 'lg'
+ * @returns true when `window.innerWidth >= breakpoints[breakpoint]`
  *
  * @example
- * // Check if the screen is at least 'lg' (1280px) wide
- * const isLargeScreen = useBreakpoint('lg');
- *
- * // Use with negation to check if the screen is below a breakpoint
- * const isMobile = !useBreakpoint('md'); // True when screen width < 1024px
+ * const isLargeScreen = useBreakpoint('lg'); // ≥ 1280px
+ * const isMobile = !useBreakpoint('md');     // < 1024px
  */
 export function useBreakpoint(breakpoint: Breakpoint): boolean {
   // Track whether the current viewport width is at or above the specified breakpoint
   const [isAboveBreakpoint, setIsAboveBreakpoint] = useState(false);
 
   useEffect(() => {
-    // Function to check and update the breakpoint state
     const checkSize = () => {
       setIsAboveBreakpoint(window.innerWidth >= breakpoints[breakpoint]);
     };
@@ -44,12 +34,10 @@ export function useBreakpoint(breakpoint: Breakpoint): boolean {
     // Initial check when component mounts
     checkSize();
 
-    // Add event listener to update state when window is resized
+    // Update when the viewport is resized
     window.addEventListener('resize', checkSize);
-
-    // Clean up event listener when component unmounts
     return () => window.removeEventListener('resize', checkSize);
-  }, [breakpoint]); // Re-run effect if breakpoint parameter changes
+  }, [breakpoint]);
 
   return isAboveBreakpoint;
 }

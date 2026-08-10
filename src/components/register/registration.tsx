@@ -122,7 +122,7 @@ export default function Registration() {
 
   if (loading || loginLoading) {
     return (
-      <div className="mx-4 lg:mx-9">
+      <div className="mx-4 md:mx-9">
         <div className="flex gap-3 align-end mb-8">
           <H1 variant="h4">{t('title')}</H1>
         </div>
@@ -133,7 +133,10 @@ export default function Registration() {
     );
   }
   return (
-    <div className="w-full max-w-228 px-6 pb-32 pt-6 sm:pt-0 flex flex-col gap-8" ref={top}>
+    <div
+      className="w-[calc(100%-2rem)] mx-auto max-w-[485px] md:max-w-[790px] lg:max-w-228 px-6 pb-32 pt-6 sm:pt-0 flex flex-col gap-8"
+      ref={top}
+    >
       <div className="flex flex-col gap-2">
         <H1 variant="h4">{t('title')}</H1>
         <p>

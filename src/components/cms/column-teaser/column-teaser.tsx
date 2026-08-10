@@ -17,7 +17,7 @@ const ColumnTeaser = ({
   const sideImgs = side_images || [];
 
   return (
-    <div className={cn('w-full max-w-6xl mx-auto mb-10', className)} {...rest}>
+    <div className={cn('content-container mb-10', className)} {...rest}>
       <div className="grid grid-cols-2 gap-4 h-auto ">
         {mainImg && (
           <div className="col-span-2 md:col-span-1 h-96">

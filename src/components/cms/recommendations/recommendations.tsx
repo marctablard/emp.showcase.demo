@@ -25,7 +25,7 @@ const Recommendations = ({
   }
 
   return (
-    <div className={cn('py-8 max-w-6xl mx-auto px-4 lg:px-9', className)} {...rest}>
+    <div className={cn('py-8 content-container', className)} {...rest}>
       <RecommendationsCarousel
         overline={overline}
         headline={headline}

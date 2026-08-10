@@ -992,7 +992,7 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
         <div className="rounded-md bg-surface-primary p-6 shadow-sm">
           <div className="flex flex-col gap-6">
             <H4>{t('title')}</H4>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-6 @xl:grid-cols-2 @5xl:grid-cols-4">
               <div className="flex flex-col gap-1">
                 <H5>{t('quotationDate')}</H5>
                 <span className="text-base font-body text-text-body">{formatDate(quote.submittedDate, locale)}</span>

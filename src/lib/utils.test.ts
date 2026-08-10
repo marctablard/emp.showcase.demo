@@ -1,5 +1,17 @@
 import { getPublicDefaultLanguage } from '@/lib/common/public-default-env';
-import { formatCurrency, formatCurrencyToParts } from './utils';
+import { breakpoints } from './breakpoints';
+import { formatCurrency, formatCurrencyToParts, imageSizes } from './utils';
+
+describe('imageSizes', () => {
+  it('references only defined breakpoint widths — no ad-hoc 1200px', () => {
+    const widths = [...imageSizes.matchAll(/max-width:\s*(\d+)px/g)].map((m) => Number(m[1]));
+    const allowed = Object.values(breakpoints) as number[];
+    expect(widths.length).toBeGreaterThan(0);
+    for (const w of widths) {
+      expect(allowed).toContain(w);
+    }
+  });
+});
 
 describe('currency formatting utilities', () => {
   it('formats currency using explicitly provided locale', () => {
