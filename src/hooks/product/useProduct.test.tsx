@@ -318,4 +318,148 @@ describe('useProduct hook', () => {
     expect(result.current.product).toEqual(thirdProduct);
     expect(result.current.loading).toBe(false);
   });
+
+  /**
+   * COP-5787 cold-bootstrap race (preserve-on-failure contract for Phase 2).
+   * Public PDP SSR seeds omit price.currency (PUBLIC_PRODUCT_OPTIONS.prices = false).
+   * When sessionPricingKey arrives, current production force-refreshes and clears product to null;
+   * a failed/null client refetch then yields loading=false + product=null (false Not Found path).
+   * Wishlist is not involved — no wishlist mocks.
+   */
+  describe('cold-bootstrap SSR seed + sessionPricingKey race', () => {
+    const publicProductOptions = {
+      prices: false,
+      variants: false,
+      categories: false,
+      availability: false,
+      customerSegments: false,
+    };
+
+    const ssrProductWithoutPrice = {
+      id: 'enjoysolar-200w-module',
+      name: 'EnjoySolar 200W Module',
+      description: 'SSR public product without displayable price',
+      purchasable: true,
+      // intentionally no price.currency — mirrors public SSR seed
+    };
+
+    const readySession: Session = {
+      id: 'cold-session',
+      siteCode: 'main',
+      currency: 'USD',
+      customerId: 'ANONYMOUS',
+    };
+
+    const createBootstrapWrapper = (sessionStore: ReturnType<typeof createSessionStore>) => {
+      const sharedStore = createProductStore();
+      const historyStore = createHistoryStore();
+      const cartStore = createCartStore();
+      return ({ children }: { children: ReactNode }) => (
+        <SessionStoreContext.Provider value={sessionStore}>
+          <CartStoreContext.Provider value={cartStore}>
+            <HistoryStoreContext.Provider value={historyStore}>
+              <ProductStoreContext.Provider value={sharedStore}>{children}</ProductStoreContext.Provider>
+            </HistoryStoreContext.Provider>
+          </CartStoreContext.Provider>
+        </SessionStoreContext.Provider>
+      );
+    };
+
+    test('preserves SSR-seeded product when session-driven pricing refetch rejects', async () => {
+      const sessionStore = createSessionStore({
+        session: readySession,
+        loading: false,
+      });
+      const customWrapper = createBootstrapWrapper(sessionStore);
+      const refetchError = new Error('pricing refetch failed');
+      (fetchProductById as jest.Mock).mockRejectedValue(refetchError);
+
+      const { result } = renderHook(() => useProduct(ssrProductWithoutPrice, publicProductOptions), {
+        wrapper: customWrapper,
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      // Must not leave ProductDetail Not Found–eligible state (product null + not loading)
+      expect(result.current.product).not.toBeNull();
+      expect(result.current.product?.id).toBe(ssrProductWithoutPrice.id);
+      expect(result.current.error).not.toBeNull();
+      expect(fetchProductById).toHaveBeenCalled();
+    });
+
+    test('preserves SSR-seeded product when session-driven pricing refetch returns null', async () => {
+      const sessionStore = createSessionStore({
+        session: readySession,
+        loading: false,
+      });
+      const customWrapper = createBootstrapWrapper(sessionStore);
+      (fetchProductById as jest.Mock).mockResolvedValue(null);
+
+      const { result } = renderHook(() => useProduct(ssrProductWithoutPrice, publicProductOptions), {
+        wrapper: customWrapper,
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(result.current.product).not.toBeNull();
+      expect(result.current.product?.id).toBe(ssrProductWithoutPrice.id);
+      expect(result.current.error).not.toBeNull();
+      expect(fetchProductById).toHaveBeenCalled();
+    });
+
+    test('preserves SSR seed when sessionPricingKey is introduced after cold start and refetch fails', async () => {
+      const sessionStore = createSessionStore({
+        // Incomplete session — no siteCode/currency yet (sessionPricingKey empty)
+        session: { id: 'cold-incomplete', customerId: 'ANONYMOUS' },
+        loading: true,
+      });
+      const customWrapper = createBootstrapWrapper(sessionStore);
+      (fetchProductById as jest.Mock).mockRejectedValue(new Error('cold pricing refetch failed'));
+
+      const { result } = renderHook(() => useProduct(ssrProductWithoutPrice, publicProductOptions), {
+        wrapper: customWrapper,
+      });
+
+      expect(result.current.product?.id).toBe(ssrProductWithoutPrice.id);
+      expect(fetchProductById).not.toHaveBeenCalled();
+
+      await act(async () => {
+        sessionStore.getState().setSession(readySession);
+        sessionStore.getState().setLoading(false);
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(result.current.product).not.toBeNull();
+      expect(result.current.product?.id).toBe(ssrProductWithoutPrice.id);
+      expect(result.current.error).not.toBeNull();
+      expect(fetchProductById).toHaveBeenCalled();
+    });
+
+    test('session-null fail-safe does not strand SSR-seeded product as null without loading', async () => {
+      const sessionStore = createSessionStore({
+        session: null,
+        loading: false,
+      });
+      const customWrapper = createBootstrapWrapper(sessionStore);
+
+      const { result } = renderHook(() => useProduct(ssrProductWithoutPrice, publicProductOptions), {
+        wrapper: customWrapper,
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(result.current.product).not.toBeNull();
+      expect(result.current.product?.id).toBe(ssrProductWithoutPrice.id);
+      expect(fetchProductById).not.toHaveBeenCalled();
+    });
+  });
 });
