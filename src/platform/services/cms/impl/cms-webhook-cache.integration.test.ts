@@ -73,6 +73,7 @@ beforeEach(() => {
   process.env = { ...ORIGINAL_ENV };
   process.env.NEXT_CMS_WEBHOOK_SECRET = WEBHOOK_SECRET;
   delete process.env.NEXT_STORYBLOK_MULTI_SITE;
+  delete process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE;
 });
 
 afterAll(() => {

@@ -2,6 +2,7 @@
 
 import { headers } from 'next/headers';
 import 'server-only';
+import { getStoryblokEnv } from '@/lib/server/storyblok-env';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 
 /**
@@ -52,7 +53,7 @@ const getLogger = (): LoggerService => {
  * the action body runs, so a referer-path check is sufficient here.
  */
 export async function getStoryblokBridgeConfig(): Promise<StoryblokBridgeConfig | null> {
-  const accessToken = process.env.NEXT_STORYBLOK_ACCESS_TOKEN?.trim();
+  const accessToken = getStoryblokEnv('ACCESS_TOKEN');
   if (!accessToken) {
     return null;
   }

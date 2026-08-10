@@ -24,6 +24,22 @@ describe('resolveCmsProvider', () => {
 
       expect(resolveCmsProvider(env)).toBe('storyblok');
     });
+
+    it('picks "storyblok" when only the legacy NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN is set', () => {
+      const env = buildEnv({ NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN: 'abc' });
+
+      expect(resolveCmsProvider(env)).toBe('storyblok');
+    });
+
+    it('prefers NEXT_STORYBLOK_ACCESS_TOKEN over NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN for auto-resolve', () => {
+      // Preferred token present → storyblok; emptiness of PUBLIC is irrelevant.
+      const env = buildEnv({
+        NEXT_STORYBLOK_ACCESS_TOKEN: 'server',
+        NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN: 'public',
+      });
+
+      expect(resolveCmsProvider(env)).toBe('storyblok');
+    });
   });
 
   describe('explicit override', () => {
@@ -31,6 +47,21 @@ describe('resolveCmsProvider', () => {
       const env = buildEnv({ NEXT_CMS_PROVIDER: 'storyblok' });
 
       expect(resolveCmsProvider(env)).toBe('storyblok');
+    });
+
+    it('honors legacy NEXT_PUBLIC_CMS_PROVIDER when NEXT_CMS_PROVIDER is unset', () => {
+      const env = buildEnv({ NEXT_PUBLIC_CMS_PROVIDER: 'local' });
+
+      expect(resolveCmsProvider(env)).toBe('local');
+    });
+
+    it('prefers NEXT_CMS_PROVIDER over legacy NEXT_PUBLIC_CMS_PROVIDER', () => {
+      const env = buildEnv({
+        NEXT_CMS_PROVIDER: 'none',
+        NEXT_PUBLIC_CMS_PROVIDER: 'storyblok',
+      });
+
+      expect(resolveCmsProvider(env)).toBe('none');
     });
 
     it('honors NEXT_CMS_PROVIDER="local"', () => {

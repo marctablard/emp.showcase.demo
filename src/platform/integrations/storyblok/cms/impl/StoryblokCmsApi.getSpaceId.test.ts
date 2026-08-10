@@ -30,7 +30,9 @@ const silentLogger = (): jest.Mocked<LoggerService> =>
   }) as unknown as jest.Mocked<LoggerService>;
 
 const ENV_KEY = 'NEXT_STORYBLOK_SPACE_ID';
+const LEGACY_ENV_KEY = 'NEXT_PUBLIC_STORYBLOK_SPACE_ID';
 const original = process.env[ENV_KEY];
+const originalLegacy = process.env[LEGACY_ENV_KEY];
 
 afterAll(() => {
   if (original === undefined) {
@@ -38,10 +40,16 @@ afterAll(() => {
   } else {
     process.env[ENV_KEY] = original;
   }
+  if (originalLegacy === undefined) {
+    delete process.env[LEGACY_ENV_KEY];
+  } else {
+    process.env[LEGACY_ENV_KEY] = originalLegacy;
+  }
 });
 
 beforeEach(() => {
   delete process.env[ENV_KEY];
+  delete process.env[LEGACY_ENV_KEY];
 });
 
 describe('StoryblokCmsApi.getSpaceId()', () => {

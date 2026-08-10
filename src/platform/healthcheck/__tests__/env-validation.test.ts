@@ -179,6 +179,7 @@ describe('validateEnvVars', () => {
 
     it('reports hasErrors: false when the Storyblok token is missing (all mandatory vars present)', () => {
       delete process.env.NEXT_STORYBLOK_ACCESS_TOKEN;
+      delete process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN;
 
       const result = validateEnvVars();
 
@@ -187,6 +188,7 @@ describe('validateEnvVars', () => {
 
     it('reports hasWarnings: true when the Storyblok token is missing', () => {
       delete process.env.NEXT_STORYBLOK_ACCESS_TOKEN;
+      delete process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN;
 
       const result = validateEnvVars();
 
@@ -199,6 +201,17 @@ describe('validateEnvVars', () => {
 
     it('reports no warning for the Storyblok token when it is present', () => {
       process.env.NEXT_STORYBLOK_ACCESS_TOKEN = 'sb-abc';
+
+      const result = validateEnvVars();
+
+      const item = result.items.find((i) => i.name === 'NEXT_STORYBLOK_ACCESS_TOKEN');
+      expect(item).toBeDefined();
+      expect(item!.passed).toBe(true);
+    });
+
+    it('treats legacy NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN as present for the Storyblok warning', () => {
+      delete process.env.NEXT_STORYBLOK_ACCESS_TOKEN;
+      process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN = 'sb-legacy';
 
       const result = validateEnvVars();
 

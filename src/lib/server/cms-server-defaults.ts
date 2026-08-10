@@ -1,4 +1,5 @@
 import 'server-only';
+import { getCmsEnv } from '@/lib/server/storyblok-env';
 
 /**
  * Server-only defaults for the local-JSON CMS adapter.
@@ -9,11 +10,9 @@ import 'server-only';
  * boundary and prevents the value from ever being shaped as a browser-inlined
  * `NEXT_PUBLIC_*` default.
  *
- * The backing env var is `NEXT_CMS_LOCAL_DEFAULT_SITE` (no `NEXT_PUBLIC_`
- * prefix — never inlined into the client bundle).
+ * Resolves `NEXT_CMS_LOCAL_DEFAULT_SITE`, with legacy
+ * `NEXT_PUBLIC_CMS_LOCAL_DEFAULT_SITE` fallback (SHOW-323 dual naming).
  */
 export function getCmsLocalDefaultSite(): string {
-  const raw = process.env.NEXT_CMS_LOCAL_DEFAULT_SITE;
-  const trimmed = typeof raw === 'string' ? raw.trim() : '';
-  return trimmed.length > 0 ? trimmed : '_default_';
+  return getCmsEnv('LOCAL_DEFAULT_SITE') ?? '_default_';
 }

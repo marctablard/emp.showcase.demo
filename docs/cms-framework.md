@@ -147,12 +147,14 @@ runtime guard.
 
 Resolution rules:
 
-- If `NEXT_CMS_PROVIDER` is explicitly set to one of the known ids
-  (after trimming), that value wins.
-- Otherwise auto-resolve: if `NEXT_STORYBLOK_ACCESS_TOKEN` is non-empty,
-  return `storyblok`; else return `none`.
-- Unknown or whitespace-only `NEXT_CMS_PROVIDER` values are treated as
-  unset and fall through to auto-resolution.
+- If `NEXT_CMS_PROVIDER` (or legacy `NEXT_PUBLIC_CMS_PROVIDER`) is
+  explicitly set to one of the known ids (after trimming), that value wins.
+- Otherwise auto-resolve: if `NEXT_STORYBLOK_ACCESS_TOKEN` (or legacy
+  `NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN`) is non-empty, return `storyblok`;
+  else return `none`. Resolution uses `getCmsEnv` / `getStoryblokEnv`
+  (`src/lib/common/cms-dual-env.ts`) — server-only names win when both are set.
+- Unknown or whitespace-only provider values are treated as unset and fall
+  through to auto-resolution.
 
 `instrumentation.ts` uses the resolved id to alias-bind
 `CmsAdapter -> CmsAdapter:<id>` at bootstrap; `getCmsService()` re-establishes

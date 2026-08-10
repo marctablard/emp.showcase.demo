@@ -47,13 +47,23 @@ const silentLogger = (): jest.Mocked<LoggerService> =>
     fatal: jest.fn(),
   }) as unknown as jest.Mocked<LoggerService>;
 
-const ENV_KEYS = ['NEXT_STORYBLOK_ACCESS_TOKEN', 'NEXT_STORYBLOK_MULTI_SITE', 'NEXT_STORYBLOK_ACCESS_PREVIEW'] as const;
+const ENV_KEYS = [
+  'NEXT_STORYBLOK_ACCESS_TOKEN',
+  'NEXT_STORYBLOK_MULTI_SITE',
+  'NEXT_STORYBLOK_ACCESS_PREVIEW',
+  'NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN',
+  'NEXT_PUBLIC_STORYBLOK_MULTI_SITE',
+  'NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW',
+] as const;
 
 function snapshotEnv(): Record<(typeof ENV_KEYS)[number], string | undefined> {
   return {
     NEXT_STORYBLOK_ACCESS_TOKEN: process.env.NEXT_STORYBLOK_ACCESS_TOKEN,
     NEXT_STORYBLOK_MULTI_SITE: process.env.NEXT_STORYBLOK_MULTI_SITE,
     NEXT_STORYBLOK_ACCESS_PREVIEW: process.env.NEXT_STORYBLOK_ACCESS_PREVIEW,
+    NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN: process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN,
+    NEXT_PUBLIC_STORYBLOK_MULTI_SITE: process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE,
+    NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW: process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW,
   };
 }
 
@@ -87,6 +97,9 @@ describe('StoryblokCmsApi', () => {
     delete process.env.NEXT_STORYBLOK_ACCESS_TOKEN;
     delete process.env.NEXT_STORYBLOK_MULTI_SITE;
     delete process.env.NEXT_STORYBLOK_ACCESS_PREVIEW;
+    delete process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN;
+    delete process.env.NEXT_PUBLIC_STORYBLOK_MULTI_SITE;
+    delete process.env.NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW;
   });
 
   describe('identity & lazy init', () => {

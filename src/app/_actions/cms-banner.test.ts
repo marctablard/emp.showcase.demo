@@ -61,9 +61,13 @@ jest.mock('@/platform/server', () => ({
 
 const TOKEN_KEY = 'NEXT_STORYBLOK_ACCESS_TOKEN';
 const PREVIEW_KEY = 'NEXT_STORYBLOK_ACCESS_PREVIEW';
+const LEGACY_TOKEN_KEY = 'NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN';
+const LEGACY_PREVIEW_KEY = 'NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW';
 
 const ORIGINAL_TOKEN = process.env[TOKEN_KEY];
 const ORIGINAL_PREVIEW = process.env[PREVIEW_KEY];
+const ORIGINAL_LEGACY_TOKEN = process.env[LEGACY_TOKEN_KEY];
+const ORIGINAL_LEGACY_PREVIEW = process.env[LEGACY_PREVIEW_KEY];
 
 beforeEach(() => {
   // Drop the module registry so each `loadAction()` re-evaluates `cms-banner`
@@ -104,6 +108,8 @@ beforeEach(() => {
 
   delete process.env[TOKEN_KEY];
   delete process.env[PREVIEW_KEY];
+  delete process.env[LEGACY_TOKEN_KEY];
+  delete process.env[LEGACY_PREVIEW_KEY];
 });
 
 afterAll(() => {
@@ -116,6 +122,16 @@ afterAll(() => {
     delete process.env[PREVIEW_KEY];
   } else {
     process.env[PREVIEW_KEY] = ORIGINAL_PREVIEW;
+  }
+  if (ORIGINAL_LEGACY_TOKEN === undefined) {
+    delete process.env[LEGACY_TOKEN_KEY];
+  } else {
+    process.env[LEGACY_TOKEN_KEY] = ORIGINAL_LEGACY_TOKEN;
+  }
+  if (ORIGINAL_LEGACY_PREVIEW === undefined) {
+    delete process.env[LEGACY_PREVIEW_KEY];
+  } else {
+    process.env[LEGACY_PREVIEW_KEY] = ORIGINAL_LEGACY_PREVIEW;
   }
 });
 
