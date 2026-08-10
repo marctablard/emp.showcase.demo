@@ -82,7 +82,7 @@ function formatDiscountPercent(discountPercent: number | undefined): string {
 }
 
 function resolveDesktopItemsAlignClass(hasProductColumnMetadata: boolean): string {
-  return hasProductColumnMetadata ? 'sm:items-start' : 'sm:items-center';
+  return hasProductColumnMetadata ? 'md:items-start' : 'md:items-center';
 }
 
 function resolveDesktopGridLayoutClass(
@@ -93,9 +93,9 @@ function resolveDesktopGridLayoutClass(
 ): string {
   const alignClass = resolveDesktopItemsAlignClass(hasProductColumnMetadata);
   if (hasTrailingDesktopAmount || showDiscountColumns) {
-    return `hidden min-w-0 sm:grid ${desktopGridCols} ${alignClass} gap-4 lg:gap-6`;
+    return `hidden min-w-0 md:grid ${desktopGridCols} ${alignClass} gap-4 lg:gap-6`;
   }
-  return `hidden sm:grid ${desktopGridCols} ${alignClass} sm:gap-6`;
+  return `hidden md:grid ${desktopGridCols} ${alignClass} md:gap-6`;
 }
 
 export function ProductItemRow({ item, locale, presentationConfig, showGrossUnderNet = false }: ProductItemRowProps) {
@@ -142,10 +142,10 @@ export function ProductItemRow({ item, locale, presentationConfig, showGrossUnde
   return (
     // Figma mobile products: no extra top pad on first row (card p-4 is enough); subsequent
     // rows keep py-4. Desktop keeps py-6 with first:pt-4 under the column header.
-    <div className="py-4 first:pt-0 sm:py-6 sm:first:pt-4" data-testid={`product-item-row-${item.id}`}>
-      {/* Smallest-mobile: brand/name render above the thumbnail; the thumbnail sits beside a
+    <div className="py-4 first:pt-0 md:py-6 md:first:pt-4" data-testid={`product-item-row-${item.id}`}>
+      {/* Stacked cards below md: brand/name render above the thumbnail; the thumbnail sits beside a
           value stack (price, item number, quantity) and the Quantity label is omitted. */}
-      <div className="flex flex-col gap-3 sm:hidden" data-testid={`product-item-mobile-${item.id}`}>
+      <div className="flex flex-col gap-3 md:hidden" data-testid={`product-item-mobile-${item.id}`}>
         <div className="flex min-w-0 flex-col gap-1">
           {item.brand && <p className="text-sm font-body text-text-body">{item.brand}</p>}
           <ProductNameHeading item={item} variant="mobile" />
@@ -235,7 +235,7 @@ export function ProductItemRow({ item, locale, presentationConfig, showGrossUnde
         ) : null}
 
         <div className="min-w-0 text-right">
-          <div className="flex min-w-0 flex-col sm:items-end">
+          <div className="flex min-w-0 flex-col md:items-end">
             <span className="break-words text-2xl font-bold font-headlines text-text-headings">
               {formatCurrency(netPrice, item.currency, locale)}
             </span>

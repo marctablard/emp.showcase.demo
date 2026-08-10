@@ -367,7 +367,7 @@ describe('ReturnDetail', () => {
     const mobileRow = screen.getByTestId('product-item-mobile-item-123');
     const image = container.querySelector('img[alt="BlueSolar 55 W"]') as HTMLElement;
 
-    expect(mobileRow).toHaveClass('flex', 'flex-col', 'gap-3', 'sm:hidden');
+    expect(mobileRow).toHaveClass('flex', 'flex-col', 'gap-3', 'md:hidden');
     expect(image).toBeInTheDocument();
     expect(within(mobileRow).getByText('claimReasons.CHANGED_MIND')).toBeInTheDocument();
     expect(within(mobileRow).getByText('Item reason details.')).toBeInTheDocument();
@@ -397,17 +397,19 @@ describe('ReturnDetail', () => {
     expect(container.querySelector('img[alt="BlueSolar 55 W"]')).toHaveAttribute('width', '120');
   });
 
-  it('keeps Refund Amount contained in the product-list card at medium breakpoints (~1024–1150)', () => {
+  it('keeps Refund Amount contained in the product-list card at medium breakpoints (~1024–1150) without horizontal scroll', () => {
     render(<ReturnDetail returnId="return-123" />);
 
     const card = screen.getByTestId('product-list-card');
-    const scroll = screen.getByTestId('product-list-scroll');
+    const content = screen.getByTestId('product-list-content');
     const desktopRow = screen.getByTestId('product-item-desktop-item-123');
     const trailingCell = screen.getByTestId('product-trailing-amount-cell-item-123');
 
     expect(card).toHaveClass('min-w-0', 'max-w-full', 'overflow-hidden', 'shadow-sm');
-    expect(scroll).toHaveClass('min-w-0', 'overflow-x-auto');
+    expect(content).toHaveClass('min-w-0');
+    expect(content).not.toHaveClass('overflow-x-auto');
     expect(desktopRow.className).toMatch(/minmax\(0,1\.6fr\).*minmax\(0,1fr\)_minmax\(0,1fr\)/);
+    expect(desktopRow.className).toContain('md:grid');
     expect(trailingCell).toHaveClass('min-w-0', 'text-right');
     expect(within(trailingCell).getByText('€100.00')).toBeInTheDocument();
   });
