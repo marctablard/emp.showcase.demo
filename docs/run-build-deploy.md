@@ -244,9 +244,9 @@ The `/api/ready` endpoint fails if any of these are missing:
 
 ### Optional but common
 - Storyblok
-  - `NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN`
-  - `NEXT_PUBLIC_STORYBLOK_MULTI_SITE`
-  - `NEXT_PUBLIC_STORYBLOK_ACCESS_PREVIEW`
+  - `NEXT_STORYBLOK_ACCESS_TOKEN`
+  - `NEXT_STORYBLOK_MULTI_SITE`
+  - `NEXT_STORYBLOK_ACCESS_PREVIEW`
 - SSO
   - `NEXT_SSO_PASSWORD_SECRET`
   - Provider credentials (e.g. `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`)
@@ -276,11 +276,11 @@ Steps:
    - Emporix API (for `NEXT_EMPORIX_CLIENT_ID` + `NEXT_EMPORIX_CLIENT_SECRET`)
 
 ## Storyblok setup (optional CMS)
-- Set `NEXT_PUBLIC_STORYBLOK_ACCESS_TOKEN` in `.env`.
+- Set `NEXT_STORYBLOK_ACCESS_TOKEN` in `.env`.
 - For Visual Editor local use, run `npm run dev:https` (HTTPS required).
 - Ensure your Storyblok space allows the dev/deployed domain.
 
-See `docs/storyblok-integration.md` and `docs/local-cms.md`.
+See `docs/cms-framework.md` and `docs/local-cms.md`.
 
 ## Health checks (important for hosting)
 - Liveness: `/api/health`
@@ -374,7 +374,7 @@ A: Check GitHub Actions logs (build/test) and Vercel deployment logs. Common iss
 - `docs/environment-variables.md`
 - `docs/deployment-process.md`
 - `docs/health-checks.md`
-- `docs/storyblok-integration.md`
+- `docs/cms-framework.md`
 - `docs/sso-authentication.md`
 - `docs/site-middleware.md`
 

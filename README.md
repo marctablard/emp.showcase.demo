@@ -144,7 +144,7 @@ The build process:
 
 ## License
 
-The [LICENSE](LICENSE) file contains the license information for the Journey Aware Storefront.
+The [LICENSE](LICENSE.md) file contains the license information for the Journey Aware Storefront.
 
 ## Documentation
 

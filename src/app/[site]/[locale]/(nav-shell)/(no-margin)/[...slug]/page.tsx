@@ -1,5 +1,6 @@
 import { setRequestLocale } from 'next-intl/server';
-import CMSPageComponent, { fetchData } from '@/components/cms/storyblok/storyblok-cms-page';
+import CmsPage from '@/components/cms/_core/cms-page';
+import { getCmsService } from '@/platform/services/cms/get-cms-service';
 import { setRequestSite } from '@/site/server';
 
 interface DynamicPageParams {
@@ -10,9 +11,10 @@ interface DynamicPageParams {
 
 export async function generateMetadata({ params }: { params: Promise<DynamicPageParams> }) {
   const { slug, locale, site } = await params;
-  const data = await fetchData(locale, slug.join('/'), site);
+  const cmsService = await getCmsService();
+  const page = await cmsService.getPage(slug.join('/'), locale, site);
   return {
-    title: data?.data?.story?.name,
+    title: 'title' in page ? page.title : undefined,
   };
 }
 
@@ -23,7 +25,7 @@ export default async function DynamicPage({ params }: { params: Promise<DynamicP
   setRequestLocale(locale);
   return (
     <div>
-      <CMSPageComponent slug={slug.join('/')} locale={locale} site={site} />
+      <CmsPage slug={slug.join('/')} locale={locale} site={site} />
     </div>
   );
 }

@@ -1,0 +1,100 @@
+# Production-build smoke (EMP-16 Phase G).
+#
+# Standalone, NON-BLOCKING lane: it runs a real `next build` + `next start` and
+# asserts the running app is serviceable (`npm run smoke:prod` — /api/health 200
+# + home route non-5xx). It is deliberately NOT wired into the deploy pipelines —
+# those build inside Vercel, so adding a build step there would double-build.
+# This lane owns the production-bundle boot smoke on its own.
+#
+# Non-blocking by design:
+#   - `scripts/smoke-prod.sh` self-skips with exit 0 when the Tier-1 Emporix
+#     credentials are absent (a runner without secrets never goes red), and
+#   - the smoke step is `continue-on-error: true`, so even a hard failure
+#     surfaces as a signal without blocking a merge — but a follow-up step
+#     turns that failure into a visible `::warning` annotation + job summary,
+#     so a non-blocking red is never an invisible green tick.
+#
+# Triggers: the integration MR for this work lives on Gitea
+# (feature/SHOW-323 → feature/SHOW-323-target), which GitHub Actions cannot
+# observe as a `pull_request` event. So the lane ALSO runs on `push` to the
+# feature branches (fired from the GitHub mirror) — that is what gives the
+# production-build smoke real coverage for this work, independent of any
+# GitHub PR. The `pull_request`/`workflow_dispatch` triggers are kept for the
+# normal GitHub-native flow.
+
+name: Smoke (production build)
+
+on:
+  push:
+    branches:
+      - 'feature/**'
+  pull_request:
+    branches:
+      - develop
+      - 'feature/SHOW-323-target'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke_prod:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      - name: Align npm with packageManager
+        run: npm install -g "$(node -p 'const packageManager = require("./package.json").packageManager; if (!packageManager?.startsWith("npm@")) throw new Error("Expected packageManager to start with npm@"); packageManager')"
+      # Neither CLI declares an install script, so lifecycle scripts are
+      # disabled for both global installs — nothing to run, one less way for a
+      # compromised transitive package to execute code on the runner.
+      - name: Setup safe-chain
+        run: |
+          npm i -g --ignore-scripts @aikidosec/safe-chain
+          safe-chain setup-ci
+      - name: Install Vercel CLI
+        run: npm i -g --ignore-scripts vercel
+      # `npm ci` deliberately keeps lifecycle scripts: @swc/core (which drives
+      # both the Next build and jest), @parcel/watcher and unrs-resolver link
+      # their native binaries from a postinstall. Disabling scripts here would
+      # break the production build this smoke exists to exercise.
+      - name: Install dependencies
+        run: npm ci
+      # The smoke pulls its full runtime config (the NEXT_PUBLIC_EMPORIX_* /
+      # NEXTAUTH_SECRET / NEXT_PUBLIC_DEFAULT_* keys that env-validation requires)
+      # from the Vercel preview environment into `.env`. `scripts/smoke-prod.sh`
+      # sources that `.env` before its credential guard, so the guard, the build
+      # and `next start` all read the same source. If the pull yields no
+      # credentials, the script self-skips (exit 0) — non-blocking by design.
+      # The token is passed through the environment rather than interpolated
+      # into the command line: an expanded secret would be visible in the
+      # process list and can leak into shell traces.
+      - name: Pull Vercel environment information
+        continue-on-error: true
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel env pull .env --environment=preview --yes --token="$VERCEL_TOKEN"
+      - name: Run production-build smoke
+        id: smoke
+        continue-on-error: true
+        run: npm run smoke:prod
+      # Visibility signal: `continue-on-error` keeps the smoke non-blocking
+      # (AC #4), but on its own a failure would surface as a green tick. Turn a
+      # failed smoke into a `::warning` annotation and a job-summary line so the
+      # red is visible without blocking the merge. A skip (missing credentials)
+      # exits 0, so this only fires on a genuine build/boot/serve failure.
+      - name: Surface smoke failure (non-blocking)
+        if: steps.smoke.outcome == 'failure'
+        run: |
+          echo "::warning title=Production-build smoke failed::npm run smoke:prod did not pass (non-blocking — see the 'Run production-build smoke' step log)."
+          {
+            echo "### ⚠️ Production-build smoke failed (non-blocking)"
+            echo ""
+            echo "\`npm run smoke:prod\` returned a non-zero exit. This does not block the merge, but the production bundle did not build/boot/serve cleanly — review the **Run production-build smoke** step log."
+          } >> "$GITHUB_STEP_SUMMARY"

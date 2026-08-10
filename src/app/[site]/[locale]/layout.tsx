@@ -11,16 +11,17 @@ import { CsrfProvider } from '@/components/csrf/CsrfProvider';
 import { ApiDebugPanel } from '@/components/debug/ApiDebugPanel';
 import { CurrencyFallbackToastBus } from '@/components/header/switcher/currency-fallback-toast-bus';
 import { Notification } from '@/components/notification/notification';
+import { SiteThemeStyle } from '@/components/theme/site-theme-style';
 import { Toaster } from '@/components/ui/sonner';
 import { redirect } from '@/i18n/edge/navigation';
 import { routing } from '@/i18n/routing';
 import { isBrowserDebugOutputEnabled, isDebugApiEnabled } from '@/lib/common/debug-env';
 import { getSessionForSite, setSessionLanguage } from '@/lib/ssr/session';
 import { getAvailableSites, getSite } from '@/lib/ssr/site';
+import { getCmsService } from '@/platform/services/cms/get-cms-service';
 import SiteProvider from '@/providers/SiteProvider';
 import { SiteSessionAligner } from '@/providers/SiteSessionAligner';
 import { StoreProvider } from '@/providers/StoreProvider';
-import { StoryblokProvider } from '@/providers/StoryblokProvider';
 import { setRequestSite } from '@/site/server/';
 import { INTERNAL_APP_PATH_HEADER } from '@/site/types';
 
@@ -139,26 +140,31 @@ export default async function LocaleLayout({ children, dialog, params }: Props) 
   setRequestSite(siteCode);
   setRequestLocale(locale);
 
+  // Provider-side editing bridge (e.g. Storyblok Visual Editor). The active
+  // CmsAdapter exposes it via the CMSService facade; `null` when the adapter
+  // has no bridge (local-JSON / none), so it is mounted conditionally.
+  const CmsBridgeScript = (await getCmsService()).BridgeScript;
+
   return (
     <html
       lang={locale}
       className={`${fontHeadlines.variable} ${fontBody.variable} ${fontHeadlines.className} ${fontBody.className}`}
     >
       <body className="flex h-full flex-col font-body has-[.search]:overflow-hidden">
+        <SiteThemeStyle siteCode={siteCode} />
         <AuthSessionProvider>
           <SiteProvider siteCode={siteCode}>
             <NextIntlClientProvider locale={locale}>
               <StoreProvider shopSession={shopSession} site={site} availableSites={availableSites}>
-                <StoryblokProvider>
-                  <CsrfProvider />
-                  <SiteSessionAligner />
-                  {isDebugApiEnabled() && isBrowserDebugOutputEnabled() && <ApiDebugPanel />}
-                  {children}
-                  {dialog}
-                  <Toaster />
-                  <CurrencyFallbackToastBus />
-                  <Notification />
-                </StoryblokProvider>
+                {CmsBridgeScript && <CmsBridgeScript />}
+                <CsrfProvider />
+                <SiteSessionAligner />
+                {isDebugApiEnabled() && isBrowserDebugOutputEnabled() && <ApiDebugPanel />}
+                {children}
+                {dialog}
+                <Toaster />
+                <CurrencyFallbackToastBus />
+                <Notification />
               </StoreProvider>
             </NextIntlClientProvider>
           </SiteProvider>

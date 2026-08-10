@@ -46,6 +46,43 @@ const eslintConfig = defineConfig([
           ],
         },
       ],
+      // Forbid reintroduction of `process.env.NEXT_PUBLIC_STORYBLOK_*` and
+      // `process.env.NEXT_PUBLIC_CMS_*` reads. These keys were migrated to
+      // server-only `NEXT_STORYBLOK_*` / `NEXT_CMS_*`; the browser obtains
+      // token-dependent values through server-actions (see
+      // src/app/_actions/storyblok-bridge.ts and
+      // src/app/_actions/cms-banner.ts). Three AST selectors cover the
+      // common access shapes: dot-notation, computed (bracket) access, and
+      // destructuring. An aliased indirection (`const e = process.env;
+      // e.NEXT_PUBLIC_STORYBLOK_*`) is intentionally not caught at the AST
+      // level — that vector is covered by the bundle-content audit in
+      // scripts/preview-smoke.sh. String literals referencing the old names
+      // (e.g. source-text audits in test files) are unaffected and test
+      // files are additionally excluded by globalIgnores below.
+      'no-restricted-syntax': [
+        'error',
+        {
+          // Dot-notation: process.env.NEXT_PUBLIC_STORYBLOK_FOO
+          selector:
+            "MemberExpression[object.object.name='process'][object.property.name='env'][property.name=/^NEXT_PUBLIC_(STORYBLOK|CMS)_/]",
+          message:
+            'process.env.NEXT_PUBLIC_STORYBLOK_* and process.env.NEXT_PUBLIC_CMS_* are deprecated. Use the server-only NEXT_STORYBLOK_* / NEXT_CMS_* keys server-side; in the browser, fetch values through a server-action (see src/app/_actions/storyblok-bridge.ts and src/app/_actions/cms-banner.ts).',
+        },
+        {
+          // Computed (bracket) access: process.env['NEXT_PUBLIC_STORYBLOK_FOO']
+          selector:
+            "MemberExpression[object.object.name='process'][object.property.name='env'][computed=true][property.value=/^NEXT_PUBLIC_(STORYBLOK|CMS)_/]",
+          message:
+            'process.env.NEXT_PUBLIC_STORYBLOK_* and process.env.NEXT_PUBLIC_CMS_* are deprecated. Use the server-only NEXT_STORYBLOK_* / NEXT_CMS_* keys server-side; in the browser, fetch values through a server-action (see src/app/_actions/storyblok-bridge.ts and src/app/_actions/cms-banner.ts).',
+        },
+        {
+          // Destructuring: const { NEXT_PUBLIC_STORYBLOK_FOO } = process.env
+          selector:
+            "VariableDeclarator[init.object.name='process'][init.property.name='env'] > ObjectPattern > Property[key.name=/^NEXT_PUBLIC_(STORYBLOK|CMS)_/]",
+          message:
+            'process.env.NEXT_PUBLIC_STORYBLOK_* and process.env.NEXT_PUBLIC_CMS_* are deprecated. Use the server-only NEXT_STORYBLOK_* / NEXT_CMS_* keys server-side; in the browser, fetch values through a server-action (see src/app/_actions/storyblok-bridge.ts and src/app/_actions/cms-banner.ts).',
+        },
+      ],
     },
   },
   globalIgnores([

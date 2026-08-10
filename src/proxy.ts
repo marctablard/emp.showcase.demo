@@ -9,6 +9,11 @@ import { routing as siteRouting } from './site/routing';
 import { NEXT_REWRITE_HEADER } from './site/types';
 
 const apiBypassPrefixes = ['/api/auth', '/api/csrf', '/api/notifications', '/api/debug', '/api/test/auth/bootstrap'];
+// CSRF is replaced by HMAC-signature verification for the CMS webhook. The
+// bypass is an EXACT match — `/api/cms` (and any other `/api/cms/*` route)
+// stays under normal CSRF handling; only the machine-to-machine webhook sink
+// is exempt.
+const csrfExactBypass = new Set(['/api/cms/webhook']);
 const accountRegex = /^(.*)\/account\/([^/]+)$/;
 const authSubpageRegex = /^(.*)\/(category|browse|product)\/([^/]+)$/;
 const securedPatterns = [accountRegex, authSubpageRegex];
@@ -80,7 +85,11 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
   // 2) Handle API requests with CSRF validation
   let response;
   if (pathname.startsWith('/api/')) {
-    const csrfResult = validateCsrf(req);
+    // Normalise a single trailing slash so `/api/cms/webhook/` matches the
+    // exact-bypass entry too — otherwise CSRF validation would reject a
+    // legitimate webhook call that arrives in the trailing-slash form.
+    const bypassPath = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+    const csrfResult = csrfExactBypass.has(bypassPath) ? undefined : validateCsrf(req);
     if (csrfResult) {
       response = csrfResult;
     } else {

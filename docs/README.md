@@ -2,8 +2,9 @@
 
 This is the documentation home for the Emporix Showcase (the _Journey Aware Storefront_), a Next.js B2B
 commerce storefront built on the Emporix platform with dependency injection (InversifyJS), multi-site
-routing, internationalization (next-intl), Auth.js, and a Storyblok / local CMS. It groups the articles
-in this folder by area and provides guided reading paths for common tasks.
+routing, internationalization (next-intl), Auth.js, and a provider-agnostic CMS layer
+(Storyblok / local JSON / none). It groups the articles in this folder by area and provides guided
+reading paths for common tasks.
 
 ## How to use this index
 
@@ -38,6 +39,7 @@ in this folder by area and provides guided reading paths for common tasks.
 | Doc | What it covers |
 | --- | --- |
 | [Styling & Theming](./styling-and-theming.md) | Layered CSS token architecture (`brand.css` → `alias.css` → `mapped.css`) with Tailwind. |
+| [Theme Customization](./theme-customization.md) | Operator recipe for re-skinning a single site: add `public/themes/<site>.css`, register it in `THEME_MAP`. |
 | [UI Components](./ui-components.md) | Component library: Tailwind, shadcn/ui patterns, Radix primitives, Lucide icons, `cva` variants. |
 | [Internationalization (i18n)](./i18n-implementation.md) | next-intl with React Server Components, locale-aware routing, typed translations, multi-language files. |
 | [Zustand State Management](./zustand-state-management.md) | Zustand stores (product/cart/session) with SSR hydration and React Context providers. |
@@ -46,9 +48,13 @@ in this folder by area and provides guided reading paths for common tasks.
 
 | Doc | What it covers |
 | --- | --- |
-| [Storyblok Integration](./storyblok-integration.md) | Connect Storyblok headless CMS with Next.js RSC (SDK, access tokens, Visual Editor over HTTPS). |
-| [Creating Storyblok Components](./storyblok-components.md) | Build CMS React components in `src/components/cms` with `storyblokEditable` and registration. |
-| [Local CMS](./local-cms.md) | Manage content via local JSON in `data/cms` with `_default_` fallback; switch Storyblok ↔ Local. |
+| [CMS Framework](./cms-framework.md) | **Start here.** Provider-agnostic CMS architecture: the `CmsAdapter` SPI, the central renderer + component map, the shipped `storyblok` / `local` / `none` adapters, provider resolution via `NEXT_CMS_PROVIDER`, and how to add a provider. |
+| [Local CMS](./local-cms.md) | Serve content from version-controlled JSON under `src/data/cms/` with `_default_` site fallback; activate with `NEXT_CMS_PROVIDER=local`. |
+| [CMS Webhook Setup](./cms-webhook-setup.md) | Operator guide for the shared `POST /api/cms/webhook` endpoint: `NEXT_CMS_WEBHOOK_SECRET`, HMAC verification, cache invalidation, per-provider click-paths. |
+| [Creating Storyblok Components](./storyblok-components.md) | Storyblok-space side only (block library + field schema). Its code-side half is superseded — see CMS Framework and ADR 0002. |
+
+> Architectural rationale: [ADR 0001 — CMS providers are integrated solely through adapters](./adr/0001-cms-providers-integrated-solely-through-adapters.md)
+> and [ADR 0002 — CMS components are co-located and schema-first](./adr/0002-cms-component-co-location-and-schema-first.md).
 
 ### Integrations, Auth & Data
 
@@ -92,7 +98,7 @@ in this folder by area and provides guided reading paths for common tasks.
 4. **[Styling & Theming](./styling-and-theming.md)** — apply client branding via the CSS token layers.
 5. **[Internationalization](./i18n-implementation.md)** — configure locales and translations.
 6. **[Site Middleware](./site-middleware.md)** — set up multi-site / tenant routing.
-7. **[Storyblok Integration](./storyblok-integration.md)** + **[Local CMS](./local-cms.md)** — wire up content.
+7. **[CMS Framework](./cms-framework.md)** + **[Local CMS](./local-cms.md)** — wire up content.
 8. **[SSO Authentication](./sso-authentication.md)** _(optional)_ — enable SSO login.
 9. **[Deployment Process](./deployment-process.md)** + **[Health Checks](./health-checks.md)** — go live.
 
@@ -101,7 +107,7 @@ in this folder by area and provides guided reading paths for common tasks.
 1. **[Environment Variables](./environment-variables.md)** — the full configuration reference.
 2. **[Dependency Injection](./dependency-injection.md)** — how services are wired and swapped.
 3. **[Search Service](./search-service.md)** — switch the search backend (Emporix ↔ Battery Included).
-4. **[Storyblok Integration](./storyblok-integration.md)** — configure the CMS connection.
+4. **[CMS Framework](./cms-framework.md#provider-resolution)** + **[CMS Webhook Setup](./cms-webhook-setup.md)** — configure the CMS connection and content-change invalidation.
 5. **[Schema Update Process](./schema-update-process.md)** + **[File-Based Setup](./file-based-setup.md)** — provision schemas/entities and run setup.
 6. **[Cache Middleware](./cache-middleware.md)** — tune caching behavior.
 7. **[Health Checks](./health-checks.md)** + **[Logging Guide](./logging-guide.md)** — monitoring & observability.

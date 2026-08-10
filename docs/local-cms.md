@@ -1,118 +1,123 @@
-# Local CMS Documentation
+# Local CMS
 
-This document explains how to use the Local CMS system and how to switch between Storyblok and Local CMS for content management.
+The `local` CMS provider serves content from version-controlled JSON files
+instead of an external CMS. It is useful for development, demos, and running the
+storefront without external dependencies. It is one of the interchangeable CMS
+providers described in [cms-framework.md](./cms-framework.md); switching to it
+requires no application-code change.
 
-## Table of Contents
+## Table of contents
+
 1. [Overview](#overview)
-2. [Content Structure](#content-structure)
-3. [Using Local CMS](#using-local-cms)
-4. [Switching Between CMS Providers](#switching-between-cms-providers)
-5. [API Reference](#api-reference)
+2. [Content structure](#content-structure)
+3. [Default-site fallback](#default-site-fallback)
+4. [Content format](#content-format)
+5. [Activating the local provider](#activating-the-local-provider)
+6. [Adding content](#adding-content)
 
 ## Overview
 
-The Local CMS system allows you to manage content using local JSON files instead of an external CMS like Storyblok. This is useful for development, testing, or when you want to run the application without external dependencies.
+The local provider is implemented by `LocalJsonCmsAdapter`
+(`src/platform/integrations/local/cms/impl/LocalJsonCmsAdapter.ts`). Like every
+provider it implements the `CmsAdapter` SPI and maps its source into the
+agnostic `CMSPage` model, which then renders through the central `CmsRenderer`.
+Because the application core is provider-agnostic, switching to `local` changes
+only an environment variable — no imports are swapped and no code is edited.
 
-The system implements the same interfaces as the Storyblok integration, making it easy to switch between the two without changing your application code.
+## Content structure
 
-## Content Structure
-
-Local CMS content is stored in JSON files with the following folder structure:
-
-```
-data/cms/[site]/[language]/[slug].json
-```
-
-Where:
-- `[site]`: The site identifier (e.g., "us-branch", "main")
-- `[language]`: The language code (e.g., "en", "de")
-- `[slug]`: The page identifier (e.g., "home", "about", "products")
-
-### Default Site Fallback
-
-If content is not found for a specific site, the system will fall back to the `_default_` site:
+Local content is stored as JSON under `src/data/cms/`, one file per page:
 
 ```
-data/cms/_default_/[language]/[slug].json
+src/data/cms/<site>/<locale>/<slug>.json
 ```
 
-### Content Format
+- `<site>`: the site identifier (e.g. `main`, or `_default_` for the fallback).
+- `<locale>`: the language code (e.g. `en`, `de`).
+- `<slug>`: the page identifier (e.g. `home`, `about`).
 
-Each JSON file represents a `CMSPage` with the following structure:
+The repository ships starter fixtures:
+
+```
+src/data/cms/_default_/en/home.json
+src/data/cms/_default_/de/home.json
+```
+
+At request time `LocalJsonCmsAdapter.getPage` normalizes the slug (drops
+disallowed characters, lowercases) and the locale (lowercases), and determines
+the site from the current session's `siteCode`, falling back to the configured
+default site.
+
+## Default-site fallback
+
+The default site is read from `NEXT_CMS_LOCAL_DEFAULT_SITE` and defaults
+to `_default_` when unset. If a page is not found for the resolved site and that
+site differs from the default, the adapter retries the lookup against the
+default site:
+
+```
+src/data/cms/_default_/<locale>/<slug>.json
+```
+
+A missing file resolves to `{ notfound: true }`; the adapter never throws for
+absent content. The page shell turns that into a Next.js `notFound()` (or an
+empty spacer when `emptyOnNoResult` is set).
+
+> Note: `getNavigation` is not backed by JSON and always resolves to
+> `{ notfound: true }` for the local provider.
+
+## Content format
+
+Each JSON file is a `CMSPage`: a list of `components`, each carrying an `id`
+and a `type` discriminator that must match a registered entry in
+`src/components/cms/component-map.ts`. Component-specific fields are validated
+against that component's Zod schema (see [ADR 0002](./adr/0002-cms-component-co-location-and-schema-first.md)).
 
 ```json
 {
-  "title": "Page Title",
-  "description": "Page description",
-  "url": "/page-url",
+  "title": "Page title",
   "components": [
     {
       "id": "unique-component-id",
-      "type": "component-type",
-      // Component-specific properties
+      "type": "hero"
     }
   ]
 }
 ```
 
-## Using Local CMS
+Refer to the shipped fixtures (`src/data/cms/_default_/en/home.json`) for a
+complete, working example.
 
-### Adding New Content
+## Activating the local provider
 
-1. Create a JSON file in the appropriate folder: `data/cms/[site]/[language]/[slug].json`
-2. Follow the `CMSPage` structure as shown above
-3. Add components with the appropriate structure based on their type
+Set the provider environment variable and restart the dev server:
 
-### Supported Component Types
-
-Currently, the system supports the following component types:
-- `hero`: For hero sections with headline, text, button, and image/video
-- `quick-entry`: For navigation entry grids with icons and links
-
-To add support for new component types:
-1. Create a React component in `src/components/cms/`
-2. Update the `CMSComponentRenderer` in `src/components/cms/cms-component-renderer.tsx` to include your new component
-
-## Switching Between CMS Providers
-
-The application is designed to easily switch between Storyblok and Local CMS.
-
-### Replacing CMSPageComponent
-
-The simplest way to switch between Storyblok and Local CMS is by replacing the CMSPageComponent import in the page components:
-
-1. In `src/app/[site]/[locale]/(nav-shell)/(no-margin)/[...slug]/page.tsx`:
-
-```typescript
-// For Storyblok CMS (current configuration)
-import CMSPageComponent from '@/components/cms/storyblok/storyblok-cms-page';
-
-// For Local CMS
-import CMSPageComponent from '@/components/cms/local/local-cms-page';
+```
+NEXT_CMS_PROVIDER=local
 ```
 
-2. In `src/app/[site]/[locale]/(nav-shell)/(no-margin)/page.tsx`:
+This is resolved by `resolveCmsProvider` and binds `LocalJsonCmsAdapter` as the
+active `CmsAdapter` (see [cms-framework.md](./cms-framework.md#provider-resolution)).
+A restart (`npm run dev`) is required for new or changed JSON files to be picked
+up.
 
-```typescript
-// For Storyblok CMS (current configuration)
-import CMSPageComponent from '@/components/cms/storyblok/storyblok-cms-page';
+## Adding content
 
-// For Local CMS
-import CMSPageComponent from '@/components/cms/local/local-cms-page';
-```
+1. Create a JSON file at `src/data/cms/<site>/<locale>/<slug>.json` (or under
+   `_default_` to serve every site).
+2. Follow the `CMSPage` format above, using component `type` values that exist
+   in `component-map.ts`.
+3. Restart the dev server.
 
-By changing the import in these two files, you can switch the entire application between using Storyblok and the Local CMS system. A restart of the server (npm run dev) is required for the changes in the local CMS file system to get reflected.
-
-
-For more details, refer to the implementation files:
-- `src/platform/services/cms/impl/LocalCmsService.ts`
-- `src/components/cms/local/cms-page.tsx`
-- `src/app/api/cms/route.ts` # for client side fetching, currently not used
-- `src/lib/client/cms.ts` # for client side fetching, currently not used
+To render a component `type` that does not exist yet, add a new CMS component
+following the co-located, schema-first pattern in
+[ADR 0002](./adr/0002-cms-component-co-location-and-schema-first.md) and
+register it in `component-map.ts` / `component-schema.ts`. This is a content
+concern shared by all providers, not specific to the local one.
 
 ## Related Documentation
 
 - [Documentation index](./README.md)
-- [Storyblok Integration](./storyblok-integration.md)
+- [CMS Framework](./cms-framework.md)
 - [Creating Storyblok Components](./storyblok-components.md)
 - [Environment Variables](./environment-variables.md)

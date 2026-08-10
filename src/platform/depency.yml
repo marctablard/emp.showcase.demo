@@ -1,6 +1,7 @@
 Services:
   SearchService: BatteryIncludedSearchService
   ProductService: EmporixProductService
+  CMSService: DelegatingCmsServiceSSR
 
 Integrations:
   EmporixProductApi: EmporixProductApi

@@ -75,4 +75,4 @@ export class EmporixCartService implements CartService {
 - [Documentation index](./README.md)
 - [Layered Architecture](./layered-architecture.md)
 - [Dependency Injection](./dependency-injection.md)
-- [Storyblok Integration](./storyblok-integration.md)
+- [CMS Framework](./cms-framework.md)

@@ -15,6 +15,12 @@ import path from 'node:path';
 const ROOT = path.resolve(__dirname, '../..');
 const read = (rel: string): string => readFileSync(path.join(ROOT, rel), 'utf8');
 
+// These locks read components by PATH, so a file move breaks them with ENOENT rather
+// than a failed assertion. SHOW-323 moved the CMS components into per-component folders
+// (`cms/hero.tsx` → `cms/hero/hero.tsx`, and likewise for column-teaser and media-text);
+// the paths below follow that layout. If a component moves again, update the path here —
+// the measured Figma values themselves are unaffected by where the file lives.
+
 // Header AND content both switch to 36px at md (1024). An earlier review round recorded
 // "content at 1280" here; re-measuring the Figma grid frame `md | Desktop min-width-1024`
 // (420:10335, columns at x=36) and the PLP md frame (12185:48039, header and content both
@@ -66,14 +72,14 @@ describe('PDP detail grids (Figma PDP page frames)', () => {
 
 describe('hero (Figma startpage masters + behavior spec 813:35983)', () => {
   it('text box is a 50/50 split (no 4/7) and spacing below is 40/104/80', () => {
-    const src = read('src/components/cms/hero.tsx');
+    const src = read('src/components/cms/hero/hero.tsx');
     expect(src).not.toContain('lg:w-4/7');
     expect(src).not.toContain('sm:mb-20 md:mb-10');
     expect(src).toContain('sm:mb-26 md:mb-20');
   });
 
   it('image container heights match the Figma masks (260/540/740)', () => {
-    const src = read('src/components/cms/hero.tsx');
+    const src = read('src/components/cms/hero/hero.tsx');
     expect(src).toContain('h-65');
     expect(src).toContain('sm:h-135');
     expect(src).toContain('md:h-185');
@@ -82,7 +88,7 @@ describe('hero (Figma startpage masters + behavior spec 813:35983)', () => {
   });
 
   it('mobile text box sits in flow overlapping 24px downwards; sm+ overlays absolutely', () => {
-    const src = read('src/components/cms/hero.tsx');
+    const src = read('src/components/cms/hero/hero.tsx');
     expect(src).toContain('-mt-6');
     expect(src).toContain('sm:absolute');
     expect(src).toContain('sm:-bottom-10');
@@ -150,12 +156,12 @@ describe('account — sidebar persistent from 768 (Figma: only mobile uses the d
 
 describe('cms organisms', () => {
   it('column teaser sits in the shared content container (was glued to the viewport edge)', () => {
-    const src = read('src/components/cms/column-teaser.tsx');
+    const src = read('src/components/cms/column-teaser/column-teaser.tsx');
     expect(src).toContain('content-container');
     expect(src).not.toContain('max-w-6xl');
   });
 
   it('media+text uses the 24px gutter from md (Figma grid gutter)', () => {
-    expect(read('src/components/cms/media-text.tsx')).toContain('md:gap-6');
+    expect(read('src/components/cms/media-text/media-text.tsx')).toContain('md:gap-6');
   });
 });

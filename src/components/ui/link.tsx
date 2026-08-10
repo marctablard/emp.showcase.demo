@@ -69,7 +69,7 @@ export default function UiLink({
 }: LinkProps &
   VariantProps<typeof linkVariants> & {
     asChild?: boolean;
-  }) {
+  } & Omit<React.HTMLAttributes<HTMLElement>, 'onClick' | 'className'>) {
   const classes = linkVariants({ variant, size, className });
   const anchorDisabledProps = disabled
     ? {

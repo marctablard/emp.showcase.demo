@@ -28,6 +28,7 @@
     "verify:audit-policy": "npm audit --audit-level=high --json > audit-report.json || true; node scripts/verify-audit-policy.mjs audit-report.json",
     "verify:ci-install": "bash scripts/verify-safe-chain-install.sh",
     "verify:ci-install:preview-override": "SAFE_CHAIN_SKIP_MINIMUM_PACKAGE_AGE=1 bash scripts/verify-safe-chain-install.sh",
+    "smoke:prod": "bash scripts/smoke-prod.sh",
     "test": "concurrently \"npm:jest\" \"npm:e2e\"",
     "jest": "node scripts/run-jest.cjs --runInBand",
     "jest:watch": "node scripts/run-jest.cjs --watch",

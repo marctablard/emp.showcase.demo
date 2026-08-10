@@ -66,8 +66,8 @@ if (!isCi || process.env.DOTENV_CONFIG_PATH) {
 
 const hasEmporixTestConfig = Boolean(
   process.env.NEXT_EMPORIX_TEST_TENANT &&
-    process.env.NEXT_EMPORIX_TEST_CLIENT_ID &&
-    process.env.NEXT_EMPORIX_TEST_CLIENT_SECRET,
+  process.env.NEXT_EMPORIX_TEST_CLIENT_ID &&
+  process.env.NEXT_EMPORIX_TEST_CLIENT_SECRET,
 );
 const runIntegrationTests = isCi || process.env.RUN_INTEGRATION_TESTS === 'true';
 const skipEmporixIntegrationTests = !runIntegrationTests || !hasEmporixTestConfig;
@@ -84,11 +84,15 @@ const integrationTestIgnorePatterns = [
 
 const commonJestConfig = {
   // Note: nextJest automatically creates moduleNameMapper from tsconfig.json paths
-  // We explicitly set it here to ensure it's applied to all projects
+  // We explicitly set it here to ensure it's applied to all projects.
+  //
+  // `next-auth/react` is mocked narrowly inside the `React Tests` project
+  // only — see jest/mocks/README.md for the rationale. Platform / Library
+  // tests resolve it to the real module path.
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@platform/(.*)$': '<rootDir>/src/platform/$1',
-    '^server-only$': '<rootDir>/jest/mocks/server-only.js',
+    '^server-only$': '<rootDir>/jest/mocks/server-only.ts',
   },
   // Exclude e2e tests from Jest runs
   testPathIgnorePatterns: [
@@ -112,12 +116,31 @@ const customJestConfig = {
         '**/hooks/**/?(*.)+(spec|test).ts?(x)',
         '**/providers/**/?(*.)+(spec|test).ts?(x)',
         '**/components/checkout/checkout-validation-registry*.test.ts?(x)',
+        '**/components/cms/**/?(*.)+(spec|test).ts?(x)',
+        '**/components/theme/**/?(*.)+(spec|test).ts?(x)',
+        // App-router layout/page tests that render `<html>`/`<body>` + the
+        // client provider stack need RTL + jsdom. The preview-route layout
+        // (EMP-22) is the first such test; without this entry it matches no
+        // project and becomes a silent skip (see `test_orphaned-tests`).
+        '**/app/preview/**/?(*.)+(spec|test).ts?(x)',
       ],
       setupFilesAfterEnv: ['<rootDir>/jest.react.setup.js'],
       moduleNameMapper: {
+        // CMS-component tests do not exercise full ProductTile rendering —
+        // stub these heavy children so the carousel/recommendations trees
+        // can hydrate without dragging the full Zustand provider stack into
+        // every test setup. The platform-side mapper entry below (`^@/...$`)
+        // must remain the *last* fallback so these specific paths win.
+        '^@/components/product/product-tile$': '<rootDir>/jest/mocks/product-tile.ts',
+        '^@/components/product/product-tile-skeleton$': '<rootDir>/jest/mocks/product-tile-skeleton.ts',
+        // Stylesheet imports (e.g. `import '@/app/globals.css'`) must resolve to an
+        // inert module — this project overrides next/jest's CSS handling. Keep this
+        // BEFORE the `^@/(.*)$` fallback so `.css` never feeds the TS transform.
+        '\\.(css|scss|sass)$': '<rootDir>/jest/mocks/style-mock.js',
         '^@/(.*)$': '<rootDir>/src/$1',
         '^@platform/(.*)$': '<rootDir>/src/platform/$1',
-        '^server-only$': '<rootDir>/jest/mocks/server-only.js',
+        '^server-only$': '<rootDir>/jest/mocks/server-only.ts',
+        '^next-auth/react$': '<rootDir>/jest/mocks/next-auth-react.ts',
       },
       testPathIgnorePatterns: commonJestConfig.testPathIgnorePatterns,
       transformIgnorePatterns: [
@@ -210,6 +233,10 @@ const customJestConfig = {
       testPathIgnorePatterns: [
         ...commonJestConfig.testPathIgnorePatterns,
         'src/components/checkout/checkout-validation-registry.*\\.test\\.(ts|tsx)$',
+        // CMS component tests need RTL/jsdom; routed to the React Tests project.
+        String.raw`src/components/cms/.*\.test\.(ts|tsx)$`,
+        // Theme component tests need RTL/jsdom; routed to the React Tests project.
+        String.raw`src/components/theme/.*\.test\.(ts|tsx)$`,
       ],
     },
     {
@@ -228,38 +255,53 @@ const customJestConfig = {
             tsconfig: 'tsconfig.json',
           },
         ],
-        '^.+\\.(js|jsx)$': [
+        // Platform tests that import the Storyblok adapter chain reach the
+        // shared CMS render layer (e.g. `StoryblokCmsMapper` → the agnostic
+        // `CMSPage` components, see ADR 0001) and transitively the pure-ESM
+        // `next-intl` (via `@/i18n/navigation`). ts-jest only transforms
+        // `.tsx?`; the ESM `.js` / `.jsx` / `.mjs` from `next-intl`,
+        // `use-intl` and the `@formatjs` / `icu-*` chain needs an explicit
+        // transform here so those platform tests can load it.
+        '^.+\\.(js|jsx|mjs)$': [
           '@swc/jest',
           {
             jsc: {
-              parser: {
-                syntax: 'ecmascript',
-                jsx: true,
-              },
-              transform: {
-                react: {
-                  runtime: 'automatic',
-                },
-              },
+              parser: { syntax: 'ecmascript', jsx: true },
+              transform: { react: { runtime: 'automatic' } },
               target: 'es2017',
             },
-            module: {
-              type: 'es6',
-            },
+            module: { type: 'commonjs' },
           },
         ],
       },
       ...commonJestConfig,
+      // `commonJestConfig` carries no `transformIgnorePatterns`, so the
+      // project-level entry above stays in effect — do not re-declare a
+      // narrower list here, it would silently win over it.
+      testPathIgnorePatterns: [...commonJestConfig.testPathIgnorePatterns],
     },
     {
       preset: 'ts-jest',
       displayName: 'Library Tests',
       testEnvironment: 'node',
       testMatch: [
+        // Server bootstrap hook lives at the src/ root (Next.js fixes its
+        // location), so it matches none of the directory-scoped patterns
+        // above. Pin it explicitly here — node env + tsconfig transform fit a
+        // server-only boot test — so it can never become a silent skip.
+        '**/src/instrumentation.test.ts',
         '**/lib/**/?(*.)+(spec|test).ts?(x)',
         '**/stores/**/?(*.)+(spec|test).ts?(x)',
         '**/app/api/**/?(*.)+(spec|test).ts?(x)',
         '**/scripts/**/?(*.)+(spec|test).ts?(x)',
+        // Per-site theme registry (`src/app/styles/themes`) — pure resolver
+        // logic, no DOM; node project keeps it from being a silent skip.
+        '**/app/styles/**/?(*.)+(spec|test).ts?(x)',
+        // Server-action modules under `src/app/_actions/` are server-only
+        // (`'use server'` + `'server-only'`). Their tests fit the Library
+        // project's node env + tsconfig transform; without this entry they
+        // match no project and become a silent skip (see `test_orphaned-tests`).
+        '**/app/_actions/**/?(*.)+(spec|test).ts?(x)',
       ],
       setupFilesAfterEnv: ['<rootDir>/jest.platform.setup.js'],
       transformIgnorePatterns: [

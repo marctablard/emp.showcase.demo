@@ -1,0 +1,14 @@
+/*
+ * Per-site theme — `main`.
+ *
+ * Overrides ONLY the tokens that differ from the neutral default
+ * (src/app/styles/mapped.css). These `:root` rules load after globals.css
+ * (the <link> is mounted as the first <body> child) so they win the cascade
+ * for equal specificity. The Tailwind `@theme inline` block is untouched —
+ * it reads `var(--color-surface-action)`, so overriding the variable
+ * re-skins every action surface (buttons, focus rings) without new utilities.
+ */
+:root {
+  --color-surface-action: #1d4ed8;
+  --color-surface-action-hover: #1e40af;
+}
