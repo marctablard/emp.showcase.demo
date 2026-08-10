@@ -54,7 +54,7 @@ export function ProductShippingInfo({
           </div>
 
           {shippingCost !== undefined && (
-            <div className="flex items-center gap-2 text-sm mb-2 ml-8">
+            <div className="flex items-center gap-2 text-sm mb-2">
               {shippingCost > 0 ? (
                 <span>
                   {t('shipping')}: {formatCurrency(shippingCost, resolvedCurrency)}
