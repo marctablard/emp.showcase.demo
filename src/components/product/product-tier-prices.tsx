@@ -4,6 +4,7 @@ import type { JSX } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { ProductPrice } from '@/platform/services/model/price';
+import { PRICE_MODEL_TYPE } from '@/platform/services/model/price/price-model-type';
 
 export interface ProductTierPricesProps {
   price: ProductPrice;
@@ -20,7 +21,6 @@ interface TierDisplayRow {
   unitPrice: number;
   net: number;
   gross: number;
-  savePercent: number;
   isActive: boolean;
 }
 
@@ -49,17 +49,11 @@ function buildTierDisplayRows(price: ProductPrice, quantity: number): TierDispla
     return [];
   }
 
-  const baseUnitPrice = sorted[0].price;
-
   return sorted.map((tier, index) => {
     const nextMin = sorted[index + 1]?.minQuantity;
     const displayMin = Math.max(tier.minQuantity, 1);
     const displayMax = nextMin == null ? null : Math.max(nextMin - 1, displayMin);
     const { net, gross } = resolveTierNetGross(tier.price, price);
-    const savePercent =
-      baseUnitPrice > 0 && tier.price < baseUnitPrice
-        ? Math.round(((baseUnitPrice - tier.price) / baseUnitPrice) * 100)
-        : 0;
     const isActive = quantity >= tier.minQuantity && (nextMin == null || quantity < nextMin);
 
     return {
@@ -70,15 +64,32 @@ function buildTierDisplayRows(price: ProductPrice, quantity: number): TierDispla
       unitPrice: tier.price,
       net,
       gross,
-      savePercent,
       isActive,
     };
   });
 }
 
+type ProductPriceTranslations = ReturnType<typeof useTranslations<'product.price'>>;
+
+function resolveUnitSuffix(
+  t: ProductPriceTranslations,
+  priceModelType: ProductPrice['priceModelType'],
+  row: TierDisplayRow,
+): string {
+  if (priceModelType === PRICE_MODEL_TYPE.TIERED) {
+    return row.displayMax == null
+      ? t('tiers.forUnitsFrom', { min: row.displayMin })
+      : t('tiers.forUnitsRange', { min: row.displayMin, max: row.displayMax });
+  }
+
+  // VOLUME (and unknown/BASIC fallback): unit price applies to every unit at that threshold.
+  return t('tiers.forEachUnit');
+}
+
 /**
  * Figma Tier Prices Table (`12799:113152`) — two columns (Quantity | Price per unit).
  * Net-first (COP-6056): large unit figure is net; gross stays in the smaller VAT line.
+ * Trailing unit copy differs by price model (TIERED range vs VOLUME for-each-unit).
  */
 export function ProductTierPrices({
   price,
@@ -143,13 +154,11 @@ export function ProductTierPrices({
                   {' '}
                   ({t('plusTax', { taxRate })} / {formatCurrency(row.gross, price.currency)} {t('gross')})
                 </span>
-              )}
+              )}{' '}
+              <span data-testid="product-tier-prices-unit-suffix">
+                {resolveUnitSuffix(t, price.priceModelType, row)}
+              </span>
             </p>
-            {row.savePercent > 0 ? (
-              <p className="text-xs text-text-success">
-                {t('tiers.saveWhenOrdering', { percent: row.savePercent, min: row.displayMin })}
-              </p>
-            ) : null}
           </div>
         </div>
       ))}

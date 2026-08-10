@@ -47,7 +47,7 @@
   "technicalInformation": "Technische Informationen",
   "otherVariants": "Andere Varianten",
   "variants": {
-    "sellableVariants": "Verkaufsfähige Varianten",
+    "sellableVariants": "verkäufliche Variante",
     "count": "({count, plural, one {# Variante} other {# Varianten}})"
   },
   "shipping": {
@@ -80,7 +80,9 @@
       "pricePerUnit": "Preis pro Einheit",
       "buyRange": "Kauf {min}-{max}",
       "buyFrom": "Kauf {min}+",
-      "saveWhenOrdering": "Sparen Sie {percent}%, wenn Sie {min}+ bestellen"
+      "forUnitsRange": "für Einheiten {min}-{max}",
+      "forUnitsFrom": "für Einheiten {min}+",
+      "forEachUnit": "für jede Einheit"
     }
   },
   "filters": {
@@ -134,7 +136,7 @@
   },
   "loadingVariants": "Varianten werden geladen...",
   "variantSelectPlaceholder": "Variante auswählen",
-  "variantAttributeSelectViaListTooltip": "Bitte wählen Sie eine Variante über die Liste der verkaufbaren Produkte",
+  "variantAttributeSelectViaListTooltip": "Bitte wählen Sie eine Variante über die Liste der verkäuflichen Produktvarianten",
   "addedToComparison": "{name} wurde zur Vergleichsliste hinzugefügt",
   "removedFromComparison": "{name} wurde aus der Vergleichsliste entfernt",
   "comparisonFull": "Vergleichsliste ist voll (max. {max} Produkte)",

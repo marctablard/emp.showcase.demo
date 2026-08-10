@@ -1,5 +1,8 @@
 import { Price } from '../common';
 
+/** Emporix `priceModel.tierDefinition.tierType` values. */
+export type PriceModelType = 'BASIC' | 'TIERED' | 'VOLUME';
+
 export interface ProductPrice extends Price {
   id: string;
   productId: string;
@@ -11,6 +14,11 @@ export interface ProductPrice extends Price {
     unitCode?: string;
   };
   includesTax: boolean;
+  /**
+   * Pricing strategy from the matched price model.
+   * Mapped from Emporix `priceModel.tierDefinition.tierType`.
+   */
+  priceModelType?: PriceModelType;
 
   tierValues: {
     id: string;

@@ -6,6 +6,7 @@ import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
 import { formatCurrency } from '@/lib/utils';
 import type { ProductPrice } from '@/platform/services/model/price';
+import { PRICE_MODEL_TYPE } from '@/platform/services/model/price/price-model-type';
 import { ProductTierPrices } from './product-tier-prices';
 
 jest.mock('next-intl', () => ({
@@ -19,8 +20,14 @@ jest.mock('next-intl', () => ({
     if (key === 'tiers.buyFrom') {
       return `Buy ${values?.min}+`;
     }
-    if (key === 'tiers.saveWhenOrdering') {
-      return `Save ${values?.percent}% when you order ${values?.min}+`;
+    if (key === 'tiers.forUnitsRange') {
+      return `for units ${values?.min}-${values?.max}`;
+    }
+    if (key === 'tiers.forUnitsFrom') {
+      return `for units ${values?.min}+`;
+    }
+    if (key === 'tiers.forEachUnit') {
+      return 'for each unit';
     }
     if (key === 'tiers.quantity') {
       return 'Quantity';
@@ -47,6 +54,7 @@ function buildPrice(overrides: Partial<ProductPrice> = {}): ProductPrice {
     totalValue: 900,
     quantity: { quantity: 1, unitCode: 'pc' },
     includesTax: false,
+    priceModelType: PRICE_MODEL_TYPE.VOLUME,
     tax: {
       taxCode: 'STANDARD',
       taxRate: 19,
@@ -117,9 +125,27 @@ describe('ProductTierPrices', () => {
     expect(rows[1]).toHaveClass('bg-surface-information');
   });
 
-  it('shows a save line for discounted tiers', () => {
-    render(<ProductTierPrices price={buildPrice()} quantity={1} />);
-    expect(screen.getByText('Save 5% when you order 10+')).toBeInTheDocument();
-    expect(screen.getByText('Save 10% when you order 30+')).toBeInTheDocument();
+  it('VOLUME: appends for-each-unit copy and does not show save messaging', () => {
+    render(<ProductTierPrices price={buildPrice({ priceModelType: PRICE_MODEL_TYPE.VOLUME })} quantity={1} />);
+
+    const suffixes = screen.getAllByTestId('product-tier-prices-unit-suffix');
+    expect(suffixes).toHaveLength(3);
+    suffixes.forEach((suffix) => {
+      expect(suffix).toHaveTextContent('for each unit');
+    });
+    expect(screen.queryByText(/Save \d+% when you order/)).not.toBeInTheDocument();
+
+    const firstRow = screen.getAllByTestId('product-tier-prices-row')[0];
+    expect(normalizeWhitespace(firstRow.textContent ?? '')).toContain('for each unit');
+  });
+
+  it('TIERED: appends unit-range copy (closed and open-ended last tier)', () => {
+    render(<ProductTierPrices price={buildPrice({ priceModelType: PRICE_MODEL_TYPE.TIERED })} quantity={1} />);
+
+    const suffixes = screen.getAllByTestId('product-tier-prices-unit-suffix');
+    expect(suffixes[0]).toHaveTextContent('for units 1-9');
+    expect(suffixes[1]).toHaveTextContent('for units 10-29');
+    expect(suffixes[2]).toHaveTextContent('for units 30+');
+    expect(screen.queryByText(/Save \d+% when you order/)).not.toBeInTheDocument();
   });
 });

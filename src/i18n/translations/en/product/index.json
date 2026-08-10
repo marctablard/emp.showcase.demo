@@ -80,7 +80,9 @@
       "pricePerUnit": "Price per unit",
       "buyRange": "Buy {min}-{max}",
       "buyFrom": "Buy {min}+",
-      "saveWhenOrdering": "Save {percent}% when you order {min}+"
+      "forUnitsRange": "for units {min}-{max}",
+      "forUnitsFrom": "for units {min}+",
+      "forEachUnit": "for each unit"
     }
   },
   "filters": {
