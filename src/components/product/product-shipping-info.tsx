@@ -54,13 +54,13 @@ export function ProductShippingInfo({
           </div>
 
           {shippingCost !== undefined && (
-            <div className="flex items-center gap-2 text-sm mb-2">
+            <div className="ml-8 flex items-center gap-2 text-sm mb-2">
               {shippingCost > 0 ? (
                 <span>
                   {t('shipping')}: {formatCurrency(shippingCost, resolvedCurrency)}
                 </span>
               ) : (
-                <span className="ml-4">{t('freeShipping')}</span>
+                <span>{t('freeShipping')}</span>
               )}
             </div>
           )}
