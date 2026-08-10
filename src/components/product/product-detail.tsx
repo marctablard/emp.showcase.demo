@@ -745,6 +745,8 @@ function PdpDetailView({
       ) : null}
 
       <Recommendations
+        id={product.id}
+        type="recommendations"
         productId={product.id}
         locale={locale}
         overline={t('productRecommendations.overline')}
