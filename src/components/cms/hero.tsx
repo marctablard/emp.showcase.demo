@@ -62,15 +62,21 @@ const Hero = ({ headline, text, main_button, image, video }: HeroProps) => {
   return (
     <div
       className={cn(
-        'relative mb-10 sm:mb-20 md:mb-10',
+        'relative mb-10 sm:mb-26 md:mb-20',
         'lg:bg-[url("/images/hero-pattern.svg")] bg-no-repeat bg-left-top',
-        'max-w-[2500px] mx-auto',
+        'max-w-7xl mx-auto',
       )}
     >
       <div className="w-full flex justify-end">
-        <div className="mb-44 sm:mb-0 h-100 sm:h-145 md:h-185 w-full sm:w-auto">
+        <div className="h-65 sm:h-135 md:h-185 w-full sm:w-auto">
           {image && (
-            <svg className="h-full w-full sm:w-auto" viewBox={isAboveSmallScreen ? '0 0 1573 735' : '0 500 1573 735'}>
+            // Legacy crop hack: the visible band depends on the CMS image's intrinsic size —
+            // needs visual QA against Storyblok data; candidate for CSS clip-path + object-fit.
+            <svg
+              className="h-full w-full sm:w-auto"
+              viewBox={isAboveSmallScreen ? '0 0 1573 735' : '0 500 1573 735'}
+              preserveAspectRatio={isAboveSmallScreen ? undefined : 'xMidYMid slice'}
+            >
               <defs>
                 <clipPath id="shape">
                   <path
@@ -97,7 +103,7 @@ const Hero = ({ headline, text, main_button, image, video }: HeroProps) => {
         </div>
       </div>
       <div className="w-full max-w-6xl mx-auto">
-        <div className="ml-auto absolute bottom-0 sm:-bottom-10 md:bottom-20 px-4 lg:px-9">
+        <div className="relative -mt-6 sm:mt-0 sm:absolute sm:-bottom-10 md:bottom-20 px-4 md:px-9">
           {video && !isAboveSmallScreen && (
             <div
               className="flex rounded-full shadow-sm backdrop-blur-default w-12 h-12 bg-surface-page/85 cursor-pointer ml-auto mb-4 p-3 text-icon-action transition hover:text-icon-action-hover"
@@ -106,7 +112,7 @@ const Hero = ({ headline, text, main_button, image, video }: HeroProps) => {
               {isPlaying ? <CirclePause /> : <CirclePlay />}
             </div>
           )}
-          <div className="flex flex-col gap-4 bg-surface-page/85 sm:w-1/2 lg:w-4/7 rounded-tl-lg sm:rounded-tl-2xl rounded-br-lg sm:rounded-br-2xl shadow-sm p-4 sm:p-6 backdrop-blur-default">
+          <div className="flex flex-col gap-4 bg-surface-page/85 sm:w-1/2 rounded-tl-lg sm:rounded-tl-2xl rounded-br-lg sm:rounded-br-2xl shadow-sm p-4 sm:p-6 backdrop-blur-default">
             <H1>{headline}</H1>
             <div className="w-20 h-2 bg-surface-action rounded-full"></div>
             <p className="text-base md:text-lg text-text-body">{content}</p>

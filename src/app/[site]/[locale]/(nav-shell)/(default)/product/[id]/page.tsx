@@ -165,8 +165,8 @@ export async function renderProductPage(
     <>
       {jsonLd ? <JsonLd jsonLd={jsonLd} /> : null}
       <div>
-        <UiBreadcrumb items={breadcrumbs} className="max-w-6xl mx-auto px-4 lg:px-9 sm:gap-x-6" />
-        <ProductDetail className="mt-4 max-w-6xl mx-auto px-4 lg:px-9 sm:gap-x-6" product={product} options={options} />
+        <UiBreadcrumb items={breadcrumbs} className="content-container sm:gap-x-6" />
+        <ProductDetail className="mt-4 content-container sm:gap-x-6" product={product} options={options} />
       </div>
     </>
   );

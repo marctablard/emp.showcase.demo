@@ -70,7 +70,8 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
   useRegisterCheckoutForm('summary-terms', form, summaryRootRef);
 
   const fixedContainer = useRef<HTMLDivElement>(null);
-  const { isFixed, isFixedToTop, isContainerBottom } = useElementScroll(fixedContainer, 80, leftContent);
+  // 112 = pinned top offset (`top-[112px]` below) — trigger and pin must use the same value.
+  const { isFixed, isFixedToTop, isContainerBottom } = useElementScroll(fixedContainer, 112, leftContent);
   const { cartTotal, shippingCosts } = useCartTotal();
   if (!cart) {
     return (
@@ -81,19 +82,16 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
   }
 
   return (
-    <div className={cn('flex flex-col gap-4', isContainerBottom ? 'justify-end' : 'justify-start')}>
+    <div className={cn('flex flex-col gap-4 w-full', isContainerBottom ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
           'flex flex-col gap-4',
-          isFixed ? 'fixed md:mr-9' : '',
+          isFixed ? 'fixed md:w-[340px] lg:w-[444px]' : '',
           isFixedToTop ? 'top-[112px]' : 'bottom-[40px]',
         )}
         ref={fixedContainer}
       >
-        <Card
-          className={cn('bg-surface-action-hover-2 p-6 border-none gap-4 md:max-w-[438px] w-full')}
-          ref={summaryRootRef}
-        >
+        <Card className={cn('bg-surface-action-hover-2 p-6 border-none gap-4 w-full')} ref={summaryRootRef}>
           <CardHeader className="p-0">
             <CardTitle>
               <H2 variant="h5">{t('title')}</H2>

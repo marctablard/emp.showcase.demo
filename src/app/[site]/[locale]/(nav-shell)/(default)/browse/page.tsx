@@ -67,7 +67,7 @@ export async function renderBrowsePage({
   const t = await getTranslations({ locale, namespace: 'search.searchResults' });
 
   return (
-    <div className="max-w-6xl mx-auto px-4 lg:px-9 pb-32">
+    <div className="content-container pb-32">
       {/** When a search phrase is present, the PLP heading should read Search Results rather than All Products. */}
       <SearchResultsComponent
         initialSearch={initialSearch}

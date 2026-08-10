@@ -267,7 +267,7 @@ function PdpTechnicalInformation({
       <H3 className="my-6">{title}</H3>
       <div
         className={cn(
-          'mb-16 gap-x-6 gap-y-6 md:gap-y-16 grid grid-cols-1 md:grid-cols-2',
+          'mb-16 gap-x-6 gap-y-6 lg:gap-y-16 grid grid-cols-1 md:grid-cols-2',
           // D4: 1–3 groups fill the row equally at lg; 4+ keep four-per-row grid.
           fewGroups ? 'lg:flex lg:flex-row' : 'lg:grid-cols-4',
         )}
@@ -413,6 +413,9 @@ function PdpKeySpecsCard({
               <div className="flex flex-col gap-6">
                 {keySpecGroups.map((group) => {
                   const groupLabel = resolveKeySpecGroupLabel(group, t, l10n);
+                  // Column-wise fill (lg:grid-flow-col) needs an explicit row count: with a fixed
+                  // grid-rows-3, a 7th key spec would create implicit extra columns and overflow the card.
+                  const keySpecRows = Math.max(3, Math.ceil(group.items.length / 2));
                   return (
                     <div key={group.id} className="flex flex-col gap-4" data-testid="product-key-spec-group">
                       {showGroupHeaders && groupLabel ? (
@@ -421,7 +424,12 @@ function PdpKeySpecsCard({
                           <Separator className="min-w-0 flex-1 bg-text-on-action/40" />
                         </div>
                       ) : null}
-                      <div className="grid grid-cols-1 gap-x-12 gap-y-6 lg:grid-cols-2">
+                      <div
+                        className="grid grid-cols-1 grid-rows-3 gap-x-12 gap-y-6 lg:grid-cols-2 lg:grid-flow-col lg:grid-rows-[var(--key-spec-rows)]"
+                        style={
+                          { '--key-spec-rows': `repeat(${keySpecRows}, minmax(0, max-content))` } as React.CSSProperties
+                        }
+                      >
                         {group.items.map((spec: ProductSpecification) => (
                           <BulletPoint
                             key={spec.key}
@@ -687,7 +695,7 @@ function PdpDetailView({
               className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 md:grid-cols-3 lg:grid-cols-4"
               ref={addToCartButton}
             >
-              <div className="col-start-1 sm:row-start-1 md:col-end-4 xl-col-end-5">
+              <div className="col-start-1 sm:row-start-1 sm:col-end-3 md:col-end-4 lg:col-end-5">
                 <PdpPriceBlock price={price} />
               </div>
             </div>

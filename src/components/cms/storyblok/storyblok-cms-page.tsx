@@ -70,13 +70,9 @@ export default async function CMSPageComponent({ slug, locale, site, emptyOnNoRe
   }
 
   return (
-    <>
-      <div className={subData?.data?.story.content.no_margin ? '' : 'flex-grow mt-17 sm:mt-36 md:mt-52'}>
-        {breadcrumb.length > 0 && (
-          <UiBreadcrumb items={breadcrumb} className="max-w-6xl mx-auto px-4 lg:px-9 sm:gap-x-6" />
-        )}
-        <StoryblokStory story={subData?.data?.story} />
-      </div>
-    </>
+    <div className={subData?.data?.story.content.no_margin ? '' : 'flex-grow mt-17 sm:mt-36 md:mt-52'}>
+      {breadcrumb.length > 0 && <UiBreadcrumb items={breadcrumb} className="content-container sm:gap-x-6" />}
+      <StoryblokStory story={subData?.data?.story} />
+    </div>
   );
 }

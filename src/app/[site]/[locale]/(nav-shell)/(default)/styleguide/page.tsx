@@ -19,7 +19,7 @@ export default function StyleGuide() {
     notFound();
   }
   return (
-    <main className="max-w-6xl mx-auto px-4 grid gap-x-4 lg:px-9 sm:gap-x-6">
+    <main className="content-container grid gap-x-4 sm:gap-x-6">
       <H1 className="mt-12 mb-6">Hello Styleguide</H1>
       <p className="text-lg md:max-w-3/5">
         For the styling we are using tailwindcss. So the HTML-Tags get not styled at all, instead please use the utility

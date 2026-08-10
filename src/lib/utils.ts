@@ -104,5 +104,6 @@ export function buildCanonicalUrl(locale: string, path: string): string {
   }
   return `${baseUrl}${locale === getPublicDefaultLanguage() ? '' : `/${locale}`}${path}`;
 }
-// TODO fill with correct sizes
-export const imageSizes = '(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw';
+// Mirrors the product grid columns (1 → 2 → 3 → 4) at the design-system breakpoints
+// (sm 768 / md 1024 / lg 1280): full width on mobile, then 1/2, 1/3, 1/4.
+export const imageSizes = '(max-width: 768px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw';

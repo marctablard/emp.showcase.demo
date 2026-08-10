@@ -43,10 +43,20 @@ describe('AccountLayout responsive sidebar/mobile-menu switching', () => {
   });
 
   // Regression coverage for COP-4880/COP-6025: the persistent account rail and the mobile
-  // off-canvas menu toggle must switch on the same 'md' (1024px) boundary that useBreakpoint
-  // uses, keeping the outer spacing and sidebar width classes aligned to it.
-  it('shows the mobile menu button and hides the persistent rail just below the md boundary (1023px)', () => {
-    setViewportWidth(breakpoints.md - 1);
+  // off-canvas menu toggle must switch on one and the same useBreakpoint boundary, keeping the
+  // spacing and sidebar width classes aligned to it.
+  //
+  // SHOW-320 moved that boundary from 'md' (1024) to 'sm' (768). Figma draws a persistent rail on
+  // all four account templates at 768 — Order History 6354:68313 closes exactly on
+  // 16 + 180 + 24 + 532 + 16 = 768 — and drops it only at 360, where an "ACCOUNT MENU" button
+  // (6354:68546, 328x48) takes its place. The 'Account nav bar' component set 3445:157880 backs
+  // this up: its only two variants are the desktop rail and a 360-wide full-screen drawer, i.e.
+  // there is no tablet drawer state to render between 768 and 1023.
+  //
+  // The rail's WIDTH still swaps at md (180 @768 -> 288 @1024) — that is a separate boundary from
+  // its PRESENCE, and both are asserted below.
+  it('shows the mobile menu button and hides the persistent rail just below the sm boundary (767px)', () => {
+    setViewportWidth(breakpoints.sm - 1);
 
     render(
       <AccountLayout>
@@ -56,6 +66,19 @@ describe('AccountLayout responsive sidebar/mobile-menu switching', () => {
 
     expect(screen.getByRole('button', { name: 'sidebar.menu' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+  });
+
+  it('shows the persistent rail at 180px from the sm boundary (768px), without the mobile button', () => {
+    setViewportWidth(breakpoints.sm);
+
+    render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    expect(screen.queryByRole('button', { name: 'sidebar.menu' })).not.toBeInTheDocument();
+    expect(screen.getByRole('navigation')).toHaveClass('min-w-[180px]');
   });
 
   it('shows the persistent rail at the correct width and hides the mobile menu button at the md boundary (1024px)', () => {
@@ -83,8 +106,20 @@ describe('AccountLayout responsive sidebar/mobile-menu switching', () => {
       </AccountLayout>,
     );
 
-    expect(container.firstChild).toHaveClass('md:mx-9');
-    expect(container.firstChild).not.toHaveClass('lg:mx-9');
+    // The outermost box only caps and centres: max-w-6xl is 1920px here (globals.css overrides
+    // --container-6xl with --theme-container-6xl: 120rem), which is the Figma frame width, so the
+    // 36px margin below yields the 1848px content cap of the grid master 463:11124.
+    expect(container.firstChild).toHaveClass('max-w-6xl');
+    expect(container.firstChild).toHaveClass('mx-auto');
+
+    // The side margins themselves sit on the layout row: 16px from sm, 36px from md — matching
+    // Figma Order History 768 (16/736/16) and 1024 (36/952/36). Anchored on `.flex.items-start`
+    // rather than `.min-h-screen`: develop dropped min-h-screen so the tall desktop sidebar
+    // cannot stretch <main> and invent empty space above the footer.
+    const row = container.querySelector('.flex.items-start');
+    expect(row).toHaveClass('sm:mx-4');
+    expect(row).toHaveClass('md:mx-9');
+    expect(row).not.toHaveClass('lg:mx-9');
   });
 
   it('keeps 1rem gaps around the account content row and does not stretch to viewport height', () => {

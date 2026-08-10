@@ -62,7 +62,7 @@ const MediaText = ({ blok }: MediaTextProps) => {
           'bg-right-top bg-[url("/images/text-media-right-bg.svg")] bg-no-repeat ',
       )}
     >
-      <div className={cn('w-full grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-6xl mx-auto')}>
+      <div className={cn('w-full grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 max-w-6xl mx-auto')}>
         <div
           className={cn(
             'row-start-2 sm:row-span-2',

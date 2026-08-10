@@ -37,7 +37,7 @@ export default async function AccountPage() {
 
   if (!session || !session.user) {
     return (
-      <div className="w-full max-w-6xl mx-auto px-4 lg:px-9">
+      <div className="w-full content-container">
         <AccountLanding />
       </div>
     );
