@@ -12,6 +12,7 @@ import { OrdersTable } from './orders-table';
 const useOrderMock = jest.fn();
 
 jest.mock('next-intl', () => ({
+  useLocale: () => 'en',
   useTranslations: () => {
     const translate = (key: string) => key;
     translate.has = () => false;
@@ -44,6 +45,10 @@ jest.mock('@/components/account/orders/create-return-dialog', () => ({
 
 jest.mock('@/components/account/orders/tracking-dialog', () => ({
   TrackingDialog: () => null,
+}));
+
+jest.mock('@/components/product/product-list-resolver', () => ({
+  ProductListResolver: () => <div>ProductListResolver</div>,
 }));
 
 jest.mock('@/lib/client/returns', () => ({

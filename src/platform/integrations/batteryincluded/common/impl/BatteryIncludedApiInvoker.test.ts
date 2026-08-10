@@ -125,7 +125,7 @@ describe('BatteryIncludedApiInvoker', () => {
     });
 
     it('uses client debug source for the server container invoker', async () => {
-      const mockResponse = { status: 200, ok: true, json: jest.fn() } as Response;
+      const mockResponse = { status: 200, ok: true, json: jest.fn() } as unknown as Response;
       (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
 
       const serverInvoker = new BatteryIncludedApiInvokerServer(mockConfig);
@@ -146,7 +146,7 @@ describe('BatteryIncludedApiInvoker', () => {
     });
 
     it('uses ssr debug source for the SSR container invoker', async () => {
-      const mockResponse = { status: 200, ok: true, json: jest.fn() } as Response;
+      const mockResponse = { status: 200, ok: true, json: jest.fn() } as unknown as Response;
       (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
 
       const ssrInvoker = new BatteryIncludedApiInvokerSSR(mockConfig);

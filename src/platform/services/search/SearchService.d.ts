@@ -1,8 +1,7 @@
-// c:\Workspace\emporix-showcase\src\platform\services\search\SearchService.d.ts
+import type { BatteryIncludedBrowseVariables } from '@/platform/integrations/batteryincluded/model';
 import { SearchParams, SearchResult } from '../model/common';
 import { Product } from '../model/product';
 import { SearchSuggestions } from '../model/search';
-import type { BatteryIncludedBrowseVariables } from '@/platform/integrations/batteryincluded/model';
 
 export interface SearchService {
   /**

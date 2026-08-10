@@ -63,5 +63,7 @@ export interface BatteryIncludedShopApi {
   /**
    * Get available presets
    */
-  getPresets(visibility?: BatteryIncludedBrowseVariables | BatteryIncludedVisibilityContext): Promise<BatteryIncludedPreset[]>;
+  getPresets(
+    visibility?: BatteryIncludedBrowseVariables | BatteryIncludedVisibilityContext,
+  ): Promise<BatteryIncludedPreset[]>;
 }

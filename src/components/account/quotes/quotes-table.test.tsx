@@ -40,6 +40,16 @@ function buildQuote(overrides: Partial<Quote> = {}): Quote {
     totalGross: 120,
     totalNet: 100,
     totalVat: 20,
+    shippingAddress: {
+      type: 'SHIPPING',
+      contactName: 'Ada Lovelace',
+      street: 'Main Street 1',
+      zipCode: '10115',
+      city: 'Berlin',
+      country: 'Germany',
+    },
+    shippingCost: 0,
+    shippingMethod: 'standard',
     items: [
       {
         quantity: { quantity: 3, unitCode: 'EA' },
@@ -57,6 +67,12 @@ function buildQuote(overrides: Partial<Quote> = {}): Quote {
 describe('QuotesTable', () => {
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('renders the quote table with semantic table structure', () => {
+    render(<QuotesTable quotes={[buildQuote()]} />);
+
+    expect(screen.getByRole('table')).toBeInTheDocument();
   });
 
   it('renders columns in the contract order: Quote ID, Quotation Date, Status, Related Order, Quote Reference, Requested By, Authorization, Net Value, Number of Products, Action', () => {

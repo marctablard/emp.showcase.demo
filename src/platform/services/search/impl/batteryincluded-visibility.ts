@@ -1,9 +1,12 @@
-import type { SearchFilters } from '@/platform/services/model/common';
+import type {
+  BatteryIncludedBrowseVariables,
+  BatteryIncludedVisibilityFilters,
+} from '@/platform/integrations/batteryincluded/model';
 import {
   BATTERY_INCLUDED_CATEGORY_IDS_FILTER,
   BATTERY_INCLUDED_PUBLISHED_FILTER,
 } from '@/platform/services/model/category/batteryincluded-category';
-import type { BatteryIncludedBrowseVariables, BatteryIncludedVisibilityFilters } from '@/platform/integrations/batteryincluded/model';
+import type { SearchFilters } from '@/platform/services/model/common';
 
 export interface BatteryIncludedVisibilitySource {
   locale?: string;
@@ -89,7 +92,9 @@ export function mergeBatteryIncludedVisibilityFilters(
 
     mergedFilters[BATTERY_INCLUDED_CATEGORY_IDS_FILTER] = intersectedCategoryIds;
   } else {
-    mergedFilters[BATTERY_INCLUDED_CATEGORY_IDS_FILTER] = scopedFilters[BATTERY_INCLUDED_CATEGORY_IDS_FILTER] as string[];
+    mergedFilters[BATTERY_INCLUDED_CATEGORY_IDS_FILTER] = scopedFilters[
+      BATTERY_INCLUDED_CATEGORY_IDS_FILTER
+    ] as string[];
   }
 
   return mergedFilters;

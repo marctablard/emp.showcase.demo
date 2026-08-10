@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { fetchReturnById } from '@/lib/client/returns';
 import type { Return } from '@/platform/services/model/return';
 
@@ -41,9 +42,10 @@ export function useReturn(returnId: string, initialReturn?: Return | null): UseR
   }, [fetchReturn]);
 
   useEffect(() => {
-    if (!initialReturn && returnId) {
-      fetchReturn();
+    if (initialReturn || !returnId) {
+      return;
     }
+    return startEffectTask(fetchReturn);
   }, [initialReturn, returnId, fetchReturn]);
 
   return {

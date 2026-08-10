@@ -43,6 +43,16 @@ function buildQuote(overrides: Partial<Quote> = {}): Quote {
     totalGross: 120,
     totalNet: 100,
     totalVat: 20,
+    shippingAddress: {
+      type: 'SHIPPING',
+      contactName: 'Ada Lovelace',
+      street: 'Main Street 1',
+      zipCode: '10115',
+      city: 'Berlin',
+      country: 'Germany',
+    },
+    shippingCost: 0,
+    shippingMethod: 'standard',
     items: [],
     ...overrides,
   };
@@ -98,15 +108,17 @@ describe('QuotesPageContent', () => {
     });
   });
 
-  it('wraps the search, table, and pagination in the shared table-card surface', () => {
+  it('wraps the search, table, and pagination in exactly one shared table-card surface', () => {
     mockQuotesResult({
       quotes: [buildQuote()],
       pagination: { pageNumber: 0, pageSize: 5, totalPages: 3, totalItems: 15 },
     });
     const { container } = render(<QuotesPageContent initialQuotes={[buildQuote()]} />);
 
-    const tableCard = container.querySelector('[data-slot="table-card"]');
-    expect(tableCard).not.toBeNull();
+    const tableCards = container.querySelectorAll('[data-slot="table-card"]');
+    expect(tableCards).toHaveLength(1);
+
+    const tableCard = tableCards[0];
     expect(tableCard).toHaveClass(
       'bg-surface-primary',
       'border',
@@ -115,8 +127,8 @@ describe('QuotesPageContent', () => {
       'shadow-[var(--theme-shadow-sm)]',
     );
     expect(tableCard).not.toHaveClass('shadow-sm');
-    expect(tableCard?.querySelector('table')).not.toBeNull();
-    expect(tableCard?.querySelector('input')).not.toBeNull();
+    expect(tableCard.querySelector('table')).not.toBeNull();
+    expect(tableCard.querySelector('input')).not.toBeNull();
   });
 
   it('scopes quick search to raw id and customerReference fields only, never the mapper-derived reference field', () => {

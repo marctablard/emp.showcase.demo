@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { H6 } from '@/components/ui/h';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import type { ReturnReasonCode } from '@/lib/client/returns';
@@ -54,10 +55,10 @@ export function ReturnItemSelector({
 
   return (
     <div className="py-4 w-full min-w-0">
-      <div className="hidden md:grid grid-cols-[1fr_154px_100px] gap-4 pb-4 text-sm font-medium text-text-on-disabled">
-        <div>{tReturns('productDetails')}</div>
-        <div>{tReturns('quantity')}</div>
-        <div className="text-right">{tReturns('unitPrice')}</div>
+      <div className="hidden md:grid grid-cols-[1fr_154px_100px] gap-4 border-b border-border-primary pb-4">
+        <H6 className="min-w-0">{tReturns('productDetails')}</H6>
+        <H6 className="text-left">{tReturns('quantity')}</H6>
+        <H6 className="min-w-0 text-right">{tReturns('unitPrice')}</H6>
       </div>
 
       <div className="space-y-4 w-full min-w-0">
@@ -71,15 +72,15 @@ export function ReturnItemSelector({
           const priceCurrency = item.price?.currency;
 
           return (
-            <div key={item.id} className="py-4 border-b border-border-secondary w-full min-w-0">
+            <div key={item.id} className="py-4 border-b border-border-primary w-full min-w-0">
               {/* Desktop Layout */}
               <div className="hidden md:grid grid-cols-[1fr_154px_100px] gap-4 items-start">
                 <div className="flex gap-4">
                   <div className="w-20 h-13 relative flex-shrink-0 bg-surface-image-background rounded">
                     <Image src={getItemImage(item)} alt={item.name || ''} fill className="object-contain p-1" />
                   </div>
-                  <div className="flex flex-col gap-1">
-                    {item.sku && <span className="text-sm text-text-on-disabled">{item.sku}</span>}
+                  <div className="flex flex-col gap-1" data-testid={`return-item-product-desktop-${item.id}`}>
+                    {item.vendorName && <span className="text-base font-body text-text-body">{item.vendorName}</span>}
                     <span className="font-medium">{item.name}</span>
                     <span className="text-sm text-text-on-disabled">
                       {t('itemNumber')}: {item.sku || item.productId || '-'}
@@ -180,8 +181,8 @@ export function ReturnItemSelector({
 
               {/* Mobile Layout */}
               <div className="flex flex-col gap-4 md:hidden w-full min-w-0">
-                <div className="flex flex-col gap-1">
-                  {item.sku && <span className="text-xs text-text-body">{item.sku}</span>}
+                <div className="flex flex-col gap-1" data-testid={`return-item-product-mobile-${item.id}`}>
+                  {item.vendorName && <span className="text-sm font-body text-text-body">{item.vendorName}</span>}
                   <span className="text-sm font-bold text-text-headings">{item.name}</span>
                 </div>
 

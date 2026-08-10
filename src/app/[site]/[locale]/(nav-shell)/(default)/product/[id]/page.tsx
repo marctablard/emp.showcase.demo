@@ -5,7 +5,12 @@ import { JsonLd } from '@/components/seo/json-ld';
 import { UiBreadcrumb } from '@/components/ui/molecules/ui-breadcrumb';
 import { routingConfig } from '@/i18n/routing';
 import { generateVisibleBreadcrumbForPdp } from '@/lib/breadcrumb';
-import { getCachedBatteryIncludedCategorySnapshot } from '@/lib/ssr/navigation-category-trees';
+import { findDeepestCategoryPath } from '@/lib/category/category-tree-utils';
+import { getCategoryAncestorTrail } from '@/lib/ssr/category-ancestor-trail';
+import {
+  getCachedBatteryIncludedCategorySnapshot,
+  getCachedNavigationCategoryTrees,
+} from '@/lib/ssr/navigation-category-trees';
 import { getProductById, getProducts } from '@/lib/ssr/products';
 import { getActiveSearchEngine } from '@/lib/ssr/search-engine';
 import { generateProductJsonLd, generateProductMetadata } from '@/lib/ssr/seo';
@@ -108,45 +113,63 @@ export async function renderProductPage(
   ssr: boolean,
   siteCode?: string,
 ) {
-  if (ssr) {
-    const engine = getActiveSearchEngine();
+  const engine = getActiveSearchEngine();
 
-    // For public PDP, if Emporix is active, we need categories: true to get ancestry.
-    if (engine === 'emporix' && options.categories === false) {
-      options.categories = true;
-    }
+  const product = await getProductById(id, options);
 
-    // Fetch product data
-    const product = await getProductById(id, options);
-
-    // If product not found, show 404 page
-    if (!product) {
-      notFound();
-    }
-
-    const biSnapshot =
-      engine === 'batteryincluded' && siteCode
-        ? await getCachedBatteryIncludedCategorySnapshot(siteCode, locale)
-        : null;
-
-    const jsonLd = await generateProductJsonLd(product, locale);
-    const breadcrumbs = generateVisibleBreadcrumbForPdp(product, locale, engine, biSnapshot);
-
-    return (
-      <>
-        <JsonLd jsonLd={jsonLd} />
-        <div>
-          <UiBreadcrumb items={breadcrumbs} className="content-container sm:gap-x-6" />
-          <ProductDetail className="content-container sm:gap-x-6" product={product} options={options} />
-        </div>
-      </>
-    );
-  } else {
-    return (
-      // Non-SSR breadcrumbs are intentionally out of scope for this task
-      <ProductDetail className="content-container sm:gap-x-6" product={id} options={options} />
-    );
+  if (!product) {
+    notFound();
   }
+
+  const navigationRoots = siteCode ? await getCachedNavigationCategoryTrees(siteCode, locale) : null;
+  const candidateCategoryIds = Array.from(
+    new Set(
+      [
+        product.primaryCategory?.id,
+        ...(product.categoryIds ?? []),
+        ...(product.categories?.map((category) => category.id) ?? []),
+      ].filter((categoryId): categoryId is string => Boolean(categoryId)),
+    ),
+  );
+  const hasNavigationPath = findDeepestCategoryPath(navigationRoots ?? undefined, candidateCategoryIds).length > 0;
+
+  const biSnapshot =
+    !hasNavigationPath && engine === 'batteryincluded' && siteCode
+      ? await getCachedBatteryIncludedCategorySnapshot(siteCode, locale)
+      : null;
+
+  const leafCategoryId = product.primaryCategory?.id ?? product.categoryIds?.[0] ?? product.categories?.[0]?.id ?? null;
+  const leafCategory =
+    (product.primaryCategory?.id === leafCategoryId ? product.primaryCategory : null) ??
+    product.categories?.find((category) => category.id === leafCategoryId) ??
+    null;
+  const shouldResolveEmporixTrail =
+    !hasNavigationPath &&
+    Boolean(leafCategoryId) &&
+    (engine === 'emporix' || (engine === 'batteryincluded' && !biSnapshot));
+  const emporixAncestorTrail = shouldResolveEmporixTrail
+    ? await getCategoryAncestorTrail(leafCategoryId, leafCategory)
+    : null;
+
+  const jsonLd = ssr ? await generateProductJsonLd(product, locale) : null;
+  const breadcrumbs = generateVisibleBreadcrumbForPdp(
+    product,
+    locale,
+    engine,
+    biSnapshot,
+    emporixAncestorTrail,
+    navigationRoots,
+  );
+
+  return (
+    <>
+      {jsonLd ? <JsonLd jsonLd={jsonLd} /> : null}
+      <div>
+        <UiBreadcrumb items={breadcrumbs} className="content-container sm:gap-x-6" />
+        <ProductDetail className="mt-4 content-container sm:gap-x-6" product={product} options={options} />
+      </div>
+    </>
+  );
 }
 
 // Generate metadata for the product page

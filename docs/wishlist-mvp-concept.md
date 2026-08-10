@@ -201,7 +201,7 @@ Behavior:
 
 ### Account Wishlist View
 
-Replace `src/app/[site]/[locale]/(default)/account/wishlists/page.tsx` placeholder with a real view using `AccountLayout`.
+Replace `src/app/[site]/[locale]/(nav-shell)/(default)/account/wishlists/page.tsx` placeholder with a real view using `AccountLayout`.
 
 Breadcrumb:
 

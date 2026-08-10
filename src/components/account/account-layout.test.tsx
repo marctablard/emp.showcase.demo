@@ -113,10 +113,30 @@ describe('AccountLayout responsive sidebar/mobile-menu switching', () => {
     expect(container.firstChild).toHaveClass('mx-auto');
 
     // The side margins themselves sit on the layout row: 16px from sm, 36px from md — matching
-    // Figma Order History 768 (16/736/16) and 1024 (36/952/36).
-    const row = container.querySelector('.min-h-screen');
+    // Figma Order History 768 (16/736/16) and 1024 (36/952/36). Anchored on `.flex.items-start`
+    // rather than `.min-h-screen`: develop dropped min-h-screen so the tall desktop sidebar
+    // cannot stretch <main> and invent empty space above the footer.
+    const row = container.querySelector('.flex.items-start');
     expect(row).toHaveClass('sm:mx-4');
     expect(row).toHaveClass('md:mx-9');
     expect(row).not.toHaveClass('lg:mx-9');
+  });
+
+  it('keeps 1rem gaps around the account content row and does not stretch to viewport height', () => {
+    setViewportWidth(breakpoints.md);
+
+    const { container } = render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    const row = container.querySelector('.flex.items-start');
+    expect(row).toBeInTheDocument();
+    expect(row).toHaveClass('mt-4', 'mb-4');
+    expect(row).not.toHaveClass('min-h-screen');
+
+    const main = container.querySelector('main');
+    expect(main).not.toHaveClass('pb-8');
   });
 });

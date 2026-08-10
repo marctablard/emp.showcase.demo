@@ -37,12 +37,14 @@ The `docs/*.md` files document this codebase. When a change affects behavior cov
 | **React**                | React 19.2 + Radix UI primitives                  |
 | **State Management**     | Zustand 5 + React Context                         |
 | **Styling**              | Tailwind CSS 4 + shadcn/ui                         |
-| **Internationalization** | next-intl 4.4 with custom site routing            |
+| **Internationalization** | next-intl 4.x with custom site routing            |
 | **Dependency Injection** | Inversify 7 (generated containers)                |
-| **Authentication**       | NextAuth.js v5 / Auth.js (beta.30)                |
+| **Authentication**       | NextAuth.js v5 / Auth.js (beta)                   |
 | **Multi-tenancy**        | Custom site middleware                            |
 | **Testing**              | Jest (multi-project) + Playwright                 |
 | **Logging**              | Pino via `LoggerService`                          |
+
+Exact package versions live in `package.json` — prefer those over pinned minors in this file.
 
 ---
 
@@ -52,10 +54,13 @@ The `docs/*.md` files document this codebase. When a change affects behavior cov
 src/
 ├── app/                    # Next.js App Router
 │   ├── [site]/[locale]/   # Multi-tenant routes
-│   │   ├── (default)/     # Full header/footer layout
-│   │   ├── (reduced)/     # Minimal layout (checkout)
-│   │   └── (no-margin)/   # Full-width CMS pages
-│   └── api/               # API routes (67+)
+│   │   ├── (nav-shell)/   # Shared chrome (header/footer shell)
+│   │   │   ├── (default)/ # Catalog, cart, account, login, etc.
+│   │   │   └── (no-margin)/ # Full-width CMS pages
+│   │   ├── (default)/     # Routes outside nav-shell (e.g. account/compare)
+│   │   ├── (reduced)/     # Minimal chrome (checkout / confirmation)
+│   │   └── @dialog/       # Intercepting login / password-reset dialogs
+│   └── api/               # API routes (80+)
 ├── components/            # React components by domain
 │   ├── ui/               # shadcn/ui base components
 │   └── [domain]/         # Domain-specific components
@@ -63,7 +68,8 @@ src/
 ├── lib/
 │   ├── client/           # Client-side API calls
 │   ├── ssr/              # Server-side data fetching
-│   └── server/           # Server utilities
+│   ├── server/           # Server utilities
+│   └── common/           # Shared client/server utilities
 ├── platform/              # DI services layer
 │   ├── server.ts         # API route container
 │   ├── ssr.ts            # SSR container
@@ -159,7 +165,14 @@ const site = process.env.SITE_CODE;
 
 ## Routing Architecture
 
-Routes live under `src/app/[site]/[locale]/` in three layout groups: `(default)` (full header/footer), `(reduced)` (checkout), `(no-margin)` (full-width CMS). API routes are under `src/app/api/`.
+Routes live under `src/app/[site]/[locale]/`. Layout groups:
+
+- `(nav-shell)/` — shared chrome; contains `(default)/` (catalog, cart, account, login, …) and `(no-margin)/` (full-width CMS)
+- `(reduced)/` — minimal chrome (checkout / confirmation)
+- Top-level `(default)/` — pages that sit outside the nav-shell where present (e.g. account/compare)
+- `@dialog/` — intercepting login / password-reset dialogs
+
+API routes are under `src/app/api/`. Prefer colocating new pages under the matching existing group; do not invent a parallel layout tree.
 
 - Pages are **Server Components** by default; `await params` (it is a `Promise`).
 - **Protect pages server-side** — check auth and `redirect(...)` in the Server Component, never with a client `useSession` guard (it flashes content before redirect).
@@ -169,9 +182,9 @@ Routes live under `src/app/[site]/[locale]/` in three layout groups: `(default)`
 
 ## Layout Architecture
 
-- Root layout `[site]/[locale]/layout.tsx` wires all providers in order: `AuthSessionProvider` → `SiteProvider` → `NextIntlClientProvider` → `StoreProvider`.
+- Root layout `[site]/[locale]/layout.tsx` wires all providers in order: `AuthSessionProvider` → `SiteProvider` → `NextIntlClientProvider` → `StoreProvider` (plus CSRF / Storyblok as already wired).
 - **Every layout** must call `setRequestSite(site)` and `setRequestLocale(locale)` after `await params` so child layouts inherit context.
-- Route groups pick the chrome: `(default)` = Header + Footer, `(reduced)` = checkout header, `(no-margin)` = full-width CMS.
+- Route groups pick the chrome: `(nav-shell)` = shared header/footer shell, `(reduced)` = checkout header, `(no-margin)` = full-width CMS inside nav-shell.
 - Fetch data in Server Component layouts. Never `'use client'` a layout, fetch via SWR/`fetch('/api/...')` there, or call request-context setters in client code.
 
 ---
@@ -269,18 +282,22 @@ The nesting order determines which stores can access data from other stores:
 
 ```
 SiteStoreContext                  # 1. Root - site configuration
-├── ShippingMethodsStoreContext   # 2. Depends on site (countries, currency)
-├── ProductStoreContext           # 3. Depends on site (currency, availability)
-├── CustomerStoreContext          # 4. Customer data with currency preferences
-│   ├── OrderStoreContext         # 5. Depends on customer (logged-in state)
-│   └── CartStoreContext          # 6. Depends on customer (logged-in state)
-│       └── CheckoutStoreContext  # 7. Depends on cart data
-├── HistoryStoreContext           # 8. Browsing behavior tracking
-├── DashboardStoreContext         # 9. Dashboard state
-├── SessionStoreContext           # 10. Session management
-├── NotificationStoreContext      # 11. Notifications
-└── AvailabilityStoreContext      # 12. Product availability
+└── ShippingMethodsStoreContext   # 2. Depends on site (countries, currency)
+    └── ProductStoreContext       # 3. Depends on site (currency, availability)
+        └── CustomerStoreContext  # 4. Customer data with currency preferences
+            ├── OrderStoreContext           # 5. Depends on customer (logged-in state)
+            └── CartStoreContext            # 6. Depends on customer (logged-in state)
+                └── WishlistStoreContext    # 7. Wishlist (under cart)
+                    └── CheckoutStoreContext # 8. Depends on cart data
+                        └── HistoryStoreContext
+                            └── ComparisonStoreContext
+                                └── DashboardStoreContext
+                                    └── SessionStoreContext
+                                        └── NotificationStoreContext
+                                            └── AvailabilityStoreContext
 ```
+
+Source of truth: nesting in `src/providers/StoreProvider.tsx`. When adding a store, place it by real data dependencies and update this diagram.
 
 **CRITICAL**: Stores can only access data from stores that wrap them (higher in hierarchy).
 
@@ -643,8 +660,8 @@ npm run format           # Format with Prettier
 
 ### Adding a New Page
 
-1. Create page at `src/app/[site]/[locale]/(default)/new-page/page.tsx`
-2. Set request context with `setRequestSite` and `setRequestLocale`
+1. Create page under the matching layout group, e.g. `src/app/[site]/[locale]/(nav-shell)/(default)/new-page/page.tsx` (or `(reduced)` / `(no-margin)` as appropriate)
+2. Set request context with `setRequestSite` and `setRequestLocale` in the relevant layout/page after `await params`
 3. Use `lib/ssr` functions for data fetching
 4. Generate metadata with `generateMetadata`
 

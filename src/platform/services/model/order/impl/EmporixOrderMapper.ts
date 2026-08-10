@@ -201,11 +201,14 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
 
   private mapShipping(
     shipping?: EmporixShipping,
-    calculatedPrice?: { totalShipping?: { netValue: number } },
+    calculatedPrice?: { totalShipping?: { netValue: number; taxValue?: number; taxRate?: number } },
     currency?: string,
   ): OrderShipping | undefined {
     const shippingValue = calculatedPrice?.totalShipping?.netValue ?? shipping?.total.amount;
     const shippingCurrency = shipping?.total.currency ?? currency;
+    const shippingTax = calculatedPrice?.totalShipping?.taxValue;
+    const shippingTaxRateFromLine = shipping?.lines?.find((line) => typeof line.tax?.rate === 'number')?.tax?.rate;
+    const shippingTaxRate = calculatedPrice?.totalShipping?.taxRate ?? shippingTaxRateFromLine;
 
     if (shippingValue === undefined || !shippingCurrency) {
       return undefined;
@@ -215,6 +218,8 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
       total: {
         value: shippingValue,
         currency: shippingCurrency,
+        ...(shippingTax === undefined ? {} : { tax: shippingTax }),
+        ...(shippingTaxRate === undefined ? {} : { taxRate: shippingTaxRate }),
       },
       methods: shipping?.lines?.map((line) => {
         const localizedName = line.localizedName;
@@ -237,12 +242,15 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
       return undefined;
     }
 
+    const goodsTaxRate = calculatedPrice.price?.taxRate;
+
     return {
       subtotal: {
         net: calculatedPrice.price.netValue,
         gross: calculatedPrice.price.grossValue,
         tax: calculatedPrice.price.taxValue,
         currency,
+        ...(typeof goodsTaxRate === 'number' ? { taxRate: goodsTaxRate } : {}),
       },
       total: {
         net: calculatedPrice.finalPrice.netValue,

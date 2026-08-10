@@ -1,4 +1,3 @@
-// src/hooks/cart/store-synchronizer.test.ts
 import { act, waitFor } from '@testing-library/react';
 import type { Cart } from '@/platform/services/model/cart/cart';
 import type { Site } from '@/platform/services/model/common/site';

@@ -41,7 +41,7 @@ export function UiBreadcrumb({ items, maxItems = 2, className, disabledCategorie
   const backHref = items.length > 1 ? items.at(-2)!.href : items.at(-1)!.href;
 
   return (
-    <Breadcrumb className={cn('w-full py-4', className)} {...props}>
+    <Breadcrumb className={cn('w-full', className)} {...props}>
       <BreadcrumbList>
         {/* Back button - always present */}
         <BreadcrumbItem>
@@ -81,9 +81,9 @@ export function UiBreadcrumb({ items, maxItems = 2, className, disabledCategorie
           return (
             <BreadcrumbItem key={index} className="hidden sm:block">
               {disabledCategories ? (
-                <BreadcrumbPage className="inline-flex items-center whitespace-nowrap text-text-action [&>svg]:size-4 md:[&>svg]:size-6 font-bold underline px-0 md:px-0">
+                <BreadcrumbPage className="inline-flex items-center whitespace-nowrap text-text-action [&>svg]:size-4 min-[992px]:[&>svg]:size-6 font-bold underline px-0">
                   {item.label}
-                  <ChevronRight className="size-4" />
+                  <ChevronRight className="size-4 min-[992px]:size-6" aria-hidden="true" />
                 </BreadcrumbPage>
               ) : (
                 <BreadcrumbLink href={item.href}>{item.label}</BreadcrumbLink>

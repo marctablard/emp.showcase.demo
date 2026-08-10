@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
+import { useSession } from '@/hooks/session/useSession';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { SearchFilterLeafValue, SearchParams, SearchResult } from '@/platform/services/model/common';
 import type { Quote } from '@/platform/services/model/quote';
@@ -59,13 +61,33 @@ function normalizeQuoteFilters(filters?: SearchParams<Quote>['filters']): string
   return JSON.stringify(sortedTopLevel);
 }
 
+function appendNormalizedQuoteFilters(queryParams: URLSearchParams, normalizedFilters?: string): void {
+  if (!normalizedFilters) {
+    return;
+  }
+
+  const parsedFilters = JSON.parse(normalizedFilters) as Array<
+    [string, SearchFilterLeafValue | Array<[string, SearchFilterLeafValue]>]
+  >;
+
+  parsedFilters.forEach(([key, value]) => {
+    if (Array.isArray(value) && value.every((entry) => Array.isArray(entry))) {
+      value.forEach(([nestedKey, nestedValue]) => {
+        appendQuoteFilterParam(queryParams, `${key}[${nestedKey}]`, nestedValue);
+      });
+      return;
+    }
+
+    appendQuoteFilterParam(queryParams, key, value as SearchFilterLeafValue);
+  });
+}
+
 /**
  * Hook for fetching quotes
  * @param initialQuotes Optional initial quotes data (from SSR)
  * @param params Optional search params for client-side filtering
  */
 export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
-  const hasFetchedRef = useRef(false);
   const page = params?.page;
   const size = params?.size;
   const sort = params?.sort;
@@ -76,8 +98,12 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
   const normalizedFilters = normalizeQuoteFilters(filters);
   const normalizedInitialRequestFilters = normalizeQuoteFilters(initialRequest?.filters);
 
+  const { session } = useSession();
+  // Legal-entity scoped: refetch when the header dropdown switches company so
+  // the list reflects the new LE's quotes rather than the previous session's.
+  const legalEntityId = typeof session?.legalEntityId === 'string' ? session.legalEntityId.trim() : '';
+
   const canReuseInitialData =
-    !hasFetchedRef.current &&
     !!initialQuotes &&
     (page ?? 0) === (initialRequest?.page ?? 0) &&
     size === initialRequest?.size &&
@@ -122,7 +148,6 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
   >([]);
 
   const fetchQuotes = useCallback(async () => {
-    hasFetchedRef.current = true;
     try {
       setLoading(true);
       setError(null);
@@ -140,19 +165,7 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
       if (searchQuery !== undefined) {
         queryParams.append('q', searchQuery);
       }
-      if (filters) {
-        Object.entries(filters).forEach(([key, value]) => {
-          if (Array.isArray(value)) {
-            appendQuoteFilterParam(queryParams, key, value);
-          } else if (typeof value === 'object' && value !== null) {
-            Object.entries(value).forEach(([nestedKey, nestedValue]) => {
-              appendQuoteFilterParam(queryParams, `${key}[${nestedKey}]`, nestedValue);
-            });
-          } else {
-            appendQuoteFilterParam(queryParams, key, value);
-          }
-        });
-      }
+      appendNormalizedQuoteFilters(queryParams, normalizedFilters);
 
       const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
       const res = await fetch(`/api/quotes${queryString}`);
@@ -179,18 +192,37 @@ export function useQuotes(initialQuotes?: Quote[], params?: UseQuotesOptions) {
     } finally {
       setLoading(false);
     }
-  }, [page, size, sort, searchQuery, filters]);
+  }, [page, size, sort, searchQuery, normalizedFilters]);
 
   const refetchQuotes = useCallback(async () => {
     await fetchQuotes();
   }, [fetchQuotes]);
 
   // Skip only the initial fetch when SSR data matches the exact params it was fetched with.
+  // Seeded during render but only ever read/written inside the effect: once the first effect run
+  // has consumed it, every later param change refetches, so navigating back to the SSR'd page
+  // still refreshes instead of showing whatever the previous fetch left in state.
+  const skipInitialFetchRef = useRef(canReuseInitialData);
+
   useEffect(() => {
-    if (!canReuseInitialData) {
-      fetchQuotes();
+    if (skipInitialFetchRef.current) {
+      skipInitialFetchRef.current = false;
+      return;
     }
-  }, [canReuseInitialData, fetchQuotes]);
+    return startEffectTask(fetchQuotes);
+  }, [fetchQuotes]);
+
+  // Dedicated LE watcher: mirrors `useApprovals`/`useReturns`. Kept out of the
+  // main effect deps so lint doesn't flag LE (not a URL arg) and the initial
+  // SSR-skip stays intact.
+  const previousLegalEntityIdRef = useRef(legalEntityId);
+  useEffect(() => {
+    if (previousLegalEntityIdRef.current === legalEntityId) {
+      return;
+    }
+    previousLegalEntityIdRef.current = legalEntityId;
+    return startEffectTask(fetchQuotes);
+  }, [legalEntityId, fetchQuotes]);
 
   return {
     loading,

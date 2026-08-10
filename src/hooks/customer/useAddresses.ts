@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { startEffectTask } from '@/hooks/common/start-effect-task';
 import {
   createCustomerAddress,
   deleteCustomerAddress,
@@ -116,26 +117,29 @@ export const useAddresses = (initialAddresses?: CustomerAddress[] | undefined): 
     [addresses, setAddressLoading, setAddresses],
   );
 
-  // Initialize customer on first render if not already initialized
+  // Initialize customer on first render if not already initialized. The body runs off the
+  // effect's synchronous path so the store writes below do not cascade inside this commit.
   useEffect(() => {
-    if (status !== 'authenticated') {
-      if (getAddressLoading()) {
-        setAddressLoading(false);
+    return startEffectTask(async () => {
+      if (status !== 'authenticated') {
+        if (getAddressLoading()) {
+          setAddressLoading(false);
+        }
+        return;
       }
-      return;
-    }
 
-    if (customer && addresses === undefined && !getAddressLoading()) {
-      setAddressLoading(true);
-      // first try to grab the customer from the store
-      const currentAddresses = getAddresses();
-      if (currentAddresses !== undefined) {
-        setAddresses(currentAddresses);
-        setAddressLoading(false);
-      } else {
-        fetchAddresses();
+      if (customer && addresses === undefined && !getAddressLoading()) {
+        setAddressLoading(true);
+        // first try to grab the customer from the store
+        const currentAddresses = getAddresses();
+        if (currentAddresses !== undefined) {
+          setAddresses(currentAddresses);
+          setAddressLoading(false);
+        } else {
+          await fetchAddresses();
+        }
       }
-    }
+    });
   }, [customer, addresses, getAddresses, getAddressLoading, setAddressLoading, fetchAddresses, setAddresses, status]);
 
   return {

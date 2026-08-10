@@ -106,8 +106,10 @@ describe('ReturnsList', () => {
     mockReturnsResult({ returns: [buildReturn()], totalCount: 12 });
     const { container } = render(<ReturnsList initialReturns={[buildReturn()]} initialTotalCount={12} />);
 
-    const tableCard = container.querySelector('[data-slot="table-card"]');
-    expect(tableCard).not.toBeNull();
+    const tableCards = container.querySelectorAll('[data-slot="table-card"]');
+    expect(tableCards).toHaveLength(1);
+
+    const tableCard = tableCards[0];
     expect(tableCard).toHaveClass(
       'bg-surface-primary',
       'border',
@@ -116,7 +118,7 @@ describe('ReturnsList', () => {
       'shadow-[var(--theme-shadow-sm)]',
     );
     expect(tableCard).not.toHaveClass('shadow-sm');
-    expect(tableCard?.querySelector('table')).not.toBeNull();
+    expect(tableCard.querySelector('table')).not.toBeNull();
     expect(within(tableCard as HTMLElement).getByText('next')).toBeInTheDocument();
   });
 

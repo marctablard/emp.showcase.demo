@@ -49,4 +49,30 @@ describe('currency formatting utilities', () => {
 
     expect(formatCurrencyToParts(amount, 'USD', 'en-US')).toEqual(expected);
   });
+
+  it('falls back to default currency for an empty currency code', () => {
+    expect(() => formatCurrency(10, '')).not.toThrow();
+
+    const expected = new Intl.NumberFormat(getPublicDefaultLanguage(), {
+      style: 'currency',
+      currency: process.env.NEXT_PUBLIC_DEFAULT_CURRENCY || 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(10);
+
+    expect(formatCurrency(10, '')).toBe(expected);
+  });
+
+  it('falls back to default currency for a whitespace currency code', () => {
+    expect(() => formatCurrency(10, '   ')).not.toThrow();
+
+    const expected = new Intl.NumberFormat(getPublicDefaultLanguage(), {
+      style: 'currency',
+      currency: process.env.NEXT_PUBLIC_DEFAULT_CURRENCY || 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(10);
+
+    expect(formatCurrency(10, '   ')).toBe(expected);
+  });
 });

@@ -26,15 +26,19 @@ async function enrichReturnWithOrderData(returnData: Return): Promise<Return> {
     const orderService = server.get<OrderService>('OrderService');
     const orders = await Promise.all(orderIds.map((id) => orderService.getCustomerOrderById(id)));
 
-    const orderItemMap = new Map<string, { productId: string; images?: string[]; brand?: string; sku?: string }>();
+    const orderItemMap = new Map<
+      string,
+      { productId: string; images?: string[]; brand?: string; sku?: string; vendorName?: string }
+    >();
     for (const order of orders) {
       if (!order) continue;
       for (const item of order.items) {
         orderItemMap.set(`${order.id}:${item.id}`, {
           productId: item.productId,
           images: item.images,
-          brand: undefined,
+          brand: item.vendorName,
           sku: item.sku,
+          vendorName: item.vendorName,
         });
       }
     }
@@ -48,7 +52,8 @@ async function enrichReturnWithOrderData(returnData: Return): Promise<Return> {
           ...item,
           productId: item.productId ?? orderItem.productId,
           images: item.images ?? orderItem.images,
-          brand: item.brand ?? orderItem.brand,
+          brand: item.brand ?? orderItem.brand ?? orderItem.vendorName,
+          vendorName: item.vendorName ?? orderItem.vendorName,
           itemNumber: item.itemNumber ?? orderItem.sku,
         };
       }),
