@@ -41,7 +41,7 @@ function renderMobileUnitPriceStack(
         {formatCurrency(netPrice, currency, locale)}
       </span>
       {showGrossSecondary ? (
-        <span className="text-sm font-body text-text-placeholders">
+        <span className="text-sm font-body text-text-on-disabled">
           {grossPrefix}: {grossPriceLabel}
         </span>
       ) : null}
@@ -157,7 +157,7 @@ export function ProductItemRow({ item, locale, presentationConfig, showGrossUnde
                   t('gross').trim(),
                 )}
             {item.itemNumber && (
-              <p className="break-all text-sm text-text-placeholders">
+              <p className="break-all text-sm font-body text-text-body">
                 {tOrders('itemNumber')}: {item.itemNumber}
               </p>
             )}
@@ -188,11 +188,14 @@ export function ProductItemRow({ item, locale, presentationConfig, showGrossUnde
       >
         <div className="flex min-w-0 items-start gap-4">
           {productImage}
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            {item.brand && <p className="truncate text-base font-body text-text-body">{item.brand}</p>}
-            <ProductNameHeading item={item} variant="desktop" />
+          {/* Figma 11936:190938 Details: gap-2; brand/name body/sm + heading/h6; item # body/sm. */}
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <div className="flex min-w-0 flex-col gap-1">
+              {item.brand && <p className="truncate text-sm font-body text-text-body">{item.brand}</p>}
+              <ProductNameHeading item={item} variant="desktop" />
+            </div>
             {item.itemNumber && (
-              <p className="break-all text-sm text-text-placeholders">
+              <p className="break-all text-sm font-body text-text-body">
                 {tOrders('itemNumber')}: {item.itemNumber}
               </p>
             )}
@@ -228,7 +231,7 @@ export function ProductItemRow({ item, locale, presentationConfig, showGrossUnde
               {formatCurrency(netPrice, item.currency, locale)}
             </span>
             {showGrossSecondary && (
-              <span className="break-words text-sm font-body text-text-placeholders">
+              <span className="break-words text-sm font-body text-text-on-disabled">
                 {t('gross').trim()}: {grossPriceLabel}
               </span>
             )}

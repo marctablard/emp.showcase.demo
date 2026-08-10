@@ -64,22 +64,17 @@ function byNormalizedText(expected: string) {
 }
 
 describe('ProductList', () => {
-  it('renders column headers as Mobile H5 below desktop and Desktop H6 on desktop, with left Quantity and right price alignment', () => {
+  it('renders column headers as H6 (Figma heading/h6) with left Quantity and right price alignment', () => {
     render(<ProductList items={[quoteStyleItem]} />);
 
-    const quantityHeadingTablet = screen.getByRole('heading', { level: 5, name: 'quantity' });
-    const quantityHeadingDesktop = screen.getByRole('heading', { level: 6, name: 'quantity', hidden: true });
-    const priceHeadingTablet = screen.getByRole('heading', { level: 5, name: 'unitPrice' });
-    const priceHeadingDesktop = screen.getByRole('heading', { level: 6, name: 'unitPrice', hidden: true });
+    const quantityHeading = screen.getByRole('heading', { level: 6, name: 'quantity' });
+    const priceHeading = screen.getByRole('heading', { level: 6, name: 'unitPrice' });
 
-    expect(quantityHeadingTablet.tagName).toBe('H5');
-    expect(quantityHeadingTablet).toHaveClass('md:hidden');
-    expect(quantityHeadingDesktop.tagName).toBe('H6');
-    expect(quantityHeadingDesktop).toHaveClass('hidden', 'md:block');
-    expect(quantityHeadingTablet.parentElement).toHaveClass('text-left');
-    expect(quantityHeadingTablet.parentElement).not.toHaveClass('text-right');
-    expect(priceHeadingTablet.parentElement).toHaveClass('text-right');
-    expect(priceHeadingDesktop.parentElement).toHaveClass('text-right');
+    expect(quantityHeading.tagName).toBe('H6');
+    expect(quantityHeading).toHaveClass('text-2xl', 'font-bold', 'font-headlines');
+    expect(quantityHeading.parentElement).toHaveClass('text-left');
+    expect(quantityHeading.parentElement).not.toHaveClass('text-right');
+    expect(priceHeading.parentElement).toHaveClass('text-right');
   });
 
   it('renders Quote-style items net-first with gross as the secondary value on desktop and mobile', () => {
@@ -176,17 +171,10 @@ describe('ProductList', () => {
 
     render(<ProductList items={[quoteStyleItem]} locale="de-DE" presentationConfig={presentationConfig} />);
 
-    expect(screen.getByRole('heading', { level: 5, name: 'Product' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 5, name: 'Quantity' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 5, name: 'Unit Price' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 5, name: 'Amount' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 6, name: 'Product', hidden: true })).toHaveClass('hidden', 'md:block');
-    expect(screen.getByRole('heading', { level: 6, name: 'Quantity', hidden: true })).toHaveClass('hidden', 'md:block');
-    expect(screen.getByRole('heading', { level: 6, name: 'Unit Price', hidden: true })).toHaveClass(
-      'hidden',
-      'md:block',
-    );
-    expect(screen.getByRole('heading', { level: 6, name: 'Amount', hidden: true })).toHaveClass('hidden', 'md:block');
+    expect(screen.getByRole('heading', { level: 6, name: 'Product' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 6, name: 'Quantity' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 6, name: 'Unit Price' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 6, name: 'Amount' })).toBeInTheDocument();
 
     const desktopRow = screen.getByTestId(`product-item-desktop-${quoteStyleItem.id}`);
     const desktopScope = within(desktopRow);
@@ -231,13 +219,8 @@ describe('ProductList', () => {
       />,
     );
 
-    expect(screen.getByRole('heading', { level: 5, name: 'Base Net Unit Price' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 5, name: 'Discount' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 6, name: 'Base Net Unit Price', hidden: true })).toHaveClass(
-      'hidden',
-      'md:block',
-    );
-    expect(screen.getByRole('heading', { level: 6, name: 'Discount', hidden: true })).toHaveClass('hidden', 'md:block');
+    expect(screen.getByRole('heading', { level: 6, name: 'Base Net Unit Price' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 6, name: 'Discount' })).toBeInTheDocument();
     expect(screen.getByTestId(`product-base-net-cell-${discountedItem.id}`)).toHaveTextContent(/500,00/);
     expect(screen.getByTestId(`product-discount-cell-${discountedItem.id}`)).toHaveTextContent('35%');
   });

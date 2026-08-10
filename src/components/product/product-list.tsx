@@ -1,16 +1,18 @@
 import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/components/ui/card';
-import { H5, H6 } from '@/components/ui/h';
+import { H6 } from '@/components/ui/h';
 import { cn } from '@/lib/utils';
 import { ProductItemRow } from './product-item-row';
 
-/** Column headers: Mobile/heading/h5 below desktop, Desktop/heading/h6 from `md` up (both 16px). */
+/**
+ * Column headers — Figma 11936:190927 Mobile/heading/h6.
+ * `text-2xl` token: 12px below 1024px, Desktop/heading/h6 (16px) from 1024px up.
+ */
 function ProductListColumnHeading({ children, className }: Readonly<{ children: ReactNode; className?: string }>) {
   return (
     <div className={cn('min-w-0', className)}>
-      <H5 className="md:hidden">{children}</H5>
-      <H6 className="hidden md:block">{children}</H6>
+      <H6>{children}</H6>
     </div>
   );
 }
@@ -69,18 +71,17 @@ export interface ProductListItem {
  *
  * In this project `sm` = 768px and `md` = 1024px (see `src/lib/breakpoints.ts`).
  * Table layout starts at `sm` (tablet+); below that stacked mobile cards are used.
- * All tracks use `minmax(0, …)` / a compact Quantity track so the table fits narrow
- * account main columns (~506px beside the sidebar) without horizontal scroll.
+ * Tracks use `minmax(0, …)` / a compact Quantity so narrow account mains (~462–506px
+ * beside the sidebar) stay scroll-free.
  *
- * Figma 11936:190918 — Product flexes; Quantity is compact; unit/refund prices shrink
- * and stay right-aligned.
+ * Figma 11936:190918 / 11936:190932 (~484px content): Product ≈257px (~4fr), each
+ * numeric track ≈60px; Quantity is a tight fixed track so Product keeps the share.
  */
-export const PRODUCT_DESKTOP_GRID_COLS = 'sm:grid-cols-[minmax(0,1.6fr)_3.5rem_minmax(0,1fr)]';
-export const PRODUCT_DESKTOP_GRID_COLS_WITH_AMOUNT =
-  'sm:grid-cols-[minmax(0,1.6fr)_3.5rem_minmax(0,1fr)_minmax(0,1fr)]';
+export const PRODUCT_DESKTOP_GRID_COLS = 'sm:grid-cols-[minmax(0,4fr)_3rem_minmax(0,1.2fr)]';
+export const PRODUCT_DESKTOP_GRID_COLS_WITH_AMOUNT = 'sm:grid-cols-[minmax(0,4fr)_3rem_minmax(0,1fr)_minmax(0,1.1fr)]';
 /** Product | Quantity | Base Net Unit Price | Discount | Unit Price */
 export const PRODUCT_DESKTOP_GRID_COLS_WITH_DISCOUNT =
-  'sm:grid-cols-[minmax(0,1.4fr)_3.5rem_minmax(0,1fr)_minmax(0,4rem)_minmax(0,1fr)]';
+  'sm:grid-cols-[minmax(0,3.5fr)_3rem_minmax(0,1fr)_minmax(0,3.25rem)_minmax(0,1fr)]';
 
 interface ProductListProps {
   readonly items: ProductListItem[];

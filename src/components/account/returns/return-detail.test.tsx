@@ -408,7 +408,7 @@ describe('ReturnDetail', () => {
     expect(card).toHaveClass('min-w-0', 'max-w-full', 'overflow-hidden', 'shadow-sm');
     expect(content).toHaveClass('min-w-0');
     expect(content).not.toHaveClass('overflow-x-auto');
-    expect(desktopRow.className).toMatch(/minmax\(0,1\.6fr\)_3\.5rem_minmax\(0,1fr\)_minmax\(0,1fr\)/);
+    expect(desktopRow.className).toMatch(/minmax\(0,4fr\)_3rem_minmax\(0,1fr\)_minmax\(0,1\.1fr\)/);
     expect(desktopRow.className).toContain('sm:grid');
     expect(trailingCell).toHaveClass('min-w-0', 'text-right');
     expect(within(trailingCell).getByText('€100.00')).toBeInTheDocument();

@@ -541,7 +541,7 @@ describe('OrderDetail', () => {
 
     const vendorNames = screen.getAllByText('Acme Vendor');
     expect(vendorNames[0]).toHaveClass('text-sm', 'font-body', 'text-text-body');
-    expect(vendorNames[1]).toHaveClass('text-base', 'font-body', 'text-text-body');
+    expect(vendorNames[1]).toHaveClass('text-sm', 'font-body', 'text-text-body');
 
     const productNames = screen.getAllByRole('link', { name: 'Sample Product' });
     expect(productNames[0].closest('h5')).toHaveClass('text-3xl', 'font-bold', 'font-headlines');
@@ -596,12 +596,9 @@ describe('OrderDetail', () => {
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    const quantityHeaderTablet = screen.getByRole('heading', { level: 5, name: 'quantity' });
-    const quantityHeaderDesktop = screen.getByRole('heading', { level: 6, name: 'quantity', hidden: true });
-    expect(quantityHeaderTablet.parentElement).toHaveClass('text-left');
-    expect(quantityHeaderTablet.parentElement).not.toHaveClass('text-right');
-    expect(quantityHeaderDesktop.parentElement).toHaveClass('text-left');
-    expect(quantityHeaderDesktop.parentElement).not.toHaveClass('text-right');
+    const quantityHeader = screen.getByRole('heading', { level: 6, name: 'quantity' });
+    expect(quantityHeader.parentElement).toHaveClass('text-left');
+    expect(quantityHeader.parentElement).not.toHaveClass('text-right');
 
     const quantityValue = screen.getAllByText('2', { selector: 'span.text-base' })[0];
     expect(screen.getByTestId('product-quantity-cell-item-1')).toBeTruthy();
@@ -613,10 +610,9 @@ describe('OrderDetail', () => {
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    // Responsive column headers (H5 tablet + H6 desktop); no per-item mobile label duplicates them.
-    expect(screen.getAllByText('quantity')).toHaveLength(2);
-    expect(screen.getByRole('heading', { level: 5, name: 'quantity' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 6, name: 'quantity', hidden: true })).toBeInTheDocument();
+    // Single H6 column header; no per-item mobile label duplicates it.
+    expect(screen.getAllByText('quantity')).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 6, name: 'quantity' })).toBeInTheDocument();
   });
 
   it('renders the item price as a bold H5-equivalent primary with the secondary Gross value as body-sm', () => {

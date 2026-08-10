@@ -53,7 +53,7 @@ describe('ProductList contract', () => {
     const header = screen.getByTestId('product-list-content').querySelector('.border-b');
     expect(header).toBeTruthy();
     const headings = within(header as HTMLElement)
-      .getAllByRole('heading', { level: 5 })
+      .getAllByRole('heading', { level: 6 })
       .map((heading) => heading.textContent);
 
     expect(headings).toEqual(['product', 'quantity', 'unitPrice']);
@@ -125,7 +125,7 @@ describe('ProductList contract', () => {
         (_, node) => node?.textContent === formatCurrency(contractItem.unitPrice, contractItem.currency, 'de-DE'),
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 5, name: 'Erstattungsbetrag' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 6, name: 'Erstattungsbetrag' })).toBeInTheDocument();
   });
 
   it('renders no trailing amount column or heading when the trailing amount is not configured', () => {
@@ -134,7 +134,7 @@ describe('ProductList contract', () => {
     const header = screen.getByTestId('product-list-content').querySelector('.border-b');
     expect(header).toBeTruthy();
     const headings = within(header as HTMLElement)
-      .getAllByRole('heading', { level: 5 })
+      .getAllByRole('heading', { level: 6 })
       .map((heading) => heading.textContent);
 
     expect(headings).toEqual(['product', 'quantity', 'unitPrice']);
@@ -241,18 +241,14 @@ describe('ProductList contract', () => {
     expect(content).not.toHaveClass('overflow-x-auto');
     expect(desktopRow.className).toContain('hidden');
     expect(desktopRow.className).toContain('sm:grid');
-    expect(desktopRow.className).toContain('minmax(0,1.6fr)');
-    expect(desktopRow.className).toContain('3.5rem');
-    expect(desktopRow.className).toContain('minmax(0,1fr)_minmax(0,1fr)');
+    expect(desktopRow.className).toContain('minmax(0,4fr)');
+    expect(desktopRow.className).toContain('3rem');
+    expect(desktopRow.className).toContain('minmax(0,1fr)_minmax(0,1.1fr)');
     expect(desktopRow.className).not.toContain('minmax(280px');
     expect(desktopRow.className).not.toContain('minmax(140px');
     expect(mobileRow).toHaveClass('sm:hidden');
     expect(trailingCell).toHaveClass('min-w-0');
-    expect(screen.getByRole('heading', { level: 5, name: 'Refund Amount' }).parentElement).toHaveClass('min-w-0');
-    expect(screen.getByRole('heading', { level: 6, name: 'Refund Amount', hidden: true })).toHaveClass(
-      'hidden',
-      'md:block',
-    );
+    expect(screen.getByRole('heading', { level: 6, name: 'Refund Amount' }).parentElement).toHaveClass('min-w-0');
   });
 
   it('uses shrink-fit three-column Quote/Approval tracks at sm+ without large min widths', () => {
@@ -264,9 +260,9 @@ describe('ProductList contract', () => {
     const itemRow = screen.getByTestId(`product-item-row-${contractItem.id}`);
 
     expect(desktopRow.className).toContain('sm:grid');
-    expect(desktopRow.className).toContain('minmax(0,1.6fr)');
-    expect(desktopRow.className).toContain('3.5rem');
-    expect(desktopRow.className).toContain('minmax(0,1fr)');
+    expect(desktopRow.className).toContain('minmax(0,4fr)');
+    expect(desktopRow.className).toContain('3rem');
+    expect(desktopRow.className).toContain('minmax(0,1.2fr)');
     expect(desktopRow.className).not.toContain('minmax(280px');
     expect(desktopRow.className).not.toContain('minmax(140px');
     expect(card).toHaveClass('overflow-hidden');
