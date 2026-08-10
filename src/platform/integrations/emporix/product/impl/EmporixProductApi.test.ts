@@ -122,6 +122,29 @@ describe('EmporixProductApi', () => {
       expect(result.total).toBeDefined();
       expect(result.total).toBeGreaterThan(0);
     });
+
+    it('always requests expand=template for PLP label enrichment', async () => {
+      (apiInvoker.authenticatedFetch as jest.Mock).mockResolvedValueOnce(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'X-Total-Count': '0', 'Content-Type': 'application/json' },
+        }),
+      );
+
+      await productApi.searchProducts({
+        page: 1,
+        size: 10,
+        criteria: { id: '(prod-1,prod-2)' },
+      });
+
+      expect(apiInvoker.authenticatedFetch).toHaveBeenCalledWith(
+        expect.stringContaining('expand=template'),
+        expect.objectContaining({ method: 'POST' }),
+        'public',
+        undefined,
+        expect.anything(),
+      );
+    });
   });
 
   describe('getProduct', () => {

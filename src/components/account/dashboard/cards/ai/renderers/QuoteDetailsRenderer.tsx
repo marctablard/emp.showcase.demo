@@ -16,6 +16,7 @@ interface QuoteDetailsRendererProps {
 
 export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data }) => {
   const t = useTranslations('account.AiHelper');
+  const tCommon = useTranslations('common');
   const tQuoteStatus = useTranslations('account.quoteStatus');
   const fallbackCurrency = getPublicDefaultCurrency();
 
@@ -78,7 +79,8 @@ export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data
               {data.totalNet && (
                 <div className="text-sm text-text-on-action/90">
                   {t('net')} {formatPrice(data.totalNet, data.currency, fallbackCurrency)}
-                  {data.totalVat && ` | ${t('tax')} ${formatPrice(data.totalVat, data.currency, fallbackCurrency)}`}
+                  {data.totalVat &&
+                    ` | ${tCommon('tax')} ${formatPrice(data.totalVat, data.currency, fallbackCurrency)}`}
                 </div>
               )}
             </div>

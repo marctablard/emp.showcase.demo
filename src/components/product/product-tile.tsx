@@ -5,7 +5,9 @@ import type { LucideIcon } from 'lucide-react';
 import { Circle, DropletOff, FlipHorizontal2, Globe, MapPin, Shield, ShoppingCart, Trees, Truck } from 'lucide-react';
 import { ProductCharacteristic } from '@/components/product/product-characteristic';
 import { ProductColorTile } from '@/components/product/product-color-tile';
+import { ProductLabels } from '@/components/product/product-labels';
 import { ProductTag } from '@/components/product/product-tag';
+import { TemplateAttributeValue } from '@/components/product/template-attribute-value';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,8 +22,11 @@ import { useAvailableVariantValues } from '@/hooks/useAvailableVariantValues';
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll';
 import { useL10n } from '@/hooks/useL10n';
 import { useWishlistAddWithAuth } from '@/hooks/wishlist/useWishlistAddWithAuth';
-import { type ProductTemplateAttributeKey, dk } from '@/i18n/dynamic-key';
 import { Link } from '@/i18n/navigation';
+import {
+  orderedTemplateAttributeEntries,
+  resolveTemplateAttributeLabel,
+} from '@/lib/common/product-template-attributes';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency, imageSizes } from '@/lib/utils';
 import type { Product, ProductUSP } from '@/platform/services/model/product';
@@ -253,31 +258,31 @@ export function ProductTile({
                 )}
               </div>
 
-              <div className="absolute top-4 -left-6 flex flex-col gap-2">
-                {product.labels?.map((label) => (
-                  <Badge key={label.id} variant="info" rounded="roundedRight">
-                    {label.name}
-                  </Badge>
-                ))}
-              </div>
+              {product.labels && product.labels.length > 0 ? (
+                <ProductLabels labels={product.labels} className="absolute top-4 -left-6 flex-col" />
+              ) : null}
             </div>
 
             <div className="flex flex-col gap-2">
               {product.templateAttributes && (
                 <div className="w-full">
-                  {Object.entries(product.templateAttributes).map(([key, value]) => (
-                    <div key={key} className="flex justify-between">
-                      <p className="text-sm">
-                        {t(dk<ProductTemplateAttributeKey>(`filters.mixins.productTemplateAttributes.${key}`), {
-                          defaultValue: key,
-                        })}
-                      </p>
-                      <p className="text-sm font-bold capitalize">
-                        {value}
-                        {key === 'length' || key === 'width' || key === 'height' ? 'cm' : ''}
-                      </p>
-                    </div>
-                  ))}
+                  {orderedTemplateAttributeEntries(product.templateAttributes, product.templateAttributeOrder).map(
+                    ([key, value]) => (
+                      <div key={key} className="flex justify-between">
+                        <p className="text-sm">
+                          {resolveTemplateAttributeLabel(key, product.templateAttributeLabels, l10n)}
+                        </p>
+                        <p className="flex items-center text-sm font-bold capitalize">
+                          <TemplateAttributeValue
+                            value={value}
+                            type={product.templateAttributeTypes?.[key]}
+                            locale={locale ?? 'en'}
+                          />
+                          {key === 'length' || key === 'width' || key === 'height' ? 'cm' : ''}
+                        </p>
+                      </div>
+                    ),
+                  )}
                 </div>
               )}
               <div ref={horizontalScrollRef} className="hide-scrollbar flex max-w-full gap-2 overflow-x-scroll">

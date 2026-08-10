@@ -23,6 +23,7 @@ import type {
   SearchSortOption,
 } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
+import type { ProductService } from '@/platform/services/product/ProductService';
 import type { BatteryIncludedCategoryTreeService } from '@/platform/services/search/BatteryIncludedCategoryTreeService';
 import type { SearchService } from '@/platform/services/search/SearchService';
 import type { SiteService } from '@/platform/services/site/SiteService';
@@ -55,6 +56,7 @@ class BatteryIncludedSearchService implements SearchService {
   private productMapper: ProductMapper<BatteryIncludedProduct>;
   private suggestionsMapper: SuggestionsMapper;
   private sessionService: SessionService;
+  private readonly productService: ProductService;
   private segmentFilterService: SegmentFilterService;
   private customerService: CustomerService;
   private categoryTreeService: BatteryIncludedCategoryTreeService;
@@ -66,6 +68,7 @@ class BatteryIncludedSearchService implements SearchService {
     @inject('BatteryIncludedShopApi') shopApi: BatteryIncludedShopApi,
     @inject('BatteryIncludedProductMapper') productMapper: ProductMapper<BatteryIncludedProduct>,
     @inject('SessionService') sessionService: SessionService,
+    @inject('ProductService') productService: ProductService,
     @inject('SegmentFilterService') segmentFilterService: SegmentFilterService,
     @inject('CustomerService') customerService: CustomerService,
     @inject('BatteryIncludedCategoryTreeService') categoryTreeService: BatteryIncludedCategoryTreeService,
@@ -79,6 +82,7 @@ class BatteryIncludedSearchService implements SearchService {
     // Since our BatteryIncludedProductMapper also implements SuggestionsMapper, we can use it directly
     this.suggestionsMapper = productMapper as unknown as SuggestionsMapper;
     this.sessionService = sessionService;
+    this.productService = productService;
     this.segmentFilterService = segmentFilterService;
     this.customerService = customerService;
     this.categoryTreeService = categoryTreeService;
@@ -435,14 +439,12 @@ class BatteryIncludedSearchService implements SearchService {
     const responseDrivenSorts: SearchSortOption[] = facets
       .filter((facet): facet is Extract<BatteryIncludedFacet, { kind: 'select' }> => facet.kind === 'select')
       .filter((facet) => this.isExplicitResponseDrivenSortFacet(facet))
-      .map(
-        (facet): SearchSortOption => ({
-          id: facet.id,
-          label: facet.label,
-          directions: ['asc', 'desc'],
-          defaultDirection: 'asc',
-        }),
-      );
+      .map((facet): SearchSortOption => ({
+        id: facet.id,
+        label: facet.label,
+        directions: ['asc', 'desc'],
+        defaultDirection: 'asc',
+      }));
 
     const dedupedSorts = new Map<string, SearchSortOption>();
     [...BATTERY_INCLUDED_DEFAULT_SORTS, ...responseDrivenSorts].forEach((sort) => {
@@ -565,21 +567,31 @@ class BatteryIncludedSearchService implements SearchService {
     const availableFilters = batteryIncludedFacets
       .filter((facet) => facet.id !== BATTERY_INCLUDED_BREADCRUMB_FILTER)
       .map((facet) => this.toLegacyFilter(facet));
+    const mappedItems = searchResult.hits.map((hit) => {
+      const product = this.productMapper.mapToService(
+        this.attachSelectionContext(hit.document, resolvedSite, currentCurrency),
+      );
+
+      if (product.isParentVariant) {
+        return {
+          ...product,
+          variantCount: variantCountByParentId.get(product.id) ?? 0,
+        };
+      }
+
+      return product;
+    });
+
+    // Resolve template attribute labels/types (same path as Emporix search / PDP key specs).
+    // Skip prices/variants — BI hits already carry priced display data.
+    const items = await this.productService.addAdditionalData(mappedItems, {
+      prices: false,
+      variants: false,
+      categories: false,
+    });
+
     return {
-      items: searchResult.hits.map((hit) => {
-        const product = this.productMapper.mapToService(
-          this.attachSelectionContext(hit.document, resolvedSite, currentCurrency),
-        );
-
-        if (product.isParentVariant) {
-          return {
-            ...product,
-            variantCount: variantCountByParentId.get(product.id) ?? 0,
-          };
-        }
-
-        return product;
-      }),
+      items,
       page: searchResult.page - 1,
       pageSize: params.size || 10, // default
       total: searchResult.found,

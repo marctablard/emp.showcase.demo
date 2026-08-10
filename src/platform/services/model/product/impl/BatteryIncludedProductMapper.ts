@@ -11,6 +11,7 @@ import type { SuggestionsMapper } from '../../search/SuggestionsMapper';
 import type { ProductMapper } from '../ProductMapper';
 import type { Product } from '../index';
 import type { EmporixProductMapper } from './EmporixProductMapper';
+import { normalizeLocalizedHighlights } from './normalizeLocalizedHighlights';
 import { normalizeProductAttributeStringMap } from './normalizeProductAttributeStringMap';
 
 const BATTERY_INCLUDED_SELECTION_CONTEXT_KEY = '__batteryIncludedSelection';
@@ -70,64 +71,7 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
   }
 
   private mapLocalizedHighlights(value: unknown): Product['highlights'] {
-    if (!value) {
-      return undefined;
-    }
-
-    if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
-      return value.length > 0 ? { en: value } : undefined;
-    }
-
-    if (Array.isArray(value)) {
-      const localizedHighlights = value.reduce<Record<string, string[]>>((accumulator, item) => {
-        if (!item || typeof item !== 'object' || typeof item.language !== 'string') {
-          return accumulator;
-        }
-
-        if (typeof item.value === 'string') {
-          accumulator[item.language] = [...(accumulator[item.language] ?? []), item.value];
-        }
-
-        if (Array.isArray(item.value)) {
-          const localizedValues = item.value.filter(
-            (nestedItem: unknown): nestedItem is string => typeof nestedItem === 'string',
-          );
-          if (localizedValues.length > 0) {
-            accumulator[item.language] = [...(accumulator[item.language] ?? []), ...localizedValues];
-          }
-        }
-
-        return accumulator;
-      }, {});
-
-      return Object.keys(localizedHighlights).length > 0 ? localizedHighlights : undefined;
-    }
-
-    if (typeof value === 'object') {
-      const localizedHighlights = Object.entries(value as Record<string, unknown>).reduce<Record<string, string[]>>(
-        (accumulator, [locale, item]) => {
-          if (typeof item === 'string') {
-            accumulator[locale] = [item];
-          }
-
-          if (Array.isArray(item)) {
-            const localizedValues = item.filter(
-              (nestedItem: unknown): nestedItem is string => typeof nestedItem === 'string',
-            );
-            if (localizedValues.length > 0) {
-              accumulator[locale] = localizedValues;
-            }
-          }
-
-          return accumulator;
-        },
-        {},
-      );
-
-      return Object.keys(localizedHighlights).length > 0 ? localizedHighlights : undefined;
-    }
-
-    return undefined;
+    return normalizeLocalizedHighlights(value);
   }
 
   private mergeSiteAwareBranch(documentValue: unknown, highlightedValue: unknown): unknown {
@@ -560,6 +504,92 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
     return this.mapLocalizedHighlights(localizedHighlightsData);
   }
 
+  private mergeI18nSpecifications(
+    mergedMixins: Record<string, unknown>,
+    i18nMixins: Record<string, unknown> | undefined,
+  ): void {
+    if (!i18nMixins?.specifications) {
+      return;
+    }
+
+    const i18nSpecs = (i18nMixins.specifications as Record<string, unknown>).specifications;
+    const rootSpecsObj = mergedMixins.specifications as Record<string, unknown> | undefined;
+    const rootSpecs = rootSpecsObj?.specifications;
+
+    if (!Array.isArray(i18nSpecs)) {
+      // If i18n isn't array, gently assign if base didn't exist or just let it pass
+      if (!mergedMixins.specifications) {
+        mergedMixins.specifications = i18nMixins.specifications;
+      }
+      return;
+    }
+
+    const mergedSpecsTemp = Array.isArray(rootSpecs) ? [...rootSpecs] : [];
+
+    i18nSpecs.forEach((i18nSpec) => {
+      if (!i18nSpec || typeof i18nSpec !== 'object') {
+        mergedSpecsTemp.push(i18nSpec);
+        return;
+      }
+
+      const specObj = i18nSpec as Record<string, unknown>;
+      // Drop pure grouping shells (only groupLabel, no key/value/label) so they do not
+      // become phantom blank specs. Keep key-less value-only specs (e.g. suggest documents).
+      if (!specObj.key && specObj.value === undefined && specObj.label === undefined) {
+        return;
+      }
+
+      const existingSpecIndex = mergedSpecsTemp.findIndex(
+        (s) => s && typeof s === 'object' && s.key && s.key === specObj.key,
+      );
+
+      // Normalize the i18n value as it can be a plain string
+      const normalizedSpec = { ...specObj };
+      if (typeof specObj.value === 'string') {
+        normalizedSpec.value = [{ language: 'en', value: specObj.value }];
+      }
+
+      if (existingSpecIndex !== -1) {
+        mergedSpecsTemp[existingSpecIndex] = {
+          ...mergedSpecsTemp[existingSpecIndex],
+          ...normalizedSpec,
+        };
+      } else {
+        mergedSpecsTemp.push(normalizedSpec);
+      }
+    });
+
+    mergedMixins.specifications = { specifications: mergedSpecsTemp };
+  }
+
+  private synthesizeVariantAttributesFromMixins(
+    rootProduct: Record<string, any>,
+  ): EmporixProduct['variantAttributes'] | undefined {
+    // W1: Synthesize minimal variant-attribute structures from _product.mixins.productVariantAttributes
+    // Chips are intentionally single-value per attribute for BI in this iteration;
+    // PARENT_VARIANT hits without mixins.productVariantAttributes produce empty variantAttributes by design.
+    if (rootProduct.variantAttributes) {
+      return rootProduct.variantAttributes as EmporixProduct['variantAttributes'];
+    }
+
+    const pva = rootProduct.mixins?.productVariantAttributes as Record<string, unknown> | undefined;
+    if (!pva) {
+      return undefined;
+    }
+
+    const synthesized: NonNullable<EmporixProduct['variantAttributes']> = {};
+    for (const [key, value] of Object.entries(pva)) {
+      const isScalarVariantValue =
+        (typeof value === 'string' && value.trim() !== '') ||
+        (typeof value === 'number' && Number.isFinite(value)) ||
+        typeof value === 'boolean';
+      if (isScalarVariantValue) {
+        synthesized[key] = [{ key: value }];
+      }
+    }
+    return synthesized;
+  }
+
   private normalizeEmporixSource(product: BatteryIncludedProduct): EmporixProduct {
     const rootProduct = this.getRootProduct(product);
     const localizedProduct = this.getLocalizedProduct(product);
@@ -567,58 +597,7 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
     const localizedDescription = this.mapLocalizedLeaf(localizedProduct.description);
 
     const mergedMixins = { ...(rootProduct.mixins as Record<string, unknown> | undefined) };
-    const i18nMixins = localizedProduct.mixins as Record<string, unknown> | undefined;
-
-    if (i18nMixins?.specifications) {
-      const i18nSpecs = (i18nMixins.specifications as Record<string, unknown>).specifications;
-      const rootSpecsObj = mergedMixins.specifications as Record<string, unknown> | undefined;
-      const rootSpecs = rootSpecsObj?.specifications;
-
-      if (Array.isArray(i18nSpecs)) {
-        // Merge root specifications with i18n specifications
-        const mergedSpecsTemp = Array.isArray(rootSpecs) ? [...rootSpecs] : [];
-
-        i18nSpecs.forEach((i18nSpec) => {
-          if (i18nSpec && typeof i18nSpec === 'object') {
-            const specObj = i18nSpec as Record<string, unknown>;
-            // Drop pure grouping shells (only groupLabel, no key/value/label) so they do not
-            // become phantom blank specs. Keep key-less value-only specs (e.g. suggest documents).
-            if (!specObj.key && specObj.value === undefined && specObj.label === undefined) {
-              return;
-            }
-
-            const existingSpecIndex = mergedSpecsTemp.findIndex(
-              (s) => s && typeof s === 'object' && s.key && s.key === specObj.key,
-            );
-
-            // Normalize the i18n value as it can be a plain string
-            const normalizedSpec = { ...specObj };
-            if (typeof specObj.value === 'string') {
-              normalizedSpec.value = [{ language: 'en', value: specObj.value }];
-            }
-
-            if (existingSpecIndex !== -1) {
-              // Merge if we match by key
-              mergedSpecsTemp[existingSpecIndex] = {
-                ...mergedSpecsTemp[existingSpecIndex],
-                ...normalizedSpec,
-              };
-            } else {
-              mergedSpecsTemp.push(normalizedSpec);
-            }
-          } else {
-            mergedSpecsTemp.push(i18nSpec);
-          }
-        });
-
-        mergedMixins.specifications = { specifications: mergedSpecsTemp };
-      } else {
-        // If i18n isn't array, gently assign if base didn't exist or just let it pass
-        if (!mergedMixins.specifications) {
-          mergedMixins.specifications = i18nMixins.specifications;
-        }
-      }
-    }
+    this.mergeI18nSpecifications(mergedMixins, localizedProduct.mixins as Record<string, unknown> | undefined);
 
     const normalizedSource: EmporixProduct = {
       ...(rootProduct as EmporixProduct),
@@ -635,21 +614,7 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
           : rootProduct.labelIds,
     };
 
-    // W1: Synthesize minimal variant-attribute structures from _product.mixins.productVariantAttributes
-    // Chips are intentionally single-value per attribute for BI in this iteration;
-    // PARENT_VARIANT hits without mixins.productVariantAttributes produce empty variantAttributes by design.
-    let synthesizedVariantAttributes = rootProduct.variantAttributes;
-    const pva = rootProduct.mixins?.productVariantAttributes as Record<string, unknown> | undefined;
-
-    if (!synthesizedVariantAttributes && pva) {
-      synthesizedVariantAttributes = {};
-      for (const [key, value] of Object.entries(pva)) {
-        if (typeof value === 'string' && value.trim() !== '') {
-          synthesizedVariantAttributes[key] = [{ key: value }];
-        }
-      }
-    }
-
+    const synthesizedVariantAttributes = this.synthesizeVariantAttributesFromMixins(rootProduct);
     if (synthesizedVariantAttributes) {
       if (normalizedSource.productType === 'VARIANT') {
         normalizedSource.parentVariant = {

@@ -34,6 +34,7 @@ export function QuickOrderOverview({
   isProcessing,
 }: QuickOrderOverviewProps) {
   const t = useTranslations('quick-order.overview');
+  const tCommon = useTranslations('common');
   const { status: sessionStatus } = useSession();
   const { refetch: fetchCart } = useCart();
 
@@ -113,7 +114,7 @@ export function QuickOrderOverview({
 
             <div className="flex flex-col gap-2">
               <div className="flex justify-between text-base">
-                <span>{t('vat')}</span>
+                <span>{tCommon('tax')}</span>
                 <span className={vatTotal > 0 ? '' : 'text-text-placeholders'}>
                   {vatTotal > 0 ? formatCurrency(vatTotal, currency) : t('calculatedAtCheckout')}
                 </span>

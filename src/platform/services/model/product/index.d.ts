@@ -20,6 +20,7 @@ export interface ProductSpecification {
   label: LocalizedString;
   value: LocalizedString;
   unit?: LocalizedString;
+  highlight?: boolean;
 }
 
 export interface GroupedSpecification {
@@ -28,6 +29,8 @@ export interface GroupedSpecification {
     label: string | LocalizedString;
     value: string | LocalizedString;
     unit: string | LocalizedString;
+    /** Template attribute key when the row comes from `product.templateAttributes`. */
+    attributeKey?: string;
   }>;
 }
 
@@ -50,6 +53,9 @@ export interface ProductVariantAttribute {
   name?: string | LocalizedString;
   values: { key: string; name?: string | LocalizedString; selected: boolean }[];
 }
+
+/** Emporix product-template attribute `type` values. */
+export type ProductTemplateAttributeType = 'TEXT' | 'NUMBER' | 'BOOLEAN' | 'DATETIME';
 
 export interface Product {
   id: string;
@@ -81,7 +87,22 @@ export interface Product {
   usps?: ProductUSP[];
   purchasable: boolean;
   variants?: Product[];
+  /** Product template reference (`template.id` / `template.version` from Emporix). */
+  template?: { id: string; version?: string };
+  /** Template attribute values from mixins.productTemplateAttributes (key → raw value). */
   templateAttributes?: Record<string, string>;
+  /**
+   * Attribute key order from Product Templates `attributes[]` (BE definition order).
+   * Used so PLP/PDP display matches the template, not alphabetical Object key order.
+   */
+  templateAttributeOrder?: string[];
+  /**
+   * Localized display names for template attribute keys, resolved from
+   * `GET /product/{tenant}/product-templates/{id}` (`attributes[].name`).
+   */
+  templateAttributeLabels?: Record<string, LocalizedString>;
+  /** Emporix template attribute types (`TEXT` | `NUMBER` | `BOOLEAN` | `DATETIME`). */
+  templateAttributeTypes?: Record<string, ProductTemplateAttributeType>;
   variantAttributes?: ProductVariantAttribute[];
   variantAttributeValues?: Record<string, string>;
   /** Emporix product category roots when provided by API */

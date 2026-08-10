@@ -83,7 +83,6 @@
   },
   "summary": {
     "title": "Bestellzusammenfassung",
-    "vat": "Steuern",
     "shippingCosts": "Versandkosten",
     "fees": "Zusatzkosten",
     "valueOfGoods": "Warenwert",

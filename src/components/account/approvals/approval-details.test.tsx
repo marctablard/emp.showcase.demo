@@ -305,6 +305,17 @@ describe('ApprovalDetails', () => {
     expect(historyHeader).not.toHaveTextContent('status');
   });
 
+  it('scrolls Approval History horizontally when the table is wider than the container', () => {
+    render(<ApprovalDetails approvalId="approval-requestor-1" />);
+
+    const history = screen.getByTestId('approval-history');
+    const scroll = screen.getByTestId('approval-history-table-scroll');
+
+    expect(history).toHaveClass('min-w-0');
+    expect(scroll).toHaveClass('min-w-0', 'overflow-x-auto');
+    expect(scroll.firstElementChild).toHaveClass('sm:min-w-[940px]');
+  });
+
   it('shows approverComment as a separate top history row (finding 25)', () => {
     mockApproval = {
       ...baseApproval,

@@ -127,10 +127,7 @@ export type OrderStatusLowercaseKey =
 // Used by: my-orders-table.tsx
 // ---------------------------------------------------------------------------
 export type OrderPaymentTypeKey =
-  | 'paymentTypes.creditcard'
-  | 'paymentTypes.paypal'
-  | 'paymentTypes.invoice'
-  | 'paymentTypes.prepayment';
+  'paymentTypes.creditcard' | 'paymentTypes.paypal' | 'paymentTypes.invoice' | 'paymentTypes.prepayment';
 
 // ---------------------------------------------------------------------------
 // Namespace: orders.Tracking
@@ -200,9 +197,7 @@ export type LanguageKey = 'label' | 'en' | 'de';
 // Used by: notification.tsx
 // ---------------------------------------------------------------------------
 export type NotificationOnboardingKey =
-  | 'company.onboarding.rejected'
-  | 'company.onboarding.pending'
-  | 'company.onboarding.approved';
+  'company.onboarding.rejected' | 'company.onboarding.pending' | 'company.onboarding.approved';
 
 // ---------------------------------------------------------------------------
 // Namespace: auth.errors
@@ -221,12 +216,7 @@ export type NotificationCodeKey = 'SUBSTITUTION_AVAILABLE' | 'ITEM_PRICE_CHANGE'
 // Used by: documents-card.tsx
 // ---------------------------------------------------------------------------
 export type DocumentKey =
-  | 'title'
-  | 'categories.contracts'
-  | 'categories.company'
-  | 'categories.manuals'
-  | 'categories.warranty'
-  | 'seeAll';
+  'title' | 'categories.contracts' | 'categories.company' | 'categories.manuals' | 'categories.warranty' | 'seeAll';
 
 // ---------------------------------------------------------------------------
 // Namespace: validation
@@ -291,8 +281,7 @@ export type ProductFilterKey =
 
 // ---------------------------------------------------------------------------
 // Namespace: product (sub-path: filters.mixins.productVariantAttributes.*)
-// Used by: product-detail.tsx, product-variant-selector-multi.tsx,
-//          product-variant-selector-simple.tsx, product-tile-fly-out.tsx
+// Used by: product-detail.tsx, product-variant-attribute-groups.tsx, product-tile-fly-out.tsx
 // These keys come from product data. Unknown keys use { defaultValue }.
 // ---------------------------------------------------------------------------
 export type ProductVariantAttributeKey =

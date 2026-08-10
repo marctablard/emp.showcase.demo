@@ -69,6 +69,7 @@ export const ProductItem: React.FC<ProductItemProps> = ({
   className = '',
 }) => {
   const t = useTranslations('account.AiHelper');
+  const tCommon = useTranslations('common');
 
   // Determine currency to use
   const itemCurrency =
@@ -130,7 +131,8 @@ export const ProductItem: React.FC<ProductItemProps> = ({
                   <>
                     {t('net')} <span className="font-medium">{formatPrice(unitPriceNet, itemCurrency)}</span>
                     {' • '}
-                    {t('vat')} <span className="font-medium">{formatPrice(item.unitPrice.tax, itemCurrency)}</span>
+                    {tCommon('tax')}{' '}
+                    <span className="font-medium">{formatPrice(item.unitPrice.tax, itemCurrency)}</span>
                     {' • '}
                     {t('gross')}{' '}
                     <span className="font-medium">{formatPrice(unitPriceGross ?? unitPriceValue, itemCurrency)}</span>
@@ -149,7 +151,8 @@ export const ProductItem: React.FC<ProductItemProps> = ({
                   {item.totalPrice?.tax && item.totalPrice.tax > 0 && (
                     <>
                       {' • '}
-                      {t('vat')} <span className="font-medium">{formatPrice(item.totalPrice.tax, itemCurrency)}</span>
+                      {tCommon('tax')}{' '}
+                      <span className="font-medium">{formatPrice(item.totalPrice.tax, itemCurrency)}</span>
                     </>
                   )}
                 </div>

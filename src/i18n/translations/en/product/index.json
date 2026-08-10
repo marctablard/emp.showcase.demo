@@ -16,13 +16,22 @@
   "addedToCartDescription": "has been added to your cart",
   "errorAddingToCart": "Error Adding to Cart",
   "itemNumber": "Item number",
+  "itemNumberCopied": "Item number has been copied",
   "copy": "Copy",
   "sku": "SKU",
   "productHighlights": "Product Highlights",
   "keySpecs": "Key specifications",
+  "basicSpecifications": "Basic Specifications",
+  "basicAttributes": "Basic Attributes",
   "more": "More product features",
+  "showMore": "Show more…",
+  "showLess": "Show less",
   "technicalInformation": "Technical Information",
   "otherVariants": "Other variants",
+  "variants": {
+    "sellableVariants": "Sellable variants",
+    "count": "({count, plural, one {# variant} other {# variants}})"
+  },
   "addToCartResult": {
     "successTitle": "Added to Cart",
     "pendingTitle": "Processing Your Request",
@@ -56,14 +65,25 @@
   },
   "price": {
     "yourPrice": "Your Price",
-    "listPrice": "Listpreis",
+    "listPrice": "List price",
     "including": "incl",
+    "discount": "Discount",
     "notAvailable": "N/A",
     "priceNotAvailable": "Price not available",
     "includingTax": "incl. {taxRate}% VAT",
     "excludingTax": "excl. {taxRate}% VAT",
+    "plusTax": "plus {taxRate}% VAT",
     "net": "net",
-    "gross": "gross"
+    "gross": "gross",
+    "tiers": {
+      "quantity": "Quantity",
+      "pricePerUnit": "Price per unit",
+      "buyRange": "Buy {min}-{max}",
+      "buyFrom": "Buy {min}+",
+      "forUnitsRange": "for units {min}-{max}",
+      "forUnitsFrom": "for units {min}+",
+      "forEachUnit": "for each unit"
+    }
   },
   "filters": {
     "mixins": {
@@ -116,6 +136,7 @@
   },
   "loadingVariants": "Loading variants...",
   "variantSelectPlaceholder": "Select variant",
+  "variantAttributeSelectViaListTooltip": "Please use sellable product list to select a variant",
   "addedToComparison": "{name} added to comparison list",
   "removedFromComparison": "{name} removed from comparison list",
   "comparisonFull": "Comparison list is full (max {max} products)",

@@ -323,9 +323,7 @@
         "SIZE_FIT": "Size/Fit Issue",
         "OTHER": "Other"
       }
-    },
-    "vat": "Tax",
-    "tax": "Tax"
+    }
   },
   "approvals": "Approvals",
   "ordersInProgress": "{count} in progress",
@@ -402,7 +400,6 @@
     "transportCondition": "Transport condition",
     "deliveryAddress": "Delivery address",
     "netValue": "Net value of goods",
-    "vat": "Tax",
     "deliveryCosts": "Delivery costs",
     "shippingFee": "Shipping fee",
     "baseTotal": "Base total",
@@ -455,7 +452,6 @@
     "relatedOrder": "Related Order",
     "shippingMethod": "Shipping method",
     "shippingAddress": "Shipping address",
-    "tax": "Tax",
     "shippingTax": "Shipping Tax",
     "free": "Free",
     "baseNetUnitPrice": "Base Net Unit Price",
@@ -569,8 +565,6 @@
     "cartSummary": "Cart Summary",
     "totalItems": "Total Items:",
     "netTotal": "Net Total:",
-    "tax": "Tax:",
-    "vat": "VAT",
     "grandTotal": "Grand Total:",
     "subtotal": "Subtotal:",
     "goToCheckout": "Go to Checkout",

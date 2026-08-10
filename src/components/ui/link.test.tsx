@@ -125,4 +125,15 @@ describe('UiLink', () => {
     );
     expect(link).not.toHaveClass('underline');
   });
+
+  it('renders the textBold variant with bold underlined action-link token classes', () => {
+    render(
+      <UiLink type="Button" variant="textBold" size="m">
+        Show more
+      </UiLink>,
+    );
+
+    const link = screen.getByRole('button', { name: 'Show more' });
+    expect(link).toHaveClass('font-bold', 'text-text-action', 'underline', 'hover:text-text-action-hover', 'text-base');
+  });
 });

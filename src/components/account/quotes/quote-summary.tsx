@@ -58,6 +58,7 @@ function shippingAddressLines(address: CheckoutAddress): string[] {
 
 export const QuoteSummary: React.FC<QuoteSummaryProps> = ({ quote }) => {
   const t = useTranslations('account.quoteDetails');
+  const tCommon = useTranslations('common');
   const locale = useLocale();
 
   const currency = quote.currency || getPublicDefaultCurrency();
@@ -95,7 +96,7 @@ export const QuoteSummary: React.FC<QuoteSummaryProps> = ({ quote }) => {
         {showTaxLine && (
           <div className="flex justify-between gap-4">
             <span>
-              {t('tax')}
+              {tCommon('tax')}
               {detailTaxRateSuffix(taxLine)}
             </span>
             <span>{fmt(breakdown.tax)}</span>
