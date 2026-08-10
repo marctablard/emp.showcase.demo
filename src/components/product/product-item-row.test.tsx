@@ -116,7 +116,7 @@ describe('ProductItemRow first-card spacing', () => {
     render(<ProductItemRow item={item} />);
 
     const row = screen.getByTestId(`product-item-row-${item.id}`);
-    expect(row).toHaveClass('py-4', 'first:pt-0', 'md:py-6', 'md:first:pt-4');
+    expect(row).toHaveClass('py-4', 'first:pt-0', 'sm:py-6', 'sm:first:pt-4');
     expect(row).not.toHaveClass('py-6');
     expect(row.className.split(/\s+/)).not.toContain('first:pt-4');
   });

@@ -66,16 +66,21 @@ export interface ProductListItem {
 
 /**
  * Desktop track templates shared by ProductList header and ProductItemRow.
- * Table layout starts at `md` (768px); below that the stacked mobile cards are used
- * (no horizontal scroll). Four-column (trailing amount / Return) uses shrinkable mins
- * so Refund Amount stays inside the card at ~1024–1150px account layouts with a sidebar.
+ *
+ * In this project `sm` = 768px and `md` = 1024px (see `src/lib/breakpoints.ts`).
+ * Table layout starts at `sm` (tablet+); below that stacked mobile cards are used.
+ * All tracks use `minmax(0, …)` / a compact Quantity track so the table fits narrow
+ * account main columns (~506px beside the sidebar) without horizontal scroll.
+ *
+ * Figma 11936:190918 — Product flexes; Quantity is compact; unit/refund prices shrink
+ * and stay right-aligned.
  */
-export const PRODUCT_DESKTOP_GRID_COLS = 'md:grid-cols-[minmax(280px,1.6fr)_100px_minmax(140px,1fr)]';
+export const PRODUCT_DESKTOP_GRID_COLS = 'sm:grid-cols-[minmax(0,1.6fr)_3.5rem_minmax(0,1fr)]';
 export const PRODUCT_DESKTOP_GRID_COLS_WITH_AMOUNT =
-  'md:grid-cols-[minmax(0,1.6fr)_minmax(4rem,100px)_minmax(0,1fr)_minmax(0,1fr)]';
+  'sm:grid-cols-[minmax(0,1.6fr)_3.5rem_minmax(0,1fr)_minmax(0,1fr)]';
 /** Product | Quantity | Base Net Unit Price | Discount | Unit Price */
 export const PRODUCT_DESKTOP_GRID_COLS_WITH_DISCOUNT =
-  'md:grid-cols-[minmax(200px,1.4fr)_minmax(4rem,80px)_minmax(0,1fr)_minmax(4rem,72px)_minmax(0,1fr)]';
+  'sm:grid-cols-[minmax(0,1.4fr)_3.5rem_minmax(0,1fr)_minmax(0,4rem)_minmax(0,1fr)]';
 
 interface ProductListProps {
   readonly items: ProductListItem[];
@@ -133,9 +138,7 @@ export function ProductList({
   );
   const showDiscountColumns = Boolean(resolvedPresentationConfig.showDiscountColumns);
   const desktopGridCols = resolveProductDesktopGridCols(resolvedPresentationConfig);
-  const desktopGridClassName = hasTrailingDesktopAmount
-    ? `hidden min-w-0 md:grid ${desktopGridCols} items-start gap-4 lg:gap-6`
-    : `hidden md:grid ${desktopGridCols} items-start gap-6`;
+  const desktopGridClassName = `hidden min-w-0 sm:grid ${desktopGridCols} items-start gap-4 lg:gap-6`;
 
   return (
     <Card
@@ -144,13 +147,13 @@ export function ProductList({
     >
       {/* Mobile Figma Products frame: single spacing/4 inset. Card default py-6 must stay off
           so it does not stack with CardContent padding (Jira #14a / #19 gap).
-          Stacked cards below md; no horizontal scroll when the table would not fit. */}
-      <CardContent className="min-w-0 p-4 md:p-6" data-testid="product-list-content">
+          Stacked cards below sm (768px); table from sm up with shrink-fit columns (no overflow-x). */}
+      <CardContent className="min-w-0 p-4 sm:p-6" data-testid="product-list-content">
         <div className={`${desktopGridClassName} border-b border-border-primary pb-4`}>
           <ProductListColumnHeading className="min-w-0">
             {resolvedPresentationConfig.labels.product}
           </ProductListColumnHeading>
-          <ProductListColumnHeading className="text-left">
+          <ProductListColumnHeading className="min-w-0 text-left">
             {resolvedPresentationConfig.labels.quantity}
           </ProductListColumnHeading>
           {showDiscountColumns ? (

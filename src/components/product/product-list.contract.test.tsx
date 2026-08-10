@@ -237,15 +237,16 @@ describe('ProductList contract', () => {
     const trailingCell = screen.getByTestId(`product-trailing-amount-cell-${contractItem.id}`);
 
     expect(card).toHaveClass('min-w-0', 'max-w-full', 'overflow-hidden', 'shadow-sm', 'py-0', 'gap-0');
-    expect(content).toHaveClass('min-w-0', 'p-4', 'md:p-6');
+    expect(content).toHaveClass('min-w-0', 'p-4', 'sm:p-6');
     expect(content).not.toHaveClass('overflow-x-auto');
     expect(desktopRow.className).toContain('hidden');
-    expect(desktopRow.className).toContain('md:grid');
+    expect(desktopRow.className).toContain('sm:grid');
     expect(desktopRow.className).toContain('minmax(0,1.6fr)');
+    expect(desktopRow.className).toContain('3.5rem');
     expect(desktopRow.className).toContain('minmax(0,1fr)_minmax(0,1fr)');
     expect(desktopRow.className).not.toContain('minmax(280px');
     expect(desktopRow.className).not.toContain('minmax(140px');
-    expect(mobileRow).toHaveClass('md:hidden');
+    expect(mobileRow).toHaveClass('sm:hidden');
     expect(trailingCell).toHaveClass('min-w-0');
     expect(screen.getByRole('heading', { level: 5, name: 'Refund Amount' }).parentElement).toHaveClass('min-w-0');
     expect(screen.getByRole('heading', { level: 6, name: 'Refund Amount', hidden: true })).toHaveClass(
@@ -254,7 +255,7 @@ describe('ProductList contract', () => {
     );
   });
 
-  it('keeps the three-column Quote/Approval grid track mins when trailing amount is absent', () => {
+  it('uses shrink-fit three-column Quote/Approval tracks at sm+ without large min widths', () => {
     render(<ProductList items={[contractItem]} />);
 
     const desktopRow = screen.getByTestId(`product-item-desktop-${contractItem.id}`);
@@ -262,13 +263,16 @@ describe('ProductList contract', () => {
     const content = screen.getByTestId('product-list-content');
     const itemRow = screen.getByTestId(`product-item-row-${contractItem.id}`);
 
-    expect(desktopRow.className).toContain('minmax(280px,1.6fr)');
-    expect(desktopRow.className).toContain('minmax(140px,1fr)');
-    expect(desktopRow.className).not.toContain('minmax(0,1.6fr)');
+    expect(desktopRow.className).toContain('sm:grid');
+    expect(desktopRow.className).toContain('minmax(0,1.6fr)');
+    expect(desktopRow.className).toContain('3.5rem');
+    expect(desktopRow.className).toContain('minmax(0,1fr)');
+    expect(desktopRow.className).not.toContain('minmax(280px');
+    expect(desktopRow.className).not.toContain('minmax(140px');
     expect(card).toHaveClass('overflow-hidden');
-    expect(content).toHaveClass('p-4', 'md:p-6');
+    expect(content).toHaveClass('p-4', 'sm:p-6');
     expect(content).not.toHaveClass('overflow-x-auto');
-    expect(itemRow).toHaveClass('py-4', 'first:pt-0', 'md:py-6', 'md:first:pt-4');
+    expect(itemRow).toHaveClass('py-4', 'first:pt-0', 'sm:py-6', 'sm:first:pt-4');
     expect(screen.queryByTestId(`product-trailing-amount-cell-${contractItem.id}`)).not.toBeInTheDocument();
   });
 });
