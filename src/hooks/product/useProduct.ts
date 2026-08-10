@@ -65,6 +65,13 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
     }
     return getProduct(id);
   });
+  // Keep a sync ref so async fetch handlers can preserve last-known same-id product
+  // without relying on stale closures or post-await setState updater timing (COP-5787).
+  const productRef = useRef<Product | null>(product);
+
+  useEffect(() => {
+    productRef.current = product;
+  }, [product]);
 
   // Seed the product store with an SSR-provided product so the cache-check effect below
   // can reuse it instead of clearing local state and refetching once the session resolves.
@@ -94,11 +101,9 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
           }
         }
 
-        if (forceRefresh) {
-          setProduct(null);
-        } else {
-          setProduct((p) => (p && p.id !== id ? null : p));
-        }
+        // Preserve known same-id product during session-driven pricing/enrichment refetch.
+        // Only clear when switching to a different product id (COP-5787).
+        setProduct((p) => (p && p.id !== id ? null : p));
 
         const data = await fetchProductById(id, options, clientDedupeScope);
         const next =
@@ -107,9 +112,27 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
             : data;
         if (next) {
           addProduct(next);
+          setProduct(next);
+        } else {
+          // Confirmed client miss (404 → null). Keep prior same-id product when present
+          // so SSR-seeded PDPs do not become Not Found–eligible empty success; true
+          // id-only fetches with no prior product still resolve to null.
+          const prior =
+            productRef.current?.id === id ? productRef.current : getProduct(id)?.id === id ? getProduct(id)! : null;
+          if (prior) {
+            setProduct(prior);
+            setError(new Error('Product refetch returned no data'));
+          } else {
+            setProduct(null);
+          }
         }
-        setProduct(next);
       } catch (err) {
+        // Keep prior same-id product on failure (do not wipe to null); surface error instead.
+        const prior =
+          productRef.current?.id === id ? productRef.current : getProduct(id)?.id === id ? getProduct(id)! : null;
+        if (prior) {
+          setProduct(prior);
+        }
         setError(err instanceof Error ? err : new Error('An unknown error occurred'));
         getLogger().error({ err }, 'Error fetching product');
       } finally {

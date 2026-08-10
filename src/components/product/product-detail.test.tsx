@@ -1,0 +1,293 @@
+/**
+ * @jest-environment jsdom
+ *
+ * Not Found contract for `ProductDetail` cold-bootstrap vs true absence (COP-5787).
+ *
+ * Documents:
+ * - True absence (no usable SSR seed + ready + !loading + product null) → `notFound()`
+ * - Cold bootstrap with SSR `initialProduct` + transient null/error → must NOT call `notFound()`
+ * - Shop-context / product loading → spinner, not Not Found
+ *
+ * `notFound()` is mocked as throwing (Next.js control-flow halt), matching
+ * `src/components/cms/_core/cms-page.test.tsx`.
+ *
+ * Task 2.2 guards: SSR-seed + transient null/error must not invoke `notFound()`.
+ */
+import React from 'react';
+import { notFound } from 'next/navigation';
+import '@testing-library/jest-dom';
+import { render, screen } from '@testing-library/react';
+import { useShopContextReady } from '@/hooks/common/useShopContextReady';
+import { usePdpCurrentProduct } from '@/hooks/product/usePdpCurrentProduct';
+import { usePdpPurchaseData } from '@/hooks/product/usePdpPurchaseData';
+import { useProduct } from '@/hooks/product/useProduct';
+import { useSession } from '@/hooks/session/useSession';
+import { useSite } from '@/hooks/site/useSite';
+import type { Product } from '@/platform/services/model/product';
+import type { ProductFetchOptions } from '@/platform/services/product';
+import ProductDetail from './product-detail';
+
+jest.mock('next/navigation', () => ({
+  notFound: jest.fn(() => {
+    throw new Error('NEXT_NOT_FOUND');
+  }),
+}));
+
+jest.mock('next-intl', () => ({
+  useLocale: () => 'en',
+  useTranslations: () => (key: string) => key,
+}));
+
+jest.mock('next/image', () => ({
+  __esModule: true,
+  default: ({ alt, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) => <img alt={alt} {...props} />,
+}));
+
+jest.mock('next-auth/react', () => ({
+  useSession: () => ({ data: null, status: 'unauthenticated' }),
+}));
+
+jest.mock('@/hooks/common/useShopContextReady', () => ({
+  useShopContextReady: jest.fn(),
+}));
+
+jest.mock('@/hooks/product/useProduct', () => ({
+  useProduct: jest.fn(),
+}));
+
+jest.mock('@/hooks/session/useSession', () => ({
+  useSession: jest.fn(),
+}));
+
+jest.mock('@/hooks/site/useSite', () => ({
+  useSite: jest.fn(),
+}));
+
+jest.mock('@/hooks/product/usePdpPurchaseData', () => ({
+  usePdpPurchaseData: jest.fn(),
+}));
+
+jest.mock('@/hooks/product/usePdpCurrentProduct', () => ({
+  usePdpCurrentProduct: jest.fn(),
+}));
+
+jest.mock('@/hooks/product/usePdpShippingCost', () => ({
+  usePdpShippingCost: () => ({ shippingCost: null, loading: false }),
+}));
+
+jest.mock('@/hooks/product/usePdpStickyAtcVisibility', () => ({
+  usePdpStickyAtcVisibility: () => ({ stickyVisible: false, primaryAtcRef: { current: null } }),
+}));
+
+jest.mock('@/hooks/cart/useValidateAddToCart', () => ({
+  useValidateAddToCart: () => ({ disabled: false, tooltip: undefined }),
+}));
+
+jest.mock('@/hooks/comparison/useComparison', () => ({
+  useComparison: () => ({
+    isInComparison: () => false,
+    toggleProduct: jest.fn(),
+    isFull: false,
+  }),
+}));
+
+jest.mock('@/hooks/comparison/useValidateAddToComparison', () => ({
+  useValidateAddToComparison: () => ({ disabled: false, tooltip: undefined }),
+}));
+
+jest.mock('@/hooks/wishlist/useWishlistAddWithAuth', () => ({
+  useWishlistAddWithAuth: () => ({
+    addToWishlist: jest.fn(),
+    isAdding: false,
+    loginDialog: null,
+  }),
+}));
+
+jest.mock('@/hooks/common/useLogger', () => ({
+  useLogger: () => ({
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+  }),
+}));
+
+jest.mock('@/hooks/useBreakpoint', () => ({
+  useBreakpoint: () => ({ isMobile: false, isTablet: false, isDesktop: true }),
+}));
+
+jest.mock('@/hooks/useL10n', () => ({
+  useL10n: () => ({
+    l10n: (value: unknown) => (typeof value === 'string' ? value : '-'),
+    l10nOrEmpty: (value: unknown) => (typeof value === 'string' ? value : ''),
+  }),
+}));
+
+jest.mock('@/components/ui/spinner', () => ({
+  Spinner: ({ variant }: { variant?: string }) => (
+    <div data-testid="pdp-spinner" data-variant={variant ?? 'md'} role="status" />
+  ),
+}));
+
+jest.mock('../cms/recommendations', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock('./product-add-to-cart', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock('./product-add-to-cart-bar', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock('./product-variant-selector', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock('@/components/wishlist/wishlist-pin-button', () => ({
+  WishlistPinButton: () => null,
+}));
+
+jest.mock('../ui/toast-notification', () => ({
+  ToastType: { Success: 'success', Error: 'error', Info: 'info', Warning: 'warning' },
+  notify: jest.fn(),
+}));
+
+const useShopContextReadyMock = useShopContextReady as jest.Mock;
+const useProductMock = useProduct as jest.Mock;
+const useSessionMock = useSession as jest.Mock;
+const useSiteMock = useSite as jest.Mock;
+const usePdpPurchaseDataMock = usePdpPurchaseData as jest.Mock;
+const usePdpCurrentProductMock = usePdpCurrentProduct as jest.Mock;
+const notFoundMock = notFound as unknown as jest.Mock;
+
+const PUBLIC_PDP_OPTIONS: ProductFetchOptions = {
+  prices: false,
+  variants: true,
+  categories: true,
+};
+
+const ssrSeedProduct: Product = {
+  id: 'enjoysolar-200w-module',
+  name: 'EnjoySolar 200W Module',
+  description: 'SSR public seed without displayable price',
+  purchasable: true,
+  // Public PDP SSR omits price.currency (PUBLIC_PRODUCT_OPTIONS.prices = false)
+};
+
+function mockReadyHooks(productResult: { product: Product | null; loading: boolean; error?: Error | null }): void {
+  useShopContextReadyMock.mockReturnValue({ ready: true, timedOut: false });
+  useProductMock.mockReturnValue({
+    product: productResult.product,
+    loading: productResult.loading,
+    error: productResult.error ?? null,
+    setAsCurrent: jest.fn(),
+    refetch: jest.fn(),
+    currentProductId: productResult.product?.id ?? null,
+  });
+  useSessionMock.mockReturnValue({
+    session: { id: 'sess', siteCode: 'main', currency: 'EUR', customerId: 'ANONYMOUS' },
+    loading: false,
+  });
+  useSiteMock.mockReturnValue({
+    site: { code: 'main', defaultCurrency: { id: 'EUR' }, currencies: [{ id: 'EUR' }] },
+  });
+  usePdpPurchaseDataMock.mockReturnValue({ price: undefined, availability: undefined });
+  usePdpCurrentProductMock.mockReturnValue(undefined);
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  notFoundMock.mockImplementation(() => {
+    throw new Error('NEXT_NOT_FOUND');
+  });
+});
+
+describe('ProductDetail — loading / shop-context gate', () => {
+  it('shows spinner and does not call notFound while shop context is not ready', () => {
+    useShopContextReadyMock.mockReturnValue({ ready: false, timedOut: false });
+    useProductMock.mockReturnValue({
+      product: null,
+      loading: false,
+      error: null,
+      setAsCurrent: jest.fn(),
+      refetch: jest.fn(),
+      currentProductId: null,
+    });
+    useSessionMock.mockReturnValue({ session: null, loading: true });
+    useSiteMock.mockReturnValue({ site: { code: 'main' } });
+    usePdpPurchaseDataMock.mockReturnValue({ price: undefined, availability: undefined });
+
+    render(<ProductDetail product={ssrSeedProduct} options={PUBLIC_PDP_OPTIONS} />);
+
+    expect(screen.getByTestId('pdp-spinner')).toBeInTheDocument();
+    expect(notFoundMock).not.toHaveBeenCalled();
+  });
+
+  it('shows spinner and does not call notFound while product is loading', () => {
+    mockReadyHooks({ product: null, loading: true, error: null });
+    useShopContextReadyMock.mockReturnValue({ ready: true, timedOut: false });
+
+    render(<ProductDetail product={ssrSeedProduct} options={PUBLIC_PDP_OPTIONS} />);
+
+    expect(screen.getByTestId('pdp-spinner')).toBeInTheDocument();
+    expect(notFoundMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('ProductDetail — Not Found contract (true absence vs cold bootstrap)', () => {
+  it('invokes notFound when ready, not loading, product is null, and there is no usable SSR seed', () => {
+    mockReadyHooks({ product: null, loading: false, error: null });
+
+    expect(() => render(<ProductDetail options={PUBLIC_PDP_OPTIONS} />)).toThrow('NEXT_NOT_FOUND');
+
+    // React may invoke the render path more than once in tests; assert invocation, not exact count.
+    expect(notFoundMock).toHaveBeenCalled();
+  });
+
+  it('invokes notFound when ready, not loading, product is null, and initialProduct was only an id string', () => {
+    mockReadyHooks({ product: null, loading: false, error: null });
+
+    expect(() => render(<ProductDetail product="missing-product-id" options={PUBLIC_PDP_OPTIONS} />)).toThrow(
+      'NEXT_NOT_FOUND',
+    );
+
+    expect(notFoundMock).toHaveBeenCalled();
+  });
+
+  /**
+   * COP-5787: SSR object seed + resolved client null/error must not map to permanent absence.
+   */
+  it('does not invoke notFound when SSR initialProduct exists and hook reports transient null with error', () => {
+    mockReadyHooks({
+      product: null,
+      loading: false,
+      error: new Error('client refetch failed during session pricing bootstrap'),
+    });
+
+    expect(() => render(<ProductDetail product={ssrSeedProduct} options={PUBLIC_PDP_OPTIONS} />)).not.toThrow(
+      'NEXT_NOT_FOUND',
+    );
+
+    expect(notFoundMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Same contract without an explicit error signal: transient null after SSR seed
+   * (force-refresh wipe) must not become Not Found.
+   */
+  it('does not invoke notFound when SSR initialProduct exists and hook reports transient null without error', () => {
+    mockReadyHooks({ product: null, loading: false, error: null });
+
+    expect(() => render(<ProductDetail product={ssrSeedProduct} options={PUBLIC_PDP_OPTIONS} />)).not.toThrow(
+      'NEXT_NOT_FOUND',
+    );
+
+    expect(notFoundMock).not.toHaveBeenCalled();
+  });
+});
