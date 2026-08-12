@@ -22,8 +22,8 @@
  * schema cannot validate. This boundary is pinned explicitly so the mapper
  * does not grow past what the renderer actually displays.
  */
-import type { ISbStoryData, StoryblokRichTextNode } from '@storyblok/react/rsc';
-import { BlockTypes, MarkTypes, TextTypes } from '@storyblok/react/rsc';
+import type { ISbStoryData } from '@storyblok/react/rsc';
+import { BlockTypes, MarkTypes, type StoryblokRichTextNode, TextTypes } from '../richtext-types';
 import { StoryblokCmsMapper } from './StoryblokCmsMapper';
 
 const newMapper = () => new StoryblokCmsMapper();

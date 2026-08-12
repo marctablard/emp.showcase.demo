@@ -1,9 +1,10 @@
-import { BlockTypes, type ISbStoryData, MarkTypes, type StoryblokRichTextNode, TextTypes } from '@storyblok/react/rsc';
+import { type ISbStoryData } from '@storyblok/react/rsc';
 import 'server-only';
 import type { RichtextBlock, RichtextData, RichtextInline } from '@/components/cms/richtext/schema';
 import { sanitizeHref } from '@/lib/sanitize-href';
 import { injectable } from '@/platform/core/di/injectable';
 import type { CMSComponent, CMSLayout, CMSPage } from '@/platform/services/model/cms';
+import { BlockTypes, MarkTypes, type StoryblokRichTextNode, TextTypes } from '../richtext-types';
 
 type RichtextTextInline = Extract<RichtextInline, { kind: 'text' }>;
 
