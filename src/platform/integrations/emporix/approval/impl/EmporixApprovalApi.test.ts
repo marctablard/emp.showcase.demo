@@ -2,6 +2,7 @@ import { Container } from 'inversify';
 import EmporixCartApi from '../../cart/impl/EmporixCartApi';
 import EmporixCheckoutApi from '../../checkout/impl/EmporixCheckoutApi';
 import { EmporixTokenManager } from '../../common/EmporixTokenManager';
+import { retryOnTransientEmporixError } from '../../common/emporix-integration-retry';
 import EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
 import { disabledMetricsService, testRequestContext } from '../../common/impl/EmporixApiInvoker.test-doubles';
 import { EmporixTestTokenManager } from '../../common/impl/EmporixTokenManager.test';
@@ -271,7 +272,7 @@ describe('EmporixApprovalApi', () => {
       // Add an item to the cart
       const itemId = await cartApi.addItemToCart(customerCartId, sampleAddItemRequest);
       expect(itemId).toBeDefined();
-    }, 15000);
+    }, 45000);
 
     afterEach(async () => {
       // Clean up: delete the approval if it was created
@@ -352,7 +353,7 @@ describe('EmporixApprovalApi', () => {
 
         await setupCustomerToken();
         // Perform the checkout
-        const checkoutResponse = await checkoutApi.checkout(checkoutRequest);
+        const checkoutResponse = await retryOnTransientEmporixError(() => checkoutApi.checkout(checkoutRequest));
         // Verify the checkout response
         expect(checkoutResponse).toBeDefined();
         expect(checkoutResponse.orderId).toBeDefined();
@@ -378,7 +379,7 @@ describe('EmporixApprovalApi', () => {
         console.error('Error creating approval:', error);
         throw error;
       }
-    }, 20000);
+    }, 90000);
 
     it('should create and update an approval for an order', async () => {
       // Create a checkout request for the cart

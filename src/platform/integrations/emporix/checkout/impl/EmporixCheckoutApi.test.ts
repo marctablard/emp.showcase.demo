@@ -1,6 +1,7 @@
 import { Container } from 'inversify';
 import EmporixCartApi from '../../cart/impl/EmporixCartApi';
 import { EmporixTokenManager } from '../../common/EmporixTokenManager';
+import { retryOnTransientEmporixError } from '../../common/emporix-integration-retry';
 import EmporixApiInvoker from '../../common/impl/EmporixApiInvoker';
 import { disabledMetricsService, testRequestContext } from '../../common/impl/EmporixApiInvoker.test-doubles';
 import { EmporixTestTokenManager } from '../../common/impl/EmporixTokenManager.test';
@@ -212,7 +213,7 @@ describe('EmporixCheckoutApi', () => {
       // Add an item to the cart
       const itemId = await cartApi.addItemToCart(createdCartId, sampleAddItemRequest);
       expect(itemId).toBeDefined();
-    }, 15000);
+    }, 45000);
 
     // Clean up the cart after each test
     afterEach(async () => {
@@ -227,17 +228,25 @@ describe('EmporixCheckoutApi', () => {
     }, 10000);
 
     it('should perform a guest checkout', async () => {
-      // Create a checkout request for the cart
-      const checkoutRequest = createSampleCheckoutRequest(createdCartId, true);
-
-      // Perform the checkout
-      const response = await checkoutApi.guestCheckout(checkoutRequest);
+      // Fresh cart per attempt: 504/TARGET_READ_TIMEOUT may leave the cart consumed.
+      const response = await retryOnTransientEmporixError(async () => {
+        if (!createdCartId) {
+          createdCartId = await cartApi.createCart(sampleCreateCartRequest);
+          await cartApi.addItemToCart(createdCartId, sampleAddItemRequest);
+        }
+        try {
+          return await checkoutApi.guestCheckout(createSampleCheckoutRequest(createdCartId, true));
+        } catch (error) {
+          createdCartId = '';
+          throw error;
+        }
+      });
 
       // Verify the checkout response
       expect(response).toBeDefined();
       expect(response.orderId).toBeDefined();
       expect(typeof response.orderId).toBe('string');
-    }, 20000);
+    }, 90000);
 
     it('should reject checkout with invalid cart ID', async () => {
       // Create a checkout request with an invalid cart ID
@@ -294,18 +303,27 @@ describe('EmporixCheckoutApi', () => {
       // Add an item to the cart
       const itemId = await addItemToCustomerCart(customerCartId, sampleAddItemRequest);
       expect(itemId).toBeDefined();
-    }, 15000);
+    }, 45000);
 
     it('should perform a B2B customer checkout', async () => {
-      // Create a checkout request for the cart
-      const checkoutRequest = createSampleCheckoutRequest(customerCartId, false, username, '00632699');
-      // Perform the checkout
-      const response = await checkoutApi.checkout(checkoutRequest);
+      const response = await retryOnTransientEmporixError(async () => {
+        if (!customerCartId) {
+          const sessionContext = await setupCustomerToken();
+          customerCartId = await createFreshCustomerCartId(sessionContext);
+          await addItemToCustomerCart(customerCartId, sampleAddItemRequest);
+        }
+        try {
+          return await checkoutApi.checkout(createSampleCheckoutRequest(customerCartId, false, username, '00632699'));
+        } catch (error) {
+          customerCartId = '';
+          throw error;
+        }
+      });
       // Verify the checkout response
       expect(response).toBeDefined();
       expect(response.orderId).toBeDefined();
       expect(typeof response.orderId).toBe('string');
-    }, 20000);
+    }, 90000);
 
     afterEach(async () => {
       try {
@@ -347,14 +365,14 @@ describe('EmporixCheckoutApi', () => {
       // Add an item to the cart
       const itemId = await addItemToCustomerCart(customerCartId, sampleAddItemRequest);
       expect(itemId).toBeDefined();
-    }, 15000);
+    }, 45000);
 
     it('should perform a B2C customer checkout', async () => {
       // Create a checkout request for the cart
       const checkoutRequest = createSampleCheckoutRequest(customerCartId, false, username, '32667917');
 
       // Perform the checkout
-      const response = await checkoutApi.checkout(checkoutRequest);
+      const response = await retryOnTransientEmporixError(() => checkoutApi.checkout(checkoutRequest));
 
       // Expect the checkout to fail
       await expect(checkoutApi.checkout(checkoutRequest)).rejects.toThrow();
@@ -362,7 +380,7 @@ describe('EmporixCheckoutApi', () => {
       expect(response).toBeDefined();
       expect(response.orderId).toBeDefined();
       expect(typeof response.orderId).toBe('string');
-    }, 20000);
+    }, 90000);
 
     afterEach(async () => {
       try {
@@ -404,7 +422,7 @@ describe('EmporixCheckoutApi', () => {
       // Add an item to the cart
       const itemId = await addItemToCustomerCart(customerCartId, sampleAddItemRequest);
       expect(itemId).toBeDefined();
-    }, 15000);
+    }, 45000);
 
     afterEach(async () => {
       try {
