@@ -12,7 +12,7 @@ import { InputButton } from '../ui/input';
 import UiLink from '../ui/link';
 
 /** Brand marks removed from lucide-react v1 — use public SVG assets (lucide size-4). */
-function BrandSocialIcon({ src }: { src: string }) {
+function BrandSocialIcon({ src }: Readonly<{ src: string }>) {
   return <Image src={src} alt="" width={16} height={16} className="size-4" aria-hidden="true" />;
 }
 
