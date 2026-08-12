@@ -96,8 +96,21 @@ class EmporixApiInvoker {
       metricsContext,
     );
 
-    if (response.status === 401 && tokenType === 'public') {
-      response = await this.retryPublicFetchWithMetrics(requestUrl, options, tokenType, metrics, metricsContext);
+    if (response.status === 401) {
+      if (tokenType === 'public') {
+        response = await this.retryPublicFetchWithMetrics(requestUrl, options, tokenType, metrics, metricsContext);
+      } else if (tokenType === 'service') {
+        response = await this.retryServiceFetchWithMetrics(
+          requestUrl,
+          options,
+          tokenType,
+          metrics,
+          metricsContext,
+          authOptions?.scopes,
+        );
+      } else if (tokenType === 'session' || tokenType === 'customer-saas' || tokenType === 'ai') {
+        response = await this.retrySessionFetchWithMetrics(requestUrl, options, tokenType, metrics, metricsContext);
+      }
     }
 
     return response;
@@ -402,6 +415,100 @@ class EmporixApiInvoker {
       ...this.addPublicHeaders(freshToken),
       Authorization: `Bearer ${freshToken.accessToken}`,
     };
+    return this.fetchRetryWithMetrics(url, options, retryHeaders, tokenType, metrics, metricsContext);
+  }
+
+  /**
+   * Service (client_credentials) tokens are cached in-process. On 401 access_token_expired,
+   * drop the cache entry, remint, and replay once — same recovery pattern as public tokens.
+   */
+  private async retryServiceFetchWithMetrics(
+    url: string,
+    options: RequestInit,
+    tokenType: TokenType,
+    metrics: FetchMetrics | undefined,
+    metricsContext: { enabled: boolean; site?: string; startTime?: number },
+    scopes?: string[],
+  ): Promise<Response> {
+    if (!this.config.serverClientId || !this.config.serverClientSecret) {
+      throw new Error('Service Credentials not available');
+    }
+    this.tokenManager.clearServiceTokenCache(
+      this.config.tenant,
+      this.config.serverClientId,
+      this.config.serverClientSecret,
+      scopes,
+    );
+    const freshAccessToken = await this.tokenManager.getServiceAccessToken(
+      this.config.tenant,
+      this.config.serverClientId,
+      this.config.serverClientSecret,
+      scopes,
+    );
+    const retryHeaders = {
+      ...this.normalizeHeaders(options.headers),
+      Authorization: `Bearer ${freshAccessToken}`,
+    };
+    return this.fetchRetryWithMetrics(url, options, retryHeaders, tokenType, metrics, metricsContext);
+  }
+
+  /**
+   * Session / customer-saas tokens can still be rejected by Apigee while locally "valid".
+   * Force-refresh (anonymous bearer → customer refreshauthtoken, or anonymous remint) and replay once.
+   */
+  private async retrySessionFetchWithMetrics(
+    url: string,
+    options: RequestInit,
+    tokenType: 'session' | 'customer-saas' | 'ai',
+    metrics: FetchMetrics | undefined,
+    metricsContext: { enabled: boolean; site?: string; startTime?: number },
+  ): Promise<Response> {
+    const freshSession = await this.tokenManager.forceRefreshSessionToken(this.config.tenant, this.config.clientId);
+    const { token, headers: authHeaders } = this.buildSessionRetryAuth(freshSession, tokenType, options.headers);
+    const retryHeaders = {
+      ...authHeaders,
+      Authorization: `Bearer ${token}`,
+    };
+    return this.fetchRetryWithMetrics(url, options, retryHeaders, tokenType, metrics, metricsContext);
+  }
+
+  private buildSessionRetryAuth(
+    sessionToken: { accessToken: string; saasToken?: string; sessionId: string },
+    tokenType: 'session' | 'customer-saas' | 'ai',
+    originalHeaders: HeadersInit | undefined,
+  ): { token: string; headers: Record<string, string> } {
+    let headers = this.normalizeHeaders(originalHeaders);
+    if (tokenType === 'customer-saas' || tokenType === 'ai') {
+      if (!sessionToken.saasToken) {
+        throw new Error('No SaaS token available');
+      }
+      headers = {
+        ...headers,
+        ...this.addCustomerHeaders(sessionToken),
+      };
+      if (tokenType === 'ai' && !headers['session-id']) {
+        headers = {
+          ...headers,
+          'session-id': `${sessionToken.sessionId}`,
+        };
+      }
+    } else {
+      headers = {
+        ...headers,
+        ...this.addSessionHeaders(sessionToken),
+      };
+    }
+    return { token: sessionToken.accessToken, headers };
+  }
+
+  private async fetchRetryWithMetrics(
+    url: string,
+    options: RequestInit,
+    retryHeaders: Record<string, string>,
+    tokenType: TokenType,
+    metrics: FetchMetrics | undefined,
+    metricsContext: { enabled: boolean; site?: string; startTime?: number },
+  ): Promise<Response> {
     const retryRequest = { ...options, headers: retryHeaders };
     const retryStartTime = metricsContext.enabled && metrics ? performance.now() : undefined;
     const response = await this.fetch(url, retryRequest);

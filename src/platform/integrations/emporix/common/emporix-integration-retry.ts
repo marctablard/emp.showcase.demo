@@ -16,9 +16,9 @@ export async function retryOnTransientEmporixError<T>(
   operation: () => Promise<T>,
   options: { maxAttempts?: number; baseDelayMs?: number } = {},
 ): Promise<T> {
-  const maxAttempts = options.maxAttempts ?? 3;
+  const maxAttempts = Math.max(1, options.maxAttempts ?? 3);
   const baseDelayMs = options.baseDelayMs ?? 500;
-  let lastError: unknown;
+  let lastError: unknown = new Error('retryOnTransientEmporixError: no attempts executed');
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
