@@ -25,6 +25,9 @@ const METRIC_FETCH_DURATION = 'emx_bff_api_fetch_duration_seconds';
 const METRIC_LABEL_NAMES = ['site', 'method', 'status_code', 'source', 'token_type', 'route'] as const;
 const HISTOGRAM_BUCKETS = [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];
 
+/** Session-scoped auth that shares getSessionToken / forceRefreshSessionToken. */
+type SessionScopedTokenType = Extract<TokenType, 'session' | 'customer-saas' | 'ai'>;
+
 @injectable('EmporixApiInvoker', 'Singleton')
 class EmporixApiInvoker {
   protected config: EmporixConfig;
@@ -131,7 +134,7 @@ class EmporixApiInvoker {
 
   private async resolveAuthTokenAndHeaders(
     originalHeaders: HeadersInit | undefined,
-    tokenType: 'public' | 'session' | 'customer-saas' | 'ai' | 'service',
+    tokenType: TokenType,
     authOptions?: {
       credentials?: { username: string; password: string };
       scopes?: string[];
@@ -179,7 +182,7 @@ class EmporixApiInvoker {
 
   private async resolveSessionTokenAndHeaders(
     originalHeaders: HeadersInit,
-    tokenType: 'session' | 'customer-saas' | 'ai',
+    tokenType: SessionScopedTokenType,
     authOptions?: {
       credentials?: { username: string; password: string };
       scopes?: string[];
@@ -459,7 +462,7 @@ class EmporixApiInvoker {
   private async retrySessionFetchWithMetrics(
     url: string,
     options: RequestInit,
-    tokenType: 'session' | 'customer-saas' | 'ai',
+    tokenType: SessionScopedTokenType,
     metrics: FetchMetrics | undefined,
     metricsContext: { enabled: boolean; site?: string; startTime?: number },
   ): Promise<Response> {
@@ -474,7 +477,7 @@ class EmporixApiInvoker {
 
   private buildSessionRetryAuth(
     sessionToken: { accessToken: string; saasToken?: string; sessionId: string },
-    tokenType: 'session' | 'customer-saas' | 'ai',
+    tokenType: SessionScopedTokenType,
     originalHeaders: HeadersInit | undefined,
   ): { token: string; headers: Record<string, string> } {
     let headers = this.normalizeHeaders(originalHeaders);
