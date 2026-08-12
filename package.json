@@ -102,7 +102,7 @@
     "react-redux": "9.3.0",
     "react-sizeme": "3.0.2",
     "read-excel-file": "9.3.5",
-    "recharts": "2.15.3",
+    "recharts": "3.10.1",
     "reflect-metadata": "0.2.2",
     "server-only": "0.0.1",
     "sonner": "2.0.7",
