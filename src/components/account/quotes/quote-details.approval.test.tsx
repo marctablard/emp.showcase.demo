@@ -6,6 +6,13 @@ import '@testing-library/jest-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QuoteDetails } from './quote-details';
 
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+Object.defineProperty(window, 'ResizeObserver', { writable: true, value: ResizeObserverMock });
+
 const notifyMock = jest.fn();
 
 jest.mock('next-intl', () => ({
@@ -286,9 +293,16 @@ describe('QuoteDetails approval flow', () => {
 
     expect(screen.getByText('checkout.approval.selectApprover')).toBeInTheDocument();
 
-    const approverButtons = screen.getAllByTestId(/quote-approval-approver-/);
-    expect(approverButtons[0]).toHaveTextContent('Ada Lovelace');
-    expect(approverButtons[1]).toHaveTextContent('Zoe Washburne');
+    const approverRows = screen.getAllByTestId(/quote-approval-approver-/);
+    expect(approverRows[0]).toHaveTextContent('Ada Lovelace');
+    expect(approverRows[1]).toHaveTextContent('Zoe Washburne');
+
+    const radios = screen.getAllByRole('radio');
+    expect(radios).toHaveLength(2);
+    for (const radio of radios) {
+      expect(radio).not.toBeChecked();
+    }
+    expect(screen.getByText('0/500')).toBeInTheDocument();
 
     const submitButton = screen.getByTestId('quote-approval-submitButton');
     expect(submitButton).toBeDisabled();
@@ -298,6 +312,9 @@ describe('QuoteDetails approval flow', () => {
     await waitFor(() => {
       expect(submitButton).not.toBeDisabled();
     });
+
+    expect(screen.getByRole('radio', { name: /Ada Lovelace/i })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /Zoe Washburne/i })).not.toBeChecked();
 
     expect(notifyMock).not.toHaveBeenCalled();
   });

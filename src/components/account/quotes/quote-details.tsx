@@ -13,9 +13,9 @@ import {
 } from '@/components/account/quotes/quote-price-summary';
 import { QuoteStatusBadge } from '@/components/account/quotes/quote-status-badge';
 import { QuoteSummary } from '@/components/account/quotes/quote-summary';
+import { ApproverSelectList } from '@/components/approval/approver-select-list';
 import { ProductListResolver } from '@/components/product/product-list-resolver';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -840,32 +840,12 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
           </DialogHeader>
 
           {sortedApprovers && sortedApprovers.length > 0 && (
-            <div className="space-y-2 max-h-[200px] overflow-y-auto rounded-md border p-2">
-              {sortedApprovers.map((approver) => (
-                <button
-                  type="button"
-                  key={approver.userId}
-                  className={cn(
-                    'flex w-full items-center rounded-md p-2 text-left',
-                    selectedApproverId === approver.userId ? 'bg-surface-action-hover-2' : 'hover:bg-surface-disabled',
-                  )}
-                  onClick={() => setSelectedApproverId(approver.userId)}
-                  data-testid={`quote-approval-approver-${approver.userId}`}
-                >
-                  <Avatar className="mr-2 h-8 w-8">
-                    <div className="flex h-full w-full items-center justify-center rounded-full bg-surface-action text-text-on-action">
-                      {approver.firstName?.charAt(0) || approver.lastName?.charAt(0) || 'U'}
-                    </div>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">
-                      {approver.firstName} {approver.lastName}
-                    </p>
-                    <p className="text-sm text-text-placeholders">{approver.fullName}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
+            <ApproverSelectList
+              approvers={sortedApprovers}
+              selectedUserId={selectedApproverId}
+              onSelect={setSelectedApproverId}
+              testIdPrefix="quote-approval-approver"
+            />
           )}
 
           {approverSearchLoading && (
@@ -895,6 +875,7 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
               value={approvalInquiryComment}
               onChange={(e) => setApprovalInquiryComment(e.target.value)}
               rows={3}
+              maxLength={500}
               data-testid="quote-approval-comment"
             />
           </div>
@@ -905,9 +886,10 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
             </Alert>
           ) : null}
 
-          <DialogFooter>
+          <DialogFooter className="sm:justify-between">
             <Button
               variant="secondary"
+              className="w-full sm:w-auto"
               disabled={isProcessing}
               onClick={() => handleApprovalInquiryDialogChange(false)}
               data-testid="quote-approval-cancelButton"
@@ -915,6 +897,7 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
               {tApproval('cancel')}
             </Button>
             <Button
+              className="w-full sm:w-auto"
               disabled={!selectedApproverId || isProcessing}
               onClick={() => {
                 void handleApprovalInquirySubmit();
