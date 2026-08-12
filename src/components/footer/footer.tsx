@@ -1,6 +1,5 @@
 'use client';
 
-import type { SVGProps } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Mail } from 'lucide-react';
@@ -12,53 +11,9 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from '../ui/form'
 import { InputButton } from '../ui/input';
 import UiLink from '../ui/link';
 
-/** Brand marks removed from lucide-react v1 — keep footer icons as inline SVGs (lucide-sized). */
-function BrandIcon({ className, children, ...props }: SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={cn('size-4', className)}
-      aria-hidden="true"
-      {...props}
-    >
-      {children}
-    </svg>
-  );
-}
-
-function Linkedin(props: SVGProps<SVGSVGElement>) {
-  return (
-    <BrandIcon {...props}>
-      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z" />
-      <rect width="4" height="12" x="2" y="9" />
-      <circle cx="4" cy="4" r="2" />
-    </BrandIcon>
-  );
-}
-
-function Youtube(props: SVGProps<SVGSVGElement>) {
-  return (
-    <BrandIcon {...props}>
-      <path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17" />
-      <path d="m10 15 5-3-5-3z" />
-    </BrandIcon>
-  );
-}
-
-function Instagram(props: SVGProps<SVGSVGElement>) {
-  return (
-    <BrandIcon {...props}>
-      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
-      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
-    </BrandIcon>
-  );
+/** Brand marks removed from lucide-react v1 — use public SVG assets (lucide size-4). */
+function BrandSocialIcon({ src }: { src: string }) {
+  return <Image src={src} alt="" width={16} height={16} className="size-4" aria-hidden="true" />;
 }
 
 export default function Footer({ reduced = false }: { reduced?: boolean }) {
@@ -234,15 +189,15 @@ export function FooterLinks({
       <div className="flex flex-col gap-2">
         <p className="text-lg mb-1">{t('aboutUs')}</p>
         <UiLink type="Link" href="#" variant="secondary" size="s">
-          <Linkedin />
+          <BrandSocialIcon src="/images/linkedin.svg" />
           Linkedin
         </UiLink>
         <UiLink type="Link" href="#" variant="secondary" size="s">
-          <Youtube />
+          <BrandSocialIcon src="/images/youtube.svg" />
           Youtube
         </UiLink>
         <UiLink type="Link" href="#" variant="secondary" size="s">
-          <Instagram />
+          <BrandSocialIcon src="/images/instagram.svg" />
           Instagram
         </UiLink>
       </div>
