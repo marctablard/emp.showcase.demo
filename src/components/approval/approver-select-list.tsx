@@ -26,7 +26,12 @@ function getApproverInitial(approver: ApprovalUser): string {
   return approver.firstName?.charAt(0) || approver.lastName?.charAt(0) || 'U';
 }
 
-export function ApproverSelectList({ approvers, selectedUserId, onSelect, testIdPrefix }: ApproverSelectListProps) {
+export function ApproverSelectList({
+  approvers,
+  selectedUserId,
+  onSelect,
+  testIdPrefix,
+}: Readonly<ApproverSelectListProps>) {
   return (
     <ScrollArea
       type="auto"
