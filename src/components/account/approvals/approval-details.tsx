@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, CircleCheck, CircleX, MessageSquareText } from 'lucide-react';
+import { CircleAlert, CircleCheck, CircleX, MessageSquareText } from 'lucide-react';
 import { resolveApprovalNetAmount } from '@/components/account/approvals/approval-net-amount';
 import { ApprovalSummary } from '@/components/account/approvals/approval-summary';
 import { resolveItemDiscountPercent } from '@/components/account/shared/item-discount';
@@ -374,7 +374,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
 
         {actionError && (
           <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
+            <CircleAlert className="h-4 w-4" />
             <AlertTitle>{t('error')}</AlertTitle>
             <AlertDescription>{actionError}</AlertDescription>
           </Alert>

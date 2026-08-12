@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { CogIcon, ShoppingCart } from 'lucide-react';
+import { Cog, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { H3 } from '@/components/ui/h';
@@ -113,7 +113,7 @@ export function AddToCartModal({
           </div>
           {status === 'PENDING' && statusDetailCode === 'addToCart.insufficientStock' && (
             <div className="flex items-center justify-between">
-              <UINotification icon={CogIcon} iconSize={20} animate="spin" className="mr-4" />
+              <UINotification icon={Cog} iconSize={20} animate="spin" className="mr-4" />
               <p className="text-sm font-bold pr-4">
                 <span className="">{t('insufficientStockMessage')}</span>
               </p>

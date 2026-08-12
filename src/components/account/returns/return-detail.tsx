@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { AlertCircle, Minus, Plus, ReceiptText, Trash2 } from 'lucide-react';
+import { CircleAlert, Minus, Plus, ReceiptText, Trash2 } from 'lucide-react';
 import { detailTaxRateSuffix, shouldDisplayTaxLine } from '@/components/account/shared/detail-tax-line';
 import { ProductList, type ProductListItem } from '@/components/product/product-list';
 import { coalesceBrandLabel, resolveProductBrandLabel } from '@/components/product/resolve-product-brand';
@@ -532,7 +532,7 @@ export function ReturnDetail({ returnId, initialReturn }: ReturnDetailProps) {
       <div className="space-y-6">
         <div className="flex items-center gap-4">{returnHeading(returnId)}</div>
         <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
+          <CircleAlert className="h-4 w-4" />
           <AlertTitle>{t('error')}</AlertTitle>
           <AlertDescription>{error?.message || t('returnNotFound')}</AlertDescription>
         </Alert>
