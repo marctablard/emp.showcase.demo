@@ -116,6 +116,9 @@ next-env.d.ts
 
 # Specifications directory (local development artifacts)
 /specifications/
+
+# Local due-diligence snapshots (build logs, SBOM, audit, Sonar dumps)
+/due-diligence/
 .playwright-mcp
 # GitHub agents and prompts (local only, mirrored in .cursor/)
 .github/workflows/agents/
