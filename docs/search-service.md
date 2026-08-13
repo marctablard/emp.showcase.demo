@@ -89,17 +89,28 @@ BatteryIncluded search calls do not rely on hidden request state. The service la
 
 When the BI search request includes same-field category selection, the service narrows it to the published roots before the request is sent upstream. That preserves pagination and total counts without any client-side post-filtering.
 
+## PDP catalog identity
+
+H1, last breadcrumb crumb, document title, Open Graph, and JSON-LD share the catalog product loaded through `SearchService.getCatalogProductById`. The PDP SSR helper `getProductById` in `src/lib/ssr/products.ts` and `GET /api/products/[id]` both call that method. Cart and wishlist services keep using `ProductService.getProductById` (Emporix Product GET).
+
+| Bound implementation | Identity / copy |
+| --- | --- |
+| `BatteryIncludedSearchService` | Visibility-scoped BI browse by URL id (`f[_product.id]`, then one retry with `f[id]`). Mapped like PLP. A miss is not a Product GET fallback — the method returns `undefined` and PDP calls `notFound()`. |
+| `EmporixSearchService` | Full Emporix Product GET via `ProductService.getProductById`. |
+
+Omitted BI mixins stay empty (specs and highlights are not filled from Product GET). Commerce — price, stock, and variants — stays on Emporix (Price Service, Availability Service, Product API).
+
 ## PDP Breadcrumb Strategy
 
 PDP breadcrumbs are **always-on**: whenever product data resolves, `UiBreadcrumb` renders on cold start and client navigation. Composition is **independent of** `NEXT_SSR_PRODUCT` / `isProductSsrEnabled()` — that flag may still gate ProductDetail enrichment (prices, variants, stock) and JSON-LD, but it does **not** gate breadcrumbs.
 
-Breadcrumbs show the **full category-tree ancestry** from the publication-/navigation-rooted trail to the leaf category assigned to the product, then the product name as the last (unclickable) crumb. `UiBreadcrumb` always prepends the translated storefront Home link. Labels come from the live nav category tree (node names / BI `labelPath`) for the tenant — illustrative shapes such as `Home > All Products > Home > Furniture > …` are depth/shape guidance only and must **not** be hard-coded.
+Breadcrumbs show the **full category-tree ancestry** from the publication-/navigation-rooted trail to the leaf category assigned to the product, then the product name as the last (unclickable) crumb, taken from the catalog identity product (see [PDP catalog identity](#pdp-catalog-identity)). `UiBreadcrumb` always prepends the translated storefront Home link. Labels come from the live nav category tree (node names / BI `labelPath`) for the tenant — illustrative shapes such as `Home > All Products > Home > Furniture > …` are depth/shape guidance only and must **not** be hard-coded.
 
 ### Primary ancestry (flyout / nav category tree)
 
 The same forest as the header flyout drives the primary trail:
 
-1. Load product (`getProductById`) — `categoryIds` / optional `primaryCategory` are available without full category enrichment.
+1. Load the catalog product through `SearchService.getCatalogProductById` (SSR helper `getProductById`) — engine behavior is in [PDP catalog identity](#pdp-catalog-identity). `categoryIds` / optional `primaryCategory` are available without full category enrichment.
 2. Load `getCachedNavigationCategoryTrees(site, locale)` (React `cache()` dedupes with `(nav-shell)/layout.tsx` in the same request).
 3. Among product category candidates (`primaryCategory?.id`, `categoryIds`, `categories[].id`), pick the **deepest** path via `findDeepestCategoryPath` / `findCategoryPath`.
 4. Build crumbs with `generateVisibleBreadcrumbForPdp` (navigation roots / path first).

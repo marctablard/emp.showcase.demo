@@ -20,6 +20,10 @@ interface UsePdpPurchaseDataResult {
   availability: StockAvailability | undefined;
 }
 
+function hasPurchasePriceSemantics(price: ProductPrice): boolean {
+  return typeof price.tax?.netValue === 'number' || price.includesTax === false;
+}
+
 /**
  * Keeps PDP price + availability aligned with the current shop/session context.
  */
@@ -49,7 +53,11 @@ export function usePdpPurchaseData(
       }
 
       const embedded = product.price;
-      if (embedded?.currency && isProductPriceDisplayableForPurchase(embedded.currency, session, site)) {
+      if (
+        embedded?.currency &&
+        hasPurchasePriceSemantics(embedded) &&
+        isProductPriceDisplayableForPurchase(embedded.currency, session, site)
+      ) {
         setPrice(embedded);
         return;
       }
@@ -79,7 +87,8 @@ export function usePdpPurchaseData(
       cancelled = true;
       cancelStart();
     };
-  }, [product, session, site]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on product.id; do not depend on product object identity
+  }, [product?.id, session, site]);
 
   useEffect(() => {
     const syncGeneration = ++availabilitySyncGenerationRef.current;

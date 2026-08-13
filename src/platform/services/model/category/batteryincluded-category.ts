@@ -4,6 +4,9 @@ export const BATTERY_INCLUDED_CATEGORY_METADATA_KEY = 'batteryIncludedCategory';
 export const BATTERY_INCLUDED_BREADCRUMB_FILTER = '_product_i18n.categoryBreadcrumbs.displayPath';
 export const BATTERY_INCLUDED_PUBLISHED_FILTER = '_product.published';
 export const BATTERY_INCLUDED_CATEGORY_IDS_FILTER = '_product.categoryIds';
+export const BATTERY_INCLUDED_PRODUCT_ID_FILTER = '_product.id';
+/** Indexing `IndexItem.id` — used only as a one-shot retry when `_product.id` browse returns no matching hit. */
+export const BATTERY_INCLUDED_INDEX_ITEM_ID_FILTER = 'id';
 
 export interface BatteryIncludedCategoryMetadata {
   source: 'batteryincluded';

@@ -769,6 +769,20 @@ export default function ProductDetail({ product: initialProduct, options, classN
   const { price, availability } = usePdpPurchaseData(resolvedProduct, session, site);
   usePdpCurrentProduct(resolvedProduct, setAsCurrent);
 
+  // Painted seed/client product stays on screen during catalog refetch and shop-context
+  // bootstrap. Full-page spinner only when there is nothing to paint.
+  if (resolvedProduct !== null) {
+    return (
+      <PdpDetailView
+        product={resolvedProduct}
+        className={className}
+        price={price}
+        availability={availability}
+        session={session}
+      />
+    );
+  }
+
   if (!shopContextReady || loading) {
     return (
       <div className={cn('flex justify-center items-center min-h-[400px] mb-6', className)}>
@@ -778,17 +792,5 @@ export default function ProductDetail({ product: initialProduct, options, classN
   }
 
   // Confirmed absence only: no client product and no SSR Product seed (id-only / undefined seed).
-  if (resolvedProduct === null) {
-    return notFound();
-  }
-
-  return (
-    <PdpDetailView
-      product={resolvedProduct}
-      className={className}
-      price={price}
-      availability={availability}
-      session={session}
-    />
-  );
+  return notFound();
 }

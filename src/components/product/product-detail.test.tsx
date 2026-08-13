@@ -6,7 +6,8 @@
  * Documents:
  * - True absence (no usable SSR seed + ready + !loading + product null) → `notFound()`
  * - Cold bootstrap with SSR `initialProduct` + transient null/error → must NOT call `notFound()`
- * - Shop-context / product loading → spinner, not Not Found
+ * - Shop-context / product loading with an SSR seed → painted PDP, not spinner
+ * - Shop-context / product loading with no painted product → spinner, not Not Found
  *
  * `notFound()` is mocked as throwing (Next.js control-flow halt), matching
  * `src/components/cms/_core/cms-page.test.tsx`.
@@ -158,6 +159,20 @@ jest.mock('../ui/toast-notification', () => ({
   notify: jest.fn(),
 }));
 
+class ResizeObserverStub {
+  observe(): void {
+    // Inert stub: Component Tests jsdom has no ResizeObserver (jest.react.setup.js is React project only).
+  }
+  unobserve(): void {
+    // Inert stub: nothing is ever observed.
+  }
+  disconnect(): void {
+    // Inert stub: nothing is ever observed.
+  }
+}
+Object.defineProperty(globalThis, 'ResizeObserver', { writable: true, value: ResizeObserverStub });
+Object.defineProperty(window, 'ResizeObserver', { writable: true, value: ResizeObserverStub });
+
 const useShopContextReadyMock = useShopContextReady as jest.Mock;
 const useProductMock = useProduct as jest.Mock;
 const useSessionMock = useSession as jest.Mock;
@@ -209,7 +224,7 @@ beforeEach(() => {
 });
 
 describe('ProductDetail — loading / shop-context gate', () => {
-  it('shows spinner and does not call notFound while shop context is not ready', () => {
+  it('paints the SSR seed and does not show spinner while shop context is not ready', () => {
     useShopContextReadyMock.mockReturnValue({ ready: false, timedOut: false });
     useProductMock.mockReturnValue({
       product: null,
@@ -222,18 +237,30 @@ describe('ProductDetail — loading / shop-context gate', () => {
     useSessionMock.mockReturnValue({ session: null, loading: true });
     useSiteMock.mockReturnValue({ site: { code: 'main' } });
     usePdpPurchaseDataMock.mockReturnValue({ price: undefined, availability: undefined });
+    usePdpCurrentProductMock.mockReturnValue(undefined);
 
     render(<ProductDetail product={ssrSeedProduct} options={PUBLIC_PDP_OPTIONS} />);
 
-    expect(screen.getByTestId('pdp-spinner')).toBeInTheDocument();
+    expect(screen.queryByTestId('pdp-spinner')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'EnjoySolar 200W Module' })).toBeInTheDocument();
     expect(notFoundMock).not.toHaveBeenCalled();
   });
 
-  it('shows spinner and does not call notFound while product is loading', () => {
+  it('paints the SSR seed and does not show spinner while product is loading', () => {
     mockReadyHooks({ product: null, loading: true, error: null });
     useShopContextReadyMock.mockReturnValue({ ready: true, timedOut: false });
 
     render(<ProductDetail product={ssrSeedProduct} options={PUBLIC_PDP_OPTIONS} />);
+
+    expect(screen.queryByTestId('pdp-spinner')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'EnjoySolar 200W Module' })).toBeInTheDocument();
+    expect(notFoundMock).not.toHaveBeenCalled();
+  });
+
+  it('shows spinner and does not call notFound while product is loading without a usable seed', () => {
+    mockReadyHooks({ product: null, loading: true, error: null });
+
+    render(<ProductDetail options={PUBLIC_PDP_OPTIONS} />);
 
     expect(screen.getByTestId('pdp-spinner')).toBeInTheDocument();
     expect(notFoundMock).not.toHaveBeenCalled();

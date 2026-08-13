@@ -293,6 +293,9 @@ const customJestConfig = {
         '**/lib/**/?(*.)+(spec|test).ts?(x)',
         '**/stores/**/?(*.)+(spec|test).ts?(x)',
         '**/app/api/**/?(*.)+(spec|test).ts?(x)',
+        // Cache rule tests (`src/caching/**`) — node env; without this entry
+        // they match no project and become a silent skip (see `test_orphaned-tests`).
+        '**/caching/**/?(*.)+(spec|test).ts?(x)',
         '**/scripts/**/?(*.)+(spec|test).ts?(x)',
         // Per-site theme registry (`src/app/styles/themes`) — pure resolver
         // logic, no DOM; node project keeps it from being a silent skip.

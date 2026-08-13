@@ -15,6 +15,7 @@ describe('EmporixSearchService', () => {
   };
   const productService = {
     addAdditionalData: jest.fn((products) => products),
+    getProductById: jest.fn(),
   };
   const segmentFilterService = {
     filterByCustomerSegments: jest.fn(async (products) => products),
@@ -77,5 +78,28 @@ describe('EmporixSearchService', () => {
         defaultDirection: 'asc',
       },
     ]);
+  });
+
+  it('delegates getCatalogProductById to ProductService.getProductById only', async () => {
+    const catalogProduct = { id: 'product-1', name: { en: 'Alpha' } };
+    productService.getProductById.mockResolvedValue(catalogProduct);
+
+    const service = new EmporixSearchService(
+      sessionService as never,
+      productApi as never,
+      productMapper as never,
+      productService as never,
+      segmentFilterService as never,
+      categoryService as never,
+      logger as never,
+    );
+
+    const options = { prices: true, variants: true };
+    const result = await service.getCatalogProductById('product-1', options, 'en', 'main');
+
+    expect(productService.getProductById).toHaveBeenCalledTimes(1);
+    expect(productService.getProductById).toHaveBeenCalledWith('product-1', options);
+    expect(productApi.searchProducts).not.toHaveBeenCalled();
+    expect(result).toEqual(catalogProduct);
   });
 });

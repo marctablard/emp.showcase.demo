@@ -23,6 +23,11 @@ interface UseProductResult {
   setAsCurrent: (isCurrent?: boolean) => void;
 }
 
+/** Hook argument is a Product object with an id (SSR / ATC / sticky-bar seed). */
+function isSeededProductObject(productOrId?: string | Product): productOrId is Product {
+  return typeof productOrId === 'object' && productOrId != null && Boolean(productOrId.id);
+}
+
 /** Last-known same-id product from local state or store (SSR seed / prior fetch). */
 function resolvePriorSameIdProduct(
   productId: string,
@@ -102,9 +107,11 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
     }
   }
 
+  const seededProductObject = isSeededProductObject(productOrId);
+
   const [loading, setLoading] = useState<boolean>(() => {
     if (!id) return false;
-    if (productOrId && typeof productOrId === 'object' && (productOrId as Product).id) {
+    if (seededProductObject) {
       return false;
     }
     return true;
@@ -112,8 +119,8 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
   const [error, setError] = useState<Error | null>(null);
   const [product, setProduct] = useState<Product | null>(() => {
     if (!id) return null;
-    if (productOrId && typeof productOrId === 'object' && (productOrId as Product).id) {
-      return productOrId as Product;
+    if (seededProductObject) {
+      return productOrId;
     }
     return getProduct(id);
   });
@@ -128,10 +135,10 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
   // Seed the product store with an SSR-provided product so the cache-check effect below
   // can reuse it instead of clearing local state and refetching once the session resolves.
   useEffect(() => {
-    if (productOrId && typeof productOrId === 'object' && (productOrId as Product).id) {
-      addProduct(productOrId as Product);
+    if (seededProductObject) {
+      addProduct(productOrId);
     }
-  }, [productOrId, addProduct]);
+  }, [seededProductObject, productOrId, addProduct]);
 
   const fetchProduct = useCallback(
     async (forceRefresh = false, clientDedupeScope = '') => {
@@ -239,14 +246,10 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
       return;
     }
 
-    if (prevSessionPricingKeyRef.current === null) {
+    // Skip catalog refetch iff the hook argument is a Product object with an id.
+    // ProductStore cache hit is not a skip. Catalog copy is not currency-dependent.
+    if (seededProductObject) {
       prevSessionPricingKeyRef.current = sessionPricingKey;
-      const cached = getProduct(id);
-      const reuseCache =
-        !!cached &&
-        !!cached.price?.currency &&
-        isProductPriceDisplayableForPurchase(cached.price.currency, sessionPricingContext, site);
-      void fetchProduct(!reuseCache, sessionPricingKey);
       return;
     }
 
@@ -254,7 +257,7 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
       prevSessionPricingKeyRef.current = sessionPricingKey;
       void fetchProduct(true, sessionPricingKey);
     }
-  }, [id, sessionPricingKey, fetchProduct, getProduct, site, sessionPricingContext]);
+  }, [id, sessionPricingKey, fetchProduct, seededProductObject]);
 
   return {
     currentProductId,

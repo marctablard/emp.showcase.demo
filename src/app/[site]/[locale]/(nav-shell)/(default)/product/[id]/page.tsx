@@ -93,9 +93,10 @@ export async function generateProductPageMetadata(
   locale: string,
   options: ProductFetchOptions,
   ssr: boolean,
+  site?: string,
 ): Promise<Metadata> {
   // Fetch product data
-  const product = ssr ? await getProductById(id, options) : null;
+  const product = ssr ? await getProductById(id, options, locale, site) : null;
 
   // If product not found, return basic metadata
   if (!product) {
@@ -115,7 +116,7 @@ export async function renderProductPage(
 ) {
   const engine = getActiveSearchEngine();
 
-  const product = await getProductById(id, options);
+  const product = await getProductById(id, options, locale, siteCode);
 
   if (!product) {
     notFound();
@@ -179,7 +180,7 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const { id, locale, site } = await params;
   const { ssr, options } = createProductOptions(PUBLIC_PRODUCT_OPTIONS, false, site);
-  return generateProductPageMetadata(id, locale, options, ssr);
+  return generateProductPageMetadata(id, locale, options, ssr, site);
 }
 
 export default async function ProductPage({ params }: { params: Promise<ProductPageProps> }) {

@@ -25,7 +25,7 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const { id, locale, site } = await params;
   const { ssr, options } = createProductOptions(AUTHENTICATED_PRODUCT_OPTIONS, true, site);
-  return generateProductPageMetadata(id, locale, options, ssr);
+  return generateProductPageMetadata(id, locale, options, ssr, site);
 }
 
 export default async function AuthenticatedProductPage({ params }: { params: Promise<AuthenticatedProductPageProps> }) {
