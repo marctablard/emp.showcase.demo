@@ -73,6 +73,12 @@ describe('EmporixApiInvoker', () => {
         .mockResolvedValue({ accessToken: 'session-token-123', saasToken: undefined, sessionId: 'session-3' }),
       getServiceAccessToken: jest.fn().mockResolvedValue('service-token-123'),
       clearPublicTokenCache: jest.fn(),
+      clearServiceTokenCache: jest.fn(),
+      forceRefreshSessionToken: jest.fn().mockResolvedValue({
+        accessToken: 'fresh-session-token',
+        saasToken: undefined,
+        sessionId: 'session-3',
+      }),
       clearTokens: jest.fn(),
       refreshCustomerTokenWithLegalEntity: jest.fn().mockResolvedValue(null),
     };
@@ -312,7 +318,7 @@ describe('EmporixApiInvoker', () => {
     });
   });
 
-  describe('401 retry for public tokens', () => {
+  describe('401 retry for cached tokens', () => {
     it('should clear the cached public token and replay the request once', async () => {
       (globalThis.fetch as jest.Mock)
         .mockResolvedValueOnce({ status: 401, ok: false })
@@ -348,13 +354,50 @@ describe('EmporixApiInvoker', () => {
       expect(retryOptions.headers).toEqual(expect.objectContaining({ 'x-caller': 'keep-me' }));
     });
 
-    it('should not retry a 401 for non-public token types', async () => {
-      (globalThis.fetch as jest.Mock).mockResolvedValue({ status: 401, ok: false });
+    it('should clear the cached service token and replay the request once on 401', async () => {
+      (globalThis.fetch as jest.Mock)
+        .mockResolvedValueOnce({ status: 401, ok: false })
+        .mockResolvedValueOnce({ status: 200, ok: true });
+      (mockTokenManager.getServiceAccessToken as jest.Mock)
+        .mockResolvedValueOnce('stale-service-token')
+        .mockResolvedValueOnce('fresh-service-token');
 
-      await invoker.authenticatedFetch('/test-url', { method: 'GET' }, 'service');
+      const response = await invoker.authenticatedFetch('/test-url', { method: 'GET' }, 'service');
 
-      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
-      expect(mockTokenManager.clearPublicTokenCache).not.toHaveBeenCalled();
+      expect(mockTokenManager.clearServiceTokenCache).toHaveBeenCalledWith(
+        'test-tenant',
+        'test-server-client-id',
+        'test-server-client-secret',
+        undefined,
+      );
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+      const [, retryOptions] = (globalThis.fetch as jest.Mock).mock.calls[1];
+      expect(retryOptions.headers).toEqual(expect.objectContaining({ Authorization: 'Bearer fresh-service-token' }));
+      expect(response.status).toBe(200);
+    });
+
+    it('should force-refresh session token and replay the request once on 401', async () => {
+      (globalThis.fetch as jest.Mock)
+        .mockResolvedValueOnce({ status: 401, ok: false })
+        .mockResolvedValueOnce({ status: 200, ok: true });
+      (mockTokenManager.getSessionToken as jest.Mock).mockResolvedValueOnce({
+        accessToken: 'stale-session-token',
+        saasToken: undefined,
+        sessionId: 'session-3',
+      });
+
+      const response = await invoker.authenticatedFetch('/test-url', { method: 'GET' }, 'session');
+
+      expect(mockTokenManager.forceRefreshSessionToken).toHaveBeenCalledWith('test-tenant', 'test-client-id');
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+      const [, retryOptions] = (globalThis.fetch as jest.Mock).mock.calls[1];
+      expect(retryOptions.headers).toEqual(
+        expect.objectContaining({
+          Authorization: 'Bearer fresh-session-token',
+          'session-id': 'session-3',
+        }),
+      );
+      expect(response.status).toBe(200);
     });
 
     it('should not retry a successful public call', async () => {

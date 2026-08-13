@@ -141,7 +141,11 @@ class EmporixSessionService implements SessionService {
   }
 
   async setLegalEntity(legalEntityId: string): Promise<void> {
-    await this.tokenManager.refreshCustomerTokenWithLegalEntity(this.config.tenant, legalEntityId);
+    await this.tokenManager.refreshCustomerTokenWithLegalEntity(
+      this.config.tenant,
+      legalEntityId,
+      this.config.clientId,
+    );
     await this.sessionContextApi.addOwnSessionContextAttribute({
       key: 'legalEntityId',
       value: legalEntityId,
@@ -159,7 +163,7 @@ class EmporixSessionService implements SessionService {
     }
     // Re-scope the customer token to drop the legalEntityId claim (no-op for anonymous sessions).
     try {
-      await this.tokenManager.refreshCustomerTokenWithLegalEntity(this.config.tenant, '');
+      await this.tokenManager.refreshCustomerTokenWithLegalEntity(this.config.tenant, '', this.config.clientId);
     } catch (error) {
       this.logger.error(
         { error: error instanceof Error ? error.message : String(error) },

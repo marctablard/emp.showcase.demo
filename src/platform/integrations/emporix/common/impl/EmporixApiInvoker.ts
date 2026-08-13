@@ -25,6 +25,9 @@ const METRIC_FETCH_DURATION = 'emx_bff_api_fetch_duration_seconds';
 const METRIC_LABEL_NAMES = ['site', 'method', 'status_code', 'source', 'token_type', 'route'] as const;
 const HISTOGRAM_BUCKETS = [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];
 
+/** Session-scoped auth that shares getSessionToken / forceRefreshSessionToken. */
+type SessionScopedTokenType = Extract<TokenType, 'session' | 'customer-saas' | 'ai'>;
+
 @injectable('EmporixApiInvoker', 'Singleton')
 class EmporixApiInvoker {
   protected config: EmporixConfig;
@@ -96,8 +99,21 @@ class EmporixApiInvoker {
       metricsContext,
     );
 
-    if (response.status === 401 && tokenType === 'public') {
-      response = await this.retryPublicFetchWithMetrics(requestUrl, options, tokenType, metrics, metricsContext);
+    if (response.status === 401) {
+      if (tokenType === 'public') {
+        response = await this.retryPublicFetchWithMetrics(requestUrl, options, tokenType, metrics, metricsContext);
+      } else if (tokenType === 'service') {
+        response = await this.retryServiceFetchWithMetrics(
+          requestUrl,
+          options,
+          tokenType,
+          metrics,
+          metricsContext,
+          authOptions?.scopes,
+        );
+      } else if (tokenType === 'session' || tokenType === 'customer-saas' || tokenType === 'ai') {
+        response = await this.retrySessionFetchWithMetrics(requestUrl, options, tokenType, metrics, metricsContext);
+      }
     }
 
     return response;
@@ -118,7 +134,7 @@ class EmporixApiInvoker {
 
   private async resolveAuthTokenAndHeaders(
     originalHeaders: HeadersInit | undefined,
-    tokenType: 'public' | 'session' | 'customer-saas' | 'ai' | 'service',
+    tokenType: TokenType,
     authOptions?: {
       credentials?: { username: string; password: string };
       scopes?: string[];
@@ -166,7 +182,7 @@ class EmporixApiInvoker {
 
   private async resolveSessionTokenAndHeaders(
     originalHeaders: HeadersInit,
-    tokenType: 'session' | 'customer-saas' | 'ai',
+    tokenType: SessionScopedTokenType,
     authOptions?: {
       credentials?: { username: string; password: string };
       scopes?: string[];
@@ -402,6 +418,100 @@ class EmporixApiInvoker {
       ...this.addPublicHeaders(freshToken),
       Authorization: `Bearer ${freshToken.accessToken}`,
     };
+    return this.fetchRetryWithMetrics(url, options, retryHeaders, tokenType, metrics, metricsContext);
+  }
+
+  /**
+   * Service (client_credentials) tokens are cached in-process. On 401 access_token_expired,
+   * drop the cache entry, remint, and replay once — same recovery pattern as public tokens.
+   */
+  private async retryServiceFetchWithMetrics(
+    url: string,
+    options: RequestInit,
+    tokenType: TokenType,
+    metrics: FetchMetrics | undefined,
+    metricsContext: { enabled: boolean; site?: string; startTime?: number },
+    scopes?: string[],
+  ): Promise<Response> {
+    if (!this.config.serverClientId || !this.config.serverClientSecret) {
+      throw new Error('Service Credentials not available');
+    }
+    this.tokenManager.clearServiceTokenCache(
+      this.config.tenant,
+      this.config.serverClientId,
+      this.config.serverClientSecret,
+      scopes,
+    );
+    const freshAccessToken = await this.tokenManager.getServiceAccessToken(
+      this.config.tenant,
+      this.config.serverClientId,
+      this.config.serverClientSecret,
+      scopes,
+    );
+    const retryHeaders = {
+      ...this.normalizeHeaders(options.headers),
+      Authorization: `Bearer ${freshAccessToken}`,
+    };
+    return this.fetchRetryWithMetrics(url, options, retryHeaders, tokenType, metrics, metricsContext);
+  }
+
+  /**
+   * Session / customer-saas tokens can still be rejected by Apigee while locally "valid".
+   * Force-refresh (anonymous bearer → customer refreshauthtoken, or anonymous remint) and replay once.
+   */
+  private async retrySessionFetchWithMetrics(
+    url: string,
+    options: RequestInit,
+    tokenType: SessionScopedTokenType,
+    metrics: FetchMetrics | undefined,
+    metricsContext: { enabled: boolean; site?: string; startTime?: number },
+  ): Promise<Response> {
+    const freshSession = await this.tokenManager.forceRefreshSessionToken(this.config.tenant, this.config.clientId);
+    const { token, headers: authHeaders } = this.buildSessionRetryAuth(freshSession, tokenType, options.headers);
+    const retryHeaders = {
+      ...authHeaders,
+      Authorization: `Bearer ${token}`,
+    };
+    return this.fetchRetryWithMetrics(url, options, retryHeaders, tokenType, metrics, metricsContext);
+  }
+
+  private buildSessionRetryAuth(
+    sessionToken: { accessToken: string; saasToken?: string; sessionId: string },
+    tokenType: SessionScopedTokenType,
+    originalHeaders: HeadersInit | undefined,
+  ): { token: string; headers: Record<string, string> } {
+    let headers = this.normalizeHeaders(originalHeaders);
+    if (tokenType === 'customer-saas' || tokenType === 'ai') {
+      if (!sessionToken.saasToken) {
+        throw new Error('No SaaS token available');
+      }
+      headers = {
+        ...headers,
+        ...this.addCustomerHeaders(sessionToken),
+      };
+      if (tokenType === 'ai' && !headers['session-id']) {
+        headers = {
+          ...headers,
+          'session-id': `${sessionToken.sessionId}`,
+        };
+      }
+    } else {
+      headers = {
+        ...headers,
+        ...this.addSessionHeaders(sessionToken),
+      };
+    }
+    return { token: sessionToken.accessToken, headers };
+  }
+
+  private async fetchRetryWithMetrics(
+    url: string,
+    options: RequestInit,
+    retryHeaders: Record<string, string>,
+    tokenType: TokenType,
+    metrics: FetchMetrics | undefined,
+    metricsContext: { enabled: boolean; site?: string; startTime?: number },
+  ): Promise<Response> {
     const retryRequest = { ...options, headers: retryHeaders };
     const retryStartTime = metricsContext.enabled && metrics ? performance.now() : undefined;
     const response = await this.fetch(url, retryRequest);

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
-import { Eye, EyeOff, Loader2, LockKeyhole, User, XCircle } from 'lucide-react';
+import { CircleX, Eye, EyeOff, Loader2, LockKeyhole, User } from 'lucide-react';
 import { providerOptions } from '@/auth/auth.config';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -137,7 +137,7 @@ export function LoginForm({
 
           {error && (
             <Alert variant="destructive" data-testid="login-error">
-              <XCircle />
+              <CircleX />
               <AlertTitle>{t('loginFailed')}</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>

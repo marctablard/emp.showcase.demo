@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { Bot, CheckCircle2, ClipboardCheck, HandHelping, LineChart, Package, Percent } from 'lucide-react';
+import { Bot, CircleCheckBig, ClipboardCheck, HandHelping, LineChart, Package, Percent } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { H5, Heading } from '@/components/ui/h';
 import UiLink from '@/components/ui/link';
@@ -53,7 +53,7 @@ export function AccountLanding() {
         </Heading>
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
           <UiLink type="Link" variant="buttonPrimary" href="/login" className="w-full sm:w-auto">
-            <CheckCircle2 className="mr-2 h-5 w-5" />
+            <CircleCheckBig className="mr-2 h-5 w-5" />
             {t('cta.login')}
           </UiLink>
           <UiLink type="Link" variant="buttonSecondary" href="/register" className="w-full sm:w-auto">

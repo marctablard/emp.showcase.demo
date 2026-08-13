@@ -104,6 +104,8 @@ describe('EmporixSessionService', () => {
       getSessionToken: jest.fn(),
       refreshCustomerTokenWithLegalEntity: jest.fn(),
       clearPublicTokenCache: jest.fn(),
+      clearServiceTokenCache: jest.fn(),
+      forceRefreshSessionToken: jest.fn(),
       clearTokens: jest.fn(),
     } as jest.Mocked<EmporixTokenManager>;
 

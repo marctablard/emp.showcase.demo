@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { AlertCircle, FlipHorizontal2, Minus, Package, Plus, ShoppingCart, Trash2, Truck } from 'lucide-react';
+import { CircleAlert, FlipHorizontal2, Minus, Package, Plus, ShoppingCart, Trash2, Truck } from 'lucide-react';
 import { resolveProductBrandLabel } from '@/components/product/resolve-product-brand';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,7 +49,7 @@ function WishlistStatusLine({ flags }: Readonly<{ flags: WishlistStatusFlags }>)
   if (flags.showUnavailable) {
     return (
       <p className="flex items-center gap-2 text-sm text-text-warning">
-        <AlertCircle className="h-4 w-4" aria-hidden="true" />
+        <CircleAlert className="h-4 w-4" aria-hidden="true" />
         {t('statuses.unavailable')}
       </p>
     );
@@ -57,7 +57,7 @@ function WishlistStatusLine({ flags }: Readonly<{ flags: WishlistStatusFlags }>)
   if (flags.showNoPrice) {
     return (
       <p className="flex items-center gap-2 text-sm text-text-warning">
-        <AlertCircle className="h-4 w-4" aria-hidden="true" />
+        <CircleAlert className="h-4 w-4" aria-hidden="true" />
         {t('statuses.noPrice')}
       </p>
     );

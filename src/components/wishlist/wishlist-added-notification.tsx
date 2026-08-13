@@ -4,7 +4,7 @@ import { type CSSProperties, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { CheckCircle2, Pin, X } from 'lucide-react';
+import { CircleCheckBig, Pin, X } from 'lucide-react';
 import { toast as sonnerToast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { H4, H6 } from '@/components/ui/h';
@@ -91,7 +91,7 @@ function WishlistAddedNotification({ id, item, quantity }: WishlistAddedNotifica
             {t('itemNumber')}: {item.sku || item.productId}
           </p>
           <p className="flex items-center gap-2 text-base text-text-success">
-            <CheckCircle2 className="h-[22px] w-[22px] shrink-0" />
+            <CircleCheckBig className="h-[22px] w-[22px] shrink-0" />
             {t('quantityAdded', { count: quantity })}
           </p>
         </div>

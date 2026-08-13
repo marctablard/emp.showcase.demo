@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, TriangleAlert, XCircle } from 'lucide-react';
+import { CircleAlert, CircleCheckBig, CircleX, TriangleAlert } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { H4 } from '@/components/ui/h';
 
@@ -21,13 +21,13 @@ export default function AlertStyleGuide() {
         </Alert>
 
         <Alert variant="success">
-          <CheckCircle2 />
+          <CircleCheckBig />
           <AlertTitle>Success</AlertTitle>
           <AlertDescription>Your changes were saved successfully.</AlertDescription>
         </Alert>
 
         <Alert variant="information">
-          <AlertCircle />
+          <CircleAlert />
           <AlertTitle>Information</AlertTitle>
           <AlertDescription>Some additional information for the user.</AlertDescription>
         </Alert>
@@ -39,7 +39,7 @@ export default function AlertStyleGuide() {
         </Alert>
 
         <Alert variant="destructive">
-          <XCircle />
+          <CircleX />
           <AlertTitle>Destructive</AlertTitle>
           <AlertDescription>Something went wrong. Please try again.</AlertDescription>
         </Alert>

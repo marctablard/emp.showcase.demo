@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { CheckCircle2 } from 'lucide-react';
+import { CircleCheckBig } from 'lucide-react';
 import { useL10n } from '@/hooks/useL10n';
 import { cn } from '@/lib/utils';
 import { getColorValue } from '@/utils/colors';
@@ -57,7 +57,7 @@ export function ProductColorTile({
         title={attributeName ? l10n(attributeName) : attributeKey}
       >
         {isSelected && showCheckmark && (
-          <CheckCircle2
+          <CircleCheckBig
             className={cn(
               'absolute -top-1 -right-1 text-text-action bg-surface-page rounded-full',
               checkmarkSizes[size],

@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Instagram, Linkedin, Mail, Youtube } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { useNewsletterForm } from '@/hooks/newsletter/useNewsletterForm';
 import { getNavigationRootCategoriesPageSize } from '@/lib/navigation/navigation-root-categories-page-size';
 import { takeRootCategoryPage } from '@/lib/navigation/take-root-category-page';
@@ -10,6 +10,11 @@ import { cn } from '@/lib/utils';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '../ui/form';
 import { InputButton } from '../ui/input';
 import UiLink from '../ui/link';
+
+/** Brand marks removed from lucide-react v1 — use public SVG assets (lucide size-4). */
+function BrandSocialIcon({ src }: Readonly<{ src: string }>) {
+  return <Image src={src} alt="" width={16} height={16} className="size-4" aria-hidden="true" />;
+}
 
 export default function Footer({ reduced = false }: { reduced?: boolean }) {
   const t = useTranslations('layout.footer');
@@ -184,15 +189,15 @@ export function FooterLinks({
       <div className="flex flex-col gap-2">
         <p className="text-lg mb-1">{t('aboutUs')}</p>
         <UiLink type="Link" href="#" variant="secondary" size="s">
-          <Linkedin />
+          <BrandSocialIcon src="/images/linkedin.svg" />
           Linkedin
         </UiLink>
         <UiLink type="Link" href="#" variant="secondary" size="s">
-          <Youtube />
+          <BrandSocialIcon src="/images/youtube.svg" />
           Youtube
         </UiLink>
         <UiLink type="Link" href="#" variant="secondary" size="s">
-          <Instagram />
+          <BrandSocialIcon src="/images/instagram.svg" />
           Instagram
         </UiLink>
       </div>
