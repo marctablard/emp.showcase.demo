@@ -154,7 +154,7 @@ Scripts are skipped only because the disposable directory has no `.git` (the `pr
 
 ### Preview-Only Safe-Chain Minimum-Package-Age Override
 
-The **Install dependencies** step of `.github/workflows/github-actions-deploy-pr-preview.yaml` runs `npm ci --safe-chain-skip-minimum-package-age` instead of plain `npm ci`. This is a narrow, explicit, and temporary policy exception used to unblock urgent security patches (e.g. a same-day framework patch release) that plain `npm install`/`npm ci` would resolve fine but that safe-chain's minimum release-age gate has not yet aged in.
+The **Install Vercel CLI** and **Install dependencies** steps of `.github/workflows/github-actions-deploy-pr-preview.yaml` pass `--safe-chain-skip-minimum-package-age` (`npm i -g vercel` and `npm ci`). This is a narrow, explicit, and temporary policy exception used to unblock urgent security patches and too-new Vercel CLI transitives (e.g. `@napi-rs/wasm-runtime`) that plain `npm install`/`npm ci` would resolve fine but that safe-chain's minimum release-age gate has not yet aged in.
 
 Scope of the override — read carefully, this is not a general safe-chain bypass:
 - It skips **only** safe-chain's minimum-package-age check.

@@ -23,7 +23,7 @@ const _getProduct = cache(
     } catch (error) {
       getLogger().error(
         { error: error instanceof Error ? error.message : String(error), productId: id },
-        'SSR getProductById failed',
+        'SSR getCatalogProductById failed',
       );
       return undefined;
     }

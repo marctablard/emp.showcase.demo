@@ -45,8 +45,10 @@ jobs:
         run: |
           npm i -g @aikidosec/safe-chain
           safe-chain setup-ci
+      # Same preview-only age-gate skip as npm ci: Vercel CLI currently pulls
+      # a too-new @napi-rs/wasm-runtime. See docs/run-build-deploy.md.
       - name: Install Vercel CLI
-        run: npm i -g vercel
+        run: npm i -g vercel --safe-chain-skip-minimum-package-age
       # Preview-only, time-boxed override: skips safe-chain's minimum-package-age
       # gate (only) to unblock an urgent security patch. All other safe-chain
       # malware protections and the npm audit step below stay enforced, and a
@@ -127,7 +129,7 @@ jobs:
           state: 'success'
 
       - name: Update deployment status (failure)
-        if: failure()
+        if: failure() && steps.deployment.outputs.deployment_id != ''
         uses: chrnorm/deployment-status@v2
         with:
           token: '${{ github.token }}'

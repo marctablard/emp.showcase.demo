@@ -114,6 +114,25 @@ describe('usePdpPurchaseData', () => {
     expect(fetchProductPriceMock).toHaveBeenLastCalledWith('p-2', undefined, undefined, 'USD');
   });
 
+  test('applies a new embedded purchase price when the same product id is enriched', async () => {
+    const { rerender, result } = renderHook(({ product }) => usePdpPurchaseData(product, session, site), {
+      initialProps: { product: catalogProduct('p-1') },
+    });
+
+    await waitFor(() => {
+      expect(fetchProductPriceMock).toHaveBeenCalledTimes(1);
+    });
+    expect(result.current.price).toEqual(matchedPrice('p-1'));
+
+    const enriched = { ...catalogProduct('p-1'), price: matchedPrice('p-1') };
+    rerender({ product: enriched });
+
+    await waitFor(() => {
+      expect(result.current.price).toEqual(matchedPrice('p-1'));
+    });
+    expect(fetchProductPriceMock).toHaveBeenCalledTimes(1);
+  });
+
   test('fetches Price Service when seed contains BI-style snapshot currency/amount only', async () => {
     const snapshotSeed = {
       ...catalogProduct('p-1'),

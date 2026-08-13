@@ -58,8 +58,10 @@ jobs:
         run: |
           npm i -g --ignore-scripts @aikidosec/safe-chain
           safe-chain setup-ci
+      # Same age-gate skip as PR preview's Vercel CLI install: vercel currently
+      # pulls a too-new @napi-rs/wasm-runtime. Does not skip malware checks.
       - name: Install Vercel CLI
-        run: npm i -g --ignore-scripts vercel
+        run: npm i -g --ignore-scripts vercel --safe-chain-skip-minimum-package-age
       # `npm ci` deliberately keeps lifecycle scripts: @swc/core (which drives
       # both the Next build and jest), @parcel/watcher and unrs-resolver link
       # their native binaries from a postinstall. Disabling scripts here would

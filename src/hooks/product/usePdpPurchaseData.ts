@@ -87,8 +87,17 @@ export function usePdpPurchaseData(
       cancelled = true;
       cancelStart();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on product.id; do not depend on product object identity
-  }, [product?.id, session, site]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on product id and embedded price fields, not product object identity
+  }, [
+    product?.id,
+    product?.price?.id,
+    product?.price?.currency,
+    product?.price?.amount,
+    product?.price?.includesTax,
+    product?.price?.tax?.netValue,
+    session,
+    site,
+  ]);
 
   useEffect(() => {
     const syncGeneration = ++availabilitySyncGenerationRef.current;
