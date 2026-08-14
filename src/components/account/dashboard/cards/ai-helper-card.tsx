@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useMemo } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import AiStarsIcon from '@/components/icons/ai-stars';
 import { Button } from '@/components/ui/button';
 import { CardTitle } from '@/components/ui/card';
@@ -26,6 +26,7 @@ import type { DashboardCardProps } from './dashboard-card';
 
 function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, 'children'>) {
   const t = useTranslations('account.AiHelper');
+  const locale = useLocale();
   const { form } = useValidator('AiHelperValidationService', { question: '' });
   const { toast } = useToast();
   const logger = useLogger();
@@ -70,7 +71,7 @@ function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, '
       setIsChatMode(true);
 
       try {
-        const context = await prepareAIContext(session, cartStore);
+        const context = await prepareAIContext(session, cartStore, locale);
         const aiResponse = await sendMessageWithContext(sanitized, context);
 
         const parsed = parseAIResponse(aiResponse.message);
@@ -121,6 +122,7 @@ function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, '
       setIsChatMode,
       logger,
       toast,
+      locale,
     ],
   );
 

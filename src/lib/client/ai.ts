@@ -4,7 +4,11 @@ import type { CartStore } from '@/stores/cart-store';
 import { readAIChatSseResponse } from './ai-chat-stream';
 import { getOrCreateAISessionId, isAIHelperStorageOwnerId } from './ai-helper-storage';
 
-export async function prepareAIContext(session: Session, cartStore: CartStore): Promise<AIChatContext> {
+export async function prepareAIContext(
+  session: Session,
+  cartStore: CartStore,
+  language: string,
+): Promise<AIChatContext> {
   const ownerId = isAIHelperStorageOwnerId(session.customerId) ? session.customerId : undefined;
   const aiSessionId = getOrCreateAISessionId(ownerId);
   await cartStore.fetchCart();
@@ -14,7 +18,7 @@ export async function prepareAIContext(session: Session, cartStore: CartStore): 
   return {
     siteId: session.siteCode,
     currency: session.currency,
-    language: session.language || 'en_US',
+    language,
     sessionId: aiSessionId,
     cartId: freshCartId || undefined,
   };

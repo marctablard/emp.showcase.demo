@@ -6,7 +6,7 @@ This document explains how the account-dashboard AI Helper talks to Emporix AI S
 
 The AI Helper is a card on the signed-in **account dashboard**. It is not a site-wide overlay.
 
-Shoppers ask the Frontend Agent (`frontendAgent`) about their account and catalog context. The browser always `POST`s JSON to `/api/ai/chat`. When streaming is enabled, the BFF calls AI Service `chat-stream`, forwards a live chunk count to the browser as SSE (`progress` then `complete`), and still assembles one widget payload before the Helper renders it. When streaming is off, the BFF returns one JSON body as before. The browser never opens a connection to AI Service itself.
+Shoppers ask the Frontend Agent (`frontendAgent`) about their account and catalog context. Chat `language` is the header language switcher locale (`useLocale()`, `en` or `de`), not `NEXT_PUBLIC_DEFAULT_LANGUAGE`. The browser always `POST`s JSON to `/api/ai/chat`. When streaming is enabled, the BFF calls AI Service `chat-stream`, forwards a live chunk count to the browser as SSE (`progress` then `complete`), and still assembles one widget payload before the Helper renders it. When streaming is off, the BFF returns one JSON body as before. The browser never opens a connection to AI Service itself.
 
 ## Streaming vs batch
 

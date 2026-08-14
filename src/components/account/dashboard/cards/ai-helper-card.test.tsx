@@ -19,6 +19,7 @@ let mockIsChatMode = false;
 
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+  useLocale: () => 'en',
 }));
 
 jest.mock('@/hooks/ui/useToast', () => ({

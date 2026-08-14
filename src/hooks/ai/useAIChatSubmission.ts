@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useRef } from 'react';
+import { useLocale } from 'next-intl';
 import type { AiHelperFormData, ChatMessage } from '@/components/account/dashboard/cards/ai/types';
 import { parseAIResponse } from '@/components/account/dashboard/cards/ai/utils/response-parser';
 import { sanitizeUserInput } from '@/components/account/dashboard/cards/ai/utils/sanitize';
@@ -38,6 +39,7 @@ export function useAIChatSubmission({
   errorMessageText,
 }: UseAIChatSubmissionOptions): UseAIChatSubmissionReturn {
   const { sendMessageWithContext, loading, error } = useAI();
+  const locale = useLocale();
   const messageIdCounter = useRef(0);
 
   const generateId = useCallback(() => {
@@ -60,7 +62,7 @@ export function useAIChatSubmission({
       onMessageSent(userMessage);
 
       try {
-        const context = await prepareAIContext(session, cartStore);
+        const context = await prepareAIContext(session, cartStore, locale);
         const aiResponse = await sendMessageWithContext(sanitized, context);
         const parsed = parseAIResponse(aiResponse.message);
 
@@ -100,6 +102,7 @@ export function useAIChatSubmission({
       onError,
       onCartRefresh,
       errorMessageText,
+      locale,
     ],
   );
 
