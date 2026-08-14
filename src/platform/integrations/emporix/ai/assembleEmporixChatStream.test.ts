@@ -276,4 +276,26 @@ describe('assembleEmporixChatStream', () => {
       sessionId: 'session-text',
     });
   });
+
+  it('reports progress after each SSE data payload, including split stream chunks', async () => {
+    const counts: number[] = [];
+    const first = toContentToken('Hello, ');
+    const second = toContentToken('world!');
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        const encoder = new TextEncoder();
+        controller.enqueue(encoder.encode(first.slice(0, 12)));
+        controller.enqueue(encoder.encode(first.slice(12)));
+        controller.enqueue(encoder.encode(second));
+        controller.close();
+      },
+    });
+
+    const assembled = await assembleEmporixChatStream(stream, (chunks) => {
+      counts.push(chunks);
+    });
+
+    expect(assembled.message).toBe('Hello, world!');
+    expect(counts).toEqual([1, 2]);
+  });
 });

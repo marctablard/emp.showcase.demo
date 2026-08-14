@@ -6,7 +6,7 @@ This document explains how the account-dashboard AI Helper talks to Emporix AI S
 
 The AI Helper is a card on the signed-in **account dashboard**. It is not a site-wide overlay.
 
-Shoppers ask the Frontend Agent (`frontendAgent`) about their account and catalog context. The browser always sends JSON to `POST /api/ai/chat` and waits for one JSON response. When streaming is enabled, the BFF calls AI Service `chat-stream` and assembles a complete reply on the server before that JSON is returned. The browser does not open an SSE connection.
+Shoppers ask the Frontend Agent (`frontendAgent`) about their account and catalog context. The browser always `POST`s JSON to `/api/ai/chat`. When streaming is enabled, the BFF calls AI Service `chat-stream`, forwards a live chunk count to the browser as SSE (`progress` then `complete`), and still assembles one widget payload before the Helper renders it. When streaming is off, the BFF returns one JSON body as before. The browser never opens a connection to AI Service itself.
 
 ## Streaming vs batch
 
@@ -25,19 +25,17 @@ AI Service also documents an async chat mode. Showcase does not use it. For the 
 
 ## Shopper experience
 
-The card keeps the existing thinking spinner until `POST /api/ai/chat` returns a complete JSON body. The Helper then parses that `message` and renders text plus typed widgets. For `type: "text"`, the top-level `message` is the intro and `data.message` (when present) is the body — for example product highlights under a heading. It does not render tokens, partial JSON, or widgets from an incomplete object.
+The card shows a thinking spinner while the reply is in progress. When streaming is on, `POST /api/ai/chat` is an SSE response: a `progress` event with `chunks` (count of upstream SSE data payloads, starting at 0) then a `complete` event with the assembled `AIChatResponse`. The thinking bubble updates to “AI is thinking. Chunks generated: {n}” as those events arrive. The Helper then parses that assembled `message` and renders text plus typed widgets. For `type: "text"`, the top-level `message` is the intro and `data.message` (when present) is the body — for example product highlights under a heading.
 
-Live `frontendAgent` streams often concatenate more than one JSON document in token `content`: a markdown-fenced tool payload (for example a search `{ query, filter }`) and later a Frontend Agent envelope (`type` / `data`). The BFF assembler waits until the stream ends, then keeps the last widget envelope and drops tool JSON so the shopper sees the order list (or other widget) instead of raw JSON.
+Live `frontendAgent` streams often concatenate more than one JSON document in token `content`: a markdown-fenced tool payload (for example a search `{ query, filter }`) and later a Frontend Agent envelope (`type` / `data`). The BFF assembler waits until the upstream stream ends, then keeps the last widget envelope and drops tool JSON so the shopper sees the order list (or other widget) instead of raw JSON.
 
-Incremental chat bubbles while the stream is still open need a different contract. Token frames are character fragments, not complete messages. To show several shopper messages one after another before `event:done`, AI Service would need to emit smaller but complete JSON documents (or discrete SSE events the BFF can forward), and Showcase would need a browser stream (SSE/NDJSON) instead of one JSON response. That is out of scope for the current Helper: the browser still waits for one assembled reply.
+Token frames are character fragments, not complete shopper messages. Painting that JSON as it is generated would look like raw code in a commerce UI, and widgets would be wrong until the object is complete. The live chunk count is only a wait-state signal.
 
-Tokens are not shown because the Frontend Agent replies with structured JSON, not free-text chat. Painting that JSON as it is generated would look like raw code in a commerce UI, and widgets would be wrong until the object is complete.
-
-Shopper-visible wait is therefore similar to batch. COP-5795 measured earlier time-to-first-token on the wire for streaming; that gain is not shown as tokens in Showcase. What this storefront delivers is the released stream endpoint, correct widgets, and a documented batch fallback.
+When streaming is off, the spinner stays on the existing “AI is thinking…” copy until the JSON body returns.
 
 ## Empty stream and tenant dependency
 
-Live `frontendAgent` streams send the reply as token `content` chunks. The BFF concatenates those strings server-side into one `message` before returning JSON. A trailing `done` frame without `message` is expected metadata; it is not the payload and is not by itself an empty stream.
+Live `frontendAgent` streams send the reply as token `content` chunks. The BFF concatenates those strings server-side into one `message` before returning the `complete` SSE event (or a JSON body in batch mode). A trailing `done` frame without `message` is expected metadata; it is not the payload and is not by itself an empty stream.
 
 If no token `content` reconstitutes a non-empty `message`, the BFF returns the existing chat error (`AI_SERVICE_ERROR`). The storefront shows the standard error notification (toast) and an AI chat bubble on that turn, both using the existing AI Helper error copy, so the shopper can see which question failed. The helper card stays usable so they can try again. An empty stream is not treated as a successful blank reply.
 

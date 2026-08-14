@@ -9,10 +9,14 @@ import { isAiChatStreamingEnabled } from '../isAiChatStreamingEnabled';
 export class AIServiceImpl implements AIService {
   constructor(@inject('EmporixAIApi') private aiApi: EmporixAIApi) {}
 
-  async sendChatMessageWithContext(userMessage: string, context: AIChatContext): Promise<AIChatResponse> {
+  async sendChatMessageWithContext(
+    userMessage: string,
+    context: AIChatContext,
+    onProgress?: (chunks: number) => void,
+  ): Promise<AIChatResponse> {
     const emporixContext = this.convertToEmporixContext(context);
     const emporixResponse = isAiChatStreamingEnabled()
-      ? await this.aiApi.streamChatMessageWithContext(userMessage, emporixContext)
+      ? await this.aiApi.streamChatMessageWithContext(userMessage, emporixContext, onProgress)
       : await this.aiApi.sendChatMessageWithContext(userMessage, emporixContext);
     return this.convertFromEmporixResponse(emporixResponse);
   }

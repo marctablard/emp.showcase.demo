@@ -11,6 +11,8 @@
  * concatenation of token `content` strings, not `event:done`. One stream
  * can concatenate a markdown-fenced tool payload and a later Frontend Agent
  * envelope; the assembler keeps the last widget envelope and drops tool JSON.
+ * Optional `onProgress` reports each upstream SSE data payload so the BFF can
+ * forward a live chunk count without painting tokens in the shopper UI.
  * COP-5591 sibling parser (`emporix/hosting-md-extension`) also emits
  * plain-text tokens + metadata-only frames.
  */
@@ -127,26 +129,83 @@ function parseEventPayloads(rawStream: string): string[] {
   return payloads;
 }
 
-async function readSource(source: StreamSource): Promise<string> {
-  if (typeof source === 'string') {
-    return source;
+function takeCompleteSseBlocks(buffer: string): { blocks: string[]; rest: string } {
+  const normalized = buffer.replaceAll('\r\n', '\n');
+  const separator = '\n\n';
+  const lastSeparator = normalized.lastIndexOf(separator);
+  if (lastSeparator === -1) {
+    return { blocks: [], rest: normalized };
   }
 
+  const complete = normalized.slice(0, lastSeparator);
+  const rest = normalized.slice(lastSeparator + separator.length);
+  return {
+    blocks: complete.split(separator).filter((block) => block !== ''),
+    rest,
+  };
+}
+
+function payloadsFromBlocks(blocks: string[]): string[] {
+  const payloads: string[] = [];
+  for (const block of blocks) {
+    payloads.push(...parseEventPayloads(`${block}\n\n`));
+  }
+  return payloads;
+}
+
+function createAssemblyState(): AssemblyState {
+  return {
+    textBuffer: '',
+    capturedResponse: null,
+    identityOverlay: EMPTY_IDENTITY,
+  };
+}
+
+export type ChatStreamProgressHandler = (chunks: number) => void;
+
+function consumePayloads(
+  state: AssemblyState,
+  payloads: string[],
+  onProgress: ChatStreamProgressHandler | undefined,
+  startCount: number,
+): number {
+  let chunks = startCount;
+  for (const payload of payloads) {
+    consumePayload(state, payload);
+    chunks += 1;
+    onProgress?.(chunks);
+  }
+  return chunks;
+}
+
+async function assembleFromReadableStream(
+  source: ReadableStream<Uint8Array>,
+  onProgress?: ChatStreamProgressHandler,
+): Promise<EmporixAIChatResponse> {
   const reader = source.getReader();
   const decoder = new TextDecoder();
-  let rawStream = '';
+  const state = createAssemblyState();
+  let buffer = '';
+  let chunks = 0;
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) {
-      rawStream += decoder.decode();
+      buffer += decoder.decode();
       break;
     }
 
-    rawStream += decoder.decode(value, { stream: true });
+    buffer += decoder.decode(value, { stream: true });
+    const { blocks, rest } = takeCompleteSseBlocks(buffer);
+    buffer = rest;
+    chunks = consumePayloads(state, payloadsFromBlocks(blocks), onProgress, chunks);
   }
 
-  return rawStream;
+  if (buffer !== '') {
+    consumePayloads(state, parseEventPayloads(buffer), onProgress, chunks);
+  }
+
+  return finishAssembly(state);
 }
 
 function isStreamObject(value: unknown): value is StreamObject {
@@ -337,18 +396,15 @@ function finishAssembly(state: AssemblyState): EmporixAIChatResponse {
   throw new Error('AI stream did not contain a message');
 }
 
-export async function assembleEmporixChatStream(source: StreamSource): Promise<EmporixAIChatResponse> {
-  const rawStream = await readSource(source);
-  const payloads = parseEventPayloads(rawStream);
-  const state: AssemblyState = {
-    textBuffer: '',
-    capturedResponse: null,
-    identityOverlay: EMPTY_IDENTITY,
-  };
-
-  for (const payload of payloads) {
-    consumePayload(state, payload);
+export async function assembleEmporixChatStream(
+  source: StreamSource,
+  onProgress?: ChatStreamProgressHandler,
+): Promise<EmporixAIChatResponse> {
+  if (typeof source !== 'string') {
+    return assembleFromReadableStream(source, onProgress);
   }
 
+  const state = createAssemblyState();
+  consumePayloads(state, parseEventPayloads(source), onProgress, 0);
   return finishAssembly(state);
 }

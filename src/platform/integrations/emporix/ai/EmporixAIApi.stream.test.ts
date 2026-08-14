@@ -93,7 +93,7 @@ describe('EmporixAIApi.streamChatMessageWithContext', () => {
       }),
     });
 
-    expect(mockedAssembleEmporixChatStream).toHaveBeenCalledWith(streamBody);
+    expect(mockedAssembleEmporixChatStream).toHaveBeenCalledWith(streamBody, undefined);
     expect(responseJson).not.toHaveBeenCalled();
   });
 

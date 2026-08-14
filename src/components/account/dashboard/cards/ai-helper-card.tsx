@@ -30,7 +30,7 @@ function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, '
   const { toast } = useToast();
   const logger = useLogger();
 
-  const { sendMessageWithContext, loading } = useAI();
+  const { sendMessageWithContext, loading, chunkCount } = useAI();
   const { session } = useSession();
   const { refetch: refetchCart } = useCart();
   const cartStore = useCartStore();
@@ -159,7 +159,9 @@ function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, '
       </div>
 
       <div className="flex-1 flex flex-col min-h-0 px-4">
-        {isChatMode && <ChatMessages messages={messages} loading={loading} handlers={handlers} />}
+        {isChatMode && (
+          <ChatMessages messages={messages} loading={loading} chunkCount={chunkCount} handlers={handlers} />
+        )}
 
         {!isChatMode && <Suggestions onSuggestionClick={setQuestionValue} />}
         <ChatInput form={form} onSubmit={handleQuestionSubmit} loading={loading} isChatMode={isChatMode} />

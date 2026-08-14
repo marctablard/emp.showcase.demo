@@ -53,12 +53,16 @@ describe('AIServiceImpl', () => {
     const result = await service.sendChatMessageWithContext('hello', baseContext);
 
     expect(aiApi.streamChatMessageWithContext).toHaveBeenCalledTimes(1);
-    expect(aiApi.streamChatMessageWithContext).toHaveBeenCalledWith('hello', {
-      siteId: 'main',
-      currency: 'EUR',
-      language: 'en',
-      sessionId: 'session-1',
-    });
+    expect(aiApi.streamChatMessageWithContext).toHaveBeenCalledWith(
+      'hello',
+      {
+        siteId: 'main',
+        currency: 'EUR',
+        language: 'en',
+        sessionId: 'session-1',
+      },
+      undefined,
+    );
     expect(aiApi.sendChatMessageWithContext).not.toHaveBeenCalled();
     expect(result).toEqual({
       agentId: 'frontendAgent',

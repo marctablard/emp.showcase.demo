@@ -54,7 +54,11 @@ class EmporixAIApi implements IEmporixAIApi {
     }
   }
 
-  private async streamChatMessage(request: EmporixAIChatRequest, sessionId?: string): Promise<EmporixAIChatResponse> {
+  private async streamChatMessage(
+    request: EmporixAIChatRequest,
+    sessionId?: string,
+    onProgress?: (chunks: number) => void,
+  ): Promise<EmporixAIChatResponse> {
     const url = `/ai-service/${this.config.tenant}/agentic/chat-stream`;
 
     const headers = {
@@ -84,7 +88,7 @@ class EmporixAIApi implements IEmporixAIApi {
         throw new Error('Emporix AI service stream response body is missing');
       }
 
-      return assembleEmporixChatStream(response.body);
+      return assembleEmporixChatStream(response.body, onProgress);
     } catch (error) {
       throw new Error(`Failed to send chat message: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -107,6 +111,7 @@ class EmporixAIApi implements IEmporixAIApi {
   async streamChatMessageWithContext(
     userMessage: string,
     context: EmporixAIChatContext,
+    onProgress?: (chunks: number) => void,
   ): Promise<EmporixAIChatResponse> {
     const userMessageObj: EmporixAIUserMessage = {
       userMessage,
@@ -118,7 +123,7 @@ class EmporixAIApi implements IEmporixAIApi {
       message: JSON.stringify(userMessageObj),
     };
 
-    return this.streamChatMessage(request, context.sessionId);
+    return this.streamChatMessage(request, context.sessionId, onProgress);
   }
 }
 
