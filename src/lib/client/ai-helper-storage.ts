@@ -44,7 +44,7 @@ function belongsToOwner(key: string, ownerId: string): boolean {
 }
 
 function removeLocalStorageKeys(predicate: (key: string) => boolean): void {
-  if (typeof window === 'undefined') {
+  if (globalThis.window === undefined) {
     return;
   }
 

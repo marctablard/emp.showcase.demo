@@ -153,6 +153,19 @@ function isStreamObject(value: unknown): value is StreamObject {
   return value !== null && typeof value === 'object';
 }
 
+function consumeJsonStringCharacter(character: string, escaped: boolean): { inString: boolean; escaped: boolean } {
+  if (escaped) {
+    return { inString: true, escaped: false };
+  }
+  if (character === '\\') {
+    return { inString: true, escaped: true };
+  }
+  if (character === '"') {
+    return { inString: false, escaped: false };
+  }
+  return { inString: true, escaped: false };
+}
+
 function findMatchingBrace(text: string, start: number): number {
   let depth = 0;
   let inString = false;
@@ -161,17 +174,7 @@ function findMatchingBrace(text: string, start: number): number {
   for (let index = start; index < text.length; index++) {
     const character = text[index];
     if (inString) {
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-      if (character === '\\') {
-        escaped = true;
-        continue;
-      }
-      if (character === '"') {
-        inString = false;
-      }
+      ({ inString, escaped } = consumeJsonStringCharacter(character, escaped));
       continue;
     }
     if (character === '"') {
@@ -180,11 +183,14 @@ function findMatchingBrace(text: string, start: number): number {
     }
     if (character === '{') {
       depth += 1;
-    } else if (character === '}') {
-      depth -= 1;
-      if (depth === 0) {
-        return index;
-      }
+      continue;
+    }
+    if (character !== '}') {
+      continue;
+    }
+    depth -= 1;
+    if (depth === 0) {
+      return index;
     }
   }
 
@@ -222,7 +228,7 @@ function collectJsonObjectsFromText(text: string, objects: StreamObject[]): void
 
 function collectCandidateStreamObjects(textBuffer: string): StreamObject[] {
   const objects: StreamObject[] = [];
-  const remainder = textBuffer.replace(/```(?:json)?\r?\n?([\s\S]*?)```/gi, (_match, body: string) => {
+  const remainder = textBuffer.replaceAll(/```(?:json)?\r?\n?([\s\S]*?)```/gi, (_match, body: string) => {
     collectJsonObjectsFromText(body, objects);
     return '\n';
   });
