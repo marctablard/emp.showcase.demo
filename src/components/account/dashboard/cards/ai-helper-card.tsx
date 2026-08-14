@@ -92,7 +92,7 @@ function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, '
           await refetchCart();
         }
       } catch (err) {
-        logger.error({ error: err instanceof Error ? err.message : String(err) }, 'AI Helper chat request failed');
+        logger.error({ err }, 'AI Helper chat request failed');
         const errorMessage: ChatMessageType = {
           id: (Date.now() + 1).toString(),
           content: t('errorOccurred'),

@@ -28,7 +28,7 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({ messages, loading, c
         });
       });
     }
-  }, [messages.length, loading, chunkCount]);
+  }, [messages.length, loading]);
 
   return (
     <div

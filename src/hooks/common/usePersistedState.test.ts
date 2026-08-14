@@ -160,4 +160,20 @@ describe('usePersistedState', () => {
     expect(result.current[0]).toBe('in-memory');
     expect(localStorage.getItem('test')).toBe('"stored"');
   });
+
+  it('rehydrates from storage when enabled becomes true without overwriting it first', () => {
+    localStorage.setItem('test', '"stored"');
+
+    const { result, rerender } = renderHook(
+      ({ enabled }) => usePersistedState({ key: 'test', defaultValue: 'default', enabled }),
+      { initialProps: { enabled: false } },
+    );
+
+    expect(result.current[0]).toBe('default');
+
+    rerender({ enabled: true });
+
+    expect(result.current[0]).toBe('stored');
+    expect(localStorage.getItem('test')).toBe('"stored"');
+  });
 });

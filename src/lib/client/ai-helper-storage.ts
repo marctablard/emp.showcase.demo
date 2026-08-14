@@ -74,7 +74,11 @@ export function adoptAIHelperStorage(ownerId: string): void {
   );
 }
 
-/** Removes every Helper key (legacy + all shoppers). Used on logout. */
+/**
+ * Removes every Helper key (legacy + all shoppers). Logout does not call this:
+ * it only drops unscoped keys via `clearUnscopedAIHelperStorage` so other
+ * shoppers' namespaced transcripts stay on the device.
+ */
 export function clearAIHelperClientState(): void {
   removeLocalStorageKeys((key) => LEGACY_KEY_SET.has(key) || isNamespacedAIHelperKey(key));
 }

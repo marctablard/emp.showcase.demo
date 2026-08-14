@@ -88,7 +88,7 @@ class EmporixAIApi implements IEmporixAIApi {
         throw new Error('Emporix AI service stream response body is missing');
       }
 
-      return assembleEmporixChatStream(response.body, onProgress);
+      return await assembleEmporixChatStream(response.body, onProgress);
     } catch (error) {
       throw new Error(`Failed to send chat message: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }

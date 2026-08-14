@@ -131,4 +131,23 @@ describe('EmporixAIApi.streamChatMessageWithContext', () => {
     );
     expect(mockedAssembleEmporixChatStream).not.toHaveBeenCalled();
   });
+
+  it('wraps stream assembly failures with a consistent error message', async () => {
+    mockedAssembleEmporixChatStream.mockRejectedValue(new Error('Empty stream'));
+
+    const mockApiClient = {
+      authenticatedFetch: jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        body: createBodyStream('data: "stream-content"\n\n'),
+      } as unknown as Response),
+    } as unknown as jest.Mocked<EmporixApiInvoker>;
+
+    const api = new EmporixAIApi(mockApiClient, mockConfig);
+
+    await expect(api.streamChatMessageWithContext('Show my profile', chatContext)).rejects.toThrow(
+      'Failed to send chat message: Empty stream',
+    );
+  });
 });

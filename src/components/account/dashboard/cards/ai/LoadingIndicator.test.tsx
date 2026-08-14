@@ -14,6 +14,9 @@ jest.mock('next-intl', () => ({
     if (key === 'thinking') {
       return 'AI is thinking...';
     }
+    if (key === 'aiProcessing') {
+      return 'AI is processing your request';
+    }
     return key;
   },
 }));
@@ -21,11 +24,13 @@ jest.mock('next-intl', () => ({
 describe('LoadingIndicator', () => {
   it('shows the thinking copy without a chunk count by default', () => {
     render(<LoadingIndicator />);
-    expect(screen.getByText('AI is thinking...')).toBeInTheDocument();
+    expect(screen.getByText('AI is thinking...')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByText('AI is processing your request')).toBeInTheDocument();
   });
 
   it('shows a live chunk count when progress is available', () => {
     render(<LoadingIndicator chunkCount={12} />);
-    expect(screen.getByText('AI is thinking. Chunks generated: 12')).toBeInTheDocument();
+    expect(screen.getByText('AI is thinking. Chunks generated: 12')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByText('AI is processing your request')).toBeInTheDocument();
   });
 });

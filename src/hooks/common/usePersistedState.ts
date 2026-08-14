@@ -27,7 +27,7 @@ export function usePersistedState<T>({
   enabled = true,
 }: UsePersistedStateOptions<T>): [T, (value: T | ((prev: T) => T)) => void, () => void] {
   const storageApi =
-    typeof window !== 'undefined' ? (storage === 'localStorage' ? localStorage : sessionStorage) : null;
+    globalThis.window !== undefined ? (storage === 'localStorage' ? localStorage : sessionStorage) : null;
 
   const readStored = (): T => {
     if (!enabled || !storageApi) {
@@ -45,6 +45,10 @@ export function usePersistedState<T>({
   const [hydratedEnabled, setHydratedEnabled] = useState(enabled);
   const [state, setState] = useState<T>(readStored);
 
+  // Adjust when key/enabled change during render (React "adjusting state when a
+  // prop changes"). An effect is rejected by react-hooks/set-state-in-effect, and
+  // React discards this first render so the persist effect never writes the previous
+  // value into the new key.
   if (key !== hydratedKey || enabled !== hydratedEnabled) {
     setHydratedKey(key);
     setHydratedEnabled(enabled);
@@ -52,7 +56,7 @@ export function usePersistedState<T>({
   }
 
   useEffect(() => {
-    if (!enabled || !storageApi || key !== hydratedKey) {
+    if (!enabled || !storageApi || key !== hydratedKey || enabled !== hydratedEnabled) {
       return;
     }
     try {
@@ -60,7 +64,7 @@ export function usePersistedState<T>({
     } catch (error) {
       getLogger().warn({ err: error, key }, '[usePersistedState] Failed to persist key');
     }
-  }, [enabled, hydratedKey, key, serialize, state, storageApi]);
+  }, [enabled, hydratedEnabled, hydratedKey, key, serialize, state, storageApi]);
 
   const clear = useCallback(() => {
     setState(defaultValue);
