@@ -33,9 +33,11 @@ Shopper-visible wait is therefore similar to batch. COP-5795 measured earlier ti
 
 ## Empty stream and tenant dependency
 
-If the assembled stream has no non-empty `message`, the BFF returns the existing chat error (`AI_SERVICE_ERROR`) and the card shows the usual error copy. An empty stream is not treated as a successful blank reply.
+Live `frontendAgent` streams send the reply as token `content` chunks. The BFF concatenates those strings server-side into one `message` before returning JSON. A trailing `done` frame without `message` is expected metadata; it is not the payload and is not by itself an empty stream.
 
-Streaming still depends on the platform empty-stream fix (COP-6164) being present on the tenant. Without that fix, `chat-stream` can finish with no usable message. In that environment, set `NEXT_AI_CHAT_STREAMING=false` to use batch.
+If no token `content` reconstitutes a non-empty `message`, the BFF returns the existing chat error (`AI_SERVICE_ERROR`). The storefront shows the standard error notification (toast) and an AI chat bubble on that turn, both using the existing AI Helper error copy, so the shopper can see which question failed. The helper card stays usable so they can try again. An empty stream is not treated as a successful blank reply.
+
+If a tenant’s `chat-stream` truly finishes with no token content (COP-6164 empty-stream cases), set `NEXT_AI_CHAT_STREAMING=false` to use batch.
 
 ## Quality examples
 

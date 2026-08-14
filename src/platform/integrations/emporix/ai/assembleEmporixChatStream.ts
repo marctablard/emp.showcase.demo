@@ -1,19 +1,32 @@
 /**
  * Observed frames (not a published contract):
- * - plain-text token
- * - metadata-only
+ * - event:token `{ content: string }` (live frontendAgent; concatenate)
+ * - event:tool_start / event:tool_end `{ tool_name, tool_call_id }` (ignore)
+ * - event:done metadata-only identity (no message; overlay identity only)
+ * - plain-text token / JSON-string data payloads
+ * - one-shot Frontend Agent envelope (`type` / `data`)
+ * - published ChatResponse (string `message` + identity, no `type`/`data`)
  *
- * Source: COP-5591 sibling parser (`emporix/hosting-md-extension` `agenticChatService`/`sseHelpers`).
- * Live tenant capture was not reachable in this workspace because runtime Emporix credentials are unavailable.
+ * Live frontendAgent capture (showcasedev chat-stream): the reply is the
+ * concatenation of token `content` strings, not `event:done`.
+ * COP-5591 sibling parser (`emporix/hosting-md-extension`) also emits
+ * plain-text tokens + metadata-only frames.
  */
 import type { EmporixAIChatResponse } from '../model/ai';
 
 type StreamSource = ReadableStream<Uint8Array> | string;
 type StreamObject = Record<string, unknown>;
+type StreamIdentity = Pick<EmporixAIChatResponse, 'agentId' | 'agentType' | 'sessionId'>;
 
-const FALLBACK_RESPONSE: Pick<EmporixAIChatResponse, 'agentId' | 'agentType' | 'sessionId'> = {
+const FALLBACK_RESPONSE: StreamIdentity = {
   agentId: 'frontendAgent',
   agentType: 'generic',
+  sessionId: '',
+};
+
+const EMPTY_IDENTITY: StreamIdentity = {
+  agentId: '',
+  agentType: '',
   sessionId: '',
 };
 
@@ -47,11 +60,32 @@ function hasPublishedChatResponseShape(payload: StreamObject): payload is Stream
   );
 }
 
-function mapIdentity(payload: StreamObject): Pick<EmporixAIChatResponse, 'agentId' | 'agentType' | 'sessionId'> {
+function hasTokenContent(payload: StreamObject): payload is StreamObject & { content: string } {
+  return typeof payload.content === 'string';
+}
+
+function mapIdentity(payload: StreamObject): StreamIdentity {
   return {
     agentId: toStringValue(payload.agentId ?? payload.agent_id),
     agentType: toStringValue(payload.agentType ?? payload.agent_type),
     sessionId: toStringValue(payload.sessionId ?? payload.session_id),
+  };
+}
+
+function mergeIdentity(current: StreamIdentity, incoming: StreamIdentity): StreamIdentity {
+  return {
+    agentId: incoming.agentId || current.agentId,
+    agentType: incoming.agentType || current.agentType,
+    sessionId: incoming.sessionId || current.sessionId,
+  };
+}
+
+function applyIdentityOverlay(response: EmporixAIChatResponse, overlay: StreamIdentity): EmporixAIChatResponse {
+  return {
+    ...response,
+    agentId: response.agentId || overlay.agentId,
+    agentType: response.agentType || overlay.agentType,
+    sessionId: response.sessionId || overlay.sessionId,
   };
 }
 
@@ -64,7 +98,7 @@ function createCapturedResponse(payload: StreamObject, message: string): Emporix
 }
 
 function parseEventPayloads(rawStream: string): string[] {
-  const normalized = rawStream.replace(/\r\n/g, '\n');
+  const normalized = rawStream.replaceAll('\r\n', '\n');
   const events = normalized.split('\n\n');
   const payloads: string[] = [];
 
@@ -113,12 +147,48 @@ async function readSource(source: StreamSource): Promise<string> {
   return rawStream;
 }
 
+function responseFromTextBuffer(textBuffer: string, overlay: StreamIdentity): EmporixAIChatResponse {
+  try {
+    const parsed = JSON.parse(textBuffer) as unknown;
+
+    if (parsed && typeof parsed === 'object') {
+      const objectPayload = parsed as StreamObject;
+
+      if (hasFrontendAgentShape(objectPayload)) {
+        return applyIdentityOverlay(createCapturedResponse(objectPayload, JSON.stringify(objectPayload)), overlay);
+      }
+
+      if (hasPublishedChatResponseShape(objectPayload)) {
+        return applyIdentityOverlay(createCapturedResponse(objectPayload, objectPayload.message), overlay);
+      }
+    }
+  } catch {
+    // Concatenated tokens are plain / markdown text, not a JSON envelope.
+  }
+
+  return {
+    agentId: overlay.agentId || FALLBACK_RESPONSE.agentId,
+    agentType: overlay.agentType || FALLBACK_RESPONSE.agentType,
+    sessionId: overlay.sessionId || FALLBACK_RESPONSE.sessionId,
+    message: textBuffer,
+  };
+}
+
+function assertNonEmptyMessage(response: EmporixAIChatResponse): EmporixAIChatResponse {
+  if (response.message === '') {
+    throw new Error('AI stream contained an empty message');
+  }
+
+  return response;
+}
+
 export async function assembleEmporixChatStream(source: StreamSource): Promise<EmporixAIChatResponse> {
   const rawStream = await readSource(source);
   const payloads = parseEventPayloads(rawStream);
 
   let textBuffer = '';
   let capturedResponse: EmporixAIChatResponse | null = null;
+  let identityOverlay: StreamIdentity = EMPTY_IDENTITY;
 
   for (const payload of payloads) {
     try {
@@ -142,6 +212,16 @@ export async function assembleEmporixChatStream(source: StreamSource): Promise<E
 
       if (hasPublishedChatResponseShape(objectPayload)) {
         capturedResponse = createCapturedResponse(objectPayload, objectPayload.message);
+        continue;
+      }
+
+      if (hasTokenContent(objectPayload)) {
+        textBuffer += objectPayload.content;
+        continue;
+      }
+
+      if (hasIdentityField(objectPayload)) {
+        identityOverlay = mergeIdentity(identityOverlay, mapIdentity(objectPayload));
       }
     } catch {
       textBuffer += payload;
@@ -149,18 +229,11 @@ export async function assembleEmporixChatStream(source: StreamSource): Promise<E
   }
 
   if (capturedResponse) {
-    if (capturedResponse.message === '') {
-      throw new Error('AI stream contained an empty message');
-    }
-
-    return capturedResponse;
+    return assertNonEmptyMessage(applyIdentityOverlay(capturedResponse, identityOverlay));
   }
 
   if (textBuffer !== '') {
-    return {
-      ...FALLBACK_RESPONSE,
-      message: textBuffer,
-    };
+    return assertNonEmptyMessage(responseFromTextBuffer(textBuffer, identityOverlay));
   }
 
   throw new Error('AI stream did not contain a message');

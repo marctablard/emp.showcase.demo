@@ -5,11 +5,30 @@ function toSseEvent(payload: string): string {
   return `data: ${payload}\n\n`;
 }
 
-// Observed (COP-5591 sibling parser): plain-text token + metadata-only.
-// The additional fixture kinds are local observed-not-published compatibility mapping.
+function toNamedSseEvent(eventName: string, payload: string): string {
+  return `event:${eventName}\ndata: ${payload}\n\n`;
+}
+
+function toContentToken(content: string): string {
+  return toNamedSseEvent('token', JSON.stringify({ content }));
+}
+
+// Observed (live frontendAgent chat-stream + COP-5591 sibling parser):
+// token `{content}`, tool_* metadata, done without message, plain-text, one-shot envelopes.
 describe('assembleEmporixChatStream', () => {
   it('concatenates non-JSON and JSON-string data payloads', async () => {
     const streamBody = `${toSseEvent('Hello, ')}${toSseEvent('"world!"')}`;
+
+    await expect(assembleEmporixChatStream(streamBody)).resolves.toEqual({
+      agentId: 'frontendAgent',
+      agentType: 'generic',
+      message: 'Hello, world!',
+      sessionId: '',
+    });
+  });
+
+  it('normalizes CRLF event separators the same as LF', async () => {
+    const streamBody = 'data: Hello, \r\n\r\ndata: "world!"\r\n\r\n';
 
     await expect(assembleEmporixChatStream(streamBody)).resolves.toEqual({
       agentId: 'frontendAgent',
@@ -131,6 +150,69 @@ describe('assembleEmporixChatStream', () => {
       agentType: 'generic',
       message: 'pong',
       sessionId: '',
+    });
+  });
+
+  it('reassembles live frontendAgent token content into a widget envelope', async () => {
+    const frontendAgentPayload = {
+      agentId: 'frontendAgent',
+      sessionId: 'session-live',
+      message: 'Here are the details of your most recent order.',
+      type: 'order_summary',
+      data: { orders: [{ id: 'order-1' }] },
+      timestamp: '2026-08-14T00:00:00.000Z',
+      cartRefresh: false,
+    };
+    const envelopeJson = JSON.stringify(frontendAgentPayload, null, 2);
+    const contentChunks = [envelopeJson.slice(0, 24), envelopeJson.slice(24, 80), envelopeJson.slice(80)];
+    const streamBody = [
+      toNamedSseEvent('tool_start', JSON.stringify({ tool_name: 'get-customer-orders', tool_call_id: 'call-1' })),
+      toNamedSseEvent('tool_end', JSON.stringify({ tool_name: 'get-customer-orders', tool_call_id: 'call-1' })),
+      ':keepalive\n\n',
+      ...contentChunks.map((chunk) => toContentToken(chunk)),
+      toNamedSseEvent(
+        'done',
+        JSON.stringify({
+          agent_id: 'frontendAgent',
+          agent_type: 'generic',
+          session_id: 'session-live',
+          tools_used: ['get-customer-orders'],
+          ttft_ms: 12.5,
+        }),
+      ),
+    ].join('');
+
+    const assembled = await assembleEmporixChatStream(streamBody);
+
+    expect(assembled.agentId).toBe('frontendAgent');
+    expect(assembled.sessionId).toBe('session-live');
+    expect(assembled.message).toBe(JSON.stringify(frontendAgentPayload));
+
+    const parsed = parseAIResponse(assembled.message);
+    expect(parsed.type).toBe('order_summary');
+    expect(parsed.data).toEqual({ orders: [{ id: 'order-1' }] });
+    expect(parsed.message).toBe('Here are the details of your most recent order.');
+  });
+
+  it('concatenates token content as plain text and overlays done identity', async () => {
+    const streamBody = [
+      toContentToken('Hello, '),
+      toContentToken('world!'),
+      toNamedSseEvent(
+        'done',
+        JSON.stringify({
+          agent_id: 'frontendAgent',
+          agent_type: 'generic',
+          session_id: 'session-text',
+        }),
+      ),
+    ].join('');
+
+    await expect(assembleEmporixChatStream(streamBody)).resolves.toEqual({
+      agentId: 'frontendAgent',
+      agentType: 'generic',
+      message: 'Hello, world!',
+      sessionId: 'session-text',
     });
   });
 });
