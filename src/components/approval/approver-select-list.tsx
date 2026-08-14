@@ -37,7 +37,7 @@ export function ApproverSelectList({
       type="auto"
       className="max-h-[200px] rounded-md border [&>[data-slot=scroll-area-viewport]]:max-h-[200px]"
     >
-      <RadioGroup value={selectedUserId ?? undefined} onValueChange={onSelect} className="gap-2 p-2">
+      <RadioGroup value={selectedUserId ?? ''} onValueChange={onSelect} className="gap-2 p-2">
         {approvers.map((approver) => {
           const isSelected = selectedUserId === approver.userId;
           const radioId = `${testIdPrefix}-radio-${approver.userId}`;
