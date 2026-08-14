@@ -1,2 +1,4 @@
 # sonar-secrets: auto-added after secret detection
 src/i18n/translations/en/account/index.json
+# sonar-secrets: auto-added after secret detection
+src/i18n/translations/de/account/index.json

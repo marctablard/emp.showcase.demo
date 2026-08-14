@@ -8,7 +8,9 @@
  * - published ChatResponse (string `message` + identity, no `type`/`data`)
  *
  * Live frontendAgent capture (showcasedev chat-stream): the reply is the
- * concatenation of token `content` strings, not `event:done`.
+ * concatenation of token `content` strings, not `event:done`. One stream
+ * can concatenate a markdown-fenced tool payload and a later Frontend Agent
+ * envelope; the assembler keeps the last widget envelope and drops tool JSON.
  * COP-5591 sibling parser (`emporix/hosting-md-extension`) also emits
  * plain-text tokens + metadata-only frames.
  */
@@ -147,23 +149,114 @@ async function readSource(source: StreamSource): Promise<string> {
   return rawStream;
 }
 
-function responseFromTextBuffer(textBuffer: string, overlay: StreamIdentity): EmporixAIChatResponse {
-  try {
-    const parsed = JSON.parse(textBuffer) as unknown;
+function isStreamObject(value: unknown): value is StreamObject {
+  return value !== null && typeof value === 'object';
+}
 
-    if (parsed && typeof parsed === 'object') {
-      const objectPayload = parsed as StreamObject;
+function findMatchingBrace(text: string, start: number): number {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
 
-      if (hasFrontendAgentShape(objectPayload)) {
-        return applyIdentityOverlay(createCapturedResponse(objectPayload, JSON.stringify(objectPayload)), overlay);
+  for (let index = start; index < text.length; index++) {
+    const character = text[index];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+        continue;
       }
-
-      if (hasPublishedChatResponseShape(objectPayload)) {
-        return applyIdentityOverlay(createCapturedResponse(objectPayload, objectPayload.message), overlay);
+      if (character === '\\') {
+        escaped = true;
+        continue;
+      }
+      if (character === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (character === '"') {
+      inString = true;
+      continue;
+    }
+    if (character === '{') {
+      depth += 1;
+    } else if (character === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return index;
       }
     }
+  }
+
+  return -1;
+}
+
+function pushParsedObject(candidate: string, objects: StreamObject[]): void {
+  try {
+    const parsed = JSON.parse(candidate) as unknown;
+    if (isStreamObject(parsed)) {
+      objects.push(parsed);
+    }
   } catch {
-    // Concatenated tokens are plain / markdown text, not a JSON envelope.
+    // Candidate is not a complete JSON object.
+  }
+}
+
+function collectJsonObjectsFromText(text: string, objects: StreamObject[]): void {
+  pushParsedObject(text.trim(), objects);
+
+  let index = 0;
+  while (index < text.length) {
+    const start = text.indexOf('{', index);
+    if (start === -1) {
+      break;
+    }
+    const end = findMatchingBrace(text, start);
+    if (end === -1) {
+      break;
+    }
+    pushParsedObject(text.slice(start, end + 1), objects);
+    index = end + 1;
+  }
+}
+
+function collectCandidateStreamObjects(textBuffer: string): StreamObject[] {
+  const objects: StreamObject[] = [];
+  const remainder = textBuffer.replace(/```(?:json)?\r?\n?([\s\S]*?)```/gi, (_match, body: string) => {
+    collectJsonObjectsFromText(body, objects);
+    return '\n';
+  });
+  collectJsonObjectsFromText(remainder, objects);
+  return objects;
+}
+
+function responseFromStreamObject(objectPayload: StreamObject, overlay: StreamIdentity): EmporixAIChatResponse | null {
+  if (hasFrontendAgentShape(objectPayload)) {
+    return applyIdentityOverlay(createCapturedResponse(objectPayload, JSON.stringify(objectPayload)), overlay);
+  }
+
+  if (hasPublishedChatResponseShape(objectPayload)) {
+    return applyIdentityOverlay(createCapturedResponse(objectPayload, objectPayload.message), overlay);
+  }
+
+  return null;
+}
+
+function pickAssembledResponse(objects: StreamObject[], overlay: StreamIdentity): EmporixAIChatResponse | null {
+  for (let index = objects.length - 1; index >= 0; index -= 1) {
+    const assembled = responseFromStreamObject(objects[index], overlay);
+    if (assembled) {
+      return assembled;
+    }
+  }
+
+  return null;
+}
+
+function responseFromTextBuffer(textBuffer: string, overlay: StreamIdentity): EmporixAIChatResponse {
+  const assembled = pickAssembledResponse(collectCandidateStreamObjects(textBuffer), overlay);
+  if (assembled) {
+    return assembled;
   }
 
   return {
@@ -187,10 +280,6 @@ type AssemblyState = {
   capturedResponse: EmporixAIChatResponse | null;
   identityOverlay: StreamIdentity;
 };
-
-function isStreamObject(value: unknown): value is StreamObject {
-  return value !== null && typeof value === 'object';
-}
 
 function applyObjectPayload(state: AssemblyState, objectPayload: StreamObject): void {
   if (hasFrontendAgentShape(objectPayload)) {

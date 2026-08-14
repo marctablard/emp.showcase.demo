@@ -130,16 +130,77 @@ describe('assembleEmporixChatStream', () => {
     );
   });
 
-  it('keeps markdown-fenced JSON as plain text when stream payload is not valid JSON', async () => {
-    const markdownFencedJson = '```json\n{"message":"Hello","type":"text"}\n```';
-    const streamBody = `data: \`\`\`json\ndata: {"message":"Hello","type":"text"}\ndata: \`\`\`\n\n`;
+  it('extracts a fenced Frontend Agent envelope when the SSE payload is not one JSON value', async () => {
+    const envelope = { message: 'Hello', type: 'text' };
+    const streamBody = `data: \`\`\`json\ndata: ${JSON.stringify(envelope)}\ndata: \`\`\`\n\n`;
+
+    const assembled = await assembleEmporixChatStream(streamBody);
+
+    expect(assembled).toEqual({
+      agentId: '',
+      agentType: '',
+      message: JSON.stringify(envelope),
+      sessionId: '',
+    });
+    expect(parseAIResponse(assembled.message).message).toBe('Hello');
+  });
+
+  it('keeps markdown that is not a widget envelope as plain text', async () => {
+    const markdown = '```\nnot-json\n```';
+    const streamBody = `data: \`\`\`\ndata: not-json\ndata: \`\`\`\n\n`;
 
     await expect(assembleEmporixChatStream(streamBody)).resolves.toEqual({
       agentId: 'frontendAgent',
       agentType: 'generic',
-      message: markdownFencedJson,
+      message: markdown,
       sessionId: '',
     });
+  });
+
+  it('drops fenced tool JSON and keeps the later Frontend Agent envelope', async () => {
+    const toolQuery = { query: 'pending orders OR open orders', filter: 'NO_FILTER' };
+    const frontendAgentPayload = {
+      agentId: 'frontendAgent',
+      sessionId: 'session-orders',
+      message: 'Here are your current pending orders.',
+      type: 'order_list',
+      data: { orders: [{ orderId: 'EON1605' }], pagination: { page: 1, totalPages: 1, totalItems: 1 } },
+      timestamp: '2024-06-13T10:25:00Z',
+      cartRefresh: false,
+    };
+    const fencedTool = `\`\`\`json\n${JSON.stringify(toolQuery, null, 2)}\n\`\`\``;
+    const envelopeJson = JSON.stringify(frontendAgentPayload, null, 2);
+    const concatenated = `${fencedTool}\n${envelopeJson}`;
+    const contentChunks = [concatenated.slice(0, 40), concatenated.slice(40, 120), concatenated.slice(120)];
+    const streamBody = [
+      toNamedSseEvent(
+        'tool_start',
+        JSON.stringify({ tool_name: 'search_showcasedev__indexedOrders', tool_call_id: 'call-1' }),
+      ),
+      ...contentChunks.map((chunk) => toContentToken(chunk)),
+      toNamedSseEvent(
+        'tool_end',
+        JSON.stringify({ tool_name: 'search_showcasedev__indexedOrders', tool_call_id: 'call-1' }),
+      ),
+      toNamedSseEvent(
+        'done',
+        JSON.stringify({
+          agent_id: 'frontendAgent',
+          agent_type: 'generic',
+          session_id: 'session-orders',
+          tools_used: ['search_showcasedev__indexedOrders'],
+        }),
+      ),
+    ].join('');
+
+    const assembled = await assembleEmporixChatStream(streamBody);
+    const parsed = parseAIResponse(assembled.message);
+
+    expect(assembled.sessionId).toBe('session-orders');
+    expect(assembled.message).toBe(JSON.stringify(frontendAgentPayload));
+    expect(parsed.type).toBe('order_list');
+    expect(parsed.message).toBe('Here are your current pending orders.');
+    expect(parsed.data).toEqual(frontendAgentPayload.data);
   });
 
   it('ignores keepalive comment lines', async () => {

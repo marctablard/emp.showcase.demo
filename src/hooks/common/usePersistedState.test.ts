@@ -128,4 +128,36 @@ describe('usePersistedState', () => {
     expect(result.current[0]).toBe(true);
     expect(localStorage.getItem('test')).toBe('true');
   });
+
+  it('rehydrates from the new key without writing the previous value into it', () => {
+    localStorage.setItem('user-a', '"alpha"');
+    localStorage.setItem('user-b', '"bravo"');
+
+    const { result, rerender } = renderHook(({ key }) => usePersistedState({ key, defaultValue: 'default' }), {
+      initialProps: { key: 'user-a' },
+    });
+
+    expect(result.current[0]).toBe('alpha');
+
+    rerender({ key: 'user-b' });
+
+    expect(result.current[0]).toBe('bravo');
+    expect(localStorage.getItem('user-a')).toBe('"alpha"');
+    expect(localStorage.getItem('user-b')).toBe('"bravo"');
+  });
+
+  it('does not read or write storage when disabled', () => {
+    localStorage.setItem('test', '"stored"');
+
+    const { result } = renderHook(() => usePersistedState({ key: 'test', defaultValue: 'default', enabled: false }));
+
+    expect(result.current[0]).toBe('default');
+
+    act(() => {
+      result.current[1]('in-memory');
+    });
+
+    expect(result.current[0]).toBe('in-memory');
+    expect(localStorage.getItem('test')).toBe('"stored"');
+  });
 });

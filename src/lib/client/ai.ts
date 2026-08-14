@@ -1,19 +1,11 @@
 import type { AIChatContext, AIChatResponse } from '@/platform/integrations/ai/model';
 import type { Session } from '@/platform/services/model/session/session';
 import type { CartStore } from '@/stores/cart-store';
-
-function getOrCreateAISessionId(): string {
-  const stored = localStorage.getItem('ai-session-id');
-  if (stored) {
-    return stored;
-  }
-  const newSessionId = crypto.randomUUID();
-  localStorage.setItem('ai-session-id', newSessionId);
-  return newSessionId;
-}
+import { getOrCreateAISessionId, isAIHelperStorageOwnerId } from './ai-helper-storage';
 
 export async function prepareAIContext(session: Session, cartStore: CartStore): Promise<AIChatContext> {
-  const aiSessionId = getOrCreateAISessionId();
+  const ownerId = isAIHelperStorageOwnerId(session.customerId) ? session.customerId : undefined;
+  const aiSessionId = getOrCreateAISessionId(ownerId);
   await cartStore.fetchCart();
   const currentCart = cartStore.getCurrentCart();
   const freshCartId = currentCart?.id;

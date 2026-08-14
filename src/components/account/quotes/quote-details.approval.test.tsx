@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QuoteDetails } from './quote-details';
 
 class ResizeObserverMock {
@@ -180,8 +180,30 @@ describe('QuoteDetails approval flow', () => {
     ],
   };
 
+  async function flushQuoteApprovalEffect() {
+    await act(async () => {
+      await Promise.resolve();
+      const pending = checkApprovalPermitted.mock.results.at(-1)?.value;
+      if (pending != null) {
+        await Promise.resolve(pending).catch(() => undefined);
+      }
+    });
+  }
+
+  async function renderQuoteDetails(
+    ui: React.ReactElement = <QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />,
+  ) {
+    const view = render(ui);
+    await flushQuoteApprovalEffect();
+    return view;
+  }
+
   beforeEach(() => {
     checkApprovalPermitted.mockReset();
+    checkApprovalPermitted.mockResolvedValue({
+      action: 'CHECKOUT',
+      permitted: true,
+    });
     createApproval.mockReset();
     searchApprovalUsers.mockReset();
     notifyMock.mockReset();
@@ -200,8 +222,8 @@ describe('QuoteDetails approval flow', () => {
     global.fetch = originalFetch;
   });
 
-  it('passes locale and canonical presentation config to the shared product grid', () => {
-    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+  it('passes locale and canonical presentation config to the shared product grid', async () => {
+    await renderQuoteDetails();
 
     expect(mockProductListResolver).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -219,8 +241,8 @@ describe('QuoteDetails approval flow', () => {
     );
   });
 
-  it('stacks header actions one-per-line on mobile (flex-col below sm)', () => {
-    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+  it('stacks header actions one-per-line on mobile (flex-col below sm)', async () => {
+    await renderQuoteDetails();
 
     expect(screen.getByTestId('quote-detail-header')).toHaveClass('flex', 'flex-col', 'sm:flex-row', 'sm:flex-wrap');
     expect(screen.getByTestId('quote-detail-header-actions')).toHaveClass(
@@ -241,7 +263,7 @@ describe('QuoteDetails approval flow', () => {
       approvalId: 'approval-1',
     });
 
-    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+    await renderQuoteDetails();
 
     expect(await screen.findByRole('button', { name: 'account.quoteDetails.goToApproval' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'account.quoteDetails.inquireApproval' })).not.toBeInTheDocument();
@@ -281,7 +303,7 @@ describe('QuoteDetails approval flow', () => {
       },
     ]);
 
-    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+    await renderQuoteDetails();
 
     expect(await screen.findByRole('button', { name: 'account.quoteDetails.inquireApproval' })).toBeInTheDocument();
 
@@ -333,7 +355,7 @@ describe('QuoteDetails approval flow', () => {
       },
     ]);
 
-    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+    await renderQuoteDetails();
 
     fireEvent.click(await screen.findByRole('button', { name: 'account.quoteDetails.inquireApproval' }));
 
@@ -357,7 +379,7 @@ describe('QuoteDetails approval flow', () => {
     ]);
     createApproval.mockResolvedValue({ id: 'approval-1' });
 
-    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+    await renderQuoteDetails();
 
     fireEvent.click(await screen.findByRole('button', { name: 'account.quoteDetails.inquireApproval' }));
     await screen.findByText('checkout.approval.selectApprover');
@@ -395,7 +417,7 @@ describe('QuoteDetails approval flow', () => {
     ]);
     createApproval.mockRejectedValue(new ApprovalAlreadyExistsError('approval-2'));
 
-    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+    await renderQuoteDetails();
 
     fireEvent.click(await screen.findByRole('button', { name: 'account.quoteDetails.inquireApproval' }));
     await screen.findByText('checkout.approval.selectApprover');
@@ -425,7 +447,7 @@ describe('QuoteDetails approval flow', () => {
     ]);
     createApproval.mockRejectedValue(new Error('boom'));
 
-    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+    await renderQuoteDetails();
 
     fireEvent.click(await screen.findByRole('button', { name: 'account.quoteDetails.inquireApproval' }));
     await screen.findByText('checkout.approval.selectApprover');
@@ -451,7 +473,7 @@ describe('QuoteDetails approval flow', () => {
       permitted: true,
     });
 
-    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+    await renderQuoteDetails();
 
     const acceptButton = await screen.findByRole('button', { name: 'account.quoteDetails.accept' });
 
@@ -483,7 +505,7 @@ describe('QuoteDetails approval flow', () => {
       permitted: true,
     });
 
-    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+    await renderQuoteDetails();
 
     const acceptButton = await screen.findByRole('button', { name: 'account.quoteDetails.accept' });
 
@@ -504,7 +526,7 @@ describe('QuoteDetails approval flow', () => {
       permitted: true,
     });
 
-    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+    await renderQuoteDetails();
 
     fireEvent.click(screen.getByRole('button', { name: 'account.quoteDetails.reject' }));
 
@@ -519,7 +541,7 @@ describe('QuoteDetails approval flow', () => {
       permitted: true,
     });
 
-    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+    await renderQuoteDetails();
 
     fireEvent.click(screen.getByRole('button', { name: 'account.quoteDetails.requestChange' }));
 
@@ -541,7 +563,7 @@ describe('QuoteDetails approval flow', () => {
       }),
     });
 
-    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+    await renderQuoteDetails();
 
     const acceptButton = await screen.findByRole('button', { name: 'account.quoteDetails.accept' });
 
@@ -574,7 +596,7 @@ describe('QuoteDetails approval flow', () => {
       permitted: true,
     });
 
-    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+    await renderQuoteDetails();
 
     await waitFor(() => {
       expect(checkApprovalPermitted).toHaveBeenCalledWith({
@@ -610,7 +632,7 @@ describe('QuoteDetails approval flow', () => {
       permitted: true,
     });
 
-    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+    await renderQuoteDetails();
 
     await waitFor(() => {
       expect(checkApprovalPermitted).toHaveBeenCalledWith({
@@ -650,13 +672,14 @@ describe('QuoteDetails approval flow', () => {
       permitted: false,
     });
 
-    const { rerender } = render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+    const { rerender } = await renderQuoteDetails();
 
     expect(await screen.findByRole('button', { name: 'account.quoteDetails.inquireApproval' })).toBeInTheDocument();
     expect(checkApprovalPermitted).toHaveBeenCalledTimes(1);
 
     const acceptedQuote = { ...initialQuote, status: 'ACCEPTED' };
     rerender(<QuoteDetails quoteId="Q-1000" initialQuote={acceptedQuote as never} />);
+    await flushQuoteApprovalEffect();
 
     expect(screen.queryByRole('button', { name: 'account.quoteDetails.inquireApproval' })).not.toBeInTheDocument();
 
@@ -693,7 +716,7 @@ describe('QuoteDetails approval flow', () => {
       updatedAt: '2026-05-31T10:00:00.000Z',
     };
 
-    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+    await renderQuoteDetails();
 
     const relatedApprovalLink = await screen.findByRole('link', { name: 'approval-ellipsis-1' });
     expect(relatedApprovalLink).toHaveAttribute('href', '/account/approvals/approval-ellipsis-1');
@@ -704,8 +727,8 @@ describe('QuoteDetails approval flow', () => {
     expect(screen.queryByRole('button', { name: 'account.quoteDetails.inquireApproval' })).not.toBeInTheDocument();
   });
 
-  it('only shows a sort control on Change Date and defaults Quote History to DESC', () => {
-    render(<QuoteDetails quoteId="Q-1000" initialQuote={initialQuote as never} />);
+  it('only shows a sort control on Change Date and defaults Quote History to DESC', async () => {
+    await renderQuoteDetails();
 
     const sortButton = screen.getByTestId('quote-history-sort-change-date');
     expect(sortButton.parentElement).toHaveAttribute('aria-sort', 'descending');

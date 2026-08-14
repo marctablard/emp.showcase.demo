@@ -204,4 +204,21 @@ describe('useAuthentication login', () => {
       forcePrefix: true,
     });
   });
+
+  it('clears leftover unscoped AI Helper transcript on login (COP-6181)', async () => {
+    localStorage.setItem('ai-session-id', 'session-a');
+    localStorage.setItem('ai-helper-chat-messages', '[{"content":"secret"}]');
+    localStorage.setItem('ai-helper-chat-mode', 'true');
+
+    const { result } = renderHook(() => useAuthentication());
+
+    await act(async () => {
+      const success = await result.current.login('john@example.com', 'secret');
+      expect(success).toBe(true);
+    });
+
+    expect(localStorage.getItem('ai-session-id')).toBeNull();
+    expect(localStorage.getItem('ai-helper-chat-messages')).toBeNull();
+    expect(localStorage.getItem('ai-helper-chat-mode')).toBeNull();
+  });
 });

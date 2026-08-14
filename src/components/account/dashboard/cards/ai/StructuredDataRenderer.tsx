@@ -93,7 +93,7 @@ export const StructuredDataRenderer: React.FC<StructuredDataRendererProps> = ({ 
       return <HTMLRenderer data={data as HTMLData} />;
 
     case 'text':
-      // For text type, only the message content should be displayed
+      // Intro + nested data.message are rendered by ChatMessage.
       return null;
 
     case 'error':
