@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { PriceFetchOptions } from '@/platform/services/price/PriceService';
-import type { ProductService } from '@/platform/services/product/ProductService';
+import type { SearchService } from '@/platform/services/search/SearchService';
 
 /**
  * API endpoint to get a specific product by ID
@@ -31,8 +31,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   try {
-    const productService = server.get<ProductService>('ProductService');
-    const product = await productService.getProductById(productId, {
+    const searchService = server.get<SearchService>('SearchService');
+    const product = await searchService.getCatalogProductById(productId, {
       variants: includeVariants,
       prices: includePrices ? priceOptions : false,
       categories: includeCategories,

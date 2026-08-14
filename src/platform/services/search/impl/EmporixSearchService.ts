@@ -323,6 +323,15 @@ class EmporixSearchService implements SearchService {
   ): Promise<Product[]> {
     return [];
   }
+
+  async getCatalogProductById(
+    id: string,
+    options?: ProductFetchOptions,
+    _locale?: string,
+    _site?: string,
+  ): Promise<Product | undefined> {
+    return this.productService.getProductById(id, options);
+  }
 }
 
 export default EmporixSearchService;

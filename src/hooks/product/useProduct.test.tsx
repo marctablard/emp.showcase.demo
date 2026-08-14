@@ -205,8 +205,7 @@ describe('useProduct hook', () => {
     expect(storeResult.current.getCurrentProduct()).toEqual(mockProduct);
   });
 
-  test('should use cached product from store if available', async () => {
-    // Create a shared store
+  test('id-only still fetches when sessionPricingKey is ready even if ProductStore already has that id', async () => {
     const sharedStore = createProductStore();
     const historyStore = createHistoryStore();
     const sessionStore = createSessionStore({
@@ -224,18 +223,23 @@ describe('useProduct hook', () => {
       </SessionStoreContext.Provider>
     );
 
-    // First, add a product to the store
     const { result: storeResult } = renderHook(() => useProductStore(), { wrapper: customWrapper });
 
     await act(async () => {
       storeResult.current.addProduct(mockProduct);
     });
 
-    // Now, render the useProduct hook with the same product ID
+    const fetchedProduct = { ...mockProduct, name: 'Fetched despite store cache' };
+    (fetchProductById as jest.Mock).mockResolvedValue(fetchedProduct);
+
     const { result: hookResult } = renderHook(() => useProduct('test-product-123'), { wrapper: customWrapper });
 
-    // Product should be immediately available without loading
-    expect(hookResult.current.loading).toBe(false);
+    await waitFor(() => {
+      expect(hookResult.current.loading).toBe(false);
+    });
+
+    expect(fetchProductById).toHaveBeenCalledWith('test-product-123', undefined, 'main|USD');
+    expect(hookResult.current.product).toEqual(fetchedProduct);
   });
 
   test('should set error when session is irrecoverably null', async () => {
@@ -365,31 +369,26 @@ describe('useProduct hook', () => {
       );
     };
 
-    test('preserves SSR-seeded product when session-driven pricing refetch rejects', async () => {
+    test('does not catalog-refetch when hook argument is an SSR Product object with ready session', async () => {
       const sessionStore = createSessionStore({
         session: readySession,
         loading: false,
       });
       const customWrapper = createBootstrapWrapper(sessionStore);
-      const refetchError = new Error('pricing refetch failed');
-      (fetchProductById as jest.Mock).mockRejectedValue(refetchError);
+      (fetchProductById as jest.Mock).mockRejectedValue(new Error('should not be called'));
 
       const { result } = renderHook(() => useProduct(ssrProductWithoutPrice, publicProductOptions), {
         wrapper: customWrapper,
       });
 
-      await waitFor(() => {
-        expect(result.current.loading).toBe(false);
-      });
-
-      // Must not leave ProductDetail Not Found–eligible state (product null + not loading)
+      expect(result.current.loading).toBe(false);
       expect(result.current.product).not.toBeNull();
       expect(result.current.product?.id).toBe(ssrProductWithoutPrice.id);
-      expect(result.current.error).not.toBeNull();
-      expect(fetchProductById).toHaveBeenCalled();
+      expect(result.current.error).toBe(null);
+      expect(fetchProductById).not.toHaveBeenCalled();
     });
 
-    test('preserves SSR-seeded product when session-driven pricing refetch returns null', async () => {
+    test('does not catalog-refetch when sessionPricingKey changes for an SSR Product object', async () => {
       const sessionStore = createSessionStore({
         session: readySession,
         loading: false,
@@ -401,30 +400,35 @@ describe('useProduct hook', () => {
         wrapper: customWrapper,
       });
 
-      await waitFor(() => {
-        expect(result.current.loading).toBe(false);
+      expect(fetchProductById).not.toHaveBeenCalled();
+      expect(result.current.loading).toBe(false);
+
+      await act(async () => {
+        sessionStore.getState().setSession({ ...readySession, currency: 'EUR' });
       });
 
+      expect(result.current.loading).toBe(false);
       expect(result.current.product).not.toBeNull();
       expect(result.current.product?.id).toBe(ssrProductWithoutPrice.id);
-      expect(result.current.error).not.toBeNull();
-      expect(fetchProductById).toHaveBeenCalled();
+      expect(result.current.error).toBe(null);
+      expect(fetchProductById).not.toHaveBeenCalled();
     });
 
-    test('preserves SSR seed when sessionPricingKey is introduced after cold start and refetch fails', async () => {
+    test('does not catalog-refetch when sessionPricingKey is introduced after cold start for an SSR Product object', async () => {
       const sessionStore = createSessionStore({
         // Incomplete session — no siteCode/currency yet (sessionPricingKey empty)
         session: { id: 'cold-incomplete', customerId: 'ANONYMOUS' },
         loading: true,
       });
       const customWrapper = createBootstrapWrapper(sessionStore);
-      (fetchProductById as jest.Mock).mockRejectedValue(new Error('cold pricing refetch failed'));
+      (fetchProductById as jest.Mock).mockRejectedValue(new Error('should not be called'));
 
       const { result } = renderHook(() => useProduct(ssrProductWithoutPrice, publicProductOptions), {
         wrapper: customWrapper,
       });
 
       expect(result.current.product?.id).toBe(ssrProductWithoutPrice.id);
+      expect(result.current.loading).toBe(false);
       expect(fetchProductById).not.toHaveBeenCalled();
 
       await act(async () => {
@@ -432,14 +436,35 @@ describe('useProduct hook', () => {
         sessionStore.getState().setLoading(false);
       });
 
-      await waitFor(() => {
-        expect(result.current.loading).toBe(false);
-      });
-
+      expect(result.current.loading).toBe(false);
       expect(result.current.product).not.toBeNull();
       expect(result.current.product?.id).toBe(ssrProductWithoutPrice.id);
-      expect(result.current.error).not.toBeNull();
-      expect(fetchProductById).toHaveBeenCalled();
+      expect(result.current.error).toBe(null);
+      expect(fetchProductById).not.toHaveBeenCalled();
+    });
+
+    test('explicit refetch still fetches for an SSR Product object seed', async () => {
+      const sessionStore = createSessionStore({
+        session: readySession,
+        loading: false,
+      });
+      const customWrapper = createBootstrapWrapper(sessionStore);
+      const refetchedProduct = { ...ssrProductWithoutPrice, name: 'Refetched catalog product' };
+      (fetchProductById as jest.Mock).mockResolvedValue(refetchedProduct);
+
+      const { result } = renderHook(() => useProduct(ssrProductWithoutPrice, publicProductOptions), {
+        wrapper: customWrapper,
+      });
+
+      expect(fetchProductById).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await result.current.refetch();
+      });
+
+      expect(fetchProductById).toHaveBeenCalledWith(ssrProductWithoutPrice.id, publicProductOptions, 'main|USD');
+      expect(result.current.product?.name).toBe(refetchedProduct.name);
+      expect(result.current.loading).toBe(false);
     });
 
     test('session-null fail-safe does not strand SSR-seeded product as null without loading', async () => {

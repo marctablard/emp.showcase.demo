@@ -1653,4 +1653,274 @@ describe('BatteryIncludedSearchService', () => {
     expect(shopApi.getHighlights).not.toHaveBeenCalled();
     expect(shopApi.getRecommendations).not.toHaveBeenCalled();
   });
+
+  describe('getCatalogProductById', () => {
+    const emptyBrowse = { hits: [], found: 0, page: 1, size: 1, facet_counts: [] };
+    const logger = {
+      trace: jest.fn(),
+      debug: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      fatal: jest.fn(),
+    };
+
+    function createService(overrides?: {
+      browse?: jest.Mock;
+      session?: Record<string, unknown> | null;
+      mapToService?: jest.Mock;
+      addAdditionalData?: jest.Mock;
+      getProductById?: jest.Mock;
+      rootIds?: string[];
+    }) {
+      const shopApi = {
+        browse: overrides?.browse ?? jest.fn().mockResolvedValue(emptyBrowse),
+        suggest: jest.fn(),
+        getHighlights: jest.fn(),
+        getRecommendations: jest.fn(),
+        getPresets: jest.fn(),
+      };
+      const productMapper = {
+        mapToService:
+          overrides?.mapToService ??
+          jest.fn().mockImplementation((product: { id?: string; _product?: { id?: string } }) => ({
+            id: product.id ?? product._product?.id,
+          })),
+      };
+      const productService = {
+        addAdditionalData: overrides?.addAdditionalData ?? jest.fn(async (products: unknown) => products),
+        getProductById: overrides?.getProductById ?? jest.fn(),
+      };
+      const service = new BatteryIncludedSearchService(
+        shopApi as never,
+        productMapper as never,
+        {
+          getCurrent: jest
+            .fn()
+            .mockResolvedValue(
+              overrides?.session ?? { siteCode: 'main', language: 'en', country: 'DE', currency: 'EUR' },
+            ),
+        } as never,
+        productService as never,
+        { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
+        { getCustomer: jest.fn().mockResolvedValue(null) } as never,
+        { getSnapshot: jest.fn() } as never,
+        { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(overrides?.rootIds ?? ['root-a']) } as never,
+        { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }) } as never,
+        logger as never,
+      );
+      return { service, shopApi, productMapper, productService };
+    }
+
+    it('browses by _product.id with visibility merge, maps the hit, and enriches without Product GET', async () => {
+      const document = { id: 'sku-123', _product: { id: 'sku-123' } };
+      const { service, shopApi, productMapper, productService } = createService({
+        browse: jest.fn().mockResolvedValue({
+          hits: [{ document }],
+          found: 1,
+          page: 1,
+          size: 1,
+          facet_counts: [],
+        }),
+      });
+
+      const result = await service.getCatalogProductById('sku-123', undefined, 'en', 'main');
+
+      expect(shopApi.browse).toHaveBeenCalledTimes(1);
+      expect(shopApi.browse).toHaveBeenCalledWith(
+        expect.objectContaining({
+          page: 1,
+          size: 1,
+          variants: 0,
+          analyze: 0,
+          visibility: expect.objectContaining({
+            variables: expect.objectContaining({
+              locale: 'en',
+              siteAware: 'main',
+            }),
+            filters: expect.objectContaining({
+              '_product.id': 'sku-123',
+              '_product.published': 'true',
+              '_product.categoryIds': ['root-a'],
+            }),
+          }),
+        }),
+      );
+      expect(productMapper.mapToService).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'sku-123',
+          __batteryIncludedSelection: {
+            siteAware: 'main',
+            currencyAware: 'EUR',
+          },
+        }),
+      );
+      expect(productService.addAdditionalData).toHaveBeenCalledWith([expect.objectContaining({ id: 'sku-123' })], {
+        prices: false,
+        variants: false,
+        categories: false,
+      });
+      expect(productService.getProductById).not.toHaveBeenCalled();
+      expect(result).toEqual(expect.objectContaining({ id: 'sku-123' }));
+    });
+
+    it('uses session language and siteCode for visibility variables when locale/site args are omitted', async () => {
+      const document = { id: 'sku-123', _product: { id: 'sku-123' } };
+      const { service, shopApi } = createService({
+        session: { language: 'de', siteCode: 'preview', country: 'AT', currency: 'EUR' },
+        browse: jest.fn().mockResolvedValue({
+          hits: [{ document }],
+          found: 1,
+          page: 1,
+          size: 1,
+          facet_counts: [],
+        }),
+      });
+
+      await service.getCatalogProductById('sku-123');
+
+      expect(shopApi.browse).toHaveBeenCalledWith(
+        expect.objectContaining({
+          visibility: expect.objectContaining({
+            variables: expect.objectContaining({
+              locale: 'de',
+              siteAware: 'preview',
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('accepts a _product.id match even when the mapped product id differs', async () => {
+      const document = { id: 'index-xyz', _product: { id: 'sku-123' } };
+      const { service, shopApi, productService } = createService({
+        browse: jest.fn().mockResolvedValue({
+          hits: [{ document }],
+          found: 1,
+          page: 1,
+          size: 1,
+          facet_counts: [],
+        }),
+        mapToService: jest.fn().mockImplementation((product: { id?: string }) => ({ id: product.id })),
+      });
+
+      const result = await service.getCatalogProductById('sku-123', undefined, 'en', 'main');
+
+      expect(shopApi.browse).toHaveBeenCalledTimes(1);
+      expect(productService.getProductById).not.toHaveBeenCalled();
+      expect(result).toEqual(expect.objectContaining({ id: 'index-xyz' }));
+    });
+
+    it('retries once with filter id when _product.id browse has no matching hit', async () => {
+      const retryDocument = { id: 'sku-123', _product: { id: 'other' } };
+      const browse = jest
+        .fn()
+        .mockResolvedValueOnce(emptyBrowse)
+        .mockResolvedValueOnce({
+          hits: [{ document: retryDocument }],
+          found: 1,
+          page: 1,
+          size: 1,
+          facet_counts: [],
+        });
+      const { service, shopApi, productService } = createService({ browse });
+
+      const result = await service.getCatalogProductById('sku-123', undefined, 'en', 'main');
+
+      expect(shopApi.browse).toHaveBeenCalledTimes(2);
+      expect(shopApi.browse).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          visibility: expect.objectContaining({
+            filters: expect.objectContaining({ '_product.id': 'sku-123' }),
+          }),
+        }),
+      );
+      expect(shopApi.browse).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          visibility: expect.objectContaining({
+            filters: expect.objectContaining({ id: 'sku-123' }),
+          }),
+        }),
+      );
+      expect(productService.getProductById).not.toHaveBeenCalled();
+      expect(result).toEqual(expect.objectContaining({ id: 'sku-123' }));
+    });
+
+    it('returns undefined without Product GET when both id filters return empty', async () => {
+      const { service, shopApi, productService } = createService();
+
+      const result = await service.getCatalogProductById('missing', undefined, 'en', 'main');
+
+      expect(shopApi.browse).toHaveBeenCalledTimes(2);
+      expect(productService.getProductById).not.toHaveBeenCalled();
+      expect(productService.addAdditionalData).not.toHaveBeenCalled();
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined without browsing when published roots are empty', async () => {
+      const { service, shopApi, productService } = createService({ rootIds: [] });
+
+      const result = await service.getCatalogProductById('sku-123', undefined, 'en', 'main');
+
+      expect(shopApi.browse).not.toHaveBeenCalled();
+      expect(productService.getProductById).not.toHaveBeenCalled();
+      expect(result).toBeUndefined();
+    });
+
+    it('forwards caller commerce options onto addAdditionalData defaults', async () => {
+      const document = { id: 'sku-123', _product: { id: 'sku-123' } };
+      const { service, productService } = createService({
+        browse: jest.fn().mockResolvedValue({
+          hits: [{ document }],
+          found: 1,
+          page: 1,
+          size: 1,
+          facet_counts: [],
+        }),
+      });
+
+      await service.getCatalogProductById('sku-123', { prices: true }, 'en', 'main');
+
+      expect(productService.addAdditionalData).toHaveBeenCalledWith([expect.objectContaining({ id: 'sku-123' })], {
+        prices: true,
+        variants: false,
+        categories: false,
+      });
+    });
+
+    it('omits BI snapshot price and availability for prices=false catalog identities', async () => {
+      const document = { id: 'sku-123', _product: { id: 'sku-123' } };
+      const mapToService = jest.fn().mockReturnValue({
+        id: 'sku-123',
+        price: { currency: 'EUR', amount: 79 },
+        availability: { isAvailable: true, availableQuantity: 5 },
+      });
+      const { service, productService } = createService({
+        browse: jest.fn().mockResolvedValue({
+          hits: [{ document }],
+          found: 1,
+          page: 1,
+          size: 1,
+          facet_counts: [],
+        }),
+        mapToService,
+      });
+
+      const result = await service.getCatalogProductById('sku-123', { prices: false }, 'en', 'main');
+
+      expect(productService.addAdditionalData).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({
+            id: 'sku-123',
+            price: undefined,
+            availability: undefined,
+          }),
+        ],
+        { prices: false, variants: false, categories: false },
+      );
+      expect(result).toEqual(expect.objectContaining({ id: 'sku-123', price: undefined, availability: undefined }));
+    });
+  });
 });

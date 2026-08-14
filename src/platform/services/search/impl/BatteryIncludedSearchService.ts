@@ -11,7 +11,11 @@ import type { BatteryIncludedVisibilityFilters } from '@/platform/integrations/b
 import type { BatteryIncludedProduct } from '@/platform/integrations/batteryincluded/model/product';
 import type { BatteryIncludedShopApi } from '@/platform/integrations/batteryincluded/shop/BatteryIncludedShopApi';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { BATTERY_INCLUDED_BREADCRUMB_FILTER } from '@/platform/services/model/category/batteryincluded-category';
+import {
+  BATTERY_INCLUDED_BREADCRUMB_FILTER,
+  BATTERY_INCLUDED_INDEX_ITEM_ID_FILTER,
+  BATTERY_INCLUDED_PRODUCT_ID_FILTER,
+} from '@/platform/services/model/category/batteryincluded-category';
 import type {
   BatteryIncludedFacet,
   BatteryIncludedFacetOption,
@@ -23,7 +27,7 @@ import type {
   SearchSortOption,
 } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
-import type { ProductService } from '@/platform/services/product/ProductService';
+import type { ProductFetchOptions, ProductService } from '@/platform/services/product/ProductService';
 import type { BatteryIncludedCategoryTreeService } from '@/platform/services/search/BatteryIncludedCategoryTreeService';
 import type { SearchService } from '@/platform/services/search/SearchService';
 import type { SiteService } from '@/platform/services/site/SiteService';
@@ -192,6 +196,58 @@ class BatteryIncludedSearchService implements SearchService {
         ...(currencyAware ? { currencyAware } : {}),
       },
     };
+  }
+
+  private catalogDocumentMatchesUrlId(
+    document: BatteryIncludedProduct,
+    mappedProductId: string,
+    urlId: string,
+  ): boolean {
+    const indexedProductId =
+      document._product?.id !== undefined && document._product?.id !== null ? String(document._product.id) : undefined;
+    return indexedProductId === urlId || mappedProductId === urlId;
+  }
+
+  private async browseCatalogProductByIdFilter(
+    id: string,
+    idFilterField: string,
+    publishedRootIds: string[],
+    visibilityVariables: ReturnType<typeof buildBatteryIncludedVisibilityVariables>,
+    resolvedSite?: string,
+    currentCurrency?: string,
+  ): Promise<Product | undefined> {
+    const visibilityFilters =
+      mergeBatteryIncludedVisibilityFilters(
+        BatteryIncludedFacetsQueryBuilder.build({ [idFilterField]: id }) as SearchFilters | undefined,
+        publishedRootIds,
+      ) ?? undefined;
+
+    if (!visibilityFilters) {
+      return undefined;
+    }
+
+    const searchResult: BatteryIncludedSearchResponse<BatteryIncludedProduct> = await this.shopApi.browse({
+      page: 1,
+      size: 1,
+      variants: 0,
+      analyze: 0,
+      visibility: {
+        variables: visibilityVariables,
+        filters: visibilityFilters,
+      },
+    });
+
+    const matchingProducts: Product[] = [];
+    for (const hit of searchResult.hits) {
+      const mapped = this.productMapper.mapToService(
+        this.attachSelectionContext(hit.document, resolvedSite, currentCurrency),
+      );
+      if (this.catalogDocumentMatchesUrlId(hit.document, mapped.id, id)) {
+        matchingProducts.push(mapped);
+      }
+    }
+
+    return matchingProducts.length === 1 ? matchingProducts[0] : undefined;
   }
 
   private attachSuggestionSelectionContext(
@@ -710,6 +766,65 @@ class BatteryIncludedSearchService implements SearchService {
       .map((product) =>
         this.productMapper.mapToService(this.attachSelectionContext(product.document, resolvedSite, currentCurrency)),
       );
+  }
+
+  async getCatalogProductById(
+    id: string,
+    options?: ProductFetchOptions,
+    locale?: string,
+    site?: string,
+  ): Promise<Product | undefined> {
+    const session = await this.sessionService.getCurrent();
+    const { resolvedSite, currentCurrency, visibilityVariables, publishedRootIds } =
+      await this.resolveBatteryIncludedContext({
+        locale: locale ?? session?.language,
+        site: site ?? session?.siteCode,
+      });
+
+    if (publishedRootIds.length === 0) {
+      return undefined;
+    }
+
+    const mapped =
+      (await this.browseCatalogProductByIdFilter(
+        id,
+        BATTERY_INCLUDED_PRODUCT_ID_FILTER,
+        publishedRootIds,
+        visibilityVariables,
+        resolvedSite,
+        currentCurrency,
+      )) ??
+      (await this.browseCatalogProductByIdFilter(
+        id,
+        BATTERY_INCLUDED_INDEX_ITEM_ID_FILTER,
+        publishedRootIds,
+        visibilityVariables,
+        resolvedSite,
+        currentCurrency,
+      ));
+
+    if (!mapped) {
+      return undefined;
+    }
+
+    const includePrices = options?.prices ?? false;
+    const catalogIdentitySeed =
+      includePrices === false
+        ? {
+            ...mapped,
+            price: undefined,
+            availability: undefined,
+          }
+        : mapped;
+
+    const [enriched] = await this.productService.addAdditionalData([catalogIdentitySeed], {
+      prices: false,
+      variants: false,
+      categories: false,
+      ...options,
+    });
+
+    return enriched;
   }
 }
 

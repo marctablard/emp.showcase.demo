@@ -66,7 +66,8 @@ export const cacheRules: CacheRule[] = [
 ## What the middleware sets
 
 - **`Cache-Control`**
-  - includes `s-maxage=<revalidate>` and `stale-while-revalidate=<2x revalidate>`
+  - when `revalidate` is positive: `s-maxage=<revalidate>` and `stale-while-revalidate=<2x revalidate>`
+  - when `revalidate` is `0` or negative: `private, no-store` (no `s-maxage`, no SWR)
 - **`X-Cache-Tags`**
   - tags after capture group substitution
 
@@ -83,6 +84,31 @@ export const cacheRules: CacheRule[] = [
   },
 }
 ```
+
+### Product catalog API
+
+Catalog JSON (`/api/products/(.*)`) is `revalidate: 0` so the middleware emits `private, no-store` (no `s-maxage=3600`, no SWR 7200). Variants and availability under that catch-all inherit no-store.
+
+The more specific `/api/products/(.*)/price` rule stays `revalidate: 0` (no-store) and is listed **before** the catch-all so first-match still applies to Price Service.
+
+```ts
+{
+  url: '/api/products/(.*)/price',
+  cache: {
+    revalidate: 0,
+    tags: [],
+  },
+},
+{
+  url: '/api/products/(.*)',
+  cache: {
+    revalidate: 0,
+    tags: ['product-$1'],
+  },
+},
+```
+
+This HTTP no-store on catalog JSON is independent of `DEFAULT_CACHE_REVALIDATE` / Emporix Product GET Data Cache.
 
 ### Browse API
 
