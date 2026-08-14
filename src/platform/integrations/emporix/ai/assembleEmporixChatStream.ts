@@ -182,59 +182,78 @@ function assertNonEmptyMessage(response: EmporixAIChatResponse): EmporixAIChatRe
   return response;
 }
 
-export async function assembleEmporixChatStream(source: StreamSource): Promise<EmporixAIChatResponse> {
-  const rawStream = await readSource(source);
-  const payloads = parseEventPayloads(rawStream);
+type AssemblyState = {
+  textBuffer: string;
+  capturedResponse: EmporixAIChatResponse | null;
+  identityOverlay: StreamIdentity;
+};
 
-  let textBuffer = '';
-  let capturedResponse: EmporixAIChatResponse | null = null;
-  let identityOverlay: StreamIdentity = EMPTY_IDENTITY;
+function isStreamObject(value: unknown): value is StreamObject {
+  return value !== null && typeof value === 'object';
+}
 
-  for (const payload of payloads) {
-    try {
-      const parsed = JSON.parse(payload) as unknown;
+function applyObjectPayload(state: AssemblyState, objectPayload: StreamObject): void {
+  if (hasFrontendAgentShape(objectPayload)) {
+    state.capturedResponse = createCapturedResponse(objectPayload, JSON.stringify(objectPayload));
+    return;
+  }
 
-      if (typeof parsed === 'string') {
-        textBuffer += parsed;
-        continue;
-      }
+  if (hasPublishedChatResponseShape(objectPayload)) {
+    state.capturedResponse = createCapturedResponse(objectPayload, objectPayload.message);
+    return;
+  }
 
-      if (!parsed || typeof parsed !== 'object') {
-        continue;
-      }
+  if (hasTokenContent(objectPayload)) {
+    state.textBuffer += objectPayload.content;
+    return;
+  }
 
-      const objectPayload = parsed as StreamObject;
+  if (hasIdentityField(objectPayload)) {
+    state.identityOverlay = mergeIdentity(state.identityOverlay, mapIdentity(objectPayload));
+  }
+}
 
-      if (hasFrontendAgentShape(objectPayload)) {
-        capturedResponse = createCapturedResponse(objectPayload, JSON.stringify(objectPayload));
-        continue;
-      }
+function consumePayload(state: AssemblyState, payload: string): void {
+  try {
+    const parsed = JSON.parse(payload) as unknown;
 
-      if (hasPublishedChatResponseShape(objectPayload)) {
-        capturedResponse = createCapturedResponse(objectPayload, objectPayload.message);
-        continue;
-      }
-
-      if (hasTokenContent(objectPayload)) {
-        textBuffer += objectPayload.content;
-        continue;
-      }
-
-      if (hasIdentityField(objectPayload)) {
-        identityOverlay = mergeIdentity(identityOverlay, mapIdentity(objectPayload));
-      }
-    } catch {
-      textBuffer += payload;
+    if (typeof parsed === 'string') {
+      state.textBuffer += parsed;
+      return;
     }
+
+    if (isStreamObject(parsed)) {
+      applyObjectPayload(state, parsed);
+    }
+  } catch {
+    state.textBuffer += payload;
+  }
+}
+
+function finishAssembly(state: AssemblyState): EmporixAIChatResponse {
+  if (state.capturedResponse) {
+    return assertNonEmptyMessage(applyIdentityOverlay(state.capturedResponse, state.identityOverlay));
   }
 
-  if (capturedResponse) {
-    return assertNonEmptyMessage(applyIdentityOverlay(capturedResponse, identityOverlay));
-  }
-
-  if (textBuffer !== '') {
-    return assertNonEmptyMessage(responseFromTextBuffer(textBuffer, identityOverlay));
+  if (state.textBuffer !== '') {
+    return assertNonEmptyMessage(responseFromTextBuffer(state.textBuffer, state.identityOverlay));
   }
 
   throw new Error('AI stream did not contain a message');
+}
+
+export async function assembleEmporixChatStream(source: StreamSource): Promise<EmporixAIChatResponse> {
+  const rawStream = await readSource(source);
+  const payloads = parseEventPayloads(rawStream);
+  const state: AssemblyState = {
+    textBuffer: '',
+    capturedResponse: null,
+    identityOverlay: EMPTY_IDENTITY,
+  };
+
+  for (const payload of payloads) {
+    consumePayload(state, payload);
+  }
+
+  return finishAssembly(state);
 }
