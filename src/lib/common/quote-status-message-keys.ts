@@ -1,4 +1,4 @@
-import { isQuoteStatusValue } from '@/lib/common/status-tag-variants';
+import { isQuoteStatusValue, normalizeStatusKey } from '@/lib/common/status-tag-variants';
 import type { QuoteStatus } from '@/platform/services/model/quote';
 
 /**
@@ -35,10 +35,10 @@ export const QUOTE_STATUS_TO_MESSAGE_KEY: Record<QuoteStatus, QuoteStatusMessage
   DECLINE: 'decline',
 };
 
-export function getQuoteStatusDisplayLabel(status: string, translate: (key: QuoteStatusMessageKey) => string): string {
-  const normalized = (status || '').toUpperCase().replace(/-/g, '_');
+export function getQuoteStatusDisplayLabel(status: unknown, translate: (key: QuoteStatusMessageKey) => string): string {
+  const normalized = normalizeStatusKey(status);
   if (!isQuoteStatusValue(normalized)) {
-    return status;
+    return typeof status === 'string' ? status : normalized;
   }
   const key = QUOTE_STATUS_TO_MESSAGE_KEY[normalized as QuoteStatus];
   return translate(key);

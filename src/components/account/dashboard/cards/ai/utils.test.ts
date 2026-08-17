@@ -103,6 +103,17 @@ describe('formatDate', () => {
   it('should handle ISO date strings', () => {
     expect(formatDate('2024-01-15T10:30:00Z')).toBe('Jan 15, 2024');
   });
+
+  it('should return N/A when the date is missing or not a date', () => {
+    expect(formatDate(undefined)).toBe('N/A');
+    expect(formatDate(null)).toBe('N/A');
+    expect(formatDate({ iso: '2024-01-15' })).toBe('N/A');
+    expect(formatDate(new Date('invalid'))).toBe('N/A');
+  });
+
+  it('should return the raw string when it cannot be parsed', () => {
+    expect(formatDate('not-a-date')).toBe('not-a-date');
+  });
 });
 
 describe('formatDateTime', () => {
@@ -174,6 +185,16 @@ describe('getQuoteStatusBadgeVariantForAi', () => {
 
   it('should return outline for unknown status', () => {
     expect(getQuoteStatusBadgeVariantForAi('UNKNOWN')).toBe('outline');
+  });
+
+  it('should return outline when status is not a string', () => {
+    expect(getQuoteStatusBadgeVariantForAi(2)).toBe('outline');
+    expect(getQuoteStatusBadgeVariantForAi({ code: 'OPEN' })).toBe('outline');
+    expect(getQuoteStatusBadgeVariantForAi(null)).toBe('outline');
+  });
+
+  it('should read Emporix status objects', () => {
+    expect(getQuoteStatusBadgeVariantForAi({ value: 'OPEN' })).toBe('information');
   });
 });
 
