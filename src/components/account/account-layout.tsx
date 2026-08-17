@@ -220,8 +220,13 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
             {/* Backdrop - closes the sidebar when clicked */}
             <div className="fixed inset-0 z-40 bg-black/20" onClick={toggleSidebarOffcanvas} aria-hidden="true" />
 
-            {/* Off-canvas Panel */}
-            <div className="fixed left-0 top-0 h-[calc(100vh-58px)] max-w-[320px] w-full bg-surface-page z-50 overflow-y-auto shadow-lg">
+            {/*
+              COP-4998: pin the phone drawer from the top of the screen to the 58px
+              HeaderMobile bar using 100dvh / bottom-[58px], not 100vh. Last My Account
+              items (including Logout) must stay reachable above the z-60 bottom chrome;
+              overscroll-contain limits iOS snap-back.
+            */}
+            <div className="fixed left-0 top-0 bottom-[58px] h-[calc(100dvh-58px)] max-w-[320px] w-full bg-surface-page z-50 overflow-y-auto overscroll-contain shadow-lg">
               <div className="flex justify-end p-4">
                 <Button variant="link" size="icon" onClick={toggleSidebarOffcanvas} className="text-black">
                   <X />

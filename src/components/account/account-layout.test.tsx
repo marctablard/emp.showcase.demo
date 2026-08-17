@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import '@testing-library/jest-dom';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { breakpoints } from '@/hooks/useBreakpoint';
 import { AccountLayout } from './account-layout';
 
@@ -68,23 +68,61 @@ describe('AccountLayout responsive sidebar/mobile-menu switching', () => {
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
   });
 
+  it('opens the Account Menu drawer above the 58px bar so Logout is present (COP-4998)', () => {
+    setViewportWidth(breakpoints.sm - 1);
+
+    const { container } = render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'sidebar.menu' }));
+
+    expect(screen.getByRole('button', { name: 'logout' })).toBeInTheDocument();
+
+    const nav = screen.getByRole('navigation');
+    const panel = nav.parentElement;
+    expect(panel).toHaveClass('bottom-[58px]');
+    expect(panel).toHaveClass('h-[calc(100dvh-58px)]');
+    expect(panel).toHaveClass('overflow-y-auto');
+    expect(panel).toHaveClass('overscroll-contain');
+    expect(panel?.className).not.toMatch(/h-\[[^\]]*100vh/);
+    expect(nav).not.toHaveClass('overflow-y-auto');
+    expect(nav).not.toHaveClass('max-h-[calc(100dvh-11rem)]');
+
+    const row = container.querySelector('.flex.items-start');
+    expect(row).not.toHaveClass('min-h-screen');
+  });
+
   it('shows the persistent rail at 180px from the sm boundary (768px), without the mobile button', () => {
     setViewportWidth(breakpoints.sm);
 
-    render(
+    const { container } = render(
       <AccountLayout>
         <div>content</div>
       </AccountLayout>,
     );
 
     expect(screen.queryByRole('button', { name: 'sidebar.menu' })).not.toBeInTheDocument();
-    expect(screen.getByRole('navigation')).toHaveClass('min-w-[180px]');
+    const sidebar = screen.getByRole('navigation');
+    expect(sidebar).toHaveClass('min-w-[180px]');
+    expect(sidebar).toHaveClass('overflow-y-auto');
+    expect(sidebar).toHaveClass('min-h-0');
+    expect(sidebar).toHaveClass('overscroll-contain');
+    expect(sidebar).toHaveClass('max-h-[calc(100dvh-11rem)]');
+    expect(sidebar).toHaveClass('md:max-h-[calc(100dvh-15rem)]');
+    expect(screen.getByRole('button', { name: 'logout' })).toBeInTheDocument();
+
+    const row = container.querySelector('.flex.items-start');
+    expect(row).toHaveClass('items-start');
+    expect(row).not.toHaveClass('min-h-screen');
   });
 
   it('shows the persistent rail at the correct width and hides the mobile menu button at the md boundary (1024px)', () => {
     setViewportWidth(breakpoints.md);
 
-    render(
+    const { container } = render(
       <AccountLayout>
         <div>content</div>
       </AccountLayout>,
@@ -95,6 +133,16 @@ describe('AccountLayout responsive sidebar/mobile-menu switching', () => {
     expect(sidebar).toBeInTheDocument();
     expect(sidebar).toHaveClass('md:min-w-[288px]');
     expect(sidebar).not.toHaveClass('lg:min-w-[288px]');
+    expect(sidebar).toHaveClass('overflow-y-auto');
+    expect(sidebar).toHaveClass('min-h-0');
+    expect(sidebar).toHaveClass('overscroll-contain');
+    expect(sidebar).toHaveClass('max-h-[calc(100dvh-11rem)]');
+    expect(sidebar).toHaveClass('md:max-h-[calc(100dvh-15rem)]');
+    expect(screen.getByRole('button', { name: 'logout' })).toBeInTheDocument();
+
+    const row = container.querySelector('.flex.items-start');
+    expect(row).toHaveClass('items-start');
+    expect(row).not.toHaveClass('min-h-screen');
   });
 
   it('aligns the outer layout spacing to the md breakpoint instead of lg', () => {
