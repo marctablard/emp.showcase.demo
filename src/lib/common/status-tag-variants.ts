@@ -119,15 +119,19 @@ export function isApprovalStatusValue(value: string): value is ApprovalStatus {
   return (Object.values(ApprovalStatusTag) as string[]).includes(value);
 }
 
+function toUpperSnakeStatus(value: string): string {
+  return value.toUpperCase().replaceAll('-', '_');
+}
+
 /** Coerce AI/API status values to an UPPER_SNAKE enum key. Non-strings become ''. */
 export function normalizeStatusKey(status: unknown): string {
   if (typeof status === 'string') {
-    return status.toUpperCase().replace(/-/g, '_');
+    return toUpperSnakeStatus(status);
   }
   if (status && typeof status === 'object' && 'value' in status) {
     const nested = (status as { value: unknown }).value;
     if (typeof nested === 'string') {
-      return nested.toUpperCase().replace(/-/g, '_');
+      return toUpperSnakeStatus(nested);
     }
   }
   return '';

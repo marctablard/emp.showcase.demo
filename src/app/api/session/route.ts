@@ -6,6 +6,8 @@ import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Session } from '@/platform/services/model/session/session';
 import type { SessionService } from '@/platform/services/session/SessionService';
 
+const PREFERENCE_COOKIE_MAX_AGE = 365 * 24 * 60 * 60;
+
 /** GET /api/session — returns the current session. */
 export async function GET() {
   try {
@@ -38,6 +40,99 @@ type CombinedSessionPatchBody = {
   expectedVersion?: number;
 };
 
+type SessionPatchFields = {
+  siteCode?: string;
+  currency?: string;
+  language?: string;
+  country?: string;
+};
+
+function assignNonEmptyString(fields: SessionPatchFields, key: keyof SessionPatchFields, value: unknown): void {
+  if (typeof value === 'string' && value.length > 0) {
+    fields[key] = value;
+  }
+}
+
+function collectSessionPatchFields(body: CombinedSessionPatchBody): SessionPatchFields {
+  const fields: SessionPatchFields = {};
+  assignNonEmptyString(fields, 'siteCode', body.siteCode ?? body.site);
+  assignNonEmptyString(fields, 'currency', body.currency);
+  assignNonEmptyString(fields, 'language', body.language);
+  assignNonEmptyString(fields, 'country', body.country);
+  return fields;
+}
+
+function setPublicPreferenceCookie(response: NextResponse, name: string, value: string): void {
+  response.cookies.set({
+    name,
+    value,
+    maxAge: PREFERENCE_COOKIE_MAX_AGE,
+    httpOnly: false,
+    sameSite: 'lax',
+    path: '/',
+  });
+}
+
+async function applySessionPatch(
+  sessionService: SessionService,
+  fields: SessionPatchFields,
+  useCombinedPath: boolean,
+  expectedVersion: number | undefined,
+): Promise<Session | undefined> {
+  if (useCombinedPath && Object.keys(fields).length > 0) {
+    return sessionService.updateContext(fields, { expectedVersion });
+  }
+
+  if (fields.language !== undefined) {
+    await sessionService.setLanguage(fields.language);
+  }
+  if (fields.currency !== undefined) {
+    await sessionService.setCurrency(fields.currency);
+  }
+  if (fields.country !== undefined) {
+    await sessionService.setCountry(fields.country);
+  }
+  if (fields.siteCode !== undefined) {
+    await sessionService.setSite(fields.siteCode);
+  }
+  return sessionService.getCurrent();
+}
+
+function applySessionPreferenceCookies(
+  response: NextResponse,
+  fields: SessionPatchFields,
+  updatedSession: Session | undefined,
+): void {
+  if (fields.siteCode !== undefined) {
+    // Sync the site cookie so edge middleware does not redirect away on the next navigation.
+    // TODO: lift `NEXT_SITE` to `@/lib/common/public-default-env` to avoid inline default.
+    const siteCookieName = process.env.NEXT_PUBLIC_SITE_COOKIE || 'NEXT_SITE';
+    setPublicPreferenceCookie(response, siteCookieName, fields.siteCode);
+
+    // Site-only PATCH (preserve-if-supported) omits `currency` from the body.
+    // Still persist canonical session currency so `next-currency` matches after the switch.
+    if (updatedSession?.currency) {
+      setPublicPreferenceCookie(response, CURRENCY_COOKIE_NAME, updatedSession.currency);
+    }
+  }
+
+  if (fields.currency !== undefined) {
+    // Persist the currency preference so `EmporixTokenManagerServer.resolveSessionParams`
+    // can seed the next anonymous session context (e.g. after logout / token expiry)
+    // with the shopper's choice. Prefer the canonical post-PATCH value from the
+    // combined path; fall back to the requested value for the legacy per-field path.
+    setPublicPreferenceCookie(response, CURRENCY_COOKIE_NAME, updatedSession?.currency || fields.currency);
+  }
+}
+
+function isSessionContextVersionConflict(errorMessage: string): boolean {
+  return (
+    errorMessage.includes('Failed to update own session context: Not Found') &&
+    errorMessage.includes('version') &&
+    errorMessage.includes('has not been found')
+  );
+}
+
 /**
  * PATCH /api/session.
  *
@@ -59,106 +154,24 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const targetSiteCode = body.siteCode ?? body.site;
-  const fields: {
-    siteCode?: string;
-    currency?: string;
-    language?: string;
-    country?: string;
-  } = {};
-  if (typeof targetSiteCode === 'string' && targetSiteCode.length > 0) {
-    fields.siteCode = targetSiteCode;
-  }
-  if (typeof body.currency === 'string' && body.currency.length > 0) {
-    fields.currency = body.currency;
-  }
-  if (typeof body.language === 'string' && body.language.length > 0) {
-    fields.language = body.language;
-  }
-  if (typeof body.country === 'string' && body.country.length > 0) {
-    fields.country = body.country;
-  }
-
+  const fields = collectSessionPatchFields(body);
   const providedFields = Object.keys(fields);
   const hasExpectedVersion = typeof body.expectedVersion === 'number' && body.expectedVersion > 0;
   const useCombinedPath = hasExpectedVersion || providedFields.length > 1;
 
   try {
-    let updatedSession: Session | undefined;
-
-    if (useCombinedPath && providedFields.length > 0) {
-      updatedSession = await sessionService.updateContext(fields, {
-        expectedVersion: hasExpectedVersion ? (body.expectedVersion as number) : undefined,
-      });
-    } else {
-      // Legacy per-field fallback for callers still sending single-field bodies.
-      if (fields.language !== undefined) {
-        await sessionService.setLanguage(fields.language);
-      }
-      if (fields.currency !== undefined) {
-        await sessionService.setCurrency(fields.currency);
-      }
-      if (fields.country !== undefined) {
-        await sessionService.setCountry(fields.country);
-      }
-      if (fields.siteCode !== undefined) {
-        await sessionService.setSite(fields.siteCode);
-      }
-      updatedSession = await sessionService.getCurrent();
-    }
-
+    const updatedSession = await applySessionPatch(
+      sessionService,
+      fields,
+      useCombinedPath,
+      hasExpectedVersion ? body.expectedVersion : undefined,
+    );
     const response = NextResponse.json(updatedSession ?? null);
-
-    if (fields.siteCode !== undefined) {
-      // Sync the site cookie so edge middleware does not redirect away on the next navigation.
-      // TODO: lift `NEXT_SITE` to `@/lib/common/public-default-env` to avoid inline default.
-      const siteCookieName = process.env.NEXT_PUBLIC_SITE_COOKIE || 'NEXT_SITE';
-      response.cookies.set({
-        name: siteCookieName,
-        value: fields.siteCode,
-        maxAge: 365 * 24 * 60 * 60,
-        httpOnly: false,
-        sameSite: 'lax',
-        path: '/',
-      });
-
-      // Site-only PATCH (preserve-if-supported) omits `currency` from the body.
-      // Still persist canonical session currency so `next-currency` matches after the switch.
-      if (updatedSession?.currency) {
-        response.cookies.set({
-          name: CURRENCY_COOKIE_NAME,
-          value: updatedSession.currency,
-          maxAge: 365 * 24 * 60 * 60,
-          httpOnly: false,
-          sameSite: 'lax',
-          path: '/',
-        });
-      }
-    }
-
-    if (fields.currency !== undefined) {
-      // Persist the currency preference so `EmporixTokenManagerServer.resolveSessionParams`
-      // can seed the next anonymous session context (e.g. after logout / token expiry)
-      // with the shopper's choice. Prefer the canonical post-PATCH value from the
-      // combined path; fall back to the requested value for the legacy per-field path.
-      const canonicalCurrency = updatedSession?.currency || fields.currency;
-      response.cookies.set({
-        name: CURRENCY_COOKIE_NAME,
-        value: canonicalCurrency,
-        maxAge: 365 * 24 * 60 * 60,
-        httpOnly: false,
-        sameSite: 'lax',
-        path: '/',
-      });
-    }
-
+    applySessionPreferenceCookies(response, fields, updatedSession);
     return response;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const isVersionConflictError =
-      errorMessage.includes('Failed to update own session context: Not Found') &&
-      errorMessage.includes('version') &&
-      errorMessage.includes('has not been found');
+    const isVersionConflictError = isSessionContextVersionConflict(errorMessage);
 
     logger.error(
       {
