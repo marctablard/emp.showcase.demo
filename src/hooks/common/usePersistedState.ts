@@ -17,10 +17,14 @@ function getBrowserStorage(kind: 'localStorage' | 'sessionStorage'): Storage | n
   if (globalThis.window === undefined) {
     return null;
   }
-  if (kind === 'sessionStorage') {
-    return sessionStorage;
+  try {
+    if (kind === 'sessionStorage') {
+      return sessionStorage;
+    }
+    return localStorage;
+  } catch {
+    return null;
   }
-  return localStorage;
 }
 
 /**

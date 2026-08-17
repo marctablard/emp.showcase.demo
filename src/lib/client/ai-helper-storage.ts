@@ -43,26 +43,51 @@ function belongsToOwner(key: string, ownerId: string): boolean {
   return key.startsWith(`${AI_HELPER_STORAGE_NAMESPACE}:${encodeURIComponent(ownerId)}:`);
 }
 
-function listLocalStorageKeys(): string[] {
-  const keys: string[] = [];
-  for (let i = 0; i < localStorage.length; i += 1) {
-    const key = localStorage.key(i);
-    if (key !== null) {
-      keys.push(key);
-    }
+function getLocalStorage(): Storage | null {
+  if (globalThis.window === undefined) {
+    return null;
   }
-  return keys;
+  try {
+    return localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function listLocalStorageKeys(): string[] {
+  const storageApi = getLocalStorage();
+  if (storageApi === null) {
+    return [];
+  }
+
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < storageApi.length; i += 1) {
+      const key = storageApi.key(i);
+      if (key !== null) {
+        keys.push(key);
+      }
+    }
+    return keys;
+  } catch {
+    return [];
+  }
 }
 
 function removeLocalStorageKeys(predicate: (key: string) => boolean): void {
-  if (globalThis.window === undefined) {
+  const storageApi = getLocalStorage();
+  if (storageApi === null) {
     return;
   }
 
-  for (const key of listLocalStorageKeys()) {
-    if (predicate(key)) {
-      localStorage.removeItem(key);
+  try {
+    for (const key of listLocalStorageKeys()) {
+      if (predicate(key)) {
+        storageApi.removeItem(key);
+      }
     }
+  } catch {
+    return;
   }
 }
 

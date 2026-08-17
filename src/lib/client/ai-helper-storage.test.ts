@@ -85,6 +85,26 @@ describe('ai-helper-storage', () => {
     expect(next).not.toBe(previous);
     expect(getOrCreateAISessionId('cust-a')).toBe(next);
   });
+
+  it('does not throw when localStorage access is blocked', () => {
+    const original = Object.getOwnPropertyDescriptor(window, 'localStorage');
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('blocked');
+      },
+    });
+
+    try {
+      expect(() => clearUnscopedAIHelperStorage()).not.toThrow();
+      expect(() => adoptAIHelperStorage('cust-a')).not.toThrow();
+      expect(() => clearAIHelperClientState()).not.toThrow();
+    } finally {
+      if (original) {
+        Object.defineProperty(window, 'localStorage', original);
+      }
+    }
+  });
 });
 
 describe('clearAllPersistedStores', () => {

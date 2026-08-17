@@ -176,4 +176,30 @@ describe('usePersistedState', () => {
     expect(result.current[0]).toBe('stored');
     expect(localStorage.getItem('test')).toBe('"stored"');
   });
+
+  it('stays in memory when accessing storage throws', () => {
+    const original = Object.getOwnPropertyDescriptor(window, 'localStorage');
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('blocked');
+      },
+    });
+
+    try {
+      const { result } = renderHook(() => usePersistedState({ key: 'test', defaultValue: 'default' }));
+
+      expect(result.current[0]).toBe('default');
+
+      act(() => {
+        result.current[1]('in-memory');
+      });
+
+      expect(result.current[0]).toBe('in-memory');
+    } finally {
+      if (original) {
+        Object.defineProperty(window, 'localStorage', original);
+      }
+    }
+  });
 });
