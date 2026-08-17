@@ -13,6 +13,16 @@ interface UsePersistedStateOptions<T> {
   enabled?: boolean;
 }
 
+function getBrowserStorage(kind: 'localStorage' | 'sessionStorage'): Storage | null {
+  if (globalThis.window === undefined) {
+    return null;
+  }
+  if (kind === 'sessionStorage') {
+    return sessionStorage;
+  }
+  return localStorage;
+}
+
 /**
  * Hook for persisting state to localStorage or sessionStorage
  * @param options - Configuration options
@@ -26,8 +36,7 @@ export function usePersistedState<T>({
   deserialize = JSON.parse,
   enabled = true,
 }: UsePersistedStateOptions<T>): [T, (value: T | ((prev: T) => T)) => void, () => void] {
-  const storageApi =
-    globalThis.window !== undefined ? (storage === 'localStorage' ? localStorage : sessionStorage) : null;
+  const storageApi = getBrowserStorage(storage);
 
   const readStored = (): T => {
     if (!enabled || !storageApi) {

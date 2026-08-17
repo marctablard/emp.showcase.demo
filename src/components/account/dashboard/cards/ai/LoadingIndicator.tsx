@@ -21,9 +21,7 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({ chunkCount =
           </span>
         </div>
       </div>
-      <span className="sr-only" role="status">
-        {t('aiProcessing')}
-      </span>
+      <output className="sr-only">{t('aiProcessing')}</output>
     </div>
   );
 };
