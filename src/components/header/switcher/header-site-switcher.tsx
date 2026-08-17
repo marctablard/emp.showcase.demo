@@ -2,12 +2,11 @@
 
 import { useContext, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
 import { Globe } from 'lucide-react';
 import TopBarSwitcher from '@/components/ui/molecules/ui-topbar-switcher';
 import { useGlobalSyncReady } from '@/hooks/common/useGlobalSyncReady';
 import { useSite } from '@/hooks/site/useSite';
-import { getPathname } from '@/i18n/navigation';
+import { useRouter } from '@/i18n/navigation';
 import { getSite } from '@/lib/client/site';
 import { performSiteSwitch } from '@/lib/client/site-switch';
 import { getLogger } from '@/lib/logger/use-logger-client';
@@ -44,8 +43,7 @@ export function SiteSwitcher() {
         {
           source: 'user',
           locale,
-          navigateTo: (path) => router.push(path),
-          getRedirectPath: getPathname,
+          navigateTo: (href, { locale, site }) => router.push(href, { locale, site }),
           getSiteByCode: getSite,
           router,
           logger: getLogger(),

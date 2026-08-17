@@ -121,6 +121,19 @@ export async function PATCH(request: NextRequest) {
         sameSite: 'lax',
         path: '/',
       });
+
+      // Site-only PATCH (preserve-if-supported) omits `currency` from the body.
+      // Still persist canonical session currency so `next-currency` matches after the switch.
+      if (updatedSession?.currency) {
+        response.cookies.set({
+          name: CURRENCY_COOKIE_NAME,
+          value: updatedSession.currency,
+          maxAge: 365 * 24 * 60 * 60,
+          httpOnly: false,
+          sameSite: 'lax',
+          path: '/',
+        });
+      }
     }
 
     if (fields.currency !== undefined) {

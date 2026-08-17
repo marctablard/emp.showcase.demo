@@ -2,6 +2,7 @@ import createIntlMiddleware from 'next-intl/middleware';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { routing as intlRouting } from '@/i18n/routing';
+import { LOCALE_ALIGN_QUERY_PARAM, getLocaleCookieName, parseLocaleAlignParam } from '@/lib/common/locale-cookie';
 import { edgeLog } from '@/lib/server/edge-stderr-log';
 import { PREVIEW_ROUTE_PREFIX, getPreviewDetector } from '@/platform/services/cms/preview/preview-detector-registry';
 import {
@@ -306,6 +307,36 @@ function runIntlMiddleware(req: NextRequest, appPath: string): NextResponse {
   return intlResponse;
 }
 
+const LOCALE_COOKIE_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
+
+/**
+ * One-shot unsupported-locale bounce: 302 to the same URL with `emp_locale`
+ * stripped. Set-Cookie is best-effort; `localeDetection: false` is what stops
+ * next-intl re-prefixing when cookies are missing. Invalid values are ignored.
+ */
+function handleLocaleAlignQuery(req: NextRequest): NextResponse | null {
+  const alignedLocale = parseLocaleAlignParam(
+    req.nextUrl.searchParams.get(LOCALE_ALIGN_QUERY_PARAM),
+    intlRouting.locales,
+  );
+  if (!alignedLocale) {
+    return null;
+  }
+
+  const redirectUrl = new URL(req.nextUrl);
+  redirectUrl.searchParams.delete(LOCALE_ALIGN_QUERY_PARAM);
+  const response = NextResponse.redirect(redirectUrl, 302);
+  response.cookies.set({
+    name: getLocaleCookieName(),
+    value: alignedLocale,
+    maxAge: LOCALE_COOKIE_MAX_AGE_SECONDS,
+    httpOnly: false,
+    sameSite: 'lax',
+    path: '/',
+  });
+  return response;
+}
+
 /**
  * next-intl asked for a locale redirect — re-issue it with the site segment
  * prepended where the routing policy requires one. Returns `null` when intl
@@ -369,6 +400,11 @@ export function createSiteMiddleware(routingConfig: SiteRoutingConfig) {
 
     if (!siteInvalid) {
       setCachedRequestSite(site);
+    }
+
+    const localeAlignResponse = handleLocaleAlignQuery(req);
+    if (localeAlignResponse) {
+      return localeAlignResponse;
     }
 
     // First we check if Next-Intl requires a redirect or rewrite

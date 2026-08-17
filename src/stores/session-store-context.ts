@@ -11,6 +11,8 @@ import type { Session } from '@/platform/services/model/session/session';
 export interface SessionState {
   session: Session | null | undefined;
   loading: boolean;
+  /** In Zustand state so `useGlobalSyncReady` re-renders when the lock is released. */
+  mutationInFlight: boolean;
 }
 
 export interface SessionActions {
@@ -28,14 +30,15 @@ export type SessionStore = SessionState & SessionActions;
 const defaultState: SessionState = {
   session: undefined,
   loading: false,
+  mutationInFlight: false,
 };
 
-export const createSessionStore = (initState: SessionState = defaultState) => {
-  let mutationInFlight = false;
+export const createSessionStore = (initState: Partial<SessionState> = {}) => {
   let _fetchPromise: Promise<Session | null> | null = null;
 
   return create<SessionStore>()(
     subscribeWithSelector((set, get) => ({
+      ...defaultState,
       ...initState,
       setSession: (session: Session | null | undefined) => {
         devSyncLog('session-store: setSession', {
@@ -72,16 +75,16 @@ export const createSessionStore = (initState: SessionState = defaultState) => {
         return promise;
       },
       tryAcquireMutationLock: () => {
-        if (mutationInFlight) {
+        if (get().mutationInFlight) {
           return false;
         }
-        mutationInFlight = true;
+        set({ mutationInFlight: true });
         return true;
       },
       releaseMutationLock: () => {
-        mutationInFlight = false;
+        set({ mutationInFlight: false });
       },
-      isMutationInFlight: () => mutationInFlight,
+      isMutationInFlight: () => get().mutationInFlight,
       reset: () => set(defaultState),
     })),
   );

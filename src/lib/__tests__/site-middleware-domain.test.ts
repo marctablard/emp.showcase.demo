@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { LOCALE_ALIGN_QUERY_PARAM, getLocaleCookieName } from '@/lib/common/locale-cookie';
 import { createSiteMiddleware, resolveSite } from '@/site/middleware';
 import { INTERNAL_SITE_INVALID_HEADER, type SiteRoutingConfig } from '@/site/types';
 import { resolveApplicableRouting, shouldPrefix } from '@/site/utils';
@@ -533,5 +534,59 @@ describe('fallback-OFF behavior (no defaultSite)', () => {
       expect(rewrite).toBeDefined();
       expect(new URL(rewrite!).pathname).toContain('/site-a');
     });
+  });
+});
+
+describe('createSiteMiddleware locale-align query', () => {
+  const routingConfig: SiteRoutingConfig = {
+    defaultSite: 'main',
+    availableSites: ['main', 'us-branch'],
+    prefix: 'as-needed',
+    cookie: { name: 'NEXT_SITE' },
+    cookieOverridesDefault: true,
+  };
+  const browserUA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
+  const localeCookieName = getLocaleCookieName();
+
+  test('emp_locale=en with stale de cookie redirects without the param and Set-Cookies en', () => {
+    const middleware = createSiteMiddleware(routingConfig);
+    const req = createRequest(
+      `https://example.com/us-branch?${LOCALE_ALIGN_QUERY_PARAM}=en`,
+      { [localeCookieName]: 'de' },
+      { 'User-Agent': browserUA },
+    );
+    const response = middleware(req);
+
+    expect(response?.status).toBe(302);
+    const location = response?.headers.get('location');
+    expect(location).toBeTruthy();
+    const locationUrl = new URL(location!);
+    expect(locationUrl.pathname).toMatch(/^\/us-branch\/?$/);
+    expect(locationUrl.searchParams.has(LOCALE_ALIGN_QUERY_PARAM)).toBe(false);
+
+    const localeCookies = response?.cookies.getAll().filter((cookie) => cookie.name === localeCookieName) || [];
+    expect(localeCookies).toHaveLength(1);
+    expect(localeCookies[0]).toMatchObject({
+      name: localeCookieName,
+      value: 'en',
+      httpOnly: false,
+      sameSite: 'lax',
+      path: '/',
+    });
+  });
+
+  test('emp_locale=not-a-locale is ignored — no redirect loop and no cookie write from the param', () => {
+    const middleware = createSiteMiddleware(routingConfig);
+    const req = createRequest(
+      `https://example.com/us-branch?${LOCALE_ALIGN_QUERY_PARAM}=not-a-locale`,
+      { [localeCookieName]: 'de' },
+      { 'User-Agent': browserUA },
+    );
+    const response = middleware(req);
+
+    expect(response?.headers.get('location')).toBeNull();
+
+    const localeCookies = response?.cookies.getAll().filter((cookie) => cookie.name === localeCookieName) || [];
+    expect(localeCookies).toHaveLength(0);
   });
 });

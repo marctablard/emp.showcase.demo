@@ -186,6 +186,17 @@ Examples:
 3. **Internationalization** - Next-intl handles locale resolution
 4. **Security Headers** - Security headers are applied
 
+### Unsupported-locale cookie sync (`emp_locale`)
+
+`emp_locale` is a one-shot query used **only** for unsupported-locale layout bounces (for example `/us-branch/de` when US does not list German). It is not required for header site switches.
+
+The `[site]/[locale]` layout appends `emp_locale=<supported>` after `getPathname` when the URL locale is not in `site.languages`. Site middleware handles that query **before** next-intl (`handleLocaleAlignQuery` in `src/site/middleware.ts`):
+
+- Parse the value against `intlRouting.locales`. Invalid or missing values are ignored (no cookie write and no redirect from this param).
+- On an allowed value: optionally Set-Cookie the locale cookie (`getLocaleCookieName()` — `NEXT_PUBLIC_LOCALE_COOKIE` trimmed, else `NEXT_LOCALE`) when the browser allows cookies, then 302 to the same URL with `emp_locale` stripped (other search params stay).
+
+The freeze breaker is **not** that cookie. `src/i18n/routing.ts` sets `localeDetection: false`, so after the 302 to the unprefixed default-locale URL, next-intl will not send the shopper back to `/de` from a missing cookie, a stale `de` cookie, or `Accept-Language`. The storefront must stay usable when cookies are cleared or blocked. Locale/currency do not need to be remembered across a site switch.
+
 ## Implementation Details
 
 ### Core Functions

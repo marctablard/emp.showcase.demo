@@ -3,25 +3,13 @@
 import type { StoreApi } from 'zustand';
 import { devSyncLog } from '@/lib/client/dev-sync-log';
 import { updateSessionContext } from '@/lib/client/session';
+import { writeLocaleCookie } from '@/lib/common/locale-cookie';
 import { type LoggerService, getLogger } from '@/lib/logger/use-logger-client';
 import type { CartStore } from '@/stores/cart-store';
 import type { SessionStore } from '@/stores/session-store-context';
 import type { SiteStore } from '@/stores/site-store';
 
 const SETTLING_REASON_SITE_SWITCH = 'site-switch';
-
-/** Sync the locale cookie so next-intl picks up the aligned locale on the next request. */
-function writeLocaleCookie(locale: string): void {
-  if (typeof document === 'undefined') {
-    return;
-  }
-  const cookieName = process.env.NEXT_PUBLIC_LOCALE_COOKIE;
-  if (!cookieName) {
-    return;
-  }
-  const maxAge = 365 * 24 * 60 * 60;
-  document.cookie = `${cookieName}=${encodeURIComponent(locale)}; Max-Age=${maxAge}; Path=/; SameSite=Lax`;
-}
 
 /**
  * Single awaited pipeline for every site change (user / deep-link). Happy path:
@@ -34,13 +22,6 @@ export interface SiteSwitchStores {
   sessionStore: StoreApi<SessionStore>;
   siteStore: StoreApi<SiteStore>;
   cartStore: StoreApi<CartStore>;
-}
-
-export interface SiteSwitchRedirectPathArgs {
-  href: string;
-  locale: string;
-  site: string;
-  forcePrefix?: boolean;
 }
 
 /** Target site metadata. Accepts strings or `{ id | code }` objects; lists are normalized to ids. */
@@ -56,10 +37,8 @@ export interface SiteSwitchOptions {
   source: 'user' | 'deep-link';
   /** Current UI locale — used for user source to pick a compatible target-site locale. */
   locale?: string;
-  /** Navigator for user-initiated switches (typically `router.push`). */
-  navigateTo?: (path: string) => void;
-  /** Computes the target-site path (typically `@/i18n/navigation`'s `getPathname`). */
-  getRedirectPath?: (args: SiteSwitchRedirectPathArgs) => string;
+  /** Navigator for user-initiated switches. Receives logical `'/'` plus `{ locale, site }`. */
+  navigateTo?: (href: string, options: { locale: string; site: string }) => void;
   /** Resolves target-site metadata. Required for user source; optional for deep-link. */
   getSiteByCode?: (site: string) => Promise<TargetSiteMetadata | null | undefined>;
   /** Next router used only for user-initiated switches. */
@@ -408,8 +387,9 @@ export async function performSiteSwitch(
       upstreamCalls,
     });
 
-    // Navigation + locale cookie sync (user source only).
-    if (opts.source === 'user' && opts.navigateTo && opts.getRedirectPath) {
+    // Navigation + locale cookie sync (user source only). Always persist the resolved
+    // locale so a stale cookie cannot re-prefix an unsupported language on the next request.
+    if (opts.source === 'user' && opts.navigateTo) {
       const fallbackLocale = opts.locale ?? activeSession.language ?? '';
       const resolvedTargetLocale =
         targetLanguages.length > 0
@@ -418,18 +398,11 @@ export async function performSiteSwitch(
             : targetLanguages[0]
           : fallbackLocale;
 
-      const localeChanged = Boolean(resolvedTargetLocale) && resolvedTargetLocale !== opts.locale;
-      if (localeChanged) {
+      if (resolvedTargetLocale) {
         writeLocaleCookie(resolvedTargetLocale);
       }
 
-      const targetPath = opts.getRedirectPath({
-        href: '/',
-        locale: resolvedTargetLocale,
-        site: targetSite,
-        forcePrefix: true,
-      });
-      opts.navigateTo(targetPath);
+      opts.navigateTo('/', { locale: resolvedTargetLocale, site: targetSite });
       if (opts.router) {
         const router = opts.router;
         setTimeout(() => {
