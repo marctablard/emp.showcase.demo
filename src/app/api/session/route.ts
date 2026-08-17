@@ -105,7 +105,6 @@ function applySessionPreferenceCookies(
 ): void {
   if (fields.siteCode !== undefined) {
     // Sync the site cookie so edge middleware does not redirect away on the next navigation.
-    // TODO: lift `NEXT_SITE` to `@/lib/common/public-default-env` to avoid inline default.
     const siteCookieName = process.env.NEXT_PUBLIC_SITE_COOKIE || 'NEXT_SITE';
     setPublicPreferenceCookie(response, siteCookieName, fields.siteCode);
 

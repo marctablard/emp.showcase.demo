@@ -267,10 +267,10 @@ async function rollbackSessionCurrencyToSiteDefault(
       'Rolled back session currency to target site default after reprice failure',
     );
     return { activeSession: rolledBack, extraUpstreamCalls: 1 };
-  } catch (rollbackErr) {
+  } catch (error_) {
     logger.error(
       {
-        err: rollbackErr,
+        err: error_,
         siteCode: updatedSession.siteCode,
         toCurrency: targetDefaultCurrency,
         correlationId,
@@ -403,16 +403,19 @@ function navigateAfterUserSiteSwitch(
   }
 }
 
-async function runSiteSwitchPipeline(
-  targetSite: string,
-  stores: SiteSwitchStores,
-  opts: SiteSwitchOptions,
-  logger: LoggerService,
-  telemetryBase: Record<string, unknown>,
-  startedAt: number,
-  prev: { siteCode?: string; currency?: string; language?: string; version?: number },
-  progress: { upstreamCalls: number },
-): Promise<SiteSwitchResult> {
+type SiteSwitchPipelineArgs = {
+  targetSite: string;
+  stores: SiteSwitchStores;
+  opts: SiteSwitchOptions;
+  logger: LoggerService;
+  telemetryBase: Record<string, unknown>;
+  startedAt: number;
+  prev: { siteCode?: string; currency?: string; language?: string; version?: number };
+  progress: { upstreamCalls: number };
+};
+
+async function runSiteSwitchPipeline(args: SiteSwitchPipelineArgs): Promise<SiteSwitchResult> {
+  const { targetSite, stores, opts, logger, telemetryBase, startedAt, prev, progress } = args;
   const { sessionStore, siteStore, cartStore } = stores;
   const correlationId = String(telemetryBase.correlationId);
 
@@ -560,21 +563,21 @@ export async function performSiteSwitch(
   const progress = { upstreamCalls: 0 };
 
   try {
-    return await runSiteSwitchPipeline(
+    return await runSiteSwitchPipeline({
       targetSite,
       stores,
       opts,
       logger,
       telemetryBase,
       startedAt,
-      {
+      prev: {
         siteCode: prevSession?.siteCode,
         currency: prevSession?.currency,
         language: prevSession?.language,
         version: prevSession?.metadata?.version,
       },
       progress,
-    );
+    });
   } catch (err) {
     logSiteSwitchEvent(
       logger,

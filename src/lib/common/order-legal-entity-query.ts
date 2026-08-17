@@ -25,7 +25,7 @@ export function appendLegalEntityIdToOrderQuery(
     return trimmedQuery || undefined;
   }
 
-  const queryWithoutLegalEntity = trimmedQuery.replace(LEGAL_ENTITY_CLAUSE, '').replace(/\s+/g, ' ').trim();
+  const queryWithoutLegalEntity = trimmedQuery.replaceAll(LEGAL_ENTITY_CLAUSE, '').replaceAll(/\s+/g, ' ').trim();
   const clause = `${LEGAL_ENTITY_Q_FIELD}:${trimmedLegalEntityId}`;
 
   return queryWithoutLegalEntity ? `${queryWithoutLegalEntity} ${clause}` : clause;
