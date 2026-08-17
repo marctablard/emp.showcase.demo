@@ -20,4 +20,16 @@ describe('quote-status-message-keys', () => {
     const translate = (key: string) => `t:${key}`;
     expect(getQuoteStatusDisplayLabel('FAKE_STATUS', translate)).toBe('FAKE_STATUS');
   });
+
+  it('does not throw when status is not a string', () => {
+    const translate = (key: string) => `t:${key}`;
+    expect(getQuoteStatusDisplayLabel(2, translate)).toBe('');
+    expect(getQuoteStatusDisplayLabel({ code: 'OPEN' }, translate)).toBe('');
+    expect(getQuoteStatusDisplayLabel(undefined, translate)).toBe('');
+  });
+
+  it('reads Emporix status objects', () => {
+    const translate = (key: string) => `t:${key}`;
+    expect(getQuoteStatusDisplayLabel({ value: 'OPEN' }, translate)).toBe('t:open');
+  });
 });

@@ -1,4 +1,5 @@
 import { inject } from 'inversify';
+import { appendLegalEntityIdToOrderQuery } from '@/lib/common/order-legal-entity-query';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixOrder } from '@/platform/integrations/emporix/model/order';
 import type { EmporixOrderApi } from '@/platform/integrations/emporix/order/EmporixOrderApi';
@@ -97,7 +98,9 @@ class EmporixOrderService implements OrderService {
     query?: string,
   ): Promise<OrderPageResponse> {
     try {
-      const response = await this.orderApi.getCustomerOrdersPage(pageSize, pageNumber, sort, query);
+      const session = await this.sessionService.getCurrent();
+      const scopedQuery = appendLegalEntityIdToOrderQuery(query, session?.legalEntityId);
+      const response = await this.orderApi.getCustomerOrdersPage(pageSize, pageNumber, sort, scopedQuery);
       return {
         items: response.items.map((order) => this.mapper.mapToService(order)),
         totalCount: response.totalCount,

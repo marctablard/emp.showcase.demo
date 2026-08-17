@@ -30,10 +30,13 @@ export const routing = defineRouting({
   defaultLocale: 'en',
   // Used for routing
   localePrefix: 'as-needed',
+  // Locale comes from the URL only. Cookie / Accept-Language detection is off
+  // so a missing or stale locale cookie cannot redirect `/us-branch` ↔ `/us-branch/de`.
+  localeDetection: false,
 });
 ```
 
-This defines our supported locales and routing behavior. The `localePrefix: 'as-needed'` setting means that the default locale won't show in the URL, but other locales will.
+This defines our supported locales and routing behavior. The `localePrefix: 'as-needed'` setting means that the default locale won't show in the URL, but other locales will. `localeDetection: false` means next-intl does not redirect from the locale cookie or `Accept-Language`; German is selected by navigating to a `/de` path. The storefront still works when cookies are cleared or blocked.
 
 ### 2. Navigation Helpers (`src/i18n/navigation.ts`)
 
@@ -284,9 +287,18 @@ Interactive locale changes triggered from client components (for example, the he
 
 - Keep the href logical and sanitized in the client component; do not precompute a locale-specific pathname with `getPathname(...)` for the transition.
 - Navigate with the client router by calling `router.push(href, { locale, site })` so the shared site-aware router resolves the locale-aware pathname through next-intl first and applies the site segment as the outer prefix afterward.
-- For changed-locale `push`/`replace`, the shared router performs a document navigation to the final canonical path, allowing existing `next-intl/middleware` to own locale-cookie synchronization.
+- For changed-locale `push`/`replace`, the shared router performs a document navigation to the final canonical path so the URL (not a cookie) carries the new locale.
 - Do not use raw `next/navigation` routing directly for interactive locale changes.
 - Do not invoke server redirect helpers inside client event handlers.
+
+Header **site** switches use the same router. Locale and currency do not need to be preserved across sites; the destination URL plus session defaults are enough. Cookies must not be required to avoid a freeze:
+
+- `SiteSwitcher` (`src/components/header/switcher/header-site-switcher.tsx`) calls `useRouter` from `@/i18n/navigation` and `router.push('/', { locale, site })`. Do not use `next/navigation` for this transition.
+- `localeDetection: false` is the cookie-less loop breaker: next-intl will not re-prefix an unprefixed US URL from a stale `de` cookie or `Accept-Language`.
+- `performSiteSwitch` still best-effort `writeLocaleCookie` the destination-supported locale when `document.cookie` is available. That write is optional; it must no-op when cookies are blocked.
+- Locale cookie helpers live in `src/lib/common/locale-cookie.ts`. That module must not import `@/i18n/routing`.
+
+When the `[site]/[locale]` layout finds a URL locale the current site does not advertise, it redirects to the site-aware default-locale path (see [Site Middleware](./site-middleware.md) `emp_locale`). That bounce is URL-based. Set-Cookie on the bounce is best-effort only.
 
 This keeps locale transitions aligned with combined site and locale routing rules without hardcoding URL segments or bypassing the shared router contract.
 

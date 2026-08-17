@@ -3,9 +3,9 @@ import { PATCH } from './route';
 
 /**
  * Route-level tests for `PATCH /api/session`. Focus: the `next-currency`
- * cookie is written on every path that successfully advances the session
- * currency, and is suppressed when the PATCH does not touch currency or the
- * upstream call fails.
+ * cookie is written on a successful currency PATCH and on a successful
+ * site-changing PATCH (canonical session currency), and is suppressed when
+ * the upstream call fails.
  */
 
 jest.mock('@/platform/server', () => {
@@ -101,7 +101,7 @@ describe('PATCH /api/session', () => {
     expect(response.cookies.get(CURRENCY_COOKIE_NAME)?.value).toBe('USD');
   });
 
-  it('PATCH with siteCode only — site cookie set, currency cookie NOT set', async () => {
+  it('PATCH with siteCode only — sets site cookie and next-currency from canonical session currency', async () => {
     sessionService.setSite.mockResolvedValue(undefined);
     sessionService.getCurrent.mockResolvedValue({ id: 's1', siteCode: 'us', currency: 'EUR' });
 
@@ -109,7 +109,26 @@ describe('PATCH /api/session', () => {
 
     expect(response.status).toBe(200);
     expect(response.cookies.get('NEXT_SITE')?.value).toBe('us');
-    expect(response.cookies.get(CURRENCY_COOKIE_NAME)).toBeUndefined();
+    expect(response.cookies.get(CURRENCY_COOKIE_NAME)?.value).toBe('EUR');
+  });
+
+  it('combined path with siteCode and no currency — sets next-currency from canonical session currency', async () => {
+    sessionService.updateContext.mockResolvedValue({
+      id: 's1',
+      siteCode: 'us',
+      currency: 'EUR',
+      language: 'en',
+    });
+
+    const response = await PATCH(createRequest({ siteCode: 'us', language: 'en' }) as never);
+
+    expect(response.status).toBe(200);
+    expect(sessionService.updateContext).toHaveBeenCalledWith(
+      expect.objectContaining({ siteCode: 'us', language: 'en' }),
+      expect.any(Object),
+    );
+    expect(response.cookies.get('NEXT_SITE')?.value).toBe('us');
+    expect(response.cookies.get(CURRENCY_COOKIE_NAME)?.value).toBe('EUR');
   });
 
   it('falls back to the requested currency value when the legacy path does not return the updated session', async () => {

@@ -1,12 +1,13 @@
 'use client';
 
 import React from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { getQuoteStatusDisplayLabel } from '@/lib/common/quote-status-message-keys';
 import type { QuoteData, QuoteListData, QuotePreviewItemData } from '../types';
 import { formatDate, formatPrice, getQuoteStatusBadgeVariantForAi, handleImageError } from '../utils';
+import { mapAiQuoteList } from '../utils/map-ai-quote';
 
 interface QuoteListRendererProps {
   data: QuoteListData;
@@ -16,11 +17,13 @@ export const QuoteListRenderer: React.FC<QuoteListRendererProps> = ({ data }) =>
   const t = useTranslations('account.AiHelper');
   const tCommon = useTranslations('common');
   const tQuoteStatus = useTranslations('account.quoteStatus');
+  const locale = useLocale();
+  const list = mapAiQuoteList(data, locale);
 
   return (
     <div className="space-y-4">
-      {data.message && <div className="text-text-body mb-3 text-base">{data.message}</div>}
-      {data.quotes?.map((quote: QuoteData, index: number) => (
+      {list.message && <div className="text-text-body mb-3 text-base">{list.message}</div>}
+      {list.quotes.map((quote: QuoteData, index: number) => (
         <div
           key={index}
           className="bg-surface-primary rounded-xl border border-border-primary shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
@@ -108,13 +111,13 @@ export const QuoteListRenderer: React.FC<QuoteListRendererProps> = ({ data }) =>
         </div>
       ))}
 
-      {data.pagination && (
+      {list.pagination && (
         <div className="flex justify-between items-center pt-4 border-t border-border-primary">
           <div className="text-sm text-text-body">
             {t('page', {
-              page: data.pagination.page,
-              totalPages: data.pagination.totalPages,
-              totalItems: data.pagination.totalItems,
+              page: list.pagination.page,
+              totalPages: list.pagination.totalPages,
+              totalItems: list.pagination.totalItems,
             })}
           </div>
         </div>

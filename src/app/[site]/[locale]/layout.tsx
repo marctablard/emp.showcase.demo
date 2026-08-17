@@ -5,7 +5,7 @@ import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Open_Sans, Ubuntu } from 'next/font/google';
 import { headers } from 'next/headers';
-import { notFound } from 'next/navigation';
+import { redirect as nextRedirect, notFound } from 'next/navigation';
 import '@/app/globals.css';
 import { CsrfProvider } from '@/components/csrf/CsrfProvider';
 import { ApiDebugPanel } from '@/components/debug/ApiDebugPanel';
@@ -13,9 +13,10 @@ import { CurrencyFallbackToastBus } from '@/components/header/switcher/currency-
 import { Notification } from '@/components/notification/notification';
 import { SiteThemeStyle } from '@/components/theme/site-theme-style';
 import { Toaster } from '@/components/ui/sonner';
-import { redirect } from '@/i18n/edge/navigation';
+import { getPathname, redirect } from '@/i18n/edge/navigation';
 import { routing } from '@/i18n/routing';
 import { isBrowserDebugOutputEnabled, isDebugApiEnabled } from '@/lib/common/debug-env';
+import { appendLocaleAlignParam } from '@/lib/common/locale-cookie';
 import { getSessionForSite, setSessionLanguage } from '@/lib/ssr/session';
 import { getAvailableSites, getSite } from '@/lib/ssr/site';
 import { getCmsService } from '@/platform/services/cms/get-cms-service';
@@ -132,7 +133,8 @@ export default async function LocaleLayout({ children, dialog, params }: Props) 
     const pathWithoutLocale = stripLocalePrefix(appPath, locale);
     const targetHref = pathWithoutLocale ? `/${pathWithoutLocale}` : '/';
 
-    return redirect({ href: targetHref, locale: newLocale, site: siteCode, forcePrefix: true });
+    const path = getPathname({ href: targetHref, locale: newLocale, site: siteCode, forcePrefix: true });
+    nextRedirect(appendLocaleAlignParam(path, newLocale));
   }
   // TODO: we need to figure out why getRequestSite
   // doesn't return the correct value in child layouts
