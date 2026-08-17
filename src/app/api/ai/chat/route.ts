@@ -41,15 +41,27 @@ function logChatError(error: unknown, retryable: boolean): void {
 
 function createChatSseResponse(run: (send: (event: AIChatStreamEvent) => void) => Promise<void>): Response {
   const encoder = new TextEncoder();
+  let cancelled = false;
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (event: AIChatStreamEvent) => {
-        controller.enqueue(encoder.encode(encodeAiChatSse(event)));
+        if (cancelled) {
+          return;
+        }
+        try {
+          controller.enqueue(encoder.encode(encodeAiChatSse(event)));
+        } catch {
+          cancelled = true;
+        }
       };
 
       try {
         await run(send);
       } catch (error) {
+        if (cancelled) {
+          return;
+        }
         const retryable = isRetryableError(error);
         logChatError(error, retryable);
         send({
@@ -59,8 +71,17 @@ function createChatSseResponse(run: (send: (event: AIChatStreamEvent) => void) =
           retryable,
         });
       } finally {
-        controller.close();
+        if (!cancelled) {
+          try {
+            controller.close();
+          } catch {
+            cancelled = true;
+          }
+        }
       }
+    },
+    cancel() {
+      cancelled = true;
     },
   });
 

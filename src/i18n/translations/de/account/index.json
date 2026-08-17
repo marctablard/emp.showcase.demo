@@ -521,7 +521,7 @@
     "sendButton": "Senden",
     "sending": "Wird gesendet...",
     "thinking": "KI denkt nach...",
-    "thinkingWithChunks": "KI denkt nach. Erzeugte Chunks: {numberOfChunks}",
+    "thinkingWithChunks": "KI denkt nach [{numberOfChunks}]",
     "aiProcessing": "KI-Assistent verarbeitet Ihre Nachricht",
     "chatHistory": "Chat-Gesprächsverlauf",
     "emptyState": "Beginnen Sie ein Gespräch mit dem KI-Assistenten",

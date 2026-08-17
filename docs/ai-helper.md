@@ -25,7 +25,7 @@ AI Service also documents an async chat mode. Showcase does not use it. For the 
 
 ## Shopper experience
 
-The card shows a thinking spinner while the reply is in progress. When streaming is on, `POST /api/ai/chat` is an SSE response: a `progress` event with `chunks` (count of upstream SSE data payloads, starting at 0) then a `complete` event with the assembled `AIChatResponse`. The thinking bubble updates to “AI is thinking. Chunks generated: {n}” as those events arrive. The Helper then parses that assembled `message` and renders text plus typed widgets. For `type: "text"`, the top-level `message` is the intro and `data.message` (when present) is the body — for example product highlights under a heading.
+The card shows a thinking spinner while the reply is in progress. When streaming is on, `POST /api/ai/chat` is an SSE response: a `progress` event with `chunks` (count of upstream SSE data payloads, starting at 0) then a `complete` event with the assembled `AIChatResponse`. The thinking bubble updates to “AI is thinking [n]” as those events arrive. The Helper then parses that assembled `message` and renders text plus typed widgets. For `type: "text"`, the top-level `message` is the intro and `data.message` (when present) is the body — for example product highlights under a heading.
 
 Live `frontendAgent` streams often concatenate more than one JSON document in token `content`: a markdown-fenced tool payload (for example a search `{ query, filter }`) and later a Frontend Agent envelope (`type` / `data`). The BFF assembler waits until the upstream stream ends, then keeps the last widget envelope and drops tool JSON so the shopper sees the order list (or other widget) instead of raw JSON.
 

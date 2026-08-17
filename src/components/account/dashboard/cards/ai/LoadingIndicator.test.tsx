@@ -9,7 +9,7 @@ import { LoadingIndicator } from './LoadingIndicator';
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: { numberOfChunks?: number }) => {
     if (key === 'thinkingWithChunks') {
-      return `AI is thinking. Chunks generated: ${values?.numberOfChunks}`;
+      return `AI is thinking [${values?.numberOfChunks}]`;
     }
     if (key === 'thinking') {
       return 'AI is thinking...';
@@ -30,7 +30,7 @@ describe('LoadingIndicator', () => {
 
   it('shows a live chunk count when progress is available', () => {
     render(<LoadingIndicator chunkCount={12} />);
-    expect(screen.getByText('AI is thinking. Chunks generated: 12')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByText('AI is thinking [12]')).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByText('AI is processing your request')).toBeInTheDocument();
   });
 });

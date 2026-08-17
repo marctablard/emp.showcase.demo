@@ -43,12 +43,23 @@ function belongsToOwner(key: string, ownerId: string): boolean {
   return key.startsWith(`${AI_HELPER_STORAGE_NAMESPACE}:${encodeURIComponent(ownerId)}:`);
 }
 
+function listLocalStorageKeys(): string[] {
+  const keys: string[] = [];
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i);
+    if (key !== null) {
+      keys.push(key);
+    }
+  }
+  return keys;
+}
+
 function removeLocalStorageKeys(predicate: (key: string) => boolean): void {
   if (globalThis.window === undefined) {
     return;
   }
 
-  for (const key of Object.keys(localStorage)) {
+  for (const key of listLocalStorageKeys()) {
     if (predicate(key)) {
       localStorage.removeItem(key);
     }

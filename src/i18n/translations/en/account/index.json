@@ -513,7 +513,7 @@
     "sendButton": "Send",
     "sending": "Sending...",
     "thinking": "AI is thinking...",
-    "thinkingWithChunks": "AI is thinking. Chunks generated: {numberOfChunks}",
+    "thinkingWithChunks": "AI is thinking [{numberOfChunks}]",
     "aiProcessing": "AI assistant is processing your message",
     "chatHistory": "Chat conversation history",
     "emptyState": "Start a conversation with the AI assistant",
