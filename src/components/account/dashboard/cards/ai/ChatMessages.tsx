@@ -10,10 +10,11 @@ import type { StructuredDataHandlers } from './types';
 interface ChatMessagesProps {
   messages: ChatMessageType[];
   loading: boolean;
+  chunkCount?: number | null;
   handlers: StructuredDataHandlers;
 }
 
-export const ChatMessages: React.FC<ChatMessagesProps> = ({ messages, loading, handlers }) => {
+export const ChatMessages: React.FC<ChatMessagesProps> = ({ messages, loading, chunkCount = null, handlers }) => {
   const t = useTranslations('account.AiHelper');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -45,7 +46,7 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({ messages, loading, h
           {messages.map((message) => (
             <ChatMessage key={message.id} message={message} handlers={handlers} />
           ))}
-          {loading && <LoadingIndicator />}
+          {loading && <LoadingIndicator chunkCount={chunkCount} />}
         </div>
       )}
     </div>

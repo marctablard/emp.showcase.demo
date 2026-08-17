@@ -432,6 +432,19 @@ The Setup API (`NEXT_SETUP_API_*`) provides an endpoint for initial system confi
 |----------|--------|---------|-------------|
 | `NEXT_STARTUP_HEALTHCHECK_ENABLED` | `true` / `false` | `true` | Enable Tier 2 runtime startup healthcheck. When enabled, the server validates configured sites, currencies, and languages against the Emporix API at startup. See [Health Checks — Startup Configuration Validation](health-checks.md#startup-configuration-validation). |
 | `NEXT_PUBLIC_DISABLE_PUSH_NOTIFICATIONS` | `true` / `false` | `false` | Explicitly disable push notifications regardless of VAPID key configuration. |
+| `NEXT_AI_CHAT_STREAMING` | unset / any value other than `false` / `false` | streaming (on) | Optional server-only flag for the account-dashboard AI Helper. Unset means streaming. Set to `false` for batch. Do not use `NEXT_PUBLIC_`. See [AI Helper](./ai-helper.md). |
+
+#### `NEXT_AI_CHAT_STREAMING` (optional, server-only)
+
+Controls whether the BFF calls AI Service streaming `chat-stream` or batch `chat` for the account-dashboard AI Helper.
+
+- **Unset (default):** streaming
+- **Any value other than the string `false`:** streaming
+- **`false`:** batch fallback
+
+This is a server-only variable. Do not prefix it with `NEXT_PUBLIC_`. Restart the app after changing it.
+
+For shopper UX and empty-stream behavior, see [AI Helper](./ai-helper.md).
 
 ## Quick Start Checklist
 
@@ -506,6 +519,7 @@ NEXT_DEBUG_API_PAYLOAD=false
 ## Related Documentation
 
 - [Documentation index](./README.md)
+- [AI Helper](./ai-helper.md)
 - [Deployment Process](./deployment-process.md)
 - [Testing Guide](./testing-guide.md)
 - [CMS Framework](./cms-framework.md)

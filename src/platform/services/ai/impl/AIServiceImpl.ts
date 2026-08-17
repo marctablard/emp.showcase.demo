@@ -3,14 +3,21 @@ import { injectable } from '@/platform/core/di/injectable';
 import type { AIChatContext, AIChatResponse } from '@/platform/integrations/ai/model';
 import type { EmporixAIApi } from '@/platform/integrations/emporix/ai/EmporixAIApi';
 import type { AIService } from '../AIService';
+import { isAiChatStreamingEnabled } from '../isAiChatStreamingEnabled';
 
 @injectable('AIService', 'Singleton')
 export class AIServiceImpl implements AIService {
   constructor(@inject('EmporixAIApi') private aiApi: EmporixAIApi) {}
 
-  async sendChatMessageWithContext(userMessage: string, context: AIChatContext): Promise<AIChatResponse> {
+  async sendChatMessageWithContext(
+    userMessage: string,
+    context: AIChatContext,
+    onProgress?: (chunks: number) => void,
+  ): Promise<AIChatResponse> {
     const emporixContext = this.convertToEmporixContext(context);
-    const emporixResponse = await this.aiApi.sendChatMessageWithContext(userMessage, emporixContext);
+    const emporixResponse = isAiChatStreamingEnabled()
+      ? await this.aiApi.streamChatMessageWithContext(userMessage, emporixContext, onProgress)
+      : await this.aiApi.sendChatMessageWithContext(userMessage, emporixContext);
     return this.convertFromEmporixResponse(emporixResponse);
   }
 

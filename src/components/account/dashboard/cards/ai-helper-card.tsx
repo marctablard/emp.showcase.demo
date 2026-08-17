@@ -1,15 +1,17 @@
 'use client';
 
 import React, { useCallback, useMemo } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import AiStarsIcon from '@/components/icons/ai-stars';
 import { Button } from '@/components/ui/button';
 import { CardTitle } from '@/components/ui/card';
 import { useAI } from '@/hooks/ai/useAI';
 import { useChatMessages } from '@/hooks/ai/useChatMessages';
 import { useCart } from '@/hooks/cart/useCart';
+import { useLogger } from '@/hooks/common/useLogger';
 import { useRateLimit } from '@/hooks/common/useRateLimit';
 import { useSession } from '@/hooks/session/useSession';
+import { useToast } from '@/hooks/ui/useToast';
 import { useValidator } from '@/hooks/validation/useValidator';
 import { prepareAIContext } from '@/lib/client/ai';
 import { cn } from '@/lib/utils';
@@ -24,9 +26,12 @@ import type { DashboardCardProps } from './dashboard-card';
 
 function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, 'children'>) {
   const t = useTranslations('account.AiHelper');
+  const locale = useLocale();
   const { form } = useValidator('AiHelperValidationService', { question: '' });
+  const { toast } = useToast();
+  const logger = useLogger();
 
-  const { sendMessageWithContext, loading, error } = useAI();
+  const { sendMessageWithContext, loading, chunkCount } = useAI();
   const { session } = useSession();
   const { refetch: refetchCart } = useCart();
   const cartStore = useCartStore();
@@ -66,7 +71,7 @@ function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, '
       setIsChatMode(true);
 
       try {
-        const context = await prepareAIContext(session, cartStore);
+        const context = await prepareAIContext(session, cartStore, locale);
         const aiResponse = await sendMessageWithContext(sanitized, context);
 
         const parsed = parseAIResponse(aiResponse.message);
@@ -86,19 +91,39 @@ function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, '
         if (cartRefresh) {
           await refetchCart();
         }
-      } catch (_err) {
+      } catch (err) {
+        logger.error({ err }, 'AI Helper chat request failed');
         const errorMessage: ChatMessageType = {
           id: (Date.now() + 1).toString(),
           content: t('errorOccurred'),
           isUser: false,
           timestamp: new Date(),
+          type: 'error',
         };
         setMessages((prev) => [...prev, errorMessage]);
+        toast({
+          title: t('error'),
+          description: t('errorOccurred'),
+          variant: 'destructive',
+        });
       }
 
       form.reset();
     },
-    [session, cartStore, sendMessageWithContext, refetchCart, checkRateLimit, t, form, setMessages, setIsChatMode],
+    [
+      session,
+      cartStore,
+      sendMessageWithContext,
+      refetchCart,
+      checkRateLimit,
+      t,
+      form,
+      setMessages,
+      setIsChatMode,
+      logger,
+      toast,
+      locale,
+    ],
   );
 
   const setQuestionValue = useCallback(
@@ -136,19 +161,13 @@ function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, '
       </div>
 
       <div className="flex-1 flex flex-col min-h-0 px-4">
-        {isChatMode && <ChatMessages messages={messages} loading={loading} handlers={handlers} />}
+        {isChatMode && (
+          <ChatMessages messages={messages} loading={loading} chunkCount={chunkCount} handlers={handlers} />
+        )}
 
         {!isChatMode && <Suggestions onSuggestionClick={setQuestionValue} />}
         <ChatInput form={form} onSubmit={handleQuestionSubmit} loading={loading} isChatMode={isChatMode} />
       </div>
-
-      {error && (
-        <div className="px-4 pb-4">
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-            <div className="text-red-600 text-sm">Error: {error.message}</div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

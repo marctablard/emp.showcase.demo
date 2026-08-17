@@ -335,11 +335,14 @@ describe('OrderDetail', () => {
     expect(screen.queryByText('cancelOrder')).not.toBeInTheDocument();
   });
 
-  it('shows the return order button only for COMPLETED orders', () => {
+  it('shows the return order button only for COMPLETED orders', async () => {
     const completedOrder = { ...baseOrder, status: 'COMPLETED' as const };
     mockUseOrder({ order: completedOrder });
 
     render(<OrderDetail orderId={completedOrder.id} initialOrder={completedOrder} />);
+    await act(async () => {
+      await fetchReturnsForOrderMock.mock.results.at(-1)?.value;
+    });
 
     expect(screen.getByText('returnOrder')).toBeInTheDocument();
   });

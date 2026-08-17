@@ -110,8 +110,11 @@ next-env.d.ts
 
 # Cursor IDE configuration (local only)
 # These files contain personal MCP configs, agents, and prompts
-.cursor/
+.cursor/*
 !.cursor/.gitkeep
+!.cursor/rules/
+.cursor/rules/*
+!.cursor/rules/git-branch-and-pr-naming.mdc
 .github/copilot-instructions.md
 
 # Specifications directory (local development artifacts)

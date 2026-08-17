@@ -1,11 +1,14 @@
 'use client';
 
+import { clearUnscopedAIHelperStorage } from '@/lib/client/ai-helper-storage';
 import { getLogger } from '@/lib/logger/use-logger-client';
 
 /**
  * Clear all persisted stores from localStorage and sessionStorage during logout
  */
 export const clearAllPersistedStores = (): void => {
+  clearUnscopedAIHelperStorage();
+
   const localStorageKeys = [
     process.env.NEXT_PUBLIC_HISTORY_STORAGE_NAME || 'history-storage',
     process.env.NEXT_PUBLIC_DASHBOARD_STORAGE_NAME || 'dashboard-storage',

@@ -12,6 +12,15 @@ interface ChatMessageProps {
   handlers: StructuredDataHandlers;
 }
 
+function getNestedText(data: unknown): string | undefined {
+  if (!data || typeof data !== 'object' || !('message' in data)) {
+    return undefined;
+  }
+
+  const nested = (data as { message?: unknown }).message;
+  return typeof nested === 'string' && nested !== '' ? nested : undefined;
+}
+
 const getMessageContainerClasses = (isUser: boolean, hasStructuredData: boolean): string => {
   const baseClasses = 'rounded-lg px-3 py-1.5 shadow-sm';
 
@@ -32,14 +41,11 @@ const getMessageContainerClasses = (isUser: boolean, hasStructuredData: boolean)
 
 export const ChatMessage: React.FC<ChatMessageProps> = ({ message, handlers }) => {
   const isUser = message.isUser;
+  const dataMessage = getNestedText(message.data);
   const hasStructuredData = Boolean(message.data && message.type && message.type !== 'text');
-
-  // Check if content duplicates the data message (to avoid showing twice)
-  const dataMessage =
-    message.data && typeof message.data === 'object' && 'message' in message.data
-      ? (message.data as { message?: string }).message
-      : undefined;
-  const shouldShowContent = !hasStructuredData || message.content !== dataMessage;
+  const textBody =
+    !isUser && message.type === 'text' && dataMessage && dataMessage !== message.content ? dataMessage : undefined;
+  const shouldShowContent = Boolean(message.content) && (!hasStructuredData || message.content !== dataMessage);
 
   return (
     <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
@@ -52,6 +58,12 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, handlers }) =
             )}
           >
             {message.content}
+          </div>
+        )}
+
+        {textBody && (
+          <div className={cn('text-base whitespace-pre-wrap text-text-body', shouldShowContent && 'mt-1')}>
+            {textBody}
           </div>
         )}
 

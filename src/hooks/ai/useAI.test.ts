@@ -117,6 +117,39 @@ describe('useAI hook', () => {
       await result.current.sendMessageWithContext('Hello', context);
     });
 
-    expect(mockSendAIChatMessageWithContext).toHaveBeenCalledWith('Hello', context);
+    expect(mockSendAIChatMessageWithContext).toHaveBeenCalledWith('Hello', context, expect.any(Function));
+  });
+
+  it('should expose chunkCount from stream progress', async () => {
+    let resolveRequest: ((value: { message: string }) => void) | undefined;
+    mockSendAIChatMessageWithContext.mockImplementation(
+      async (_message: string, _context: unknown, onProgress?: (chunks: number) => void) => {
+        onProgress?.(0);
+        onProgress?.(7);
+        return new Promise((resolve) => {
+          resolveRequest = resolve;
+        });
+      },
+    );
+
+    const { result } = renderHook(() => useAI());
+
+    act(() => {
+      void result.current.sendMessageWithContext('Hello', { siteId: 'test', currency: 'EUR', language: 'en' });
+    });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(true);
+      expect(result.current.chunkCount).toBe(7);
+    });
+
+    await act(async () => {
+      resolveRequest?.({ message: 'streamed' });
+    });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.chunkCount).toBeNull();
+    });
   });
 });

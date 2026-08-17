@@ -69,6 +69,11 @@ export interface HTMLData {
   html: string;
 }
 
+export interface TextData {
+  message?: string;
+  formatting?: string;
+}
+
 export interface ErrorData {
   errorCode?: string;
   message: string;
@@ -354,7 +359,7 @@ export type StructuredData =
   | { type: 'table'; data: TableData }
   | { type: 'html'; data: HTMLData }
   | { type: 'error'; data: ErrorData }
-  | { type: 'text'; data: null };
+  | { type: 'text'; data: TextData | null };
 
 export type StructuredDataPayload<T extends StructuredDataType> = Extract<StructuredData, { type: T }>['data'];
 

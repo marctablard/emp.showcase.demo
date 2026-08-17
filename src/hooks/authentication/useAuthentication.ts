@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { signIn, signOut, useSession as useNextAuthSession } from 'next-auth/react';
 import { useLocale } from 'next-intl';
 import { getPathname } from '@/i18n/navigation';
+import { clearUnscopedAIHelperStorage } from '@/lib/client/ai-helper-storage';
 import { fetchCurrentSession } from '@/lib/client/session';
 import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
 import { getPublicDefaultSite } from '@/lib/common/public-default-env';
@@ -139,6 +140,9 @@ export const useAuthentication = (): AuthenticationHook => {
         setIsAuthenticated(false);
       } else {
         setIsAuthenticated(true);
+        // Drop leftover unscoped Helper keys before the dashboard mounts (COP-6181).
+        // Other shoppers' namespaced keys are pruned when the Helper adopts the new customer id.
+        clearUnscopedAIHelperStorage();
         // Clear Zustand cart state only — do NOT clear server session.
         // The server-side merge in EmporixAuthService.login() has already
         // set sessionService.setCart(customerCartId) with the merged cart.

@@ -8,7 +8,12 @@ export interface AIService {
    * Send a chat message with context to the AI service
    * @param userMessage The user's message
    * @param context Additional context for the AI
+   * @param onProgress Optional callback with upstream SSE chunk counts while streaming
    * @returns Promise with the AI response
    */
-  sendChatMessageWithContext(userMessage: string, context: AIChatContext): Promise<AIChatResponse>;
+  sendChatMessageWithContext(
+    userMessage: string,
+    context: AIChatContext,
+    onProgress?: (chunks: number) => void,
+  ): Promise<AIChatResponse>;
 }
