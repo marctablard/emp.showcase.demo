@@ -220,8 +220,8 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
             {/* Backdrop - closes the sidebar when clicked */}
             <div className="fixed inset-0 z-40 bg-black/20" onClick={toggleSidebarOffcanvas} aria-hidden="true" />
 
-            {/* Off-canvas Panel */}
-            <div className="fixed left-0 top-0 h-[calc(100vh-58px)] max-w-[320px] w-full bg-surface-page z-50 overflow-y-auto shadow-lg">
+            {/* Keep the last menu items above the 58px mobile bottom bar. */}
+            <div className="fixed left-0 top-0 bottom-[58px] h-[calc(100dvh-58px)] max-w-[320px] w-full bg-surface-page z-50 overflow-y-auto overscroll-contain shadow-lg">
               <div className="flex justify-end p-4">
                 <Button variant="link" size="icon" onClick={toggleSidebarOffcanvas} className="text-black">
                   <X />
