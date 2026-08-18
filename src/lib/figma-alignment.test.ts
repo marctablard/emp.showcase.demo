@@ -128,13 +128,12 @@ describe('account — sidebar persistent from 768 (Figma: only mobile uses the d
     expect(src).not.toMatch(/useBreakpoint\('lg'\)/);
   });
 
-  it('account-layout phone drawer ends above the 58px bar with dvh (COP-4998)', () => {
+  it('account-layout phone drawer ends above the 58px bar with dvh', () => {
     const src = read('src/components/account/account-layout.tsx');
     expect(src).toContain('bottom-[58px]');
     expect(src).toContain('h-[calc(100dvh-58px)]');
     expect(src).toContain('overscroll-contain');
     expect(src).toContain('scrollable={false}');
-    // Lock the off-canvas panel away from a 100vh height class; a COP-4998 comment may still mention 100vh.
     expect(src).not.toMatch(/h-\[[^\]]*100vh[^\]]*\]/);
   });
 
@@ -155,7 +154,7 @@ describe('account — sidebar persistent from 768 (Figma: only mobile uses the d
     expect(src).not.toContain('lg:min-w-[288px]');
   });
 
-  it('sidebar rail uses header-subtracted dvh max-h scrollport (COP-4998)', () => {
+  it('sidebar rail uses header-subtracted dvh max-h scrollport', () => {
     const src = read('src/components/account/account-sidebar.tsx');
     expect(src).toContain('overflow-y-auto');
     expect(src).toContain('min-h-0');

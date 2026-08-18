@@ -69,10 +69,7 @@ export function AccountSidebar({ className, items, groups = [], scrollable = tru
     <nav
       className={cn(
         'flex flex-col min-w-[180px] md:min-w-[288px] items-start rounded-md h-full py-4 shadow-sm',
-        // COP-4998: tablet rail needs a real overflow scrollport when <main> is shorter
-        // than the ~1272px nav (Figma 3394:81472 / 6354:68313). Subtract DefaultMainLayout
-        // sm:mt-36 (9rem) / md:mt-52 (13rem) plus Account row mt-4 + mb-4 (1rem each).
-        // min-h-0 so flex min-height:auto cannot defeat max-h. Drawer keeps scrollable={false}.
+        // Cap remaining viewport under the header so the rail can scroll when main is short.
         scrollable &&
           'overflow-y-auto min-h-0 overscroll-contain max-h-[calc(100dvh-11rem)] md:max-h-[calc(100dvh-15rem)]',
         className,

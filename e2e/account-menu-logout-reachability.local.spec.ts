@@ -1,13 +1,6 @@
 /**
- * COP-4998 Account menu Logout reachability (local / authenticated).
- *
- * Proves the phone drawer panel and tablet rail are real overflow scrollports and that
- * scrolling *those* containers (not `document`) brings Logout into the scrollport client
- * rect. Playwright Chromium `vh` ≈ `dvh` — this spec does not prove iOS rubber-band snap-back.
- * COP-4874 jump / breadcrumb / hover-scrollbar behavior is out of scope.
- *
- * Named `*.local.spec.ts` so default `npm run e2e` ignores it. Requires
- * `NEXT_E2E_LOCAL_AUTH_BOOTSTRAP_TOKEN` (fails closed; does not skip).
+ * Local authenticated spec: scroll the Account drawer/rail (not the document) until Logout
+ * is in view. Ignored by default `npm run e2e`. Requires NEXT_E2E_LOCAL_AUTH_BOOTSTRAP_TOKEN.
  */
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
@@ -18,7 +11,7 @@ const BOOTSTRAP_HEADER_VALUE = 'auth-site-sync';
 const BOOTSTRAP_TOKEN_HEADER_NAME = 'x-emporix-local-auth-bootstrap-token';
 const BOOTSTRAP_TOKEN = process.env.NEXT_E2E_LOCAL_AUTH_BOOTSTRAP_TOKEN;
 
-/** Profile is a short-main Account page; dashboard is not assumed shorter than the ~1272px nav. */
+/** Profile keeps main content shorter than the nav; dashboard may not. */
 const SHORT_MAIN_ACCOUNT_PATH = '/account/profile';
 const MOBILE_BOTTOM_BAR_PX = 58;
 
@@ -49,7 +42,7 @@ type LogoutReachability = {
   scrolledDocument: boolean;
 };
 
-test.describe('COP-4998 Account menu Logout reachability', () => {
+test.describe('Account menu Logout reachability', () => {
   test.describe.configure({ mode: 'serial' });
 
   test.describe('phone drawer (<768)', () => {
@@ -145,9 +138,7 @@ async function bootstrapAuthenticatedSession(page: Page): Promise<void> {
   });
 
   if (bootstrapResponse.status() === 404) {
-    throw new Error(
-      'Stop Rule: POST /api/test/auth/bootstrap is unavailable (404). Do not fake cookies or bypass login.',
-    );
+    throw new Error('POST /api/test/auth/bootstrap returned 404. Do not fake cookies or bypass login.');
   }
 
   expect(bootstrapResponse.ok()).toBeTruthy();

@@ -68,7 +68,7 @@ describe('AccountLayout responsive sidebar/mobile-menu switching', () => {
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
   });
 
-  it('opens the Account Menu drawer above the 58px bar so Logout is present (COP-4998)', () => {
+  it('opens the Account Menu drawer above the 58px bar so Logout is present', () => {
     setViewportWidth(breakpoints.sm - 1);
 
     const { container } = render(
