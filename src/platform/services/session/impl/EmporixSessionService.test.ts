@@ -5,6 +5,7 @@ import type {
   EmporixContextAttribute,
   EmporixSessionContext,
 } from '@/platform/integrations/emporix/model/session-context';
+import type { EmporixOAuthApi } from '@/platform/integrations/emporix/oauth/EmporixOAuthApi';
 import { EmporixSessionContextApi } from '@/platform/integrations/emporix/session/EmporixSessionContextApi';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Session, SessionAttribute } from '@/platform/services/model/session/session';
@@ -18,6 +19,7 @@ describe('EmporixSessionService', () => {
   let mockSessionContextApi: jest.Mocked<EmporixSessionContextApi>;
   let mockSiteService: jest.Mocked<SiteService>;
   let mockTokenManager: jest.Mocked<EmporixTokenManager>;
+  let mockOAuthApi: jest.Mocked<EmporixOAuthApi>;
   let mockConfig: EmporixConfig;
   let mockSessionMapper: jest.Mocked<SessionMapper<EmporixSessionContext, EmporixContextAttribute>>;
   let mockLogger: jest.Mocked<LoggerService>;
@@ -108,6 +110,9 @@ describe('EmporixSessionService', () => {
       forceRefreshSessionToken: jest.fn(),
       clearTokens: jest.fn(),
     } as jest.Mocked<EmporixTokenManager>;
+    mockOAuthApi = {
+      validateCustomerToken: jest.fn(),
+    } as unknown as jest.Mocked<EmporixOAuthApi>;
 
     mockConfig = {
       tenant: 'test-tenant',
@@ -133,6 +138,7 @@ describe('EmporixSessionService', () => {
     container.bind<EmporixSessionService>('SessionService').to(EmporixSessionService);
     container.bind<SiteService>('SiteService').toConstantValue(mockSiteService);
     container.bind<EmporixTokenManager>('EmporixTokenManager').toConstantValue(mockTokenManager);
+    container.bind<EmporixOAuthApi>('EmporixOAuthApi').toConstantValue(mockOAuthApi);
     container.bind<EmporixConfig>('EmporixConfig').toConstantValue(mockConfig);
     container.bind<LoggerService>('LoggerService').toConstantValue(mockLogger);
 
@@ -164,6 +170,68 @@ describe('EmporixSessionService', () => {
       expect(mockSessionContextApi.getOwnSessionContext).toHaveBeenCalledTimes(1);
       expect(mockSessionMapper.mapToService).not.toHaveBeenCalled();
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('getCustomerTokenLegalEntityId', () => {
+    it('prefers the validated legal entity without exposing the token', async () => {
+      const payload = Buffer.from(JSON.stringify({ legalEntityId: 'le-selected' })).toString('base64url');
+      mockTokenManager.getCustomerToken.mockResolvedValue({
+        accessToken: `header.${payload}.signature`,
+        sessionId: 'session-1',
+      });
+      mockOAuthApi.validateCustomerToken.mockResolvedValue({ legalEntityId: 'le-validated' });
+
+      await expect(sessionService.getCustomerTokenLegalEntityId()).resolves.toBe('le-validated');
+      expect(mockTokenManager.getCustomerToken).toHaveBeenCalledWith('test-tenant', 'test-client-id');
+      expect(mockOAuthApi.validateCustomerToken).toHaveBeenCalledWith('test-tenant', `header.${payload}.signature`);
+    });
+
+    it('falls back to a nested JWT claim when token validation has no legal entity', async () => {
+      const payload = Buffer.from(JSON.stringify({ context: { legalEntityId: 'le-nested' } })).toString('base64url');
+      mockTokenManager.getCustomerToken.mockResolvedValue({
+        accessToken: `header.${payload}.signature`,
+        sessionId: 'session-1',
+      });
+      mockOAuthApi.validateCustomerToken.mockResolvedValue({});
+
+      await expect(sessionService.getCustomerTokenLegalEntityId()).resolves.toBe('le-nested');
+    });
+  });
+
+  describe('setLegalEntity', () => {
+    it('throws without writing the session attribute when token refresh returns null', async () => {
+      mockTokenManager.refreshCustomerTokenWithLegalEntity.mockResolvedValue(null);
+
+      await expect(sessionService.setLegalEntity('le-selected')).rejects.toThrow(
+        'Failed to scope customer token to the selected legal entity',
+      );
+
+      expect(mockSessionContextApi.addOwnSessionContextAttribute).not.toHaveBeenCalled();
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        { legalEntityId: 'le-selected', tokenRefreshSucceeded: false },
+        'Failed to refresh customer token with legal entity',
+      );
+    });
+
+    it('refreshes the token before writing the session attribute', async () => {
+      mockTokenManager.refreshCustomerTokenWithLegalEntity.mockResolvedValue({
+        accessToken: 'header.payload.signature',
+        sessionId: 'session-1',
+      });
+
+      await expect(sessionService.setLegalEntity('le-selected')).resolves.toEqual({
+        tokenRefreshSucceeded: true,
+        tokenLooksLikeJwt: true,
+      });
+
+      expect(mockTokenManager.refreshCustomerTokenWithLegalEntity.mock.invocationCallOrder[0]).toBeLessThan(
+        mockSessionContextApi.addOwnSessionContextAttribute.mock.invocationCallOrder[0]!,
+      );
+      expect(mockSessionContextApi.addOwnSessionContextAttribute).toHaveBeenCalledWith({
+        key: 'legalEntityId',
+        value: 'le-selected',
+      });
     });
   });
 

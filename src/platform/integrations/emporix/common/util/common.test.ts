@@ -1,5 +1,10 @@
-import { buildPaginatedResponse } from './common';
-import { buildSearchQuery, checkTokenValidity, extractItemsFromPaginatedJsonBody } from './common';
+import {
+  buildPaginatedResponse,
+  buildSearchQuery,
+  checkTokenValidity,
+  decodeTokenLegalEntityId,
+  extractItemsFromPaginatedJsonBody,
+} from './common';
 
 describe('buildPaginatedResponse', () => {
   it('maps a raw array response body into paginated items', async () => {
@@ -192,5 +197,13 @@ describe('checkTokenValidity', () => {
     expect(checkTokenValidity('valid-token', expiryAt)).toBe(true);
     // With custom threshold of 15000ms, this should be invalid
     expect(checkTokenValidity('valid-token', expiryAt, 15000)).toBe(false);
+  });
+});
+
+describe('decodeTokenLegalEntityId', () => {
+  it('reads context.legalEntityId from a JWT payload', () => {
+    const payload = Buffer.from(JSON.stringify({ context: { legalEntityId: 'le-nested' } })).toString('base64url');
+
+    expect(decodeTokenLegalEntityId(`header.${payload}.signature`)).toBe('le-nested');
   });
 });

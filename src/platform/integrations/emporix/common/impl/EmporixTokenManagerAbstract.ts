@@ -9,7 +9,7 @@ import type {
 import type { EmporixOAuthApi } from '../../oauth/EmporixOAuthApi';
 import type { EmporixTokenManager as IEmporixTokenManager } from '../EmporixTokenManager';
 import { EMPORIX_TOKEN_TYPE, type EmporixTokenType } from '../token-types';
-import { checkTokenValidity } from '../util/common';
+import { checkTokenValidity, decodeTokenLegalEntityId } from '../util/common';
 
 // TODO configurable
 const STORAGE_PREFIX = 'emporix-token';
@@ -70,6 +70,12 @@ export abstract class EmporixTokenManagerAbstract implements IEmporixTokenManage
 
   constructor(@inject('EmporixOAuthApi') protected oauthApi: EmporixOAuthApi) {}
   abstract clearTokens(tenant: string): void;
+
+  protected logCustomerTokenRefreshSkipped(_context: {
+    refreshSkipped: true;
+    reason: 'missingCustomerToken' | 'invalidRefreshToken';
+    legalEntityRequested: boolean;
+  }): void {}
 
   async getPublicToken(tenant: string, clientId: string): Promise<{ accessToken: string }> {
     const cacheKey = `${tenant}:${clientId}`;
@@ -217,7 +223,11 @@ export abstract class EmporixTokenManagerAbstract implements IEmporixTokenManage
       );
       // Check if token is expired or about to expire (within safety margin)
       if (!this.checkAccessToken(customerToken)) {
-        customerToken = await this.refreshCustomerToken(customerToken, tenant, clientId);
+        const legalEntityId = decodeTokenLegalEntityId(
+          customerToken?.token.access_token,
+          customerToken?.token.saas_token,
+        );
+        customerToken = await this.refreshCustomerToken(customerToken, tenant, clientId, legalEntityId);
         await this.writeToken<StoredToken<EmporixCustomerTokenResponse>, EmporixCustomerTokenResponse>(
           EMPORIX_TOKEN_TYPE.CUSTOMER,
           customerToken,
@@ -262,18 +272,32 @@ export abstract class EmporixTokenManagerAbstract implements IEmporixTokenManage
     clientId: string,
     legalEntityId?: string,
   ) {
-    let response;
+    if (!customerToken) {
+      this.logCustomerTokenRefreshSkipped({
+        refreshSkipped: true,
+        reason: 'missingCustomerToken',
+        legalEntityRequested: Boolean(legalEntityId),
+      });
+      return undefined;
+    }
+    if (!checkTokenValidity(customerToken.token.refresh_token, customerToken.refreshExpiryAt)) {
+      this.logCustomerTokenRefreshSkipped({
+        refreshSkipped: true,
+        reason: 'invalidRefreshToken',
+        legalEntityRequested: Boolean(legalEntityId),
+      });
+      return undefined;
+    }
+
     // Emporix requires a valid *anonymous* access token to authorize refreshauthtoken —
     // not the (possibly already expired) customer access token.
-    if (customerToken && checkTokenValidity(customerToken.token.refresh_token, customerToken.refreshExpiryAt)) {
-      const anonymousToken = await this.getAnonymousToken(tenant, clientId);
-      response = await this.oauthApi.refreshCustomerToken(
-        tenant,
-        anonymousToken.accessToken,
-        customerToken.token.refresh_token!,
-        legalEntityId,
-      );
-    }
+    const anonymousToken = await this.getAnonymousToken(tenant, clientId);
+    const response = await this.oauthApi.refreshCustomerToken(
+      tenant,
+      anonymousToken.accessToken,
+      customerToken.token.refresh_token!,
+      legalEntityId,
+    );
     if (response) {
       const now = Date.now();
       const previous = customerToken!.token;
@@ -310,6 +334,11 @@ export abstract class EmporixTokenManagerAbstract implements IEmporixTokenManage
     );
 
     if (!customerToken) {
+      this.logCustomerTokenRefreshSkipped({
+        refreshSkipped: true,
+        reason: 'missingCustomerToken',
+        legalEntityRequested: Boolean(legalEntityId),
+      });
       return null;
     }
 

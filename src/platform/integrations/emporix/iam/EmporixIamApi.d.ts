@@ -1,9 +1,10 @@
-import { EmporixSearchParams } from '../model';
+import { EmporixPaginatedResponse, EmporixSearchParams } from '../model';
 import {
   AccessControlQueryParams,
   EmporixAccessControl,
   EmporixGroup,
   EmporixGroupAssignmentRequest,
+  EmporixIamGroupUserAssignment,
   EmporixIamUser,
   EmporixPermission,
   EmporixResource,
@@ -17,6 +18,12 @@ import {
  * Provides access to Identity and Access Management functionality
  */
 export interface EmporixIamApi {
+  /**
+   * List CUSTOMER users with expanded group assignments.
+   * Uses the service token required by `iam.user_read`; a customer session would only list itself.
+   */
+  getUsers(pageNumber?: number, pageSize?: number): Promise<{ items: EmporixIamUser[]; totalCount?: number }>;
+
   /**
    * Get all access controls for the tenant
    * @param params Query parameters for filtering
@@ -52,9 +59,11 @@ export interface EmporixIamApi {
   /**
    * Get all groups for the tenant
    * @param params Query parameters for filtering
+   * @param tokenType Auth token type. Defaults to `'service'` so existing callers
+   *   (including `CustomerService.getCustomer`) are unchanged.
    * @returns List of groups
    */
-  getGroups(params?: EmporixSearchParams<EmporixGroup>): Promise<EmporixGroup[]>;
+  getGroups(params?: EmporixSearchParams<EmporixGroup>, tokenType?: 'service' | 'session'): Promise<EmporixGroup[]>;
 
   /**
    * Get a group by ID
@@ -87,8 +96,21 @@ export interface EmporixIamApi {
    * Adds a User to a group
    * @param groupId
    * @param groupAssignment
+   * @param tokenType Auth token type. Defaults to `'service'`.
    */
-  addUserToGroup(groupId: string, groupAssignment: EmporixGroupAssignmentRequest): Promise<{ id: string }>;
+  addUserToGroup(
+    groupId: string,
+    groupAssignment: EmporixGroupAssignmentRequest,
+    tokenType?: 'service' | 'session',
+  ): Promise<{ id: string }>;
+
+  /**
+   * Removes a user from a group (`DELETE /iam/{tenant}/groups/{groupId}/users/{userId}`).
+   * @param groupId Group ID
+   * @param userId User ID
+   * @param tokenType Auth token type. Defaults to `'service'`.
+   */
+  removeUserFromGroup(groupId: string, userId: string, tokenType?: 'service' | 'session'): Promise<void>;
 
   /**
    * Adds a User to a group
@@ -118,10 +140,24 @@ export interface EmporixIamApi {
    * Get the user's groups
    * @param userId User ID to get groups for
    * @param searchParams Optional search parameters for filtering
+   * @param tokenType Auth token type. Defaults to `'service'` — do not globally flip this;
+   *   `CustomerService.getCustomer()` depends on the service-token default.
    * @returns List of groups for the user
    */
   getUserGroups(
     userId: string,
     searchParams?: EmporixSearchParams<EmporixGroup>,
+    tokenType?: 'service' | 'session',
   ): Promise<EmporixPaginatedResponse<EmporixGroup>>;
+
+  /**
+   * Lists user assignments for a single IAM group.
+   * Wraps GET /iam/{tenant}/groups/{groupId}/users.
+   * Uses only pageNumber/pageSize query params; no q filter is supported.
+   */
+  getGroupUsers(
+    groupId: string,
+    searchParams?: EmporixSearchParams<EmporixIamGroupUserAssignment>,
+    tokenType?: 'service' | 'session',
+  ): Promise<EmporixPaginatedResponse<EmporixIamGroupUserAssignment>>;
 }

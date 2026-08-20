@@ -4,6 +4,7 @@
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { breakpoints } from '@/hooks/useBreakpoint';
+import { CustomerRole } from '@/platform/services/model/customer/roles';
 import { AccountLayout } from './account-layout';
 
 function setViewportWidth(width: number) {
@@ -13,6 +14,8 @@ function setViewportWidth(width: number) {
     value: width,
   });
 }
+
+let mockCustomer: { roles?: string[] } | null | undefined;
 
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -35,8 +38,19 @@ jest.mock('@/hooks/authentication/useAuthentication', () => ({
   useAuthentication: () => ({ logout: jest.fn() }),
 }));
 
+jest.mock('@/hooks/customer/useCustomer', () => ({
+  useCustomer: () => ({
+    customer: mockCustomer,
+    loading: mockCustomer === undefined,
+  }),
+}));
+
 describe('AccountLayout responsive sidebar/mobile-menu switching', () => {
   const originalInnerWidth = globalThis.innerWidth;
+
+  beforeEach(() => {
+    mockCustomer = undefined;
+  });
 
   afterEach(() => {
     setViewportWidth(originalInnerWidth);
@@ -186,5 +200,55 @@ describe('AccountLayout responsive sidebar/mobile-menu switching', () => {
 
     const main = container.querySelector('main');
     expect(main).not.toHaveClass('pb-8');
+  });
+});
+
+describe('AccountLayout User Management ADMIN gate', () => {
+  const originalInnerWidth = globalThis.innerWidth;
+  const userManagementLinkName = 'sidebar.items.userManagement';
+
+  beforeEach(() => {
+    mockCustomer = undefined;
+    setViewportWidth(breakpoints.md);
+  });
+
+  afterEach(() => {
+    setViewportWidth(originalInnerWidth);
+  });
+
+  it('hides the User Management link when the customer is undefined', () => {
+    mockCustomer = undefined;
+
+    render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    expect(screen.queryByRole('link', { name: userManagementLinkName })).not.toBeInTheDocument();
+  });
+
+  it('hides the User Management link when roles lack B2B_ADMIN', () => {
+    mockCustomer = { roles: [CustomerRole.B2B_BUYER] };
+
+    render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    expect(screen.queryByRole('link', { name: userManagementLinkName })).not.toBeInTheDocument();
+  });
+
+  it('shows the User Management link when roles include B2B_ADMIN', () => {
+    mockCustomer = { roles: [CustomerRole.B2B_ADMIN] };
+
+    render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    expect(screen.getByRole('link', { name: userManagementLinkName })).toHaveAttribute('href', '/account/users');
   });
 });

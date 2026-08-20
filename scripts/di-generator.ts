@@ -1266,6 +1266,11 @@ async function generateContainerFile(
     .replace('{{aliasBindings}}', aliasBindings)
     .replace('{{layer}}', layer);
 
+  if (fs.existsSync(outputFile) && fs.readFileSync(outputFile, 'utf8') === output) {
+    console.log(`Unchanged ${type} container file: ${outputFile}`);
+    return output;
+  }
+
   fs.writeFileSync(outputFile, output);
   console.log(`Generated ${type} container file: ${outputFile}`);
 
@@ -1339,10 +1344,10 @@ const watchMode = args.includes('--watch');
 
 // Run the generator
 (async () => {
-  await generateAllContainers();
-  
   if (watchMode) {
     watchForChanges();
+  } else {
+    await generateAllContainers();
   }
 })().catch((error) => {
   console.error('Error:', error);

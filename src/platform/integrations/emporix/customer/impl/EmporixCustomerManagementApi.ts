@@ -1,6 +1,7 @@
 import { inject } from 'inversify';
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
+import { createEmporixApiError } from '@/platform/integrations/emporix/common/EmporixApiError';
 import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../../config';
@@ -8,6 +9,22 @@ import type { EmporixContactAssignment, EmporixLegalEntity, EmporixLocation } fr
 import type { EmporixCustomerManagementApi as IEmporixCustomerManagementApi } from '../EmporixCustomerManagementApi';
 
 const createCustomerMgmtMetrics = (route: string) => createFetchMetricsParams('customer-mgmt', route);
+
+const DOCUMENTED_CONTACT_ASSIGNMENTS_PATH = 'customer-management/{tenant}/contact-assignments';
+
+function toLegalEntityAssignmentQueryString(legalEntityId: string, pageNumber: number, pageSize: number): string {
+  const queryParams = new URLSearchParams();
+  queryParams.append('legalEntity.id', legalEntityId);
+  queryParams.append('pageNumber', pageNumber.toString());
+  queryParams.append('pageSize', pageSize.toString());
+  return `?${queryParams.toString()}`;
+}
+
+function parseAssignmentTotalCount(headers: Headers): number | undefined {
+  const raw = headers.get('x-total-count');
+  const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
 
 @injectable('EmporixCustomerManagementApi', 'Singleton')
 class EmporixCustomerManagementApi implements IEmporixCustomerManagementApi {
@@ -108,6 +125,60 @@ class EmporixCustomerManagementApi implements IEmporixCustomerManagementApi {
     return response.json();
   }
 
+  async createLegalEntityContactAssignment(
+    assignment: Pick<EmporixContactAssignment, 'legalEntity' | 'customer'>,
+  ): Promise<{ id: string }> {
+    const url = `customer-management/${this.config.tenant}/contact-assignments`;
+    const response = await this.apiClient.authenticatedFetch(
+      url,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          legalEntity: { id: assignment.legalEntity.id },
+          customer: { id: assignment.customer.id },
+          type: 'CONTACT',
+        }),
+        headers: { 'Content-Type': 'application/json' },
+      },
+      'service',
+      undefined,
+      createCustomerMgmtMetrics(`/${DOCUMENTED_CONTACT_ASSIGNMENTS_PATH}`),
+    );
+    if (!response.ok) {
+      throw await createEmporixApiError('Create legal-entity contact assignment', response);
+    }
+    return (await response.json()) as { id: string };
+  }
+
+  async getContactAssignmentsByLegalEntityId(
+    legalEntityId: string,
+    pageNumber: number = 1,
+    pageSize: number = 16,
+  ): Promise<{ items: EmporixContactAssignment[]; totalCount?: number }> {
+    const url = `customer-management/${this.config.tenant}/contact-assignments${toLegalEntityAssignmentQueryString(
+      legalEntityId,
+      pageNumber,
+      pageSize,
+    )}`;
+    const response = await this.apiClient.authenticatedFetch(
+      url,
+      { method: 'GET', headers: { 'X-Total-Count': 'true' } },
+      'service',
+      undefined,
+      createCustomerMgmtMetrics(`/${DOCUMENTED_CONTACT_ASSIGNMENTS_PATH}`),
+    );
+    if (!response.ok) {
+      throw new Error(
+        `Failed to retrieve contact assignments for legal entity ${legalEntityId}: ${response.statusText}`,
+      );
+    }
+    const items = (await response.json()) as EmporixContactAssignment[];
+    return {
+      items,
+      totalCount: parseAssignmentTotalCount(response.headers),
+    };
+  }
+
   async getContactAssignments(): Promise<EmporixContactAssignment[]> {
     const url = `/${this.config.tenant}/contact-assignments`;
     const response = await this.apiClient.authenticatedFetch(
@@ -189,7 +260,7 @@ class EmporixCustomerManagementApi implements IEmporixCustomerManagementApi {
     return response.json();
   }
 
-  async getLocationById(locationId: string): Promise<Location> {
+  async getLocationById(locationId: string): Promise<EmporixLocation | null> {
     const url = `/${this.config.tenant}/locations/${locationId}`;
     const response = await this.apiClient.authenticatedFetch(
       url,
@@ -198,6 +269,7 @@ class EmporixCustomerManagementApi implements IEmporixCustomerManagementApi {
       undefined,
       createCustomerMgmtMetrics('/{tenant}/locations/{id}'),
     );
+    if (response.status === 404) return null;
     if (!response.ok) throw new Error(`Failed to retrieve location: ${response.statusText}`);
     return response.json();
   }

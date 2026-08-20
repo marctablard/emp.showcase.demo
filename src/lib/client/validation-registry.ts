@@ -5,6 +5,8 @@ import {
   AddressFormSchema,
   AiHelperSchema,
   CartDeliverySchema,
+  CompanyUserCreateFormSchema,
+  CompanyUserEditFormSchema,
   ContactDataSchema,
   InvoiceSearchSchema,
   LoginSchema,
@@ -38,6 +40,8 @@ const validators: Record<string, ValidationService> = {
   TicketSearchValidationService: new ClientZodSchemaValidationService(TicketSearchSchema),
   RegistrationValidationService: new ClientZodSchemaValidationService(RegistrationSchema),
   SavedCartSearchValidationService: new ClientZodSchemaValidationService(SavedCartSearchSchema),
+  CompanyUserCreateValidationService: new ClientZodSchemaValidationService(CompanyUserCreateFormSchema),
+  CompanyUserEditValidationService: new ClientZodSchemaValidationService(CompanyUserEditFormSchema),
 };
 
 export function getValidator(id: string): ValidationService {

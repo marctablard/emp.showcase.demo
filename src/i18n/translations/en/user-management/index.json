@@ -1,0 +1,81 @@
+{
+  "heading": "User Management",
+  "headingWithName": "User Management: {firstName} {lastName}",
+  "breadcrumbUserCreation": "user creation",
+  "breadcrumbEditUser": "edit {firstName} {lastName}",
+  "createButton": "Create new user",
+  "showOtherCompanies": "show users from my other companies",
+  "searchPlaceholder": "Search name...",
+  "columns": {
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "legalEntityName": "Legal Entity Name",
+    "email": "E-mail",
+    "created": "Created",
+    "userGroup": "User Group",
+    "status": "Status",
+    "actions": "Actions"
+  },
+  "status": {
+    "active": "ACTIVE",
+    "inactive": "INACTIVE"
+  },
+  "cancel": "Cancel",
+  "save": "Save",
+  "form": {
+    "userDetails": "User Details",
+    "title": "Title",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "email": "Email Address",
+    "phone": "Phone Number",
+    "userGroup": "User Group",
+    "userGroupForCompany": "{company} User Group",
+    "groupPlaceholder": "Select group",
+    "noGroupsAvailable": "No groups available",
+    "noGroupsAvailableForCompany": "No groups are available for {company}.",
+    "noTitle": "No title",
+    "titles": {
+      "MR": "Mr",
+      "MRS": "Mrs",
+      "MS": "Ms"
+    },
+    "activateUser": "Activate user",
+    "activateUserHelper": "They can access the platform.",
+    "loadingGroups": "Loading groups...",
+    "saving": "Saving..."
+  },
+  "validation": {
+    "requiredGroup": "Please select at least one group.",
+    "firstNameRequired": "Please enter a first name.",
+    "lastNameRequired": "Please enter a last name.",
+    "emailRequired": "Please enter an email address.",
+    "emailInvalid": "Please enter a valid email address.",
+    "phoneInvalid": "Please enter a valid phone number."
+  },
+  "deleteDialog": {
+    "title": "Delete user?",
+    "description": "This user will be removed. This cannot be undone.",
+    "cancel": "Cancel",
+    "confirm": "Delete"
+  },
+  "empty": "No users found.",
+  "noResults": "No users found.",
+  "loading": "Loading...",
+  "tryAgain": "Try Again",
+  "previous": "Previous",
+  "next": "Next",
+  "pageIndicator": "Page {current} / {total}",
+  "editAriaLabel": "Edit user {name}",
+  "deleteAriaLabel": "Delete user {name}",
+  "notifications": {
+    "createSuccess": "You have successfully created a new user!",
+    "createPartial": "The user {userName} has been created, but it could not be linked to {groupNames}. Please use \"Edit\" function to adjust user's groups.",
+    "saveSuccess": "Success! User details have been saved.",
+    "saveError": "Error! User details could not be saved.",
+    "predefinedGroupConflict": "This user cannot be assigned to more than one predefined functional group in this company.",
+    "statusSuccess": "User status successfully updated!",
+    "deleteSuccess": "The user has been deleted.",
+    "genericFailure": "The request failed."
+  }
+}

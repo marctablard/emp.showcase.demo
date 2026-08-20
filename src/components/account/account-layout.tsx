@@ -25,8 +25,10 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useCustomer } from '@/hooks/customer/useCustomer';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import type { BreadcrumbContent } from '@/lib/breadcrumb';
+import { CustomerRole } from '@/platform/services/model/customer/roles';
 import { UiBreadcrumb } from '../ui/molecules/ui-breadcrumb';
 import { AccountSidebar } from './account-sidebar';
 
@@ -37,9 +39,11 @@ interface AccountLayoutProps {
 
 export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
   const t = useTranslations('account');
+  const { customer } = useCustomer();
   const [showSidebarOffcanvas, setShowSidebarOffcanvas] = useState(false);
   // Figma: the persistent sidebar appears from tablet (768) up; only below that a drawer is used.
   const isDesktop = useBreakpoint('sm');
+  const canManageUsers = customer?.roles?.includes(CustomerRole.B2B_ADMIN) === true;
 
   // Toggle sidebar offcanvas visibility
   const toggleSidebarOffcanvas = () => {
@@ -151,11 +155,15 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
           title: t('sidebar.items.addressManagement'),
           icon: <MapPin className="h-6 w-6" />,
         },
-        {
-          href: '/account/users',
-          title: t('sidebar.items.userManagement'),
-          icon: <UserCog className="h-6 w-6" />,
-        },
+        ...(canManageUsers
+          ? [
+              {
+                href: '/account/users',
+                title: t('sidebar.items.userManagement'),
+                icon: <UserCog className="h-6 w-6" />,
+              },
+            ]
+          : []),
         {
           href: '/account/payment-options',
           title: t('sidebar.items.paymentOptions'),
