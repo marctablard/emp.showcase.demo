@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import type { AccountDetailsData, AddressData } from '../types';
 import { formatDateTime } from '../utils';
 import { AddressCard } from './AddressCard';
+import { widgetOrSkeleton } from './WidgetSkeleton';
 
 interface AccountDetailsRendererProps {
   data: AccountDetailsData;
@@ -12,10 +13,12 @@ interface AccountDetailsRendererProps {
 
 export const AccountDetailsRenderer: React.FC<AccountDetailsRendererProps> = ({ data }) => {
   const t = useTranslations('account.AiHelper');
+  const personalInfo = data.personalInfo;
 
-  return (
-    <div className="space-y-4">
-      {data.personalInfo && (
+  return widgetOrSkeleton(
+    personalInfo,
+    <>
+      <div className="space-y-4">
         <div className="bg-surface-primary rounded-lg border border-border-primary p-4">
           <div className="flex items-center space-x-2 mb-4">
             <h3 className="text-base font-semibold text-text-headings">{t('accountInformation')}</h3>
@@ -26,7 +29,7 @@ export const AccountDetailsRenderer: React.FC<AccountDetailsRendererProps> = ({ 
               <div className="w-4 h-4 text-text-body">👤</div>
               <div>
                 <div className="text-xs text-text-body">{t('name')}</div>
-                <div className="text-sm font-medium text-text-headings">{data.personalInfo.name}</div>
+                <div className="text-sm font-medium text-text-headings">{personalInfo?.name}</div>
               </div>
             </div>
 
@@ -34,7 +37,7 @@ export const AccountDetailsRenderer: React.FC<AccountDetailsRendererProps> = ({ 
               <div className="w-4 h-4 text-text-body">✉️</div>
               <div>
                 <div className="text-xs text-text-body">{t('email')}</div>
-                <div className="text-sm font-medium text-text-headings">{data.personalInfo.email}</div>
+                <div className="text-sm font-medium text-text-headings">{personalInfo?.email}</div>
               </div>
             </div>
 
@@ -42,7 +45,7 @@ export const AccountDetailsRenderer: React.FC<AccountDetailsRendererProps> = ({ 
               <div className="w-4 h-4 text-text-body">🏢</div>
               <div>
                 <div className="text-xs text-text-body">{t('company')}</div>
-                <div className="text-sm font-medium text-text-headings">{data.personalInfo.company}</div>
+                <div className="text-sm font-medium text-text-headings">{personalInfo?.company}</div>
               </div>
             </div>
 
@@ -50,7 +53,7 @@ export const AccountDetailsRenderer: React.FC<AccountDetailsRendererProps> = ({ 
               <div className="w-4 h-4 text-text-body">💳</div>
               <div>
                 <div className="text-xs text-text-body">{t('customerNumber')}</div>
-                <div className="text-sm font-medium text-text-headings">{data.personalInfo.customerNumber}</div>
+                <div className="text-sm font-medium text-text-headings">{personalInfo?.customerNumber}</div>
               </div>
             </div>
 
@@ -58,7 +61,7 @@ export const AccountDetailsRenderer: React.FC<AccountDetailsRendererProps> = ({ 
               <div className="w-4 h-4 text-text-body">🌐</div>
               <div>
                 <div className="text-xs text-text-body">{t('businessModel')}</div>
-                <div className="text-sm font-medium text-text-headings">{data.personalInfo.businessModel}</div>
+                <div className="text-sm font-medium text-text-headings">{personalInfo?.businessModel}</div>
               </div>
             </div>
 
@@ -66,7 +69,7 @@ export const AccountDetailsRenderer: React.FC<AccountDetailsRendererProps> = ({ 
               <div className="w-4 h-4 text-text-body">Az</div>
               <div>
                 <div className="text-xs text-text-body">{t('preferredLanguage')}</div>
-                <div className="text-sm font-medium text-text-headings">{data.personalInfo.preferredLanguage}</div>
+                <div className="text-sm font-medium text-text-headings">{personalInfo?.preferredLanguage}</div>
               </div>
             </div>
 
@@ -74,7 +77,7 @@ export const AccountDetailsRenderer: React.FC<AccountDetailsRendererProps> = ({ 
               <div className="w-4 h-4 text-text-body">$</div>
               <div>
                 <div className="text-xs text-text-body">{t('preferredCurrency')}</div>
-                <div className="text-sm font-medium text-text-headings">{data.personalInfo.preferredCurrency}</div>
+                <div className="text-sm font-medium text-text-headings">{personalInfo?.preferredCurrency}</div>
               </div>
             </div>
 
@@ -82,7 +85,7 @@ export const AccountDetailsRenderer: React.FC<AccountDetailsRendererProps> = ({ 
               <div className="w-4 h-4 text-text-body">📍</div>
               <div>
                 <div className="text-xs text-text-body">{t('preferredSite')}</div>
-                <div className="text-sm font-medium text-text-headings">{data.personalInfo.preferredSite || '-'}</div>
+                <div className="text-sm font-medium text-text-headings">{personalInfo?.preferredSite || '-'}</div>
               </div>
             </div>
 
@@ -90,28 +93,26 @@ export const AccountDetailsRenderer: React.FC<AccountDetailsRendererProps> = ({ 
               <div className="w-4 h-4 text-text-body">🕐</div>
               <div>
                 <div className="text-xs text-text-body">{t('lastLogin')}</div>
-                <div className="text-sm font-medium text-text-headings">
-                  {formatDateTime(data.personalInfo.lastLogin)}
-                </div>
+                <div className="text-sm font-medium text-text-headings">{formatDateTime(personalInfo?.lastLogin)}</div>
               </div>
             </div>
           </div>
         </div>
-      )}
 
-      {data.addresses && data.addresses.length > 0 && (
-        <div className="bg-surface-primary rounded-lg border border-border-primary p-4">
-          <div className="flex items-center space-x-2 mb-4">
-            <h3 className="text-base font-semibold text-text-headings">{t('savedAddresses')}</h3>
-          </div>
+        {data.addresses && data.addresses.length > 0 && (
+          <div className="bg-surface-primary rounded-lg border border-border-primary p-4">
+            <div className="flex items-center space-x-2 mb-4">
+              <h3 className="text-base font-semibold text-text-headings">{t('savedAddresses')}</h3>
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 items-stretch">
-            {data.addresses.map((address: AddressData, index: number) => (
-              <AddressCard key={index} address={address} />
-            ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 items-stretch">
+              {data.addresses.map((address: AddressData, index: number) => (
+                <AddressCard key={index} address={address} />
+              ))}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>,
   );
 };

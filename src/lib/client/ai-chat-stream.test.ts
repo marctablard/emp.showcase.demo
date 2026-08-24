@@ -1,4 +1,5 @@
 import { encodeAiChatSse } from '@/lib/common/ai-chat-stream';
+import type { AIChatStreamProgressUpdate } from '@/lib/common/ai-stream-preview';
 import { readAIChatSseResponse } from './ai-chat-stream';
 
 function sseStream(events: Parameters<typeof encodeAiChatSse>[0][]): ReadableStream<Uint8Array> {
@@ -15,10 +16,10 @@ function sseStream(events: Parameters<typeof encodeAiChatSse>[0][]): ReadableStr
 
 describe('readAIChatSseResponse', () => {
   it('reports progress then returns the complete response', async () => {
-    const counts: number[] = [];
+    const progressUpdates: Array<{ chunks: number; preview?: { kind: string; content: string } }> = [];
     const body = sseStream([
       { type: 'progress', chunks: 0 },
-      { type: 'progress', chunks: 3 },
+      { type: 'progress', chunks: 3, preview: { kind: 'text', content: 'don' } },
       {
         type: 'complete',
         agentId: 'frontendAgent',
@@ -28,17 +29,58 @@ describe('readAIChatSseResponse', () => {
       },
     ]);
 
-    const result = await readAIChatSseResponse(body, (chunks) => {
-      counts.push(chunks);
+    const result = await readAIChatSseResponse(body, (progress) => {
+      progressUpdates.push(progress as { chunks: number; preview?: { kind: string; content: string } });
     });
 
-    expect(counts).toEqual([0, 3]);
+    expect(progressUpdates).toEqual([{ chunks: 0 }, { chunks: 3, preview: { kind: 'text', content: 'don' } }]);
     expect(result).toEqual({
       agentId: 'frontendAgent',
       agentType: 'generic',
       message: 'done',
       sessionId: 'session-1',
     });
+  });
+
+  it('forwards thinking on progress events', async () => {
+    const progressUpdates: AIChatStreamProgressUpdate[] = [];
+    const body = sseStream([
+      {
+        type: 'progress',
+        chunks: 2,
+        thinking: 'Looking up orders.',
+        preview: {
+          kind: 'widget',
+          type: 'order_list',
+          message: 'Here are your orders.',
+          data: { orders: [{ orderId: 'EON1' }] },
+        },
+      },
+      {
+        type: 'complete',
+        agentId: 'frontendAgent',
+        agentType: 'generic',
+        message: 'done',
+        sessionId: 'session-1',
+      },
+    ]);
+
+    await readAIChatSseResponse(body, (progress) => {
+      progressUpdates.push(progress);
+    });
+
+    expect(progressUpdates).toEqual([
+      {
+        chunks: 2,
+        thinking: 'Looking up orders.',
+        preview: {
+          kind: 'widget',
+          type: 'order_list',
+          message: 'Here are your orders.',
+          data: { orders: [{ orderId: 'EON1' }] },
+        },
+      },
+    ]);
   });
 
   it('throws when the stream sends an error event', async () => {

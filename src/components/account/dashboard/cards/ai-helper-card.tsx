@@ -31,22 +31,19 @@ function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, '
   const { toast } = useToast();
   const logger = useLogger();
 
-  const { sendMessageWithContext, loading, chunkCount } = useAI();
+  const { sendMessageWithContext, loading, chunkCount, streamingPreview, streamingThinking } = useAI();
   const { session } = useSession();
   const { refetch: refetchCart } = useCart();
   const cartStore = useCartStore();
   const { checkRateLimit } = useRateLimit({ maxRequests: 10, windowMs: 60000 });
 
-  // Use the chat messages hook for persistence
   const { messages, setMessages, isChatMode, setIsChatMode, clearChat } = useChatMessages();
 
   const handleQuestionSubmit = useCallback(
     async (data: AiHelperFormData) => {
-      // Sanitize user input
       const { sanitized, error: sanitizeError } = sanitizeUserInput(data.question);
       if (sanitizeError || !sanitized || !session) return;
 
-      // Check rate limit
       if (!checkRateLimit()) {
         const rateLimitMessage: ChatMessageType = {
           id: Date.now().toString(),
@@ -72,21 +69,20 @@ function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, '
 
       try {
         const context = await prepareAIContext(session, cartStore, locale);
-        const aiResponse = await sendMessageWithContext(sanitized, context);
-
-        const parsed = parseAIResponse(aiResponse.message);
-        const cartRefresh = parsed.cartRefresh || aiResponse.cartRefresh || false;
-
-        const aiMessage: ChatMessageType = {
-          id: (Date.now() + 1).toString(),
-          content: parsed.message,
-          isUser: false,
-          timestamp: new Date(),
-          data: parsed.data,
-          type: parsed.type,
-        };
-
-        setMessages((prev) => [...prev, aiMessage]);
+        let cartRefresh = false;
+        await sendMessageWithContext(sanitized, context, (aiResponse) => {
+          const parsed = parseAIResponse(aiResponse.message);
+          cartRefresh = parsed.cartRefresh || aiResponse.cartRefresh || false;
+          const aiMessage: ChatMessageType = {
+            id: (Date.now() + 1).toString(),
+            content: parsed.message,
+            isUser: false,
+            timestamp: new Date(),
+            data: parsed.data,
+            type: parsed.type,
+          };
+          setMessages((prev) => [...prev, aiMessage]);
+        });
 
         if (cartRefresh) {
           await refetchCart();
@@ -162,7 +158,14 @@ function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, '
 
       <div className="flex-1 flex flex-col min-h-0 px-4">
         {isChatMode && (
-          <ChatMessages messages={messages} loading={loading} chunkCount={chunkCount} handlers={handlers} />
+          <ChatMessages
+            messages={messages}
+            loading={loading}
+            chunkCount={chunkCount}
+            streamingPreview={streamingPreview}
+            streamingThinking={streamingThinking}
+            handlers={handlers}
+          />
         )}
 
         {!isChatMode && <Suggestions onSuggestionClick={setQuestionValue} />}

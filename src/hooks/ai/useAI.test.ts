@@ -120,12 +120,16 @@ describe('useAI hook', () => {
     expect(mockSendAIChatMessageWithContext).toHaveBeenCalledWith('Hello', context, expect.any(Function));
   });
 
-  it('should expose chunkCount from stream progress', async () => {
+  it('should expose chunkCount and streamingPreview from stream progress', async () => {
     let resolveRequest: ((value: { message: string }) => void) | undefined;
     mockSendAIChatMessageWithContext.mockImplementation(
-      async (_message: string, _context: unknown, onProgress?: (chunks: number) => void) => {
-        onProgress?.(0);
-        onProgress?.(7);
+      async (
+        _message: string,
+        _context: unknown,
+        onProgress?: (progress: { chunks: number; preview?: { kind: 'text'; content: string } }) => void,
+      ) => {
+        onProgress?.({ chunks: 0 });
+        onProgress?.({ chunks: 7, preview: { kind: 'text', content: 'Typing' } });
         return new Promise((resolve) => {
           resolveRequest = resolve;
         });
@@ -141,6 +145,7 @@ describe('useAI hook', () => {
     await waitFor(() => {
       expect(result.current.loading).toBe(true);
       expect(result.current.chunkCount).toBe(7);
+      expect(result.current.streamingPreview).toEqual({ kind: 'text', content: 'Typing' });
     });
 
     await act(async () => {
@@ -150,6 +155,56 @@ describe('useAI hook', () => {
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
       expect(result.current.chunkCount).toBeNull();
+      expect(result.current.streamingPreview).toBeNull();
+    });
+  });
+
+  it('should expose widget preview and thinking from stream progress', async () => {
+    let resolveRequest: ((value: { message: string }) => void) | undefined;
+    mockSendAIChatMessageWithContext.mockImplementation(
+      async (
+        _message: string,
+        _context: unknown,
+        onProgress?: (progress: {
+          chunks: number;
+          preview?: { kind: 'widget'; type: string; message: string; data: unknown };
+          thinking?: string;
+        }) => void,
+      ) => {
+        onProgress?.({
+          chunks: 2,
+          thinking: 'I will look up quotes.',
+          preview: {
+            kind: 'widget',
+            type: 'quote_list',
+            message: '',
+            data: {},
+          },
+        });
+        return new Promise((resolve) => {
+          resolveRequest = resolve;
+        });
+      },
+    );
+
+    const { result } = renderHook(() => useAI());
+
+    act(() => {
+      void result.current.sendMessageWithContext('Hello', { siteId: 'test', currency: 'EUR', language: 'en' });
+    });
+
+    await waitFor(() => {
+      expect(result.current.streamingThinking).toBe('I will look up quotes.');
+      expect(result.current.streamingPreview).toEqual({
+        kind: 'widget',
+        type: 'quote_list',
+        message: '',
+        data: {},
+      });
+    });
+
+    await act(async () => {
+      resolveRequest?.({ message: 'streamed' });
     });
   });
 });

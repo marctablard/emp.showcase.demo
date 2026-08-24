@@ -40,6 +40,8 @@ jest.mock('@/hooks/ai/useAI', () => ({
     sendMessageWithContext,
     loading: mockLoading,
     chunkCount: null,
+    streamingPreview: null,
+    streamingThinking: null,
     error: mockError,
   }),
 }));

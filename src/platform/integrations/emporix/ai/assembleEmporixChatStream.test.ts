@@ -278,7 +278,7 @@ describe('assembleEmporixChatStream', () => {
   });
 
   it('reports progress after each SSE data payload, including split stream chunks', async () => {
-    const counts: number[] = [];
+    const progressUpdates: Array<{ chunks: number; preview?: { kind: string; content?: string } }> = [];
     const first = toContentToken('Hello, ');
     const second = toContentToken('world!');
     const stream = new ReadableStream<Uint8Array>({
@@ -291,11 +291,373 @@ describe('assembleEmporixChatStream', () => {
       },
     });
 
-    const assembled = await assembleEmporixChatStream(stream, (chunks) => {
-      counts.push(chunks);
+    const assembled = await assembleEmporixChatStream(stream, (progress) => {
+      progressUpdates.push(progress);
     });
 
     expect(assembled.message).toBe('Hello, world!');
-    expect(counts).toEqual([1, 2]);
+    expect(progressUpdates).toEqual([
+      { chunks: 1, preview: { kind: 'text', content: 'Hello, ' } },
+      { chunks: 2, preview: { kind: 'text', content: 'Hello, world!' } },
+    ]);
+  });
+
+  it('streams a widget skeleton after a leading tool fence, without painting incomplete order JSON', async () => {
+    const progressUpdates: Array<{
+      chunks: number;
+      preview?: { kind: string; content?: string; type?: string; data?: unknown };
+    }> = [];
+    const frontendAgentPayload = {
+      agentId: 'frontendAgent',
+      sessionId: 'session-orders',
+      message: 'Here are your current pending orders.',
+      type: 'order_list',
+      data: { orders: [{ orderId: 'EON1605' }] },
+    };
+    const toolFence = '```json\n{"query":"pending orders","filter":"NO_FILTER"}\n```\n';
+    const envelopeJson = JSON.stringify(frontendAgentPayload);
+    const contentChunks = [envelopeJson.slice(0, 40), envelopeJson.slice(40, 90), envelopeJson.slice(90)];
+    const streamBody = `${toolFence}${contentChunks.map((chunk) => toContentToken(chunk)).join('')}`;
+
+    await assembleEmporixChatStream(streamBody, (progress) => {
+      progressUpdates.push(progress);
+    });
+
+    const widgetPreviews = progressUpdates.filter((update) => update.preview?.kind === 'widget');
+    expect(widgetPreviews.length).toBeGreaterThan(0);
+    expect(widgetPreviews.some((update) => JSON.stringify(update.preview?.data ?? {}).includes('EON1605'))).toBe(true);
+    expect(widgetPreviews.at(-1)?.preview).toEqual({
+      kind: 'widget',
+      type: 'order_list',
+      message: 'Here are your current pending orders.',
+      data: { orders: [{ orderId: 'EON1605' }] },
+    });
+  });
+
+  it('forwards html preview after a leading tool fence during token streaming', async () => {
+    const progressUpdates: Array<{ chunks: number; preview?: { kind: string; html?: string } }> = [];
+    const toolFence = '```json\n{"query":"profile","filter":"NO_FILTER"}\n```\n';
+    const envelope = '{"type":"html","data":{"html":"<p>Hello';
+    const streamBody = `${toolFence}${toContentToken(envelope.slice(0, 20))}${toContentToken(envelope.slice(20))}`;
+
+    await assembleEmporixChatStream(streamBody, (progress) => {
+      progressUpdates.push(progress);
+    });
+
+    expect(progressUpdates.some((update) => update.preview?.kind === 'html')).toBe(true);
+    expect(progressUpdates.at(-1)?.preview).toEqual({ kind: 'html', html: '<p>Hello' });
+  });
+
+  it('shows a quote-list skeleton on get-quotes tool_start, then fills two quotes', async () => {
+    const progressUpdates: Array<{
+      chunks: number;
+      preview?: { kind: string; type?: string; data?: { quotes?: Array<{ quoteId?: string }> } };
+      thinking?: string;
+    }> = [];
+    const streamBody = [
+      toNamedSseEvent('tool_start', JSON.stringify({ tool_name: 'get-quotes', tool_call_id: 'call-1' })),
+      toNamedSseEvent(
+        'tool_result',
+        JSON.stringify({
+          tool_name: 'get-quotes',
+          tool_call_id: 'call-1',
+          output: {
+            quotes: [
+              { id: 'Q1', reference: 'R1' },
+              { id: 'Q2', reference: 'R2' },
+            ],
+          },
+        }),
+      ),
+      toContentToken('Here are your quotes.'),
+    ].join('');
+
+    const assembled = await assembleEmporixChatStream(streamBody, (progress) => {
+      progressUpdates.push(progress);
+    });
+
+    expect(progressUpdates[0]?.preview).toEqual({
+      kind: 'widget',
+      type: 'quote_list',
+      message: '',
+      data: {},
+    });
+    const filled = progressUpdates.find(
+      (update) => Array.isArray(update.preview?.data?.quotes) && update.preview.data.quotes.length === 2,
+    );
+    expect(filled?.preview?.data?.quotes?.map((quote) => quote.quoteId)).toEqual(['Q1', 'Q2']);
+    const parsed = JSON.parse(assembled.message);
+    expect(parsed.type).toBe('quote_list');
+    expect(parsed.message).toBe('Here are your quotes.');
+    expect(parsed.data.quotes).toHaveLength(2);
+  });
+
+  it('keeps tool_result widgets when trailing tokens are not a complete envelope', async () => {
+    const streamBody = [
+      toNamedSseEvent(
+        'tool_result',
+        JSON.stringify({
+          tool_name: 'get-customer-orders',
+          tool_call_id: 'call-1',
+          output: { orders: [{ id: 'EON1' }] },
+        }),
+      ),
+      toContentToken('not-json-yet'),
+    ].join('');
+
+    const assembled = await assembleEmporixChatStream(streamBody);
+    const parsed = JSON.parse(assembled.message);
+    expect(parsed.type).toBe('order_list');
+    expect(parsed.message).toBe('not-json-yet');
+    expect(parsed.data.orders[0].orderId).toBe('EON1');
+  });
+
+  it('shows an account skeleton on get-customer-info tool_start', async () => {
+    const progressUpdates: Array<{ chunks: number; preview?: { kind: string; type?: string; data?: unknown } }> = [];
+    const streamBody = toNamedSseEvent(
+      'tool_start',
+      JSON.stringify({ tool_name: 'showcasedev__get-customer-info', tool_call_id: 'call-1' }),
+    );
+
+    const assembled = await assembleEmporixChatStream(streamBody, (progress) => {
+      progressUpdates.push(progress);
+    }).catch(() => undefined);
+
+    expect(assembled).toBeUndefined();
+    expect(progressUpdates[0]?.preview).toEqual({
+      kind: 'widget',
+      type: 'account_details',
+      message: '',
+      data: {},
+    });
+  });
+
+  it('maps get-customer-info tool_result onto personalInfo', async () => {
+    const streamBody = [
+      toNamedSseEvent('tool_start', JSON.stringify({ tool_name: 'get-customer-info', tool_call_id: 'call-1' })),
+      toNamedSseEvent(
+        'tool_result',
+        JSON.stringify({
+          tool_name: 'get-customer-info',
+          tool_call_id: 'call-1',
+          output: {
+            firstName: 'Ada',
+            lastName: 'Lovelace',
+            contactEmail: 'ada@example.com',
+            addresses: [
+              { name: 'HQ', addressLine1: '1 Analytical Way', city: 'London', postalCode: 'SW1A', country: 'GB' },
+            ],
+          },
+        }),
+      ),
+      toContentToken('Here is your account information.'),
+    ].join('');
+
+    const assembled = await assembleEmporixChatStream(streamBody);
+    const parsed = JSON.parse(assembled.message);
+    expect(parsed.type).toBe('account_details');
+    expect(parsed.data.personalInfo.name).toBe('Ada Lovelace');
+    expect(parsed.data.personalInfo.email).toBe('ada@example.com');
+    expect(parsed.data.addresses[0].city).toBe('London');
+  });
+
+  it('does not paint get-customer-info as the shopper name when the tool envelope is empty', async () => {
+    const streamBody = [
+      toNamedSseEvent('tool_start', JSON.stringify({ tool_name: 'get-customer-info', tool_call_id: 'call-1' })),
+      toNamedSseEvent(
+        'tool_result',
+        JSON.stringify({
+          tool_name: 'get-customer-info',
+          tool_call_id: 'call-1',
+          output: { name: 'get-customer-info', type: 'tool', tool_call_id: 'call-1' },
+        }),
+      ),
+      toContentToken(
+        JSON.stringify({
+          message: 'Here is your profile information.',
+          type: 'account_details',
+          data: {
+            personalInfo: {
+              name: 'Szymon Mendla',
+              email: 's.mendla@emporix.com',
+              company: 'SpaceX',
+              customerNumber: '26566461',
+            },
+            addresses: [{ city: 'Belrin', country: 'Germany' }],
+          },
+        }),
+      ),
+    ].join('');
+
+    const assembled = await assembleEmporixChatStream(streamBody);
+    const parsed = JSON.parse(assembled.message);
+    expect(parsed.type).toBe('account_details');
+    expect(parsed.data.personalInfo).toMatchObject({
+      name: 'Szymon Mendla',
+      email: 's.mendla@emporix.com',
+      company: 'SpaceX',
+    });
+    expect(parsed.data.personalInfo.name).not.toBe('get-customer-info');
+  });
+
+  it('keeps adapted get-products tool_result when token JSON is larger', async () => {
+    const fatTokenProduct = {
+      id: 'P1',
+      name: { en: 'Super 8 Blanche' },
+      description: { en: '<p>Crisp lager</p>' },
+      mixins: { specs: { alcohol: '5%', origin: 'Belgium', packaging: 'can' } },
+    };
+    const streamBody = [
+      toNamedSseEvent(
+        'tool_result',
+        JSON.stringify({
+          tool_name: 'get-products',
+          tool_call_id: 'call-1',
+          output: {
+            products: [
+              {
+                id: 'P1',
+                name: { en: 'Super 8 Blanche' },
+                description: { en: '<p>Crisp lager</p>' },
+                media: { url: 'https://cdn.example/p1.jpg' },
+                price: { amount: 12.5, currency: 'EUR' },
+              },
+            ],
+          },
+        }),
+      ),
+      toContentToken(
+        JSON.stringify({
+          message: 'Here are five products.',
+          type: 'product_list',
+          data: {
+            products: [fatTokenProduct, fatTokenProduct, fatTokenProduct],
+          },
+        }),
+      ),
+    ].join('');
+
+    const assembled = await assembleEmporixChatStream(streamBody);
+    const parsed = JSON.parse(assembled.message);
+    expect(parsed.type).toBe('product_list');
+    expect(parsed.data.products).toHaveLength(1);
+    expect(parsed.data.products[0]).toEqual({
+      productId: 'P1',
+      name: 'Super 8 Blanche',
+      description: '<p>Crisp lager</p>',
+      image: 'https://cdn.example/p1.jpg',
+      price: 12.5,
+      currency: 'EUR',
+    });
+    expect(parsed.data.products[0]).not.toHaveProperty('mixins');
+  });
+
+  it('drops multi-section planning captions from progress when tool_result fills order_list', async () => {
+    const progressUpdates: Array<{ preview?: { kind: string; message?: string; type?: string } }> = [];
+    const cotToken = JSON.stringify({
+      message: '## OBJECTIVE\n\nThe user wants profile.\n\n## CHECKLIST\n\nContext.',
+      type: 'order_list',
+      data: { orders: [{ id: 'EON999', mixins: { huge: true } }] },
+    });
+    const streamBody = [
+      toNamedSseEvent(
+        'tool_result',
+        JSON.stringify({
+          tool_name: 'get-customer-orders',
+          tool_call_id: 'call-1',
+          output: { orders: [{ id: 'EON1735', status: 'CREATED', totalPrice: 10, currency: 'EUR' }] },
+        }),
+      ),
+      toContentToken(cotToken),
+    ].join('');
+
+    const assembled = await assembleEmporixChatStream(streamBody, (progress) => {
+      progressUpdates.push(progress);
+    });
+
+    expect(
+      progressUpdates.some(
+        (update) =>
+          update.preview?.kind === 'widget' && update.preview.type === 'order_list' && update.preview.message === '',
+      ),
+    ).toBe(true);
+    const parsed = JSON.parse(assembled.message);
+    expect(parsed.data.orders[0].orderId).toBe('EON1735');
+  });
+
+  it('forwards thinking on progress and omits it from the complete message', async () => {
+    const progressUpdates: Array<{ thinking?: string }> = [];
+    const streamBody = [
+      toNamedSseEvent('thinking', JSON.stringify({ content: 'I will look up quotes.' })),
+      toContentToken('Here they are.'),
+    ].join('');
+
+    const assembled = await assembleEmporixChatStream(streamBody, (progress) => {
+      progressUpdates.push(progress);
+    });
+
+    expect(progressUpdates.some((update) => update.thinking === 'I will look up quotes.')).toBe(true);
+    expect(assembled.message).toBe('Here they are.');
+    expect(assembled.message).not.toContain('I will look up quotes.');
+  });
+
+  it('fills product_list from indexedProducts tool_result before final tokens', async () => {
+    const progressUpdates: Array<{ preview?: { kind: string; type?: string; data?: { products?: unknown[] } } }> = [];
+    const streamBody = [
+      toNamedSseEvent(
+        'tool_start',
+        JSON.stringify({ tool_name: 'search_showcasedev__indexedProducts', tool_call_id: 'call-1' }),
+      ),
+      toNamedSseEvent(
+        'tool_result',
+        JSON.stringify({
+          tool_name: 'search_showcasedev__indexedProducts',
+          tool_call_id: 'call-1',
+          output: {
+            data: {
+              results: [
+                {
+                  metadata: {
+                    code: 'SOLAR-1',
+                    name: { en: 'Solar Panel 300W' },
+                    medias: [{ url: 'https://cdn.example/solar.jpg' }],
+                    sitePrices: { main: { effectiveAmount: 199.5, currency: 'EUR' } },
+                  },
+                },
+              ],
+            },
+          },
+        }),
+      ),
+      toContentToken(
+        '```json\n{"message":"Here are similar products.","type":"product_list","data":{"products":[]}}\n',
+      ),
+    ].join('');
+
+    const assembled = await assembleEmporixChatStream(streamBody, (progress) => {
+      progressUpdates.push(progress);
+    });
+
+    expect(
+      progressUpdates.some(
+        (update) =>
+          update.preview?.kind === 'widget' &&
+          update.preview.type === 'product_list' &&
+          Array.isArray(update.preview.data?.products) &&
+          update.preview.data.products.length === 1,
+      ),
+    ).toBe(true);
+
+    const parsed = JSON.parse(assembled.message);
+    expect(parsed.type).toBe('product_list');
+    expect(parsed.data.products).toEqual([
+      {
+        productId: 'SOLAR-1',
+        name: 'Solar Panel 300W',
+        image: 'https://cdn.example/solar.jpg',
+        price: 199.5,
+        currency: 'EUR',
+      },
+    ]);
   });
 });

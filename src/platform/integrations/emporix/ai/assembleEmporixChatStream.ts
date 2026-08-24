@@ -1,7 +1,10 @@
 /**
  * Observed frames (not a published contract):
  * - event:token `{ content: string }` (live frontendAgent; concatenate)
- * - event:tool_start / event:tool_end `{ tool_name, tool_call_id }` (ignore)
+ * - event:tool_start `{ tool_name, tool_call_id }` (skeleton widget from tool name)
+ * - event:tool_result `{ tool_name, tool_call_id, output }` (fill widget from JSON)
+ * - event:thinking `{ content }` (live CoT; never persisted)
+ * - event:tool_end `{ tool_name, tool_call_id }`
  * - event:done metadata-only identity (no message; overlay identity only)
  * - plain-text token / JSON-string data payloads
  * - one-shot Frontend Agent envelope (`type` / `data`)
@@ -11,11 +14,23 @@
  * concatenation of token `content` strings, not `event:done`. One stream
  * can concatenate a markdown-fenced tool payload and a later Frontend Agent
  * envelope; the assembler keeps the last widget envelope and drops tool JSON.
- * Optional `onProgress` reports each upstream SSE data payload so the BFF can
- * forward a live chunk count without painting tokens in the shopper UI.
+ * Optional `onProgress` reports each upstream SSE frame with a shopper-visible
+ * preview (plain text, HTML, or a typed widget from `tool_start` / `tool_result`).
+ * Token JSON widgets paint as soon as `type`/`data` are available; tool results
+ * win and appear as soon as the tool returns. `tool_start` shows a typed skeleton.
  * COP-5591 sibling parser (`emporix/hosting-md-extension`) also emits
  * plain-text tokens + metadata-only frames.
  */
+import {
+  type AIChatStreamProgressUpdate,
+  type StreamPreview,
+  WIDGET_TYPES,
+  previewStreamingAIMessage,
+  sanitizeShopperCaption,
+  toStreamProgressUpdate,
+} from '@/lib/common/ai-stream-preview';
+import { adaptToolResult, widgetHasItems, widgetTypeFromToolName } from '@/lib/common/ai-tool-widgets';
+import { findMatchingBrace } from '@/lib/common/json-brace-scan';
 import type { EmporixAIChatResponse } from '../model/ai';
 
 type StreamSource = ReadableStream<Uint8Array> | string;
@@ -101,17 +116,33 @@ function createCapturedResponse(payload: StreamObject, message: string): Emporix
   };
 }
 
-function parseEventPayloads(rawStream: string): string[] {
+type SseFrame = {
+  eventName: string;
+  payload: string;
+};
+
+type WidgetState = {
+  type: string;
+  data: Record<string, unknown>;
+};
+
+function parseEventFrames(rawStream: string): SseFrame[] {
   const normalized = rawStream.replaceAll('\r\n', '\n');
   const events = normalized.split('\n\n');
-  const payloads: string[] = [];
+  const frames: SseFrame[] = [];
 
   for (const eventBlock of events) {
     const dataLines: string[] = [];
+    let eventName = '';
     const lines = eventBlock.split('\n');
 
     for (const line of lines) {
       if (!line || line.startsWith(':')) {
+        continue;
+      }
+
+      if (line.startsWith('event:')) {
+        eventName = removeOptionalSpace(line.slice(6));
         continue;
       }
 
@@ -122,11 +153,11 @@ function parseEventPayloads(rawStream: string): string[] {
 
     const eventPayload = dataLines.join('\n');
     if (eventPayload !== '') {
-      payloads.push(eventPayload);
+      frames.push({ eventName, payload: eventPayload });
     }
   }
 
-  return payloads;
+  return frames;
 }
 
 function takeCompleteSseBlocks(buffer: string): { blocks: string[]; rest: string } {
@@ -145,12 +176,12 @@ function takeCompleteSseBlocks(buffer: string): { blocks: string[]; rest: string
   };
 }
 
-function payloadsFromBlocks(blocks: string[]): string[] {
-  const payloads: string[] = [];
+function framesFromBlocks(blocks: string[]): SseFrame[] {
+  const frames: SseFrame[] = [];
   for (const block of blocks) {
-    payloads.push(...parseEventPayloads(`${block}\n\n`));
+    frames.push(...parseEventFrames(`${block}\n\n`));
   }
-  return payloads;
+  return frames;
 }
 
 function createAssemblyState(): AssemblyState {
@@ -158,22 +189,77 @@ function createAssemblyState(): AssemblyState {
     textBuffer: '',
     capturedResponse: null,
     identityOverlay: EMPTY_IDENTITY,
+    widget: null,
+    pendingWidget: null,
+    thinking: '',
   };
 }
 
-export type ChatStreamProgressHandler = (chunks: number) => void;
+export type ChatStreamProgressHandler = (progress: AIChatStreamProgressUpdate) => void;
 
-function consumePayloads(
+function previewFromAssemblyState(state: AssemblyState): StreamPreview {
+  const tokenPreview = tokenPreviewFromState(state);
+  const tokenIntro = captionFromPreview(tokenPreview);
+  const resolved = resolvedWidget(state, tokenPreview);
+
+  if (resolved && WIDGET_TYPES.has(resolved.type)) {
+    return {
+      kind: 'widget',
+      type: resolved.type,
+      message: tokenIntro,
+      data: resolved.data,
+    };
+  }
+
+  if (state.pendingWidget && WIDGET_TYPES.has(state.pendingWidget)) {
+    const data =
+      tokenPreview.kind === 'widget' && tokenPreview.type === state.pendingWidget
+        ? (tokenPreview.data as Record<string, unknown>)
+        : {};
+    return {
+      kind: 'widget',
+      type: state.pendingWidget,
+      message: tokenIntro,
+      data,
+    };
+  }
+
+  return tokenPreview;
+}
+
+function tokenPreviewFromState(state: AssemblyState): StreamPreview {
+  const raw = state.capturedResponse?.message ?? state.textBuffer;
+  if (!raw) {
+    return { kind: 'pending' };
+  }
+  return previewStreamingAIMessage(raw);
+}
+
+function captionFromPreview(preview: StreamPreview): string {
+  if (preview.kind === 'text') {
+    return sanitizeShopperCaption(preview.content);
+  }
+  if (preview.kind === 'widget') {
+    return sanitizeShopperCaption(preview.message);
+  }
+  return '';
+}
+
+function tokenIntroFromState(state: AssemblyState): string {
+  return captionFromPreview(tokenPreviewFromState(state));
+}
+
+function consumeFrames(
   state: AssemblyState,
-  payloads: string[],
+  frames: SseFrame[],
   onProgress: ChatStreamProgressHandler | undefined,
   startCount: number,
 ): number {
   let chunks = startCount;
-  for (const payload of payloads) {
-    consumePayload(state, payload);
+  for (const frame of frames) {
+    consumeFrame(state, frame);
     chunks += 1;
-    onProgress?.(chunks);
+    onProgress?.(toStreamProgressUpdate(chunks, previewFromAssemblyState(state), state.thinking || undefined));
   }
   return chunks;
 }
@@ -198,11 +284,11 @@ async function assembleFromReadableStream(
     buffer += decoder.decode(value, { stream: true });
     const { blocks, rest } = takeCompleteSseBlocks(buffer);
     buffer = rest;
-    chunks = consumePayloads(state, payloadsFromBlocks(blocks), onProgress, chunks);
+    chunks = consumeFrames(state, framesFromBlocks(blocks), onProgress, chunks);
   }
 
   if (buffer !== '') {
-    consumePayloads(state, parseEventPayloads(buffer), onProgress, chunks);
+    consumeFrames(state, parseEventFrames(buffer), onProgress, chunks);
   }
 
   return finishAssembly(state);
@@ -210,50 +296,6 @@ async function assembleFromReadableStream(
 
 function isStreamObject(value: unknown): value is StreamObject {
   return value !== null && typeof value === 'object';
-}
-
-function consumeJsonStringCharacter(character: string, escaped: boolean): { inString: boolean; escaped: boolean } {
-  if (escaped) {
-    return { inString: true, escaped: false };
-  }
-  if (character === '\\') {
-    return { inString: true, escaped: true };
-  }
-  if (character === '"') {
-    return { inString: false, escaped: false };
-  }
-  return { inString: true, escaped: false };
-}
-
-function findMatchingBrace(text: string, start: number): number {
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-
-  for (let index = start; index < text.length; index++) {
-    const character = text[index];
-    if (inString) {
-      ({ inString, escaped } = consumeJsonStringCharacter(character, escaped));
-      continue;
-    }
-    if (character === '"') {
-      inString = true;
-      continue;
-    }
-    if (character === '{') {
-      depth += 1;
-      continue;
-    }
-    if (character !== '}') {
-      continue;
-    }
-    depth -= 1;
-    if (depth === 0) {
-      return index;
-    }
-  }
-
-  return -1;
 }
 
 function pushParsedObject(candidate: string, objects: StreamObject[]): void {
@@ -344,7 +386,100 @@ type AssemblyState = {
   textBuffer: string;
   capturedResponse: EmporixAIChatResponse | null;
   identityOverlay: StreamIdentity;
+  widget: WidgetState | null;
+  pendingWidget: string | null;
+  thinking: string;
 };
+
+function consumeFrame(state: AssemblyState, frame: SseFrame): void {
+  if (frame.eventName === 'thinking') {
+    consumeThinking(state, frame.payload);
+    return;
+  }
+
+  if (frame.eventName === 'tool_result') {
+    consumeToolResult(state, frame.payload);
+    return;
+  }
+
+  if (
+    frame.eventName === 'tool_start' ||
+    frame.eventName === 'tool_end' ||
+    frame.eventName === 'done' ||
+    frame.eventName === 'error'
+  ) {
+    if (frame.eventName === 'tool_start') {
+      consumeToolStart(state, frame.payload);
+      return;
+    }
+    if (frame.eventName === 'done') {
+      consumeIdentityOnly(state, frame.payload);
+    }
+    return;
+  }
+
+  consumePayload(state, frame.payload);
+}
+
+function consumeThinking(state: AssemblyState, payload: string): void {
+  try {
+    const parsed = JSON.parse(payload) as unknown;
+    if (isStreamObject(parsed)) {
+      state.thinking += toStringValue(parsed.content);
+    }
+  } catch {
+    // Thinking frames must be JSON.
+  }
+}
+
+function consumeToolResult(state: AssemblyState, payload: string): void {
+  try {
+    const parsed = JSON.parse(payload) as unknown;
+    if (!isStreamObject(parsed)) {
+      return;
+    }
+    const adapted = adaptToolResult(toStringValue(parsed.tool_name), parsed.output);
+    if (!adapted) {
+      return;
+    }
+    state.pendingWidget = adapted.type;
+    if (!widgetHasItems(adapted.data)) {
+      return;
+    }
+    state.widget = adapted;
+  } catch {
+    // Tool results must be JSON.
+  }
+}
+
+function consumeToolStart(state: AssemblyState, payload: string): void {
+  try {
+    const parsed = JSON.parse(payload) as unknown;
+    if (!isStreamObject(parsed)) {
+      return;
+    }
+    if (hasIdentityField(parsed)) {
+      state.identityOverlay = mergeIdentity(state.identityOverlay, mapIdentity(parsed));
+    }
+    const type = widgetTypeFromToolName(toStringValue(parsed.tool_name));
+    if (type) {
+      state.pendingWidget = type;
+    }
+  } catch {
+    // Tool metadata is optional.
+  }
+}
+
+function consumeIdentityOnly(state: AssemblyState, payload: string): void {
+  try {
+    const parsed = JSON.parse(payload) as unknown;
+    if (isStreamObject(parsed) && hasIdentityField(parsed)) {
+      state.identityOverlay = mergeIdentity(state.identityOverlay, mapIdentity(parsed));
+    }
+  } catch {
+    // Identity overlay is optional.
+  }
+}
 
 function applyObjectPayload(state: AssemblyState, objectPayload: StreamObject): void {
   if (hasFrontendAgentShape(objectPayload)) {
@@ -384,7 +519,136 @@ function consumePayload(state: AssemblyState, payload: string): void {
   }
 }
 
+function tokenWidgetData(tokenPreview: StreamPreview, type: string): Record<string, unknown> | undefined {
+  if (tokenPreview.kind !== 'widget' || tokenPreview.type !== type || !isStreamObject(tokenPreview.data)) {
+    return undefined;
+  }
+  return tokenPreview.data;
+}
+
+function resolvedWidget(state: AssemblyState, tokenPreview = tokenPreviewFromState(state)): WidgetState | null {
+  const tokenDataForPending = state.pendingWidget ? tokenWidgetData(tokenPreview, state.pendingWidget) : undefined;
+  if (!state.widget || !WIDGET_TYPES.has(state.widget.type)) {
+    if (state.pendingWidget && tokenDataForPending && widgetHasItems(tokenDataForPending)) {
+      return { type: state.pendingWidget, data: tokenDataForPending };
+    }
+    return null;
+  }
+  const tokenData = tokenWidgetData(tokenPreview, state.widget.type);
+  return { type: state.widget.type, data: pickRicherWidgetData(state.widget.data, tokenData) };
+}
+
+function pickRicherWidgetData(
+  toolData: Record<string, unknown>,
+  tokenData: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  if (!tokenData || !widgetHasItems(tokenData)) {
+    return toolData;
+  }
+  if (!widgetHasItems(toolData)) {
+    return tokenData;
+  }
+  return toolData;
+}
+
+function envelopeSize(value: unknown): number {
+  try {
+    return JSON.stringify(value ?? {}).length;
+  } catch {
+    return 0;
+  }
+}
+
+function responseFromWidgetState(state: AssemblyState, widget: WidgetState): EmporixAIChatResponse {
+  return applyIdentityOverlay(
+    {
+      ...FALLBACK_RESPONSE,
+      ...state.identityOverlay,
+      message: JSON.stringify({
+        message: tokenIntroFromState(state),
+        type: widget.type,
+        data: widget.data,
+      }),
+    },
+    state.identityOverlay,
+  );
+}
+
+function responseFromResolvedWidget(state: AssemblyState): EmporixAIChatResponse | null {
+  const widget = resolvedWidget(state);
+  if (!widget || !WIDGET_TYPES.has(widget.type) || !widgetHasItems(widget.data)) {
+    return null;
+  }
+  return responseFromWidgetState(state, widget);
+}
+
+function responseFromTokenEnvelope(state: AssemblyState): EmporixAIChatResponse | null {
+  if (state.capturedResponse) {
+    const captured = applyIdentityOverlay(state.capturedResponse, state.identityOverlay);
+    if (envelopeDataScore(captured) > 0) {
+      return captured;
+    }
+  }
+  if (state.textBuffer === '') {
+    return null;
+  }
+  return pickAssembledResponse(collectCandidateStreamObjects(state.textBuffer), state.identityOverlay);
+}
+
+function envelopeDataScore(response: EmporixAIChatResponse): number {
+  try {
+    const parsed = JSON.parse(response.message) as unknown;
+    if (isStreamObject(parsed) && parsed.data != null) {
+      return envelopeSize(parsed.data);
+    }
+  } catch {
+    // Plain-text complete messages have no widget payload.
+  }
+  return 0;
+}
+
+function hasFrontendAgentMetadata(response: EmporixAIChatResponse): boolean {
+  try {
+    const parsed = JSON.parse(response.message) as unknown;
+    if (!isStreamObject(parsed)) {
+      return false;
+    }
+    return typeof parsed.agentId === 'string' || typeof parsed.sessionId === 'string';
+  } catch {
+    return false;
+  }
+}
+
+function pickRicherResponse(
+  fromWidget: EmporixAIChatResponse | null,
+  fromTokens: EmporixAIChatResponse | null,
+): EmporixAIChatResponse | null {
+  if (!fromWidget) {
+    return fromTokens;
+  }
+  if (!fromTokens) {
+    return fromWidget;
+  }
+  const tokenScore = envelopeDataScore(fromTokens);
+  const widgetScore = envelopeDataScore(fromWidget);
+  if (tokenScore > 0 && hasFrontendAgentMetadata(fromTokens)) {
+    return fromTokens;
+  }
+  if (widgetScore > 0) {
+    return fromWidget;
+  }
+  if (tokenScore > 0) {
+    return fromTokens;
+  }
+  return fromWidget;
+}
+
 function finishAssembly(state: AssemblyState): EmporixAIChatResponse {
+  const chosen = pickRicherResponse(responseFromResolvedWidget(state), responseFromTokenEnvelope(state));
+  if (chosen) {
+    return assertNonEmptyMessage(chosen);
+  }
+
   if (state.capturedResponse) {
     return assertNonEmptyMessage(applyIdentityOverlay(state.capturedResponse, state.identityOverlay));
   }
@@ -405,6 +669,6 @@ export async function assembleEmporixChatStream(
   }
 
   const state = createAssemblyState();
-  consumePayloads(state, parseEventPayloads(source), onProgress, 0);
+  consumeFrames(state, parseEventFrames(source), onProgress, 0);
   return finishAssembly(state);
 }

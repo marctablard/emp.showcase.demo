@@ -130,7 +130,7 @@ function readPagination(value: unknown): PaginationData | undefined {
   return { page, totalPages, totalItems };
 }
 
-export function mapAiQuoteList(data: unknown, locale?: string): QuoteListData {
+export function mapAiQuoteList(data: unknown, locale?: string): QuoteListData & { quotes: QuoteData[] } {
   const record = asRecord(data);
   const quotesRaw = record && Array.isArray(record.quotes) ? record.quotes : [];
   return {

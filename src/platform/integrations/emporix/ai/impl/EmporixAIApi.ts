@@ -1,5 +1,6 @@
 import { inject } from 'inversify';
 import 'server-only';
+import type { AIChatStreamProgressUpdate } from '@/lib/common/ai-stream-preview';
 import { injectable } from '@/platform/core/di/injectable';
 import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
@@ -57,7 +58,7 @@ class EmporixAIApi implements IEmporixAIApi {
   private async streamChatMessage(
     request: EmporixAIChatRequest,
     sessionId?: string,
-    onProgress?: (chunks: number) => void,
+    onProgress?: (progress: AIChatStreamProgressUpdate) => void,
   ): Promise<EmporixAIChatResponse> {
     const url = `/ai-service/${this.config.tenant}/agentic/chat-stream`;
 
@@ -111,7 +112,7 @@ class EmporixAIApi implements IEmporixAIApi {
   async streamChatMessageWithContext(
     userMessage: string,
     context: EmporixAIChatContext,
-    onProgress?: (chunks: number) => void,
+    onProgress?: (progress: AIChatStreamProgressUpdate) => void,
   ): Promise<EmporixAIChatResponse> {
     const userMessageObj: EmporixAIUserMessage = {
       userMessage,

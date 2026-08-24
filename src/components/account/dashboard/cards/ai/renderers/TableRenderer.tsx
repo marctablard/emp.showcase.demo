@@ -4,15 +4,23 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import type { TableData } from '../types';
 import { formatDate } from '../utils';
+import { WidgetSkeleton } from './WidgetSkeleton';
 
 interface TableRendererProps {
   data: TableData;
 }
 
 export const TableRenderer: React.FC<TableRendererProps> = ({ data }) => {
-  const { title, headers, rows, columnTypes = [] } = data;
+  const title = data.title;
+  const headers = Array.isArray(data.headers) ? data.headers : [];
+  const rows = data.rows;
+  const columnTypes = data.columnTypes ?? [];
 
   const validRows = (rows || []).filter((row): row is string[] => Array.isArray(row));
+
+  if (rows == null) {
+    return <WidgetSkeleton rows={2} />;
+  }
 
   const getColumnType = (index: number): string => {
     return columnTypes[index] || 'text';

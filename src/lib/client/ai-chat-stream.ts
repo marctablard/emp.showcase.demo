@@ -4,6 +4,7 @@ import {
   isAIChatErrorEvent,
   isAIChatProgressEvent,
 } from '@/lib/common/ai-chat-stream';
+import type { AIChatStreamProgressUpdate } from '@/lib/common/ai-stream-preview';
 import type { AIChatResponse } from '@/platform/integrations/ai/model';
 
 function removeOptionalSpace(value: string): string {
@@ -53,7 +54,7 @@ function parseStreamEvent(payload: string): AIChatStreamEvent | null {
 
 export async function readAIChatSseResponse(
   body: ReadableStream<Uint8Array>,
-  onProgress?: (chunks: number) => void,
+  onProgress?: (progress: AIChatStreamProgressUpdate) => void,
 ): Promise<AIChatResponse> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
@@ -71,7 +72,7 @@ export async function readAIChatSseResponse(
         continue;
       }
       if (isAIChatProgressEvent(event)) {
-        onProgress?.(event.chunks);
+        onProgress?.({ chunks: event.chunks, preview: event.preview, thinking: event.thinking });
         continue;
       }
       if (isAIChatErrorEvent(event)) {

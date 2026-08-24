@@ -5,11 +5,16 @@ import { useTranslations } from 'next-intl';
 
 interface LoadingIndicatorProps {
   chunkCount?: number | null;
+  statusMessage?: string;
 }
 
-export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({ chunkCount = null }) => {
+export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({ chunkCount = null, statusMessage }) => {
   const t = useTranslations('account.AiHelper');
-  const label = chunkCount === null ? t('thinking') : t('thinkingWithChunks', { numberOfChunks: chunkCount });
+  const label = statusMessage
+    ? statusMessage
+    : chunkCount === null
+      ? t('thinking')
+      : t('thinkingWithChunks', { numberOfChunks: chunkCount });
 
   return (
     <div className="flex justify-start">

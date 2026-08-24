@@ -1,9 +1,9 @@
+import type { AIChatStreamProgressUpdate } from '@/lib/common/ai-stream-preview';
 import type { AIChatResponse } from '@/platform/integrations/ai/model';
 
 export type AIChatProgressEvent = {
   type: 'progress';
-  chunks: number;
-};
+} & AIChatStreamProgressUpdate;
 
 export type AIChatCompleteEvent = {
   type: 'complete';

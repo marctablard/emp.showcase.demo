@@ -1,7 +1,9 @@
 import { inject } from 'inversify';
+import type { AIChatStreamProgressUpdate } from '@/lib/common/ai-stream-preview';
 import { injectable } from '@/platform/core/di/injectable';
 import type { AIChatContext, AIChatResponse } from '@/platform/integrations/ai/model';
 import type { EmporixAIApi } from '@/platform/integrations/emporix/ai/EmporixAIApi';
+import type { EmporixAIChatContext, EmporixAIChatResponse } from '@/platform/integrations/emporix/model/ai';
 import type { AIService } from '../AIService';
 import { isAiChatStreamingEnabled } from '../isAiChatStreamingEnabled';
 
@@ -12,7 +14,7 @@ export class AIServiceImpl implements AIService {
   async sendChatMessageWithContext(
     userMessage: string,
     context: AIChatContext,
-    onProgress?: (chunks: number) => void,
+    onProgress?: (progress: AIChatStreamProgressUpdate) => void,
   ): Promise<AIChatResponse> {
     const emporixContext = this.convertToEmporixContext(context);
     const emporixResponse = isAiChatStreamingEnabled()
@@ -21,7 +23,7 @@ export class AIServiceImpl implements AIService {
     return this.convertFromEmporixResponse(emporixResponse);
   }
 
-  private convertFromEmporixResponse(response: any): AIChatResponse {
+  private convertFromEmporixResponse(response: EmporixAIChatResponse): AIChatResponse {
     return {
       agentId: response.agentId,
       agentType: response.agentType,
@@ -30,8 +32,8 @@ export class AIServiceImpl implements AIService {
     };
   }
 
-  private convertToEmporixContext(context: AIChatContext): any {
-    const emporixContext: any = {
+  private convertToEmporixContext(context: AIChatContext): EmporixAIChatContext {
+    const emporixContext: EmporixAIChatContext = {
       siteId: context.siteId,
       currency: context.currency,
       language: context.language,
