@@ -205,7 +205,7 @@ describe('UsersList', () => {
       'gap-4',
       'md:flex-row',
       'md:flex-wrap',
-      'md:items-center',
+      'md:items-start',
       'md:justify-between',
     );
     expect(heading.parentElement?.parentElement).not.toHaveClass('md:flex-nowrap');
@@ -217,7 +217,7 @@ describe('UsersList', () => {
     expect(createCta).toHaveClass('font-headlines');
     expect(createCta).toHaveClass('text-action-button');
     expect(createCta).toHaveClass('tracking-[var(--desktop-spacing-action-button)]');
-    expect(createCta).toHaveClass('h-12', 'w-auto', 'shrink-0', 'whitespace-nowrap', 'md:ml-auto');
+    expect(createCta).toHaveClass('h-12', 'w-auto', 'shrink-0', 'self-start', 'whitespace-nowrap', 'md:ml-auto');
     expect(createCta).not.toHaveClass('w-full');
   });
 

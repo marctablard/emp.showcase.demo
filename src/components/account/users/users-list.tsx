@@ -215,7 +215,7 @@ export function UsersList({
 
   return (
     <div className="flex flex-col gap-6 lg:gap-12">
-      <div className="flex min-w-0 flex-col items-start gap-4 md:flex-row md:flex-wrap md:items-center md:justify-between">
+      <div className="flex min-w-0 flex-col items-start gap-4 md:flex-row md:flex-wrap md:items-start md:justify-between">
         <div className="flex min-w-0 max-w-full flex-col items-start gap-4 sm:flex-row sm:flex-wrap sm:items-center md:flex-1">
           <H1 className="min-w-0">{t('heading')}</H1>
           {showOtherCompaniesToggle ? (
@@ -230,7 +230,7 @@ export function UsersList({
           type="Link"
           href="/account/users/new"
           variant="buttonPrimary"
-          className="font-headlines text-action-button tracking-[var(--desktop-spacing-action-button)] h-12 w-auto shrink-0 whitespace-nowrap md:ml-auto"
+          className="font-headlines text-action-button tracking-[var(--desktop-spacing-action-button)] h-12 w-auto shrink-0 self-start whitespace-nowrap md:ml-auto"
           iconBefore={<Plus className="size-6" aria-hidden />}
         >
           {t('createButton')}
