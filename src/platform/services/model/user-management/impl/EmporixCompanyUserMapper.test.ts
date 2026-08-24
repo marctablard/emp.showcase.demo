@@ -97,4 +97,26 @@ describe('EmporixCompanyUserMapper', () => {
     expect(withLegalEntity.legalEntityId).toBe('le-other');
     expect(withLegalEntity.legalEntityName).toBe('Other Co');
   });
+
+  it('sets isSelectedLegalEntityMember only when mapping context provides it', () => {
+    const omitted = mapper.mapToService(customer, {
+      groups: [],
+      companyNameByLegalEntityId: new Map(),
+    });
+    expect(omitted).not.toHaveProperty('isSelectedLegalEntityMember');
+
+    const selectedMember = mapper.mapToService(customer, {
+      groups: [],
+      companyNameByLegalEntityId: new Map(),
+      isSelectedLegalEntityMember: true,
+    });
+    expect(selectedMember.isSelectedLegalEntityMember).toBe(true);
+
+    const otherLeMember = mapper.mapToService(customer, {
+      groups: [],
+      companyNameByLegalEntityId: new Map(),
+      isSelectedLegalEntityMember: false,
+    });
+    expect(otherLeMember.isSelectedLegalEntityMember).toBe(false);
+  });
 });

@@ -6,6 +6,9 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import type { CompanyUser } from '@/platform/services/model/user-management/company-user';
 import { USER_SORT_FIELD_MAP, UsersTable } from './users-table';
 
+const mockPush = jest.fn();
+const mockAcquireNavigationWaitCursorLease = jest.fn();
+
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, string | number>) => {
     if (values && 'name' in values) {
@@ -25,7 +28,12 @@ jest.mock('@/i18n/navigation', () => ({
       {children}
     </a>
   ),
-  useRouter: () => ({ push: jest.fn() }),
+  useRouter: () => ({ push: mockPush }),
+}));
+
+jest.mock('@/hooks/common/useGlobalCursor', () => ({
+  useGlobalCursor: jest.fn(),
+  acquireNavigationWaitCursorLease: (...args: unknown[]) => mockAcquireNavigationWaitCursorLease(...args),
 }));
 
 function buildUser(overrides: Partial<CompanyUser> = {}): CompanyUser {
@@ -42,6 +50,10 @@ function buildUser(overrides: Partial<CompanyUser> = {}): CompanyUser {
 }
 
 describe('UsersTable', () => {
+  beforeEach(() => {
+    mockPush.mockClear();
+    mockAcquireNavigationWaitCursorLease.mockClear();
+  });
   it('maps Created to metadataCreatedAt and does not include userGroup in the sort map', () => {
     expect(USER_SORT_FIELD_MAP.metadataCreatedAt).toBe('metadataCreatedAt');
     expect(USER_SORT_FIELD_MAP).not.toHaveProperty('userGroup');
@@ -79,6 +91,7 @@ describe('UsersTable', () => {
 
     const table = container.querySelector('table');
     expect(table).toHaveClass('min-w-[1124px]');
+    expect(table).toHaveClass('transition-[min-width]');
     expect(table).not.toHaveClass('lg:table-fixed');
     expect(table).not.toHaveClass('lg:min-w-0');
     expect(table).not.toHaveClass('table-fixed');
@@ -118,12 +131,22 @@ describe('UsersTable', () => {
     expect(container.querySelector('table')).not.toHaveClass('lg:min-w-0');
   });
 
-  it('renders an empty User Group cell when the user has no groups', () => {
-    render(<UsersTable users={[buildUser({ groups: [] })]} />);
+  it('shows Contact only when the user has no functional source-LE groups', () => {
+    render(
+      <UsersTable
+        users={[
+          buildUser({ groups: [] }),
+          buildUser({
+            id: 'user-2',
+            firstName: 'Pat',
+            groups: [{ id: 'g-contact', legalEntityId: 'le-1', displayName: 'NovaTech - Contact' }],
+          }),
+        ]}
+      />,
+    );
 
-    const row = screen.getByRole('row', { name: /John Smith/ });
-    const cells = within(row).getAllByRole('cell');
-    expect(cells[4]).toHaveTextContent(/^$/);
+    expect(screen.getAllByText('form.contactOnly')).toHaveLength(2);
+    expect(screen.queryByText('NovaTech - Contact')).not.toBeInTheDocument();
   });
 
   it('keeps User Group and Actions non-sortable', () => {
@@ -237,6 +260,23 @@ describe('UsersTable', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'deleteAriaLabel:John Smith' }));
     expect(onDeleteUser).toHaveBeenCalledWith(user);
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('navigates to edit on row click and does not navigate when delete is clicked', () => {
+    const onDeleteUser = jest.fn();
+    render(<UsersTable users={[buildUser()]} onDeleteUser={onDeleteUser} />);
+
+    fireEvent.click(screen.getByText('j.smith@mail.com'));
+    expect(mockAcquireNavigationWaitCursorLease).toHaveBeenCalled();
+    expect(mockPush).toHaveBeenCalledWith('/account/users/user-1');
+
+    mockPush.mockClear();
+    mockAcquireNavigationWaitCursorLease.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'deleteAriaLabel:John Smith' }));
+    expect(onDeleteUser).toHaveBeenCalledTimes(1);
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockAcquireNavigationWaitCursorLease).not.toHaveBeenCalled();
   });
 
   it('omits delete controls when onDeleteUser is not provided', () => {

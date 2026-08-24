@@ -1,8 +1,8 @@
 {
   "heading": "User Management",
   "headingWithName": "User Management: {firstName} {lastName}",
-  "breadcrumbUserCreation": "user creation",
-  "breadcrumbEditUser": "edit {firstName} {lastName}",
+  "breadcrumbUserCreation": "Create a new user",
+  "breadcrumbEditUser": "Edit {name}",
   "createButton": "Create new user",
   "showOtherCompanies": "show users from my other companies",
   "searchPlaceholder": "Search name...",
@@ -40,13 +40,17 @@
       "MRS": "Mrs",
       "MS": "Ms"
     },
+    "contactOnly": "<Contact only>",
+    "unassignFromCompany": "Unassign from this company",
     "activateUser": "Activate user",
     "activateUserHelper": "They can access the platform.",
+    "activeUser": "Active user",
+    "activeUserHelper": "They will keep access to the platform",
     "loadingGroups": "Loading groups...",
     "saving": "Saving..."
   },
   "validation": {
-    "requiredGroup": "Please select at least one group.",
+    "requiredGroup": "Please select user group",
     "firstNameRequired": "Please enter a first name.",
     "lastNameRequired": "Please enter a last name.",
     "emailRequired": "Please enter an email address.",
@@ -55,7 +59,7 @@
   },
   "deleteDialog": {
     "title": "Delete user?",
-    "description": "This user will be removed. This cannot be undone.",
+    "description": "Are you sure you want to delete user \"{name}\"?",
     "cancel": "Cancel",
     "confirm": "Delete"
   },

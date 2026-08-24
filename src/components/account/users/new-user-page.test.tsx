@@ -60,7 +60,7 @@ describe('New user page', () => {
     );
   });
 
-  it('appends user creation as the current crumb after a User Management list link', async () => {
+  it('appends Create a new user as the current crumb after a User Management list link', async () => {
     const element = await NewUserPage({
       params: Promise.resolve({ locale: 'en' }),
     });

@@ -61,6 +61,35 @@ async function readResponseBody(response: Response): Promise<unknown> {
   }
 }
 
+function omitContactPii(value: unknown): unknown {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return value;
+  }
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).filter(
+      ([key]) => key !== 'contactEmail' && key !== 'contactPhone',
+    ),
+  );
+}
+
+function customerIdentityFromBody(body: unknown, customerNumber?: string): { id?: string; customerNumber?: string } {
+  const identity: { id?: string; customerNumber?: string } = {};
+  if (typeof customerNumber === 'string' && customerNumber) {
+    identity.customerNumber = customerNumber;
+  }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return identity;
+  }
+  const record = body as Record<string, unknown>;
+  if (typeof record.id === 'string' && record.id) {
+    identity.id = record.id;
+  }
+  if (typeof record.customerNumber === 'string' && record.customerNumber) {
+    identity.customerNumber = record.customerNumber;
+  }
+  return identity;
+}
+
 @injectable('EmporixCustomerAdminApi', 'Singleton')
 class EmporixCustomerAdminApi implements IEmporixCustomerAdminApi {
   constructor(
@@ -161,22 +190,31 @@ class EmporixCustomerAdminApi implements IEmporixCustomerAdminApi {
       createCustomerMetrics('/customer/{tenant}/customers'),
     );
 
+    const responseBody = await readResponseBody(response);
     const logContext = {
       operation: 'Create customer',
-      tokenType: 'service',
+      tokenType: 'service' as const,
       method: 'POST',
       url,
       requestHeaders,
-      requestBody: inviteBody,
+      requestBody: omitContactPii(inviteBody),
       selectedLegalEntityId: legalEntityId,
       responseStatus: response.status,
       responseStatusText: response.statusText,
-      responseBody: await readResponseBody(response),
     };
     if (response.ok) {
-      this.logger.info(logContext, 'EXTERNAL Create customer response');
+      this.logger.info(
+        {
+          ...logContext,
+          ...customerIdentityFromBody(responseBody),
+        },
+        'EXTERNAL Create customer response',
+      );
     } else {
-      this.logger.error(logContext, 'EXTERNAL Create customer response');
+      this.logger.error(
+        { ...logContext, responseBody: omitContactPii(responseBody) },
+        'EXTERNAL Create customer response',
+      );
     }
 
     if (!response.ok) {
@@ -210,20 +248,29 @@ class EmporixCustomerAdminApi implements IEmporixCustomerAdminApi {
       createCustomerMetrics('/customer/{tenant}/customers/{customerNumber}'),
     );
 
+    const responseBody = await readResponseBody(response);
     const logContext = {
       operation: 'Update customer',
       tokenType,
       method: 'PATCH',
       url,
       requestHeaders,
-      requestBody: customer,
+      requestBody: omitContactPii(customer),
       responseStatus: response.status,
-      responseBody: await readResponseBody(response),
     };
     if (response.ok) {
-      this.logger.info(logContext, 'EXTERNAL Update customer response');
+      this.logger.info(
+        {
+          ...logContext,
+          ...customerIdentityFromBody(responseBody, customerNumber),
+        },
+        'EXTERNAL Update customer response',
+      );
     } else {
-      this.logger.error(logContext, 'EXTERNAL Update customer response');
+      this.logger.error(
+        { ...logContext, responseBody: omitContactPii(responseBody) },
+        'EXTERNAL Update customer response',
+      );
     }
 
     if (!response.ok) {

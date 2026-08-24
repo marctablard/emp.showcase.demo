@@ -1,13 +1,50 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { USERS_PER_PAGE } from '@/components/account/account-table-constants';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { UserManagementService } from '@/platform/services/user-management/UserManagementService';
 import { AdminRequiredError, USER_MANAGEMENT_ERROR_CODE } from '@/platform/services/user-management/errors';
 
 const DEFAULT_PAGE_NUMBER = 1;
-const DEFAULT_PAGE_SIZE = 5;
 const ALLOWED_SORT_FIELDS = new Set(['firstName', 'lastName', 'contactEmail', 'metadataCreatedAt', 'active']);
+
+class CompanyUsersQueryValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'CompanyUsersQueryValidationError';
+  }
+}
+
+function parsePositivePageInt(value: string | null, name: string): number | undefined {
+  if (value === null) {
+    return undefined;
+  }
+  if (!/^\d+$/.test(value)) {
+    throw new CompanyUsersQueryValidationError(`${name} must be a base-10 positive integer`);
+  }
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    throw new CompanyUsersQueryValidationError(`${name} must be >= 1`);
+  }
+  return parsed;
+}
+
+function parseCompanyUsersListQuery(searchParams: URLSearchParams): {
+  pageNumber: number;
+  pageSize: number;
+  sortParam?: string;
+  query?: string;
+} {
+  const pageNumber = parsePositivePageInt(searchParams.get('pageNumber'), 'pageNumber') ?? DEFAULT_PAGE_NUMBER;
+  const pageSize = parsePositivePageInt(searchParams.get('pageSize'), 'pageSize') ?? USERS_PER_PAGE;
+  const sortParam = searchParams.get('sort') || undefined;
+  const query = searchParams.get('query') || undefined;
+  if (sortParam && !isAllowedSort(sortParam)) {
+    throw new CompanyUsersQueryValidationError('Invalid sort field');
+  }
+  return { pageNumber, pageSize, sortParam, query };
+}
 
 /**
  * GET /api/company-users/other-companies
@@ -16,15 +53,7 @@ const ALLOWED_SORT_FIELDS = new Set(['firstName', 'lastName', 'contactEmail', 'm
  */
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const pageNumber = searchParams.get('pageNumber') ? parseInt(searchParams.get('pageNumber')!) : DEFAULT_PAGE_NUMBER;
-    const pageSize = searchParams.get('pageSize') ? parseInt(searchParams.get('pageSize')!) : DEFAULT_PAGE_SIZE;
-    const sortParam = searchParams.get('sort') || undefined;
-    const query = searchParams.get('query') || undefined;
-
-    if (sortParam && !isAllowedSort(sortParam)) {
-      return NextResponse.json({ error: 'Invalid sort field' }, { status: 400 });
-    }
+    const { pageNumber, pageSize, sortParam, query } = parseCompanyUsersListQuery(new URL(request.url).searchParams);
 
     const userManagementService = server.get<UserManagementService>('UserManagementService');
     const { items, totalCount } = await userManagementService.listOtherCompanyUsers(
@@ -42,6 +71,9 @@ export async function GET(request: NextRequest) {
       headers: { 'x-total-count': String(totalCount) },
     });
   } catch (error) {
+    if (error instanceof CompanyUsersQueryValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     if (error instanceof AdminRequiredError) {
       return adminRequiredResponse(error);
     }

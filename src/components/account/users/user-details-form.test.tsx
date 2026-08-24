@@ -4,6 +4,7 @@
 import '@testing-library/jest-dom';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { CompanyUser } from '@/platform/services/model/user-management/company-user';
+import { CONTACT_ONLY_GROUP_ID } from '@/platform/services/model/user-management/contact-only';
 import { UserDetailsForm, buildOtherHeaderCompanyGroupSections } from './user-details-form';
 
 class ResizeObserverMock {
@@ -404,13 +405,12 @@ describe('UserDetailsForm', () => {
     await showActivateHelper(screen.getByText('form.activateUser'));
   });
 
-  it('surfaces the required-group error when assignable legal entities have no groups', async () => {
+  it('surfaces the required-group error when no picker value is chosen', async () => {
     mockFetchGroups.mockResolvedValueOnce([{ legalEntityId: 'le-1', legalEntityName: 'Selected Company', groups: [] }]);
     render(<UserDetailsForm />);
 
-    await waitFor(() => expect(screen.getAllByText('form.noGroupsAvailable')).toHaveLength(1));
-    expect(screen.getAllByText(/form\.noGroupsAvailableForCompany/)).toHaveLength(1);
-    expect(screen.queryByText('form.groupPlaceholder')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('form.contactOnly')).toBeInTheDocument());
+    expect(screen.queryByText('form.noGroupsAvailable')).not.toBeInTheDocument();
     fillRequiredFields();
 
     fireEvent.click(screen.getByRole('button', { name: 'save' }));
@@ -466,7 +466,7 @@ describe('UserDetailsForm', () => {
     await screen.findByText('Selected Company - Admin');
     await flushGroupSelectHydrate();
 
-    const activeCheckbox = screen.getByRole('checkbox', { name: 'form.activateUser' });
+    const activeCheckbox = screen.getByRole('checkbox', { name: 'form.activeUser' });
     expect(activeCheckbox).toBeChecked();
     expect(screen.getByText('status.active')).toHaveClass(
       'border-border-success',
@@ -487,6 +487,8 @@ describe('UserDetailsForm', () => {
     expect(mockNotify).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'notifications.statusSuccess', type: 'success', duration: 4000 }),
     );
+    expect(mockPush).toHaveBeenCalledWith('/account/users');
+    expect(mockRefresh).not.toHaveBeenCalled();
   });
 
   it('omits group assignments when an edit saves other fields without changing the dropdown', async () => {
@@ -587,7 +589,9 @@ describe('UserDetailsForm', () => {
     );
 
     const selectedGroupTrigger = await screen.findByLabelText(/form\.userGroupForCompany.*Selected Company/);
-    await waitFor(() => expect(within(selectedGroupTrigger).getByText('Contact')).toBeInTheDocument());
+    await waitFor(() => expect(within(selectedGroupTrigger).getByText('form.contactOnly')).toBeInTheDocument());
+    expect(selectedGroupTrigger).not.toHaveTextContent('Contact');
+    expect(screen.queryByRole('button', { name: /^Contact$/ })).not.toBeInTheDocument();
   });
 
   it('shows placeholder and keeps Save disabled for ungrouped selected-company edit until dirty', async () => {
@@ -764,6 +768,7 @@ describe('UserDetailsForm', () => {
     await waitFor(() => expect(mockUpdateCompanyUser).toHaveBeenCalledTimes(1));
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
     expect(mockPush).not.toHaveBeenCalled();
+    expect(mockRefresh).not.toHaveBeenCalled();
     expect(mockNotify).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'notifications.saveError', type: 'error', duration: 4000 }),
     );
@@ -874,6 +879,59 @@ describe('UserDetailsForm', () => {
     expect(screen.getByText(/form\.userGroupForCompany.*"company":"Official GmbH"/)).toBeInTheDocument();
     expect(screen.queryByText(/form\.userGroupForCompany.*"company":"Parsed Prefix"/)).not.toBeInTheDocument();
     expect(screen.getByRole('list')).toHaveTextContent('Parsed Prefix - Buyer');
+  });
+
+  it('lists Contact-only first, then functional groups, and omits the Contact catalog row on create', async () => {
+    mockFetchGroups.mockResolvedValueOnce(orderedAssignableGroups);
+    render(<UserDetailsForm />);
+
+    const contactOnly = await screen.findByRole('button', { name: 'form.contactOnly' });
+    expect(contactOnly).toHaveAttribute('data-select-item', CONTACT_ONLY_GROUP_ID);
+    const requestor = screen.getByRole('button', { name: 'Requestor' });
+    const buyer = screen.getByRole('button', { name: 'Buyer' });
+    const admin = screen.getByRole('button', { name: 'Admin' });
+    expect(contactOnly.compareDocumentPosition(requestor) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(requestor.compareDocumentPosition(buyer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(buyer.compareDocumentPosition(admin) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Contact$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'contact-group' })).not.toBeInTheDocument();
+  });
+
+  it('uses Unassign as the empty option for a selected-LE member and Select group otherwise', async () => {
+    const { unmount } = render(
+      <UserDetailsForm initialUser={buildInitialUser({ isSelectedLegalEntityMember: true })} />,
+    );
+    await screen.findByText('Selected Company - Admin');
+    expect(screen.getByText('form.unassignFromCompany')).toBeInTheDocument();
+    expect(
+      screen
+        .queryAllByRole('button', { name: 'form.groupPlaceholder' })
+        .filter((element) => element.hasAttribute('data-select-item')),
+    ).toHaveLength(0);
+    unmount();
+
+    render(
+      <UserDetailsForm
+        initialUser={buildInitialUser({
+          isSelectedLegalEntityMember: false,
+          groups: [{ id: 'group-2', legalEntityId: 'le-2', displayName: 'Other Company - Buyer' }],
+        })}
+      />,
+    );
+    await screen.findByLabelText(/form\.userGroupForCompany.*Selected Company/);
+    expect(screen.getByText('form.groupPlaceholder')).toBeInTheDocument();
+    expect(screen.queryByText('form.unassignFromCompany')).not.toBeInTheDocument();
+  });
+
+  it('shows Active user and keep-access hint when editing an active user', async () => {
+    render(<UserDetailsForm initialUser={buildInitialUser({ active: true })} />);
+    await screen.findByText('Selected Company - Admin');
+
+    expect(screen.getByRole('checkbox', { name: 'form.activeUser' })).toBeChecked();
+    expect(screen.queryByRole('checkbox', { name: 'form.activateUser' })).not.toBeInTheDocument();
+    fireEvent.pointerMove(screen.getByRole('checkbox', { name: 'form.activeUser' }), { pointerType: 'mouse' });
+    const tooltip = await screen.findByRole('tooltip');
+    expect(tooltip).toHaveTextContent('form.activeUserHelper');
   });
 });
 

@@ -87,7 +87,7 @@ const CompanyUserFormBaseSchema = z.object({
   phone: z
     .string()
     .trim()
-    .refine((value) => value.length === 0 || /^[+0-9()\s.\-]+$/.test(value), {
+    .refine((value) => value.length === 0 || /^[+0-9()\s.-]+$/.test(value), {
       message: 'user-management.validation.phoneInvalid',
     }),
   active: z.boolean(),

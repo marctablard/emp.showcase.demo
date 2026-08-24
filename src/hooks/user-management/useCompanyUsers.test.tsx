@@ -200,6 +200,17 @@ describe('useCompanyUsers', () => {
     await waitFor(() => expect(result.current.users).toEqual(users));
     expect(fetchMock).toHaveBeenCalledWith('/api/company-users?pageNumber=1&pageSize=5');
   });
+
+  it('defaults omitted pageSize to USERS_PER_PAGE', async () => {
+    fetchMock.mockResolvedValue(mockListResponse([buildUser('U-DEFAULT')], '1'));
+
+    const { result } = renderHook(() => useCompanyUsers(undefined, { pageNumber: 1 }));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/company-users?pageNumber=1&pageSize=10');
+    expect(result.current.pagination?.pageSize).toBe(10);
+  });
 });
 
 describe('useOtherCompanyUsers', () => {
@@ -331,5 +342,16 @@ describe('useOtherCompanyUsers', () => {
     expect(requestedUrl).toContain('/api/company-users/other-companies?');
     expect(requestedUrl.startsWith('/api/company-users?')).toBe(false);
     expect(requestedUrl).not.toMatch(/\/api\/company-users\?/);
+  });
+
+  it('defaults omitted pageSize to USERS_PER_PAGE', async () => {
+    fetchMock.mockResolvedValue(mockListResponse([buildUser('OTHER-DEFAULT')], '20'));
+
+    const { result } = renderHook(() => useOtherCompanyUsers({ enabled: true, pageNumber: 1 }));
+
+    await waitFor(() => expect(result.current.users).toHaveLength(1));
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/company-users/other-companies?pageNumber=1&pageSize=10');
+    expect(result.current.pagination?.pageSize).toBe(10);
   });
 });

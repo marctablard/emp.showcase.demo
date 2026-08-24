@@ -1,4 +1,5 @@
 import { inject } from 'inversify';
+import { USERS_PER_PAGE } from '@/components/account/account-table-constants';
 import { injectable } from '@/platform/core/di/injectable';
 import { isEmporixApiError } from '@/platform/integrations/emporix/common/EmporixApiError';
 import type { EmporixCustomerAdminApi } from '@/platform/integrations/emporix/customer/EmporixCustomerAdminApi';
@@ -26,13 +27,14 @@ import type {
   CreateCompanyUserResult,
   UpdateCompanyUserRequest,
 } from '@/platform/services/model/user-management/company-user';
+import { CONTACT_ONLY_GROUP_ID } from '@/platform/services/model/user-management/contact-only';
 import type EmporixCompanyUserMapper from '@/platform/services/model/user-management/impl/EmporixCompanyUserMapper';
 import type { SessionService } from '@/platform/services/session';
 import type { UserManagementService } from '../UserManagementService';
 import { AdminRequiredError, PredefinedGroupConflictError } from '../errors';
 
 const DEFAULT_PAGE_NUMBER = 1;
-const DEFAULT_PAGE_SIZE = 5;
+const DEFAULT_PAGE_SIZE = USERS_PER_PAGE;
 const ASSIGNMENT_PAGE_SIZE = 60;
 const GROUP_USERS_PAGE_SIZE = 60;
 const MAX_PAGES_WITHOUT_TOTAL = 100;
@@ -78,6 +80,14 @@ type CombinedAdminLeAssignmentRow = {
   legalEntityId: string;
   legalEntityName: string;
 };
+type ContactCatalogGroup = EmporixGroup & { id: string };
+type SelectedLegalEntityPicker =
+  | { kind: 'functional'; assignment: CompanyUserGroupAssignment; contactGroup: ContactCatalogGroup }
+  | { kind: 'contact-only'; contactGroup: ContactCatalogGroup };
+type ReadableCompanyUser = {
+  customer: EmporixCustomerAdmin;
+  isSelectedLegalEntityMember: boolean;
+};
 
 /** Selected-LE company-user list/get via contact assignments + IAM group-user join. */
 @injectable('UserManagementService', 'Singleton')
@@ -122,7 +132,10 @@ export class EmporixUserManagementService implements UserManagementService {
     const page = sorted.slice(start, start + safePageSize);
     const selectedGroupsByMemberId = await this.joinCatalogGroupsForResultPage(page, selectedGroupById);
     const groupsByCustomerId = new Map<EmporixCustomerAdmin['id'], EmporixGroup[]>(
-      page.map((customer) => [customer.id, selectedCatalogGroupsForCustomer(customer, selectedGroupsByMemberId)]),
+      page.map((customer) => [
+        customer.id,
+        catalogGroupsForSourceLegalEntity(customer, selectedGroupsByMemberId, selectedLegalEntity.id),
+      ]),
     );
 
     this.logger.info(
@@ -244,8 +257,10 @@ export class EmporixUserManagementService implements UserManagementService {
       throw new AdminRequiredError();
     }
     const selectedLegalEntity = await this.requireWriteLegalEntity(session);
-    const customer = await this.findReadableCustomer(userId, selectedLegalEntity.id, currentCustomer.id);
-    return customer ? this.mapCustomer(customer) : undefined;
+    const readable = await this.findReadableCustomer(userId, selectedLegalEntity.id, currentCustomer.id);
+    return readable
+      ? this.mapCustomer(readable.customer, { isSelectedLegalEntityMember: readable.isSelectedLegalEntityMember })
+      : undefined;
   }
 
   async createUser(user: CreateCompanyUserRequest): Promise<CreateCompanyUserResult> {
@@ -253,88 +268,17 @@ export class EmporixUserManagementService implements UserManagementService {
 
     const session = await this.sessionService.getCurrent();
     const selectedLegalEntity = await this.requireWriteLegalEntity(session);
-    const assignment = await this.requireSelectedLegalEntityGroup(user.groupAssignments, selectedLegalEntity.id);
-    const createRequest = toInviteCreateRequest(user, session);
-    // Always remint the token: an expiry refresh may have dropped the legalEntityId claim
-    // even when the persisted session context still points at the selected company.
-    const baseTokenScopeContext = {
-      sessionLegalEntityId: selectedLegalEntity.sessionLegalEntityId,
-      selectedLegalEntityId: selectedLegalEntity.id,
-    };
-    let refreshDiagnostics: { tokenRefreshSucceeded: true; tokenLooksLikeJwt: boolean };
-    try {
-      refreshDiagnostics = await this.sessionService.setLegalEntity(selectedLegalEntity.id);
-    } catch (error) {
-      this.logger.error(
-        {
-          ...baseTokenScopeContext,
-          tokenLegalEntityId: null,
-          tokenRefreshSucceeded: false,
-          tokenLooksLikeJwt: false,
-          error: error instanceof Error ? error.message : String(error),
-        },
-        'User management customer token scope refresh failed',
-      );
-      throw error;
-    }
-    const tokenLegalEntityId = await this.sessionService.getCustomerTokenLegalEntityId();
-    const tokenScopeContext = {
-      ...baseTokenScopeContext,
-      tokenLegalEntityId: tokenLegalEntityId ?? null,
-      tokenRefreshSucceeded: refreshDiagnostics.tokenRefreshSucceeded,
-      tokenLooksLikeJwt: refreshDiagnostics.tokenLooksLikeJwt,
-    };
-    if (tokenLegalEntityId !== selectedLegalEntity.id) {
-      this.logger.error(tokenScopeContext, 'Customer token is not scoped to the selected legal entity');
-      throw new Error('Customer token is not scoped to the selected legal entity');
-    }
-    this.logger.info(tokenScopeContext, 'Customer token scoped to selected legal entity');
-
-    let created: { id: string };
-    try {
-      // COP-4807: multi-company `_own` create can return a same-company 400 even
-      // with a scoped session token, so only this profile create uses service auth.
-      created = await this.customerAdminApi.createCustomer(createRequest, selectedLegalEntity.id);
-    } catch (error) {
-      const logContext = {
-        ...toUpstreamErrorLogContext(error, 'Create customer'),
-        tokenType: 'service',
-        createDtoKeys: Object.keys(createRequest),
-        preferredLanguage: createRequest.preferredLanguage,
-        preferredSite: createRequest.preferredSite,
-        preferredCurrency: createRequest.preferredCurrency,
-        preferredLanguageLength: createRequest.preferredLanguage?.length,
-        sessionLegalEntityId: selectedLegalEntity.sessionLegalEntityId,
-        profileFirstLegalEntityId: selectedLegalEntity.profileFirstLegalEntityId,
-        selectedLegalEntityId: selectedLegalEntity.id,
-        tokenLegalEntityId,
-        tokenRefreshSucceeded: refreshDiagnostics.tokenRefreshSucceeded,
-        tokenLooksLikeJwt: refreshDiagnostics.tokenLooksLikeJwt,
-        usedProfileFirstFallback: false,
-      };
-      this.logger.error(logContext, 'User management customer invite create failed');
-      if (error && typeof error === 'object') {
-        Object.assign(error, { userManagementLogContext: logContext });
-      }
-      throw error;
-    }
-    const customer = await this.resolveCreatedCustomer(created.id);
-
-    if (user.active === false) {
-      const customerNumber = customer.customerNumber || customer.id;
-      await this.customerAdminApi.updateCustomer(customerNumber, { active: false }, 'service');
-      customer.active = false;
-    }
-
+    const picker = await this.resolveSelectedLegalEntityPicker(user.groupAssignments, selectedLegalEntity.id);
+    const customer = await this.createInvitedCustomerProfile(user, selectedLegalEntity, session);
     const companyNameByLegalEntityId = new Map([[selectedLegalEntity.id, selectedLegalEntity.name]]);
-    const failedGroupNames: string[] = [];
-    const failedName = await this.linkLegalEntityGroup(customer.id, assignment, companyNameByLegalEntityId);
-    if (failedName) {
-      failedGroupNames.push(failedName);
-    }
-
+    const failedName = await this.linkCreatedUserToSelectedLegalEntity(
+      customer.id,
+      selectedLegalEntity,
+      picker,
+      companyNameByLegalEntityId,
+    );
     const mapped = await this.mapCustomer(customer);
-    return failedGroupNames.length > 0 ? { user: mapped, failedGroupNames } : { user: mapped };
+    return failedName ? { user: mapped, failedGroupNames: [failedName] } : { user: mapped };
   }
 
   async updateUser(userId: string, user: UpdateCompanyUserRequest): Promise<CompanyUser> {
@@ -347,9 +291,9 @@ export class EmporixUserManagementService implements UserManagementService {
       throw new AdminRequiredError();
     }
     const selectedLegalEntity = await this.requireWriteLegalEntity(session);
-    const assignment =
+    const picker =
       user.groupAssignments && user.groupAssignments.length > 0
-        ? await this.requireSelectedLegalEntityGroup(user.groupAssignments, selectedLegalEntity.id)
+        ? await this.resolveSelectedLegalEntityPicker(user.groupAssignments, selectedLegalEntity.id)
         : undefined;
     const customer = await this.requireReadableCustomer(userId, selectedLegalEntity.id, currentCustomer.id);
     const customerNumber = customer.customerNumber || customer.id;
@@ -360,11 +304,12 @@ export class EmporixUserManagementService implements UserManagementService {
       applyCustomerPatch(customer, patch);
     }
 
-    if (user.groupAssignments?.length === 0) {
-      await this.removeSelectedLegalEntityCatalogGroups(customer.id, selectedLegalEntity.id);
-    } else if (assignment) {
-      await this.syncSelectedLegalEntityGroup(customer.id, selectedLegalEntity, assignment);
-    }
+    await this.applySelectedLegalEntityGroupAssignments(
+      customer.id,
+      selectedLegalEntity,
+      user.groupAssignments,
+      picker,
+    );
 
     const refreshed = (await this.customerAdminApi.getCustomer(customerNumber, SERVICE_TOKEN)) ?? customer;
     return this.mapCustomer(refreshed);
@@ -382,7 +327,10 @@ export class EmporixUserManagementService implements UserManagementService {
     const session = await this.sessionService.getCurrent();
     const selectedLegalEntity = await this.requireWriteLegalEntity(session);
     // Customer Service enforces: Customer can only assign new customer to the same company.
-    const groups = await this.loadAssignableGroupsForLegalEntity(selectedLegalEntity.id);
+    // Q29.4: omit Contact from the picker catalog; Contact is auto-assigned on create/save.
+    const groups = (await this.loadAssignableGroupsForLegalEntity(selectedLegalEntity.id)).filter(
+      (group) => !isContactGroup(group),
+    );
     const companyNameByLegalEntityId = new Map([[selectedLegalEntity.id, selectedLegalEntity.name]]);
     const mapped = this.mapper.mapToService(DISPLAY_NAME_STUB_CUSTOMER, {
       groups,
@@ -438,19 +386,39 @@ export class EmporixUserManagementService implements UserManagementService {
     };
   }
 
-  private async requireSelectedLegalEntityGroup(
+  private async resolveSelectedLegalEntityPicker(
     assignments: CompanyUserGroupAssignment[],
     selectedLegalEntityId: string,
-  ): Promise<CompanyUserGroupAssignment> {
+  ): Promise<SelectedLegalEntityPicker> {
     if (assignments.length !== 1 || assignments[0]?.legalEntityId !== selectedLegalEntityId) {
       throw new Error('Exactly one group assignment for the selected legal entity is required');
     }
     const assignment = assignments[0];
     const catalog = await this.loadAssignableGroupsForLegalEntity(selectedLegalEntityId);
-    if (!catalog.some((group) => group.id === assignment.groupId)) {
+    const contactGroup = catalog.find(
+      (group): group is ContactCatalogGroup => Boolean(group.id) && isContactGroup(group),
+    );
+    if (!contactGroup) {
+      throw new Error('Selected legal entity has no Contact catalog group');
+    }
+    if (assignment.groupId === CONTACT_ONLY_GROUP_ID || assignment.groupId === contactGroup.id) {
+      return { kind: 'contact-only', contactGroup };
+    }
+    if (!catalog.some((group) => group.id === assignment.groupId && !isContactGroup(group))) {
       throw new Error('Selected group is not assignable for the selected legal entity');
     }
-    return assignment;
+    return { kind: 'functional', assignment, contactGroup };
+  }
+
+  private async requireContactCatalogGroup(legalEntityId: string): Promise<ContactCatalogGroup> {
+    const catalog = await this.loadAssignableGroupsForLegalEntity(legalEntityId);
+    const contactGroup = catalog.find(
+      (group): group is ContactCatalogGroup => Boolean(group.id) && isContactGroup(group),
+    );
+    if (!contactGroup) {
+      throw new Error('Selected legal entity has no Contact catalog group');
+    }
+    return contactGroup;
   }
 
   private async collectAssignmentCustomerIds(
@@ -787,11 +755,11 @@ export class EmporixUserManagementService implements UserManagementService {
     selectedLegalEntityId: string,
     currentCustomerId: string,
   ): Promise<EmporixCustomerAdmin> {
-    const customer = await this.findReadableCustomer(userId, selectedLegalEntityId, currentCustomerId);
-    if (!customer) {
+    const readable = await this.findReadableCustomer(userId, selectedLegalEntityId, currentCustomerId);
+    if (!readable) {
       throw new Error('Company user not found for the selected legal entity');
     }
-    return customer;
+    return readable.customer;
   }
 
   /**
@@ -803,18 +771,19 @@ export class EmporixUserManagementService implements UserManagementService {
     userId: string,
     selectedLegalEntityId: string,
     currentCustomerId: string,
-  ): Promise<EmporixCustomerAdmin | undefined> {
+  ): Promise<ReadableCompanyUser | undefined> {
     const { memberIds: selectedLegalEntityMemberIds } = await this.collectAssignmentCustomerIds(selectedLegalEntityId);
     const selectedMember = await this.findCustomerInMemberSet(userId, selectedLegalEntityMemberIds);
     if (selectedMember) {
-      return selectedMember;
+      return { customer: selectedMember, isSelectedLegalEntityMember: true };
     }
 
     const { memberIds: otherMemberIds } = await this.collectOtherAdminLegalEntityAssignments(
       selectedLegalEntityId,
       currentCustomerId,
     );
-    return this.findCustomerInMemberSet(userId, otherMemberIds);
+    const otherMember = await this.findCustomerInMemberSet(userId, otherMemberIds);
+    return otherMember ? { customer: otherMember, isSelectedLegalEntityMember: false } : undefined;
   }
 
   private async collectOtherAdminLegalEntityAssignments(
@@ -900,45 +869,100 @@ export class EmporixUserManagementService implements UserManagementService {
     return hydrated.find((item) => item.customerNumber === userId || item.id === userId);
   }
 
-  private async mapCustomer(customer: EmporixCustomerAdmin): Promise<CompanyUser> {
+  private async mapCustomer(
+    customer: EmporixCustomerAdmin,
+    mapping?: { isSelectedLegalEntityMember?: boolean },
+  ): Promise<CompanyUser> {
     const groupsByCustomerId = await this.joinGroupsForResultPage([customer]);
     const customerGroups = groupsByCustomerId.get(customer.id) ?? [];
     const companyNameByLegalEntityId = await this.companyNamesForGroups(customerGroups);
     return this.mapper.mapToService(customer, {
       groups: customerGroups,
       companyNameByLegalEntityId,
+      ...(mapping?.isSelectedLegalEntityMember !== undefined
+        ? { isSelectedLegalEntityMember: mapping.isSelectedLegalEntityMember }
+        : {}),
     });
   }
 
   /**
-   * Documented-prefix CONTACT assignment then IAM assign with service credentials.
-   * Either failure is reported as partial create without rolling back a successful CONTACT.
+   * Documented-prefix CONTACT assignment then IAM Contact (and optional functional assign)
+   * with service credentials. Either failure is reported as partial create without rolling
+   * back a successful CONTACT.
    */
-  private async linkLegalEntityGroup(
+  private async linkCreatedUserToSelectedLegalEntity(
     customerResourceId: string,
-    assignment: CompanyUserGroupAssignment,
+    selectedLegalEntity: WriteLegalEntity,
+    picker: SelectedLegalEntityPicker,
     companyNameByLegalEntityId: Map<string, string>,
   ): Promise<string | undefined> {
+    const contactFailedName = await this.ensureCreatedUserContactMembership(
+      customerResourceId,
+      selectedLegalEntity,
+      picker,
+      companyNameByLegalEntityId,
+    );
+    if (contactFailedName) {
+      return contactFailedName;
+    }
+    if (picker.kind !== 'functional') {
+      return undefined;
+    }
+    return this.assignFunctionalIamGroup(customerResourceId, picker.assignment, companyNameByLegalEntityId);
+  }
+
+  private async ensureCreatedUserContactMembership(
+    customerResourceId: string,
+    selectedLegalEntity: WriteLegalEntity,
+    picker: SelectedLegalEntityPicker,
+    companyNameByLegalEntityId: Map<string, string>,
+  ): Promise<string | undefined> {
+    const logGroupId = picker.kind === 'functional' ? picker.assignment.groupId : picker.contactGroup.id;
+    const failedAssignment: CompanyUserGroupAssignment =
+      picker.kind === 'functional'
+        ? picker.assignment
+        : { legalEntityId: selectedLegalEntity.id, groupId: picker.contactGroup.id };
     try {
-      await this.customerManagementApi.createLegalEntityContactAssignment({
-        legalEntity: { id: assignment.legalEntityId },
-        customer: { id: customerResourceId },
-      });
+      await this.ensureContactAssignment(selectedLegalEntity.id, customerResourceId);
     } catch (error) {
       this.logger.error(
         {
           step: 'contact-assignment',
           customerId: customerResourceId,
-          legalEntityId: assignment.legalEntityId,
-          groupId: assignment.groupId,
+          legalEntityId: selectedLegalEntity.id,
+          groupId: logGroupId,
           forbidden: isForbiddenError(error),
           error: error instanceof Error ? error.message : String(error),
         },
         'User management contact-assignment link failed',
       );
-      return this.resolveFailedGroupDisplayName(assignment, companyNameByLegalEntityId);
+      return this.resolveFailedGroupDisplayName(failedAssignment, companyNameByLegalEntityId);
     }
 
+    try {
+      await this.ensureContactIamGroup(picker.contactGroup, customerResourceId);
+      return undefined;
+    } catch (error) {
+      this.logger.error(
+        {
+          step: 'iam-group',
+          customerId: customerResourceId,
+          legalEntityId: selectedLegalEntity.id,
+          groupId: logGroupId,
+          forbidden: isForbiddenError(error),
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'User management IAM group link failed',
+      );
+      return this.resolveFailedGroupDisplayName(failedAssignment, companyNameByLegalEntityId);
+    }
+  }
+
+  private async assignFunctionalIamGroup(
+    customerResourceId: string,
+    assignment: CompanyUserGroupAssignment,
+    companyNameByLegalEntityId: Map<string, string>,
+  ): Promise<string | undefined> {
     try {
       await this.removeConflictingPredefinedGroups(customerResourceId, assignment.legalEntityId, assignment.groupId);
       await this.iamApi.addUserToGroup(
@@ -965,6 +989,131 @@ export class EmporixUserManagementService implements UserManagementService {
       );
       return this.resolveFailedGroupDisplayName(assignment, companyNameByLegalEntityId);
     }
+  }
+
+  private async createInvitedCustomerProfile(
+    user: CreateCompanyUserRequest,
+    selectedLegalEntity: WriteLegalEntity,
+    session: UserManagementSession | undefined,
+  ): Promise<EmporixCustomerAdmin> {
+    const createRequest = toInviteCreateRequest(user, session);
+    const refreshDiagnostics = await this.refreshSelectedLegalEntityCustomerToken(selectedLegalEntity);
+    const tokenLegalEntityId = await this.sessionService.getCustomerTokenLegalEntityId();
+    const tokenScopeContext = {
+      sessionLegalEntityId: selectedLegalEntity.sessionLegalEntityId,
+      selectedLegalEntityId: selectedLegalEntity.id,
+      tokenLegalEntityId: tokenLegalEntityId ?? null,
+      tokenRefreshSucceeded: refreshDiagnostics.tokenRefreshSucceeded,
+      tokenLooksLikeJwt: refreshDiagnostics.tokenLooksLikeJwt,
+    };
+    if (tokenLegalEntityId !== selectedLegalEntity.id) {
+      this.logger.error(tokenScopeContext, 'Customer token is not scoped to the selected legal entity');
+      throw new Error('Customer token is not scoped to the selected legal entity');
+    }
+    this.logger.info(tokenScopeContext, 'Customer token scoped to selected legal entity');
+
+    let created: { id: string };
+    try {
+      // COP-4807: multi-company `_own` create can return a same-company 400 even
+      // with a scoped session token, so only this profile create uses service auth.
+      created = await this.customerAdminApi.createCustomer(createRequest, selectedLegalEntity.id);
+    } catch (error) {
+      const logContext = {
+        ...toUpstreamErrorLogContext(error, 'Create customer'),
+        tokenType: 'service',
+        createDtoKeys: Object.keys(createRequest),
+        preferredLanguage: createRequest.preferredLanguage,
+        preferredSite: createRequest.preferredSite,
+        preferredCurrency: createRequest.preferredCurrency,
+        preferredLanguageLength: createRequest.preferredLanguage?.length,
+        sessionLegalEntityId: selectedLegalEntity.sessionLegalEntityId,
+        profileFirstLegalEntityId: selectedLegalEntity.profileFirstLegalEntityId,
+        selectedLegalEntityId: selectedLegalEntity.id,
+        tokenLegalEntityId,
+        tokenRefreshSucceeded: refreshDiagnostics.tokenRefreshSucceeded,
+        tokenLooksLikeJwt: refreshDiagnostics.tokenLooksLikeJwt,
+        usedProfileFirstFallback: false,
+      };
+      this.logger.error(logContext, 'User management customer invite create failed');
+      if (error && typeof error === 'object') {
+        Object.assign(error, { userManagementLogContext: logContext });
+      }
+      throw error;
+    }
+    const customer = await this.resolveCreatedCustomer(created.id);
+    if (user.active === false) {
+      const customerNumber = customer.customerNumber || customer.id;
+      await this.customerAdminApi.updateCustomer(customerNumber, { active: false }, 'service');
+      customer.active = false;
+    }
+    return customer;
+  }
+
+  private async refreshSelectedLegalEntityCustomerToken(
+    selectedLegalEntity: WriteLegalEntity,
+  ): Promise<{ tokenRefreshSucceeded: true; tokenLooksLikeJwt: boolean }> {
+    // Always remint the token: an expiry refresh may have dropped the legalEntityId claim
+    // even when the persisted session context still points at the selected company.
+    const baseTokenScopeContext = {
+      sessionLegalEntityId: selectedLegalEntity.sessionLegalEntityId,
+      selectedLegalEntityId: selectedLegalEntity.id,
+    };
+    try {
+      return await this.sessionService.setLegalEntity(selectedLegalEntity.id);
+    } catch (error) {
+      this.logger.error(
+        {
+          ...baseTokenScopeContext,
+          tokenLegalEntityId: null,
+          tokenRefreshSucceeded: false,
+          tokenLooksLikeJwt: false,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'User management customer token scope refresh failed',
+      );
+      throw error;
+    }
+  }
+
+  private async applySelectedLegalEntityGroupAssignments(
+    customerResourceId: string,
+    selectedLegalEntity: WriteLegalEntity,
+    groupAssignments: CompanyUserGroupAssignment[] | undefined,
+    picker?: SelectedLegalEntityPicker,
+  ): Promise<void> {
+    if (groupAssignments === undefined) {
+      return;
+    }
+    if (groupAssignments.length === 0) {
+      await this.applyContactOnlySelectedLegalEntityWrite(customerResourceId, selectedLegalEntity);
+      return;
+    }
+    const resolved = picker ?? (await this.resolveSelectedLegalEntityPicker(groupAssignments, selectedLegalEntity.id));
+    if (resolved.kind === 'contact-only') {
+      await this.applyContactOnlySelectedLegalEntityWrite(
+        customerResourceId,
+        selectedLegalEntity,
+        resolved.contactGroup,
+      );
+      return;
+    }
+    await this.syncSelectedLegalEntityGroup(
+      customerResourceId,
+      selectedLegalEntity,
+      resolved.assignment,
+      resolved.contactGroup,
+    );
+  }
+
+  private async applyContactOnlySelectedLegalEntityWrite(
+    customerResourceId: string,
+    selectedLegalEntity: WriteLegalEntity,
+    contactGroup?: ContactCatalogGroup,
+  ): Promise<void> {
+    const resolvedContact = contactGroup ?? (await this.requireContactCatalogGroup(selectedLegalEntity.id));
+    await this.ensureContactAssignment(selectedLegalEntity.id, customerResourceId);
+    await this.ensureContactIamGroup(resolvedContact, customerResourceId);
+    await this.removeSelectedLegalEntityFunctionalGroups(customerResourceId, selectedLegalEntity.id);
   }
 
   private async resolveFailedGroupDisplayName(
@@ -1037,9 +1186,11 @@ export class EmporixUserManagementService implements UserManagementService {
     customerResourceId: string,
     selectedLegalEntity: WriteLegalEntity,
     assignment: CompanyUserGroupAssignment,
+    contactGroup: ContactCatalogGroup,
   ): Promise<void> {
     try {
       await this.ensureContactAssignment(selectedLegalEntity.id, customerResourceId);
+      await this.ensureContactIamGroup(contactGroup, customerResourceId);
       const currentGroups = (await this.iamApi.getUserGroups(customerResourceId, { size: 60 }, SERVICE_TOKEN)).items;
       // Remove conflicting selected-LE predefined groups first to avoid IAM rejecting add-first updates.
       await this.removeConflictingPredefinedGroups(customerResourceId, selectedLegalEntity.id, assignment.groupId);
@@ -1075,17 +1226,32 @@ export class EmporixUserManagementService implements UserManagementService {
     }
   }
 
-  private async removeSelectedLegalEntityCatalogGroups(
+  private async ensureContactIamGroup(contactGroup: ContactCatalogGroup, customerResourceId: string): Promise<void> {
+    const currentGroups = (await this.iamApi.getUserGroups(customerResourceId, { size: 60 }, SERVICE_TOKEN)).items;
+    if (currentGroups.some((group) => group.id === contactGroup.id)) {
+      return;
+    }
+    await this.iamApi.addUserToGroup(
+      contactGroup.id,
+      { userId: customerResourceId, userType: 'CUSTOMER' },
+      SERVICE_TOKEN,
+    );
+  }
+
+  private async removeSelectedLegalEntityFunctionalGroups(
     customerResourceId: string,
     selectedLegalEntityId: string,
   ): Promise<void> {
-    const selectedCatalogIds = new Set(
-      (await this.loadAssignableGroupsForLegalEntity(selectedLegalEntityId)).map((group) => group.id).filter(isPresent),
+    const selectedFunctionalIds = new Set(
+      (await this.loadAssignableGroupsForLegalEntity(selectedLegalEntityId))
+        .filter((group) => Boolean(group.id) && isPredefinedGroup(group))
+        .map((group) => group.id)
+        .filter(isPresent),
     );
     const currentGroups = (await this.iamApi.getUserGroups(customerResourceId, { size: 60 }, SERVICE_TOKEN)).items;
 
     for (const group of currentGroups) {
-      if (group.id && selectedCatalogIds.has(group.id)) {
+      if (group.id && selectedFunctionalIds.has(group.id)) {
         await this.iamApi.removeUserFromGroup(group.id, customerResourceId, SERVICE_TOKEN);
       }
     }
@@ -1511,9 +1677,10 @@ function catalogGroupsForSourceLegalEntity(
   groupsByMembershipId: ReadonlyMap<string, EmporixGroup[]>,
   sourceLegalEntityId: string,
 ): EmporixGroup[] {
-  return selectedCatalogGroupsForCustomer(customer, groupsByMembershipId).filter(
-    (group) => group.b2b?.legalEntityId === sourceLegalEntityId,
-  );
+  return selectedCatalogGroupsForCustomer(customer, groupsByMembershipId).filter((group) => {
+    const legalEntityId = group.b2b?.legalEntityId;
+    return Boolean(legalEntityId) && legalEntityId === sourceLegalEntityId;
+  });
 }
 
 function collectAdminLegalEntityIds(groups: readonly EmporixGroup[]): Set<string> {

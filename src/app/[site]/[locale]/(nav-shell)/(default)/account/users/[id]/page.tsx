@@ -34,9 +34,8 @@ export default async function EditUserPage({ params }: { params: Promise<{ local
     notFound();
   }
 
-  const firstName = user.firstName.trim();
-  const lastName = user.lastName.trim();
-  const breadcrumbNames = firstName || lastName ? { firstName, lastName } : { firstName: user.id, lastName: '' };
+  const displayName = [user.firstName.trim(), user.lastName.trim()].filter((part) => part.length > 0).join(' ');
+  const breadcrumbName = displayName || user.id;
 
   const breadcrumbs = [
     {
@@ -49,7 +48,7 @@ export default async function EditUserPage({ params }: { params: Promise<{ local
     },
     {
       href: `/account/users/${id}`,
-      label: tUserManagement('breadcrumbEditUser', breadcrumbNames).replace(/\s+/g, ' ').trim(),
+      label: tUserManagement('breadcrumbEditUser', { name: breadcrumbName }),
     },
   ];
 

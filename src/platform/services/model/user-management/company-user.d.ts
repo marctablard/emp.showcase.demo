@@ -16,6 +16,11 @@ export interface CompanyUser {
   legalEntityId?: string;
   /** Present on combined Admin-LE list rows; omitted from selected-LE `listUsers`. */
   legalEntityName?: string;
+  /**
+   * Set on `getUser` only. True when the user is in the selected-LE contact-assignment
+   * set; false for a Q24 other-Admin-LE get. Not inferred from selected-LE IAM groups.
+   */
+  isSelectedLegalEntityMember?: boolean;
 }
 
 /**
@@ -52,8 +57,9 @@ export interface CreateCompanyUserRequest {
 
 /**
  * Edit payload. Password is never accepted. Group assignments are tri-state:
- * omitted leaves IAM unchanged, an empty array clears selected-LE catalog groups
- * while retaining CONTACT membership, and one entry assigns that selected-LE group.
+ * omitted leaves IAM unchanged; `[]` / Contact-only remove selected-LE functional
+ * IAM groups, keep CONTACT assignment, and ensure IAM Contact; one functional
+ * catalog id assigns that selected-LE group (and still ensures Contact).
  */
 export interface UpdateCompanyUserRequest {
   title?: string;

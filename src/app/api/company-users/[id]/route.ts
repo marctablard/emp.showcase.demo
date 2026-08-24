@@ -128,6 +128,74 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
   }
 }
 
+function readTrimmedString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value.trim() : undefined;
+}
+
+function parseGroupAssignment(assignment: unknown): { legalEntityId: string; groupId: string } | undefined {
+  if (!assignment || typeof assignment !== 'object') {
+    return undefined;
+  }
+  const item = assignment as Record<string, unknown>;
+  const legalEntityId = readTrimmedString(item.legalEntityId);
+  const groupId = readTrimmedString(item.groupId);
+  if (!legalEntityId || !groupId) {
+    return undefined;
+  }
+  return { legalEntityId, groupId };
+}
+
+function parseGroupAssignments(value: unknown): Array<{ legalEntityId: string; groupId: string }> | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const groupAssignments = [];
+  for (const assignment of value) {
+    const parsed = parseGroupAssignment(assignment);
+    if (!parsed) {
+      return undefined;
+    }
+    groupAssignments.push(parsed);
+  }
+  return groupAssignments;
+}
+
+const TRIMMED_UPDATE_FIELDS = [
+  ['title', false],
+  ['firstName', true],
+  ['lastName', true],
+  ['contactEmail', true],
+  ['contactPhone', false],
+] as const;
+
+function parseOptionalTrimmedField(
+  data: Record<string, unknown>,
+  key: (typeof TRIMMED_UPDATE_FIELDS)[number][0],
+  required: boolean,
+): string | undefined | false {
+  if (data[key] === undefined) {
+    return undefined;
+  }
+  const trimmed = readTrimmedString(data[key]);
+  if (trimmed === undefined || (required && !trimmed)) {
+    return false;
+  }
+  return trimmed;
+}
+
+function assignTrimmedUpdateFields(data: Record<string, unknown>, request: UpdateCompanyUserRequest): boolean {
+  for (const [key, required] of TRIMMED_UPDATE_FIELDS) {
+    const value = parseOptionalTrimmedField(data, key, required);
+    if (value === false) {
+      return false;
+    }
+    if (value !== undefined) {
+      request[key] = value;
+    }
+  }
+  return true;
+}
+
 function parseUpdateBody(body: unknown): UpdateCompanyUserRequest | undefined {
   if (!body || typeof body !== 'object') {
     return undefined;
@@ -135,37 +203,10 @@ function parseUpdateBody(body: unknown): UpdateCompanyUserRequest | undefined {
 
   const data = body as Record<string, unknown>;
   const request: UpdateCompanyUserRequest = {};
+  if (!assignTrimmedUpdateFields(data, request)) {
+    return undefined;
+  }
 
-  if (data.title !== undefined) {
-    if (typeof data.title !== 'string') {
-      return undefined;
-    }
-    request.title = data.title;
-  }
-  if (data.firstName !== undefined) {
-    if (typeof data.firstName !== 'string' || !data.firstName.trim()) {
-      return undefined;
-    }
-    request.firstName = data.firstName;
-  }
-  if (data.lastName !== undefined) {
-    if (typeof data.lastName !== 'string' || !data.lastName.trim()) {
-      return undefined;
-    }
-    request.lastName = data.lastName;
-  }
-  if (data.contactEmail !== undefined) {
-    if (typeof data.contactEmail !== 'string' || !data.contactEmail.trim()) {
-      return undefined;
-    }
-    request.contactEmail = data.contactEmail;
-  }
-  if (data.contactPhone !== undefined) {
-    if (typeof data.contactPhone !== 'string') {
-      return undefined;
-    }
-    request.contactPhone = data.contactPhone;
-  }
   if (data.active !== undefined) {
     if (typeof data.active !== 'boolean') {
       return undefined;
@@ -173,22 +214,9 @@ function parseUpdateBody(body: unknown): UpdateCompanyUserRequest | undefined {
     request.active = data.active;
   }
   if (data.groupAssignments !== undefined) {
-    if (!Array.isArray(data.groupAssignments)) {
+    const groupAssignments = parseGroupAssignments(data.groupAssignments);
+    if (!groupAssignments) {
       return undefined;
-    }
-    const groupAssignments = [];
-    for (const assignment of data.groupAssignments) {
-      if (!assignment || typeof assignment !== 'object') {
-        return undefined;
-      }
-      const item = assignment as Record<string, unknown>;
-      if (typeof item.legalEntityId !== 'string' || !item.legalEntityId.trim()) {
-        return undefined;
-      }
-      if (typeof item.groupId !== 'string' || !item.groupId.trim()) {
-        return undefined;
-      }
-      groupAssignments.push({ legalEntityId: item.legalEntityId, groupId: item.groupId });
     }
     request.groupAssignments = groupAssignments;
   }

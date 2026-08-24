@@ -9,9 +9,22 @@ import { EmporixTokenManagerAbstract, TokenStore } from './EmporixTokenManagerAb
  */
 export class EmporixTestTokenManager extends EmporixTokenManagerAbstract {
   private tenantStores: Map<string, TokenStore> = new Map();
+  public readonly skippedRefreshLogs: Array<{
+    refreshSkipped: true;
+    reason: 'missingCustomerToken' | 'invalidRefreshToken';
+    legalEntityRequested: boolean;
+  }> = [];
 
   constructor(@inject('EmporixOAuthApi') oauthApi: OAuthApi) {
     super(oauthApi);
+  }
+
+  protected override logCustomerTokenRefreshSkipped(context: {
+    refreshSkipped: true;
+    reason: 'missingCustomerToken' | 'invalidRefreshToken';
+    legalEntityRequested: boolean;
+  }): void {
+    this.skippedRefreshLogs.push(context);
   }
 
   protected async readTokens(tenant: string): Promise<TokenStore> {

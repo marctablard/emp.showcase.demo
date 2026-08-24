@@ -9,6 +9,7 @@ import type { CustomerService } from '@/platform/services/customer/CustomerServi
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Customer } from '@/platform/services/model/customer/customer';
 import { CustomerRole } from '@/platform/services/model/customer/roles';
+import { CONTACT_ONLY_GROUP_ID } from '@/platform/services/model/user-management/contact-only';
 import EmporixCompanyUserMapper from '@/platform/services/model/user-management/impl/EmporixCompanyUserMapper';
 import type { SessionService } from '@/platform/services/session';
 import { AdminRequiredError, PredefinedGroupConflictError } from '../errors';
@@ -411,6 +412,7 @@ describe('EmporixUserManagementService list/get', () => {
 
     const user = await service.getUser('C-777');
     expect(user?.id).toBe('C-777');
+    expect(user?.isSelectedLegalEntityMember).toBe(true);
     expect(iamApi.getUsers).not.toHaveBeenCalled();
     expect(iamApi.getUserGroups).toHaveBeenCalled();
   });
@@ -473,6 +475,55 @@ describe('EmporixUserManagementService list/get', () => {
     expect(iamApi.getUserGroups).toHaveBeenNthCalledWith(1, member.customerNumber, { size: 60 }, 'service');
   });
 
+  it('listUsers User Group stays source-LE only when the member also has other-LE IAM groups', async () => {
+    const member = adminDto({ id: 'cust-a', customerNumber: 'N-A', firstName: 'Ann', lastName: 'Alpha' });
+    const otherLegalEntityId = 'le-other';
+    companyService.getCompanies.mockResolvedValue([
+      { id: SELECTED_LE, name: 'Acme' },
+      { id: otherLegalEntityId, name: 'Other Co' },
+    ]);
+    mockAssignments([assignment(member.id, 'CONTACT', [{ id: 'g-contact', role: 'Contact' }])]);
+    iamApi.getGroupUsers.mockImplementation(async (groupId) => ({
+      items:
+        groupId === 'g-contact' || groupId === 'g-other'
+          ? [{ id: `asg-${groupId}`, groupId, userId: member.id, userType: 'CUSTOMER' as const }]
+          : [],
+      total: 1,
+      page: 1,
+      size: 60,
+    }));
+    iamApi.getUserGroups.mockResolvedValue({
+      items: [
+        {
+          id: 'g-contact',
+          code: 'CONTACT',
+          userType: 'CUSTOMER',
+          b2b: { role: 'Contact', legalEntityId: SELECTED_LE },
+        },
+        {
+          id: 'g-other',
+          code: 'B2B_BUYER',
+          userType: 'CUSTOMER',
+          b2b: { role: 'Buyer', legalEntityId: otherLegalEntityId },
+        },
+      ],
+      total: 2,
+      page: 1,
+      size: 60,
+    });
+    mockHydrateByIdQuery([member]);
+
+    const listed = await service.listUsers(1, 10);
+    expect(iamApi.getUserGroups).not.toHaveBeenCalled();
+    expect(listed.items).toHaveLength(1);
+    expect(listed.items[0]?.groups.map((group) => group.id)).toEqual(['g-contact']);
+    expect(listed.items[0]?.groups.map((group) => group.displayName)).toEqual(['Acme - Contact']);
+    expect(listed.items[0]?.groups.map((group) => group.displayName).join(' ')).not.toContain('Other Co');
+
+    const user = await service.getUser('N-A');
+    expect(user?.groups.map((group) => group.id)).toEqual(expect.arrayContaining(['g-contact', 'g-other']));
+  });
+
   it('getUser returns a Q24 other-Admin-LE assignment member omitted from the first table', async () => {
     const otherMember = adminDto({
       id: 'cust-other-admin',
@@ -517,6 +568,7 @@ describe('EmporixUserManagementService list/get', () => {
 
     expect(listed.items).toEqual([]);
     expect(user?.id).toBe('N-OA');
+    expect(user?.isSelectedLegalEntityMember).toBe(false);
     expect(iamApi.getUsers).not.toHaveBeenCalled();
     expect(iamApi.getUserGroups).toHaveBeenCalledWith(adminCustomer.id, { size: 60 }, 'service');
     expect(customerManagementApi.getContactAssignmentsByLegalEntityId).toHaveBeenCalledWith(
@@ -683,6 +735,15 @@ describe('EmporixUserManagementService list/get', () => {
     ]);
     expect(sharedRows.find((row) => row.legalEntityId === SELECTED_LE)?.groups.map((group) => group.id)).toEqual([
       'g-selected',
+    ]);
+    expect(
+      sharedRows
+        .find((row) => row.legalEntityId === SELECTED_LE)
+        ?.groups.map((group) => group.displayName)
+        .join(' '),
+    ).not.toContain('Other Co');
+    expect(result.items.find((user) => user.id === 'N-S')?.groups.map((group) => group.legalEntityId)).toEqual([
+      SELECTED_LE,
     ]);
     expect(iamApi.getUsers).not.toHaveBeenCalled();
     expect(iamApi.getUserGroups).toHaveBeenCalledTimes(1);
@@ -889,11 +950,13 @@ describe('EmporixUserManagementService list/get', () => {
 
     const selected = await service.getUser('N-S');
     expect(selected?.id).toBe('N-S');
+    expect(selected?.isSelectedLegalEntityMember).toBe(true);
     expect(iamApi.getUserGroups).not.toHaveBeenCalledWith(adminCustomer.id, { size: 60 }, 'service');
 
     iamApi.getUserGroups.mockClear();
     const other = await service.getUser('N-OA');
     expect(other?.id).toBe('N-OA');
+    expect(other?.isSelectedLegalEntityMember).toBe(false);
     expect(iamApi.getUserGroups).toHaveBeenCalledWith(adminCustomer.id, { size: 60 }, 'service');
     expect(customerManagementApi.getContactAssignmentsByLegalEntityId).toHaveBeenCalledWith(
       'le-other',
@@ -1052,6 +1115,12 @@ describe('EmporixUserManagementService create/update/delete', () => {
           userType: 'CUSTOMER',
           b2b: { role: 'Admin', legalEntityId: SELECTED_LE },
         },
+        {
+          id: GROUP_CONTACT,
+          code: 'CONTACT',
+          userType: 'CUSTOMER',
+          b2b: { role: 'Contact', legalEntityId: SELECTED_LE },
+        },
       ]),
     };
     companyService = {
@@ -1154,11 +1223,16 @@ describe('EmporixUserManagementService create/update/delete', () => {
       customerManagementApi.createLegalEntityContactAssignment.mock.invocationCallOrder[0]!,
     );
     expect(iamApi.addUserToGroup).toHaveBeenCalledWith(
+      GROUP_CONTACT,
+      { userId: 'cust-uuid', userType: 'CUSTOMER' },
+      'service',
+    );
+    expect(iamApi.addUserToGroup).toHaveBeenCalledWith(
       GROUP_ADMIN,
       { userId: 'cust-uuid', userType: 'CUSTOMER' },
       'service',
     );
-    expect(iamApi.addUserToGroup).toHaveBeenCalledTimes(1);
+    expect(iamApi.addUserToGroup).toHaveBeenCalledTimes(2);
     expect(iamApi.addUserToGroup.mock.calls.every(([, , tokenType]) => tokenType === 'service')).toBe(true);
     expect(iamApi.getUserGroups.mock.calls.every(([, , tokenType]) => tokenType === 'service')).toBe(true);
     expect(customerManagementApi.createLegalEntityContactAssignment.mock.invocationCallOrder[0]).toBeLessThan(
@@ -1166,6 +1240,44 @@ describe('EmporixUserManagementService create/update/delete', () => {
     );
     expect(result.user.id).toBe('C-100');
     expect(result.failedGroupNames).toBeUndefined();
+  });
+
+  it.each([
+    ['Contact-only sentinel', CONTACT_ONLY_GROUP_ID],
+    ['client-sent Contact catalog id', GROUP_CONTACT],
+  ])('invite-creates with %s assigning CONTACT + IAM Contact only', async (_case, groupId) => {
+    const result = await service.createUser(
+      inviteRequest({ groupAssignments: [{ legalEntityId: SELECTED_LE, groupId }] }),
+    );
+
+    expect(customerAdminApi.createCustomer).toHaveBeenCalledTimes(1);
+    expect(customerManagementApi.createLegalEntityContactAssignment).toHaveBeenCalledWith({
+      legalEntity: { id: SELECTED_LE },
+      customer: { id: 'cust-uuid' },
+    });
+    expect(iamApi.addUserToGroup).toHaveBeenCalledWith(
+      GROUP_CONTACT,
+      { userId: 'cust-uuid', userType: 'CUSTOMER' },
+      'service',
+    );
+    expect(iamApi.addUserToGroup).toHaveBeenCalledTimes(1);
+    expect(iamApi.addUserToGroup.mock.calls.map(([id]) => id)).not.toContain(GROUP_ADMIN);
+    expect(iamApi.removeUserFromGroup).not.toHaveBeenCalled();
+    expect(result.failedGroupNames).toBeUndefined();
+  });
+
+  it('stops create before side effects when the selected LE has no Contact catalog group', async () => {
+    iamApi.getGroups.mockResolvedValue([
+      { id: GROUP_ADMIN, code: 'B2B_ADMIN', userType: 'CUSTOMER', b2b: { role: 'Admin', legalEntityId: SELECTED_LE } },
+    ]);
+
+    await expect(service.createUser(inviteRequest())).rejects.toThrow(
+      'Selected legal entity has no Contact catalog group',
+    );
+
+    expect(customerAdminApi.createCustomer).not.toHaveBeenCalled();
+    expect(customerManagementApi.createLegalEntityContactAssignment).not.toHaveBeenCalled();
+    expect(iamApi.addUserToGroup).not.toHaveBeenCalled();
   });
 
   it('uses the session legal entity when the profile and first permitted company point elsewhere', async () => {
@@ -1475,6 +1587,7 @@ describe('EmporixUserManagementService create/update/delete', () => {
     );
     iamApi.getGroups.mockResolvedValue([
       { id: GROUP_ADMIN, code: 'B2B_ADMIN', b2b: { role: 'Admin', legalEntityId: SELECTED_LE } },
+      { id: GROUP_CONTACT, code: 'CONTACT', b2b: { role: 'Contact', legalEntityId: SELECTED_LE } },
     ]);
 
     const result = await service.createUser(inviteRequest());
@@ -1499,13 +1612,23 @@ describe('EmporixUserManagementService create/update/delete', () => {
   });
 
   it('returns partial-create when service IAM fails after CONTACT and keeps the CONTACT assignment', async () => {
-    iamApi.addUserToGroup.mockRejectedValue(new Error('Failed to create group assignment: Forbidden'));
+    iamApi.addUserToGroup.mockImplementation(async (groupId) => {
+      if (groupId === GROUP_ADMIN) {
+        throw new Error('Failed to create group assignment: Forbidden');
+      }
+      return { id: 'asg-1' };
+    });
 
     const result = await service.createUser(inviteRequest());
 
     expect(result.user.id).toBe('C-100');
     expect(result.failedGroupNames).toEqual(['Acme - Admin']);
     expect(customerManagementApi.createLegalEntityContactAssignment).toHaveBeenCalledTimes(1);
+    expect(iamApi.addUserToGroup).toHaveBeenCalledWith(
+      GROUP_CONTACT,
+      { userId: 'cust-uuid', userType: 'CUSTOMER' },
+      'service',
+    );
     expect(iamApi.addUserToGroup).toHaveBeenCalledWith(
       GROUP_ADMIN,
       { userId: 'cust-uuid', userType: 'CUSTOMER' },
@@ -1530,16 +1653,19 @@ describe('EmporixUserManagementService create/update/delete', () => {
   });
 
   it('throws a predefined-group conflict error when IAM returns the allow-listed conflict prefix on create', async () => {
-    iamApi.addUserToGroup.mockRejectedValue(
-      new EmporixApiError({
-        operation: 'Add user to group',
-        status: 400,
-        statusText: 'Bad Request',
-        body: JSON.stringify({
-          message: 'Cannot assign customer to more than one predefined functional group (existing Admin)',
-        }),
-      }),
-    );
+    iamApi.addUserToGroup.mockImplementation(async (groupId) => {
+      if (groupId === GROUP_ADMIN) {
+        throw new EmporixApiError({
+          operation: 'Add user to group',
+          status: 400,
+          statusText: 'Bad Request',
+          body: JSON.stringify({
+            message: 'Cannot assign customer to more than one predefined functional group (existing Admin)',
+          }),
+        });
+      }
+      return { id: 'asg-1' };
+    });
 
     await expect(service.createUser(inviteRequest())).rejects.toMatchObject({
       name: 'PredefinedGroupConflictError',
@@ -1552,6 +1678,7 @@ describe('EmporixUserManagementService create/update/delete', () => {
     iamApi.getGroups.mockResolvedValue([
       { id: GROUP_ADMIN, code: 'B2B_ADMIN', b2b: { role: 'Admin', legalEntityId: SELECTED_LE } },
       { id: GROUP_BUYER, code: 'B2B_BUYER', b2b: { role: 'Buyer', legalEntityId: SELECTED_LE } },
+      { id: GROUP_CONTACT, code: 'CONTACT', b2b: { role: 'Contact', legalEntityId: SELECTED_LE } },
     ]);
     iamApi.addUserToGroup.mockRejectedValue(new Error('Failed to create group assignment: Forbidden'));
 
@@ -1576,6 +1703,7 @@ describe('EmporixUserManagementService create/update/delete', () => {
     iamApi.getGroups.mockResolvedValue([
       { id: GROUP_ADMIN, code: 'B2B_ADMIN', b2b: { role: 'Admin', legalEntityId: SELECTED_LE } },
       { id: GROUP_BUYER, code: 'B2B_BUYER', b2b: { role: 'Buyer', legalEntityId: SELECTED_LE } },
+      { id: GROUP_CONTACT, code: 'CONTACT', b2b: { role: 'Contact', legalEntityId: SELECTED_LE } },
     ]);
     iamApi.getUserGroups.mockResolvedValue({
       items: [{ id: GROUP_ADMIN, code: 'B2B_ADMIN', b2b: { role: 'Admin', legalEntityId: SELECTED_LE } }],
@@ -1628,7 +1756,7 @@ describe('EmporixUserManagementService create/update/delete', () => {
     expect(result).toEqual(expect.objectContaining({ firstName: 'Grace', active: false, groups: [] }));
   });
 
-  it('clears only selected-LE catalog IAM groups and retains CONTACT membership', async () => {
+  it('clears only selected-LE functional IAM groups, retains CONTACT, and ensures IAM Contact', async () => {
     const member = createdCustomer();
     mockSelectedLeMember(member);
     iamApi.getGroups.mockImplementation(async (params) =>
@@ -1654,10 +1782,34 @@ describe('EmporixUserManagementService create/update/delete', () => {
 
     expect(iamApi.getUserGroups.mock.calls.every(([, , tokenType]) => tokenType === 'service')).toBe(true);
     expect(iamApi.removeUserFromGroup).toHaveBeenCalledWith(GROUP_ADMIN, 'cust-uuid', 'service');
-    expect(iamApi.removeUserFromGroup).toHaveBeenCalledWith(GROUP_CONTACT, 'cust-uuid', 'service');
+    expect(iamApi.removeUserFromGroup).not.toHaveBeenCalledWith(GROUP_CONTACT, 'cust-uuid', 'service');
     expect(iamApi.removeUserFromGroup).not.toHaveBeenCalledWith(GROUP_OTHER, 'cust-uuid', 'service');
+    expect(iamApi.removeUserFromGroup.mock.calls.map(([groupId]) => groupId)).not.toContain(GROUP_CUSTOMER);
     expect(customerManagementApi.deleteContactAssignment).not.toHaveBeenCalled();
     expect(customerManagementApi.createLegalEntityContactAssignment).not.toHaveBeenCalled();
+    expect(iamApi.addUserToGroup).not.toHaveBeenCalled();
+  });
+
+  it('ensures IAM Contact on update [] when Contact IAM is missing', async () => {
+    const member = createdCustomer();
+    mockSelectedLeMember(member);
+    iamApi.getUserGroups.mockResolvedValue({
+      items: [{ id: GROUP_ADMIN, code: 'B2B_ADMIN', b2b: { role: 'Admin', legalEntityId: SELECTED_LE } }],
+      total: 1,
+      page: 1,
+      size: 60,
+    });
+
+    await service.updateUser('C-100', { groupAssignments: [] });
+
+    expect(iamApi.addUserToGroup).toHaveBeenCalledWith(
+      GROUP_CONTACT,
+      { userId: 'cust-uuid', userType: 'CUSTOMER' },
+      'service',
+    );
+    expect(iamApi.removeUserFromGroup).toHaveBeenCalledWith(GROUP_ADMIN, 'cust-uuid', 'service');
+    expect(iamApi.removeUserFromGroup).not.toHaveBeenCalledWith(GROUP_CONTACT, 'cust-uuid', 'service');
+    expect(customerManagementApi.deleteContactAssignment).not.toHaveBeenCalled();
   });
 
   it('changes only the selected-LE group and preserves an omitted other-LE assignment', async () => {
@@ -1669,6 +1821,7 @@ describe('EmporixUserManagementService create/update/delete', () => {
         : [
             { id: GROUP_ADMIN, code: 'B2B_ADMIN', b2b: { role: 'Admin', legalEntityId: SELECTED_LE } },
             { id: GROUP_BUYER, code: 'B2B_BUYER', b2b: { role: 'Buyer', legalEntityId: SELECTED_LE } },
+            { id: GROUP_CONTACT, code: 'CONTACT', b2b: { role: 'Contact', legalEntityId: SELECTED_LE } },
           ],
     );
     iamApi.getUserGroups.mockResolvedValue({
@@ -1686,15 +1839,22 @@ describe('EmporixUserManagementService create/update/delete', () => {
     });
 
     expect(iamApi.addUserToGroup).toHaveBeenCalledWith(
+      GROUP_CONTACT,
+      { userId: 'cust-uuid', userType: 'CUSTOMER' },
+      'service',
+    );
+    expect(iamApi.addUserToGroup).toHaveBeenCalledWith(
       GROUP_BUYER,
       { userId: 'cust-uuid', userType: 'CUSTOMER' },
       'service',
     );
+    const buyerAddOrder = iamApi.addUserToGroup.mock.calls.findIndex(([groupId]) => groupId === GROUP_BUYER);
     expect(iamApi.removeUserFromGroup.mock.invocationCallOrder[0]).toBeLessThan(
-      iamApi.addUserToGroup.mock.invocationCallOrder[0]!,
+      iamApi.addUserToGroup.mock.invocationCallOrder[buyerAddOrder]!,
     );
     expect(iamApi.getUserGroups.mock.calls.every(([, , tokenType]) => tokenType === 'service')).toBe(true);
     expect(iamApi.removeUserFromGroup).toHaveBeenCalledWith(GROUP_ADMIN, 'cust-uuid', 'service');
+    expect(iamApi.removeUserFromGroup).not.toHaveBeenCalledWith(GROUP_CONTACT, 'cust-uuid', 'service');
     expect(iamApi.removeUserFromGroup).not.toHaveBeenCalledWith(GROUP_OTHER, 'cust-uuid', 'service');
     expect(customerManagementApi.getContactAssignmentsByLegalEntityId).toHaveBeenCalled();
     expect(customerManagementApi.deleteContactAssignment).not.toHaveBeenCalled();
@@ -1733,6 +1893,7 @@ describe('EmporixUserManagementService create/update/delete', () => {
         : [
             { id: GROUP_ADMIN, code: 'B2B_ADMIN', b2b: { role: 'Admin', legalEntityId: SELECTED_LE } },
             { id: GROUP_BUYER, code: 'B2B_BUYER', b2b: { role: 'Buyer', legalEntityId: SELECTED_LE } },
+            { id: GROUP_CONTACT, code: 'CONTACT', b2b: { role: 'Contact', legalEntityId: SELECTED_LE } },
           ],
     );
 
@@ -1746,6 +1907,11 @@ describe('EmporixUserManagementService create/update/delete', () => {
     });
     expect(customerManagementApi.createLegalEntityContactAssignment).toHaveBeenCalledTimes(1);
     expect(customerManagementApi.createContactAssignment).not.toHaveBeenCalled();
+    expect(iamApi.addUserToGroup).toHaveBeenCalledWith(
+      GROUP_CONTACT,
+      { userId: member.id, userType: 'CUSTOMER' },
+      'service',
+    );
     expect(iamApi.addUserToGroup).toHaveBeenCalledWith(
       GROUP_BUYER,
       { userId: member.id, userType: 'CUSTOMER' },
@@ -1761,24 +1927,37 @@ describe('EmporixUserManagementService create/update/delete', () => {
     expect(sessionService.setLegalEntity).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ['empty', { groupAssignments: [] as { legalEntityId: string; groupId: string }[] }],
-    ['omitted', { firstName: 'Grace' }],
-  ])(
-    'does not create selected-LE CONTACT when saving a Q24 member with a %s selected-LE group',
-    async (_case, patch) => {
-      const member = createdCustomer();
-      mockOtherAdminLeMember(member);
+  it('ensures selected-LE CONTACT when saving a Q24 member with empty groupAssignments', async () => {
+    const member = createdCustomer();
+    mockOtherAdminLeMember(member);
 
-      await service.updateUser('C-100', patch);
+    await service.updateUser('C-100', { groupAssignments: [] });
 
-      expect(customerManagementApi.createLegalEntityContactAssignment).not.toHaveBeenCalled();
-      expect(customerManagementApi.createContactAssignment).not.toHaveBeenCalled();
-      expect(iamApi.addUserToGroup).not.toHaveBeenCalled();
-      expect(iamApi.removeUserFromGroup).not.toHaveBeenCalledWith(GROUP_OTHER, member.id, 'service');
-      expect(customerManagementApi.deleteContactAssignment).not.toHaveBeenCalled();
-    },
-  );
+    expect(customerManagementApi.createLegalEntityContactAssignment).toHaveBeenCalledWith({
+      legalEntity: { id: SELECTED_LE },
+      customer: { id: member.id },
+    });
+    expect(iamApi.addUserToGroup).toHaveBeenCalledWith(
+      GROUP_CONTACT,
+      { userId: member.id, userType: 'CUSTOMER' },
+      'service',
+    );
+    expect(iamApi.removeUserFromGroup).not.toHaveBeenCalledWith(GROUP_OTHER, member.id, 'service');
+    expect(customerManagementApi.deleteContactAssignment).not.toHaveBeenCalled();
+  });
+
+  it('does not create selected-LE CONTACT when saving a Q24 member with omitted groups', async () => {
+    const member = createdCustomer();
+    mockOtherAdminLeMember(member);
+
+    await service.updateUser('C-100', { firstName: 'Grace' });
+
+    expect(customerManagementApi.createLegalEntityContactAssignment).not.toHaveBeenCalled();
+    expect(customerManagementApi.createContactAssignment).not.toHaveBeenCalled();
+    expect(iamApi.addUserToGroup).not.toHaveBeenCalled();
+    expect(iamApi.removeUserFromGroup).not.toHaveBeenCalledWith(GROUP_OTHER, member.id, 'service');
+    expect(customerManagementApi.deleteContactAssignment).not.toHaveBeenCalled();
+  });
 
   it('rejects update for a user outside selected-LE and other-Admin-LE assignment sets', async () => {
     mockOtherAdminLeMember(createdCustomer({ id: 'cust-other', customerNumber: 'C-OTHER' }));
@@ -1801,7 +1980,7 @@ describe('EmporixUserManagementService create/update/delete', () => {
     expect(customerAdminApi.deleteCustomer).not.toHaveBeenCalled();
   });
 
-  it('lists assignable groups only for the selected LE and drops CUSTOMER from pickers', async () => {
+  it('lists assignable groups only for the selected LE and drops CUSTOMER and Contact from pickers', async () => {
     iamApi.getGroups.mockImplementation(async (params) => {
       const query = params?.query ?? '';
       if (query.includes(OTHER_LE)) {
@@ -1816,6 +1995,18 @@ describe('EmporixUserManagementService create/update/delete', () => {
           code: 'B2B_ADMIN',
           userType: 'CUSTOMER',
           b2b: { role: 'Admin', legalEntityId: SELECTED_LE },
+        },
+        {
+          id: GROUP_BUYER,
+          code: 'B2B_BUYER',
+          userType: 'CUSTOMER',
+          b2b: { role: 'Buyer', legalEntityId: SELECTED_LE },
+        },
+        {
+          id: 'g-requestor',
+          code: 'B2B_REQUESTER',
+          userType: 'CUSTOMER',
+          b2b: { role: 'Requester', legalEntityId: SELECTED_LE },
         },
         {
           id: GROUP_CONTACT,
@@ -1834,11 +2025,16 @@ describe('EmporixUserManagementService create/update/delete', () => {
       'service',
     );
     expect(result).toHaveLength(1);
-    expect(result[0]?.groups.map((group) => group.id)).toEqual([GROUP_ADMIN, GROUP_CONTACT]);
-    expect(result[0]?.groups.map((group) => group.displayName)).toEqual(['Acme - Admin', 'Acme - Contact']);
+    expect(result[0]?.groups.map((group) => group.id)).toEqual([GROUP_ADMIN, GROUP_BUYER, 'g-requestor']);
+    expect(result[0]?.groups.map((group) => group.displayName)).toEqual([
+      'Acme - Admin',
+      'Acme - Buyer',
+      'Acme - Requestor',
+    ]);
     expect(iamApi.getGroups).toHaveBeenCalledTimes(1);
     expect(iamApi.getGroups.mock.calls[0]?.[0]?.query).not.toContain(OTHER_LE);
     expect(result.flatMap((entry) => entry.groups.map((group) => group.id))).not.toContain(GROUP_CUSTOMER);
+    expect(result.flatMap((entry) => entry.groups.map((group) => group.id))).not.toContain(GROUP_CONTACT);
   });
 
   it('keeps service-token query-scoped groups when the response omits LE metadata', async () => {

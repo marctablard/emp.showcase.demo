@@ -68,7 +68,21 @@ describe('/api/company-users', () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get('x-total-count')).toBeNull();
-    expect(userManagementService.listUsers).toHaveBeenCalledWith(1, 5, undefined, undefined);
+    expect(userManagementService.listUsers).toHaveBeenCalledWith(1, 10, undefined, undefined);
+  });
+
+  it('returns 400 when pageNumber is not a base-10 integer', async () => {
+    const response = await GET({ url: 'https://example.test/api/company-users?pageNumber=foo' } as never);
+
+    expect(response.status).toBe(400);
+    expect(userManagementService.listUsers).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when pageSize is less than 1', async () => {
+    const response = await GET({ url: 'https://example.test/api/company-users?pageSize=0' } as never);
+
+    expect(response.status).toBe(400);
+    expect(userManagementService.listUsers).not.toHaveBeenCalled();
   });
 
   it('does not proxy a client q= parameter to the service', async () => {
@@ -79,7 +93,7 @@ describe('/api/company-users', () => {
     } as never);
 
     expect(response.status).toBe(200);
-    expect(userManagementService.listUsers).toHaveBeenCalledWith(1, 5, undefined, 'Ada');
+    expect(userManagementService.listUsers).toHaveBeenCalledWith(1, 10, undefined, 'Ada');
     expect(userManagementService.listUsers.mock.calls[0]).not.toContain('id:(other-company)');
   });
 
@@ -190,6 +204,51 @@ describe('/api/company-users', () => {
       active: true,
       groupAssignments: [{ legalEntityId: 'le-1', groupId: 'group-1' }],
     });
+  });
+
+  it('persists trimmed create fields', async () => {
+    userManagementService.createUser.mockResolvedValueOnce({ user: createdUser });
+
+    const response = await POST({
+      json: jest.fn().mockResolvedValue({
+        title: '  Ms  ',
+        firstName: '  Ada  ',
+        lastName: '  Lovelace  ',
+        contactEmail: '  ada@example.com  ',
+        contactPhone: '  +1-555-0100  ',
+        active: false,
+        groupAssignments: [{ legalEntityId: '  le-1  ', groupId: '  group-1  ' }],
+      }),
+    } as never);
+
+    expect(response.status).toBe(201);
+    expect(userManagementService.createUser).toHaveBeenCalledWith({
+      title: 'Ms',
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      contactEmail: 'ada@example.com',
+      contactPhone: '+1-555-0100',
+      active: false,
+      groupAssignments: [{ legalEntityId: 'le-1', groupId: 'group-1' }],
+    });
+  });
+
+  it.each(['firstName', 'lastName', 'contactEmail'])('returns 400 when create %s is whitespace-only', async (field) => {
+    const payload = {
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      contactEmail: 'ada@example.com',
+      active: false,
+      groupAssignments: [{ legalEntityId: 'le-1', groupId: 'group-1' }],
+      [field]: '   ',
+    };
+
+    const response = await POST({
+      json: jest.fn().mockResolvedValue(payload),
+    } as never);
+
+    expect(response.status).toBe(400);
+    expect(userManagementService.createUser).not.toHaveBeenCalled();
   });
 
   it('returns 400 for an invalid create request', async () => {

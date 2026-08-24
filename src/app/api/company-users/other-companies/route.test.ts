@@ -72,7 +72,25 @@ describe('GET /api/company-users/other-companies', () => {
     } as never);
 
     expect(response.status).toBe(200);
-    expect(userManagementService.listOtherCompanyUsers).toHaveBeenCalledWith(1, 5, undefined, undefined);
+    expect(userManagementService.listOtherCompanyUsers).toHaveBeenCalledWith(1, 10, undefined, undefined);
+  });
+
+  it('returns 400 when pageNumber is not a base-10 integer', async () => {
+    const response = await GET({
+      url: 'https://example.test/api/company-users/other-companies?pageNumber=foo',
+    } as never);
+
+    expect(response.status).toBe(400);
+    expect(userManagementService.listOtherCompanyUsers).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when pageSize is less than 1', async () => {
+    const response = await GET({
+      url: 'https://example.test/api/company-users/other-companies?pageSize=0',
+    } as never);
+
+    expect(response.status).toBe(400);
+    expect(userManagementService.listOtherCompanyUsers).not.toHaveBeenCalled();
   });
 
   it('omits the x-total-count header when the service does not return a total', async () => {
@@ -84,7 +102,7 @@ describe('GET /api/company-users/other-companies', () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get('x-total-count')).toBeNull();
-    expect(userManagementService.listOtherCompanyUsers).toHaveBeenCalledWith(1, 5, undefined, undefined);
+    expect(userManagementService.listOtherCompanyUsers).toHaveBeenCalledWith(1, 10, undefined, undefined);
   });
 
   it('does not proxy a client q= parameter to the service', async () => {
@@ -95,7 +113,7 @@ describe('GET /api/company-users/other-companies', () => {
     } as never);
 
     expect(response.status).toBe(200);
-    expect(userManagementService.listOtherCompanyUsers).toHaveBeenCalledWith(1, 5, undefined, 'Grace');
+    expect(userManagementService.listOtherCompanyUsers).toHaveBeenCalledWith(1, 10, undefined, 'Grace');
     expect(userManagementService.listOtherCompanyUsers.mock.calls[0]).not.toContain('id:(other-company)');
   });
 

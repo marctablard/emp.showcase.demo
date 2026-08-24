@@ -10,6 +10,7 @@ export interface CompanyUserMappingContext {
   companyNameByLegalEntityId: ReadonlyMap<string, string>;
   legalEntityId?: string;
   legalEntityName?: string;
+  isSelectedLegalEntityMember?: boolean;
 }
 
 /**
@@ -35,6 +36,9 @@ class EmporixCompanyUserMapper {
     }
     if (context.legalEntityName !== undefined) {
       mapped.legalEntityName = context.legalEntityName;
+    }
+    if (context.isSelectedLegalEntityMember !== undefined) {
+      mapped.isSelectedLegalEntityMember = context.isSelectedLegalEntityMember;
     }
     return mapped;
   }

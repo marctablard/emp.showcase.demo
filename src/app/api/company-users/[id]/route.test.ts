@@ -113,6 +113,46 @@ describe('/api/company-users/[id]', () => {
     expect(userManagementService.updateUser).toHaveBeenCalledWith('C-100', { firstName: 'Grace', active: true });
   });
 
+  it('persists trimmed update fields', async () => {
+    userManagementService.updateUser.mockResolvedValueOnce(companyUser);
+
+    const response = await PATCH(
+      {
+        json: jest.fn().mockResolvedValue({
+          title: '  Ms  ',
+          firstName: '  Ada  ',
+          lastName: '  Lovelace  ',
+          contactEmail: '  ada@example.com  ',
+          contactPhone: '  +1-555-0100  ',
+          groupAssignments: [{ legalEntityId: '  le-1  ', groupId: '  group-1  ' }],
+        }),
+      } as never,
+      { params: Promise.resolve({ id: 'C-100' }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(userManagementService.updateUser).toHaveBeenCalledWith('C-100', {
+      title: 'Ms',
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      contactEmail: 'ada@example.com',
+      contactPhone: '+1-555-0100',
+      groupAssignments: [{ legalEntityId: 'le-1', groupId: 'group-1' }],
+    });
+  });
+
+  it.each(['firstName', 'lastName', 'contactEmail'])('returns 400 when update %s is whitespace-only', async (field) => {
+    const response = await PATCH(
+      {
+        json: jest.fn().mockResolvedValue({ [field]: '   ' }),
+      } as never,
+      { params: Promise.resolve({ id: 'C-100' }) },
+    );
+
+    expect(response.status).toBe(400);
+    expect(userManagementService.updateUser).not.toHaveBeenCalled();
+  });
+
   it('does not pass a password from the update body to the service', async () => {
     userManagementService.updateUser.mockResolvedValueOnce(companyUser);
 

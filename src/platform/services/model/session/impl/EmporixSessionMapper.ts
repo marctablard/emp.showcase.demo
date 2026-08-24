@@ -121,13 +121,16 @@ export class EmporixSessionMapper implements SessionMapper<EmporixSessionContext
 }
 
 function mapLegalEntityId(value: unknown): string | undefined {
-  const candidate =
-    typeof value === 'string'
-      ? value
-      : value && typeof value === 'object' && 'value' in value
-        ? (value as { value?: unknown }).value
-        : undefined;
-  return typeof candidate === 'string' ? candidate : undefined;
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (value && typeof value === 'object' && 'value' in value) {
+    const nested = (value as { value?: unknown }).value;
+    if (typeof nested === 'string') {
+      return nested;
+    }
+  }
+  return undefined;
 }
 
 export default EmporixSessionMapper;

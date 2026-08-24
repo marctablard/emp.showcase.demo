@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import AccountLayout from '@/components/account/account-layout';
 import { USERS_PER_PAGE } from '@/components/account/account-table-constants';
-import { UsersList } from '@/components/account/users/users-list';
+import { AccountUsersList } from '@/components/account/users/users-list';
 import { getPageTitle } from '@/lib/ssr/seo';
 import { getCompanyUsers, hasMultipleCompanies, requireB2bAdmin } from '@/lib/ssr/user-management';
 
@@ -45,7 +45,7 @@ export default async function UsersPage({ params }: { params: Promise<{ locale: 
 
   return (
     <AccountLayout breadcrumbs={breadcrumbs}>
-      <UsersList
+      <AccountUsersList
         initialUsers={usersPage?.items}
         initialTotalCount={usersPage?.totalCount}
         showOtherCompaniesToggle={showOtherCompaniesToggle}

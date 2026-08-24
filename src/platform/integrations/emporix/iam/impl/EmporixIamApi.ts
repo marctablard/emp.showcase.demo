@@ -69,7 +69,7 @@ class EmporixIamApi implements IEmporixIamApi {
 
     const items: unknown = await response.json();
     if (!Array.isArray(items)) {
-      throw new Error('Failed to retrieve users: response body is not an array');
+      throw new TypeError('Failed to retrieve users: response body is not an array');
     }
 
     const rawTotalCount = response.headers.get('x-total-count');
@@ -268,7 +268,7 @@ class EmporixIamApi implements IEmporixIamApi {
       {
         method: 'POST',
         headers: requestHeaders,
-        body: JSON.stringify(groupAssignment),
+        body: JSON.stringify(requestBody),
       },
       tokenType,
       undefined,
@@ -410,7 +410,8 @@ class EmporixIamApi implements IEmporixIamApi {
     }
 
     const queryString = queryParams.toString();
-    const url = `/iam/${this.config.tenant}/groups/${groupId}/users${queryString ? `?${queryString}` : ''}`;
+    const path = `/iam/${this.config.tenant}/groups/${groupId}/users`;
+    const url = queryString ? `${path}?${queryString}` : path;
     const response = await this.apiClient.authenticatedFetch(
       url,
       { method: 'GET', headers: { 'X-Total-Count': 'true' } },

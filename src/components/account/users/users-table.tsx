@@ -7,6 +7,8 @@ import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TablePagination } from '@/components/ui/table-pagination';
+import { acquireNavigationWaitCursorLease } from '@/hooks/common/useGlobalCursor';
+import { useRouter } from '@/i18n/navigation';
 import { formatDate } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
 import type { CompanyUser } from '@/platform/services/model/user-management/company-user';
@@ -50,18 +52,29 @@ const TABLE_MIN_WIDTH_CLASS = 'min-w-[1124px]';
 const TABLE_MIN_WIDTH_WITH_LEGAL_ENTITY_CLASS = 'min-w-[1372px]';
 /** Desktop/heading/h6 via existing `text-2xl` + `font-headlines` tokens (Ubuntu 700 16/20). */
 const TABLE_HEADER_TYPE_CLASS = 'font-headlines text-2xl font-bold text-text-headings';
-const CELL_CLASS = 'px-2 py-4 whitespace-nowrap';
+const CELL_CLASS = 'px-2 py-4 whitespace-nowrap cursor-pointer';
+const TABLE_WIDTH_TRANSITION_CLASS = 'transition-[min-width] duration-300 ease-in-out';
 
-function formatUserGroupNames(user: CompanyUser): string {
-  const names = user.groups.map((group) => group.displayName).filter((name) => name.trim() !== '');
-  return names.join(', ');
+function isContactGroupDisplayName(displayName: string): boolean {
+  const normalizedDisplayName = displayName.trim().toLowerCase();
+  return normalizedDisplayName.endsWith('contact') || normalizedDisplayName.includes(' - contact');
+}
+
+function formatUserGroupNames(user: CompanyUser, contactOnlyLabel: string): string {
+  const names = user.groups
+    .map((group) => group.displayName.trim())
+    .filter((name) => name !== '' && !isContactGroupDisplayName(name));
+  if (names.length > 0) {
+    return names.join(', ');
+  }
+  return contactOnlyLabel;
 }
 
 function getCompanyUserRowKey(user: CompanyUser): string {
   return user.legalEntityId ? `${user.id}-${user.legalEntityId}` : user.id;
 }
 
-function UserStatusBadge({ active }: { active: boolean }) {
+function UserStatusBadge({ active }: Readonly<{ active: boolean }>) {
   const t = useTranslations('user-management');
 
   return (
@@ -87,6 +100,7 @@ export function UsersTable({
 }: Readonly<UsersTableProps>) {
   const t = useTranslations('user-management');
   const locale = useLocale();
+  const router = useRouter();
   const columnCount = showLegalEntityName ? BASE_COLUMN_COUNT + 1 : BASE_COLUMN_COUNT;
 
   const getSortIcon = (field: CompanyUserSortField) => {
@@ -123,6 +137,7 @@ export function UsersTable({
           containerClassName="min-w-0 overflow-x-auto overflow-y-clip pr-1"
           className={cn(
             'w-full',
+            TABLE_WIDTH_TRANSITION_CLASS,
             showLegalEntityName ? TABLE_MIN_WIDTH_WITH_LEGAL_ENTITY_CLASS : TABLE_MIN_WIDTH_CLASS,
           )}
         >
@@ -155,12 +170,20 @@ export function UsersTable({
               return users.map((user, index) => {
                 const displayName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.id;
                 const editHref = `/account/users/${user.id}`;
-                const userGroupNames = formatUserGroupNames(user);
+                const userGroupNames = formatUserGroupNames(user, t('form.contactOnly'));
+                const openEdit = () => {
+                  acquireNavigationWaitCursorLease();
+                  router.push(editHref);
+                };
 
                 return (
                   <TableRow
                     key={getCompanyUserRowKey(user)}
-                    className={cn('text-base', index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background')}
+                    className={cn(
+                      'text-base cursor-pointer',
+                      index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
+                    )}
+                    onClick={openEdit}
                   >
                     <TableCell className={CELL_CLASS}>{user.firstName}</TableCell>
                     <TableCell className={CELL_CLASS}>{user.lastName}</TableCell>
@@ -173,14 +196,22 @@ export function UsersTable({
                     <TableCell className={CELL_CLASS}>
                       <UserStatusBadge active={user.active} />
                     </TableCell>
-                    <TableCell className={CELL_CLASS}>
+                    <TableCell
+                      className="px-2 py-4 whitespace-nowrap"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                      }}
+                    >
                       <div className="flex items-center gap-6">
                         {onDeleteUser ? (
                           <button
                             type="button"
                             className="text-icon-neutral hover:text-text-action rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
                             aria-label={t('deleteAriaLabel', { name: displayName })}
-                            onClick={() => onDeleteUser(user)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onDeleteUser(user);
+                            }}
                           >
                             <Trash2 className="size-6" aria-hidden />
                           </button>

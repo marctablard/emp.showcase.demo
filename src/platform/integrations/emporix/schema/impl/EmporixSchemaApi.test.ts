@@ -25,6 +25,18 @@ class TestTokenManager extends EmporixTokenManagerAbstract {
   constructor(@inject('EmporixOAuthApi') oauthApi: EmporixOAuthApi) {
     super(oauthApi);
   }
+  public readonly skippedRefreshLogs: Array<{
+    refreshSkipped: true;
+    reason: 'missingCustomerToken' | 'invalidRefreshToken';
+    legalEntityRequested: boolean;
+  }> = [];
+  protected override logCustomerTokenRefreshSkipped(context: {
+    refreshSkipped: true;
+    reason: 'missingCustomerToken' | 'invalidRefreshToken';
+    legalEntityRequested: boolean;
+  }): void {
+    this.skippedRefreshLogs.push(context);
+  }
   protected readTokens(): Promise<TokenStore> {
     throw new Error('Method not implemented.');
   }

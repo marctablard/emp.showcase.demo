@@ -78,7 +78,9 @@ describe('EmporixIamApi', () => {
     it('rejects a non-array response body', async () => {
       mockApiClient.authenticatedFetch.mockResolvedValue(jsonResponse({ items: [] }));
 
-      await expect(iamApi.getUsers()).rejects.toThrow('response body is not an array');
+      await expect(iamApi.getUsers()).rejects.toThrow(
+        new TypeError('Failed to retrieve users: response body is not an array'),
+      );
     });
   });
 
@@ -122,7 +124,7 @@ describe('EmporixIamApi', () => {
       expect(url).toBe('/iam/test-tenant/groups/group-1/users');
       expect(options.method).toBe('POST');
       expect(tokenType).toBe('service');
-      expect(JSON.parse(String(options.body))).toEqual(assignment);
+      expect(JSON.parse(String(options.body))).toEqual({ ...assignment, groupId: 'group-1' });
       expect(mockLogger.info).toHaveBeenCalledWith(
         {
           operation: 'Add user to group',

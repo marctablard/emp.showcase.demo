@@ -12,11 +12,13 @@ import { Label } from '@/components/ui/label';
 import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
 import { TableCard } from '@/components/ui/table';
+import { useGlobalCursor } from '@/hooks/common/useGlobalCursor';
 import { usePersistedState } from '@/hooks/common/usePersistedState';
 import { useSession } from '@/hooks/session/useSession';
 import { useCompanyUsers, useOtherCompanyUsers } from '@/hooks/user-management/useCompanyUsers';
 import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
 import type { CompanyUser } from '@/platform/services/model/user-management/company-user';
+import { DeleteUserDialog } from './delete-user-dialog';
 import { type CompanyUserSortField, USER_SORT_FIELD_MAP, UsersTable } from './users-table';
 
 const INITIAL_PAGE_SORT = 'firstName:asc';
@@ -28,8 +30,12 @@ export function showOtherCompanyUsersStorageKey(ownerId: string): string {
   return `user-management.v1:${encodeURIComponent(ownerId)}:showOtherCompanyUsers`;
 }
 
-function deserializeShowOtherCompanyUsers(raw: string): boolean {
-  return JSON.parse(raw) === true;
+export function deserializeShowOtherCompanyUsers(raw: string): boolean {
+  try {
+    return JSON.parse(raw) === true;
+  } catch {
+    return false;
+  }
 }
 
 interface UsersListProps {
@@ -53,6 +59,7 @@ export function UsersList({
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [quickSearch, setQuickSearch] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
+  const [userToDelete, setUserToDelete] = useState<CompanyUser | null>(null);
 
   useEffect(() => {
     // @see https://react.dev/reference/react-dom/client/hydrateRoot#handling-different-client-and-server-content
@@ -114,12 +121,29 @@ export function UsersList({
   const error = otherCompanyUsersEnabled ? otherCompanyUsersError : selectedLegalEntityError;
   const pagination = otherCompanyUsersEnabled ? otherCompanyPagination : selectedLegalEntityPagination;
   const refreshActiveUsers = otherCompanyUsersEnabled ? refreshOtherCompanyUsers : refreshSelectedLegalEntityUsers;
+  useGlobalCursor(loading);
+
+  const applySubmittedSearch = (rawQuery: string) => {
+    const nextSubmittedSearch = rawQuery.trim();
+    setCurrentPage(1);
+    setSubmittedSearch(nextSubmittedSearch);
+  };
 
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const nextSubmittedSearch = quickSearch.trim();
-    setCurrentPage(1);
-    setSubmittedSearch(nextSubmittedSearch);
+    applySubmittedSearch(quickSearch);
+  };
+
+  const handleSearchBlur = () => {
+    applySubmittedSearch(quickSearch);
+  };
+
+  const handleDeleteUser = (user: CompanyUser) => {
+    if (onDeleteUser) {
+      onDeleteUser(user);
+      return;
+    }
+    setUserToDelete(user);
   };
 
   const toggleSort = (field: CompanyUserSortField) => {
@@ -154,9 +178,9 @@ export function UsersList({
 
   return (
     <div className="flex flex-col gap-6 lg:gap-12">
-      <div className="flex flex-col items-start gap-6 md:flex-row md:flex-nowrap md:justify-between">
-        <H1 className="min-w-0 w-full whitespace-nowrap md:w-auto md:flex-1">{t('heading')}</H1>
-        <div className="flex max-w-full shrink-0 flex-nowrap items-center gap-6">
+      <div className="flex min-w-0 flex-col items-start gap-6 md:flex-row md:flex-wrap md:justify-between">
+        <H1 className="min-w-0 w-full md:flex-1">{t('heading')}</H1>
+        <div className="flex max-w-full min-w-0 flex-wrap items-center gap-6">
           {showOtherCompaniesToggle ? (
             <span className="flex items-center gap-3">
               <Checkbox
@@ -194,6 +218,7 @@ export function UsersList({
               onChange={(event) => {
                 setQuickSearch(event.target.value);
               }}
+              onBlur={handleSearchBlur}
               placeholder={t('searchPlaceholder')}
               className="h-12 appearance-none bg-surface-primary border-border-primary pr-10 [&::-webkit-search-cancel-button]:hidden"
               endIcon={isSearchLoading ? undefined : Search}
@@ -213,7 +238,13 @@ export function UsersList({
         {error ? (
           <div className="bg-surface-error border border-border-error text-text-error px-4 py-3 rounded space-y-3">
             <p>{error.message}</p>
-            <Button onClick={() => refreshActiveUsers()}>{t('tryAgain')}</Button>
+            <Button
+              onClick={() => {
+                Promise.resolve(refreshActiveUsers()).catch(() => undefined);
+              }}
+            >
+              {t('tryAgain')}
+            </Button>
           </div>
         ) : (
           <UsersTable
@@ -227,11 +258,28 @@ export function UsersList({
             sortDirection={sortDirection}
             onToggleSort={toggleSort}
             hasActiveSearch={hasActiveSearch}
-            onDeleteUser={otherCompanyUsersEnabled ? undefined : onDeleteUser}
+            onDeleteUser={otherCompanyUsersEnabled ? undefined : handleDeleteUser}
             showLegalEntityName={otherCompanyUsersEnabled}
           />
         )}
       </TableCard>
+      {otherCompanyUsersEnabled || onDeleteUser ? null : (
+        <DeleteUserDialog
+          user={userToDelete}
+          open={userToDelete !== null}
+          onOpenChange={(open) => {
+            if (!open) setUserToDelete(null);
+          }}
+          onDeleted={() => {
+            setUserToDelete(null);
+            refreshActiveUsers().catch(() => undefined);
+          }}
+        />
+      )}
     </div>
   );
+}
+
+export function AccountUsersList(props: Readonly<Omit<UsersListProps, 'onDeleteUser'>>) {
+  return <UsersList {...props} />;
 }

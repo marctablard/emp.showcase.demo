@@ -68,14 +68,14 @@ export abstract class EmporixTokenManagerAbstract implements IEmporixTokenManage
   private static readonly ANON_TOKEN_DEDUP_GRACE_MS = 2_000;
   private _anonymousTokenInflight = new Map<string, Promise<StoredToken<EmporixAnonymousTokenResponse>>>();
 
-  constructor(@inject('EmporixOAuthApi') protected oauthApi: EmporixOAuthApi) {}
+  constructor(@inject('EmporixOAuthApi') protected readonly oauthApi: EmporixOAuthApi) {}
   abstract clearTokens(tenant: string): void;
 
-  protected logCustomerTokenRefreshSkipped(_context: {
+  protected abstract logCustomerTokenRefreshSkipped(context: {
     refreshSkipped: true;
     reason: 'missingCustomerToken' | 'invalidRefreshToken';
     legalEntityRequested: boolean;
-  }): void {}
+  }): void;
 
   async getPublicToken(tenant: string, clientId: string): Promise<{ accessToken: string }> {
     const cacheKey = `${tenant}:${clientId}`;

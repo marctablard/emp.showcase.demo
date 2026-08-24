@@ -9,9 +9,9 @@ const getCompanyUserById = jest.fn();
 const getHeaderCompanies = jest.fn();
 const mockGetTranslations = jest.fn(
   async ({ namespace }: { namespace: string }) =>
-    (key: string, values?: { firstName?: string; lastName?: string }) => {
+    (key: string, values?: { name?: string }) => {
       if (key === 'breadcrumbEditUser') {
-        return `edit ${values?.firstName ?? ''} ${values?.lastName ?? ''}`;
+        return `Edit ${values?.name ?? ''}`;
       }
       return `${namespace}.${key}`;
     },
@@ -93,9 +93,9 @@ function buildUser(overrides: Partial<CompanyUser> = {}): CompanyUser {
 function mockTranslations() {
   mockGetTranslations.mockImplementation(
     async ({ namespace }: { namespace: string }) =>
-      (key: string, values?: { firstName?: string; lastName?: string }) => {
+      (key: string, values?: { name?: string }) => {
         if (key === 'breadcrumbEditUser') {
-          return `edit ${values?.firstName ?? ''} ${values?.lastName ?? ''}`;
+          return `Edit ${values?.name ?? ''}`;
         }
         return `${namespace}.${key}`;
       },
@@ -126,7 +126,7 @@ describe('Edit user page', () => {
     expect(crumbs[0]).toHaveTextContent('account.accountDetails');
     expect(crumbs[1]).toHaveTextContent('user-management.heading');
     expect(crumbs[1]).toHaveAttribute('data-href', '/account/users');
-    expect(crumbs[2]).toHaveTextContent('edit Jane Doe');
+    expect(crumbs[2]).toHaveTextContent('Edit Jane Doe');
     expect(crumbs[2]).toHaveAttribute('data-href', '/account/users/user-1');
   });
 
@@ -145,8 +145,8 @@ describe('Edit user page', () => {
     render(element);
 
     const crumbs = screen.getAllByTestId('breadcrumb-item');
-    expect(crumbs[2]).toHaveTextContent('edit Jane');
-    expect(crumbs[2].textContent).not.toMatch(/edit $/);
+    expect(crumbs[2]).toHaveTextContent('Edit Jane');
+    expect(crumbs[2].textContent).not.toMatch(/Edit $/);
   });
 
   it('falls back to the user id when first and last name are empty', async () => {
@@ -166,7 +166,7 @@ describe('Edit user page', () => {
 
     const crumbs = screen.getAllByTestId('breadcrumb-item');
     expect(crumbs[1]).toHaveAttribute('data-href', '/account/users');
-    expect(crumbs[2]).toHaveTextContent('edit C123');
+    expect(crumbs[2]).toHaveTextContent('Edit C123');
     expect(crumbs[2]).toHaveAttribute('data-href', '/account/users/C123');
   });
 

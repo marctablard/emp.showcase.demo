@@ -92,6 +92,35 @@ describe('EmporixCustomerAdminApi', () => {
       });
       expect(body).not.toHaveProperty('password');
       expect(body).not.toHaveProperty('b2b');
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        {
+          operation: 'Create customer',
+          tokenType: 'service',
+          method: 'POST',
+          url: 'customer/test-tenant/customers?sendPasswordResetNotifications=true',
+          requestHeaders: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          requestBody: {
+            firstName: 'Ada',
+            lastName: 'Lovelace',
+            preferredSite: 'main',
+            preferredLanguage: 'en_US',
+            preferredCurrency: 'EUR',
+          },
+          selectedLegalEntityId: 'le-selected',
+          responseStatus: 201,
+          responseStatusText: 'OK',
+          id: 'resource-id',
+        },
+        'EXTERNAL Create customer response',
+      );
+      const successLog = JSON.stringify(mockLogger.info.mock.calls[0]?.[0]);
+      expect(successLog).not.toContain('ada@example.com');
+      expect(successLog).not.toContain('contactEmail');
+      expect(successLog).not.toContain('contactPhone');
+      expect(mockLogger.info.mock.calls[0]?.[0]).not.toHaveProperty('responseBody');
     });
 
     it('strips password and b2b even if a caller supplies them', async () => {
@@ -134,8 +163,6 @@ describe('EmporixCustomerAdminApi', () => {
 
       await expect(result).rejects.toBeInstanceOf(EmporixApiError);
       await expect(result).rejects.toThrow(JSON.stringify(upstreamBody));
-      const [, options] = mockApiClient.authenticatedFetch.mock.calls[0];
-      const sentBody = JSON.parse(String(options!.body)) as Record<string, unknown>;
       expect(mockLogger.error).toHaveBeenCalledWith(
         {
           operation: 'Create customer',
@@ -146,7 +173,11 @@ describe('EmporixCustomerAdminApi', () => {
             'Content-Type': 'application/json',
             Accept: 'application/json',
           },
-          requestBody: sentBody,
+          requestBody: {
+            firstName: 'Ada',
+            lastName: 'Lovelace',
+            preferredLanguage: 'en',
+          },
           selectedLegalEntityId: 'le-selected',
           responseStatus: 400,
           responseStatusText: 'OK',
@@ -154,6 +185,7 @@ describe('EmporixCustomerAdminApi', () => {
         },
         'EXTERNAL Create customer response',
       );
+      expect(JSON.stringify(mockLogger.error.mock.calls[0]?.[0])).not.toContain('ada@example.com');
       expect(mockLogger.info).not.toHaveBeenCalled();
     });
   });
@@ -287,7 +319,7 @@ describe('EmporixCustomerAdminApi', () => {
           },
           requestBody: { active: false },
           responseStatus: 200,
-          responseBody: '',
+          customerNumber,
         },
         'EXTERNAL Update customer response',
       );
@@ -330,6 +362,39 @@ describe('EmporixCustomerAdminApi', () => {
         'EXTERNAL Update customer response',
       );
       expect(mockLogger.info).not.toHaveBeenCalled();
+    });
+
+    it('omits contactEmail and contactPhone from update success logs', async () => {
+      mockApiClient.authenticatedFetch.mockResolvedValue(jsonResponse(undefined, { status: 200 }));
+
+      await customerAdminApi.updateCustomer(
+        customerNumber,
+        { contactEmail: 'ada@example.com', contactPhone: '+1-555-0100', firstName: 'Grace' },
+        'service',
+      );
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        {
+          operation: 'Update customer',
+          tokenType: 'service',
+          method: 'PATCH',
+          url: `customer/test-tenant/customers/${customerNumber}`,
+          requestHeaders: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          requestBody: { firstName: 'Grace' },
+          responseStatus: 200,
+          customerNumber,
+        },
+        'EXTERNAL Update customer response',
+      );
+      const successLog = JSON.stringify(mockLogger.info.mock.calls[0]?.[0]);
+      expect(successLog).not.toContain('ada@example.com');
+      expect(successLog).not.toContain('+1-555-0100');
+      expect(successLog).not.toContain('contactEmail');
+      expect(successLog).not.toContain('contactPhone');
+      expect(mockLogger.info.mock.calls[0]?.[0]).not.toHaveProperty('responseBody');
     });
 
     it('uses GET-after-create customerNumber for DELETE when it differs from create id', async () => {

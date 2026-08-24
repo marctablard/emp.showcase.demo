@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { USERS_PER_PAGE } from '@/components/account/account-table-constants';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { CreateCompanyUserRequest } from '@/platform/services/model/user-management/company-user';
@@ -11,7 +12,6 @@ import {
 } from '@/platform/services/user-management/errors';
 
 const DEFAULT_PAGE_NUMBER = 1;
-const DEFAULT_PAGE_SIZE = 5;
 const ALLOWED_SORT_FIELDS = new Set(['firstName', 'lastName', 'contactEmail', 'metadataCreatedAt', 'active']);
 const SAME_COMPANY_REQUIRED_MESSAGE = 'Customer can only assign new customer to the same company';
 
@@ -21,15 +21,7 @@ const SAME_COMPANY_REQUIRED_MESSAGE = 'Customer can only assign new customer to 
  */
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const pageNumber = searchParams.get('pageNumber') ? parseInt(searchParams.get('pageNumber')!) : DEFAULT_PAGE_NUMBER;
-    const pageSize = searchParams.get('pageSize') ? parseInt(searchParams.get('pageSize')!) : DEFAULT_PAGE_SIZE;
-    const sortParam = searchParams.get('sort') || undefined;
-    const query = searchParams.get('query') || undefined;
-
-    if (sortParam && !isAllowedSort(sortParam)) {
-      return NextResponse.json({ error: 'Invalid sort field' }, { status: 400 });
-    }
+    const { pageNumber, pageSize, sortParam, query } = parseCompanyUsersListQuery(new URL(request.url).searchParams);
 
     const userManagementService = server.get<UserManagementService>('UserManagementService');
     const { items, totalCount } = await userManagementService.listUsers(pageNumber, pageSize, sortParam, query);
@@ -42,6 +34,9 @@ export async function GET(request: NextRequest) {
       headers: { 'x-total-count': String(totalCount) },
     });
   } catch (error) {
+    if (error instanceof CompanyUsersQueryValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     if (error instanceof AdminRequiredError) {
       return adminRequiredResponse(error);
     }
@@ -138,53 +133,107 @@ function isAllowedSort(sort: string): boolean {
   return ALLOWED_SORT_FIELDS.has(field);
 }
 
+class CompanyUsersQueryValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'CompanyUsersQueryValidationError';
+  }
+}
+
+function parsePositivePageInt(value: string | null, name: string): number | undefined {
+  if (value === null) {
+    return undefined;
+  }
+  if (!/^\d+$/.test(value)) {
+    throw new CompanyUsersQueryValidationError(`${name} must be a base-10 positive integer`);
+  }
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    throw new CompanyUsersQueryValidationError(`${name} must be >= 1`);
+  }
+  return parsed;
+}
+
+function parseCompanyUsersListQuery(searchParams: URLSearchParams): {
+  pageNumber: number;
+  pageSize: number;
+  sortParam?: string;
+  query?: string;
+} {
+  const pageNumber = parsePositivePageInt(searchParams.get('pageNumber'), 'pageNumber') ?? DEFAULT_PAGE_NUMBER;
+  const pageSize = parsePositivePageInt(searchParams.get('pageSize'), 'pageSize') ?? USERS_PER_PAGE;
+  const sortParam = searchParams.get('sort') || undefined;
+  const query = searchParams.get('query') || undefined;
+  if (sortParam && !isAllowedSort(sortParam)) {
+    throw new CompanyUsersQueryValidationError('Invalid sort field');
+  }
+  return { pageNumber, pageSize, sortParam, query };
+}
+
+function readTrimmedString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value.trim() : undefined;
+}
+
+function parseGroupAssignment(assignment: unknown): { legalEntityId: string; groupId: string } | undefined {
+  if (!assignment || typeof assignment !== 'object') {
+    return undefined;
+  }
+  const item = assignment as Record<string, unknown>;
+  const legalEntityId = readTrimmedString(item.legalEntityId);
+  const groupId = readTrimmedString(item.groupId);
+  if (!legalEntityId || !groupId) {
+    return undefined;
+  }
+  return { legalEntityId, groupId };
+}
+
+function parseGroupAssignments(value: unknown): Array<{ legalEntityId: string; groupId: string }> | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const groupAssignments = [];
+  for (const assignment of value) {
+    const parsed = parseGroupAssignment(assignment);
+    if (!parsed) {
+      return undefined;
+    }
+    groupAssignments.push(parsed);
+  }
+  return groupAssignments;
+}
+
 function parseCreateBody(body: unknown): CreateCompanyUserRequest | undefined {
   if (!body || typeof body !== 'object') {
     return undefined;
   }
 
   const data = body as Record<string, unknown>;
-  if (typeof data.firstName !== 'string' || !data.firstName.trim()) {
+  const firstName = readTrimmedString(data.firstName);
+  const lastName = readTrimmedString(data.lastName);
+  const contactEmail = readTrimmedString(data.contactEmail);
+  if (!firstName || !lastName || !contactEmail) {
     return undefined;
   }
-  if (typeof data.lastName !== 'string' || !data.lastName.trim()) {
+  const groupAssignments = parseGroupAssignments(data.groupAssignments);
+  if (!groupAssignments) {
     return undefined;
-  }
-  if (typeof data.contactEmail !== 'string' || !data.contactEmail.trim()) {
-    return undefined;
-  }
-  if (!Array.isArray(data.groupAssignments)) {
-    return undefined;
-  }
-
-  const groupAssignments = [];
-  for (const assignment of data.groupAssignments) {
-    if (!assignment || typeof assignment !== 'object') {
-      return undefined;
-    }
-    const item = assignment as Record<string, unknown>;
-    if (typeof item.legalEntityId !== 'string' || !item.legalEntityId.trim()) {
-      return undefined;
-    }
-    if (typeof item.groupId !== 'string' || !item.groupId.trim()) {
-      return undefined;
-    }
-    groupAssignments.push({ legalEntityId: item.legalEntityId, groupId: item.groupId });
   }
 
   const request: CreateCompanyUserRequest = {
-    firstName: data.firstName,
-    lastName: data.lastName,
-    contactEmail: data.contactEmail,
+    firstName,
+    lastName,
+    contactEmail,
     active: data.active === true,
     groupAssignments,
   };
 
-  if (typeof data.title === 'string' && data.title.trim()) {
-    request.title = data.title;
+  const title = readTrimmedString(data.title);
+  if (title) {
+    request.title = title;
   }
-  if (typeof data.contactPhone === 'string' && data.contactPhone.trim()) {
-    request.contactPhone = data.contactPhone;
+  const contactPhone = readTrimmedString(data.contactPhone);
+  if (contactPhone) {
+    request.contactPhone = contactPhone;
   }
 
   return request;

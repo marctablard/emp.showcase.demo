@@ -69,4 +69,17 @@ describe('EmporixSessionMapper', () => {
 
     expect(result.legalEntityId).toBe('le-selected');
   });
+
+  it('maps a string legalEntityId context value', () => {
+    const result = mapper.mapToService({
+      sessionId: 'sess-le-string',
+      siteCode: 'main',
+      currency: 'EUR',
+      context: {
+        legalEntityId: 'le-direct',
+      },
+    });
+
+    expect(result.legalEntityId).toBe('le-direct');
+  });
 });

@@ -3,9 +3,10 @@
  */
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { ACCOUNT_DETAIL_LIST_PAGE_SIZE, USERS_PER_PAGE } from '@/components/account/account-table-constants';
 import { CUSTOMER_ID } from '@/lib/common/customer-identity';
 import type { CompanyUser } from '@/platform/services/model/user-management/company-user';
-import { UsersList, showOtherCompanyUsersStorageKey } from './users-list';
+import { UsersList, deserializeShowOtherCompanyUsers, showOtherCompanyUsersStorageKey } from './users-list';
 
 const persistOptionsLog: Array<{ enabled?: boolean; key: string; defaultValue: unknown }> = [];
 
@@ -58,6 +59,16 @@ const mockUseOtherCompanyUsers = jest.fn();
 jest.mock('@/hooks/user-management/useCompanyUsers', () => ({
   useCompanyUsers: (...args: unknown[]) => mockUseCompanyUsers(...args),
   useOtherCompanyUsers: (...args: unknown[]) => mockUseOtherCompanyUsers(...args),
+}));
+
+jest.mock('@/hooks/common/useGlobalCursor', () => ({
+  useGlobalCursor: jest.fn(),
+  acquireNavigationWaitCursorLease: jest.fn(),
+}));
+
+jest.mock('./delete-user-dialog', () => ({
+  DeleteUserDialog: ({ open, user }: { open: boolean; user: CompanyUser | null }) =>
+    open && user ? <div data-testid="delete-user-dialog">{user.id}</div> : null,
 }));
 
 jest.mock('@/components/ui/table-pagination', () => ({
@@ -119,7 +130,7 @@ function mockOtherCompanyUsersResult(
 const DEFAULT_OTHER_COMPANY_USERS_OPTIONS = {
   enabled: false,
   pageNumber: 1,
-  pageSize: 5,
+  pageSize: 10,
   sort: 'firstName:asc',
   query: undefined,
 };
@@ -155,12 +166,12 @@ describe('UsersList', () => {
     const [, options] = mockUseCompanyUsers.mock.calls[mockUseCompanyUsers.mock.calls.length - 1];
     expect(options).toMatchObject({
       pageNumber: 1,
-      pageSize: 5,
+      pageSize: 10,
       sort: 'firstName:asc',
       initialTotalCount: 1,
       initialRequest: {
         pageNumber: 1,
-        pageSize: 5,
+        pageSize: 10,
         sort: 'firstName:asc',
         query: undefined,
       },
@@ -176,18 +187,18 @@ describe('UsersList', () => {
     expect(heading.parentElement?.parentElement).toHaveClass('flex', 'flex-col', 'gap-6', 'lg:gap-12');
     expect(heading.parentElement).toHaveClass(
       'flex',
+      'min-w-0',
       'flex-col',
       'items-start',
       'gap-6',
       'md:flex-row',
-      'md:flex-nowrap',
+      'md:flex-wrap',
       'md:justify-between',
     );
-    expect(heading.parentElement).not.toHaveClass('flex-wrap');
-    expect(heading.parentElement).not.toHaveClass('gap-4');
-    expect(heading.parentElement).not.toHaveClass('justify-between');
-    expect(heading).toHaveClass('min-w-0', 'w-full', 'whitespace-nowrap', 'md:w-auto', 'md:flex-1');
-    expect(heading).not.toHaveClass('flex-1');
+    expect(heading.parentElement).not.toHaveClass('md:flex-nowrap');
+    expect(heading).toHaveClass('min-w-0', 'w-full', 'md:flex-1');
+    expect(heading).not.toHaveClass('whitespace-nowrap');
+    expect(heading.nextElementSibling).toHaveClass('flex-wrap');
     const createCta = screen.getByRole('link', { name: /createButton/i });
     expect(createCta).toHaveAttribute('href', '/account/users/new');
     expect(createCta).toHaveClass('font-headlines');
@@ -419,7 +430,7 @@ describe('UsersList', () => {
     const [, firstTableOptionsBefore] = mockUseCompanyUsers.mock.calls[mockUseCompanyUsers.mock.calls.length - 1];
     expect(firstTableOptionsBefore).toMatchObject({
       pageNumber: 1,
-      pageSize: 5,
+      pageSize: 10,
       sort: 'firstName:asc',
       enabled: true,
     });
@@ -430,7 +441,7 @@ describe('UsersList', () => {
     const [, firstTableOptionsAfter] = mockUseCompanyUsers.mock.calls[mockUseCompanyUsers.mock.calls.length - 1];
     expect(firstTableOptionsAfter).toMatchObject({
       pageNumber: 1,
-      pageSize: 5,
+      pageSize: 10,
       sort: 'firstName:asc',
       enabled: false,
     });
@@ -443,7 +454,7 @@ describe('UsersList', () => {
     expect(mockUseOtherCompanyUsers).toHaveBeenCalledWith({
       enabled: true,
       pageNumber: 2,
-      pageSize: 5,
+      pageSize: 10,
       sort: 'firstName:asc',
       query: undefined,
     });
@@ -502,7 +513,7 @@ describe('UsersList', () => {
     expect(mockUseOtherCompanyUsers).toHaveBeenCalledWith({
       enabled: true,
       pageNumber: 1,
-      pageSize: 5,
+      pageSize: 10,
       sort: 'firstName:asc',
       query: 'John S',
     });
@@ -511,7 +522,7 @@ describe('UsersList', () => {
     expect(mockUseOtherCompanyUsers).toHaveBeenCalledWith({
       enabled: true,
       pageNumber: 1,
-      pageSize: 5,
+      pageSize: 10,
       sort: 'lastName:asc',
       query: 'John S',
     });
@@ -706,5 +717,48 @@ describe('UsersList', () => {
       ...DEFAULT_OTHER_COMPANY_USERS_OPTIONS,
       enabled: true,
     });
+  });
+
+  it('uses ACCOUNT_DETAIL_LIST_PAGE_SIZE 10 for the list page size', () => {
+    expect(ACCOUNT_DETAIL_LIST_PAGE_SIZE).toBe(10);
+    expect(USERS_PER_PAGE).toBe(10);
+    expect(USERS_PER_PAGE).toBe(ACCOUNT_DETAIL_LIST_PAGE_SIZE);
+  });
+
+  it('submits search on blur with the trimmed query and resets to page 1', () => {
+    mockUsersResult({
+      users: [buildUser()],
+      pagination: { pageNumber: 1, pageSize: 5, totalPages: 3, totalItems: 15 },
+    });
+    render(<UsersList initialUsers={[buildUser()]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    const input = screen.getByPlaceholderText('searchPlaceholder');
+    fireEvent.change(input, { target: { value: '  Jane  ' } });
+    fireEvent.blur(input);
+
+    const [, optionsAfterBlur] = mockUseCompanyUsers.mock.calls[mockUseCompanyUsers.mock.calls.length - 1];
+    expect(optionsAfterBlur.query).toBe('Jane');
+    expect(optionsAfterBlur.pageNumber).toBe(1);
+
+    fireEvent.change(input, { target: { value: 'Ada' } });
+    fireEvent.submit(input.closest('form') as HTMLFormElement);
+    const [, optionsAfterEnter] = mockUseCompanyUsers.mock.calls[mockUseCompanyUsers.mock.calls.length - 1];
+    expect(optionsAfterEnter.query).toBe('Ada');
+    expect(optionsAfterEnter.pageNumber).toBe(1);
+  });
+
+  it('deserializes invalid localStorage JSON as unchecked without throwing', () => {
+    expect(deserializeShowOtherCompanyUsers('{not-json')).toBe(false);
+    expect(deserializeShowOtherCompanyUsers('true')).toBe(true);
+    expect(deserializeShowOtherCompanyUsers('false')).toBe(false);
+  });
+
+  it('shows trash on the unchecked list without an onDeleteUser prop and opens the delete dialog', () => {
+    mockUsersResult({ users: [buildUser()] });
+    render(<UsersList initialUsers={[buildUser()]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'deleteAriaLabel:John Smith' }));
+    expect(screen.getByTestId('delete-user-dialog')).toHaveTextContent('user-1');
   });
 });

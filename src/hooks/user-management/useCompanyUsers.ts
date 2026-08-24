@@ -1,12 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { USERS_PER_PAGE } from '@/components/account/account-table-constants';
 import { startEffectTask } from '@/hooks/common/start-effect-task';
 import { useSession } from '@/hooks/session/useSession';
 import { fetchCompanyUsers, fetchOtherCompanyUsers } from '@/lib/client/user-management';
 import type { CompanyUser } from '@/platform/services/model/user-management/company-user';
 
-const DEFAULT_PAGE_SIZE = 5;
+const DEFAULT_PAGE_SIZE = USERS_PER_PAGE;
 
 interface UseCompanyUsersPagination {
   pageNumber: number;
@@ -91,10 +92,9 @@ export function useCompanyUsers(
       setLoading(true);
       setError(null);
 
-      const result = await fetchCompanyUsers(pageNumber, pageSize, sort, query);
-      setUsers(result.items);
-
       const size = pageSize || DEFAULT_PAGE_SIZE;
+      const result = await fetchCompanyUsers(pageNumber, size, sort, query);
+      setUsers(result.items);
       const currentPage = pageNumber ?? 1;
       let totalItems: number;
       if (result.totalCount !== undefined) {
@@ -198,10 +198,9 @@ export function useOtherCompanyUsers({
     try {
       setLoading(true);
       setError(null);
-      const result = await fetchOtherCompanyUsers(pageNumber, pageSize, sort, query);
-      setUsers(result.items);
-
       const size = pageSize || DEFAULT_PAGE_SIZE;
+      const result = await fetchOtherCompanyUsers(pageNumber, size, sort, query);
+      setUsers(result.items);
       const currentPage = pageNumber ?? 1;
       let totalItems: number;
       if (result.totalCount !== undefined) {

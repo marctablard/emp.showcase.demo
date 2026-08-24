@@ -23,6 +23,7 @@ import type {
   CompanyUser,
   CompanyUserGroupAssignment,
 } from '@/platform/services/model/user-management/company-user';
+import { CONTACT_ONLY_GROUP_ID } from '@/platform/services/model/user-management/contact-only';
 
 const TITLE_KEYS = ['MR', 'MRS', 'MS'] as const;
 const NO_SELECTION = '__none__';
@@ -40,9 +41,70 @@ const VALIDATION_I18N_KEYS = {
 } as const;
 
 type ZodValidationMessage = keyof typeof VALIDATION_I18N_KEYS;
+type UserManagementTranslate = ReturnType<typeof useTranslations<'user-management'>>;
 
 function isZodValidationMessage(message: string): message is ZodValidationMessage {
   return message in VALIDATION_I18N_KEYS;
+}
+
+function isContactGroupDisplayName(displayName: string): boolean {
+  const normalizedDisplayName = displayName.trim().toLowerCase();
+  return normalizedDisplayName.endsWith('contact') || normalizedDisplayName.includes(' - contact');
+}
+
+function toSelectableCatalogGroups(
+  groups: AssignableLegalEntityGroups['groups'],
+): AssignableLegalEntityGroups['groups'] {
+  return groups.filter((group) => !isContactGroupDisplayName(group.displayName));
+}
+
+function toPickerGroupId(group: AssignableLegalEntityGroups['groups'][number]): string {
+  return isContactGroupDisplayName(group.displayName) ? CONTACT_ONLY_GROUP_ID : group.id;
+}
+
+function getCompanyUserErrorCode(error: unknown): string | undefined {
+  if (!(error instanceof Error)) return undefined;
+  const maybeErrorWithCode = error as Error & { code?: string };
+  return maybeErrorWithCode.code;
+}
+
+function getSubmitErrorTitle(error: unknown, isEdit: boolean, translate: UserManagementTranslate): string {
+  const errorCode = getCompanyUserErrorCode(error);
+  if (errorCode === PREDEFINED_GROUP_CONFLICT_CODE) {
+    return translate('notifications.predefinedGroupConflict');
+  }
+  if (isEdit) {
+    return translate('notifications.saveError');
+  }
+  if (error instanceof Error && error.message === SAME_COMPANY_REQUIRED_ERROR) {
+    return SAME_COMPANY_REQUIRED_ERROR;
+  }
+  return translate('notifications.genericFailure');
+}
+
+function getUpdateSuccessTitle(
+  nextActive: boolean,
+  initialActive: boolean,
+  translate: UserManagementTranslate,
+): string {
+  return nextActive !== initialActive
+    ? translate('notifications.statusSuccess')
+    : translate('notifications.saveSuccess');
+}
+
+function toProfileRequest(data: CompanyUserFormData) {
+  return {
+    title: data.title || undefined,
+    firstName: data.firstName,
+    lastName: data.lastName,
+    contactEmail: data.email,
+    contactPhone: data.phone || undefined,
+    active: data.active,
+  };
+}
+
+function selectedLegalEntityAssignment(data: CompanyUserFormData): CompanyUserGroupAssignment | undefined {
+  return data.groupAssignments.find((assignment) => assignment.legalEntityId === data.selectedLegalEntityId);
 }
 
 export interface HeaderCompany {
@@ -97,7 +159,7 @@ function reconcileInitialGroupAssignment(
     .filter((group): group is AssignableLegalEntityGroups['groups'][number] => Boolean(group));
   const preferredById = choosePreferredGroup(matchedById);
   if (preferredById) {
-    return [{ legalEntityId: legalEntityGroups.legalEntityId, groupId: preferredById.id }];
+    return [{ legalEntityId: legalEntityGroups.legalEntityId, groupId: toPickerGroupId(preferredById) }];
   }
 
   const matchedByName = selectedLegalEntityAssignments
@@ -105,11 +167,25 @@ function reconcileInitialGroupAssignment(
     .filter((group): group is AssignableLegalEntityGroups['groups'][number] => Boolean(group));
   const preferredByName = choosePreferredGroup(matchedByName);
 
-  return preferredByName ? [{ legalEntityId: legalEntityGroups.legalEntityId, groupId: preferredByName.id }] : [];
+  return preferredByName
+    ? [{ legalEntityId: legalEntityGroups.legalEntityId, groupId: toPickerGroupId(preferredByName) }]
+    : [];
 }
 
 function groupAssignmentKey(assignment: CompanyUserGroupAssignment): string {
   return `${assignment.legalEntityId}:${assignment.groupId}`;
+}
+
+function resolveInitialGroupAssignments(
+  initialUser: CompanyUser,
+  legalEntityGroups: AssignableLegalEntityGroups,
+): CompanyUserGroupAssignment[] {
+  const reconciled = reconcileInitialGroupAssignment(initialUser.groups, legalEntityGroups);
+  if (reconciled.length > 0) return reconciled;
+  if (initialUser.isSelectedLegalEntityMember === true) {
+    return [{ legalEntityId: legalEntityGroups.legalEntityId, groupId: CONTACT_ONLY_GROUP_ID }];
+  }
+  return [];
 }
 
 function areGroupAssignmentsEqual(left: CompanyUserGroupAssignment[], right: CompanyUserGroupAssignment[]): boolean {
@@ -218,7 +294,7 @@ export function UserDetailsForm({ initialUser, headerCompanies = [] }: Readonly<
   );
   const initialGroupAssignments = useMemo<CompanyUserGroupAssignment[]>(() => {
     if (!initialUser || !selectedLegalEntityGroups) return [];
-    return reconcileInitialGroupAssignment(initialUser.groups, selectedLegalEntityGroups);
+    return resolveInitialGroupAssignments(initialUser, selectedLegalEntityGroups);
   }, [initialUser, selectedLegalEntityGroups]);
   const initialData: CompanyUserFormData = {
     title: normalizeTitle(initialUser?.title),
@@ -248,6 +324,10 @@ export function UserDetailsForm({ initialUser, headerCompanies = [] }: Readonly<
       setGroupsLoading(false);
     }
   }, [t]);
+
+  const handleRetryLoadGroups = () => {
+    loadGroups().catch(() => undefined);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -280,7 +360,7 @@ export function UserDetailsForm({ initialUser, headerCompanies = [] }: Readonly<
   useEffect(() => {
     if (!initialUser || hasReconciledInitialGroups.current || !selectedLegalEntityGroups) return;
 
-    form.setValue('groupAssignments', reconcileInitialGroupAssignment(initialUser.groups, selectedLegalEntityGroups), {
+    form.setValue('groupAssignments', resolveInitialGroupAssignments(initialUser, selectedLegalEntityGroups), {
       shouldDirty: false,
       shouldTouch: false,
       shouldValidate: false,
@@ -318,13 +398,26 @@ export function UserDetailsForm({ initialUser, headerCompanies = [] }: Readonly<
 
   const assignments = form.watch('groupAssignments') as CompanyUserGroupAssignment[];
   const active = form.watch('active') as boolean;
-  const selectedGroup = selectedLegalEntityGroups?.groups.find(
-    (group) =>
-      group.id ===
-      assignments.find((assignment) => assignment.legalEntityId === selectedLegalEntityGroups.legalEntityId)?.groupId,
-  );
-  const selectedGroupId = selectedGroup?.id ?? NO_SELECTION;
-  const hasGroups = Boolean(selectedLegalEntityGroups?.groups.length);
+  const selectableCatalogGroups = toSelectableCatalogGroups(selectedLegalEntityGroups?.groups ?? []);
+  const selectedAssignmentGroupId = assignments.find(
+    (assignment) => assignment.legalEntityId === selectedLegalEntityGroups?.legalEntityId,
+  )?.groupId;
+  const isContactOnlySelection =
+    selectedAssignmentGroupId === CONTACT_ONLY_GROUP_ID ||
+    Boolean(
+      selectedAssignmentGroupId &&
+      selectedLegalEntityGroups?.groups.some(
+        (group) => group.id === selectedAssignmentGroupId && isContactGroupDisplayName(group.displayName),
+      ),
+    );
+  const selectedGroup = isContactOnlySelection
+    ? undefined
+    : selectableCatalogGroups.find((group) => group.id === selectedAssignmentGroupId);
+  const selectedGroupId = isContactOnlySelection ? CONTACT_ONLY_GROUP_ID : (selectedGroup?.id ?? NO_SELECTION);
+  const emptyGroupOptionLabel =
+    initialUser?.isSelectedLegalEntityMember === true ? t('form.unassignFromCompany') : t('form.groupPlaceholder');
+  const selectedGroupLabel = isContactOnlySelection ? t('form.contactOnly') : selectedGroup?.displayName;
+  const isEditingActiveUser = initialUser?.active === true;
 
   const updateGroupAssignment = useCallback(
     (groupId: string) => {
@@ -358,12 +451,6 @@ export function UserDetailsForm({ initialUser, headerCompanies = [] }: Readonly<
     [form, hasChangedGroupSelection, initialUser, selectedLegalEntityGroups, selectedLegalEntityId],
   );
 
-  const getCompanyUserErrorCode = (error: unknown): string | undefined => {
-    if (!(error instanceof Error)) return undefined;
-    const maybeErrorWithCode = error as Error & { code?: string };
-    return maybeErrorWithCode.code;
-  };
-
   const handleTitleChange = (value: string) => {
     const nextTitle = (value === NO_SELECTION ? '' : value) as CompanyUserFormData['title'];
     const currentTitle = (form.getValues('title') as string) || '';
@@ -385,17 +472,8 @@ export function UserDetailsForm({ initialUser, headerCompanies = [] }: Readonly<
 
   const onSubmit = async (data: CompanyUserFormData) => {
     setIsSaving(true);
-    const selectedGroupAssignment = data.groupAssignments.find(
-      (assignment) => assignment.legalEntityId === data.selectedLegalEntityId,
-    );
-    const request = {
-      title: data.title || undefined,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      contactEmail: data.email,
-      contactPhone: data.phone || undefined,
-      active: data.active,
-    };
+    const request = toProfileRequest(data);
+    const selectedGroupAssignment = selectedLegalEntityAssignment(data);
 
     try {
       if (!initialUser) {
@@ -431,23 +509,14 @@ export function UserDetailsForm({ initialUser, headerCompanies = [] }: Readonly<
           : {}),
       });
       notify({
-        title: data.active !== initialUser.active ? t('notifications.statusSuccess') : t('notifications.saveSuccess'),
+        title: getUpdateSuccessTitle(data.active, initialUser.active, t),
         type: ToastType.Success,
         duration: 4000,
       });
-      router.refresh();
+      router.push('/account/users');
     } catch (error) {
-      const errorCode = getCompanyUserErrorCode(error);
       notify({
-        title: initialUser
-          ? errorCode === PREDEFINED_GROUP_CONFLICT_CODE
-            ? t('notifications.predefinedGroupConflict')
-            : t('notifications.saveError')
-          : error instanceof Error && error.message === SAME_COMPANY_REQUIRED_ERROR
-            ? SAME_COMPANY_REQUIRED_ERROR
-            : errorCode === PREDEFINED_GROUP_CONFLICT_CODE
-              ? t('notifications.predefinedGroupConflict')
-              : t('notifications.genericFailure'),
+        title: getSubmitErrorTitle(error, Boolean(initialUser), t),
         type: ToastType.Error,
         duration: 4000,
       });
@@ -617,16 +686,16 @@ export function UserDetailsForm({ initialUser, headerCompanies = [] }: Readonly<
                 </div>
 
                 {groupsLoading ? (
-                  <div role="status" className="flex items-center gap-2 text-text-body">
+                  <output className="flex items-center gap-2 text-text-body">
                     <Spinner variant="sm" color="primary" />
                     {t('form.loadingGroups')}
-                  </div>
+                  </output>
                 ) : null}
 
                 {groupsError ? (
                   <div role="alert" className="space-y-3 rounded-sm border border-border-error bg-surface-error p-4">
                     <p className="text-text-error">{groupsError}</p>
-                    <Button type="button" variant="secondary" onClick={() => void loadGroups()}>
+                    <Button type="button" variant="secondary" onClick={handleRetryLoadGroups}>
                       {t('tryAgain')}
                     </Button>
                   </div>
@@ -644,41 +713,25 @@ export function UserDetailsForm({ initialUser, headerCompanies = [] }: Readonly<
                             company: selectedLegalEntityGroups.legalEntityName,
                           })}
                         </Label>
-                        <Select
-                          value={selectedGroupId}
-                          onValueChange={updateGroupAssignment}
-                          disabled={isSaving || !hasGroups}
-                        >
+                        <Select value={selectedGroupId} onValueChange={updateGroupAssignment} disabled={isSaving}>
                           <SelectTrigger
                             id={`company-user-group-${selectedLegalEntityGroups.legalEntityId}`}
                             aria-required={initialUser ? undefined : 'true'}
                             aria-invalid={groupError ? true : undefined}
                             aria-describedby={groupError ? fieldErrorId('group-assignments') : undefined}
                           >
-                            <SelectValue
-                              placeholder={hasGroups ? t('form.groupPlaceholder') : t('form.noGroupsAvailable')}
-                            >
-                              {selectedGroup?.displayName}
-                            </SelectValue>
+                            <SelectValue placeholder={emptyGroupOptionLabel}>{selectedGroupLabel}</SelectValue>
                           </SelectTrigger>
-                          {hasGroups ? (
-                            <SelectContent>
-                              <SelectItem value={NO_SELECTION}>{t('form.groupPlaceholder')}</SelectItem>
-                              {selectedLegalEntityGroups.groups.map((group) => (
-                                <SelectItem key={group.id} value={group.id}>
-                                  {group.displayName}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          ) : null}
+                          <SelectContent>
+                            <SelectItem value={CONTACT_ONLY_GROUP_ID}>{t('form.contactOnly')}</SelectItem>
+                            <SelectItem value={NO_SELECTION}>{emptyGroupOptionLabel}</SelectItem>
+                            {selectableCatalogGroups.map((group) => (
+                              <SelectItem key={group.id} value={group.id}>
+                                {group.displayName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
                         </Select>
-                        {!hasGroups ? (
-                          <p className="mt-1 text-sm text-text-body">
-                            {t('form.noGroupsAvailableForCompany', {
-                              company: selectedLegalEntityGroups.legalEntityName,
-                            })}
-                          </p>
-                        ) : null}
                       </div>
                     ) : null}
                     {otherHeaderCompanyGroupSections.map((section) => {
@@ -716,11 +769,13 @@ export function UserDetailsForm({ initialUser, headerCompanies = [] }: Readonly<
                     disabled={isSaving}
                   />
                   <Label htmlFor="company-user-active" className="text-base leading-6 font-bold text-text-body">
-                    {t('form.activateUser')}
+                    {isEditingActiveUser ? t('form.activeUser') : t('form.activateUser')}
                   </Label>
                 </span>
               </TooltipTrigger>
-              <TooltipContent>{t('form.activateUserHelper')}</TooltipContent>
+              <TooltipContent>
+                {isEditingActiveUser ? t('form.activeUserHelper') : t('form.activateUserHelper')}
+              </TooltipContent>
             </Tooltip>
 
             <div className="flex flex-wrap gap-8">
