@@ -632,16 +632,20 @@ function envelopeSize(value: unknown): number {
 }
 
 function responseFromWidgetState(state: AssemblyState, widget: WidgetState): EmporixAIChatResponse {
+  const envelope: Record<string, unknown> = {
+    message: tokenIntroFromState(state),
+    type: widget.type,
+    data: widget.data,
+  };
+  if (widget.type === 'cart_summary') {
+    envelope.cartRefresh = true;
+  }
   return applyIdentityOverlay(
     {
       agentId: state.identityOverlay.agentId || FALLBACK_RESPONSE.agentId,
       agentType: state.identityOverlay.agentType || FALLBACK_RESPONSE.agentType,
       sessionId: state.identityOverlay.sessionId || FALLBACK_RESPONSE.sessionId,
-      message: JSON.stringify({
-        message: tokenIntroFromState(state),
-        type: widget.type,
-        data: widget.data,
-      }),
+      message: JSON.stringify(envelope),
     },
     state.identityOverlay,
   );

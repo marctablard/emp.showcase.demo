@@ -107,7 +107,7 @@ export const adaptToolResult = (toolName: string, output: unknown): AdaptedWidge
     case 'address_list':
       return { type, data: { addresses: extractList(payload, 'addresses') } };
     case 'cart_summary':
-      return { type, data: { items: extractList(payload, 'items') } };
+      return { type, data: adaptCartSummary(payload) };
     case 'account_details':
       return { type, data: adaptAccount(payload, toolName) };
   }
@@ -380,6 +380,51 @@ function adaptOrderTotal(record: Record<string, unknown>): Record<string, unknow
   return total;
 }
 
+function adaptCartSubtotal(record: Record<string, unknown>): Record<string, unknown> | undefined {
+  if (isRecord(record.subtotal)) {
+    return adaptPriceField(record.subtotal) ?? record.subtotal;
+  }
+  const fromField = adaptPriceField(record.subTotalPrice);
+  if (fromField) {
+    return fromField;
+  }
+  const calculated = isRecord(record.calculatedPrice) ? record.calculatedPrice : null;
+  return calculated && isRecord(calculated.price) ? adaptPriceField(calculated.price) : undefined;
+}
+
+function adaptCartTotal(record: Record<string, unknown>): Record<string, unknown> | undefined {
+  if (isRecord(record.total)) {
+    return adaptPriceField(record.total) ?? record.total;
+  }
+  return adaptPriceField(record.totalPrice) ?? adaptOrderTotal(record);
+}
+
+function mapCartItem(source: unknown): Record<string, unknown> | null {
+  if (!isRecord(source)) {
+    return null;
+  }
+  return adaptOrderItem(source) ?? source;
+}
+
+function adaptCartItems(payload: unknown): Array<Record<string, unknown>> {
+  return extractList(payload, 'items')
+    .map(mapCartItem)
+    .filter((item): item is Record<string, unknown> => item != null);
+}
+
+function adaptCartSummary(payload: unknown): Record<string, unknown> {
+  const record = isRecord(payload) ? payload : {};
+  const items = adaptCartItems(payload);
+  return compactRecord({
+    items: items.length > 0 ? items : undefined,
+    total: adaptCartTotal(record),
+    subtotal: adaptCartSubtotal(record),
+    currency: readString(record.currency),
+    siteCode: readString(record.siteCode) ?? readString(record.site),
+    shops: Array.isArray(record.shops) ? record.shops : undefined,
+  });
+}
+
 function orderItemSources(record: Record<string, unknown>): unknown[] {
   if (Array.isArray(record.items)) {
     return record.items;
@@ -414,25 +459,7 @@ function orderItemMedia(
   return null;
 }
 
-function orderItemImage(
-  product: Record<string, unknown> | null,
-  item: Record<string, unknown>,
-  media: Record<string, unknown> | null,
-): string | undefined {
-  const direct = readString(item.image);
-  if (direct) {
-    return direct;
-  }
-  if (media) {
-    const mediaUrl = readString(media.url);
-    if (mediaUrl) {
-      return mediaUrl;
-    }
-  }
-  const images = product && Array.isArray(product.images) ? product.images : null;
-  if (!images) {
-    return undefined;
-  }
+function firstImageUrl(images: unknown[]): string | undefined {
   for (const image of images) {
     if (typeof image === 'string' && image !== '') {
       return image;
@@ -443,6 +470,25 @@ function orderItemImage(
         return url;
       }
     }
+  }
+  return undefined;
+}
+
+function orderItemImage(
+  product: Record<string, unknown> | null,
+  item: Record<string, unknown>,
+  media: Record<string, unknown> | null,
+): string | undefined {
+  const direct = readString(item.image);
+  if (direct) {
+    return direct;
+  }
+  const mediaUrl = media ? readString(media.url) : undefined;
+  if (mediaUrl) {
+    return mediaUrl;
+  }
+  if (product && Array.isArray(product.images)) {
+    return firstImageUrl(product.images);
   }
   return undefined;
 }
@@ -476,6 +522,59 @@ function adaptPriceField(value: unknown): Record<string, unknown> | undefined {
   return { gross: amount, value: amount };
 }
 
+function unitPriceFromEffective(
+  effective: number,
+  quantity: number,
+  grossTotal: number | undefined,
+  netTotal: number | undefined,
+  currency: string | undefined,
+): Record<string, unknown> {
+  return compactRecord({
+    value: effective,
+    gross: quantity > 0 && grossTotal != null ? grossTotal / quantity : effective,
+    net: quantity > 0 && netTotal != null ? netTotal / quantity : undefined,
+    currency,
+  });
+}
+
+function totalPriceFromCalculated(
+  quantity: number,
+  effective: number | undefined,
+  grossTotal: number | undefined,
+  netTotal: number | undefined,
+  taxTotal: number | undefined,
+  currency: string | undefined,
+): Record<string, unknown> | undefined {
+  if (grossTotal != null || netTotal != null) {
+    return compactRecord({
+      value: grossTotal ?? netTotal,
+      gross: grossTotal ?? netTotal,
+      net: netTotal,
+      tax: taxTotal,
+      currency,
+    });
+  }
+  if (effective == null) {
+    return undefined;
+  }
+  return compactRecord({
+    value: effective * quantity,
+    gross: effective * quantity,
+    currency,
+  });
+}
+
+function explicitOrderLinePrices(
+  explicitUnit: Record<string, unknown> | undefined,
+  explicitTotal: Record<string, unknown> | undefined,
+): { unitPrice?: Record<string, unknown>; totalPrice?: Record<string, unknown> } {
+  const totalPrice = explicitTotal ?? explicitUnit;
+  return {
+    ...(explicitUnit ? { unitPrice: explicitUnit } : {}),
+    ...(totalPrice ? { totalPrice } : {}),
+  };
+}
+
 function adaptOrderLinePrices(
   item: Record<string, unknown>,
   quantity: number,
@@ -483,10 +582,7 @@ function adaptOrderLinePrices(
   const explicitUnit = adaptPriceField(item.unitPrice ?? item.calculatedUnitPrice);
   const explicitTotal = adaptPriceField(item.totalPrice);
   if (explicitUnit || explicitTotal) {
-    return {
-      ...(explicitUnit ? { unitPrice: explicitUnit } : {}),
-      ...(explicitTotal || explicitUnit ? { totalPrice: explicitTotal ?? explicitUnit } : {}),
-    };
+    return explicitOrderLinePrices(explicitUnit, explicitTotal);
   }
 
   const price = isRecord(item.price) ? item.price : null;
@@ -498,34 +594,11 @@ function adaptOrderLinePrices(
   const netTotal = readNumber(finalPrice?.netValue);
   const taxTotal = readNumber(finalPrice?.taxValue);
 
-  let unitPrice: Record<string, unknown> | undefined;
-  if (effective != null) {
-    unitPrice = compactRecord({
-      value: effective,
-      gross: quantity > 0 && grossTotal != null ? grossTotal / quantity : effective,
-      net: quantity > 0 && netTotal != null ? netTotal / quantity : undefined,
-      currency,
-    });
-  }
-
-  let totalPrice: Record<string, unknown> | undefined;
-  if (grossTotal != null || netTotal != null) {
-    totalPrice = compactRecord({
-      value: grossTotal ?? netTotal,
-      gross: grossTotal ?? netTotal,
-      net: netTotal,
-      tax: taxTotal,
-      currency,
-    });
-  } else if (effective != null) {
-    totalPrice = compactRecord({
-      value: effective * quantity,
-      gross: effective * quantity,
-      currency,
-    });
-  }
-
-  return { unitPrice, totalPrice };
+  return {
+    unitPrice:
+      effective != null ? unitPriceFromEffective(effective, quantity, grossTotal, netTotal, currency) : undefined,
+    totalPrice: totalPriceFromCalculated(quantity, effective, grossTotal, netTotal, taxTotal, currency),
+  };
 }
 
 function adaptOrderItem(item: unknown): Record<string, unknown> | null {
@@ -736,8 +809,9 @@ function compactRecord(record: Record<string, unknown>): Record<string, unknown>
 
 function firstRecord(record: Record<string, unknown>, ...keys: string[]): Record<string, unknown> | null {
   for (const key of keys) {
-    if (isRecord(record[key])) {
-      return record[key] as Record<string, unknown>;
+    const value = record[key];
+    if (isRecord(value)) {
+      return value;
     }
   }
   return null;

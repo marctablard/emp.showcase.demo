@@ -73,35 +73,16 @@ function unescapePartialJsonString(value: string): string {
 }
 
 const MAX_SHOPPER_CAPTION_CHARS = 512;
-const MARKDOWN_HEADING_PATTERN = /(?:^|\n)#{1,6}\s+\S/gm;
-const PLANNING_SECTION_HEADING_PATTERN =
-  /(?:^|\n)#{1,6}\s+(?:OBJECTIVE|CHECKLIST|PLAN|REASONING|THOUGHTS?|ANALYSIS|CONTEXT|STEPS|TODO)\b/i;
+const MARKDOWN_HEADING_PATTERN = /(?:^|\n)#{1,6}\s+\S/m;
 const ENVELOPE_LEAK_PATTERN = /"(?:type|data|agentId|sessionId|tool_call)"\s*:/;
-const BLANK_LINE_BLOCK_PATTERN = /\n\s*\n/g;
-
-function countMarkdownHeadings(value: string): number {
-  return value.match(MARKDOWN_HEADING_PATTERN)?.length ?? 0;
-}
-
-function countBlankLineBlocks(value: string): number {
-  return value.match(BLANK_LINE_BLOCK_PATTERN)?.length ?? 0;
-}
 
 function looksLikeNonShopperCaption(value: string, options: { enforceMaxLength: boolean }): boolean {
   if (options.enforceMaxLength && value.length > MAX_SHOPPER_CAPTION_CHARS) {
     return true;
   }
 
-  if (PLANNING_SECTION_HEADING_PATTERN.test(value)) {
-    return true;
-  }
-
-  const headingCount = countMarkdownHeadings(value);
-  if (headingCount >= 2) {
-    return true;
-  }
-
-  if (headingCount >= 1 && (value.length > 280 || countBlankLineBlocks(value) >= 2)) {
+  // Any ATX heading is CoT / planning (e.g. ## SESSION INTENT), not shopper copy.
+  if (MARKDOWN_HEADING_PATTERN.test(value)) {
     return true;
   }
 
@@ -191,7 +172,7 @@ function extractPartialJsonStringField(
   return unescapePartialJsonString(result);
 }
 
-const PARTIAL_JSON_TYPE_PATTERN = new RegExp(String.raw`"type"\s*:\s*"([^"]*)"`);
+const PARTIAL_JSON_TYPE_PATTERN = /"type"\s*:\s*"([^"]*)"/;
 
 function extractPartialJsonType(text: string): string | null {
   const typeMatch = PARTIAL_JSON_TYPE_PATTERN.exec(text);

@@ -299,4 +299,50 @@ describe('ai-tool-widgets', () => {
     expect(order.status).toBe('CREATED');
     expect(order.items).toEqual([{ name: 'Widget', quantity: 2, productId: 'P1' }]);
   });
+
+  it('projects cart_summary totals and currency from widget-shaped get-cart JSON', () => {
+    const adapted = adaptToolResult('get-cart', {
+      currency: 'EUR',
+      siteCode: 'main',
+      items: [{ productId: 'P1', name: 'Solar panel', quantity: 1, unitPrice: { gross: 99, currency: 'EUR' } }],
+      subtotal: { gross: 99, net: 83, tax: 16, currency: 'EUR' },
+      total: { gross: 99, net: 83, tax: 16, currency: 'EUR' },
+    });
+    expect(adapted?.type).toBe('cart_summary');
+    expect(adapted?.data).toMatchObject({
+      currency: 'EUR',
+      siteCode: 'main',
+      subtotal: { gross: 99, net: 83, tax: 16, currency: 'EUR' },
+      total: { gross: 99, net: 83, tax: 16, currency: 'EUR' },
+    });
+    expect(adapted?.data.items).toHaveLength(1);
+  });
+
+  it('derives cart_summary totals from Emporix-shaped cart price fields', () => {
+    const adapted = adaptToolResult('get-cart', {
+      currency: 'EUR',
+      site: 'main',
+      subTotalPrice: { amount: 80, currency: 'EUR' },
+      totalPrice: { amount: 99, currency: 'EUR' },
+      items: [
+        {
+          product: { id: 'P1', name: { en: 'Solar panel' } },
+          amount: 1,
+          price: { effectiveAmount: 99, currency: 'EUR' },
+        },
+      ],
+    });
+    expect(adapted?.type).toBe('cart_summary');
+    expect(adapted?.data).toMatchObject({
+      currency: 'EUR',
+      siteCode: 'main',
+      subtotal: { gross: 80, value: 80, currency: 'EUR' },
+      total: { gross: 99, value: 99, currency: 'EUR' },
+    });
+    expect((adapted?.data.items as Array<Record<string, unknown>>)[0]).toMatchObject({
+      productId: 'P1',
+      name: 'Solar panel',
+      quantity: 1,
+    });
+  });
 });

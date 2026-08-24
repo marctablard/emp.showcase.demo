@@ -473,6 +473,37 @@ describe('assembleEmporixChatStream', () => {
     expect(parsed.data.addresses[0].city).toBe('London');
   });
 
+  it('sets cartRefresh on get-cart tool_result cart_summary completes', async () => {
+    const streamBody = [
+      toNamedSseEvent('tool_start', JSON.stringify({ tool_name: 'get-cart', tool_call_id: 'call-1' })),
+      toNamedSseEvent(
+        'tool_result',
+        JSON.stringify({
+          tool_name: 'get-cart',
+          tool_call_id: 'call-1',
+          output: {
+            currency: 'EUR',
+            siteCode: 'main',
+            items: [{ productId: 'P1', name: 'Solar panel', quantity: 1 }],
+            subtotal: { gross: 99, currency: 'EUR' },
+            total: { gross: 99, currency: 'EUR' },
+          },
+        }),
+      ),
+      toContentToken('Your cart is updated.'),
+    ].join('');
+
+    const assembled = await assembleEmporixChatStream(streamBody);
+    const parsed = parseAIResponse(assembled.message);
+    expect(parsed.type).toBe('cart_summary');
+    expect(parsed.cartRefresh).toBe(true);
+    expect(parsed.data).toMatchObject({
+      currency: 'EUR',
+      siteCode: 'main',
+      total: { gross: 99, currency: 'EUR' },
+    });
+  });
+
   it('does not paint get-customer-info as the shopper name when the tool envelope is empty', async () => {
     const streamBody = [
       toNamedSseEvent('tool_start', JSON.stringify({ tool_name: 'get-customer-info', tool_call_id: 'call-1' })),

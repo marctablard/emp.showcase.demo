@@ -66,6 +66,15 @@ describe('previewStreamingAIMessage', () => {
     expect(sanitizeCompletedShopperText('## OBJECTIVE\nLook up orders.')).toBe('');
   });
 
+  it('drops SESSION INTENT planning drips from live and completed captions', () => {
+    expect(sanitizeShopperCaption('## SESSION')).toBe('');
+    expect(sanitizeShopperCaption("## SESSION INTENT\n\nThe user's primary goal is to add")).toBe('');
+    expect(sanitizeCompletedShopperText("## SESSION INTENT\n\nThe user's primary goal is to add")).toBe('');
+    expect(previewStreamingAIMessage("## SESSION INTENT\n\nThe user's primary goal")).toEqual({
+      kind: 'pending',
+    });
+  });
+
   it('keeps long completed shopper answers while still capping live captions', () => {
     const longAnswer = `Thanks for waiting. ${'Details about your order history. '.repeat(40)}`;
     expect(longAnswer.length).toBeGreaterThan(512);
