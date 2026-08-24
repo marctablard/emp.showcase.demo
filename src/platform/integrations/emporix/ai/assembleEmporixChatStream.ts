@@ -3,7 +3,7 @@
  * - event:token `{ content: string }` (live frontendAgent; concatenate)
  * - event:tool_start `{ tool_name, tool_call_id }` (skeleton widget from tool name)
  * - event:tool_result `{ tool_name, tool_call_id, output }` (fill widget from JSON)
- * - event:thinking `{ content }` (live CoT; never persisted)
+ * - event:thinking `{ content }` (upstream CoT; progress forwards opaque `thinking: "active"` only — never raw text)
  * - event:tool_end `{ tool_name, tool_call_id }`
  * - event:done metadata-only identity (no message; overlay identity only)
  * - plain-text token / JSON-string data payloads
@@ -18,6 +18,7 @@
  * preview (plain text, HTML, or a typed widget from `tool_start` / `tool_result`).
  * Token JSON widgets paint as soon as `type`/`data` are available; tool results
  * win and appear as soon as the tool returns. `tool_start` shows a typed skeleton.
+ * Thinking progress is an opaque status flag only (never raw chain-of-thought).
  * COP-5591 sibling parser (`emporix/hosting-md-extension`) also emits
  * plain-text tokens + metadata-only frames.
  */
@@ -48,6 +49,9 @@ const EMPTY_IDENTITY: StreamIdentity = {
   agentType: '',
   sessionId: '',
 };
+
+/** Opaque shopper-facing marker — never the raw model thinking text. */
+const SHOPPER_THINKING_STATUS = 'active';
 
 function removeOptionalSpace(value: string): string {
   return value.startsWith(' ') ? value.slice(1) : value;
@@ -109,9 +113,11 @@ function applyIdentityOverlay(response: EmporixAIChatResponse, overlay: StreamId
 }
 
 function createCapturedResponse(payload: StreamObject, message: string): EmporixAIChatResponse {
+  const identity = mapIdentity(payload);
   return {
-    ...FALLBACK_RESPONSE,
-    ...mapIdentity(payload),
+    agentId: identity.agentId || FALLBACK_RESPONSE.agentId,
+    agentType: identity.agentType || FALLBACK_RESPONSE.agentType,
+    sessionId: identity.sessionId || FALLBACK_RESPONSE.sessionId,
     message,
   };
 }
@@ -256,10 +262,24 @@ function consumeFrames(
   startCount: number,
 ): number {
   let chunks = startCount;
+  let lastPreview: StreamPreview | undefined;
   for (const frame of frames) {
     consumeFrame(state, frame);
     chunks += 1;
-    onProgress?.(toStreamProgressUpdate(chunks, previewFromAssemblyState(state), state.thinking || undefined));
+    const forcePreview =
+      frame.eventName === 'tool_start' ||
+      frame.eventName === 'tool_result' ||
+      frame.eventName === 'thinking' ||
+      frame.eventName === 'done';
+    // Coalesce token-only frames once a shopper-visible preview exists. Never
+    // freeze on `pending` — that blocks widgets/HTML as the envelope completes.
+    const canReusePreview = lastPreview != null && lastPreview.kind !== 'pending' && chunks % 4 !== 0;
+    if (!forcePreview && canReusePreview) {
+      onProgress?.(toStreamProgressUpdate(chunks, lastPreview, state.thinking ? SHOPPER_THINKING_STATUS : undefined));
+      continue;
+    }
+    lastPreview = previewFromAssemblyState(state);
+    onProgress?.(toStreamProgressUpdate(chunks, lastPreview, state.thinking ? SHOPPER_THINKING_STATUS : undefined));
   }
   return chunks;
 }
@@ -360,18 +380,49 @@ function pickAssembledResponse(objects: StreamObject[], overlay: StreamIdentity)
   return null;
 }
 
+function sanitizeCompletedMessage(message: string): string {
+  try {
+    const parsed = JSON.parse(message) as unknown;
+    if (isStreamObject(parsed) && typeof parsed.message === 'string') {
+      return JSON.stringify({
+        ...parsed,
+        message: sanitizeShopperCaption(parsed.message),
+      });
+    }
+  } catch {
+    // Plain-text completion — filter planning / CoT markdown the same as live preview.
+  }
+  return sanitizeShopperCaption(message);
+}
+
+function withSanitizedCompletion(response: EmporixAIChatResponse): EmporixAIChatResponse {
+  const sanitized = sanitizeCompletedMessage(response.message);
+  if (sanitized === response.message) {
+    return response;
+  }
+  // Keep original when sanitizer empties a non-JSON body so assertNonEmptyMessage can still pass
+  // only for real shopper text; pure planning leaks become empty and fail closed.
+  if (sanitized === '' && !response.message.trimStart().startsWith('{')) {
+    return { ...response, message: sanitized };
+  }
+  if (sanitized === '') {
+    return response;
+  }
+  return { ...response, message: sanitized };
+}
+
 function responseFromTextBuffer(textBuffer: string, overlay: StreamIdentity): EmporixAIChatResponse {
   const assembled = pickAssembledResponse(collectCandidateStreamObjects(textBuffer), overlay);
   if (assembled) {
-    return assembled;
+    return withSanitizedCompletion(assembled);
   }
 
-  return {
+  return withSanitizedCompletion({
     agentId: overlay.agentId || FALLBACK_RESPONSE.agentId,
     agentType: overlay.agentType || FALLBACK_RESPONSE.agentType,
     sessionId: overlay.sessionId || FALLBACK_RESPONSE.sessionId,
     message: textBuffer,
-  };
+  });
 }
 
 function assertNonEmptyMessage(response: EmporixAIChatResponse): EmporixAIChatResponse {
@@ -562,8 +613,9 @@ function envelopeSize(value: unknown): number {
 function responseFromWidgetState(state: AssemblyState, widget: WidgetState): EmporixAIChatResponse {
   return applyIdentityOverlay(
     {
-      ...FALLBACK_RESPONSE,
-      ...state.identityOverlay,
+      agentId: state.identityOverlay.agentId || FALLBACK_RESPONSE.agentId,
+      agentType: state.identityOverlay.agentType || FALLBACK_RESPONSE.agentType,
+      sessionId: state.identityOverlay.sessionId || FALLBACK_RESPONSE.sessionId,
       message: JSON.stringify({
         message: tokenIntroFromState(state),
         type: widget.type,
@@ -646,11 +698,13 @@ function pickRicherResponse(
 function finishAssembly(state: AssemblyState): EmporixAIChatResponse {
   const chosen = pickRicherResponse(responseFromResolvedWidget(state), responseFromTokenEnvelope(state));
   if (chosen) {
-    return assertNonEmptyMessage(chosen);
+    return assertNonEmptyMessage(withSanitizedCompletion(chosen));
   }
 
   if (state.capturedResponse) {
-    return assertNonEmptyMessage(applyIdentityOverlay(state.capturedResponse, state.identityOverlay));
+    return assertNonEmptyMessage(
+      withSanitizedCompletion(applyIdentityOverlay(state.capturedResponse, state.identityOverlay)),
+    );
   }
 
   if (state.textBuffer !== '') {

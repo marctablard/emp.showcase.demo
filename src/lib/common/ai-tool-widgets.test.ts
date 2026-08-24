@@ -14,7 +14,18 @@ describe('ai-tool-widgets', () => {
     });
     expect(adapted?.type).toBe('quote_list');
     expect(adapted?.data.quotes).toHaveLength(2);
-    expect((adapted?.data.quotes as Array<{ quoteId: string }>)[0].quoteId).toBe('Q1');
+    expect((adapted?.data.quotes as Array<{ id: string }>)[0].id).toBe('Q1');
+  });
+
+  it('preserves localized quote names until render', () => {
+    const adapted = adaptToolResult('get-quotes', {
+      quotes: [{ id: 'Q1', items: [{ product: { name: { en: 'Helmet', de: 'Helm' } } }] }],
+    });
+    const quote = (adapted?.data.quotes as Array<Record<string, unknown>>)[0];
+    expect(quote.id).toBe('Q1');
+    expect((quote.items as Array<Record<string, unknown>>)[0]).toMatchObject({
+      product: { name: { en: 'Helmet', de: 'Helm' } },
+    });
   });
 
   it('adapts customer JSON onto personalInfo', () => {

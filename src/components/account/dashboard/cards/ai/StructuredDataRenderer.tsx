@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
+import { widgetHasItems } from '@/lib/common/ai-tool-widgets';
 import { AccountDetailsRenderer } from './renderers/AccountDetailsRenderer';
 import { AddressListRenderer } from './renderers/AddressListRenderer';
 import { CartSummaryRenderer } from './renderers/CartSummaryRenderer';
@@ -16,6 +17,7 @@ import { QuoteListRenderer } from './renderers/QuoteListRenderer';
 import { ReturnDetailsRenderer } from './renderers/ReturnDetailsRenderer';
 import { ReturnListRenderer } from './renderers/ReturnListRenderer';
 import { TableRenderer } from './renderers/TableRenderer';
+import { WidgetSkeleton } from './renderers/WidgetSkeleton';
 import type {
   AccountDetailsData,
   AddressListData,
@@ -51,6 +53,15 @@ export const StructuredDataRenderer: React.FC<StructuredDataRendererProps> = ({ 
       handlers.handleQuestionSubmit({ question: message });
     });
   };
+
+  if (
+    type !== 'text' &&
+    type !== 'html' &&
+    (data == null ||
+      (typeof data === 'object' && !Array.isArray(data) && !widgetHasItems(data as Record<string, unknown>)))
+  ) {
+    return <WidgetSkeleton />;
+  }
 
   switch (type) {
     case 'cart_summary':

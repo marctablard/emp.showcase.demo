@@ -61,19 +61,19 @@ describe('ChatMessages', () => {
     expect(screen.queryByTestId('loading-indicator')).not.toBeInTheDocument();
   });
 
-  it('shows live thinking without replacing a widget preview', () => {
+  it('shows live thinking status without raw chain-of-thought', () => {
     render(
       <ChatMessages
         messages={[{ id: '1', content: 'Show quotes', isUser: true, timestamp: new Date() }]}
         loading
         streamingPreview={{ kind: 'widget', type: 'quote_list', message: '', data: {} }}
-        streamingThinking="I will look up quotes."
+        streamingThinking="active"
         handlers={handlers}
       />,
     );
 
     expect(screen.getByText('thinking')).toBeInTheDocument();
-    expect(screen.getByText('I will look up quotes.')).toBeInTheDocument();
+    expect(screen.queryByText('I will look up quotes.')).not.toBeInTheDocument();
     expect(screen.queryByTestId('loading-indicator')).not.toBeInTheDocument();
   });
 

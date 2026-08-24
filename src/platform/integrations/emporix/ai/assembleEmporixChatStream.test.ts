@@ -103,7 +103,7 @@ describe('assembleEmporixChatStream', () => {
 
     expect(assembled).toEqual({
       agentId: 'frontendAgent',
-      agentType: '',
+      agentType: 'generic',
       message: JSON.stringify(frontendAgentPayload),
       sessionId: 'session-456',
     });
@@ -137,8 +137,8 @@ describe('assembleEmporixChatStream', () => {
     const assembled = await assembleEmporixChatStream(streamBody);
 
     expect(assembled).toEqual({
-      agentId: '',
-      agentType: '',
+      agentId: 'frontendAgent',
+      agentType: 'generic',
       message: JSON.stringify(envelope),
       sessionId: '',
     });
@@ -385,7 +385,7 @@ describe('assembleEmporixChatStream', () => {
     const filled = progressUpdates.find(
       (update) => Array.isArray(update.preview?.data?.quotes) && update.preview.data.quotes.length === 2,
     );
-    expect(filled?.preview?.data?.quotes?.map((quote) => quote.quoteId)).toEqual(['Q1', 'Q2']);
+    expect(filled?.preview?.data?.quotes?.map((quote) => quote.id ?? quote.quoteId)).toEqual(['Q1', 'Q2']);
     const parsed = JSON.parse(assembled.message);
     expect(parsed.type).toBe('quote_list');
     expect(parsed.message).toBe('Here are your quotes.');
@@ -596,9 +596,16 @@ describe('assembleEmporixChatStream', () => {
       progressUpdates.push(progress);
     });
 
-    expect(progressUpdates.some((update) => update.thinking === 'I will look up quotes.')).toBe(true);
+    expect(progressUpdates.some((update) => update.thinking === 'active')).toBe(true);
     expect(assembled.message).toBe('Here they are.');
     expect(assembled.message).not.toContain('I will look up quotes.');
+  });
+
+  it('sanitizes planning markdown from plain-text completion', async () => {
+    const planning = '## OBJECTIVE\n\nGoal.\n\n## CHECKLIST\n\nSteps.';
+    await expect(assembleEmporixChatStream(toContentToken(planning))).rejects.toThrow(
+      'AI stream contained an empty message',
+    );
   });
 
   it('fills product_list from indexedProducts tool_result before final tokens', async () => {

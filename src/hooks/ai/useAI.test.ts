@@ -173,7 +173,7 @@ describe('useAI hook', () => {
       ) => {
         onProgress?.({
           chunks: 2,
-          thinking: 'I will look up quotes.',
+          thinking: 'active',
           preview: {
             kind: 'widget',
             type: 'quote_list',
@@ -194,7 +194,7 @@ describe('useAI hook', () => {
     });
 
     await waitFor(() => {
-      expect(result.current.streamingThinking).toBe('I will look up quotes.');
+      expect(result.current.streamingThinking).toBe('active');
       expect(result.current.streamingPreview).toEqual({
         kind: 'widget',
         type: 'quote_list',

@@ -1,5 +1,3 @@
-import { mapAiQuote } from '@/components/account/dashboard/cards/ai/utils/map-ai-quote';
-
 const TOOL_WIDGET_TYPES: Record<string, string> = {
   'get-customer-orders': 'order_list',
   'get-products': 'product_list',
@@ -81,12 +79,15 @@ export const adaptToolResult = (toolName: string, output: unknown): AdaptedWidge
       return {
         type,
         data: {
-          quotes: extractList(payload, 'quotes').map((quote) => mapAiQuote(quote)),
+          // Keep localized maps until render (QuoteListRenderer + mapAiQuoteList).
+          quotes: extractList(payload, 'quotes'),
           pagination: extractPagination(payload),
         },
       };
-    case 'quote_details':
-      return { type, data: asWidgetData(mapAiQuote(extractSingleton(payload, 'quotes'))) };
+    case 'quote_details': {
+      const quote = extractSingleton(payload, 'quotes');
+      return { type, data: isRecord(quote) ? quote : {} };
+    }
     case 'order_list':
       return {
         type,
@@ -112,10 +113,6 @@ export const adaptToolResult = (toolName: string, output: unknown): AdaptedWidge
   }
   return null;
 };
-
-function asWidgetData(value: object): Record<string, unknown> {
-  return value as unknown as Record<string, unknown>;
-}
 
 const TOOL_ENVELOPE_PAYLOAD_KEYS = ['content', 'output', 'result'] as const;
 const TOOL_ENVELOPE_META_KEYS = new Set([

@@ -30,14 +30,14 @@ When streaming is on, `POST /api/ai/chat` is an SSE response. Each `progress` ev
 - `{ kind: "text", content }` — plain text or a `type: "text"` body as the `"message"` string arrives
 - `{ kind: "html", html }` — sanitized HTML from a `type: "html"` envelope as it arrives
 - `{ kind: "widget", type, message, data }` — a storefront card as soon as it can be typed:
-  - `tool_start` shows one empty skeleton for known tools (`get-quotes` → quote list, `get-customer-info` → account, …)
-  - `tool_result` fills the same renderer from JSON (`get-quotes` with two quotes → two cards). Tool-message wrappers (`name`/`type: tool`/`artifact`) are unwrapped first so a tool name like `get-customer-info` is never painted as the shopper's name.
+  - `tool_start` shows one empty skeleton for known tools (`get-quotes` → quote list, `get-customer-info` → account, …) and for indexed search tools whose canonical name starts with `indexed` (e.g. `search_*__indexedProducts` → product list, `indexedOrders` → order list)
+  - `tool_result` fills the same renderer from JSON (`get-quotes` with two quotes → two cards; indexed hits from `results[].metadata`). Tool-message wrappers (`name`/`type: tool`/`artifact`) are unwrapped first so a tool name like `get-customer-info` is never painted as the shopper's name.
   - token JSON is a fallback: incomplete widget envelopes show the skeleton plus caption; a complete envelope paints the card before `complete`
-- `thinking` — live collapsible chain-of-thought. It is **not** written into `complete.message` or `localStorage`.
+- `thinking: "active"` — opaque presence flag only. The Helper shows translated “thinking” status; **raw model chain-of-thought is never forwarded to the browser or painted**. It is **not** written into `complete.message` or `localStorage`.
 
 While `preview` is present, the Helper paints a live assistant bubble: **card first**, model caption underneath. Partial replies are **not** persisted to `localStorage`; the final parsed message is stored only on `complete`.
 
-When no preview is available yet — unnamed tools and no shopper `"message"` — the card shows the thinking spinner, or live thinking text when the model emits `thinking` events.
+When no preview is available yet — unnamed tools and no shopper `"message"` — the card shows the thinking spinner, and/or the opaque thinking status when upstream emits `thinking` events (never live CoT text).
 
 On `complete`, the Helper parses the assembled `message` and renders the final text plus typed widgets. If the stream only contained a filled `tool_result` (no token JSON), the BFF synthesizes the widget envelope from that result. A later token envelope with richer `data` replaces a husk `tool_result` (for example a wrapper whose `name` is the tool id).
 
@@ -71,7 +71,7 @@ Logout / login also drop unscoped keys immediately. Order links in any leftover 
 
 ## Agent contract
 
-Typed widgets should come from tool artifacts, not from the model re-serializing arrays. `frontendAgent` `outputFormat` can stay a small envelope (`message`, `type`, optional `data` for html/text). List payloads (`orders`, `products`, `quotes`, …) are projected in the Showcase BFF (`adaptToolResult`) from allowlisted tool results. Do not ask the model to emit raw HTML for orders or products.
+Typed widgets should come from tool artifacts, not from the model re-serializing arrays. `frontendAgent` `outputFormat` can stay a small envelope (`message`, `type`, optional `data` for html/text). List payloads (`orders`, `products`, `quotes`, …) are projected in the Showcase BFF (`adaptToolResult`) from allowlisted tool results — MCP-style `get-*` tools and indexed search tools whose canonical name starts with `indexed` (hits from `results[].metadata`). For quotes, the BFF extracts list/singleton JSON shape; locale flattening happens in renderers (`mapAiQuote` / `mapAiQuoteList`), not in `adaptToolResult`. Do not ask the model to emit raw HTML for orders or products.
 
 ## Quality examples
 
