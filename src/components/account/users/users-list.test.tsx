@@ -6,7 +6,13 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ACCOUNT_DETAIL_LIST_PAGE_SIZE, USERS_PER_PAGE } from '@/components/account/account-table-constants';
 import { CUSTOMER_ID } from '@/lib/common/customer-identity';
 import type { CompanyUser } from '@/platform/services/model/user-management/company-user';
-import { UsersList, deserializeShowOtherCompanyUsers, showOtherCompanyUsersStorageKey } from './users-list';
+import {
+  UsersList,
+  deserializeShowOtherCompanyUsers,
+  deserializeUsersListSort,
+  showOtherCompanyUsersStorageKey,
+  usersListSortStorageKey,
+} from './users-list';
 
 const persistOptionsLog: Array<{ enabled?: boolean; key: string; defaultValue: unknown }> = [];
 
@@ -68,6 +74,7 @@ jest.mock('@/hooks/user-management/useCompanyUsers', () => ({
 jest.mock('@/hooks/common/useGlobalCursor', () => ({
   useGlobalCursor: jest.fn(),
   acquireNavigationWaitCursorLease: jest.fn(),
+  releaseNavigationWaitCursorLease: jest.fn(),
 }));
 
 jest.mock('./delete-user-dialog', () => ({
@@ -161,6 +168,7 @@ describe('UsersList', () => {
 
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     persistOptionsLog.length = 0;
     mockUseSession.mockReturnValue(authenticatedSession());
     mockOtherCompanyUsersResult();
@@ -766,6 +774,47 @@ describe('UsersList', () => {
     expect(deserializeShowOtherCompanyUsers('{not-json')).toBe(false);
     expect(deserializeShowOtherCompanyUsers('true')).toBe(true);
     expect(deserializeShowOtherCompanyUsers('false')).toBe(false);
+  });
+
+  it('deserializes stored sort and falls back to firstName:asc when invalid', () => {
+    expect(deserializeUsersListSort(JSON.stringify({ field: 'lastName', direction: 'desc' }))).toEqual({
+      field: 'lastName',
+      direction: 'desc',
+    });
+    expect(deserializeUsersListSort('{not-json')).toEqual({ field: 'firstName', direction: 'asc' });
+    expect(deserializeUsersListSort(JSON.stringify({ field: 'userGroup', direction: 'asc' }))).toEqual({
+      field: 'firstName',
+      direction: 'asc',
+    });
+    expect(deserializeUsersListSort(JSON.stringify({ field: 'lastName', direction: 'up' }))).toEqual({
+      field: 'firstName',
+      direction: 'asc',
+    });
+  });
+
+  it('writes sort to sessionStorage and restores it after remount', async () => {
+    const storageKey = usersListSortStorageKey(AUTHENTICATED_CUSTOMER_ID);
+    mockUsersResult({ users: [buildUser()] });
+
+    const { unmount } = render(<UsersList initialUsers={[buildUser()]} />);
+    fireEvent.click(screen.getByRole('button', { name: /columns.lastName/ }));
+
+    await waitFor(() => {
+      expect(sessionStorage.getItem(storageKey)).toBe(JSON.stringify({ field: 'lastName', direction: 'asc' }));
+    });
+    expect(mockUseCompanyUsers.mock.calls[mockUseCompanyUsers.mock.calls.length - 1][1]).toMatchObject({
+      sort: 'lastName:asc',
+    });
+
+    unmount();
+    render(<UsersList initialUsers={[buildUser()]} />);
+
+    await waitFor(() => {
+      expect(mockUseCompanyUsers.mock.calls[mockUseCompanyUsers.mock.calls.length - 1][1]).toMatchObject({
+        sort: 'lastName:asc',
+      });
+    });
+    expect(screen.getByRole('columnheader', { name: /columns.lastName/ })).toHaveAttribute('aria-sort', 'ascending');
   });
 
   it('shows trash on the unchecked list without an onDeleteUser prop and opens the delete dialog', () => {

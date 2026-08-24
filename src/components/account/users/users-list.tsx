@@ -1,6 +1,6 @@
 'use client';
 
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useLayoutEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Plus, Search } from 'lucide-react';
 import { USERS_PER_PAGE } from '@/components/account/account-table-constants';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
 import { TableCard } from '@/components/ui/table';
-import { useGlobalCursor } from '@/hooks/common/useGlobalCursor';
+import { releaseNavigationWaitCursorLease, useGlobalCursor } from '@/hooks/common/useGlobalCursor';
 import { usePersistedState } from '@/hooks/common/usePersistedState';
 import { useSession } from '@/hooks/session/useSession';
 import { useCompanyUsers, useOtherCompanyUsers } from '@/hooks/user-management/useCompanyUsers';
@@ -22,9 +22,30 @@ import { type CompanyUserSortField, USER_SORT_FIELD_MAP, UsersTable } from './us
 
 const INITIAL_PAGE_SORT = 'firstName:asc';
 const SHOW_OTHER_COMPANY_USERS_PENDING_OWNER_ID = 'pending';
+const COMPANY_USER_SORT_FIELDS = new Set<CompanyUserSortField>([
+  'firstName',
+  'lastName',
+  'contactEmail',
+  'metadataCreatedAt',
+  'active',
+]);
+
+export type UsersListSortState = {
+  field: CompanyUserSortField;
+  direction: 'asc' | 'desc';
+};
+
+export const DEFAULT_USERS_LIST_SORT: UsersListSortState = {
+  field: 'firstName',
+  direction: 'asc',
+};
 
 export function showOtherCompanyUsersStorageKey(ownerId: string): string {
   return `user-management.v1:${encodeURIComponent(ownerId)}:showOtherCompanyUsers`;
+}
+
+export function usersListSortStorageKey(ownerId: string): string {
+  return `user-management.v1:${encodeURIComponent(ownerId)}:sort`;
 }
 
 export function deserializeShowOtherCompanyUsers(raw: string): boolean {
@@ -32,6 +53,26 @@ export function deserializeShowOtherCompanyUsers(raw: string): boolean {
     return JSON.parse(raw) === true;
   } catch {
     return false;
+  }
+}
+
+export function deserializeUsersListSort(raw: string): UsersListSortState {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') {
+      return DEFAULT_USERS_LIST_SORT;
+    }
+    const { field, direction } = parsed as Record<string, unknown>;
+    if (
+      typeof field === 'string' &&
+      COMPANY_USER_SORT_FIELDS.has(field as CompanyUserSortField) &&
+      (direction === 'asc' || direction === 'desc')
+    ) {
+      return { field: field as CompanyUserSortField, direction };
+    }
+    return DEFAULT_USERS_LIST_SORT;
+  } catch {
+    return DEFAULT_USERS_LIST_SORT;
   }
 }
 
@@ -77,8 +118,6 @@ export function UsersList({
   const { session } = useSession();
   const [isClient, setIsClient] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortField, setSortField] = useState<CompanyUserSortField>('firstName');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [quickSearch, setQuickSearch] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
   const [userToDelete, setUserToDelete] = useState<CompanyUser | null>(null);
@@ -98,6 +137,14 @@ export function UsersList({
     enabled: persistEnabled,
     deserialize: deserializeShowOtherCompanyUsers,
   });
+  const [sort, setSort] = usePersistedState<UsersListSortState>({
+    key: usersListSortStorageKey(ownerId ?? SHOW_OTHER_COMPANY_USERS_PENDING_OWNER_ID),
+    defaultValue: DEFAULT_USERS_LIST_SORT,
+    storage: 'sessionStorage',
+    enabled: persistEnabled,
+    deserialize: deserializeUsersListSort,
+  });
+  const { field: sortField, direction: sortDirection } = sort;
 
   const apiQuery = submittedSearch.length > 0 ? submittedSearch : undefined;
   const apiSort = `${USER_SORT_FIELD_MAP[sortField]}:${sortDirection}`;
@@ -160,6 +207,11 @@ export function UsersList({
     refreshUsers: refreshActiveUsers,
   } = otherCompanyUsersEnabled ? otherCompanyView : selectedLegalEntityView;
   useGlobalCursor(loading);
+  useLayoutEffect(() => {
+    if (!loading) {
+      releaseNavigationWaitCursorLease({ force: true });
+    }
+  }, [loading]);
 
   const applySubmittedSearch = (rawQuery: string) => {
     const nextSubmittedSearch = rawQuery.trim();
@@ -186,12 +238,12 @@ export function UsersList({
 
   const toggleSort = (field: CompanyUserSortField) => {
     setCurrentPage(1);
-    if (sortField === field) {
-      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
+    setSort((prev) => {
+      if (prev.field === field) {
+        return { field, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { field, direction: 'asc' };
+    });
   };
 
   const handlePreviousPage = () => {

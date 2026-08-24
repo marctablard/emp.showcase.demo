@@ -18,6 +18,7 @@ global.ResizeObserver = ResizeObserverMock;
 const mockPush = jest.fn();
 const mockRefresh = jest.fn();
 const mockNotify = jest.fn();
+const mockReleaseNavigationWaitCursorLease = jest.fn();
 const mockCreateCompanyUser = jest.fn();
 const mockUpdateCompanyUser = jest.fn();
 const mockFetchGroups = jest.fn();
@@ -36,6 +37,10 @@ jest.mock('@/i18n/navigation', () => ({
 
 jest.mock('@/hooks/session/useSession', () => ({
   useSession: () => ({ session: mockSession }),
+}));
+
+jest.mock('@/hooks/common/useGlobalCursor', () => ({
+  releaseNavigationWaitCursorLease: (...args: unknown[]) => mockReleaseNavigationWaitCursorLease(...args),
 }));
 
 jest.mock('@/lib/client/user-management', () => ({
@@ -196,6 +201,7 @@ describe('UserDetailsForm', () => {
   it('renders no password input and exactly one selected-company group selector', async () => {
     render(<UserDetailsForm />);
 
+    expect(mockReleaseNavigationWaitCursorLease).toHaveBeenCalledWith({ force: true });
     expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByLabelText(/form\.userGroupForCompany.*Selected Company/)).toBeInTheDocument(),
@@ -307,24 +313,28 @@ describe('UserDetailsForm', () => {
     await screen.findByText('Selected Company - Admin');
     await flushGroupSelectHydrate();
     expect(screen.getByRole('button', { name: 'save' })).toBeDisabled();
-    fireEvent.click(screen.getByText('form.groupPlaceholder'));
+    fireEvent.click(screen.getByText('form.contactOnly'));
     expect(screen.getByRole('button', { name: 'save' })).toBeEnabled();
   });
 
-  it('submits an empty assignment list when an existing edit group is cleared', async () => {
+  it('submits the Contact-only sentinel when an existing edit group is cleared', async () => {
     mockUpdateCompanyUser.mockResolvedValue(undefined);
     render(<UserDetailsForm initialUser={buildInitialUser()} />);
     await screen.findByText('Selected Company - Admin');
     await flushGroupSelectHydrate();
 
-    fireEvent.click(screen.getByText('form.groupPlaceholder'));
+    fireEvent.click(screen.getByText('form.contactOnly'));
     expect(screen.getByRole('button', { name: 'save' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'save' }));
 
     await waitFor(() =>
-      expect(mockUpdateCompanyUser).toHaveBeenCalledWith('user-1', expect.objectContaining({ groupAssignments: [] })),
+      expect(mockUpdateCompanyUser).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({
+          groupAssignments: [{ legalEntityId: 'le-1', groupId: CONTACT_ONLY_GROUP_ID }],
+        }),
+      ),
     );
-    expect(mockUpdateCompanyUser.mock.calls[0][1].groupAssignments).toEqual([]);
   });
 
   it('submits one selected-company assignment when assigning an ungrouped edit user', async () => {
@@ -689,7 +699,12 @@ describe('UserDetailsForm', () => {
     expect(await screen.findByText('Selected Company - Admin')).toBeInTheDocument();
     expect(userGroupSelectTriggers()).toHaveLength(1);
     expect(screen.getByRole('list')).toHaveTextContent('Other Company - Buyer');
-    expect(screen.queryAllByText('form.groupPlaceholder')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'form.contactOnly' })).toBeInTheDocument();
+    expect(
+      screen
+        .queryAllByRole('button', { name: 'form.groupPlaceholder' })
+        .filter((element) => element.hasAttribute('data-select-item')),
+    ).toHaveLength(0);
   });
 
   it('shows the safe same-company create error through the existing notification path', async () => {
@@ -898,30 +913,20 @@ describe('UserDetailsForm', () => {
     expect(screen.queryByRole('button', { name: 'contact-group' })).not.toBeInTheDocument();
   });
 
-  it('uses Unassign as the empty option for a selected-LE member and Select group otherwise', async () => {
-    const { unmount } = render(
-      <UserDetailsForm initialUser={buildInitialUser({ isSelectedLegalEntityMember: true })} />,
-    );
+  it('offers Contact only and catalog groups without an Unassign empty option', async () => {
+    render(<UserDetailsForm initialUser={buildInitialUser({ isSelectedLegalEntityMember: true })} />);
     await screen.findByText('Selected Company - Admin');
-    expect(screen.getByText('form.unassignFromCompany')).toBeInTheDocument();
+
+    expect(screen.getByRole('button', { name: 'form.contactOnly' })).toHaveAttribute(
+      'data-select-item',
+      CONTACT_ONLY_GROUP_ID,
+    );
+    expect(screen.queryByText('form.unassignFromCompany')).not.toBeInTheDocument();
     expect(
       screen
         .queryAllByRole('button', { name: 'form.groupPlaceholder' })
         .filter((element) => element.hasAttribute('data-select-item')),
     ).toHaveLength(0);
-    unmount();
-
-    render(
-      <UserDetailsForm
-        initialUser={buildInitialUser({
-          isSelectedLegalEntityMember: false,
-          groups: [{ id: 'group-2', legalEntityId: 'le-2', displayName: 'Other Company - Buyer' }],
-        })}
-      />,
-    );
-    await screen.findByLabelText(/form\.userGroupForCompany.*Selected Company/);
-    expect(screen.getByText('form.groupPlaceholder')).toBeInTheDocument();
-    expect(screen.queryByText('form.unassignFromCompany')).not.toBeInTheDocument();
   });
 
   it('shows Active user and keep-access hint when editing an active user', async () => {

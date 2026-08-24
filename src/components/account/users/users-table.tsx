@@ -7,7 +7,6 @@ import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TablePagination } from '@/components/ui/table-pagination';
-import { acquireNavigationWaitCursorLease } from '@/hooks/common/useGlobalCursor';
 import { useRouter } from '@/i18n/navigation';
 import { formatDate } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
@@ -173,7 +172,6 @@ export function UsersTable({
                 const editHref = `/account/users/${user.id}`;
                 const userGroupNames = formatUserGroupNames(user, contactOnlyLabel);
                 const openEdit = () => {
-                  acquireNavigationWaitCursorLease();
                   router.push(editHref);
                 };
 

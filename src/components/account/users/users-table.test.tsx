@@ -7,7 +7,6 @@ import type { CompanyUser } from '@/platform/services/model/user-management/comp
 import { USER_SORT_FIELD_MAP, UsersTable } from './users-table';
 
 const mockPush = jest.fn();
-const mockAcquireNavigationWaitCursorLease = jest.fn();
 
 jest.mock('next-intl', () => ({
   useTranslations: () => {
@@ -37,7 +36,6 @@ jest.mock('@/i18n/navigation', () => ({
 
 jest.mock('@/hooks/common/useGlobalCursor', () => ({
   useGlobalCursor: jest.fn(),
-  acquireNavigationWaitCursorLease: (...args: unknown[]) => mockAcquireNavigationWaitCursorLease(...args),
 }));
 
 function buildUser(overrides: Partial<CompanyUser> = {}): CompanyUser {
@@ -56,7 +54,6 @@ function buildUser(overrides: Partial<CompanyUser> = {}): CompanyUser {
 describe('UsersTable', () => {
   beforeEach(() => {
     mockPush.mockClear();
-    mockAcquireNavigationWaitCursorLease.mockClear();
   });
   it('maps Created to metadataCreatedAt and does not include userGroup in the sort map', () => {
     expect(USER_SORT_FIELD_MAP.metadataCreatedAt).toBe('metadataCreatedAt');
@@ -272,15 +269,12 @@ describe('UsersTable', () => {
     render(<UsersTable users={[buildUser()]} onDeleteUser={onDeleteUser} />);
 
     fireEvent.click(screen.getByText('j.smith@mail.com'));
-    expect(mockAcquireNavigationWaitCursorLease).toHaveBeenCalled();
     expect(mockPush).toHaveBeenCalledWith('/account/users/user-1');
 
     mockPush.mockClear();
-    mockAcquireNavigationWaitCursorLease.mockClear();
     fireEvent.click(screen.getByRole('button', { name: 'deleteAriaLabel:John Smith' }));
     expect(onDeleteUser).toHaveBeenCalledTimes(1);
     expect(mockPush).not.toHaveBeenCalled();
-    expect(mockAcquireNavigationWaitCursorLease).not.toHaveBeenCalled();
   });
 
   it('omits delete controls when onDeleteUser is not provided', () => {

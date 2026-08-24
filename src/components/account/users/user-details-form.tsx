@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Spinner } from '@/components/ui/spinner';
 import { ToastType, notify } from '@/components/ui/toast-notification';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { releaseNavigationWaitCursorLease } from '@/hooks/common/useGlobalCursor';
 import { useSession } from '@/hooks/session/useSession';
 import { useValidator } from '@/hooks/validation/useValidator';
 import { useRouter } from '@/i18n/navigation';
@@ -102,16 +103,6 @@ function sessionLegalEntityIdValue(legalEntityId: unknown): string {
     return legalEntityId.trim();
   }
   return '';
-}
-
-function emptyGroupOptionLabelForUser(
-  initialUser: CompanyUser | undefined,
-  translate: UserManagementTranslate,
-): string {
-  if (initialUser?.isSelectedLegalEntityMember === true) {
-    return translate('form.unassignFromCompany');
-  }
-  return translate('form.groupPlaceholder');
 }
 
 function activeToggleCopy(initialUser: CompanyUser | undefined, translate: UserManagementTranslate) {
@@ -529,7 +520,7 @@ function UserDetailsGroupSelect({
   companyHeading,
   selectedGroupId,
   selectedGroupLabel,
-  emptyGroupOptionLabel,
+  groupPlaceholderLabel,
   contactOnlyLabel,
   selectableCatalogGroups,
   isSaving,
@@ -541,7 +532,7 @@ function UserDetailsGroupSelect({
   companyHeading: string;
   selectedGroupId: string;
   selectedGroupLabel: string | undefined;
-  emptyGroupOptionLabel: string;
+  groupPlaceholderLabel: string;
   contactOnlyLabel: string;
   selectableCatalogGroups: AssignableLegalEntityGroups['groups'];
   isSaving: boolean;
@@ -563,11 +554,10 @@ function UserDetailsGroupSelect({
           aria-invalid={groupError ? true : undefined}
           aria-describedby={describedBy}
         >
-          <SelectValue placeholder={emptyGroupOptionLabel}>{selectedGroupLabel}</SelectValue>
+          <SelectValue placeholder={groupPlaceholderLabel}>{selectedGroupLabel}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={CONTACT_ONLY_GROUP_ID}>{contactOnlyLabel}</SelectItem>
-          <SelectItem value={NO_SELECTION}>{emptyGroupOptionLabel}</SelectItem>
           {selectableCatalogGroups.map((group) => (
             <SelectItem key={group.id} value={group.id}>
               {group.displayName}
@@ -617,7 +607,7 @@ function UserDetailsGroupsSection({
   companyHeading,
   selectedGroupId,
   selectedGroupLabel,
-  emptyGroupOptionLabel,
+  groupPlaceholderLabel,
   contactOnlyLabel,
   selectableCatalogGroups,
   isSaving,
@@ -636,7 +626,7 @@ function UserDetailsGroupsSection({
   companyHeading: string;
   selectedGroupId: string;
   selectedGroupLabel: string | undefined;
-  emptyGroupOptionLabel: string;
+  groupPlaceholderLabel: string;
   contactOnlyLabel: string;
   selectableCatalogGroups: AssignableLegalEntityGroups['groups'];
   isSaving: boolean;
@@ -674,7 +664,7 @@ function UserDetailsGroupsSection({
           companyHeading={companyHeading}
           selectedGroupId={selectedGroupId}
           selectedGroupLabel={selectedGroupLabel}
-          emptyGroupOptionLabel={emptyGroupOptionLabel}
+          groupPlaceholderLabel={groupPlaceholderLabel}
           contactOnlyLabel={contactOnlyLabel}
           selectableCatalogGroups={selectableCatalogGroups}
           isSaving={isSaving}
@@ -725,6 +715,10 @@ export function UserDetailsForm({ initialUser, headerCompanies = [] }: Readonly<
   const t = useTranslations('user-management');
   const router = useRouter();
   const { session } = useSession();
+
+  useLayoutEffect(() => {
+    releaseNavigationWaitCursorLease({ force: true });
+  }, []);
   const [legalEntityGroups, setLegalEntityGroups] = useState<AssignableLegalEntityGroups[]>([]);
   const [groupsLoading, setGroupsLoading] = useState(true);
   const [groupsError, setGroupsError] = useState<string | null>(null);
@@ -860,7 +854,7 @@ export function UserDetailsForm({ initialUser, headerCompanies = [] }: Readonly<
   const active = form.watch('active') as boolean;
   const contactOnlyLabel = t.raw('form.contactOnly');
   const groupPicker = resolveGroupPickerSelection(assignments, selectedLegalEntityGroups, contactOnlyLabel);
-  const emptyGroupOptionLabel = emptyGroupOptionLabelForUser(initialUser, t);
+  const groupPlaceholderLabel = t('form.groupPlaceholder');
   const activeCopy = activeToggleCopy(initialUser, t);
 
   const updateGroupAssignment = useCallback(
@@ -1076,7 +1070,7 @@ export function UserDetailsForm({ initialUser, headerCompanies = [] }: Readonly<
                   })}
                   selectedGroupId={groupPicker.selectedGroupId}
                   selectedGroupLabel={groupPicker.selectedGroupLabel}
-                  emptyGroupOptionLabel={emptyGroupOptionLabel}
+                  groupPlaceholderLabel={groupPlaceholderLabel}
                   contactOnlyLabel={contactOnlyLabel}
                   selectableCatalogGroups={groupPicker.selectableCatalogGroups}
                   isSaving={isSaving}
