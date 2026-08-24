@@ -97,7 +97,7 @@ describe('/api/company-users', () => {
     expect(userManagementService.listUsers.mock.calls[0]).not.toContain('id:(other-company)');
   });
 
-  it.each(['userGroup:asc', 'fullName:desc', 'approver.fullName:asc'])(
+  it.each(['userGroup:asc', 'fullName:desc', 'approver.fullName:asc', 'firstName:asc:extra', 'firstName:up'])(
     'rejects non-raw sort key %s with 400',
     async (sort) => {
       const response = await GET({
@@ -243,6 +243,24 @@ describe('/api/company-users', () => {
       active: false,
       groupAssignments: [{ legalEntityId: 'le-1', groupId: 'group-1' }],
     });
+  });
+
+  it.each([undefined, 'true', 1])('returns 400 when create active is not a boolean (%s)', async (active) => {
+    const payload = {
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      contactEmail: 'ada@example.com',
+      groupAssignments: [{ legalEntityId: 'le-1', groupId: 'group-1' }],
+      ...(active === undefined ? {} : { active }),
+    };
+
+    const response = await POST({
+      json: jest.fn().mockResolvedValue(payload),
+    } as never);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: 'Invalid company user request' });
+    expect(userManagementService.createUser).not.toHaveBeenCalled();
   });
 
   it.each(['firstName', 'lastName', 'contactEmail'])('returns 400 when create %s is whitespace-only', async (field) => {

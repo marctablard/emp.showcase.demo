@@ -3,6 +3,8 @@
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 
+const COMPANY_SCOPE_RADIO_NAME = 'company-scope';
+
 interface CompanyScopeToggleProps {
   currentCompanyName?: string;
   showAllCompanies: boolean;
@@ -30,12 +32,14 @@ export function CompanyScopeToggle({
       <ScopeOption
         checked={!showAllCompanies}
         label={companyLabel}
+        value="current"
         className="max-w-48"
         onSelect={() => onShowAllCompaniesChange(false)}
       />
       <ScopeOption
         checked={showAllCompanies}
         label={t('allCompanies')}
+        value="all"
         onSelect={() => onShowAllCompaniesChange(true)}
       />
     </div>
@@ -45,30 +49,36 @@ export function CompanyScopeToggle({
 function ScopeOption({
   checked,
   label,
+  value,
   className,
   onSelect,
 }: Readonly<{
   checked: boolean;
   label: string;
+  value: 'current' | 'all';
   className?: string;
   onSelect: () => void;
 }>) {
   return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={checked}
+    <label
       className={cn(
-        'inline-flex min-w-0 items-center justify-center rounded-full px-2 py-1 uppercase',
-        'focus-visible:ring-border-focus focus-visible:outline-none focus-visible:ring-2',
+        'inline-flex min-w-0 cursor-pointer items-center justify-center rounded-full px-2 py-1 uppercase',
+        'has-[:focus-visible]:ring-border-focus has-[:focus-visible]:outline-none has-[:focus-visible]:ring-2',
         checked
           ? 'bg-surface-action font-headlines text-action-button tracking-[var(--desktop-spacing-action-button)] text-text-on-action'
           : 'font-bold text-base leading-6 text-text-action',
         className,
       )}
-      onClick={onSelect}
     >
+      <input
+        type="radio"
+        name={COMPANY_SCOPE_RADIO_NAME}
+        value={value}
+        checked={checked}
+        className="sr-only"
+        onChange={onSelect}
+      />
       <span className="truncate">{label}</span>
-    </button>
+    </label>
   );
 }

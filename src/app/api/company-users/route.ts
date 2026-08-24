@@ -129,8 +129,8 @@ export async function POST(request: NextRequest) {
 }
 
 function isAllowedSort(sort: string): boolean {
-  const field = sort.split(':')[0];
-  return ALLOWED_SORT_FIELDS.has(field);
+  const [field, direction, extra] = sort.split(':');
+  return extra === undefined && ALLOWED_SORT_FIELDS.has(field) && (direction === 'asc' || direction === 'desc');
 }
 
 class CompanyUsersQueryValidationError extends Error {
@@ -215,7 +215,7 @@ function parseCreateBody(body: unknown): CreateCompanyUserRequest | undefined {
     return undefined;
   }
   const groupAssignments = parseGroupAssignments(data.groupAssignments);
-  if (!groupAssignments) {
+  if (!groupAssignments || typeof data.active !== 'boolean') {
     return undefined;
   }
 
@@ -223,7 +223,7 @@ function parseCreateBody(body: unknown): CreateCompanyUserRequest | undefined {
     firstName,
     lastName,
     contactEmail,
-    active: data.active === true,
+    active: data.active,
     groupAssignments,
   };
 

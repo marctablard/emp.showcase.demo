@@ -92,8 +92,8 @@ export async function GET(request: NextRequest) {
 }
 
 function isAllowedSort(sort: string): boolean {
-  const field = sort.split(':')[0];
-  return ALLOWED_SORT_FIELDS.has(field);
+  const [field, direction, extra] = sort.split(':');
+  return extra === undefined && ALLOWED_SORT_FIELDS.has(field) && (direction === 'asc' || direction === 'desc');
 }
 
 function adminRequiredResponse(error: AdminRequiredError) {

@@ -5,7 +5,7 @@ import { createEmporixApiError } from '@/platform/integrations/emporix/common/Em
 import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
-import { buildPaginatedResponse, buildSearchQuery } from '../../common/util/common';
+import { buildPaginatedResponse, buildSearchQuery, extractItemsFromPaginatedJsonBody } from '../../common/util/common';
 import type { EmporixConfig } from '../../config';
 import type { EmporixPaginatedResponse, EmporixSearchParams } from '../../model';
 import type {
@@ -67,15 +67,12 @@ class EmporixIamApi implements IEmporixIamApi {
       throw new Error(`Failed to retrieve users: ${response.statusText}`);
     }
 
-    const items: unknown = await response.json();
-    if (!Array.isArray(items)) {
-      throw new TypeError('Failed to retrieve users: response body is not an array');
-    }
+    const items = extractItemsFromPaginatedJsonBody<EmporixIamUser>(await response.json());
 
     const rawTotalCount = response.headers.get('x-total-count');
     const parsedTotalCount = rawTotalCount === null ? Number.NaN : Number.parseInt(rawTotalCount, 10);
     return {
-      items: items as EmporixIamUser[],
+      items,
       ...(Number.isFinite(parsedTotalCount) ? { totalCount: parsedTotalCount } : {}),
     };
   }
@@ -262,7 +259,7 @@ class EmporixIamApi implements IEmporixIamApi {
   ): Promise<{ id: string }> {
     const url = `/iam/${this.config.tenant}/groups/${groupId}/users`;
     const requestHeaders = { 'Content-Type': 'application/json' };
-    const requestBody = { ...groupAssignment, groupId };
+    const requestBody = groupAssignment;
     const response = await this.apiClient.authenticatedFetch(
       url,
       {
@@ -280,6 +277,7 @@ class EmporixIamApi implements IEmporixIamApi {
       tokenType,
       method: 'POST',
       url,
+      groupId,
       requestHeaders,
       requestBody,
       responseStatus: response.status,

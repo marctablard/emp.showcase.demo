@@ -75,12 +75,21 @@ describe('EmporixIamApi', () => {
       });
     });
 
-    it('rejects a non-array response body', async () => {
-      mockApiClient.authenticatedFetch.mockResolvedValue(jsonResponse({ items: [] }));
-
-      await expect(iamApi.getUsers()).rejects.toThrow(
-        new TypeError('Failed to retrieve users: response body is not an array'),
+    it('reads users from an { items } wrapper when the body is not a bare array', async () => {
+      mockApiClient.authenticatedFetch.mockResolvedValue(
+        jsonResponse({ items: [{ id: 'customer-2', userType: 'CUSTOMER' }] }, { headers: { 'x-total-count': '1' } }),
       );
+
+      await expect(iamApi.getUsers()).resolves.toEqual({
+        items: [{ id: 'customer-2', userType: 'CUSTOMER' }],
+        totalCount: 1,
+      });
+    });
+
+    it('returns an empty list when the body is neither an array nor an items wrapper', async () => {
+      mockApiClient.authenticatedFetch.mockResolvedValue(jsonResponse({ code: 404, message: 'Not Found' }));
+
+      await expect(iamApi.getUsers()).resolves.toEqual({ items: [] });
     });
   });
 
@@ -124,15 +133,16 @@ describe('EmporixIamApi', () => {
       expect(url).toBe('/iam/test-tenant/groups/group-1/users');
       expect(options.method).toBe('POST');
       expect(tokenType).toBe('service');
-      expect(JSON.parse(String(options.body))).toEqual({ ...assignment, groupId: 'group-1' });
+      expect(JSON.parse(String(options.body))).toEqual(assignment);
       expect(mockLogger.info).toHaveBeenCalledWith(
         {
           operation: 'Add user to group',
           tokenType: 'service',
           method: 'POST',
           url: '/iam/test-tenant/groups/group-1/users',
+          groupId: 'group-1',
           requestHeaders: { 'Content-Type': 'application/json' },
-          requestBody: { ...assignment, groupId: 'group-1' },
+          requestBody: assignment,
           responseStatus: 201,
           responseBody: { id: 'asg-1' },
         },
@@ -163,8 +173,9 @@ describe('EmporixIamApi', () => {
           tokenType: 'service',
           method: 'POST',
           url: '/iam/test-tenant/groups/missing-group/users',
+          groupId: 'missing-group',
           requestHeaders: { 'Content-Type': 'application/json' },
-          requestBody: { ...assignment, groupId: 'missing-group' },
+          requestBody: assignment,
           responseStatus: 404,
           responseBody: upstreamBody,
         },

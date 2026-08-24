@@ -117,7 +117,7 @@ describe('GET /api/company-users/other-companies', () => {
     expect(userManagementService.listOtherCompanyUsers.mock.calls[0]).not.toContain('id:(other-company)');
   });
 
-  it.each(['userGroup:asc', 'fullName:desc', 'approver.fullName:asc'])(
+  it.each(['userGroup:asc', 'fullName:desc', 'approver.fullName:asc', 'firstName:asc:extra', 'firstName:up'])(
     'rejects non-raw sort key %s with 400',
     async (sort) => {
       const response = await GET({
