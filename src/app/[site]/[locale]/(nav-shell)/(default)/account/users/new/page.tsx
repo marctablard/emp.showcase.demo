@@ -6,7 +6,7 @@ import { requireB2bAdmin } from '@/lib/ssr/user-management';
 
 export const dynamic = 'force-dynamic';
 
-export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
+export async function generateMetadata({ params }: Readonly<{ params: Promise<{ locale: string }> }>) {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'user-management' });
 
@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   };
 }
 
-export default async function NewUserPage({ params }: { params: Promise<{ locale: string }> }) {
+export default async function NewUserPage({ params }: Readonly<{ params: Promise<{ locale: string }> }>) {
   await requireB2bAdmin();
   const { locale } = await params;
   const [tAccount, tUserManagement] = await Promise.all([

@@ -201,9 +201,33 @@ describe('checkTokenValidity', () => {
 });
 
 describe('decodeTokenLegalEntityId', () => {
-  it('reads context.legalEntityId from a JWT payload', () => {
-    const payload = Buffer.from(JSON.stringify({ context: { legalEntityId: 'le-nested' } })).toString('base64url');
+  const jwtWithPayload = (claims: Record<string, unknown>) => {
+    const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');
+    return `header.${payload}.signature`;
+  };
 
-    expect(decodeTokenLegalEntityId(`header.${payload}.signature`)).toBe('le-nested');
+  it('reads context.legalEntityId from a JWT payload', () => {
+    expect(decodeTokenLegalEntityId(jwtWithPayload({ context: { legalEntityId: 'le-nested' } }))).toBe('le-nested');
+  });
+
+  it('reads top-level legalEntityId and legal_entity_id claims', () => {
+    expect(decodeTokenLegalEntityId(jwtWithPayload({ legalEntityId: 'le-top' }))).toBe('le-top');
+    expect(decodeTokenLegalEntityId(jwtWithPayload({ legal_entity_id: 'le-snake' }))).toBe('le-snake');
+  });
+
+  it('decodes with Buffer.from when globalThis.atob is unavailable', () => {
+    const token = jwtWithPayload({ legalEntityId: 'le-buffer' });
+    const originalAtob = globalThis.atob;
+    Object.defineProperty(globalThis, 'atob', { configurable: true, value: undefined });
+    try {
+      expect(decodeTokenLegalEntityId(token)).toBe('le-buffer');
+    } finally {
+      Object.defineProperty(globalThis, 'atob', { configurable: true, value: originalAtob });
+    }
+  });
+
+  it('returns undefined for missing, malformed, or non-string claims', () => {
+    expect(decodeTokenLegalEntityId(undefined, 'not-a-jwt', 'header..sig')).toBeUndefined();
+    expect(decodeTokenLegalEntityId(jwtWithPayload({ legalEntityId: 12 }))).toBeUndefined();
   });
 });

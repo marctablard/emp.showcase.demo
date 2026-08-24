@@ -7,7 +7,7 @@ import { getCompanyUserById, getHeaderCompanies, requireB2bAdmin } from '@/lib/s
 
 export const dynamic = 'force-dynamic';
 
-export async function generateMetadata({ params }: { params: Promise<{ locale: string; id: string }> }) {
+export async function generateMetadata({ params }: Readonly<{ params: Promise<{ locale: string; id: string }> }>) {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'user-management' });
 
@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   };
 }
 
-export default async function EditUserPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
+export default async function EditUserPage({ params }: Readonly<{ params: Promise<{ locale: string; id: string }> }>) {
   await requireB2bAdmin();
   const { locale, id } = await params;
   const [tAccount, tUserManagement, user, headerCompanies] = await Promise.all([

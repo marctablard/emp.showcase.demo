@@ -118,6 +118,13 @@ export function checkTokenValidity(token?: string, expiryAt?: number, threshold:
   return Date.now() <= expiryAt - threshold;
 }
 
+function decodeBase64Payload(base64: string): string {
+  if (typeof globalThis.atob === 'function') {
+    return globalThis.atob(base64);
+  }
+  return Buffer.from(base64, 'base64').toString('utf8');
+}
+
 /**
  * Reads the legal-entity claim without validating or exposing the JWT.
  * Token signature validation remains the responsibility of the OAuth/API layer.
@@ -133,10 +140,10 @@ export function decodeTokenLegalEntityId(...tokens: Array<string | undefined>): 
         continue;
       }
       const base64 = payload
-        .replace(/-/g, '+')
-        .replace(/_/g, '/')
+        .replaceAll('-', '+')
+        .replaceAll('_', '/')
         .padEnd(Math.ceil(payload.length / 4) * 4, '=');
-      const decoded = JSON.parse(atob(base64)) as {
+      const decoded = JSON.parse(decodeBase64Payload(base64)) as {
         legalEntityId?: unknown;
         legal_entity_id?: unknown;
         context?: unknown;

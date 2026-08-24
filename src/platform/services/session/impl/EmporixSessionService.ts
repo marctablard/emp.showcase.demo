@@ -34,7 +34,7 @@ class EmporixSessionService implements SessionService {
     @inject('EmporixSessionMapper') private mapper: SessionMapper<EmporixSessionContext, EmporixContextAttribute>,
     @inject('SiteService') private siteService: SiteService,
     @inject('EmporixTokenManager') private tokenManager: EmporixTokenManager,
-    @inject('EmporixOAuthApi') private oauthApi: EmporixOAuthApi,
+    @inject('EmporixOAuthApi') private readonly oauthApi: EmporixOAuthApi,
     @inject('EmporixConfig') private config: EmporixConfig,
     @inject('LoggerService') private logger: LoggerService,
   ) {}

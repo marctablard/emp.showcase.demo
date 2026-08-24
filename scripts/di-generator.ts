@@ -1342,12 +1342,12 @@ console.log('Watching for changes...');
 const args = process.argv.slice(2);
 const watchMode = args.includes('--watch');
 
-// Run the generator
+// Run the generator. Watch mode bootstraps once, then watches; ignoreInitial
+// avoids a second generate on the watcher's first scan (the prior generate+watch race).
 (async () => {
+  await generateAllContainers();
   if (watchMode) {
     watchForChanges();
-  } else {
-    await generateAllContainers();
   }
 })().catch((error) => {
   console.error('Error:', error);

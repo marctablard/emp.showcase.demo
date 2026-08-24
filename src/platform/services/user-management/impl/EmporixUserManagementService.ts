@@ -435,41 +435,23 @@ export class EmporixUserManagementService implements UserManagementService {
         ASSIGNMENT_PAGE_SIZE,
       );
       assignments.push(...items);
-
-      for (const assignment of items) {
-        const userId = assignment.customer?.id;
-        if (!userId) {
-          continue;
-        }
-        memberIds.add(userId);
-        if (memberIds.size > MAX_SELECTED_LE_USERS) {
-          this.logger.error(
-            { legalEntityId, collected: memberIds.size },
-            'Selected-LE assignment member volume exceeds showcase memory',
-          );
-          throw new Error('Selected legal entity user volume exceeds showcase in-memory limit');
-        }
-      }
+      addAssignmentCustomerIds(items, memberIds, legalEntityId, this.logger);
 
       if (items.length === 0 || items.length < ASSIGNMENT_PAGE_SIZE) {
         break;
       }
       pageNumber += 1;
-      const maxPagesWithTotal = totalCount !== undefined ? Math.ceil(totalCount / ASSIGNMENT_PAGE_SIZE) + 1 : undefined;
-      if (maxPagesWithTotal !== undefined && pageNumber > maxPagesWithTotal) {
-        this.logger.error(
-          { legalEntityId, pageNumber, totalCount, pageSize: ASSIGNMENT_PAGE_SIZE, collected: memberIds.size },
-          'Selected-LE assignment paging exceeded total-count runaway safety',
-        );
-        throw new Error('Selected-LE assignment paging exceeded runaway-page safety');
-      }
-      if (maxPagesWithTotal === undefined && pageNumber > MAX_PAGES_WITHOUT_TOTAL) {
-        this.logger.error(
-          { legalEntityId, pageNumber, pageSize: ASSIGNMENT_PAGE_SIZE, collected: memberIds.size },
-          'Selected-LE assignment paging missing total-count runaway safety',
-        );
-        throw new Error('Selected-LE assignment paging exceeded runaway-page safety');
-      }
+      assertPagedCollectionRunaway({
+        logger: this.logger,
+        pageNumber,
+        pageSize: ASSIGNMENT_PAGE_SIZE,
+        totalCount,
+        collected: memberIds.size,
+        context: { legalEntityId },
+        exceededTotalMessage: 'Selected-LE assignment paging exceeded total-count runaway safety',
+        missingTotalMessage: 'Selected-LE assignment paging missing total-count runaway safety',
+        errorMessage: 'Selected-LE assignment paging exceeded runaway-page safety',
+      });
     }
 
     return { assignments, memberIds };
@@ -515,33 +497,16 @@ export class EmporixUserManagementService implements UserManagementService {
     const groupsById = new Map<string, EmporixGroup>();
 
     for (const legalEntityId of legalEntityIds) {
-      let hasEmbeddedCustomerGroups = false;
-      for (const assignment of assignments) {
-        if (assignment.legalEntity?.id !== legalEntityId) {
-          continue;
-        }
-        const customerGroups = assignment.legalEntity.customerGroups;
-        if (!Array.isArray(customerGroups)) {
-          continue;
-        }
-        hasEmbeddedCustomerGroups = true;
-        for (const customerGroup of customerGroups) {
-          if (!customerGroup.id) {
-            continue;
-          }
-          groupsById.set(customerGroup.id, toCatalogGroup(customerGroup, legalEntityId));
-        }
-      }
-
+      const hasEmbeddedCustomerGroups = mergeEmbeddedCatalogGroupsForLegalEntity(
+        legalEntityId,
+        assignments,
+        groupsById,
+      );
       if (hasEmbeddedCustomerGroups) {
         continue;
       }
       const fallbackGroups = await this.loadAssignableGroupsForLegalEntity(legalEntityId);
-      for (const group of fallbackGroups) {
-        if (group.id) {
-          groupsById.set(group.id, group);
-        }
-      }
+      mergeCatalogGroupsById(fallbackGroups, groupsById);
     }
 
     return groupsById;
@@ -665,22 +630,16 @@ export class EmporixUserManagementService implements UserManagementService {
       }
 
       pageNumber += 1;
-      const maxPagesWithTotal =
-        response.total !== undefined ? Math.ceil(response.total / GROUP_USERS_PAGE_SIZE) + 1 : undefined;
-      if (maxPagesWithTotal !== undefined && pageNumber > maxPagesWithTotal) {
-        this.logger.error(
-          { groupId, pageNumber, totalCount: response.total, pageSize: GROUP_USERS_PAGE_SIZE },
-          'Group-users paging exceeded total-count runaway safety',
-        );
-        throw new Error('Group-users paging exceeded runaway-page safety');
-      }
-      if (maxPagesWithTotal === undefined && pageNumber > MAX_PAGES_WITHOUT_TOTAL) {
-        this.logger.error(
-          { groupId, pageNumber, pageSize: GROUP_USERS_PAGE_SIZE },
-          'Group-users paging missing total-count runaway safety',
-        );
-        throw new Error('Group-users paging exceeded runaway-page safety');
-      }
+      assertPagedCollectionRunaway({
+        logger: this.logger,
+        pageNumber,
+        pageSize: GROUP_USERS_PAGE_SIZE,
+        totalCount: response.total,
+        context: { groupId },
+        exceededTotalMessage: 'Group-users paging exceeded total-count runaway safety',
+        missingTotalMessage: 'Group-users paging missing total-count runaway safety',
+        errorMessage: 'Group-users paging exceeded runaway-page safety',
+      });
     }
 
     return matchedMembershipIds;
@@ -879,9 +838,7 @@ export class EmporixUserManagementService implements UserManagementService {
     return this.mapper.mapToService(customer, {
       groups: customerGroups,
       companyNameByLegalEntityId,
-      ...(mapping?.isSelectedLegalEntityMember !== undefined
-        ? { isSelectedLegalEntityMember: mapping.isSelectedLegalEntityMember }
-        : {}),
+      isSelectedLegalEntityMember: mapping?.isSelectedLegalEntityMember,
     });
   }
 
@@ -1433,7 +1390,7 @@ function sanitizeUpstreamLogValue(value: unknown, key?: string): unknown {
 }
 
 function redactEmails(value: string): string {
-  return value.replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[REDACTED_EMAIL]');
+  return value.replaceAll(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[REDACTED_EMAIL]');
 }
 
 function toCustomerPatch(user: UpdateCompanyUserRequest): EmporixCustomerAdminUpdateRequest {
@@ -1527,13 +1484,16 @@ function enrichExpandedGroup(
 }
 
 function normalizeLegalEntityId(value: unknown): string | undefined {
-  const candidate =
-    typeof value === 'string'
-      ? value
-      : value && typeof value === 'object' && 'value' in value
-        ? (value as { value?: unknown }).value
-        : undefined;
-  return typeof candidate === 'string' && candidate.trim() ? candidate.trim() : undefined;
+  let candidate: unknown;
+  if (typeof value === 'string') {
+    candidate = value;
+  } else if (value && typeof value === 'object' && 'value' in value) {
+    candidate = (value as { value?: unknown }).value;
+  }
+  if (typeof candidate === 'string' && candidate.trim()) {
+    return candidate.trim();
+  }
+  return undefined;
 }
 
 function tokenizeNameQuery(query?: string): string[] {
@@ -1651,6 +1611,113 @@ function toCatalogGroup(group: EmporixCustomerGroup, legalEntityId: string): Emp
       role: group.role,
     },
   };
+}
+
+function addAssignmentCustomerIds(
+  items: readonly EmporixContactAssignment[],
+  memberIds: Set<string>,
+  legalEntityId: string,
+  logger: LoggerService,
+): void {
+  for (const assignment of items) {
+    const userId = assignment.customer?.id;
+    if (!userId) {
+      continue;
+    }
+    memberIds.add(userId);
+    if (memberIds.size > MAX_SELECTED_LE_USERS) {
+      logger.error(
+        { legalEntityId, collected: memberIds.size },
+        'Selected-LE assignment member volume exceeds showcase memory',
+      );
+      throw new Error('Selected legal entity user volume exceeds showcase in-memory limit');
+    }
+  }
+}
+
+function assertPagedCollectionRunaway(params: {
+  logger: LoggerService;
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number | undefined;
+  collected?: number;
+  context: Record<string, unknown>;
+  exceededTotalMessage: string;
+  missingTotalMessage: string;
+  errorMessage: string;
+}): void {
+  const maxPagesWithTotal =
+    params.totalCount === undefined ? undefined : Math.ceil(params.totalCount / params.pageSize) + 1;
+  const collectedContext = params.collected === undefined ? {} : { collected: params.collected };
+
+  if (maxPagesWithTotal === undefined) {
+    if (params.pageNumber > MAX_PAGES_WITHOUT_TOTAL) {
+      params.logger.error(
+        {
+          ...params.context,
+          pageNumber: params.pageNumber,
+          pageSize: params.pageSize,
+          ...collectedContext,
+        },
+        params.missingTotalMessage,
+      );
+      throw new Error(params.errorMessage);
+    }
+    return;
+  }
+
+  if (params.pageNumber > maxPagesWithTotal) {
+    params.logger.error(
+      {
+        ...params.context,
+        pageNumber: params.pageNumber,
+        totalCount: params.totalCount,
+        pageSize: params.pageSize,
+        ...collectedContext,
+      },
+      params.exceededTotalMessage,
+    );
+    throw new Error(params.errorMessage);
+  }
+}
+
+function mergeCustomerGroupsIntoCatalog(
+  customerGroups: readonly EmporixCustomerGroup[],
+  legalEntityId: string,
+  groupsById: Map<string, EmporixGroup>,
+): void {
+  for (const customerGroup of customerGroups) {
+    if (customerGroup.id) {
+      groupsById.set(customerGroup.id, toCatalogGroup(customerGroup, legalEntityId));
+    }
+  }
+}
+
+function mergeEmbeddedCatalogGroupsForLegalEntity(
+  legalEntityId: string,
+  assignments: readonly EmporixContactAssignment[],
+  groupsById: Map<string, EmporixGroup>,
+): boolean {
+  let hasEmbeddedCustomerGroups = false;
+  for (const assignment of assignments) {
+    const legalEntity = assignment.legalEntity;
+    if (legalEntity?.id === legalEntityId) {
+      const customerGroups = legalEntity.customerGroups;
+      if (Array.isArray(customerGroups)) {
+        hasEmbeddedCustomerGroups = true;
+        mergeCustomerGroupsIntoCatalog(customerGroups, legalEntityId, groupsById);
+      }
+    }
+  }
+  return hasEmbeddedCustomerGroups;
+}
+
+function mergeCatalogGroupsById(groups: readonly EmporixGroup[], groupsById: Map<string, EmporixGroup>): void {
+  for (const group of groups) {
+    if (group.id) {
+      groupsById.set(group.id, group);
+    }
+  }
 }
 
 function collectMatchedMembershipIds(

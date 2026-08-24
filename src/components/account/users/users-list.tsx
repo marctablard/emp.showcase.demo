@@ -38,6 +38,29 @@ export function deserializeShowOtherCompanyUsers(raw: string): boolean {
   }
 }
 
+interface CompanyUsersListView {
+  users: CompanyUser[];
+  loading: boolean;
+  error: Error | null;
+  pagination?: {
+    pageNumber: number;
+    pageSize: number;
+    totalPages: number;
+    totalItems: number;
+  };
+  refreshUsers: () => Promise<void>;
+}
+
+function toCompanyUsersListView(
+  users: CompanyUser[],
+  loading: boolean,
+  error: Error | null,
+  pagination: CompanyUsersListView['pagination'],
+  refreshUsers: () => Promise<void>,
+): CompanyUsersListView {
+  return { users, loading, error, pagination, refreshUsers };
+}
+
 interface UsersListProps {
   initialUsers?: CompanyUser[];
   initialTotalCount?: number;
@@ -116,11 +139,27 @@ export function UsersList({
     query: apiQuery,
   });
 
-  const users = otherCompanyUsersEnabled ? otherCompanyUsers : selectedLegalEntityUsers;
-  const loading = otherCompanyUsersEnabled ? otherCompanyUsersLoading : selectedLegalEntityLoading;
-  const error = otherCompanyUsersEnabled ? otherCompanyUsersError : selectedLegalEntityError;
-  const pagination = otherCompanyUsersEnabled ? otherCompanyPagination : selectedLegalEntityPagination;
-  const refreshActiveUsers = otherCompanyUsersEnabled ? refreshOtherCompanyUsers : refreshSelectedLegalEntityUsers;
+  const selectedLegalEntityView = toCompanyUsersListView(
+    selectedLegalEntityUsers,
+    selectedLegalEntityLoading,
+    selectedLegalEntityError,
+    selectedLegalEntityPagination,
+    refreshSelectedLegalEntityUsers,
+  );
+  const otherCompanyView = toCompanyUsersListView(
+    otherCompanyUsers,
+    otherCompanyUsersLoading,
+    otherCompanyUsersError,
+    otherCompanyPagination,
+    refreshOtherCompanyUsers,
+  );
+  const {
+    users,
+    loading,
+    error,
+    pagination,
+    refreshUsers: refreshActiveUsers,
+  } = otherCompanyUsersEnabled ? otherCompanyView : selectedLegalEntityView;
   useGlobalCursor(loading);
 
   const applySubmittedSearch = (rawQuery: string) => {

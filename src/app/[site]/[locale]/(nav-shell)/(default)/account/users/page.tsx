@@ -9,7 +9,7 @@ const INITIAL_PAGE_SORT = 'firstName:asc';
 
 export const dynamic = 'force-dynamic';
 
-export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
+export async function generateMetadata({ params }: Readonly<{ params: Promise<{ locale: string }> }>) {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'user-management' });
 
@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   };
 }
 
-export default async function UsersPage({ params }: { params: Promise<{ locale: string }> }) {
+export default async function UsersPage({ params }: Readonly<{ params: Promise<{ locale: string }> }>) {
   await requireB2bAdmin();
   const { locale } = await params;
   const [tAccount, tUserManagement, usersPage, showOtherCompaniesToggle] = await Promise.all([
