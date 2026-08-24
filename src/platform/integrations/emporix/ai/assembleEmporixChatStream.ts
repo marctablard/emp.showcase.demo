@@ -416,18 +416,70 @@ function sanitizeCompletedMessage(message: string): string {
   return sanitizeCompletedShopperText(message);
 }
 
+function envelopeHasMeaningfulWidget(parsed: StreamObject): boolean {
+  const type = typeof parsed.type === 'string' ? parsed.type : '';
+  if (!type || type === 'text' || !WIDGET_TYPES.has(type)) {
+    return false;
+  }
+  if (type === 'html') {
+    return isStreamObject(parsed.data) && typeof parsed.data.html === 'string' && parsed.data.html !== '';
+  }
+  if (type === 'error') {
+    if (!isStreamObject(parsed.data)) {
+      return false;
+    }
+    const errorData: StreamObject = parsed.data;
+    for (const key of ['message', 'details', 'errorCode'] as const) {
+      const value = errorData[key];
+      if (typeof value === 'string' && value !== '') {
+        return true;
+      }
+    }
+    return false;
+  }
+  return isStreamObject(parsed.data) && widgetHasItems(parsed.data);
+}
+
+function hasEffectiveShopperContent(message: string): boolean {
+  if (message.trim() === '') {
+    return false;
+  }
+  try {
+    const parsed = JSON.parse(message) as unknown;
+    if (!isStreamObject(parsed)) {
+      return true;
+    }
+    const caption = typeof parsed.message === 'string' ? parsed.message.trim() : '';
+    if (caption !== '') {
+      return true;
+    }
+    return envelopeHasMeaningfulWidget(parsed);
+  } catch {
+    return true;
+  }
+}
+
 function withSanitizedCompletion(response: EmporixAIChatResponse): EmporixAIChatResponse {
   const sanitized = sanitizeCompletedMessage(response.message);
+
   if (sanitized === response.message) {
+    if (!hasEffectiveShopperContent(sanitized)) {
+      return { ...response, message: '' };
+    }
     return response;
   }
-  // Keep original when sanitizer empties a non-JSON body so assertNonEmptyMessage can still pass
-  // only for real shopper text; pure planning leaks become empty and fail closed.
-  if (sanitized === '' && !response.message.trimStart().startsWith('{')) {
-    return { ...response, message: sanitized };
-  }
+
   if (sanitized === '') {
+    // Plain planning text → fail closed. Incomplete JSON envelopes (e.g. streaming html)
+    // can be wiped by the caption leak heuristic; keep the original buffer instead.
+    if (!response.message.trimStart().startsWith('{')) {
+      return { ...response, message: '' };
+    }
     return response;
+  }
+
+  if (!hasEffectiveShopperContent(sanitized)) {
+    return { ...response, message: '' };
   }
   return { ...response, message: sanitized };
 }

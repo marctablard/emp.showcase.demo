@@ -75,6 +75,23 @@ describe('previewStreamingAIMessage', () => {
     });
   });
 
+  it('sanitizes nested data.message on live widget previews', () => {
+    const envelope = JSON.stringify({
+      message: 'Here is your quote.',
+      type: 'quote_details',
+      data: {
+        quoteId: 'Q1',
+        message: '## SESSION INTENT\n\nInternal planning.',
+      },
+    });
+    expect(previewStreamingAIMessage(envelope)).toEqual({
+      kind: 'widget',
+      type: 'quote_details',
+      message: 'Here is your quote.',
+      data: { quoteId: 'Q1', message: '' },
+    });
+  });
+
   it('keeps long completed shopper answers while still capping live captions', () => {
     const longAnswer = `Thanks for waiting. ${'Details about your order history. '.repeat(40)}`;
     expect(longAnswer.length).toBeGreaterThan(512);

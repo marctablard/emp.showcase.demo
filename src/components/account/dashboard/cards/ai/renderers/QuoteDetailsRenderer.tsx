@@ -3,6 +3,7 @@
 import React from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
+import { mapAiQuoteItems } from '@/lib/common/ai-quote-items';
 import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import { getQuoteStatusDisplayLabel } from '@/lib/common/quote-status-message-keys';
 import type { QuoteDetailsData } from '../types';
@@ -24,6 +25,7 @@ export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data
   const fallbackCurrency = getPublicDefaultCurrency();
   const quote = mapAiQuote(data, locale);
   const details = data as QuoteDetailsData;
+  const items = mapAiQuoteItems(details.items, locale);
 
   if (!quote.quoteId && !quote.reference) {
     return widgetOrSkeleton(null, null);
@@ -97,11 +99,11 @@ export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data
           </div>
         </div>
 
-        {details.items && details.items.length > 0 && (
+        {items.length > 0 && (
           <div className="p-3 bg-surface-primary">
             <div className="text-sm font-semibold text-text-body mb-2">{t('quoteItems')}</div>
             <div className="bg-surface-primary rounded-lg border border-border-primary overflow-hidden">
-              {details.items.map((item: any, itemIndex: number) => {
+              {items.map((item, itemIndex) => {
                 const unifiedItem: UnifiedProductItem = {
                   productId: item.productId,
                   name: item.name,
@@ -117,18 +119,18 @@ export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data
                     fallbackCurrency,
                   unitPrice: item.unitPrice
                     ? {
-                        value: item.unitPrice.value || item.unitPrice,
+                        value: item.unitPrice.value || item.unitPrice.gross,
                         currency: item.unitPrice.currency || currency || fallbackCurrency,
                         net: item.unitPrice.net,
-                        gross: item.unitPrice.gross || item.unitPrice.value || item.unitPrice,
+                        gross: item.unitPrice.gross || item.unitPrice.value,
                       }
                     : undefined,
                   totalPrice: item.totalPrice
                     ? {
-                        value: item.totalPrice.value || item.totalPrice,
+                        value: item.totalPrice.value || item.totalPrice.gross,
                         currency: item.totalPrice.currency || currency || fallbackCurrency,
                         net: item.totalPrice.net,
-                        gross: item.totalPrice.gross || item.totalPrice.value || item.totalPrice,
+                        gross: item.totalPrice.gross || item.totalPrice.value,
                       }
                     : undefined,
                 };
@@ -144,9 +146,7 @@ export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data
                         showNetGross={false}
                       />
                     </div>
-                    {details.items && itemIndex < details.items.length - 1 && (
-                      <div className="border-t border-border-primary"></div>
-                    )}
+                    {itemIndex < items.length - 1 && <div className="border-t border-border-primary"></div>}
                   </div>
                 );
               })}

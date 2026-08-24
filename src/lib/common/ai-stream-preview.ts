@@ -201,8 +201,24 @@ function extractPartialJsonObjectField(text: string, fieldName: string): Record<
   return null;
 }
 
+function sanitizePreviewWidgetData(data: unknown): unknown {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return data;
+  }
+  const record = data as Record<string, unknown>;
+  if (typeof record.message !== 'string') {
+    return data;
+  }
+  return { ...record, message: sanitizeShopperCaption(record.message) };
+}
+
 function widgetPreview(type: string, message: string, data: unknown): StreamPreview {
-  return { kind: 'widget', type, message: sanitizeShopperCaption(message), data: data ?? {} };
+  return {
+    kind: 'widget',
+    type,
+    message: sanitizeShopperCaption(message),
+    data: sanitizePreviewWidgetData(data) ?? {},
+  };
 }
 
 function looksLikeStructuredPayload(value: string): boolean {

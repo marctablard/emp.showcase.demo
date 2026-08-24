@@ -42,7 +42,14 @@ interface StructuredDataRendererProps {
   handlers: StructuredDataHandlers;
 }
 
-function hasResolvedWidgetPayload(data: unknown): boolean {
+function hasResolvedErrorPayload(record: Record<string, unknown>): boolean {
+  return ['message', 'details', 'errorCode'].some((key) => {
+    const value = record[key];
+    return typeof value === 'string' && value !== '';
+  });
+}
+
+export function hasResolvedWidgetPayload(type: string, data: unknown): boolean {
   if (data == null) {
     return false;
   }
@@ -50,6 +57,9 @@ function hasResolvedWidgetPayload(data: unknown): boolean {
     return true;
   }
   const record = data as Record<string, unknown>;
+  if (type === 'error') {
+    return hasResolvedErrorPayload(record);
+  }
   return Object.entries(record).some(([key, value]) => {
     if (key === 'pagination' || key === 'message') {
       return false;
@@ -73,7 +83,7 @@ export const StructuredDataRenderer: React.FC<StructuredDataRendererProps> = ({ 
     });
   };
 
-  if (type !== 'text' && type !== 'html' && !hasResolvedWidgetPayload(data)) {
+  if (type !== 'text' && type !== 'html' && !hasResolvedWidgetPayload(type, data)) {
     return <WidgetSkeleton />;
   }
 

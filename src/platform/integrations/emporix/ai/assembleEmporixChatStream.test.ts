@@ -651,6 +651,36 @@ describe('assembleEmporixChatStream', () => {
     );
   });
 
+  it('rejects planning-only text JSON envelopes after sanitization', async () => {
+    const envelope = JSON.stringify({
+      message: '## SESSION INTENT\n\nThe user wants to add a product.',
+      type: 'text',
+    });
+    await expect(assembleEmporixChatStream(toContentToken(envelope))).rejects.toThrow(
+      'AI stream contained an empty message',
+    );
+  });
+
+  it('keeps widget envelopes with empty caption when tool data is present', async () => {
+    const streamBody = [
+      toNamedSseEvent(
+        'tool_result',
+        JSON.stringify({
+          tool_name: 'get-customer-orders',
+          tool_call_id: 'call-1',
+          output: { orders: [{ id: 'EON1', status: 'CREATED' }] },
+        }),
+      ),
+      toContentToken('## SESSION INTENT\n\nLook up orders.'),
+    ].join('');
+
+    const assembled = await assembleEmporixChatStream(streamBody);
+    const parsed = parseAIResponse(assembled.message);
+    expect(parsed.type).toBe('order_list');
+    expect(parsed.message).toBe('');
+    expect(parsed.data).toMatchObject({ orders: [{ orderId: 'EON1' }] });
+  });
+
   it('fills product_list from indexedProducts tool_result before final tokens', async () => {
     const progressUpdates: Array<{ preview?: { kind: string; type?: string; data?: { products?: unknown[] } } }> = [];
     const streamBody = [

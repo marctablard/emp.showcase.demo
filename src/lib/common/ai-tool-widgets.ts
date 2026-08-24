@@ -1,3 +1,5 @@
+import { mapAiQuoteItems } from '@/lib/common/ai-quote-items';
+
 const TOOL_WIDGET_TYPES: Record<string, string> = {
   'get-customer-orders': 'order_list',
   'get-products': 'product_list',
@@ -86,7 +88,7 @@ export const adaptToolResult = (toolName: string, output: unknown): AdaptedWidge
       };
     case 'quote_details': {
       const quote = extractSingleton(payload, 'quotes');
-      return { type, data: isRecord(quote) ? quote : {} };
+      return { type, data: adaptQuoteDetails(quote) };
     }
     case 'order_list':
       return {
@@ -327,6 +329,17 @@ function extractPagination(payload: unknown): Record<string, unknown> | undefine
   return payload.pagination;
 }
 
+function adaptQuoteDetails(quote: unknown): Record<string, unknown> {
+  if (!isRecord(quote)) {
+    return {};
+  }
+  const items = mapAiQuoteItems(quote.items);
+  return {
+    ...quote,
+    ...(items.length > 0 ? { items } : {}),
+  };
+}
+
 function adaptOrder(item: unknown): Record<string, unknown> {
   const record = isRecord(item) ? item : {};
   const metadata = isRecord(record.metadata) ? record.metadata : {};
@@ -564,11 +577,26 @@ function totalPriceFromCalculated(
   });
 }
 
+function scalePriceByQuantity(price: Record<string, unknown>, quantity: number): Record<string, unknown> {
+  const scale = (value: unknown): number | undefined => {
+    const amount = typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+    return amount == null ? undefined : amount * quantity;
+  };
+  return compactRecord({
+    value: scale(price.value),
+    gross: scale(price.gross),
+    net: scale(price.net),
+    tax: scale(price.tax),
+    currency: typeof price.currency === 'string' ? price.currency : undefined,
+  });
+}
+
 function explicitOrderLinePrices(
   explicitUnit: Record<string, unknown> | undefined,
   explicitTotal: Record<string, unknown> | undefined,
+  quantity: number,
 ): { unitPrice?: Record<string, unknown>; totalPrice?: Record<string, unknown> } {
-  const totalPrice = explicitTotal ?? explicitUnit;
+  const totalPrice = explicitTotal ?? (explicitUnit ? scalePriceByQuantity(explicitUnit, quantity) : undefined);
   return {
     ...(explicitUnit ? { unitPrice: explicitUnit } : {}),
     ...(totalPrice ? { totalPrice } : {}),
@@ -582,7 +610,7 @@ function adaptOrderLinePrices(
   const explicitUnit = adaptPriceField(item.unitPrice ?? item.calculatedUnitPrice);
   const explicitTotal = adaptPriceField(item.totalPrice);
   if (explicitUnit || explicitTotal) {
-    return explicitOrderLinePrices(explicitUnit, explicitTotal);
+    return explicitOrderLinePrices(explicitUnit, explicitTotal, quantity);
   }
 
   const price = isRecord(item.price) ? item.price : null;
@@ -596,7 +624,7 @@ function adaptOrderLinePrices(
 
   return {
     unitPrice:
-      effective != null ? unitPriceFromEffective(effective, quantity, grossTotal, netTotal, currency) : undefined,
+      effective == null ? undefined : unitPriceFromEffective(effective, quantity, grossTotal, netTotal, currency),
     totalPrice: totalPriceFromCalculated(quantity, effective, grossTotal, netTotal, taxTotal, currency),
   };
 }

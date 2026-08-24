@@ -345,4 +345,54 @@ describe('ai-tool-widgets', () => {
       quantity: 1,
     });
   });
+
+  it('scales explicit unit price into totalPrice by quantity', () => {
+    const adapted = adaptToolResult('get-customer-orders', {
+      orders: [
+        {
+          id: 'EON1',
+          status: 'CREATED',
+          created: '2026-07-01T13:35:24.775Z',
+          currency: 'EUR',
+          entries: [
+            {
+              amount: 2,
+              product: { id: 'P1', name: { en: 'Solar panel' } },
+              unitPrice: { gross: 10, net: 8, tax: 2, currency: 'EUR' },
+            },
+          ],
+        },
+      ],
+    });
+    const item = (adapted?.data.orders as Array<Record<string, unknown>>)[0].items as Array<Record<string, unknown>>;
+    expect(item[0]).toMatchObject({
+      quantity: 2,
+      unitPrice: { gross: 10, net: 8, tax: 2, currency: 'EUR' },
+      totalPrice: { gross: 20, net: 16, tax: 4, currency: 'EUR' },
+    });
+  });
+
+  it('normalizes get-quote Emporix items onto quote_details DTO rows', () => {
+    const adapted = adaptToolResult('get-quote', {
+      id: 'Q1',
+      currency: 'EUR',
+      items: [
+        {
+          quantity: { quantity: 2 },
+          product: { id: 'P1', name: { en: 'Solar panel' } },
+          price: { currency: 'EUR', grossValue: 25, netValue: 20 },
+        },
+      ],
+    });
+    expect(adapted?.type).toBe('quote_details');
+    expect(adapted?.data.items).toEqual([
+      expect.objectContaining({
+        productId: 'P1',
+        name: 'Solar panel',
+        quantity: 2,
+        unitPrice: expect.objectContaining({ gross: 25, net: 20, currency: 'EUR' }),
+        totalPrice: expect.objectContaining({ gross: 50, net: 40, currency: 'EUR' }),
+      }),
+    ]);
+  });
 });
