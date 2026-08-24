@@ -10,14 +10,18 @@ const mockPush = jest.fn();
 const mockAcquireNavigationWaitCursorLease = jest.fn();
 
 jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, string | number>) => {
-    if (values && 'name' in values) {
-      return `${key}:${values.name}`;
-    }
-    if (values) {
-      return `${key}:${JSON.stringify(values)}`;
-    }
-    return key;
+  useTranslations: () => {
+    const t = (key: string, values?: Record<string, string | number>) => {
+      if (values && 'name' in values) {
+        return `${key}:${values.name}`;
+      }
+      if (values) {
+        return `${key}:${JSON.stringify(values)}`;
+      }
+      return key;
+    };
+    t.raw = (key: string) => key;
+    return t;
   },
   useLocale: () => 'en-GB',
 }));

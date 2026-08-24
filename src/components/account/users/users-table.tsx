@@ -101,6 +101,7 @@ export function UsersTable({
   const t = useTranslations('user-management');
   const locale = useLocale();
   const router = useRouter();
+  const contactOnlyLabel = t.raw('form.contactOnly');
   const columnCount = showLegalEntityName ? BASE_COLUMN_COUNT + 1 : BASE_COLUMN_COUNT;
 
   const getSortIcon = (field: CompanyUserSortField) => {
@@ -170,7 +171,7 @@ export function UsersTable({
               return users.map((user, index) => {
                 const displayName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.id;
                 const editHref = `/account/users/${user.id}`;
-                const userGroupNames = formatUserGroupNames(user, t('form.contactOnly'));
+                const userGroupNames = formatUserGroupNames(user, contactOnlyLabel);
                 const openEdit = () => {
                   acquireNavigationWaitCursorLease();
                   router.push(editHref);

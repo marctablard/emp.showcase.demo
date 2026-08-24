@@ -219,8 +219,8 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
         sm:mx-4 / md:mx-9 (SHOW-320) align the side margins with the Figma grid.
       */}
       <div className="mt-4 mb-4 flex items-start sm:mx-4 md:mx-9">
-        {/* Desktop Sidebar - always visible on desktop */}
-        {isDesktop && <AccountSidebar items={sidebarItems} groups={sidebarGroups} />}
+        {/* Desktop Sidebar - always visible on desktop. Q30: page/document scrolls, not the rail. */}
+        {isDesktop && <AccountSidebar items={sidebarItems} groups={sidebarGroups} scrollable={false} />}
 
         {/* Mobile Off-canvas Sidebar */}
         {!isDesktop && showSidebarOffcanvas && (

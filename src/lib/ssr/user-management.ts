@@ -3,6 +3,7 @@
 import { cache } from 'react';
 import { redirect } from 'next/navigation';
 import { getCurrentCustomer } from '@/lib/ssr/customer';
+import { getSession } from '@/lib/ssr/session';
 import type { CompanyService } from '@/platform/services/company/CompanyService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Customer } from '@/platform/services/model/customer/customer';
@@ -115,4 +116,18 @@ export const getHeaderCompanies = cache(async (): Promise<HeaderCompany[]> => {
     );
     return [];
   }
+});
+
+/**
+ * Display name for the selected header company (User Management scope toggle).
+ * Session LE when it matches `getCompanies()`, otherwise `companies[0]` — display only.
+ */
+export const getSelectedCompanyName = cache(async (): Promise<string | undefined> => {
+  const companies = await getHeaderCompanies();
+  if (companies.length === 0) {
+    return undefined;
+  }
+  const session = await getSession();
+  const sessionId = typeof session?.legalEntityId === 'string' ? session.legalEntityId.trim() : '';
+  return companies.find((company) => company.id === sessionId)?.name ?? companies[0]?.name;
 });

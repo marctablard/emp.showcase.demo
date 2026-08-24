@@ -5,6 +5,7 @@ import {
   getCompanyUserById,
   getCompanyUsers,
   getHeaderCompanies,
+  getSelectedCompanyName,
   hasMultipleCompanies,
   requireB2bAdmin,
 } from './user-management';
@@ -17,6 +18,10 @@ jest.mock('next/navigation', () => ({
 
 jest.mock('@/lib/ssr/customer', () => ({
   getCurrentCustomer: jest.fn(),
+}));
+
+jest.mock('@/lib/ssr/session', () => ({
+  getSession: jest.fn(),
 }));
 
 jest.mock('@/platform/ssr', () => {
@@ -40,6 +45,10 @@ const mockedSsr = jest.requireMock('@/platform/ssr') as {
 
 const { getCurrentCustomer } = jest.requireMock('@/lib/ssr/customer') as {
   getCurrentCustomer: jest.Mock;
+};
+
+const { getSession } = jest.requireMock('@/lib/ssr/session') as {
+  getSession: jest.Mock;
 };
 
 const adminCustomer: Customer = {
@@ -274,5 +283,52 @@ describe('getHeaderCompanies', () => {
 
     await expect(getHeaderCompanies()).resolves.toEqual([]);
     expect(logger.error).toHaveBeenCalled();
+  });
+});
+
+describe('getSelectedCompanyName', () => {
+  const companyService = {
+    getCompanies: jest.fn(),
+  };
+  const logger = {
+    error: jest.fn(),
+  };
+
+  beforeEach(() => {
+    companyService.getCompanies.mockReset();
+    logger.error.mockReset();
+    getSession.mockReset();
+    mockedSsr.default.__services.clear();
+    mockedSsr.default.__services.set('CompanyService', companyService);
+    mockedSsr.default.__services.set('LoggerService', logger);
+    mockedSsr.default.get.mockImplementation((id: string) => mockedSsr.default.__services.get(id));
+  });
+
+  it('returns the session legal-entity name when it is in getCompanies', async () => {
+    companyService.getCompanies.mockResolvedValueOnce([
+      { id: 'le-1', name: 'NovaTech' },
+      { id: 'le-2', name: 'Emporix GmbH' },
+    ]);
+    getSession.mockResolvedValueOnce({ legalEntityId: 'le-2' });
+
+    await expect(getSelectedCompanyName()).resolves.toBe('Emporix GmbH');
+  });
+
+  it('falls back to the first company name when session legalEntityId is missing', async () => {
+    companyService.getCompanies.mockResolvedValueOnce([
+      { id: 'le-1', name: 'NovaTech' },
+      { id: 'le-2', name: 'Emporix GmbH' },
+    ]);
+    getSession.mockResolvedValueOnce({});
+
+    await expect(getSelectedCompanyName()).resolves.toBe('NovaTech');
+  });
+
+  it('returns undefined when there are no companies', async () => {
+    companyService.getCompanies.mockResolvedValueOnce([]);
+    getSession.mockResolvedValueOnce({ legalEntityId: 'le-1' });
+
+    await expect(getSelectedCompanyName()).resolves.toBeUndefined();
+    expect(getSession).not.toHaveBeenCalled();
   });
 });

@@ -3,7 +3,12 @@ import AccountLayout from '@/components/account/account-layout';
 import { USERS_PER_PAGE } from '@/components/account/account-table-constants';
 import { AccountUsersList } from '@/components/account/users/users-list';
 import { getPageTitle } from '@/lib/ssr/seo';
-import { getCompanyUsers, hasMultipleCompanies, requireB2bAdmin } from '@/lib/ssr/user-management';
+import {
+  getCompanyUsers,
+  getSelectedCompanyName,
+  hasMultipleCompanies,
+  requireB2bAdmin,
+} from '@/lib/ssr/user-management';
 
 const INITIAL_PAGE_SORT = 'firstName:asc';
 
@@ -25,11 +30,12 @@ export async function generateMetadata({ params }: Readonly<{ params: Promise<{ 
 export default async function UsersPage({ params }: Readonly<{ params: Promise<{ locale: string }> }>) {
   await requireB2bAdmin();
   const { locale } = await params;
-  const [tAccount, tUserManagement, usersPage, showOtherCompaniesToggle] = await Promise.all([
+  const [tAccount, tUserManagement, usersPage, showOtherCompaniesToggle, selectedCompanyName] = await Promise.all([
     getTranslations({ locale, namespace: 'account' }),
     getTranslations({ locale, namespace: 'user-management' }),
     getCompanyUsers(1, USERS_PER_PAGE, INITIAL_PAGE_SORT),
     hasMultipleCompanies(),
+    getSelectedCompanyName(),
   ]);
 
   const breadcrumbs = [
@@ -49,6 +55,7 @@ export default async function UsersPage({ params }: Readonly<{ params: Promise<{
         initialUsers={usersPage?.items}
         initialTotalCount={usersPage?.totalCount}
         showOtherCompaniesToggle={showOtherCompaniesToggle}
+        selectedCompanyName={selectedCompanyName}
       />
     </AccountLayout>
   );

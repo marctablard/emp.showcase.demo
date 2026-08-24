@@ -24,6 +24,7 @@ const mockFetchGroups = jest.fn();
 let mockSession: { legalEntityId?: unknown } = { legalEntityId: 'le-1' };
 const mockTranslation = (key: string, values?: Record<string, string>) =>
   values ? `${key}:${JSON.stringify(values)}` : key;
+mockTranslation.raw = (key: string) => mockTranslation(key);
 
 jest.mock('next-intl', () => ({
   useTranslations: () => mockTranslation,

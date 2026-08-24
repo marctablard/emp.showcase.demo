@@ -5,6 +5,9 @@
   "breadcrumbEditUser": "'{name}' bearbeiten",
   "createButton": "Neuen Benutzer erstellen",
   "showOtherCompanies": "Benutzer aus meinen anderen Firmen anzeigen",
+  "currentCompany": "Aktuelles Unternehmen",
+  "allCompanies": "Alle Unternehmen",
+  "companyScope": "Unternehmensbereich",
   "searchPlaceholder": "Namen suchen...",
   "columns": {
     "firstName": "Vorname",

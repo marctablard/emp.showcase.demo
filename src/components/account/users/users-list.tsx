@@ -5,10 +5,8 @@ import { useTranslations } from 'next-intl';
 import { Plus, Search } from 'lucide-react';
 import { USERS_PER_PAGE } from '@/components/account/account-table-constants';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { H1 } from '@/components/ui/h';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
 import { TableCard } from '@/components/ui/table';
@@ -18,12 +16,11 @@ import { useSession } from '@/hooks/session/useSession';
 import { useCompanyUsers, useOtherCompanyUsers } from '@/hooks/user-management/useCompanyUsers';
 import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
 import type { CompanyUser } from '@/platform/services/model/user-management/company-user';
+import { CompanyScopeToggle } from './company-scope-toggle';
 import { DeleteUserDialog } from './delete-user-dialog';
 import { type CompanyUserSortField, USER_SORT_FIELD_MAP, UsersTable } from './users-table';
 
 const INITIAL_PAGE_SORT = 'firstName:asc';
-const SHOW_OTHER_COMPANY_USERS_CHECKBOX_ID = 'show-other-company-users';
-const SHOW_OTHER_COMPANY_USERS_LABEL_ID = 'show-other-company-users-label';
 const SHOW_OTHER_COMPANY_USERS_PENDING_OWNER_ID = 'pending';
 
 export function showOtherCompanyUsersStorageKey(ownerId: string): string {
@@ -66,6 +63,7 @@ interface UsersListProps {
   initialTotalCount?: number;
   onDeleteUser?: (user: CompanyUser) => void;
   showOtherCompaniesToggle?: boolean;
+  selectedCompanyName?: string;
 }
 
 export function UsersList({
@@ -73,6 +71,7 @@ export function UsersList({
   initialTotalCount,
   onDeleteUser,
   showOtherCompaniesToggle = false,
+  selectedCompanyName,
 }: Readonly<UsersListProps>) {
   const t = useTranslations('user-management');
   const { session } = useSession();
@@ -207,45 +206,35 @@ export function UsersList({
   const hasActiveSearch = submittedSearch.length > 0;
   const isSearchLoading = loading && hasActiveSearch;
 
-  const handleOtherCompaniesCheckedChange = (checked: boolean | 'indeterminate') => {
-    const nextChecked = checked === true;
-    setShowOtherCompanyUsers(nextChecked);
-    if (nextChecked) {
+  const handleShowAllCompaniesChange = (showAllCompanies: boolean) => {
+    setShowOtherCompanyUsers(showAllCompanies);
+    if (showAllCompanies) {
       setCurrentPage(1);
     }
   };
 
   return (
     <div className="flex flex-col gap-6 lg:gap-12">
-      <div className="flex min-w-0 flex-col items-start gap-6 md:flex-row md:flex-wrap md:justify-between">
-        <H1 className="min-w-0 w-full md:flex-1">{t('heading')}</H1>
-        <div className="flex max-w-full min-w-0 flex-wrap items-center gap-6">
+      <div className="flex min-w-0 flex-col items-start gap-4 md:flex-row md:flex-wrap md:items-center md:justify-between">
+        <div className="flex min-w-0 max-w-full flex-col items-start gap-4 sm:flex-row sm:flex-wrap sm:items-center md:flex-1">
+          <H1 className="min-w-0">{t('heading')}</H1>
           {showOtherCompaniesToggle ? (
-            <span className="flex items-center gap-3">
-              <Checkbox
-                id={SHOW_OTHER_COMPANY_USERS_CHECKBOX_ID}
-                checked={showOtherCompanyUsers}
-                onCheckedChange={handleOtherCompaniesCheckedChange}
-              />
-              <Label
-                id={SHOW_OTHER_COMPANY_USERS_LABEL_ID}
-                htmlFor={SHOW_OTHER_COMPANY_USERS_CHECKBOX_ID}
-                className="text-base leading-6 font-bold text-text-body"
-              >
-                {t('showOtherCompanies')}
-              </Label>
-            </span>
+            <CompanyScopeToggle
+              currentCompanyName={selectedCompanyName}
+              showAllCompanies={showOtherCompanyUsers}
+              onShowAllCompaniesChange={handleShowAllCompaniesChange}
+            />
           ) : null}
-          <UiLink
-            type="Link"
-            href="/account/users/new"
-            variant="buttonPrimary"
-            className="font-headlines text-action-button tracking-[var(--desktop-spacing-action-button)] h-12 w-auto shrink-0 whitespace-nowrap"
-            iconBefore={<Plus className="size-6" aria-hidden />}
-          >
-            {t('createButton')}
-          </UiLink>
         </div>
+        <UiLink
+          type="Link"
+          href="/account/users/new"
+          variant="buttonPrimary"
+          className="font-headlines text-action-button tracking-[var(--desktop-spacing-action-button)] h-12 w-auto shrink-0 whitespace-nowrap md:ml-auto"
+          iconBefore={<Plus className="size-6" aria-hidden />}
+        >
+          {t('createButton')}
+        </UiLink>
       </div>
 
       <TableCard className="overflow-hidden p-4 min-[768px]:p-4">

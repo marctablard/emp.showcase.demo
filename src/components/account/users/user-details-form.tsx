@@ -858,7 +858,8 @@ export function UserDetailsForm({ initialUser, headerCompanies = [] }: Readonly<
 
   const assignments = form.watch('groupAssignments') as CompanyUserGroupAssignment[];
   const active = form.watch('active') as boolean;
-  const groupPicker = resolveGroupPickerSelection(assignments, selectedLegalEntityGroups, t('form.contactOnly'));
+  const contactOnlyLabel = t.raw('form.contactOnly');
+  const groupPicker = resolveGroupPickerSelection(assignments, selectedLegalEntityGroups, contactOnlyLabel);
   const emptyGroupOptionLabel = emptyGroupOptionLabelForUser(initialUser, t);
   const activeCopy = activeToggleCopy(initialUser, t);
 
@@ -1076,7 +1077,7 @@ export function UserDetailsForm({ initialUser, headerCompanies = [] }: Readonly<
                   selectedGroupId={groupPicker.selectedGroupId}
                   selectedGroupLabel={groupPicker.selectedGroupLabel}
                   emptyGroupOptionLabel={emptyGroupOptionLabel}
-                  contactOnlyLabel={t('form.contactOnly')}
+                  contactOnlyLabel={contactOnlyLabel}
                   selectableCatalogGroups={groupPicker.selectableCatalogGroups}
                   isSaving={isSaving}
                   groupAriaRequired={createGroupAriaRequired(initialUser)}

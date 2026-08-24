@@ -24,7 +24,9 @@ describe('EmporixUserManagementService list/get', () => {
   let iamApi: jest.Mocked<Pick<EmporixIamApi, 'getUsers' | 'getGroupUsers' | 'getGroups' | 'getUserGroups'>>;
   let companyService: jest.Mocked<Pick<CompanyService, 'getCompanies' | 'getCompany'>>;
   let customerService: jest.Mocked<Pick<CustomerService, 'getCustomer'>>;
-  let sessionService: jest.Mocked<Pick<SessionService, 'getCurrent'>>;
+  let sessionService: jest.Mocked<
+    Pick<SessionService, 'getCurrent' | 'setLegalEntity' | 'getCustomerTokenLegalEntityId'>
+  >;
   let logger: jest.Mocked<Pick<LoggerService, 'info' | 'warn' | 'error'>>;
   let service: EmporixUserManagementService;
 
@@ -67,6 +69,11 @@ describe('EmporixUserManagementService list/get', () => {
     };
     sessionService = {
       getCurrent: jest.fn().mockResolvedValue({ legalEntityId: SELECTED_LE }),
+      setLegalEntity: jest.fn().mockResolvedValue({
+        tokenRefreshSucceeded: true,
+        tokenLooksLikeJwt: false,
+      }),
+      getCustomerTokenLegalEntityId: jest.fn().mockResolvedValue(SELECTED_LE),
     };
     logger = {
       info: jest.fn(),
@@ -94,13 +101,189 @@ describe('EmporixUserManagementService list/get', () => {
 
     await expect(service.listUsers()).rejects.toBeInstanceOf(AdminRequiredError);
     expect(iamApi.getGroupUsers).not.toHaveBeenCalled();
+    expect(sessionService.setLegalEntity).not.toHaveBeenCalled();
   });
 
   it('throws when the selected legal entity cannot be resolved', async () => {
     sessionService.getCurrent.mockResolvedValue({ id: 'session-1', currency: 'EUR', siteCode: 'main' });
+    sessionService.getCustomerTokenLegalEntityId.mockResolvedValue(undefined);
     customerService.getCustomer.mockResolvedValue({ ...adminCustomer, legalEntityId: undefined });
 
     await expect(service.listUsers()).rejects.toThrow('Selected legal entity membership could not be established');
+    expect(sessionService.setLegalEntity).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['missing session context', undefined],
+    ['session without legalEntityId', { id: 'session-1', currency: 'EUR', siteCode: 'main' }],
+  ])('recovers listUsers via token legal entity when session is %s', async (_case, currentSession) => {
+    sessionService.getCurrent.mockResolvedValue(currentSession);
+    const member = adminDto({ id: 'cust-a', customerNumber: 'N-A', firstName: 'Ann', lastName: 'Alpha' });
+    mockAssignments([assignment('cust-a', 'CONTACT')]);
+    mockHydrateByIdQuery([member]);
+
+    const result = await service.listUsers(1, 10);
+
+    expect(sessionService.setLegalEntity).toHaveBeenCalledWith(SELECTED_LE);
+    expect(result.items.map((user) => user.id)).toEqual(['N-A']);
+  });
+
+  it('recovers listUsers via customer legalEntityId when session and token LE are missing', async () => {
+    sessionService.getCurrent.mockResolvedValue(undefined);
+    sessionService.getCustomerTokenLegalEntityId.mockResolvedValueOnce(undefined).mockResolvedValue(SELECTED_LE);
+    const member = adminDto({ id: 'cust-a', customerNumber: 'N-A', firstName: 'Ann', lastName: 'Alpha' });
+    mockAssignments([assignment('cust-a', 'CONTACT')]);
+    mockHydrateByIdQuery([member]);
+
+    const result = await service.listUsers(1, 10);
+
+    expect(sessionService.setLegalEntity).toHaveBeenCalledWith(SELECTED_LE);
+    expect(result.items.map((user) => user.id)).toEqual(['N-A']);
+  });
+
+  it.each([
+    ['missing', undefined],
+    ['mismatched', 'le-other'],
+  ])(
+    'remints the customer token once when it is %s then lists after that remint',
+    async (_case, tokenLegalEntityId) => {
+      const member = adminDto({ id: 'cust-a', customerNumber: 'N-A', firstName: 'Ann', lastName: 'Alpha' });
+      sessionService.getCustomerTokenLegalEntityId
+        .mockResolvedValueOnce(tokenLegalEntityId)
+        .mockResolvedValue(SELECTED_LE);
+      mockAssignments([assignment('cust-a', 'CONTACT')]);
+      mockHydrateByIdQuery([member]);
+
+      const result = await service.listUsers(1, 10);
+
+      expect(sessionService.setLegalEntity).toHaveBeenCalledTimes(1);
+      expect(sessionService.setLegalEntity).toHaveBeenCalledWith(SELECTED_LE);
+      expect(sessionService.setLegalEntity.mock.invocationCallOrder[0]).toBeLessThan(
+        customerManagementApi.getContactAssignmentsByLegalEntityId.mock.invocationCallOrder[0]!,
+      );
+      expect(sessionService.setLegalEntity.mock.invocationCallOrder[0]).toBeLessThan(
+        customerAdminApi.getCustomers.mock.invocationCallOrder[0]!,
+      );
+      expect(result.items.map((user) => user.id)).toEqual(['N-A']);
+      expect(logger.info).toHaveBeenCalledWith(
+        {
+          sessionLegalEntityId: SELECTED_LE,
+          selectedLegalEntityId: SELECTED_LE,
+          tokenLegalEntityId: SELECTED_LE,
+          tokenRefreshSucceeded: true,
+          tokenLooksLikeJwt: false,
+        },
+        'Customer token scoped to selected legal entity',
+      );
+      expect(JSON.stringify(logger.info.mock.calls)).not.toMatch(/access_token|refresh_token|Bearer /i);
+      expect(JSON.stringify(logger.error.mock.calls)).not.toMatch(/access_token|refresh_token|Bearer /i);
+    },
+  );
+
+  it('does not remint listUsers when the customer token already matches the selected legal entity', async () => {
+    const member = adminDto({ id: 'cust-a', customerNumber: 'N-A', firstName: 'Ann', lastName: 'Alpha' });
+    mockAssignments([assignment('cust-a', 'CONTACT')]);
+    mockHydrateByIdQuery([member]);
+
+    await service.listUsers(1, 10);
+
+    expect(sessionService.setLegalEntity).not.toHaveBeenCalled();
+    expect(customerManagementApi.getContactAssignmentsByLegalEntityId).toHaveBeenCalled();
+  });
+
+  it('throws when read-path remint fails before membership work', async () => {
+    sessionService.getCustomerTokenLegalEntityId.mockResolvedValue(undefined);
+    sessionService.setLegalEntity.mockRejectedValue(
+      new Error('Failed to scope customer token to the selected legal entity'),
+    );
+
+    await expect(service.listUsers()).rejects.toThrow('Failed to scope customer token to the selected legal entity');
+    expect(customerManagementApi.getContactAssignmentsByLegalEntityId).not.toHaveBeenCalled();
+    expect(customerAdminApi.getCustomers).not.toHaveBeenCalled();
+  });
+
+  it('aborts listUsers when the reminted customer token legal entity is still missing', async () => {
+    sessionService.getCustomerTokenLegalEntityId.mockResolvedValue(undefined);
+
+    await expect(service.listUsers()).rejects.toThrow('Customer token is not scoped to the selected legal entity');
+    expect(sessionService.setLegalEntity).toHaveBeenCalledTimes(1);
+    expect(customerManagementApi.getContactAssignmentsByLegalEntityId).not.toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith(
+      {
+        sessionLegalEntityId: SELECTED_LE,
+        selectedLegalEntityId: SELECTED_LE,
+        tokenLegalEntityId: null,
+        tokenRefreshSucceeded: true,
+        tokenLooksLikeJwt: false,
+      },
+      'Customer token is not scoped to the selected legal entity',
+    );
+  });
+
+  it('remints once and retries listUsers after the first session hydrate Unauthorized', async () => {
+    const member = adminDto({ id: 'cust-a', customerNumber: 'N-A', firstName: 'Ann', lastName: 'Alpha' });
+    mockAssignments([assignment('cust-a', 'CONTACT')]);
+    mockHydrateByIdQuery([member]);
+    customerAdminApi.getCustomers.mockRejectedValueOnce(new Error('Failed to list customers: Unauthorized'));
+
+    const result = await service.listUsers(1, 10);
+
+    expect(sessionService.setLegalEntity).toHaveBeenCalledTimes(1);
+    expect(sessionService.setLegalEntity).toHaveBeenCalledWith(SELECTED_LE);
+    expect(customerAdminApi.getCustomers).toHaveBeenCalledTimes(2);
+    expect(result.items.map((user) => user.id)).toEqual(['N-A']);
+  });
+
+  it('does not remint AdminRequiredError thrown from membership work', async () => {
+    customerManagementApi.getContactAssignmentsByLegalEntityId.mockRejectedValue(new AdminRequiredError());
+
+    await expect(service.listUsers()).rejects.toBeInstanceOf(AdminRequiredError);
+    expect(sessionService.setLegalEntity).not.toHaveBeenCalled();
+    expect(customerManagementApi.getContactAssignmentsByLegalEntityId).toHaveBeenCalledTimes(1);
+  });
+
+  it('maps a service-token assignment 403 to failure after at most one unused remint', async () => {
+    customerManagementApi.getContactAssignmentsByLegalEntityId.mockRejectedValue(
+      new Error(`Failed to retrieve contact assignments for legal entity ${SELECTED_LE}: Forbidden`),
+    );
+
+    await expect(service.listUsers()).rejects.toThrow('Forbidden');
+    expect(sessionService.setLegalEntity).toHaveBeenCalledTimes(1);
+    expect(customerManagementApi.getContactAssignmentsByLegalEntityId).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not remint again when ensure already reminted this call', async () => {
+    sessionService.getCustomerTokenLegalEntityId.mockResolvedValueOnce(undefined).mockResolvedValue(SELECTED_LE);
+    customerManagementApi.getContactAssignmentsByLegalEntityId.mockRejectedValue(
+      new Error(`Failed to retrieve contact assignments for legal entity ${SELECTED_LE}: Forbidden`),
+    );
+
+    await expect(service.listUsers()).rejects.toThrow('Forbidden');
+    expect(sessionService.setLegalEntity).toHaveBeenCalledTimes(1);
+    expect(customerManagementApi.getContactAssignmentsByLegalEntityId).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not remint unrelated membership errors', async () => {
+    customerManagementApi.getContactAssignmentsByLegalEntityId.mockRejectedValue(
+      new Error(`Failed to retrieve contact assignments for legal entity ${SELECTED_LE}: Internal Server Error`),
+    );
+
+    await expect(service.listUsers()).rejects.toThrow('Internal Server Error');
+    expect(sessionService.setLegalEntity).not.toHaveBeenCalled();
+    expect(customerManagementApi.getContactAssignmentsByLegalEntityId).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['listOtherCompanyUsers', async () => service.listOtherCompanyUsers()],
+    ['getUser', async () => service.getUser('cust-a')],
+    ['listAssignableGroups', async () => service.listAssignableGroups()],
+  ])('%s uses the same ensure remint when the customer token legal entity is missing', async (_name, run) => {
+    sessionService.getCustomerTokenLegalEntityId.mockResolvedValueOnce(undefined).mockResolvedValue(SELECTED_LE);
+
+    await run();
+
+    expect(sessionService.setLegalEntity).toHaveBeenCalledTimes(1);
+    expect(sessionService.setLegalEntity).toHaveBeenCalledWith(SELECTED_LE);
   });
 
   it('includes selected-LE assignment members and joins groups via getGroupUsers', async () => {
@@ -2066,7 +2249,9 @@ describe('EmporixUserManagementService create/update/delete', () => {
 
     const query = { query: `b2b.legalEntityId:"${SELECTED_LE}"`, criteria: { userType: 'CUSTOMER' as const } };
     await expect(service.listAssignableGroups()).rejects.toThrow('Forbidden');
-    expect(iamApi.getGroups).toHaveBeenCalledTimes(1);
+    expect(sessionService.setLegalEntity).toHaveBeenCalledTimes(1);
+    expect(sessionService.setLegalEntity).toHaveBeenCalledWith(SELECTED_LE);
+    expect(iamApi.getGroups).toHaveBeenCalledTimes(2);
     expect(iamApi.getGroups).toHaveBeenCalledWith(query, 'service');
   });
 

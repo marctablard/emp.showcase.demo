@@ -32,14 +32,18 @@ jest.mock('@/hooks/session/useSession', () => ({
 }));
 
 jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, string | number>) => {
-    if (values && 'name' in values) {
-      return `${key}:${values.name}`;
-    }
-    if (values) {
-      return `${key}:${JSON.stringify(values)}`;
-    }
-    return key;
+  useTranslations: () => {
+    const t = (key: string, values?: Record<string, string | number>) => {
+      if (values && 'name' in values) {
+        return `${key}:${values.name}`;
+      }
+      if (values) {
+        return `${key}:${JSON.stringify(values)}`;
+      }
+      return key;
+    };
+    t.raw = (key: string) => key;
+    return t;
   },
   useLocale: () => 'en-GB',
 }));
@@ -142,6 +146,14 @@ function authenticatedSession(customerId = AUTHENTICATED_CUSTOMER_ID) {
   return { session: { customerId } };
 }
 
+function getAllCompaniesOption() {
+  return screen.getByRole('radio', { name: 'allCompanies' });
+}
+
+function getCurrentCompanyOption() {
+  return screen.getByRole('radio', { name: 'currentCompany' });
+}
+
 describe('UsersList', () => {
   afterEach(() => {
     jest.clearAllMocks();
@@ -184,27 +196,28 @@ describe('UsersList', () => {
 
     const heading = screen.getByRole('heading', { level: 1, name: 'heading' });
     expect(heading).toBeInTheDocument();
-    expect(heading.parentElement?.parentElement).toHaveClass('flex', 'flex-col', 'gap-6', 'lg:gap-12');
-    expect(heading.parentElement).toHaveClass(
+    expect(heading.parentElement?.parentElement?.parentElement).toHaveClass('flex', 'flex-col', 'gap-6', 'lg:gap-12');
+    expect(heading.parentElement?.parentElement).toHaveClass(
       'flex',
       'min-w-0',
       'flex-col',
       'items-start',
-      'gap-6',
+      'gap-4',
       'md:flex-row',
       'md:flex-wrap',
+      'md:items-center',
       'md:justify-between',
     );
-    expect(heading.parentElement).not.toHaveClass('md:flex-nowrap');
-    expect(heading).toHaveClass('min-w-0', 'w-full', 'md:flex-1');
-    expect(heading).not.toHaveClass('whitespace-nowrap');
-    expect(heading.nextElementSibling).toHaveClass('flex-wrap');
+    expect(heading.parentElement?.parentElement).not.toHaveClass('md:flex-nowrap');
+    expect(heading.parentElement).toHaveClass('sm:flex-wrap', 'md:flex-1');
+    expect(heading).toHaveClass('min-w-0');
+    expect(heading).not.toHaveClass('w-full', 'whitespace-nowrap');
     const createCta = screen.getByRole('link', { name: /createButton/i });
     expect(createCta).toHaveAttribute('href', '/account/users/new');
     expect(createCta).toHaveClass('font-headlines');
     expect(createCta).toHaveClass('text-action-button');
     expect(createCta).toHaveClass('tracking-[var(--desktop-spacing-action-button)]');
-    expect(createCta).toHaveClass('h-12', 'w-auto', 'shrink-0', 'whitespace-nowrap');
+    expect(createCta).toHaveClass('h-12', 'w-auto', 'shrink-0', 'whitespace-nowrap', 'md:ml-auto');
     expect(createCta).not.toHaveClass('w-full');
   });
 
@@ -291,24 +304,25 @@ describe('UsersList', () => {
     expect(refreshUsers).toHaveBeenCalledTimes(1);
   });
 
-  it('hides the other-companies checkbox when showOtherCompaniesToggle is false', () => {
+  it('hides the company-scope toggle when showOtherCompaniesToggle is false', () => {
     mockUsersResult({ users: [buildUser()] });
     render(<UsersList initialUsers={[buildUser()]} />);
 
-    expect(screen.queryByRole('checkbox', { name: 'showOtherCompanies' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup', { name: 'companyScope' })).not.toBeInTheDocument();
     expect(mockUseOtherCompanyUsers).toHaveBeenCalledWith(DEFAULT_OTHER_COMPANY_USERS_OPTIONS);
   });
 
-  it('shows an unchecked other-companies checkbox immediately left of CREATE NEW USER for multi-company admins', () => {
+  it('shows the current-company / All companies toggle immediately left of CREATE NEW USER for multi-company admins', () => {
     mockUsersResult({ users: [buildUser()] });
-    render(<UsersList initialUsers={[buildUser()]} showOtherCompaniesToggle />);
+    render(<UsersList initialUsers={[buildUser()]} showOtherCompaniesToggle selectedCompanyName="NovaTech Nord" />);
 
-    const checkbox = screen.getByRole('checkbox', { name: 'showOtherCompanies' });
+    const scope = screen.getByRole('radiogroup', { name: 'companyScope' });
     const createCta = screen.getByRole('link', { name: /createButton/i });
-    expect(checkbox).toBeInTheDocument();
-    expect(checkbox).not.toBeChecked();
+    expect(scope).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'NovaTech Nord' })).toBeChecked();
+    expect(getAllCompaniesOption()).not.toBeChecked();
     expect(createCta).toHaveAttribute('href', '/account/users/new');
-    expect(checkbox.compareDocumentPosition(createCta) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(scope.compareDocumentPosition(createCta) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(mockUseOtherCompanyUsers).toHaveBeenCalledWith(DEFAULT_OTHER_COMPANY_USERS_OPTIONS);
     expect(screen.getAllByRole('table')).toHaveLength(1);
     expect(screen.queryByRole('columnheader', { name: 'columns.legalEntityName' })).not.toBeInTheDocument();
@@ -349,7 +363,7 @@ describe('UsersList', () => {
     expect(screen.getByRole('button', { name: 'deleteAriaLabel:John Smith' })).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'columns.legalEntityName' })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'showOtherCompanies' }));
+    fireEvent.click(getAllCompaniesOption());
 
     expect(screen.getAllByRole('table')).toHaveLength(1);
     expect(container.querySelectorAll('[data-slot="table-card"]')).toHaveLength(1);
@@ -357,7 +371,7 @@ describe('UsersList', () => {
       ...DEFAULT_OTHER_COMPANY_USERS_OPTIONS,
       enabled: true,
     });
-    expect(screen.getByRole('checkbox', { name: 'showOtherCompanies' })).toBeChecked();
+    expect(getAllCompaniesOption()).toBeChecked();
 
     expect(screen.queryByRole('button', { name: 'deleteAriaLabel:John Smith' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'deleteAriaLabel:Pat Other' })).not.toBeInTheDocument();
@@ -396,15 +410,15 @@ describe('UsersList', () => {
 
     render(<UsersList initialUsers={[buildUser()]} showOtherCompaniesToggle onDeleteUser={jest.fn()} />);
 
-    const checkbox = screen.getByRole('checkbox', { name: 'showOtherCompanies' });
-    fireEvent.click(checkbox);
+    fireEvent.click(getAllCompaniesOption());
     expect(screen.getAllByRole('table')).toHaveLength(1);
     expect(screen.getByText('Pat')).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'columns.legalEntityName' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'deleteAriaLabel:John Smith' })).not.toBeInTheDocument();
 
-    fireEvent.click(checkbox);
-    expect(checkbox).not.toBeChecked();
+    fireEvent.click(getCurrentCompanyOption());
+    expect(getAllCompaniesOption()).not.toBeChecked();
+    expect(getCurrentCompanyOption()).toBeChecked();
     expect(screen.getAllByRole('table')).toHaveLength(1);
     expect(screen.queryByText('Pat')).not.toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'columns.legalEntityName' })).not.toBeInTheDocument();
@@ -436,7 +450,7 @@ describe('UsersList', () => {
     });
     expect(mockUseOtherCompanyUsers).toHaveBeenCalledWith(DEFAULT_OTHER_COMPANY_USERS_OPTIONS);
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'showOtherCompanies' }));
+    fireEvent.click(getAllCompaniesOption());
 
     const [, firstTableOptionsAfter] = mockUseCompanyUsers.mock.calls[mockUseCompanyUsers.mock.calls.length - 1];
     expect(firstTableOptionsAfter).toMatchObject({
@@ -481,7 +495,7 @@ describe('UsersList', () => {
       enabled: true,
     });
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'showOtherCompanies' }));
+    fireEvent.click(getAllCompaniesOption());
     expect(mockUseOtherCompanyUsers).toHaveBeenCalledWith({
       ...DEFAULT_OTHER_COMPANY_USERS_OPTIONS,
       enabled: true,
@@ -504,7 +518,7 @@ describe('UsersList', () => {
     }));
 
     render(<UsersList initialUsers={[buildUser()]} showOtherCompaniesToggle />);
-    fireEvent.click(screen.getByRole('checkbox', { name: 'showOtherCompanies' }));
+    fireEvent.click(getAllCompaniesOption());
 
     const input = screen.getByPlaceholderText('searchPlaceholder');
     fireEvent.change(input, { target: { value: 'John S' } });
@@ -540,7 +554,7 @@ describe('UsersList', () => {
     }));
 
     render(<UsersList initialUsers={[buildUser()]} showOtherCompaniesToggle />);
-    fireEvent.click(screen.getByRole('checkbox', { name: 'showOtherCompanies' }));
+    fireEvent.click(getAllCompaniesOption());
 
     expect(screen.getByText('other boom')).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
@@ -563,7 +577,7 @@ describe('UsersList', () => {
     const { unmount } = render(<UsersList initialUsers={[buildUser()]} showOtherCompaniesToggle />);
 
     await waitFor(() => {
-      expect(screen.getByRole('checkbox', { name: 'showOtherCompanies' })).toBeChecked();
+      expect(getAllCompaniesOption()).toBeChecked();
     });
     expect(mockUseOtherCompanyUsers).toHaveBeenCalledWith({
       ...DEFAULT_OTHER_COMPANY_USERS_OPTIONS,
@@ -574,7 +588,7 @@ describe('UsersList', () => {
     render(<UsersList initialUsers={[buildUser()]} showOtherCompaniesToggle />);
 
     await waitFor(() => {
-      expect(screen.getByRole('checkbox', { name: 'showOtherCompanies' })).toBeChecked();
+      expect(getAllCompaniesOption()).toBeChecked();
     });
     expect(mockUseOtherCompanyUsers).toHaveBeenCalledWith({
       ...DEFAULT_OTHER_COMPANY_USERS_OPTIONS,
@@ -588,11 +602,11 @@ describe('UsersList', () => {
     mockUsersResult({ users: [buildUser()] });
 
     const { unmount } = render(<UsersList initialUsers={[buildUser()]} showOtherCompaniesToggle />);
-    const checkbox = screen.getByRole('checkbox', { name: 'showOtherCompanies' });
-    fireEvent.click(checkbox);
-    expect(checkbox).toBeChecked();
-    fireEvent.click(checkbox);
-    expect(checkbox).not.toBeChecked();
+    fireEvent.click(getAllCompaniesOption());
+    expect(getAllCompaniesOption()).toBeChecked();
+    fireEvent.click(getCurrentCompanyOption());
+    expect(getAllCompaniesOption()).not.toBeChecked();
+    expect(getCurrentCompanyOption()).toBeChecked();
     expect(localStorage.getItem(storageKey)).toBe('false');
 
     unmount();
@@ -600,7 +614,7 @@ describe('UsersList', () => {
     render(<UsersList initialUsers={[buildUser()]} showOtherCompaniesToggle />);
 
     await waitFor(() => {
-      expect(screen.getByRole('checkbox', { name: 'showOtherCompanies' })).not.toBeChecked();
+      expect(getAllCompaniesOption()).not.toBeChecked();
     });
     expect(mockUseOtherCompanyUsers).toHaveBeenCalledWith(DEFAULT_OTHER_COMPANY_USERS_OPTIONS);
     expect(localStorage.getItem(storageKey)).toBe('false');
@@ -623,7 +637,7 @@ describe('UsersList', () => {
         ]),
       );
     });
-    expect(screen.getByRole('checkbox', { name: 'showOtherCompanies' })).not.toBeChecked();
+    expect(getAllCompaniesOption()).not.toBeChecked();
     expect(mockUseOtherCompanyUsers).toHaveBeenCalledWith(DEFAULT_OTHER_COMPANY_USERS_OPTIONS);
   });
 
@@ -633,18 +647,18 @@ describe('UsersList', () => {
 
     localStorage.setItem(storageKey, '{not-json');
     const invalidJson = render(<UsersList initialUsers={[buildUser()]} showOtherCompaniesToggle />);
-    expect(screen.getByRole('checkbox', { name: 'showOtherCompanies' })).not.toBeChecked();
+    expect(getAllCompaniesOption()).not.toBeChecked();
     invalidJson.unmount();
     localStorage.clear();
 
     const missingKey = render(<UsersList initialUsers={[buildUser()]} showOtherCompaniesToggle />);
-    expect(screen.getByRole('checkbox', { name: 'showOtherCompanies' })).not.toBeChecked();
+    expect(getAllCompaniesOption()).not.toBeChecked();
     missingKey.unmount();
 
     const setItemSpy = jest.spyOn(Storage.prototype, 'setItem');
     mockUseSession.mockReturnValue({ session: {} });
     const missingUserId = render(<UsersList initialUsers={[buildUser()]} showOtherCompaniesToggle />);
-    expect(screen.getByRole('checkbox', { name: 'showOtherCompanies' })).not.toBeChecked();
+    expect(getAllCompaniesOption()).not.toBeChecked();
     expect(setItemSpy.mock.calls.filter(([key]) => String(key).startsWith('user-management.v1:'))).toHaveLength(0);
     missingUserId.unmount();
     setItemSpy.mockRestore();
@@ -652,7 +666,7 @@ describe('UsersList', () => {
     localStorage.setItem(showOtherCompanyUsersStorageKey(CUSTOMER_ID.SESSION_ANONYMOUS), 'true');
     mockUseSession.mockReturnValue({ session: { customerId: CUSTOMER_ID.SESSION_ANONYMOUS } });
     render(<UsersList initialUsers={[buildUser()]} showOtherCompaniesToggle />);
-    expect(screen.getByRole('checkbox', { name: 'showOtherCompanies' })).not.toBeChecked();
+    expect(getAllCompaniesOption()).not.toBeChecked();
     expect(mockUseOtherCompanyUsers).toHaveBeenCalledWith(DEFAULT_OTHER_COMPANY_USERS_OPTIONS);
   });
 
@@ -677,7 +691,7 @@ describe('UsersList', () => {
       }),
     );
     await waitFor(() => {
-      expect(screen.getByRole('checkbox', { name: 'showOtherCompanies' })).toBeChecked();
+      expect(getAllCompaniesOption()).toBeChecked();
     });
     expect(persistOptionsLog).toEqual(
       expect.arrayContaining([
@@ -694,7 +708,7 @@ describe('UsersList', () => {
     localStorage.setItem(storageKey, 'true');
     mockUseSession.mockReturnValue({ session: {} });
     const { rerender } = render(<UsersList initialUsers={[buildUser()]} showOtherCompaniesToggle />);
-    expect(screen.getByRole('checkbox', { name: 'showOtherCompanies' })).not.toBeChecked();
+    expect(getAllCompaniesOption()).not.toBeChecked();
     expect(localStorage.getItem(storageKey)).toBe('true');
     expect(persistOptionsLog).toEqual(expect.arrayContaining([expect.objectContaining({ enabled: false })]));
     expect(persistOptionsLog).not.toEqual(expect.arrayContaining([expect.objectContaining({ enabled: true })]));
@@ -702,7 +716,7 @@ describe('UsersList', () => {
     mockUseSession.mockReturnValue(authenticatedSession());
     rerender(<UsersList initialUsers={[buildUser()]} showOtherCompaniesToggle />);
     await waitFor(() => {
-      expect(screen.getByRole('checkbox', { name: 'showOtherCompanies' })).toBeChecked();
+      expect(getAllCompaniesOption()).toBeChecked();
     });
     expect(persistOptionsLog).toEqual(
       expect.arrayContaining([

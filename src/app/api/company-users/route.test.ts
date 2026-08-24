@@ -128,6 +128,7 @@ describe('/api/company-users', () => {
     const response = await GET({ url: 'https://example.test/api/company-users' } as never);
 
     expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({ error: 'Failed to fetch company users' });
     expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({
         error: 'upstream failed',
@@ -136,6 +137,17 @@ describe('/api/company-users', () => {
       }),
       'Error fetching company users',
     );
+  });
+
+  it('returns 500 when list fails because the customer token cannot be scoped', async () => {
+    userManagementService.listUsers.mockRejectedValueOnce(
+      new Error('Customer token is not scoped to the selected legal entity'),
+    );
+
+    const response = await GET({ url: 'https://example.test/api/company-users' } as never);
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({ error: 'Failed to fetch company users' });
   });
 
   it('creates a company user and returns 201', async () => {
