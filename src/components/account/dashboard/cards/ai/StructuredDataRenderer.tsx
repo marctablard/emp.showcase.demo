@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { widgetHasItems } from '@/lib/common/ai-tool-widgets';
 import { AccountDetailsRenderer } from './renderers/AccountDetailsRenderer';
 import { AddressListRenderer } from './renderers/AddressListRenderer';
 import { CartSummaryRenderer } from './renderers/CartSummaryRenderer';
@@ -43,6 +42,26 @@ interface StructuredDataRendererProps {
   handlers: StructuredDataHandlers;
 }
 
+function hasResolvedWidgetPayload(data: unknown): boolean {
+  if (data == null) {
+    return false;
+  }
+  if (typeof data !== 'object' || Array.isArray(data)) {
+    return true;
+  }
+  const record = data as Record<string, unknown>;
+  return Object.entries(record).some(([key, value]) => {
+    if (key === 'pagination' || key === 'message') {
+      return false;
+    }
+    // Empty arrays are resolved no-results, not missing/partial data.
+    if (Array.isArray(value)) {
+      return true;
+    }
+    return value != null && value !== '';
+  });
+}
+
 export const StructuredDataRenderer: React.FC<StructuredDataRendererProps> = ({ type, data, handlers }) => {
   const t = useTranslations('account.AiHelper');
 
@@ -54,12 +73,7 @@ export const StructuredDataRenderer: React.FC<StructuredDataRendererProps> = ({ 
     });
   };
 
-  if (
-    type !== 'text' &&
-    type !== 'html' &&
-    (data == null ||
-      (typeof data === 'object' && !Array.isArray(data) && !widgetHasItems(data as Record<string, unknown>)))
-  ) {
+  if (type !== 'text' && type !== 'html' && !hasResolvedWidgetPayload(data)) {
     return <WidgetSkeleton />;
   }
 

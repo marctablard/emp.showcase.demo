@@ -85,6 +85,18 @@ describe('parseAIResponse', () => {
     expect(result.message).toBe(input);
   });
 
+  it('should preserve an explicit empty message for widget envelopes', () => {
+    const input = JSON.stringify({
+      message: '',
+      type: 'order_list',
+      data: { orders: [{ orderId: 'EON1' }] },
+    });
+    const result = parseAIResponse(input);
+    expect(result.message).toBe('');
+    expect(result.type).toBe('order_list');
+    expect(result.data).toEqual({ orders: [{ orderId: 'EON1' }] });
+  });
+
   it('should handle empty string', () => {
     const result = parseAIResponse('');
     expect(result.message).toBe('');

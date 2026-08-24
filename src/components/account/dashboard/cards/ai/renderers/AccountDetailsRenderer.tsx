@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import type { AccountDetailsData, AddressData } from '../types';
 import { formatDateTime } from '../utils';
 import { AddressCard } from './AddressCard';
-import { widgetOrSkeleton } from './WidgetSkeleton';
+import { WidgetSkeleton } from './WidgetSkeleton';
 
 interface AccountDetailsRendererProps {
   data: AccountDetailsData;
@@ -14,11 +14,17 @@ interface AccountDetailsRendererProps {
 export const AccountDetailsRenderer: React.FC<AccountDetailsRendererProps> = ({ data }) => {
   const t = useTranslations('account.AiHelper');
   const personalInfo = data.personalInfo;
+  const addresses = Array.isArray(data.addresses) ? data.addresses : [];
+  const hasPersonalInfo = personalInfo != null;
+  const hasAddresses = addresses.length > 0;
 
-  return widgetOrSkeleton(
-    personalInfo,
-    <>
-      <div className="space-y-4">
+  if (!hasPersonalInfo && !hasAddresses) {
+    return <WidgetSkeleton />;
+  }
+
+  return (
+    <div className="space-y-4">
+      {hasPersonalInfo && (
         <div className="bg-surface-primary rounded-lg border border-border-primary p-4">
           <div className="flex items-center space-x-2 mb-4">
             <h3 className="text-base font-semibold text-text-headings">{t('accountInformation')}</h3>
@@ -98,21 +104,21 @@ export const AccountDetailsRenderer: React.FC<AccountDetailsRendererProps> = ({ 
             </div>
           </div>
         </div>
+      )}
 
-        {data.addresses && data.addresses.length > 0 && (
-          <div className="bg-surface-primary rounded-lg border border-border-primary p-4">
-            <div className="flex items-center space-x-2 mb-4">
-              <h3 className="text-base font-semibold text-text-headings">{t('savedAddresses')}</h3>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 items-stretch">
-              {data.addresses.map((address: AddressData, index: number) => (
-                <AddressCard key={index} address={address} />
-              ))}
-            </div>
+      {hasAddresses && (
+        <div className="bg-surface-primary rounded-lg border border-border-primary p-4">
+          <div className="flex items-center space-x-2 mb-4">
+            <h3 className="text-base font-semibold text-text-headings">{t('savedAddresses')}</h3>
           </div>
-        )}
-      </div>
-    </>,
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 items-stretch">
+            {addresses.map((address: AddressData, index: number) => (
+              <AddressCard key={index} address={address} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 };

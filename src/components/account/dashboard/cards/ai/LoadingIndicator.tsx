@@ -10,11 +10,14 @@ interface LoadingIndicatorProps {
 
 export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({ chunkCount = null, statusMessage }) => {
   const t = useTranslations('account.AiHelper');
-  const label = statusMessage
-    ? statusMessage
-    : chunkCount === null
-      ? t('thinking')
-      : t('thinkingWithChunks', { numberOfChunks: chunkCount });
+  let label = statusMessage ?? '';
+  if (!statusMessage) {
+    if (chunkCount === null) {
+      label = t('thinking');
+    } else {
+      label = t('thinkingWithChunks', { numberOfChunks: chunkCount });
+    }
+  }
 
   return (
     <div className="flex justify-start">

@@ -131,20 +131,37 @@ const TOOL_ENVELOPE_META_KEYS = new Set([
   'is_error',
 ]);
 
+function unwrapJsonString(output: string, depth: number): unknown {
+  const trimmed = output.trim();
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+    return null;
+  }
+  try {
+    return unwrapPayload(JSON.parse(trimmed) as unknown, depth + 1);
+  } catch {
+    return null;
+  }
+}
+
+function unwrapToolEnvelope(output: Record<string, unknown>, depth: number): unknown {
+  for (const key of TOOL_ENVELOPE_PAYLOAD_KEYS) {
+    if (output[key] == null) {
+      continue;
+    }
+    const unwrapped = unwrapPayload(output[key], depth + 1);
+    if (unwrapped != null) {
+      return unwrapped;
+    }
+  }
+  return stripEnvelopeMeta(output);
+}
+
 function unwrapPayload(output: unknown, depth = 0): unknown {
   if (depth > 8) {
     return isRecord(output) || Array.isArray(output) ? output : null;
   }
   if (typeof output === 'string') {
-    const trimmed = output.trim();
-    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-      try {
-        return unwrapPayload(JSON.parse(trimmed) as unknown, depth + 1);
-      } catch {
-        return null;
-      }
-    }
-    return null;
+    return unwrapJsonString(output, depth);
   }
   if (Array.isArray(output)) {
     return output;
@@ -165,17 +182,7 @@ function unwrapPayload(output: unknown, depth = 0): unknown {
     return output;
   }
 
-  for (const key of TOOL_ENVELOPE_PAYLOAD_KEYS) {
-    if (output[key] == null) {
-      continue;
-    }
-    const unwrapped = unwrapPayload(output[key], depth + 1);
-    if (unwrapped != null) {
-      return unwrapped;
-    }
-  }
-
-  return stripEnvelopeMeta(output);
+  return unwrapToolEnvelope(output, depth);
 }
 
 function structuredContentFrom(record: Record<string, unknown>): unknown {
@@ -360,18 +367,32 @@ function adaptOrderTotal(record: Record<string, unknown>): Record<string, unknow
   if (gross == null && net == null) {
     return undefined;
   }
-  return {
+  const total: Record<string, unknown> = {
     gross: gross ?? net,
     value: gross ?? net,
-    ...(net != null ? { net } : {}),
-    ...(tax != null ? { tax } : {}),
   };
+  if (net != null) {
+    total.net = net;
+  }
+  if (tax != null) {
+    total.tax = tax;
+  }
+  return total;
+}
+
+function orderItemSources(record: Record<string, unknown>): unknown[] {
+  if (Array.isArray(record.items)) {
+    return record.items;
+  }
+  if (Array.isArray(record.entries)) {
+    return record.entries;
+  }
+  return [];
 }
 
 function adaptOrderItems(record: Record<string, unknown>): Array<Record<string, unknown>> {
-  const sources = Array.isArray(record.items) ? record.items : Array.isArray(record.entries) ? record.entries : [];
   const mapped: Array<Record<string, unknown>> = [];
-  for (const source of sources) {
+  for (const source of orderItemSources(record)) {
     const item = adaptOrderItem(source);
     if (item) {
       mapped.push(item);
@@ -380,12 +401,139 @@ function adaptOrderItems(record: Record<string, unknown>): Array<Record<string, 
   return mapped;
 }
 
+function orderItemMedia(
+  product: Record<string, unknown> | null,
+  item: Record<string, unknown>,
+): Record<string, unknown> | null {
+  if (product && isRecord(product.media)) {
+    return product.media;
+  }
+  if (isRecord(item.media)) {
+    return item.media;
+  }
+  return null;
+}
+
+function orderItemImage(
+  product: Record<string, unknown> | null,
+  item: Record<string, unknown>,
+  media: Record<string, unknown> | null,
+): string | undefined {
+  const direct = readString(item.image);
+  if (direct) {
+    return direct;
+  }
+  if (media) {
+    const mediaUrl = readString(media.url);
+    if (mediaUrl) {
+      return mediaUrl;
+    }
+  }
+  const images = product && Array.isArray(product.images) ? product.images : null;
+  if (!images) {
+    return undefined;
+  }
+  for (const image of images) {
+    if (typeof image === 'string' && image !== '') {
+      return image;
+    }
+    if (isRecord(image)) {
+      const url = readString(image.url);
+      if (url) {
+        return url;
+      }
+    }
+  }
+  return undefined;
+}
+
+function adaptPriceField(value: unknown): Record<string, unknown> | undefined {
+  if (isRecord(value)) {
+    const amount =
+      readNumber(value.effectiveAmount) ??
+      readNumber(value.amount) ??
+      readNumber(value.value) ??
+      readNumber(value.gross) ??
+      readNumber(value.grossValue);
+    const net = readNumber(value.net) ?? readNumber(value.netValue);
+    const tax = readNumber(value.tax) ?? readNumber(value.taxValue);
+    const currency = readString(value.currency);
+    if (amount == null && net == null && !currency) {
+      return undefined;
+    }
+    return compactRecord({
+      value: amount ?? net,
+      gross: amount ?? net,
+      net,
+      tax,
+      currency,
+    });
+  }
+  const amount = readNumber(value);
+  if (amount == null) {
+    return undefined;
+  }
+  return { gross: amount, value: amount };
+}
+
+function adaptOrderLinePrices(
+  item: Record<string, unknown>,
+  quantity: number,
+): { unitPrice?: Record<string, unknown>; totalPrice?: Record<string, unknown> } {
+  const explicitUnit = adaptPriceField(item.unitPrice ?? item.calculatedUnitPrice);
+  const explicitTotal = adaptPriceField(item.totalPrice);
+  if (explicitUnit || explicitTotal) {
+    return {
+      ...(explicitUnit ? { unitPrice: explicitUnit } : {}),
+      ...(explicitTotal || explicitUnit ? { totalPrice: explicitTotal ?? explicitUnit } : {}),
+    };
+  }
+
+  const price = isRecord(item.price) ? item.price : null;
+  const calculated = isRecord(item.calculatedPrice) ? item.calculatedPrice : null;
+  const finalPrice = calculated && isRecord(calculated.finalPrice) ? calculated.finalPrice : null;
+  const currency = price ? readString(price.currency) : undefined;
+  const effective = price ? readNumber(price.effectiveAmount) : undefined;
+  const grossTotal = readNumber(finalPrice?.grossValue);
+  const netTotal = readNumber(finalPrice?.netValue);
+  const taxTotal = readNumber(finalPrice?.taxValue);
+
+  let unitPrice: Record<string, unknown> | undefined;
+  if (effective != null) {
+    unitPrice = compactRecord({
+      value: effective,
+      gross: quantity > 0 && grossTotal != null ? grossTotal / quantity : effective,
+      net: quantity > 0 && netTotal != null ? netTotal / quantity : undefined,
+      currency,
+    });
+  }
+
+  let totalPrice: Record<string, unknown> | undefined;
+  if (grossTotal != null || netTotal != null) {
+    totalPrice = compactRecord({
+      value: grossTotal ?? netTotal,
+      gross: grossTotal ?? netTotal,
+      net: netTotal,
+      tax: taxTotal,
+      currency,
+    });
+  } else if (effective != null) {
+    totalPrice = compactRecord({
+      value: effective * quantity,
+      gross: effective * quantity,
+      currency,
+    });
+  }
+
+  return { unitPrice, totalPrice };
+}
+
 function adaptOrderItem(item: unknown): Record<string, unknown> | null {
   if (!isRecord(item)) {
     return null;
   }
   const product = isRecord(item.product) ? item.product : null;
-  const media = product && isRecord(product.media) ? product.media : isRecord(item.media) ? item.media : null;
+  const media = orderItemMedia(product, item);
   const name =
     readString(item.name) ??
     localizedName(item.name) ??
@@ -395,42 +543,31 @@ function adaptOrderItem(item: unknown): Record<string, unknown> | null {
   if (!name && !productId) {
     return null;
   }
+  const quantity =
+    readNumber(item.quantity) ??
+    readNumber(item.amount) ??
+    readNumber(item.orderedAmount) ??
+    readNumber(item.effectiveQuantity) ??
+    1;
   const mapped: Record<string, unknown> = {
     name: name ?? productId,
-    quantity:
-      readNumber(item.quantity) ??
-      readNumber(item.amount) ??
-      readNumber(item.orderedAmount) ??
-      readNumber(item.effectiveQuantity) ??
-      1,
+    quantity,
   };
   if (productId) {
     mapped.productId = productId;
   }
-  const image = readString(item.image) ?? (media ? readString(media.url) : undefined);
+  const image = orderItemImage(product, item, media);
   if (image) {
     mapped.image = image;
   }
-  const unitPrice = adaptPriceField(item.unitPrice ?? item.calculatedUnitPrice);
+  const { unitPrice, totalPrice } = adaptOrderLinePrices(item, quantity);
   if (unitPrice) {
     mapped.unitPrice = unitPrice;
   }
-  const totalPrice = adaptPriceField(item.totalPrice ?? item.price);
   if (totalPrice) {
     mapped.totalPrice = totalPrice;
   }
   return mapped;
-}
-
-function adaptPriceField(value: unknown): Record<string, unknown> | undefined {
-  if (isRecord(value)) {
-    return value;
-  }
-  const amount = readNumber(value);
-  if (amount == null) {
-    return undefined;
-  }
-  return { gross: amount, value: amount };
 }
 
 export const toDisplayString = (value: unknown): string | undefined => {
@@ -460,6 +597,50 @@ function adaptProductImage(record: Record<string, unknown>): string | undefined 
   return undefined;
 }
 
+function priceFromStringValue(priceValue: string, currency: string | undefined): { price?: number; currency?: string } {
+  const parsed = Number.parseFloat(priceValue);
+  if (Number.isFinite(parsed)) {
+    return { price: parsed, currency };
+  }
+  if (currency) {
+    return { currency };
+  }
+  return {};
+}
+
+function priceFromRecordValue(
+  priceValue: Record<string, unknown>,
+  currency: string | undefined,
+): { price?: number; currency?: string } | null {
+  const amount =
+    readNumber(priceValue.amount) ??
+    readNumber(priceValue.gross) ??
+    readNumber(priceValue.value) ??
+    readNumber(priceValue.netValue);
+  const priceCurrency = readString(priceValue.currency) ?? currency;
+  if (amount != null) {
+    return { price: amount, currency: priceCurrency };
+  }
+  return null;
+}
+
+function priceFromSitePrices(
+  sitePrices: Record<string, unknown>,
+  currency: string | undefined,
+): { price?: number; currency?: string } | null {
+  for (const sitePrice of Object.values(sitePrices)) {
+    if (!isRecord(sitePrice)) {
+      continue;
+    }
+    const amount = readNumber(sitePrice.effectiveAmount) ?? readNumber(sitePrice.amount);
+    const siteCurrency = readString(sitePrice.currency) ?? currency;
+    if (amount != null) {
+      return { price: amount, currency: siteCurrency };
+    }
+  }
+  return null;
+}
+
 function adaptProductPriceFields(record: Record<string, unknown>): { price?: number; currency?: string } {
   const priceValue = record.price;
   const currency = readString(record.currency);
@@ -467,34 +648,24 @@ function adaptProductPriceFields(record: Record<string, unknown>): { price?: num
     return { price: priceValue, currency };
   }
   if (typeof priceValue === 'string') {
-    const parsed = Number.parseFloat(priceValue);
-    return Number.isFinite(parsed) ? { price: parsed, currency } : currency ? { currency } : {};
+    return priceFromStringValue(priceValue, currency);
   }
   if (isRecord(priceValue)) {
-    const amount =
-      readNumber(priceValue.amount) ??
-      readNumber(priceValue.gross) ??
-      readNumber(priceValue.value) ??
-      readNumber(priceValue.netValue);
-    const priceCurrency = readString(priceValue.currency) ?? currency;
-    if (amount != null) {
-      return { price: amount, currency: priceCurrency };
+    const fromRecord = priceFromRecordValue(priceValue, currency);
+    if (fromRecord) {
+      return fromRecord;
     }
   }
-  const sitePrices = record.sitePrices;
-  if (isRecord(sitePrices)) {
-    for (const sitePrice of Object.values(sitePrices)) {
-      if (!isRecord(sitePrice)) {
-        continue;
-      }
-      const amount = readNumber(sitePrice.effectiveAmount) ?? readNumber(sitePrice.amount);
-      const siteCurrency = readString(sitePrice.currency) ?? currency;
-      if (amount != null) {
-        return { price: amount, currency: siteCurrency };
-      }
+  if (isRecord(record.sitePrices)) {
+    const fromSite = priceFromSitePrices(record.sitePrices, currency);
+    if (fromSite) {
+      return fromSite;
     }
   }
-  return currency ? { currency } : {};
+  if (currency) {
+    return { currency };
+  }
+  return {};
 }
 
 function adaptProduct(item: unknown): Record<string, unknown> {
@@ -515,9 +686,7 @@ function adaptProduct(item: unknown): Record<string, unknown> {
 
 function adaptAccount(payload: unknown, toolName: string): Record<string, unknown> {
   const record = isRecord(payload) ? payload : {};
-  const nested =
-    firstRecord(record, 'customer', 'account', 'profile', 'user', 'data') ??
-    (isRecord(record.personalInfo) ? record : record);
+  const nested = firstRecord(record, 'customer', 'account', 'profile', 'user', 'data') ?? record;
   const personal = isRecord(nested.personalInfo) ? nested.personalInfo : nested;
   const first = readString(personal.firstName) ?? '';
   const last = readString(personal.lastName) ?? '';

@@ -44,12 +44,14 @@ function stripMarkdownCodeBlock(rawMessage: string): string {
   return rawMessage;
 }
 
+const COMPLETE_MARKDOWN_FENCE_PATTERN = /^```(?:json)?\r?\n([\s\S]*?)```\r?\n?/i;
+
 function stripLeadingCompleteMarkdownFences(text: string): { text: string; blocked: boolean } {
   let remainder = text;
 
   while (true) {
     const trimmed = remainder.trimStart();
-    const match = trimmed.match(/^```(?:json)?\r?\n([\s\S]*?)```\r?\n?/i);
+    const match = COMPLETE_MARKDOWN_FENCE_PATTERN.exec(trimmed);
     if (!match) {
       break;
     }
@@ -64,11 +66,16 @@ function stripLeadingCompleteMarkdownFences(text: string): { text: string; block
 }
 
 function unescapePartialJsonString(value: string): string {
-  return value.replaceAll('\\n', '\n').replaceAll('\\"', '"').replaceAll('\\\\', '\\');
+  return value
+    .replaceAll(String.raw`\n`, '\n')
+    .replaceAll(String.raw`\"`, '"')
+    .replaceAll(String.raw`\\`, '\\');
 }
 
 const MAX_SHOPPER_CAPTION_CHARS = 512;
 const MARKDOWN_HEADING_PATTERN = /(?:^|\n)#{1,6}\s+\S/gm;
+const PLANNING_SECTION_HEADING_PATTERN =
+  /(?:^|\n)#{1,6}\s+(?:OBJECTIVE|CHECKLIST|PLAN|REASONING|THOUGHTS?|ANALYSIS|CONTEXT|STEPS|TODO)\b/i;
 const ENVELOPE_LEAK_PATTERN = /"(?:type|data|agentId|sessionId|tool_call)"\s*:/;
 const BLANK_LINE_BLOCK_PATTERN = /\n\s*\n/g;
 
@@ -80,8 +87,12 @@ function countBlankLineBlocks(value: string): number {
   return value.match(BLANK_LINE_BLOCK_PATTERN)?.length ?? 0;
 }
 
-function looksLikeNonShopperCaption(value: string): boolean {
-  if (value.length > MAX_SHOPPER_CAPTION_CHARS) {
+function looksLikeNonShopperCaption(value: string, options: { enforceMaxLength: boolean }): boolean {
+  if (options.enforceMaxLength && value.length > MAX_SHOPPER_CAPTION_CHARS) {
+    return true;
+  }
+
+  if (PLANNING_SECTION_HEADING_PATTERN.test(value)) {
     return true;
   }
 
@@ -101,11 +112,23 @@ function looksLikeNonShopperCaption(value: string): boolean {
   return false;
 }
 
+/** Live caption filter — length-capped and planning-aware. */
 export const sanitizeShopperCaption = (value: string | null | undefined): string => {
   if (!value) {
     return '';
   }
-  if (looksLikeNonShopperCaption(value)) {
+  if (looksLikeNonShopperCaption(value, { enforceMaxLength: true })) {
+    return '';
+  }
+  return value;
+};
+
+/** Completed shopper text — planning/CoT filtered, no 512-char rejection. */
+export const sanitizeCompletedShopperText = (value: string | null | undefined): string => {
+  if (!value) {
+    return '';
+  }
+  if (looksLikeNonShopperCaption(value, { enforceMaxLength: false })) {
     return '';
   }
   return value;
@@ -117,7 +140,7 @@ function extractPartialJsonStringField(
   useLastMatch = false,
   allowPartialUnclosed = false,
 ): string | null {
-  const fieldPattern = new RegExp(`"${fieldName}"\\s*:\\s*"`, 'g');
+  const fieldPattern = new RegExp(String.raw`"` + fieldName + String.raw`"\s*:\s*"`, 'g');
   let selectedMatch: RegExpExecArray | null = null;
   let match: RegExpExecArray | null = fieldPattern.exec(text);
 
@@ -168,13 +191,15 @@ function extractPartialJsonStringField(
   return unescapePartialJsonString(result);
 }
 
+const PARTIAL_JSON_TYPE_PATTERN = new RegExp(String.raw`"type"\s*:\s*"([^"]*)"`);
+
 function extractPartialJsonType(text: string): string | null {
-  const typeMatch = text.match(/"type"\s*:\s*"([^"]*)"/);
+  const typeMatch = PARTIAL_JSON_TYPE_PATTERN.exec(text);
   return typeMatch?.[1] ?? null;
 }
 
 function extractPartialJsonObjectField(text: string, fieldName: string): Record<string, unknown> | null {
-  const fieldPattern = new RegExp(`"${fieldName}"\\s*:\\s*\\{`);
+  const fieldPattern = new RegExp(String.raw`"` + fieldName + String.raw`"\s*:\s*\{`);
   const match = fieldPattern.exec(text);
   if (!match) {
     return null;
@@ -211,18 +236,44 @@ function previewFromShopperMessage(value: string): StreamPreview {
   if (looksLikeStructuredPayload(value)) {
     return previewStreamingAIMessageFromSource(value);
   }
-  return { kind: 'text', content: sanitizeShopperCaption(value) };
+  const content = sanitizeShopperCaption(value);
+  if (!content) {
+    return { kind: 'pending' };
+  }
+  return { kind: 'text', content };
+}
+
+function htmlFromEnvelopeData(data: unknown): string | null {
+  if (!data || typeof data !== 'object' || !('html' in data)) {
+    return null;
+  }
+  const html = (data as { html?: unknown }).html;
+  return typeof html === 'string' ? html : null;
+}
+
+function nestedMessageFromEnvelopeData(data: unknown): string {
+  if (!data || typeof data !== 'object' || !('message' in data)) {
+    return '';
+  }
+  const nested = (data as { message?: unknown }).message;
+  return typeof nested === 'string' ? nested : '';
+}
+
+function textContentFromEnvelope(intro: string, nestedMessage: string): string {
+  if (nestedMessage && nestedMessage !== intro) {
+    if (intro) {
+      return `${intro}\n${nestedMessage}`;
+    }
+    return nestedMessage;
+  }
+  return intro || nestedMessage;
 }
 
 function previewFromParsedEnvelope(parsed: Record<string, unknown>): StreamPreview {
   const type = typeof parsed.type === 'string' ? parsed.type : 'text';
 
   if (type === 'html') {
-    const data = parsed.data;
-    const html =
-      data && typeof data === 'object' && 'html' in data && typeof (data as { html?: unknown }).html === 'string'
-        ? (data as { html: string }).html
-        : null;
+    const html = htmlFromEnvelopeData(parsed.data);
     if (html) {
       return { kind: 'html', html };
     }
@@ -234,15 +285,13 @@ function previewFromParsedEnvelope(parsed: Record<string, unknown>): StreamPrevi
     return widgetPreview(type, intro, parsed.data);
   }
 
-  const nested =
-    parsed.data && typeof parsed.data === 'object' && 'message' in parsed.data
-      ? (parsed.data as { message?: unknown }).message
-      : undefined;
-  const body = typeof nested === 'string' ? nested : '';
-  const content = body && body !== intro ? `${intro}${intro ? '\n' : ''}${body}` : intro || body;
-
+  const content = textContentFromEnvelope(intro, nestedMessageFromEnvelopeData(parsed.data));
   if (content) {
-    return { kind: 'text', content: sanitizeShopperCaption(content) };
+    const sanitized = sanitizeShopperCaption(content);
+    if (!sanitized) {
+      return { kind: 'pending' };
+    }
+    return { kind: 'text', content: sanitized };
   }
 
   return { kind: 'pending' };
@@ -252,14 +301,14 @@ function previewFromIncompleteJson(text: string): StreamPreview {
   const partialType = extractPartialJsonType(text);
   const trimmed = text.trimStart();
 
-  if (partialType === 'html' || /"html"\s*:\s*"/.test(text)) {
+  // Only treat root `type: "html"` as an HTML bubble — nested product/order
+  // description fields named `html` must not hijack the preview.
+  if (partialType === 'html') {
     const html = extractPartialJsonStringField(text, 'html', true, true);
     if (html) {
       return { kind: 'html', html };
     }
-    if (partialType === 'html') {
-      return { kind: 'pending' };
-    }
+    return { kind: 'pending' };
   }
 
   const message = extractPartialJsonStringField(text, 'message') ?? '';
@@ -279,7 +328,11 @@ function previewFromIncompleteJson(text: string): StreamPreview {
   }
 
   if (text !== '') {
-    return { kind: 'text', content: sanitizeShopperCaption(text) };
+    const content = sanitizeShopperCaption(text);
+    if (!content) {
+      return { kind: 'pending' };
+    }
+    return { kind: 'text', content };
   }
 
   return { kind: 'pending' };
@@ -315,7 +368,9 @@ export const toStreamProgressUpdate = (
   thinking?: string,
 ): AIChatStreamProgressUpdate => {
   const update: AIChatStreamProgressUpdate = { chunks };
-  if (preview.kind !== 'pending') {
+  if (preview.kind === 'text' && preview.content === '') {
+    // Empty text after caption sanitization — keep spinner, do not paint a blank bubble.
+  } else if (preview.kind !== 'pending') {
     update.preview = preview;
   }
   if (thinking) {

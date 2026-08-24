@@ -19,7 +19,7 @@ export const ReturnDetailsRenderer: React.FC<ReturnDetailsRendererProps> = ({ da
   return (
     <div className="space-y-4">
       {data.message && <div className="text-text-body mb-3 text-base">{data.message}</div>}
-      {!returnItem ? <WidgetSkeleton rows={1} /> : <ReturnCard returnItem={returnItem} />}
+      {returnItem ? <ReturnCard returnItem={returnItem} /> : <WidgetSkeleton rows={1} />}
     </div>
   );
 };

@@ -152,6 +152,40 @@ describe('ai-tool-widgets', () => {
     expect(order.itemCount).toBe(1);
   });
 
+  it('maps Emporix entry images and effectiveAmount into widget line items', () => {
+    const adapted = adaptToolResult('get-customer-orders', {
+      orders: [
+        {
+          id: 'EON2',
+          status: 'CREATED',
+          entries: [
+            {
+              amount: 2,
+              product: {
+                id: 'P2',
+                name: { en: 'Battery' },
+                images: [{ url: 'https://cdn.example/battery.jpg' }],
+              },
+              price: { effectiveAmount: 12.5, currency: 'EUR' },
+              calculatedPrice: {
+                finalPrice: { netValue: 20, grossValue: 25, taxValue: 5 },
+              },
+            },
+          ],
+        },
+      ],
+    });
+    const item = (adapted?.data.orders as Array<Record<string, unknown>>)[0].items as Array<Record<string, unknown>>;
+    expect(item[0]).toMatchObject({
+      productId: 'P2',
+      name: 'Battery',
+      quantity: 2,
+      image: 'https://cdn.example/battery.jpg',
+      unitPrice: { value: 12.5, gross: 12.5, net: 10, currency: 'EUR' },
+      totalPrice: { value: 25, gross: 25, net: 20, tax: 5, currency: 'EUR' },
+    });
+  });
+
   it('keeps already-adapted order widgets', () => {
     const adapted = adaptToolResult('get-customer-orders', {
       orders: [

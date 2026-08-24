@@ -33,7 +33,7 @@ export function parseAIResponse(rawMessage: string): ParsedAIResponse {
   try {
     const parsed = JSON.parse(messageToParse);
     return {
-      message: parsed.message || rawMessage,
+      message: typeof parsed.message === 'string' ? parsed.message : rawMessage,
       data: parsed.data || null,
       type: parsed.type || 'text',
       cartRefresh: parsed.cartRefresh || false,

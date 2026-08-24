@@ -27,6 +27,7 @@ import {
   type StreamPreview,
   WIDGET_TYPES,
   previewStreamingAIMessage,
+  sanitizeCompletedShopperText,
   sanitizeShopperCaption,
   toStreamProgressUpdate,
 } from '@/lib/common/ai-stream-preview';
@@ -275,7 +276,10 @@ function consumeFrames(
     // freeze on `pending` — that blocks widgets/HTML as the envelope completes.
     const canReusePreview = lastPreview != null && lastPreview.kind !== 'pending' && chunks % 4 !== 0;
     if (!forcePreview && canReusePreview) {
-      onProgress?.(toStreamProgressUpdate(chunks, lastPreview, state.thinking ? SHOPPER_THINKING_STATUS : undefined));
+      // Omit preview payload — useAI keeps the last preview; avoids re-serializing large widgets.
+      onProgress?.(
+        toStreamProgressUpdate(chunks, { kind: 'pending' }, state.thinking ? SHOPPER_THINKING_STATUS : undefined),
+      );
       continue;
     }
     lastPreview = previewFromAssemblyState(state);
@@ -380,19 +384,36 @@ function pickAssembledResponse(objects: StreamObject[], overlay: StreamIdentity)
   return null;
 }
 
+function sanitizeCompletedEnvelopeData(data: unknown): unknown {
+  if (!isStreamObject(data)) {
+    return data;
+  }
+  if (typeof data.message !== 'string') {
+    return data;
+  }
+  return {
+    ...data,
+    message: sanitizeCompletedShopperText(data.message),
+  };
+}
+
 function sanitizeCompletedMessage(message: string): string {
   try {
     const parsed = JSON.parse(message) as unknown;
-    if (isStreamObject(parsed) && typeof parsed.message === 'string') {
-      return JSON.stringify({
-        ...parsed,
-        message: sanitizeShopperCaption(parsed.message),
-      });
+    if (isStreamObject(parsed)) {
+      const next: StreamObject = { ...parsed };
+      if (typeof next.message === 'string') {
+        next.message = sanitizeCompletedShopperText(next.message);
+      }
+      if (next.data != null) {
+        next.data = sanitizeCompletedEnvelopeData(next.data);
+      }
+      return JSON.stringify(next);
     }
   } catch {
-    // Plain-text completion — filter planning / CoT markdown the same as live preview.
+    // Plain-text completion — filter planning / CoT without the live caption length cap.
   }
-  return sanitizeShopperCaption(message);
+  return sanitizeCompletedShopperText(message);
 }
 
 function withSanitizedCompletion(response: EmporixAIChatResponse): EmporixAIChatResponse {
@@ -683,7 +704,7 @@ function pickRicherResponse(
   }
   const tokenScore = envelopeDataScore(fromTokens);
   const widgetScore = envelopeDataScore(fromWidget);
-  if (tokenScore > 0 && hasFrontendAgentMetadata(fromTokens)) {
+  if (tokenScore > widgetScore && hasFrontendAgentMetadata(fromTokens)) {
     return fromTokens;
   }
   if (widgetScore > 0) {

@@ -16,12 +16,11 @@ export const ThinkingTranscript: React.FC<ThinkingTranscriptProps> = ({ text }) 
   }
 
   return (
-    <div
+    <output
       className="rounded-lg border border-border-primary bg-surface-primary px-3 py-2 text-sm text-text-placeholders"
-      role="status"
       aria-live="polite"
     >
       {t('thinking')}
-    </div>
+    </output>
   );
 };

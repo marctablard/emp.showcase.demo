@@ -1,5 +1,6 @@
 import {
   previewStreamingAIMessage,
+  sanitizeCompletedShopperText,
   sanitizeShopperCaption,
   toStreamProgressUpdate,
   widgetTypeFromToolName,
@@ -57,6 +58,29 @@ describe('previewStreamingAIMessage', () => {
       type: 'order_list',
       message: '',
       data: { orders: [{ orderId: 'EON1' }] },
+    });
+  });
+
+  it('drops a short single planning heading from captions', () => {
+    expect(sanitizeShopperCaption('## OBJECTIVE\nLook up orders.')).toBe('');
+    expect(sanitizeCompletedShopperText('## OBJECTIVE\nLook up orders.')).toBe('');
+  });
+
+  it('keeps long completed shopper answers while still capping live captions', () => {
+    const longAnswer = `Thanks for waiting. ${'Details about your order history. '.repeat(40)}`;
+    expect(longAnswer.length).toBeGreaterThan(512);
+    expect(sanitizeShopperCaption(longAnswer)).toBe('');
+    expect(sanitizeCompletedShopperText(longAnswer)).toBe(longAnswer);
+  });
+
+  it('keeps order_list preview when nested html description fields appear', () => {
+    const partial =
+      '{"type":"order_list","message":"Orders","data":{"orders":[{"orderId":"EON1","description":{"html":"<p>hi"}}';
+    expect(previewStreamingAIMessage(partial)).toEqual({
+      kind: 'widget',
+      type: 'order_list',
+      message: 'Orders',
+      data: {},
     });
   });
 
@@ -203,5 +227,9 @@ describe('toStreamProgressUpdate', () => {
       chunks: 1,
       thinking: 'Looking up quotes',
     });
+  });
+
+  it('omits empty text previews so the spinner stays up', () => {
+    expect(toStreamProgressUpdate(2, { kind: 'text', content: '' })).toEqual({ chunks: 2 });
   });
 });

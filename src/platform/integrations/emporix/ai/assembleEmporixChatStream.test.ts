@@ -197,7 +197,6 @@ describe('assembleEmporixChatStream', () => {
     const parsed = parseAIResponse(assembled.message);
 
     expect(assembled.sessionId).toBe('session-orders');
-    expect(assembled.message).toBe(JSON.stringify(frontendAgentPayload));
     expect(parsed.type).toBe('order_list');
     expect(parsed.message).toBe('Here are your current pending orders.');
     expect(parsed.data).toEqual(frontendAgentPayload.data);
@@ -275,6 +274,19 @@ describe('assembleEmporixChatStream', () => {
       message: 'Hello, world!',
       sessionId: 'session-text',
     });
+  });
+
+  it('omits preview payload on coalesced token frames within one SSE batch', async () => {
+    const progressUpdates: Array<{ chunks: number; preview?: { kind: string; content?: string } }> = [];
+    const streamBody = [toContentToken('Hello, '), toContentToken('world'), toContentToken('!')].join('');
+
+    await assembleEmporixChatStream(streamBody, (progress) => {
+      progressUpdates.push(progress);
+    });
+
+    expect(progressUpdates[0]).toEqual({ chunks: 1, preview: { kind: 'text', content: 'Hello, ' } });
+    expect(progressUpdates[1]).toEqual({ chunks: 2 });
+    expect(progressUpdates[2]).toEqual({ chunks: 3 });
   });
 
   it('reports progress after each SSE data payload, including split stream chunks', async () => {
