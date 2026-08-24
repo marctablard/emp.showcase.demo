@@ -55,9 +55,17 @@ export interface SessionService {
 
   /**
    * Set the legal entity (company) for the current session context
-   * This will refresh the customer token with the new legal entity ID
+   * This refreshes the customer token first and fails without changing session context
+   * when the token cannot be reminted with the requested legal entity.
    */
-  setLegalEntity(legalEntityId: string): Promise<void>;
+  setLegalEntity(legalEntityId: string): Promise<{ tokenRefreshSucceeded: true; tokenLooksLikeJwt: boolean }>;
+
+  /**
+   * Read the validated legal-entity scope from the current customer token, falling
+   * back to supported JWT claim shapes when validation is unavailable.
+   * The token itself is never returned or logged.
+   */
+  getCustomerTokenLegalEntityId(): Promise<string | undefined>;
 
   /**
    * Clear the legal entity (company) reference from the current session context.

@@ -49,8 +49,8 @@ export class EmporixCustomerService implements CustomerService {
       const iamResponse = await this.iamApi.getUserGroups(response.id);
       // TODO more finegrained role-management
       const roles = iamResponse.items
-        .filter((group: EmporixGroup) => group.code)
-        .map((group: EmporixGroup) => group.code);
+        .filter((group: EmporixGroup): group is EmporixGroup & { code: string } => typeof group.code === 'string')
+        .map((group) => group.code);
       roles.push(CustomerRole.CUSTOMER);
       roles.push(response.businessModel ? CustomerRole.B2B : CustomerRole.B2C);
 

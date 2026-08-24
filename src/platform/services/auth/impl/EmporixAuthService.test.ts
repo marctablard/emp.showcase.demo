@@ -193,6 +193,7 @@ describe('EmporixAuthService', () => {
       setCart: jest.fn(),
       clearCart: jest.fn(),
       setLegalEntity: jest.fn(),
+      getCustomerTokenLegalEntityId: jest.fn(),
       clearLegalEntity: jest.fn(),
       updateContext: jest.fn(),
     };

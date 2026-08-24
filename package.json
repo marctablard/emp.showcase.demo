@@ -8,10 +8,10 @@
     "npm": ">=11.10.0"
   },
   "scripts": {
-    "dev": "concurrently \"npm:generate:watch\" \"npm:dev:next\" \"npm:dev:open-browser\"",
+    "dev": "npm run generate && concurrently \"npm:generate:watch\" \"npm:dev:next\" \"npm:dev:open-browser\"",
     "dev:next": "next dev",
     "dev:open-browser": "node scripts/dev-open-browser.mjs",
-    "dev:https": "concurrently \"npm:generate:watch\" \"npm:dev:next:https\"",
+    "dev:https": "npm run generate && concurrently \"npm:generate:watch\" \"npm:dev:next:https\"",
     "dev:next:https": "next dev --experimental-https",
     "build": "npm run generate:prod && next build && npm run verify:client-chunks && npm run check-translations && npm run lint",
     "build:next": "next build",

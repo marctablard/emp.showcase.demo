@@ -4,6 +4,7 @@
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { breakpoints } from '@/hooks/useBreakpoint';
+import { CustomerRole } from '@/platform/services/model/customer/roles';
 import { AccountLayout } from './account-layout';
 
 function setViewportWidth(width: number) {
@@ -13,6 +14,8 @@ function setViewportWidth(width: number) {
     value: width,
   });
 }
+
+let mockCustomer: { roles?: string[] } | null | undefined;
 
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -35,8 +38,19 @@ jest.mock('@/hooks/authentication/useAuthentication', () => ({
   useAuthentication: () => ({ logout: jest.fn() }),
 }));
 
+jest.mock('@/hooks/customer/useCustomer', () => ({
+  useCustomer: () => ({
+    customer: mockCustomer,
+    loading: mockCustomer === undefined,
+  }),
+}));
+
 describe('AccountLayout responsive sidebar/mobile-menu switching', () => {
   const originalInnerWidth = globalThis.innerWidth;
+
+  beforeEach(() => {
+    mockCustomer = undefined;
+  });
 
   afterEach(() => {
     setViewportWidth(originalInnerWidth);
@@ -107,11 +121,11 @@ describe('AccountLayout responsive sidebar/mobile-menu switching', () => {
     expect(screen.queryByRole('button', { name: 'sidebar.menu' })).not.toBeInTheDocument();
     const sidebar = screen.getByRole('navigation');
     expect(sidebar).toHaveClass('min-w-[180px]');
-    expect(sidebar).toHaveClass('overflow-y-auto');
-    expect(sidebar).toHaveClass('min-h-0');
-    expect(sidebar).toHaveClass('overscroll-contain');
-    expect(sidebar).toHaveClass('max-h-[calc(100dvh-11rem)]');
-    expect(sidebar).toHaveClass('md:max-h-[calc(100dvh-15rem)]');
+    expect(sidebar).not.toHaveClass('overflow-y-auto');
+    expect(sidebar).not.toHaveClass('min-h-0');
+    expect(sidebar).not.toHaveClass('overscroll-contain');
+    expect(sidebar).not.toHaveClass('max-h-[calc(100dvh-11rem)]');
+    expect(sidebar).not.toHaveClass('md:max-h-[calc(100dvh-15rem)]');
     expect(screen.getByRole('button', { name: 'logout' })).toBeInTheDocument();
 
     const row = container.querySelector('.flex.items-start');
@@ -133,16 +147,53 @@ describe('AccountLayout responsive sidebar/mobile-menu switching', () => {
     expect(sidebar).toBeInTheDocument();
     expect(sidebar).toHaveClass('md:min-w-[288px]');
     expect(sidebar).not.toHaveClass('lg:min-w-[288px]');
-    expect(sidebar).toHaveClass('overflow-y-auto');
-    expect(sidebar).toHaveClass('min-h-0');
-    expect(sidebar).toHaveClass('overscroll-contain');
-    expect(sidebar).toHaveClass('max-h-[calc(100dvh-11rem)]');
-    expect(sidebar).toHaveClass('md:max-h-[calc(100dvh-15rem)]');
+    expect(sidebar).not.toHaveClass('overflow-y-auto');
+    expect(sidebar).not.toHaveClass('min-h-0');
+    expect(sidebar).not.toHaveClass('overscroll-contain');
+    expect(sidebar).not.toHaveClass('max-h-[calc(100dvh-11rem)]');
+    expect(sidebar).not.toHaveClass('md:max-h-[calc(100dvh-15rem)]');
     expect(screen.getByRole('button', { name: 'logout' })).toBeInTheDocument();
 
     const row = container.querySelector('.flex.items-start');
     expect(row).toHaveClass('items-start');
     expect(row).not.toHaveClass('min-h-screen');
+  });
+
+  it('locks document overflow only while the mobile off-canvas is open', () => {
+    setViewportWidth(breakpoints.sm - 1);
+
+    const { container } = render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    expect(document.body.style.overflow).not.toBe('hidden');
+    expect(document.documentElement.style.overflow).not.toBe('hidden');
+
+    fireEvent.click(screen.getByRole('button', { name: 'sidebar.menu' }));
+
+    expect(document.body.style.overflow).toBe('hidden');
+    expect(document.documentElement.style.overflow).toBe('hidden');
+
+    fireEvent.click(container.querySelector('.fixed.inset-0')!);
+
+    expect(document.body.style.overflow).not.toBe('hidden');
+    expect(document.documentElement.style.overflow).not.toBe('hidden');
+  });
+
+  it('does not lock document overflow when the persistent rail is shown', () => {
+    setViewportWidth(breakpoints.sm);
+
+    render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    expect(screen.getByRole('navigation')).toBeInTheDocument();
+    expect(document.body.style.overflow).not.toBe('hidden');
+    expect(document.documentElement.style.overflow).not.toBe('hidden');
   });
 
   it('aligns the outer layout spacing to the md breakpoint instead of lg', () => {
@@ -186,5 +237,55 @@ describe('AccountLayout responsive sidebar/mobile-menu switching', () => {
 
     const main = container.querySelector('main');
     expect(main).not.toHaveClass('pb-8');
+  });
+});
+
+describe('AccountLayout User Management ADMIN gate', () => {
+  const originalInnerWidth = globalThis.innerWidth;
+  const userManagementLinkName = 'sidebar.items.userManagement';
+
+  beforeEach(() => {
+    mockCustomer = undefined;
+    setViewportWidth(breakpoints.md);
+  });
+
+  afterEach(() => {
+    setViewportWidth(originalInnerWidth);
+  });
+
+  it('hides the User Management link when the customer is undefined', () => {
+    mockCustomer = undefined;
+
+    render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    expect(screen.queryByRole('link', { name: userManagementLinkName })).not.toBeInTheDocument();
+  });
+
+  it('hides the User Management link when roles lack B2B_ADMIN', () => {
+    mockCustomer = { roles: [CustomerRole.B2B_BUYER] };
+
+    render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    expect(screen.queryByRole('link', { name: userManagementLinkName })).not.toBeInTheDocument();
+  });
+
+  it('shows the User Management link when roles include B2B_ADMIN', () => {
+    mockCustomer = { roles: [CustomerRole.B2B_ADMIN] };
+
+    render(
+      <AccountLayout>
+        <div>content</div>
+      </AccountLayout>,
+    );
+
+    expect(screen.getByRole('link', { name: userManagementLinkName })).toHaveAttribute('href', '/account/users');
   });
 });

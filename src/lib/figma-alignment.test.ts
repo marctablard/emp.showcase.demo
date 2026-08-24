@@ -161,8 +161,12 @@ describe('account — sidebar persistent from 768 (Figma: only mobile uses the d
     expect(src).toContain('overscroll-contain');
     expect(src).toContain('max-h-[calc(100dvh-11rem)]');
     expect(src).toContain('md:max-h-[calc(100dvh-15rem)]');
+    expect(src).toContain('scrollable &&');
     expect(src).not.toMatch(/max-h-\[100dvh\]/);
-    expect(read('src/components/account/account-layout.tsx')).toContain('scrollable={false}');
+    const layoutSrc = read('src/components/account/account-layout.tsx');
+    expect(layoutSrc).toContain(
+      '{isDesktop && <AccountSidebar items={sidebarItems} groups={sidebarGroups} scrollable={false} />}',
+    );
   });
 
   it('quote summary cards switch 1→2 at the 576px container step (@xl), not 512 (@lg)', () => {

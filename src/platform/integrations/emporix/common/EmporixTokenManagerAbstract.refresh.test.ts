@@ -5,6 +5,20 @@ import { EmporixTestTokenManager } from './impl/EmporixTokenManager.test';
 import { EMPORIX_TOKEN_TYPE } from './token-types';
 
 class SeedableTokenManager extends EmporixTestTokenManager {
+  public refreshSkippedContexts: Array<{
+    refreshSkipped: true;
+    reason: 'missingCustomerToken' | 'invalidRefreshToken';
+    legalEntityRequested: boolean;
+  }> = [];
+
+  protected override logCustomerTokenRefreshSkipped(context: {
+    refreshSkipped: true;
+    reason: 'missingCustomerToken' | 'invalidRefreshToken';
+    legalEntityRequested: boolean;
+  }): void {
+    this.refreshSkippedContexts.push(context);
+  }
+
   public async seedCustomerToken(tenant: string, token: StoredToken<EmporixCustomerTokenResponse>): Promise<void> {
     await this.writeToken(EMPORIX_TOKEN_TYPE.CUSTOMER, token, tenant);
   }
@@ -30,6 +44,11 @@ function buildStoredCustomerToken(saasToken: string): StoredToken<EmporixCustome
     expiryAt: now - 60_000,
     refreshExpiryAt: now + 3_600_000,
   };
+}
+
+function unsignedJwt(payload: Record<string, unknown>): string {
+  const encode = (value: Record<string, unknown>) => Buffer.from(JSON.stringify(value)).toString('base64url');
+  return `${encode({ alg: 'none', typ: 'JWT' })}.${encode(payload)}.`;
 }
 
 function buildStoredAnonymousToken(accessToken = 'anon-access'): StoredToken<EmporixAnonymousTokenResponse> {
@@ -93,6 +112,65 @@ describe('EmporixTokenManagerAbstract customer refresh', () => {
 
     expect(out?.saasToken).toBe('saas-from-login');
     expect(oauthApi.refreshCustomerToken).toHaveBeenCalledWith(tenant, 'anon-access', 'valid-refresh', undefined);
+  });
+
+  it('distinguishes a missing customer token when legal-entity refresh is skipped', async () => {
+    const tm = new SeedableTokenManager(
+      buildOauthApi({
+        access_token: 'unused',
+        refresh_token: 'unused',
+        expires_in: 3600,
+      }),
+    );
+
+    await expect(tm.refreshCustomerTokenWithLegalEntity(tenant, 'le-selected', clientId)).resolves.toBeNull();
+    expect(tm.refreshSkippedContexts).toEqual([
+      {
+        refreshSkipped: true,
+        reason: 'missingCustomerToken',
+        legalEntityRequested: true,
+      },
+    ]);
+  });
+
+  it('distinguishes an invalid refresh token when legal-entity refresh is skipped', async () => {
+    const stored = buildStoredCustomerToken('saas');
+    stored.refreshExpiryAt = Date.now() - 1;
+    const tm = new SeedableTokenManager(
+      buildOauthApi({
+        access_token: 'unused',
+        refresh_token: 'unused',
+        expires_in: 3600,
+      }),
+    );
+    await tm.seedCustomerToken(tenant, stored);
+
+    await expect(tm.refreshCustomerTokenWithLegalEntity(tenant, 'le-selected', clientId)).resolves.toBeNull();
+    expect(tm.refreshSkippedContexts).toEqual([
+      {
+        refreshSkipped: true,
+        reason: 'invalidRefreshToken',
+        legalEntityRequested: true,
+      },
+    ]);
+  });
+
+  it('preserves legalEntityId when expiry refreshes the customer token', async () => {
+    const oauthApi = buildOauthApi({
+      access_token: 'new-access',
+      refresh_token: 'new-refresh',
+      expires_in: 3600,
+    });
+    const stored = buildStoredCustomerToken('saas-from-login');
+    stored.token.access_token = unsignedJwt({ legalEntityId: 'le-selected' });
+
+    const tm = new SeedableTokenManager(oauthApi);
+    await tm.seedAnonymousToken(tenant, buildStoredAnonymousToken());
+    await tm.seedCustomerToken(tenant, stored);
+
+    await tm.getCustomerToken(tenant, clientId);
+
+    expect(oauthApi.refreshCustomerToken).toHaveBeenCalledWith(tenant, 'anon-access', 'valid-refresh', 'le-selected');
   });
 
   it('preserves saas_token when refresh returns null', async () => {

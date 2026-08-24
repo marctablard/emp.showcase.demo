@@ -25,8 +25,10 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useCustomer } from '@/hooks/customer/useCustomer';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import type { BreadcrumbContent } from '@/lib/breadcrumb';
+import { CustomerRole } from '@/platform/services/model/customer/roles';
 import { UiBreadcrumb } from '../ui/molecules/ui-breadcrumb';
 import { AccountSidebar } from './account-sidebar';
 
@@ -37,9 +39,11 @@ interface AccountLayoutProps {
 
 export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
   const t = useTranslations('account');
+  const { customer } = useCustomer();
   const [showSidebarOffcanvas, setShowSidebarOffcanvas] = useState(false);
   // Figma: the persistent sidebar appears from tablet (768) up; only below that a drawer is used.
   const isDesktop = useBreakpoint('sm');
+  const canManageUsers = customer?.roles?.includes(CustomerRole.B2B_ADMIN) === true;
 
   // Toggle sidebar offcanvas visibility
   const toggleSidebarOffcanvas = () => {
@@ -151,11 +155,15 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
           title: t('sidebar.items.addressManagement'),
           icon: <MapPin className="h-6 w-6" />,
         },
-        {
-          href: '/account/users',
-          title: t('sidebar.items.userManagement'),
-          icon: <UserCog className="h-6 w-6" />,
-        },
+        ...(canManageUsers
+          ? [
+              {
+                href: '/account/users',
+                title: t('sidebar.items.userManagement'),
+                icon: <UserCog className="h-6 w-6" />,
+              },
+            ]
+          : []),
         {
           href: '/account/payment-options',
           title: t('sidebar.items.paymentOptions'),
@@ -211,8 +219,8 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
         sm:mx-4 / md:mx-9 (SHOW-320) align the side margins with the Figma grid.
       */}
       <div className="mt-4 mb-4 flex items-start sm:mx-4 md:mx-9">
-        {/* Desktop Sidebar - always visible on desktop */}
-        {isDesktop && <AccountSidebar items={sidebarItems} groups={sidebarGroups} />}
+        {/* Desktop Sidebar - always visible on desktop. Q30: page/document scrolls, not the rail. */}
+        {isDesktop && <AccountSidebar items={sidebarItems} groups={sidebarGroups} scrollable={false} />}
 
         {/* Mobile Off-canvas Sidebar */}
         {!isDesktop && showSidebarOffcanvas && (

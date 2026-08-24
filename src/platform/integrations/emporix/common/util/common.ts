@@ -117,3 +117,48 @@ export function checkTokenValidity(token?: string, expiryAt?: number, threshold:
   }
   return Date.now() <= expiryAt - threshold;
 }
+
+function decodeBase64Payload(base64: string): string {
+  if (typeof globalThis.atob === 'function') {
+    return globalThis.atob(base64);
+  }
+  return Buffer.from(base64, 'base64').toString('utf8');
+}
+
+/**
+ * Reads the legal-entity claim without validating or exposing the JWT.
+ * Token signature validation remains the responsibility of the OAuth/API layer.
+ */
+export function decodeTokenLegalEntityId(...tokens: Array<string | undefined>): string | undefined {
+  for (const token of tokens) {
+    if (!token) {
+      continue;
+    }
+    try {
+      const payload = token.split('.')[1];
+      if (!payload) {
+        continue;
+      }
+      const base64 = payload
+        .replaceAll('-', '+')
+        .replaceAll('_', '/')
+        .padEnd(Math.ceil(payload.length / 4) * 4, '=');
+      const decoded = JSON.parse(decodeBase64Payload(base64)) as {
+        legalEntityId?: unknown;
+        legal_entity_id?: unknown;
+        context?: unknown;
+      };
+      const context =
+        decoded.context && typeof decoded.context === 'object'
+          ? (decoded.context as { legalEntityId?: unknown })
+          : undefined;
+      const candidate = decoded.legalEntityId ?? decoded.legal_entity_id ?? context?.legalEntityId;
+      if (typeof candidate === 'string' && candidate.trim()) {
+        return candidate.trim();
+      }
+    } catch {
+      // A missing or malformed claim keeps the existing unscoped refresh behavior.
+    }
+  }
+  return undefined;
+}

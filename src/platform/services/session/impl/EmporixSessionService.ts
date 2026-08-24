@@ -1,11 +1,13 @@
 import { inject } from 'inversify';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixTokenManager } from '@/platform/integrations/emporix/common/EmporixTokenManager';
+import { decodeTokenLegalEntityId } from '@/platform/integrations/emporix/common/util/common';
 import type { EmporixConfig } from '@/platform/integrations/emporix/config';
 import type {
   EmporixContextAttribute,
   EmporixSessionContext,
 } from '@/platform/integrations/emporix/model/session-context';
+import type { EmporixOAuthApi } from '@/platform/integrations/emporix/oauth/EmporixOAuthApi';
 import type { EmporixSessionContextApi } from '@/platform/integrations/emporix/session/EmporixSessionContextApi';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Site } from '@/platform/services/model/common/site';
@@ -32,6 +34,7 @@ class EmporixSessionService implements SessionService {
     @inject('EmporixSessionMapper') private mapper: SessionMapper<EmporixSessionContext, EmporixContextAttribute>,
     @inject('SiteService') private siteService: SiteService,
     @inject('EmporixTokenManager') private tokenManager: EmporixTokenManager,
+    @inject('EmporixOAuthApi') private readonly oauthApi: EmporixOAuthApi,
     @inject('EmporixConfig') private config: EmporixConfig,
     @inject('LoggerService') private logger: LoggerService,
   ) {}
@@ -140,16 +143,55 @@ class EmporixSessionService implements SessionService {
     */
   }
 
-  async setLegalEntity(legalEntityId: string): Promise<void> {
-    await this.tokenManager.refreshCustomerTokenWithLegalEntity(
+  async setLegalEntity(legalEntityId: string): Promise<{ tokenRefreshSucceeded: true; tokenLooksLikeJwt: boolean }> {
+    const refreshedToken = await this.tokenManager.refreshCustomerTokenWithLegalEntity(
       this.config.tenant,
       legalEntityId,
       this.config.clientId,
     );
+    if (!refreshedToken) {
+      this.logger.error(
+        { legalEntityId, tokenRefreshSucceeded: false },
+        'Failed to refresh customer token with legal entity',
+      );
+      throw new Error('Failed to scope customer token to the selected legal entity');
+    }
+
     await this.sessionContextApi.addOwnSessionContextAttribute({
       key: 'legalEntityId',
       value: legalEntityId,
     });
+    return {
+      tokenRefreshSucceeded: true,
+      tokenLooksLikeJwt: refreshedToken.accessToken.split('.').length === 3,
+    };
+  }
+
+  async getCustomerTokenLegalEntityId(): Promise<string | undefined> {
+    try {
+      const token = await this.tokenManager.getCustomerToken(this.config.tenant, this.config.clientId);
+      if (!token) {
+        return undefined;
+      }
+      try {
+        const validated = await this.oauthApi.validateCustomerToken(this.config.tenant, token.accessToken);
+        if (validated.legalEntityId) {
+          return validated.legalEntityId;
+        }
+      } catch (error) {
+        this.logger.warn(
+          { error: error instanceof Error ? error.message : String(error) },
+          'Could not validate customer token legal entity; falling back to token claims',
+        );
+      }
+      return decodeTokenLegalEntityId(token.accessToken, token.saasToken);
+    } catch (error) {
+      this.logger.warn(
+        { error: error instanceof Error ? error.message : String(error) },
+        'Could not read customer token legal entity for diagnostics',
+      );
+      return undefined;
+    }
   }
 
   async clearLegalEntity(): Promise<void> {

@@ -1,0 +1,87 @@
+{
+  "heading": "Benutzerverwaltung",
+  "headingWithName": "Benutzerverwaltung: {firstName} {lastName}",
+  "breadcrumbUserCreation": "Neuen Benutzer erstellen",
+  "breadcrumbEditUser": "'{name}' bearbeiten",
+  "createButton": "Neuen Benutzer erstellen",
+  "showOtherCompanies": "Benutzer aus meinen anderen Firmen anzeigen",
+  "currentCompany": "Aktuelles Unternehmen",
+  "allCompanies": "Alle Unternehmen",
+  "companyScope": "Unternehmensbereich",
+  "searchPlaceholder": "Namen suchen...",
+  "columns": {
+    "firstName": "Vorname",
+    "lastName": "Nachname",
+    "legalEntityName": "Name der Rechtseinheit",
+    "email": "E-Mail",
+    "created": "Erstellt",
+    "userGroup": "Benutzergruppe",
+    "status": "Status",
+    "actions": "Aktionen"
+  },
+  "status": {
+    "active": "AKTIV",
+    "inactive": "INAKTIV"
+  },
+  "cancel": "Abbrechen",
+  "save": "Speichern",
+  "form": {
+    "userDetails": "Benutzerdetails",
+    "title": "Anrede",
+    "firstName": "Vorname",
+    "lastName": "Nachname",
+    "email": "E-Mail-Adresse",
+    "phone": "Telefonnummer",
+    "userGroup": "Benutzergruppe",
+    "userGroupForCompany": "Benutzergruppe für {company}",
+    "groupPlaceholder": "Gruppe auswählen",
+    "noGroupsAvailable": "Keine Gruppen verfügbar",
+    "noGroupsAvailableForCompany": "Für {company} sind keine Gruppen verfügbar.",
+    "noTitle": "Keine Anrede",
+    "titles": {
+      "MR": "Herr",
+      "MRS": "Frau",
+      "MS": "Divers"
+    },
+    "contactOnly": "<Nur ein Kontakt>",
+    "activateUser": "Benutzer aktivieren",
+    "activateUserHelper": "Sie können auf die Plattform zugreifen.",
+    "activeUser": "Aktiver Benutzer",
+    "activeUserHelper": "Sie behalten den Zugriff auf die Plattform.",
+    "loadingGroups": "Gruppen werden geladen...",
+    "saving": "Wird gespeichert..."
+  },
+  "validation": {
+    "requiredGroup": "Bitte Benutzergruppe auswählen.",
+    "firstNameRequired": "Bitte einen Vornamen eingeben.",
+    "lastNameRequired": "Bitte einen Nachnamen eingeben.",
+    "emailRequired": "Bitte eine E-Mail-Adresse eingeben.",
+    "emailInvalid": "Bitte eine gültige E-Mail-Adresse eingeben.",
+    "phoneInvalid": "Bitte eine gültige Telefonnummer eingeben."
+  },
+  "deleteDialog": {
+    "title": "Benutzer löschen?",
+    "description": "Sind Sie sicher, dass Sie den Benutzer \"{name}\" löschen möchten?",
+    "cancel": "Abbrechen",
+    "confirm": "Löschen"
+  },
+  "empty": "Keine Benutzer gefunden.",
+  "noResults": "Keine Benutzer gefunden.",
+  "loading": "Wird geladen...",
+  "tryAgain": "Erneut versuchen",
+  "previous": "Zurück",
+  "next": "Weiter",
+  "pageIndicator": "Seite {current} / {total}",
+  "editAriaLabel": "Benutzer {name} bearbeiten",
+  "deleteAriaLabel": "Benutzer {name} löschen",
+  "notifications": {
+    "createSuccess": "Sie haben erfolgreich einen neuen Benutzer erstellt!",
+    "createPartial": "Der neue Benutzer {userName} wurde erstellt, die Gruppenzuordnung ({groupNames}) ist aber fehlgeschlagen. Bitte \"Bearbeiten\" verwenden, um die Gruppenzuordnung anzupassen.",
+    "saveSuccess": "Erfolg! Benutzerdetails wurden gespeichert.",
+    "saveError": "Fehler! Benutzerdetails konnten nicht gespeichert werden.",
+    "predefinedGroupConflict": "Dieser Benutzer kann in dieser Firma nicht mehr als einer vordefinierten Funktionsgruppe zugeordnet werden.",
+    "statusSuccess": "Benutzerstatus erfolgreich aktualisiert!",
+    "deleteSuccess": "Der Benutzer wurde gelöscht.",
+    "genericFailure": "Die Anfrage ist fehlgeschlagen."
+  }
+}

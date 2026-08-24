@@ -85,6 +85,12 @@ export interface EmporixOAuthApi {
   ): Promise<EmporixCustomerTokenResponse>;
 
   /**
+   * Validate the current customer access token and read its legal-entity scope.
+   * Other response fields (including email) are intentionally discarded.
+   */
+  validateCustomerToken(tenant: string, accessToken: string): Promise<{ legalEntityId?: string }>;
+
+  /**
    * Get a service access token
    * Needed to access the Emporix services such as adding new products, managing categories or modifying prices.
    *

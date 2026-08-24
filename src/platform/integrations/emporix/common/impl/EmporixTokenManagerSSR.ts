@@ -24,6 +24,14 @@ class EmporixTokenManagerSSR extends EmporixTokenManagerAbstract {
     super(oauthApi);
   }
 
+  protected override logCustomerTokenRefreshSkipped(context: {
+    refreshSkipped: true;
+    reason: 'missingCustomerToken' | 'invalidRefreshToken';
+    legalEntityRequested: boolean;
+  }): void {
+    this.logger.warn(context, 'Customer token refresh skipped');
+  }
+
   public clearTokens(tenant: string): void {
     this.ssrToken[tenant] = {};
   }

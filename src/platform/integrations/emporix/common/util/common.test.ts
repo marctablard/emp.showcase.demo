@@ -1,5 +1,10 @@
-import { buildPaginatedResponse } from './common';
-import { buildSearchQuery, checkTokenValidity, extractItemsFromPaginatedJsonBody } from './common';
+import {
+  buildPaginatedResponse,
+  buildSearchQuery,
+  checkTokenValidity,
+  decodeTokenLegalEntityId,
+  extractItemsFromPaginatedJsonBody,
+} from './common';
 
 describe('buildPaginatedResponse', () => {
   it('maps a raw array response body into paginated items', async () => {
@@ -192,5 +197,37 @@ describe('checkTokenValidity', () => {
     expect(checkTokenValidity('valid-token', expiryAt)).toBe(true);
     // With custom threshold of 15000ms, this should be invalid
     expect(checkTokenValidity('valid-token', expiryAt, 15000)).toBe(false);
+  });
+});
+
+describe('decodeTokenLegalEntityId', () => {
+  const jwtWithPayload = (claims: Record<string, unknown>) => {
+    const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');
+    return `header.${payload}.signature`;
+  };
+
+  it('reads context.legalEntityId from a JWT payload', () => {
+    expect(decodeTokenLegalEntityId(jwtWithPayload({ context: { legalEntityId: 'le-nested' } }))).toBe('le-nested');
+  });
+
+  it('reads top-level legalEntityId and legal_entity_id claims', () => {
+    expect(decodeTokenLegalEntityId(jwtWithPayload({ legalEntityId: 'le-top' }))).toBe('le-top');
+    expect(decodeTokenLegalEntityId(jwtWithPayload({ legal_entity_id: 'le-snake' }))).toBe('le-snake');
+  });
+
+  it('decodes with Buffer.from when globalThis.atob is unavailable', () => {
+    const token = jwtWithPayload({ legalEntityId: 'le-buffer' });
+    const originalAtob = globalThis.atob;
+    Object.defineProperty(globalThis, 'atob', { configurable: true, value: undefined });
+    try {
+      expect(decodeTokenLegalEntityId(token)).toBe('le-buffer');
+    } finally {
+      Object.defineProperty(globalThis, 'atob', { configurable: true, value: originalAtob });
+    }
+  });
+
+  it('returns undefined for missing, malformed, or non-string claims', () => {
+    expect(decodeTokenLegalEntityId(undefined, 'not-a-jwt', 'header..sig')).toBeUndefined();
+    expect(decodeTokenLegalEntityId(jwtWithPayload({ legalEntityId: 12 }))).toBeUndefined();
   });
 });

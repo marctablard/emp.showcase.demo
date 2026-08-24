@@ -1,15 +1,37 @@
 import { inject } from 'inversify';
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
+import { createEmporixApiError } from '@/platform/integrations/emporix/common/EmporixApiError';
 import { createFetchMetricsParams } from '@/platform/integrations/emporix/metrics-utils';
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
-import { buildPaginatedResponse, buildSearchQuery } from '../../common/util/common';
+import { buildPaginatedResponse, buildSearchQuery, extractItemsFromPaginatedJsonBody } from '../../common/util/common';
 import type { EmporixConfig } from '../../config';
 import type { EmporixPaginatedResponse, EmporixSearchParams } from '../../model';
-import type { EmporixAccessControl, EmporixGroup, EmporixGroupAssignmentRequest, EmporixRole } from '../../model/iam';
+import type {
+  EmporixAccessControl,
+  EmporixGroup,
+  EmporixGroupAssignmentRequest,
+  EmporixIamGroupUserAssignment,
+  EmporixIamUser,
+  EmporixRole,
+} from '../../model/iam';
 import type { EmporixIamApi as IEmporixIamApi } from '../EmporixIamApi';
 
 const createIamMetrics = (route: string) => createFetchMetricsParams('iam', route);
+
+async function readResponseBody(response: Response): Promise<unknown> {
+  const rawBody = await response.clone().text();
+  if (!rawBody) {
+    return '';
+  }
+
+  try {
+    return JSON.parse(rawBody) as unknown;
+  } catch {
+    return rawBody;
+  }
+}
 
 /**
  * Implementation of the Emporix IAM API
@@ -20,7 +42,40 @@ class EmporixIamApi implements IEmporixIamApi {
   constructor(
     @inject('EmporixApiInvoker') protected readonly apiClient: EmporixApiClient,
     @inject('EmporixConfig') protected readonly config: EmporixConfig,
+    @inject('LoggerService') protected readonly logger: LoggerService,
   ) {}
+
+  async getUsers(
+    pageNumber: number = 1,
+    pageSize: number = 60,
+  ): Promise<{ items: EmporixIamUser[]; totalCount?: number }> {
+    const query = new URLSearchParams({
+      userType: 'CUSTOMER',
+      expand: 'groups',
+      pageNumber: String(pageNumber),
+      pageSize: String(pageSize),
+    });
+    const response = await this.apiClient.authenticatedFetch(
+      `/iam/${this.config.tenant}/users?${query.toString()}`,
+      { method: 'GET', headers: { 'X-Total-Count': 'true' } },
+      'service',
+      undefined,
+      createIamMetrics('/iam/{tenant}/users'),
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to retrieve users: ${response.statusText}`);
+    }
+
+    const items = extractItemsFromPaginatedJsonBody<EmporixIamUser>(await response.json());
+
+    const rawTotalCount = response.headers.get('x-total-count');
+    const parsedTotalCount = rawTotalCount === null ? Number.NaN : Number.parseInt(rawTotalCount, 10);
+    return {
+      items,
+      ...(Number.isFinite(parsedTotalCount) ? { totalCount: parsedTotalCount } : {}),
+    };
+  }
 
   async getAccessControls(
     params: EmporixSearchParams<{
@@ -100,13 +155,20 @@ class EmporixIamApi implements IEmporixIamApi {
     return response.json();
   }
 
-  async getGroups(params: EmporixSearchParams<EmporixGroup>): Promise<EmporixGroup[]> {
-    const { query } = buildSearchQuery(params);
-    const url = `/iam/${this.config.tenant}/groups?${query}`;
+  async getGroups(
+    params: EmporixSearchParams<EmporixGroup> = {},
+    tokenType: 'service' | 'session' = 'service',
+  ): Promise<EmporixGroup[]> {
+    const { body, query } = buildSearchQuery(params, true);
+    const queryParams = new URLSearchParams(query);
+    if (body) {
+      queryParams.set('q', body);
+    }
+    const url = `/iam/${this.config.tenant}/groups?${queryParams.toString()}`;
     const response = await this.apiClient.authenticatedFetch(
       url,
       { method: 'GET' },
-      'service',
+      tokenType,
       undefined,
       createIamMetrics('/iam/{tenant}/groups'),
     );
@@ -190,22 +252,45 @@ class EmporixIamApi implements IEmporixIamApi {
     }
   }
 
-  async addUserToGroup(groupId: string, groupAssignment: EmporixGroupAssignmentRequest): Promise<{ id: string }> {
+  async addUserToGroup(
+    groupId: string,
+    groupAssignment: EmporixGroupAssignmentRequest,
+    tokenType: 'service' | 'session' = 'service',
+  ): Promise<{ id: string }> {
     const url = `/iam/${this.config.tenant}/groups/${groupId}/users`;
+    const requestHeaders = { 'Content-Type': 'application/json' };
+    const requestBody = groupAssignment;
     const response = await this.apiClient.authenticatedFetch(
       url,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(groupAssignment),
+        headers: requestHeaders,
+        body: JSON.stringify(requestBody),
       },
-      'service',
+      tokenType,
       undefined,
       createIamMetrics('/iam/{tenant}/groups/{id}/users'),
     );
 
+    const logContext = {
+      operation: 'Add user to group',
+      tokenType,
+      method: 'POST',
+      url,
+      groupId,
+      requestHeaders,
+      requestBody,
+      responseStatus: response.status,
+      responseBody: await readResponseBody(response),
+    };
+    if (response.ok) {
+      this.logger.info(logContext, 'EXTERNAL Add user to group response');
+    } else {
+      this.logger.error(logContext, 'EXTERNAL Add user to group response');
+    }
+
     if (!response.ok) {
-      throw new Error(`Failed to create group assignment: ${response.statusText}`);
+      throw await createEmporixApiError('Add user to group', response);
     }
 
     return response.json();
@@ -249,12 +334,16 @@ class EmporixIamApi implements IEmporixIamApi {
     }
   }
 
-  async removeUserFromGroup(groupId: string, userId: string): Promise<void> {
+  async removeUserFromGroup(
+    groupId: string,
+    userId: string,
+    tokenType: 'service' | 'session' = 'service',
+  ): Promise<void> {
     const url = `/iam/${this.config.tenant}/groups/${groupId}/users/${userId}`;
     const response = await this.apiClient.authenticatedFetch(
       url,
       { method: 'DELETE' },
-      'service',
+      tokenType,
       undefined,
       createIamMetrics('/iam/{tenant}/groups/{id}/users/{id}'),
     );
@@ -286,19 +375,51 @@ class EmporixIamApi implements IEmporixIamApi {
   async getUserGroups(
     userId: string,
     searchParams: EmporixSearchParams<EmporixGroup> = {},
+    tokenType: 'service' | 'session' = 'service',
   ): Promise<EmporixPaginatedResponse<EmporixGroup>> {
     const { query } = buildSearchQuery(searchParams);
     const url = `/iam/${this.config.tenant}/users/${userId}/groups?${query}`;
     const response = await this.apiClient.authenticatedFetch(
       url,
       { method: 'GET', headers: { 'X-Total-Count': 'true' } },
-      'service',
+      tokenType,
       undefined,
       createIamMetrics('/iam/{tenant}/users/{id}/groups'),
     );
 
     if (!response.ok) {
       throw new Error(`Failed to retrieve user groups: ${response.statusText}`);
+    }
+
+    return buildPaginatedResponse(searchParams, response);
+  }
+
+  async getGroupUsers(
+    groupId: string,
+    searchParams: EmporixSearchParams<EmporixIamGroupUserAssignment> = {},
+    tokenType: 'service' | 'session' = 'service',
+  ): Promise<EmporixPaginatedResponse<EmporixIamGroupUserAssignment>> {
+    const queryParams = new URLSearchParams();
+    if (searchParams.page !== undefined) {
+      queryParams.set('pageNumber', String(searchParams.page));
+    }
+    if (searchParams.size !== undefined) {
+      queryParams.set('pageSize', String(searchParams.size));
+    }
+
+    const queryString = queryParams.toString();
+    const path = `/iam/${this.config.tenant}/groups/${groupId}/users`;
+    const url = queryString ? `${path}?${queryString}` : path;
+    const response = await this.apiClient.authenticatedFetch(
+      url,
+      { method: 'GET', headers: { 'X-Total-Count': 'true' } },
+      tokenType,
+      undefined,
+      createIamMetrics('/iam/{tenant}/groups/{groupId}/users'),
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to retrieve group users: ${response.statusText}`);
     }
 
     return buildPaginatedResponse(searchParams, response);

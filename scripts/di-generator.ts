@@ -1266,6 +1266,11 @@ async function generateContainerFile(
     .replace('{{aliasBindings}}', aliasBindings)
     .replace('{{layer}}', layer);
 
+  if (fs.existsSync(outputFile) && fs.readFileSync(outputFile, 'utf8') === output) {
+    console.log(`Unchanged ${type} container file: ${outputFile}`);
+    return output;
+  }
+
   fs.writeFileSync(outputFile, output);
   console.log(`Generated ${type} container file: ${outputFile}`);
 
@@ -1337,10 +1342,10 @@ console.log('Watching for changes...');
 const args = process.argv.slice(2);
 const watchMode = args.includes('--watch');
 
-// Run the generator
+// Run the generator. Watch mode bootstraps once, then watches; ignoreInitial
+// avoids a second generate on the watcher's first scan (the prior generate+watch race).
 (async () => {
   await generateAllContainers();
-  
   if (watchMode) {
     watchForChanges();
   }

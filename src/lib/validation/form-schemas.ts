@@ -75,6 +75,64 @@ export const ProfileEditSchema = z.object({
   preferredCurrency: z.string(),
 });
 
+const CompanyUserFormBaseSchema = z.object({
+  title: z.union([z.enum(['MR', 'MRS', 'MS']), z.literal('')]),
+  firstName: z.string().trim().min(1, 'user-management.validation.firstNameRequired'),
+  lastName: z.string().trim().min(1, 'user-management.validation.lastNameRequired'),
+  email: z
+    .string()
+    .trim()
+    .min(1, 'user-management.validation.emailRequired')
+    .email('user-management.validation.emailInvalid'),
+  phone: z
+    .string()
+    .trim()
+    .refine((value) => value.length === 0 || /^[+0-9()\s.-]+$/.test(value), {
+      message: 'user-management.validation.phoneInvalid',
+    }),
+  active: z.boolean(),
+  selectedLegalEntityId: z.string().min(1),
+  groupAssignments: z.array(
+    z.object({
+      legalEntityId: z.string().min(1),
+      groupId: z.string().min(1),
+    }),
+  ),
+});
+
+function hasValidSelectedLegalEntityGroup(data: z.infer<typeof CompanyUserFormBaseSchema>): boolean {
+  return (
+    data.groupAssignments.length === 1 &&
+    data.groupAssignments[0].legalEntityId === data.selectedLegalEntityId &&
+    data.groupAssignments[0].groupId.length > 0
+  );
+}
+
+export const CompanyUserCreateFormSchema = CompanyUserFormBaseSchema.superRefine((data, context) => {
+  if (!hasValidSelectedLegalEntityGroup(data)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'user-management.validation.requiredGroup',
+      path: ['groupAssignments'],
+    });
+  }
+});
+
+export const CompanyUserEditFormSchema = CompanyUserFormBaseSchema.superRefine((data, context) => {
+  if (data.groupAssignments.length > 0 && !hasValidSelectedLegalEntityGroup(data)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'user-management.validation.requiredGroup',
+      path: ['groupAssignments'],
+    });
+  }
+});
+
+/** Backward-compatible create schema; create must always include one selected-LE group. */
+export const CompanyUserFormSchema = CompanyUserCreateFormSchema;
+
+export type CompanyUserFormData = z.infer<typeof CompanyUserFormBaseSchema>;
+
 export const PaymentFormSchema = z
   .object({
     id: z.string().min(1, 'payment.method.required'),
