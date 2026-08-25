@@ -858,6 +858,25 @@ describe('UsersList', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
+  it('uses the recovered Admin LE when the client session company is stale', () => {
+    mockUseSession.mockReturnValue(authenticatedSession(AUTHENTICATED_CUSTOMER_ID, 'le-stale'));
+    mockUsersResult({ users: [buildUser()] });
+
+    render(
+      <UsersList
+        initialUsers={[buildUser()]}
+        selectedCompanyName="Emporix GmbH"
+        headerCompanies={[{ id: 'le-admin', name: 'Emporix GmbH' }]}
+        adminLegalEntityIds={['le-admin']}
+        selectedLegalEntityId="le-admin"
+      />,
+    );
+
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /createButton/i })).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
   it('shows the company-scope toggle only for an Admin session LE with more than one Admin LE', () => {
     expect(canShowCompanyScopeToggle(undefined, true, true)).toBe(true);
     expect(canShowCompanyScopeToggle(undefined, true, false)).toBe(false);

@@ -123,18 +123,54 @@ async function getTokenLegalEntityId(): Promise<string | undefined> {
   }
 }
 
-async function resolveSelectedLegalEntityId(headerCompanies: HeaderCompany[]): Promise<string> {
+async function persistRecoveredSelectedLegalEntity(
+  selectedLegalEntityId: string,
+  sessionLegalEntityId: string | undefined,
+): Promise<void> {
+  const selected = selectedLegalEntityId.trim();
+  const sessionId = typeof sessionLegalEntityId === 'string' ? sessionLegalEntityId.trim() : '';
+  if (!selected || selected === sessionId) {
+    return;
+  }
+  const sessionService = getSessionService();
+  if (typeof sessionService?.setLegalEntity !== 'function') {
+    return;
+  }
+  try {
+    await sessionService.setLegalEntity(selected);
+  } catch (error) {
+    getLogger().warn(
+      {
+        selectedLegalEntityId: selected,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      'SSR recovered selected legal entity without persisting session context',
+    );
+  }
+}
+
+async function resolveSelectedLegalEntityId(
+  headerCompanies: HeaderCompany[],
+  options?: { persistRecovered?: boolean },
+): Promise<string> {
+  if (headerCompanies.length === 0) {
+    return '';
+  }
   const [session, customer, tokenLegalEntityId] = await Promise.all([
     getSession(),
     getCurrentCustomer(),
     getTokenLegalEntityId(),
   ]);
-  return resolvePermittedSelectedLegalEntityId({
+  const selectedLegalEntityId = resolvePermittedSelectedLegalEntityId({
     sessionLegalEntityId: session?.legalEntityId,
     tokenLegalEntityId,
     customerLegalEntityId: customer?.legalEntityId,
     permittedCompanyIds: headerCompanies.map((company) => company.id),
   });
+  if (options?.persistRecovered) {
+    await persistRecoveredSelectedLegalEntity(selectedLegalEntityId, session?.legalEntityId);
+  }
+  return selectedLegalEntityId;
 }
 
 /**
@@ -178,7 +214,7 @@ export const getUserManagementCompanyAccess = cache(async (): Promise<UserManage
       getUserManagementService().listAdminLegalEntityIds(),
       getHeaderCompanies(),
     ]);
-    const selectedLegalEntityId = await resolveSelectedLegalEntityId(headerCompanies);
+    const selectedLegalEntityId = await resolveSelectedLegalEntityId(headerCompanies, { persistRecovered: true });
     return {
       adminLegalEntityIds,
       headerCompanies,

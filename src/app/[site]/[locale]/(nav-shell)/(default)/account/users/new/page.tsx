@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import AccountLayout from '@/components/account/account-layout';
 import { UserDetailsForm } from '@/components/account/users/user-details-form';
 import { getPageTitle } from '@/lib/ssr/seo';
-import { requireSelectedCompanyAdmin } from '@/lib/ssr/user-management';
+import { getUserManagementCompanyAccess, requireSelectedCompanyAdmin } from '@/lib/ssr/user-management';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,9 +22,10 @@ export async function generateMetadata({ params }: Readonly<{ params: Promise<{ 
 export default async function NewUserPage({ params }: Readonly<{ params: Promise<{ locale: string }> }>) {
   await requireSelectedCompanyAdmin();
   const { locale } = await params;
-  const [tAccount, tUserManagement] = await Promise.all([
+  const [tAccount, tUserManagement, companyAccess] = await Promise.all([
     getTranslations({ locale, namespace: 'account' }),
     getTranslations({ locale, namespace: 'user-management' }),
+    getUserManagementCompanyAccess(),
   ]);
 
   const breadcrumbs = [
@@ -44,7 +45,10 @@ export default async function NewUserPage({ params }: Readonly<{ params: Promise
 
   return (
     <AccountLayout breadcrumbs={breadcrumbs}>
-      <UserDetailsForm />
+      <UserDetailsForm
+        headerCompanies={companyAccess.headerCompanies}
+        selectedLegalEntityId={companyAccess.selectedLegalEntityId}
+      />
     </AccountLayout>
   );
 }

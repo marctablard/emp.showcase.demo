@@ -78,7 +78,9 @@ function ScopeOption({
         className="sr-only"
         onChange={onSelect}
       />
-      <span className="truncate">{label}</span>
+      <span className="truncate" title={label}>
+        {label}
+      </span>
     </label>
   );
 }

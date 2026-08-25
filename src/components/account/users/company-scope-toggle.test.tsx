@@ -22,6 +22,7 @@ describe('CompanyScopeToggle', () => {
 
     expect(screen.getByRole('radiogroup', { name: 'companyScope' })).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'NovaTech Nord' })).toBeChecked();
+    expect(screen.getByText('NovaTech Nord')).toHaveAttribute('title', 'NovaTech Nord');
     expect(screen.getByRole('radio', { name: 'allCompanies' })).not.toBeChecked();
 
     fireEvent.click(screen.getByRole('radio', { name: 'allCompanies' }));

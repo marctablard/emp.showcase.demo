@@ -15,6 +15,7 @@ import { usePersistedState } from '@/hooks/common/usePersistedState';
 import { useSession } from '@/hooks/session/useSession';
 import { useCompanyUsers, useOtherCompanyUsers } from '@/hooks/user-management/useCompanyUsers';
 import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
+import { resolveClientSelectedLegalEntityId } from '@/lib/common/legal-entity-context';
 import type { CompanyUser } from '@/platform/services/model/user-management/company-user';
 import { CompanyScopeToggle } from './company-scope-toggle';
 import { DeleteUserDialog } from './delete-user-dialog';
@@ -154,7 +155,11 @@ export function UsersList({
   const { session } = useSession();
   const sessionLegalEntityId = typeof session?.legalEntityId === 'string' ? session.legalEntityId.trim() : '';
   const recoveredLegalEntityId = typeof selectedLegalEntityIdProp === 'string' ? selectedLegalEntityIdProp.trim() : '';
-  const selectedLegalEntityId = sessionLegalEntityId || recoveredLegalEntityId;
+  const selectedLegalEntityId = resolveClientSelectedLegalEntityId({
+    sessionLegalEntityId,
+    recoveredLegalEntityId,
+    knownCompanyIds: headerCompanies.map((company) => company.id),
+  });
   const canManageSelectedCompany = canManageSelectedCompanyUsers(adminLegalEntityIds, selectedLegalEntityId);
   const selectedCompanyName =
     headerCompanies.find((company) => company.id === selectedLegalEntityId)?.name ?? selectedCompanyNameProp;

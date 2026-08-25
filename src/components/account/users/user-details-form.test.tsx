@@ -618,6 +618,66 @@ describe('UserDetailsForm', () => {
     expect(screen.queryByText('validation.requiredGroup')).not.toBeInTheDocument();
   });
 
+  it('does not show a legal-entity or group id while the new company catalog loads', async () => {
+    mockFetchGroups
+      .mockResolvedValueOnce([
+        {
+          legalEntityId: 'le-1',
+          legalEntityName: 'Selected Company',
+          groups: [
+            {
+              id: 'group-1',
+              legalEntityId: 'le-1',
+              legalEntityName: 'Selected Company',
+              displayName: 'Selected Company - Admin',
+            },
+          ],
+        },
+      ])
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(
+              () =>
+                resolve([
+                  {
+                    legalEntityId: 'le-2',
+                    legalEntityName: 'Other Company',
+                    groups: [
+                      {
+                        id: 'group-2',
+                        legalEntityId: 'le-2',
+                        legalEntityName: 'Other Company',
+                        displayName: 'Other Company - Buyer',
+                      },
+                    ],
+                  },
+                ]),
+              20,
+            ),
+          ),
+      );
+
+    const { rerender } = render(<UserDetailsForm headerCompanies={headerCompanies} />);
+    await screen.findByLabelText(/form\.userGroupForCompany.*Selected Company/);
+
+    act(() => {
+      mockSession = { legalEntityId: 'le-2' };
+    });
+    rerender(<UserDetailsForm headerCompanies={headerCompanies} />);
+
+    expect(await screen.findByText('form.loadingGroups')).toBeInTheDocument();
+    expect(screen.queryByText('le-2')).not.toBeInTheDocument();
+    expect(screen.queryByText('group-2')).not.toBeInTheDocument();
+
+    const switchedCompanyTrigger = await screen.findByLabelText(/form\.userGroupForCompany.*Other Company/);
+    expect(switchedCompanyTrigger).toHaveTextContent('form.groupPlaceholder');
+    expect(switchedCompanyTrigger).not.toHaveTextContent('le-2');
+    expect(switchedCompanyTrigger).not.toHaveTextContent('group-2');
+    expect(screen.getByText('Other Company - Buyer')).toBeInTheDocument();
+    expect(screen.queryByText('le-2')).not.toBeInTheDocument();
+  });
+
   it('prefers the selected-company predefined group over contact when both are assigned', async () => {
     mockFetchGroups.mockResolvedValueOnce(orderedAssignableGroups);
     render(

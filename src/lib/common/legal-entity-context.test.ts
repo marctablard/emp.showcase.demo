@@ -1,4 +1,5 @@
 import {
+  resolveClientSelectedLegalEntityId,
   resolveLegalEntityIdFromSessionAndCustomer,
   resolvePermittedSelectedLegalEntityId,
 } from './legal-entity-context';
@@ -65,5 +66,44 @@ describe('resolvePermittedSelectedLegalEntityId', () => {
         permittedCompanyIds: permitted,
       }),
     ).toBe('');
+  });
+});
+
+describe('resolveClientSelectedLegalEntityId', () => {
+  const known = ['le-admin', 'le-contact'];
+
+  it('prefers a session company that is in the header list', () => {
+    expect(
+      resolveClientSelectedLegalEntityId({
+        sessionLegalEntityId: 'le-contact',
+        recoveredLegalEntityId: 'le-admin',
+        knownCompanyIds: known,
+      }),
+    ).toBe('le-contact');
+  });
+
+  it('uses the recovered id when the session company is missing or stale', () => {
+    expect(
+      resolveClientSelectedLegalEntityId({
+        sessionLegalEntityId: 'le-stale',
+        recoveredLegalEntityId: 'le-admin',
+        knownCompanyIds: known,
+      }),
+    ).toBe('le-admin');
+    expect(
+      resolveClientSelectedLegalEntityId({
+        recoveredLegalEntityId: 'le-admin',
+        knownCompanyIds: known,
+      }),
+    ).toBe('le-admin');
+  });
+
+  it('keeps the session company when no header list is provided', () => {
+    expect(
+      resolveClientSelectedLegalEntityId({
+        sessionLegalEntityId: 'le-session',
+        recoveredLegalEntityId: 'le-admin',
+      }),
+    ).toBe('le-session');
   });
 });
