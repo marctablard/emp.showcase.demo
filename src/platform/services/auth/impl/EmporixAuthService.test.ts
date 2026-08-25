@@ -16,7 +16,7 @@ describe('EmporixAuthService', () => {
   let authService: EmporixAuthService;
 
   let mockSessionContextApi: { getOwnSessionContext: jest.Mock };
-  let mockCustomerApi: { login: jest.Mock; logout: jest.Mock };
+  let mockCustomerApi: { login: jest.Mock; logout: jest.Mock; signup: jest.Mock };
   let mockAddressMapper: { mapToSource: jest.Mock };
   let mockCartMigrationService: jest.Mocked<CartMigrationService>;
   let mockSessionService: jest.Mocked<SessionService>;
@@ -172,6 +172,7 @@ describe('EmporixAuthService', () => {
     mockCustomerApi = {
       login: jest.fn(),
       logout: jest.fn(),
+      signup: jest.fn(),
     };
 
     mockAddressMapper = {
@@ -1253,6 +1254,106 @@ describe('EmporixAuthService', () => {
       // value so `getCanonicalSiteCode()` on the client handles the redirect.
       expect(result.sessionId).toBe('customer-session-id');
       expect(result.siteCode).toBe('main');
+    });
+  });
+
+  describe('register', () => {
+    const originalPublicEnv = {
+      NEXT_PUBLIC_DEFAULT_LANGUAGE: process.env.NEXT_PUBLIC_DEFAULT_LANGUAGE,
+      NEXT_PUBLIC_DEFAULT_CURRENCY: process.env.NEXT_PUBLIC_DEFAULT_CURRENCY,
+      NEXT_PUBLIC_DEFAULT_SITE: process.env.NEXT_PUBLIC_DEFAULT_SITE,
+    };
+
+    const registration = {
+      credentials,
+      customer: {
+        email: 'test@example.com',
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        language: 'de',
+        currency: 'USD',
+      },
+    };
+
+    beforeEach(() => {
+      process.env.NEXT_PUBLIC_DEFAULT_LANGUAGE = 'en';
+      process.env.NEXT_PUBLIC_DEFAULT_CURRENCY = 'EUR';
+      process.env.NEXT_PUBLIC_DEFAULT_SITE = 'main';
+      mockCustomerApi.signup.mockResolvedValue({ id: 'new-customer' });
+      mockCustomerApi.login.mockResolvedValue(loginSessionContext);
+      mockCartService.getCart.mockResolvedValue(customerCart);
+    });
+
+    afterEach(() => {
+      process.env.NEXT_PUBLIC_DEFAULT_LANGUAGE = originalPublicEnv.NEXT_PUBLIC_DEFAULT_LANGUAGE;
+      process.env.NEXT_PUBLIC_DEFAULT_CURRENCY = originalPublicEnv.NEXT_PUBLIC_DEFAULT_CURRENCY;
+      process.env.NEXT_PUBLIC_DEFAULT_SITE = originalPublicEnv.NEXT_PUBLIC_DEFAULT_SITE;
+    });
+
+    it('signs up without a session context using registration language and currency', async () => {
+      mockSessionService.getCurrent.mockResolvedValue(undefined);
+
+      await authService.register(registration);
+
+      expect(mockLogger.warn).toHaveBeenCalledWith({}, 'Registration proceeding without session context');
+      expect(mockCustomerApi.signup).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: credentials.username,
+          customerDetails: expect.objectContaining({
+            preferredLanguage: 'de',
+            preferredCurrency: 'USD',
+            preferredSite: 'main',
+          }),
+        }),
+      );
+      expect(mockCustomerApi.login).toHaveBeenCalledWith(credentials.username, credentials.password);
+    });
+
+    it('falls back to public defaults when session and registration preferences are missing', async () => {
+      mockSessionService.getCurrent.mockResolvedValue(undefined);
+
+      await authService.register({ credentials });
+
+      expect(mockCustomerApi.signup).toHaveBeenCalledWith(
+        expect.objectContaining({
+          customerDetails: expect.objectContaining({
+            preferredLanguage: 'en',
+            preferredCurrency: 'EUR',
+            preferredSite: 'main',
+          }),
+        }),
+      );
+    });
+
+    it('prefers live session language, currency, and site when a session exists', async () => {
+      mockSessionService.getCurrent.mockResolvedValue({
+        ...oldServiceSession,
+        language: 'fr',
+        currency: 'GBP',
+        siteCode: 'uk-branch',
+      });
+      mockSuccessfulMerge();
+      mockSessionService.setCart.mockResolvedValue(undefined);
+
+      await authService.register(registration);
+
+      expect(mockLogger.warn).not.toHaveBeenCalled();
+      expect(mockCustomerApi.signup).toHaveBeenCalledWith(
+        expect.objectContaining({
+          customerDetails: expect.objectContaining({
+            preferredLanguage: 'fr',
+            preferredCurrency: 'GBP',
+            preferredSite: 'uk-branch',
+          }),
+        }),
+      );
+    });
+
+    it('still rejects registration without a password', async () => {
+      await expect(authService.register({ credentials: { username: 'test@example.com' } })).rejects.toThrow(
+        'Missing Password',
+      );
+      expect(mockCustomerApi.signup).not.toHaveBeenCalled();
     });
   });
 });

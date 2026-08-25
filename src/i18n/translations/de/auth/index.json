@@ -40,6 +40,7 @@
     "country": "Land",
     "vatNumber": "Umsatzsteuer-ID",
     "shippingSameAsBilling": "Lieferadresse ist gleich Rechnungsadresse",
+    "billingAddressInfo": "Rechnungsadresse",
     "accountSettings": "Kontoeinstellungen",
     "password": "Passwort",
     "passwordConfirmation": "Passwort bestätigen",
@@ -68,7 +69,8 @@
       "registrationFailed": "Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.",
       "serverError": "Ein Serverfehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
       "usernameTaken": "Dieser Benutzername ist bereits vergeben.",
-      "signInAfterRegisterFailed": "Ihr Konto wurde erstellt, die automatische Anmeldung ist jedoch fehlgeschlagen. Bitte melden Sie sich manuell an."
+      "signInAfterRegisterFailed": "Ihr Konto wurde erstellt, die automatische Anmeldung ist jedoch fehlgeschlagen. Bitte melden Sie sich manuell an.",
+      "billingAddressFailed": "Fehler bei Erstellung von Rechnungsadresse: {errorMessage}. Bitte Adressverwaltung benutzen, um die Rechnungsadresse zu erstellen."
     }
   },
   "Password": {

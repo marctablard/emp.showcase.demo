@@ -98,6 +98,21 @@
     "country": {
       "required": "Country is required"
     },
+    "billingContactName": {
+      "required": "Billing contact name is required"
+    },
+    "billingStreet": {
+      "required": "Billing street is required"
+    },
+    "billingPostalCode": {
+      "required": "Billing postal code is required"
+    },
+    "billingCity": {
+      "required": "Billing city is required"
+    },
+    "billingCountry": {
+      "required": "Billing country is required"
+    },
     "password": {
       "mismatch": "Passwords don't match"
     },

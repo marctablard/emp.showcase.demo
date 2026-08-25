@@ -98,6 +98,21 @@
     "country": {
       "required": "Land ist erforderlich"
     },
+    "billingContactName": {
+      "required": "Rechnungskontaktname ist erforderlich"
+    },
+    "billingStreet": {
+      "required": "Rechnungsstraße ist erforderlich"
+    },
+    "billingPostalCode": {
+      "required": "Rechnungs-Postleitzahl ist erforderlich"
+    },
+    "billingCity": {
+      "required": "Rechnungsstadt ist erforderlich"
+    },
+    "billingCountry": {
+      "required": "Rechnungsland ist erforderlich"
+    },
     "password": {
       "mismatch": "Die Passwörter stimmen nicht überein"
     },
