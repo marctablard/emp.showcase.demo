@@ -6,7 +6,7 @@ import { Edit, Plus, Trash } from 'lucide-react';
 import { AddressDisplay } from '@/components/common/address-display';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { H1 } from '@/components/ui/h';
 import { Spinner } from '@/components/ui/spinner';
 import { useAddresses } from '@/hooks/customer/useAddresses';
@@ -28,47 +28,51 @@ interface AddressCardProps {
  */
 export function AddressCard({ address, isDeleting = false, onEdit, onDelete }: AddressCardProps) {
   const t = useTranslations('account');
+  const showDefaultBadge = address.source === 'customer' && address.isDefault === true;
+  const showActions = Boolean(onEdit || onDelete);
 
   return (
-    <Card className="h-full">
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-start">
-          <div className="flex items-center gap-2">
-            <CardTitle className="text-lg font-medium">{address.contactName}</CardTitle>
-            {address.source === 'customer' && address.isDefault ? (
+    <Card className="h-full min-w-0 overflow-hidden">
+      <CardHeader className="min-w-0 gap-3 pb-2">
+        <CardTitle className="min-w-0 text-lg font-medium break-all">{address.contactName}</CardTitle>
+        {showDefaultBadge || showActions ? (
+          <CardAction className="flex items-center gap-4">
+            {showDefaultBadge ? (
               <Badge variant="outline" rounded="default" className="bg-surface-success text-text-success">
                 {t('Address.default')}
               </Badge>
             ) : null}
-          </div>
-          <div className="flex space-x-2">
-            {onEdit && (
-              <Button
-                variant="secondary"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => onEdit(address)}
-                aria-label={t('Address.editAddress')}
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-            )}
-            {onDelete && (
-              <Button
-                variant="secondary"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => onDelete(address)}
-                disabled={isDeleting}
-                aria-label={t('Address.deleteAddress')}
-              >
-                {isDeleting ? <Spinner variant="sm" /> : <Trash className="h-4 w-4" />}
-              </Button>
-            )}
-          </div>
-        </div>
+            {showActions ? (
+              <div className="flex items-center gap-2">
+                {onEdit && (
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => onEdit(address)}
+                    aria-label={t('Address.editAddress')}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                )}
+                {onDelete && (
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => onDelete(address)}
+                    disabled={isDeleting}
+                    aria-label={t('Address.deleteAddress')}
+                  >
+                    {isDeleting ? <Spinner variant="sm" /> : <Trash className="h-4 w-4" />}
+                  </Button>
+                )}
+              </div>
+            ) : null}
+          </CardAction>
+        ) : null}
       </CardHeader>
-      <CardContent>
+      <CardContent className="min-w-0">
         <AddressDisplay address={address} />
       </CardContent>
     </Card>
@@ -139,50 +143,52 @@ export function AddressesList({ type = 'SHIPPING' as AddressType }) {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {addresses
-            .filter((address) => address.tags.includes(type))
-            .map((address: CustomerAddress) => {
-              return (
-                <AddressCard
-                  key={address.id || `${address.contactName}-${address.street}-${address.city}`}
-                  address={address}
-                  isDeleting={deletingAddressId === address.id}
-                  onEdit={(addr) => {
-                    // Öffnet den Dialog im Bearbeitungsmodus
-                    setCurrentAddress(addr);
-                    setIsDialogOpen(true);
-                  }}
-                  onDelete={async (address) => {
-                    if (window.confirm(t('confirmDeleteAddress'))) {
-                      try {
-                        const addressId = address.id;
-                        if (addressId) {
-                          setDeletingAddressId(addressId);
+        <div className="@container min-w-0">
+          <div className="address-cards-grid" data-slot="address-cards-grid">
+            {addresses
+              .filter((address) => address.tags.includes(type))
+              .map((address: CustomerAddress) => {
+                return (
+                  <AddressCard
+                    key={address.id || `${address.contactName}-${address.street}-${address.city}`}
+                    address={address}
+                    isDeleting={deletingAddressId === address.id}
+                    onEdit={(addr) => {
+                      // Öffnet den Dialog im Bearbeitungsmodus
+                      setCurrentAddress(addr);
+                      setIsDialogOpen(true);
+                    }}
+                    onDelete={async (address) => {
+                      if (window.confirm(t('confirmDeleteAddress'))) {
+                        try {
+                          const addressId = address.id;
+                          if (addressId) {
+                            setDeletingAddressId(addressId);
 
-                          await deleteAddress(addressId);
-                          // Die Adressliste wird automatisch durch den Hook aktualisiert
+                            await deleteAddress(addressId);
+                            // Die Adressliste wird automatisch durch den Hook aktualisiert
+                            toast({
+                              title: t('Address.success'),
+                              description: t('Address.addressDeleted'),
+                              variant: 'success',
+                            });
+                          }
+                        } catch (error) {
+                          getLogger().error({ err: error }, 'Error deleting address');
                           toast({
-                            title: t('Address.success'),
-                            description: t('Address.addressDeleted'),
-                            variant: 'success',
+                            title: t('Address.error'),
+                            description: t('Address.errorDeletingAddress'),
+                            variant: 'destructive',
                           });
+                        } finally {
+                          setDeletingAddressId(null);
                         }
-                      } catch (error) {
-                        getLogger().error({ err: error }, 'Error deleting address');
-                        toast({
-                          title: t('Address.error'),
-                          description: t('Address.errorDeletingAddress'),
-                          variant: 'destructive',
-                        });
-                      } finally {
-                        setDeletingAddressId(null);
                       }
-                    }
-                  }}
-                />
-              );
-            })}
+                    }}
+                  />
+                );
+              })}
+          </div>
         </div>
       )}
 

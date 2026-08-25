@@ -16,3 +16,31 @@ export function resolveLegalEntityIdFromSessionAndCustomer(
   }
   return undefined;
 }
+
+function trimmedLegalEntityId(value: string | undefined): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+/**
+ * Selected legal entity for User Management access/display.
+ * Session (company switcher) wins when it is in `getCompanies()`. Otherwise
+ * recover from the customer-token claim, then profile `legalEntityId`, if that
+ * id is permitted. Do not invent `companies[0]`.
+ */
+export function resolvePermittedSelectedLegalEntityId(input: {
+  sessionLegalEntityId?: string;
+  tokenLegalEntityId?: string;
+  customerLegalEntityId?: string;
+  permittedCompanyIds: ReadonlySet<string> | readonly string[];
+}): string {
+  const companyIds =
+    input.permittedCompanyIds instanceof Set ? input.permittedCompanyIds : new Set(input.permittedCompanyIds);
+  const candidates = [input.sessionLegalEntityId, input.tokenLegalEntityId, input.customerLegalEntityId];
+  for (const candidate of candidates) {
+    const id = trimmedLegalEntityId(candidate);
+    if (id && companyIds.has(id)) {
+      return id;
+    }
+  }
+  return '';
+}

@@ -177,6 +177,10 @@ function resolveGroupPickerSelection(
   };
 }
 
+function isClearedGroupPickerValue(groupId: string): boolean {
+  return groupId === NO_SELECTION || groupId.length === 0;
+}
+
 function restoreReconciledAssignmentsIfNeeded(
   groupId: string,
   currentAssignments: CompanyUserGroupAssignment[],
@@ -184,7 +188,7 @@ function restoreReconciledAssignmentsIfNeeded(
   selectedLegalEntityGroups: AssignableLegalEntityGroups | undefined,
   hasChangedGroupSelection: boolean,
 ): CompanyUserGroupAssignment[] | undefined {
-  if (groupId === NO_SELECTION && currentAssignments.length === 0 && hasChangedGroupSelection === false) {
+  if (isClearedGroupPickerValue(groupId) && currentAssignments.length === 0 && hasChangedGroupSelection === false) {
     if (initialUser && selectedLegalEntityGroups) {
       const reconciledAssignments = reconcileInitialGroupAssignment(initialUser.groups, selectedLegalEntityGroups);
       if (reconciledAssignments.length > 0) {
@@ -547,7 +551,12 @@ function UserDetailsGroupSelect({
       <Label htmlFor={triggerId} className="text-base leading-6 font-bold text-text-headings">
         {companyHeading}
       </Label>
-      <Select value={selectedGroupId} onValueChange={onGroupChange} disabled={isSaving}>
+      <Select
+        key={selectedLegalEntityGroups.legalEntityId}
+        value={selectedGroupId}
+        onValueChange={onGroupChange}
+        disabled={isSaving}
+      >
         <SelectTrigger
           id={triggerId}
           aria-required={groupAriaRequired}
@@ -657,7 +666,7 @@ function UserDetailsGroupsSection({
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div data-slot="company-user-groups" className="flex flex-col gap-4">
       {selectedLegalEntityGroups ? (
         <UserDetailsGroupSelect
           selectedLegalEntityGroups={selectedLegalEntityGroups}
@@ -673,12 +682,12 @@ function UserDetailsGroupsSection({
           onGroupChange={onGroupChange}
         />
       ) : null}
-      <UserDetailsOtherCompanyGroups sections={otherHeaderCompanyGroupSections} headingForCompany={headingForCompany} />
       {groupError ? (
         <p id={fieldErrorId('group-assignments')} role="alert" className="text-sm text-text-error">
           {groupError}
         </p>
       ) : null}
+      <UserDetailsOtherCompanyGroups sections={otherHeaderCompanyGroupSections} headingForCompany={headingForCompany} />
     </div>
   );
 }
@@ -727,6 +736,7 @@ export function UserDetailsForm({ initialUser, headerCompanies = [] }: Readonly<
   const hasReconciledInitialGroups = useRef(false);
   const hasResetAfterGroupSelectMount = useRef(false);
   const allowDirtyRef = useRef(initialUser === undefined);
+  const selectedLegalEntityIdForHydrateRef = useRef<string | null>(null);
 
   const sessionLegalEntityId = sessionLegalEntityIdValue(session?.legalEntityId);
   const selectedLegalEntityId = useMemo(() => {
@@ -738,6 +748,15 @@ export function UserDetailsForm({ initialUser, headerCompanies = [] }: Readonly<
     if (legalEntityGroups.length === 1) return legalEntityGroups[0].legalEntityId;
     return '';
   }, [legalEntityGroups, sessionLegalEntityId]);
+  if (selectedLegalEntityIdForHydrateRef.current !== selectedLegalEntityId) {
+    const previousSelectedLegalEntityId = selectedLegalEntityIdForHydrateRef.current;
+    selectedLegalEntityIdForHydrateRef.current = selectedLegalEntityId;
+    if (initialUser && previousSelectedLegalEntityId !== null) {
+      allowDirtyRef.current = false;
+      hasResetAfterGroupSelectMount.current = false;
+      hasReconciledInitialGroups.current = false;
+    }
+  }
   // Customer Service enforces: "Customer can only assign new customer to the same company".
   const selectedLegalEntityGroups = useMemo(
     () => getSelectedLegalEntityGroups(initialUser?.groups ?? [], legalEntityGroups, selectedLegalEntityId),
@@ -765,7 +784,7 @@ export function UserDetailsForm({ initialUser, headerCompanies = [] }: Readonly<
     groupAssignments: initialGroupAssignments,
   };
   const { form } = useValidator(companyUserValidationServiceName(initialUser), initialData, 'onSubmit');
-  const { isDirty, isSubmitted } = form.formState;
+  const { isDirty } = form.formState;
 
   const loadGroups = useCallback(async () => {
     setGroupsLoading(true);
@@ -807,9 +826,9 @@ export function UserDetailsForm({ initialUser, headerCompanies = [] }: Readonly<
   useEffect(() => {
     form.setValue('selectedLegalEntityId', selectedLegalEntityId, {
       shouldDirty: false,
-      shouldValidate: isSubmitted,
+      shouldValidate: false,
     });
-  }, [form, isSubmitted, selectedLegalEntityId]);
+  }, [form, selectedLegalEntityId]);
 
   useEffect(() => {
     if (!initialUser || hasReconciledInitialGroups.current || !selectedLegalEntityGroups) return;
@@ -820,6 +839,10 @@ export function UserDetailsForm({ initialUser, headerCompanies = [] }: Readonly<
       shouldValidate: false,
     });
     hasReconciledInitialGroups.current = true;
+    if (form.getFieldState('groupAssignments').error) {
+      form.clearErrors('groupAssignments');
+    }
+    setHasChangedGroupSelection((changed) => (changed ? false : changed));
   }, [form, initialUser, selectedLegalEntityGroups]);
 
   useEffect(() => {
@@ -859,8 +882,10 @@ export function UserDetailsForm({ initialUser, headerCompanies = [] }: Readonly<
 
   const updateGroupAssignment = useCallback(
     (groupId: string) => {
-      if (allowDirtyRef.current === false && groupId === NO_SELECTION) return;
-      const nextAssignments = groupId === NO_SELECTION ? [] : [{ legalEntityId: selectedLegalEntityId, groupId }];
+      if (allowDirtyRef.current === false && isClearedGroupPickerValue(groupId)) return;
+      const nextAssignments = isClearedGroupPickerValue(groupId)
+        ? []
+        : [{ legalEntityId: selectedLegalEntityId, groupId }];
       const currentAssignments = (form.getValues('groupAssignments') as CompanyUserGroupAssignment[]) ?? [];
       const restoredAssignments = restoreReconciledAssignmentsIfNeeded(
         groupId,

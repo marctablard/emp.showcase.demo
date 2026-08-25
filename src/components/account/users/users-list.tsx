@@ -137,6 +137,7 @@ interface UsersListProps {
   selectedCompanyName?: string;
   headerCompanies?: Array<{ id: string; name: string }>;
   adminLegalEntityIds?: string[];
+  selectedLegalEntityId?: string;
 }
 
 export function UsersList({
@@ -147,13 +148,16 @@ export function UsersList({
   selectedCompanyName: selectedCompanyNameProp,
   headerCompanies = [],
   adminLegalEntityIds,
+  selectedLegalEntityId: selectedLegalEntityIdProp,
 }: Readonly<UsersListProps>) {
   const t = useTranslations('user-management');
   const { session } = useSession();
   const sessionLegalEntityId = typeof session?.legalEntityId === 'string' ? session.legalEntityId.trim() : '';
-  const canManageSelectedCompany = canManageSelectedCompanyUsers(adminLegalEntityIds, sessionLegalEntityId);
+  const recoveredLegalEntityId = typeof selectedLegalEntityIdProp === 'string' ? selectedLegalEntityIdProp.trim() : '';
+  const selectedLegalEntityId = sessionLegalEntityId || recoveredLegalEntityId;
+  const canManageSelectedCompany = canManageSelectedCompanyUsers(adminLegalEntityIds, selectedLegalEntityId);
   const selectedCompanyName =
-    headerCompanies.find((company) => company.id === sessionLegalEntityId)?.name ?? selectedCompanyNameProp;
+    headerCompanies.find((company) => company.id === selectedLegalEntityId)?.name ?? selectedCompanyNameProp;
   const showScopeToggle = canShowCompanyScopeToggle(
     adminLegalEntityIds,
     canManageSelectedCompany,

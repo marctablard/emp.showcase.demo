@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { MapPin } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import type { Address } from '@/platform/services/model/common';
 
 interface AddressDisplayProps {
@@ -14,11 +15,11 @@ interface AddressDisplayProps {
  */
 export function AddressDisplay({ address, className }: AddressDisplayProps) {
   return (
-    <div className={`flex items-start space-x-2 ${className}`}>
-      <MapPin className="h-4 w-4 mt-1 text-icon-secondary" />
-      <div className="space-y-1">
+    <div className={cn('flex min-w-0 items-start gap-2', className)}>
+      <MapPin className="mt-1 size-4 shrink-0 text-icon-secondary" aria-hidden />
+      <div className="min-w-0 space-y-1 wrap-break-word">
         {address.companyName && <p>{address.companyName}</p>}
-        {address.contactName && <p>{address.contactName}</p>}
+        {address.contactName && <p className="break-all">{address.contactName}</p>}
         {address.street ? <p>{address.street}</p> : null}
         {address.streetNumber ? <p className="tabular-nums">{address.streetNumber}</p> : null}
         <p>
