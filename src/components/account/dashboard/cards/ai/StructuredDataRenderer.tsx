@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
+import { isResolvedWidgetField } from '@/lib/common/ai-tool-widgets';
 import { AccountDetailsRenderer } from './renderers/AccountDetailsRenderer';
 import { AddressListRenderer } from './renderers/AddressListRenderer';
 import { CartSummaryRenderer } from './renderers/CartSummaryRenderer';
@@ -42,14 +43,14 @@ interface StructuredDataRendererProps {
   handlers: StructuredDataHandlers;
 }
 
-function hasResolvedErrorPayload(record: Record<string, unknown>): boolean {
+const hasResolvedErrorPayload = (record: Record<string, unknown>): boolean => {
   return ['message', 'details', 'errorCode'].some((key) => {
     const value = record[key];
     return typeof value === 'string' && value !== '';
   });
-}
+};
 
-export function hasResolvedWidgetPayload(type: string, data: unknown): boolean {
+export const hasResolvedWidgetPayload = (type: string, data: unknown): boolean => {
   if (data == null) {
     return false;
   }
@@ -60,17 +61,8 @@ export function hasResolvedWidgetPayload(type: string, data: unknown): boolean {
   if (type === 'error') {
     return hasResolvedErrorPayload(record);
   }
-  return Object.entries(record).some(([key, value]) => {
-    if (key === 'pagination' || key === 'message') {
-      return false;
-    }
-    // Empty arrays are resolved no-results, not missing/partial data.
-    if (Array.isArray(value)) {
-      return true;
-    }
-    return value != null && value !== '';
-  });
-}
+  return Object.entries(record).some(([key, value]) => isResolvedWidgetField(key, value));
+};
 
 export const StructuredDataRenderer: React.FC<StructuredDataRendererProps> = ({ type, data, handlers }) => {
   const t = useTranslations('account.AiHelper');

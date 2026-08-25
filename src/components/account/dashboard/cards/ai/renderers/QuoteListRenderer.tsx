@@ -8,7 +8,7 @@ import { getQuoteStatusDisplayLabel } from '@/lib/common/quote-status-message-ke
 import type { QuoteData, QuoteListData, QuotePreviewItemData } from '../types';
 import { formatDate, formatPrice, getQuoteStatusBadgeVariantForAi, handleImageError } from '../utils';
 import { mapAiQuoteList } from '../utils/map-ai-quote';
-import { widgetOrSkeleton } from './WidgetSkeleton';
+import { WidgetSkeleton } from './WidgetSkeleton';
 
 interface QuoteListRendererProps {
   data: QuoteListData;
@@ -21,7 +21,7 @@ export const QuoteListRenderer: React.FC<QuoteListRendererProps> = ({ data }) =>
   const locale = useLocale();
 
   if (data.quotes == null) {
-    return widgetOrSkeleton(data.quotes, null);
+    return <WidgetSkeleton />;
   }
 
   const list = mapAiQuoteList(data, locale);

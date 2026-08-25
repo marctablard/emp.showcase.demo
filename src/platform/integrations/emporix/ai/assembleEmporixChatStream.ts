@@ -33,6 +33,7 @@ import {
 } from '@/lib/common/ai-stream-preview';
 import { adaptToolResult, widgetHasItems, widgetTypeFromToolName } from '@/lib/common/ai-tool-widgets';
 import { findMatchingBrace } from '@/lib/common/json-brace-scan';
+import { removeOptionalSpace, takeCompleteSseBlocks } from '@/lib/common/sse-framing';
 import type { EmporixAIChatResponse } from '../model/ai';
 
 type StreamSource = ReadableStream<Uint8Array> | string;
@@ -53,10 +54,6 @@ const EMPTY_IDENTITY: StreamIdentity = {
 
 /** Opaque shopper-facing marker — never the raw model thinking text. */
 const SHOPPER_THINKING_STATUS = 'active';
-
-function removeOptionalSpace(value: string): string {
-  return value.startsWith(' ') ? value.slice(1) : value;
-}
 
 function toStringValue(value: unknown): string {
   return typeof value === 'string' ? value : '';
@@ -113,12 +110,21 @@ function applyIdentityOverlay(response: EmporixAIChatResponse, overlay: StreamId
   };
 }
 
+function withFallbackIdentity(response: EmporixAIChatResponse): EmporixAIChatResponse {
+  return {
+    ...response,
+    agentId: response.agentId || FALLBACK_RESPONSE.agentId,
+    agentType: response.agentType || FALLBACK_RESPONSE.agentType,
+    sessionId: response.sessionId || FALLBACK_RESPONSE.sessionId,
+  };
+}
+
 function createCapturedResponse(payload: StreamObject, message: string): EmporixAIChatResponse {
   const identity = mapIdentity(payload);
   return {
-    agentId: identity.agentId || FALLBACK_RESPONSE.agentId,
-    agentType: identity.agentType || FALLBACK_RESPONSE.agentType,
-    sessionId: identity.sessionId || FALLBACK_RESPONSE.sessionId,
+    agentId: identity.agentId,
+    agentType: identity.agentType,
+    sessionId: identity.sessionId,
     message,
   };
 }
@@ -167,22 +173,6 @@ function parseEventFrames(rawStream: string): SseFrame[] {
   return frames;
 }
 
-function takeCompleteSseBlocks(buffer: string): { blocks: string[]; rest: string } {
-  const normalized = buffer.replaceAll('\r\n', '\n');
-  const separator = '\n\n';
-  const lastSeparator = normalized.lastIndexOf(separator);
-  if (lastSeparator === -1) {
-    return { blocks: [], rest: normalized };
-  }
-
-  const complete = normalized.slice(0, lastSeparator);
-  const rest = normalized.slice(lastSeparator + separator.length);
-  return {
-    blocks: complete.split(separator).filter((block) => block !== ''),
-    rest,
-  };
-}
-
 function framesFromBlocks(blocks: string[]): SseFrame[] {
   const frames: SseFrame[] = [];
   for (const block of blocks) {
@@ -198,7 +188,9 @@ function createAssemblyState(): AssemblyState {
     identityOverlay: EMPTY_IDENTITY,
     widget: null,
     pendingWidget: null,
-    thinking: '',
+    thinking: false,
+    cachedPreviewSource: '',
+    cachedTokenPreview: null,
   };
 }
 
@@ -239,7 +231,13 @@ function tokenPreviewFromState(state: AssemblyState): StreamPreview {
   if (!raw) {
     return { kind: 'pending' };
   }
-  return previewStreamingAIMessage(raw);
+  if (state.cachedPreviewSource === raw && state.cachedTokenPreview != null) {
+    return state.cachedTokenPreview;
+  }
+  const preview = previewStreamingAIMessage(raw);
+  state.cachedPreviewSource = raw;
+  state.cachedTokenPreview = preview;
+  return preview;
 }
 
 function captionFromPreview(preview: StreamPreview): string {
@@ -418,7 +416,7 @@ function sanitizeCompletedMessage(message: string): string {
 
 function envelopeHasMeaningfulWidget(parsed: StreamObject): boolean {
   const type = typeof parsed.type === 'string' ? parsed.type : '';
-  if (!type || type === 'text' || !WIDGET_TYPES.has(type)) {
+  if (!type || type === 'text') {
     return false;
   }
   if (type === 'html') {
@@ -435,6 +433,9 @@ function envelopeHasMeaningfulWidget(parsed: StreamObject): boolean {
         return true;
       }
     }
+    return false;
+  }
+  if (!WIDGET_TYPES.has(type)) {
     return false;
   }
   return isStreamObject(parsed.data) && widgetHasItems(parsed.data);
@@ -484,16 +485,33 @@ function withSanitizedCompletion(response: EmporixAIChatResponse): EmporixAIChat
   return { ...response, message: sanitized };
 }
 
+function isToolOnlyStreamContent(textBuffer: string): boolean {
+  const objects = collectCandidateStreamObjects(textBuffer);
+  if (objects.length === 0) {
+    return false;
+  }
+  return !objects.some((objectPayload) => hasFrontendAgentShape(objectPayload));
+}
+
 function responseFromTextBuffer(textBuffer: string, overlay: StreamIdentity): EmporixAIChatResponse {
   const assembled = pickAssembledResponse(collectCandidateStreamObjects(textBuffer), overlay);
   if (assembled) {
     return withSanitizedCompletion(assembled);
   }
 
+  if (isToolOnlyStreamContent(textBuffer)) {
+    return withSanitizedCompletion({
+      agentId: overlay.agentId,
+      agentType: overlay.agentType,
+      sessionId: overlay.sessionId,
+      message: '',
+    });
+  }
+
   return withSanitizedCompletion({
-    agentId: overlay.agentId || FALLBACK_RESPONSE.agentId,
-    agentType: overlay.agentType || FALLBACK_RESPONSE.agentType,
-    sessionId: overlay.sessionId || FALLBACK_RESPONSE.sessionId,
+    agentId: overlay.agentId,
+    agentType: overlay.agentType,
+    sessionId: overlay.sessionId,
     message: textBuffer,
   });
 }
@@ -512,7 +530,9 @@ type AssemblyState = {
   identityOverlay: StreamIdentity;
   widget: WidgetState | null;
   pendingWidget: string | null;
-  thinking: string;
+  thinking: boolean;
+  cachedPreviewSource: string;
+  cachedTokenPreview: StreamPreview | null;
 };
 
 function consumeFrame(state: AssemblyState, frame: SseFrame): void {
@@ -536,6 +556,9 @@ function consumeFrame(state: AssemblyState, frame: SseFrame): void {
       consumeToolStart(state, frame.payload);
       return;
     }
+    if (frame.eventName === 'error') {
+      throwUpstreamStreamError(frame.payload);
+    }
     if (frame.eventName === 'done') {
       consumeIdentityOnly(state, frame.payload);
     }
@@ -545,11 +568,24 @@ function consumeFrame(state: AssemblyState, frame: SseFrame): void {
   consumePayload(state, frame.payload);
 }
 
+function throwUpstreamStreamError(payload: string): never {
+  let message = payload.trim() || 'AI stream reported an error';
+  try {
+    const parsed = JSON.parse(payload) as unknown;
+    if (isStreamObject(parsed)) {
+      message = toStringValue(parsed.error) || toStringValue(parsed.message) || message;
+    }
+  } catch {
+    // Use raw payload as error message.
+  }
+  throw new Error(message);
+}
+
 function consumeThinking(state: AssemblyState, payload: string): void {
   try {
     const parsed = JSON.parse(payload) as unknown;
     if (isStreamObject(parsed)) {
-      state.thinking += toStringValue(parsed.content);
+      state.thinking = true;
     }
   } catch {
     // Thinking frames must be JSON.
@@ -694,9 +730,9 @@ function responseFromWidgetState(state: AssemblyState, widget: WidgetState): Emp
   }
   return applyIdentityOverlay(
     {
-      agentId: state.identityOverlay.agentId || FALLBACK_RESPONSE.agentId,
-      agentType: state.identityOverlay.agentType || FALLBACK_RESPONSE.agentType,
-      sessionId: state.identityOverlay.sessionId || FALLBACK_RESPONSE.sessionId,
+      agentId: state.identityOverlay.agentId,
+      agentType: state.identityOverlay.agentType,
+      sessionId: state.identityOverlay.sessionId,
       message: JSON.stringify(envelope),
     },
     state.identityOverlay,
@@ -724,6 +760,20 @@ function responseFromTokenEnvelope(state: AssemblyState): EmporixAIChatResponse 
   return pickAssembledResponse(collectCandidateStreamObjects(state.textBuffer), state.identityOverlay);
 }
 
+function pickRicherResponse(
+  fromWidget: EmporixAIChatResponse | null,
+  fromTokens: EmporixAIChatResponse | null,
+): EmporixAIChatResponse | null {
+  if (!fromWidget) {
+    return fromTokens;
+  }
+  if (!fromTokens) {
+    return fromWidget;
+  }
+  // Prefer tool-adapted widget over raw token envelopes that may carry unnormalized fields.
+  return fromWidget;
+}
+
 function envelopeDataScore(response: EmporixAIChatResponse): number {
   try {
     const parsed = JSON.parse(response.message) as unknown;
@@ -736,56 +786,23 @@ function envelopeDataScore(response: EmporixAIChatResponse): number {
   return 0;
 }
 
-function hasFrontendAgentMetadata(response: EmporixAIChatResponse): boolean {
-  try {
-    const parsed = JSON.parse(response.message) as unknown;
-    if (!isStreamObject(parsed)) {
-      return false;
-    }
-    return typeof parsed.agentId === 'string' || typeof parsed.sessionId === 'string';
-  } catch {
-    return false;
-  }
-}
-
-function pickRicherResponse(
-  fromWidget: EmporixAIChatResponse | null,
-  fromTokens: EmporixAIChatResponse | null,
-): EmporixAIChatResponse | null {
-  if (!fromWidget) {
-    return fromTokens;
-  }
-  if (!fromTokens) {
-    return fromWidget;
-  }
-  const tokenScore = envelopeDataScore(fromTokens);
-  const widgetScore = envelopeDataScore(fromWidget);
-  if (tokenScore > widgetScore && hasFrontendAgentMetadata(fromTokens)) {
-    return fromTokens;
-  }
-  if (widgetScore > 0) {
-    return fromWidget;
-  }
-  if (tokenScore > 0) {
-    return fromTokens;
-  }
-  return fromWidget;
+function finalizeAssemblyResponse(response: EmporixAIChatResponse, overlay: StreamIdentity): EmporixAIChatResponse {
+  return assertNonEmptyMessage(withSanitizedCompletion(withFallbackIdentity(applyIdentityOverlay(response, overlay))));
 }
 
 function finishAssembly(state: AssemblyState): EmporixAIChatResponse {
+  const overlay = state.identityOverlay;
   const chosen = pickRicherResponse(responseFromResolvedWidget(state), responseFromTokenEnvelope(state));
   if (chosen) {
-    return assertNonEmptyMessage(withSanitizedCompletion(chosen));
+    return finalizeAssemblyResponse(chosen, overlay);
   }
 
   if (state.capturedResponse) {
-    return assertNonEmptyMessage(
-      withSanitizedCompletion(applyIdentityOverlay(state.capturedResponse, state.identityOverlay)),
-    );
+    return finalizeAssemblyResponse(state.capturedResponse, overlay);
   }
 
   if (state.textBuffer !== '') {
-    return assertNonEmptyMessage(responseFromTextBuffer(state.textBuffer, state.identityOverlay));
+    return finalizeAssemblyResponse(responseFromTextBuffer(state.textBuffer, overlay), overlay);
   }
 
   throw new Error('AI stream did not contain a message');

@@ -91,4 +91,50 @@ describe('ChatMessages', () => {
     expect(screen.getByTestId('loading-indicator')).toBeInTheDocument();
     expect(screen.queryByText('html-preview')).not.toBeInTheDocument();
   });
+
+  it('keeps the widget preview after loading ends until an assistant message is committed', () => {
+    render(
+      <ChatMessages
+        messages={[{ id: '1', content: 'Add to cart', isUser: true, timestamp: new Date() }]}
+        loading={false}
+        streamingPreview={{
+          kind: 'widget',
+          type: 'cart_summary',
+          message: 'Added to cart.',
+          data: { items: [{ productId: 'P1' }] },
+        }}
+        handlers={handlers}
+      />,
+    );
+
+    expect(screen.getByText('Added to cart.')).toBeInTheDocument();
+  });
+
+  it('hides the preview once the committed assistant message exists', () => {
+    render(
+      <ChatMessages
+        messages={[
+          { id: '1', content: 'Add to cart', isUser: true, timestamp: new Date() },
+          {
+            id: '2',
+            content: 'Added to cart.',
+            isUser: false,
+            timestamp: new Date(),
+            type: 'cart_summary',
+            data: { items: [{ productId: 'P1' }] },
+          },
+        ]}
+        loading={false}
+        streamingPreview={{
+          kind: 'widget',
+          type: 'cart_summary',
+          message: 'Added to cart.',
+          data: { items: [{ productId: 'P1' }] },
+        }}
+        handlers={handlers}
+      />,
+    );
+
+    expect(screen.getAllByText('Added to cart.')).toHaveLength(1);
+  });
 });

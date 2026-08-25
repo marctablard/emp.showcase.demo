@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl';
 import type { AccountDetailsData, AddressData } from '../types';
 import { formatDateTime } from '../utils';
 import { AddressCard } from './AddressCard';
-import { WidgetSkeleton } from './WidgetSkeleton';
 
 interface AccountDetailsRendererProps {
   data: AccountDetailsData;
@@ -19,7 +18,11 @@ export const AccountDetailsRenderer: React.FC<AccountDetailsRendererProps> = ({ 
   const hasAddresses = addresses.length > 0;
 
   if (!hasPersonalInfo && !hasAddresses) {
-    return <WidgetSkeleton />;
+    return (
+      <div className="rounded-lg border border-border-primary bg-surface-primary px-4 py-6 text-center text-sm text-text-body">
+        {t('noDataAvailable')}
+      </div>
+    );
   }
 
   return (
@@ -91,7 +94,9 @@ export const AccountDetailsRenderer: React.FC<AccountDetailsRendererProps> = ({ 
               <div className="w-4 h-4 text-text-body">📍</div>
               <div>
                 <div className="text-xs text-text-body">{t('preferredSite')}</div>
-                <div className="text-sm font-medium text-text-headings">{personalInfo?.preferredSite || '-'}</div>
+                <div className="text-sm font-medium text-text-headings">
+                  {personalInfo?.preferredSite || t('emptyValue')}
+                </div>
               </div>
             </div>
 

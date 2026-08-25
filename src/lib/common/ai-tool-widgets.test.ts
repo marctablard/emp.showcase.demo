@@ -37,6 +37,7 @@ describe('ai-tool-widgets', () => {
     });
     expect(adapted?.type).toBe('account_details');
     expect(adapted?.data.personalInfo).toMatchObject({ name: 'Ada Lovelace', email: 'ada@example.com' });
+    expect(adapted?.data.addresses).toEqual([{ city: 'London' }]);
   });
 
   it('unwraps LangChain tool envelopes instead of painting the tool name as the customer', () => {
@@ -63,6 +64,82 @@ describe('ai-tool-widgets', () => {
       customerNumber: '26566461',
     });
     expect(adapted?.data.addresses).toEqual([{ city: 'Belrin', country: 'Germany' }]);
+  });
+
+  it('maps Emporix address fields onto AddressCard fields', () => {
+    const adapted = adaptToolResult('get-customer-info', {
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      addresses: [
+        {
+          contactName: 'HQ',
+          companyName: 'Analytical Engines',
+          street: 'Analytical Way',
+          streetNumber: '1',
+          streetAppendix: 'Gate B',
+          zipCode: 'SW1A',
+          city: 'London',
+          country: 'GB',
+          tags: ['SHIPPING', 'BILLING'],
+        },
+      ],
+    });
+    expect(adapted?.data.addresses).toEqual([
+      {
+        name: 'HQ',
+        company: 'Analytical Engines',
+        addressLine1: 'Analytical Way 1',
+        addressLine2: 'Gate B',
+        city: 'London',
+        postalCode: 'SW1A',
+        country: 'GB',
+        tags: ['SHIPPING', 'BILLING'],
+      },
+    ]);
+  });
+
+  it('unwraps MCP Result.data customer addresses', () => {
+    const adapted = adaptToolResult('get-customer-info', {
+      name: 'get-customer-info',
+      description: 'Successfully fetched customer information',
+      source: 'customers',
+      is_success: true,
+      data: {
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        addresses: [{ contactName: 'Home', street: 'Friedrichstr.', zipCode: '10115', city: 'Berlin', country: 'DE' }],
+      },
+    });
+    expect(adapted?.data.personalInfo).toMatchObject({ name: 'Ada Lovelace' });
+    expect(adapted?.data.addresses).toEqual([
+      {
+        name: 'Home',
+        addressLine1: 'Friedrichstr.',
+        city: 'Berlin',
+        postalCode: '10115',
+        country: 'DE',
+      },
+    ]);
+  });
+
+  it('maps nested company addresses from get-companies-addresses', () => {
+    const adapted = adaptToolResult('get-companies-addresses', [
+      {
+        companyId: 'le-1',
+        companyName: 'SpaceX',
+        address: { street: 'Rocket Rd', streetNumber: '1', zipCode: '90250', city: 'Hawthorne', country: 'US' },
+      },
+    ]);
+    expect(adapted?.type).toBe('address_list');
+    expect(adapted?.data.addresses).toEqual([
+      {
+        name: 'SpaceX',
+        addressLine1: 'Rocket Rd 1',
+        city: 'Hawthorne',
+        postalCode: '90250',
+        country: 'US',
+      },
+    ]);
   });
 
   it('reads structured_content from a tool artifact wrapper', () => {
@@ -245,6 +322,31 @@ describe('ai-tool-widgets', () => {
     expect(adapted?.data.products).toEqual([{ productId: 'P2', name: 'Widget', price: 9.99, currency: 'EUR' }]);
   });
 
+  it('maps singular get-product payloads onto product_list widgets', () => {
+    const adapted = adaptToolResult('get-product', {
+      id: 'P3',
+      name: { en: 'Single Widget' },
+      price: { amount: 4.5, currency: 'EUR' },
+    });
+    expect(adapted?.type).toBe('product_list');
+    expect(adapted?.data.products).toEqual([
+      {
+        productId: 'P3',
+        name: 'Single Widget',
+        price: 4.5,
+        currency: 'EUR',
+      },
+    ]);
+  });
+
+  it('normalizes order totals that use amount fields', () => {
+    const adapted = adaptToolResult('get-customer-orders', {
+      orders: [{ id: 'EON2', total: { amount: 99, currency: 'EUR' } }],
+    });
+    const order = (adapted?.data.orders as Array<Record<string, unknown>>)[0];
+    expect(order.total).toEqual({ value: 99, gross: 99, currency: 'EUR' });
+  });
+
   it('maps indexedproducts RAG hits onto product_list widgets', () => {
     expect(widgetTypeFromToolName('search_showcasedev__indexedProducts')).toBe('product_list');
     const adapted = adaptToolResult('search_showcasedev__indexedProducts', {
@@ -275,6 +377,26 @@ describe('ai-tool-widgets', () => {
         currency: 'EUR',
       },
     ]);
+  });
+
+  it('uses catalog id over search code for add-to-cart productId', () => {
+    const adapted = adaptToolResult('search_showcasedev__indexedProducts', {
+      data: {
+        results: [
+          {
+            metadata: {
+              id: 'auroratech-smart-solar-solution',
+              code: 'auroratech-smart-solar-solution-nominal-power-600w',
+              _id: 'mongo-1',
+              name: { en: 'Aurora 600W' },
+            },
+          },
+        ],
+      },
+    });
+    expect((adapted?.data.products as Array<Record<string, unknown>>)[0].productId).toBe(
+      'auroratech-smart-solar-solution',
+    );
   });
 
   it('maps indexedorders RAG hits onto order_list widgets', () => {
@@ -344,6 +466,57 @@ describe('ai-tool-widgets', () => {
       name: 'Solar panel',
       quantity: 1,
     });
+  });
+
+  it('ignores empty cart total placeholders and uses calculatedPrice', () => {
+    const adapted = adaptToolResult('get-cart', {
+      currency: 'EUR',
+      siteCode: 'main',
+      total: {},
+      subtotal: {},
+      calculatedPrice: {
+        price: { netValue: 80, grossValue: 95, taxValue: 15 },
+        finalPrice: { netValue: 83, grossValue: 99, taxValue: 16 },
+      },
+      items: [{ productId: 'P1', name: 'Solar panel', quantity: 1, unitPrice: { gross: 99, currency: 'EUR' } }],
+    });
+    expect(adapted?.data).toMatchObject({
+      subtotal: { gross: 95, net: 80, tax: 15, value: 95 },
+      total: { gross: 99, net: 83, tax: 16, value: 99 },
+    });
+  });
+
+  it('prefers calculatedPrice net/tax over amount-only cart totalPrice', () => {
+    const adapted = adaptToolResult('get-cart', {
+      currency: 'EUR',
+      totalPrice: { amount: 99, currency: 'EUR' },
+      subTotalPrice: { amount: 99, currency: 'EUR' },
+      calculatedPrice: {
+        price: { netValue: 83.19, grossValue: 99, taxValue: 15.81 },
+        finalPrice: { netValue: 83.19, grossValue: 99, taxValue: 15.81 },
+      },
+      items: [{ productId: 'P1', name: 'Solar panel', quantity: 1 }],
+    });
+    expect(adapted?.data.total).toMatchObject({ gross: 99, net: 83.19, tax: 15.81 });
+    expect(adapted?.data.subtotal).toMatchObject({ gross: 99, net: 83.19, tax: 15.81 });
+  });
+
+  it('reads cart totals from a nested cart wrapper', () => {
+    const adapted = adaptToolResult('get-cart', {
+      cart: {
+        currency: 'EUR',
+        items: [{ productId: 'P1', name: 'Solar panel', quantity: 1 }],
+        calculatedPrice: {
+          finalPrice: { netValue: 83, grossValue: 99, taxValue: 16 },
+          price: { netValue: 83, grossValue: 99, taxValue: 16 },
+        },
+      },
+    });
+    expect(adapted?.data).toMatchObject({
+      currency: 'EUR',
+      total: { gross: 99, net: 83, tax: 16, value: 99 },
+    });
+    expect(adapted?.data.items).toHaveLength(1);
   });
 
   it('scales explicit unit price into totalPrice by quantity', () => {

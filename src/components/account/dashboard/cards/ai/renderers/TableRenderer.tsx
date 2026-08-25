@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
 import type { TableData } from '../types';
 import { formatDate } from '../utils';
@@ -11,6 +12,7 @@ interface TableRendererProps {
 }
 
 export const TableRenderer: React.FC<TableRendererProps> = ({ data }) => {
+  const t = useTranslations('account.AiHelper');
   const title = data.title;
   const headers = Array.isArray(data.headers) ? data.headers : [];
   const rows = data.rows;
@@ -27,13 +29,13 @@ export const TableRenderer: React.FC<TableRendererProps> = ({ data }) => {
   };
 
   const formatCellValue = (value: string, type: string): React.ReactNode => {
-    if (!value || value === 'undefined' || value === 'null') return '-';
+    if (!value || value === 'undefined' || value === 'null') return t('emptyValue');
 
     switch (type) {
       case 'date':
         try {
           const dateValue = value.trim();
-          if (!dateValue) return '-';
+          if (!dateValue) return t('emptyValue');
           return formatDate(dateValue);
         } catch {
           return value;
@@ -105,7 +107,7 @@ export const TableRenderer: React.FC<TableRendererProps> = ({ data }) => {
           </table>
         </div>
       </div>
-      {validRows.length === 0 && <div className="text-center py-8 text-text-body text-sm">No data available</div>}
+      {validRows.length === 0 && <div className="text-center py-8 text-text-body text-sm">{t('noDataAvailable')}</div>}
     </div>
   );
 };

@@ -94,10 +94,10 @@ jest.mock('@/lib/client/ai', () => ({
 jest.mock('./ai/ChatInput', () => ({
   ChatInput: ({ onSubmit, loading }: { onSubmit: (data: { question: string }) => void; loading: boolean }) => (
     <div>
-      <button type="button" onClick={() => onSubmit({ question: 'What are my orders?' })}>
+      <button type="button" onClick={() => onSubmit({ question: 'What are my orders?' })} disabled={loading}>
         submit-question
       </button>
-      <input aria-label="chat-input" disabled={loading} />
+      <input aria-label="chat-input" />
     </div>
   ),
 }));
@@ -179,5 +179,18 @@ describe('AiHelperCard', () => {
     expect(screen.queryByText(/AI service request failed/)).not.toBeInTheDocument();
     expect(screen.getByTestId('chat-messages')).toHaveTextContent('idle');
     expect(screen.getByLabelText('chat-input')).not.toBeDisabled();
+  });
+
+  it('keeps the input editable and disables send while a response is in flight', () => {
+    mockLoading = true;
+    mockIsChatMode = true;
+
+    render(<AiHelperCard />);
+
+    expect(screen.getByLabelText('chat-input')).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'submit-question' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'submit-question' }));
+    expect(sendMessageWithContext).not.toHaveBeenCalled();
   });
 });

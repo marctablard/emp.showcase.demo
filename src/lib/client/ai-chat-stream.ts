@@ -5,29 +5,10 @@ import {
   isAIChatProgressEvent,
 } from '@/lib/common/ai-chat-stream';
 import type { AIChatStreamProgressUpdate } from '@/lib/common/ai-stream-preview';
+import { removeOptionalSpace, takeCompleteSseBlocks } from '@/lib/common/sse-framing';
 import type { AIChatResponse } from '@/platform/integrations/ai/model';
 
-function removeOptionalSpace(value: string): string {
-  return value.startsWith(' ') ? value.slice(1) : value;
-}
-
-function takeCompleteSseBlocks(buffer: string): { blocks: string[]; rest: string } {
-  const normalized = buffer.replaceAll('\r\n', '\n');
-  const separator = '\n\n';
-  const lastSeparator = normalized.lastIndexOf(separator);
-  if (lastSeparator === -1) {
-    return { blocks: [], rest: normalized };
-  }
-
-  const complete = normalized.slice(0, lastSeparator);
-  const rest = normalized.slice(lastSeparator + separator.length);
-  return {
-    blocks: complete.split(separator).filter((block) => block !== ''),
-    rest,
-  };
-}
-
-function payloadFromBlock(block: string): string {
+const payloadFromBlock = (block: string): string => {
   const dataLines: string[] = [];
   for (const line of block.split('\n')) {
     if (!line || line.startsWith(':')) {
@@ -38,9 +19,9 @@ function payloadFromBlock(block: string): string {
     }
   }
   return dataLines.join('\n');
-}
+};
 
-function parseStreamEvent(payload: string): AIChatStreamEvent | null {
+const parseStreamEvent = (payload: string): AIChatStreamEvent | null => {
   try {
     const parsed = JSON.parse(payload) as AIChatStreamEvent;
     if (parsed && typeof parsed === 'object' && typeof parsed.type === 'string') {
@@ -50,12 +31,12 @@ function parseStreamEvent(payload: string): AIChatStreamEvent | null {
     return null;
   }
   return null;
-}
+};
 
-export async function readAIChatSseResponse(
+export const readAIChatSseResponse = async (
   body: ReadableStream<Uint8Array>,
   onProgress?: (progress: AIChatStreamProgressUpdate) => void,
-): Promise<AIChatResponse> {
+): Promise<AIChatResponse> => {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -111,4 +92,4 @@ export async function readAIChatSseResponse(
   }
 
   return complete;
-}
+};

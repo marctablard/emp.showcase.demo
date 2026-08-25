@@ -1,18 +1,24 @@
 'use client';
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
 
 interface WidgetSkeletonProps {
   rows?: number;
 }
 
 export const WidgetSkeleton: React.FC<WidgetSkeletonProps> = ({ rows = 2 }) => {
+  const t = useTranslations('account.AiHelper');
+
   return (
-    <div className="space-y-3" aria-hidden="true">
-      {Array.from({ length: rows }, (_, index) => (
-        <div key={index} className="h-24 rounded-xl border border-border-primary bg-surface-primary animate-pulse" />
-      ))}
-    </div>
+    <>
+      <div className="space-y-3" aria-hidden="true">
+        {Array.from({ length: rows }, (_, index) => (
+          <div key={index} className="h-24 rounded-xl border border-border-primary bg-surface-primary animate-pulse" />
+        ))}
+      </div>
+      <output className="sr-only">{t('aiProcessing')}</output>
+    </>
   );
 };
 

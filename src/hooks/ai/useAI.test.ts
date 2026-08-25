@@ -155,7 +155,7 @@ describe('useAI hook', () => {
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
       expect(result.current.chunkCount).toBeNull();
-      expect(result.current.streamingPreview).toBeNull();
+      expect(result.current.streamingPreview).toEqual({ kind: 'text', content: 'Typing' });
     });
   });
 
@@ -206,5 +206,37 @@ describe('useAI hook', () => {
     await act(async () => {
       resolveRequest?.({ message: 'streamed' });
     });
+  });
+
+  it('passes the last stream preview into onSuccess', async () => {
+    const cartPreview = {
+      kind: 'widget' as const,
+      type: 'cart_summary',
+      message: 'Added to cart.',
+      data: { items: [{ productId: 'P1' }] },
+    };
+    mockSendAIChatMessageWithContext.mockImplementation(
+      async (
+        _message: string,
+        _context: unknown,
+        onProgress?: (progress: { chunks: number; preview?: typeof cartPreview }) => void,
+      ) => {
+        onProgress?.({ chunks: 1, preview: cartPreview });
+        return { message: '{"type":"text","message":"done"}' };
+      },
+    );
+
+    const onSuccess = jest.fn();
+    const { result } = renderHook(() => useAI());
+
+    await act(async () => {
+      await result.current.sendMessageWithContext(
+        'Add to cart',
+        { siteId: 'test', currency: 'EUR', language: 'en' },
+        onSuccess,
+      );
+    });
+
+    expect(onSuccess).toHaveBeenCalledWith({ message: '{"type":"text","message":"done"}' }, cartPreview);
   });
 });

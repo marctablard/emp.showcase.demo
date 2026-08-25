@@ -20,8 +20,6 @@ export const WIDGET_TYPES = new Set([
   'error',
 ]);
 
-export { widgetTypeFromToolName } from './ai-tool-widgets';
-
 export type StreamPreview =
   | { kind: 'pending' }
   | { kind: 'text'; content: string }
@@ -48,6 +46,7 @@ const COMPLETE_MARKDOWN_FENCE_PATTERN = /^```(?:json)?\r?\n([\s\S]*?)```\r?\n?/i
 
 function stripLeadingCompleteMarkdownFences(text: string): { text: string; blocked: boolean } {
   let remainder = text;
+  let lastFenceBody: string | undefined;
 
   while (true) {
     const trimmed = remainder.trimStart();
@@ -55,6 +54,7 @@ function stripLeadingCompleteMarkdownFences(text: string): { text: string; block
     if (!match) {
       break;
     }
+    lastFenceBody = match[1];
     remainder = trimmed.slice(match[0].length);
   }
 
@@ -62,7 +62,12 @@ function stripLeadingCompleteMarkdownFences(text: string): { text: string; block
     return { text: '', blocked: true };
   }
 
-  return { text: remainder.trimStart(), blocked: false };
+  const trimmedRemainder = remainder.trimStart();
+  if (trimmedRemainder === '' && lastFenceBody != null) {
+    return { text: lastFenceBody.trim(), blocked: false };
+  }
+
+  return { text: trimmedRemainder, blocked: false };
 }
 
 function unescapePartialJsonString(value: string): string {
@@ -73,7 +78,9 @@ function unescapePartialJsonString(value: string): string {
 }
 
 const MAX_SHOPPER_CAPTION_CHARS = 512;
-const MARKDOWN_HEADING_PATTERN = /(?:^|\n)#{1,6}\s+\S/m;
+// Complete ATX headings (`## SESSION INTENT`) and incomplete drips (`##`, `## `)
+// that stream before the heading title arrives.
+const MARKDOWN_HEADING_PATTERN = /(?:^|\n)#{1,6}(?:\s|$)/m;
 const ENVELOPE_LEAK_PATTERN = /"(?:type|data|agentId|sessionId|tool_call)"\s*:/;
 
 function looksLikeNonShopperCaption(value: string, options: { enforceMaxLength: boolean }): boolean {

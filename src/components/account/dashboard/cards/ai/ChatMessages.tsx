@@ -63,6 +63,11 @@ const toStreamingMessage = (preview: StreamingPreview): ChatMessageType => {
   };
 };
 
+const previewHandlers: StructuredDataHandlers = {
+  setQuestionValue: () => {},
+  handleQuestionSubmit: () => {},
+};
+
 export const ChatMessages: React.FC<ChatMessagesProps> = ({
   messages,
   loading,
@@ -87,9 +92,11 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
     }
   }, [messages.length, loading, previewKey, streamingThinking]);
 
-  const showStreamingPreview = loading && streamingPreview !== null;
+  const showStreamingPreview =
+    streamingPreview != null && (loading || messages.length === 0 || Boolean(messages.at(-1)?.isUser));
   const showThinking = loading && Boolean(streamingThinking);
   const showLoadingIndicator = loading && !showStreamingPreview && !showThinking;
+  const showEmptyState = messages.length === 0 && !showStreamingPreview && !showThinking && !showLoadingIndicator;
 
   return (
     <div
@@ -100,7 +107,7 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
       aria-relevant="additions"
       className="flex-1 overflow-y-auto border rounded-lg p-3 bg-surface-image-background mb-3 scroll-smooth"
     >
-      {messages.length === 0 ? (
+      {showEmptyState ? (
         <div className="text-center text-text-placeholders py-8">{t('emptyState')}</div>
       ) : (
         <div className="space-y-3">
@@ -108,7 +115,9 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
             <ChatMessage key={message.id} message={message} handlers={handlers} />
           ))}
           {showThinking && <ThinkingTranscript text={streamingThinking ?? ''} />}
-          {showStreamingPreview && <ChatMessage message={toStreamingMessage(streamingPreview)} handlers={handlers} />}
+          {showStreamingPreview && (
+            <ChatMessage message={toStreamingMessage(streamingPreview)} handlers={previewHandlers} />
+          )}
           {showLoadingIndicator && <LoadingIndicator chunkCount={chunkCount} />}
         </div>
       )}

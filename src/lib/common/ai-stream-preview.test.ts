@@ -3,8 +3,8 @@ import {
   sanitizeCompletedShopperText,
   sanitizeShopperCaption,
   toStreamProgressUpdate,
-  widgetTypeFromToolName,
 } from './ai-stream-preview';
+import { widgetTypeFromToolName } from './ai-tool-widgets';
 
 describe('previewStreamingAIMessage', () => {
   it('returns plain text for non-JSON token buffers', () => {
@@ -73,6 +73,13 @@ describe('previewStreamingAIMessage', () => {
     expect(previewStreamingAIMessage("## SESSION INTENT\n\nThe user's primary goal")).toEqual({
       kind: 'pending',
     });
+  });
+
+  it('drops incomplete heading prefixes that stream before the title', () => {
+    expect(sanitizeShopperCaption('#')).toBe('');
+    expect(sanitizeShopperCaption('##')).toBe('');
+    expect(sanitizeShopperCaption('## ')).toBe('');
+    expect(previewStreamingAIMessage('##')).toEqual({ kind: 'pending' });
   });
 
   it('sanitizes nested data.message on live widget previews', () => {
@@ -202,6 +209,11 @@ describe('previewStreamingAIMessage', () => {
     expect(previewStreamingAIMessage('```json\n{"query":"orders"}')).toEqual({ kind: 'pending' });
   });
 
+  it('previews a complete single fenced shopper envelope', () => {
+    const envelope = '```json\n{"type":"html","data":{"html":"<p>Hello</p>"}}\n```';
+    expect(previewStreamingAIMessage(envelope)).toEqual({ kind: 'html', html: '<p>Hello</p>' });
+  });
+
   it('maps prefixed MCP tool names to widget types', () => {
     expect(widgetTypeFromToolName('showcasedev__get-customer-info')).toBe('account_details');
     expect(widgetTypeFromToolName('search_showcasedev__indexedOrders')).toBe('order_list');
@@ -211,6 +223,7 @@ describe('previewStreamingAIMessage', () => {
 describe('sanitizeShopperCaption', () => {
   it('keeps short shopper captions', () => {
     expect(sanitizeShopperCaption('Here are your orders.')).toBe('Here are your orders.');
+    expect(sanitizeShopperCaption('Add item #1 to the cart.')).toBe('Add item #1 to the cart.');
   });
 
   it('keeps multi-line text without markdown headings', () => {

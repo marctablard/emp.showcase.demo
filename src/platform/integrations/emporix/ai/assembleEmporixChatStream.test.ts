@@ -360,6 +360,107 @@ describe('assembleEmporixChatStream', () => {
     expect(progressUpdates.at(-1)?.preview).toEqual({ kind: 'html', html: '<p>Hello' });
   });
 
+  it('completes caption-less html envelopes without empty message', async () => {
+    const envelope = JSON.stringify({
+      type: 'html',
+      message: '',
+      data: { html: '<p>Hello</p>' },
+    });
+    const streamBody = toContentToken(envelope);
+
+    const assembled = await assembleEmporixChatStream(streamBody);
+
+    expect(assembled.message).not.toBe('');
+    const parsed = JSON.parse(assembled.message);
+    expect(parsed.type).toBe('html');
+    expect(parsed.data.html).toBe('<p>Hello</p>');
+  });
+
+  it('throws when upstream emits event:error', async () => {
+    const streamBody = toNamedSseEvent('error', JSON.stringify({ error: 'Upstream failed' }));
+
+    await expect(assembleEmporixChatStream(streamBody)).rejects.toThrow('Upstream failed');
+  });
+
+  it('completes empty quote_list tool results without throwing', async () => {
+    const streamBody = [
+      toNamedSseEvent('tool_start', JSON.stringify({ tool_name: 'get-quotes', tool_call_id: 'call-1' })),
+      toNamedSseEvent(
+        'tool_result',
+        JSON.stringify({
+          tool_name: 'get-quotes',
+          tool_call_id: 'call-1',
+          output: { quotes: [] },
+        }),
+      ),
+    ].join('');
+
+    const assembled = await assembleEmporixChatStream(streamBody);
+    const parsed = JSON.parse(assembled.message);
+
+    expect(parsed.type).toBe('quote_list');
+    expect(parsed.data.quotes).toEqual([]);
+  });
+
+  it('fails closed when the stream contains only a fenced tool payload', async () => {
+    const toolQuery = { query: 'pending orders', filter: 'NO_FILTER' };
+    const streamBody = toContentToken(`\`\`\`json\n${JSON.stringify(toolQuery)}\n\`\`\``);
+
+    await expect(assembleEmporixChatStream(streamBody)).rejects.toThrow('AI stream contained an empty message');
+  });
+
+  it('applies done-frame identity over envelopes that omit agentId', async () => {
+    const envelope = JSON.stringify({
+      message: 'Here are your orders.',
+      type: 'order_list',
+      data: { orders: [{ orderId: 'EON1' }] },
+    });
+    const streamBody = [
+      toContentToken(envelope),
+      toNamedSseEvent(
+        'done',
+        JSON.stringify({ agent_id: 'frontend-agent', agent_type: 'frontend', session_id: 'session-overlay' }),
+      ),
+    ].join('');
+
+    const assembled = await assembleEmporixChatStream(streamBody);
+
+    expect(assembled.agentId).toBe('frontend-agent');
+    expect(assembled.agentType).toBe('frontend');
+    expect(assembled.sessionId).toBe('session-overlay');
+  });
+
+  it('prefers the adapted tool widget over a larger raw token envelope', async () => {
+    const streamBody = [
+      toNamedSseEvent(
+        'tool_result',
+        JSON.stringify({
+          tool_name: 'get-customer-orders',
+          tool_call_id: 'call-1',
+          output: { orders: [{ id: 'EON1', totalPrice: 10 }] },
+        }),
+      ),
+      toContentToken(
+        JSON.stringify({
+          agentId: 'frontendAgent',
+          sessionId: 'session-raw',
+          message: 'Here are your orders.',
+          type: 'order_list',
+          data: {
+            orders: [{ orderId: 'EON1', mixins: { debug: true }, total: { amount: 999, currency: 'EUR' } }],
+          },
+        }),
+      ),
+    ].join('');
+
+    const assembled = await assembleEmporixChatStream(streamBody);
+    const parsed = JSON.parse(assembled.message);
+
+    expect(parsed.type).toBe('order_list');
+    expect(parsed.data.orders[0]).toMatchObject({ orderId: 'EON1', total: { gross: 10, value: 10 } });
+    expect(parsed.data.orders[0]).not.toHaveProperty('mixins');
+  });
+
   it('shows a quote-list skeleton on get-quotes tool_start, then fills two quotes', async () => {
     const progressUpdates: Array<{
       chunks: number;
@@ -659,6 +760,30 @@ describe('assembleEmporixChatStream', () => {
     await expect(assembleEmporixChatStream(toContentToken(envelope))).rejects.toThrow(
       'AI stream contained an empty message',
     );
+  });
+
+  it('does not preview incomplete planning heading prefixes while adding to cart', async () => {
+    const progressUpdates: Array<{ preview?: { kind: string; content?: string } }> = [];
+    const streamBody = [
+      toContentToken('##'),
+      toContentToken(' SESSION INTENT\n\nThe user wants to add a product.'),
+      toNamedSseEvent(
+        'tool_result',
+        JSON.stringify({
+          tool_name: 'get-cart',
+          tool_call_id: 'call-1',
+          output: { items: [{ id: 'P1', quantity: 1 }] },
+        }),
+      ),
+    ].join('');
+
+    await assembleEmporixChatStream(streamBody, (progress) => {
+      progressUpdates.push(progress);
+    });
+
+    expect(
+      progressUpdates.some((update) => update.preview?.kind === 'text' && update.preview.content?.includes('#')),
+    ).toBe(false);
   });
 
   it('keeps widget envelopes with empty caption when tool data is present', async () => {

@@ -1,7 +1,4 @@
-export const consumeJsonStringCharacter = (
-  character: string,
-  escaped: boolean,
-): { inString: boolean; escaped: boolean } => {
+const consumeJsonStringCharacter = (character: string, escaped: boolean): { inString: boolean; escaped: boolean } => {
   if (escaped) {
     return { inString: true, escaped: false };
   }

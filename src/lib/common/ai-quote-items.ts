@@ -143,7 +143,7 @@ function scalePrice(
 }
 
 /** Flatten Emporix quote line items onto Helper QuoteItemData rows. */
-export function mapAiQuoteItems(items: unknown, locale?: string): AiQuoteItem[] {
+export const mapAiQuoteItems = (items: unknown, locale?: string): AiQuoteItem[] => {
   if (!Array.isArray(items)) {
     return [];
   }
@@ -155,4 +155,4 @@ export function mapAiQuoteItems(items: unknown, locale?: string): AiQuoteItem[] 
     }
   }
   return mapped;
-}
+};

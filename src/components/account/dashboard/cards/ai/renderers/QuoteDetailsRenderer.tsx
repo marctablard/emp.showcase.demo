@@ -11,7 +11,7 @@ import { formatDate, formatPrice, getQuoteStatusBadgeVariantForAi } from '../uti
 import { mapAiQuote } from '../utils/map-ai-quote';
 import type { UnifiedProductItem } from './ProductItem';
 import { ProductItem } from './ProductItem';
-import { widgetOrSkeleton } from './WidgetSkeleton';
+import { WidgetSkeleton } from './WidgetSkeleton';
 
 interface QuoteDetailsRendererProps {
   data: QuoteDetailsData | Record<string, unknown>;
@@ -28,7 +28,7 @@ export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data
   const items = mapAiQuoteItems(details.items, locale);
 
   if (!quote.quoteId && !quote.reference) {
-    return widgetOrSkeleton(null, null);
+    return <WidgetSkeleton />;
   }
 
   const currency = quote.currency || details.currency;
@@ -119,18 +119,18 @@ export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data
                     fallbackCurrency,
                   unitPrice: item.unitPrice
                     ? {
-                        value: item.unitPrice.value || item.unitPrice.gross,
+                        value: item.unitPrice.value ?? item.unitPrice.gross ?? 0,
                         currency: item.unitPrice.currency || currency || fallbackCurrency,
                         net: item.unitPrice.net,
-                        gross: item.unitPrice.gross || item.unitPrice.value,
+                        gross: item.unitPrice.gross ?? item.unitPrice.value,
                       }
                     : undefined,
                   totalPrice: item.totalPrice
                     ? {
-                        value: item.totalPrice.value || item.totalPrice.gross,
+                        value: item.totalPrice.value ?? item.totalPrice.gross ?? 0,
                         currency: item.totalPrice.currency || currency || fallbackCurrency,
                         net: item.totalPrice.net,
-                        gross: item.totalPrice.gross || item.totalPrice.value,
+                        gross: item.totalPrice.gross ?? item.totalPrice.value,
                       }
                     : undefined,
                 };

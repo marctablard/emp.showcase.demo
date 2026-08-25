@@ -12,6 +12,7 @@ export interface InputProps extends React.ComponentProps<'input'> {
   iconButtonAfter?: LucideIcon;
   buttonText?: string;
   buttonLabel?: string;
+  buttonDisabled?: boolean;
   onEndIconClick?: () => void;
   endIconLabel?: string;
 }
@@ -126,13 +127,16 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
 Input.displayName = 'Input';
 
 const InputButton = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ startIcon, endIcon, iconButtonBefore, iconButtonAfter, buttonText, buttonLabel, ...props }, ref) => {
+  (
+    { startIcon, endIcon, iconButtonBefore, iconButtonAfter, buttonText, buttonLabel, buttonDisabled, ...props },
+    ref,
+  ) => {
     const ButtonStartIcon = iconButtonBefore;
     const ButtonEndIcon = iconButtonAfter;
     return (
       <div className={cn('flex items-center')}>
         <Input ref={ref} startIcon={startIcon} endIcon={endIcon} isButton {...props} />
-        <Button variant="input" aria-label={buttonLabel}>
+        <Button type="submit" variant="input" aria-label={buttonLabel} disabled={buttonDisabled}>
           {ButtonStartIcon && <ButtonStartIcon />}
           {buttonText}
           {ButtonEndIcon && <ButtonEndIcon />}

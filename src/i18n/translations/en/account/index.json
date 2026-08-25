@@ -584,7 +584,9 @@
       "openQuotes": "Do I have any open quotes?",
       "showProfile": "Show my profile",
       "pendingOrders": "Show all pending orders"
-    }
+    },
+    "emptyValue": "-",
+    "noDataAvailable": "No data available"
   },
   "Tickets": {
     "title": "Support Tickets",

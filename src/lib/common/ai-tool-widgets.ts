@@ -27,7 +27,7 @@ export type AdaptedWidget = {
   data: Record<string, unknown>;
 };
 
-export const canonicalToolName = (toolName: string): string => {
+const canonicalToolName = (toolName: string): string => {
   return toolName.split('__').pop()?.trim().toLowerCase().replaceAll('_', '-') ?? '';
 };
 
@@ -99,7 +99,7 @@ export const adaptToolResult = (toolName: string, output: unknown): AdaptedWidge
         },
       };
     case 'product_list':
-      return { type, data: { products: extractWidgetItems(payload, toolName, 'products').map(adaptProduct) } };
+      return { type, data: { products: extractProductItems(payload, toolName).map(adaptProduct) } };
     case 'return_list':
       return { type, data: { returns: extractList(payload, 'returns') } };
     case 'return_details': {
@@ -107,7 +107,7 @@ export const adaptToolResult = (toolName: string, output: unknown): AdaptedWidge
       return { type, data: { return: isRecord(item) ? item : undefined } };
     }
     case 'address_list':
-      return { type, data: { addresses: extractList(payload, 'addresses') } };
+      return { type, data: { addresses: adaptAddresses(extractList(payload, 'addresses')) ?? [] } };
     case 'cart_summary':
       return { type, data: adaptCartSummary(payload) };
     case 'account_details':
@@ -232,20 +232,24 @@ function stripEnvelopeMeta(record: Record<string, unknown>): Record<string, unkn
   return Object.keys(rest).length > 0 ? rest : null;
 }
 
-function isMeaningfulWidgetValue(key: string, value: unknown): boolean {
-  if (key === 'pagination') {
+export const isResolvedWidgetField = (key: string, value: unknown): boolean => {
+  if (key === 'pagination' || key === 'message') {
     return false;
   }
   if (value == null || value === '') {
     return false;
   }
   if (Array.isArray(value)) {
-    return value.length > 0;
+    return true;
   }
   if (isRecord(value)) {
-    return Object.entries(value).some(([nestedKey, nested]) => isMeaningfulWidgetValue(nestedKey, nested));
+    return Object.entries(value).some(([nestedKey, nested]) => isResolvedWidgetField(nestedKey, nested));
   }
   return true;
+};
+
+function isMeaningfulWidgetValue(key: string, value: unknown): boolean {
+  return isResolvedWidgetField(key, value);
 }
 
 function extractList(payload: unknown, key: string): unknown[] {
@@ -311,6 +315,24 @@ function extractWidgetItems(payload: unknown, toolName: string, listKey: string)
   return extractList(payload, listKey);
 }
 
+function extractProductItems(payload: unknown, toolName: string): unknown[] {
+  const fromList = extractWidgetItems(payload, toolName, 'products');
+  if (fromList.length > 0) {
+    return fromList;
+  }
+  if (canonicalToolName(toolName) !== 'get-product') {
+    return fromList;
+  }
+  const wrapped = extractSingleton(payload, 'products');
+  if (wrapped != null) {
+    return [wrapped];
+  }
+  if (isRecord(payload) && (payload.id != null || payload.productId != null || payload.name != null)) {
+    return [payload];
+  }
+  return fromList;
+}
+
 function extractSingleton(payload: unknown, listKey: string): unknown {
   if (Array.isArray(payload)) {
     return payload[0];
@@ -370,7 +392,10 @@ function adaptOrder(item: unknown): Record<string, unknown> {
 
 function adaptOrderTotal(record: Record<string, unknown>): Record<string, unknown> | undefined {
   if (isRecord(record.total)) {
-    return record.total;
+    const adapted = adaptPriceField(record.total);
+    if (adapted) {
+      return adapted;
+    }
   }
   const calculated = isRecord(record.calculatedPrice) ? record.calculatedPrice : null;
   const finalPrice = calculated && isRecord(calculated.finalPrice) ? calculated.finalPrice : null;
@@ -394,22 +419,24 @@ function adaptOrderTotal(record: Record<string, unknown>): Record<string, unknow
 }
 
 function adaptCartSubtotal(record: Record<string, unknown>): Record<string, unknown> | undefined {
-  if (isRecord(record.subtotal)) {
-    return adaptPriceField(record.subtotal) ?? record.subtotal;
-  }
-  const fromField = adaptPriceField(record.subTotalPrice);
-  if (fromField) {
-    return fromField;
-  }
   const calculated = isRecord(record.calculatedPrice) ? record.calculatedPrice : null;
-  return calculated && isRecord(calculated.price) ? adaptPriceField(calculated.price) : undefined;
+  const price = calculated && isRecord(calculated.price) ? calculated.price : null;
+  return pickRicherPrice(
+    adaptPriceField(price),
+    isRecord(record.subtotal) ? adaptPriceField(record.subtotal) : undefined,
+    adaptPriceField(record.subTotalPrice),
+  );
 }
 
 function adaptCartTotal(record: Record<string, unknown>): Record<string, unknown> | undefined {
-  if (isRecord(record.total)) {
-    return adaptPriceField(record.total) ?? record.total;
-  }
-  return adaptPriceField(record.totalPrice) ?? adaptOrderTotal(record);
+  const calculated = isRecord(record.calculatedPrice) ? record.calculatedPrice : null;
+  const finalPrice = calculated && isRecord(calculated.finalPrice) ? calculated.finalPrice : null;
+  return pickRicherPrice(
+    adaptPriceField(finalPrice),
+    isRecord(record.total) ? adaptPriceField(record.total) : undefined,
+    adaptPriceField(record.totalPrice),
+    adaptOrderTotal(record),
+  );
 }
 
 function mapCartItem(source: unknown): Record<string, unknown> | null {
@@ -427,14 +454,18 @@ function adaptCartItems(payload: unknown): Array<Record<string, unknown>> {
 
 function adaptCartSummary(payload: unknown): Record<string, unknown> {
   const record = isRecord(payload) ? payload : {};
-  const items = adaptCartItems(payload);
+  const nestedCart = firstRecord(record, 'cart', 'data', 'content') ?? record;
+  const source =
+    isRecord(nestedCart) && (nestedCart.items != null || nestedCart.calculatedPrice != null) ? nestedCart : record;
+  const items = adaptCartItems(source.items != null ? source : payload);
   return compactRecord({
     items: items.length > 0 ? items : undefined,
-    total: adaptCartTotal(record),
-    subtotal: adaptCartSubtotal(record),
-    currency: readString(record.currency),
-    siteCode: readString(record.siteCode) ?? readString(record.site),
-    shops: Array.isArray(record.shops) ? record.shops : undefined,
+    total: adaptCartTotal(source) ?? adaptCartTotal(record),
+    subtotal: adaptCartSubtotal(source) ?? adaptCartSubtotal(record),
+    currency: readString(source.currency) ?? readString(record.currency),
+    siteCode:
+      readString(source.siteCode) ?? readString(source.site) ?? readString(record.siteCode) ?? readString(record.site),
+    shops: Array.isArray(source.shops) ? source.shops : Array.isArray(record.shops) ? record.shops : undefined,
   });
 }
 
@@ -517,7 +548,7 @@ function adaptPriceField(value: unknown): Record<string, unknown> | undefined {
     const net = readNumber(value.net) ?? readNumber(value.netValue);
     const tax = readNumber(value.tax) ?? readNumber(value.taxValue);
     const currency = readString(value.currency);
-    if (amount == null && net == null && !currency) {
+    if (amount == null && net == null) {
       return undefined;
     }
     return compactRecord({
@@ -533,6 +564,31 @@ function adaptPriceField(value: unknown): Record<string, unknown> | undefined {
     return undefined;
   }
   return { gross: amount, value: amount };
+}
+
+function priceBreakdownScore(price: Record<string, unknown>): number {
+  const gross = readNumber(price.gross) ?? readNumber(price.value);
+  const net = readNumber(price.net);
+  const tax = readNumber(price.tax);
+  return (gross != null ? 1 : 0) + (net != null ? 2 : 0) + (tax != null ? 2 : 0);
+}
+
+function pickRicherPrice(
+  ...candidates: Array<Record<string, unknown> | undefined>
+): Record<string, unknown> | undefined {
+  let best: Record<string, unknown> | undefined;
+  let bestScore = 0;
+  for (const candidate of candidates) {
+    if (!candidate) {
+      continue;
+    }
+    const score = priceBreakdownScore(candidate);
+    if (score > bestScore) {
+      best = candidate;
+      bestScore = score;
+    }
+  }
+  return best;
 }
 
 function unitPriceFromEffective(
@@ -591,41 +647,48 @@ function scalePriceByQuantity(price: Record<string, unknown>, quantity: number):
   });
 }
 
-function explicitOrderLinePrices(
-  explicitUnit: Record<string, unknown> | undefined,
-  explicitTotal: Record<string, unknown> | undefined,
-  quantity: number,
-): { unitPrice?: Record<string, unknown>; totalPrice?: Record<string, unknown> } {
-  const totalPrice = explicitTotal ?? (explicitUnit ? scalePriceByQuantity(explicitUnit, quantity) : undefined);
-  return {
-    ...(explicitUnit ? { unitPrice: explicitUnit } : {}),
-    ...(totalPrice ? { totalPrice } : {}),
-  };
-}
-
 function adaptOrderLinePrices(
   item: Record<string, unknown>,
   quantity: number,
 ): { unitPrice?: Record<string, unknown>; totalPrice?: Record<string, unknown> } {
   const explicitUnit = adaptPriceField(item.unitPrice ?? item.calculatedUnitPrice);
   const explicitTotal = adaptPriceField(item.totalPrice);
-  if (explicitUnit || explicitTotal) {
-    return explicitOrderLinePrices(explicitUnit, explicitTotal, quantity);
-  }
-
   const price = isRecord(item.price) ? item.price : null;
   const calculated = isRecord(item.calculatedPrice) ? item.calculatedPrice : null;
   const finalPrice = calculated && isRecord(calculated.finalPrice) ? calculated.finalPrice : null;
+  const itemTax = isRecord(item.tax) ? item.tax : null;
   const currency = price ? readString(price.currency) : undefined;
   const effective = price ? readNumber(price.effectiveAmount) : undefined;
-  const grossTotal = readNumber(finalPrice?.grossValue);
-  const netTotal = readNumber(finalPrice?.netValue);
-  const taxTotal = readNumber(finalPrice?.taxValue);
+  const grossTotal =
+    readNumber(finalPrice?.grossValue) ?? readNumber(itemTax?.grossValue) ?? readNumber(finalPrice?.gross);
+  const netTotal = readNumber(finalPrice?.netValue) ?? readNumber(itemTax?.netValue) ?? readNumber(finalPrice?.net);
+  const taxTotal = readNumber(finalPrice?.taxValue) ?? readNumber(finalPrice?.tax);
+  const calculatedTotal = totalPriceFromCalculated(quantity, effective, grossTotal, netTotal, taxTotal, currency);
+  const calculatedUnit =
+    effective == null && grossTotal == null && netTotal == null
+      ? undefined
+      : unitPriceFromEffective(
+          effective ?? (quantity > 0 && grossTotal != null ? grossTotal / quantity : 0),
+          quantity,
+          grossTotal,
+          netTotal,
+          currency,
+        );
+
+  if (explicitUnit || explicitTotal) {
+    return {
+      unitPrice: pickRicherPrice(explicitUnit, calculatedUnit),
+      totalPrice: pickRicherPrice(
+        explicitTotal,
+        calculatedTotal,
+        explicitUnit ? scalePriceByQuantity(explicitUnit, quantity) : undefined,
+      ),
+    };
+  }
 
   return {
-    unitPrice:
-      effective == null ? undefined : unitPriceFromEffective(effective, quantity, grossTotal, netTotal, currency),
-    totalPrice: totalPriceFromCalculated(quantity, effective, grossTotal, netTotal, taxTotal, currency),
+    unitPrice: calculatedUnit,
+    totalPrice: calculatedTotal,
   };
 }
 
@@ -771,8 +834,7 @@ function adaptProductPriceFields(record: Record<string, unknown>): { price?: num
 
 function adaptProduct(item: unknown): Record<string, unknown> {
   const record = isRecord(item) ? item : {};
-  const productId =
-    readString(record.productId) ?? readString(record.code) ?? readString(record.id) ?? readString(record._id) ?? '';
+  const productId = readString(record.id) ?? readString(record.productId) ?? readString(record.code) ?? '';
   const { price, currency } = adaptProductPriceFields(record);
   return compactRecord({
     productId,
@@ -785,6 +847,58 @@ function adaptProduct(item: unknown): Record<string, unknown> {
   });
 }
 
+function joinAddressParts(...parts: Array<string | undefined>): string | undefined {
+  const joined = parts
+    .filter((part): part is string => Boolean(part))
+    .join(' ')
+    .trim();
+  return joined === '' ? undefined : joined;
+}
+
+function stringTags(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const tags = value.filter((tag): tag is string => typeof tag === 'string' && tag !== '');
+  return tags.length > 0 ? tags : undefined;
+}
+
+function adaptAddress(item: unknown): Record<string, unknown> | null {
+  const record = isRecord(item) ? item : {};
+  const nested = isRecord(record.address) ? record.address : record;
+  const streetLine = joinAddressParts(readString(nested.street), readString(nested.streetNumber));
+  const extraLines = joinAddressParts(
+    readString(nested.streetAppendix),
+    readString(nested.extraLine1),
+    readString(nested.extraLine2),
+    readString(nested.extraLine3),
+    readString(nested.extraLine4),
+    streetLine ? readString(nested.addressLine2) : undefined,
+  );
+  const displayName = readString(nested.contactName) ?? readString(nested.name) ?? readString(record.companyName);
+  const displayCompany = readString(nested.companyName) ?? readString(nested.company) ?? readString(record.companyName);
+  const mapped = compactRecord({
+    name: displayName,
+    company: displayCompany && displayCompany !== displayName ? displayCompany : undefined,
+    addressLine1: streetLine ?? readString(nested.addressLine1),
+    addressLine2: extraLines ?? (streetLine ? undefined : readString(nested.addressLine2)),
+    city: readString(nested.city),
+    state: readString(nested.state),
+    postalCode: readString(nested.zipCode) ?? readString(nested.postalCode) ?? readString(nested.postcode),
+    country: readString(nested.country),
+    tags: stringTags(nested.tags),
+  });
+  return Object.keys(mapped).length > 0 ? mapped : null;
+}
+
+function adaptAddresses(value: unknown): unknown[] | undefined {
+  if (!Array.isArray(value) || value.length === 0) {
+    return undefined;
+  }
+  const addresses = value.map(adaptAddress).filter((item): item is Record<string, unknown> => item != null);
+  return addresses.length > 0 ? addresses : undefined;
+}
+
 function adaptAccount(payload: unknown, toolName: string): Record<string, unknown> {
   const record = isRecord(payload) ? payload : {};
   const nested = firstRecord(record, 'customer', 'account', 'profile', 'user', 'data') ?? record;
@@ -795,7 +909,9 @@ function adaptAccount(payload: unknown, toolName: string): Record<string, unknow
   const name = isToolLikeName(rawName, toolName) ? `${first} ${last}`.trim() : (rawName ?? `${first} ${last}`.trim());
   const company =
     readString(personal.company) ?? (isRecord(personal.company) ? readString(personal.company.name) : undefined);
-  const addresses = Array.isArray(nested.addresses) ? nested.addresses : undefined;
+  const addresses =
+    adaptAddresses(nested.addresses) ??
+    adaptAddresses(nested.defaultAddress != null ? [nested.defaultAddress] : undefined);
   const personalInfo = compactRecord({
     name,
     email: readString(personal.email) ?? readString(personal.contactEmail) ?? readString(personal.contact_email),
@@ -809,7 +925,7 @@ function adaptAccount(payload: unknown, toolName: string): Record<string, unknow
   });
   return compactRecord({
     personalInfo: Object.keys(personalInfo).length > 0 ? personalInfo : undefined,
-    addresses: addresses && addresses.length > 0 ? addresses : undefined,
+    addresses,
   });
 }
 

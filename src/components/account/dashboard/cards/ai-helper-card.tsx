@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import AiStarsIcon from '@/components/icons/ai-stars';
 import { Button } from '@/components/ui/button';
@@ -20,11 +20,11 @@ import { ChatInput } from './ai/ChatInput';
 import { ChatMessages } from './ai/ChatMessages';
 import { Suggestions } from './ai/Suggestions';
 import type { AiHelperFormData, ChatMessage as ChatMessageType, StructuredDataHandlers } from './ai/types';
-import { parseAIResponse } from './ai/utils/response-parser';
+import { parseAIResponse, resolveCommittedChatPayload } from './ai/utils/response-parser';
 import { sanitizeUserInput } from './ai/utils/sanitize';
 import type { DashboardCardProps } from './dashboard-card';
 
-function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, 'children'>) {
+const AiHelperCard = ({ className, title, ...props }: Omit<DashboardCardProps, 'children'>) => {
   const t = useTranslations('account.AiHelper');
   const locale = useLocale();
   const { form } = useValidator('AiHelperValidationService', { question: '' });
@@ -38,9 +38,16 @@ function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, '
   const { checkRateLimit } = useRateLimit({ maxRequests: 10, windowMs: 60000 });
 
   const { messages, setMessages, isChatMode, setIsChatMode, clearChat } = useChatMessages();
+  const sendLockedRef = useRef(false);
+  const [sendLocked, setSendLocked] = useState(false);
+  const isSendLocked = loading || sendLocked;
 
   const handleQuestionSubmit = useCallback(
     async (data: AiHelperFormData) => {
+      if (loading || sendLockedRef.current) {
+        return;
+      }
+
       const { sanitized, error: sanitizeError } = sanitizeUserInput(data.question);
       if (sanitizeError || !sanitized || !session) return;
 
@@ -66,20 +73,24 @@ function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, '
 
       setMessages((prev) => [...prev, userMessage]);
       setIsChatMode(true);
+      sendLockedRef.current = true;
+      setSendLocked(true);
+      form.reset();
 
       try {
         const context = await prepareAIContext(session, cartStore, locale);
         let cartRefresh = false;
-        await sendMessageWithContext(sanitized, context, (aiResponse) => {
+        await sendMessageWithContext(sanitized, context, (aiResponse, preview) => {
           const parsed = parseAIResponse(aiResponse.message);
-          cartRefresh = Boolean(parsed.cartRefresh || aiResponse.cartRefresh || parsed.type === 'cart_summary');
+          const committed = resolveCommittedChatPayload(parsed, preview);
+          cartRefresh = Boolean(parsed.cartRefresh || aiResponse.cartRefresh || committed.type === 'cart_summary');
           const aiMessage: ChatMessageType = {
             id: (Date.now() + 1).toString(),
-            content: parsed.message,
+            content: committed.message,
             isUser: false,
             timestamp: new Date(),
-            data: parsed.data,
-            type: parsed.type,
+            data: committed.data,
+            type: committed.type,
           };
           setMessages((prev) => [...prev, aiMessage]);
         });
@@ -102,11 +113,13 @@ function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, '
           description: t('errorOccurred'),
           variant: 'destructive',
         });
+      } finally {
+        sendLockedRef.current = false;
+        setSendLocked(false);
       }
-
-      form.reset();
     },
     [
+      loading,
       session,
       cartStore,
       sendMessageWithContext,
@@ -169,10 +182,10 @@ function AiHelperCard({ className, title, ...props }: Omit<DashboardCardProps, '
         )}
 
         {!isChatMode && <Suggestions onSuggestionClick={setQuestionValue} />}
-        <ChatInput form={form} onSubmit={handleQuestionSubmit} loading={loading} isChatMode={isChatMode} />
+        <ChatInput form={form} onSubmit={handleQuestionSubmit} loading={isSendLocked} isChatMode={isChatMode} />
       </div>
     </div>
   );
-}
+};
 
 export { AiHelperCard };
