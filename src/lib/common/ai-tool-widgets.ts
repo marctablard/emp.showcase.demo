@@ -457,7 +457,13 @@ function adaptCartSummary(payload: unknown): Record<string, unknown> {
   const nestedCart = firstRecord(record, 'cart', 'data', 'content') ?? record;
   const source =
     isRecord(nestedCart) && (nestedCart.items != null || nestedCart.calculatedPrice != null) ? nestedCart : record;
-  const items = adaptCartItems(source.items != null ? source : payload);
+  const items = adaptCartItems(source.items == null ? payload : source);
+  let shops: unknown;
+  if (Array.isArray(source.shops)) {
+    shops = source.shops;
+  } else if (Array.isArray(record.shops)) {
+    shops = record.shops;
+  }
   return compactRecord({
     items: items.length > 0 ? items : undefined,
     total: adaptCartTotal(source) ?? adaptCartTotal(record),
@@ -465,7 +471,7 @@ function adaptCartSummary(payload: unknown): Record<string, unknown> {
     currency: readString(source.currency) ?? readString(record.currency),
     siteCode:
       readString(source.siteCode) ?? readString(source.site) ?? readString(record.siteCode) ?? readString(record.site),
-    shops: Array.isArray(source.shops) ? source.shops : Array.isArray(record.shops) ? record.shops : undefined,
+    shops,
   });
 }
 
@@ -570,7 +576,7 @@ function priceBreakdownScore(price: Record<string, unknown>): number {
   const gross = readNumber(price.gross) ?? readNumber(price.value);
   const net = readNumber(price.net);
   const tax = readNumber(price.tax);
-  return (gross != null ? 1 : 0) + (net != null ? 2 : 0) + (tax != null ? 2 : 0);
+  return (gross == null ? 0 : 1) + (net == null ? 0 : 2) + (tax == null ? 0 : 2);
 }
 
 function pickRicherPrice(
@@ -664,16 +670,18 @@ function adaptOrderLinePrices(
   const netTotal = readNumber(finalPrice?.netValue) ?? readNumber(itemTax?.netValue) ?? readNumber(finalPrice?.net);
   const taxTotal = readNumber(finalPrice?.taxValue) ?? readNumber(finalPrice?.tax);
   const calculatedTotal = totalPriceFromCalculated(quantity, effective, grossTotal, netTotal, taxTotal, currency);
+  let unitAmount = effective;
+  if (unitAmount == null) {
+    if (quantity <= 0 || grossTotal == null) {
+      unitAmount = 0;
+    } else {
+      unitAmount = grossTotal / quantity;
+    }
+  }
   const calculatedUnit =
     effective == null && grossTotal == null && netTotal == null
       ? undefined
-      : unitPriceFromEffective(
-          effective ?? (quantity > 0 && grossTotal != null ? grossTotal / quantity : 0),
-          quantity,
-          grossTotal,
-          netTotal,
-          currency,
-        );
+      : unitPriceFromEffective(unitAmount, quantity, grossTotal, netTotal, currency);
 
   if (explicitUnit || explicitTotal) {
     return {
