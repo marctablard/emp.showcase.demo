@@ -113,6 +113,7 @@ export class EmporixUserManagementService implements UserManagementService {
     await this.assertB2bAdmin();
     const session = await this.sessionService.getCurrent();
     const selectedLegalEntity = await this.requireWriteLegalEntity(session, { recoverMissingSession: true });
+    await this.assertSelectedLegalEntityAdmin(selectedLegalEntity.id);
     return this.withSelectedLegalEntityCustomerToken(selectedLegalEntity, async () => {
       const { assignments, memberIds } = await this.collectAssignmentCustomerIds(selectedLegalEntity.id);
       if (memberIds.size === 0) {
@@ -178,83 +179,18 @@ export class EmporixUserManagementService implements UserManagementService {
       throw new AdminRequiredError();
     }
     const selectedLegalEntity = await this.requireWriteLegalEntity(session, { recoverMissingSession: true });
-    return this.withSelectedLegalEntityCustomerToken(selectedLegalEntity, async () => {
-      const { adminLegalEntityIds, assignments, memberIdsByLegalEntityId } =
-        await this.collectCombinedAdminLegalEntityAssignments(currentCustomer.id);
-      if (adminLegalEntityIds.length === 0) {
-        return { items: [], totalCount: 0 };
-      }
-
-      const allMemberIds = new Set<string>();
-      for (const memberIds of memberIdsByLegalEntityId.values()) {
-        for (const memberId of memberIds) {
-          allMemberIds.add(memberId);
-        }
-      }
-      if (allMemberIds.size === 0) {
-        return { items: [], totalCount: 0 };
-      }
-
-      const hydrated = await this.hydrateSelectedLegalEntityCustomers(allMemberIds);
-      const companyNameByLegalEntityId = await this.companyNamesForLegalEntityIds(adminLegalEntityIds);
-      const legalEntityNameById = legalEntityNamesForCombinedList(
+    const adminLegalEntityIds = await this.loadAdminLegalEntityIds(currentCustomer.id);
+    return this.withSelectedLegalEntityCustomerTokenIfAdmin(selectedLegalEntity, adminLegalEntityIds, () =>
+      this.listCombinedAdminLegalEntityUsers(
+        selectedLegalEntity,
+        currentCustomer.id,
         adminLegalEntityIds,
-        assignments,
-        companyNameByLegalEntityId,
-      );
-      const rows = expandCombinedAdminLeRows(
-        memberIdsByLegalEntityId,
-        indexCustomersByMembershipKey(hydrated),
-        legalEntityNameById,
-      );
-      const bounded = [...rows].sort(compareCombinedAdminLeRows).slice(0, MAX_SELECTED_LE_USERS);
-      const tokens = tokenizeNameQuery(query);
-      const matching = tokens.length === 0 ? bounded : bounded.filter((row) => matchesNameTokens(row.customer, tokens));
-      const sorted = sortCombinedAdminLeRows(matching, sort);
-      const safePageNumber = pageNumber >= 1 ? pageNumber : DEFAULT_PAGE_NUMBER;
-      const safePageSize = pageSize >= 1 ? pageSize : DEFAULT_PAGE_SIZE;
-      const start = (safePageNumber - 1) * safePageSize;
-      const page = sorted.slice(start, start + safePageSize);
-      if (page.length === 0) {
-        return { items: [], totalCount: matching.length };
-      }
-
-      const pageLegalEntityIds = [...new Set(page.map((row) => row.legalEntityId))];
-      const pageAssignments = assignments.filter((assignment) =>
-        pageLegalEntityIds.includes(assignment.legalEntity?.id),
-      );
-      const selectedGroupById = await this.resolveCatalogGroupsForLegalEntities(pageLegalEntityIds, pageAssignments);
-      const uniquePageCustomers = dedupeCustomersByMembershipKeys(page.map((row) => row.customer));
-      const selectedGroupsByMemberId = await this.joinCatalogGroupsForResultPage(
-        uniquePageCustomers,
-        selectedGroupById,
-      );
-
-      this.logger.info(
-        {
-          selectedLegalEntityId: selectedLegalEntity.id,
-          adminLegalEntityIds,
-          boundedRowCount: bounded.length,
-          matchedCount: matching.length,
-          pageNumber: safePageNumber,
-          pageSize: safePageSize,
-          resultIds: page.map((row) => row.customer.customerNumber || row.customer.id),
-        },
-        'User management combined Admin-LE list',
-      );
-
-      return {
-        items: page.map((row) =>
-          this.mapper.mapToService(row.customer, {
-            groups: catalogGroupsForSourceLegalEntity(row.customer, selectedGroupsByMemberId, row.legalEntityId),
-            companyNameByLegalEntityId,
-            legalEntityId: row.legalEntityId,
-            legalEntityName: row.legalEntityName,
-          }),
-        ),
-        totalCount: matching.length,
-      };
-    });
+        pageNumber,
+        pageSize,
+        sort,
+        query,
+      ),
+    );
   }
 
   async getUser(userId: string): Promise<CompanyUser | undefined> {
@@ -267,7 +203,8 @@ export class EmporixUserManagementService implements UserManagementService {
       throw new AdminRequiredError();
     }
     const selectedLegalEntity = await this.requireWriteLegalEntity(session, { recoverMissingSession: true });
-    return this.withSelectedLegalEntityCustomerToken(selectedLegalEntity, async () => {
+    const adminLegalEntityIds = await this.loadAdminLegalEntityIds(currentCustomer.id);
+    return this.withSelectedLegalEntityCustomerTokenIfAdmin(selectedLegalEntity, adminLegalEntityIds, async () => {
       const readable = await this.findReadableCustomer(userId, selectedLegalEntity.id, currentCustomer.id);
       return readable
         ? this.mapCustomer(readable.customer, { isSelectedLegalEntityMember: readable.isSelectedLegalEntityMember })
@@ -280,6 +217,7 @@ export class EmporixUserManagementService implements UserManagementService {
 
     const session = await this.sessionService.getCurrent();
     const selectedLegalEntity = await this.requireWriteLegalEntity(session);
+    await this.assertSelectedLegalEntityAdmin(selectedLegalEntity.id);
     const picker = await this.resolveSelectedLegalEntityPicker(user.groupAssignments, selectedLegalEntity.id);
     const customer = await this.createInvitedCustomerProfile(user, selectedLegalEntity, session);
     const companyNameByLegalEntityId = new Map([[selectedLegalEntity.id, selectedLegalEntity.name]]);
@@ -303,6 +241,7 @@ export class EmporixUserManagementService implements UserManagementService {
       throw new AdminRequiredError();
     }
     const selectedLegalEntity = await this.requireWriteLegalEntity(session);
+    await this.assertSelectedLegalEntityAdmin(selectedLegalEntity.id);
     const picker =
       user.groupAssignments && user.groupAssignments.length > 0
         ? await this.resolveSelectedLegalEntityPicker(user.groupAssignments, selectedLegalEntity.id)
@@ -329,6 +268,9 @@ export class EmporixUserManagementService implements UserManagementService {
 
   async deleteUser(userId: string): Promise<void> {
     await this.assertB2bAdmin();
+    const session = await this.sessionService.getCurrent();
+    const selectedLegalEntity = await this.requireWriteLegalEntity(session);
+    await this.assertSelectedLegalEntityAdmin(selectedLegalEntity.id);
     const customer = await this.requireSelectedLegalEntityCustomer(userId);
     const customerNumber = customer.customerNumber || customer.id;
     await this.customerAdminApi.deleteCustomer(customerNumber, SERVICE_TOKEN);
@@ -338,6 +280,7 @@ export class EmporixUserManagementService implements UserManagementService {
     await this.assertB2bAdmin();
     const session = await this.sessionService.getCurrent();
     const selectedLegalEntity = await this.requireWriteLegalEntity(session);
+    await this.assertSelectedLegalEntityAdmin(selectedLegalEntity.id);
     return this.withSelectedLegalEntityCustomerToken(selectedLegalEntity, async () => {
       // Customer Service enforces: Customer can only assign new customer to the same company.
       // Q29.4: omit Contact from the picker catalog; Contact is auto-assigned on create/save.
@@ -366,11 +309,40 @@ export class EmporixUserManagementService implements UserManagementService {
     });
   }
 
+  async listAdminLegalEntityIds(): Promise<string[]> {
+    await this.assertB2bAdmin();
+    const customer = await this.customerService.getCustomer();
+    if (!customer) {
+      throw new AdminRequiredError();
+    }
+    return this.loadAdminLegalEntityIds(customer.id);
+  }
+
   private async assertB2bAdmin(): Promise<void> {
     const customer = await this.customerService.getCustomer();
     if (!customer?.roles?.includes(CustomerRole.B2B_ADMIN)) {
       throw new AdminRequiredError();
     }
+  }
+
+  private async assertSelectedLegalEntityAdmin(legalEntityId: string): Promise<void> {
+    const customer = await this.customerService.getCustomer();
+    if (!customer) {
+      throw new AdminRequiredError();
+    }
+    const adminLegalEntityIds = await this.loadAdminLegalEntityIds(customer.id);
+    if (!adminLegalEntityIds.includes(legalEntityId)) {
+      throw new AdminRequiredError();
+    }
+  }
+
+  private async loadAdminLegalEntityIds(currentCustomerId: string): Promise<string[]> {
+    const currentUserGroups = await this.iamApi.getUserGroups(
+      currentCustomerId,
+      { size: GROUP_USERS_PAGE_SIZE },
+      SERVICE_TOKEN,
+    );
+    return [...collectAdminLegalEntityIds(currentUserGroups.items)].sort((left, right) => left.localeCompare(right));
   }
 
   private async requireWriteLegalEntity(
@@ -596,31 +568,44 @@ export class EmporixUserManagementService implements UserManagementService {
     const customersByMembershipKey = new Map<string, EmporixCustomerAdmin>();
 
     for (const idChunk of chunk([...memberIds], ID_QUERY_CHUNK_SIZE)) {
-      const sessionItems = await this.loadCustomersByIdQuery(idChunk, 'session');
-      for (const customer of sessionItems) {
-        addCustomerForMembershipKeys(customersByMembershipKey, memberIds, customer);
-      }
-
-      const missingIds = idChunk.filter((id) => !customersByMembershipKey.has(id));
-      if (missingIds.length > 0) {
-        const serviceItems = await this.loadCustomersByIdQuery(missingIds, 'service');
-        for (const customer of serviceItems) {
-          addCustomerForMembershipKeys(customersByMembershipKey, memberIds, customer);
-        }
-      }
+      await this.hydrateCustomerIdChunk(idChunk, memberIds, customersByMembershipKey);
     }
 
-    const seenCustomerIds = new Set<string>();
-    const hydratedCustomers: EmporixCustomerAdmin[] = [];
-    for (const membershipKey of memberIds) {
-      const customer = customersByMembershipKey.get(membershipKey);
-      if (!customer || seenCustomerIds.has(customer.id)) {
-        continue;
-      }
-      seenCustomerIds.add(customer.id);
-      hydratedCustomers.push(customer);
+    return collectUniqueCustomersByMembershipOrder(memberIds, customersByMembershipKey);
+  }
+
+  private async hydrateCustomerIdChunk(
+    idChunk: readonly string[],
+    memberIds: ReadonlySet<string>,
+    customersByMembershipKey: Map<string, EmporixCustomerAdmin>,
+  ): Promise<void> {
+    const sessionItems = await this.loadCustomersByIdQueryAllowingAuthFallback(idChunk);
+    addCustomersForMembershipKeys(customersByMembershipKey, memberIds, sessionItems);
+
+    const missingIds = idChunk.filter((id) => !customersByMembershipKey.has(id));
+    if (missingIds.length === 0) {
+      return;
     }
-    return hydratedCustomers;
+    const serviceItems = await this.loadCustomersByIdQuery(missingIds, 'service');
+    addCustomersForMembershipKeys(customersByMembershipKey, memberIds, serviceItems);
+  }
+
+  private async loadCustomersByIdQueryAllowingAuthFallback(ids: readonly string[]): Promise<EmporixCustomerAdmin[]> {
+    try {
+      return await this.loadCustomersByIdQuery([...ids], 'session');
+    } catch (error) {
+      if (!isUnauthorizedOrForbiddenError(error)) {
+        throw error;
+      }
+      this.logger.warn(
+        {
+          chunkSize: ids.length,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Session customer hydrate failed; falling back to service',
+      );
+      return [];
+    }
   }
 
   private async loadCustomersByIdQuery(
@@ -861,23 +846,102 @@ export class EmporixUserManagementService implements UserManagementService {
     return { otherAdminLegalEntityIds, assignments, memberIds };
   }
 
+  private async listCombinedAdminLegalEntityUsers(
+    selectedLegalEntity: WriteLegalEntity,
+    currentCustomerId: string,
+    adminLegalEntityIds: string[],
+    pageNumber: number,
+    pageSize: number,
+    sort?: string,
+    query?: string,
+  ): Promise<CompanyUserListResult> {
+    const { assignments, memberIdsByLegalEntityId } = await this.collectCombinedAdminLegalEntityAssignments(
+      currentCustomerId,
+      adminLegalEntityIds,
+    );
+    if (adminLegalEntityIds.length === 0) {
+      return { items: [], totalCount: 0 };
+    }
+
+    const allMemberIds = new Set<string>();
+    for (const memberIds of memberIdsByLegalEntityId.values()) {
+      for (const memberId of memberIds) {
+        allMemberIds.add(memberId);
+      }
+    }
+    if (allMemberIds.size === 0) {
+      return { items: [], totalCount: 0 };
+    }
+
+    const hydrated = await this.hydrateSelectedLegalEntityCustomers(allMemberIds);
+    const companyNameByLegalEntityId = await this.companyNamesForLegalEntityIds(adminLegalEntityIds);
+    const legalEntityNameById = legalEntityNamesForCombinedList(
+      adminLegalEntityIds,
+      assignments,
+      companyNameByLegalEntityId,
+    );
+    const rows = expandCombinedAdminLeRows(
+      memberIdsByLegalEntityId,
+      indexCustomersByMembershipKey(hydrated),
+      legalEntityNameById,
+    );
+    const bounded = [...rows].sort(compareCombinedAdminLeRows).slice(0, MAX_SELECTED_LE_USERS);
+    const tokens = tokenizeNameQuery(query);
+    const matching = tokens.length === 0 ? bounded : bounded.filter((row) => matchesNameTokens(row.customer, tokens));
+    const sorted = sortCombinedAdminLeRows(matching, sort);
+    const safePageNumber = pageNumber >= 1 ? pageNumber : DEFAULT_PAGE_NUMBER;
+    const safePageSize = pageSize >= 1 ? pageSize : DEFAULT_PAGE_SIZE;
+    const start = (safePageNumber - 1) * safePageSize;
+    const page = sorted.slice(start, start + safePageSize);
+    if (page.length === 0) {
+      return { items: [], totalCount: matching.length };
+    }
+
+    const pageLegalEntityIds = [...new Set(page.map((row) => row.legalEntityId))];
+    const pageAssignments = assignments.filter((assignment) => pageLegalEntityIds.includes(assignment.legalEntity?.id));
+    const selectedGroupById = await this.resolveCatalogGroupsForLegalEntities(pageLegalEntityIds, pageAssignments);
+    const uniquePageCustomers = dedupeCustomersByMembershipKeys(page.map((row) => row.customer));
+    const selectedGroupsByMemberId = await this.joinCatalogGroupsForResultPage(uniquePageCustomers, selectedGroupById);
+
+    this.logger.info(
+      {
+        selectedLegalEntityId: selectedLegalEntity.id,
+        adminLegalEntityIds,
+        boundedRowCount: bounded.length,
+        matchedCount: matching.length,
+        pageNumber: safePageNumber,
+        pageSize: safePageSize,
+        resultIds: page.map((row) => row.customer.customerNumber || row.customer.id),
+      },
+      'User management combined Admin-LE list',
+    );
+
+    return {
+      items: page.map((row) =>
+        this.mapper.mapToService(row.customer, {
+          groups: catalogGroupsForSourceLegalEntity(row.customer, selectedGroupsByMemberId, row.legalEntityId),
+          companyNameByLegalEntityId,
+          legalEntityId: row.legalEntityId,
+          legalEntityName: row.legalEntityName,
+        }),
+      ),
+      totalCount: matching.length,
+    };
+  }
+
   /**
    * Q26 combined list: Admin LEs from one current-user getUserGroups, including the
    * selected LE. findReadableCustomer keeps {@link collectOtherAdminLegalEntityAssignments}.
    */
-  private async collectCombinedAdminLegalEntityAssignments(currentCustomerId: string): Promise<{
+  private async collectCombinedAdminLegalEntityAssignments(
+    currentCustomerId: string,
+    preloadedAdminLegalEntityIds?: string[],
+  ): Promise<{
     adminLegalEntityIds: string[];
     assignments: EmporixContactAssignment[];
     memberIdsByLegalEntityId: Map<string, Set<string>>;
   }> {
-    const currentUserGroups = await this.iamApi.getUserGroups(
-      currentCustomerId,
-      { size: GROUP_USERS_PAGE_SIZE },
-      SERVICE_TOKEN,
-    );
-    const adminLegalEntityIds = [...collectAdminLegalEntityIds(currentUserGroups.items)].sort((left, right) =>
-      left.localeCompare(right),
-    );
+    const adminLegalEntityIds = preloadedAdminLegalEntityIds ?? (await this.loadAdminLegalEntityIds(currentCustomerId));
     if (adminLegalEntityIds.length === 0) {
       return { adminLegalEntityIds, assignments: [], memberIdsByLegalEntityId: new Map() };
     }
@@ -1084,6 +1148,21 @@ export class EmporixUserManagementService implements UserManagementService {
       customer.active = false;
     }
     return customer;
+  }
+
+  /**
+   * Combined-list / getUser hydrate other Admin-LE customers. Reminting the
+   * session token to a Contact/Buyer LE makes that session query 403.
+   */
+  private async withSelectedLegalEntityCustomerTokenIfAdmin<T>(
+    selectedLegalEntity: WriteLegalEntity,
+    adminLegalEntityIds: readonly string[],
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    if (!adminLegalEntityIds.includes(selectedLegalEntity.id)) {
+      return operation();
+    }
+    return this.withSelectedLegalEntityCustomerToken(selectedLegalEntity, operation);
   }
 
   private async withSelectedLegalEntityCustomerToken<T>(
@@ -1714,6 +1793,33 @@ function addCustomerForMembershipKeys(
       customersByMembershipKey.set(key, customer);
     }
   }
+}
+
+function addCustomersForMembershipKeys(
+  customersByMembershipKey: Map<string, EmporixCustomerAdmin>,
+  membershipIds: ReadonlySet<string>,
+  customers: readonly EmporixCustomerAdmin[],
+): void {
+  for (const customer of customers) {
+    addCustomerForMembershipKeys(customersByMembershipKey, membershipIds, customer);
+  }
+}
+
+function collectUniqueCustomersByMembershipOrder(
+  memberIds: ReadonlySet<string>,
+  customersByMembershipKey: ReadonlyMap<string, EmporixCustomerAdmin>,
+): EmporixCustomerAdmin[] {
+  const seenCustomerIds = new Set<string>();
+  const hydratedCustomers: EmporixCustomerAdmin[] = [];
+  for (const membershipKey of memberIds) {
+    const customer = customersByMembershipKey.get(membershipKey);
+    if (!customer || seenCustomerIds.has(customer.id)) {
+      continue;
+    }
+    seenCustomerIds.add(customer.id);
+    hydratedCustomers.push(customer);
+  }
+  return hydratedCustomers;
 }
 
 function selectedCatalogGroupsForCustomer(

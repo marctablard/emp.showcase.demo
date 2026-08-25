@@ -6,8 +6,10 @@ import {
   getCompanyUsers,
   getHeaderCompanies,
   getSelectedCompanyName,
+  getUserManagementCompanyAccess,
   hasMultipleCompanies,
   requireB2bAdmin,
+  requireSelectedCompanyAdmin,
 } from './user-management';
 
 jest.mock('next/navigation', () => ({
@@ -330,5 +332,114 @@ describe('getSelectedCompanyName', () => {
 
     await expect(getSelectedCompanyName()).resolves.toBeUndefined();
     expect(getSession).not.toHaveBeenCalled();
+  });
+});
+
+describe('getUserManagementCompanyAccess', () => {
+  const userManagementService = {
+    listAdminLegalEntityIds: jest.fn(),
+  };
+  const companyService = {
+    getCompanies: jest.fn(),
+  };
+  const logger = {
+    error: jest.fn(),
+  };
+
+  beforeEach(() => {
+    userManagementService.listAdminLegalEntityIds.mockReset();
+    companyService.getCompanies.mockReset();
+    logger.error.mockReset();
+    getSession.mockReset();
+    mockedSsr.default.__services.clear();
+    mockedSsr.default.__services.set('UserManagementService', userManagementService);
+    mockedSsr.default.__services.set('CompanyService', companyService);
+    mockedSsr.default.__services.set('LoggerService', logger);
+    mockedSsr.default.get.mockImplementation((id: string) => mockedSsr.default.__services.get(id));
+  });
+
+  it('marks the session company as manageable only when it is an Admin LE', async () => {
+    userManagementService.listAdminLegalEntityIds.mockResolvedValueOnce(['le-2']);
+    companyService.getCompanies.mockResolvedValueOnce([
+      { id: 'le-1', name: 'NovaTech' },
+      { id: 'le-2', name: 'Emporix GmbH' },
+    ]);
+    getSession.mockResolvedValueOnce({ legalEntityId: 'le-2' });
+
+    await expect(getUserManagementCompanyAccess()).resolves.toEqual({
+      adminLegalEntityIds: ['le-2'],
+      headerCompanies: [
+        { id: 'le-1', name: 'NovaTech' },
+        { id: 'le-2', name: 'Emporix GmbH' },
+      ],
+      canManageSelectedCompany: true,
+    });
+  });
+
+  it('does not treat companies[0] as the write/admin company when session LE is missing', async () => {
+    userManagementService.listAdminLegalEntityIds.mockResolvedValueOnce(['le-1']);
+    companyService.getCompanies.mockResolvedValueOnce([
+      { id: 'le-1', name: 'NovaTech' },
+      { id: 'le-2', name: 'Emporix GmbH' },
+    ]);
+    getSession.mockResolvedValueOnce({});
+
+    await expect(getUserManagementCompanyAccess()).resolves.toEqual({
+      adminLegalEntityIds: ['le-1'],
+      headerCompanies: [
+        { id: 'le-1', name: 'NovaTech' },
+        { id: 'le-2', name: 'Emporix GmbH' },
+      ],
+      canManageSelectedCompany: false,
+    });
+  });
+});
+
+describe('requireSelectedCompanyAdmin', () => {
+  const userManagementService = {
+    listAdminLegalEntityIds: jest.fn(),
+  };
+  const companyService = {
+    getCompanies: jest.fn(),
+  };
+  const logger = {
+    error: jest.fn(),
+  };
+
+  beforeEach(() => {
+    redirect.mockReset();
+    redirect.mockImplementation((href: string): never => {
+      throw new Error(`REDIRECT:${href}`);
+    });
+    getCurrentCustomer.mockReset();
+    userManagementService.listAdminLegalEntityIds.mockReset();
+    companyService.getCompanies.mockReset();
+    logger.error.mockReset();
+    getSession.mockReset();
+    mockedSsr.default.__services.clear();
+    mockedSsr.default.__services.set('UserManagementService', userManagementService);
+    mockedSsr.default.__services.set('CompanyService', companyService);
+    mockedSsr.default.__services.set('LoggerService', logger);
+    mockedSsr.default.get.mockImplementation((id: string) => mockedSsr.default.__services.get(id));
+  });
+
+  it('redirects to /account/users when the session company is not an Admin LE', async () => {
+    getCurrentCustomer.mockResolvedValueOnce(adminCustomer);
+    userManagementService.listAdminLegalEntityIds.mockResolvedValueOnce(['le-admin']);
+    companyService.getCompanies.mockResolvedValueOnce([{ id: 'le-other', name: 'NovaTech' }]);
+    getSession.mockResolvedValueOnce({ legalEntityId: 'le-other' });
+
+    await expect(requireSelectedCompanyAdmin()).rejects.toThrow('REDIRECT:/account/users');
+    expect(redirect).toHaveBeenCalledWith('/account/users');
+  });
+
+  it('allows create and edit when the session company is an Admin LE', async () => {
+    getCurrentCustomer.mockResolvedValueOnce(adminCustomer);
+    userManagementService.listAdminLegalEntityIds.mockResolvedValueOnce(['le-admin']);
+    companyService.getCompanies.mockResolvedValueOnce([{ id: 'le-admin', name: 'Emporix GmbH' }]);
+    getSession.mockResolvedValueOnce({ legalEntityId: 'le-admin' });
+
+    await expect(requireSelectedCompanyAdmin()).resolves.toBeUndefined();
+    expect(redirect).not.toHaveBeenCalled();
   });
 });

@@ -82,6 +82,7 @@
     "predefinedGroupConflict": "This user cannot be assigned to more than one predefined functional group in this company.",
     "statusSuccess": "User status successfully updated!",
     "deleteSuccess": "The user has been deleted.",
-    "genericFailure": "The request failed."
+    "genericFailure": "The request failed.",
+    "notAdminInCompany": "You are not a member of admin group in {company}, so can only manage users from other companies."
   }
 }

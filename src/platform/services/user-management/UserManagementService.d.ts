@@ -79,4 +79,11 @@ export interface UserManagementService {
    * @returns Promise with exactly one selected-LE entry and its picker groups
    */
   listAssignableGroups(): Promise<AssignableLegalEntityGroups[]>;
+
+  /**
+   * Legal-entity ids where the current customer is Admin (IAM `b2b.role`, not
+   * group name). Used by User Management to force All companies and disable
+   * create when the session company is not an Admin LE (COP-4807).
+   */
+  listAdminLegalEntityIds(): Promise<string[]>;
 }

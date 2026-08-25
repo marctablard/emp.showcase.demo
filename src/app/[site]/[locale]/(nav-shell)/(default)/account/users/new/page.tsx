@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import AccountLayout from '@/components/account/account-layout';
 import { UserDetailsForm } from '@/components/account/users/user-details-form';
 import { getPageTitle } from '@/lib/ssr/seo';
-import { requireB2bAdmin } from '@/lib/ssr/user-management';
+import { requireSelectedCompanyAdmin } from '@/lib/ssr/user-management';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: Readonly<{ params: Promise<{ 
 }
 
 export default async function NewUserPage({ params }: Readonly<{ params: Promise<{ locale: string }> }>) {
-  await requireB2bAdmin();
+  await requireSelectedCompanyAdmin();
   const { locale } = await params;
   const [tAccount, tUserManagement] = await Promise.all([
     getTranslations({ locale, namespace: 'account' }),

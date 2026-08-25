@@ -58,7 +58,17 @@ describe('EmporixUserManagementService list/get', () => {
           b2b: { role: 'Admin', legalEntityId: SELECTED_LE },
         },
       ]),
-      getUserGroups: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, size: 60 }),
+      getUserGroups: jest.fn().mockImplementation(async (userId: string) => {
+        if (userId === adminCustomer.id) {
+          return {
+            items: [{ id: 'g-admin-selected', code: 'B2B_ADMIN', b2b: { role: 'Admin', legalEntityId: SELECTED_LE } }],
+            total: 1,
+            page: 1,
+            size: 60,
+          };
+        }
+        return { items: [], total: 0, page: 1, size: 60 };
+      }),
     };
     companyService = {
       getCompanies: jest.fn().mockResolvedValue([{ id: SELECTED_LE, name: 'Acme' }]),
@@ -102,6 +112,123 @@ describe('EmporixUserManagementService list/get', () => {
     await expect(service.listUsers()).rejects.toBeInstanceOf(AdminRequiredError);
     expect(iamApi.getGroupUsers).not.toHaveBeenCalled();
     expect(sessionService.setLegalEntity).not.toHaveBeenCalled();
+  });
+
+  it('throws AdminRequiredError on listUsers when the selected legal entity is not an Admin LE', async () => {
+    iamApi.getUserGroups.mockResolvedValue({
+      items: [{ id: 'g-other-admin', code: 'B2B_ADMIN', b2b: { role: 'Admin', legalEntityId: 'le-other' } }],
+      total: 1,
+      page: 1,
+      size: 60,
+    });
+
+    await expect(service.listUsers()).rejects.toBeInstanceOf(AdminRequiredError);
+    expect(customerManagementApi.getContactAssignmentsByLegalEntityId).not.toHaveBeenCalled();
+    expect(sessionService.setLegalEntity).not.toHaveBeenCalled();
+  });
+
+  it('lists combined Admin-LE users without reminting when the selected legal entity is not an Admin LE', async () => {
+    const otherMember = adminDto({ id: 'other-1', customerNumber: 'N-O1', firstName: 'Ola', lastName: 'One' });
+    companyService.getCompanies.mockResolvedValue([
+      { id: SELECTED_LE, name: 'Acme' },
+      { id: 'le-other', name: 'Other Co' },
+    ]);
+    iamApi.getUserGroups.mockResolvedValue({
+      items: [{ id: 'g-other-admin', code: 'B2B_ADMIN', b2b: { role: 'Admin', legalEntityId: 'le-other' } }],
+      total: 1,
+      page: 1,
+      size: 60,
+    });
+    customerManagementApi.getContactAssignmentsByLegalEntityId.mockImplementation(async (legalEntityId) => ({
+      items:
+        legalEntityId === 'le-other'
+          ? [assignment(otherMember.id, 'CONTACT', [{ id: 'g-other-admin', role: 'Admin' }], 'le-other')]
+          : [],
+      totalCount: legalEntityId === 'le-other' ? 1 : 0,
+    }));
+    mockHydrateByIdQuery([otherMember]);
+    iamApi.getGroupUsers.mockResolvedValue({
+      items: [{ id: 'asg-o1', groupId: 'g-other-admin', userId: otherMember.id, userType: 'CUSTOMER' }],
+      total: 1,
+      page: 1,
+      size: 60,
+    });
+
+    const result = await service.listOtherCompanyUsers(1, 10);
+
+    expect(sessionService.setLegalEntity).not.toHaveBeenCalled();
+    expect(result.items.map((user) => ({ id: user.id, legalEntityId: user.legalEntityId }))).toEqual([
+      { id: 'N-O1', legalEntityId: 'le-other' },
+    ]);
+  });
+
+  it('getUser reads an other Admin-LE customer without reminting when the selected legal entity is not an Admin LE', async () => {
+    const otherMember = adminDto({ id: 'other-1', customerNumber: 'N-O1', firstName: 'Ola', lastName: 'One' });
+    companyService.getCompanies.mockResolvedValue([
+      { id: SELECTED_LE, name: 'Acme' },
+      { id: 'le-other', name: 'Other Co' },
+    ]);
+    iamApi.getUserGroups.mockResolvedValue({
+      items: [{ id: 'g-other-admin', code: 'B2B_ADMIN', b2b: { role: 'Admin', legalEntityId: 'le-other' } }],
+      total: 1,
+      page: 1,
+      size: 60,
+    });
+    customerManagementApi.getContactAssignmentsByLegalEntityId.mockImplementation(async (legalEntityId) => ({
+      items:
+        legalEntityId === 'le-other'
+          ? [assignment(otherMember.id, 'CONTACT', [{ id: 'g-other-admin', role: 'Admin' }], 'le-other')]
+          : [],
+      totalCount: legalEntityId === 'le-other' ? 1 : 0,
+    }));
+    mockHydrateByIdQuery([otherMember]);
+    iamApi.getGroupUsers.mockResolvedValue({
+      items: [{ id: 'asg-o1', groupId: 'g-other-admin', userId: otherMember.id, userType: 'CUSTOMER' }],
+      total: 1,
+      page: 1,
+      size: 60,
+    });
+
+    const user = await service.getUser('N-O1');
+
+    expect(sessionService.setLegalEntity).not.toHaveBeenCalled();
+    expect(user?.id).toBe('N-O1');
+    expect(user?.isSelectedLegalEntityMember).toBe(false);
+  });
+
+  it('falls back to service hydrate when the session customer query is Forbidden', async () => {
+    const member = adminDto({ id: 'cust-a', customerNumber: 'N-A', firstName: 'Ann', lastName: 'Alpha' });
+    mockAssignments([assignment(member.id, 'CONTACT')]);
+    customerAdminApi.getCustomers.mockImplementation(async (_page, _size, _sort, _query, tokenType) => {
+      if (tokenType === 'session') {
+        throw new Error('Forbidden');
+      }
+      return { items: [member] };
+    });
+
+    const result = await service.listUsers(1, 10);
+
+    expect(result.items.map((user) => user.id)).toEqual(['N-A']);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ error: 'Forbidden' }),
+      'Session customer hydrate failed; falling back to service',
+    );
+  });
+
+  it('listAdminLegalEntityIds returns Admin LEs and omits Contact and CUSTOMER', async () => {
+    iamApi.getUserGroups.mockResolvedValue({
+      items: [
+        { id: 'g-selected-admin', code: 'B2B_ADMIN', b2b: { role: 'Admin', legalEntityId: SELECTED_LE } },
+        { id: 'g-other-admin', code: 'B2B_ADMIN', b2b: { role: 'Admin', legalEntityId: 'le-other' } },
+        { id: 'g-contact', code: 'CONTACT', b2b: { role: 'Contact', legalEntityId: 'le-contact' } },
+        { id: 'g-customer', code: 'CUSTOMER', b2b: { role: 'Admin', legalEntityId: 'le-customer' } },
+      ],
+      total: 4,
+      page: 1,
+      size: 60,
+    });
+
+    await expect(service.listAdminLegalEntityIds()).resolves.toEqual(['le-other', SELECTED_LE]);
   });
 
   it('throws when the selected legal entity cannot be resolved', async () => {
@@ -220,7 +347,7 @@ describe('EmporixUserManagementService list/get', () => {
     );
   });
 
-  it('remints once and retries listUsers after the first session hydrate Unauthorized', async () => {
+  it('falls back to service hydrate without reminting when session hydrate is Unauthorized', async () => {
     const member = adminDto({ id: 'cust-a', customerNumber: 'N-A', firstName: 'Ann', lastName: 'Alpha' });
     mockAssignments([assignment('cust-a', 'CONTACT')]);
     mockHydrateByIdQuery([member]);
@@ -228,8 +355,7 @@ describe('EmporixUserManagementService list/get', () => {
 
     const result = await service.listUsers(1, 10);
 
-    expect(sessionService.setLegalEntity).toHaveBeenCalledTimes(1);
-    expect(sessionService.setLegalEntity).toHaveBeenCalledWith(SELECTED_LE);
+    expect(sessionService.setLegalEntity).not.toHaveBeenCalled();
     expect(customerAdminApi.getCustomers).toHaveBeenCalledTimes(2);
     expect(result.items.map((user) => user.id)).toEqual(['N-A']);
   });
@@ -296,7 +422,8 @@ describe('EmporixUserManagementService list/get', () => {
 
     expect(iamApi.getUsers).not.toHaveBeenCalled();
     expect(customerManagementApi.getContactAssignmentsByLegalEntityId).toHaveBeenCalled();
-    expect(iamApi.getUserGroups).not.toHaveBeenCalled();
+    expect(iamApi.getUserGroups).toHaveBeenCalledWith(adminCustomer.id, { size: 60 }, 'service');
+    expect(iamApi.getUserGroups.mock.calls.every(([userId]) => userId === adminCustomer.id)).toBe(true);
     expect(iamApi.getGroups).toHaveBeenCalledWith(
       { query: `b2b.legalEntityId:"${SELECTED_LE}"`, criteria: { userType: 'CUSTOMER' } },
       'service',
@@ -405,7 +532,8 @@ describe('EmporixUserManagementService list/get', () => {
     expect(result.totalCount).toBe(total);
     expect(result.items[0]?.id).toBe(`N-${total - 1}`);
     expect(result.items[0]?.firstName).toBe('Aaron');
-    expect(iamApi.getUserGroups).not.toHaveBeenCalled();
+    expect(iamApi.getUserGroups).toHaveBeenCalledWith(adminCustomer.id, { size: 60 }, 'service');
+    expect(iamApi.getUserGroups.mock.calls.every(([userId]) => userId === adminCustomer.id)).toBe(true);
   });
 
   it('does not use tenant IAM getUsers for list membership', async () => {
@@ -436,7 +564,8 @@ describe('EmporixUserManagementService list/get', () => {
     expect(result.items.map((user) => user.id)).toEqual(['N-LE']);
     expect(result.totalCount).toBe(1);
     expect(iamApi.getUsers).not.toHaveBeenCalled();
-    expect(iamApi.getUserGroups).not.toHaveBeenCalled();
+    expect(iamApi.getUserGroups).toHaveBeenCalledWith(adminCustomer.id, { size: 60 }, 'service');
+    expect(iamApi.getUserGroups.mock.calls.every(([userId]) => userId === adminCustomer.id)).toBe(true);
     expect(iamApi.getGroupUsers).toHaveBeenCalledWith('g-selected', { page: 1, size: 60 }, 'service');
     expect(customerAdminApi.getCustomers).toHaveBeenCalledWith(1, 1, undefined, 'id:(cust-le)', 'session');
   });
@@ -477,7 +606,8 @@ describe('EmporixUserManagementService list/get', () => {
     expect(result.totalCount).toBe(1);
     expect(customerAdminApi.getCustomers).toHaveBeenCalledWith(1, 2, undefined, 'id:(cust-js,cust-jane)', 'session');
     expect(iamApi.getUsers).not.toHaveBeenCalled();
-    expect(iamApi.getUserGroups).not.toHaveBeenCalled();
+    expect(iamApi.getUserGroups).toHaveBeenCalledWith(adminCustomer.id, { size: 60 }, 'service');
+    expect(iamApi.getUserGroups.mock.calls.every(([userId]) => userId === adminCustomer.id)).toBe(true);
   });
 
   it('sorts by the allow-list and ignores userGroup', async () => {
@@ -545,7 +675,8 @@ describe('EmporixUserManagementService list/get', () => {
     const result = await service.listUsers();
 
     expect(iamApi.getUsers).not.toHaveBeenCalled();
-    expect(iamApi.getUserGroups).not.toHaveBeenCalled();
+    expect(iamApi.getUserGroups).toHaveBeenCalledWith(adminCustomer.id, { size: 60 }, 'service');
+    expect(iamApi.getUserGroups.mock.calls.every(([userId]) => userId === adminCustomer.id)).toBe(true);
     expect(result.items[0]?.groups).toEqual([
       { id: 'g-admin', legalEntityId: SELECTED_LE, displayName: 'Acme - Admin' },
     ]);
@@ -654,8 +785,8 @@ describe('EmporixUserManagementService list/get', () => {
       displayName: 'Other Co - Buyer',
     });
     expect(iamApi.getUsers).not.toHaveBeenCalled();
-    expect(iamApi.getUserGroups).toHaveBeenCalledTimes(1);
-    expect(iamApi.getUserGroups).toHaveBeenNthCalledWith(1, member.customerNumber, { size: 60 }, 'service');
+    expect(iamApi.getUserGroups).toHaveBeenCalledWith(adminCustomer.id, { size: 60 }, 'service');
+    expect(iamApi.getUserGroups).toHaveBeenCalledWith(member.customerNumber, { size: 60 }, 'service');
   });
 
   it('listUsers User Group stays source-LE only when the member also has other-LE IAM groups', async () => {
@@ -675,29 +806,40 @@ describe('EmporixUserManagementService list/get', () => {
       page: 1,
       size: 60,
     }));
-    iamApi.getUserGroups.mockResolvedValue({
-      items: [
-        {
-          id: 'g-contact',
-          code: 'CONTACT',
-          userType: 'CUSTOMER',
-          b2b: { role: 'Contact', legalEntityId: SELECTED_LE },
-        },
-        {
-          id: 'g-other',
-          code: 'B2B_BUYER',
-          userType: 'CUSTOMER',
-          b2b: { role: 'Buyer', legalEntityId: otherLegalEntityId },
-        },
-      ],
-      total: 2,
-      page: 1,
-      size: 60,
+    iamApi.getUserGroups.mockImplementation(async (userId: string) => {
+      if (userId === adminCustomer.id) {
+        return {
+          items: [{ id: 'g-admin-selected', code: 'B2B_ADMIN', b2b: { role: 'Admin', legalEntityId: SELECTED_LE } }],
+          total: 1,
+          page: 1,
+          size: 60,
+        };
+      }
+      return {
+        items: [
+          {
+            id: 'g-contact',
+            code: 'CONTACT',
+            userType: 'CUSTOMER',
+            b2b: { role: 'Contact', legalEntityId: SELECTED_LE },
+          },
+          {
+            id: 'g-other',
+            code: 'B2B_BUYER',
+            userType: 'CUSTOMER',
+            b2b: { role: 'Buyer', legalEntityId: otherLegalEntityId },
+          },
+        ],
+        total: 2,
+        page: 1,
+        size: 60,
+      };
     });
     mockHydrateByIdQuery([member]);
 
     const listed = await service.listUsers(1, 10);
-    expect(iamApi.getUserGroups).not.toHaveBeenCalled();
+    expect(iamApi.getUserGroups).toHaveBeenCalledWith(adminCustomer.id, { size: 60 }, 'service');
+    expect(iamApi.getUserGroups.mock.calls.every(([userId]) => userId === adminCustomer.id)).toBe(true);
     expect(listed.items).toHaveLength(1);
     expect(listed.items[0]?.groups.map((group) => group.id)).toEqual(['g-contact']);
     expect(listed.items[0]?.groups.map((group) => group.displayName)).toEqual(['Acme - Contact']);
@@ -1134,9 +1276,14 @@ describe('EmporixUserManagementService list/get', () => {
     const selected = await service.getUser('N-S');
     expect(selected?.id).toBe('N-S');
     expect(selected?.isSelectedLegalEntityMember).toBe(true);
-    expect(iamApi.getUserGroups).not.toHaveBeenCalledWith(adminCustomer.id, { size: 60 }, 'service');
+    expect(customerManagementApi.getContactAssignmentsByLegalEntityId).not.toHaveBeenCalledWith(
+      'le-other',
+      1,
+      ASSIGNMENT_PAGE_SIZE,
+    );
 
     iamApi.getUserGroups.mockClear();
+    customerManagementApi.getContactAssignmentsByLegalEntityId.mockClear();
     const other = await service.getUser('N-OA');
     expect(other?.id).toBe('N-OA');
     expect(other?.isSelectedLegalEntityMember).toBe(false);
@@ -1288,7 +1435,17 @@ describe('EmporixUserManagementService create/update/delete', () => {
         items: [{ id: 'cust-uuid', userType: 'CUSTOMER', groups: [{ id: GROUP_ADMIN }] }],
         totalCount: 1,
       }),
-      getUserGroups: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, size: 60 }),
+      getUserGroups: jest.fn().mockImplementation(async (userId: string) => {
+        if (userId === adminCustomer.id) {
+          return {
+            items: [{ id: GROUP_ADMIN, code: 'B2B_ADMIN', b2b: { role: 'Admin', legalEntityId: SELECTED_LE } }],
+            total: 1,
+            page: 1,
+            size: 60,
+          };
+        }
+        return { items: [], total: 0, page: 1, size: 60 };
+      }),
       addUserToGroup: jest.fn().mockResolvedValue({ id: 'asg-1' }),
       removeUserFromGroup: jest.fn().mockResolvedValue(undefined),
       getGroups: jest.fn().mockResolvedValue([
@@ -1363,6 +1520,19 @@ describe('EmporixUserManagementService create/update/delete', () => {
     await expect(service.deleteUser('C-100')).rejects.toBeInstanceOf(AdminRequiredError);
     expect(customerAdminApi.createCustomer).not.toHaveBeenCalled();
     expect(customerAdminApi.deleteCustomer).not.toHaveBeenCalled();
+  });
+
+  it('throws AdminRequiredError on create when the selected legal entity is not an Admin LE', async () => {
+    iamApi.getUserGroups.mockResolvedValue({
+      items: [{ id: 'g-other-admin', code: 'B2B_ADMIN', b2b: { role: 'Admin', legalEntityId: OTHER_LE } }],
+      total: 1,
+      page: 1,
+      size: 60,
+    });
+
+    await expect(service.createUser(inviteRequest())).rejects.toBeInstanceOf(AdminRequiredError);
+    expect(customerAdminApi.createCustomer).not.toHaveBeenCalled();
+    expect(customerManagementApi.createLegalEntityContactAssignment).not.toHaveBeenCalled();
   });
 
   it('invite-creates via admin POST without password, signup, or caas-customer, then CONTACT and service IAM assign', async () => {
@@ -1919,7 +2089,17 @@ describe('EmporixUserManagementService create/update/delete', () => {
       items: [{ id: member.id, userType: 'CUSTOMER', groups: [{ id: GROUP_ADMIN }] }],
       totalCount: 1,
     });
-    iamApi.getUserGroups.mockResolvedValue({ items: [], total: 0, page: 1, size: 60 });
+    iamApi.getUserGroups.mockImplementation(async (userId: string) => {
+      if (userId === adminCustomer.id) {
+        return {
+          items: [{ id: GROUP_ADMIN, code: 'B2B_ADMIN', b2b: { role: 'Admin', legalEntityId: SELECTED_LE } }],
+          total: 1,
+          page: 1,
+          size: 60,
+        };
+      }
+      return { items: [], total: 0, page: 1, size: 60 };
+    });
 
     const result = await service.updateUser('C-100', {
       firstName: 'Grace',

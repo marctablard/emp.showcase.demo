@@ -8,6 +8,8 @@ import { CUSTOMER_ID } from '@/lib/common/customer-identity';
 import type { CompanyUser } from '@/platform/services/model/user-management/company-user';
 import {
   UsersList,
+  canManageSelectedCompanyUsers,
+  canShowCompanyScopeToggle,
   deserializeShowOtherCompanyUsers,
   deserializeUsersListSort,
   showOtherCompanyUsersStorageKey,
@@ -75,6 +77,11 @@ jest.mock('@/hooks/common/useGlobalCursor', () => ({
   useGlobalCursor: jest.fn(),
   acquireNavigationWaitCursorLease: jest.fn(),
   releaseNavigationWaitCursorLease: jest.fn(),
+}));
+
+jest.mock('@/components/ui/toast-notification', () => ({
+  ToastType: { Warning: 'warning', Success: 'success', Error: 'error', Info: 'info' },
+  notify: jest.fn(),
 }));
 
 jest.mock('./delete-user-dialog', () => ({
@@ -149,8 +156,8 @@ const DEFAULT_OTHER_COMPANY_USERS_OPTIONS = {
 const AUTHENTICATED_CUSTOMER_ID = 'admin-customer-1';
 const OTHER_ADMIN_CUSTOMER_ID = 'other-admin-2';
 
-function authenticatedSession(customerId = AUTHENTICATED_CUSTOMER_ID) {
-  return { session: { customerId } };
+function authenticatedSession(customerId = AUTHENTICATED_CUSTOMER_ID, legalEntityId?: string) {
+  return { session: { customerId, ...(legalEntityId ? { legalEntityId } : {}) } };
 }
 
 function getAllCompaniesOption() {
@@ -823,5 +830,111 @@ describe('UsersList', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'deleteAriaLabel:John Smith' }));
     expect(screen.getByTestId('delete-user-dialog')).toHaveTextContent('user-1');
+  });
+
+  it('treats a missing adminLegalEntityIds prop as able to manage the selected company', () => {
+    expect(canManageSelectedCompanyUsers(undefined, 'le-other')).toBe(true);
+    expect(canManageSelectedCompanyUsers(['le-admin'], 'le-admin')).toBe(true);
+    expect(canManageSelectedCompanyUsers(['le-admin'], 'le-other')).toBe(false);
+    expect(canManageSelectedCompanyUsers(['le-admin'], undefined)).toBe(false);
+  });
+
+  it('shows the company-scope toggle only for an Admin session LE with more than one Admin LE', () => {
+    expect(canShowCompanyScopeToggle(undefined, true, true)).toBe(true);
+    expect(canShowCompanyScopeToggle(undefined, true, false)).toBe(false);
+    expect(canShowCompanyScopeToggle(['le-admin'], true, true)).toBe(false);
+    expect(canShowCompanyScopeToggle(['le-a', 'le-b'], true, false)).toBe(true);
+    expect(canShowCompanyScopeToggle(['le-a', 'le-b'], false, true)).toBe(false);
+  });
+
+  it('hides the company-scope toggle when the customer is Admin of only one legal entity', () => {
+    mockUseSession.mockReturnValue(authenticatedSession(AUTHENTICATED_CUSTOMER_ID, 'le-admin'));
+    mockUsersResult({ users: [buildUser()] });
+
+    render(
+      <UsersList
+        initialUsers={[buildUser()]}
+        showOtherCompaniesToggle
+        selectedCompanyName="Emporix GmbH"
+        headerCompanies={[
+          { id: 'le-other', name: 'NovaTech' },
+          { id: 'le-admin', name: 'Emporix GmbH' },
+        ]}
+        adminLegalEntityIds={['le-admin']}
+      />,
+    );
+
+    expect(screen.queryByRole('radiogroup', { name: 'companyScope' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /createButton/i })).toBeInTheDocument();
+    expect(screen.getByRole('table')).toBeInTheDocument();
+  });
+
+  it('replaces the table with the non-admin message and hides create and scope when the session company is not an Admin LE', () => {
+    mockUseSession.mockReturnValue(authenticatedSession(AUTHENTICATED_CUSTOMER_ID, 'le-other'));
+    mockUsersResult({ users: [buildUser()] });
+    mockOtherCompanyUsersResult();
+
+    render(
+      <UsersList
+        initialUsers={[buildUser()]}
+        showOtherCompaniesToggle
+        selectedCompanyName="NovaTech"
+        headerCompanies={[
+          { id: 'le-other', name: 'NovaTech' },
+          { id: 'le-admin', name: 'Emporix GmbH' },
+        ]}
+        adminLegalEntityIds={['le-admin']}
+      />,
+    );
+
+    expect(screen.queryByRole('radiogroup', { name: 'companyScope' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /createButton/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('notifications.notAdminInCompany:{"company":"NovaTech"}');
+    expect(mockUseCompanyUsers.mock.calls[mockUseCompanyUsers.mock.calls.length - 1][1]).toMatchObject({
+      enabled: false,
+    });
+    expect(mockUseOtherCompanyUsers).toHaveBeenCalledWith(DEFAULT_OTHER_COMPANY_USERS_OPTIONS);
+  });
+
+  it('replaces the table with the non-admin message after the header company switcher leaves an Admin LE', () => {
+    mockUseSession.mockReturnValue(authenticatedSession(AUTHENTICATED_CUSTOMER_ID, 'le-admin'));
+    mockUsersResult({ users: [buildUser()] });
+    mockOtherCompanyUsersResult();
+
+    const { rerender } = render(
+      <UsersList
+        initialUsers={[buildUser()]}
+        showOtherCompaniesToggle
+        selectedCompanyName="Emporix GmbH"
+        headerCompanies={[
+          { id: 'le-other', name: 'NovaTech' },
+          { id: 'le-admin', name: 'Emporix GmbH' },
+        ]}
+        adminLegalEntityIds={['le-admin']}
+      />,
+    );
+
+    expect(screen.getByRole('link', { name: /createButton/i })).toBeInTheDocument();
+    expect(screen.getByRole('table')).toBeInTheDocument();
+
+    mockUseSession.mockReturnValue(authenticatedSession(AUTHENTICATED_CUSTOMER_ID, 'le-other'));
+    rerender(
+      <UsersList
+        initialUsers={[buildUser()]}
+        showOtherCompaniesToggle
+        selectedCompanyName="Emporix GmbH"
+        headerCompanies={[
+          { id: 'le-other', name: 'NovaTech' },
+          { id: 'le-admin', name: 'Emporix GmbH' },
+        ]}
+        adminLegalEntityIds={['le-admin']}
+      />,
+    );
+
+    expect(screen.queryByRole('radiogroup', { name: 'companyScope' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /createButton/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('notifications.notAdminInCompany:{"company":"NovaTech"}');
   });
 });
