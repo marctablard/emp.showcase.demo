@@ -8,7 +8,6 @@ const COMPANY_SCOPE_RADIO_NAME = 'company-scope';
 interface CompanyScopeToggleProps {
   currentCompanyName?: string;
   showAllCompanies: boolean;
-  currentCompanyDisabled?: boolean;
   onShowAllCompaniesChange: (showAllCompanies: boolean) => void;
 }
 
@@ -19,7 +18,6 @@ interface CompanyScopeToggleProps {
 export function CompanyScopeToggle({
   currentCompanyName,
   showAllCompanies,
-  currentCompanyDisabled = false,
   onShowAllCompaniesChange,
 }: Readonly<CompanyScopeToggleProps>) {
   const t = useTranslations('user-management');
@@ -33,7 +31,6 @@ export function CompanyScopeToggle({
     >
       <ScopeOption
         checked={!showAllCompanies}
-        disabled={currentCompanyDisabled}
         label={companyLabel}
         value="current"
         className="max-w-48"
@@ -51,14 +48,12 @@ export function CompanyScopeToggle({
 
 function ScopeOption({
   checked,
-  disabled,
   label,
   value,
   className,
   onSelect,
 }: Readonly<{
   checked: boolean;
-  disabled?: boolean;
   label: string;
   value: 'current' | 'all';
   className?: string;
@@ -67,8 +62,7 @@ function ScopeOption({
   return (
     <label
       className={cn(
-        'inline-flex min-w-0 items-center justify-center rounded-full px-2 py-1 uppercase',
-        disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
+        'inline-flex min-w-0 cursor-pointer items-center justify-center rounded-full px-2 py-1 uppercase',
         'has-[:focus-visible]:ring-border-focus has-[:focus-visible]:outline-none has-[:focus-visible]:ring-2',
         checked
           ? 'bg-surface-action font-headlines text-action-button tracking-[var(--desktop-spacing-action-button)] text-text-on-action'
@@ -81,14 +75,8 @@ function ScopeOption({
         name={COMPANY_SCOPE_RADIO_NAME}
         value={value}
         checked={checked}
-        disabled={disabled}
         className="sr-only"
-        onChange={() => {
-          if (disabled) {
-            return;
-          }
-          onSelect();
-        }}
+        onChange={onSelect}
       />
       <span className="truncate">{label}</span>
     </label>

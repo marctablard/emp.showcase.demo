@@ -313,6 +313,101 @@ export function UsersList({
   });
 
   return (
+    <UsersListLayout
+      canManageSelectedCompany={canManageSelectedCompany}
+      selectedCompanyName={selectedCompanyName}
+      showScopeToggle={showScopeToggle}
+      showOtherCompanyUsers={showOtherCompanyUsers}
+      onShowAllCompaniesChange={handleShowAllCompaniesChange}
+      notAdminInCompanyMessage={notAdminInCompanyMessage}
+      users={users}
+      loading={loading}
+      error={error}
+      pagination={pagination}
+      refreshActiveUsers={refreshActiveUsers}
+      currentPage={currentPage}
+      onPreviousPage={handlePreviousPage}
+      onNextPage={handleNextPage}
+      quickSearch={quickSearch}
+      onQuickSearchChange={setQuickSearch}
+      onSearchSubmit={submitSearch}
+      onSearchBlur={handleSearchBlur}
+      isSearchLoading={isSearchLoading}
+      hasActiveSearch={hasActiveSearch}
+      sortField={sortField}
+      sortDirection={sortDirection}
+      onToggleSort={toggleSort}
+      otherCompanyUsersEnabled={otherCompanyUsersEnabled}
+      onDeleteUser={onDeleteUser}
+      handleDeleteUser={handleDeleteUser}
+      userToDelete={userToDelete}
+      onUserToDeleteChange={setUserToDelete}
+    />
+  );
+}
+
+function UsersListLayout({
+  canManageSelectedCompany,
+  selectedCompanyName,
+  showScopeToggle,
+  showOtherCompanyUsers,
+  onShowAllCompaniesChange,
+  notAdminInCompanyMessage,
+  users,
+  loading,
+  error,
+  pagination,
+  refreshActiveUsers,
+  currentPage,
+  onPreviousPage,
+  onNextPage,
+  quickSearch,
+  onQuickSearchChange,
+  onSearchSubmit,
+  onSearchBlur,
+  isSearchLoading,
+  hasActiveSearch,
+  sortField,
+  sortDirection,
+  onToggleSort,
+  otherCompanyUsersEnabled,
+  onDeleteUser,
+  handleDeleteUser,
+  userToDelete,
+  onUserToDeleteChange,
+}: Readonly<{
+  canManageSelectedCompany: boolean;
+  selectedCompanyName?: string;
+  showScopeToggle: boolean;
+  showOtherCompanyUsers: boolean;
+  onShowAllCompaniesChange: (showAllCompanies: boolean) => void;
+  notAdminInCompanyMessage: string;
+  users: CompanyUser[];
+  loading: boolean;
+  error: Error | null;
+  pagination: CompanyUsersListView['pagination'];
+  refreshActiveUsers: () => Promise<void>;
+  currentPage: number;
+  onPreviousPage: () => void;
+  onNextPage: () => void;
+  quickSearch: string;
+  onQuickSearchChange: (value: string) => void;
+  onSearchSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onSearchBlur: () => void;
+  isSearchLoading: boolean;
+  hasActiveSearch: boolean;
+  sortField: CompanyUserSortField;
+  sortDirection: 'asc' | 'desc';
+  onToggleSort: (field: CompanyUserSortField) => void;
+  otherCompanyUsersEnabled: boolean;
+  onDeleteUser?: (user: CompanyUser) => void;
+  handleDeleteUser: (user: CompanyUser) => void;
+  userToDelete: CompanyUser | null;
+  onUserToDeleteChange: (user: CompanyUser | null) => void;
+}>) {
+  const t = useTranslations('user-management');
+
+  return (
     <div className="flex flex-col gap-6 lg:gap-12">
       <div className="flex min-w-0 flex-col items-start gap-4 md:flex-row md:flex-wrap md:items-start md:justify-between">
         <div className="flex min-w-0 max-w-full flex-col items-start gap-4 sm:flex-row sm:flex-wrap sm:items-center md:flex-1">
@@ -321,7 +416,7 @@ export function UsersList({
             <CompanyScopeToggle
               currentCompanyName={selectedCompanyName}
               showAllCompanies={showOtherCompanyUsers}
-              onShowAllCompaniesChange={handleShowAllCompaniesChange}
+              onShowAllCompaniesChange={onShowAllCompaniesChange}
             />
           ) : null}
         </div>
@@ -338,80 +433,157 @@ export function UsersList({
         ) : null}
       </div>
 
-      {!canManageSelectedCompany ? (
-        <p role="status" className="text-text-secondary">
-          {notAdminInCompanyMessage}
-        </p>
+      {canManageSelectedCompany ? (
+        <UsersListManagedSection
+          users={users}
+          loading={loading}
+          error={error}
+          pagination={pagination}
+          refreshActiveUsers={refreshActiveUsers}
+          currentPage={currentPage}
+          onPreviousPage={onPreviousPage}
+          onNextPage={onNextPage}
+          quickSearch={quickSearch}
+          onQuickSearchChange={onQuickSearchChange}
+          onSearchSubmit={onSearchSubmit}
+          onSearchBlur={onSearchBlur}
+          isSearchLoading={isSearchLoading}
+          hasActiveSearch={hasActiveSearch}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onToggleSort={onToggleSort}
+          otherCompanyUsersEnabled={otherCompanyUsersEnabled}
+          onDeleteUser={onDeleteUser}
+          handleDeleteUser={handleDeleteUser}
+          userToDelete={userToDelete}
+          onUserToDeleteChange={onUserToDeleteChange}
+        />
       ) : (
-        <TableCard className="overflow-hidden p-4 min-[768px]:p-4">
-          <form className="mb-4 flex flex-wrap gap-4" onSubmit={submitSearch}>
-            <div className="relative w-[380px] max-w-full">
-              <Input
-                type="search"
-                value={quickSearch}
-                onChange={(event) => {
-                  setQuickSearch(event.target.value);
-                }}
-                onBlur={handleSearchBlur}
-                placeholder={t('searchPlaceholder')}
-                className="h-12 appearance-none bg-surface-primary border-border-primary pr-10 [&::-webkit-search-cancel-button]:hidden"
-                endIcon={isSearchLoading ? undefined : Search}
-                aria-label={t('searchPlaceholder')}
-              />
-              {isSearchLoading && (
-                <Spinner
-                  variant="sm"
-                  color="primary"
-                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
-                  loadingText={t('loading')}
-                />
-              )}
-            </div>
-          </form>
-
-          {error ? (
-            <div className="bg-surface-error border border-border-error text-text-error px-4 py-3 rounded space-y-3">
-              <p>{error.message}</p>
-              <Button
-                onClick={() => {
-                  Promise.resolve(refreshActiveUsers()).catch(() => undefined);
-                }}
-              >
-                {t('tryAgain')}
-              </Button>
-            </div>
-          ) : (
-            <UsersTable
-              users={users}
-              loading={loading}
-              currentPage={currentPage}
-              totalPages={pagination?.totalPages ?? 1}
-              onPreviousPage={handlePreviousPage}
-              onNextPage={handleNextPage}
-              sortField={sortField}
-              sortDirection={sortDirection}
-              onToggleSort={toggleSort}
-              hasActiveSearch={hasActiveSearch}
-              onDeleteUser={otherCompanyUsersEnabled ? undefined : handleDeleteUser}
-              showLegalEntityName={otherCompanyUsersEnabled}
-            />
-          )}
-        </TableCard>
+        <output className="text-text-secondary">{notAdminInCompanyMessage}</output>
       )}
-      {canManageSelectedCompany && !otherCompanyUsersEnabled && !onDeleteUser ? (
+    </div>
+  );
+}
+
+function UsersListManagedSection({
+  users,
+  loading,
+  error,
+  pagination,
+  refreshActiveUsers,
+  currentPage,
+  onPreviousPage,
+  onNextPage,
+  quickSearch,
+  onQuickSearchChange,
+  onSearchSubmit,
+  onSearchBlur,
+  isSearchLoading,
+  hasActiveSearch,
+  sortField,
+  sortDirection,
+  onToggleSort,
+  otherCompanyUsersEnabled,
+  onDeleteUser,
+  handleDeleteUser,
+  userToDelete,
+  onUserToDeleteChange,
+}: Readonly<{
+  users: CompanyUser[];
+  loading: boolean;
+  error: Error | null;
+  pagination: CompanyUsersListView['pagination'];
+  refreshActiveUsers: () => Promise<void>;
+  currentPage: number;
+  onPreviousPage: () => void;
+  onNextPage: () => void;
+  quickSearch: string;
+  onQuickSearchChange: (value: string) => void;
+  onSearchSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onSearchBlur: () => void;
+  isSearchLoading: boolean;
+  hasActiveSearch: boolean;
+  sortField: CompanyUserSortField;
+  sortDirection: 'asc' | 'desc';
+  onToggleSort: (field: CompanyUserSortField) => void;
+  otherCompanyUsersEnabled: boolean;
+  onDeleteUser?: (user: CompanyUser) => void;
+  handleDeleteUser: (user: CompanyUser) => void;
+  userToDelete: CompanyUser | null;
+  onUserToDeleteChange: (user: CompanyUser | null) => void;
+}>) {
+  const t = useTranslations('user-management');
+
+  return (
+    <>
+      <TableCard className="overflow-hidden p-4 min-[768px]:p-4">
+        <form className="mb-4 flex flex-wrap gap-4" onSubmit={onSearchSubmit}>
+          <div className="relative w-[380px] max-w-full">
+            <Input
+              type="search"
+              value={quickSearch}
+              onChange={(event) => {
+                onQuickSearchChange(event.target.value);
+              }}
+              onBlur={onSearchBlur}
+              placeholder={t('searchPlaceholder')}
+              className="h-12 appearance-none bg-surface-primary border-border-primary pr-10 [&::-webkit-search-cancel-button]:hidden"
+              endIcon={isSearchLoading ? undefined : Search}
+              aria-label={t('searchPlaceholder')}
+            />
+            {isSearchLoading ? (
+              <Spinner
+                variant="sm"
+                color="primary"
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
+                loadingText={t('loading')}
+              />
+            ) : null}
+          </div>
+        </form>
+
+        {error ? (
+          <div className="bg-surface-error border border-border-error text-text-error px-4 py-3 rounded space-y-3">
+            <p>{error.message}</p>
+            <Button
+              onClick={() => {
+                Promise.resolve(refreshActiveUsers()).catch(() => undefined);
+              }}
+            >
+              {t('tryAgain')}
+            </Button>
+          </div>
+        ) : (
+          <UsersTable
+            users={users}
+            loading={loading}
+            currentPage={currentPage}
+            totalPages={pagination?.totalPages ?? 1}
+            onPreviousPage={onPreviousPage}
+            onNextPage={onNextPage}
+            sortField={sortField}
+            sortDirection={sortDirection}
+            onToggleSort={onToggleSort}
+            hasActiveSearch={hasActiveSearch}
+            onDeleteUser={otherCompanyUsersEnabled ? undefined : handleDeleteUser}
+            showLegalEntityName={otherCompanyUsersEnabled}
+          />
+        )}
+      </TableCard>
+      {otherCompanyUsersEnabled || onDeleteUser ? null : (
         <DeleteUserDialog
           user={userToDelete}
           open={userToDelete !== null}
           onOpenChange={(open) => {
-            if (!open) setUserToDelete(null);
+            if (!open) onUserToDeleteChange(null);
           }}
           onDeleted={() => {
-            setUserToDelete(null);
+            onUserToDeleteChange(null);
             refreshActiveUsers().catch(() => undefined);
           }}
         />
-      ) : null}
-    </div>
+      )}
+    </>
   );
 }
 

@@ -83,6 +83,6 @@
     "statusSuccess": "Benutzerstatus erfolgreich aktualisiert!",
     "deleteSuccess": "Der Benutzer wurde gelöscht.",
     "genericFailure": "Die Anfrage ist fehlgeschlagen.",
-    "notAdminInCompany": "Sie sind in {company} kein Mitglied der Admin-Gruppe und können daher nur Benutzer anderer Unternehmen verwalten"
+    "notAdminInCompany": "Sie sind in {company} kein Mitglied der Admin-Gruppe und können daher nur Benutzer anderer Unternehmen verwalten."
   }
 }

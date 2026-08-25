@@ -568,45 +568,44 @@ export class EmporixUserManagementService implements UserManagementService {
     const customersByMembershipKey = new Map<string, EmporixCustomerAdmin>();
 
     for (const idChunk of chunk([...memberIds], ID_QUERY_CHUNK_SIZE)) {
-      let sessionItems: EmporixCustomerAdmin[] = [];
-      try {
-        sessionItems = await this.loadCustomersByIdQuery(idChunk, 'session');
-      } catch (error) {
-        if (!isUnauthorizedOrForbiddenError(error)) {
-          throw error;
-        }
-        this.logger.warn(
-          {
-            chunkSize: idChunk.length,
-            error: error instanceof Error ? error.message : String(error),
-          },
-          'Session customer hydrate failed; falling back to service',
-        );
-      }
-      for (const customer of sessionItems) {
-        addCustomerForMembershipKeys(customersByMembershipKey, memberIds, customer);
-      }
-
-      const missingIds = idChunk.filter((id) => !customersByMembershipKey.has(id));
-      if (missingIds.length > 0) {
-        const serviceItems = await this.loadCustomersByIdQuery(missingIds, 'service');
-        for (const customer of serviceItems) {
-          addCustomerForMembershipKeys(customersByMembershipKey, memberIds, customer);
-        }
-      }
+      await this.hydrateCustomerIdChunk(idChunk, memberIds, customersByMembershipKey);
     }
 
-    const seenCustomerIds = new Set<string>();
-    const hydratedCustomers: EmporixCustomerAdmin[] = [];
-    for (const membershipKey of memberIds) {
-      const customer = customersByMembershipKey.get(membershipKey);
-      if (!customer || seenCustomerIds.has(customer.id)) {
-        continue;
-      }
-      seenCustomerIds.add(customer.id);
-      hydratedCustomers.push(customer);
+    return collectUniqueCustomersByMembershipOrder(memberIds, customersByMembershipKey);
+  }
+
+  private async hydrateCustomerIdChunk(
+    idChunk: readonly string[],
+    memberIds: ReadonlySet<string>,
+    customersByMembershipKey: Map<string, EmporixCustomerAdmin>,
+  ): Promise<void> {
+    const sessionItems = await this.loadCustomersByIdQueryAllowingAuthFallback(idChunk);
+    addCustomersForMembershipKeys(customersByMembershipKey, memberIds, sessionItems);
+
+    const missingIds = idChunk.filter((id) => !customersByMembershipKey.has(id));
+    if (missingIds.length === 0) {
+      return;
     }
-    return hydratedCustomers;
+    const serviceItems = await this.loadCustomersByIdQuery(missingIds, 'service');
+    addCustomersForMembershipKeys(customersByMembershipKey, memberIds, serviceItems);
+  }
+
+  private async loadCustomersByIdQueryAllowingAuthFallback(ids: readonly string[]): Promise<EmporixCustomerAdmin[]> {
+    try {
+      return await this.loadCustomersByIdQuery([...ids], 'session');
+    } catch (error) {
+      if (!isUnauthorizedOrForbiddenError(error)) {
+        throw error;
+      }
+      this.logger.warn(
+        {
+          chunkSize: ids.length,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Session customer hydrate failed; falling back to service',
+      );
+      return [];
+    }
   }
 
   private async loadCustomersByIdQuery(
@@ -1794,6 +1793,33 @@ function addCustomerForMembershipKeys(
       customersByMembershipKey.set(key, customer);
     }
   }
+}
+
+function addCustomersForMembershipKeys(
+  customersByMembershipKey: Map<string, EmporixCustomerAdmin>,
+  membershipIds: ReadonlySet<string>,
+  customers: readonly EmporixCustomerAdmin[],
+): void {
+  for (const customer of customers) {
+    addCustomerForMembershipKeys(customersByMembershipKey, membershipIds, customer);
+  }
+}
+
+function collectUniqueCustomersByMembershipOrder(
+  memberIds: ReadonlySet<string>,
+  customersByMembershipKey: ReadonlyMap<string, EmporixCustomerAdmin>,
+): EmporixCustomerAdmin[] {
+  const seenCustomerIds = new Set<string>();
+  const hydratedCustomers: EmporixCustomerAdmin[] = [];
+  for (const membershipKey of memberIds) {
+    const customer = customersByMembershipKey.get(membershipKey);
+    if (!customer || seenCustomerIds.has(customer.id)) {
+      continue;
+    }
+    seenCustomerIds.add(customer.id);
+    hydratedCustomers.push(customer);
+  }
+  return hydratedCustomers;
 }
 
 function selectedCatalogGroupsForCustomer(
