@@ -311,6 +311,39 @@
  * therefore share one switch point — a 80rem step here would offset them by 20px across
  * the whole 1024–1279 range.
  */
+/*
+ * Address book cards: min 200px (spacing-50), fill the row, wrap when they no
+ * longer fit. Column count is min(card count, how many 200px+gap tracks fit),
+ * so a leftover card on the last row keeps the same width as the row above.
+ */
+@utility address-cards-grid {
+  --address-card-min: calc(var(--spacing) * 50);
+  display: grid;
+  gap: calc(var(--spacing) * 6);
+  grid-template-columns: minmax(min(100%, var(--address-card-min)), 1fr);
+
+  /* 2×200px + 24px gap = 26.5rem at the 16px root / 4px spacing scale */
+  @container (width >= 26.5rem) {
+    &:has(> :nth-child(2)) {
+      grid-template-columns: repeat(2, minmax(var(--address-card-min), 1fr));
+    }
+  }
+
+  /* 3×200px + 2×24px gap = 40.5rem */
+  @container (width >= 40.5rem) {
+    &:has(> :nth-child(3)) {
+      grid-template-columns: repeat(3, minmax(var(--address-card-min), 1fr));
+    }
+  }
+
+  /* 4×200px + 3×24px gap = 54.5rem */
+  @container (width >= 54.5rem) {
+    &:has(> :nth-child(4)) {
+      grid-template-columns: repeat(4, minmax(var(--address-card-min), 1fr));
+    }
+  }
+}
+
 @utility content-container {
   margin-inline: auto;
   max-width: var(--theme-container-6xl);

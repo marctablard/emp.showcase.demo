@@ -252,6 +252,27 @@ describe('EmporixSessionService', () => {
       expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledTimes(1);
       expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledWith(mappedPartialContext);
     });
+
+    it('should not include language on a currency PATCH when session language is already de', async () => {
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValue({
+        sessionId: 'test-session',
+        siteCode: 'main',
+        currency: 'EUR',
+        language: 'de',
+        metadata: { version: 4 },
+      });
+      mockSessionContextApi.updateOwnSessionContext.mockResolvedValue();
+
+      await sessionService.setCurrency('USD');
+
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledTimes(1);
+      const [patchCall] = mockSessionContextApi.updateOwnSessionContext.mock.calls[0];
+      expect(patchCall).toEqual({
+        currency: 'USD',
+        metadata: { version: 4 },
+      });
+      expect(patchCall).not.toHaveProperty('language');
+    });
   });
 
   describe('setLanguage', () => {
@@ -773,6 +794,57 @@ describe('EmporixSessionService', () => {
       expect(result).toBeDefined();
       expect(result?.currency).toBe('CHF');
       expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalled();
+    });
+
+    it('should not include language on a currency PATCH when session language is already de', async () => {
+      const fullyPopulatedContext: EmporixSessionContext = {
+        sessionId: 'test-session',
+        currency: 'EUR',
+        language: 'de',
+        siteCode: 'ch-site',
+        targetLocation: 'DE',
+        context: {
+          region: { key: 'region', value: 'Europe' },
+        },
+        metadata: { version: 2 },
+      };
+      const mappedSession: Session = {
+        id: 'test-session',
+        currency: 'EUR',
+        siteCode: 'ch-site',
+        country: 'DE',
+        language: 'de',
+        region: 'Europe',
+      };
+
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValue(fullyPopulatedContext);
+      mockSessionMapper.mapToService.mockReturnValue(mappedSession);
+      mockSiteService.getSite.mockResolvedValue({
+        code: 'ch-site',
+        name: 'CH',
+        defaultCountry: 'CH',
+        defaultCurrency: { id: 'CHF', code: 'CHF', name: 'Franc', active: true },
+        currencies: [{ id: 'CHF', code: 'CHF', name: 'Franc', active: true }],
+        countries: [],
+        shipToCountries: [],
+        regions: [],
+        paymentModes: [],
+        languages: ['en', 'de'],
+        defaultLanguage: 'de',
+        address: { contactName: '', street: '', zipCode: '', city: '', country: 'CH' },
+        includesTax: false,
+        decimals: 2,
+      });
+      mockSessionContextApi.updateOwnSessionContext.mockResolvedValue();
+
+      const result = await sessionService.getCurrent();
+
+      expect(result?.language).toBe('de');
+      expect(result?.currency).toBe('CHF');
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledTimes(1);
+      const [patchCall] = mockSessionContextApi.updateOwnSessionContext.mock.calls[0];
+      expect(patchCall).toMatchObject({ currency: 'CHF' });
+      expect(patchCall).not.toHaveProperty('language');
     });
 
     it('should call getSite when region is missing from session', async () => {

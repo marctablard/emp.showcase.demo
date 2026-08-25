@@ -40,6 +40,7 @@
     "country": "Country",
     "vatNumber": "VAT Number",
     "shippingSameAsBilling": "Shipping address same as billing",
+    "billingAddressInfo": "Billing Address",
     "accountSettings": "Account Settings",
     "password": "Password",
     "passwordConfirmation": "Confirm Password",
@@ -68,7 +69,8 @@
       "registrationFailed": "Registration failed. Please try again.",
       "serverError": "A server error occurred. Please try again later.",
       "usernameTaken": "This username is already taken.",
-      "signInAfterRegisterFailed": "Your account was created, but automatic sign-in failed. Please log in manually."
+      "signInAfterRegisterFailed": "Your account was created, but automatic sign-in failed. Please log in manually.",
+      "billingAddressFailed": "Could not create a billing address: {errorMessage}. Please create billing address from the account settings."
     }
   },
   "Password": {

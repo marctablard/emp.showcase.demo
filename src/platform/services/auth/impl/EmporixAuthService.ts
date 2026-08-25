@@ -416,14 +416,16 @@ export class EmporixAuthService implements AuthService {
     }
 
     const currentSession = await this.sessionService.getCurrent();
-
     if (!currentSession) {
-      throw new Error('Failed to get session context');
+      // GET /session-context/{tenant}/me/context is 404 until a cart exists.
+      // Signup only needs an anonymous token, not that document.
+      this.logger.warn({}, 'Registration proceeding without session context');
     }
 
-    customer.preferredLanguage = currentSession.language || getPublicDefaultLanguage();
-    customer.preferredCurrency = currentSession.currency || getPublicDefaultCurrency();
-    customer.preferredSite = currentSession.siteCode;
+    const preferences = this.resolveSignupPreferences(currentSession, registration);
+    customer.preferredLanguage = preferences.preferredLanguage;
+    customer.preferredCurrency = preferences.preferredCurrency;
+    customer.preferredSite = preferences.preferredSite;
 
     const address: EmporixAddress | undefined = registration.address
       ? this.emporixAddressMapper.mapToSource(registration.address)
@@ -442,6 +444,21 @@ export class EmporixAuthService implements AuthService {
       throw new Error('Failed to register User');
     }
     return this.login(registration.credentials);
+  }
+
+  /**
+   * Session context is optional at signup (404 when no cart yet). Prefer the
+   * live session, then the registration payload, then public env defaults.
+   */
+  private resolveSignupPreferences(
+    currentSession: Awaited<ReturnType<SessionService['getCurrent']>>,
+    registration: Registration,
+  ): { preferredLanguage: string; preferredCurrency: string; preferredSite: string } {
+    return {
+      preferredLanguage: currentSession?.language || registration.customer?.language || getPublicDefaultLanguage(),
+      preferredCurrency: currentSession?.currency || registration.customer?.currency || getPublicDefaultCurrency(),
+      preferredSite: currentSession?.siteCode || getPublicDefaultSite(),
+    };
   }
 
   async getCurrentSession(): Promise<Session | null> {

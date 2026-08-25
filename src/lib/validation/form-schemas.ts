@@ -193,6 +193,15 @@ export const RegistrationSchema = z
     country: z.string().min(1, 'register.country.required'),
     vatNumber: z.string().optional(),
     shippingSameAsBilling: z.boolean(),
+    billingContactName: z.string().optional(),
+    billingCompanyName: z.string().optional(),
+    billingStreet: z.string().optional(),
+    billingHouseNumber: z.string().optional(),
+    billingPostalCode: z.string().optional(),
+    billingCity: z.string().optional(),
+    billingCountry: z.string().optional(),
+    billingState: z.string().optional(),
+    billingPhone: z.string().optional(),
     password: z.string().min(8).regex(/[A-Z]/).regex(/[a-z]/).regex(/[0-9]/),
     passwordConfirmation: z.string().min(1, 'register.passwordConfirmation.required'),
     additionalInformation: z.string().max(500).optional(),
@@ -224,6 +233,45 @@ export const RegistrationSchema = z
       message: 'register.vatNumber.required',
       path: ['vatNumber'],
     },
-  );
+  )
+  .superRefine((data, ctx) => {
+    if (!data.shippingSameAsBilling) {
+      if (!data.billingContactName || data.billingContactName.length < 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'register.billingContactName.required',
+          path: ['billingContactName'],
+        });
+      }
+      if (!data.billingStreet || data.billingStreet.length < 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'register.billingStreet.required',
+          path: ['billingStreet'],
+        });
+      }
+      if (!data.billingPostalCode || data.billingPostalCode.length < 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'register.billingPostalCode.required',
+          path: ['billingPostalCode'],
+        });
+      }
+      if (!data.billingCity || data.billingCity.length < 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'register.billingCity.required',
+          path: ['billingCity'],
+        });
+      }
+      if (!data.billingCountry || data.billingCountry.length < 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'register.billingCountry.required',
+          path: ['billingCountry'],
+        });
+      }
+    }
+  });
 
 export type RegistrationData = z.infer<typeof RegistrationSchema>;

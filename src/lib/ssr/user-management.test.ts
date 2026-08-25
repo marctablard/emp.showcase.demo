@@ -300,6 +300,7 @@ describe('getSelectedCompanyName', () => {
     companyService.getCompanies.mockReset();
     logger.error.mockReset();
     getSession.mockReset();
+    getCurrentCustomer.mockReset();
     mockedSsr.default.__services.clear();
     mockedSsr.default.__services.set('CompanyService', companyService);
     mockedSsr.default.__services.set('LoggerService', logger);
@@ -312,18 +313,31 @@ describe('getSelectedCompanyName', () => {
       { id: 'le-2', name: 'Emporix GmbH' },
     ]);
     getSession.mockResolvedValueOnce({ legalEntityId: 'le-2' });
+    getCurrentCustomer.mockResolvedValueOnce({ ...adminCustomer, legalEntityId: 'le-1' });
 
     await expect(getSelectedCompanyName()).resolves.toBe('Emporix GmbH');
   });
 
-  it('falls back to the first company name when session legalEntityId is missing', async () => {
+  it('recovers the customer legal-entity name when session legalEntityId is missing', async () => {
     companyService.getCompanies.mockResolvedValueOnce([
       { id: 'le-1', name: 'NovaTech' },
       { id: 'le-2', name: 'Emporix GmbH' },
     ]);
     getSession.mockResolvedValueOnce({});
+    getCurrentCustomer.mockResolvedValueOnce({ ...adminCustomer, legalEntityId: 'le-2' });
 
-    await expect(getSelectedCompanyName()).resolves.toBe('NovaTech');
+    await expect(getSelectedCompanyName()).resolves.toBe('Emporix GmbH');
+  });
+
+  it('does not invent companies[0] when session and customer legalEntityId are missing', async () => {
+    companyService.getCompanies.mockResolvedValueOnce([
+      { id: 'le-1', name: 'NovaTech' },
+      { id: 'le-2', name: 'Emporix GmbH' },
+    ]);
+    getSession.mockResolvedValueOnce({});
+    getCurrentCustomer.mockResolvedValueOnce(adminCustomer);
+
+    await expect(getSelectedCompanyName()).resolves.toBeUndefined();
   });
 
   it('returns undefined when there are no companies', async () => {
@@ -342,18 +356,32 @@ describe('getUserManagementCompanyAccess', () => {
   const companyService = {
     getCompanies: jest.fn(),
   };
+  const sessionService = {
+    getCustomerTokenLegalEntityId: jest.fn(),
+    setLegalEntity: jest.fn(),
+  };
   const logger = {
     error: jest.fn(),
+    warn: jest.fn(),
   };
 
   beforeEach(() => {
     userManagementService.listAdminLegalEntityIds.mockReset();
     companyService.getCompanies.mockReset();
+    sessionService.getCustomerTokenLegalEntityId.mockReset();
+    sessionService.setLegalEntity.mockReset();
+    sessionService.setLegalEntity.mockResolvedValue({
+      tokenRefreshSucceeded: true,
+      tokenLooksLikeJwt: true,
+    });
     logger.error.mockReset();
+    logger.warn.mockReset();
     getSession.mockReset();
+    getCurrentCustomer.mockReset();
     mockedSsr.default.__services.clear();
     mockedSsr.default.__services.set('UserManagementService', userManagementService);
     mockedSsr.default.__services.set('CompanyService', companyService);
+    mockedSsr.default.__services.set('SessionService', sessionService);
     mockedSsr.default.__services.set('LoggerService', logger);
     mockedSsr.default.get.mockImplementation((id: string) => mockedSsr.default.__services.get(id));
   });
@@ -365,6 +393,7 @@ describe('getUserManagementCompanyAccess', () => {
       { id: 'le-2', name: 'Emporix GmbH' },
     ]);
     getSession.mockResolvedValueOnce({ legalEntityId: 'le-2' });
+    getCurrentCustomer.mockResolvedValueOnce({ ...adminCustomer, legalEntityId: 'le-1' });
 
     await expect(getUserManagementCompanyAccess()).resolves.toEqual({
       adminLegalEntityIds: ['le-2'],
@@ -372,8 +401,10 @@ describe('getUserManagementCompanyAccess', () => {
         { id: 'le-1', name: 'NovaTech' },
         { id: 'le-2', name: 'Emporix GmbH' },
       ],
+      selectedLegalEntityId: 'le-2',
       canManageSelectedCompany: true,
     });
+    expect(sessionService.setLegalEntity).not.toHaveBeenCalled();
   });
 
   it('does not treat companies[0] as the write/admin company when session LE is missing', async () => {
@@ -383,6 +414,7 @@ describe('getUserManagementCompanyAccess', () => {
       { id: 'le-2', name: 'Emporix GmbH' },
     ]);
     getSession.mockResolvedValueOnce({});
+    getCurrentCustomer.mockResolvedValueOnce(adminCustomer);
 
     await expect(getUserManagementCompanyAccess()).resolves.toEqual({
       adminLegalEntityIds: ['le-1'],
@@ -390,8 +422,98 @@ describe('getUserManagementCompanyAccess', () => {
         { id: 'le-1', name: 'NovaTech' },
         { id: 'le-2', name: 'Emporix GmbH' },
       ],
+      selectedLegalEntityId: '',
       canManageSelectedCompany: false,
     });
+  });
+
+  it('recovers customer.legalEntityId when session LE is missing and that company is an Admin LE', async () => {
+    userManagementService.listAdminLegalEntityIds.mockResolvedValueOnce(['le-2']);
+    companyService.getCompanies.mockResolvedValueOnce([
+      { id: 'le-1', name: 'NovaTech' },
+      { id: 'le-2', name: 'Emporix GmbH' },
+    ]);
+    getSession.mockResolvedValueOnce({});
+    getCurrentCustomer.mockResolvedValueOnce({ ...adminCustomer, legalEntityId: 'le-2' });
+
+    await expect(getUserManagementCompanyAccess()).resolves.toEqual({
+      adminLegalEntityIds: ['le-2'],
+      headerCompanies: [
+        { id: 'le-1', name: 'NovaTech' },
+        { id: 'le-2', name: 'Emporix GmbH' },
+      ],
+      selectedLegalEntityId: 'le-2',
+      canManageSelectedCompany: true,
+    });
+    expect(sessionService.setLegalEntity).toHaveBeenCalledWith('le-2');
+  });
+
+  it('keeps the recovered company read-only when customer.legalEntityId is not an Admin LE', async () => {
+    userManagementService.listAdminLegalEntityIds.mockResolvedValueOnce(['le-2']);
+    companyService.getCompanies.mockResolvedValueOnce([
+      { id: 'le-1', name: 'NovaTech' },
+      { id: 'le-2', name: 'Emporix GmbH' },
+    ]);
+    getSession.mockResolvedValueOnce({});
+    getCurrentCustomer.mockResolvedValueOnce({ ...adminCustomer, legalEntityId: 'le-1' });
+
+    await expect(getUserManagementCompanyAccess()).resolves.toEqual({
+      adminLegalEntityIds: ['le-2'],
+      headerCompanies: [
+        { id: 'le-1', name: 'NovaTech' },
+        { id: 'le-2', name: 'Emporix GmbH' },
+      ],
+      selectedLegalEntityId: 'le-1',
+      canManageSelectedCompany: false,
+    });
+    expect(sessionService.setLegalEntity).toHaveBeenCalledWith('le-1');
+  });
+
+  it('recovers the customer-token legal entity before the profile when session LE is missing', async () => {
+    userManagementService.listAdminLegalEntityIds.mockResolvedValueOnce(['le-2']);
+    companyService.getCompanies.mockResolvedValueOnce([
+      { id: 'le-1', name: 'NovaTech' },
+      { id: 'le-2', name: 'Emporix GmbH' },
+    ]);
+    getSession.mockResolvedValueOnce({});
+    getCurrentCustomer.mockResolvedValueOnce({ ...adminCustomer, legalEntityId: 'le-1' });
+    sessionService.getCustomerTokenLegalEntityId.mockResolvedValueOnce('le-2');
+
+    await expect(getUserManagementCompanyAccess()).resolves.toEqual({
+      adminLegalEntityIds: ['le-2'],
+      headerCompanies: [
+        { id: 'le-1', name: 'NovaTech' },
+        { id: 'le-2', name: 'Emporix GmbH' },
+      ],
+      selectedLegalEntityId: 'le-2',
+      canManageSelectedCompany: true,
+    });
+    expect(sessionService.setLegalEntity).toHaveBeenCalledWith('le-2');
+  });
+
+  it('still exposes the recovered company when persisting session context fails', async () => {
+    userManagementService.listAdminLegalEntityIds.mockResolvedValueOnce(['le-2']);
+    companyService.getCompanies.mockResolvedValueOnce([
+      { id: 'le-1', name: 'NovaTech' },
+      { id: 'le-2', name: 'Emporix GmbH' },
+    ]);
+    getSession.mockResolvedValueOnce({});
+    getCurrentCustomer.mockResolvedValueOnce({ ...adminCustomer, legalEntityId: 'le-2' });
+    sessionService.setLegalEntity.mockRejectedValueOnce(new Error('token refresh failed'));
+
+    await expect(getUserManagementCompanyAccess()).resolves.toEqual({
+      adminLegalEntityIds: ['le-2'],
+      headerCompanies: [
+        { id: 'le-1', name: 'NovaTech' },
+        { id: 'le-2', name: 'Emporix GmbH' },
+      ],
+      selectedLegalEntityId: 'le-2',
+      canManageSelectedCompany: true,
+    });
+    expect(logger.warn).toHaveBeenCalledWith(
+      { selectedLegalEntityId: 'le-2', error: 'token refresh failed' },
+      'SSR recovered selected legal entity without persisting session context',
+    );
   });
 });
 

@@ -6,12 +6,18 @@ import { Button } from '@/components/ui/button';
 import { Form } from '@/components/ui/form';
 import { H1, H2 } from '@/components/ui/h';
 import UiLink from '@/components/ui/link';
+import { ToastType, notify } from '@/components/ui/toast-notification';
 import useAuthentication from '@/hooks/authentication/useAuthentication';
 import { useRegistration } from '@/hooks/registration/useRegistration';
 import useCurrency from '@/hooks/useCurrency';
 import { useValidator } from '@/hooks/validation/useValidator';
+import { useRouter } from '@/i18n/navigation';
+import { redirectToLoginSuccess } from '@/lib/client/auth-login-success-redirect';
+import { createCustomerAddress, updateCustomerAddress } from '@/lib/client/customer';
+import { ADDRESS_TYPE } from '@/lib/common/address-type-constants';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { RegistrationData } from '@/lib/validation/form-schemas';
+import type { CustomerAddress } from '@/platform/services/model/customer/customer';
 import { Spinner } from '../ui/spinner';
 import { AccountSettingsSection } from './account-settings-section';
 import { AddressInfoSection } from './address-info-section';
@@ -20,15 +26,113 @@ import { RegistrationInfoSection } from './registration-info-section';
 
 const POST_REGISTER_REDIRECT_PATH = '/';
 
+type RegistrationErrorMessageKey =
+  'validation.usernameTaken' | 'validation.emailExists' | 'validation.serverError' | 'validation.registrationFailed';
+
+function registrationErrorMessageKey(error: string | undefined): RegistrationErrorMessageKey {
+  switch (error) {
+    case 'USERNAME_TAKEN':
+      return 'validation.usernameTaken';
+    case 'EMAIL_EXISTS':
+      return 'validation.emailExists';
+    case 'SERVER_ERROR':
+      return 'validation.serverError';
+    default:
+      return 'validation.registrationFailed';
+  }
+}
+
+function unknownErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return 'Failed to persist billing address after registration';
+}
+
+function buildRegisterRequest(values: RegistrationData, locale: string, currencyCode: string | undefined) {
+  const addressTags = values.shippingSameAsBilling
+    ? [ADDRESS_TYPE.SHIPPING, ADDRESS_TYPE.BILLING]
+    : [ADDRESS_TYPE.SHIPPING];
+
+  return {
+    credentials: {
+      username: values.email,
+      password: values.password,
+    },
+    customer: {
+      email: values.email,
+      firstName: values.firstName,
+      lastName: values.lastName,
+      company: values.companyName,
+      language: locale,
+      currency: currencyCode,
+    },
+    address: {
+      contactName: values.firstName + ' ' + values.lastName,
+      street: values.street,
+      streetNumber: values.houseNumber,
+      city: values.city,
+      zipCode: values.postalCode,
+      country: values.country,
+      tags: addressTags,
+      source: 'customer' as const,
+    },
+  };
+}
+
+function toBillingCustomerAddress(values: RegistrationData): CustomerAddress {
+  return {
+    contactName: values.billingContactName || '',
+    companyName: values.billingCompanyName,
+    street: values.billingStreet || '',
+    streetNumber: values.billingHouseNumber,
+    zipCode: values.billingPostalCode || '',
+    city: values.billingCity || '',
+    country: values.billingCountry || '',
+    state: values.billingState,
+    contactPhone: values.billingPhone,
+    tags: [ADDRESS_TYPE.BILLING],
+    source: 'customer',
+  };
+}
+
+async function persistBillingAddressAfterLogin(
+  values: RegistrationData,
+): Promise<{ ok: true } | { ok: false; errorMessage: string }> {
+  try {
+    const createdBillingAddress = await createCustomerAddress(toBillingCustomerAddress(values));
+    if (!createdBillingAddress.id) {
+      return { ok: false, errorMessage: 'Created billing address is missing id' };
+    }
+
+    const updatedBillingAddress = await updateCustomerAddress(createdBillingAddress.id, {
+      ...createdBillingAddress,
+      isDefault: true,
+    });
+
+    if (updatedBillingAddress?.isDefault === true) {
+      return { ok: true };
+    }
+    return { ok: false, errorMessage: 'Billing address isDefault was not persisted' };
+  } catch (billingError) {
+    return { ok: false, errorMessage: unknownErrorMessage(billingError) };
+  }
+}
+
 export default function Registration() {
   const t = useTranslations('auth.register');
 
   const { loading: loginLoading, login } = useAuthentication();
   const { register, loading, error } = useRegistration();
   const [formError, setFormError] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
   const top = useRef<HTMLDivElement>(null);
   const locale = useLocale();
   const { currency } = useCurrency();
+  const router = useRouter();
 
   useEffect(() => {
     if (formError && top.current) {
@@ -53,6 +157,15 @@ export default function Registration() {
       country: '',
       vatNumber: '',
       shippingSameAsBilling: true,
+      billingContactName: '',
+      billingCompanyName: '',
+      billingStreet: '',
+      billingHouseNumber: '',
+      billingPostalCode: '',
+      billingCity: '',
+      billingCountry: '',
+      billingState: '',
+      billingPhone: '',
       password: '',
       passwordConfirmation: '',
       additionalInformation: '',
@@ -62,65 +175,63 @@ export default function Registration() {
     'onChange',
   );
 
+  function notifyBillingAddressFailed(errorMessage: string) {
+    notify({
+      type: ToastType.Error,
+      title: t('validation.billingAddressFailed', { errorMessage }),
+      duration: 5000,
+    });
+    router.push('/account/addresses');
+  }
+
+  async function completePostRegister(values: RegistrationData) {
+    if (values.shippingSameAsBilling) {
+      const signedIn = await login(values.email, values.password, POST_REGISTER_REDIRECT_PATH);
+      if (!signedIn) {
+        setFormError(t('validation.signInAfterRegisterFailed'));
+      }
+      return;
+    }
+
+    const signedIn = await login(values.email, values.password);
+    if (!signedIn) {
+      setFormError(t('validation.signInAfterRegisterFailed'));
+      return;
+    }
+
+    const persistResult = await persistBillingAddressAfterLogin(values);
+    if (persistResult.ok) {
+      await redirectToLoginSuccess(POST_REGISTER_REDIRECT_PATH, locale);
+      return;
+    }
+
+    getLogger().error({ error: persistResult.errorMessage }, 'Failed to persist billing address after registration');
+    notifyBillingAddressFailed(persistResult.errorMessage);
+  }
+
   async function onSubmit(values: RegistrationData) {
     setFormError(null);
+    setProcessing(true);
 
     try {
-      const result = await register({
-        credentials: {
-          username: values.email,
-          password: values.password,
-        },
-        customer: {
-          email: values.email,
-          firstName: values.firstName,
-          lastName: values.lastName,
-          company: values.companyName,
-          language: locale, // use current locale
-          currency: currency?.code, // use current currency
-        },
-        address: {
-          contactName: values.firstName + ' ' + values.lastName,
-          street: values.street,
-          streetNumber: values.houseNumber,
-          city: values.city,
-          zipCode: values.postalCode,
-          country: values.country,
-          tags: ['SHIPPING', 'BILLING'],
-          source: 'customer',
-        },
-      });
-
-      if (result.success) {
-        const signedIn = await login(values.email, values.password, POST_REGISTER_REDIRECT_PATH);
-        if (!signedIn) {
-          setFormError(t('validation.signInAfterRegisterFailed'));
+      const result = await register(buildRegisterRequest(values, locale, currency?.code));
+      if (!result.success) {
+        if (result.error) {
+          getLogger().warn({ error: result.error }, 'Registration error');
+          setFormError(t(registrationErrorMessageKey(result.error)));
         }
-      } else if (result.error) {
-        getLogger().warn({ error: result.error }, 'Registration error');
-        // Handle specific error types
-        // Todo: Check below cases if they exist
-        switch (result.error) {
-          case 'USERNAME_TAKEN':
-            setFormError(t('validation.usernameTaken'));
-            break;
-          case 'EMAIL_EXISTS':
-            setFormError(t('validation.emailExists'));
-            break;
-          case 'SERVER_ERROR':
-            setFormError(t('validation.serverError'));
-            break;
-          default:
-            setFormError(t('validation.registrationFailed'));
-        }
+        return;
       }
+      await completePostRegister(values);
     } catch (error) {
       getLogger().error({ err: error }, 'Registration error');
       setFormError(t('validation.registrationFailed'));
+    } finally {
+      setProcessing(false);
     }
   }
 
-  if (loading || loginLoading) {
+  if (loading || loginLoading || processing) {
     return (
       <div className="mx-4 md:mx-9">
         <div className="flex gap-3 align-end mb-8">
@@ -186,7 +297,7 @@ export default function Registration() {
           type="submit"
           form="register-form"
           className="w-full"
-          disabled={loading || !form.formState.isValid}
+          disabled={loading || processing || !form.formState.isValid}
           data-testid="register-submitButton"
         >
           {loading ? t('registering') : t('registerButton')}

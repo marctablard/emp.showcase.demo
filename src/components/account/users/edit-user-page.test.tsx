@@ -6,7 +6,7 @@ import { render, screen } from '@testing-library/react';
 import type { CompanyUser } from '@/platform/services/model/user-management/company-user';
 
 const getCompanyUserById = jest.fn();
-const getHeaderCompanies = jest.fn();
+const getUserManagementCompanyAccess = jest.fn();
 const mockGetTranslations = jest.fn(
   async ({ namespace }: { namespace: string }) =>
     (key: string, values?: { name?: string }) => {
@@ -54,13 +54,16 @@ jest.mock('@/components/account/users/user-details-form', () => ({
   UserDetailsForm: ({
     initialUser,
     headerCompanies,
+    selectedLegalEntityId,
   }: {
     initialUser?: CompanyUser;
     headerCompanies?: { id: string; name: string }[];
+    selectedLegalEntityId?: string;
   }) => (
     <div data-testid="user-details-form">
       {initialUser?.id}
       <span data-testid="header-companies">{JSON.stringify(headerCompanies)}</span>
+      <span data-testid="selected-legal-entity">{selectedLegalEntityId}</span>
     </div>
   ),
 }));
@@ -68,7 +71,7 @@ jest.mock('@/components/account/users/user-details-form', () => ({
 jest.mock('@/lib/ssr/user-management', () => ({
   requireSelectedCompanyAdmin: jest.fn().mockResolvedValue(undefined),
   getCompanyUserById: (...args: unknown[]) => getCompanyUserById(...args),
-  getHeaderCompanies: (...args: unknown[]) => getHeaderCompanies(...args),
+  getUserManagementCompanyAccess: (...args: unknown[]) => getUserManagementCompanyAccess(...args),
 }));
 
 jest.mock('@/lib/ssr/seo', () => ({
@@ -105,8 +108,13 @@ function mockTranslations() {
 describe('Edit user page', () => {
   beforeEach(() => {
     getCompanyUserById.mockReset();
-    getHeaderCompanies.mockReset();
-    getHeaderCompanies.mockResolvedValue([]);
+    getUserManagementCompanyAccess.mockReset();
+    getUserManagementCompanyAccess.mockResolvedValue({
+      adminLegalEntityIds: [],
+      headerCompanies: [],
+      selectedLegalEntityId: '',
+      canManageSelectedCompany: false,
+    });
     mockGetTranslations.mockReset();
     mockTranslations();
     notFound.mockClear();
@@ -176,7 +184,12 @@ describe('Edit user page', () => {
       { id: 'le-2', name: 'Emporix GmbH' },
     ];
     getCompanyUserById.mockResolvedValue(buildUser());
-    getHeaderCompanies.mockResolvedValue(headerCompanies);
+    getUserManagementCompanyAccess.mockResolvedValue({
+      adminLegalEntityIds: ['le-1'],
+      headerCompanies,
+      selectedLegalEntityId: 'le-1',
+      canManageSelectedCompany: true,
+    });
 
     const element = await EditUserPage({
       params: Promise.resolve({ locale: 'en', id: 'user-1' }),
@@ -184,8 +197,9 @@ describe('Edit user page', () => {
 
     render(element);
 
-    expect(getHeaderCompanies).toHaveBeenCalledTimes(1);
+    expect(getUserManagementCompanyAccess).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('user-details-form')).toHaveTextContent('user-1');
     expect(screen.getByTestId('header-companies')).toHaveTextContent(JSON.stringify(headerCompanies));
+    expect(screen.getByTestId('selected-legal-entity')).toHaveTextContent('le-1');
   });
 });

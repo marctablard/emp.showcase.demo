@@ -1,3 +1,8 @@
+/**
+ * @jest-environment jsdom
+ */
+import React from 'react';
+import '@testing-library/jest-dom';
 import { fireEvent, render, waitFor } from '@testing-library/react';
 import Registration from '@/components/register/registration';
 
@@ -30,6 +35,10 @@ jest.mock('@/hooks/useCurrency', () => ({
   default: () => ({ currency: { code: 'EUR' } }),
 }));
 
+jest.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push: jest.fn() }),
+}));
+
 const MOCK_REGISTRATION_VALUES = {
   firstName: 'Jane',
   lastName: 'Doe',
@@ -42,10 +51,19 @@ const MOCK_REGISTRATION_VALUES = {
   postalCode: '12345',
   city: 'Berlin',
   country: 'DE',
-  vatNumber: '',
+  vatNumber: 'DE123',
   shippingSameAsBilling: true,
-  password: 'Secret1ab',
-  passwordConfirmation: 'Secret1ab',
+  billingContactName: '',
+  billingCompanyName: '',
+  billingStreet: '',
+  billingHouseNumber: '',
+  billingPostalCode: '',
+  billingCity: '',
+  billingCountry: '',
+  billingState: '',
+  billingPhone: '',
+  password: 'Aa12345678',
+  passwordConfirmation: 'Aa12345678',
   additionalInformation: '',
   newsletter: false,
   dealsAlerts: false,
@@ -92,7 +110,7 @@ jest.mock('next-intl', () => ({
     }),
 }));
 
-describe('Registration post-register redirect (COP-4852)', () => {
+describe('Registration post-register redirect (COP-4861)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockRegister.mockResolvedValue({ success: true });
@@ -108,7 +126,7 @@ describe('Registration post-register redirect (COP-4852)', () => {
 
     await waitFor(() => {
       expect(mockRegister).toHaveBeenCalledTimes(1);
-      expect(mockLogin).toHaveBeenCalledWith('jane@example.com', 'Secret1ab', '/');
+      expect(mockLogin).toHaveBeenCalledWith('jane@example.com', 'Aa12345678', '/');
     });
   });
 });

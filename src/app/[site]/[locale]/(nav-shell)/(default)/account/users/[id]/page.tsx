@@ -3,7 +3,11 @@ import { notFound } from 'next/navigation';
 import AccountLayout from '@/components/account/account-layout';
 import { UserDetailsForm } from '@/components/account/users/user-details-form';
 import { getPageTitle } from '@/lib/ssr/seo';
-import { getCompanyUserById, getHeaderCompanies, requireSelectedCompanyAdmin } from '@/lib/ssr/user-management';
+import {
+  getCompanyUserById,
+  getUserManagementCompanyAccess,
+  requireSelectedCompanyAdmin,
+} from '@/lib/ssr/user-management';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,11 +27,11 @@ export async function generateMetadata({ params }: Readonly<{ params: Promise<{ 
 export default async function EditUserPage({ params }: Readonly<{ params: Promise<{ locale: string; id: string }> }>) {
   await requireSelectedCompanyAdmin();
   const { locale, id } = await params;
-  const [tAccount, tUserManagement, user, headerCompanies] = await Promise.all([
+  const [tAccount, tUserManagement, user, companyAccess] = await Promise.all([
     getTranslations({ locale, namespace: 'account' }),
     getTranslations({ locale, namespace: 'user-management' }),
     getCompanyUserById(id),
-    getHeaderCompanies(),
+    getUserManagementCompanyAccess(),
   ]);
 
   if (!user) {
@@ -54,7 +58,11 @@ export default async function EditUserPage({ params }: Readonly<{ params: Promis
 
   return (
     <AccountLayout breadcrumbs={breadcrumbs}>
-      <UserDetailsForm initialUser={user} headerCompanies={headerCompanies} />
+      <UserDetailsForm
+        initialUser={user}
+        headerCompanies={companyAccess.headerCompanies}
+        selectedLegalEntityId={companyAccess.selectedLegalEntityId}
+      />
     </AccountLayout>
   );
 }

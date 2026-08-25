@@ -3,7 +3,6 @@ import { isAnonymousProfileCustomerId } from '@/lib/common/customer-identity';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCustomerApi } from '@/platform/integrations/emporix/customer/EmporixCustomerApi';
 import type { EmporixIamApi } from '@/platform/integrations/emporix/iam/EmporixIamApi';
-import type { EmporixAddress } from '@/platform/integrations/emporix/model';
 import type { EmporixCustomerAddress } from '@/platform/integrations/emporix/model/customer';
 import type { EmporixGroup } from '@/platform/integrations/emporix/model/iam';
 import type { EmporixSessionContextApi } from '@/platform/integrations/emporix/session/EmporixSessionContextApi';
@@ -242,9 +241,12 @@ export class EmporixCustomerService implements CustomerService {
     }
   }
 
-  private mapFromCustomerAddress(source: CustomerAddress): EmporixAddress {
-    const emporixAddress = this.addressMapper.mapToSource(source);
+  private mapFromCustomerAddress(source: CustomerAddress): Partial<EmporixCustomerAddress> {
+    const emporixAddress: Partial<EmporixCustomerAddress> = this.addressMapper.mapToSource(source);
     emporixAddress.tags = source.tags || [];
+    if (source.isDefault !== undefined) {
+      emporixAddress.isDefault = source.isDefault;
+    }
     return emporixAddress;
   }
 

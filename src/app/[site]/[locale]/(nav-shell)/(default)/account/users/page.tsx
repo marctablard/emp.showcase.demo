@@ -60,6 +60,7 @@ export default async function UsersPage({ params }: Readonly<{ params: Promise<{
         selectedCompanyName={selectedCompanyName}
         headerCompanies={companyAccess.headerCompanies}
         adminLegalEntityIds={companyAccess.adminLegalEntityIds}
+        selectedLegalEntityId={companyAccess.selectedLegalEntityId}
       />
     </AccountLayout>
   );

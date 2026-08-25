@@ -2,6 +2,7 @@
 
 import { cache } from 'react';
 import { redirect } from 'next/navigation';
+import { resolvePermittedSelectedLegalEntityId } from '@/lib/common/legal-entity-context';
 import { getCurrentCustomer } from '@/lib/ssr/customer';
 import { getSession } from '@/lib/ssr/session';
 import type { CompanyService } from '@/platform/services/company/CompanyService';
@@ -9,11 +10,13 @@ import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Customer } from '@/platform/services/model/customer/customer';
 import { CustomerRole } from '@/platform/services/model/customer/roles';
 import type { CompanyUser } from '@/platform/services/model/user-management/company-user';
+import type { SessionService } from '@/platform/services/session';
 import type { UserManagementService } from '@/platform/services/user-management/UserManagementService';
 import ssr from '@/platform/ssr';
 
 const getUserManagementService = () => ssr.get<UserManagementService>('UserManagementService');
 const getCompanyService = () => ssr.get<CompanyService>('CompanyService');
+const getSessionService = () => ssr.get<SessionService>('SessionService');
 const getLogger = () => ssr.get<LoggerService>('LoggerService');
 
 export interface SsrCompanyUsersPageResult {
@@ -104,7 +107,70 @@ export interface HeaderCompany {
 export interface UserManagementCompanyAccess {
   adminLegalEntityIds: string[];
   headerCompanies: HeaderCompany[];
+  selectedLegalEntityId: string;
   canManageSelectedCompany: boolean;
+}
+
+async function getTokenLegalEntityId(): Promise<string | undefined> {
+  try {
+    const sessionService = getSessionService();
+    if (!sessionService) {
+      return undefined;
+    }
+    return await sessionService.getCustomerTokenLegalEntityId();
+  } catch {
+    return undefined;
+  }
+}
+
+async function persistRecoveredSelectedLegalEntity(
+  selectedLegalEntityId: string,
+  sessionLegalEntityId: string | undefined,
+): Promise<void> {
+  const selected = selectedLegalEntityId.trim();
+  const sessionId = typeof sessionLegalEntityId === 'string' ? sessionLegalEntityId.trim() : '';
+  if (!selected || selected === sessionId) {
+    return;
+  }
+  const sessionService = getSessionService();
+  if (typeof sessionService?.setLegalEntity !== 'function') {
+    return;
+  }
+  try {
+    await sessionService.setLegalEntity(selected);
+  } catch (error) {
+    getLogger().warn(
+      {
+        selectedLegalEntityId: selected,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      'SSR recovered selected legal entity without persisting session context',
+    );
+  }
+}
+
+async function resolveSelectedLegalEntityId(
+  headerCompanies: HeaderCompany[],
+  options?: { persistRecovered?: boolean },
+): Promise<string> {
+  if (headerCompanies.length === 0) {
+    return '';
+  }
+  const [session, customer, tokenLegalEntityId] = await Promise.all([
+    getSession(),
+    getCurrentCustomer(),
+    getTokenLegalEntityId(),
+  ]);
+  const selectedLegalEntityId = resolvePermittedSelectedLegalEntityId({
+    sessionLegalEntityId: session?.legalEntityId,
+    tokenLegalEntityId,
+    customerLegalEntityId: customer?.legalEntityId,
+    permittedCompanyIds: headerCompanies.map((company) => company.id),
+  });
+  if (options?.persistRecovered) {
+    await persistRecoveredSelectedLegalEntity(selectedLegalEntityId, session?.legalEntityId);
+  }
+  return selectedLegalEntityId;
 }
 
 /**
@@ -126,41 +192,46 @@ export const getHeaderCompanies = cache(async (): Promise<HeaderCompany[]> => {
 
 /**
  * Display name for the selected header company (User Management scope toggle).
- * Session LE when it matches `getCompanies()`, otherwise `companies[0]` — display only.
+ * Recovered selected LE when it matches `getCompanies()`. Do not invent `companies[0]`.
  */
 export const getSelectedCompanyName = cache(async (): Promise<string | undefined> => {
   const companies = await getHeaderCompanies();
   if (companies.length === 0) {
     return undefined;
   }
-  const session = await getSession();
-  const sessionId = typeof session?.legalEntityId === 'string' ? session.legalEntityId.trim() : '';
-  return companies.find((company) => company.id === sessionId)?.name ?? companies[0]?.name;
+  const selectedLegalEntityId = await resolveSelectedLegalEntityId(companies);
+  return companies.find((company) => company.id === selectedLegalEntityId)?.name;
 });
 
 /**
- * Admin-LE ids and whether the session company is one of them.
- * Session LE only — do not invent companies[0] for the write/admin check (COP-4807).
+ * Admin-LE ids and whether the selected company is one of them.
+ * Session LE when it is in `getCompanies()`; otherwise token claim then
+ * `customer.legalEntityId` if permitted. Do not invent companies[0] (COP-4807).
  */
 export const getUserManagementCompanyAccess = cache(async (): Promise<UserManagementCompanyAccess> => {
   try {
-    const [adminLegalEntityIds, headerCompanies, session] = await Promise.all([
+    const [adminLegalEntityIds, headerCompanies] = await Promise.all([
       getUserManagementService().listAdminLegalEntityIds(),
       getHeaderCompanies(),
-      getSession(),
     ]);
-    const sessionId = typeof session?.legalEntityId === 'string' ? session.legalEntityId.trim() : '';
+    const selectedLegalEntityId = await resolveSelectedLegalEntityId(headerCompanies, { persistRecovered: true });
     return {
       adminLegalEntityIds,
       headerCompanies,
-      canManageSelectedCompany: Boolean(sessionId && adminLegalEntityIds.includes(sessionId)),
+      selectedLegalEntityId,
+      canManageSelectedCompany: Boolean(selectedLegalEntityId && adminLegalEntityIds.includes(selectedLegalEntityId)),
     };
   } catch (error) {
     getLogger().error(
       { error: error instanceof Error ? error.message : String(error) },
       'SSR getUserManagementCompanyAccess failed',
     );
-    return { adminLegalEntityIds: [], headerCompanies: [], canManageSelectedCompany: false };
+    return {
+      adminLegalEntityIds: [],
+      headerCompanies: [],
+      selectedLegalEntityId: '',
+      canManageSelectedCompany: false,
+    };
   }
 });
 

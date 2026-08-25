@@ -6,17 +6,213 @@ import { useWatch } from 'react-hook-form';
 import { useTranslations } from 'next-intl';
 import { Checkbox } from '@/components/ui/checkbox';
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { H2 } from '@/components/ui/h';
+import { H2, H3 } from '@/components/ui/h';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import { useSite } from '@/hooks/site/useSite';
 import { useL10n } from '@/hooks/useL10n';
+import type { RegistrationData } from '@/lib/validation/form-schemas';
+import type { Country } from '@/platform/services/model/common';
 
 interface AddressInfoAccordionProps {
-  control: Control<any>;
+  control: Control<RegistrationData>;
   number: number;
+}
+
+const billingTid = (field: string) => `register-billing-${field}`;
+
+function RegistrationBillingFields({
+  control,
+  countries,
+}: Readonly<{
+  control: Control<RegistrationData>;
+  countries: Country[] | undefined;
+}>) {
+  const t = useTranslations('auth.register');
+  const tAddress = useTranslations('account.AddressForm');
+  const { l10n } = useL10n();
+
+  return (
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <H3 variant="h5">{t('billingAddressInfo')}</H3>
+        <Separator />
+      </div>
+
+      <FormField
+        control={control}
+        name="billingCompanyName"
+        render={({ field }) => (
+          <FormItem className="relative">
+            <FormLabel htmlFor="billingCompanyName">{t('companyName')}</FormLabel>
+            <FormControl>
+              <Input id="billingCompanyName" type="text" {...field} data-testid={billingTid('companyName')} />
+            </FormControl>
+            <div className="absolute top-full left-0 mt-0.5">
+              <FormMessage />
+            </div>
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={control}
+        name="billingContactName"
+        render={({ field }) => (
+          <FormItem className="relative">
+            <FormLabel htmlFor="billingContactName">{tAddress('fullName')}*</FormLabel>
+            <FormControl>
+              <Input id="billingContactName" type="text" {...field} data-testid={billingTid('contactName')} />
+            </FormControl>
+            <div className="absolute top-full left-0 mt-0.5">
+              <FormMessage />
+            </div>
+          </FormItem>
+        )}
+      />
+
+      <div className="grid grid-cols-1 sm:grid-cols-7 gap-4">
+        <div className="sm:col-span-5">
+          <FormField
+            control={control}
+            name="billingStreet"
+            render={({ field }) => (
+              <FormItem className="relative">
+                <FormLabel htmlFor="billingStreet">{t('street')}</FormLabel>
+                <FormControl>
+                  <Input id="billingStreet" type="text" {...field} data-testid={billingTid('street')} />
+                </FormControl>
+                <div className="absolute top-full left-0 mt-0.5">
+                  <FormMessage />
+                </div>
+              </FormItem>
+            )}
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <FormField
+            control={control}
+            name="billingHouseNumber"
+            render={({ field }) => (
+              <FormItem className="relative">
+                <FormLabel htmlFor="billingHouseNumber">{tAddress('streetNumber')}</FormLabel>
+                <FormControl>
+                  <Input id="billingHouseNumber" type="text" {...field} data-testid={billingTid('streetNumber')} />
+                </FormControl>
+                <div className="absolute top-full left-0 mt-0.5">
+                  <FormMessage />
+                </div>
+              </FormItem>
+            )}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-7 gap-4">
+        <div className="sm:col-span-2">
+          <FormField
+            control={control}
+            name="billingPostalCode"
+            render={({ field }) => (
+              <FormItem className="relative">
+                <FormLabel htmlFor="billingPostalCode">{t('postalCode')}</FormLabel>
+                <FormControl>
+                  <Input id="billingPostalCode" type="text" {...field} data-testid={billingTid('zipCode')} />
+                </FormControl>
+                <div className="absolute top-full left-0 mt-0.5">
+                  <FormMessage />
+                </div>
+              </FormItem>
+            )}
+          />
+        </div>
+        <div className="sm:col-span-5">
+          <FormField
+            control={control}
+            name="billingCity"
+            render={({ field }) => (
+              <FormItem className="relative">
+                <FormLabel htmlFor="billingCity">{t('city')}</FormLabel>
+                <FormControl>
+                  <Input id="billingCity" type="text" {...field} data-testid={billingTid('city')} />
+                </FormControl>
+                <div className="absolute top-full left-0 mt-0.5">
+                  <FormMessage />
+                </div>
+              </FormItem>
+            )}
+          />
+        </div>
+      </div>
+
+      <FormField
+        control={control}
+        name="billingState"
+        render={({ field }) => (
+          <FormItem className="relative">
+            <FormLabel htmlFor="billingState">{tAddress('state')}</FormLabel>
+            <FormControl>
+              <Input id="billingState" type="text" {...field} data-testid={billingTid('state')} />
+            </FormControl>
+            <div className="absolute top-full left-0 mt-0.5">
+              <FormMessage />
+            </div>
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={control}
+        name="billingPhone"
+        render={({ field }) => (
+          <FormItem className="relative">
+            <FormLabel htmlFor="billingPhone">{tAddress('phoneNumber')}</FormLabel>
+            <FormControl>
+              <Input id="billingPhone" type="text" {...field} data-testid={billingTid('phoneNumber')} />
+            </FormControl>
+            <div className="absolute top-full left-0 mt-0.5">
+              <FormMessage />
+            </div>
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={control}
+        name="billingCountry"
+        render={({ field }) => (
+          <FormItem className="relative">
+            <FormLabel htmlFor="billingCountry">{t('country')}</FormLabel>
+            <FormControl>
+              <Select
+                onValueChange={(value) => {
+                  field.onChange(value);
+                  field.onBlur();
+                }}
+                value={field.value ?? ''}
+              >
+                <SelectTrigger id="billingCountry" data-testid={billingTid('country')}>
+                  <SelectValue placeholder={t('country')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {countries?.map((country) => (
+                    <SelectItem key={country.code} value={country.code} className="px-2">
+                      {l10n(country.name) || country.code}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormControl>
+            <div className="absolute top-full left-0 mt-0.5">
+              <FormMessage />
+            </div>
+          </FormItem>
+        )}
+      />
+    </div>
+  );
 }
 
 export function AddressInfoSection({ control, number }: AddressInfoAccordionProps) {
@@ -28,6 +224,10 @@ export function AddressInfoSection({ control, number }: AddressInfoAccordionProp
   const businessType = useWatch({
     control,
     name: 'businessType',
+  });
+  const shippingSameAsBilling = useWatch({
+    control,
+    name: 'shippingSameAsBilling',
   });
   const isB2C = businessType === 'B2C';
 
@@ -215,6 +415,7 @@ export function AddressInfoSection({ control, number }: AddressInfoAccordionProp
             </FormItem>
           )}
         />
+        {!shippingSameAsBilling && <RegistrationBillingFields control={control} countries={countries} />}
       </div>
     </div>
   );

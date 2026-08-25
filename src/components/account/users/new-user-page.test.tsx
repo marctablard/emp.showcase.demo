@@ -42,6 +42,12 @@ jest.mock('@/components/account/users/user-details-form', () => ({
 
 jest.mock('@/lib/ssr/user-management', () => ({
   requireSelectedCompanyAdmin: jest.fn().mockResolvedValue(undefined),
+  getUserManagementCompanyAccess: jest.fn().mockResolvedValue({
+    adminLegalEntityIds: ['le-1'],
+    headerCompanies: [{ id: 'le-1', name: 'NovaTech' }],
+    selectedLegalEntityId: 'le-1',
+    canManageSelectedCompany: true,
+  }),
 }));
 
 jest.mock('@/lib/ssr/seo', () => ({

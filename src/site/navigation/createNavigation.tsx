@@ -1,16 +1,15 @@
 'use client';
 import { useCallback, useMemo } from 'react';
 import { useLocale } from 'next-intl';
-import { createNavigation as createIntlNavigation } from 'next-intl/navigation';
 import { usePathname as useNextPathname, useRouter as useNextRouter } from 'next/navigation';
 import { useSiteCode } from '@/hooks/site/useSiteCode';
+import { resolveLocaleAwareHref } from '@/lib/common/resolve-locale-aware-href';
 import { createSiteNavigationShared } from '../shared/createNavigationShared';
 import type { SiteRoutingConfig } from '../types';
 import { addPrefixIfNeeded, getLocalePrefix, hasPathnamePrefixed, prependPrefix, unprefixPathname } from '../utils';
 
 export default function createNavigation(siteRouting: SiteRoutingConfig, intlRouting: any) {
   const { Link, getPathname, redirect } = createSiteNavigationShared(siteRouting, intlRouting, useSiteCode);
-  const { getPathname: getI18nPathname } = createIntlNavigation(intlRouting);
 
   // Prepends the SiteCode if necessary
   function usePathname(): string {
@@ -58,19 +57,11 @@ export default function createNavigation(siteRouting: SiteRoutingConfig, intlRou
     const getSiteOuterPath = useCallback(
       (href: string | { pathname: string }, options?: RouterOptions) => {
         const { site: nextSite, locale: nextLocale } = options ?? {};
-        const rawHref = typeof href === 'string' ? href : href.pathname;
-        const localeAwarePath =
-          nextLocale === undefined
-            ? rawHref
-            : getI18nPathname({
-                href: href as Parameters<typeof getI18nPathname>[0]['href'],
-                locale: nextLocale,
-                forcePrefix: true,
-              });
+        const localeAwarePath = resolveLocaleAwareHref(href, currentLocale, nextLocale);
 
         return addPrefixIfNeeded(localeAwarePath, nextSite || site, siteRouting);
       },
-      [site],
+      [currentLocale, site],
     );
 
     const createHandler = useCallback(

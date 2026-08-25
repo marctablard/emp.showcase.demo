@@ -287,11 +287,12 @@ Interactive locale changes triggered from client components (for example, the he
 
 - Keep the href logical and sanitized in the client component; do not precompute a locale-specific pathname with `getPathname(...)` for the transition.
 - Navigate with the client router by calling `router.push(href, { locale, site })` so the shared site-aware router resolves the locale-aware pathname through next-intl first and applies the site segment as the outer prefix afterward.
+- When `locale` is omitted on site-aware `push`/`replace`, the router must still run `getI18nPathname` with the current UI locale so the path stays prefixed (for example `/de/browse` after a currency `refresh`). Do not pass a raw unprefixed href through `addPrefixIfNeeded` alone (COP-5852 142825).
 - For changed-locale `push`/`replace`, the shared router performs a document navigation to the final canonical path so the URL (not a cookie) carries the new locale.
 - Do not use raw `next/navigation` routing directly for interactive locale changes.
 - Do not invoke server redirect helpers inside client event handlers.
 
-Header **site** switches use the same router. Locale and currency do not need to be preserved across sites; the destination URL plus session defaults are enough. Cookies must not be required to avoid a freeze:
+Header **site** switches use the same router. `performSiteSwitch` keeps the current UI locale when the target site lists it, and keeps the current currency when the target site supports it; it falls back to the target site's default language or currency only when the current values are unsupported. Cookies must not be required to avoid a freeze:
 
 - `SiteSwitcher` (`src/components/header/switcher/header-site-switcher.tsx`) calls `useRouter` from `@/i18n/navigation` and `router.push('/', { locale, site })`. Do not use `next/navigation` for this transition.
 - `localeDetection: false` is the cookie-less loop breaker: next-intl will not re-prefix an unprefixed US URL from a stale `de` cookie or `Accept-Language`.

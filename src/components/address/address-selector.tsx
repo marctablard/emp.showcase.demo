@@ -13,6 +13,7 @@ import { useLegalEntityCheckoutAddresses } from '@/hooks/customer/useLegalEntity
 import { useSession as useShopSession } from '@/hooks/session/useSession';
 import { ADDRESS_TYPE } from '@/lib/common/address-type-constants';
 import { resolveLegalEntityIdFromSessionAndCustomer } from '@/lib/common/legal-entity-context';
+import { resolveAutoCheckoutAddressBook } from '@/lib/common/resolve-auto-checkout-address-book';
 import { cn } from '@/lib/utils';
 import type { Address, AddressType } from '@/platform/services/model/common';
 import type { CustomerAddress } from '@/platform/services/model/customer/customer';
@@ -20,10 +21,12 @@ import type { CustomerAddress } from '@/platform/services/model/customer/custome
 /**
  * - `customer` — force the customer profile book.
  * - `legalEntity` — force the B2B legal-entity locations book.
- * - `auto` — pick one book based on the signed-in customer:
- *     • B2B (businessModel='B2B' with a legalEntityId in session or customer)
- *       → legal-entity locations only, no prefill.
- *     • Everyone else signed in (for example, B2C customers) → customer profile addresses only.
+ * - `auto` — resolve checkout/quote/cart rows from both books:
+ *     • Not B2B+LE → customer rows filtered by `addressType`.
+ *     • B2B+LE with an empty filtered legal-entity book → customer rows (empty-company fallback).
+ *     • B2B+LE with only dual-tagged legal-entity rows (typical inferred HQ/OFFICE) → those
+ *       legal-entity rows plus customer exclusive-role rows, deduped by id.
+ *     • B2B+LE with an exclusive-role legal-entity location → legal-entity rows only.
  *   This is the default for checkout/quote flows.
  */
 export type AddressBookMode = 'customer' | 'legalEntity' | 'auto';
@@ -204,12 +207,6 @@ function AddressSelectorLegalEntityBook(props: Omit<AddressSelectorProps, 'addre
   return <AddressSelectorInner {...props} flatAddresses={filtered} loading={loading} />;
 }
 
-/**
- * For logged-in B2B users (businessModel='B2B' with a legalEntityId in the
- * shop session or customer profile) this dispatches to the legal-entity book;
- * for everyone else it dispatches to the customer profile book. Both books are
- * flat — no grouping — so the user always sees addresses of a single origin.
- */
 function useIsB2BWithLegalEntity(): boolean {
   const { status } = useSession();
   const { customer } = useCustomer();
@@ -221,12 +218,25 @@ function useIsB2BWithLegalEntity(): boolean {
   );
 }
 
+/**
+ * `auto` book: always load the customer book and the legal-entity book (skip LE
+ * fetch when not B2B+LE). Empty filtered LE books fall back to customer rows;
+ * dual-tagged-only LE books append customer exclusive-role rows. Waits for both
+ * relevant loads before showing the empty state.
+ */
 function AddressSelectorAutoBook(props: Omit<AddressSelectorProps, 'addressBook'>) {
   const isB2B = useIsB2BWithLegalEntity();
-  if (isB2B) {
-    return <AddressSelectorLegalEntityBook {...props} />;
-  }
-  return <AddressSelectorCustomerBook {...props} />;
+  const { addresses: customerAddresses, loading: customerLoading } = useAddresses();
+  const { addresses: legalEntityAddresses, loading: legalEntityLoading } = useLegalEntityCheckoutAddresses(!isB2B);
+  const { addresses, loading } = resolveAutoCheckoutAddressBook({
+    isB2BWithLegalEntity: isB2B,
+    addressType: props.addressType,
+    customerAddresses,
+    customerLoading,
+    legalEntityAddresses,
+    legalEntityLoading,
+  });
+  return <AddressSelectorInner {...props} flatAddresses={addresses} loading={loading} />;
 }
 
 /**
