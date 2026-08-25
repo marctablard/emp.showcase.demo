@@ -3,7 +3,7 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
-import type { CartSummaryData, ShopData } from '../types';
+import type { CartItemData, CartSummaryData, ShopData } from '../types';
 import { extractPrice, formatPrice } from '../utils';
 import { ItemsListRenderer } from './ItemsListRenderer';
 
@@ -11,20 +11,91 @@ interface CartSummaryRendererProps {
   data: CartSummaryData;
 }
 
+const sumItemPrices = (items: CartItemData[] | undefined): { net: number; gross: number; tax: number } | undefined => {
+  if (!items || items.length === 0) {
+    return undefined;
+  }
+
+  let net = 0;
+  let gross = 0;
+  let tax = 0;
+
+  for (const item of items) {
+    if (item.totalPrice) {
+      const itemPrice = extractPrice(item.totalPrice);
+      net += itemPrice.net;
+      gross += itemPrice.gross;
+      tax += itemPrice.tax;
+      continue;
+    }
+    if (item.unitPrice) {
+      const unitPrice = extractPrice(item.unitPrice);
+      const qty = item.quantity || 1;
+      net += unitPrice.net * qty;
+      gross += unitPrice.gross * qty;
+      tax += unitPrice.tax * qty;
+      continue;
+    }
+    if (typeof item.price === 'number') {
+      const qty = item.quantity || 1;
+      gross += item.price * qty;
+    }
+  }
+
+  if (gross === 0 && net === 0 && tax === 0) {
+    return undefined;
+  }
+  return { net, gross, tax };
+};
+
+const mergePrice = (
+  primary: { net: number; gross: number; tax: number },
+  fallback?: { net: number; gross: number; tax: number },
+): { net: number; gross: number; tax: number } => {
+  if (!fallback) {
+    return primary;
+  }
+  return {
+    net: primary.net || fallback.net,
+    gross: primary.gross || fallback.gross,
+    tax: primary.tax || fallback.tax,
+  };
+};
+
+const priceFromCalculated = (
+  data: CartSummaryData,
+  key: 'finalPrice' | 'price',
+): { net: number; gross: number; tax: number } | undefined => {
+  const calculated = (data as { calculatedPrice?: Record<string, unknown> }).calculatedPrice;
+  const price = calculated?.[key];
+  if (price == null) {
+    return undefined;
+  }
+  const extracted = extractPrice(price);
+  if (extracted.gross === 0 && extracted.net === 0 && extracted.tax === 0) {
+    return undefined;
+  }
+  return extracted;
+};
+
 export const CartSummaryRenderer: React.FC<CartSummaryRendererProps> = ({ data }) => {
   const t = useTranslations('account.AiHelper');
   const tCommon = useTranslations('common');
 
   const displayCurrency = data.currency || data.total?.currency || getPublicDefaultCurrency();
+  const fromItems = sumItemPrices(data.items);
+  const totalPrice = mergePrice(
+    mergePrice(extractPrice(data.total || {}), priceFromCalculated(data, 'finalPrice')),
+    fromItems,
+  );
+  const subtotalPrice = mergePrice(
+    mergePrice(extractPrice(data.subtotal || {}), priceFromCalculated(data, 'price')),
+    fromItems,
+  );
 
-  const total = data.total || {};
-  const totalPrice = extractPrice(total);
   const totalValue = totalPrice.gross;
   const totalNet = totalPrice.net;
   const totalTax = totalPrice.tax;
-
-  const subtotal = data.subtotal || {};
-  const subtotalPrice = extractPrice(subtotal);
   const subtotalNet = subtotalPrice.net;
   const subtotalTax = subtotalPrice.tax;
   const subtotalGross = subtotalPrice.gross;

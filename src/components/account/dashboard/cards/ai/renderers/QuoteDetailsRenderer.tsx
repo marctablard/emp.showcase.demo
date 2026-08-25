@@ -1,28 +1,41 @@
 'use client';
 
 import React from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
+import { mapAiQuoteItems } from '@/lib/common/ai-quote-items';
 import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import { getQuoteStatusDisplayLabel } from '@/lib/common/quote-status-message-keys';
 import type { QuoteDetailsData } from '../types';
 import { formatDate, formatPrice, getQuoteStatusBadgeVariantForAi } from '../utils';
+import { mapAiQuote } from '../utils/map-ai-quote';
 import type { UnifiedProductItem } from './ProductItem';
 import { ProductItem } from './ProductItem';
+import { WidgetSkeleton } from './WidgetSkeleton';
 
 interface QuoteDetailsRendererProps {
-  data: QuoteDetailsData;
+  data: QuoteDetailsData | Record<string, unknown>;
 }
 
 export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data }) => {
   const t = useTranslations('account.AiHelper');
   const tCommon = useTranslations('common');
   const tQuoteStatus = useTranslations('account.quoteStatus');
+  const locale = useLocale();
   const fallbackCurrency = getPublicDefaultCurrency();
+  const quote = mapAiQuote(data, locale);
+  const details = data as QuoteDetailsData;
+  const items = mapAiQuoteItems(details.items, locale);
+
+  if (!quote.quoteId && !quote.reference) {
+    return <WidgetSkeleton />;
+  }
+
+  const currency = quote.currency || details.currency;
 
   return (
     <div className="space-y-4">
-      {data.message && <div className="text-text-body mb-3 text-base">{data.message}</div>}
+      {details.message && <div className="text-text-body mb-3 text-base">{details.message}</div>}
 
       <div className="bg-surface-primary rounded-xl border border-border-primary shadow-sm overflow-hidden">
         <div className="bg-gradient-to-t from-gradient-secondary-end to-gradient-secondary-start p-4 rounded-t-xl">
@@ -30,43 +43,43 @@ export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data
             <div className="flex-1">
               <div className="flex items-center space-x-3 mb-3">
                 <a
-                  href={`/account/quotes/${data.quoteId}`}
+                  href={`/account/quotes/${quote.quoteId}`}
                   className="text-text-on-action hover:text-text-on-action/80 font-semibold text-xl underline"
                 >
-                  {data.reference || `#${data.quoteId}`}
+                  {quote.reference || `#${quote.quoteId}`}
                 </a>
-                <Badge variant={getQuoteStatusBadgeVariantForAi(data.status)} size="status">
-                  {getQuoteStatusDisplayLabel(data.status, tQuoteStatus)}
+                <Badge variant={getQuoteStatusBadgeVariantForAi(quote.status)} size="status">
+                  {getQuoteStatusDisplayLabel(quote.status, tQuoteStatus)}
                 </Badge>
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm text-text-on-action/90">
                 <div className="flex items-center space-x-2">
                   <span>📅</span>
                   <span className="font-medium">
-                    {t('submitted')} {formatDate(data.submittedDate)}
+                    {t('submitted')} {formatDate(quote.submittedDate)}
                   </span>
                 </div>
-                {data.validTo && (
+                {quote.validTo && (
                   <div className="flex items-center space-x-2">
                     <span>⏰</span>
                     <span className="font-medium">
-                      {t('validUntil')} {formatDate(data.validTo)}
+                      {t('validUntil')} {formatDate(quote.validTo)}
                     </span>
                   </div>
                 )}
-                {data.customerName && (
+                {quote.customerName && (
                   <div className="flex items-center space-x-2">
                     <span>👤</span>
                     <span className="font-medium">
-                      {t('customer')} {data.customerName}
+                      {t('customer')} {quote.customerName}
                     </span>
                   </div>
                 )}
-                {data.approverName && (
+                {details.approverName && (
                   <div className="flex items-center space-x-2">
                     <span>✅</span>
                     <span className="font-medium">
-                      {t('approver')} {data.approverName}
+                      {t('approver')} {details.approverName}
                     </span>
                   </div>
                 )}
@@ -74,24 +87,23 @@ export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data
             </div>
             <div className="text-right">
               <div className="text-2xl font-bold text-text-on-action">
-                {formatPrice(data.totalGross || 0, data.currency, fallbackCurrency)}
+                {formatPrice(quote.totalGross || 0, currency, fallbackCurrency)}
               </div>
-              {data.totalNet && (
+              {quote.totalNet && (
                 <div className="text-sm text-text-on-action/90">
-                  {t('net')} {formatPrice(data.totalNet, data.currency, fallbackCurrency)}
-                  {data.totalVat &&
-                    ` | ${tCommon('tax')} ${formatPrice(data.totalVat, data.currency, fallbackCurrency)}`}
+                  {t('net')} {formatPrice(quote.totalNet, currency, fallbackCurrency)}
+                  {quote.totalVat && ` | ${tCommon('tax')} ${formatPrice(quote.totalVat, currency, fallbackCurrency)}`}
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {data.items && data.items.length > 0 && (
+        {items.length > 0 && (
           <div className="p-3 bg-surface-primary">
             <div className="text-sm font-semibold text-text-body mb-2">{t('quoteItems')}</div>
             <div className="bg-surface-primary rounded-lg border border-border-primary overflow-hidden">
-              {data.items.map((item: any, itemIndex: number) => {
+              {items.map((item, itemIndex) => {
                 const unifiedItem: UnifiedProductItem = {
                   productId: item.productId,
                   name: item.name,
@@ -103,22 +115,22 @@ export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data
                     item.currency ||
                     item.unitPrice?.currency ||
                     item.totalPrice?.currency ||
-                    data.currency ||
+                    currency ||
                     fallbackCurrency,
                   unitPrice: item.unitPrice
                     ? {
-                        value: item.unitPrice.value || item.unitPrice,
-                        currency: item.unitPrice.currency || data.currency || fallbackCurrency,
+                        value: item.unitPrice.value ?? item.unitPrice.gross ?? 0,
+                        currency: item.unitPrice.currency || currency || fallbackCurrency,
                         net: item.unitPrice.net,
-                        gross: item.unitPrice.gross || item.unitPrice.value || item.unitPrice,
+                        gross: item.unitPrice.gross ?? item.unitPrice.value,
                       }
                     : undefined,
                   totalPrice: item.totalPrice
                     ? {
-                        value: item.totalPrice.value || item.totalPrice,
-                        currency: item.totalPrice.currency || data.currency || fallbackCurrency,
+                        value: item.totalPrice.value ?? item.totalPrice.gross ?? 0,
+                        currency: item.totalPrice.currency || currency || fallbackCurrency,
                         net: item.totalPrice.net,
-                        gross: item.totalPrice.gross || item.totalPrice.value || item.totalPrice,
+                        gross: item.totalPrice.gross ?? item.totalPrice.value,
                       }
                     : undefined,
                 };
@@ -127,16 +139,14 @@ export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data
                     <div className="p-4">
                       <ProductItem
                         item={unifiedItem}
-                        currency={data.currency || fallbackCurrency}
+                        currency={currency || fallbackCurrency}
                         showQuantity={true}
                         showUnitPrice={true}
                         showTotalPrice={true}
                         showNetGross={false}
                       />
                     </div>
-                    {data.items && itemIndex < data.items.length - 1 && (
-                      <div className="border-t border-border-primary"></div>
-                    )}
+                    {itemIndex < items.length - 1 && <div className="border-t border-border-primary"></div>}
                   </div>
                 );
               })}
@@ -144,47 +154,47 @@ export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data
           </div>
         )}
 
-        {(data.shippingAddress || data.shippingCost || data.shippingMethod) && (
+        {(details.shippingAddress || details.shippingCost || details.shippingMethod) && (
           <div className="p-4 border-t border-border-primary">
             <div className="text-sm font-semibold text-text-body mb-3">{t('shippingInformation')}</div>
-            {data.shippingAddress && (
+            {details.shippingAddress && (
               <div className="mb-3 text-sm text-text-body">
                 <div className="font-medium mb-1">{t('shippingAddress')}</div>
-                <div>{data.shippingAddress.name}</div>
-                <div>{data.shippingAddress.addressLine1}</div>
-                {data.shippingAddress.addressLine2 && <div>{data.shippingAddress.addressLine2}</div>}
+                <div>{details.shippingAddress.name}</div>
+                <div>{details.shippingAddress.addressLine1}</div>
+                {details.shippingAddress.addressLine2 && <div>{details.shippingAddress.addressLine2}</div>}
                 <div>
-                  {data.shippingAddress.city}, {data.shippingAddress.state} {data.shippingAddress.postalCode}
+                  {details.shippingAddress.city}, {details.shippingAddress.state} {details.shippingAddress.postalCode}
                 </div>
-                <div>{data.shippingAddress.country}</div>
+                <div>{details.shippingAddress.country}</div>
               </div>
             )}
             <div className="flex justify-between items-center">
-              {data.shippingMethod && (
+              {details.shippingMethod && (
                 <div className="text-sm text-text-body">
-                  <span className="font-medium">{t('method')}</span> {data.shippingMethod}
+                  <span className="font-medium">{t('method')}</span> {details.shippingMethod}
                 </div>
               )}
-              {data.shippingCost !== undefined && (
+              {details.shippingCost !== undefined && (
                 <div className="text-sm font-semibold text-text-headings">
-                  {t('shipping')} {formatPrice(data.shippingCost, data.currency, fallbackCurrency)}
+                  {t('shipping')} {formatPrice(details.shippingCost, currency, fallbackCurrency)}
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {(data.userComment || data.employeeComment) && (
+        {(details.userComment || details.employeeComment) && (
           <div className="p-4 border-t border-border-primary bg-surface-image-background">
             <div className="text-sm font-semibold text-text-body mb-2">{t('comments')}</div>
-            {data.userComment && (
+            {details.userComment && (
               <div className="mb-2 text-sm text-text-body">
-                <span className="font-medium">{t('yourComment')}</span> {data.userComment}
+                <span className="font-medium">{t('yourComment')}</span> {details.userComment}
               </div>
             )}
-            {data.employeeComment && (
+            {details.employeeComment && (
               <div className="text-sm text-text-body">
-                <span className="font-medium">{t('employeeComment')}</span> {data.employeeComment}
+                <span className="font-medium">{t('employeeComment')}</span> {details.employeeComment}
               </div>
             )}
           </div>
@@ -192,7 +202,7 @@ export const QuoteDetailsRenderer: React.FC<QuoteDetailsRendererProps> = ({ data
 
         <div className="p-4 border-t border-border-primary">
           <a
-            href={`/account/quotes/${data.quoteId}`}
+            href={`/account/quotes/${quote.quoteId}`}
             className="block w-full text-center px-4 py-2 bg-surface-action text-text-on-action font-semibold rounded-lg hover:bg-surface-action-hover transition-colors"
           >
             {t('viewFullQuoteDetails')}

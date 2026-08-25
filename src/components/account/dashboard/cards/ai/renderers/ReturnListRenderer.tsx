@@ -3,18 +3,19 @@
 import React from 'react';
 import type { ReturnData, ReturnListData } from '../types';
 import { ReturnCard } from './ReturnCard';
+import { widgetOrSkeleton } from './WidgetSkeleton';
 
 interface ReturnListRendererProps {
   data: ReturnListData;
 }
 
 export const ReturnListRenderer: React.FC<ReturnListRendererProps> = ({ data }) => {
-  return (
+  return widgetOrSkeleton(
+    data.returns,
     <div className="space-y-3">
-      {data.returns &&
-        data.returns.map((returnItem: ReturnData, index: number) => (
-          <ReturnCard key={returnItem.id || index} returnItem={returnItem} />
-        ))}
-    </div>
+      {data.returns?.map((returnItem: ReturnData, index: number) => (
+        <ReturnCard key={returnItem.id || index} returnItem={returnItem} />
+      ))}
+    </div>,
   );
 };

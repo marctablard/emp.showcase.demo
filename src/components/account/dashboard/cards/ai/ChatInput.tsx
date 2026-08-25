@@ -34,7 +34,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({ form, onSubmit, loading, i
   return (
     <div className="bg-surface-page border-t border-gray-200 pt-4 pb-4">
       <FormProvider {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
+        <form
+          onSubmit={form.handleSubmit((data) => {
+            if (loading) {
+              return;
+            }
+            onSubmit(data);
+          })}
+        >
           <FormField
             control={form.control}
             name="question"
@@ -52,7 +59,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ form, onSubmit, loading, i
                     }}
                     placeholder={placeholder}
                     buttonText={buttonText}
-                    disabled={loading}
+                    buttonDisabled={loading}
                     aria-label={placeholder}
                     {...field}
                   />

@@ -592,7 +592,9 @@
       "openQuotes": "Habe ich offene Angebote?",
       "showProfile": "Mein Profil anzeigen",
       "pendingOrders": "Alle ausstehenden Bestellungen anzeigen"
-    }
+    },
+    "emptyValue": "-",
+    "noDataAvailable": "Keine Daten verfügbar"
   },
   "Tickets": {
     "title": "Support-Tickets",

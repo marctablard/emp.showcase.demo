@@ -125,7 +125,7 @@ export const extractPrice = (priceObj: any): { net: number; gross: number; tax: 
   let net = priceObj.net ?? priceObj.netValue ?? priceObj.finalNetValue;
   let gross = priceObj.gross ?? priceObj.grossValue ?? priceObj.finalGrossValue;
   let tax = priceObj.tax ?? priceObj.taxValue ?? priceObj.finalTaxValue;
-  const value = priceObj.value ?? 0;
+  const value = priceObj.value ?? priceObj.amount ?? priceObj.effectiveAmount ?? 0;
 
   // Calculate missing values from available ones
   if (gross != null && tax != null && net == null) {

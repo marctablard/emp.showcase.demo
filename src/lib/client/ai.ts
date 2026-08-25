@@ -1,3 +1,4 @@
+import type { AIChatStreamProgressUpdate } from '@/lib/common/ai-stream-preview';
 import type { AIChatContext, AIChatResponse } from '@/platform/integrations/ai/model';
 import type { Session } from '@/platform/services/model/session/session';
 import type { CartStore } from '@/stores/cart-store';
@@ -11,8 +12,11 @@ export async function prepareAIContext(
 ): Promise<AIChatContext> {
   const ownerId = isAIHelperStorageOwnerId(session.customerId) ? session.customerId : undefined;
   const aiSessionId = getOrCreateAISessionId(ownerId);
-  await cartStore.fetchCart();
-  const currentCart = cartStore.getCurrentCart();
+  let currentCart = cartStore.getCurrentCart();
+  if (currentCart === undefined) {
+    await cartStore.fetchCart();
+    currentCart = cartStore.getCurrentCart();
+  }
   const freshCartId = currentCart?.id;
 
   return {
@@ -27,7 +31,7 @@ export async function prepareAIContext(
 export async function sendAIChatMessageWithContext(
   userMessage: string,
   context: AIChatContext,
-  onProgress?: (chunks: number) => void,
+  onProgress?: (progress: AIChatStreamProgressUpdate) => void,
 ): Promise<AIChatResponse> {
   const response = await fetch('/api/ai/chat', {
     method: 'POST',

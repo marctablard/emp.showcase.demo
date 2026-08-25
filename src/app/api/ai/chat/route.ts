@@ -130,8 +130,8 @@ export async function POST(request: NextRequest) {
     if (isAiChatStreamingEnabled()) {
       return createChatSseResponse(async (send) => {
         send({ type: 'progress', chunks: 0 });
-        const response = await aiService.sendChatMessageWithContext(userMessage, context, (chunks) => {
-          send({ type: 'progress', chunks });
+        const response = await aiService.sendChatMessageWithContext(userMessage, context, (progress) => {
+          send({ type: 'progress', ...progress });
         });
         send({ type: 'complete', ...response });
       });

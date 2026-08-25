@@ -104,7 +104,7 @@ export interface ProductData {
 }
 
 export interface ProductListData {
-  products: ProductData[];
+  products?: ProductData[];
   context?: string;
 }
 
@@ -212,7 +212,7 @@ export interface OrderData {
 }
 
 export interface OrderListData {
-  orders: OrderData[];
+  orders?: OrderData[];
   pagination?: PaginationData;
 }
 
@@ -262,7 +262,7 @@ export interface QuoteData {
 }
 
 export interface QuoteListData {
-  quotes: QuoteData[];
+  quotes?: QuoteData[];
   message?: string;
   pagination?: PaginationData;
 }
@@ -313,7 +313,7 @@ export interface ReturnData {
 }
 
 export interface ReturnListData {
-  returns: ReturnData[];
+  returns?: ReturnData[];
   message?: string;
 }
 

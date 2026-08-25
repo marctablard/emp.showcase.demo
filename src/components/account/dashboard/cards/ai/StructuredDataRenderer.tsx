@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
+import { isResolvedWidgetField } from '@/lib/common/ai-tool-widgets';
 import { AccountDetailsRenderer } from './renderers/AccountDetailsRenderer';
 import { AddressListRenderer } from './renderers/AddressListRenderer';
 import { CartSummaryRenderer } from './renderers/CartSummaryRenderer';
@@ -16,6 +17,7 @@ import { QuoteListRenderer } from './renderers/QuoteListRenderer';
 import { ReturnDetailsRenderer } from './renderers/ReturnDetailsRenderer';
 import { ReturnListRenderer } from './renderers/ReturnListRenderer';
 import { TableRenderer } from './renderers/TableRenderer';
+import { WidgetSkeleton } from './renderers/WidgetSkeleton';
 import type {
   AccountDetailsData,
   AddressListData,
@@ -41,6 +43,27 @@ interface StructuredDataRendererProps {
   handlers: StructuredDataHandlers;
 }
 
+const hasResolvedErrorPayload = (record: Record<string, unknown>): boolean => {
+  return ['message', 'details', 'errorCode'].some((key) => {
+    const value = record[key];
+    return typeof value === 'string' && value !== '';
+  });
+};
+
+export const hasResolvedWidgetPayload = (type: string, data: unknown): boolean => {
+  if (data == null) {
+    return false;
+  }
+  if (typeof data !== 'object' || Array.isArray(data)) {
+    return true;
+  }
+  const record = data as Record<string, unknown>;
+  if (type === 'error') {
+    return hasResolvedErrorPayload(record);
+  }
+  return Object.entries(record).some(([key, value]) => isResolvedWidgetField(key, value));
+};
+
 export const StructuredDataRenderer: React.FC<StructuredDataRendererProps> = ({ type, data, handlers }) => {
   const t = useTranslations('account.AiHelper');
 
@@ -51,6 +74,10 @@ export const StructuredDataRenderer: React.FC<StructuredDataRendererProps> = ({ 
       handlers.handleQuestionSubmit({ question: message });
     });
   };
+
+  if (type !== 'text' && type !== 'html' && !hasResolvedWidgetPayload(type, data)) {
+    return <WidgetSkeleton />;
+  }
 
   switch (type) {
     case 'cart_summary':

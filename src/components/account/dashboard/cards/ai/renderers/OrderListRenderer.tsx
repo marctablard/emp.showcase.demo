@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import type { OrderData, OrderItemData, OrderListData } from '../types';
 import { extractPrice, formatDate, formatPrice, getOrderStatusBadgeVariantForAi, handleImageError } from '../utils';
+import { widgetOrSkeleton } from './WidgetSkeleton';
 
 interface OrderListRendererProps {
   data: OrderListData;
@@ -15,10 +16,12 @@ interface OrderListRendererProps {
 export const OrderListRenderer: React.FC<OrderListRendererProps> = ({ data }) => {
   const t = useTranslations('account.AiHelper');
   const tCommon = useTranslations('common');
+  const orders = data.orders?.filter((order: OrderData) => Boolean(order?.orderId)) ?? [];
 
-  return (
+  return widgetOrSkeleton(
+    data.orders,
     <div className="space-y-3">
-      {data.orders?.map((order: OrderData, index: number) => {
+      {orders.map((order: OrderData, index: number) => {
         const orderCurrency = order.currency || getPublicDefaultCurrency();
         const totalPrice = extractPrice(order.total);
         const totalGross = totalPrice.gross || 0;
@@ -154,6 +157,6 @@ export const OrderListRenderer: React.FC<OrderListRendererProps> = ({ data }) =>
           </div>
         );
       })}
-    </div>
+    </div>,
   );
 };

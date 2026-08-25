@@ -6,7 +6,7 @@ This document explains how the account-dashboard AI Helper talks to Emporix AI S
 
 The AI Helper is a card on the signed-in **account dashboard**. It is not a site-wide overlay.
 
-Shoppers ask the Frontend Agent (`frontendAgent`) about their account and catalog context. Chat `language` is the header language switcher locale (`useLocale()`, `en` or `de`), not `NEXT_PUBLIC_DEFAULT_LANGUAGE`. The browser always `POST`s JSON to `/api/ai/chat`. When streaming is enabled, the BFF calls AI Service `chat-stream`, forwards a live chunk count to the browser as SSE (`progress` then `complete`), and still assembles one widget payload before the Helper renders it. When streaming is off, the BFF returns one JSON body as before. The browser never opens a connection to AI Service itself.
+Shoppers ask the Frontend Agent (`frontendAgent`) about their account and catalog context. Chat `language` is the header language switcher locale (`useLocale()`, `en` or `de`), not `NEXT_PUBLIC_DEFAULT_LANGUAGE`. The browser always `POST`s JSON to `/api/ai/chat`. When streaming is enabled, the BFF calls AI Service `chat-stream`, forwards live `progress` SSE events (chunk count plus a safe text/HTML preview when available), then a `complete` event with the assembled `AIChatResponse`. When streaming is off, the BFF returns one JSON body as before. The browser never opens a connection to AI Service itself.
 
 ## Streaming vs batch
 
@@ -25,11 +25,24 @@ AI Service also documents an async chat mode. Showcase does not use it. For the 
 
 ## Shopper experience
 
-The card shows a thinking spinner while the reply is in progress. When streaming is on, `POST /api/ai/chat` is an SSE response: a `progress` event with `chunks` (count of upstream SSE data payloads, starting at 0) then a `complete` event with the assembled `AIChatResponse`. The thinking bubble updates to “AI is thinking [n]” as those events arrive. The Helper then parses that assembled `message` and renders text plus typed widgets. For `type: "text"`, the top-level `message` is the intro and `data.message` (when present) is the body — for example product highlights under a heading. For `quote_list`, Frontend Agent often embeds Quote Service resources (`id`, `status.value`, `metadata.createdAt`, `totalPrice`, `items`) rather than the flattened Helper DTO; the card maps those fields before render.
+When streaming is on, `POST /api/ai/chat` is an SSE response. Each `progress` event includes `chunks` (count of upstream SSE data payloads, starting at 0) and, when safe, a `preview` payload:
 
-Live `frontendAgent` streams often concatenate more than one JSON document in token `content`: a markdown-fenced tool payload (for example a search `{ query, filter }`) and later a Frontend Agent envelope (`type` / `data`). The BFF assembler waits until the upstream stream ends, then keeps the last widget envelope and drops tool JSON so the shopper sees the order list (or other widget) instead of raw JSON.
+- `{ kind: "text", content }` — plain text or a `type: "text"` body as the `"message"` string arrives
+- `{ kind: "html", html }` — sanitized HTML from a `type: "html"` envelope as it arrives
+- `{ kind: "widget", type, message, data }` — a storefront card as soon as it can be typed:
+  - `tool_start` shows one empty skeleton for known tools (`get-quotes` → quote list, `get-customer-info` → account, …) and for indexed search tools whose canonical name starts with `indexed` (e.g. `search_*__indexedProducts` → product list, `indexedOrders` → order list)
+  - `tool_result` fills the same renderer from JSON (`get-quotes` with two quotes → two cards; indexed hits from `results[].metadata`). Tool-message wrappers (`name`/`type: tool`/`artifact`) are unwrapped first so a tool name like `get-customer-info` is never painted as the shopper's name.
+  - token JSON is a fallback: incomplete widget envelopes show the skeleton plus caption; a complete envelope paints the card before `complete`
+- `thinking: "active"` — opaque presence flag only. The Helper shows translated “thinking” status; **raw model chain-of-thought is never forwarded to the browser or painted**. It is **not** written into `complete.message` or `localStorage`.
 
-Token frames are character fragments, not complete shopper messages. Painting that JSON as it is generated would look like raw code in a commerce UI, and widgets would be wrong until the object is complete. The live chunk count is only a wait-state signal.
+Live captions also drop any markdown ATX heading (for example `## OBJECTIVE`, `## SESSION INTENT`) and are length-capped for streaming only. Completed shopper answers keep full length after the same planning filter.
+While `preview` is present, the Helper paints a live assistant bubble: **card first**, model caption underneath. Partial replies are **not** persisted to `localStorage`; the final parsed message is stored only on `complete`.
+
+When no preview is available yet — unnamed tools and no shopper `"message"` — the card shows the thinking spinner, and/or the opaque thinking status when upstream emits `thinking` events (never live CoT text).
+
+On `complete`, the Helper parses the assembled `message` and renders the final text plus typed widgets. If the stream only contained a filled `tool_result` (no token JSON), the BFF synthesizes the widget envelope from that result. A later token envelope with richer `data` replaces a husk `tool_result` (for example a wrapper whose `name` is the tool id).
+
+Live `frontendAgent` streams may still concatenate markdown-fenced tool payloads and a later Frontend Agent envelope in token `content`. That token path is fallback only: once `type` is known, Showcase shows the matching React widget (skeleton until `data` is parseable). Allowlisted `tool_result` JSON fills the card as soon as the tool returns; wrappers that only carry the tool name are dropped. Showcase never calls `ai-agentic` — only AI Service `chat-stream`. The BFF owns tool→widget mapping; AI Service only sanitizes JSON.
 
 When streaming is off, the spinner stays on the existing “AI is thinking…” copy until the JSON body returns.
 
@@ -37,7 +50,7 @@ When streaming is off, the spinner stays on the existing “AI is thinking…”
 
 Live `frontendAgent` streams send the reply as token `content` chunks. The BFF concatenates those strings server-side into one `message` before returning the `complete` SSE event (or a JSON body in batch mode). A trailing `done` frame without `message` is expected metadata; it is not the payload and is not by itself an empty stream.
 
-If no token `content` reconstitutes a non-empty `message`, the BFF returns the existing chat error (`AI_SERVICE_ERROR`). The storefront shows the standard error notification (toast) and an AI chat bubble on that turn, both using the existing AI Helper error copy, so the shopper can see which question failed. The helper card stays usable so they can try again. An empty stream is not treated as a successful blank reply.
+If no token `content` reconstitutes a non-empty `message` and no artifact items arrived, the BFF returns the existing chat error (`AI_SERVICE_ERROR`). The storefront shows the standard error notification (toast) and an AI chat bubble on that turn, both using the existing AI Helper error copy, so the shopper can see which question failed. The helper card stays usable so they can try again. An empty stream is not treated as a successful blank reply.
 
 If a tenant’s `chat-stream` truly finishes with no token content (COP-6164 empty-stream cases), set `NEXT_AI_CHAT_STREAMING=false` to use batch.
 
@@ -56,6 +69,10 @@ When the Helper knows the current customer it **adopts** that namespace: leftove
 Logout / login also drop unscoped keys immediately. Order links in any leftover UI still hit customer-scoped APIs and 403 for the new shopper — commerce auth was not bypassed. Reusing a leftover conversation id on `POST /api/ai/chat` is still unsafe, so unscoped ids are deleted and each shopper gets their own namespaced id.
 
 “Clear chat” rotates the conversation id for the current shopper without logging them out.
+
+## Agent contract
+
+Typed widgets should come from tool artifacts, not from the model re-serializing arrays. `frontendAgent` `outputFormat` can stay a small envelope (`message`, `type`, optional `data` for html/text). List payloads (`orders`, `products`, `quotes`, …) are projected in the Showcase BFF (`adaptToolResult`) from allowlisted tool results — MCP-style `get-*` tools and indexed search tools whose canonical name starts with `indexed` (hits from `results[].metadata`). For quotes, the BFF extracts list/singleton JSON shape; locale flattening happens in renderers (`mapAiQuote` / `mapAiQuoteList`), not in `adaptToolResult`. Do not ask the model to emit raw HTML for orders or products.
 
 ## Quality examples
 

@@ -12,14 +12,14 @@ interface ChatMessageProps {
   handlers: StructuredDataHandlers;
 }
 
-function getNestedText(data: unknown): string | undefined {
+const getNestedText = (data: unknown): string | undefined => {
   if (!data || typeof data !== 'object' || !('message' in data)) {
     return undefined;
   }
 
   const nested = (data as { message?: unknown }).message;
   return typeof nested === 'string' && nested !== '' ? nested : undefined;
-}
+};
 
 const getMessageContainerClasses = (isUser: boolean, hasStructuredData: boolean): string => {
   const baseClasses = 'rounded-lg px-3 py-1.5 shadow-sm';
@@ -50,6 +50,12 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, handlers }) =
   return (
     <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
       <div className={getMessageContainerClasses(isUser, hasStructuredData)}>
+        {hasStructuredData && (
+          <div className={cn('w-full max-w-none', shouldShowContent && 'mb-2')}>
+            <StructuredDataRenderer type={message.type!} data={message.data} handlers={handlers} />
+          </div>
+        )}
+
         {shouldShowContent && (
           <div
             className={cn(
@@ -62,14 +68,13 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, handlers }) =
         )}
 
         {textBody && (
-          <div className={cn('text-base whitespace-pre-wrap text-text-body', shouldShowContent && 'mt-1')}>
+          <div
+            className={cn(
+              'text-base whitespace-pre-wrap text-text-body',
+              (shouldShowContent || hasStructuredData) && 'mt-1',
+            )}
+          >
             {textBody}
-          </div>
-        )}
-
-        {hasStructuredData && (
-          <div className={cn('w-full max-w-none', shouldShowContent && 'mt-2')}>
-            <StructuredDataRenderer type={message.type!} data={message.data} handlers={handlers} />
           </div>
         )}
 

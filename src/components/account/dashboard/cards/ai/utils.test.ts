@@ -46,6 +46,10 @@ describe('extractPrice', () => {
     expect(extractPrice({ net: 100, tax: 19 })).toEqual({ net: 100, gross: 119, tax: 19 });
   });
 
+  it('should use amount as gross fallback', () => {
+    expect(extractPrice({ amount: 99, currency: 'EUR' })).toEqual({ net: 0, gross: 99, tax: 0 });
+  });
+
   it('should use value as gross fallback when no other values', () => {
     expect(extractPrice({ value: 100 })).toEqual({ net: 0, gross: 100, tax: 0 });
   });

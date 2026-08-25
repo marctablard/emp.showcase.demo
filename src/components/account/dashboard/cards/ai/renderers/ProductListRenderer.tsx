@@ -1,8 +1,10 @@
 'use client';
 
 import React from 'react';
+import { toDisplayString } from '@/lib/common/ai-tool-widgets';
 import type { ProductData, ProductListData } from '../types';
 import { ProductCard } from './ProductCard';
+import { widgetOrSkeleton } from './WidgetSkeleton';
 
 interface ProductListRendererProps {
   data: ProductListData;
@@ -10,13 +12,15 @@ interface ProductListRendererProps {
 }
 
 export const ProductListRenderer: React.FC<ProductListRendererProps> = ({ data, onAddToCart }) => {
-  return (
+  const context = toDisplayString(data.context);
+
+  return widgetOrSkeleton(
+    data.products,
     <div className="space-y-4">
-      {data.context && <div className="text-text-body mb-4 text-base">{data.context}</div>}
-      {data.products &&
-        data.products.map((product: ProductData, index: number) => (
-          <ProductCard key={product.productId || `product-${index}`} product={product} onAddToCart={onAddToCart} />
-        ))}
-    </div>
+      {context && <div className="text-text-body mb-4 text-base">{context}</div>}
+      {data.products?.map((product: ProductData, index: number) => (
+        <ProductCard key={product.productId || `product-${index}`} product={product} onAddToCart={onAddToCart} />
+      ))}
+    </div>,
   );
 };

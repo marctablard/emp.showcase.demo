@@ -1,4 +1,4 @@
-import { parseAIResponse } from './response-parser';
+import { parseAIResponse, resolveCommittedChatPayload } from './response-parser';
 
 jest.mock('@/lib/logger/use-logger-client', () => ({
   getLogger: jest.fn(),
@@ -79,10 +79,33 @@ describe('parseAIResponse', () => {
     expect(result.cartRefresh).toBe(false);
   });
 
-  it('should use raw message when parsed message is missing', () => {
+  it('should use raw message when parsed message is missing for plain text JSON', () => {
     const input = JSON.stringify({ type: 'text', data: null });
     const result = parseAIResponse(input);
     expect(result.message).toBe(input);
+  });
+
+  it('should return an empty message for structured widgets without a caption', () => {
+    const input = JSON.stringify({
+      type: 'html',
+      data: { html: '<p>Hello</p>' },
+    });
+    const result = parseAIResponse(input);
+    expect(result.message).toBe('');
+    expect(result.type).toBe('html');
+    expect(result.data).toEqual({ html: '<p>Hello</p>' });
+  });
+
+  it('should preserve an explicit empty message for widget envelopes', () => {
+    const input = JSON.stringify({
+      message: '',
+      type: 'order_list',
+      data: { orders: [{ orderId: 'EON1' }] },
+    });
+    const result = parseAIResponse(input);
+    expect(result.message).toBe('');
+    expect(result.type).toBe('order_list');
+    expect(result.data).toEqual({ orders: [{ orderId: 'EON1' }] });
   });
 
   it('should handle empty string', () => {
@@ -103,5 +126,41 @@ describe('parseAIResponse', () => {
     const input = JSON.stringify({ message: 'Orders', type: 'order_list', data });
     const result = parseAIResponse(input);
     expect(result.data).toEqual(data);
+  });
+
+  it('unwraps a complete SSE envelope whose message is the widget JSON', () => {
+    const widget = {
+      message: "The product 'AuroraTech Smart Solar Solution' has been added to your cart.",
+      type: 'cart_summary',
+      data: { items: [{ productId: 'P1', quantity: 2 }], currency: 'EUR' },
+      cartRefresh: true,
+    };
+    const result = parseAIResponse(
+      JSON.stringify({
+        type: 'complete',
+        agentId: 'frontendAgent',
+        sessionId: 'sess-1',
+        message: JSON.stringify(widget),
+      }),
+    );
+    expect(result.type).toBe('cart_summary');
+    expect(result.message).toBe(widget.message);
+    expect(result.data).toEqual(widget.data);
+    expect(result.cartRefresh).toBe(true);
+  });
+
+  it('falls back to the live cart widget when parse has no structured payload', () => {
+    const preview = {
+      kind: 'widget' as const,
+      type: 'cart_summary',
+      message: 'Added to cart.',
+      data: { items: [{ productId: 'P1' }], totalItems: 7 },
+    };
+    const committed = resolveCommittedChatPayload(parseAIResponse('Thanks.'), preview);
+    expect(committed).toEqual({
+      message: 'Thanks.',
+      type: 'cart_summary',
+      data: preview.data,
+    });
   });
 });
