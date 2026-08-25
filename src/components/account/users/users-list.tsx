@@ -56,6 +56,36 @@ export function deserializeShowOtherCompanyUsers(raw: string): boolean {
   }
 }
 
+export function canManageSelectedCompanyUsers(
+  adminLegalEntityIds: string[] | undefined,
+  legalEntityId: string | undefined,
+): boolean {
+  if (adminLegalEntityIds === undefined) {
+    return true;
+  }
+  const sessionLegalEntityId = typeof legalEntityId === 'string' ? legalEntityId.trim() : '';
+  return sessionLegalEntityId.length > 0 && adminLegalEntityIds.includes(sessionLegalEntityId);
+}
+
+/**
+ * Current / All companies is Admin-LE scope only. Hide it when the session
+ * company is not an Admin LE, or when the customer is Admin of only one LE.
+ * `showOtherCompaniesToggle` is the fallback when admin ids are not passed.
+ */
+export function canShowCompanyScopeToggle(
+  adminLegalEntityIds: string[] | undefined,
+  canManageSelectedCompany: boolean,
+  showOtherCompaniesToggle: boolean,
+): boolean {
+  if (!canManageSelectedCompany) {
+    return false;
+  }
+  if (adminLegalEntityIds === undefined) {
+    return showOtherCompaniesToggle;
+  }
+  return adminLegalEntityIds.length > 1;
+}
+
 export function deserializeUsersListSort(raw: string): UsersListSortState {
   try {
     const parsed: unknown = JSON.parse(raw);
@@ -105,6 +135,8 @@ interface UsersListProps {
   onDeleteUser?: (user: CompanyUser) => void;
   showOtherCompaniesToggle?: boolean;
   selectedCompanyName?: string;
+  headerCompanies?: Array<{ id: string; name: string }>;
+  adminLegalEntityIds?: string[];
 }
 
 export function UsersList({
@@ -112,10 +144,21 @@ export function UsersList({
   initialTotalCount,
   onDeleteUser,
   showOtherCompaniesToggle = false,
-  selectedCompanyName,
+  selectedCompanyName: selectedCompanyNameProp,
+  headerCompanies = [],
+  adminLegalEntityIds,
 }: Readonly<UsersListProps>) {
   const t = useTranslations('user-management');
   const { session } = useSession();
+  const sessionLegalEntityId = typeof session?.legalEntityId === 'string' ? session.legalEntityId.trim() : '';
+  const canManageSelectedCompany = canManageSelectedCompanyUsers(adminLegalEntityIds, sessionLegalEntityId);
+  const selectedCompanyName =
+    headerCompanies.find((company) => company.id === sessionLegalEntityId)?.name ?? selectedCompanyNameProp;
+  const showScopeToggle = canShowCompanyScopeToggle(
+    adminLegalEntityIds,
+    canManageSelectedCompany,
+    showOtherCompaniesToggle,
+  );
   const [isClient, setIsClient] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [quickSearch, setQuickSearch] = useState('');
@@ -148,7 +191,7 @@ export function UsersList({
 
   const apiQuery = submittedSearch.length > 0 ? submittedSearch : undefined;
   const apiSort = `${USER_SORT_FIELD_MAP[sortField]}:${sortDirection}`;
-  const otherCompanyUsersEnabled = showOtherCompaniesToggle && showOtherCompanyUsers;
+  const otherCompanyUsersEnabled = showScopeToggle && showOtherCompanyUsers;
 
   const {
     users: selectedLegalEntityUsers,
@@ -168,7 +211,7 @@ export function UsersList({
       sort: INITIAL_PAGE_SORT,
       query: undefined,
     },
-    enabled: !otherCompanyUsersEnabled,
+    enabled: !otherCompanyUsersEnabled && canManageSelectedCompany,
   });
 
   const {
@@ -265,12 +308,16 @@ export function UsersList({
     }
   };
 
+  const notAdminInCompanyMessage = t('notifications.notAdminInCompany', {
+    company: selectedCompanyName?.trim() || t('currentCompany'),
+  });
+
   return (
     <div className="flex flex-col gap-6 lg:gap-12">
       <div className="flex min-w-0 flex-col items-start gap-4 md:flex-row md:flex-wrap md:items-start md:justify-between">
         <div className="flex min-w-0 max-w-full flex-col items-start gap-4 sm:flex-row sm:flex-wrap sm:items-center md:flex-1">
           <H1 className="min-w-0">{t('heading')}</H1>
-          {showOtherCompaniesToggle ? (
+          {showScopeToggle ? (
             <CompanyScopeToggle
               currentCompanyName={selectedCompanyName}
               showAllCompanies={showOtherCompanyUsers}
@@ -278,72 +325,80 @@ export function UsersList({
             />
           ) : null}
         </div>
-        <UiLink
-          type="Link"
-          href="/account/users/new"
-          variant="buttonPrimary"
-          className="font-headlines text-action-button tracking-[var(--desktop-spacing-action-button)] h-12 w-auto shrink-0 self-start whitespace-nowrap md:ml-auto"
-          iconBefore={<Plus className="size-6" aria-hidden />}
-        >
-          {t('createButton')}
-        </UiLink>
+        {canManageSelectedCompany ? (
+          <UiLink
+            type="Link"
+            href="/account/users/new"
+            variant="buttonPrimary"
+            className="font-headlines text-action-button tracking-[var(--desktop-spacing-action-button)] h-12 w-auto shrink-0 self-start whitespace-nowrap md:ml-auto"
+            iconBefore={<Plus className="size-6" aria-hidden />}
+          >
+            {t('createButton')}
+          </UiLink>
+        ) : null}
       </div>
 
-      <TableCard className="overflow-hidden p-4 min-[768px]:p-4">
-        <form className="mb-4 flex flex-wrap gap-4" onSubmit={submitSearch}>
-          <div className="relative w-[380px] max-w-full">
-            <Input
-              type="search"
-              value={quickSearch}
-              onChange={(event) => {
-                setQuickSearch(event.target.value);
-              }}
-              onBlur={handleSearchBlur}
-              placeholder={t('searchPlaceholder')}
-              className="h-12 appearance-none bg-surface-primary border-border-primary pr-10 [&::-webkit-search-cancel-button]:hidden"
-              endIcon={isSearchLoading ? undefined : Search}
-              aria-label={t('searchPlaceholder')}
-            />
-            {isSearchLoading && (
-              <Spinner
-                variant="sm"
-                color="primary"
-                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
-                loadingText={t('loading')}
+      {!canManageSelectedCompany ? (
+        <p role="status" className="text-text-secondary">
+          {notAdminInCompanyMessage}
+        </p>
+      ) : (
+        <TableCard className="overflow-hidden p-4 min-[768px]:p-4">
+          <form className="mb-4 flex flex-wrap gap-4" onSubmit={submitSearch}>
+            <div className="relative w-[380px] max-w-full">
+              <Input
+                type="search"
+                value={quickSearch}
+                onChange={(event) => {
+                  setQuickSearch(event.target.value);
+                }}
+                onBlur={handleSearchBlur}
+                placeholder={t('searchPlaceholder')}
+                className="h-12 appearance-none bg-surface-primary border-border-primary pr-10 [&::-webkit-search-cancel-button]:hidden"
+                endIcon={isSearchLoading ? undefined : Search}
+                aria-label={t('searchPlaceholder')}
               />
-            )}
-          </div>
-        </form>
+              {isSearchLoading && (
+                <Spinner
+                  variant="sm"
+                  color="primary"
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
+                  loadingText={t('loading')}
+                />
+              )}
+            </div>
+          </form>
 
-        {error ? (
-          <div className="bg-surface-error border border-border-error text-text-error px-4 py-3 rounded space-y-3">
-            <p>{error.message}</p>
-            <Button
-              onClick={() => {
-                Promise.resolve(refreshActiveUsers()).catch(() => undefined);
-              }}
-            >
-              {t('tryAgain')}
-            </Button>
-          </div>
-        ) : (
-          <UsersTable
-            users={users}
-            loading={loading}
-            currentPage={currentPage}
-            totalPages={pagination?.totalPages ?? 1}
-            onPreviousPage={handlePreviousPage}
-            onNextPage={handleNextPage}
-            sortField={sortField}
-            sortDirection={sortDirection}
-            onToggleSort={toggleSort}
-            hasActiveSearch={hasActiveSearch}
-            onDeleteUser={otherCompanyUsersEnabled ? undefined : handleDeleteUser}
-            showLegalEntityName={otherCompanyUsersEnabled}
-          />
-        )}
-      </TableCard>
-      {otherCompanyUsersEnabled || onDeleteUser ? null : (
+          {error ? (
+            <div className="bg-surface-error border border-border-error text-text-error px-4 py-3 rounded space-y-3">
+              <p>{error.message}</p>
+              <Button
+                onClick={() => {
+                  Promise.resolve(refreshActiveUsers()).catch(() => undefined);
+                }}
+              >
+                {t('tryAgain')}
+              </Button>
+            </div>
+          ) : (
+            <UsersTable
+              users={users}
+              loading={loading}
+              currentPage={currentPage}
+              totalPages={pagination?.totalPages ?? 1}
+              onPreviousPage={handlePreviousPage}
+              onNextPage={handleNextPage}
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onToggleSort={toggleSort}
+              hasActiveSearch={hasActiveSearch}
+              onDeleteUser={otherCompanyUsersEnabled ? undefined : handleDeleteUser}
+              showLegalEntityName={otherCompanyUsersEnabled}
+            />
+          )}
+        </TableCard>
+      )}
+      {canManageSelectedCompany && !otherCompanyUsersEnabled && !onDeleteUser ? (
         <DeleteUserDialog
           user={userToDelete}
           open={userToDelete !== null}
@@ -355,7 +410,7 @@ export function UsersList({
             refreshActiveUsers().catch(() => undefined);
           }}
         />
-      )}
+      ) : null}
     </div>
   );
 }

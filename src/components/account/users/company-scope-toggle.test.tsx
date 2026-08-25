@@ -34,4 +34,22 @@ describe('CompanyScopeToggle', () => {
     expect(screen.getByRole('radio', { name: 'currentCompany' })).not.toBeChecked();
     expect(screen.getByRole('radio', { name: 'allCompanies' })).toBeChecked();
   });
+
+  it('disables the current-company option when the session company is not an Admin LE', () => {
+    const onShowAllCompaniesChange = jest.fn();
+    render(
+      <CompanyScopeToggle
+        currentCompanyName="NovaTech"
+        showAllCompanies
+        currentCompanyDisabled
+        onShowAllCompaniesChange={onShowAllCompaniesChange}
+      />,
+    );
+
+    const current = screen.getByRole('radio', { name: 'NovaTech' });
+    expect(current).toBeDisabled();
+    expect(screen.getByRole('radio', { name: 'allCompanies' })).toBeChecked();
+    fireEvent.click(current);
+    expect(onShowAllCompaniesChange).not.toHaveBeenCalled();
+  });
 });

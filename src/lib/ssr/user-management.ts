@@ -80,8 +80,8 @@ export const getCompanyUsers = cache(
 );
 
 /**
- * Whether the current customer has more than one company.
- * Used later for Q24 checkbox visibility. Does not load other-company users.
+ * Whether the current customer is assigned to more than one company (any role).
+ * User Management scope uses Admin-LE count from {@link getUserManagementCompanyAccess}, not this.
  */
 export const hasMultipleCompanies = cache(async (): Promise<boolean> => {
   try {
@@ -99,6 +99,12 @@ export const hasMultipleCompanies = cache(async (): Promise<boolean> => {
 export interface HeaderCompany {
   id: string;
   name: string;
+}
+
+export interface UserManagementCompanyAccess {
+  adminLegalEntityIds: string[];
+  headerCompanies: HeaderCompany[];
+  canManageSelectedCompany: boolean;
 }
 
 /**
@@ -131,3 +137,41 @@ export const getSelectedCompanyName = cache(async (): Promise<string | undefined
   const sessionId = typeof session?.legalEntityId === 'string' ? session.legalEntityId.trim() : '';
   return companies.find((company) => company.id === sessionId)?.name ?? companies[0]?.name;
 });
+
+/**
+ * Admin-LE ids and whether the session company is one of them.
+ * Session LE only — do not invent companies[0] for the write/admin check (COP-4807).
+ */
+export const getUserManagementCompanyAccess = cache(async (): Promise<UserManagementCompanyAccess> => {
+  try {
+    const [adminLegalEntityIds, headerCompanies, session] = await Promise.all([
+      getUserManagementService().listAdminLegalEntityIds(),
+      getHeaderCompanies(),
+      getSession(),
+    ]);
+    const sessionId = typeof session?.legalEntityId === 'string' ? session.legalEntityId.trim() : '';
+    return {
+      adminLegalEntityIds,
+      headerCompanies,
+      canManageSelectedCompany: Boolean(sessionId && adminLegalEntityIds.includes(sessionId)),
+    };
+  } catch (error) {
+    getLogger().error(
+      { error: error instanceof Error ? error.message : String(error) },
+      'SSR getUserManagementCompanyAccess failed',
+    );
+    return { adminLegalEntityIds: [], headerCompanies: [], canManageSelectedCompany: false };
+  }
+});
+
+/**
+ * Redirect create/edit when the session company is not an Admin LE.
+ * Global non-admins go to /account via {@link requireB2bAdmin}.
+ */
+export async function requireSelectedCompanyAdmin(): Promise<void> {
+  await requireB2bAdmin();
+  const { canManageSelectedCompany } = await getUserManagementCompanyAccess();
+  if (!canManageSelectedCompany) {
+    redirect('/account/users');
+  }
+}

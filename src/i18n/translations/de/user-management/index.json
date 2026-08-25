@@ -82,6 +82,7 @@
     "predefinedGroupConflict": "Dieser Benutzer kann in dieser Firma nicht mehr als einer vordefinierten Funktionsgruppe zugeordnet werden.",
     "statusSuccess": "Benutzerstatus erfolgreich aktualisiert!",
     "deleteSuccess": "Der Benutzer wurde gelöscht.",
-    "genericFailure": "Die Anfrage ist fehlgeschlagen."
+    "genericFailure": "Die Anfrage ist fehlgeschlagen.",
+    "notAdminInCompany": "Sie sind in {company} kein Mitglied der Admin-Gruppe und können daher nur Benutzer anderer Unternehmen verwalten"
   }
 }

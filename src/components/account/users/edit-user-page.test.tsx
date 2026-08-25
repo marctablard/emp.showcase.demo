@@ -66,7 +66,7 @@ jest.mock('@/components/account/users/user-details-form', () => ({
 }));
 
 jest.mock('@/lib/ssr/user-management', () => ({
-  requireB2bAdmin: jest.fn().mockResolvedValue({ id: 'admin-1' }),
+  requireSelectedCompanyAdmin: jest.fn().mockResolvedValue(undefined),
   getCompanyUserById: (...args: unknown[]) => getCompanyUserById(...args),
   getHeaderCompanies: (...args: unknown[]) => getHeaderCompanies(...args),
 }));

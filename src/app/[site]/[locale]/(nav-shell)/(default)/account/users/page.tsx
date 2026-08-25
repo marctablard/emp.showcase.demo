@@ -6,7 +6,7 @@ import { getPageTitle } from '@/lib/ssr/seo';
 import {
   getCompanyUsers,
   getSelectedCompanyName,
-  hasMultipleCompanies,
+  getUserManagementCompanyAccess,
   requireB2bAdmin,
 } from '@/lib/ssr/user-management';
 
@@ -30,13 +30,15 @@ export async function generateMetadata({ params }: Readonly<{ params: Promise<{ 
 export default async function UsersPage({ params }: Readonly<{ params: Promise<{ locale: string }> }>) {
   await requireB2bAdmin();
   const { locale } = await params;
-  const [tAccount, tUserManagement, usersPage, showOtherCompaniesToggle, selectedCompanyName] = await Promise.all([
+  const [tAccount, tUserManagement, selectedCompanyName, companyAccess] = await Promise.all([
     getTranslations({ locale, namespace: 'account' }),
     getTranslations({ locale, namespace: 'user-management' }),
-    getCompanyUsers(1, USERS_PER_PAGE, INITIAL_PAGE_SORT),
-    hasMultipleCompanies(),
     getSelectedCompanyName(),
+    getUserManagementCompanyAccess(),
   ]);
+  const usersPage = companyAccess.canManageSelectedCompany
+    ? await getCompanyUsers(1, USERS_PER_PAGE, INITIAL_PAGE_SORT)
+    : { items: [], totalCount: 0 };
 
   const breadcrumbs = [
     {
@@ -54,8 +56,10 @@ export default async function UsersPage({ params }: Readonly<{ params: Promise<{
       <AccountUsersList
         initialUsers={usersPage?.items}
         initialTotalCount={usersPage?.totalCount}
-        showOtherCompaniesToggle={showOtherCompaniesToggle}
+        showOtherCompaniesToggle={companyAccess.adminLegalEntityIds.length > 1}
         selectedCompanyName={selectedCompanyName}
+        headerCompanies={companyAccess.headerCompanies}
+        adminLegalEntityIds={companyAccess.adminLegalEntityIds}
       />
     </AccountLayout>
   );
