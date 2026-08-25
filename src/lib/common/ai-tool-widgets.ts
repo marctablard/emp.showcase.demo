@@ -653,6 +653,16 @@ function scalePriceByQuantity(price: Record<string, unknown>, quantity: number):
   });
 }
 
+function fallbackUnitAmount(effective: number | undefined, quantity: number, grossTotal: number | undefined): number {
+  if (effective == null) {
+    if (quantity <= 0 || grossTotal == null) {
+      return 0;
+    }
+    return grossTotal / quantity;
+  }
+  return effective;
+}
+
 function adaptOrderLinePrices(
   item: Record<string, unknown>,
   quantity: number,
@@ -670,14 +680,7 @@ function adaptOrderLinePrices(
   const netTotal = readNumber(finalPrice?.netValue) ?? readNumber(itemTax?.netValue) ?? readNumber(finalPrice?.net);
   const taxTotal = readNumber(finalPrice?.taxValue) ?? readNumber(finalPrice?.tax);
   const calculatedTotal = totalPriceFromCalculated(quantity, effective, grossTotal, netTotal, taxTotal, currency);
-  let unitAmount = effective;
-  if (unitAmount == null) {
-    if (quantity <= 0 || grossTotal == null) {
-      unitAmount = 0;
-    } else {
-      unitAmount = grossTotal / quantity;
-    }
-  }
+  const unitAmount = fallbackUnitAmount(effective, quantity, grossTotal);
   const calculatedUnit =
     effective == null && grossTotal == null && netTotal == null
       ? undefined
@@ -919,7 +922,7 @@ function adaptAccount(payload: unknown, toolName: string): Record<string, unknow
     readString(personal.company) ?? (isRecord(personal.company) ? readString(personal.company.name) : undefined);
   const addresses =
     adaptAddresses(nested.addresses) ??
-    adaptAddresses(nested.defaultAddress != null ? [nested.defaultAddress] : undefined);
+    adaptAddresses(nested.defaultAddress == null ? undefined : [nested.defaultAddress]);
   const personalInfo = compactRecord({
     name,
     email: readString(personal.email) ?? readString(personal.contactEmail) ?? readString(personal.contact_email),
