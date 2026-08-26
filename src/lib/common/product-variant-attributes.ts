@@ -1,5 +1,19 @@
 import type { Product, ProductVariantAttribute } from '@/platform/services/model/product';
 
+/** Parent, child, or any product that already carries variant-family data. */
+export function isVariantFamilyProduct(product: Product): boolean {
+  if (product.isParentVariant || Boolean(product.parentVariantId)) {
+    return true;
+  }
+  if ((product.variantCount ?? 0) > 0) {
+    return true;
+  }
+  if ((product.variants?.length ?? 0) > 0) {
+    return true;
+  }
+  return Boolean(product.variantAttributes && product.variantAttributes.length > 0);
+}
+
 export interface ProductVariantAttributeGroup {
   key: string;
   name?: ProductVariantAttribute['name'];
@@ -60,6 +74,9 @@ export function collectVariantAttributeGroups(product: Product, variants: Produc
         }
       });
     });
+    Object.entries(variant.variantAttributeValues ?? {}).forEach(([key, value]) => {
+      addValue(key, value);
+    });
   });
 
   // Fallback: if variants lack attribute payloads, use the parent's value catalog.
@@ -119,7 +136,24 @@ export function getSelectedVariantAttributeValues(variant: Product): Record<stri
       selected[attribute.key] = valueKey;
     }
   });
+  Object.entries(variant.variantAttributeValues ?? {}).forEach(([key, value]) => {
+    if (selected[key] !== undefined) {
+      return;
+    }
+    const valueKey = normalizeVariantAttributeValueKey(value);
+    if (valueKey !== undefined) {
+      selected[key] = valueKey;
+    }
+  });
   return selected;
+}
+
+/** First variant-attribute axis collected from already-loaded child variants. */
+export function getFirstVariantAttributeGroupFromChildren(product: Product): ProductVariantAttributeGroup | undefined {
+  if (!product.variants?.length) {
+    return undefined;
+  }
+  return collectVariantAttributeGroups(product, product.variants)[0];
 }
 
 /**

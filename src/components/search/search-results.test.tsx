@@ -183,6 +183,39 @@ describe('SearchResultsComponent', () => {
     expect(mockSyncBrowseSearchStateFromUrl).not.toHaveBeenCalled();
   });
 
+  it('does not refetch when SSR results already match the URL and currency is only session context', async () => {
+    mockSearchParams = new URLSearchParams(
+      'currency=EUR&filters%5B_product_i18n.categoryBreadcrumbs.displayPath%5D=Electrical+supplies+%3E+Power+generation+%3E+Solar+panels',
+    );
+
+    render(
+      <SearchResultsComponent
+        locale="en"
+        initialLayout="list"
+        initialSearch={{
+          page: 0,
+          size: 12,
+          filters: {
+            '_product_i18n.categoryBreadcrumbs.displayPath': 'Electrical supplies > Power generation > Solar panels',
+          },
+        }}
+        initialResults={{
+          items: [],
+          total: 0,
+          page: 0,
+          pageSize: 12,
+          availableFilters: [],
+          availableSorts: [],
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mockSyncBrowseSearchStateFromUrl).toHaveBeenCalled();
+    });
+    expect(mockSearch).not.toHaveBeenCalled();
+  });
+
   it('keeps the cursor bridge active across repeated stale renders until hook state catches up', () => {
     const { rerender } = render(<SearchResultsComponent locale="en" initialLayout="list" />);
 

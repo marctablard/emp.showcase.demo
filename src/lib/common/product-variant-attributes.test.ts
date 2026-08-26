@@ -2,7 +2,9 @@ import type { Product } from '@/platform/services/model/product';
 import {
   collectVariantAttributeGroups,
   getCompatibleAttributeValues,
+  getFirstVariantAttributeGroupFromChildren,
   getSelectedVariantAttributeValues,
+  isVariantFamilyProduct,
 } from './product-variant-attributes';
 
 function buildVariant(id: string, attributes: { key: string; value: string; name?: string }[]): Product {
@@ -90,6 +92,68 @@ describe('collectVariantAttributeGroups', () => {
     ]);
   });
 
+  it('collects unique selected values when the parent has no variantAttributes', () => {
+    const parent: Product = {
+      id: 'SLP654321',
+      name: 'Victron Solar panel',
+      description: '',
+      purchasable: false,
+      isParentVariant: true,
+      variantAttributes: [],
+    };
+    const variants = [
+      {
+        ...buildVariant('child-1200', [{ key: 'nominal-power', value: '1200W', name: 'nominal-power' }]),
+        variantAttributeValues: { 'nominal-power': '1200W' },
+      },
+      {
+        ...buildVariant('child-600', [{ key: 'nominal-power', value: '600W', name: 'nominal-power' }]),
+        variantAttributeValues: { 'nominal-power': '600W' },
+      },
+    ];
+
+    expect(collectVariantAttributeGroups(parent, variants)).toEqual([
+      { key: 'nominal-power', name: 'nominal-power', values: ['1200W', '600W'] },
+    ]);
+  });
+
+  it('collects unique values from variantAttributeValues when selected flags are missing', () => {
+    const parent: Product = {
+      id: 'parent',
+      name: 'Parent',
+      description: '',
+      purchasable: false,
+      variantAttributes: [],
+    };
+    const variants: Product[] = [
+      {
+        id: 'v1',
+        name: 'v1',
+        description: '',
+        purchasable: true,
+        variantAttributeValues: { 'nominal-power': '600W' },
+      },
+      {
+        id: 'v2',
+        name: 'v2',
+        description: '',
+        purchasable: true,
+        variantAttributeValues: { 'nominal-power': '1200W' },
+      },
+      {
+        id: 'v3',
+        name: 'v3',
+        description: '',
+        purchasable: true,
+        variantAttributeValues: { 'nominal-power': '600W' },
+      },
+    ];
+
+    expect(collectVariantAttributeGroups(parent, variants)).toEqual([
+      { key: 'nominal-power', values: ['600W', '1200W'] },
+    ]);
+  });
+
   it('falls back to parent value catalog when variants have no attributes', () => {
     const parent: Product = {
       id: 'parent',
@@ -126,6 +190,87 @@ describe('getSelectedVariantAttributeValues', () => {
       capacity: '12 Ah',
       voltage: '24 V',
     });
+  });
+
+  it('fills missing keys from variantAttributeValues', () => {
+    const variant: Product = {
+      id: 'v1',
+      name: 'v1',
+      description: '',
+      purchasable: true,
+      variantAttributeValues: { 'nominal-power': '600W' },
+    };
+
+    expect(getSelectedVariantAttributeValues(variant)).toEqual({
+      'nominal-power': '600W',
+    });
+  });
+});
+
+describe('getFirstVariantAttributeGroupFromChildren', () => {
+  it('returns the first unique child attribute group', () => {
+    const product: Product = {
+      id: 'SLP654321',
+      name: 'Victron Solar panel',
+      description: '',
+      purchasable: false,
+      isParentVariant: true,
+      variantAttributes: [],
+      variants: [
+        {
+          ...buildVariant('child-1200', [{ key: 'nominal-power', value: '1200W' }]),
+          variantAttributeValues: { 'nominal-power': '1200W' },
+        },
+        {
+          ...buildVariant('child-600', [{ key: 'nominal-power', value: '600W' }]),
+          variantAttributeValues: { 'nominal-power': '600W' },
+        },
+      ],
+    };
+
+    expect(getFirstVariantAttributeGroupFromChildren(product)).toEqual({
+      key: 'nominal-power',
+      values: ['1200W', '600W'],
+    });
+  });
+
+  it('returns undefined when the parent has no child variants', () => {
+    expect(
+      getFirstVariantAttributeGroupFromChildren({
+        id: 'parent',
+        name: 'Parent',
+        description: '',
+        purchasable: false,
+        variantAttributes: [],
+      }),
+    ).toBeUndefined();
+  });
+});
+
+describe('isVariantFamilyProduct', () => {
+  it('treats parent variants with empty attribute catalogs as a family', () => {
+    expect(
+      isVariantFamilyProduct({
+        id: 'SLP654321',
+        name: 'Victron Solar panel',
+        description: '',
+        purchasable: false,
+        isParentVariant: true,
+        variantAttributes: [],
+      }),
+    ).toBe(true);
+  });
+
+  it('ignores simple products with an empty attribute catalog', () => {
+    expect(
+      isVariantFamilyProduct({
+        id: 'simple-1',
+        name: 'Cable',
+        description: '',
+        purchasable: true,
+        variantAttributes: [],
+      }),
+    ).toBe(false);
   });
 });
 

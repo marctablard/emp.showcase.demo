@@ -3,6 +3,7 @@ import { useLocale } from 'next-intl';
 import { usePathname, useRouter } from 'next/navigation';
 import useHistory from '@/hooks/history/useHistory';
 import { useSiteCode } from '@/hooks/site/useSiteCode';
+import { fetchSearchResult } from '@/lib/client/search';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { isDedicatedCategorySelectionFilter } from '@/lib/search/category-selection';
 import type {
@@ -68,10 +69,15 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
 
   // Keep track of the last search params for pagination
   const lastSearchParams = useRef<SearchParams<T>>({
-    page: DEFAULT_PAGE_INDEX,
-    size: DEFAULT_PAGE_SIZE,
+    page: initialSearch?.page ?? DEFAULT_PAGE_INDEX,
+    size: initialSearch?.size ?? DEFAULT_PAGE_SIZE,
+    query: initialSearch?.query,
+    sort: initialSearch?.sort,
+    filters: initialSearch?.filters,
   });
   const searchGeneration = useRef(0);
+  const lastIssuedSearchUrl = useRef<string | null>(null);
+  const lastSearchCurrency = useRef<string | undefined>(sessionCurrency);
   // The pathname where this search hook is hosted (e.g. /browse), captured on mount.
   // While an intercepting route (e.g. the /login dialog) is open, `usePathname()` returns the
   // intercept's pathname for this still-mounted page; syncing to it would rewrite the browser URL
@@ -101,7 +107,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         const out = new URLSearchParams();
         src.forEach((value, key) => {
           // Only for /api/search — never mirror onto the storefront URL (path already encodes site/locale).
-          if (key === 'site' || key === 'locale') {
+          if (key === 'site' || key === 'locale' || key === 'currency') {
             return;
           }
           // Replace 'query' with 'q' in the browser URL for consistency
@@ -142,87 +148,85 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
    */
   const search = useCallback(
     async (params: SearchParams<T>) => {
+      const resolvedSite = siteCode?.trim();
+      if (!resolvedSite) {
+        getLogger().warn({ event: 'search_missing_site' }, 'Product search skipped: no site context');
+        setError(USE_SEARCH_CLIENT_ERROR.MISSING_SITE);
+        setLoading(false);
+        return;
+      }
+
+      const url = new URL('/api/search', window.location.origin);
+      const normalizedQuery = params.query?.trim() ? params.query : undefined;
+
+      if (normalizedQuery) {
+        url.searchParams.append('query', normalizedQuery);
+      }
+      if (params.page !== undefined) {
+        url.searchParams.append('page', params.page.toString());
+      }
+      if (params.size !== undefined) {
+        url.searchParams.append('size', params.size.toString());
+      }
+      if (params.sort) {
+        url.searchParams.append('sort', params.sort);
+      }
+      url.searchParams.append('site', resolvedSite);
+      url.searchParams.append('locale', locale);
+      if (sessionCurrency) {
+        url.searchParams.append('currency', sessionCurrency);
+      }
+
+      const filtersToApply = params.filters && Object.keys(params.filters).length > 0 ? params.filters : undefined;
+      if (filtersToApply) {
+        Object.entries(filtersToApply).forEach(([key, value]) => {
+          if (Array.isArray(value)) {
+            value.forEach((val) => {
+              url.searchParams.append(`filters[${key}][]`, val);
+            });
+          } else if (typeof value === 'object' && value !== null) {
+            Object.entries(value).forEach(([nestedKey, nestedValue]) => {
+              url.searchParams.append(`filters[${key}][${nestedKey}]`, String(nestedValue));
+            });
+          } else {
+            url.searchParams.append(`filters[${key}]`, String(value));
+          }
+        });
+      }
+
+      const paramsForRef: SearchParams<T> = {
+        ...params,
+        query: normalizedQuery,
+        filters: filtersToApply,
+      };
+      lastSearchParams.current = paramsForRef;
+      lastSearchCurrency.current = sessionCurrency;
+
+      const requestUrl = url.toString();
+      if (lastIssuedSearchUrl.current === requestUrl) {
+        return;
+      }
+
       const gen = ++searchGeneration.current;
+      lastIssuedSearchUrl.current = requestUrl;
+
       try {
         setLoading(true);
         setError(null);
-
-        const resolvedSite = siteCode?.trim();
-        if (!resolvedSite) {
-          getLogger().warn({ event: 'search_missing_site' }, 'Product search skipped: no site context');
-          setError(USE_SEARCH_CLIENT_ERROR.MISSING_SITE);
-          setLoading(false);
-          return;
-        }
-
-        // Build the URL with query parameters
-        const url = new URL('/api/search', window.location.origin);
-
-        // Add basic parameters
-        const normalizedQuery = params.query?.trim() ? params.query : undefined;
-
-        if (normalizedQuery) {
-          url.searchParams.append('query', normalizedQuery);
-        }
-
         setCurrentQuery(normalizedQuery);
-
         if (params.page !== undefined) {
-          url.searchParams.append('page', params.page.toString());
           setCurrentPage(params.page);
         }
-
         if (params.size !== undefined) {
-          url.searchParams.append('size', params.size.toString());
           setPageSize(params.size);
         }
-
-        if (params.sort) {
-          url.searchParams.append('sort', params.sort);
-        }
-
         setCurrentSort(params.sort);
-        url.searchParams.append('site', resolvedSite);
-        url.searchParams.append('locale', locale);
-        if (sessionCurrency) {
-          url.searchParams.append('currency', sessionCurrency);
-        }
-
-        const filtersToApply = params.filters && Object.keys(params.filters).length > 0 ? params.filters : undefined;
-        if (filtersToApply) {
-          Object.entries(filtersToApply).forEach(([key, value]) => {
-            if (Array.isArray(value)) {
-              value.forEach((val) => {
-                url.searchParams.append(`filters[${key}][]`, val);
-              });
-            } else if (typeof value === 'object' && value !== null) {
-              Object.entries(value).forEach(([nestedKey, nestedValue]) => {
-                url.searchParams.append(`filters[${key}][${nestedKey}]`, String(nestedValue));
-              });
-            } else {
-              url.searchParams.append(`filters[${key}]`, String(value));
-            }
-          });
-        }
         setActiveFilters(filtersToApply ?? {});
-
-        const paramsForRef: SearchParams<T> = {
-          ...params,
-          query: normalizedQuery,
-          filters: filtersToApply,
-        };
-        lastSearchParams.current = paramsForRef;
 
         // Update browser URL with the same parameters (but with 'q' instead of 'query')
         updateBrowserUrl(url.searchParams);
 
-        const response = await fetch(url.toString());
-
-        if (!response.ok) {
-          throw new Error(`Search failed: ${response.statusText}`);
-        }
-
-        const data: SearchResult<T> = await response.json();
+        const data = await fetchSearchResult<T>(requestUrl);
 
         if (gen !== searchGeneration.current) {
           return;
@@ -244,6 +248,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
           setBatteryIncludedFacets(data.batteryIncludedFacets);
         }
       } catch (err) {
+        lastIssuedSearchUrl.current = null;
         if (gen === searchGeneration.current) {
           getLogger().error({ err, event: 'search_request_failed' }, 'Product search request failed');
           setError(USE_SEARCH_CLIENT_ERROR.GENERIC);
@@ -256,6 +261,21 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     },
     [updateBrowserUrl, locale, siteCode, sessionCurrency],
   );
+
+  useEffect(() => {
+    if (!sessionCurrency) {
+      return;
+    }
+    if (lastSearchCurrency.current === undefined) {
+      lastSearchCurrency.current = sessionCurrency;
+      return;
+    }
+    if (lastSearchCurrency.current === sessionCurrency) {
+      return;
+    }
+    lastSearchCurrency.current = sessionCurrency;
+    void search(lastSearchParams.current);
+  }, [sessionCurrency, search]);
 
   /**
    * Apply a facet filter to the search

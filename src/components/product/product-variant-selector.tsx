@@ -8,6 +8,7 @@ import {
   collectVariantAttributeGroups,
   getCompatibleValuesByAttribute,
   getSelectedVariantAttributeValues,
+  isVariantFamilyProduct,
 } from '@/lib/common/product-variant-attributes';
 import { cn } from '@/lib/utils';
 import type { ProductPrice } from '@/platform/services/model/price';
@@ -33,6 +34,7 @@ export default function ProductVariantSelector({ product, className }: ProductVa
   const { session } = useSession();
 
   const parentId = product.parentVariantId || product.id;
+  const shouldLoadVariants = isVariantFamilyProduct(product);
   const [prevParentId, setPrevParentId] = useState(parentId);
   if (prevParentId !== parentId) {
     setPrevParentId(parentId);
@@ -51,46 +53,22 @@ export default function ProductVariantSelector({ product, className }: ProductVa
   }
 
   useEffect(() => {
+    if (!shouldLoadVariants) {
+      return;
+    }
+
     let isCancelled = false;
 
-    const loadVariantsAndPrices = async (): Promise<void> => {
-      if (isCancelled) {
-        return;
-      }
-
+    const loadVariants = async (): Promise<void> => {
       try {
-        if (!variantsLoaded) {
-          setVariantPrices(undefined);
-          const fetchedVariants = await fetchProductVariants(parentId);
-          if (isCancelled) {
-            return;
-          }
-          setVariants(fetchedVariants);
-          setVariantsLoaded(true);
-          if (fetchedVariants.length === 0) {
-            setVariantPrices([]);
-            return;
-          }
-          const priceMap = await fetchProductPrices(
-            fetchedVariants.map((variant) => variant.id),
-            session?.currency,
-          );
-          if (isCancelled) {
-            return;
-          }
-          setVariantPrices(Object.values(priceMap).filter((price): price is ProductPrice => price !== null));
+        const fetchedVariants = await fetchProductVariants(parentId);
+        if (isCancelled) {
           return;
         }
-
-        if (variantPrices === undefined && variants.length > 0) {
-          const priceMap = await fetchProductPrices(
-            variants.map((variant) => variant.id),
-            session?.currency,
-          );
-          if (isCancelled) {
-            return;
-          }
-          setVariantPrices(Object.values(priceMap).filter((price): price is ProductPrice => price !== null));
+        setVariants(fetchedVariants);
+        setVariantsLoaded(true);
+        if (fetchedVariants.length === 0) {
+          setVariantPrices([]);
         }
       } catch {
         if (isCancelled) {
@@ -102,12 +80,44 @@ export default function ProductVariantSelector({ product, className }: ProductVa
       }
     };
 
-    void loadVariantsAndPrices();
+    void loadVariants();
 
     return () => {
       isCancelled = true;
     };
-  }, [parentId, variants, variantsLoaded, variantPrices, session?.currency]);
+  }, [parentId, shouldLoadVariants]);
+
+  useEffect(() => {
+    if (!variantsLoaded || variants.length === 0) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const loadPrices = async (): Promise<void> => {
+      try {
+        const priceMap = await fetchProductPrices(
+          variants.map((variant) => variant.id),
+          sessionCurrency,
+        );
+        if (isCancelled) {
+          return;
+        }
+        setVariantPrices(Object.values(priceMap).filter((price): price is ProductPrice => price !== null));
+      } catch {
+        if (isCancelled) {
+          return;
+        }
+        setVariantPrices([]);
+      }
+    };
+
+    void loadPrices();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [parentId, sessionCurrency, variants, variantsLoaded]);
 
   const attributeGroups = useMemo(() => collectVariantAttributeGroups(product, variants), [product, variants]);
   const attributeOrder = useMemo(() => attributeGroups.map((group) => group.key), [attributeGroups]);
@@ -117,7 +127,7 @@ export default function ProductVariantSelector({ product, className }: ProductVa
     [variants, selectedAttributeValues, attributeOrder],
   );
 
-  if (!product.variantAttributes || product.variantAttributes.length === 0) {
+  if (!shouldLoadVariants) {
     return null;
   }
 

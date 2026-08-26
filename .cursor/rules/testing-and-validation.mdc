@@ -1,0 +1,44 @@
+---
+description: Test locations and mandatory local gates before commit/push
+alwaysApply: true
+---
+
+# Testing & Local Validation
+
+## Test locations
+
+| Kind | Location |
+|---|---|
+| Hooks | `src/hooks/**/*.test.tsx` (jsdom + @swc/jest) |
+| Components | `src/components/**/*.test.tsx` |
+| Platform | `src/platform/**/*.test.ts` |
+| E2E | `e2e/*.spec.ts` (Playwright) |
+
+Hook tests wrap with `StoreProvider` via `@testing-library/react` `renderHook`.
+
+Commands: `npm run jest` · `npm run e2e` · `npm run test` · `npm run jest:coverage`
+
+## Mandatory before commit/push (agent policy)
+
+Stop on first failure:
+
+1. `npm run jest`
+2. `npm run build`
+
+Run `npm audit --audit-level=high` only when the user asks for audit, or before a release/security change.
+
+## Local SonarQube — only when the user asks
+
+Do **not** run a local Sonar scan for `jest`, `build`, commit, or push.
+
+The scanner has usage limits. Run it only when the user explicitly asks (e.g. "run sonar", "sonar scan", "sonarqube").
+
+When asked:
+
+```
+SONAR_HOST_URL=https://sonarqube.k8s-tech.emporix.io SONAR_TOKEN="$SONAR_LOGIN" npx --yes sonarqube-scanner -Dsonar.projectKey=emporix-showcase
+```
+
+Do not claim local `sonarqube-scanner` equals the pinned GitHub Action SHA in `.github/workflows/sonarqube-scan.yml`.
+
+CI note: PR preview runs `audit → generate → lint → jest` (no build/Sonar). Dedicated Sonar stays in `.github/workflows/sonarqube-scan.yml`.

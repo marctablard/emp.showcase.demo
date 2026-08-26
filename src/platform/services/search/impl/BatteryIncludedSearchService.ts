@@ -139,6 +139,34 @@ class BatteryIncludedSearchService implements SearchService {
     return variantCountByParentId;
   }
 
+  /**
+   * Attach child VARIANT hits already present in this response onto their parent.
+   * Avoids a second Product Service fetch so PLP parent tiles can show unique child chips.
+   */
+  private attachChildVariantsToParents(products: Product[]): Product[] {
+    const variantsByParentId = new Map<string, Product[]>();
+
+    products.forEach((product) => {
+      if (!product.parentVariantId || product.isParentVariant) {
+        return;
+      }
+      const siblings = variantsByParentId.get(product.parentVariantId) ?? [];
+      siblings.push(product);
+      variantsByParentId.set(product.parentVariantId, siblings);
+    });
+
+    return products.map((product) => {
+      if (!product.isParentVariant) {
+        return product;
+      }
+      const variants = variantsByParentId.get(product.id);
+      if (!variants?.length) {
+        return product;
+      }
+      return { ...product, variants };
+    });
+  }
+
   private async resolveBatteryIncludedContext(params: { locale?: string; site?: string; currency?: string }): Promise<{
     resolvedLocale?: string;
     resolvedSite?: string;
@@ -623,20 +651,22 @@ class BatteryIncludedSearchService implements SearchService {
     const availableFilters = batteryIncludedFacets
       .filter((facet) => facet.id !== BATTERY_INCLUDED_BREADCRUMB_FILTER)
       .map((facet) => this.toLegacyFilter(facet));
-    const mappedItems = searchResult.hits.map((hit) => {
-      const product = this.productMapper.mapToService(
-        this.attachSelectionContext(hit.document, resolvedSite, currentCurrency),
-      );
+    const mappedItems = this.attachChildVariantsToParents(
+      searchResult.hits.map((hit) => {
+        const product = this.productMapper.mapToService(
+          this.attachSelectionContext(hit.document, resolvedSite, currentCurrency),
+        );
 
-      if (product.isParentVariant) {
-        return {
-          ...product,
-          variantCount: variantCountByParentId.get(product.id) ?? 0,
-        };
-      }
+        if (product.isParentVariant) {
+          return {
+            ...product,
+            variantCount: variantCountByParentId.get(product.id) ?? 0,
+          };
+        }
 
-      return product;
-    });
+        return product;
+      }),
+    );
 
     // Resolve template attribute labels/types (same path as Emporix search / PDP key specs).
     // Skip prices/variants — BI hits already carry priced display data.

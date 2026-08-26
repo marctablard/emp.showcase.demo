@@ -1,10 +1,13 @@
 import { act, renderHook } from '@testing-library/react';
 import { useSiteCode } from '@/hooks/site/useSiteCode';
+import { resetInFlightSearchRequests } from '@/lib/client/search';
 import { BATTERY_INCLUDED_BREADCRUMB_FILTER } from '@/platform/services/model/category/batteryincluded-category';
 import { USE_SEARCH_CLIENT_ERROR, useSearch } from './useSearch';
 
+const mockPush = jest.fn();
+
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: jest.fn() }),
+  useRouter: () => ({ push: mockPush }),
   usePathname: () => '/browse',
 }));
 
@@ -29,6 +32,8 @@ describe('useSearch', () => {
   const mockedUseSiteCode = useSiteCode as jest.MockedFunction<typeof useSiteCode>;
 
   beforeEach(() => {
+    resetInFlightSearchRequests();
+    mockPush.mockClear();
     mockedUseSiteCode.mockReturnValue('main');
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
@@ -300,5 +305,56 @@ describe('useSearch', () => {
       brand: 'Acme',
       [BATTERY_INCLUDED_BREADCRUMB_FILTER]: 'Cables > USB-C',
     });
+  });
+
+  it('does not write currency onto the storefront browse URL', async () => {
+    const { result } = renderHook(() => useSearch());
+
+    await act(async () => {
+      await result.current.search({ page: 0, size: 12, query: 'solar' });
+    });
+
+    expect(mockPush).toHaveBeenCalled();
+    const pushedUrl = String(mockPush.mock.calls[0]?.[0] ?? '');
+    expect(pushedUrl).toContain('q=solar');
+    expect(pushedUrl).not.toContain('currency=');
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('currency=EUR'));
+  });
+
+  it('issues a single fetch for overlapping identical searches', async () => {
+    let resolveResponse: ((value: { ok: boolean; json: () => Promise<unknown> }) => void) | undefined;
+    (global.fetch as jest.Mock).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveResponse = resolve;
+        }),
+    );
+
+    const { result } = renderHook(() => useSearch());
+
+    let firstSearch: Promise<void> | undefined;
+    let secondSearch: Promise<void> | undefined;
+    await act(async () => {
+      firstSearch = result.current.search({ page: 0, size: 12, query: 'solar' });
+      secondSearch = result.current.search({ page: 0, size: 12, query: 'solar' });
+    });
+
+    resolveResponse?.({
+      ok: true,
+      json: async () => ({
+        items: [],
+        total: 0,
+        page: 0,
+        pageSize: 12,
+        availableFilters: [],
+        availableSorts: [],
+      }),
+    });
+
+    await act(async () => {
+      await Promise.all([firstSearch, secondSearch]);
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 });

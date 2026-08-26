@@ -28,6 +28,7 @@ import {
   orderedTemplateAttributeEntries,
   resolveTemplateAttributeLabel,
 } from '@/lib/common/product-template-attributes';
+import { getFirstVariantAttributeGroupFromChildren } from '@/lib/common/product-variant-attributes';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency, imageSizes } from '@/lib/utils';
 import type { Product, ProductUSP } from '@/platform/services/model/product';
@@ -70,17 +71,50 @@ export function ProductTile({
   const horizontalScrollRef = useHorizontalScroll();
 
   const firstAttribute = product.variantAttributes?.[0];
-  const firstAttributeLabel = firstAttribute
-    ? t(dk<ProductVariantAttributeKey>(`filters.mixins.productVariantAttributes.${firstAttribute.key}`), {
-        defaultValue: firstAttribute.name ? l10n(firstAttribute.name) : firstAttribute.key,
+  const childAttributeGroup = getFirstVariantAttributeGroupFromChildren(product);
+  const chipAttributeKey = firstAttribute?.key ?? childAttributeGroup?.key;
+  const chipAttributeName = firstAttribute?.name ?? childAttributeGroup?.name;
+  const firstAttributeLabel = chipAttributeKey
+    ? t(dk<ProductVariantAttributeKey>(`filters.mixins.productVariantAttributes.${chipAttributeKey}`), {
+        defaultValue: chipAttributeName ? l10n(chipAttributeName) : chipAttributeKey,
       })
     : '';
+  const skipFetch = skipVariantFetch || Boolean(childAttributeGroup);
   const { values: fetchedValues, loading: fetchedLoading } = useAvailableVariantValues(
     product,
-    skipVariantFetch ? undefined : firstAttribute?.key,
+    skipFetch ? undefined : firstAttribute?.key,
   );
-  const availableValues = skipVariantFetch ? (firstAttribute?.values ?? []) : fetchedValues;
-  const variantLoading = skipVariantFetch ? false : fetchedLoading;
+  const availableValues = childAttributeGroup
+    ? childAttributeGroup.values.map((key) => ({ key }))
+    : skipVariantFetch
+      ? (firstAttribute?.values ?? [])
+      : fetchedValues;
+  const variantLoading = skipFetch ? false : fetchedLoading;
+  const visibleVariantValues = availableValues.slice(0, 3);
+  const overflowVariantCount = availableValues.length - visibleVariantValues.length;
+  const leadingVariantValues = visibleVariantValues.slice(0, -1);
+  const lastVariantValue = visibleVariantValues.at(-1);
+
+  const renderVariantChip = (value: { key: string; name?: Product['name'] }) => {
+    const isColorAttribute = chipAttributeKey === 'color' || chipAttributeKey === 'farbe';
+
+    return isColorAttribute ? (
+      <ProductColorTile
+        key={value.key}
+        attributeKey={value.key}
+        attributeName={value.name ? l10n(value.name) : value.key}
+        size="sm"
+        showCheckmark={false}
+      />
+    ) : (
+      <ProductCharacteristic
+        key={value.key}
+        value={value.name ? l10n(value.name) : value.key}
+        unit={chipAttributeName ? l10n(chipAttributeName) : (chipAttributeKey ?? '')}
+        attributeLabel={firstAttributeLabel}
+      />
+    );
+  };
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     try {
@@ -232,37 +266,25 @@ export function ProductTile({
                 )}
               </div>
 
-              <div className="absolute right-4 bottom-4 flex max-w-full flex-wrap justify-end gap-2">
-                {!variantLoading && availableValues.length > 0 && (
-                  <>
-                    {availableValues.slice(0, 3).map((value) => {
-                      const isColorAttribute = firstAttribute?.key === 'color' || firstAttribute?.key === 'farbe';
-
-                      return isColorAttribute ? (
-                        <ProductColorTile
-                          key={value.key}
-                          attributeKey={value.key}
-                          attributeName={value.name ? l10n(value.name) : value.key}
-                          size="sm"
-                          showCheckmark={false}
-                        />
-                      ) : (
-                        <ProductCharacteristic
-                          key={value.key}
-                          value={value.name ? l10n(value.name) : value.key}
-                          unit={firstAttribute?.name ? l10n(firstAttribute.name) : (firstAttribute?.key ?? '')}
-                          attributeLabel={firstAttributeLabel}
-                        />
-                      );
-                    })}
-                    {availableValues.length > 3 && (
-                      <div className="bg-surface-disabled text-text-on-disabled flex h-8 w-8 items-center justify-center rounded text-sm font-medium">
-                        +{availableValues.length - 3}
+              {!variantLoading && lastVariantValue ? (
+                <div
+                  data-testid="product-tile-variant-chips"
+                  className="absolute inset-x-4 bottom-4 flex flex-col items-end gap-2"
+                >
+                  {leadingVariantValues.map((value) => renderVariantChip(value))}
+                  <div data-testid="product-tile-variant-chips-last-row" className="flex items-end justify-end gap-2">
+                    {overflowVariantCount > 0 ? (
+                      <div
+                        data-testid="product-tile-variant-overflow"
+                        className="bg-surface-disabled text-text-on-disabled flex h-8 w-8 shrink-0 items-center justify-center rounded text-sm font-medium"
+                      >
+                        +{overflowVariantCount}
                       </div>
-                    )}
-                  </>
-                )}
-              </div>
+                    ) : null}
+                    {renderVariantChip(lastVariantValue)}
+                  </div>
+                </div>
+              ) : null}
 
               {product.labels && product.labels.length > 0 ? (
                 <ProductLabels labels={product.labels} className="absolute top-4 -left-6 flex-col" />

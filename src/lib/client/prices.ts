@@ -6,6 +6,12 @@
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { ProductPrice } from '@/platform/services/model/price/price';
 
+const _batchPriceInflight = new Map<string, Promise<Record<string, ProductPrice | null>>>();
+
+function buildBatchPriceKey(productIds: string[], currency?: string): string {
+  return `${[...productIds].sort().join(',')}|${currency ?? ''}`;
+}
+
 /**
  * Fetch a product price by ID
  *
@@ -72,7 +78,13 @@ export async function fetchProductPrices(
   productIds: string[],
   currency?: string,
 ): Promise<Record<string, ProductPrice | null>> {
-  try {
+  const cacheKey = buildBatchPriceKey(productIds, currency);
+  const existing = _batchPriceInflight.get(cacheKey);
+  if (existing) {
+    return existing;
+  }
+
+  const promise = (async () => {
     const response = await fetch('/api/products/prices', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -84,7 +96,18 @@ export async function fetchProductPrices(
       throw new Error(`Failed to fetch batch product prices: ${response.statusText}`);
     }
 
-    return await response.json();
+    return (await response.json()) as Record<string, ProductPrice | null>;
+  })();
+
+  _batchPriceInflight.set(cacheKey, promise);
+  void promise.finally(() => {
+    if (_batchPriceInflight.get(cacheKey) === promise) {
+      _batchPriceInflight.delete(cacheKey);
+    }
+  });
+
+  try {
+    return await promise;
   } catch (error) {
     getLogger().error({ err: error, productIds }, 'Error fetching batch product prices');
     throw error;
