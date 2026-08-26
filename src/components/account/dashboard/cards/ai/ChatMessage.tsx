@@ -1,15 +1,25 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { hasResolvedWidgetPayload } from '@/lib/common/ai-tool-widgets';
 import { cn } from '@/lib/utils';
 import { StructuredDataRenderer } from './StructuredDataRenderer';
 import type { ChatMessage as ChatMessageType } from './types';
 import type { StructuredDataHandlers } from './types';
 import { formatTimestamp } from './utils';
+import {
+  UNRECOGNIZED_RESPONSE_TYPE,
+  buildUnrecognizedResponseData,
+  logUnrecognizedAiResponse,
+  looksLikeStructuredCaption,
+  resolveUnrecognizedLogSource,
+  shopperCaptionFromRaw,
+} from './utils/unrecognized-response';
 
 interface ChatMessageProps {
   message: ChatMessageType;
   handlers: StructuredDataHandlers;
+  streaming?: boolean;
 }
 
 const getNestedText = (data: unknown): string | undefined => {
@@ -39,20 +49,36 @@ const getMessageContainerClasses = (isUser: boolean, hasStructuredData: boolean)
   return cn(baseClasses, aiBaseClasses, 'max-w-[80%]');
 };
 
-export const ChatMessage: React.FC<ChatMessageProps> = ({ message, handlers }) => {
+export const ChatMessage: React.FC<ChatMessageProps> = ({ message, handlers, streaming = false }) => {
   const isUser = message.isUser;
-  const dataMessage = getNestedText(message.data);
-  const hasStructuredData = Boolean(message.data && message.type && message.type !== 'text');
+  const leakedJson = !isUser && looksLikeStructuredCaption(message.content);
+  const sourceHasResolvedWidget = Boolean(
+    message.type && message.type !== 'text' && hasResolvedWidgetPayload(message.type, message.data),
+  );
+  const recoverLeakedJson = leakedJson && !sourceHasResolvedWidget;
+  const displayContent = leakedJson ? shopperCaptionFromRaw(message.content) : message.content;
+  const displayType = recoverLeakedJson ? UNRECOGNIZED_RESPONSE_TYPE : message.type;
+  const displayData = recoverLeakedJson ? buildUnrecognizedResponseData(message.content, message.data) : message.data;
+
+  useEffect(() => {
+    if (!recoverLeakedJson) {
+      return;
+    }
+    logUnrecognizedAiResponse(resolveUnrecognizedLogSource(message.content, message.data));
+  }, [recoverLeakedJson, message.content, message.data]);
+
+  const dataMessage = getNestedText(displayData);
+  const hasStructuredData = Boolean(displayData && displayType && displayType !== 'text');
   const textBody =
-    !isUser && message.type === 'text' && dataMessage && dataMessage !== message.content ? dataMessage : undefined;
-  const shouldShowContent = Boolean(message.content) && (!hasStructuredData || message.content !== dataMessage);
+    !isUser && displayType === 'text' && dataMessage && dataMessage !== displayContent ? dataMessage : undefined;
+  const shouldShowContent = Boolean(displayContent) && (!hasStructuredData || displayContent !== dataMessage);
 
   return (
     <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
       <div className={getMessageContainerClasses(isUser, hasStructuredData)}>
         {hasStructuredData && (
-          <div className={cn('w-full max-w-none', shouldShowContent && 'mb-2')}>
-            <StructuredDataRenderer type={message.type!} data={message.data} handlers={handlers} />
+          <div className={cn('w-full max-w-none', (shouldShowContent || Boolean(textBody)) && 'mb-2')}>
+            <StructuredDataRenderer type={displayType!} data={displayData} handlers={handlers} streaming={streaming} />
           </div>
         )}
 
@@ -63,7 +89,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, handlers }) =
               isUser ? 'text-text-on-action' : 'text-text-headings',
             )}
           >
-            {message.content}
+            {displayContent}
           </div>
         )}
 

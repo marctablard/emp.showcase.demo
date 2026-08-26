@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import useHistory from '@/hooks/history/useHistory';
 import { useSiteCode } from '@/hooks/site/useSiteCode';
 import { fetchSearchResult } from '@/lib/client/search';
+import { copyStorefrontCurrencyParam } from '@/lib/common/currency-url';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { isDedicatedCategorySelectionFilter } from '@/lib/search/category-selection';
 import type {
@@ -127,6 +128,10 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
    * - maps 'query' to 'q'
    * - omits empty search terms ('q' or 'query') so /browse?q= is treated as /browse
    * - omits default page/size values
+   * - omits site/locale/currency from the API request (path encodes site/locale;
+   *   currency is session-owned for `/api/search`)
+   * - preserves an existing storefront `?currency=` so inbound/share links stay
+   *   visible for CurrencyUrlAligner (COP-5942)
    * Skips navigation if the current URL is already equivalent.
    */
   const updateBrowserUrl = useCallback(
@@ -143,7 +148,8 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
       const normalize = (src: URLSearchParams, mapQuery: boolean) => {
         const out = new URLSearchParams();
         src.forEach((value, key) => {
-          // Only for /api/search — never mirror onto the storefront URL (path already encodes site/locale).
+          // API-only: path already encodes site/locale. Do not copy session currency
+          // onto the storefront (COP-5942 — defaults stay out of the URL).
           if (key === 'site' || key === 'locale' || key === 'currency') {
             return;
           }
@@ -164,9 +170,10 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
 
       // Create a new URLSearchParams for the browser URL
       const newParams = normalize(apiSearchParams, true);
+      const currentParams = new URLSearchParams(window.location.search);
+      copyStorefrontCurrencyParam(currentParams, newParams);
       const newUrl = newParams.toString() ? `${pathname}?${newParams}` : pathname;
 
-      const currentParams = new URLSearchParams(window.location.search);
       const normalizedCurrent = normalize(currentParams, false);
       const normalizedCurrentUrl = normalizedCurrent.toString() ? `${pathname}?${normalizedCurrent}` : pathname;
 

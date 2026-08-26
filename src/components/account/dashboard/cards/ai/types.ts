@@ -74,6 +74,10 @@ export interface TextData {
   formatting?: string;
 }
 
+export interface UnrecognizedData {
+  previewJson?: string;
+}
+
 export interface ErrorData {
   errorCode?: string;
   message: string;
@@ -342,7 +346,8 @@ export type StructuredDataType =
   | 'table'
   | 'html'
   | 'text'
-  | 'error';
+  | 'error'
+  | 'unrecognized';
 
 export type StructuredData =
   | { type: 'cart_summary'; data: CartSummaryData }
@@ -359,6 +364,7 @@ export type StructuredData =
   | { type: 'table'; data: TableData }
   | { type: 'html'; data: HTMLData }
   | { type: 'error'; data: ErrorData }
+  | { type: 'unrecognized'; data: UnrecognizedData }
   | { type: 'text'; data: TextData | null };
 
 export type StructuredDataPayload<T extends StructuredDataType> = Extract<StructuredData, { type: T }>['data'];

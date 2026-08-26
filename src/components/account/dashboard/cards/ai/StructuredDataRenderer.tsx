@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { isResolvedWidgetField } from '@/lib/common/ai-tool-widgets';
+import { hasResolvedWidgetPayload } from '@/lib/common/ai-tool-widgets';
+import { UnrecognizedResponseFallback } from './UnrecognizedResponseFallback';
 import { AccountDetailsRenderer } from './renderers/AccountDetailsRenderer';
 import { AddressListRenderer } from './renderers/AddressListRenderer';
 import { CartSummaryRenderer } from './renderers/CartSummaryRenderer';
@@ -36,35 +37,23 @@ import type {
   StructuredDataType,
   TableData,
 } from './types';
+import { UNRECOGNIZED_RESPONSE_TYPE } from './utils/unrecognized-response';
 
 interface StructuredDataRendererProps {
   type: StructuredDataType | string;
   data: any;
   handlers: StructuredDataHandlers;
+  streaming?: boolean;
 }
 
-const hasResolvedErrorPayload = (record: Record<string, unknown>): boolean => {
-  return ['message', 'details', 'errorCode'].some((key) => {
-    const value = record[key];
-    return typeof value === 'string' && value !== '';
-  });
-};
+export { hasResolvedWidgetPayload };
 
-export const hasResolvedWidgetPayload = (type: string, data: unknown): boolean => {
-  if (data == null) {
-    return false;
-  }
-  if (typeof data !== 'object' || Array.isArray(data)) {
-    return true;
-  }
-  const record = data as Record<string, unknown>;
-  if (type === 'error') {
-    return hasResolvedErrorPayload(record);
-  }
-  return Object.entries(record).some(([key, value]) => isResolvedWidgetField(key, value));
-};
-
-export const StructuredDataRenderer: React.FC<StructuredDataRendererProps> = ({ type, data, handlers }) => {
+export const StructuredDataRenderer: React.FC<StructuredDataRendererProps> = ({
+  type,
+  data,
+  handlers,
+  streaming = false,
+}) => {
   const t = useTranslations('account.AiHelper');
 
   const handleAddToCart = (productId: string, quantity: number) => {
@@ -75,8 +64,12 @@ export const StructuredDataRenderer: React.FC<StructuredDataRendererProps> = ({ 
     });
   };
 
+  if (type === UNRECOGNIZED_RESPONSE_TYPE) {
+    return <UnrecognizedResponseFallback data={data} />;
+  }
+
   if (type !== 'text' && type !== 'html' && !hasResolvedWidgetPayload(type, data)) {
-    return <WidgetSkeleton />;
+    return streaming ? <WidgetSkeleton /> : <UnrecognizedResponseFallback data={data} />;
   }
 
   switch (type) {
@@ -127,12 +120,6 @@ export const StructuredDataRenderer: React.FC<StructuredDataRendererProps> = ({ 
       return <ErrorRenderer data={data as ErrorData} {...handlers} />;
 
     default:
-      return (
-        <div className="text-sm text-text-body">
-          <pre className="text-sm bg-surface-primary p-3 rounded border overflow-x-auto">
-            {JSON.stringify(data, null, 2)}
-          </pre>
-        </div>
-      );
+      return <UnrecognizedResponseFallback data={data} />;
   }
 };

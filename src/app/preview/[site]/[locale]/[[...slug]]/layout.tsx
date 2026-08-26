@@ -10,6 +10,7 @@ import { SiteThemeStyle } from '@/components/theme/site-theme-style';
 import { routing } from '@/i18n/routing';
 import { getSessionForSite } from '@/lib/ssr/session';
 import { getAvailableSites, getSite } from '@/lib/ssr/site';
+import { CurrencyUrlAligner } from '@/providers/CurrencyUrlAligner';
 import SiteProvider from '@/providers/SiteProvider';
 import { SiteSessionAligner } from '@/providers/SiteSessionAligner';
 import { StoreProvider } from '@/providers/StoreProvider';
@@ -38,7 +39,7 @@ const fontBody = Open_Sans({
  *
  * This layout replicates the production provider chain
  *   AuthSessionProvider → SiteProvider → NextIntlClientProvider → StoreProvider
- * (plus `SiteThemeStyle`, `CsrfProvider`, `SiteSessionAligner`) so any client
+ * (plus `SiteThemeStyle`, `CsrfProvider`, `SiteSessionAligner`, `CurrencyUrlAligner`) so any client
  * component the adapter's `CmsRenderer` tree mounts has the context it expects.
  *
  * It deliberately EXCLUDES the editor-irrelevant chrome the production layout
@@ -96,6 +97,7 @@ export default async function PreviewLocaleLayout({
               <StoreProvider shopSession={shopSession} site={site} availableSites={availableSites}>
                 <CsrfProvider />
                 <SiteSessionAligner />
+                <CurrencyUrlAligner />
                 {children}
               </StoreProvider>
             </NextIntlClientProvider>

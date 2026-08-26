@@ -121,7 +121,7 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
           ))}
           {loading && <LoadingIndicator chunkCount={chunkCount} />}
           {showStreamingPreview && (
-            <ChatMessage message={toStreamingMessage(streamingPreview)} handlers={previewHandlers} />
+            <ChatMessage streaming message={toStreamingMessage(streamingPreview)} handlers={previewHandlers} />
           )}
         </div>
       )}

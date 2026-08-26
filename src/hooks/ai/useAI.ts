@@ -61,6 +61,7 @@ export const useAI = (): UseAIResult => {
         setLoading(false);
         setChunkCount(null);
         setStreamingThinking(null);
+        setStreamingPreview(null);
       }
     },
     [handleProgress],

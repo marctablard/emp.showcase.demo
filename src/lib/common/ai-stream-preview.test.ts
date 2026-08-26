@@ -1,4 +1,5 @@
 import {
+  extractEnvelopeMessageField,
   previewStreamingAIMessage,
   resolveLiveChunkCount,
   sanitizeCompletedShopperText,
@@ -23,6 +24,14 @@ describe('previewStreamingAIMessage', () => {
       message: 'Here are your orders',
       data: {},
     });
+  });
+
+  it('extracts a closed message field from an incomplete envelope', () => {
+    expect(
+      extractEnvelopeMessageField(
+        '{"agentId":"frontendAgent","message":"Here are all your orders.","type":"order_list","data":{"orders":[',
+      ),
+    ).toBe('Here are all your orders.');
   });
 
   it('streams a widget skeleton from a live frontendAgent order_list envelope', () => {

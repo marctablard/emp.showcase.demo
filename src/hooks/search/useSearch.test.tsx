@@ -34,6 +34,7 @@ describe('useSearch', () => {
   beforeEach(() => {
     resetInFlightSearchRequests();
     mockPush.mockClear();
+    window.history.replaceState({}, '', '/browse');
     mockedUseSiteCode.mockReturnValue('main');
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
@@ -318,6 +319,21 @@ describe('useSearch', () => {
     const pushedUrl = String(mockPush.mock.calls[0]?.[0] ?? '');
     expect(pushedUrl).toContain('q=solar');
     expect(pushedUrl).not.toContain('currency=');
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('currency=EUR'));
+  });
+
+  it('preserves an existing storefront currency query when syncing the browse URL', async () => {
+    window.history.replaceState({}, '', '/browse?currency=USD');
+    const { result } = renderHook(() => useSearch());
+
+    await act(async () => {
+      await result.current.search({ page: 0, size: 12, query: 'solar' });
+    });
+
+    expect(mockPush).toHaveBeenCalled();
+    const pushedUrl = String(mockPush.mock.calls[0]?.[0] ?? '');
+    expect(pushedUrl).toContain('q=solar');
+    expect(pushedUrl).toContain('currency=USD');
     expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('currency=EUR'));
   });
 

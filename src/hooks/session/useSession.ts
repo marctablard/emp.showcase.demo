@@ -51,7 +51,10 @@ export function useSession() {
         if (success) {
           const { session: updatedSession, hasError } = await fetchSessionWithStatus();
           if (hasError) {
-            return false;
+            // The write already committed — do not fail the mutation or callers
+            // (e.g. CurrencyUrlAligner) will treat this as a rollback signal.
+            getLogger().error({ event: 'session_mutation_refetch_failed' }, 'Session refetch after mutation failed');
+            return success;
           }
           sessionStore.setSession(updatedSession);
           if (afterCommit) {

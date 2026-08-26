@@ -155,7 +155,7 @@ describe('useAI hook', () => {
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
       expect(result.current.chunkCount).toBeNull();
-      expect(result.current.streamingPreview).toEqual({ kind: 'text', content: 'Typing' });
+      expect(result.current.streamingPreview).toBeNull();
     });
   });
 
@@ -205,6 +205,11 @@ describe('useAI hook', () => {
 
     await act(async () => {
       resolveRequest?.({ message: 'streamed' });
+    });
+
+    await waitFor(() => {
+      expect(result.current.streamingPreview).toBeNull();
+      expect(result.current.streamingThinking).toBeNull();
     });
   });
 
