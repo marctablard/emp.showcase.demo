@@ -594,16 +594,31 @@ describe('EmporixUserManagementService list/get', () => {
     expect(customerManagementApi.getContactAssignmentsByLegalEntityId).toHaveBeenCalled();
   });
 
-  it('tokenizes search so each token matches firstName OR lastName in the service', async () => {
-    const johnSmith = adminDto({ id: 'cust-js', customerNumber: 'N-JS', firstName: 'John', lastName: 'Smith' });
-    const janeStone = adminDto({ id: 'cust-jane', customerNumber: 'N-JA', firstName: 'Jane', lastName: 'Stone' });
+  it('tokenizes search so each token matches firstName OR lastName OR contactEmail in the service', async () => {
+    const johnSmith = adminDto({
+      id: 'cust-js',
+      customerNumber: 'N-JS',
+      firstName: 'John',
+      lastName: 'Smith',
+      contactEmail: 'john.smith@acme.com',
+    });
+    const janeStone = adminDto({
+      id: 'cust-jane',
+      customerNumber: 'N-JA',
+      firstName: 'Jane',
+      lastName: 'Stone',
+      contactEmail: 'jane.stone@acme.com',
+    });
     mockAssignments([assignment('cust-js', 'CONTACT'), assignment('cust-jane', 'CONTACT')]);
     mockHydrateByIdQuery([johnSmith, janeStone]);
 
-    const result = await service.listUsers(1, 10, undefined, 'John S');
+    const byName = await service.listUsers(1, 10, undefined, 'John S');
+    expect(byName.items.map((user) => user.id)).toEqual(['N-JS']);
+    expect(byName.totalCount).toBe(1);
 
-    expect(result.items.map((user) => user.id)).toEqual(['N-JS']);
-    expect(result.totalCount).toBe(1);
+    const byEmail = await service.listUsers(1, 10, undefined, 'jane.stone@');
+    expect(byEmail.items.map((user) => user.id)).toEqual(['N-JA']);
+    expect(byEmail.totalCount).toBe(1);
     expect(customerAdminApi.getCustomers).toHaveBeenCalledWith(1, 2, undefined, 'id:(cust-js,cust-jane)', 'session');
     expect(iamApi.getUsers).not.toHaveBeenCalled();
     expect(iamApi.getUserGroups).toHaveBeenCalledWith(adminCustomer.id, { size: 60 }, 'service');
@@ -1177,7 +1192,13 @@ describe('EmporixUserManagementService list/get', () => {
 
   it('tokenizes, sorts, and pages combined Admin-LE rows with the listUsers allow-list', async () => {
     const johnSmith = adminDto({ id: 'cust-js', customerNumber: 'N-JS', firstName: 'John', lastName: 'Smith' });
-    const janeStone = adminDto({ id: 'cust-jane', customerNumber: 'N-JA', firstName: 'Jane', lastName: 'Stone' });
+    const janeStone = adminDto({
+      id: 'cust-jane',
+      customerNumber: 'N-JA',
+      firstName: 'Jane',
+      lastName: 'Stone',
+      contactEmail: 'jane.stone@acme.com',
+    });
     const annAlpha = adminDto({ id: 'cust-ann', customerNumber: 'N-A', firstName: 'Ann', lastName: 'Alpha' });
     companyService.getCompanies.mockResolvedValue([
       { id: SELECTED_LE, name: 'Acme' },
@@ -1210,6 +1231,10 @@ describe('EmporixUserManagementService list/get', () => {
     const searched = await service.listOtherCompanyUsers(1, 10, undefined, 'John S');
     expect(searched.items.map((user) => user.id)).toEqual(['N-JS']);
     expect(searched.totalCount).toBe(1);
+
+    const byEmail = await service.listOtherCompanyUsers(1, 10, undefined, 'jane.stone@');
+    expect(byEmail.items.map((user) => user.id)).toEqual(['N-JA']);
+    expect(byEmail.totalCount).toBe(1);
 
     const byFirst = await service.listOtherCompanyUsers(1, 10, 'firstName:asc');
     expect(byFirst.items.map((user) => user.id)).toEqual(['N-A', 'N-JA', 'N-JS']);

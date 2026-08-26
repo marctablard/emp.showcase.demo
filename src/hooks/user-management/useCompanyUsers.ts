@@ -22,7 +22,7 @@ interface UseCompanyUsersOptions {
   pageSize?: number;
   /** Raw sort expression, e.g. `metadataCreatedAt:desc`. */
   sort?: string;
-  /** Raw name-search term sent to the BFF (tokenization is server-side). */
+  /** Raw name-or-email search term sent to the BFF (tokenization is server-side). */
   query?: string;
   /** Total item count seeded from SSR, used to compute pagination before the first client fetch. */
   initialTotalCount?: number;
@@ -163,7 +163,7 @@ interface UseOtherCompanyUsersOptions {
   pageSize?: number;
   /** Raw sort expression, e.g. `metadataCreatedAt:desc`. */
   sort?: string;
-  /** Raw name-search term sent to the BFF (tokenization is server-side). */
+  /** Raw name-or-email search term sent to the BFF (tokenization is server-side). */
   query?: string;
 }
 

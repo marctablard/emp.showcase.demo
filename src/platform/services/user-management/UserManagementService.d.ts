@@ -18,7 +18,7 @@ export interface UserManagementService {
    * @param pageNumber Optional page number (default: 1)
    * @param pageSize Optional page size
    * @param sort Optional raw sort string (e.g. firstName:asc)
-   * @param query Optional raw name-search string (tokenized in the service)
+   * @param query Optional raw name-or-email search string (tokenized in the service)
    * @returns Promise with the user items and optional total count of the filtered selected-LE set
    */
   listUsers(pageNumber?: number, pageSize?: number, sort?: string, query?: string): Promise<CompanyUserListResult>;
@@ -30,7 +30,7 @@ export interface UserManagementService {
    * @param pageNumber Optional page number (default: 1)
    * @param pageSize Optional page size
    * @param sort Optional raw sort string (e.g. firstName:asc)
-   * @param query Optional raw name-search string (tokenized in the service)
+   * @param query Optional raw name-or-email search string (tokenized in the service)
    * @returns Promise with the combined Admin-LE assignment rows and optional total count
    */
   listOtherCompanyUsers(
