@@ -296,6 +296,74 @@
   border-width: --value(--border-width-*);
 }
 
+@theme {
+  --animate-skeleton-border: skeleton-border-shift 6s linear infinite;
+  --animate-skeleton-border-spin: skeleton-border-spin 2.5s linear infinite;
+
+  @keyframes skeleton-border-shift {
+    0%,
+    100% {
+      background-position: 0% 50%;
+    }
+    25% {
+      background-position: 50% 100%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    75% {
+      background-position: 50% 0%;
+    }
+  }
+
+  /* Independent of `translate`, so a centered square can spin without jumping. */
+  @keyframes skeleton-border-spin {
+    to {
+      rotate: 360deg;
+    }
+  }
+}
+
+/*
+ * Real CSS border so side and corner thickness stay equal. The fill uses
+ * background-clip: padding-box, leaving this ring transparent to the spinner.
+ */
+@utility skeleton-border-width {
+  border-width: 0.175rem;
+}
+
+@utility skeleton-border-spinner {
+  position: absolute;
+  inset: -0.175rem;
+}
+
+/*
+ * Square layer larger than the frame diagonal. A rectangular conic squash-stretches
+ * the cones; a centered square keeps two opposite cones circling the border.
+ */
+@utility skeleton-border-spin-layer {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 250%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+}
+
+@utility skeleton-border-spin-fill {
+  background-image: conic-gradient(
+    from 0deg,
+    var(--color-border-white) 0deg,
+    var(--color-primary-500) 90deg,
+    transparent 90deg,
+    transparent 120deg,
+    var(--color-border-white) 180deg,
+    var(--color-primary-500) 270deg,
+    transparent 270deg,
+    transparent 360deg
+  );
+}
+
 /*
  * Shared page container (SHOW-320) — encodes the Figma grid contract in one place.
  * max-width 1920 (6xl token) + auto side margins + 16px side padding below md / 36px from

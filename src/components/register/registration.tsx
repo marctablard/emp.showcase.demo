@@ -72,6 +72,7 @@ function buildRegisterRequest(values: RegistrationData, locale: string, currency
     },
     address: {
       contactName: values.firstName + ' ' + values.lastName,
+      companyName: values.companyName,
       street: values.street,
       streetNumber: values.houseNumber,
       city: values.city,

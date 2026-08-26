@@ -393,32 +393,21 @@ npm run jest:coverage     # With coverage report
 
 ### Mandatory Local Validation Before Commit/Push
 
-Before any commit or push, every agent/prompt must run and pass all four local gates below. Stop on first failure.
+Stop on first failure. Default local gates are `npm run jest` and `npm run build`.
 
-This local policy is a security-focused superset of CI and is intentionally stricter than any single GitHub workflow.
+Do **not** run a local SonarQube scan for jest, build, commit, or push. The scanner has usage limits. Run it only when the user explicitly asks (e.g. "run sonar", "sonar scan").
 
-Required local gates are: `npm audit --audit-level=high`, `npm run jest`, `npm run build`, and a SonarQube repository scan. Any failure, missing Sonar credentials, unreachable Sonar host, or Sonar scan failure blocks commit/push.
+When the user asks for Sonar:
 
-Default local execution order:
+```
+SONAR_HOST_URL=https://sonarqube.k8s-tech.emporix.io SONAR_TOKEN="$SONAR_LOGIN" npx --yes sonarqube-scanner -Dsonar.projectKey=emporix-showcase
+```
 
-1. `npm audit --audit-level=high`
-2. `npm run jest`
-3. `npm run build`
-4. `SONAR_HOST_URL=https://sonarqube.k8s-tech.emporix.io SONAR_TOKEN="$SONAR_LOGIN" npx --yes sonarqube-scanner -Dsonar.projectKey=emporix-showcase`
-
-Workflow parity details (exact per workflow):
+Workflow notes:
 
 - `.github/workflows/github-actions-deploy-pr-preview.yaml`: `audit -> generate -> lint -> jest`; this workflow does not run `build` or Sonar.
 - `.github/workflows/sonarqube-scan.yml`: dedicated Sonar job with checkout `fetch-depth: 0` and pinned action SHA.
-- Some deploy workflows use `continue-on-error` for audit; local policy remains blocking.
-
-Sonar equivalence rules:
-
-- The pinned GitHub Action in CI is authoritative for pipeline parity.
-- The local scanner is mandatory preflight but not byte-for-byte identical to the GitHub Action runtime.
 - Do not claim `sonarqube-scanner@5.0.0` or any local npm package is equivalent to the pinned action SHA.
-- Local pinning is optional for reproducibility only.
-- Closest local parity requires full git history, the same host, the same project key, and a valid token.
 
 ### Test Structure
 

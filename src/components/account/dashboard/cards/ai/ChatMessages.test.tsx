@@ -17,7 +17,9 @@ jest.mock('./ChatMessage', () => ({
 }));
 
 jest.mock('./LoadingIndicator', () => ({
-  LoadingIndicator: () => <div data-testid="loading-indicator">loading</div>,
+  LoadingIndicator: ({ chunkCount }: { chunkCount?: number | null }) => (
+    <div data-testid="loading-indicator">{chunkCount && chunkCount > 0 ? `loading-${chunkCount}` : 'loading'}</div>
+  ),
 }));
 
 const handlers: StructuredDataHandlers = {
@@ -26,7 +28,7 @@ const handlers: StructuredDataHandlers = {
 };
 
 describe('ChatMessages', () => {
-  it('shows a live preview bubble instead of the spinner when preview is available', () => {
+  it('keeps the thinking indicator with a live chunk count while a preview streams', () => {
     render(
       <ChatMessages
         messages={[{ id: '1', content: 'Question', isUser: true, timestamp: new Date() }]}
@@ -38,7 +40,7 @@ describe('ChatMessages', () => {
     );
 
     expect(screen.getByText('Typing…')).toBeInTheDocument();
-    expect(screen.queryByTestId('loading-indicator')).not.toBeInTheDocument();
+    expect(screen.getByTestId('loading-indicator')).toHaveTextContent('loading-4');
   });
 
   it('shows a live widget bubble from tool preview', () => {
@@ -58,7 +60,7 @@ describe('ChatMessages', () => {
     );
 
     expect(screen.getByText('Here are your orders.')).toBeInTheDocument();
-    expect(screen.queryByTestId('loading-indicator')).not.toBeInTheDocument();
+    expect(screen.getByTestId('loading-indicator')).toHaveTextContent('loading-3');
   });
 
   it('shows live thinking status without raw chain-of-thought', () => {
@@ -72,9 +74,23 @@ describe('ChatMessages', () => {
       />,
     );
 
-    expect(screen.getByText('thinking')).toBeInTheDocument();
+    expect(screen.getByTestId('loading-indicator')).toBeInTheDocument();
     expect(screen.queryByText('I will look up quotes.')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('loading-indicator')).not.toBeInTheDocument();
+    expect(screen.queryByText('thinking')).not.toBeInTheDocument();
+  });
+
+  it('uses a progress cursor over the chat log while the assistant is processing', () => {
+    render(
+      <ChatMessages
+        messages={[{ id: '1', content: 'Question', isUser: true, timestamp: new Date() }]}
+        loading
+        processing
+        handlers={handlers}
+      />,
+    );
+
+    expect(screen.getByRole('log')).toHaveClass('cursor-progress');
+    expect(screen.getByRole('log')).toHaveAttribute('aria-busy', 'true');
   });
 
   it('shows the spinner while loading without a preview', () => {

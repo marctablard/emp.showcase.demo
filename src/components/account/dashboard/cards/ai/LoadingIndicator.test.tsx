@@ -33,4 +33,10 @@ describe('LoadingIndicator', () => {
     expect(screen.getByText('AI is thinking [12]')).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByText('AI is processing your request')).toBeInTheDocument();
   });
+
+  it('hides the bracketed count until at least one chunk is processed', () => {
+    render(<LoadingIndicator chunkCount={0} />);
+    expect(screen.getByText('AI is thinking...')).toBeInTheDocument();
+    expect(screen.queryByText('AI is thinking [0]')).not.toBeInTheDocument();
+  });
 });

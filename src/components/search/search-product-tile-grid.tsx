@@ -23,7 +23,7 @@ interface SearchProductTileGridProps {
   gridClassName?: string;
 }
 
-const DEFAULT_GRID_CLASSES = 'grid auto-rows-fr grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3';
+const DEFAULT_GRID_CLASSES = 'grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 lg:grid-cols-3';
 
 /**
  * Shared product tile grid: loading skeletons, empty state, "Showing X of Y" header, and the

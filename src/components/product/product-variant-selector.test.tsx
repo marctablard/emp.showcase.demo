@@ -33,11 +33,29 @@ jest.mock('@/lib/client/prices', () => ({
 }));
 
 jest.mock('./product-variant-carousel', () => ({
-  ProductVariantCarousel: () => <div data-testid="product-variant-carousel" />,
+  ProductVariantCarousel: ({ currentProductId, variants }: { currentProductId: string; variants: Product[] }) => (
+    <div
+      data-testid="product-variant-carousel"
+      data-current-product-id={currentProductId}
+      data-variant-count={variants.length}
+    />
+  ),
 }));
 
 jest.mock('./product-variant-attribute-groups', () => ({
-  ProductVariantAttributeGroups: () => <div data-testid="product-variant-attribute-groups" />,
+  ProductVariantAttributeGroups: ({
+    selectedValues,
+    groups,
+  }: {
+    selectedValues?: Record<string, string>;
+    groups: Array<{ key: string; values: string[] }>;
+  }) => (
+    <div
+      data-testid="product-variant-attribute-groups"
+      data-selected={JSON.stringify(selectedValues ?? {})}
+      data-group-count={groups.length}
+    />
+  ),
 }));
 
 const fetchProductVariantsMock = fetchProductVariants as jest.MockedFunction<typeof fetchProductVariants>;
@@ -67,9 +85,69 @@ describe('ProductVariantSelector', () => {
     fetchProductPricesMock.mockReset();
   });
 
-  it('returns null when product has no variant attributes', () => {
-    const { container } = render(<ProductVariantSelector product={buildProduct({ variantAttributes: [] })} />);
+  it('returns null for a simple product with no variant family', () => {
+    const { container } = render(
+      <ProductVariantSelector
+        product={buildProduct({
+          parentVariantId: undefined,
+          isParentVariant: false,
+          variantAttributes: [],
+        })}
+      />,
+    );
+
     expect(container).toBeEmptyDOMElement();
+    expect(fetchProductVariantsMock).not.toHaveBeenCalled();
+  });
+
+  it('loads child variants for a parent with an empty attribute catalog', async () => {
+    fetchProductVariantsMock.mockResolvedValue([
+      buildProduct({
+        id: 'v-300',
+        parentVariantId: 'parent-1',
+        variantAttributes: [
+          {
+            key: 'nominal-power',
+            name: 'nominal-power',
+            values: [{ key: '300W', selected: true }],
+          },
+        ],
+        variantAttributeValues: { 'nominal-power': '300W' },
+      }),
+      buildProduct({
+        id: 'v-100',
+        parentVariantId: 'parent-1',
+        variantAttributes: [
+          {
+            key: 'nominal-power',
+            name: 'nominal-power',
+            values: [{ key: '100W', selected: true }],
+          },
+        ],
+        variantAttributeValues: { 'nominal-power': '100W' },
+      }),
+    ]);
+    fetchProductPricesMock.mockResolvedValue({});
+
+    render(
+      <ProductVariantSelector
+        product={buildProduct({
+          id: 'parent-1',
+          parentVariantId: undefined,
+          isParentVariant: true,
+          variantAttributes: [],
+        })}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-variant-selector')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('product-variant-attribute-groups')).toHaveAttribute('data-selected', '{}');
+    expect(screen.getByTestId('product-variant-attribute-groups')).toHaveAttribute('data-group-count', '1');
+    expect(screen.getByTestId('product-variant-carousel')).toHaveAttribute('data-current-product-id', 'parent-1');
+    expect(screen.getByTestId('product-variant-carousel')).toHaveAttribute('data-variant-count', '2');
+    expect(fetchProductVariantsMock).toHaveBeenCalledWith('parent-1');
   });
 
   it('loads variants and renders attribute groups plus carousel', async () => {
@@ -118,8 +196,9 @@ describe('ProductVariantSelector', () => {
     });
     expect(screen.getByTestId('product-variant-attribute-groups')).toBeInTheDocument();
     expect(screen.getByTestId('product-variant-carousel')).toBeInTheDocument();
+    expect(fetchProductVariantsMock).toHaveBeenCalledTimes(1);
     expect(fetchProductVariantsMock).toHaveBeenCalledWith('parent-1');
-    expect(fetchProductPricesMock).toHaveBeenCalled();
+    expect(fetchProductPricesMock).toHaveBeenCalledTimes(1);
   });
 
   it('returns null when variants fetch is empty', async () => {

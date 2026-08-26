@@ -3,15 +3,16 @@
 import React, { useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import type { StreamingPreview } from '@/hooks/ai/useAI';
+import { cn } from '@/lib/utils';
 import { ChatMessage } from './ChatMessage';
 import { LoadingIndicator } from './LoadingIndicator';
-import { ThinkingTranscript } from './ThinkingTranscript';
 import type { ChatMessage as ChatMessageType } from './types';
 import type { StructuredDataHandlers } from './types';
 
 interface ChatMessagesProps {
   messages: ChatMessageType[];
   loading: boolean;
+  processing?: boolean;
   chunkCount?: number | null;
   streamingPreview?: StreamingPreview | null;
   streamingThinking?: string | null;
@@ -71,6 +72,7 @@ const previewHandlers: StructuredDataHandlers = {
 export const ChatMessages: React.FC<ChatMessagesProps> = ({
   messages,
   loading,
+  processing = false,
   chunkCount = null,
   streamingPreview = null,
   streamingThinking = null,
@@ -94,18 +96,21 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
 
   const showStreamingPreview =
     streamingPreview != null && (loading || messages.length === 0 || Boolean(messages.at(-1)?.isUser));
-  const showThinking = loading && Boolean(streamingThinking);
-  const showLoadingIndicator = loading && !showStreamingPreview && !showThinking;
-  const showEmptyState = messages.length === 0 && !showStreamingPreview && !showThinking && !showLoadingIndicator;
+  const showEmptyState = messages.length === 0 && !showStreamingPreview && !loading;
+  const isBusy = loading || processing;
 
   return (
     <div
       ref={scrollContainerRef}
       role="log"
       aria-live="polite"
+      aria-busy={isBusy}
       aria-label={t('chatHistory')}
       aria-relevant="additions"
-      className="flex-1 overflow-y-auto border rounded-lg p-3 bg-surface-image-background mb-3 scroll-smooth"
+      className={cn(
+        'flex-1 overflow-y-auto border rounded-lg p-3 bg-surface-image-background mb-3 scroll-smooth',
+        isBusy && 'cursor-progress',
+      )}
     >
       {showEmptyState ? (
         <div className="text-center text-text-placeholders py-8">{t('emptyState')}</div>
@@ -114,11 +119,10 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
           {messages.map((message) => (
             <ChatMessage key={message.id} message={message} handlers={handlers} />
           ))}
-          {showThinking && <ThinkingTranscript text={streamingThinking ?? ''} />}
+          {loading && <LoadingIndicator chunkCount={chunkCount} />}
           {showStreamingPreview && (
             <ChatMessage message={toStreamingMessage(streamingPreview)} handlers={previewHandlers} />
           )}
-          {showLoadingIndicator && <LoadingIndicator chunkCount={chunkCount} />}
         </div>
       )}
     </div>

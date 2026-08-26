@@ -45,6 +45,7 @@ import {
   hasTechnicalInformation,
 } from '@/lib/common/product-content';
 import { parseBooleanTemplateAttributeValue } from '@/lib/common/product-template-attributes';
+import { isVariantFamilyProduct } from '@/lib/common/product-variant-attributes';
 import type { L10nInput } from '@/lib/l10n';
 import { cn } from '@/lib/utils';
 import type { LocalizedString, StockAvailability } from '@/platform/services/model/common';
@@ -708,7 +709,7 @@ function PdpDetailView({
               onQuantityChange={setQuantity}
               className="mt-6"
             />
-            {product.variantAttributes ? <ProductVariantSelector product={product} className="mt-6" /> : null}
+            {isVariantFamilyProduct(product) ? <ProductVariantSelector product={product} className="mt-6" /> : null}
             {showTierPrices && price ? <ProductTierPrices price={price} quantity={quantity} /> : null}
             <ProductShippingInfo
               currency={price?.currency ?? session?.currency}

@@ -22,11 +22,13 @@ import { useAvailableVariantValues } from '@/hooks/useAvailableVariantValues';
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll';
 import { useL10n } from '@/hooks/useL10n';
 import { useWishlistAddWithAuth } from '@/hooks/wishlist/useWishlistAddWithAuth';
+import { type ProductVariantAttributeKey, dk } from '@/i18n/dynamic-key';
 import { Link } from '@/i18n/navigation';
 import {
   orderedTemplateAttributeEntries,
   resolveTemplateAttributeLabel,
 } from '@/lib/common/product-template-attributes';
+import { getFirstVariantAttributeGroupFromChildren } from '@/lib/common/product-variant-attributes';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency, imageSizes } from '@/lib/utils';
 import type { Product, ProductUSP } from '@/platform/services/model/product';
@@ -38,6 +40,217 @@ interface ProductTileProps {
   locale?: string;
   skipVariantFetch?: boolean;
   showParentVariantBadge?: boolean;
+}
+
+type TileVariantValue = { key: string; name?: Product['name'] };
+type TileL10n = (value: string | NonNullable<Product['name']>) => string;
+
+function getProductUspIcon(icon: string): LucideIcon {
+  if (icon.includes('years')) {
+    return Shield;
+  }
+  if (icon === 'worldwide') {
+    return Globe;
+  }
+  if (icon === 'waterproof') {
+    return DropletOff;
+  }
+  if (icon === 'sustainable') {
+    return Trees;
+  }
+
+  return Circle;
+}
+
+function resolveAvailableVariantValues(
+  childAttributeGroup: ReturnType<typeof getFirstVariantAttributeGroupFromChildren>,
+  skipVariantFetch: boolean,
+  firstAttributeValues: TileVariantValue[] | undefined,
+  fetchedValues: TileVariantValue[],
+): TileVariantValue[] {
+  if (childAttributeGroup) {
+    return childAttributeGroup.values.map((key) => ({ key }));
+  }
+  if (skipVariantFetch) {
+    return firstAttributeValues ?? [];
+  }
+  return fetchedValues;
+}
+
+function shouldShowParentVariantCountBadge(showParentVariantBadge: boolean, product: Product): boolean {
+  return showParentVariantBadge && Boolean(product.isParentVariant) && (product.variantCount ?? 0) > 0;
+}
+
+function ProductTileVariantChip({
+  value,
+  chipAttributeKey,
+  chipAttributeName,
+  firstAttributeLabel,
+  l10n,
+}: Readonly<{
+  value: TileVariantValue;
+  chipAttributeKey?: string;
+  chipAttributeName?: Product['name'];
+  firstAttributeLabel: string;
+  l10n: TileL10n;
+}>) {
+  const isColorAttribute = chipAttributeKey === 'color' || chipAttributeKey === 'farbe';
+  const displayName = value.name ? l10n(value.name) : value.key;
+
+  if (isColorAttribute) {
+    return <ProductColorTile attributeKey={value.key} attributeName={displayName} size="sm" showCheckmark={false} />;
+  }
+
+  return (
+    <ProductCharacteristic
+      value={displayName}
+      unit={chipAttributeName ? l10n(chipAttributeName) : (chipAttributeKey ?? '')}
+      attributeLabel={firstAttributeLabel}
+    />
+  );
+}
+
+function ProductTileVariantChips({
+  variantLoading,
+  availableValues,
+  chipAttributeKey,
+  chipAttributeName,
+  firstAttributeLabel,
+  l10n,
+}: Readonly<{
+  variantLoading: boolean;
+  availableValues: TileVariantValue[];
+  chipAttributeKey?: string;
+  chipAttributeName?: Product['name'];
+  firstAttributeLabel: string;
+  l10n: TileL10n;
+}>) {
+  const visibleVariantValues = availableValues.slice(0, 3);
+  const overflowVariantCount = availableValues.length - visibleVariantValues.length;
+  const leadingVariantValues = visibleVariantValues.slice(0, -1);
+  const lastVariantValue = visibleVariantValues.at(-1);
+
+  if (variantLoading || !lastVariantValue) {
+    return null;
+  }
+
+  const chipProps = {
+    chipAttributeKey,
+    chipAttributeName,
+    firstAttributeLabel,
+    l10n,
+  };
+
+  return (
+    <div data-testid="product-tile-variant-chips" className="absolute inset-x-4 bottom-4 flex flex-col items-end gap-2">
+      {leadingVariantValues.map((value) => (
+        <ProductTileVariantChip key={value.key} value={value} {...chipProps} />
+      ))}
+      <div data-testid="product-tile-variant-chips-last-row" className="flex items-end justify-end gap-2">
+        {overflowVariantCount > 0 ? (
+          <div
+            data-testid="product-tile-variant-overflow"
+            className="bg-surface-disabled text-text-on-disabled flex h-8 w-8 shrink-0 items-center justify-center rounded text-sm font-medium"
+          >
+            +{overflowVariantCount}
+          </div>
+        ) : null}
+        <ProductTileVariantChip value={lastVariantValue} {...chipProps} />
+      </div>
+    </div>
+  );
+}
+
+function ProductTilePrimaryImage({
+  product,
+  l10nOrEmpty,
+}: Readonly<{
+  product: Product;
+  l10nOrEmpty: (value: unknown) => string;
+}>) {
+  const nameAlt = l10nOrEmpty(product.name);
+  const image = product.primaryImage;
+
+  if (!image) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Image src="/images/no_image_alt.png" alt={nameAlt} width={220} height={220} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative h-full w-full">
+      <Image
+        src={image.url}
+        alt={l10nOrEmpty(image.altText) || nameAlt}
+        fill
+        sizes={imageSizes}
+        className="object-contain object-center"
+      />
+    </div>
+  );
+}
+
+function ProductTilePrice({
+  price,
+  unavailableLabel,
+}: Readonly<{
+  price?: Product['price'];
+  unavailableLabel: string;
+}>) {
+  if (!price) {
+    return <p className="text-lg font-bold">{unavailableLabel}</p>;
+  }
+
+  if (price.originalAmount && price.originalAmount !== price.amount) {
+    return (
+      <>
+        <p className="line-through">{formatCurrency(price.originalAmount, price.currency)}</p>
+        <p className="text-text-error text-lg font-bold">{formatCurrency(price.amount, price.currency)}</p>
+      </>
+    );
+  }
+
+  return <p className="text-lg font-bold">{formatCurrency(price.amount, price.currency)}</p>;
+}
+
+function isDimensionTemplateAttribute(key: string): boolean {
+  return key === 'length' || key === 'width' || key === 'height';
+}
+
+function ProductTileTemplateAttributes({
+  product,
+  locale,
+  l10n,
+}: Readonly<{
+  product: Product;
+  locale?: string;
+  l10n: TileL10n;
+}>) {
+  if (!product.templateAttributes) {
+    return null;
+  }
+
+  return (
+    <div className="w-full">
+      {orderedTemplateAttributeEntries(product.templateAttributes, product.templateAttributeOrder).map(
+        ([key, value]) => (
+          <div key={key} className="flex justify-between">
+            <p className="text-sm">{resolveTemplateAttributeLabel(key, product.templateAttributeLabels, l10n)}</p>
+            <p className="flex items-center text-sm font-bold capitalize">
+              <TemplateAttributeValue
+                value={value}
+                type={product.templateAttributeTypes?.[key]}
+                locale={locale ?? 'en'}
+              />
+              {isDimensionTemplateAttribute(key) ? 'cm' : ''}
+            </p>
+          </div>
+        ),
+      )}
+    </div>
+  );
 }
 
 function getProductUspKey(usp: ProductUSP, index: number): string {
@@ -69,12 +282,26 @@ export function ProductTile({
   const horizontalScrollRef = useHorizontalScroll();
 
   const firstAttribute = product.variantAttributes?.[0];
+  const childAttributeGroup = getFirstVariantAttributeGroupFromChildren(product);
+  const chipAttributeKey = firstAttribute?.key ?? childAttributeGroup?.key;
+  const chipAttributeName = firstAttribute?.name ?? childAttributeGroup?.name;
+  const firstAttributeLabel = chipAttributeKey
+    ? t(dk<ProductVariantAttributeKey>(`filters.mixins.productVariantAttributes.${chipAttributeKey}`), {
+        defaultValue: chipAttributeName ? l10n(chipAttributeName) : chipAttributeKey,
+      })
+    : '';
+  const skipFetch = skipVariantFetch || Boolean(childAttributeGroup);
   const { values: fetchedValues, loading: fetchedLoading } = useAvailableVariantValues(
     product,
-    skipVariantFetch ? undefined : firstAttribute?.key,
+    skipFetch ? undefined : firstAttribute?.key,
   );
-  const availableValues = skipVariantFetch ? (firstAttribute?.values ?? []) : fetchedValues;
-  const variantLoading = skipVariantFetch ? false : fetchedLoading;
+  const availableValues = resolveAvailableVariantValues(
+    childAttributeGroup,
+    skipVariantFetch,
+    firstAttribute?.values,
+    fetchedValues,
+  );
+  const variantLoading = skipFetch ? false : fetchedLoading;
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     try {
@@ -101,25 +328,6 @@ export function ProductTile({
     e.preventDefault();
     addToWishlist(product.id, 1);
   };
-
-  function getIcon(icon: unknown): LucideIcon {
-    const symbol = typeof icon === 'string' ? icon : icon != null ? String(icon) : '';
-
-    if (symbol.includes('years')) {
-      return Shield;
-    }
-    if (symbol === 'worldwide') {
-      return Globe;
-    }
-    if (symbol === 'waterproof') {
-      return DropletOff;
-    }
-    if (symbol === 'sustainable') {
-      return Trees;
-    }
-
-    return Circle;
-  }
 
   const handleCompareClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -192,7 +400,7 @@ export function ProductTile({
 
           <CardContent className="flex flex-grow flex-col gap-4">
             <div className="bg-surface-image-background relative p-4">
-              {showParentVariantBadge && product.isParentVariant && (product.variantCount ?? 0) > 0 && (
+              {shouldShowParentVariantCountBadge(showParentVariantBadge, product) && (
                 <div className="absolute top-4 right-4 z-10">
                   <Badge data-testid="parent-variant-count-badge" variant="white" rounded="full">
                     {product.variantCount}
@@ -200,63 +408,17 @@ export function ProductTile({
                 </div>
               )}
               <div className="relative aspect-square rounded-ss-md rounded-ee-md p-4">
-                {product.primaryImage ? (
-                  <div className="relative h-full w-full">
-                    <Image
-                      src={product.primaryImage.url}
-                      alt={
-                        product.primaryImage.altText
-                          ? l10nOrEmpty(product.primaryImage.altText) || l10nOrEmpty(product.name) || ''
-                          : l10nOrEmpty(product.name) || ''
-                      }
-                      fill
-                      sizes={imageSizes}
-                      className="object-contain object-center"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex h-full items-center justify-center">
-                    <Image
-                      src={'/images/no_image_alt.png'}
-                      alt={l10nOrEmpty(product.name) || ''}
-                      width={220}
-                      height={220}
-                    />
-                  </div>
-                )}
+                <ProductTilePrimaryImage product={product} l10nOrEmpty={l10nOrEmpty} />
               </div>
 
-              <div className="absolute right-4 bottom-4 flex max-w-full flex-wrap justify-end gap-2">
-                {!variantLoading && availableValues.length > 0 && (
-                  <>
-                    {availableValues.slice(0, 3).map((value) => {
-                      const isColorAttribute = firstAttribute?.key === 'color' || firstAttribute?.key === 'farbe';
-
-                      return isColorAttribute ? (
-                        <ProductColorTile
-                          key={value.key}
-                          attributeKey={value.key}
-                          attributeName={value.name ? l10n(value.name) : value.key}
-                          size="sm"
-                          showCheckmark={false}
-                        />
-                      ) : (
-                        <ProductCharacteristic
-                          key={value.key}
-                          value={value.name ? l10n(value.name) : value.key}
-                          unit={firstAttribute?.name ? l10n(firstAttribute.name) : (firstAttribute?.key ?? '')}
-                          className="w-full max-w-full"
-                        />
-                      );
-                    })}
-                    {availableValues.length > 3 && (
-                      <div className="bg-surface-disabled text-text-on-disabled flex h-8 w-8 items-center justify-center rounded text-sm font-medium">
-                        +{availableValues.length - 3}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
+              <ProductTileVariantChips
+                variantLoading={variantLoading}
+                availableValues={availableValues}
+                chipAttributeKey={chipAttributeKey}
+                chipAttributeName={chipAttributeName}
+                firstAttributeLabel={firstAttributeLabel}
+                l10n={l10n}
+              />
 
               {product.labels && product.labels.length > 0 ? (
                 <ProductLabels labels={product.labels} className="absolute top-4 -left-6 flex-col" />
@@ -264,31 +426,11 @@ export function ProductTile({
             </div>
 
             <div className="flex flex-col gap-2">
-              {product.templateAttributes && (
-                <div className="w-full">
-                  {orderedTemplateAttributeEntries(product.templateAttributes, product.templateAttributeOrder).map(
-                    ([key, value]) => (
-                      <div key={key} className="flex justify-between">
-                        <p className="text-sm">
-                          {resolveTemplateAttributeLabel(key, product.templateAttributeLabels, l10n)}
-                        </p>
-                        <p className="flex items-center text-sm font-bold capitalize">
-                          <TemplateAttributeValue
-                            value={value}
-                            type={product.templateAttributeTypes?.[key]}
-                            locale={locale ?? 'en'}
-                          />
-                          {key === 'length' || key === 'width' || key === 'height' ? 'cm' : ''}
-                        </p>
-                      </div>
-                    ),
-                  )}
-                </div>
-              )}
+              <ProductTileTemplateAttributes product={product} locale={locale} l10n={l10n} />
               <div ref={horizontalScrollRef} className="hide-scrollbar flex max-w-full gap-2 overflow-x-scroll">
                 {product.usps?.map((usp, index) => (
                   <ProductTag
-                    icon={getIcon(usp.icon)}
+                    icon={getProductUspIcon(usp.icon)}
                     text={l10n(usp.description)}
                     key={getProductUspKey(usp, index)}
                   />
@@ -309,24 +451,7 @@ export function ProductTile({
               </div>
               <div className="flex items-end justify-between">
                 <div className="flex flex-col gap-1">
-                  {product.price ? (
-                    product.price.originalAmount && product.price.originalAmount !== product.price.amount ? (
-                      <>
-                        <p className="line-through">
-                          {formatCurrency(product.price.originalAmount, product.price.currency)}
-                        </p>
-                        <p className="text-text-error text-lg font-bold">
-                          {formatCurrency(product.price.amount, product.price.currency)}
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-lg font-bold">
-                        {formatCurrency(product.price.amount, product.price.currency)}
-                      </p>
-                    )
-                  ) : (
-                    <p className="text-lg font-bold">{t('price.priceNotAvailable')}</p>
-                  )}
+                  <ProductTilePrice price={product.price} unavailableLabel={t('price.priceNotAvailable')} />
                 </div>
                 <Tooltip>
                   <TooltipTrigger asChild>

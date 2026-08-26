@@ -187,7 +187,8 @@ export function PlpListLayout({
             loading={loading}
             pendingCursor={pendingCursor}
             headerContent={productGridHeaderNode}
-            gridClassName="grid grid-cols-1 gap-4 items-start min-[770px]:grid-cols-2 min-[1440px]:grid-cols-3 md:gap-6"
+            /* Figma 12139:92628 (1848 desktop-max): 3×444 cards. Use lg (1280), not min-[1440px] — that arbitrary variant loses the cascade to sm:grid-cols-2. */
+            gridClassName="grid grid-cols-1 gap-4 items-start sm:grid-cols-2 lg:grid-cols-3 md:gap-6"
           />
           {hasMore ? (
             <div className="flex justify-center pt-3">

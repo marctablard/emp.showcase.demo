@@ -3,6 +3,7 @@ import { useLocale } from 'next-intl';
 import { usePathname, useRouter } from 'next/navigation';
 import useHistory from '@/hooks/history/useHistory';
 import { useSiteCode } from '@/hooks/site/useSiteCode';
+import { fetchSearchResult } from '@/lib/client/search';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { isDedicatedCategorySelectionFilter } from '@/lib/search/category-selection';
 import type {
@@ -16,6 +17,7 @@ import type {
 } from '@/platform/services/model/common';
 import type { SearchSuggestions } from '@/platform/services/model/search/SearchSuggestions';
 import { useSessionStore } from '@/providers/StoreProvider';
+import { appendSearchFilters } from './append-search-filters';
 import { buildSearchPaginationUrl } from './build-search-pagination-url';
 
 const DEFAULT_PAGE_INDEX = 0;
@@ -36,6 +38,43 @@ const normalizeFiltersForCategorySelection = (filters: SearchFilters, selectedFa
     ),
   );
 };
+
+function buildSearchRequestUrl<T>(
+  origin: string,
+  params: SearchParams<T>,
+  resolvedSite: string,
+  locale: string,
+  sessionCurrency: string | undefined,
+  normalizedQuery: string | undefined,
+  filtersToApply: SearchFilters | undefined,
+): URL {
+  const url = new URL('/api/search', origin);
+
+  if (normalizedQuery) {
+    url.searchParams.append('query', normalizedQuery);
+  }
+  if (params.page !== undefined) {
+    url.searchParams.append('page', params.page.toString());
+  }
+  if (params.size !== undefined) {
+    url.searchParams.append('size', params.size.toString());
+  }
+  if (params.sort) {
+    url.searchParams.append('sort', params.sort);
+  }
+  url.searchParams.append('site', resolvedSite);
+  url.searchParams.append('locale', locale);
+  if (sessionCurrency) {
+    url.searchParams.append('currency', sessionCurrency);
+  }
+  appendSearchFilters(url, filtersToApply);
+
+  return url;
+}
+
+function toSearchFailedError(response: Response): Error {
+  return new Error(`Search failed: ${response.status} ${response.statusText || 'Request failed'}`);
+}
 
 export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: SearchResult<T>) {
   const { addSearchQuery } = useHistory();
@@ -68,10 +107,14 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
 
   // Keep track of the last search params for pagination
   const lastSearchParams = useRef<SearchParams<T>>({
-    page: DEFAULT_PAGE_INDEX,
-    size: DEFAULT_PAGE_SIZE,
+    page: initialSearch?.page ?? DEFAULT_PAGE_INDEX,
+    size: initialSearch?.size ?? DEFAULT_PAGE_SIZE,
+    query: initialSearch?.query,
+    sort: initialSearch?.sort,
+    filters: initialSearch?.filters,
   });
   const searchGeneration = useRef(0);
+  const lastSearchCurrency = useRef<string | undefined>(sessionCurrency);
   // The pathname where this search hook is hosted (e.g. /browse), captured on mount.
   // While an intercepting route (e.g. the /login dialog) is open, `usePathname()` returns the
   // intercept's pathname for this still-mounted page; syncing to it would rewrite the browser URL
@@ -101,7 +144,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         const out = new URLSearchParams();
         src.forEach((value, key) => {
           // Only for /api/search — never mirror onto the storefront URL (path already encodes site/locale).
-          if (key === 'site' || key === 'locale') {
+          if (key === 'site' || key === 'locale' || key === 'currency') {
             return;
           }
           // Replace 'query' with 'q' in the browser URL for consistency
@@ -142,87 +185,53 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
    */
   const search = useCallback(
     async (params: SearchParams<T>) => {
+      const resolvedSite = siteCode?.trim();
+      if (!resolvedSite) {
+        getLogger().warn({ event: 'search_missing_site' }, 'Product search skipped: no site context');
+        setError(USE_SEARCH_CLIENT_ERROR.MISSING_SITE);
+        setLoading(false);
+        return;
+      }
+
+      const normalizedQuery = params.query?.trim() ? params.query : undefined;
+      const filtersToApply = params.filters && Object.keys(params.filters).length > 0 ? params.filters : undefined;
+      const url = buildSearchRequestUrl(
+        globalThis.location.origin,
+        params,
+        resolvedSite,
+        locale,
+        sessionCurrency,
+        normalizedQuery,
+        filtersToApply,
+      );
+
+      lastSearchParams.current = {
+        ...params,
+        query: normalizedQuery,
+        filters: filtersToApply,
+      };
+      lastSearchCurrency.current = sessionCurrency;
+
+      const requestUrl = url.toString();
       const gen = ++searchGeneration.current;
+
       try {
         setLoading(true);
         setError(null);
-
-        const resolvedSite = siteCode?.trim();
-        if (!resolvedSite) {
-          getLogger().warn({ event: 'search_missing_site' }, 'Product search skipped: no site context');
-          setError(USE_SEARCH_CLIENT_ERROR.MISSING_SITE);
-          setLoading(false);
-          return;
-        }
-
-        // Build the URL with query parameters
-        const url = new URL('/api/search', window.location.origin);
-
-        // Add basic parameters
-        const normalizedQuery = params.query?.trim() ? params.query : undefined;
-
-        if (normalizedQuery) {
-          url.searchParams.append('query', normalizedQuery);
-        }
-
         setCurrentQuery(normalizedQuery);
-
         if (params.page !== undefined) {
-          url.searchParams.append('page', params.page.toString());
           setCurrentPage(params.page);
         }
-
         if (params.size !== undefined) {
-          url.searchParams.append('size', params.size.toString());
           setPageSize(params.size);
         }
-
-        if (params.sort) {
-          url.searchParams.append('sort', params.sort);
-        }
-
         setCurrentSort(params.sort);
-        url.searchParams.append('site', resolvedSite);
-        url.searchParams.append('locale', locale);
-        if (sessionCurrency) {
-          url.searchParams.append('currency', sessionCurrency);
-        }
-
-        const filtersToApply = params.filters && Object.keys(params.filters).length > 0 ? params.filters : undefined;
-        if (filtersToApply) {
-          Object.entries(filtersToApply).forEach(([key, value]) => {
-            if (Array.isArray(value)) {
-              value.forEach((val) => {
-                url.searchParams.append(`filters[${key}][]`, val);
-              });
-            } else if (typeof value === 'object' && value !== null) {
-              Object.entries(value).forEach(([nestedKey, nestedValue]) => {
-                url.searchParams.append(`filters[${key}][${nestedKey}]`, String(nestedValue));
-              });
-            } else {
-              url.searchParams.append(`filters[${key}]`, String(value));
-            }
-          });
-        }
         setActiveFilters(filtersToApply ?? {});
-
-        const paramsForRef: SearchParams<T> = {
-          ...params,
-          query: normalizedQuery,
-          filters: filtersToApply,
-        };
-        lastSearchParams.current = paramsForRef;
 
         // Update browser URL with the same parameters (but with 'q' instead of 'query')
         updateBrowserUrl(url.searchParams);
 
-        const response = await fetch(url.toString());
-
-        if (!response.ok) {
-          throw new Error(`Search failed: ${response.statusText}`);
-        }
-
-        const data: SearchResult<T> = await response.json();
+        const data = await fetchSearchResult<T>(requestUrl);
 
         if (gen !== searchGeneration.current) {
           return;
@@ -256,6 +265,23 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     },
     [updateBrowserUrl, locale, siteCode, sessionCurrency],
   );
+
+  useEffect(() => {
+    if (!sessionCurrency) {
+      return;
+    }
+    if (lastSearchCurrency.current === undefined) {
+      lastSearchCurrency.current = sessionCurrency;
+      return;
+    }
+    if (lastSearchCurrency.current === sessionCurrency) {
+      return;
+    }
+    lastSearchCurrency.current = sessionCurrency;
+    search(lastSearchParams.current).catch((err: unknown) => {
+      getLogger().error({ err, event: 'search_currency_refresh_failed' }, 'Product search currency refresh failed');
+    });
+  }, [sessionCurrency, search]);
 
   /**
    * Apply a facet filter to the search
@@ -412,22 +438,10 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         currency: sessionCurrency,
       });
 
-      if (lastSearchParams.current.filters) {
-        Object.entries(lastSearchParams.current.filters).forEach(([key, value]) => {
-          if (Array.isArray(value)) {
-            value.forEach((val) => url.searchParams.append(`filters[${key}][]`, val));
-          } else if (typeof value === 'object' && value !== null) {
-            Object.entries(value).forEach(([nestedKey, nestedValue]) => {
-              url.searchParams.append(`filters[${key}][${nestedKey}]`, String(nestedValue));
-            });
-          } else {
-            url.searchParams.append(`filters[${key}]`, String(value));
-          }
-        });
-      }
+      appendSearchFilters(url, lastSearchParams.current.filters);
 
       const response = await fetch(url.toString());
-      if (!response.ok) throw new Error(`Search failed: ${response.statusText}`);
+      if (!response.ok) throw toSearchFailedError(response);
 
       const result: SearchResult<T> = await response.json();
 
@@ -477,7 +491,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         }
         const response = await fetch(url.toString());
         if (!response.ok) {
-          throw new Error(`Suggestions failed: ${response.statusText}`);
+          throw new Error(`Suggestions failed: ${response.status} ${response.statusText || 'Request failed'}`);
         }
         const data = await response.json();
 

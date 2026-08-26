@@ -1,6 +1,10 @@
 import { useCallback, useRef, useState } from 'react';
 import { sendAIChatMessageWithContext } from '@/lib/client/ai';
-import type { AIChatStreamProgressUpdate, StreamPreview } from '@/lib/common/ai-stream-preview';
+import {
+  type AIChatStreamProgressUpdate,
+  type StreamPreview,
+  resolveLiveChunkCount,
+} from '@/lib/common/ai-stream-preview';
 import type { AIChatContext, AIChatResponse } from '@/platform/integrations/ai/model';
 
 export type StreamingPreview = Exclude<StreamPreview, { kind: 'pending' }>;
@@ -29,7 +33,7 @@ export const useAI = (): UseAIResult => {
   const streamingPreviewRef = useRef<StreamingPreview | null>(null);
 
   const handleProgress = useCallback((progress: AIChatStreamProgressUpdate) => {
-    setChunkCount(progress.chunks);
+    setChunkCount((current) => resolveLiveChunkCount(current, progress.chunks));
     if (progress.preview) {
       streamingPreviewRef.current = progress.preview;
     }

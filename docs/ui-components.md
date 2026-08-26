@@ -14,7 +14,7 @@ This project provides a set of reusable UI components located in `src/components
 
 The following are some of the available components:
 
-- `Button`, `Input`, `Card`, `Dialog`, `Checkbox`, `Select`, `Tabs`, `Tooltip`, `Table`, `Accordion`, `Avatar`, `Badge`, `Breadcrumb`, `Carousel`, `DropdownMenu`, `Form`, `Label`, `Popover`, `Progress`, `RadioGroup`, `Rating`, `Separator`, `Sheet`, `Sidebar`, `Skeleton`, `Slider`, `Spinner`, `Switch`, `Textarea`, `ToastNotification`, and more.
+- `Button`, `Input`, `Card`, `Dialog`, `Checkbox`, `Select`, `Tabs`, `Tooltip`, `Table`, `Accordion`, `Avatar`, `Badge`, `Breadcrumb`, `Carousel`, `DropdownMenu`, `Form`, `Label`, `Popover`, `Progress`, `RadioGroup`, `Rating`, `Separator`, `Sheet`, `Sidebar`, `Skeleton`, `SkeletonFrame`, `Slider`, `Spinner`, `Switch`, `Textarea`, `ToastNotification`, and more.
 
 ## Usage Example
 

@@ -4,7 +4,10 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { ToastType, notify } from '@/components/ui/toast-notification';
+import { useAuthentication } from '@/hooks/authentication/useAuthentication';
+import { useSession } from '@/hooks/session/useSession';
 import { deleteCompanyUser } from '@/lib/client/user-management';
+import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
 import type { CompanyUser } from '@/platform/services/model/user-management/company-user';
 
 function companyUserDisplayName(user: CompanyUser): string {
@@ -21,8 +24,13 @@ export interface DeleteUserDialogProps {
 
 export function DeleteUserDialog({ user, open, onOpenChange, onDeleted }: Readonly<DeleteUserDialogProps>) {
   const t = useTranslations('user-management');
+  const { session } = useSession();
+  const { logout } = useAuthentication();
   const [pending, setPending] = useState(false);
   const displayName = user ? companyUserDisplayName(user) : '';
+  const sessionCustomerId = session?.customerId;
+  const isSelfDelete =
+    user != null && isAuthenticatedSessionCustomerId(sessionCustomerId) && user.id === sessionCustomerId;
 
   const handleCancel = () => {
     if (pending) return;
@@ -39,6 +47,10 @@ export function DeleteUserDialog({ user, open, onOpenChange, onDeleted }: Readon
         type: ToastType.Success,
         duration: 4000,
       });
+      if (isSelfDelete) {
+        await logout();
+        return;
+      }
       onDeleted(user);
       onOpenChange(false);
     } catch {
@@ -60,7 +72,9 @@ export function DeleteUserDialog({ user, open, onOpenChange, onDeleted }: Readon
         onOpenChange(nextOpen);
       }}
       title={t('deleteDialog.title')}
-      description={t('deleteDialog.description', { name: displayName })}
+      description={
+        isSelfDelete ? t('deleteDialog.descriptionSelf') : t('deleteDialog.description', { name: displayName })
+      }
       cancelLabel={t('deleteDialog.cancel')}
       confirmLabel={t('deleteDialog.confirm')}
       onCancel={handleCancel}

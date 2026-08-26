@@ -198,6 +198,8 @@ describe('Registration split billing submit (COP-4861)', () => {
 
     const registerCall = mockRegister.mock.calls[0][0];
     expect(registerCall.address.tags).toEqual([ADDRESS_TYPE.SHIPPING, ADDRESS_TYPE.BILLING]);
+    expect(registerCall.address.companyName).toBe('Acme');
+    expect(registerCall.customer.company).toBe('Acme');
     expect(mockLogin).toHaveBeenCalledWith('jane@example.com', 'Aa12345678', '/');
     expect(mockCreateCustomerAddress).not.toHaveBeenCalled();
     expect(mockUpdateCustomerAddress).not.toHaveBeenCalled();
@@ -218,6 +220,8 @@ describe('Registration split billing submit (COP-4861)', () => {
 
     const registerCall = mockRegister.mock.calls[0][0];
     expect(registerCall.address.tags).toEqual([ADDRESS_TYPE.SHIPPING]);
+    expect(registerCall.address.companyName).toBe('Acme');
+    expect(registerCall.customer.company).toBe('Acme');
   });
 
   it('calls login without callbackUrl then createCustomerAddress and updateCustomerAddress with isDefault true', async () => {

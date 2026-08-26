@@ -115,6 +115,7 @@ next-env.d.ts
 !.cursor/rules/
 .cursor/rules/*
 !.cursor/rules/git-branch-and-pr-naming.mdc
+!.cursor/rules/testing-and-validation.mdc
 .github/copilot-instructions.md
 
 # Specifications directory (local development artifacts)

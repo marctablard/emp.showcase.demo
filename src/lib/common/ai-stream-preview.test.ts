@@ -1,5 +1,6 @@
 import {
   previewStreamingAIMessage,
+  resolveLiveChunkCount,
   sanitizeCompletedShopperText,
   sanitizeShopperCaption,
   toStreamProgressUpdate,
@@ -270,5 +271,18 @@ describe('toStreamProgressUpdate', () => {
 
   it('omits empty text previews so the spinner stays up', () => {
     expect(toStreamProgressUpdate(2, { kind: 'text', content: '' })).toEqual({ chunks: 2 });
+  });
+});
+
+describe('resolveLiveChunkCount', () => {
+  it('ignores handshake zeros and keeps a null count', () => {
+    expect(resolveLiveChunkCount(null, 0)).toBeNull();
+  });
+
+  it('starts at the first processed chunk and then only moves forward', () => {
+    expect(resolveLiveChunkCount(null, 1)).toBe(1);
+    expect(resolveLiveChunkCount(3, 8)).toBe(8);
+    expect(resolveLiveChunkCount(8, 0)).toBe(8);
+    expect(resolveLiveChunkCount(8, 5)).toBe(8);
   });
 });

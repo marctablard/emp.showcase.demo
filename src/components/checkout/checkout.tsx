@@ -7,6 +7,7 @@ import { useCheckout } from '@/hooks/checkout/useCheckout';
 import { useCustomer } from '@/hooks/customer/useCustomer';
 import { useRouter } from '@/i18n/navigation';
 import { createApproval } from '@/lib/client/approval';
+import { toHumanReadableGuestCheckoutNotification } from '@/lib/common/guest-checkout-error-message';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { H1 } from '../ui/h';
 import { Spinner } from '../ui/spinner';
@@ -93,7 +94,7 @@ const Checkout: React.FC<CheckoutProps> = ({ onComplete }) => {
       return;
     }
     lastNotifiedErrorRef.current = error;
-    notify({ type: ToastType.Error, title: error.message });
+    notify({ type: ToastType.Error, title: toHumanReadableGuestCheckoutNotification(error.message) });
   }, [error]);
 
   if (customer === undefined || loading || orderResponse) {

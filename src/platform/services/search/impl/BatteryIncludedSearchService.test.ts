@@ -120,6 +120,7 @@ describe('BatteryIncludedSearchService', () => {
       mapToService: jest.fn().mockImplementation((product) => ({
         id: product._product.id,
         isParentVariant: product._product.productType === 'PARENT_VARIANT',
+        parentVariantId: product._product.parentVariantId,
         purchasable: product._product.productType !== 'PARENT_VARIANT',
       })),
     };
@@ -165,6 +166,10 @@ describe('BatteryIncludedSearchService', () => {
       isParentVariant: true,
       variantCount: 2,
     });
+    expect(result.items[0].variants).toEqual([
+      expect.objectContaining({ id: 'child-1', parentVariantId: 'parent-1' }),
+      expect.objectContaining({ id: 'child-2', parentVariantId: 'parent-1' }),
+    ]);
     expect(result.items[1]).toMatchObject({ id: 'child-1' });
     expect(result.items[2]).toMatchObject({ id: 'child-2' });
     expect(productMapper.mapToService).toHaveBeenNthCalledWith(

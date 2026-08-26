@@ -33,6 +33,7 @@ describe('ChatInput', () => {
 
     const sendButton = screen.getByRole('button', { name: 'sending' });
     expect(sendButton).toBeDisabled();
+    expect(sendButton.closest('form')?.parentElement).toHaveClass('cursor-progress');
     fireEvent.submit(sendButton.closest('form')!);
     expect(onSubmit).not.toHaveBeenCalled();
   });

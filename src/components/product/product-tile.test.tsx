@@ -263,4 +263,108 @@ describe('ProductTile', () => {
 
     consoleErrorSpy.mockRestore();
   });
+
+  it('renders compact parent option chips from first-attribute values when skipVariantFetch is set', () => {
+    render(
+      <ProductTile
+        product={makeProduct({
+          isParentVariant: true,
+          variantCount: 4,
+          variantAttributes: [
+            {
+              key: 'nominal-power',
+              name: { en: 'Nominal power' },
+              values: [
+                { key: 'alpha', name: { en: 'ExtraLongNominalPowerValueAlpha' }, selected: false },
+                { key: 'beta', name: { en: 'ExtraLongNominalPowerValueBeta' }, selected: false },
+                { key: 'gamma', name: { en: 'ExtraLongNominalPowerValueGamma' }, selected: false },
+                { key: 'delta', name: { en: 'ExtraLongNominalPowerValueDelta' }, selected: true },
+              ],
+            },
+          ],
+        })}
+        locale="en"
+        skipVariantFetch
+        showParentVariantBadge
+      />,
+    );
+
+    const alphaChip = screen
+      .getAllByText('ExtraLongNominalPowerValueAlpha')
+      .find((el) => el.classList.contains('truncate'));
+    const betaChip = screen
+      .getAllByText('ExtraLongNominalPowerValueBeta')
+      .find((el) => el.classList.contains('truncate'));
+
+    expect(alphaChip).toBeDefined();
+    expect(betaChip).toBeDefined();
+    expect(alphaChip?.parentElement).toHaveClass('max-w-30');
+    expect(alphaChip?.parentElement).not.toHaveClass('w-full');
+    expect(alphaChip?.parentElement).not.toHaveClass('max-w-full');
+    expect(betaChip?.parentElement).toHaveClass('max-w-30');
+    expect(betaChip?.parentElement).not.toHaveClass('w-full');
+    expect(betaChip?.parentElement).not.toHaveClass('max-w-full');
+    expect(screen.getByTestId('parent-variant-count-badge')).toHaveTextContent('4');
+    expect(screen.getByTestId('product-tile-variant-chips')).toHaveClass('flex-col', 'items-end');
+    expect(screen.getByTestId('product-tile-variant-chips-last-row')).toHaveClass('items-end');
+    expect(screen.getByTestId('product-tile-variant-overflow')).toHaveTextContent('+1');
+    expect(screen.getByTestId('product-tile-variant-chips-last-row').firstChild).toHaveTextContent('+1');
+    expect(screen.getByText('ExtraLongNominalPowerValueGamma')).toBeInTheDocument();
+    expect(screen.queryByText('ExtraLongNominalPowerValueDelta')).not.toBeInTheDocument();
+  });
+
+  it('renders unique child variant values when the parent has empty variantAttributes', () => {
+    render(
+      <ProductTile
+        product={makeProduct({
+          id: 'SLP654321',
+          name: { en: 'Victron Solar panel' },
+          isParentVariant: true,
+          purchasable: false,
+          variantCount: 2,
+          variantAttributes: [],
+          variants: [
+            {
+              id: 'SLP654321--1200',
+              name: { en: 'Victron Solar panel' },
+              description: { en: 'Victron Solar panel' },
+              purchasable: true,
+              parentVariantId: 'SLP654321',
+              variantAttributeValues: { 'nominal-power': '1200W' },
+              variantAttributes: [
+                {
+                  key: 'nominal-power',
+                  name: { en: 'nominal-power' },
+                  values: [{ key: '1200W', selected: true }],
+                },
+              ],
+            },
+            {
+              id: 'SLP654321--600',
+              name: { en: 'Victron Solar panel' },
+              description: { en: 'Victron Solar panel' },
+              purchasable: true,
+              parentVariantId: 'SLP654321',
+              variantAttributeValues: { 'nominal-power': '600W' },
+              variantAttributes: [
+                {
+                  key: 'nominal-power',
+                  name: { en: 'nominal-power' },
+                  values: [{ key: '600W', selected: true }],
+                },
+              ],
+            },
+          ],
+        })}
+        locale="en"
+        skipVariantFetch
+        showParentVariantBadge
+      />,
+    );
+
+    expect(screen.getByText('1200W')).toBeInTheDocument();
+    expect(screen.getByText('600W')).toBeInTheDocument();
+    expect(screen.getAllByText('nominal-power')).toHaveLength(2);
+    expect(screen.getByTestId('parent-variant-count-badge')).toHaveTextContent('2');
+  });
 });

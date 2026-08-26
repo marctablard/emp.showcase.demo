@@ -264,12 +264,14 @@ describe('PlpListLayout', () => {
     expect(aside).toHaveClass('hidden', 'min-[1024px]:block');
     expect(screen.getByTestId('search-product-tile-grid')).toHaveClass(
       'grid-cols-1',
-      'min-[770px]:grid-cols-2',
-      'min-[1440px]:grid-cols-3',
+      'sm:grid-cols-2',
+      'lg:grid-cols-3',
       'items-start',
     );
-    expect(lastSearchProductTileGridProps?.gridClassName).toContain('min-[770px]:grid-cols-2');
-    expect(lastSearchProductTileGridProps?.gridClassName).toContain('min-[1440px]:grid-cols-3');
+    expect(lastSearchProductTileGridProps?.gridClassName).toContain('sm:grid-cols-2');
+    expect(lastSearchProductTileGridProps?.gridClassName).not.toContain('min-[770px]:grid-cols-2');
+    expect(lastSearchProductTileGridProps?.gridClassName).toContain('lg:grid-cols-3');
+    expect(lastSearchProductTileGridProps?.gridClassName).not.toContain('min-[1440px]:grid-cols-3');
     expect(lastSearchProductTileGridProps?.gridClassName).toContain('items-start');
     expect(lastSearchProductTileGridProps?.gridClassName).not.toContain('auto-rows-fr');
     expect(sort.parentElement).toHaveClass(
@@ -279,7 +281,7 @@ describe('PlpListLayout', () => {
       'min-[1024px]:shrink-0',
     );
     expect(screen.getByTestId('search-product-tile-grid')).toContainElement(sort);
-    expect(lastSearchProductTileGridProps?.gridClassName).toContain('min-[770px]:grid-cols-2');
+    expect(lastSearchProductTileGridProps?.gridClassName).toContain('sm:grid-cols-2');
     expect(screen.getByTestId('plp-category-tree').parentElement).toHaveClass('hidden', 'min-[1024px]:block');
     expect(screen.getByTestId('plp-category-tree').parentElement?.parentElement).toHaveClass(
       'grid',
