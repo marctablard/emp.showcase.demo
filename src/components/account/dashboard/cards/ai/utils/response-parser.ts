@@ -94,8 +94,11 @@ export const parseAIResponse = (rawMessage: string, depth = 0): ParsedAIResponse
       type: typeof parsed.type === 'string' ? parsed.type : 'text',
       cartRefresh: Boolean(parsed.cartRefresh),
     };
-  } catch (_error) {
-    getLogger().debug({ rawMessage: messageToParse.substring(0, 100) }, 'AI Response Parser: Raw message is not JSON');
+  } catch (error) {
+    getLogger().debug(
+      { error: error instanceof Error ? error.message : error, rawMessage: messageToParse.substring(0, 100) },
+      'AI Response Parser: Raw message is not JSON',
+    );
     if (looksLikeStructuredCaption(rawMessage)) {
       return {
         message: shopperCaptionFromRaw(rawMessage),
@@ -152,12 +155,12 @@ export const resolveCommittedChatPayload = (
 ): Pick<ParsedAIResponse, 'message' | 'data' | 'type'> => {
   const sourceRaw = parsed.unparsedRaw ?? rawMessage;
   const parsedCaption = shopperCaption(parsed.message) || shopperCaptionFromRaw(sourceRaw);
-  const previewCaption =
-    preview?.kind === 'widget'
-      ? shopperCaption(preview.message)
-      : preview?.kind === 'text'
-        ? shopperCaption(preview.content)
-        : '';
+  let previewCaption = '';
+  if (preview?.kind === 'widget') {
+    previewCaption = shopperCaption(preview.message);
+  } else if (preview?.kind === 'text') {
+    previewCaption = shopperCaption(preview.content);
+  }
   const caption = parsedCaption || previewCaption;
 
   const parsedHasResolvedWidget =

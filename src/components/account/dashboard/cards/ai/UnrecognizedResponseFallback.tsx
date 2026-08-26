@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { type UnrecognizedResponseData, firstJsonPreviewLines } from './utils/unrecognized-response';
 
 interface UnrecognizedResponseFallbackProps {
-  data?: UnrecognizedResponseData | unknown;
+  data?: unknown;
 }
 
 const previewFromData = (data: unknown): string => {

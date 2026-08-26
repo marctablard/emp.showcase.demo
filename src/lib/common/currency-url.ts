@@ -46,10 +46,10 @@ export function isCurrencyAllowedOnSite(site: SiteCurrencySource | null | undefi
 export function replaceCurrencySearchParam(pathname: string, search: string, currency: string | null): string {
   const raw = search.startsWith('?') ? search.slice(1) : search;
   const params = new URLSearchParams(raw);
-  if (!currency) {
-    params.delete(CURRENCY_QUERY_PARAM);
-  } else {
+  if (currency) {
     params.set(CURRENCY_QUERY_PARAM, currency);
+  } else {
+    params.delete(CURRENCY_QUERY_PARAM);
   }
   const qs = params.toString();
   return qs ? `${pathname}?${qs}` : pathname;

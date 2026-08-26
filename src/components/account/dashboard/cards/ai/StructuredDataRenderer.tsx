@@ -46,7 +46,7 @@ interface StructuredDataRendererProps {
   streaming?: boolean;
 }
 
-export { hasResolvedWidgetPayload };
+export { hasResolvedWidgetPayload } from '@/lib/common/ai-tool-widgets';
 
 export const StructuredDataRenderer: React.FC<StructuredDataRendererProps> = ({
   type,

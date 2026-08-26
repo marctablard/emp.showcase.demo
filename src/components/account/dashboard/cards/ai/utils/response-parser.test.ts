@@ -62,7 +62,7 @@ describe('parseAIResponse', () => {
     expect(result.type).toBe('text');
     expect(result.data).toBeNull();
     expect(mockLogger.debug).toHaveBeenCalledWith(
-      { rawMessage: 'This is not JSON' },
+      expect.objectContaining({ rawMessage: 'This is not JSON', error: expect.any(String) }),
       'AI Response Parser: Raw message is not JSON',
     );
   });
@@ -113,7 +113,10 @@ describe('parseAIResponse', () => {
     const result = parseAIResponse('');
     expect(result.message).toBe('');
     expect(result.type).toBe('text');
-    expect(mockLogger.debug).toHaveBeenCalledWith({ rawMessage: '' }, 'AI Response Parser: Raw message is not JSON');
+    expect(mockLogger.debug).toHaveBeenCalledWith(
+      expect.objectContaining({ rawMessage: '', error: expect.any(String) }),
+      'AI Response Parser: Raw message is not JSON',
+    );
   });
 
   it('should handle complex data structures', () => {

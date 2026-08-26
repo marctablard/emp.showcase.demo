@@ -170,7 +170,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
 
       // Create a new URLSearchParams for the browser URL
       const newParams = normalize(apiSearchParams, true);
-      const currentParams = new URLSearchParams(window.location.search);
+      const currentParams = new URLSearchParams(globalThis.location.search);
       copyStorefrontCurrencyParam(currentParams, newParams);
       const newUrl = newParams.toString() ? `${pathname}?${newParams}` : pathname;
 
