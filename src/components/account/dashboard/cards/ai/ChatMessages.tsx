@@ -96,8 +96,7 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
 
   const showStreamingPreview =
     streamingPreview != null && (loading || messages.length === 0 || Boolean(messages.at(-1)?.isUser));
-  const showLoadingIndicator = loading;
-  const showEmptyState = messages.length === 0 && !showStreamingPreview && !showLoadingIndicator;
+  const showEmptyState = messages.length === 0 && !showStreamingPreview && !loading;
   const isBusy = loading || processing;
 
   return (
@@ -120,7 +119,7 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
           {messages.map((message) => (
             <ChatMessage key={message.id} message={message} handlers={handlers} />
           ))}
-          {showLoadingIndicator && <LoadingIndicator chunkCount={chunkCount} />}
+          {loading && <LoadingIndicator chunkCount={chunkCount} />}
           {showStreamingPreview && (
             <ChatMessage message={toStreamingMessage(streamingPreview)} handlers={previewHandlers} />
           )}

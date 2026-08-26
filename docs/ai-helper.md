@@ -35,7 +35,7 @@ When streaming is on, `POST /api/ai/chat` is an SSE response. Each `progress` ev
   - token JSON is a fallback: incomplete widget envelopes show the skeleton plus caption; a complete envelope paints the card before `complete`
 - `thinking: "active"` — opaque presence flag only. The Helper shows translated “thinking” status; **raw model chain-of-thought is never forwarded to the browser or painted**. It is **not** written into `complete.message` or `localStorage`.
 
-The thinking line stays visible for the whole in-flight turn. It uses “AI is thinking…” until the first processed payload, then “AI is thinking [n]” as `chunks` increments. A handshake `chunks: 0` is not shown. While Sending is disabled, the chat card and message log use `cursor-progress`. Incomplete widgets render `SkeletonFrame` bars (pulse plus a moving gradient border).
+The thinking line stays visible for the whole in-flight turn. It uses “AI is thinking…” until the first processed payload, then “AI is thinking [n]” as `chunks` increments. A handshake `chunks: 0` is not shown. While Sending is disabled, the chat card and message log use `cursor-progress`. Incomplete widgets render `SkeletonFrame` bars (pulse plus two white/primary-blue cones circling the border).
 
 Live captions also drop any markdown ATX heading (for example `## OBJECTIVE`, `## SESSION INTENT`) and are length-capped for streaming only. Completed shopper answers keep full length after the same planning filter.
 While `preview` is present, the Helper paints a live assistant bubble under the thinking line: **card first**, model caption underneath. Partial replies are **not** persisted to `localStorage`; the final parsed message is stored only on `complete`.

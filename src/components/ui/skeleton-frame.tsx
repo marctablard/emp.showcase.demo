@@ -9,7 +9,7 @@ const roundedVariants = {
   xl: 'rounded-xl',
 } as const;
 
-const skeletonFrameVariants = cva('relative isolate overflow-hidden p-0.5', {
+const skeletonFrameVariants = cva('relative isolate', {
   variants: {
     rounded: roundedVariants,
   },
@@ -18,9 +18,17 @@ const skeletonFrameVariants = cva('relative isolate overflow-hidden p-0.5', {
   },
 });
 
-const skeletonFrameFillVariants = cva('relative z-10 h-full w-full bg-surface-hover-grey', {
+/* Match the padding-box curve so the fill cannot cover the border at corners. */
+const roundedFillVariants = {
+  sm: 'rounded-[calc(var(--radius-sm)-0.175rem)]',
+  md: 'rounded-[calc(var(--radius-md)-0.175rem)]',
+  lg: 'rounded-[calc(var(--radius-lg)-0.175rem)]',
+  xl: 'rounded-[calc(var(--radius-xl)-0.175rem)]',
+} as const;
+
+const skeletonFrameFillVariants = cva('relative z-10 h-full w-full overflow-hidden bg-surface-hover-grey', {
   variants: {
-    rounded: roundedVariants,
+    rounded: roundedFillVariants,
     pulse: {
       true: 'animate-pulse',
       false: '',
@@ -32,9 +40,9 @@ const skeletonFrameFillVariants = cva('relative z-10 h-full w-full bg-surface-ho
   },
 });
 
-const SKELETON_BORDER_SPIN = 'skeleton-border-spin-fill animate-skeleton-border-spin';
+const SKELETON_BORDER_SPIN = 'skeleton-border-spin-layer skeleton-border-spin-fill animate-skeleton-border-spin';
 const SKELETON_BORDER_SHIFT =
-  'animate-skeleton-border bg-gradient-to-r from-border-information via-border-action to-border-information bg-[length:400%_400%]';
+  'animate-skeleton-border bg-gradient-to-r from-border-action via-border-white to-border-action bg-[length:400%_400%]';
 
 export interface SkeletonFrameProps extends ComponentProps<'div'>, VariantProps<typeof skeletonFrameVariants> {
   pulse?: boolean;
@@ -50,7 +58,7 @@ function SkeletonFrame({
   motion = 'spin',
   rounded = 'xl',
   ...props
-}: SkeletonFrameProps) {
+}: Readonly<SkeletonFrameProps>) {
   const showShiftBorder = animatedBorder && motion === 'shift';
   const showSpinBorder = animatedBorder && motion === 'spin';
 
@@ -58,19 +66,30 @@ function SkeletonFrame({
     <div
       data-slot="skeleton-frame"
       data-motion={animatedBorder ? motion : 'none'}
-      className={cn(skeletonFrameVariants({ rounded }), className)}
+      className={cn(
+        skeletonFrameVariants({ rounded }),
+        animatedBorder
+          ? 'skeleton-border-width border-solid border-transparent bg-surface-hover-grey bg-clip-padding'
+          : 'overflow-hidden',
+        className,
+      )}
       {...props}
     >
       {animatedBorder ? (
         <div
           aria-hidden
           className={cn(
-            'skeleton-border-ring pointer-events-none absolute inset-0 z-0',
+            'skeleton-border-spinner pointer-events-none -z-10 overflow-hidden',
             roundedVariants[rounded ?? 'xl'],
-            showSpinBorder && SKELETON_BORDER_SPIN,
-            showShiftBorder && SKELETON_BORDER_SHIFT,
           )}
-        />
+        >
+          <div
+            className={cn(
+              showSpinBorder && SKELETON_BORDER_SPIN,
+              showShiftBorder && cn('absolute inset-0', SKELETON_BORDER_SHIFT),
+            )}
+          />
+        </div>
       ) : null}
       <div data-slot="skeleton-frame-fill" className={skeletonFrameFillVariants({ rounded, pulse })}>
         {children}

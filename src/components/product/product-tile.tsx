@@ -45,19 +45,17 @@ interface ProductTileProps {
 type TileVariantValue = { key: string; name?: Product['name'] };
 type TileL10n = (value: string | NonNullable<Product['name']>) => string;
 
-function getProductUspIcon(icon: unknown): LucideIcon {
-  const symbol = typeof icon === 'string' ? icon : icon != null ? String(icon) : '';
-
-  if (symbol.includes('years')) {
+function getProductUspIcon(icon: string): LucideIcon {
+  if (icon.includes('years')) {
     return Shield;
   }
-  if (symbol === 'worldwide') {
+  if (icon === 'worldwide') {
     return Globe;
   }
-  if (symbol === 'waterproof') {
+  if (icon === 'waterproof') {
     return DropletOff;
   }
-  if (symbol === 'sustainable') {
+  if (icon === 'sustainable') {
     return Trees;
   }
 

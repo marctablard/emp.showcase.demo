@@ -11,13 +11,20 @@ describe('SkeletonFrame', () => {
 
     const frame = screen.getByTestId('frame');
     const ring = frame.querySelector('[aria-hidden]');
+    const spinner = ring?.firstElementChild;
     const fill = frame.querySelector('[data-slot="skeleton-frame-fill"]');
 
     expect(frame).toHaveAttribute('data-slot', 'skeleton-frame');
     expect(frame).toHaveAttribute('data-motion', 'spin');
-    expect(ring).toHaveClass('skeleton-border-ring', 'skeleton-border-spin-fill', 'animate-skeleton-border-spin');
-    expect(ring?.childElementCount).toBe(0);
+    expect(frame).toHaveClass('skeleton-border-width', 'bg-clip-padding');
+    expect(ring).toHaveClass('skeleton-border-spinner');
+    expect(spinner).toHaveClass(
+      'skeleton-border-spin-layer',
+      'skeleton-border-spin-fill',
+      'animate-skeleton-border-spin',
+    );
     expect(fill).toHaveClass('animate-pulse', 'bg-surface-hover-grey');
+    expect(fill).toHaveClass('rounded-[calc(var(--radius-xl)-0.175rem)]');
   });
 
   it('supports a shifting gradient border and optional pulse off', () => {
@@ -28,7 +35,7 @@ describe('SkeletonFrame', () => {
     const fill = frame.querySelector('[data-slot="skeleton-frame-fill"]');
 
     expect(frame).toHaveAttribute('data-motion', 'shift');
-    expect(ring).toHaveClass('animate-skeleton-border', 'skeleton-border-ring');
+    expect(ring?.firstElementChild).toHaveClass('animate-skeleton-border');
     expect(fill).not.toHaveClass('animate-pulse');
   });
 

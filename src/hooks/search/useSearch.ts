@@ -17,6 +17,7 @@ import type {
 } from '@/platform/services/model/common';
 import type { SearchSuggestions } from '@/platform/services/model/search/SearchSuggestions';
 import { useSessionStore } from '@/providers/StoreProvider';
+import { appendSearchFilters } from './append-search-filters';
 import { buildSearchPaginationUrl } from './build-search-pagination-url';
 
 const DEFAULT_PAGE_INDEX = 0;
@@ -37,6 +38,43 @@ const normalizeFiltersForCategorySelection = (filters: SearchFilters, selectedFa
     ),
   );
 };
+
+function buildSearchRequestUrl<T>(
+  origin: string,
+  params: SearchParams<T>,
+  resolvedSite: string,
+  locale: string,
+  sessionCurrency: string | undefined,
+  normalizedQuery: string | undefined,
+  filtersToApply: SearchFilters | undefined,
+): URL {
+  const url = new URL('/api/search', origin);
+
+  if (normalizedQuery) {
+    url.searchParams.append('query', normalizedQuery);
+  }
+  if (params.page !== undefined) {
+    url.searchParams.append('page', params.page.toString());
+  }
+  if (params.size !== undefined) {
+    url.searchParams.append('size', params.size.toString());
+  }
+  if (params.sort) {
+    url.searchParams.append('sort', params.sort);
+  }
+  url.searchParams.append('site', resolvedSite);
+  url.searchParams.append('locale', locale);
+  if (sessionCurrency) {
+    url.searchParams.append('currency', sessionCurrency);
+  }
+  appendSearchFilters(url, filtersToApply);
+
+  return url;
+}
+
+function toSearchFailedError(response: Response): Error {
+  return new Error(`Search failed: ${response.status} ${response.statusText || 'Request failed'}`);
+}
 
 export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: SearchResult<T>) {
   const { addSearchQuery } = useHistory();
@@ -76,7 +114,6 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     filters: initialSearch?.filters,
   });
   const searchGeneration = useRef(0);
-  const lastIssuedSearchUrl = useRef<string | null>(null);
   const lastSearchCurrency = useRef<string | undefined>(sessionCurrency);
   // The pathname where this search hook is hosted (e.g. /browse), captured on mount.
   // While an intercepting route (e.g. the /login dialog) is open, `usePathname()` returns the
@@ -156,59 +193,27 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         return;
       }
 
-      const url = new URL('/api/search', window.location.origin);
       const normalizedQuery = params.query?.trim() ? params.query : undefined;
-
-      if (normalizedQuery) {
-        url.searchParams.append('query', normalizedQuery);
-      }
-      if (params.page !== undefined) {
-        url.searchParams.append('page', params.page.toString());
-      }
-      if (params.size !== undefined) {
-        url.searchParams.append('size', params.size.toString());
-      }
-      if (params.sort) {
-        url.searchParams.append('sort', params.sort);
-      }
-      url.searchParams.append('site', resolvedSite);
-      url.searchParams.append('locale', locale);
-      if (sessionCurrency) {
-        url.searchParams.append('currency', sessionCurrency);
-      }
-
       const filtersToApply = params.filters && Object.keys(params.filters).length > 0 ? params.filters : undefined;
-      if (filtersToApply) {
-        Object.entries(filtersToApply).forEach(([key, value]) => {
-          if (Array.isArray(value)) {
-            value.forEach((val) => {
-              url.searchParams.append(`filters[${key}][]`, val);
-            });
-          } else if (typeof value === 'object' && value !== null) {
-            Object.entries(value).forEach(([nestedKey, nestedValue]) => {
-              url.searchParams.append(`filters[${key}][${nestedKey}]`, String(nestedValue));
-            });
-          } else {
-            url.searchParams.append(`filters[${key}]`, String(value));
-          }
-        });
-      }
+      const url = buildSearchRequestUrl(
+        window.location.origin,
+        params,
+        resolvedSite,
+        locale,
+        sessionCurrency,
+        normalizedQuery,
+        filtersToApply,
+      );
 
-      const paramsForRef: SearchParams<T> = {
+      lastSearchParams.current = {
         ...params,
         query: normalizedQuery,
         filters: filtersToApply,
       };
-      lastSearchParams.current = paramsForRef;
       lastSearchCurrency.current = sessionCurrency;
 
       const requestUrl = url.toString();
-      if (lastIssuedSearchUrl.current === requestUrl) {
-        return;
-      }
-
       const gen = ++searchGeneration.current;
-      lastIssuedSearchUrl.current = requestUrl;
 
       try {
         setLoading(true);
@@ -248,7 +253,6 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
           setBatteryIncludedFacets(data.batteryIncludedFacets);
         }
       } catch (err) {
-        lastIssuedSearchUrl.current = null;
         if (gen === searchGeneration.current) {
           getLogger().error({ err, event: 'search_request_failed' }, 'Product search request failed');
           setError(USE_SEARCH_CLIENT_ERROR.GENERIC);
@@ -274,7 +278,9 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
       return;
     }
     lastSearchCurrency.current = sessionCurrency;
-    void search(lastSearchParams.current);
+    search(lastSearchParams.current).catch((err: unknown) => {
+      getLogger().error({ err, event: 'search_currency_refresh_failed' }, 'Product search currency refresh failed');
+    });
   }, [sessionCurrency, search]);
 
   /**
@@ -432,22 +438,10 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         currency: sessionCurrency,
       });
 
-      if (lastSearchParams.current.filters) {
-        Object.entries(lastSearchParams.current.filters).forEach(([key, value]) => {
-          if (Array.isArray(value)) {
-            value.forEach((val) => url.searchParams.append(`filters[${key}][]`, val));
-          } else if (typeof value === 'object' && value !== null) {
-            Object.entries(value).forEach(([nestedKey, nestedValue]) => {
-              url.searchParams.append(`filters[${key}][${nestedKey}]`, String(nestedValue));
-            });
-          } else {
-            url.searchParams.append(`filters[${key}]`, String(value));
-          }
-        });
-      }
+      appendSearchFilters(url, lastSearchParams.current.filters);
 
       const response = await fetch(url.toString());
-      if (!response.ok) throw new Error(`Search failed: ${response.statusText}`);
+      if (!response.ok) throw toSearchFailedError(response);
 
       const result: SearchResult<T> = await response.json();
 
@@ -497,7 +491,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         }
         const response = await fetch(url.toString());
         if (!response.ok) {
-          throw new Error(`Suggestions failed: ${response.statusText}`);
+          throw new Error(`Suggestions failed: ${response.status} ${response.statusText || 'Request failed'}`);
         }
         const data = await response.json();
 

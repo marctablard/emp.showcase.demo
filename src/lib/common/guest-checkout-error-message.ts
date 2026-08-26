@@ -1,5 +1,6 @@
 const GUEST_CHECKOUT_PREFIX = 'Failed to guest checkout';
-const LOGIN_OR_MAIL_SUFFIX = /\s*Please log in or mail\.?\s*$/i;
+const LOGIN_OR_MAIL_SUFFIX = /Please log in or mail\.?$/i;
+const QUOTED_MESSAGE_FIELD = /"message"\s*:\s*"((?:\\.|[^"\\])*)"/;
 
 function tryParseJsonObject(value: string): Record<string, unknown> | undefined {
   try {
@@ -27,7 +28,7 @@ function extractJsonObject(raw: string): Record<string, unknown> | undefined {
 }
 
 function extractQuotedMessageField(raw: string): string | undefined {
-  const match = raw.match(/"message"\s*:\s*"((?:\\.|[^"\\])*)"/);
+  const match = QUOTED_MESSAGE_FIELD.exec(raw);
   if (!match?.[1]) {
     return undefined;
   }
@@ -61,8 +62,9 @@ function extractUpstreamMessage(raw: string): string | undefined {
 
 function cleanGuestCheckoutMessage(message: string): string {
   return message
-    .replace(new RegExp(`^${GUEST_CHECKOUT_PREFIX}[:.]?\\s*`, 'i'), '')
+    .replace(new RegExp(String.raw`^${GUEST_CHECKOUT_PREFIX}[:.]?\s*`, 'i'), '')
     .replace(/^Bad Request\s*/i, '')
+    .trim()
     .replace(LOGIN_OR_MAIL_SUFFIX, '')
     .trim();
 }

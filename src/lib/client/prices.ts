@@ -9,7 +9,7 @@ import type { ProductPrice } from '@/platform/services/model/price/price';
 const _batchPriceInflight = new Map<string, Promise<Record<string, ProductPrice | null>>>();
 
 function buildBatchPriceKey(productIds: string[], currency?: string): string {
-  return `${[...productIds].sort().join(',')}|${currency ?? ''}`;
+  return `${[...productIds].sort((a, b) => a.localeCompare(b)).join(',')}|${currency ?? ''}`;
 }
 
 /**

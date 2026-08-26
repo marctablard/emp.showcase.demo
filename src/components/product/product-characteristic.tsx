@@ -19,6 +19,7 @@ export function ProductCharacteristic({ value, unit, attributeLabel, className }
     <Tooltip delayDuration={200}>
       <TooltipTrigger asChild>
         <div
+          tabIndex={0}
           className={cn(
             // Badge max width ≥120px (max-w-30). Newer than COP-6023's 64px cap.
             'flex min-w-0 max-w-30 flex-col overflow-hidden rounded-sm border',

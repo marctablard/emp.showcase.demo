@@ -29,4 +29,14 @@ describe('fetchSearchResult', () => {
     expect(a).toEqual({ items: [], total: 0, page: 0, pageSize: 12 });
     expect(b).toEqual({ items: [], total: 0, page: 0, pageSize: 12 });
   });
+
+  it('includes HTTP status when the search request fails', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      statusText: '',
+    } as Response);
+
+    await expect(fetchSearchResult('http://localhost/api/search')).rejects.toThrow('Search failed: 503 Request failed');
+  });
 });

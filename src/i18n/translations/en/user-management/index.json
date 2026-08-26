@@ -62,7 +62,7 @@
   "deleteDialog": {
     "title": "Delete user?",
     "description": "Are you sure you want to delete user \"{name}\"?",
-    "descriptionSelf": "Are you sure you want to delete YOUR OWN USER ACCOUNT? After this action, you will be logged out and will be unable to use the system anymore",
+    "descriptionSelf": "Are you sure you want to delete YOUR OWN USER ACCOUNT? After this action, you will be logged out and will be unable to use the system anymore.",
     "cancel": "Cancel",
     "confirm": "Delete"
   },

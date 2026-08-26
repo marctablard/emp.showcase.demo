@@ -296,12 +296,6 @@
   border-width: --value(--border-width-*);
 }
 
-@property --skeleton-border-angle {
-  syntax: '<angle>';
-  inherits: false;
-  initial-value: 0deg;
-}
-
 @theme {
   --animate-skeleton-border: skeleton-border-shift 6s linear infinite;
   --animate-skeleton-border-spin: skeleton-border-spin 2.5s linear infinite;
@@ -322,31 +316,51 @@
     }
   }
 
+  /* Independent of `translate`, so a centered square can spin without jumping. */
   @keyframes skeleton-border-spin {
     to {
-      --skeleton-border-angle: 360deg;
+      rotate: 360deg;
     }
   }
 }
 
-/* Keeps the moving gradient in a 2px ring so the skeleton fill can pulse on top. */
-@utility skeleton-border-ring {
-  padding: 0.125rem;
-  mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
-  mask-clip: content-box, border-box;
-  mask-composite: exclude;
-  -webkit-mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
-  -webkit-mask-clip: content-box, border-box;
-  -webkit-mask-composite: xor;
+/*
+ * Real CSS border so side and corner thickness stay equal. The fill uses
+ * background-clip: padding-box, leaving this ring transparent to the spinner.
+ */
+@utility skeleton-border-width {
+  border-width: 0.175rem;
+}
+
+@utility skeleton-border-spinner {
+  position: absolute;
+  inset: -0.175rem;
+}
+
+/*
+ * Square layer larger than the frame diagonal. A rectangular conic squash-stretches
+ * the cones; a centered square keeps two opposite cones circling the border.
+ */
+@utility skeleton-border-spin-layer {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 250%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
 }
 
 @utility skeleton-border-spin-fill {
   background-image: conic-gradient(
-    from var(--skeleton-border-angle),
-    var(--color-border-information) 0deg,
-    var(--color-border-action) 50deg,
-    var(--color-border-information) 110deg,
-    var(--color-border-information) 360deg
+    from 0deg,
+    var(--color-border-white) 0deg,
+    var(--color-primary-500) 90deg,
+    transparent 90deg,
+    transparent 120deg,
+    var(--color-border-white) 180deg,
+    var(--color-primary-500) 270deg,
+    transparent 270deg,
+    transparent 360deg
   );
 }
 

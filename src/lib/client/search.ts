@@ -15,7 +15,7 @@ export function fetchSearchResult<T>(url: string): Promise<SearchResult<T>> {
   const request = (async () => {
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`Search failed: ${response.statusText}`);
+      throw new Error(`Search failed: ${response.status} ${response.statusText || 'Request failed'}`);
     }
     return (await response.json()) as SearchResult<T>;
   })().finally(() => {

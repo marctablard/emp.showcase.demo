@@ -29,6 +29,7 @@ describe('ProductCharacteristic', () => {
     expect(unitRow).toHaveClass('truncate', 'min-w-0');
     expect(unitRow).not.toHaveClass('break-words', 'whitespace-normal');
     expect(valueRow?.parentElement).toHaveClass('max-w-30', 'min-w-0', 'overflow-hidden');
+    expect(valueRow?.parentElement).toHaveAttribute('tabindex', '0');
   });
 
   it('exposes the full untruncated attribute:value pair in a badge-owned tooltip', () => {
