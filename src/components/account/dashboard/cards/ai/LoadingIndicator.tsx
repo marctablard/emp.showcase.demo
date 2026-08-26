@@ -7,9 +7,15 @@ interface LoadingIndicatorProps {
   chunkCount?: number | null;
 }
 
+export const shouldShowChunkCount = (chunkCount: number | null | undefined): chunkCount is number => {
+  return typeof chunkCount === 'number' && chunkCount > 0;
+};
+
 export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({ chunkCount = null }) => {
   const t = useTranslations('account.AiHelper');
-  const label = chunkCount === null ? t('thinking') : t('thinkingWithChunks', { numberOfChunks: chunkCount });
+  const label = shouldShowChunkCount(chunkCount)
+    ? t('thinkingWithChunks', { numberOfChunks: chunkCount })
+    : t('thinking');
 
   return (
     <div className="flex justify-start">

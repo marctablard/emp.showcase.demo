@@ -25,7 +25,7 @@ AI Service also documents an async chat mode. Showcase does not use it. For the 
 
 ## Shopper experience
 
-When streaming is on, `POST /api/ai/chat` is an SSE response. Each `progress` event includes `chunks` (count of upstream SSE data payloads, starting at 0) and, when safe, a `preview` payload:
+When streaming is on, `POST /api/ai/chat` is an SSE response. Each `progress` event includes `chunks` (count of upstream SSE data payloads processed so far) and, when safe, a `preview` payload:
 
 - `{ kind: "text", content }` — plain text or a `type: "text"` body as the `"message"` string arrives
 - `{ kind: "html", html }` — sanitized HTML from a `type: "html"` envelope as it arrives
@@ -35,10 +35,12 @@ When streaming is on, `POST /api/ai/chat` is an SSE response. Each `progress` ev
   - token JSON is a fallback: incomplete widget envelopes show the skeleton plus caption; a complete envelope paints the card before `complete`
 - `thinking: "active"` — opaque presence flag only. The Helper shows translated “thinking” status; **raw model chain-of-thought is never forwarded to the browser or painted**. It is **not** written into `complete.message` or `localStorage`.
 
-Live captions also drop any markdown ATX heading (for example `## OBJECTIVE`, `## SESSION INTENT`) and are length-capped for streaming only. Completed shopper answers keep full length after the same planning filter.
-While `preview` is present, the Helper paints a live assistant bubble: **card first**, model caption underneath. Partial replies are **not** persisted to `localStorage`; the final parsed message is stored only on `complete`.
+The thinking line stays visible for the whole in-flight turn. It uses “AI is thinking…” until the first processed payload, then “AI is thinking [n]” as `chunks` increments. A handshake `chunks: 0` is not shown. While Sending is disabled, the chat card and message log use `cursor-progress`. Incomplete widgets render `SkeletonFrame` bars (pulse plus a moving gradient border).
 
-When no preview is available yet — unnamed tools and no shopper `"message"` — the card shows the thinking spinner, and/or the opaque thinking status when upstream emits `thinking` events (never live CoT text).
+Live captions also drop any markdown ATX heading (for example `## OBJECTIVE`, `## SESSION INTENT`) and are length-capped for streaming only. Completed shopper answers keep full length after the same planning filter.
+While `preview` is present, the Helper paints a live assistant bubble under the thinking line: **card first**, model caption underneath. Partial replies are **not** persisted to `localStorage`; the final parsed message is stored only on `complete`.
+
+When no preview is available yet — unnamed tools and no shopper `"message"` — the card shows only the thinking spinner (never live CoT text).
 
 On `complete`, the Helper parses the assembled `message` and renders the final text plus typed widgets. If the stream only contained a filled `tool_result` (no token JSON), the BFF synthesizes the widget envelope from that result. A later token envelope with richer `data` replaces a husk `tool_result` (for example a wrapper whose `name` is the tool id).
 

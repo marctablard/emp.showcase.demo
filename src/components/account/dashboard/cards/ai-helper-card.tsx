@@ -152,7 +152,11 @@ const AiHelperCard = ({ className, title, ...props }: Omit<DashboardCardProps, '
 
   return (
     <div
-      className={cn('flex flex-col h-96 bg-surface-page rounded-xl border shadow-sm overflow-hidden', className)}
+      className={cn(
+        'flex flex-col h-96 bg-surface-page rounded-xl border shadow-sm overflow-hidden',
+        isSendLocked && 'cursor-progress',
+        className,
+      )}
       {...props}
     >
       <div className="p-4 pb-0">
@@ -169,11 +173,12 @@ const AiHelperCard = ({ className, title, ...props }: Omit<DashboardCardProps, '
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col min-h-0 px-4">
+      <div className={cn('flex-1 flex flex-col min-h-0 px-4', isSendLocked && 'cursor-progress')}>
         {isChatMode && (
           <ChatMessages
             messages={messages}
             loading={loading}
+            processing={isSendLocked}
             chunkCount={chunkCount}
             streamingPreview={streamingPreview}
             streamingThinking={streamingThinking}

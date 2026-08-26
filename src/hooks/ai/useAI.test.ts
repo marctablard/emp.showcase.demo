@@ -239,4 +239,31 @@ describe('useAI hook', () => {
 
     expect(onSuccess).toHaveBeenCalledWith({ message: '{"type":"text","message":"done"}' }, cartPreview);
   });
+
+  it('does not expose a handshake chunk count of 0', async () => {
+    let resolveRequest: ((value: { message: string }) => void) | undefined;
+    mockSendAIChatMessageWithContext.mockImplementation(
+      async (_message: string, _context: unknown, onProgress?: (progress: { chunks: number }) => void) => {
+        onProgress?.({ chunks: 0 });
+        return new Promise((resolve) => {
+          resolveRequest = resolve;
+        });
+      },
+    );
+
+    const { result } = renderHook(() => useAI());
+
+    act(() => {
+      void result.current.sendMessageWithContext('Hello', { siteId: 'test', currency: 'EUR', language: 'en' });
+    });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(true);
+      expect(result.current.chunkCount).toBeNull();
+    });
+
+    await act(async () => {
+      resolveRequest?.({ message: 'streamed' });
+    });
+  });
 });

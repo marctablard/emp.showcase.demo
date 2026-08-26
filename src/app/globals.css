@@ -296,6 +296,60 @@
   border-width: --value(--border-width-*);
 }
 
+@property --skeleton-border-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@theme {
+  --animate-skeleton-border: skeleton-border-shift 6s linear infinite;
+  --animate-skeleton-border-spin: skeleton-border-spin 2.5s linear infinite;
+
+  @keyframes skeleton-border-shift {
+    0%,
+    100% {
+      background-position: 0% 50%;
+    }
+    25% {
+      background-position: 50% 100%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    75% {
+      background-position: 50% 0%;
+    }
+  }
+
+  @keyframes skeleton-border-spin {
+    to {
+      --skeleton-border-angle: 360deg;
+    }
+  }
+}
+
+/* Keeps the moving gradient in a 2px ring so the skeleton fill can pulse on top. */
+@utility skeleton-border-ring {
+  padding: 0.125rem;
+  mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+  mask-clip: content-box, border-box;
+  mask-composite: exclude;
+  -webkit-mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+  -webkit-mask-clip: content-box, border-box;
+  -webkit-mask-composite: xor;
+}
+
+@utility skeleton-border-spin-fill {
+  background-image: conic-gradient(
+    from var(--skeleton-border-angle),
+    var(--color-border-information) 0deg,
+    var(--color-border-action) 50deg,
+    var(--color-border-information) 110deg,
+    var(--color-border-information) 360deg
+  );
+}
+
 /*
  * Shared page container (SHOW-320) — encodes the Figma grid contract in one place.
  * max-width 1920 (6xl token) + auto side margins + 16px side padding below md / 36px from

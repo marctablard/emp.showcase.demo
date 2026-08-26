@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
+import { SkeletonFrame } from '@/components/ui/skeleton-frame';
 
 interface WidgetSkeletonProps {
   rows?: number;
@@ -14,7 +15,7 @@ export const WidgetSkeleton: React.FC<WidgetSkeletonProps> = ({ rows = 2 }) => {
     <>
       <div className="space-y-3" aria-hidden="true">
         {Array.from({ length: rows }, (_, index) => (
-          <div key={index} className="h-24 rounded-xl border border-border-primary bg-surface-primary animate-pulse" />
+          <SkeletonFrame key={index} className="h-24" rounded="xl" />
         ))}
       </div>
       <output className="sr-only">{t('aiProcessing')}</output>

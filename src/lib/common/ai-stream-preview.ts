@@ -366,6 +366,14 @@ export const previewStreamingAIMessage = (rawMessage: string): StreamPreview => 
   return previewStreamingAIMessageFromSource(previewSource);
 };
 
+/** Handshake `chunks: 0` is not shopper-visible; only keep incremental processed counts. */
+export const resolveLiveChunkCount = (current: number | null, incoming: number): number | null => {
+  if (incoming > 0) {
+    return Math.max(current ?? 0, incoming);
+  }
+  return current;
+};
+
 export const toStreamProgressUpdate = (
   chunks: number,
   preview: StreamPreview,
