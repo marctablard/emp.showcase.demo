@@ -196,7 +196,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
       const normalizedQuery = params.query?.trim() ? params.query : undefined;
       const filtersToApply = params.filters && Object.keys(params.filters).length > 0 ? params.filters : undefined;
       const url = buildSearchRequestUrl(
-        window.location.origin,
+        globalThis.location.origin,
         params,
         resolvedSite,
         locale,
