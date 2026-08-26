@@ -368,12 +368,12 @@
   background-image: conic-gradient(
     from 0deg,
     var(--color-border-white) 0deg,
-    var(--color-primary-500) 90deg,
-    transparent 90deg,
+    var(--color-primary-500) 120deg,
     transparent 120deg,
+    transparent 180deg,
     var(--color-border-white) 180deg,
-    var(--color-primary-500) 270deg,
-    transparent 270deg,
+    var(--color-primary-500) 300deg,
+    transparent 300deg,
     transparent 360deg
   );
 }
