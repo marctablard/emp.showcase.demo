@@ -17,7 +17,7 @@ describe('SkeletonFrame', () => {
     expect(frame).toHaveAttribute('data-slot', 'skeleton-frame');
     expect(frame).toHaveAttribute('data-motion', 'spin');
     expect(frame).toHaveClass('skeleton-border-width', 'bg-clip-padding');
-    expect(ring).toHaveClass('skeleton-border-spinner');
+    expect(ring).toHaveClass('skeleton-border-spinner', 'skeleton-border-ring');
     expect(spinner).toHaveClass(
       'skeleton-border-spin-layer',
       'skeleton-border-spin-fill',

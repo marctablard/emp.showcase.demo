@@ -8,7 +8,7 @@
   "currentCompany": "Current company",
   "allCompanies": "All companies",
   "companyScope": "Company scope",
-  "searchPlaceholder": "Search name...",
+  "searchPlaceholder": "Search name or email...",
   "columns": {
     "firstName": "First Name",
     "lastName": "Last Name",

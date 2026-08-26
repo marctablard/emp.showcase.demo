@@ -1721,9 +1721,10 @@ function tokenizeNameQuery(query?: string): string[] {
 function matchesNameTokens(customer: EmporixCustomerAdmin, tokens: string[]): boolean {
   const firstName = (customer.firstName ?? '').toLowerCase();
   const lastName = (customer.lastName ?? '').toLowerCase();
+  const contactEmail = (customer.contactEmail ?? '').toLowerCase();
   return tokens.every((token) => {
     const needle = token.toLowerCase();
-    return firstName.includes(needle) || lastName.includes(needle);
+    return firstName.includes(needle) || lastName.includes(needle) || contactEmail.includes(needle);
   });
 }
 

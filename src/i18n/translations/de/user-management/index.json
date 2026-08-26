@@ -8,7 +8,7 @@
   "currentCompany": "Aktuelles Unternehmen",
   "allCompanies": "Alle Unternehmen",
   "companyScope": "Unternehmensbereich",
-  "searchPlaceholder": "Namen suchen...",
+  "searchPlaceholder": "Namen oder E-Mail suchen...",
   "columns": {
     "firstName": "Vorname",
     "lastName": "Nachname",

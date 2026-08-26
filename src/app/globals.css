@@ -338,6 +338,20 @@
 }
 
 /*
+ * Keep cone paint in the 0.175rem ring only. The fill uses `animate-pulse`
+ * (opacity), so an unmasked spinner under it shows through the grey.
+ */
+@utility skeleton-border-ring {
+  padding: 0.175rem;
+  mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+  mask-clip: content-box, border-box;
+  mask-composite: exclude;
+  -webkit-mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+  -webkit-mask-clip: content-box, border-box;
+  -webkit-mask-composite: xor;
+}
+
+/*
  * Square layer larger than the frame diagonal. A rectangular conic squash-stretches
  * the cones; a centered square keeps two opposite cones circling the border.
  */

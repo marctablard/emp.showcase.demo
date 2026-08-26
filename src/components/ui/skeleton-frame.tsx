@@ -79,7 +79,7 @@ function SkeletonFrame({
         <div
           aria-hidden
           className={cn(
-            'skeleton-border-spinner pointer-events-none -z-10 overflow-hidden',
+            'skeleton-border-spinner skeleton-border-ring pointer-events-none z-0 overflow-hidden',
             roundedVariants[rounded ?? 'xl'],
           )}
         >
