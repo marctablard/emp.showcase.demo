@@ -9,6 +9,7 @@ describe('emporix-integration-retry', () => {
         ),
       ),
     ).toBe(true);
+    expect(isTransientEmporixError(new Error('Failed to guest checkout. Gateway Timeout'))).toBe(true);
     expect(isTransientEmporixError(new Error('HTTP 504'))).toBe(true);
     expect(isTransientEmporixError(new Error('Cart not found'))).toBe(false);
   });
