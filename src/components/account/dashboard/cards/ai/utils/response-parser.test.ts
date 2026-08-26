@@ -239,7 +239,7 @@ describe('parseAIResponse', () => {
     expect(committed.type).toBe('unrecognized');
     expect(committed.message).toBe('Here are all your orders.');
     expect(typeof (committed.data as { previewJson?: string }).previewJson).toBe('string');
-    expect(((committed.data as { previewJson: string }).previewJson.match(/\n/g) ?? []).length).toBeLessThan(3);
+    expect(((committed.data as { previewJson: string }).previewJson.match(/\n/g) ?? []).length).toBeLessThan(5);
     expect(mockLogger.warn).toHaveBeenCalled();
   });
 });

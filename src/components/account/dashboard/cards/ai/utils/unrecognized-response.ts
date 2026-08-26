@@ -2,7 +2,7 @@ import { extractEnvelopeMessageField, sanitizeCompletedShopperText } from '@/lib
 import { getLogger } from '@/lib/logger/use-logger-client';
 
 export const UNRECOGNIZED_RESPONSE_TYPE = 'unrecognized';
-export const UNRECOGNIZED_JSON_PREVIEW_LINES = 3;
+export const UNRECOGNIZED_JSON_PREVIEW_LINES = 5;
 export const UNRECOGNIZED_JSON_PREVIEW_CHARS = 240;
 
 export type UnrecognizedResponseData = {

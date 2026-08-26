@@ -21,9 +21,9 @@ describe('unrecognized-response helpers', () => {
     expect(looksLikeStructuredCaption('Here are all your orders.')).toBe(false);
   });
 
-  it('returns the first three pretty-printed JSON lines', () => {
-    const preview = firstJsonPreviewLines({ a: 1, b: { c: 2 } }, 3);
-    expect(preview.split('\n')).toHaveLength(3);
+  it('returns the first five pretty-printed JSON lines', () => {
+    const preview = firstJsonPreviewLines({ a: 1, b: { c: 2 } });
+    expect(preview.split('\n')).toHaveLength(5);
     expect(preview).toContain('"a": 1');
   });
 

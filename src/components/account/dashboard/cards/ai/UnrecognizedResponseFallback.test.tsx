@@ -11,7 +11,7 @@ jest.mock('next-intl', () => ({
 }));
 
 describe('UnrecognizedResponseFallback', () => {
-  it('shows the three-line preview and the console hint', () => {
+  it('shows the JSON preview and the console hint', () => {
     render(
       <UnrecognizedResponseFallback
         data={{

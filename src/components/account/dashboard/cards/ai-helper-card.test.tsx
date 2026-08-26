@@ -239,6 +239,6 @@ describe('AiHelperCard', () => {
     expect(committed.content).toBe('Here are all your orders.');
     expect(committed.content).not.toContain('agentId');
     expect(committed.type).toBe('unrecognized');
-    expect(committed.data?.previewJson?.split('\n').length).toBeLessThanOrEqual(3);
+    expect(committed.data?.previewJson?.split('\n').length).toBeLessThanOrEqual(5);
   });
 });
