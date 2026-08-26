@@ -1349,6 +1349,52 @@ describe('EmporixAuthService', () => {
       );
     });
 
+    it('forwards mapped address companyName and tags on signup customerAddress', async () => {
+      mockSessionService.getCurrent.mockResolvedValue(undefined);
+      mockAddressMapper.mapToSource.mockReturnValue({
+        contactName: 'Ada Lovelace',
+        companyName: 'Emporix GmbH',
+        street: 'StreetShipping',
+        streetNumber: '1',
+        zipCode: '10115',
+        city: 'Berlin',
+        country: 'DE',
+        tags: [],
+      });
+
+      await authService.register({
+        ...registration,
+        customer: {
+          ...registration.customer,
+          company: 'Emporix GmbH',
+        },
+        address: {
+          contactName: 'Ada Lovelace',
+          companyName: 'Emporix GmbH',
+          street: 'StreetShipping',
+          streetNumber: '1',
+          zipCode: '10115',
+          city: 'Berlin',
+          country: 'DE',
+          tags: ['SHIPPING'],
+          source: 'customer',
+        },
+      });
+
+      expect(mockCustomerApi.signup).toHaveBeenCalledWith(
+        expect.objectContaining({
+          customerDetails: expect.objectContaining({
+            company: 'Emporix GmbH',
+            businessModel: 'B2B',
+          }),
+          customerAddress: expect.objectContaining({
+            companyName: 'Emporix GmbH',
+            tags: ['SHIPPING'],
+          }),
+        }),
+      );
+    });
+
     it('still rejects registration without a password', async () => {
       await expect(authService.register({ credentials: { username: 'test@example.com' } })).rejects.toThrow(
         'Missing Password',
