@@ -22,6 +22,7 @@ import { useAvailableVariantValues } from '@/hooks/useAvailableVariantValues';
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll';
 import { useL10n } from '@/hooks/useL10n';
 import { useWishlistAddWithAuth } from '@/hooks/wishlist/useWishlistAddWithAuth';
+import { type ProductVariantAttributeKey, dk } from '@/i18n/dynamic-key';
 import { Link } from '@/i18n/navigation';
 import {
   orderedTemplateAttributeEntries,
@@ -69,6 +70,11 @@ export function ProductTile({
   const horizontalScrollRef = useHorizontalScroll();
 
   const firstAttribute = product.variantAttributes?.[0];
+  const firstAttributeLabel = firstAttribute
+    ? t(dk<ProductVariantAttributeKey>(`filters.mixins.productVariantAttributes.${firstAttribute.key}`), {
+        defaultValue: firstAttribute.name ? l10n(firstAttribute.name) : firstAttribute.key,
+      })
+    : '';
   const { values: fetchedValues, loading: fetchedLoading } = useAvailableVariantValues(
     product,
     skipVariantFetch ? undefined : firstAttribute?.key,
@@ -245,7 +251,7 @@ export function ProductTile({
                           key={value.key}
                           value={value.name ? l10n(value.name) : value.key}
                           unit={firstAttribute?.name ? l10n(firstAttribute.name) : (firstAttribute?.key ?? '')}
-                          className="w-full max-w-full"
+                          attributeLabel={firstAttributeLabel}
                         />
                       );
                     })}

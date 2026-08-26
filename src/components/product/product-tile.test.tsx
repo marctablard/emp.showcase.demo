@@ -263,4 +263,49 @@ describe('ProductTile', () => {
 
     consoleErrorSpy.mockRestore();
   });
+
+  it('renders compact parent option chips from first-attribute values when skipVariantFetch is set', () => {
+    render(
+      <ProductTile
+        product={makeProduct({
+          isParentVariant: true,
+          variantCount: 4,
+          variantAttributes: [
+            {
+              key: 'nominal-power',
+              name: { en: 'Nominal power' },
+              values: [
+                { key: 'alpha', name: { en: 'ExtraLongNominalPowerValueAlpha' }, selected: false },
+                { key: 'beta', name: { en: 'ExtraLongNominalPowerValueBeta' }, selected: false },
+                { key: 'gamma', name: { en: 'ExtraLongNominalPowerValueGamma' }, selected: false },
+                { key: 'delta', name: { en: 'ExtraLongNominalPowerValueDelta' }, selected: true },
+              ],
+            },
+          ],
+        })}
+        locale="en"
+        skipVariantFetch
+        showParentVariantBadge
+      />,
+    );
+
+    const alphaChip = screen
+      .getAllByText('ExtraLongNominalPowerValueAlpha')
+      .find((el) => el.classList.contains('truncate'));
+    const betaChip = screen
+      .getAllByText('ExtraLongNominalPowerValueBeta')
+      .find((el) => el.classList.contains('truncate'));
+
+    expect(alphaChip).toBeDefined();
+    expect(betaChip).toBeDefined();
+    expect(alphaChip?.parentElement).toHaveClass('max-w-30');
+    expect(alphaChip?.parentElement).not.toHaveClass('w-full');
+    expect(alphaChip?.parentElement).not.toHaveClass('max-w-full');
+    expect(betaChip?.parentElement).toHaveClass('max-w-30');
+    expect(betaChip?.parentElement).not.toHaveClass('w-full');
+    expect(betaChip?.parentElement).not.toHaveClass('max-w-full');
+    expect(screen.getByTestId('parent-variant-count-badge')).toHaveTextContent('4');
+    expect(screen.getByText('+1')).toBeInTheDocument();
+    expect(screen.queryByText('ExtraLongNominalPowerValueDelta')).not.toBeInTheDocument();
+  });
 });
