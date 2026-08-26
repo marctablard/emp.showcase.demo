@@ -248,6 +248,25 @@ export const isResolvedWidgetField = (key: string, value: unknown): boolean => {
   return true;
 };
 
+const ERROR_RESOLVED_KEYS = ['message', 'details', 'errorCode'] as const;
+
+export const hasResolvedWidgetPayload = (type: string, data: unknown): boolean => {
+  if (data == null) {
+    return false;
+  }
+  if (typeof data !== 'object' || Array.isArray(data)) {
+    return true;
+  }
+  const record = data as Record<string, unknown>;
+  if (type === 'error') {
+    return ERROR_RESOLVED_KEYS.some((key) => {
+      const value = record[key];
+      return typeof value === 'string' && value !== '';
+    });
+  }
+  return Object.entries(record).some(([key, value]) => isResolvedWidgetField(key, value));
+};
+
 function isMeaningfulWidgetValue(key: string, value: unknown): boolean {
   return isResolvedWidgetField(key, value);
 }

@@ -574,6 +574,7 @@
     "pleaseTryAgain": "Please try again",
     "clearChat": "Clear Chat",
     "errorOccurred": "Sorry, I encountered an error. Please try again.",
+    "unrecognizedResponseHint": "This reply could not be displayed. Open the browser console to see the full response.",
     "rateLimitExceeded": "You're sending messages too quickly. Please wait a moment before trying again.",
     "received": "Received",
     "notReceived": "Not Received",

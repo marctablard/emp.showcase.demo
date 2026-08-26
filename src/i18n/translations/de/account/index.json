@@ -582,6 +582,7 @@
     "pleaseTryAgain": "Bitte versuchen Sie es erneut",
     "clearChat": "Chat löschen",
     "errorOccurred": "Entschuldigung, es ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.",
+    "unrecognizedResponseHint": "Diese Antwort konnte nicht angezeigt werden. Die vollständige Antwort finden Sie in der Browser-Konsole.",
     "rateLimitExceeded": "Sie senden Nachrichten zu schnell. Bitte warten Sie einen Moment, bevor Sie es erneut versuchen.",
     "received": "Erhalten",
     "notReceived": "Nicht erhalten",

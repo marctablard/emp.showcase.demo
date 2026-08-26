@@ -42,7 +42,9 @@ While `preview` is present, the Helper paints a live assistant bubble under the 
 
 When no preview is available yet — unnamed tools and no shopper `"message"` — the card shows only the thinking spinner (never live CoT text).
 
-On `complete`, the Helper parses the assembled `message` and renders the final text plus typed widgets. If the stream only contained a filled `tool_result` (no token JSON), the BFF synthesizes the widget envelope from that result. A later token envelope with richer `data` replaces a husk `tool_result` (for example a wrapper whose `name` is the tool id).
+On `complete`, the Helper parses the assembled `message` and renders the final text plus typed widgets. Agent/SSE envelopes (`agentId` / `sessionId`, or `type: "complete"`) are unwrapped even when the nested `message` is a string or object — not only when `type` is `"complete"`. If the stream only contained a filled `tool_result` (no token JSON), the BFF synthesizes the widget envelope from that result. A later token envelope with richer `data` replaces a husk `tool_result` (for example a wrapper whose `name` is the tool id).
+
+Shoppers never see raw JSON. If the final payload is incomplete, an unknown widget type, or a husk that cannot be rendered, the Helper commits a fallback: the shopper `message` as normal text, the first five lines of `data` (or of the envelope when `data` is empty), and a hint to open the browser console. The full parsed object is written to the browser console. Live widgets may still show a skeleton while the turn is in flight; unresolved husks are not committed, so the skeleton cannot remain after `complete`.
 
 Live `frontendAgent` streams may still concatenate markdown-fenced tool payloads and a later Frontend Agent envelope in token `content`. That token path is fallback only: once `type` is known, Showcase shows the matching React widget (skeleton until `data` is parseable). Allowlisted `tool_result` JSON fills the card as soon as the tool returns; wrappers that only carry the tool name are dropped. Showcase never calls `ai-agentic` — only AI Service `chat-stream`. The BFF owns tool→widget mapping; AI Service only sanitizes JSON.
 

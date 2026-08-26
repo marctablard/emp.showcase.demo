@@ -11,6 +11,15 @@ jest.mock('./StructuredDataRenderer', () => ({
   StructuredDataRenderer: ({ type }: { type: string }) => <div data-testid="structured-data">{type}</div>,
 }));
 
+jest.mock('@/lib/logger/use-logger-client', () => ({
+  getLogger: () => ({
+    warn: jest.fn(),
+    debug: jest.fn(),
+    info: jest.fn(),
+    error: jest.fn(),
+  }),
+}));
+
 const handlers: StructuredDataHandlers = {
   setQuestionValue: jest.fn(),
   handleQuestionSubmit: jest.fn(),
@@ -72,5 +81,22 @@ describe('ChatMessage', () => {
 
     expect(screen.getByText('Here are your current pending orders.')).toBeInTheDocument();
     expect(screen.getByTestId('structured-data')).toHaveTextContent('order_list');
+  });
+
+  it('never paints leaked envelope JSON and falls back when the widget husk is unresolved', () => {
+    const info = jest.spyOn(console, 'info').mockImplementation(() => {});
+    renderMessage({
+      isUser: false,
+      type: 'order_list',
+      content:
+        '{"agentId":"frontendAgent","sessionId":"abc","message":"Here are all your orders.","type":"order_list","data":{"orders":[',
+      data: {},
+    });
+
+    expect(screen.queryByText(/agentId/)).not.toBeInTheDocument();
+    expect(screen.getByText('Here are all your orders.')).toBeInTheDocument();
+    expect(screen.getByTestId('structured-data')).toHaveTextContent('unrecognized');
+    expect(info).toHaveBeenCalled();
+    info.mockRestore();
   });
 });

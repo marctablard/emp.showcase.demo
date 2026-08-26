@@ -288,6 +288,7 @@ Interactive locale changes triggered from client components (for example, the he
 - Keep the href logical and sanitized in the client component; do not precompute a locale-specific pathname with `getPathname(...)` for the transition.
 - Navigate with the client router by calling `router.push(href, { locale, site })` so the shared site-aware router resolves the locale-aware pathname through next-intl first and applies the site segment as the outer prefix afterward.
 - When `locale` is omitted on site-aware `push`/`replace`, the router must still run `getI18nPathname` with the current UI locale so the path stays prefixed (for example `/de/browse` after a currency `refresh`). Do not pass a raw unprefixed href through `addPrefixIfNeeded` alone (COP-5852 142825).
+- Inbound `?currency=` is applied (or rewritten to the session currency) by `CurrencyUrlAligner` — see [Site Middleware](./site-middleware.md) storefront currency query. Language stays on the path (`/de/...`), not a query param.
 - For changed-locale `push`/`replace`, the shared router performs a document navigation to the final canonical path so the URL (not a cookie) carries the new locale.
 - Do not use raw `next/navigation` routing directly for interactive locale changes.
 - Do not invoke server redirect helpers inside client event handlers.

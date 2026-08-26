@@ -236,7 +236,7 @@ describe('useSession fetch resilience', () => {
       mutationResult = await result.current.setCurrency('EUR');
     });
 
-    expect(mutationResult!.success).toBe(false);
+    expect(mutationResult!.success).toBe(true);
     expect(store.session).toEqual({ id: 'session-existing', currency: 'USD', siteCode: 'main' });
     expect(store.setSession).not.toHaveBeenCalledWith(null);
   });

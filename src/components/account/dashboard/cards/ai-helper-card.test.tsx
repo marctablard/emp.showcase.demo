@@ -91,6 +91,15 @@ jest.mock('@/lib/client/ai', () => ({
   prepareAIContext: jest.fn().mockResolvedValue({ siteId: 'main', currency: 'EUR', language: 'en' }),
 }));
 
+jest.mock('@/lib/logger/use-logger-client', () => ({
+  getLogger: () => ({
+    warn: jest.fn(),
+    debug: jest.fn(),
+    info: jest.fn(),
+    error: jest.fn(),
+  }),
+}));
+
 jest.mock('./ai/ChatInput', () => ({
   ChatInput: ({ onSubmit, loading }: { onSubmit: (data: { question: string }) => void; loading: boolean }) => (
     <div>
@@ -192,5 +201,44 @@ describe('AiHelperCard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'submit-question' }));
     expect(sendMessageWithContext).not.toHaveBeenCalled();
+  });
+
+  it('commits a shopper caption and unrecognized fallback instead of raw JSON', async () => {
+    const raw =
+      '{"agentId":"frontendAgent","sessionId":"abc","message":"Here are all your orders.","type":"order_list","data":{"orders":[';
+    sendMessageWithContext.mockImplementation(
+      async (
+        _question: string,
+        _context: unknown,
+        onSuccess?: (
+          response: { message: string },
+          preview: { kind: 'widget'; type: string; message: string; data: unknown },
+        ) => void,
+      ) => {
+        onSuccess?.(
+          { message: raw },
+          { kind: 'widget', type: 'order_list', message: 'Here are all your orders.', data: {} },
+        );
+        return { message: raw };
+      },
+    );
+
+    render(<AiHelperCard />);
+    fireEvent.click(screen.getByRole('button', { name: 'submit-question' }));
+
+    await waitFor(() => {
+      expect(setMessages).toHaveBeenCalledTimes(2);
+    });
+
+    const commitUpdater = setMessages.mock.calls[1][0] as (prev: unknown[]) => Array<{
+      content: string;
+      type?: string;
+      data?: { previewJson?: string };
+    }>;
+    const committed = commitUpdater([{ id: 'user-message' }])[1];
+    expect(committed.content).toBe('Here are all your orders.');
+    expect(committed.content).not.toContain('agentId');
+    expect(committed.type).toBe('unrecognized');
+    expect(committed.data?.previewJson?.split('\n').length).toBeLessThanOrEqual(5);
   });
 });

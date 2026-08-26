@@ -20,6 +20,7 @@ import { appendLocaleAlignParam } from '@/lib/common/locale-cookie';
 import { getSessionForSite, setSessionLanguage } from '@/lib/ssr/session';
 import { getAvailableSites, getSite } from '@/lib/ssr/site';
 import { getCmsService } from '@/platform/services/cms/get-cms-service';
+import { CurrencyUrlAligner } from '@/providers/CurrencyUrlAligner';
 import SiteProvider from '@/providers/SiteProvider';
 import { SiteSessionAligner } from '@/providers/SiteSessionAligner';
 import { StoreProvider } from '@/providers/StoreProvider';
@@ -161,6 +162,7 @@ export default async function LocaleLayout({ children, dialog, params }: Props) 
                 {CmsBridgeScript && <CmsBridgeScript />}
                 <CsrfProvider />
                 <SiteSessionAligner />
+                <CurrencyUrlAligner />
                 {isDebugApiEnabled() && isBrowserDebugOutputEnabled() && <ApiDebugPanel />}
                 {children}
                 {dialog}

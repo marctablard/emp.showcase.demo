@@ -122,6 +122,10 @@ export const sanitizeCompletedShopperText = (value: string | null | undefined): 
   return value;
 };
 
+export function extractEnvelopeMessageField(text: string): string {
+  return extractPartialJsonStringField(text, 'message') ?? '';
+}
+
 function extractPartialJsonStringField(
   text: string,
   fieldName: string,

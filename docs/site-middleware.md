@@ -197,6 +197,20 @@ The `[site]/[locale]` layout appends `emp_locale=<supported>` after `getPathname
 
 The freeze breaker is **not** that cookie. `src/i18n/routing.ts` sets `localeDetection: false`, so after the 302 to the unprefixed default-locale URL, next-intl will not send the shopper back to `/de` from a missing cookie, a stale `de` cookie, or `Accept-Language`. The storefront must stay usable when cookies are cleared or blocked. Locale/currency do not need to be remembered across a site switch.
 
+### Storefront currency query (`?currency=`, COP-5942)
+
+Language for external links is the **path locale** (`/de/...`), not a query param.
+
+Currency is owned by the Emporix session + cart (header switcher, `next-currency` cookie). The storefront does **not** inject the site default onto every URL.
+
+Inbound `?currency=USD` (share or external link) is handled by `CurrencyUrlAligner` after site/session alignment:
+
+1. If the code is supported on the current site, apply it via `PUT /api/session/currency` (reprices the cart). Keep the query.
+2. If apply is not possible (unsupported on the site, cart reprice `409`, network error, invalid code), rewrite `?currency=` to the **current session** currency so the URL cannot disagree with session and cart.
+3. Missing `?currency=` is left alone — do not add a default just to “fill” the URL.
+
+PLP `useSearch` still sends `currency` on `/api/search` from the session. When rewriting the browse URL it **preserves** an existing storefront `?currency=` instead of stripping it, so the aligner can see inbound links. The header currency switcher updates that query when it is already present so a successful switch cannot be undone by a stale URL.
+
 ## Implementation Details
 
 ### Core Functions

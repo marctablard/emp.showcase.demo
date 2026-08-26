@@ -82,7 +82,7 @@ const AiHelperCard = ({ className, title, ...props }: Omit<DashboardCardProps, '
         let cartRefresh = false;
         await sendMessageWithContext(sanitized, context, (aiResponse, preview) => {
           const parsed = parseAIResponse(aiResponse.message);
-          const committed = resolveCommittedChatPayload(parsed, preview);
+          const committed = resolveCommittedChatPayload(parsed, preview, aiResponse.message);
           cartRefresh = Boolean(parsed.cartRefresh || aiResponse.cartRefresh || committed.type === 'cart_summary');
           const aiMessage: ChatMessageType = {
             id: (Date.now() + 1).toString(),
