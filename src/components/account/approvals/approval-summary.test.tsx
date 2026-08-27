@@ -272,6 +272,43 @@ describe('ApprovalSummary', () => {
     expect(screen.queryByText(/63,05.*€/)).not.toBeInTheDocument();
   });
 
+  it('keeps CART Total value as goods-only net when shipping fee is 11 (COP-6178)', () => {
+    // Same finding-26 goods lock with a non-zero shipping line: footer stays 60.05, not goods+shipping 71.05.
+    const approval: Approval = {
+      ...baseApproval,
+      resourceType: 'CART',
+      resource: {
+        id: 'order-cop-6178-footer',
+        items: [
+          { productId: 'p1', quantity: 1, itemPrice: { currency: 'EUR', amount: 37 } },
+          { productId: 'p2', quantity: 1, itemPrice: { currency: 'EUR', amount: 23.05 } },
+        ],
+        totalPrice: { currency: 'EUR', amount: 63.05 },
+        subtotalAggregate: { currency: 'EUR', netValue: 60.05, grossValue: 63.05, taxValue: 3 },
+      },
+      details: {
+        currency: 'EUR',
+        shipping: { amount: 11 } as any,
+        addresses: [{ type: 'SHIPPING' } as any, { type: 'BILLING' } as any],
+        paymentMethods: [{ name: 'Card' } as any],
+      },
+    };
+
+    render(<ApprovalSummary approval={approval} />);
+
+    const totalValueHeading = screen.getByRole('heading', { level: 5, name: 'totalValue' });
+    const totalValueAmount = totalValueHeading.parentElement?.querySelectorAll('h5')[1];
+    expect(totalValueAmount).toHaveTextContent(/60,05.*€/);
+    expect(totalValueAmount).not.toHaveTextContent(/71,05.*€/);
+    expect(totalValueAmount).not.toHaveTextContent(/1\.205,79.*€/);
+
+    const shippingFeeLabel = screen.getByText('shippingFee');
+    expect(shippingFeeLabel.parentElement).toHaveTextContent(/11,00.*€/);
+
+    expect(screen.queryByText(/71,05.*€/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/1\.205,79.*€/)).not.toBeInTheDocument();
+  });
+
   it('renders Base Price from unitPrice and Quoted Price from aggregate nets', () => {
     const approval: Approval = {
       ...baseApproval,

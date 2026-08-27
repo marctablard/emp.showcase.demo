@@ -250,6 +250,40 @@ describe('ApprovalDetails', () => {
     expect(screen.queryByText(/63,05.*€/)).not.toBeInTheDocument();
   });
 
+  it.each(['CART', 'QUOTE'] as const)(
+    'shows Total net amount as goods net plus shipping on the header (%s: 60.05 + 11 → 71.05)',
+    (resourceType) => {
+      mockApproval = {
+        ...baseApproval,
+        resourceType,
+        resource: {
+          ...baseApproval.resource,
+          items: [
+            { productId: 'p1', quantity: 1, itemPrice: { currency: 'EUR', amount: 37 } },
+            { productId: 'p2', quantity: 1, itemPrice: { currency: 'EUR', amount: 23.05 } },
+          ],
+          totalPrice: { currency: 'EUR', amount: 63.05, formattedAmount: '€63.05' },
+          subtotalAggregate: { currency: 'EUR', netValue: 60.05, grossValue: 63.05, taxValue: 3 },
+        },
+        details: {
+          currency: 'EUR',
+          shipping: {
+            methodId: 'standard',
+            zoneId: 'zone-1',
+            methodName: 'Standard',
+            amount: 11,
+          },
+        },
+      };
+
+      render(<ApprovalDetails approvalId="approval-requestor-1" />);
+
+      expect(screen.getByText('totalNetAmount')).toBeInTheDocument();
+      expect(screen.getByText(/71,05.*€/)).toBeInTheDocument();
+      expect(screen.queryByText(/63,05.*€/)).not.toBeInTheDocument();
+    },
+  );
+
   it('falls back to the resource id as the related order when the resource has no order id (CART approval)', () => {
     mockApproval = { ...baseApproval, resourceType: 'CART', resource: { id: 'cart-1' } };
 
