@@ -142,6 +142,8 @@ Add:
 - `src/hooks/wishlist/useWishlist.ts`
 - `src/hooks/wishlist/useWishlistAction.ts`
 
+`useWishlist` must not call `GET /api/wishlist` unless next-auth is `authenticated`. Skip the call while status is `loading` or `unauthenticated` (COP-5945).
+
 The wishlist store should mirror the cart store style:
 
 - `currentWishlist: Wishlist | null | undefined`
