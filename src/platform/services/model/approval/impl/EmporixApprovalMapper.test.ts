@@ -118,4 +118,42 @@ describe('EmporixApprovalMapper', () => {
     expect(approval.modifiedAt).toBe('2026-06-03T12:00:00.000Z');
     expect(approval.updatedAt).toBe('2026-06-02T08:00:00.000Z');
   });
+
+  it('maps legalEntity, createdResource, and resource.taxAggregate', () => {
+    const mapper = new EmporixApprovalMapper({} as never, {} as never, {} as never);
+
+    const approval = mapper.mapToService({
+      id: 'approval-4',
+      resourceType: 'CART',
+      action: 'CHECKOUT',
+      status: 'PENDING',
+      resource: {
+        id: 'cart-1',
+        taxAggregate: {
+          lines: [{ name: 'STANDARD', amount: 19, rate: 19, taxable: 100 }],
+        },
+      },
+      requestor: {
+        userId: 'requestor-4',
+        firstName: 'Req',
+        lastName: 'User',
+        email: 'req4@example.com',
+      },
+      approver: {
+        userId: 'approver-4',
+        firstName: 'App',
+        lastName: 'User',
+      },
+      legalEntity: { id: 'legal-1' },
+      createdResource: { id: 'order-1' },
+      metadata: {
+        version: 1,
+        createdAt: '2026-06-01T00:00:00.000Z',
+      },
+    } as never);
+
+    expect(approval.legalEntity).toEqual({ id: 'legal-1' });
+    expect(approval.createdResource).toEqual({ id: 'order-1' });
+    expect(approval.resource.taxAggregate?.lines[0]?.rate).toBe(19);
+  });
 });

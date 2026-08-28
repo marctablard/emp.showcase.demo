@@ -1,7 +1,7 @@
 /**
  * Shared tax-line helpers for Approval / Order / Quote / Return detail cards.
- * Prefer model-backed tax rates; hide the row when the rate is 0% or the tax amount is 0
- * (e.g. free shipping that still carries a non-zero statutory rate).
+ * Prefer an explicit single model tax rate for `VAT (rate%)`; hide the row when the rate
+ * is 0% or the tax amount is 0 (e.g. free shipping that still carries a non-zero statutory rate).
  */
 
 export type DetailTaxLineInput = {
@@ -28,15 +28,12 @@ export function shouldDisplayTaxLine({ taxRate, taxAmount }: DetailTaxLineInput)
 }
 
 /**
- * Prefer model taxRate; otherwise derive from tax/net when both are usable.
- * Returns undefined when no rate can be shown.
+ * Only an explicit single `taxRate` is shown as `VAT (rate%)`.
+ * Do not derive a blended rate from tax/net — mixed taxAggregate lines would look like one rate.
  */
-export function resolveDetailTaxRatePercent({ taxRate, taxAmount, netAmount }: DetailTaxLineInput): number | undefined {
+export function resolveDetailTaxRatePercent({ taxRate }: DetailTaxLineInput): number | undefined {
   if (typeof taxRate === 'number') {
     return Math.round(taxRate);
-  }
-  if (typeof taxAmount === 'number' && typeof netAmount === 'number' && netAmount > 0) {
-    return Math.round((taxAmount / netAmount) * 100);
   }
   return undefined;
 }

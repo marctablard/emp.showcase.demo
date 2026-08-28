@@ -151,10 +151,14 @@ describe('ApprovalSummary', () => {
     expect(screen.getByRole('heading', { level: 5, name: 'numberOfProducts' })).toBeInTheDocument();
   });
 
-  it('shows VAT rate percent on Base/Quoted Price when value of goods is positive and formats with formatCurrency', () => {
+  it('shows VAT rate percent on Base/Quoted Price when a single taxAggregate rate exists', () => {
     const approval: Approval = {
       ...baseApproval,
       resourceType: 'QUOTE',
+      resource: {
+        ...baseApproval.resource,
+        taxAggregate: { lines: [{ name: 'STANDARD', amount: 19, rate: 19, taxable: 100 }] },
+      },
       details: {
         currency: 'EUR',
         shipping: { amount: 5 } as any,
@@ -167,6 +171,54 @@ describe('ApprovalSummary', () => {
     expect(screen.getAllByText(/100,00\s*€/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/19,00\s*€/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/5,00\s*€/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows VAT without a rate when taxAggregate mixes STANDARD and REDUCED', () => {
+    const approval: Approval = {
+      ...baseApproval,
+      resourceType: 'QUOTE',
+      resource: {
+        ...baseApproval.resource,
+        subtotalAggregate: { currency: 'EUR', netValue: 7942, grossValue: 8517.74, taxValue: 575.74 },
+        taxAggregate: {
+          lines: [
+            { name: 'STANDARD', amount: 31.35, rate: 19, taxable: 196.35 },
+            { name: 'REDUCED', amount: 545.79, rate: 7, taxable: 8342.79 },
+          ],
+        },
+      },
+      details: {
+        currency: 'EUR',
+        shipping: { amount: 20, methodName: 'DHL' } as any,
+      },
+    };
+
+    render(<ApprovalSummary approval={approval} />);
+
+    expect(screen.getAllByText('tax').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/tax \(\d+%\)/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/20,00\s*€/).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('shows shipping tax on Base and Quoted Price when quote grossAmount exceeds net fee', () => {
+    const approval: Approval = {
+      ...baseApproval,
+      resourceType: 'QUOTE',
+      resource: {
+        ...baseApproval.resource,
+        subtotalAggregate: { currency: 'EUR', netValue: 7942, grossValue: 8517.74, taxValue: 575.74 },
+      },
+      details: {
+        currency: 'EUR',
+        shipping: { amount: 20, methodName: 'DHL', grossAmount: 21.4 } as any,
+      },
+    };
+
+    render(<ApprovalSummary approval={approval} />);
+
+    expect(screen.getAllByText('shippingTax').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(/1,40\s*€/).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(/8\.539,14\s*€/).length).toBeGreaterThanOrEqual(2);
   });
 
   it('shows Free for shipping fee when shipping amount is 0 on Base and Quoted price cards', () => {

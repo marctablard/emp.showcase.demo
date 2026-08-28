@@ -1,5 +1,6 @@
 import { inject } from 'inversify';
 import { CUSTOMER_ID } from '@/lib/common/customer-identity';
+import { resolveSingleNumericRate, resolveSingleTaxRate } from '@/lib/common/tax-aggregate';
 import { injectable } from '@/platform/core/di/injectable';
 import type {
   EmporixOrder,
@@ -52,7 +53,12 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
         integrationModel.calculatedPrice,
         integrationModel.currency,
       ),
-      price: this.mapPrice(integrationModel.calculatedPrice, integrationModel.currency),
+      price: this.mapPrice(
+        integrationModel.calculatedPrice,
+        integrationModel.currency,
+        integrationModel.entries,
+        integrationModel.taxAggregate,
+      ),
       currency: integrationModel.currency,
       customer: integrationModel.customer
         ? {
@@ -237,12 +243,24 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
     };
   }
 
-  private mapPrice(calculatedPrice?: any, currency?: string): OrderPrice | undefined {
+  private mapPrice(
+    calculatedPrice?: EmporixOrder['calculatedPrice'],
+    currency?: string,
+    entries?: EmporixOrderEntry[],
+    taxAggregate?: EmporixOrder['taxAggregate'],
+  ): OrderPrice | undefined {
     if (!calculatedPrice || !currency) {
       return undefined;
     }
 
-    const goodsTaxRate = calculatedPrice.price?.taxRate;
+    const itemRates = (entries ?? []).map((entry) => entry.calculatedPrice?.price?.taxRate);
+    const fromAggregate = resolveSingleTaxRate(taxAggregate?.lines);
+    const mixedAggregate = (taxAggregate?.lines?.length ?? 0) > 1 && fromAggregate === undefined;
+    const mixedItems = new Set(itemRates.filter((rate): rate is number => typeof rate === 'number')).size > 1;
+    const goodsTaxRate =
+      mixedAggregate || mixedItems
+        ? undefined
+        : (fromAggregate ?? resolveSingleNumericRate(itemRates) ?? calculatedPrice.price?.taxRate);
 
     return {
       subtotal: {

@@ -51,11 +51,13 @@ export interface EmporixOrderEntry {
       netValue: number;
       grossValue: number;
       taxValue: number;
+      taxRate?: number;
     };
     finalPrice: {
       netValue: number;
       grossValue: number;
       taxValue: number;
+      taxRate?: number;
     };
   };
 }
@@ -177,6 +179,14 @@ export interface EmporixOrder {
   payments?: EmporixPayment[];
   discounts?: EmporixDiscount[];
   calculatedPrice?: EmporixOrderCalculatedPrice;
+  taxAggregate?: {
+    lines: Array<{
+      name?: string;
+      amount?: number;
+      rate?: number;
+      taxable?: number;
+    }>;
+  };
   totalAuthorizedAmount?: number;
   siteCode?: string;
   currency?: string;

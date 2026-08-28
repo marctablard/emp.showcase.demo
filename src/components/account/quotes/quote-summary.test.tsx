@@ -25,6 +25,7 @@ const baseQuote: Quote = {
   totalGross: 119,
   totalNet: 100,
   totalVat: 19,
+  vatRate: 19,
   items: [],
   shippingAddress: {
     type: 'SHIPPING',
@@ -60,6 +61,26 @@ describe('QuoteSummary', () => {
     expect(screen.getAllByText(/100,00\s*€/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/19,00\s*€/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/5,00\s*€/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows VAT without a rate when taxAggregate mixes STANDARD and REDUCED', () => {
+    render(
+      <QuoteSummary
+        quote={{
+          ...baseQuote,
+          vatRate: undefined,
+          taxAggregate: {
+            lines: [
+              { name: 'STANDARD', amount: 31.35, rate: 19, taxable: 196.35 },
+              { name: 'REDUCED', amount: 545.79, rate: 7, taxable: 8342.79 },
+            ],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getAllByText('tax').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/tax \(\d+%\)/)).not.toBeInTheDocument();
   });
 
   it('omits the tax row when totalVat is 0 and vatRate is absent', () => {

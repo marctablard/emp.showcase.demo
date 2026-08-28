@@ -56,9 +56,9 @@ class EmporixCheckoutMapper implements CheckoutMapper<EmporixCheckoutRequest> {
     return {
       methodId: source.methodId,
       methodName: source.methodName,
-      amount: source.amount,
+      amount: source.amount ?? 0,
       zoneId: source.zoneId,
-      taxCode: source.shippingTaxCode,
+      taxCode: source.shippingTaxCode ?? source.taxCode,
     };
   }
 

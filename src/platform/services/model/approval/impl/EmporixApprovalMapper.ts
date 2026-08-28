@@ -71,6 +71,8 @@ export class EmporixApprovalMapper implements ApprovalMapper<EmporixApprovalResp
       updatedAt: source.metadata.updatedAt ?? modifiedAt,
       details: source.details ? this.mapDetails(source.details) : undefined,
       version: source.metadata.version,
+      legalEntity: source.legalEntity,
+      createdResource: source.createdResource,
     };
   }
 
@@ -262,6 +264,7 @@ export class EmporixApprovalMapper implements ApprovalMapper<EmporixApprovalResp
       amount: source.amount,
       siteCode: source.siteCode,
       deliveryWindow: source.deliveryWindow ? this.mapDeliveryWindow(source.deliveryWindow) : undefined,
+      taxAggregate: source.taxAggregate,
     };
   }
 
@@ -278,6 +281,7 @@ export class EmporixApprovalMapper implements ApprovalMapper<EmporixApprovalResp
       amount: service.amount,
       siteCode: service.siteCode,
       deliveryWindow: service.deliveryWindow ? this.mapDeliveryWindowToSource(service.deliveryWindow) : undefined,
+      taxAggregate: service.taxAggregate,
     };
   }
 

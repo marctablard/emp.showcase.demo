@@ -197,4 +197,20 @@ describe('quote-price-summary', () => {
   it('derives discount percent from unit prices when discount field is missing', () => {
     expect(resolveItemDiscountPercent({ unitPrice: 100, newUnitPrice: 65 })).toBe(35);
   });
+
+  it('omits taxRate on Base and Quoted when taxAggregate mixes STANDARD and REDUCED', () => {
+    const quote: Quote = {
+      ...baseQuote,
+      vatRate: undefined,
+      taxAggregate: {
+        lines: [
+          { name: 'STANDARD', amount: 31.35, rate: 19, taxable: 196.35 },
+          { name: 'REDUCED', amount: 545.79, rate: 7, taxable: 8342.79 },
+        ],
+      },
+    };
+
+    expect(resolveQuoteBasePriceBreakdown(quote).taxRate).toBeUndefined();
+    expect(resolveQuoteQuotedPriceBreakdown(quote).taxRate).toBeUndefined();
+  });
 });

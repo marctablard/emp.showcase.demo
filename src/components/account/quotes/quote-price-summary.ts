@@ -1,4 +1,5 @@
 import { resolveItemDiscountPercent } from '@/components/account/shared/item-discount';
+import { resolveSingleNumericRate, resolveSingleTaxRate } from '@/lib/common/tax-aggregate';
 import type { Quote, QuoteItemPrice } from '@/platform/services/model/quote';
 
 export { resolveItemDiscountPercent } from '@/components/account/shared/item-discount';
@@ -36,6 +37,18 @@ export function sumQuotePriceCardLines(
   breakdown: Pick<QuotePriceCardBreakdown, 'netValueOfGoods' | 'tax' | 'shippingFee' | 'shippingTax'>,
 ): number {
   return breakdown.netValueOfGoods + breakdown.tax + breakdown.shippingFee + breakdown.shippingTax;
+}
+
+/** Single VAT % for `VAT (rate%)`; omit when taxAggregate mixes STANDARD/REDUCED. */
+export function resolveQuoteDisplayTaxRate(
+  quote: Quote,
+  itemRates: Array<number | undefined> = [],
+): number | undefined {
+  const fromAggregate = resolveSingleTaxRate(quote.taxAggregate?.lines);
+  if (fromAggregate !== undefined || (quote.taxAggregate?.lines?.length ?? 0) > 1) {
+    return fromAggregate;
+  }
+  return resolveSingleNumericRate(itemRates) ?? quote.vatRate;
 }
 
 function resolveShippingTax(quote: Quote): { shippingTax: number; showShippingTax: boolean } {
@@ -99,27 +112,23 @@ export function resolveQuoteBasePriceBreakdown(quote: Quote): QuotePriceCardBrea
       showShippingTax,
       total,
       discountAmount: 0,
-      taxRate: quote.vatRate,
+      taxRate: resolveQuoteDisplayTaxRate(quote),
     };
   }
 
   let netValueOfGoods = 0;
   let tax = 0;
-  const rates = new Set<number>();
+  const itemRates: Array<number | undefined> = [];
 
   for (const item of items) {
     const qty = item.quantity.quantity;
     const price = item.product.itemPrice;
     netValueOfGoods += lineBaseNet(price, qty);
     tax += lineBaseTax(price, qty, quote.vatRate);
-    if (typeof price.taxRate === 'number') {
-      rates.add(price.taxRate);
-    } else if (typeof quote.vatRate === 'number') {
-      rates.add(quote.vatRate);
-    }
+    itemRates.push(price.taxRate);
   }
 
-  const taxRate = rates.size === 1 ? [...rates][0] : quote.vatRate;
+  const taxRate = resolveQuoteDisplayTaxRate(quote, itemRates);
   const total = sumQuotePriceCardLines({ netValueOfGoods, tax, shippingFee, shippingTax });
 
   return {
@@ -159,7 +168,7 @@ export function resolveQuoteQuotedPriceBreakdown(quote: Quote): QuotePriceCardBr
     showShippingTax,
     total,
     discountAmount: 0,
-    taxRate: quote.vatRate,
+    taxRate: resolveQuoteDisplayTaxRate(quote),
   };
 }
 

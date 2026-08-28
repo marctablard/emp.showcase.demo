@@ -7,6 +7,7 @@ import { resolveApprovalNetAmount } from '@/components/account/approvals/approva
 import {
   type ApprovalPriceCardBreakdown,
   resolveApprovalBasePriceBreakdown,
+  resolveApprovalDisplayTaxRate,
   resolveApprovalQuotedPriceBreakdown,
 } from '@/components/account/approvals/approval-price-summary';
 import { detailTaxRateSuffix, shouldDisplayTaxLine } from '@/components/account/shared/detail-tax-line';
@@ -52,6 +53,7 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
   const taxLine = {
     taxAmount: vat,
     netAmount: valueOfGoods > 0 ? valueOfGoods : approval.resource.subtotalAggregate?.netValue,
+    taxRate: resolveApprovalDisplayTaxRate(approval),
   };
   const showTaxLine = shouldDisplayTaxLine(taxLine);
   // Finding 26: model-backed net only — never totalPrice.amount or invented goods+shipping+vat.
@@ -73,9 +75,15 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
       return <span className="text-text-placeholders">{t('notProvided')}</span>;
     }
 
-    const name = [addr.firstName || addr.name || addr.companyName, addr.lastName].filter(Boolean).join(' ').trim();
-    const street = [addr.street, addr.houseNumber].filter(Boolean).join(' ').trim();
-    const cityLine = [addr.postalCode, addr.city].filter(Boolean).join(' ').trim();
+    const name = [
+      addr.contactName || addr.firstName || addr.name || addr.companyName,
+      addr.contactName ? undefined : addr.lastName,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    const street = [addr.street, addr.houseNumber || addr.streetNumber].filter(Boolean).join(' ').trim();
+    const cityLine = [addr.postalCode || addr.zipCode, addr.city].filter(Boolean).join(' ').trim();
     let cityWithRegion = cityLine;
     if (addr.region) {
       cityWithRegion = cityLine ? `${cityLine}, ${addr.region}` : String(addr.region);
@@ -131,6 +139,12 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
           <span>{t('shippingFee')}</span>
           <span>{formatShippingFeeDisplay(breakdown.shippingFee, fmt, t('free'))}</span>
         </div>
+        {breakdown.showShippingTax ? (
+          <div className="flex justify-between gap-4">
+            <span>{t('shippingTax')}</span>
+            <span>{fmt(breakdown.shippingTax)}</span>
+          </div>
+        ) : null}
         <div className="flex items-start justify-between gap-4 pt-2">
           <H5>{totalLabel}</H5>
           <H5>{fmt(breakdown.total)}</H5>
@@ -249,7 +263,9 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
           icon={<CreditCard className="h-8 w-8 text-text-action" />}
           hasHeadline
         >
-          <SummaryField label={t('paymentMethod')}>{payment?.name || payment?.type || t('notProvided')}</SummaryField>
+          <SummaryField label={t('paymentMethod')}>
+            {payment?.code || payment?.provider || t('notProvided')}
+          </SummaryField>
           <SummaryField label={t('billingAddress')}>{renderAddress(billingAddress)}</SummaryField>
         </SummaryCard>
       </div>

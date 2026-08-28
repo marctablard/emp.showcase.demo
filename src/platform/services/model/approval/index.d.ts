@@ -1,8 +1,9 @@
 /**
  * Service layer models for approval functionality
  */
-import { CheckoutAddress, OrderShipping } from '../checkout';
-import { Address } from '../common';
+import type { TaxAggregate } from '@/lib/common/tax-aggregate';
+import { CheckoutAddress, CheckoutPaymentMethod, OrderShipping } from '../checkout';
+import type { LocalizedString } from '../common';
 
 export interface ApprovalUser {
   userId: string;
@@ -64,6 +65,7 @@ export interface ApprovalResource {
   amount?: number;
   siteCode?: string;
   deliveryWindow?: ApprovalDeliveryWindow;
+  taxAggregate?: TaxAggregate;
 }
 
 export interface ApprovalPaymentMethod {
@@ -83,7 +85,7 @@ export interface ApprovalDetails {
   currency: string;
   paymentMethods?: CheckoutPaymentMethod[];
   shipping?: OrderShipping;
-  payment?: CheckoutPayment;
+  payment?: ApprovalPayment;
   addresses?: CheckoutAddress[];
 }
 
@@ -116,6 +118,8 @@ export interface Approval extends ApprovalBase {
   status: ApprovalStatus;
   expiryDate?: string;
   version?: number;
+  legalEntity?: { id: string };
+  createdResource?: { id: string };
 }
 
 export interface ApprovalId {

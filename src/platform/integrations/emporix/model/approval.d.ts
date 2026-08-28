@@ -1,10 +1,9 @@
 /**
  * Models for the Emporix Approval API
  */
+import type { TaxAggregate } from '@/lib/common/tax-aggregate';
 import { EmporixCheckoutAddress, EmporixCheckoutPaymentMethod, EmporixShipping } from './checkout';
-import { EmporixAddress, Metadata } from './common';
-import { EmporixPayment } from './order';
-import { EmporixPaymentMode } from './payment';
+import { Metadata } from './common';
 
 export interface EmporixApprovalUser {
   userId: string;
@@ -65,6 +64,8 @@ export interface EmporixApprovalResource {
   amount?: number;
   siteCode?: string;
   deliveryWindow?: EmporixApprovalDeliveryWindow;
+  /** Quote-style VAT breakdown when the approval snapshot includes it. */
+  taxAggregate?: TaxAggregate;
 }
 
 export interface EmporixApprovalPayment {
@@ -107,6 +108,8 @@ export interface EmporixApprovalResponse extends EmporixApprovalBase {
   approver: EmporixApprovalUser;
   status: EmporixApprovalStatus;
   expiryDate?: string;
+  legalEntity?: { id: string };
+  createdResource?: { id: string };
   metadata: Metadata;
 }
 

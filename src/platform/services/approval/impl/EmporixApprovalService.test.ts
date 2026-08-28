@@ -10,10 +10,14 @@ import EmporixApprovalService from './EmporixApprovalService';
 describe('EmporixApprovalService', () => {
   let approvalService: EmporixApprovalService;
   let mockApprovalApi: jest.Mocked<
-    Pick<EmporixApprovalApi, 'checkApprovalPermitted' | 'searchApprovalUsers' | 'createApproval' | 'getApprovals'>
+    Pick<
+      EmporixApprovalApi,
+      'checkApprovalPermitted' | 'searchApprovalUsers' | 'createApproval' | 'getApprovals' | 'getApproval'
+    >
   >;
   let mockApprovalMapper: jest.Mocked<Pick<EmporixApprovalMapper, 'mapCreateRequestToSource' | 'mapToService'>>;
-  let mockLogger: jest.Mocked<Pick<LoggerService, 'info'>>;
+  let mockLogger: jest.Mocked<Pick<LoggerService, 'info' | 'warn'>>;
+  let mockQuoteService: { getQuote: jest.Mock };
 
   const approvalRequest: ApprovalCreateRequest = {
     resourceId: 'quote-1',
@@ -35,6 +39,7 @@ describe('EmporixApprovalService', () => {
       ]),
       createApproval: jest.fn().mockResolvedValue({ id: 'approval-1' }),
       getApprovals: jest.fn().mockResolvedValue({ items: [], totalCount: 0 }),
+      getApproval: jest.fn(),
     };
 
     mockApprovalMapper = {
@@ -50,12 +55,15 @@ describe('EmporixApprovalService', () => {
 
     mockLogger = {
       info: jest.fn(),
+      warn: jest.fn(),
     };
+    mockQuoteService = { getQuote: jest.fn() };
 
     approvalService = new EmporixApprovalService(
       {} as EmporixIamApi,
       mockApprovalApi as unknown as EmporixApprovalApi,
       mockApprovalMapper as unknown as EmporixApprovalMapper,
+      mockQuoteService as never,
       {} as CustomerService,
       mockLogger as unknown as LoggerService,
     );
@@ -172,5 +180,89 @@ describe('EmporixApprovalService', () => {
     );
     expect(mockApprovalMapper.mapToService).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ items: [{ id: 'approval-1' }], totalCount: 1 });
+  });
+
+  it('enriches a QUOTE approval with quote shipping on getApproval', async () => {
+    mockApprovalApi.getApproval = jest.fn().mockResolvedValue({ id: 'approval-q' });
+    mockApprovalMapper.mapToService.mockReturnValueOnce({
+      id: 'approval-q',
+      resourceType: 'QUOTE',
+      resource: { id: 'Q1000510' },
+    } as never);
+    mockQuoteService.getQuote.mockResolvedValueOnce({
+      id: 'Q1000510',
+      currency: 'EUR',
+      shippingCost: 20,
+      shippingGross: 21.4,
+      shippingMethod: 'DHL',
+      items: [],
+    });
+
+    const result = await approvalService.getApproval('approval-q');
+
+    expect(mockQuoteService.getQuote).toHaveBeenCalledWith('Q1000510');
+    expect(result?.details?.shipping?.amount).toBe(20);
+    expect(result?.details?.shipping?.methodName).toBe('DHL');
+    expect(result?.details?.shipping?.grossAmount).toBe(21.4);
+  });
+
+  it('does not load a quote when getting a CART approval', async () => {
+    mockApprovalApi.getApproval.mockResolvedValueOnce({ id: 'approval-c' } as never);
+    mockApprovalMapper.mapToService.mockReturnValueOnce({
+      id: 'approval-c',
+      resourceType: 'CART',
+      resource: { id: 'cart-1' },
+      details: {
+        currency: 'EUR',
+        shipping: { methodId: 'dhl', methodName: 'DHL', amount: 10, zoneId: 'de' },
+      },
+    } as never);
+
+    const result = await approvalService.getApproval('approval-c');
+
+    expect(mockQuoteService.getQuote).not.toHaveBeenCalled();
+    expect(result?.details?.shipping?.amount).toBe(10);
+  });
+
+  it('does not load a quote when the QUOTE approval snapshot already has shipping and taxAggregate', async () => {
+    mockApprovalApi.getApproval.mockResolvedValueOnce({ id: 'approval-q' } as never);
+    mockApprovalMapper.mapToService.mockReturnValueOnce({
+      id: 'approval-q',
+      resourceType: 'QUOTE',
+      resource: {
+        id: 'Q1000510',
+        taxAggregate: { lines: [{ name: 'STANDARD', amount: 19, rate: 19, taxable: 100 }] },
+      },
+      details: {
+        currency: 'EUR',
+        shipping: { methodId: 'dhl', methodName: 'DHL', amount: 20, zoneId: 'de', grossAmount: 21.4 },
+      },
+    } as never);
+
+    const result = await approvalService.getApproval('approval-q');
+
+    expect(mockQuoteService.getQuote).not.toHaveBeenCalled();
+    expect(result?.details?.shipping?.amount).toBe(20);
+    expect(result?.details?.shipping?.grossAmount).toBe(21.4);
+  });
+
+  it('returns the mapped approval when quote enrichment fails', async () => {
+    mockApprovalApi.getApproval.mockResolvedValueOnce({ id: 'approval-q' } as never);
+    mockApprovalMapper.mapToService.mockReturnValueOnce({
+      id: 'approval-q',
+      resourceType: 'QUOTE',
+      resource: { id: 'Q1000510' },
+    } as never);
+    mockQuoteService.getQuote.mockRejectedValueOnce(new Error('quote unavailable'));
+
+    const result = await approvalService.getApproval('approval-q');
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 'approval-q',
+        resourceType: 'QUOTE',
+      }),
+    );
+    expect(mockLogger.warn).toHaveBeenCalled();
   });
 });

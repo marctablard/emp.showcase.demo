@@ -95,6 +95,37 @@ describe('approval-price-summary', () => {
     expect(quoted.taxRate).toBe(19);
   });
 
+  it('uses details.shipping.amount on both price cards', () => {
+    const approval: Approval = {
+      ...sampleApproval,
+      details: {
+        currency: 'EUR',
+        shipping: { methodId: 'dhl', methodName: 'DHL', amount: 20, zoneId: 'de' },
+      },
+    };
+
+    expect(resolveApprovalBasePriceBreakdown(approval).shippingFee).toBe(20);
+    expect(resolveApprovalQuotedPriceBreakdown(approval).shippingFee).toBe(20);
+  });
+
+  it('omits taxRate when taxAggregate mixes STANDARD and REDUCED', () => {
+    const approval: Approval = {
+      ...sampleApproval,
+      resource: {
+        ...sampleApproval.resource,
+        taxAggregate: {
+          lines: [
+            { name: 'STANDARD', amount: 31.35, rate: 19, taxable: 196.35 },
+            { name: 'REDUCED', amount: 545.79, rate: 7, taxable: 8342.79 },
+          ],
+        },
+      },
+    };
+
+    expect(resolveApprovalQuotedPriceBreakdown(approval).taxRate).toBeUndefined();
+    expect(resolveApprovalBasePriceBreakdown(approval).taxRate).toBeUndefined();
+  });
+
   it('prefers subtotalAggregate.netValue over a differing subTotalPrice.netValue', () => {
     const approval: Approval = {
       ...sampleApproval,
@@ -106,5 +137,39 @@ describe('approval-price-summary', () => {
     };
 
     expect(resolveApprovalQuotedPriceBreakdown(approval).netValueOfGoods).toBe(756.9);
+  });
+
+  it('includes shipping tax from quote grossAmount on both price cards', () => {
+    const approval: Approval = {
+      ...sampleApproval,
+      details: {
+        currency: 'EUR',
+        shipping: { methodId: 'dhl', methodName: 'DHL', amount: 20, zoneId: 'de', grossAmount: 21.4 },
+      },
+    };
+
+    const base = resolveApprovalBasePriceBreakdown(approval);
+    const quoted = resolveApprovalQuotedPriceBreakdown(approval);
+
+    expect(base.shippingFee).toBe(20);
+    expect(quoted.shippingFee).toBe(20);
+    expect(base.shippingTax).toBeCloseTo(1.4, 5);
+    expect(quoted.shippingTax).toBeCloseTo(1.4, 5);
+    expect(base.showShippingTax).toBe(true);
+    expect(quoted.showShippingTax).toBe(true);
+    expect(quoted.total).toBeCloseTo(quoted.netValueOfGoods + quoted.tax + 20 + 1.4, 2);
+  });
+
+  it('hides shipping tax when shipping is free or grossAmount is missing', () => {
+    expect(resolveApprovalQuotedPriceBreakdown(sampleApproval).showShippingTax).toBe(false);
+    expect(
+      resolveApprovalQuotedPriceBreakdown({
+        ...sampleApproval,
+        details: {
+          currency: 'EUR',
+          shipping: { methodId: 'dhl', methodName: 'DHL', amount: 20, zoneId: 'de' },
+        },
+      }).showShippingTax,
+    ).toBe(false);
   });
 });
