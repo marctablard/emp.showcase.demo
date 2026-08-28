@@ -603,6 +603,11 @@ class BatteryIncludedSearchService implements SearchService {
       return filters;
     }
 
+    const ids = collectLegacyCategoryIds(legacyCategoryIds);
+    if (ids.length === 0) {
+      return filters;
+    }
+
     const snapshot = await this.categoryTreeService.getSnapshot({
       siteCode: resolvedSite,
       locale: resolvedLocale,
@@ -610,11 +615,6 @@ class BatteryIncludedSearchService implements SearchService {
       showUnpublished: false,
     });
     if (!snapshot) {
-      return filters;
-    }
-
-    const ids = collectLegacyCategoryIds(legacyCategoryIds);
-    if (ids.length === 0) {
       return filters;
     }
 
