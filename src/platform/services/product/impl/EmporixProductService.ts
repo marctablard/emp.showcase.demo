@@ -24,6 +24,8 @@ const LABEL_CATALOG_PAGE_SIZE = 100;
 /** Bound `q=id:(…)` chunks when resolving missing template refs for BI/list products. */
 const TEMPLATE_REF_ID_CHUNK_SIZE = 50;
 
+type ProductTemplateRef = { id: string; version?: string };
+
 function templateCacheKey(id: string, version?: string): string {
   return version ? `${id}@${version}` : id;
 }
@@ -259,6 +261,36 @@ class EmporixProductService implements ProductService {
     return products.filter((product) => this.productNeedsTemplateRef(product));
   }
 
+  private indexTemplateRefFromSearchItem(
+    item: EmporixProduct,
+    templateByProductId: Map<string, ProductTemplateRef>,
+  ): void {
+    const rawTemplate = item.template?.id ? item.template : item.parentVariant?.template;
+    if (!item.id || !rawTemplate?.id) {
+      return;
+    }
+    const version = resolveTemplateVersionFromEmporix(rawTemplate);
+    const ref: ProductTemplateRef = {
+      id: rawTemplate.id,
+      ...(version ? { version } : {}),
+    };
+    templateByProductId.set(item.id, ref);
+    if (item.parentVariantId) {
+      templateByProductId.set(item.parentVariantId, ref);
+    }
+  }
+
+  private applyResolvedTemplateRefs(products: Product[], templateByProductId: Map<string, ProductTemplateRef>): void {
+    for (const product of products) {
+      const ref =
+        templateByProductId.get(product.id) ??
+        (product.parentVariantId ? templateByProductId.get(product.parentVariantId) : undefined);
+      if (ref) {
+        product.template = ref;
+      }
+    }
+  }
+
   /**
    * Battery Included (and similar) mappers often omit `template.id`.
    * Resolve refs via product search `expand=template`, then Templates API can supply labels/types.
@@ -272,42 +304,22 @@ class EmporixProductService implements ProductService {
     const ids = [
       ...new Set(needingRefs.flatMap((product) => [product.id, product.parentVariantId].filter(Boolean) as string[])),
     ];
-    const templateByProductId = new Map<string, { id: string; version?: string }>();
+    const templateByProductId = new Map<string, ProductTemplateRef>();
 
     for (let offset = 0; offset < ids.length; offset += TEMPLATE_REF_ID_CHUNK_SIZE) {
       const chunk = ids.slice(offset, offset + TEMPLATE_REF_ID_CHUNK_SIZE);
       const response = await this.productApi.searchProducts({
-        page: 1,
+        page: 0,
         size: chunk.length,
         criteria: { id: `(${chunk.join(',')})` },
         expand: ['template', 'parentVariant'],
       });
-
       for (const item of response.items ?? []) {
-        const rawTemplate = item.template?.id ? item.template : item.parentVariant?.template;
-        if (!item.id || !rawTemplate?.id) {
-          continue;
-        }
-        const version = resolveTemplateVersionFromEmporix(rawTemplate);
-        const ref = {
-          id: rawTemplate.id,
-          ...(version ? { version } : {}),
-        };
-        templateByProductId.set(item.id, ref);
-        if (item.parentVariantId) {
-          templateByProductId.set(item.parentVariantId, ref);
-        }
+        this.indexTemplateRefFromSearchItem(item, templateByProductId);
       }
     }
 
-    for (const product of needingRefs) {
-      const ref =
-        templateByProductId.get(product.id) ??
-        (product.parentVariantId ? templateByProductId.get(product.parentVariantId) : undefined);
-      if (ref) {
-        product.template = ref;
-      }
-    }
+    this.applyResolvedTemplateRefs(needingRefs, templateByProductId);
   }
 
   private applyIdBoundDataToProduct(

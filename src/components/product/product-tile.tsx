@@ -290,7 +290,7 @@ export function ProductTile({
   locale,
   skipVariantFetch: _skipVariantFetch = false,
   showParentVariantBadge = false,
-}: ProductTileProps) {
+}: Readonly<ProductTileProps>) {
   const t = useTranslations('product');
   const { l10n, l10nOrEmpty } = useL10n(locale);
   const { addItem, loading: cartLoading } = useCart();

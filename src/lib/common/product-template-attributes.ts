@@ -69,7 +69,7 @@ export function isPlaceholderAttributeLabel(name: LocalizedString | string | und
   const values = Object.values(name).filter(
     (value): value is string => typeof value === 'string' && value.trim().length > 0,
   );
-  return values.length === 0 || values.every((value) => value.trim() === key);
+  return values.every((value) => value.trim() === key);
 }
 
 /**

@@ -38,6 +38,36 @@ function uniqueLocales(locales: Array<string | undefined>): string[] {
   return ordered;
 }
 
+function pickFirstLocalized(locales: string[], pick: (locale: string) => string): string {
+  for (const candidate of locales) {
+    const value = pick(candidate);
+    if (value) {
+      return value;
+    }
+  }
+  return L10N_MISSING_LABEL;
+}
+
+function resolveFromLocalizedArray(input: unknown[], locales: string[]): string {
+  if (input.length === 0) {
+    return '';
+  }
+  try {
+    const items = input as Array<{ language: string; message: string }>;
+    return pickFirstLocalized(locales, (candidate) => pickFromArray(items, candidate));
+  } catch {
+    return '';
+  }
+}
+
+function resolveFromLocalizedObject(input: object, locales: string[]): string {
+  try {
+    return pickFirstLocalized(locales, (candidate) => pickFromObject(input as Record<string, unknown>, candidate));
+  } catch {
+    return '';
+  }
+}
+
 /**
  * Resolves localized catalog/API values for display:
  * 1. Session (or caller) `locale`
@@ -64,36 +94,11 @@ export function resolveLocalizedString(
   const locales = uniqueLocales([locale, fallbackLocale, defaultLocale]);
 
   if (Array.isArray(input)) {
-    if (input.length === 0) {
-      return '';
-    }
-    try {
-      const items = input as { language: string; message: string }[];
-      for (const candidate of locales) {
-        const value = pickFromArray(items, candidate);
-        if (value) {
-          return value;
-        }
-      }
-      return L10N_MISSING_LABEL;
-    } catch {
-      return '';
-    }
+    return resolveFromLocalizedArray(input, locales);
   }
 
   if (typeof input === 'object') {
-    try {
-      const record = input as Record<string, unknown>;
-      for (const candidate of locales) {
-        const value = pickFromObject(record, candidate);
-        if (value) {
-          return value;
-        }
-      }
-      return L10N_MISSING_LABEL;
-    } catch {
-      return '';
-    }
+    return resolveFromLocalizedObject(input, locales);
   }
 
   return '';

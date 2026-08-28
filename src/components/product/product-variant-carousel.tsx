@@ -53,7 +53,12 @@ function ProductVariantCarouselValue({ value }: Readonly<{ value: string }>) {
   return (
     <Tooltip delayDuration={200}>
       <TooltipTrigger asChild>
-        <span className="block min-w-0 truncate" data-testid="product-variant-carousel-value">
+        {/* Span (not a button): the card is already a button. Keyboard users see the
+            full value via group-focus-visible unwrap on the card. */}
+        <span
+          className="block min-w-0 truncate group-focus-visible:overflow-visible group-focus-visible:whitespace-normal"
+          data-testid="product-variant-carousel-value"
+        >
           {value}
         </span>
       </TooltipTrigger>
@@ -196,7 +201,7 @@ export function ProductVariantCarousel({
                 key={variant.id}
                 type="button"
                 className={cn(
-                  'flex shrink-0 cursor-pointer flex-col rounded-sm border-2 p-0.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2',
+                  'group flex shrink-0 cursor-pointer flex-col rounded-sm border-2 p-0.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2',
                   isSelected ? 'border-border-secondary' : 'border-border-primary',
                 )}
                 style={{ width: VARIANT_CARD_WIDTH_PX, minWidth: VARIANT_CARD_WIDTH_PX }}

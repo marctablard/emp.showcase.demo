@@ -85,20 +85,39 @@ const markText = (text: unknown, keyword?: string): React.ReactNode => {
   }
 };
 
+type FlyOutAttributeOptions = {
+  maxItems?: number;
+  isBold?: boolean;
+  keyword?: string;
+  locale?: string;
+  templateAttributeLabels?: Product['templateAttributeLabels'];
+  templateAttributeTypes?: Product['templateAttributeTypes'];
+  l10n?: (value: LocalizedString | string) => string;
+};
+
+function resolveFlyOutAttributeLabel(
+  key: string,
+  attributeType: 'productVariantAttributes' | 'productTemplateAttributes',
+  t: (key: ProductAttributeKey, opts?: { defaultValue?: string }) => string,
+  options?: FlyOutAttributeOptions,
+): string {
+  if (attributeType === 'productVariantAttributes' && options?.l10n) {
+    return resolveVariantAttributeLabel(key, undefined, options.templateAttributeLabels, options.l10n);
+  }
+  if (attributeType === 'productTemplateAttributes' && options?.l10n) {
+    return resolveTemplateAttributeLabel(key, options.templateAttributeLabels, options.l10n);
+  }
+  return t(dk<ProductAttributeKey>(`filters.mixins.${attributeType}.${key}`), {
+    defaultValue: formatAttributeKey(key),
+  });
+}
+
 // Helper function to render product attributes
 const renderAttributes = (
   attributes: Record<string, string>,
   t: (key: ProductAttributeKey, opts?: { defaultValue?: string }) => string,
   attributeType: 'productVariantAttributes' | 'productTemplateAttributes',
-  options?: {
-    maxItems?: number;
-    isBold?: boolean;
-    keyword?: string;
-    locale?: string;
-    templateAttributeLabels?: Product['templateAttributeLabels'];
-    templateAttributeTypes?: Product['templateAttributeTypes'];
-    l10n?: (value: LocalizedString | string) => string;
-  },
+  options?: FlyOutAttributeOptions,
 ) => {
   const entries = Object.entries(attributes);
   const limitedEntries = options?.maxItems ? entries.slice(0, options.maxItems) : entries;
@@ -109,14 +128,7 @@ const renderAttributes = (
     const isTemplateAttribute = attributeType === 'productTemplateAttributes';
     const isTemplateBoolean =
       isTemplateAttribute && parseBooleanTemplateAttributeValue(value, attributeTypeMeta) !== undefined;
-    const label =
-      attributeType === 'productVariantAttributes' && options?.l10n
-        ? resolveVariantAttributeLabel(key, undefined, options.templateAttributeLabels, options.l10n)
-        : isTemplateAttribute && options?.l10n
-          ? resolveTemplateAttributeLabel(key, options.templateAttributeLabels, options.l10n)
-          : t(dk<ProductAttributeKey>(`filters.mixins.${attributeType}.${key}`), {
-              defaultValue: formatAttributeKey(key),
-            });
+    const label = resolveFlyOutAttributeLabel(key, attributeType, t, options);
 
     let valueNode: React.ReactNode;
     if (isTemplateBoolean) {

@@ -82,6 +82,7 @@ describe('EmporixProductService template meta enrichment', () => {
 
     expect(searchProducts).toHaveBeenCalledWith(
       expect.objectContaining({
+        page: 0,
         criteria: { id: '(prod-1)' },
         expand: ['template', 'parentVariant'],
       }),

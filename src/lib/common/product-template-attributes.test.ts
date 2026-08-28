@@ -58,6 +58,7 @@ describe('isPlaceholderAttributeLabel', () => {
   it('treats key-echo localized maps as placeholders', () => {
     expect(isPlaceholderAttributeLabel({ en: 'width' }, 'width')).toBe(true);
     expect(isPlaceholderAttributeLabel('width', 'width')).toBe(true);
+    expect(isPlaceholderAttributeLabel({}, 'width')).toBe(true);
     expect(isPlaceholderAttributeLabel({ en: 'Width' }, 'width')).toBe(false);
   });
 });

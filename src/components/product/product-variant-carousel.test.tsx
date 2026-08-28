@@ -237,7 +237,10 @@ describe('ProductVariantCarousel', () => {
       />,
     );
 
-    expect(screen.getByTestId('product-variant-carousel-value')).toHaveClass('truncate');
+    const value = screen.getByTestId('product-variant-carousel-value');
+    expect(value).toHaveClass('truncate');
+    expect(value).toHaveClass('group-focus-visible:whitespace-normal');
+    expect(screen.getByTestId('product-variant-carousel-card')).toHaveClass('group');
     expect(screen.getByTestId('product-variant-carousel-value-tooltip')).toHaveTextContent(
       'First option with a relatively long name',
     );
