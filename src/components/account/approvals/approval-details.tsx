@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { CircleAlert, CircleCheck, CircleX, MessageSquareText } from 'lucide-react';
-import { resolveApprovalNetAmount } from '@/components/account/approvals/approval-net-amount';
+import { resolveApprovalTotalNetAmount } from '@/components/account/approvals/approval-net-amount';
 import { ApprovalSummary } from '@/components/account/approvals/approval-summary';
 import { resolveItemDiscountPercent } from '@/components/account/shared/item-discount';
 import { ProductListResolver } from '@/components/product/product-list-resolver';
@@ -32,7 +32,7 @@ interface ApprovalDetailsProps {
 }
 
 function formatApprovalNetAmount(approval: Approval, locale: string): string {
-  const net = resolveApprovalNetAmount(approval);
+  const net = resolveApprovalTotalNetAmount(approval);
   if (!net) return '-';
   return formatCurrency(net.amount, net.currency, locale);
 }

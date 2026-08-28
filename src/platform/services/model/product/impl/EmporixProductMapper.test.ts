@@ -350,5 +350,49 @@ describe('EmporixProductMapper', () => {
         },
       ]);
     });
+
+    it('8. maps template ref and labels from parentVariant when the child has no template', () => {
+      const input = {
+        id: 'child-1',
+        code: 'child-1',
+        productType: 'VARIANT',
+        parentVariantId: 'parent-1',
+        parentVariant: {
+          id: 'parent-1',
+          template: {
+            id: 'tpl-1',
+            version: 5,
+            attributes: [{ key: 'width', name: { en: 'Width' }, type: 'NUMBER' }],
+          },
+        },
+        variantAttributes: {
+          width: [{ key: 20 }],
+        },
+      } as any;
+
+      const result = mapper.mapToService(input);
+      expect(result.template).toEqual({ id: 'tpl-1', version: '5' });
+      expect(result.templateAttributeLabels).toEqual({ width: { en: 'Width' } });
+      expect(result.templateAttributeTypes).toEqual({ width: 'NUMBER' });
+    });
+
+    it('9. omits variant attribute name when expand=template has no attribute labels', () => {
+      const input = {
+        id: 'parent-1',
+        code: 'parent-1',
+        productType: 'PARENT_VARIANT',
+        variantAttributes: {
+          width: [{ key: 15 }],
+        },
+      } as any;
+
+      const result = mapper.mapToService(input);
+      expect(result.variantAttributes).toEqual([
+        {
+          key: 'width',
+          values: [{ key: '15', selected: false }],
+        },
+      ]);
+    });
   });
 });

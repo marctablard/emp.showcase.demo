@@ -1,17 +1,19 @@
 'use client';
 
 import { type JSX, startTransition, useEffect, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { H5 } from '@/components/ui/h';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useL10n } from '@/hooks/useL10n';
 import { useRouter } from '@/i18n/navigation';
+import { formatTemplateAttributeValue } from '@/lib/common/product-template-attributes';
 import { getSelectedVariantAttributeValues } from '@/lib/common/product-variant-attributes';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { ProductPrice } from '@/platform/services/model/price';
-import type { Product } from '@/platform/services/model/product';
+import type { Product, ProductTemplateAttributeType } from '@/platform/services/model/product';
 
 /** Figma card content width (`12799:113117`). */
 const VARIANT_CARD_WIDTH_PX = 157;
@@ -23,6 +25,7 @@ export interface ProductVariantCarouselProps {
   prices: ProductPrice[];
   currentProductId: string;
   attributeOrder: string[];
+  attributeTypes?: Record<string, ProductTemplateAttributeType>;
   className?: string;
 }
 
@@ -46,6 +49,24 @@ export function resolveSlidesPerPage(viewportWidthPx: number): number {
   );
 }
 
+function ProductVariantCarouselValue({ value }: Readonly<{ value: string }>) {
+  return (
+    <Tooltip delayDuration={200}>
+      <TooltipTrigger asChild>
+        {/* Span (not a button): the card is already a button. Keyboard users see the
+            full value via group-focus-visible unwrap on the card. */}
+        <span
+          className="block min-w-0 truncate group-focus-visible:overflow-visible group-focus-visible:whitespace-normal"
+          data-testid="product-variant-carousel-value"
+        >
+          {value}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent data-testid="product-variant-carousel-value-tooltip">{value}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 export function resolvePageCount(variantCount: number, slidesPerPage: number): number {
   if (variantCount <= 0) {
     return 0;
@@ -65,11 +86,13 @@ export function ProductVariantCarousel({
   prices,
   currentProductId,
   attributeOrder,
+  attributeTypes,
   className,
 }: Readonly<ProductVariantCarouselProps>): JSX.Element | null {
   const t = useTranslations('product');
   const tCarousel = useTranslations('common.UI.Carousel');
-  const { l10n, l10nOrEmpty } = useL10n();
+  const locale = useLocale();
+  const { l10nOrEmpty } = useL10n();
   const router = useRouter();
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewportWidth, setViewportWidth] = useState(0);
@@ -165,11 +188,10 @@ export function ProductVariantCarousel({
           {variants.map((variant) => {
             const isSelected = variant.id === currentProductId;
             const selectedValues = getSelectedVariantAttributeValues(variant);
-            const orderedValues = attributeOrder
-              .map((key) => selectedValues[key])
-              .filter((value): value is string => Boolean(value));
-            const fallbackValues = Object.values(selectedValues);
-            const displayValues = orderedValues.length > 0 ? orderedValues : fallbackValues;
+            const orderedKeys = attributeOrder.filter(
+              (key) => selectedValues[key] !== undefined && selectedValues[key] !== '',
+            );
+            const displayKeys = orderedKeys.length > 0 ? orderedKeys : Object.keys(selectedValues);
             const price = getPrice(variant.id);
             const netAmount = resolveNetUnitPrice(price);
             const image = variant.images?.[0] ?? variant.primaryImage;
@@ -179,7 +201,7 @@ export function ProductVariantCarousel({
                 key={variant.id}
                 type="button"
                 className={cn(
-                  'flex shrink-0 cursor-pointer flex-col rounded-sm border-2 p-0.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2',
+                  'group flex shrink-0 cursor-pointer flex-col rounded-sm border-2 p-0.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2',
                   isSelected ? 'border-border-secondary' : 'border-border-primary',
                 )}
                 style={{ width: VARIANT_CARD_WIDTH_PX, minWidth: VARIANT_CARD_WIDTH_PX }}
@@ -215,10 +237,11 @@ export function ProductVariantCarousel({
                 </div>
                 <div className="flex w-full flex-col gap-2 px-2 py-1 text-base text-text-body">
                   <div className="flex flex-col">
-                    {displayValues.map((value) => (
-                      <span key={value} className="truncate">
-                        {l10n(value)}
-                      </span>
+                    {displayKeys.map((key) => (
+                      <ProductVariantCarouselValue
+                        key={key}
+                        value={formatTemplateAttributeValue(selectedValues[key], attributeTypes?.[key], locale)}
+                      />
                     ))}
                   </div>
                   <span className="font-bold">

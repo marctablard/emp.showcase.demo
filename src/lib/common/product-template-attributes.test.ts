@@ -1,10 +1,13 @@
 import { formatDate } from '@/lib/date-utils';
+import { L10N_MISSING_LABEL } from '@/lib/l10n';
 import {
   PRODUCT_TEMPLATE_ATTRIBUTE_TYPE,
   formatTemplateAttributeValue,
+  isPlaceholderAttributeLabel,
   orderedTemplateAttributeEntries,
   parseBooleanTemplateAttributeValue,
   resolveTemplateAttributeLabel,
+  resolveVariantAttributeLabel,
 } from './product-template-attributes';
 
 describe('formatTemplateAttributeValue', () => {
@@ -21,9 +24,19 @@ describe('formatTemplateAttributeValue', () => {
     );
   });
 
-  it('leaves non-date types unchanged', () => {
+  it('formats NUMBER values with the locale number formatter', () => {
+    expect(formatTemplateAttributeValue('2342423', PRODUCT_TEMPLATE_ATTRIBUTE_TYPE.NUMBER, 'en-US')).toBe('2,342,423');
+    expect(formatTemplateAttributeValue('2342423', PRODUCT_TEMPLATE_ATTRIBUTE_TYPE.NUMBER, 'de-DE')).toBe('2.342.423');
+    expect(formatTemplateAttributeValue('15', PRODUCT_TEMPLATE_ATTRIBUTE_TYPE.NUMBER, 'en-US')).toBe('15');
+  });
+
+  it('leaves TEXT values and non-numeric NUMBER keys unchanged', () => {
     expect(formatTemplateAttributeValue('value 4', PRODUCT_TEMPLATE_ATTRIBUTE_TYPE.TEXT, 'en-US')).toBe('value 4');
-    expect(formatTemplateAttributeValue('1705', PRODUCT_TEMPLATE_ATTRIBUTE_TYPE.NUMBER, 'de-DE')).toBe('1705');
+    expect(formatTemplateAttributeValue('12 Ah', PRODUCT_TEMPLATE_ATTRIBUTE_TYPE.NUMBER, 'en-US')).toBe('12 Ah');
+  });
+
+  it('formats date-only values', () => {
+    expect(formatTemplateAttributeValue('2026-08-27', undefined, 'en-US')).toBe(formatDate('2026-08-27', 'en-US'));
   });
 });
 
@@ -38,6 +51,37 @@ describe('resolveTemplateAttributeLabel', () => {
 
   it('falls back to the attribute key when labels are missing', () => {
     expect(resolveTemplateAttributeLabel('pick-a-list-optional', undefined, l10n)).toBe('pick-a-list-optional');
+  });
+});
+
+describe('isPlaceholderAttributeLabel', () => {
+  it('treats key-echo localized maps as placeholders', () => {
+    expect(isPlaceholderAttributeLabel({ en: 'width' }, 'width')).toBe(true);
+    expect(isPlaceholderAttributeLabel('width', 'width')).toBe(true);
+    expect(isPlaceholderAttributeLabel({}, 'width')).toBe(true);
+    expect(isPlaceholderAttributeLabel({ en: 'Width' }, 'width')).toBe(false);
+  });
+});
+
+describe('resolveVariantAttributeLabel', () => {
+  const l10n = (value: { en?: string; de?: string } | string): string =>
+    typeof value === 'string' ? value : (value.en ?? value.de ?? L10N_MISSING_LABEL);
+
+  it('prefers a real localized name over a key echo', () => {
+    expect(
+      resolveVariantAttributeLabel(
+        'a-very-long-attribute-name-to-test-wrapping',
+        { en: 'a-very-long-attribute-name-to-test-wrapping' },
+        { 'a-very-long-attribute-name-to-test-wrapping': { en: 'A Very Long Attribute Name To Test Wrapping' } },
+        l10n,
+      ),
+    ).toBe('A Very Long Attribute Name To Test Wrapping');
+  });
+
+  it('returns missing label when only the key is available', () => {
+    expect(resolveVariantAttributeLabel('a-number-attribute-9', { en: 'a-number-attribute-9' }, undefined, l10n)).toBe(
+      L10N_MISSING_LABEL,
+    );
   });
 });
 

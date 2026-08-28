@@ -1,7 +1,8 @@
 import type { Approval } from '@/platform/services/model/approval';
 
 /**
- * Resolves the model-backed net total for Approval Details / Summary.
+ * Resolves the model-backed goods net for CART Order Overview “Total value”
+ * (COP-6178 ticket-scoped). Approval Details header uses `resolveApprovalTotalNetAmount`.
  *
  * Finding 26: do not use `resource.totalPrice.amount` for net display — that field
  * is often VAT-inclusive (e.g. 63.05) while net of goods is `subtotalAggregate.netValue`
@@ -34,4 +35,20 @@ export function resolveApprovalNetAmount(approval: Approval): { amount: number; 
   }
 
   return null;
+}
+
+/**
+ * Header “Total net amount”: goods net + net shipping (excludes shipping tax).
+ * Goods come from `resolveApprovalNetAmount`. Shipping is `details.shipping.amount ?? 0`.
+ */
+export function resolveApprovalTotalNetAmount(approval: Approval): { amount: number; currency: string } | null {
+  const goods = resolveApprovalNetAmount(approval);
+  if (!goods) {
+    return null;
+  }
+
+  return {
+    amount: goods.amount + (approval.details?.shipping?.amount ?? 0),
+    currency: goods.currency,
+  };
 }

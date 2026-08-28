@@ -54,6 +54,7 @@ jest.mock('./product-variant-attribute-groups', () => ({
       data-testid="product-variant-attribute-groups"
       data-selected={JSON.stringify(selectedValues ?? {})}
       data-group-count={groups.length}
+      data-group-values={JSON.stringify(groups.flatMap((group) => group.values))}
     />
   ),
 }));
@@ -199,6 +200,53 @@ describe('ProductVariantSelector', () => {
     expect(fetchProductVariantsMock).toHaveBeenCalledTimes(1);
     expect(fetchProductVariantsMock).toHaveBeenCalledWith('parent-1');
     expect(fetchProductPricesMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the current variant visible when it is missing from the fetched page', async () => {
+    fetchProductVariantsMock.mockResolvedValue([
+      buildProduct({
+        id: 'other',
+        variantAttributeValues: { 'a-number-attribute-9': '0' },
+        variantAttributes: [
+          {
+            key: 'a-number-attribute-9',
+            values: [
+              { key: '0', selected: true },
+              { key: '2342423', selected: false },
+            ],
+          },
+        ],
+      }),
+    ]);
+    fetchProductPricesMock.mockResolvedValue({});
+
+    render(
+      <ProductVariantSelector
+        product={buildProduct({
+          id: 'current',
+          parentVariantId: 'parent-1',
+          variantAttributeValues: { 'a-number-attribute-9': '2342423' },
+          variantAttributes: [
+            {
+              key: 'a-number-attribute-9',
+              values: [{ key: '2342423', selected: true }],
+            },
+          ],
+        })}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-variant-carousel')).toHaveAttribute('data-variant-count', '2');
+    });
+    expect(screen.getByTestId('product-variant-attribute-groups')).toHaveAttribute(
+      'data-selected',
+      JSON.stringify({ 'a-number-attribute-9': '2342423' }),
+    );
+    expect(screen.getByTestId('product-variant-attribute-groups')).toHaveAttribute(
+      'data-group-values',
+      JSON.stringify(['0', '2342423']),
+    );
   });
 
   it('returns null when variants fetch is empty', async () => {

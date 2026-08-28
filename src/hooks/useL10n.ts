@@ -11,20 +11,23 @@ import { useSiteStore } from '@/providers/StoreProvider';
  *
  * Resolution order:
  *   1. `locale` argument (or `useLocale()` from next-intl when omitted)
- *   2. `defaultLocale` argument, or — when not provided — `site.defaultLanguage`
- *      from `useSiteStore`, falling back to `routingConfig.defaultLocale`
+ *   2. `fallbackLocale` — omitted when the caller passed `defaultLocale`;
+ *      otherwise `site.defaultLanguage` when present
+ *   3. `defaultLocale` argument, or `routingConfig.defaultLocale`
+ *   4. `'-'` for structured values with no matching locale
  */
 export function useL10n(locale?: string, defaultLocale?: string) {
   const intlLocale = useLocale();
   const resolvedLocale = locale ?? intlLocale;
   const siteDefaultLanguage = useSiteStore().site?.defaultLanguage;
-  const effectiveDefault = defaultLocale ?? siteDefaultLanguage ?? routingConfig.defaultLocale;
+  const effectiveDefault = defaultLocale ?? routingConfig.defaultLocale;
+  const fallbackLocale = defaultLocale ? undefined : siteDefaultLanguage;
 
   return useMemo(
     () => ({
-      l10n: (input: L10nInput) => utill10n(input, resolvedLocale, effectiveDefault),
-      l10nOrEmpty: (input: L10nInput) => utilL10nOrEmpty(input, resolvedLocale, effectiveDefault),
+      l10n: (input: L10nInput) => utill10n(input, resolvedLocale, effectiveDefault, fallbackLocale),
+      l10nOrEmpty: (input: L10nInput) => utilL10nOrEmpty(input, resolvedLocale, effectiveDefault, fallbackLocale),
     }),
-    [resolvedLocale, effectiveDefault],
+    [resolvedLocale, effectiveDefault, fallbackLocale],
   );
 }

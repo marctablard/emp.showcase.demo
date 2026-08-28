@@ -77,6 +77,18 @@ describe('l10n', () => {
     it('returns missing label when neither session nor default locale exist on object', () => {
       expect(l10n({ ja: '日本語' } as LocalizedString, 'en')).toBe(L10N_MISSING_LABEL);
     });
+
+    it('tries fallback locale before default locale', () => {
+      const localizedObject: LocalizedString = {
+        de: 'Deutscher Text',
+        en: 'English text',
+      };
+      expect(l10n(localizedObject, 'fr', 'en', 'de')).toBe('Deutscher Text');
+    });
+
+    it('uses default locale when fallback locale is also missing', () => {
+      expect(l10n({ en: 'English text' }, 'fr', 'en', 'de')).toBe('English text');
+    });
   });
 
   describe('array format with language/message objects', () => {

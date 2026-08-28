@@ -1,14 +1,16 @@
 'use client';
 
 import { type JSX, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { H6 } from '@/components/ui/h';
 import UiLink from '@/components/ui/link';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useL10n } from '@/hooks/useL10n';
-import { type ProductVariantAttributeKey, dk } from '@/i18n/dynamic-key';
+import { formatTemplateAttributeValue, resolveVariantAttributeLabel } from '@/lib/common/product-template-attributes';
 import type { ProductVariantAttributeGroup } from '@/lib/common/product-variant-attributes';
 import { cn } from '@/lib/utils';
+import type { LocalizedString } from '@/platform/services/model/common';
+import type { ProductTemplateAttributeType } from '@/platform/services/model/product';
 
 /** Max chips shown per attribute before Show more (Figma Speed row density). */
 const VISIBLE_CHIP_LIMIT = 6;
@@ -22,6 +24,10 @@ export interface ProductVariantAttributeGroupsProps {
    * Reserved for COP-4811 interactive filtering — chips are display-only for now.
    */
   compatibleValuesByAttribute?: Record<string, ReadonlySet<string>>;
+  /** Localized names from Product Templates `attributes[].name`. */
+  attributeLabels?: Record<string, LocalizedString>;
+  /** Types from Product Templates `attributes[].type` for locale-aware value formatting. */
+  attributeTypes?: Record<string, ProductTemplateAttributeType>;
   className?: string;
 }
 
@@ -44,9 +50,12 @@ function resolveChipState(
 export function ProductVariantAttributeGroups({
   groups,
   selectedValues,
+  attributeLabels,
+  attributeTypes,
   className,
 }: Readonly<ProductVariantAttributeGroupsProps>): JSX.Element | null {
   const t = useTranslations('product');
+  const locale = useLocale();
   const { l10n } = useL10n();
   const [expandedKeys, setExpandedKeys] = useState<Record<string, boolean>>({});
   const selectViaListTooltip = t('variantAttributeSelectViaListTooltip');
@@ -61,11 +70,7 @@ export function ProductVariantAttributeGroups({
         const expanded = expandedKeys[group.key] === true;
         const hasOverflow = group.values.length > VISIBLE_CHIP_LIMIT;
         const visibleValues = expanded || !hasOverflow ? group.values : group.values.slice(0, VISIBLE_CHIP_LIMIT);
-        const label = group.name
-          ? l10n(group.name)
-          : t(dk<ProductVariantAttributeKey>(`filters.mixins.productVariantAttributes.${group.key}`), {
-              defaultValue: group.key,
-            });
+        const label = resolveVariantAttributeLabel(group.key, group.name, attributeLabels, l10n);
 
         return (
           <div key={group.key} className="flex flex-col gap-3">
@@ -74,11 +79,12 @@ export function ProductVariantAttributeGroups({
             <div className="flex flex-wrap items-center gap-3">
               {visibleValues.map((value) => {
                 // Value keys are normalized to strings upstream; coerce for display safety.
-                const displayValue = typeof value === 'string' ? value : String(value);
-                const state = resolveChipState(group.key, displayValue, selectedValues);
+                const rawValue = typeof value === 'string' ? value : String(value);
+                const displayValue = formatTemplateAttributeValue(rawValue, attributeTypes?.[group.key], locale);
+                const state = resolveChipState(group.key, rawValue, selectedValues);
 
                 return (
-                  <Tooltip key={displayValue} delayDuration={200}>
+                  <Tooltip key={rawValue} delayDuration={200}>
                     <TooltipTrigger asChild>
                       <div
                         className={cn(
