@@ -15,16 +15,16 @@ export function createBrowseInitialSearch(
   site: string,
   locale: string,
 ): { initialSearch: SearchParams<Product>; q?: string } {
-  const q = rawParams.q as string | undefined;
-  const page = rawParams.page as string | undefined;
-  const size = rawParams.size as string | undefined;
+  const q = firstStringParam(rawParams.q);
+  const page = firstStringParam(rawParams.page);
+  const size = firstStringParam(rawParams.size);
   const sort = firstStringParam(rawParams.sort);
 
   const filters = extractFiltersFromSearchParams(rawParams);
 
   const initialSearch: SearchParams<Product> = {
-    page: page ? parseInt(page, 10) : 0,
-    size: size ? parseInt(size, 10) : 12,
+    page: page ? Number.parseInt(page, 10) : 0,
+    size: size ? Number.parseInt(size, 10) : 12,
     query: q,
     sort,
     filters: Object.keys(filters).length > 0 ? filters : undefined,

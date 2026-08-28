@@ -93,6 +93,59 @@ function toSearchFailedError(response: Response): Error {
   return new Error(`Search failed: ${response.status} ${response.statusText || 'Request failed'}`);
 }
 
+function applySuccessfulSearchPayload<T>(
+  data: SearchResult<T>,
+  setData: (items: T[]) => void,
+  setTotal: (total: number) => void,
+  setCurrentPage: (page: number) => void,
+  setPageSize: (size: number) => void,
+  setFacets: (filters: Filter[]) => void,
+  setAvailableSorts: (sorts: SearchSortOption[]) => void,
+  setBatteryIncludedFacets: (facets: BatteryIncludedFacet[] | undefined) => void,
+): void {
+  setData(data.items);
+  setTotal(data.total);
+  setCurrentPage(data.page);
+  setPageSize(data.pageSize);
+  if (data.availableFilters) {
+    setFacets(data.availableFilters);
+  }
+  setAvailableSorts(data.availableSorts || []);
+  if (data.batteryIncludedFacets && data.batteryIncludedFacets.length > 0) {
+    setBatteryIncludedFacets(data.batteryIncludedFacets);
+  }
+}
+
+function reportSearchRequestFailure(
+  generation: number,
+  currentGeneration: number,
+  err: unknown,
+  setError: (error: UseSearchClientError) => void,
+): void {
+  if (generation !== currentGeneration) {
+    return;
+  }
+  getLogger().error({ err, event: 'search_request_failed' }, 'Product search request failed');
+  setError(USE_SEARCH_CLIENT_ERROR.GENERIC);
+}
+
+function finishSearchInFlight(
+  generation: number,
+  currentGeneration: number,
+  requestKey: string,
+  inFlightSearch: { current: { key: string; promise: Promise<void> } | undefined },
+  setLoading: (loading: boolean) => void,
+  settleInFlight: () => void,
+): void {
+  if (generation === currentGeneration) {
+    setLoading(false);
+  }
+  if (inFlightSearch.current?.key === requestKey) {
+    inFlightSearch.current = undefined;
+  }
+  settleInFlight();
+}
+
 export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: SearchResult<T>) {
   const { addSearchQuery } = useHistory();
   const router = useRouter();
@@ -292,36 +345,21 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
           return;
         }
 
-        // Update state with the search results
-        setData(data.items);
-        setTotal(data.total);
-        setCurrentPage(data.page);
-        setPageSize(data.pageSize);
-
-        if (data.availableFilters) {
-          setFacets(data.availableFilters);
-        }
-
-        setAvailableSorts(data.availableSorts || []);
-
-        if (data.batteryIncludedFacets && data.batteryIncludedFacets.length > 0) {
-          setBatteryIncludedFacets(data.batteryIncludedFacets);
-        }
-
+        applySuccessfulSearchPayload(
+          data,
+          setData,
+          setTotal,
+          setCurrentPage,
+          setPageSize,
+          setFacets,
+          setAvailableSorts,
+          setBatteryIncludedFacets,
+        );
         lastCompletedSearchKey.current = requestKey;
       } catch (err) {
-        if (gen === searchGeneration.current) {
-          getLogger().error({ err, event: 'search_request_failed' }, 'Product search request failed');
-          setError(USE_SEARCH_CLIENT_ERROR.GENERIC);
-        }
+        reportSearchRequestFailure(gen, searchGeneration.current, err, setError);
       } finally {
-        if (gen === searchGeneration.current) {
-          setLoading(false);
-        }
-        if (inFlightSearch.current?.key === requestKey) {
-          inFlightSearch.current = undefined;
-        }
-        settleInFlight();
+        finishSearchInFlight(gen, searchGeneration.current, requestKey, inFlightSearch, setLoading, settleInFlight);
       }
     },
     [updateBrowserUrl, locale, siteCode, sessionCurrency],

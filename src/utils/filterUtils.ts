@@ -101,16 +101,20 @@ export function extractFiltersFromUrlSearchParams(searchParams: URLSearchParams)
   return extractFiltersFromSearchParams(urlSearchParamsToNextRecord(searchParams));
 }
 
+function compareSignatureStrings(left: string, right: string): number {
+  return left.localeCompare(right);
+}
+
 function normalizeFilterLeafForSignature(value: SearchFilterLeafValue): string[] {
   const values = Array.isArray(value) ? value : [value];
-  return values.map(String).sort();
+  return values.map(String).sort(compareSignatureStrings);
 }
 
 function normalizeFiltersForSignature(filters: SearchFilters | undefined): unknown {
   if (!filters || Object.keys(filters).length === 0) {
     return {};
   }
-  const sortedKeys = Object.keys(filters).sort();
+  const sortedKeys = Object.keys(filters).sort(compareSignatureStrings);
   const out: Record<string, unknown> = {};
   for (const k of sortedKeys) {
     const v = filters[k];
@@ -118,9 +122,9 @@ function normalizeFiltersForSignature(filters: SearchFilters | undefined): unkno
       out[k] = normalizeFilterLeafForSignature(v);
     } else if (v && typeof v === 'object') {
       const nested = v as SearchFilterNestedValue;
-      const nk = Object.keys(nested).sort();
-      out[k] = nk.reduce<Record<string, SearchFilterLeafValue>>((acc, key) => {
-        acc[key] = nested[key];
+      const nk = Object.keys(nested).sort(compareSignatureStrings);
+      out[k] = nk.reduce<Record<string, string[]>>((acc, key) => {
+        acc[key] = normalizeFilterLeafForSignature(nested[key]);
         return acc;
       }, {});
     } else {

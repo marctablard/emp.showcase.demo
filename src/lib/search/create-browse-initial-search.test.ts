@@ -46,4 +46,18 @@ describe('createBrowseInitialSearch', () => {
 
     expect(initialSearch.sort).toBe('price:desc');
   });
+
+  it('uses the first string when q, page, and size are repeated URL params', () => {
+    const { initialSearch, q } = createBrowseInitialSearch(
+      { q: ['drill', 'saw'], page: ['2', '9'], size: ['24', '6'] },
+      false,
+      'main',
+      'de',
+    );
+
+    expect(q).toBe('drill');
+    expect(initialSearch.query).toBe('drill');
+    expect(initialSearch.page).toBe(2);
+    expect(initialSearch.size).toBe(24);
+  });
 });
