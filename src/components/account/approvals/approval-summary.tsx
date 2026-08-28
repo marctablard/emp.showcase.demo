@@ -139,19 +139,9 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
           <span>{t('shippingFee')}</span>
           <span>{formatShippingFeeDisplay(breakdown.shippingFee, fmt, t('free'))}</span>
         </div>
-        {breakdown.showShippingTax &&
-        shouldDisplayTaxLine({
-          taxAmount: breakdown.shippingTax,
-          netAmount: breakdown.shippingFee,
-        }) ? (
+        {breakdown.showShippingTax ? (
           <div className="flex justify-between gap-4">
-            <span>
-              {t('shippingTax')}
-              {detailTaxRateSuffix({
-                taxAmount: breakdown.shippingTax,
-                netAmount: breakdown.shippingFee,
-              })}
-            </span>
+            <span>{t('shippingTax')}</span>
             <span>{fmt(breakdown.shippingTax)}</span>
           </div>
         ) : null}
