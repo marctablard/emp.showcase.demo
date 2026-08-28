@@ -21,6 +21,7 @@ import type {
   BatteryIncludedFacetOption,
   BatteryIncludedTreeFacetOption,
   Filter,
+  SearchFilterValue,
   SearchFilters,
   SearchParams,
   SearchResult,
@@ -49,6 +50,17 @@ import {
 const BATTERY_INCLUDED_SELECTION_CONTEXT_KEY = '__batteryIncludedSelection';
 // TODO: Replace this with the authoritative BI rating facet field id once a production sample is captured in-repo.
 const BATTERY_INCLUDED_RATING_FACET_IDS = new Set(['rating']);
+
+function collectLegacyCategoryIds(value: SearchFilterValue): string[] {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? [trimmed] : [];
+  }
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((id): id is string => typeof id === 'string' && id.trim() !== '').map((id) => id.trim());
+}
 
 /**
  * Implementation of SearchService for BatteryIncluded product data.
@@ -601,9 +613,13 @@ class BatteryIncludedSearchService implements SearchService {
       return filters;
     }
 
-    const ids = Array.isArray(legacyCategoryIds) ? legacyCategoryIds : [legacyCategoryIds];
+    const ids = collectLegacyCategoryIds(legacyCategoryIds);
+    if (ids.length === 0) {
+      return filters;
+    }
+
     const translated = ids
-      .map((id) => snapshot.byId[String(id).trim()]?.displayPath ?? snapshot.byId[String(id).trim()]?.facetValue)
+      .map((id) => snapshot.byId[id]?.displayPath ?? snapshot.byId[id]?.facetValue)
       .filter((value): value is string => Boolean(value));
     if (translated.length !== ids.length) {
       return filters;
