@@ -92,6 +92,51 @@ const AddressForm: React.FC<AddressFormProps> = ({
   const rootRef = useRef<HTMLDivElement>(null);
   useRegisterCheckoutForm(`address-${testIdPrefix}`, form, rootRef, { testIdPrefix });
 
+  let countryField = <p>{t('noCountriesAvailable')}</p>;
+  if (loading) {
+    countryField = (
+      <div className="flex justify-center p-2">
+        <Spinner variant="sm" />
+      </div>
+    );
+  } else if (countries && countries.length > 0) {
+    countryField = (
+      <FormField
+        control={form.control}
+        name="country"
+        render={({ field }) => (
+          <FormItem className="relative">
+            <FormLabel>{t('country')}*</FormLabel>
+            <FormControl>
+              {/*trigger field change AND form validation */}
+              <Select
+                onValueChange={(e) => {
+                  field.onChange(e);
+                  field.onBlur();
+                }}
+                value={field.value ?? ''}
+              >
+                <SelectTrigger data-testid={tid('country')}>
+                  <SelectValue placeholder={t('country')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {sortedCountries.map((country) => (
+                    <SelectItem key={country.code} value={country.code} className="px-2">
+                      {l10n(country.name) || country.code}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormControl>
+            <div className="absolute top-full left-0 mt-0.5">
+              <FormMessage />
+            </div>
+          </FormItem>
+        )}
+      />
+    );
+  }
+
   return (
     <Form {...form}>
       <div className="space-y-6" ref={rootRef}>
@@ -266,49 +311,7 @@ const AddressForm: React.FC<AddressFormProps> = ({
           />
         </div>
 
-        <div>
-          {loading ? (
-            <div className="flex justify-center p-2">
-              <Spinner variant="sm" />
-            </div>
-          ) : countries && countries.length > 0 ? (
-            <FormField
-              control={form.control}
-              name="country"
-              render={({ field }) => (
-                <FormItem className="relative">
-                  <FormLabel>{t('country')}*</FormLabel>
-                  <FormControl>
-                    {/*trigger field change AND form validation */}
-                    <Select
-                      onValueChange={(e) => {
-                        field.onChange(e);
-                        field.onBlur();
-                      }}
-                      value={field.value ?? ''}
-                    >
-                      <SelectTrigger data-testid={tid('country')}>
-                        <SelectValue placeholder={t('country')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sortedCountries.map((country) => (
-                          <SelectItem key={country.code} value={country.code} className="px-2">
-                            {l10n(country.name) || country.code}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <div className="absolute top-full left-0 mt-0.5">
-                    <FormMessage />
-                  </div>
-                </FormItem>
-              )}
-            />
-          ) : (
-            <p>{t('noCountriesAvailable')}</p>
-          )}
-        </div>
+        <div>{countryField}</div>
       </div>
     </Form>
   );

@@ -62,7 +62,7 @@ class EmporixProductService implements ProductService {
     @inject('CategoryService') private categoryService: CategoryService,
     @inject('SegmentFilterService') private segmentFilterService: SegmentFilterService,
     @inject('SessionService') private sessionService: SessionService,
-    @inject('LoggerService') private logger: LoggerService,
+    @inject('LoggerService') private readonly logger: LoggerService,
   ) {}
 
   async getProductById(id: string, options?: ProductFetchOptions): Promise<Product | undefined> {
@@ -322,10 +322,7 @@ class EmporixProductService implements ProductService {
         }
       } catch (error) {
         this.logger.error(
-          {
-            error: error instanceof Error ? error.message : String(error),
-            chunkSize: chunk.length,
-          },
+          { err: error, chunkSize: chunk.length },
           'Failed to resolve product template refs; continuing without them',
         );
       }

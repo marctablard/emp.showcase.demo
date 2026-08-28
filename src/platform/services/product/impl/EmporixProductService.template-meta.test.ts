@@ -333,7 +333,7 @@ describe('EmporixProductService template meta enrichment', () => {
     expect(enriched.template).toBeUndefined();
     expect(getProductTemplate).not.toHaveBeenCalled();
     expect(logger.error).toHaveBeenCalledWith(
-      expect.objectContaining({ error: expect.stringContaining('503') }),
+      expect.objectContaining({ err: expect.objectContaining({ message: expect.stringContaining('503') }) }),
       'Failed to resolve product template refs; continuing without them',
     );
   });

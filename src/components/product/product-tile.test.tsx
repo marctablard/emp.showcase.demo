@@ -129,6 +129,30 @@ describe('ProductTile', () => {
     expect(screen.queryByTestId('parent-variant-count-badge')).not.toBeInTheDocument();
   });
 
+  it('shows the parent variant count badge when the Battery Included flag is enabled', () => {
+    const previous = process.env.NEXT_PUBLIC_SHOW_PARENT_VARIANT_COUNT_BADGE;
+    process.env.NEXT_PUBLIC_SHOW_PARENT_VARIANT_COUNT_BADGE = 'true';
+
+    try {
+      render(
+        <ProductTile
+          product={makeProduct({ isParentVariant: true, variantCount: 3 })}
+          locale="en"
+          skipVariantFetch
+          showParentVariantBadge
+        />,
+      );
+
+      expect(screen.getByTestId('parent-variant-count-badge')).toHaveTextContent('3');
+    } finally {
+      if (previous === undefined) {
+        delete process.env.NEXT_PUBLIC_SHOW_PARENT_VARIANT_COUNT_BADGE;
+      } else {
+        process.env.NEXT_PUBLIC_SHOW_PARENT_VARIANT_COUNT_BADGE = previous;
+      }
+    }
+  });
+
   it('keeps the badge hidden by default for shared tile usage', () => {
     render(
       <ProductTile product={makeProduct({ isParentVariant: true, variantCount: 3 })} locale="en" skipVariantFetch />,

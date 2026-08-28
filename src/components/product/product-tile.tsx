@@ -68,8 +68,18 @@ function getProductUspIcon(icon: string): LucideIcon {
   return Circle;
 }
 
+/** Hidden until Battery Included parent-variant counts are investigated. */
+function isParentVariantCountBadgeEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_SHOW_PARENT_VARIANT_COUNT_BADGE === 'true';
+}
+
 function shouldShowParentVariantCountBadge(showParentVariantBadge: boolean, product: Product): boolean {
-  return showParentVariantBadge && Boolean(product.isParentVariant) && (product.variantCount ?? 0) > 0;
+  return (
+    isParentVariantCountBadgeEnabled() &&
+    showParentVariantBadge &&
+    Boolean(product.isParentVariant) &&
+    (product.variantCount ?? 0) > 0
+  );
 }
 
 function ProductTileChipOverflow({ count }: Readonly<{ count: number }>) {
@@ -401,8 +411,7 @@ export function ProductTile({
 
           <CardContent className="flex flex-grow flex-col gap-4">
             <div className="bg-surface-image-background relative p-4">
-              {/* Hidden for now — will be investigated later with Battery Included. */}
-              {false && shouldShowParentVariantCountBadge(showParentVariantBadge, product) && (
+              {shouldShowParentVariantCountBadge(showParentVariantBadge, product) && (
                 <div className="absolute top-4 right-4 z-10">
                   <Badge data-testid="parent-variant-count-badge" variant="white" rounded="full">
                     {product.variantCount}
