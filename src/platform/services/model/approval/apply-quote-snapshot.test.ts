@@ -1,6 +1,6 @@
 import type { Approval } from '@/platform/services/model/approval';
 import type { Quote } from '@/platform/services/model/quote';
-import { applyQuoteSnapshotToApproval } from './apply-quote-snapshot';
+import { applyQuoteSnapshotToApproval, quoteApprovalNeedsSnapshot } from './apply-quote-snapshot';
 
 const baseApproval: Approval = {
   id: 'approval-1',
@@ -69,5 +69,23 @@ describe('applyQuoteSnapshotToApproval', () => {
     expect(enriched.details?.shipping?.amount).toBe(11);
     expect(enriched.details?.shipping?.methodName).toBe('Cart ship');
     expect(enriched.details?.shipping?.grossAmount).toBe(21.4);
+  });
+
+  it('needs a quote snapshot when shipping or taxAggregate is missing', () => {
+    expect(quoteApprovalNeedsSnapshot(baseApproval)).toBe(true);
+    expect(quoteApprovalNeedsSnapshot({ ...baseApproval, resourceType: 'CART' })).toBe(false);
+    expect(
+      quoteApprovalNeedsSnapshot({
+        ...baseApproval,
+        resource: {
+          id: 'Q1000510',
+          taxAggregate: { lines: [{ name: 'STANDARD', amount: 19, rate: 19, taxable: 100 }] },
+        },
+        details: {
+          currency: 'EUR',
+          shipping: { methodId: 'dhl', methodName: 'DHL', amount: 20, zoneId: 'de', grossAmount: 21.4 },
+        },
+      }),
+    ).toBe(false);
   });
 });

@@ -19,7 +19,10 @@ import type {
   ApprovalStatus,
   ApprovalUser,
 } from '@/platform/services/model/approval';
-import { applyQuoteSnapshotToApproval } from '@/platform/services/model/approval/apply-quote-snapshot';
+import {
+  applyQuoteSnapshotToApproval,
+  quoteApprovalNeedsSnapshot,
+} from '@/platform/services/model/approval/apply-quote-snapshot';
 import type { EmporixApprovalMapper } from '@/platform/services/model/approval/impl/EmporixApprovalMapper';
 import type { QuoteService } from '@/platform/services/quote/QuoteService';
 import type { CustomerService } from '../../customer/CustomerService';
@@ -34,7 +37,7 @@ export class EmporixApprovalService implements ApprovalService {
     @inject('EmporixIamApi') private iamApi: EmporixIamApi,
     @inject('EmporixApprovalApi') private approvalApi: EmporixApprovalApi,
     @inject('EmporixApprovalMapper') private approvalMapper: EmporixApprovalMapper,
-    @inject('QuoteService') private quoteService: QuoteService,
+    @inject('QuoteService') private readonly quoteService: QuoteService,
     @inject('CustomerService') private customerService: CustomerService,
     @inject('LoggerService') private logger: LoggerService,
   ) {}
@@ -133,7 +136,7 @@ export class EmporixApprovalService implements ApprovalService {
    * QUOTE approvals omit `details` (Approval API). Load the quote so shipping / taxAggregate are available.
    */
   private async enrichQuoteApproval(approval: Approval): Promise<Approval> {
-    if (approval.resourceType !== 'QUOTE' || !approval.resource.id) {
+    if (!quoteApprovalNeedsSnapshot(approval)) {
       return approval;
     }
 

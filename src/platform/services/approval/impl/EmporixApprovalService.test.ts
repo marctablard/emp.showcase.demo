@@ -224,6 +224,28 @@ describe('EmporixApprovalService', () => {
     expect(result?.details?.shipping?.amount).toBe(10);
   });
 
+  it('does not load a quote when the QUOTE approval snapshot already has shipping and taxAggregate', async () => {
+    mockApprovalApi.getApproval.mockResolvedValueOnce({ id: 'approval-q' } as never);
+    mockApprovalMapper.mapToService.mockReturnValueOnce({
+      id: 'approval-q',
+      resourceType: 'QUOTE',
+      resource: {
+        id: 'Q1000510',
+        taxAggregate: { lines: [{ name: 'STANDARD', amount: 19, rate: 19, taxable: 100 }] },
+      },
+      details: {
+        currency: 'EUR',
+        shipping: { methodId: 'dhl', methodName: 'DHL', amount: 20, zoneId: 'de', grossAmount: 21.4 },
+      },
+    } as never);
+
+    const result = await approvalService.getApproval('approval-q');
+
+    expect(mockQuoteService.getQuote).not.toHaveBeenCalled();
+    expect(result?.details?.shipping?.amount).toBe(20);
+    expect(result?.details?.shipping?.grossAmount).toBe(21.4);
+  });
+
   it('returns the mapped approval when quote enrichment fails', async () => {
     mockApprovalApi.getApproval.mockResolvedValueOnce({ id: 'approval-q' } as never);
     mockApprovalMapper.mapToService.mockReturnValueOnce({
