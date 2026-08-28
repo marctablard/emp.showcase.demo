@@ -401,7 +401,8 @@ export function ProductTile({
 
           <CardContent className="flex flex-grow flex-col gap-4">
             <div className="bg-surface-image-background relative p-4">
-              {shouldShowParentVariantCountBadge(showParentVariantBadge, product) && (
+              {/* Hidden for now — will be investigated later with Battery Included. */}
+              {false && shouldShowParentVariantCountBadge(showParentVariantBadge, product) && (
                 <div className="absolute top-4 right-4 z-10">
                   <Badge data-testid="parent-variant-count-badge" variant="white" rounded="full">
                     {product.variantCount}

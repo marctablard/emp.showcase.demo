@@ -45,6 +45,7 @@ describe('EmporixProductService template meta enrichment', () => {
       { getCategoriesForProduct: jest.fn() } as never,
       { filterByCustomerSegments: jest.fn(async (items: unknown) => items) } as never,
       { getCurrent: jest.fn().mockResolvedValue(null) } as never,
+      { error: jest.fn(), warn: jest.fn() } as never,
     );
   }
 
@@ -294,5 +295,46 @@ describe('EmporixProductService template meta enrichment', () => {
     expect(enriched.template).toEqual({ id: 'tmpl-1', version: '5' });
     expect(enriched.variantAttributes?.[0].name).toEqual({ en: 'Date attribute' });
     expect(enriched.templateAttributeTypes).toEqual({ 'date-attribute': 'DATETIME' });
+  });
+
+  it('returns products when template-ref product search fails', async () => {
+    const searchProducts = jest.fn().mockRejectedValue(new Error('Failed to search products: 503 no available server'));
+    const getProductTemplate = jest.fn();
+    const logger = { error: jest.fn(), warn: jest.fn() };
+    const service = new EmporixProductService(
+      { getProductPrices: jest.fn().mockResolvedValue(new Map()) } as never,
+      { mapToService: jest.fn() } as never,
+      { searchProducts, getProduct: jest.fn() } as never,
+      { getBrand: jest.fn() } as never,
+      { getLabels: jest.fn(), getLabel: jest.fn() } as never,
+      { getProductTemplate } as never,
+      { getCategoriesForProduct: jest.fn() } as never,
+      { filterByCustomerSegments: jest.fn(async (items: unknown) => items) } as never,
+      { getCurrent: jest.fn().mockResolvedValue(null) } as never,
+      logger as never,
+    );
+
+    const products: Product[] = [
+      {
+        id: 'prod-1',
+        name: { en: 'Sample' },
+        purchasable: true,
+        templateAttributes: { 'pick-a-list-optional': 'Value 4' },
+      },
+    ];
+
+    const [enriched] = await service.addAdditionalData(products, {
+      prices: false,
+      variants: false,
+      categories: false,
+    });
+
+    expect(enriched.id).toBe('prod-1');
+    expect(enriched.template).toBeUndefined();
+    expect(getProductTemplate).not.toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ error: expect.stringContaining('503') }),
+      'Failed to resolve product template refs; continuing without them',
+    );
   });
 });

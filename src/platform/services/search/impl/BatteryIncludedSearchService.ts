@@ -670,11 +670,20 @@ class BatteryIncludedSearchService implements SearchService {
 
     // Resolve template attribute labels/types (same path as Emporix search / PDP key specs).
     // Skip prices/variants — BI hits already carry priced display data.
-    const items = await this.productService.addAdditionalData(mappedItems, {
-      prices: false,
-      variants: false,
-      categories: false,
-    });
+    // Product Service 503s on expand=template,parentVariant must not empty the grid.
+    let items = mappedItems;
+    try {
+      items = await this.productService.addAdditionalData(mappedItems, {
+        prices: false,
+        variants: false,
+        categories: false,
+      });
+    } catch (error) {
+      this.logger.error(
+        { error: error instanceof Error ? error.message : String(error) },
+        'Search hit enrichment failed; returning Battery Included products without template meta',
+      );
+    }
 
     return {
       items,
