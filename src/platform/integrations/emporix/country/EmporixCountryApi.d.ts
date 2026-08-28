@@ -5,7 +5,9 @@ import { EmporixCountry, EmporixRegion } from '../model/country';
  */
 export interface EmporixCountryApi {
   /**
-   * Get all countries
+   * Get all countries. Always requests Country Service with pageSize 300
+   * (`DEFAULT_COUNTRIES_PAGE_SIZE`).
+   * @param active Optional filter; when provided, included as the `active` query parameter
    * @returns Promise with array of countries
    */
   getCountries(active?: boolean): Promise<EmporixCountry[]>;

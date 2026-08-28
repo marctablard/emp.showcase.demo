@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useRef } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useRegisterCheckoutForm } from '@/components/checkout/checkout-validation-registry';
 import { useSite } from '@/hooks/site/useSite';
 import { useL10n } from '@/hooks/useL10n';
 import { useValidator } from '@/hooks/validation/useValidator';
+import { sortCountriesByDisplayName } from '@/lib/common/sort-countries-by-display-name';
 import type { Address } from '@/platform/services/model/common';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { Input } from '../ui/input';
@@ -45,6 +46,7 @@ const AddressForm: React.FC<AddressFormProps> = ({
 }) => {
   const tid = (field: string) => `${testIdPrefix}-${field}`;
   const t = useTranslations('account.AddressForm');
+  const locale = useLocale();
   const { l10n } = useL10n();
 
   const addressContentKey =
@@ -82,6 +84,10 @@ const AddressForm: React.FC<AddressFormProps> = ({
     alignAfterExternalReset();
   }, [mergedInitial, form, alignAfterExternalReset]);
   const { countries, loading } = useSite();
+  const sortedCountries = useMemo(
+    () => sortCountriesByDisplayName(countries ?? [], locale, l10n),
+    [countries, locale, l10n],
+  );
 
   const rootRef = useRef<HTMLDivElement>(null);
   useRegisterCheckoutForm(`address-${testIdPrefix}`, form, rootRef, { testIdPrefix });
@@ -285,7 +291,7 @@ const AddressForm: React.FC<AddressFormProps> = ({
                         <SelectValue placeholder={t('country')} />
                       </SelectTrigger>
                       <SelectContent>
-                        {countries.map((country) => (
+                        {sortedCountries.map((country) => (
                           <SelectItem key={country.code} value={country.code} className="px-2">
                             {l10n(country.name) || country.code}
                           </SelectItem>

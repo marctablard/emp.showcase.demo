@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { Control } from 'react-hook-form';
 import { useWatch } from 'react-hook-form';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Checkbox } from '@/components/ui/checkbox';
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { H2, H3 } from '@/components/ui/h';
@@ -13,6 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import { useSite } from '@/hooks/site/useSite';
 import { useL10n } from '@/hooks/useL10n';
+import { sortCountriesByDisplayName } from '@/lib/common/sort-countries-by-display-name';
 import type { RegistrationData } from '@/lib/validation/form-schemas';
 import type { Country } from '@/platform/services/model/common';
 
@@ -218,7 +219,12 @@ function RegistrationBillingFields({
 export function AddressInfoSection({ control, number }: AddressInfoAccordionProps) {
   const { loading, countries, fetchSiteData } = useSite();
   const { l10n } = useL10n();
+  const locale = useLocale();
   const t = useTranslations('auth.register');
+  const sortedCountries = useMemo(
+    () => sortCountriesByDisplayName(countries ?? [], locale, l10n),
+    [countries, locale, l10n],
+  );
 
   // useWatch auf oberster Ebene der Komponente verwenden
   const businessType = useWatch({
@@ -381,7 +387,7 @@ export function AddressInfoSection({ control, number }: AddressInfoAccordionProp
                     <SelectValue placeholder={t('country')} />
                   </SelectTrigger>
                   <SelectContent>
-                    {countries?.map((country) => (
+                    {sortedCountries.map((country) => (
                       <SelectItem key={country.code} value={country.code}>
                         {l10n(country.name)}
                       </SelectItem>
@@ -415,7 +421,7 @@ export function AddressInfoSection({ control, number }: AddressInfoAccordionProp
             </FormItem>
           )}
         />
-        {!shippingSameAsBilling && <RegistrationBillingFields control={control} countries={countries} />}
+        {!shippingSameAsBilling && <RegistrationBillingFields control={control} countries={sortedCountries} />}
       </div>
     </div>
   );
