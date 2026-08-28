@@ -767,6 +767,22 @@ describe('OrderDetail', () => {
     expect(overviewCard).not.toHaveTextContent('gross:');
   });
 
+  it('shows VAT without a derived percent when goods taxRate is omitted (mixed rates)', () => {
+    const mixedRates: Order = {
+      ...baseOrder,
+      price: {
+        subtotal: { net: 7942, gross: 8517.74, tax: 575.74, currency: 'EUR' },
+        total: { net: 7942, gross: 8517.74, tax: 575.74, currency: 'EUR' },
+      },
+    };
+    mockUseOrder({ order: mixedRates });
+
+    render(<OrderDetail orderId={mixedRates.id} initialOrder={mixedRates} />);
+
+    expect(screen.getByText('tax')).toBeInTheDocument();
+    expect(screen.queryByText(/tax \(\d+%\)/)).not.toBeInTheDocument();
+  });
+
   it('renders the Shipping card heading and Shipping address label instead of Transport/Delivery address', () => {
     const orderWithShippingAddress = {
       ...baseOrder,

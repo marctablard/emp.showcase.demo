@@ -1,22 +1,10 @@
 import { inject } from 'inversify';
+import { resolveSingleTaxRate } from '@/lib/common/tax-aggregate';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixQuote, EmporixQuoteShipping } from '@/platform/integrations/emporix/model/quote';
 import type { SiteService } from '@/platform/services/site/SiteService';
 import type { Quote, QuoteStatus } from '..';
 import type { QuoteMapper } from './QuoteMapper';
-
-/**
- * Prefer Emporix `taxAggregate.lines` rate (STANDARD first) for VAT (rate%) display.
- */
-function resolveQuoteVatRate(taxAggregate?: EmporixQuote['taxAggregate']): number | undefined {
-  const lines = taxAggregate?.lines;
-  if (!lines?.length) {
-    return undefined;
-  }
-  const standard = lines.find((line) => line.name === 'STANDARD' && typeof line.rate === 'number');
-  const withRate = standard ?? lines.find((line) => typeof line.rate === 'number');
-  return withRate?.rate;
-}
 
 /**
  * Prefer a localized shipping method name when Emporix provides `methodName`;
@@ -77,7 +65,8 @@ export class EmporixQuoteMapper implements QuoteMapper<EmporixQuote> {
       totalVat: emporixQuote.totalPrice.taxValue,
       subtotalNet: emporixQuote.subtotalPrice?.netValue,
       subtotalVat: emporixQuote.subtotalPrice?.taxValue,
-      vatRate: resolveQuoteVatRate(emporixQuote.taxAggregate),
+      vatRate: resolveSingleTaxRate(emporixQuote.taxAggregate?.lines),
+      taxAggregate: emporixQuote.taxAggregate,
       items: (emporixQuote.items || []).map((item) => ({
         product: {
           id: item.product.productId,

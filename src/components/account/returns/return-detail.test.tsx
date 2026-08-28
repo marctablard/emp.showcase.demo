@@ -53,7 +53,7 @@ function buildReturn(): Return {
     reason: { code: 'WRONG_ITEM', details: 'The wrong item was delivered.' },
     total: { value: 119, currency: 'EUR' },
     calculatedPrice: {
-      finalPrice: { netValue: 100, grossValue: 119, taxValue: 19, currency: 'EUR' },
+      finalPrice: { netValue: 100, grossValue: 119, taxValue: 19, taxRate: 19, currency: 'EUR' },
     },
     orders: [
       {

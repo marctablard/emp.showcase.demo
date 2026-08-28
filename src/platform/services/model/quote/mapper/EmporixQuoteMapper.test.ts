@@ -215,21 +215,36 @@ describe('EmporixQuoteMapper', () => {
     expect(result.userComment).toBe('mixin comment');
   });
 
-  it('maps STANDARD taxAggregate.lines rate to vatRate', async () => {
+  it('maps a single taxAggregate rate to vatRate', async () => {
+    const mapper = new EmporixQuoteMapper(siteService as never);
+
+    const result = await mapper.mapToService(
+      buildQuote({
+        taxAggregate: {
+          lines: [{ name: 'STANDARD', amount: 36.09, rate: 19, taxable: 226.04 }],
+        },
+      }),
+    );
+
+    expect(result.vatRate).toBe(19);
+    expect(result.taxAggregate?.lines).toHaveLength(1);
+  });
+
+  it('leaves vatRate undefined when taxAggregate mixes STANDARD and REDUCED', async () => {
     const mapper = new EmporixQuoteMapper(siteService as never);
 
     const result = await mapper.mapToService(
       buildQuote({
         taxAggregate: {
           lines: [
-            { name: 'STANDARD', amount: 36.09, rate: 19, taxable: 226.04 },
-            { name: 'REDUCED', amount: 1, rate: 7, taxable: 14 },
+            { name: 'STANDARD', amount: 31.35, rate: 19, taxable: 196.35 },
+            { name: 'REDUCED', amount: 545.79, rate: 7, taxable: 8342.79 },
           ],
         },
       }),
     );
 
-    expect(result.vatRate).toBe(19);
+    expect(result.vatRate).toBeUndefined();
   });
 
   it('falls back to first taxAggregate line rate when STANDARD is absent', async () => {

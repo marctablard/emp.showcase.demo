@@ -150,6 +150,27 @@ describe('EmporixOrderMapper', () => {
     expect(result.price?.subtotal).toMatchObject({ tax: 62.7, taxRate: 19 });
   });
 
+  it('omits goods taxRate when taxAggregate or line items mix VAT rates', () => {
+    const result = mapper.mapToService(
+      buildOrder({
+        currency: 'EUR',
+        taxAggregate: {
+          lines: [
+            { name: 'STANDARD', rate: 19, amount: 31.35, taxable: 196.35 },
+            { name: 'REDUCED', rate: 7, amount: 545.79, taxable: 8342.79 },
+          ],
+        },
+        calculatedPrice: {
+          price: { netValue: 7942, grossValue: 8517.74, taxValue: 575.74, taxRate: 7 },
+          finalPrice: { netValue: 7962, grossValue: 8537.74, taxValue: 575.74 },
+        },
+      }),
+    );
+
+    expect(result.price?.subtotal.tax).toBe(575.74);
+    expect(result.price?.subtotal.taxRate).toBeUndefined();
+  });
+
   it('falls back to shipping line tax.rate when totalShipping.taxRate is absent', () => {
     const result = mapper.mapToService(
       buildOrder({

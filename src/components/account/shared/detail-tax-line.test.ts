@@ -30,9 +30,9 @@ describe('detail-tax-line', () => {
       expect(detailTaxRateSuffix({ taxRate: 7, taxAmount: 1 })).toBe(' (7%)');
     });
 
-    it('derives from tax/net when rate is absent', () => {
-      expect(resolveDetailTaxRatePercent({ taxAmount: 19, netAmount: 100 })).toBe(19);
-      expect(detailTaxRateSuffix({ taxAmount: 19, netAmount: 100 })).toBe(' (19%)');
+    it('does not invent a blended rate from tax/net when taxRate is absent', () => {
+      expect(resolveDetailTaxRatePercent({ taxAmount: 575.74, netAmount: 7942 })).toBeUndefined();
+      expect(detailTaxRateSuffix({ taxAmount: 575.74, netAmount: 7942 })).toBe('');
     });
 
     it('returns empty suffix when the line should not display', () => {

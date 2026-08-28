@@ -29,8 +29,17 @@ export interface Quote {
   subtotalNet?: number;
   /** Goods-only tax from Emporix `subtotalPrice.taxValue`. */
   subtotalVat?: number;
-  /** Prefer from Emporix `taxAggregate.lines[].rate` when present (finding 11). */
+  /** Prefer from Emporix `taxAggregate.lines[].rate` when a single rate exists. */
   vatRate?: number;
+  /** Full VAT breakdown; used to omit `VAT (rate%)` when rates are mixed. */
+  taxAggregate?: {
+    lines: Array<{
+      name: string;
+      amount: number;
+      rate: number;
+      taxable: number;
+    }>;
+  };
   items: QuoteItem[];
   cartId?: string;
   shippingAddress: CheckoutAddress;
