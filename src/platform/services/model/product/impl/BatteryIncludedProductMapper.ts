@@ -66,6 +66,37 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
     return this.mapLocalizedString(value);
   }
 
+  private isBcp47LocaleKey(key: string): boolean {
+    return /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(key);
+  }
+
+  /**
+   * Catalog display name from `_product_i18n` only.
+   * Flattened hits keep `mapLocalizedLeaf` on the leaf `name`.
+   * Locale-map hits (`Map<lang, { name }>`) collect those names into a LocalizedString.
+   */
+  private mapCatalogI18nName(product: BatteryIncludedProduct): string | LocalizedString | undefined {
+    const localizedProduct = this.getLocalizedProduct(product);
+    const flattenedName = this.mapLocalizedLeaf(localizedProduct.name);
+    if (flattenedName !== undefined) {
+      return flattenedName;
+    }
+
+    const localeMapNames = Object.entries(localizedProduct).reduce<LocalizedString>((accumulator, [key, item]) => {
+      if (!this.isBcp47LocaleKey(key) || !item || typeof item !== 'object' || Array.isArray(item)) {
+        return accumulator;
+      }
+
+      const localeName = this.mapLocalizedLeaf((item as Record<string, unknown>).name);
+      if (this.isNonEmptyString(localeName)) {
+        accumulator[key] = localeName;
+      }
+      return accumulator;
+    }, {});
+
+    return Object.keys(localeMapNames).length > 0 ? localeMapNames : undefined;
+  }
+
   private mapSelectedString(value: unknown): string | undefined {
     return this.isNonEmptyString(value) ? value : undefined;
   }
@@ -593,7 +624,7 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
   private normalizeEmporixSource(product: BatteryIncludedProduct): EmporixProduct {
     const rootProduct = this.getRootProduct(product);
     const localizedProduct = this.getLocalizedProduct(product);
-    const localizedName = this.mapLocalizedLeaf(localizedProduct.name);
+    const localizedName = this.mapCatalogI18nName(product);
     const localizedDescription = this.mapLocalizedLeaf(localizedProduct.description);
 
     const mergedMixins = { ...(rootProduct.mixins as Record<string, unknown> | undefined) };
@@ -637,7 +668,7 @@ class BatteryIncludedProductMapper implements ProductMapper<BatteryIncludedProdu
   mapToService(product: BatteryIncludedProduct): ServiceProduct {
     const rootProduct = this.getRootProduct(product);
     const localizedProduct = this.getLocalizedProduct(product);
-    const localizedName = this.mapLocalizedLeaf(localizedProduct.name);
+    const localizedName = this.mapCatalogI18nName(product);
     const localizedDescription = this.mapLocalizedLeaf(localizedProduct.description);
     const normalizedSource = this.normalizeEmporixSource(product);
     const productData = this.emporixMapper.mapToService(normalizedSource);

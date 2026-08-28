@@ -286,6 +286,9 @@ export function SearchResultsComponent({
       return;
     }
 
+    // SSR-off / failed SSR: the skips above do not apply. This search() is the first client fetch of
+    // this hook instance. search() joins in-flight and skips a just-completed same key — do not add a
+    // "run only once" ref (that missed later URL changes).
     search({
       query,
       page: Number.isFinite(page) ? page : 0,

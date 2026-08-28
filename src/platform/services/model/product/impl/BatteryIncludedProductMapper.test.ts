@@ -213,6 +213,42 @@ describe('BatteryIncludedProductMapper', () => {
     });
   });
 
+  it('maps locale-map _product_i18n names instead of _product.name', () => {
+    const result = mapper.mapToService({
+      _product: {
+        id: 'locale-map-variant',
+        code: 'locale-map-variant',
+        productType: 'VARIANT',
+        name: 'Parent',
+      },
+      _product_i18n: {
+        de: { name: 'Variant DE' },
+        en: { name: 'Variant EN' },
+      },
+    });
+
+    expect(result.name).toEqual({
+      de: 'Variant DE',
+      en: 'Variant EN',
+    });
+  });
+
+  it('maps flattened _product_i18n.name instead of _product.name', () => {
+    const result = mapper.mapToService({
+      _product: {
+        id: 'flattened-variant',
+        code: 'flattened-variant',
+        productType: 'VARIANT',
+        name: 'Parent',
+      },
+      _product_i18n: {
+        name: 'Variant DE',
+      },
+    });
+
+    expect(result.name).toBe('Variant DE');
+  });
+
   it('preserves multi-locale brand data without falling back to a wrong locale', () => {
     const result = mapper.mapToService({
       _product: {

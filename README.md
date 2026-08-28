@@ -1,6 +1,6 @@
-# Journey Aware Storefront
+# B2B Commerce Frontend
 
-Journey Aware Storefront is a journey-aware storefront that provides a seamless shopping experience for customers. It is built on top of the React/Next.js framework that provides the basis for modern composable web applications.
+This is the documentation home for Emporix B2B Commerce Frontend that provides a seamless shopping experience for customers. It is built on top of the React/Next.js framework that provides the basis for modern composable web applications.
 
 ## Documentation
 

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { SearchResultsComponent } from '@/components/search/search-results';
 import { Heading } from '@/components/ui/h';
+import { createBrowseInitialSearch } from '@/lib/search/create-browse-initial-search';
 import { getCachedNavigationCategoryTrees } from '@/lib/ssr/navigation-category-trees';
 import { getSearchResultsLayout, searchProducts } from '@/lib/ssr/search';
 import { getPageTitle } from '@/lib/ssr/seo';
@@ -9,7 +10,6 @@ import { isSearchSsrEnabled } from '@/lib/ssr/ssr-config';
 import type { Category } from '@/platform/services/model/category';
 import type { SearchParams } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
-import { extractFiltersFromSearchParams } from '@/utils/filterUtils';
 
 export async function generateBrowsePageMetadata(locale: string): Promise<Metadata> {
   const t = await getTranslations({ locale, namespace: 'search.searchResults' });
@@ -22,31 +22,6 @@ export async function generateBrowsePageMetadata(locale: string): Promise<Metada
       follow: true,
     },
   };
-}
-
-export function createBrowseInitialSearch(
-  rawParams: Record<string, string | string[]>,
-  customerSegments: boolean,
-  site: string,
-  locale: string,
-): { initialSearch: SearchParams<Product>; q?: string } {
-  const q = rawParams.q as string | undefined;
-  const page = rawParams.page as string | undefined;
-  const size = rawParams.size as string | undefined;
-
-  const filters = extractFiltersFromSearchParams(rawParams);
-
-  const initialSearch: SearchParams<Product> = {
-    page: page ? parseInt(page, 10) : 0,
-    size: size ? parseInt(size, 10) : 12,
-    query: q,
-    filters: Object.keys(filters).length > 0 ? filters : undefined,
-    customerSegments,
-    site,
-    locale,
-  };
-
-  return { initialSearch, q };
 }
 
 export async function renderBrowsePage({

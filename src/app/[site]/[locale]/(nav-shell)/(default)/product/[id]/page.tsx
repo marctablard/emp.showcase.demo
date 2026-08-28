@@ -6,6 +6,7 @@ import { UiBreadcrumb } from '@/components/ui/molecules/ui-breadcrumb';
 import { routingConfig } from '@/i18n/routing';
 import { generateVisibleBreadcrumbForPdp } from '@/lib/breadcrumb';
 import { findDeepestCategoryPath } from '@/lib/category/category-tree-utils';
+import { resolveCatalogDisplayName } from '@/lib/product/resolve-catalog-display-name';
 import { getCategoryAncestorTrail } from '@/lib/ssr/category-ancestor-trail';
 import {
   getCachedBatteryIncludedCategorySnapshot,
@@ -14,7 +15,7 @@ import {
 import { getProductById, getProducts } from '@/lib/ssr/products';
 import { getActiveSearchEngine } from '@/lib/ssr/search-engine';
 import { generateProductJsonLd, generateProductMetadata } from '@/lib/ssr/seo';
-import { getAvailableSites } from '@/lib/ssr/site';
+import { getAvailableSites, getSite } from '@/lib/ssr/site';
 import { isProductSsrEnabled } from '@/lib/ssr/ssr-config';
 import type { Product } from '@/platform/services/model/product';
 import type { ProductFetchOptions } from '@/platform/services/product';
@@ -103,8 +104,10 @@ export async function generateProductPageMetadata(
     return {};
   }
 
+  const siteRecord = site ? await getSite(site) : null;
+
   // Use the extracted SEO utility function to generate metadata
-  return generateProductMetadata(locale, product, product.price);
+  return generateProductMetadata(locale, product, product.price, siteRecord?.defaultLanguage);
 }
 
 export async function renderProductPage(
@@ -152,7 +155,11 @@ export async function renderProductPage(
     ? await getCategoryAncestorTrail(leafCategoryId, leafCategory)
     : null;
 
-  const jsonLd = ssr ? await generateProductJsonLd(product, locale) : null;
+  const siteRecord = siteCode ? await getSite(siteCode) : null;
+  const fallbackLocale = siteRecord?.defaultLanguage;
+  const catalogDisplayName = product.name ? resolveCatalogDisplayName(product.name, locale, fallbackLocale) : undefined;
+
+  const jsonLd = ssr ? await generateProductJsonLd(product, locale, fallbackLocale) : null;
   const breadcrumbs = generateVisibleBreadcrumbForPdp(
     product,
     locale,
@@ -160,6 +167,7 @@ export async function renderProductPage(
     biSnapshot,
     emporixAncestorTrail,
     navigationRoots,
+    fallbackLocale,
   );
 
   return (
@@ -167,7 +175,12 @@ export async function renderProductPage(
       {jsonLd ? <JsonLd jsonLd={jsonLd} /> : null}
       <div>
         <UiBreadcrumb items={breadcrumbs} className="content-container sm:gap-x-6" />
-        <ProductDetail className="mt-4 content-container sm:gap-x-6" product={product} options={options} />
+        <ProductDetail
+          className="mt-4 content-container sm:gap-x-6"
+          product={product}
+          options={options}
+          catalogDisplayName={catalogDisplayName}
+        />
       </div>
     </>
   );

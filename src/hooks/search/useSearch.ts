@@ -18,6 +18,7 @@ import type {
 } from '@/platform/services/model/common';
 import type { SearchSuggestions } from '@/platform/services/model/search/SearchSuggestions';
 import { useSessionStore } from '@/providers/StoreProvider';
+import { browseSearchStateSignature } from '@/utils/filterUtils';
 import { appendSearchFilters } from './append-search-filters';
 import { buildSearchPaginationUrl } from './build-search-pagination-url';
 
@@ -39,6 +40,21 @@ const normalizeFiltersForCategorySelection = (filters: SearchFilters, selectedFa
     ),
   );
 };
+
+function buildSearchRequestKey(
+  state: {
+    query?: string;
+    page: number;
+    size: number;
+    sort?: string;
+    filters?: SearchFilters;
+  },
+  site: string,
+  locale: string,
+  currency: string | undefined,
+): string {
+  return `${browseSearchStateSignature(state)}|${site}|${locale}|${currency ?? ''}`;
+}
 
 function buildSearchRequestUrl<T>(
   origin: string,
@@ -75,6 +91,61 @@ function buildSearchRequestUrl<T>(
 
 function toSearchFailedError(response: Response): Error {
   return new Error(`Search failed: ${response.status} ${response.statusText || 'Request failed'}`);
+}
+
+function applySuccessfulSearchPayload<T>(
+  data: SearchResult<T>,
+  apply: {
+    setData: (items: T[]) => void;
+    setTotal: (total: number) => void;
+    setCurrentPage: (page: number) => void;
+    setPageSize: (size: number) => void;
+    setFacets: (filters: Filter[]) => void;
+    setAvailableSorts: (sorts: SearchSortOption[]) => void;
+    setBatteryIncludedFacets: (facets: BatteryIncludedFacet[] | undefined) => void;
+  },
+): void {
+  apply.setData(data.items);
+  apply.setTotal(data.total);
+  apply.setCurrentPage(data.page);
+  apply.setPageSize(data.pageSize);
+  if (data.availableFilters) {
+    apply.setFacets(data.availableFilters);
+  }
+  apply.setAvailableSorts(data.availableSorts || []);
+  if (data.batteryIncludedFacets && data.batteryIncludedFacets.length > 0) {
+    apply.setBatteryIncludedFacets(data.batteryIncludedFacets);
+  }
+}
+
+function reportSearchRequestFailure(
+  generation: number,
+  currentGeneration: number,
+  err: unknown,
+  setError: (error: UseSearchClientError) => void,
+): void {
+  if (generation !== currentGeneration) {
+    return;
+  }
+  getLogger().error({ err, event: 'search_request_failed' }, 'Product search request failed');
+  setError(USE_SEARCH_CLIENT_ERROR.GENERIC);
+}
+
+function finishSearchInFlight(
+  generation: number,
+  currentGeneration: number,
+  requestKey: string,
+  inFlightSearch: { current: { key: string; promise: Promise<void> } | undefined },
+  setLoading: (loading: boolean) => void,
+  settleInFlight: () => void,
+): void {
+  if (generation === currentGeneration) {
+    setLoading(false);
+  }
+  if (inFlightSearch.current?.key === requestKey) {
+    inFlightSearch.current = undefined;
+  }
+  settleInFlight();
 }
 
 export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: SearchResult<T>) {
@@ -116,6 +187,8 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   });
   const searchGeneration = useRef(0);
   const lastSearchCurrency = useRef<string | undefined>(sessionCurrency);
+  const lastCompletedSearchKey = useRef<string | undefined>(undefined);
+  const inFlightSearch = useRef<{ key: string; promise: Promise<void> } | undefined>(undefined);
   // The pathname where this search hook is hosted (e.g. /browse), captured on mount.
   // While an intercepting route (e.g. the /login dialog) is open, `usePathname()` returns the
   // intercept's pathname for this still-mounted page; syncing to it would rewrite the browser URL
@@ -202,6 +275,28 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
 
       const normalizedQuery = params.query?.trim() ? params.query : undefined;
       const filtersToApply = params.filters && Object.keys(params.filters).length > 0 ? params.filters : undefined;
+      const requestKey = buildSearchRequestKey(
+        {
+          query: normalizedQuery,
+          page: params.page ?? DEFAULT_PAGE_INDEX,
+          size: params.size ?? DEFAULT_PAGE_SIZE,
+          sort: params.sort,
+          filters: filtersToApply,
+        },
+        resolvedSite,
+        locale,
+        sessionCurrency,
+      );
+
+      const inFlight = inFlightSearch.current;
+      if (inFlight?.key === requestKey) {
+        return inFlight.promise;
+      }
+
+      if (lastCompletedSearchKey.current === requestKey) {
+        return;
+      }
+
       const url = buildSearchRequestUrl(
         globalThis.location.origin,
         params,
@@ -221,6 +316,14 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
 
       const requestUrl = url.toString();
       const gen = ++searchGeneration.current;
+
+      let settleInFlight = () => {};
+      const inFlightPromise = new Promise<void>((resolve) => {
+        settleInFlight = resolve;
+      });
+      // Write the key before setLoading / URL sync / fetch so a same-turn searchParams
+      // effect cannot start a second /api/search.
+      inFlightSearch.current = { key: requestKey, promise: inFlightPromise };
 
       try {
         setLoading(true);
@@ -244,30 +347,20 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
           return;
         }
 
-        // Update state with the search results
-        setData(data.items);
-        setTotal(data.total);
-        setCurrentPage(data.page);
-        setPageSize(data.pageSize);
-
-        if (data.availableFilters) {
-          setFacets(data.availableFilters);
-        }
-
-        setAvailableSorts(data.availableSorts || []);
-
-        if (data.batteryIncludedFacets && data.batteryIncludedFacets.length > 0) {
-          setBatteryIncludedFacets(data.batteryIncludedFacets);
-        }
+        applySuccessfulSearchPayload(data, {
+          setData,
+          setTotal,
+          setCurrentPage,
+          setPageSize,
+          setFacets,
+          setAvailableSorts,
+          setBatteryIncludedFacets,
+        });
+        lastCompletedSearchKey.current = requestKey;
       } catch (err) {
-        if (gen === searchGeneration.current) {
-          getLogger().error({ err, event: 'search_request_failed' }, 'Product search request failed');
-          setError(USE_SEARCH_CLIENT_ERROR.GENERIC);
-        }
+        reportSearchRequestFailure(gen, searchGeneration.current, err, setError);
       } finally {
-        if (gen === searchGeneration.current) {
-          setLoading(false);
-        }
+        finishSearchInFlight(gen, searchGeneration.current, requestKey, inFlightSearch, setLoading, settleInFlight);
       }
     },
     [updateBrowserUrl, locale, siteCode, sessionCurrency],

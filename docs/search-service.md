@@ -89,6 +89,10 @@ BatteryIncluded search calls do not rely on hidden request state. The service la
 
 When the BI search request includes same-field category selection, the service narrows it to the published roots before the request is sent upstream. That preserves pagination and total counts without any client-side post-filtering.
 
+## Browse initial search
+
+Public and authenticated browse pages seed `initialSearch` with `createBrowseInitialSearch` in `src/lib/search/create-browse-initial-search.ts`. The helper copies URL `q`, `page`, `size`, `filters`, and `sort` (first string when the query is an array; omitted when absent) so a shared or refreshed `?sort=` URL starts with the same sort token the client later reads.
+
 ## PDP catalog identity
 
 H1, last breadcrumb crumb, document title, Open Graph, and JSON-LD share the catalog product loaded through `SearchService.getCatalogProductById`. The PDP SSR helper `getProductById` in `src/lib/ssr/products.ts` and `GET /api/products/[id]` both call that method. Cart and wishlist services keep using `ProductService.getProductById` (Emporix Product GET).
@@ -97,6 +101,17 @@ H1, last breadcrumb crumb, document title, Open Graph, and JSON-LD share the cat
 | --- | --- |
 | `BatteryIncludedSearchService` | Visibility-scoped BI browse by URL id (`f[_product.id]`, then one retry with `f[id]`). Mapped like PLP. A miss is not a Product GET fallback — the method returns `undefined` and PDP calls `notFound()`. |
 | `EmporixSearchService` | Full Emporix Product GET via `ProductService.getProductById`. |
+
+For Battery Included, `BatteryIncludedProductMapper` sets `Product.name` from `_product_i18n` when any i18n name exists — not from `_product.name`:
+
+| Hit shape | Name source |
+| --- | --- |
+| Flattened | `_product_i18n.name` |
+| Locale-map | `_product_i18n.<lang>.name` collected into a localized map |
+
+`_product.name` is used only when no i18n name is present.
+
+H1, the last visible breadcrumb crumb (`generateVisibleBreadcrumbForPdp`), and `getProductName` (document title, Open Graph, JSON-LD) resolve that catalog name with `resolveCatalogDisplayName` in `src/lib/product/resolve-catalog-display-name.ts`: request locale, then `site.defaultLanguage`, then `routingConfig.defaultLocale`.
 
 Omitted BI mixins stay empty (specs and highlights are not filled from Product GET). Commerce — price, stock, and variants — stays on Emporix (Price Service, Availability Service, Product API).
 
