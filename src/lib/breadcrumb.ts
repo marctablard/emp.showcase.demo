@@ -8,6 +8,7 @@ import {
   buildBrowseHrefForBreadcrumbDisplayPath,
   buildBrowseHrefForCategoryId,
 } from './navigation/build-browse-category-href';
+import { resolveCatalogDisplayName } from './product/resolve-catalog-display-name';
 
 export interface BreadcrumbContent {
   href: string;
@@ -205,6 +206,7 @@ export function generateVisibleBreadcrumbForPdp(
   biSnapshot: BatteryIncludedCategoryTreeSnapshot | null,
   emporixAncestorTrail?: Category[] | null,
   navigationRoots?: Category[] | null,
+  fallbackLocale?: string,
 ): BreadcrumbContent[] {
   const primaryCategory = product.primaryCategory || product.categories?.[0] || null;
   const navigationPath = findDeepestCategoryPath(navigationRoots ?? undefined, getProductCategoryCandidates(product));
@@ -241,10 +243,10 @@ export function generateVisibleBreadcrumbForPdp(
     });
   }
 
-  // Terminal fallback: final item
+  // Terminal fallback: final item — same locale + site-default chain as PDP H1 / SEO
   breadcrumbs.push({
     href: `/product/${product.id}`,
-    label: l10n(product.name, locale),
+    label: resolveCatalogDisplayName(product.name, locale, fallbackLocale),
   });
 
   return breadcrumbs;

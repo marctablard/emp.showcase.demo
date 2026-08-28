@@ -5,6 +5,7 @@ import { BATTERY_INCLUDED_BREADCRUMB_FILTER } from '@/platform/services/model/ca
 import { USE_SEARCH_CLIENT_ERROR, useSearch } from './useSearch';
 
 const mockPush = jest.fn();
+const mockUseSessionStore = jest.fn(() => ({ session: { currency: 'EUR' } }));
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
@@ -17,7 +18,7 @@ jest.mock('@/hooks/history/useHistory', () => ({
 }));
 
 jest.mock('@/providers/StoreProvider', () => ({
-  useSessionStore: () => ({ session: { currency: 'EUR' } }),
+  useSessionStore: () => mockUseSessionStore(),
 }));
 
 jest.mock('@/lib/logger/use-logger-client', () => ({
@@ -34,6 +35,7 @@ describe('useSearch', () => {
   beforeEach(() => {
     resetInFlightSearchRequests();
     mockPush.mockClear();
+    mockUseSessionStore.mockReturnValue({ session: { currency: 'EUR' } });
     window.history.replaceState({}, '', '/browse');
     mockedUseSiteCode.mockReturnValue('main');
     global.fetch = jest.fn().mockResolvedValue({
@@ -372,5 +374,124 @@ describe('useSearch', () => {
     });
 
     expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('joins a URL-sync-style second search after the first request has started', async () => {
+    let resolveResponse: ((value: { ok: boolean; json: () => Promise<unknown> }) => void) | undefined;
+    (global.fetch as jest.Mock).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveResponse = resolve;
+        }),
+    );
+
+    const { result } = renderHook(() => useSearch());
+    const params = {
+      page: 0,
+      size: 12,
+      query: 'solar',
+      sort: 'price:asc',
+      filters: { color: 'red' },
+    };
+
+    let firstSearch: Promise<void> | undefined;
+    await act(async () => {
+      firstSearch = result.current.search(params);
+    });
+
+    let secondSearch: Promise<void> | undefined;
+    await act(async () => {
+      secondSearch = result.current.search(params);
+    });
+
+    resolveResponse?.({
+      ok: true,
+      json: async () => ({
+        items: [],
+        total: 0,
+        page: 0,
+        pageSize: 12,
+        availableFilters: [],
+        availableSorts: [],
+      }),
+    });
+
+    await act(async () => {
+      await Promise.all([firstSearch, secondSearch]);
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fetch again for a just-completed same-key search when initialResults is omitted', async () => {
+    const { result } = renderHook(() => useSearch());
+
+    await act(async () => {
+      await result.current.search({
+        page: 0,
+        size: 12,
+        query: 'solar',
+        sort: 'price:asc',
+        filters: { color: 'red' },
+      });
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await result.current.search({
+        page: 0,
+        size: 12,
+        query: 'solar',
+        sort: 'price:asc',
+        filters: { color: 'red' },
+      });
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('still fetches when only session currency changes', async () => {
+    const { result, rerender } = renderHook(() => useSearch());
+
+    await act(async () => {
+      await result.current.search({ page: 0, size: 12, query: 'solar' });
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('currency=EUR'));
+
+    mockUseSessionStore.mockReturnValue({ session: { currency: 'USD' } });
+
+    await act(async () => {
+      rerender();
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('currency=USD'));
+  });
+
+  it('retries a failed search with the same key', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      statusText: 'Unavailable',
+    });
+
+    const { result } = renderHook(() => useSearch());
+
+    await act(async () => {
+      await result.current.search({ page: 0, size: 12, query: 'solar' });
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(result.current.error).toBe(USE_SEARCH_CLIENT_ERROR.GENERIC);
+
+    await act(async () => {
+      await result.current.search({ page: 0, size: 12, query: 'solar' });
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(result.current.error).toBeNull();
   });
 });

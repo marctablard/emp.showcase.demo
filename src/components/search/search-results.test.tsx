@@ -3,20 +3,29 @@
  */
 import React from 'react';
 import '@testing-library/jest-dom';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { acquireNavigationWaitCursorLease, releaseNavigationWaitCursorLease } from '@/hooks/common/useGlobalCursor';
+import { resetInFlightSearchRequests } from '@/lib/client/search';
+import type { Product } from '@/platform/services/model/product';
 import { browseSearchStateSignature } from '@/utils/filterUtils';
 import { SearchResultsComponent } from './search-results';
 
 const mockSearch = jest.fn();
 const mockSyncBrowseSearchStateFromUrl = jest.fn();
 let mockSearchParams = new URLSearchParams();
-let searchResultsGridProps: { pendingCursor?: boolean } | null = null;
-let searchResultsListProps: { pendingCursor?: boolean } | null = null;
+let searchResultsGridProps: { pendingCursor?: boolean; loading?: boolean; products?: Product[] } | null = null;
+let searchResultsListProps: { pendingCursor?: boolean; loading?: boolean; products?: Product[] } | null = null;
 let activeFiltersWithResetProps: Record<string, unknown> | null = null;
 let mobileCategoryDrawerProps: Record<string, unknown> | null = null;
 let searchFilterProps: Record<string, unknown>[] = [];
 let searchSortProps: Record<string, unknown>[] = [];
+
+const existingProduct: Product = {
+  id: 'p-1',
+  name: { en: 'Test product' },
+  description: { en: 'Description' },
+  purchasable: true,
+};
 
 interface MockUseSearchState {
   loading: boolean;
@@ -25,59 +34,99 @@ interface MockUseSearchState {
   currentQuery?: string;
   currentSort?: string;
   activeFilters: Record<string, unknown>;
+  data: Product[];
 }
 
 let mockUseSearchState: MockUseSearchState;
+const useSearchTestMode = { useRealHook: false };
+
+const emptySsrResults = {
+  items: [],
+  total: 0,
+  page: 0,
+  pageSize: 12,
+  availableFilters: [],
+  availableSorts: [],
+};
 
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+  useLocale: () => 'en',
 }));
 
 jest.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
+  useRouter: () => ({ push: jest.fn() }),
+  usePathname: () => '/browse',
 }));
 
-jest.mock('@/hooks/search/useSearch', () => ({
-  useSearch: () => ({
-    data: [],
-    loading: mockUseSearchState.loading,
-    loadingMore: false,
-    hasMore: false,
-    total: 0,
-    facets: [],
-    availableSorts: [
-      {
-        id: 'name',
-        label: 'Product name',
-        directions: ['asc', 'desc'],
-        defaultDirection: 'asc',
-      },
-    ],
-    batteryIncludedFacets: [
-      {
-        id: 'color',
-        label: 'color',
-        kind: 'select',
-        options: [],
-      },
-    ],
-    currentPage: mockUseSearchState.currentPage,
-    pageSize: mockUseSearchState.pageSize,
-    currentQuery: mockUseSearchState.currentQuery,
-    currentSort: mockUseSearchState.currentSort,
-    search: mockSearch,
-    loadMore: jest.fn(),
-    changeSort: jest.fn(),
-    applyFacet: jest.fn(),
-    applyRangeFacet: jest.fn(),
-    applyAllFacets: jest.fn(),
-    resetFacet: jest.fn(),
-    resetAllFacets: jest.fn(),
-    activeFilters: mockUseSearchState.activeFilters,
-    syncBrowseSearchStateFromUrl: mockSyncBrowseSearchStateFromUrl,
-    error: undefined,
-  }),
+jest.mock('@/hooks/history/useHistory', () => ({
+  __esModule: true,
+  default: () => ({ addSearchQuery: jest.fn() }),
 }));
+
+jest.mock('@/providers/StoreProvider', () => ({
+  useSessionStore: () => ({ session: { currency: 'EUR' } }),
+}));
+
+jest.mock('@/lib/logger/use-logger-client', () => ({
+  getLogger: () => ({ warn: jest.fn(), error: jest.fn() }),
+}));
+
+jest.mock('@/hooks/site/useSiteCode', () => ({
+  useSiteCode: () => 'main',
+}));
+
+jest.mock('@/hooks/search/useSearch', () => {
+  const actual = jest.requireActual('@/hooks/search/useSearch');
+  return {
+    USE_SEARCH_CLIENT_ERROR: actual.USE_SEARCH_CLIENT_ERROR,
+    useSearch: (initialSearch: unknown, initialResults: unknown) => {
+      if (useSearchTestMode.useRealHook) {
+        return actual.useSearch(initialSearch, initialResults);
+      }
+      return {
+        data: mockUseSearchState.data,
+        loading: mockUseSearchState.loading,
+        loadingMore: false,
+        hasMore: false,
+        total: 0,
+        facets: [],
+        availableSorts: [
+          {
+            id: 'name',
+            label: 'Product name',
+            directions: ['asc', 'desc'],
+            defaultDirection: 'asc',
+          },
+        ],
+        batteryIncludedFacets: [
+          {
+            id: 'color',
+            label: 'color',
+            kind: 'select',
+            options: [],
+          },
+        ],
+        currentPage: mockUseSearchState.currentPage,
+        pageSize: mockUseSearchState.pageSize,
+        currentQuery: mockUseSearchState.currentQuery,
+        currentSort: mockUseSearchState.currentSort,
+        search: mockSearch,
+        loadMore: jest.fn(),
+        changeSort: jest.fn(),
+        applyFacet: jest.fn(),
+        applyRangeFacet: jest.fn(),
+        applyAllFacets: jest.fn(),
+        resetFacet: jest.fn(),
+        resetAllFacets: jest.fn(),
+        activeFilters: mockUseSearchState.activeFilters,
+        syncBrowseSearchStateFromUrl: mockSyncBrowseSearchStateFromUrl,
+        error: undefined,
+      };
+    },
+  };
+});
 
 jest.mock('@/components/navigation/category-display-label-index-context', () => ({
   useCategoryDisplayLabelIndex: () => ({}),
@@ -129,6 +178,8 @@ jest.mock('@/components/search/list-view/plp-category-tree', () => ({
 describe('SearchResultsComponent', () => {
   beforeEach(() => {
     releaseNavigationWaitCursorLease({ force: true });
+    resetInFlightSearchRequests();
+    useSearchTestMode.useRealHook = false;
     mockSearchParams = new URLSearchParams();
     mockSearch.mockClear();
     mockSyncBrowseSearchStateFromUrl.mockClear();
@@ -139,6 +190,7 @@ describe('SearchResultsComponent', () => {
       currentQuery: undefined,
       currentSort: undefined,
       activeFilters: {},
+      data: [],
     };
     searchResultsGridProps = null;
     searchResultsListProps = null;
@@ -199,14 +251,7 @@ describe('SearchResultsComponent', () => {
             '_product_i18n.categoryBreadcrumbs.displayPath': 'Electrical supplies > Power generation > Solar panels',
           },
         }}
-        initialResults={{
-          items: [],
-          total: 0,
-          page: 0,
-          pageSize: 12,
-          availableFilters: [],
-          availableSorts: [],
-        }}
+        initialResults={emptySsrResults}
       />,
     );
 
@@ -214,6 +259,125 @@ describe('SearchResultsComponent', () => {
       expect(mockSyncBrowseSearchStateFromUrl).toHaveBeenCalled();
     });
     expect(mockSearch).not.toHaveBeenCalled();
+  });
+
+  it('does not call search when initialSearch.sort matches the URL sort', async () => {
+    mockSearchParams = new URLSearchParams('sort=price:asc');
+    mockUseSearchState = {
+      ...mockUseSearchState,
+      currentSort: 'price:asc',
+    };
+
+    render(
+      <SearchResultsComponent
+        locale="en"
+        initialLayout="list"
+        initialSearch={{
+          page: 0,
+          size: 12,
+          sort: 'price:asc',
+        }}
+        initialResults={emptySsrResults}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mockSyncBrowseSearchStateFromUrl).toHaveBeenCalled();
+    });
+    expect(mockSearch).not.toHaveBeenCalled();
+  });
+
+  it('does not call search when first-facet-style filters match initialSearch and hook state', async () => {
+    mockSearchParams = new URLSearchParams('filters%5Bcolor%5D=red');
+    mockUseSearchState = {
+      ...mockUseSearchState,
+      activeFilters: { color: 'red' },
+    };
+
+    render(
+      <SearchResultsComponent
+        locale="en"
+        initialLayout="list"
+        initialSearch={{
+          page: 0,
+          size: 12,
+          filters: { color: 'red' },
+        }}
+        initialResults={emptySsrResults}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mockSyncBrowseSearchStateFromUrl).toHaveBeenCalled();
+    });
+    expect(mockSearch).not.toHaveBeenCalled();
+  });
+
+  it('does not double-fetch when the URL has sort and SSR initialSearch omitted sort', async () => {
+    mockSearchParams = new URLSearchParams('sort=price:asc');
+
+    render(
+      <SearchResultsComponent
+        locale="en"
+        initialLayout="list"
+        initialSearch={{
+          page: 0,
+          size: 12,
+        }}
+        initialResults={emptySsrResults}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mockSearch).toHaveBeenCalledTimes(1);
+    });
+    expect(mockSearch).toHaveBeenCalledWith({
+      query: '',
+      page: 0,
+      size: 12,
+      sort: 'price:asc',
+      filters: undefined,
+    });
+    expect(mockSyncBrowseSearchStateFromUrl).not.toHaveBeenCalled();
+  });
+
+  it('does not fetch again for a second same-key search when initialResults is omitted', async () => {
+    useSearchTestMode.useRealHook = true;
+    window.history.replaceState({}, '', '/browse?sort=price%3Aasc&filters%5Bcolor%5D=red');
+    mockSearchParams = new URLSearchParams('sort=price:asc&filters%5Bcolor%5D=red');
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => emptySsrResults,
+    });
+
+    const initialSearch = {
+      page: 0,
+      size: 12,
+      sort: 'price:asc',
+      filters: { color: 'red' },
+    };
+
+    const { rerender } = render(
+      <SearchResultsComponent locale="en" initialLayout="list" initialSearch={initialSearch} />,
+    );
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    rerender(<SearchResultsComponent locale="en" initialLayout="list" initialSearch={{ ...initialSearch }} />);
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the cursor bridge active across repeated stale renders until hook state catches up', () => {
@@ -424,5 +588,37 @@ describe('SearchResultsComponent', () => {
       currentSort: 'name:asc',
       changeSort: expect.any(Function),
     });
+  });
+
+  it('passes existing products to the list while a refinement search is loading', () => {
+    mockUseSearchState = {
+      ...mockUseSearchState,
+      loading: true,
+      data: [existingProduct],
+    };
+
+    render(<SearchResultsComponent locale="en" initialLayout="list" />);
+
+    expect(searchResultsListProps).toMatchObject({
+      loading: true,
+      products: [existingProduct],
+    });
+    expect(screen.queryByTestId('product-tile-skeleton')).not.toBeInTheDocument();
+  });
+
+  it('passes existing products to the grid while a refinement search is loading', () => {
+    mockUseSearchState = {
+      ...mockUseSearchState,
+      loading: true,
+      data: [existingProduct],
+    };
+
+    render(<SearchResultsComponent locale="en" initialLayout="grid" />);
+
+    expect(searchResultsGridProps).toMatchObject({
+      loading: true,
+      products: [existingProduct],
+    });
+    expect(screen.queryByTestId('product-tile-skeleton')).not.toBeInTheDocument();
   });
 });

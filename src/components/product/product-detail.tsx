@@ -47,6 +47,7 @@ import {
 import { parseBooleanTemplateAttributeValue } from '@/lib/common/product-template-attributes';
 import { isVariantFamilyProduct } from '@/lib/common/product-variant-attributes';
 import type { L10nInput } from '@/lib/l10n';
+import { resolveCatalogDisplayName } from '@/lib/product/resolve-catalog-display-name';
 import { cn } from '@/lib/utils';
 import type { LocalizedString, StockAvailability } from '@/platform/services/model/common';
 import type { ProductPrice } from '@/platform/services/model/price';
@@ -74,6 +75,8 @@ export interface ProductDetailProps {
   product?: Product | string;
   options: ProductFetchOptions;
   className?: string;
+  /** Server-resolved catalog identity (locale + site default). H1 uses this when present. */
+  catalogDisplayName?: string;
 }
 
 function PdpPriceBlock({ price }: Readonly<{ price: ProductPrice | null | undefined }>): React.ReactElement {
@@ -531,6 +534,7 @@ interface PdpDetailViewProps {
   price: ProductPrice | null | undefined;
   availability: StockAvailability | undefined;
   session: Session | null | undefined;
+  catalogDisplayName?: string;
 }
 
 function PdpDetailView({
@@ -539,8 +543,11 @@ function PdpDetailView({
   price,
   availability,
   session,
+  catalogDisplayName,
 }: Readonly<PdpDetailViewProps>): React.ReactElement {
   const locale = useLocale();
+  const { site } = useSite();
+  const headingName = catalogDisplayName ?? resolveCatalogDisplayName(product.name, locale, site?.defaultLanguage);
   const { l10n, l10nOrEmpty } = useL10n(locale);
   const t = useTranslations('product');
   const logger = useLogger();
@@ -682,7 +689,7 @@ function PdpDetailView({
                 logoUrl={product.brand.logo?.url}
               />
             ) : null}
-            <H1>{l10n(product.name)}</H1>
+            <H1>{headingName}</H1>
             {product.description ? <ProductDescription html={l10n(product.description)} /> : null}
             <div className="mb-6 md:mb-0 flex gap-2 items-center">
               <p className="text-text-on-disabled font-bold">4.6</p>
@@ -758,7 +765,12 @@ function PdpDetailView({
   );
 }
 
-export default function ProductDetail({ product: initialProduct, options, className }: Readonly<ProductDetailProps>) {
+export default function ProductDetail({
+  product: initialProduct,
+  options,
+  className,
+  catalogDisplayName,
+}: Readonly<ProductDetailProps>) {
   const { ready: shopContextReady } = useShopContextReady();
   const { product, loading, setAsCurrent } = useProduct(initialProduct, options);
   const { session } = useSession();
@@ -780,6 +792,7 @@ export default function ProductDetail({ product: initialProduct, options, classN
         price={price}
         availability={availability}
         session={session}
+        catalogDisplayName={catalogDisplayName}
       />
     );
   }

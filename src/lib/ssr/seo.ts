@@ -1,26 +1,27 @@
 import { cache } from 'react';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
+import { resolveCatalogDisplayName } from '@/lib/product/resolve-catalog-display-name';
 import type { ProductPrice } from '@/platform/services/model/price';
 import type { Product } from '@/platform/services/model/product';
 import { generateBreadcrumbForProduct } from '../breadcrumb';
 import { buildCanonicalUrl, l10n } from '../utils';
 
 // create cached callbacks, to make sure we don't do the same work multiple times
-const getProductName = cache(async (product: Product, locale: string) => {
+const getProductName = cache(async (product: Product, locale: string, fallbackLocale?: string) => {
   if (product.name) {
-    return l10n(product.name, locale);
+    return resolveCatalogDisplayName(product.name, locale, fallbackLocale);
   }
   const t = await getTranslations({ locale, namespace: 'seo' });
   return t('defaultProductName');
 });
 
-const getProductDescription = cache(async (product: Product, locale: string) => {
+const getProductDescription = cache(async (product: Product, locale: string, fallbackLocale?: string) => {
   if (product.description) {
     return l10n(product.description, locale);
   }
   const t = await getTranslations({ locale, namespace: 'seo' });
-  const productName = await getProductName(product, locale);
+  const productName = await getProductName(product, locale, fallbackLocale);
   return t('defaultProductDescription', { productName });
 });
 
@@ -30,13 +31,14 @@ const getProductDescription = cache(async (product: Product, locale: string) => 
 export async function generateBasicProductMetadata(
   product: Product,
   locale: string,
+  fallbackLocale?: string,
 ): Promise<{
   title: string;
   description: string;
   alternates: { canonical: string };
 }> {
-  const productName = await getProductName(product, locale);
-  const productDescription = await getProductDescription(product, locale);
+  const productName = await getProductName(product, locale, fallbackLocale);
+  const productDescription = await getProductDescription(product, locale, fallbackLocale);
   const canonicalUrl = buildCanonicalUrl(locale, `/product/${product.id}`);
 
   return {
@@ -57,14 +59,15 @@ export async function generateBasicProductMetadata(
 export async function generateProductOpenGraphMetadata(
   product: Product,
   locale: string,
+  fallbackLocale?: string,
 ): Promise<{
   title: string;
   description: string;
   images: { url: string; width: number; height: number; alt: string }[];
   type: 'website';
 }> {
-  const productName = await getProductName(product, locale);
-  const productDescription = await getProductDescription(product, locale);
+  const productName = await getProductName(product, locale, fallbackLocale);
+  const productDescription = await getProductDescription(product, locale, fallbackLocale);
 
   return {
     title: productName,
@@ -93,14 +96,15 @@ export async function generateProductOpenGraphMetadata(
 export async function generateProductTwitterMetadata(
   product: Product,
   locale: string,
+  fallbackLocale?: string,
 ): Promise<{
   card: 'summary_large_image';
   title: string;
   description: string;
   images: string[];
 }> {
-  const productName = await getProductName(product, locale);
-  const productDescription = await getProductDescription(product, locale);
+  const productName = await getProductName(product, locale, fallbackLocale);
+  const productDescription = await getProductDescription(product, locale, fallbackLocale);
 
   return {
     card: 'summary_large_image',
@@ -113,11 +117,15 @@ export async function generateProductTwitterMetadata(
 /**
  * Generate JSON-LD structured data for product pages
  */
-export async function generateProductJsonLd(product: Product, locale: string): Promise<string> {
+export async function generateProductJsonLd(
+  product: Product,
+  locale: string,
+  fallbackLocale?: string,
+): Promise<string> {
   const [t, productName, productDescription] = await Promise.all([
     getTranslations({ locale, namespace: 'seo' }),
-    getProductName(product, locale),
-    getProductDescription(product, locale),
+    getProductName(product, locale, fallbackLocale),
+    getProductDescription(product, locale, fallbackLocale),
   ]);
   let productPrice;
   let productCurrency;
@@ -180,6 +188,7 @@ export async function generateProductMetadata(
   locale: string,
   product: Product,
   _price?: ProductPrice | null,
+  fallbackLocale?: string,
 ): Promise<Metadata> {
   // If product not found, return basic metadata
   if (!product) {
@@ -190,9 +199,9 @@ export async function generateProductMetadata(
     };
   }
 
-  const basicMetadata = await generateBasicProductMetadata(product, locale);
-  const openGraphMetadata = await generateProductOpenGraphMetadata(product, locale);
-  const twitterMetadata = await generateProductTwitterMetadata(product, locale);
+  const basicMetadata = await generateBasicProductMetadata(product, locale, fallbackLocale);
+  const openGraphMetadata = await generateProductOpenGraphMetadata(product, locale, fallbackLocale);
+  const twitterMetadata = await generateProductTwitterMetadata(product, locale, fallbackLocale);
 
   return {
     ...basicMetadata,

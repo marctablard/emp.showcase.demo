@@ -46,16 +46,14 @@ export function SearchProductTileGrid({
 
   useGlobalCursor(shouldLockCursor);
 
-  if (loading) {
+  if (loading && products.length === 0) {
     return (
       <>
         <div className="fixed inset-0 z-[99999]" aria-hidden="true" />
         <div>
           <Skeleton className="mb-4 h-5 w-[180px]" />
           <div className={resolvedGridClass}>
-            {Array.from({
-              length: Math.max(1, products.length > 0 ? Math.min(pageSize, products.length) : pageSize),
-            }).map((_, i) => (
+            {Array.from({ length: Math.max(1, pageSize) }).map((_, i) => (
               <ProductTileSkeleton key={i} />
             ))}
           </div>

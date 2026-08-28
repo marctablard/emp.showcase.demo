@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
+import { createBrowseInitialSearch } from '@/lib/search/create-browse-initial-search';
 import { getCachedNavigationCategoryTrees } from '@/lib/ssr/navigation-category-trees';
 import { getSearchResultsLayout, searchProducts } from '@/lib/ssr/search';
-import { createBrowseInitialSearch, generateBrowsePageMetadata, renderBrowsePage } from '../page';
+import { generateBrowsePageMetadata, renderBrowsePage } from '../page';
 
 export const dynamic = 'force-dynamic';
 

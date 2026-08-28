@@ -40,4 +40,24 @@ describe('SearchProductTileGrid', () => {
     expect(grid).not.toHaveClass('md:grid-cols-2');
     expect(grid).toHaveClass('md:gap-6');
   });
+
+  it('keeps existing tiles while a refinement search is loading', () => {
+    render(<SearchProductTileGrid products={[product]} locale="en" pageSize={12} total={1} loading={true} />);
+
+    expect(screen.getByTestId('product-tile-p-1')).toBeInTheDocument();
+    expect(screen.queryByTestId('product-tile-skeleton')).not.toBeInTheDocument();
+  });
+
+  it('shows skeletons when loading with no products yet', () => {
+    render(<SearchProductTileGrid products={[]} locale="en" pageSize={12} total={0} loading={true} />);
+
+    expect(screen.getAllByTestId('product-tile-skeleton').length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('product-tile-p-1')).not.toBeInTheDocument();
+  });
+
+  it('shows no-results when not loading and products are empty', () => {
+    render(<SearchProductTileGrid products={[]} locale="en" pageSize={12} total={0} loading={false} />);
+
+    expect(screen.getByTestId('search-no-results')).toBeInTheDocument();
+  });
 });

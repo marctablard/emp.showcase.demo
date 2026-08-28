@@ -101,6 +101,11 @@ export function extractFiltersFromUrlSearchParams(searchParams: URLSearchParams)
   return extractFiltersFromSearchParams(urlSearchParamsToNextRecord(searchParams));
 }
 
+function normalizeFilterLeafForSignature(value: SearchFilterLeafValue): string[] {
+  const values = Array.isArray(value) ? value : [value];
+  return values.map(String).sort();
+}
+
 function normalizeFiltersForSignature(filters: SearchFilters | undefined): unknown {
   if (!filters || Object.keys(filters).length === 0) {
     return {};
@@ -110,7 +115,7 @@ function normalizeFiltersForSignature(filters: SearchFilters | undefined): unkno
   for (const k of sortedKeys) {
     const v = filters[k];
     if (Array.isArray(v)) {
-      out[k] = [...v].map(String).sort();
+      out[k] = normalizeFilterLeafForSignature(v);
     } else if (v && typeof v === 'object') {
       const nested = v as SearchFilterNestedValue;
       const nk = Object.keys(nested).sort();
@@ -119,7 +124,7 @@ function normalizeFiltersForSignature(filters: SearchFilters | undefined): unkno
         return acc;
       }, {});
     } else {
-      out[k] = v;
+      out[k] = normalizeFilterLeafForSignature(v);
     }
   }
   return out;

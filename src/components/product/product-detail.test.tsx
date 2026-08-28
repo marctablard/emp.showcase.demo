@@ -317,4 +317,18 @@ describe('ProductDetail — Not Found contract (true absence vs cold bootstrap)'
 
     expect(notFoundMock).not.toHaveBeenCalled();
   });
+
+  it('paints catalogDisplayName on H1 when the seed name is parent-shaped and does not call notFound', () => {
+    mockReadyHooks({ product: null, loading: false, error: null });
+    const parentSeed: Product = {
+      ...ssrSeedProduct,
+      name: 'Parent',
+    };
+
+    render(<ProductDetail product={parentSeed} options={PUBLIC_PDP_OPTIONS} catalogDisplayName="Settled DE" />);
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Settled DE' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1, name: 'Parent' })).not.toBeInTheDocument();
+    expect(notFoundMock).not.toHaveBeenCalled();
+  });
 });

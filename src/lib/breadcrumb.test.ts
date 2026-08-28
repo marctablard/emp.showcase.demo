@@ -225,4 +225,27 @@ describe('generateVisibleBreadcrumbForPdp', () => {
     expect(breadcrumbs[0].label).toBe('Product Name');
     expect(breadcrumbs[0].href).toBe('/product/prod-123');
   });
+
+  it('resolves the last crumb with locale then site fallback so it cannot show Parent for a { de, en } name', () => {
+    const localizedProduct = {
+      ...product,
+      name: { de: 'Settled DE', en: 'Parent' },
+      primaryCategory: undefined,
+      categories: [],
+    } as unknown as Product;
+
+    const breadcrumbs = generateVisibleBreadcrumbForPdp(
+      localizedProduct,
+      'de',
+      'batteryincluded',
+      null,
+      null,
+      [],
+      'en',
+    );
+
+    expect(breadcrumbs).toHaveLength(1);
+    expect(breadcrumbs[0].label).toBe('Settled DE');
+    expect(breadcrumbs[0].href).toBe('/product/prod-123');
+  });
 });

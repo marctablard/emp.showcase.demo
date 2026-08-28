@@ -18,6 +18,7 @@ import type {
 } from '@/platform/services/model/common';
 import type { SearchSuggestions } from '@/platform/services/model/search/SearchSuggestions';
 import { useSessionStore } from '@/providers/StoreProvider';
+import { browseSearchStateSignature } from '@/utils/filterUtils';
 import { appendSearchFilters } from './append-search-filters';
 import { buildSearchPaginationUrl } from './build-search-pagination-url';
 
@@ -39,6 +40,21 @@ const normalizeFiltersForCategorySelection = (filters: SearchFilters, selectedFa
     ),
   );
 };
+
+function buildSearchRequestKey(
+  state: {
+    query?: string;
+    page: number;
+    size: number;
+    sort?: string;
+    filters?: SearchFilters;
+  },
+  site: string,
+  locale: string,
+  currency: string | undefined,
+): string {
+  return `${browseSearchStateSignature(state)}|${site}|${locale}|${currency ?? ''}`;
+}
 
 function buildSearchRequestUrl<T>(
   origin: string,
@@ -116,6 +132,8 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   });
   const searchGeneration = useRef(0);
   const lastSearchCurrency = useRef<string | undefined>(sessionCurrency);
+  const lastCompletedSearchKey = useRef<string | undefined>(undefined);
+  const inFlightSearch = useRef<{ key: string; promise: Promise<void> } | undefined>(undefined);
   // The pathname where this search hook is hosted (e.g. /browse), captured on mount.
   // While an intercepting route (e.g. the /login dialog) is open, `usePathname()` returns the
   // intercept's pathname for this still-mounted page; syncing to it would rewrite the browser URL
@@ -202,6 +220,28 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
 
       const normalizedQuery = params.query?.trim() ? params.query : undefined;
       const filtersToApply = params.filters && Object.keys(params.filters).length > 0 ? params.filters : undefined;
+      const requestKey = buildSearchRequestKey(
+        {
+          query: normalizedQuery,
+          page: params.page ?? DEFAULT_PAGE_INDEX,
+          size: params.size ?? DEFAULT_PAGE_SIZE,
+          sort: params.sort,
+          filters: filtersToApply,
+        },
+        resolvedSite,
+        locale,
+        sessionCurrency,
+      );
+
+      const inFlight = inFlightSearch.current;
+      if (inFlight?.key === requestKey) {
+        return inFlight.promise;
+      }
+
+      if (lastCompletedSearchKey.current === requestKey) {
+        return;
+      }
+
       const url = buildSearchRequestUrl(
         globalThis.location.origin,
         params,
@@ -221,6 +261,14 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
 
       const requestUrl = url.toString();
       const gen = ++searchGeneration.current;
+
+      let settleInFlight = () => {};
+      const inFlightPromise = new Promise<void>((resolve) => {
+        settleInFlight = resolve;
+      });
+      // Write the key before setLoading / URL sync / fetch so a same-turn searchParams
+      // effect cannot start a second /api/search.
+      inFlightSearch.current = { key: requestKey, promise: inFlightPromise };
 
       try {
         setLoading(true);
@@ -259,6 +307,8 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         if (data.batteryIncludedFacets && data.batteryIncludedFacets.length > 0) {
           setBatteryIncludedFacets(data.batteryIncludedFacets);
         }
+
+        lastCompletedSearchKey.current = requestKey;
       } catch (err) {
         if (gen === searchGeneration.current) {
           getLogger().error({ err, event: 'search_request_failed' }, 'Product search request failed');
@@ -268,6 +318,10 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         if (gen === searchGeneration.current) {
           setLoading(false);
         }
+        if (inFlightSearch.current?.key === requestKey) {
+          inFlightSearch.current = undefined;
+        }
+        settleInFlight();
       }
     },
     [updateBrowserUrl, locale, siteCode, sessionCurrency],
