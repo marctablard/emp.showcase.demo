@@ -102,7 +102,8 @@ export function extractFiltersFromUrlSearchParams(searchParams: URLSearchParams)
 }
 
 function compareSignatureStrings(left: string, right: string): number {
-  return left.localeCompare(right);
+  // Pin locale so Node and the browser produce the same signature.
+  return left.localeCompare(right, 'en');
 }
 
 function normalizeFilterLeafForSignature(value: SearchFilterLeafValue): string[] {

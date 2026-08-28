@@ -95,24 +95,26 @@ function toSearchFailedError(response: Response): Error {
 
 function applySuccessfulSearchPayload<T>(
   data: SearchResult<T>,
-  setData: (items: T[]) => void,
-  setTotal: (total: number) => void,
-  setCurrentPage: (page: number) => void,
-  setPageSize: (size: number) => void,
-  setFacets: (filters: Filter[]) => void,
-  setAvailableSorts: (sorts: SearchSortOption[]) => void,
-  setBatteryIncludedFacets: (facets: BatteryIncludedFacet[] | undefined) => void,
+  apply: {
+    setData: (items: T[]) => void;
+    setTotal: (total: number) => void;
+    setCurrentPage: (page: number) => void;
+    setPageSize: (size: number) => void;
+    setFacets: (filters: Filter[]) => void;
+    setAvailableSorts: (sorts: SearchSortOption[]) => void;
+    setBatteryIncludedFacets: (facets: BatteryIncludedFacet[] | undefined) => void;
+  },
 ): void {
-  setData(data.items);
-  setTotal(data.total);
-  setCurrentPage(data.page);
-  setPageSize(data.pageSize);
+  apply.setData(data.items);
+  apply.setTotal(data.total);
+  apply.setCurrentPage(data.page);
+  apply.setPageSize(data.pageSize);
   if (data.availableFilters) {
-    setFacets(data.availableFilters);
+    apply.setFacets(data.availableFilters);
   }
-  setAvailableSorts(data.availableSorts || []);
+  apply.setAvailableSorts(data.availableSorts || []);
   if (data.batteryIncludedFacets && data.batteryIncludedFacets.length > 0) {
-    setBatteryIncludedFacets(data.batteryIncludedFacets);
+    apply.setBatteryIncludedFacets(data.batteryIncludedFacets);
   }
 }
 
@@ -345,8 +347,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
           return;
         }
 
-        applySuccessfulSearchPayload(
-          data,
+        applySuccessfulSearchPayload(data, {
           setData,
           setTotal,
           setCurrentPage,
@@ -354,7 +355,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
           setFacets,
           setAvailableSorts,
           setBatteryIncludedFacets,
-        );
+        });
         lastCompletedSearchKey.current = requestKey;
       } catch (err) {
         reportSearchRequestFailure(gen, searchGeneration.current, err, setError);
