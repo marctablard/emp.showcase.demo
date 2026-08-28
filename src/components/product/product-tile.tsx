@@ -18,31 +18,37 @@ import { useCart } from '@/hooks/cart/useCart';
 import { useValidateAddToCart } from '@/hooks/cart/useValidateAddToCart';
 import { useComparison } from '@/hooks/comparison/useComparison';
 import { useValidateAddToComparison } from '@/hooks/comparison/useValidateAddToComparison';
-import { useAvailableVariantValues } from '@/hooks/useAvailableVariantValues';
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll';
 import { useL10n } from '@/hooks/useL10n';
 import { useWishlistAddWithAuth } from '@/hooks/wishlist/useWishlistAddWithAuth';
-import { type ProductVariantAttributeKey, dk } from '@/i18n/dynamic-key';
 import { Link } from '@/i18n/navigation';
 import {
+  formatTemplateAttributeValue,
   orderedTemplateAttributeEntries,
   resolveTemplateAttributeLabel,
+  resolveVariantAttributeLabel,
 } from '@/lib/common/product-template-attributes';
-import { getFirstVariantAttributeGroupFromChildren } from '@/lib/common/product-variant-attributes';
+import {
+  PARENT_VARIANT_LABEL_BADGE_LIMIT,
+  VARIANT_ATTRIBUTE_PAIR_BADGE_LIMIT,
+  type VariantAttributeDisplayPair,
+  collectVariantAttributeKeys,
+  getVariantAttributeDisplayPairs,
+} from '@/lib/common/product-variant-attributes';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency, imageSizes } from '@/lib/utils';
-import type { Product, ProductUSP } from '@/platform/services/model/product';
+import type { Product, ProductUSP, ProductVariantAttribute } from '@/platform/services/model/product';
 import { MAX_COMPARISON_PRODUCTS } from '@/stores/comparison-store';
 import { ToastType, notify } from '../ui/toast-notification';
 
 interface ProductTileProps {
   product: Product;
   locale?: string;
+  /** Retained for PLP callers; chips now use payload attributes and no longer fetch. */
   skipVariantFetch?: boolean;
   showParentVariantBadge?: boolean;
 }
 
-type TileVariantValue = { key: string; name?: Product['name'] };
 type TileL10n = (value: string | NonNullable<Product['name']>) => string;
 
 function getProductUspIcon(icon: string): LucideIcon {
@@ -62,103 +68,103 @@ function getProductUspIcon(icon: string): LucideIcon {
   return Circle;
 }
 
-function resolveAvailableVariantValues(
-  childAttributeGroup: ReturnType<typeof getFirstVariantAttributeGroupFromChildren>,
-  skipVariantFetch: boolean,
-  firstAttributeValues: TileVariantValue[] | undefined,
-  fetchedValues: TileVariantValue[],
-): TileVariantValue[] {
-  if (childAttributeGroup) {
-    return childAttributeGroup.values.map((key) => ({ key }));
-  }
-  if (skipVariantFetch) {
-    return firstAttributeValues ?? [];
-  }
-  return fetchedValues;
-}
-
 function shouldShowParentVariantCountBadge(showParentVariantBadge: boolean, product: Product): boolean {
   return showParentVariantBadge && Boolean(product.isParentVariant) && (product.variantCount ?? 0) > 0;
 }
 
-function ProductTileVariantChip({
-  value,
-  chipAttributeKey,
-  chipAttributeName,
-  firstAttributeLabel,
-  l10n,
-}: Readonly<{
-  value: TileVariantValue;
-  chipAttributeKey?: string;
-  chipAttributeName?: Product['name'];
-  firstAttributeLabel: string;
-  l10n: TileL10n;
-}>) {
-  const isColorAttribute = chipAttributeKey === 'color' || chipAttributeKey === 'farbe';
-  const displayName = value.name ? l10n(value.name) : value.key;
-
-  if (isColorAttribute) {
-    return <ProductColorTile attributeKey={value.key} attributeName={displayName} size="sm" showCheckmark={false} />;
-  }
-
-  return (
-    <ProductCharacteristic
-      value={displayName}
-      unit={chipAttributeName ? l10n(chipAttributeName) : (chipAttributeKey ?? '')}
-      attributeLabel={firstAttributeLabel}
-    />
-  );
-}
-
-function ProductTileVariantChips({
-  variantLoading,
-  availableValues,
-  chipAttributeKey,
-  chipAttributeName,
-  firstAttributeLabel,
-  l10n,
-}: Readonly<{
-  variantLoading: boolean;
-  availableValues: TileVariantValue[];
-  chipAttributeKey?: string;
-  chipAttributeName?: Product['name'];
-  firstAttributeLabel: string;
-  l10n: TileL10n;
-}>) {
-  const visibleVariantValues = availableValues.slice(0, 3);
-  const overflowVariantCount = availableValues.length - visibleVariantValues.length;
-  const leadingVariantValues = visibleVariantValues.slice(0, -1);
-  const lastVariantValue = visibleVariantValues.at(-1);
-
-  if (variantLoading || !lastVariantValue) {
+function ProductTileChipOverflow({ count }: Readonly<{ count: number }>) {
+  if (count <= 0) {
     return null;
   }
 
-  const chipProps = {
-    chipAttributeKey,
-    chipAttributeName,
-    firstAttributeLabel,
-    l10n,
-  };
+  return (
+    <div
+      data-testid="product-tile-variant-overflow"
+      className="bg-surface-disabled text-text-on-disabled flex h-8 w-8 shrink-0 items-center justify-center rounded text-sm font-medium"
+    >
+      +{count}
+    </div>
+  );
+}
+
+function ProductTileChipStack<T>({
+  items,
+  limit,
+  getKey,
+  renderItem,
+}: Readonly<{
+  items: readonly T[];
+  limit: number;
+  getKey: (item: T) => string;
+  renderItem: (item: T) => React.ReactNode;
+}>) {
+  const visibleItems = items.slice(0, limit);
+  const overflowCount = items.length - visibleItems.length;
+  const leadingItems = visibleItems.slice(0, -1);
+  const lastItem = visibleItems.at(-1);
+
+  if (!lastItem) {
+    return null;
+  }
 
   return (
     <div data-testid="product-tile-variant-chips" className="absolute inset-x-4 bottom-4 flex flex-col items-end gap-2">
-      {leadingVariantValues.map((value) => (
-        <ProductTileVariantChip key={value.key} value={value} {...chipProps} />
+      {leadingItems.map((item) => (
+        <React.Fragment key={getKey(item)}>{renderItem(item)}</React.Fragment>
       ))}
-      <div data-testid="product-tile-variant-chips-last-row" className="flex items-end justify-end gap-2">
-        {overflowVariantCount > 0 ? (
-          <div
-            data-testid="product-tile-variant-overflow"
-            className="bg-surface-disabled text-text-on-disabled flex h-8 w-8 shrink-0 items-center justify-center rounded text-sm font-medium"
-          >
-            +{overflowVariantCount}
-          </div>
-        ) : null}
-        <ProductTileVariantChip value={lastVariantValue} {...chipProps} />
+      <div
+        data-testid="product-tile-variant-chips-last-row"
+        className="flex w-full self-stretch items-end justify-end gap-2"
+      >
+        <ProductTileChipOverflow count={overflowCount} />
+        {renderItem(lastItem)}
       </div>
     </div>
   );
+}
+
+function ProductTileLabelChip({ label }: Readonly<{ label: string }>) {
+  return (
+    <Tooltip delayDuration={200}>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          data-testid="product-tile-variant-label-chip"
+          className="flex min-w-0 max-w-3/4 overflow-hidden rounded-sm border bg-transparent p-0 text-inherit"
+        >
+          <div className="min-w-0 truncate bg-surface-page px-1 py-0.5 text-center text-sm leading-tight">{label}</div>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent data-testid="product-characteristic-tooltip">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function ProductTilePairChip({
+  pair,
+  product,
+  locale,
+  l10n,
+}: Readonly<{
+  pair: VariantAttributeDisplayPair;
+  product: Product;
+  locale?: string;
+  l10n: TileL10n;
+}>) {
+  const label = resolveVariantAttributeLabel(pair.key, pair.name, product.templateAttributeLabels, l10n);
+  const displayValue = formatTemplateAttributeValue(
+    pair.value,
+    product.templateAttributeTypes?.[pair.key],
+    locale ?? 'en',
+  );
+  const isColorAttribute = pair.key === 'color' || pair.key === 'farbe';
+
+  if (isColorAttribute) {
+    return <ProductColorTile attributeKey={pair.value} attributeName={displayValue} size="sm" showCheckmark={false} />;
+  }
+
+  return <ProductCharacteristic value={displayValue} unit={label} attributeLabel={label} className="max-w-3/4" />;
 }
 
 function ProductTilePrimaryImage({
@@ -265,10 +271,24 @@ function getProductUspKey(usp: ProductUSP, index: number): string {
   return `${usp.icon}:${descriptionKey}:${index}`;
 }
 
+function findVariantAttributeName(product: Product, key: string): ProductVariantAttribute['name'] | undefined {
+  const fromProduct = product.variantAttributes?.find((attribute) => attribute.key === key)?.name;
+  if (fromProduct != null) {
+    return fromProduct;
+  }
+  for (const variant of product.variants ?? []) {
+    const fromChild = variant.variantAttributes?.find((attribute) => attribute.key === key)?.name;
+    if (fromChild != null) {
+      return fromChild;
+    }
+  }
+  return undefined;
+}
+
 export function ProductTile({
   product,
   locale,
-  skipVariantFetch = false,
+  skipVariantFetch: _skipVariantFetch = false,
   showParentVariantBadge = false,
 }: ProductTileProps) {
   const t = useTranslations('product');
@@ -281,27 +301,8 @@ export function ProductTile({
   const { addToWishlist, isAdding: isAddingToWishlist, loginDialog } = useWishlistAddWithAuth();
   const horizontalScrollRef = useHorizontalScroll();
 
-  const firstAttribute = product.variantAttributes?.[0];
-  const childAttributeGroup = getFirstVariantAttributeGroupFromChildren(product);
-  const chipAttributeKey = firstAttribute?.key ?? childAttributeGroup?.key;
-  const chipAttributeName = firstAttribute?.name ?? childAttributeGroup?.name;
-  const firstAttributeLabel = chipAttributeKey
-    ? t(dk<ProductVariantAttributeKey>(`filters.mixins.productVariantAttributes.${chipAttributeKey}`), {
-        defaultValue: chipAttributeName ? l10n(chipAttributeName) : chipAttributeKey,
-      })
-    : '';
-  const skipFetch = skipVariantFetch || Boolean(childAttributeGroup);
-  const { values: fetchedValues, loading: fetchedLoading } = useAvailableVariantValues(
-    product,
-    skipFetch ? undefined : firstAttribute?.key,
-  );
-  const availableValues = resolveAvailableVariantValues(
-    childAttributeGroup,
-    skipVariantFetch,
-    firstAttribute?.values,
-    fetchedValues,
-  );
-  const variantLoading = skipFetch ? false : fetchedLoading;
+  const parentLabelKeys = product.isParentVariant ? collectVariantAttributeKeys(product, product.variants ?? []) : [];
+  const variantPairs = product.isParentVariant ? [] : getVariantAttributeDisplayPairs(product);
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     try {
@@ -411,14 +412,32 @@ export function ProductTile({
                 <ProductTilePrimaryImage product={product} l10nOrEmpty={l10nOrEmpty} />
               </div>
 
-              <ProductTileVariantChips
-                variantLoading={variantLoading}
-                availableValues={availableValues}
-                chipAttributeKey={chipAttributeKey}
-                chipAttributeName={chipAttributeName}
-                firstAttributeLabel={firstAttributeLabel}
-                l10n={l10n}
-              />
+              {product.isParentVariant ? (
+                <ProductTileChipStack
+                  items={parentLabelKeys}
+                  limit={PARENT_VARIANT_LABEL_BADGE_LIMIT}
+                  getKey={(key) => key}
+                  renderItem={(key) => (
+                    <ProductTileLabelChip
+                      label={resolveVariantAttributeLabel(
+                        key,
+                        findVariantAttributeName(product, key),
+                        product.templateAttributeLabels,
+                        l10n,
+                      )}
+                    />
+                  )}
+                />
+              ) : (
+                <ProductTileChipStack
+                  items={variantPairs}
+                  limit={VARIANT_ATTRIBUTE_PAIR_BADGE_LIMIT}
+                  getKey={(pair) => pair.key}
+                  renderItem={(pair) => (
+                    <ProductTilePairChip pair={pair} product={product} locale={locale} l10n={l10n} />
+                  )}
+                />
+              )}
 
               {product.labels && product.labels.length > 0 ? (
                 <ProductLabels labels={product.labels} className="absolute top-4 -left-6 flex-col" />

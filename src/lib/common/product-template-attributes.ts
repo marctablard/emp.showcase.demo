@@ -1,4 +1,5 @@
 import { formatDate } from '@/lib/date-utils';
+import { L10N_MISSING_LABEL } from '@/lib/l10n';
 import type { LocalizedString } from '@/platform/services/model/common';
 import type { ProductTemplateAttributeType } from '@/platform/services/model/product';
 
@@ -11,14 +12,33 @@ export const PRODUCT_TEMPLATE_ATTRIBUTE_TYPE = {
 
 /** ISO-8601 datetime prefix — used when template type meta is not yet enriched. */
 const ISO_DATETIME_PREFIX = /^\d{4}-\d{2}-\d{2}T/;
+/** Date-only `YYYY-MM-DD` — Product Service may store DATE values without a time. */
+const ISO_DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+/** Canonical numeric value keys (no units/suffixes). */
+const NUMERIC_VALUE_KEY = /^-?\d+(\.\d+)?$/;
 
 function shouldFormatAsDateTime(value: string, type: ProductTemplateAttributeType | undefined): boolean {
-  return type === PRODUCT_TEMPLATE_ATTRIBUTE_TYPE.DATETIME || ISO_DATETIME_PREFIX.test(value);
+  return (
+    type === PRODUCT_TEMPLATE_ATTRIBUTE_TYPE.DATETIME || ISO_DATETIME_PREFIX.test(value) || ISO_DATE_ONLY.test(value)
+  );
+}
+
+function formatNumberValue(value: string, locale: string): string {
+  const trimmed = value.trim();
+  if (!NUMERIC_VALUE_KEY.test(trimmed)) {
+    return value;
+  }
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed)) {
+    return value;
+  }
+  return new Intl.NumberFormat(locale).format(parsed);
 }
 
 /**
- * Formats a template-attribute value for display.
+ * Formats a template / variant-attribute value for display.
  * DATETIME (or ISO-looking values without type meta) use the shared `formatDate` helper.
+ * NUMBER values use the locale number formatter.
  */
 export function formatTemplateAttributeValue(
   value: string,
@@ -28,7 +48,52 @@ export function formatTemplateAttributeValue(
   if (shouldFormatAsDateTime(value, type)) {
     return formatDate(value, locale);
   }
+  if (type === PRODUCT_TEMPLATE_ATTRIBUTE_TYPE.NUMBER) {
+    return formatNumberValue(value, locale);
+  }
   return value;
+}
+
+/**
+ * True when a localized name is missing or only repeats the attribute key
+ * (`expand=template` / product `variantAttributes[].name` often echo the key).
+ */
+export function isPlaceholderAttributeLabel(name: LocalizedString | string | undefined, key: string): boolean {
+  if (name == null) {
+    return true;
+  }
+  if (typeof name === 'string') {
+    const trimmed = name.trim();
+    return trimmed.length === 0 || trimmed === key;
+  }
+  const values = Object.values(name).filter(
+    (value): value is string => typeof value === 'string' && value.trim().length > 0,
+  );
+  return values.length === 0 || values.every((value) => value.trim() === key);
+}
+
+/**
+ * Localized label for a variant / template attribute key.
+ * Prefers a real localized name (not a key echo), then template labels, else '-'.
+ * Never uses missing i18n paths that would render as `filters.mixins…`.
+ */
+export function resolveVariantAttributeLabel(
+  key: string,
+  name: LocalizedString | string | undefined,
+  labels: Record<string, LocalizedString> | undefined,
+  l10n: (value: LocalizedString | string) => string,
+): string {
+  const candidates = [name, labels?.[key]];
+  for (const candidate of candidates) {
+    if (isPlaceholderAttributeLabel(candidate, key)) {
+      continue;
+    }
+    const localized = l10n(candidate as LocalizedString | string).trim();
+    if (localized.length > 0 && localized !== L10N_MISSING_LABEL && localized !== key) {
+      return localized;
+    }
+  }
+  return L10N_MISSING_LABEL;
 }
 
 /**

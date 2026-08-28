@@ -22,7 +22,7 @@ export function ProductCharacteristic({ value, unit, attributeLabel, className }
           type="button"
           aria-label={tooltipLabel}
           className={cn(
-            // Badge max width ≥120px (max-w-30). Newer than COP-6023's 64px cap.
+            // Default 120px cap; tile variant badges override to max-w-3/4 of the chip stack.
             'flex min-w-0 max-w-30 flex-col overflow-hidden rounded-sm border bg-transparent p-0 text-inherit',
             className,
           )}

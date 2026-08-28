@@ -128,12 +128,13 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
 
     // Also create a grouped version of specifications
     const groupedSpecifications = mappedSpecs.length > 0 ? this.groupSpecificationsByGroup(mappedSpecs) : [];
+    const templateSource = source.template?.id ? source.template : source.parentVariant?.template;
     const {
       labels: templateAttributeLabels,
       types: templateAttributeTypes,
       order: templateAttributeOrder,
-    } = mapTemplateAttributeMeta(source.template);
-    const templateVersion = resolveTemplateVersion(source.template);
+    } = mapTemplateAttributeMeta(templateSource);
+    const templateVersion = resolveTemplateVersion(templateSource);
 
     return {
       id: source.id || source.code,
@@ -149,10 +150,10 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
       specifications: mappedSpecs,
       groupedSpecifications: groupedSpecifications,
       highlights,
-      ...(source.template?.id
+      ...(templateSource?.id
         ? {
             template: {
-              id: source.template.id,
+              id: templateSource.id,
               ...(templateVersion ? { version: templateVersion } : {}),
             },
           }
@@ -253,10 +254,11 @@ export class EmporixProductMapper implements ProductMapper<EmporixProduct> {
           };
         })
         .filter((value) => value.key.length > 0);
-      const name = normalizeLocalizedLeaf(source.template?.attributes?.find((attr) => attr.key === key)?.name, key);
+      const templateAttributes = source.template?.attributes ?? source.parentVariant?.template?.attributes;
+      const name = normalizeLocalizedLeaf(templateAttributes?.find((attr) => attr.key === key)?.name);
       return {
         key: key,
-        name: name ?? key,
+        ...(name ? { name } : {}),
         values: values,
       };
     });

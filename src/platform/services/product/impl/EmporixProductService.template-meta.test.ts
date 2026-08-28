@@ -83,7 +83,7 @@ describe('EmporixProductService template meta enrichment', () => {
     expect(searchProducts).toHaveBeenCalledWith(
       expect.objectContaining({
         criteria: { id: '(prod-1)' },
-        expand: ['template'],
+        expand: ['template', 'parentVariant'],
       }),
     );
     expect(getProductTemplate).toHaveBeenCalledWith('tmpl-1', '2');
@@ -122,5 +122,176 @@ describe('EmporixProductService template meta enrichment', () => {
 
     expect(searchProducts).not.toHaveBeenCalled();
     expect(getProductTemplate).toHaveBeenCalledWith('tmpl-1', undefined);
+  });
+
+  it('fetches Templates API even when expand already mapped key-echo labels', async () => {
+    const getProductTemplate = jest.fn().mockResolvedValue({
+      id: 'tmpl-1',
+      name: { en: 'Template' },
+      attributes: [
+        {
+          key: 'a-very-long-attribute-name-to-test-wrapping',
+          name: { en: 'A Very Long Attribute Name To Test Wrapping' },
+          type: 'TEXT',
+        },
+        { key: 'date-attribute', name: { en: 'Date attribute' }, type: 'DATETIME' },
+      ],
+    });
+    const service = createService({ searchProducts: jest.fn(), getProductTemplate });
+
+    const products: Product[] = [
+      {
+        id: 'prod-1',
+        name: { en: 'Sample' },
+        purchasable: false,
+        isParentVariant: true,
+        template: { id: 'tmpl-1', version: '2' },
+        templateAttributeLabels: {
+          'a-very-long-attribute-name-to-test-wrapping': { en: 'a-very-long-attribute-name-to-test-wrapping' },
+          'date-attribute': { en: 'date-attribute' },
+        },
+        variantAttributes: [
+          {
+            key: 'a-very-long-attribute-name-to-test-wrapping',
+            name: { en: 'a-very-long-attribute-name-to-test-wrapping' },
+            values: [{ key: 'First option', selected: true }],
+          },
+          {
+            key: 'date-attribute',
+            name: { en: 'date-attribute' },
+            values: [{ key: '2026-08-27T09:05:45.279Z', selected: true }],
+          },
+        ],
+      },
+    ];
+
+    const [enriched] = await service.addAdditionalData(products, {
+      prices: false,
+      variants: false,
+      categories: false,
+    });
+
+    expect(getProductTemplate).toHaveBeenCalledWith('tmpl-1', '2');
+    expect(enriched.templateAttributeLabels).toEqual({
+      'a-very-long-attribute-name-to-test-wrapping': { en: 'A Very Long Attribute Name To Test Wrapping' },
+      'date-attribute': { en: 'Date attribute' },
+    });
+    expect(enriched.templateAttributeTypes).toEqual({
+      'a-very-long-attribute-name-to-test-wrapping': 'TEXT',
+      'date-attribute': 'DATETIME',
+    });
+    expect(enriched.variantAttributes?.[0].name).toEqual({ en: 'A Very Long Attribute Name To Test Wrapping' });
+    expect(enriched.variantAttributes?.[1].name).toEqual({ en: 'Date attribute' });
+  });
+
+  it('resolves template.id for variant-only products without templateAttributes', async () => {
+    const searchProducts = jest.fn().mockResolvedValue({
+      items: [{ id: 'prod-1', template: { id: 'tmpl-1', version: 3 } }],
+    });
+    const getProductTemplate = jest.fn().mockResolvedValue({
+      id: 'tmpl-1',
+      name: { en: 'Template' },
+      attributes: [{ key: 'width', name: { en: 'Width' }, type: 'NUMBER' }],
+    });
+    const service = createService({ searchProducts, getProductTemplate });
+
+    const products: Product[] = [
+      {
+        id: 'prod-1',
+        name: { en: 'Sample' },
+        purchasable: false,
+        isParentVariant: true,
+        variantAttributes: [{ key: 'width', values: [{ key: '20', selected: true }] }],
+      },
+    ];
+
+    const [enriched] = await service.addAdditionalData(products, {
+      prices: false,
+      variants: false,
+      categories: false,
+    });
+
+    expect(searchProducts).toHaveBeenCalled();
+    expect(getProductTemplate).toHaveBeenCalledWith('tmpl-1', '3');
+    expect(enriched.variantAttributes?.[0].name).toEqual({ en: 'Width' });
+  });
+
+  it('overlays template labels onto nested child variants', async () => {
+    const getProductTemplate = jest.fn().mockResolvedValue({
+      id: 'tmpl-1',
+      name: { en: 'Template' },
+      attributes: [{ key: 'width', name: { en: 'Width' }, type: 'NUMBER' }],
+    });
+    const service = createService({ searchProducts: jest.fn(), getProductTemplate });
+
+    const products: Product[] = [
+      {
+        id: 'parent-1',
+        name: { en: 'Parent' },
+        purchasable: false,
+        isParentVariant: true,
+        template: { id: 'tmpl-1' },
+        variantAttributes: [{ key: 'width', name: { en: 'width' }, values: [] }],
+        variants: [
+          {
+            id: 'child-1',
+            name: { en: 'Child' },
+            purchasable: true,
+            parentVariantId: 'parent-1',
+            variantAttributes: [{ key: 'width', name: { en: 'width' }, values: [{ key: '20', selected: true }] }],
+          },
+        ],
+      },
+    ];
+
+    const [enriched] = await service.addAdditionalData(products, {
+      prices: false,
+      variants: false,
+      categories: false,
+    });
+
+    expect(enriched.variants?.[0].templateAttributeLabels).toEqual({ width: { en: 'Width' } });
+    expect(enriched.variants?.[0].variantAttributes?.[0].name).toEqual({ en: 'Width' });
+    expect(enriched.variants?.[0].templateAttributeTypes).toEqual({ width: 'NUMBER' });
+  });
+
+  it('resolves a child VARIANT template from the parent product search hit', async () => {
+    const searchProducts = jest.fn().mockResolvedValue({
+      items: [
+        { id: 'child-1', parentVariantId: 'parent-1' },
+        { id: 'parent-1', template: { id: 'tmpl-1', version: 5 } },
+      ],
+    });
+    const getProductTemplate = jest.fn().mockResolvedValue({
+      id: 'tmpl-1',
+      name: { en: 'Template' },
+      attributes: [{ key: 'date-attribute', name: { en: 'Date attribute' }, type: 'DATETIME' }],
+    });
+    const service = createService({ searchProducts, getProductTemplate });
+
+    const products: Product[] = [
+      {
+        id: 'child-1',
+        name: { en: 'Child' },
+        purchasable: true,
+        parentVariantId: 'parent-1',
+        variantAttributes: [
+          {
+            key: 'date-attribute',
+            values: [{ key: '2026-08-27T09:05:45.279Z', selected: true }],
+          },
+        ],
+      },
+    ];
+
+    const [enriched] = await service.addAdditionalData(products, {
+      prices: false,
+      variants: false,
+      categories: false,
+    });
+
+    expect(enriched.template).toEqual({ id: 'tmpl-1', version: '5' });
+    expect(enriched.variantAttributes?.[0].name).toEqual({ en: 'Date attribute' });
+    expect(enriched.templateAttributeTypes).toEqual({ 'date-attribute': 'DATETIME' });
   });
 });

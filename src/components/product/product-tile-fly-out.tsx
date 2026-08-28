@@ -13,6 +13,7 @@ import {
   orderedTemplateAttributeEntries,
   parseBooleanTemplateAttributeValue,
   resolveTemplateAttributeLabel,
+  resolveVariantAttributeLabel,
 } from '@/lib/common/product-template-attributes';
 import { formatCurrency } from '@/lib/utils';
 import type { LocalizedString } from '@/platform/services/model/common';
@@ -103,26 +104,25 @@ const renderAttributes = (
   const limitedEntries = options?.maxItems ? entries.slice(0, options.maxItems) : entries;
 
   return limitedEntries.map(([key, value]) => {
-    const label =
-      attributeType === 'productTemplateAttributes' && options?.l10n
-        ? resolveTemplateAttributeLabel(key, options.templateAttributeLabels, options.l10n)
-        : t(dk<ProductAttributeKey>(`filters.mixins.${attributeType}.${key}`), {
-            defaultValue: formatAttributeKey(key),
-          });
-
     const attributeTypeMeta = options?.templateAttributeTypes?.[key];
     const locale = options?.locale ?? 'en';
     const isTemplateAttribute = attributeType === 'productTemplateAttributes';
     const isTemplateBoolean =
       isTemplateAttribute && parseBooleanTemplateAttributeValue(value, attributeTypeMeta) !== undefined;
+    const label =
+      attributeType === 'productVariantAttributes' && options?.l10n
+        ? resolveVariantAttributeLabel(key, undefined, options.templateAttributeLabels, options.l10n)
+        : isTemplateAttribute && options?.l10n
+          ? resolveTemplateAttributeLabel(key, options.templateAttributeLabels, options.l10n)
+          : t(dk<ProductAttributeKey>(`filters.mixins.${attributeType}.${key}`), {
+              defaultValue: formatAttributeKey(key),
+            });
 
     let valueNode: React.ReactNode;
     if (isTemplateBoolean) {
       valueNode = <TemplateAttributeValue value={value} type={attributeTypeMeta} locale={locale} />;
-    } else if (isTemplateAttribute) {
-      valueNode = markText(formatTemplateAttributeValue(value, attributeTypeMeta, locale), options?.keyword);
     } else {
-      valueNode = markText(value, options?.keyword);
+      valueNode = markText(formatTemplateAttributeValue(value, attributeTypeMeta, locale), options?.keyword);
     }
 
     return (
@@ -234,6 +234,10 @@ export function ProductTileFlyOut({ product, onProductClick, keyword }: ProductT
                     {
                       maxItems: Math.min(maxTotalAttributes, variantCount),
                       keyword,
+                      locale,
+                      templateAttributeLabels: product.templateAttributeLabels,
+                      templateAttributeTypes: product.templateAttributeTypes,
+                      l10n,
                     },
                   )}
                 {specsWithoutLabel.slice(0, 3).map((val, idx) => (

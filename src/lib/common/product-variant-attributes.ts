@@ -1,4 +1,10 @@
+import { isPlaceholderAttributeLabel } from '@/lib/common/product-template-attributes';
 import type { Product, ProductVariantAttribute } from '@/platform/services/model/product';
+
+/** Parent PLP tiles: label-only badges for each variant attribute axis. */
+export const PARENT_VARIANT_LABEL_BADGE_LIMIT = 6;
+/** Child / sellable variant tiles: value + label pairs. */
+export const VARIANT_ATTRIBUTE_PAIR_BADGE_LIMIT = 3;
 
 /** Parent, child, or any product that already carries variant-family data. */
 export function isVariantFamilyProduct(product: Product): boolean {
@@ -37,19 +43,114 @@ export function normalizeVariantAttributeValueKey(key: unknown): string | undefi
   return undefined;
 }
 
+function hasAttributeValue(value: string | undefined): boolean {
+  return value !== undefined && value !== '';
+}
+
+/**
+ * Stable storefront order: Product Templates `attributes[]` (`templateAttributeOrder`),
+ * then any remaining keys in first-seen order.
+ */
+export function sortKeysByTemplateAttributeOrder(keys: readonly string[], order?: readonly string[]): string[] {
+  if (keys.length === 0) {
+    return [];
+  }
+  if (!order?.length) {
+    return [...keys];
+  }
+
+  const keySet = new Set(keys);
+  const seen = new Set<string>();
+  const sorted: string[] = [];
+
+  for (const key of order) {
+    if (!keySet.has(key) || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    sorted.push(key);
+  }
+
+  for (const key of keys) {
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    sorted.push(key);
+  }
+
+  return sorted;
+}
+
+function rememberAttributeName(
+  nameByKey: Map<string, ProductVariantAttribute['name']>,
+  attribute: Pick<ProductVariantAttribute, 'key' | 'name'>,
+): void {
+  if (attribute.name == null) {
+    return;
+  }
+  const current = nameByKey.get(attribute.key);
+  if (current != null && !isPlaceholderAttributeLabel(current, attribute.key)) {
+    return;
+  }
+  nameByKey.set(attribute.key, attribute.name);
+}
+
+function collectAttributeKeysFromProduct(product: Product, keys: Set<string>): void {
+  product.variantAttributes?.forEach((attribute) => {
+    if (attribute.key) {
+      keys.add(attribute.key);
+    }
+  });
+  Object.keys(product.variantAttributeValues ?? {}).forEach((key) => {
+    keys.add(key);
+  });
+}
+
+/**
+ * Variant-attribute axis keys for a family, ordered by `templateAttributeOrder`.
+ * When sellable variants are present, only keys those variants actually use
+ * (skips template-only attributes such as an unused BOOLEAN).
+ */
+export function collectVariantAttributeKeys(product: Product, variants: Product[] = []): string[] {
+  const keys = new Set<string>();
+  const family = [...(product.variants ?? []), ...variants];
+  if (family.length > 0) {
+    family.forEach((variant) => collectAttributeKeysFromProduct(variant, keys));
+  } else {
+    collectAttributeKeysFromProduct(product, keys);
+  }
+  return sortKeysByTemplateAttributeOrder([...keys], product.templateAttributeOrder);
+}
+
+export interface VariantAttributeDisplayPair {
+  key: string;
+  name?: ProductVariantAttribute['name'];
+  value: string;
+}
+
+/** Selected value/label pairs for a sellable variant, ordered by `templateAttributeOrder`. */
+export function getVariantAttributeDisplayPairs(product: Product): VariantAttributeDisplayPair[] {
+  const selected = getSelectedVariantAttributeValues(product);
+  const nameByKey = new Map<string, ProductVariantAttribute['name']>();
+  product.variantAttributes?.forEach((attribute) => rememberAttributeName(nameByKey, attribute));
+
+  return sortKeysByTemplateAttributeOrder(Object.keys(selected), product.templateAttributeOrder)
+    .filter((key) => hasAttributeValue(selected[key]))
+    .map((key) => ({
+      key,
+      name: nameByKey.get(key),
+      value: selected[key],
+    }));
+}
+
 /**
  * Collect unique variant attribute values across all sellable variants,
- * ordered by the parent product's `variantAttributes` definition when present.
+ * ordered by `templateAttributeOrder` when present.
  */
 export function collectVariantAttributeGroups(product: Product, variants: Product[]): ProductVariantAttributeGroup[] {
   const valuesByKey = new Map<string, Set<string>>();
   const nameByKey = new Map<string, ProductVariantAttribute['name']>();
-
-  const rememberName = (attribute: ProductVariantAttribute): void => {
-    if (attribute.name != null && !nameByKey.has(attribute.key)) {
-      nameByKey.set(attribute.key, attribute.name);
-    }
-  };
 
   const addValue = (attributeKey: string, rawKey: unknown): void => {
     const valueKey = normalizeVariantAttributeValueKey(rawKey);
@@ -62,22 +163,38 @@ export function collectVariantAttributeGroups(product: Product, variants: Produc
     valuesByKey.get(attributeKey)?.add(valueKey);
   };
 
-  product.variantAttributes?.forEach(rememberName);
+  product.variantAttributes?.forEach((attribute) => rememberAttributeName(nameByKey, attribute));
 
-  // Possible values come from sellable variants (selected value on each attribute axis).
-  variants.forEach((variant) => {
+  const addVariantSelection = (variant: Product): void => {
+    variant.variantAttributes?.forEach((attribute) => rememberAttributeName(nameByKey, attribute));
+    const mixinKeys = new Set<string>();
+    Object.entries(variant.variantAttributeValues ?? {}).forEach(([key, value]) => {
+      addValue(key, value);
+      mixinKeys.add(key);
+    });
     variant.variantAttributes?.forEach((attribute) => {
-      rememberName(attribute);
+      if (mixinKeys.has(attribute.key)) {
+        return;
+      }
       attribute.values?.forEach((value) => {
         if (value.selected) {
           addValue(attribute.key, value.key);
         }
       });
     });
-    Object.entries(variant.variantAttributeValues ?? {}).forEach(([key, value]) => {
-      addValue(key, value);
-    });
-  });
+  };
+
+  // Unique mixin values across sellable variants. Prefer mixins when present —
+  // catalog `values[].selected` can mark a default NUMBER option (e.g. `0`)
+  // instead of that variant's mixin. Sibling values such as NUMBER `0` stay
+  // visible when they are real mixins on other variants.
+  variants.forEach(addVariantSelection);
+
+  const currentAlreadyIncluded = variants.some((variant) => variant.id === product.id);
+  const currentIsSellableVariant = Boolean(product.parentVariantId) && !product.isParentVariant;
+  if (!currentAlreadyIncluded && currentIsSellableVariant) {
+    addVariantSelection(product);
+  }
 
   // Fallback: if variants lack attribute payloads, use the parent's value catalog.
   if (valuesByKey.size === 0) {
@@ -88,10 +205,11 @@ export function collectVariantAttributeGroups(product: Product, variants: Produc
     });
   }
 
-  const orderedKeys =
-    product.variantAttributes && product.variantAttributes.length > 0
-      ? product.variantAttributes.map((attribute) => attribute.key)
-      : [...valuesByKey.keys()];
+  const discoveredKeys = [
+    ...(product.variantAttributes ?? []).map((attribute) => attribute.key),
+    ...valuesByKey.keys(),
+  ];
+  const orderedKeys = sortKeysByTemplateAttributeOrder(discoveredKeys, product.templateAttributeOrder);
 
   const seen = new Set<string>();
   const groups: ProductVariantAttributeGroup[] = [];
@@ -126,23 +244,28 @@ export function collectVariantAttributeGroups(product: Product, variants: Produc
   return groups;
 }
 
-/** Selected attribute value keys for a variant (key → value key). */
+/**
+ * Selected attribute value keys for a variant (key → value key).
+ * Prefer mixins.`productVariantAttributes` (`variantAttributeValues`) when present —
+ * catalog `values[].selected` on expanded parentVariant payloads can mark the
+ * default/first NUMBER option (e.g. `0`) instead of this variant's mixin value.
+ */
 export function getSelectedVariantAttributeValues(variant: Product): Record<string, string> {
   const selected: Record<string, string> = {};
+  Object.entries(variant.variantAttributeValues ?? {}).forEach(([key, value]) => {
+    const valueKey = normalizeVariantAttributeValueKey(value);
+    if (valueKey !== undefined) {
+      selected[key] = valueKey;
+    }
+  });
   variant.variantAttributes?.forEach((attribute) => {
+    if (selected[attribute.key] !== undefined) {
+      return;
+    }
     const selectedValue = attribute.values?.find((value) => value.selected);
     const valueKey = normalizeVariantAttributeValueKey(selectedValue?.key);
     if (valueKey !== undefined) {
       selected[attribute.key] = valueKey;
-    }
-  });
-  Object.entries(variant.variantAttributeValues ?? {}).forEach(([key, value]) => {
-    if (selected[key] !== undefined) {
-      return;
-    }
-    const valueKey = normalizeVariantAttributeValueKey(value);
-    if (valueKey !== undefined) {
-      selected[key] = valueKey;
     }
   });
   return selected;
@@ -172,7 +295,7 @@ export function getCompatibleAttributeValues(
     const matchesOtherAxes = Object.entries(selectedAttributes).every(
       ([key, value]) => key === attributeKey || values[key] === value,
     );
-    if (matchesOtherAxes && values[attributeKey]) {
+    if (matchesOtherAxes && hasAttributeValue(values[attributeKey])) {
       compatible.add(values[attributeKey]);
     }
   });

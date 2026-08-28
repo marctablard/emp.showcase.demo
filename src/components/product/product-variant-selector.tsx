@@ -122,9 +122,18 @@ export default function ProductVariantSelector({ product, className }: ProductVa
   const attributeGroups = useMemo(() => collectVariantAttributeGroups(product, variants), [product, variants]);
   const attributeOrder = useMemo(() => attributeGroups.map((group) => group.key), [attributeGroups]);
   const selectedAttributeValues = useMemo(() => getSelectedVariantAttributeValues(product), [product]);
+  const carouselVariants = useMemo(() => {
+    if (variants.some((variant) => variant.id === product.id)) {
+      return variants;
+    }
+    if (product.parentVariantId && !product.isParentVariant) {
+      return [product, ...variants];
+    }
+    return variants;
+  }, [product, variants]);
   const compatibleValuesByAttribute = useMemo(
-    () => getCompatibleValuesByAttribute(variants, selectedAttributeValues, attributeOrder),
-    [variants, selectedAttributeValues, attributeOrder],
+    () => getCompatibleValuesByAttribute(carouselVariants, selectedAttributeValues, attributeOrder),
+    [carouselVariants, selectedAttributeValues, attributeOrder],
   );
 
   if (!shouldLoadVariants) {
@@ -157,12 +166,15 @@ export default function ProductVariantSelector({ product, className }: ProductVa
         groups={attributeGroups}
         selectedValues={selectedAttributeValues}
         compatibleValuesByAttribute={compatibleValuesByAttribute}
+        attributeLabels={product.templateAttributeLabels}
+        attributeTypes={product.templateAttributeTypes}
       />
       <ProductVariantCarousel
-        variants={variants}
+        variants={carouselVariants}
         prices={variantPrices ?? []}
         currentProductId={product.id}
         attributeOrder={attributeOrder}
+        attributeTypes={product.templateAttributeTypes}
       />
     </div>
   );

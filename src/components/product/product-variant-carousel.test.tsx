@@ -45,6 +45,7 @@ beforeAll(() => {
 });
 
 jest.mock('next-intl', () => ({
+  useLocale: () => 'en-US',
   useTranslations: (namespace?: string) => (key: string, values?: Record<string, string | number>) => {
     if (namespace === 'common.UI.Carousel') {
       if (key === 'pageTitle') {
@@ -68,6 +69,14 @@ jest.mock('@/hooks/useL10n', () => ({
 
 jest.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ push }),
+}));
+
+jest.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  TooltipTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  TooltipContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="product-variant-carousel-value-tooltip">{children}</div>
+  ),
 }));
 
 jest.mock('next/image', () => ({
@@ -146,8 +155,8 @@ describe('ProductVariantCarousel', () => {
 
     expect(screen.getByText('variants.sellableVariants')).toBeInTheDocument();
     expect(screen.getByText('(2 variants)')).toBeInTheDocument();
-    expect(screen.getByText('12 Ah')).toBeInTheDocument();
-    expect(screen.getByText('60 Ah')).toBeInTheDocument();
+    expect(screen.getAllByText('12 Ah').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('60 Ah').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByTestId('product-variant-carousel-card')[0]).toHaveAttribute('data-variant-selected', 'true');
   });
 
@@ -174,6 +183,64 @@ describe('ProductVariantCarousel', () => {
 
     fireEvent.click(screen.getAllByTestId('product-variant-carousel-dot')[0]);
     expect(screen.getByTestId('product-variant-carousel-track')).toHaveAttribute('data-page', '0');
+  });
+
+  it('prefers mixin NUMBER values over a catalog selected 0', () => {
+    const variant: Product = {
+      id: 'v-number',
+      name: 'v-number',
+      description: '',
+      purchasable: true,
+      variantAttributeValues: { 'a-number-attribute-9': '2342423' },
+      variantAttributes: [
+        {
+          key: 'a-number-attribute-9',
+          values: [
+            { key: '0', selected: true },
+            { key: '2342423', selected: false },
+          ],
+        },
+      ],
+    };
+
+    render(
+      <ProductVariantCarousel
+        variants={[variant]}
+        prices={[buildPrice('v-number', 10)]}
+        currentProductId="v-number"
+        attributeOrder={['a-number-attribute-9']}
+        attributeTypes={{ 'a-number-attribute-9': 'NUMBER' }}
+      />,
+    );
+
+    expect(screen.getAllByText('2,342,423').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('0')).not.toBeInTheDocument();
+  });
+
+  it('exposes truncated attribute values in a tooltip', () => {
+    const variant: Product = {
+      id: 'v-long',
+      name: 'v-long',
+      description: '',
+      purchasable: true,
+      variantAttributeValues: {
+        'a-very-long-attribute-name-to-test-wrapping': 'First option with a relatively long name',
+      },
+    };
+
+    render(
+      <ProductVariantCarousel
+        variants={[variant]}
+        prices={[buildPrice('v-long', 10)]}
+        currentProductId="v-long"
+        attributeOrder={['a-very-long-attribute-name-to-test-wrapping']}
+      />,
+    );
+
+    expect(screen.getByTestId('product-variant-carousel-value')).toHaveClass('truncate');
+    expect(screen.getByTestId('product-variant-carousel-value-tooltip')).toHaveTextContent(
+      'First option with a relatively long name',
+    );
   });
 
   it('navigates to another variant on card click', () => {

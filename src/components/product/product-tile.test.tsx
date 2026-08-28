@@ -46,10 +46,6 @@ jest.mock('@/hooks/comparison/useValidateAddToComparison', () => ({
   useValidateAddToComparison: () => ({ disabled: false, tooltip: undefined }),
 }));
 
-jest.mock('@/hooks/useAvailableVariantValues', () => ({
-  useAvailableVariantValues: () => ({ values: [], loading: false }),
-}));
-
 jest.mock('@/hooks/useHorizontalScroll', () => ({
   useHorizontalScroll: () => ({ current: null }),
 }));
@@ -264,22 +260,49 @@ describe('ProductTile', () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it('renders compact parent option chips from first-attribute values when skipVariantFetch is set', () => {
+  it('renders up to 6 parent label-only chips in templateAttributeOrder and overflows the rest', () => {
     render(
       <ProductTile
         product={makeProduct({
           isParentVariant: true,
-          variantCount: 4,
-          variantAttributes: [
+          variantCount: 11,
+          variantAttributes: [],
+          templateAttributeOrder: [
+            'width',
+            'yes',
+            'date-attribute',
+            'a-number-attribute-9',
+            'a-very-long-attribute-name-to-test-wrapping',
+            'height',
+            'extra-one',
+            'extra-two',
+          ],
+          templateAttributeLabels: {
+            width: { en: 'Width' },
+            yes: { en: 'Yes✅❌✔️✖️👍👎' },
+            'date-attribute': { en: 'Date attribute📅' },
+            'a-number-attribute-9': { en: 'A number attribute 9️⃣' },
+            'a-very-long-attribute-name-to-test-wrapping': { en: 'A very long attribute name to test wrapping' },
+            height: { en: 'Height' },
+            'extra-one': { en: 'Extra one' },
+            'extra-two': { en: 'Extra two' },
+          },
+          variants: [
             {
-              key: 'nominal-power',
-              name: { en: 'Nominal power' },
-              values: [
-                { key: 'alpha', name: { en: 'ExtraLongNominalPowerValueAlpha' }, selected: false },
-                { key: 'beta', name: { en: 'ExtraLongNominalPowerValueBeta' }, selected: false },
-                { key: 'gamma', name: { en: 'ExtraLongNominalPowerValueGamma' }, selected: false },
-                { key: 'delta', name: { en: 'ExtraLongNominalPowerValueDelta' }, selected: true },
-              ],
+              id: 'child-1',
+              name: { en: 'Child' },
+              description: { en: 'Child' },
+              purchasable: true,
+              parentVariantId: 'parent-1',
+              variantAttributeValues: {
+                width: '15',
+                'date-attribute': '2026-08-27T09:05:45.279Z',
+                'a-number-attribute-9': '2342423',
+                'a-very-long-attribute-name-to-test-wrapping': 'First option',
+                height: 'Short',
+                'extra-one': 'a',
+                'extra-two': 'b',
+              },
             },
           ],
         })}
@@ -289,31 +312,32 @@ describe('ProductTile', () => {
       />,
     );
 
-    const alphaChip = screen
-      .getAllByText('ExtraLongNominalPowerValueAlpha')
-      .find((el) => el.classList.contains('truncate'));
-    const betaChip = screen
-      .getAllByText('ExtraLongNominalPowerValueBeta')
-      .find((el) => el.classList.contains('truncate'));
-
-    expect(alphaChip).toBeDefined();
-    expect(betaChip).toBeDefined();
-    expect(alphaChip?.parentElement).toHaveClass('max-w-30');
-    expect(alphaChip?.parentElement).not.toHaveClass('w-full');
-    expect(alphaChip?.parentElement).not.toHaveClass('max-w-full');
-    expect(betaChip?.parentElement).toHaveClass('max-w-30');
-    expect(betaChip?.parentElement).not.toHaveClass('w-full');
-    expect(betaChip?.parentElement).not.toHaveClass('max-w-full');
-    expect(screen.getByTestId('parent-variant-count-badge')).toHaveTextContent('4');
+    const labels = screen.getAllByTestId('product-tile-variant-label-chip').map((chip) => chip.textContent);
+    expect(labels).toEqual([
+      'Width',
+      'Date attribute📅',
+      'A number attribute 9️⃣',
+      'A very long attribute name to test wrapping',
+      'Height',
+      'Extra one',
+    ]);
+    expect(screen.queryByText('Yes✅❌✔️✖️👍👎')).not.toBeInTheDocument();
+    expect(screen.queryByText('15')).not.toBeInTheDocument();
+    expect(screen.queryByText('2342423')).not.toBeInTheDocument();
+    expect(screen.queryByText('Extra two')).not.toBeInTheDocument();
+    expect(screen.getByTestId('parent-variant-count-badge')).toHaveTextContent('11');
+    expect(screen.getAllByTestId('product-tile-variant-label-chip')[0]).toHaveClass('max-w-3/4');
     expect(screen.getByTestId('product-tile-variant-chips')).toHaveClass('flex-col', 'items-end');
-    expect(screen.getByTestId('product-tile-variant-chips-last-row')).toHaveClass('items-end');
+    expect(screen.getByTestId('product-tile-variant-chips-last-row')).toHaveClass(
+      'w-full',
+      'self-stretch',
+      'items-end',
+    );
     expect(screen.getByTestId('product-tile-variant-overflow')).toHaveTextContent('+1');
     expect(screen.getByTestId('product-tile-variant-chips-last-row').firstChild).toHaveTextContent('+1');
-    expect(screen.getByText('ExtraLongNominalPowerValueGamma')).toBeInTheDocument();
-    expect(screen.queryByText('ExtraLongNominalPowerValueDelta')).not.toBeInTheDocument();
   });
 
-  it('renders unique child variant values when the parent has empty variantAttributes', () => {
+  it('renders a single parent label when children only expose one variant attribute', () => {
     render(
       <ProductTile
         product={makeProduct({
@@ -323,6 +347,7 @@ describe('ProductTile', () => {
           purchasable: false,
           variantCount: 2,
           variantAttributes: [],
+          templateAttributeLabels: { 'nominal-power': { en: 'Nominal power' } },
           variants: [
             {
               id: 'SLP654321--1200',
@@ -331,13 +356,6 @@ describe('ProductTile', () => {
               purchasable: true,
               parentVariantId: 'SLP654321',
               variantAttributeValues: { 'nominal-power': '1200W' },
-              variantAttributes: [
-                {
-                  key: 'nominal-power',
-                  name: { en: 'nominal-power' },
-                  values: [{ key: '1200W', selected: true }],
-                },
-              ],
             },
             {
               id: 'SLP654321--600',
@@ -346,13 +364,6 @@ describe('ProductTile', () => {
               purchasable: true,
               parentVariantId: 'SLP654321',
               variantAttributeValues: { 'nominal-power': '600W' },
-              variantAttributes: [
-                {
-                  key: 'nominal-power',
-                  name: { en: 'nominal-power' },
-                  values: [{ key: '600W', selected: true }],
-                },
-              ],
             },
           ],
         })}
@@ -362,9 +373,102 @@ describe('ProductTile', () => {
       />,
     );
 
-    expect(screen.getByText('1200W')).toBeInTheDocument();
-    expect(screen.getByText('600W')).toBeInTheDocument();
-    expect(screen.getAllByText('nominal-power')).toHaveLength(2);
+    expect(screen.getAllByTestId('product-tile-variant-label-chip')).toHaveLength(1);
+    expect(screen.getByText('Nominal power')).toBeInTheDocument();
+    expect(screen.queryByText('1200W')).not.toBeInTheDocument();
+    expect(screen.queryByText('600W')).not.toBeInTheDocument();
+    expect(screen.queryByText('nominal-power')).not.toBeInTheDocument();
     expect(screen.getByTestId('parent-variant-count-badge')).toHaveTextContent('2');
+  });
+
+  it('does not render variant-attribute i18n keys when only the raw key is available', () => {
+    render(
+      <ProductTile
+        product={makeProduct({
+          id: 'qa-parent',
+          isParentVariant: true,
+          variantCount: 1,
+          variantAttributes: [
+            {
+              key: 'a-very-long-attribute-name-to-test-wrapping',
+              name: { en: 'a-very-long-attribute-name-to-test-wrapping' },
+              values: [{ key: 'First option', selected: true }],
+            },
+          ],
+        })}
+        locale="en"
+        skipVariantFetch
+        showParentVariantBadge
+      />,
+    );
+
+    expect(screen.getByTestId('product-tile-variant-label-chip')).toHaveTextContent('-');
+    expect(screen.queryByText('First option')).not.toBeInTheDocument();
+    expect(screen.queryByText('a-very-long-attribute-name-to-test-wrapping')).not.toBeInTheDocument();
+    expect(screen.queryByText(/filters.mixins.productVariantAttributes/)).not.toBeInTheDocument();
+  });
+
+  it('renders up to 3 child variant pairs in template order and overflows the rest', () => {
+    render(
+      <ProductTile
+        product={makeProduct({
+          id: 'child-1',
+          isParentVariant: false,
+          parentVariantId: 'parent-1',
+          templateAttributeOrder: [
+            'width',
+            'yes',
+            'date-attribute',
+            'a-number-attribute-9',
+            'a-very-long-attribute-name-to-test-wrapping',
+            'height',
+          ],
+          templateAttributeLabels: {
+            width: { en: 'Width' },
+            'date-attribute': { en: 'Date attribute📅' },
+            'a-number-attribute-9': { en: 'A number attribute 9️⃣' },
+            'a-very-long-attribute-name-to-test-wrapping': { en: 'A very long attribute name to test wrapping' },
+            height: { en: 'Height' },
+          },
+          templateAttributeTypes: {
+            width: 'NUMBER',
+            'date-attribute': 'DATETIME',
+            'a-number-attribute-9': 'NUMBER',
+            'a-very-long-attribute-name-to-test-wrapping': 'TEXT',
+            height: 'TEXT',
+          },
+          variantAttributeValues: {
+            width: '15',
+            'date-attribute': '2026-08-27T09:05:45.279Z',
+            'a-number-attribute-9': '2342423',
+            'a-very-long-attribute-name-to-test-wrapping': 'First option',
+            height: 'Short',
+          },
+          variantAttributes: [
+            {
+              key: 'a-number-attribute-9',
+              name: { en: 'A number attribute 9️⃣' },
+              values: [
+                { key: '0', selected: true },
+                { key: '2342423', selected: false },
+              ],
+            },
+          ],
+        })}
+        locale="en-US"
+        skipVariantFetch
+      />,
+    );
+
+    expect(screen.getByText('Width')).toBeInTheDocument();
+    expect(screen.getByText('15')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Width: 15' })).toHaveClass('max-w-3/4');
+    expect(screen.getByText('Date attribute📅')).toBeInTheDocument();
+    expect(screen.getByText('A number attribute 9️⃣')).toBeInTheDocument();
+    expect(screen.getByText('2,342,423')).toBeInTheDocument();
+    expect(screen.queryByText('0')).not.toBeInTheDocument();
+    expect(screen.queryByText('Height')).not.toBeInTheDocument();
+    expect(screen.queryByText('A very long attribute name to test wrapping')).not.toBeInTheDocument();
+    expect(screen.getByTestId('product-tile-variant-overflow')).toHaveTextContent('+2');
   });
 });

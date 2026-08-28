@@ -1,7 +1,7 @@
 import { routingConfig } from '@/i18n/routing';
 import type { LocalizedString } from '@/platform/services/model/common';
 
-/** Shown when a localized object/array has no value for the session locale or `defaultLocale`. */
+/** Shown when a localized object/array has no value for the session, fallback, or default locale. */
 export const L10N_MISSING_LABEL = '-';
 
 export type L10nInput = string | LocalizedString | Array<{ language: string; message: string }> | unknown;
@@ -25,11 +25,25 @@ function pickFromObject(input: Record<string, unknown>, key: string): string {
   return normalizedMessage(input[key]);
 }
 
+function uniqueLocales(locales: Array<string | undefined>): string[] {
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+  for (const locale of locales) {
+    if (!locale || seen.has(locale)) {
+      continue;
+    }
+    seen.add(locale);
+    ordered.push(locale);
+  }
+  return ordered;
+}
+
 /**
  * Resolves localized catalog/API values for display:
  * 1. Session (or caller) `locale`
- * 2. `defaultLocale` (defaults to `routingConfig.defaultLocale`)
- * 3. {@link L10N_MISSING_LABEL} when the value is structured (object/array) but neither locale matches
+ * 2. `fallbackLocale` when provided (typically `site.defaultLanguage`)
+ * 3. `defaultLocale` (defaults to `routingConfig.defaultLocale`)
+ * 4. {@link L10N_MISSING_LABEL} when the value is structured (object/array) but no locale matches
  *
  * Plain strings are returned as-is (they are not locale-keyed).
  */
@@ -37,6 +51,7 @@ export function resolveLocalizedString(
   input: L10nInput,
   locale: string,
   defaultLocale: string = routingConfig.defaultLocale,
+  fallbackLocale?: string,
 ): string {
   if (input === null || input === undefined) {
     return '';
@@ -46,17 +61,16 @@ export function resolveLocalizedString(
     return input;
   }
 
+  const locales = uniqueLocales([locale, fallbackLocale, defaultLocale]);
+
   if (Array.isArray(input)) {
     if (input.length === 0) {
       return '';
     }
     try {
-      let value = pickFromArray(input as { language: string; message: string }[], locale);
-      if (value) {
-        return value;
-      }
-      if (defaultLocale !== locale) {
-        value = pickFromArray(input as { language: string; message: string }[], defaultLocale);
+      const items = input as { language: string; message: string }[];
+      for (const candidate of locales) {
+        const value = pickFromArray(items, candidate);
         if (value) {
           return value;
         }
@@ -70,12 +84,8 @@ export function resolveLocalizedString(
   if (typeof input === 'object') {
     try {
       const record = input as Record<string, unknown>;
-      let value = pickFromObject(record, locale);
-      if (value) {
-        return value;
-      }
-      if (defaultLocale !== locale) {
-        value = pickFromObject(record, defaultLocale);
+      for (const candidate of locales) {
+        const value = pickFromObject(record, candidate);
         if (value) {
           return value;
         }
@@ -91,9 +101,15 @@ export function resolveLocalizedString(
 
 /**
  * @param defaultLocale Optional override; defaults to `routingConfig.defaultLocale`.
+ * @param fallbackLocale Optional locale tried after `locale` and before `defaultLocale`.
  */
-export function l10n(input: L10nInput, locale: string, defaultLocale: string = routingConfig.defaultLocale): string {
-  return resolveLocalizedString(input, locale, defaultLocale);
+export function l10n(
+  input: L10nInput,
+  locale: string,
+  defaultLocale: string = routingConfig.defaultLocale,
+  fallbackLocale?: string,
+): string {
+  return resolveLocalizedString(input, locale, defaultLocale, fallbackLocale);
 }
 
 /** Like {@link l10n}, but returns an empty string when no locale matches (e.g. for `alt` text). */
@@ -101,7 +117,8 @@ export function l10nOrEmpty(
   input: L10nInput,
   locale: string,
   defaultLocale: string = routingConfig.defaultLocale,
+  fallbackLocale?: string,
 ): string {
-  const s = resolveLocalizedString(input, locale, defaultLocale);
+  const s = resolveLocalizedString(input, locale, defaultLocale, fallbackLocale);
   return s === L10N_MISSING_LABEL ? '' : s;
 }
