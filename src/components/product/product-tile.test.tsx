@@ -116,7 +116,7 @@ function makeProduct(overrides?: Partial<Product>): Product {
 }
 
 describe('ProductTile', () => {
-  it('renders the parent variant count badge only when explicitly enabled', () => {
+  it('keeps the parent variant count badge hidden until Battery Included investigation', () => {
     render(
       <ProductTile
         product={makeProduct({ isParentVariant: true, variantCount: 3 })}
@@ -126,7 +126,31 @@ describe('ProductTile', () => {
       />,
     );
 
-    expect(screen.getByTestId('parent-variant-count-badge')).toHaveTextContent('3');
+    expect(screen.queryByTestId('parent-variant-count-badge')).not.toBeInTheDocument();
+  });
+
+  it('shows the parent variant count badge when the Battery Included flag is enabled', () => {
+    const previous = process.env.NEXT_PUBLIC_SHOW_PARENT_VARIANT_COUNT_BADGE;
+    process.env.NEXT_PUBLIC_SHOW_PARENT_VARIANT_COUNT_BADGE = 'true';
+
+    try {
+      render(
+        <ProductTile
+          product={makeProduct({ isParentVariant: true, variantCount: 3 })}
+          locale="en"
+          skipVariantFetch
+          showParentVariantBadge
+        />,
+      );
+
+      expect(screen.getByTestId('parent-variant-count-badge')).toHaveTextContent('3');
+    } finally {
+      if (previous === undefined) {
+        delete process.env.NEXT_PUBLIC_SHOW_PARENT_VARIANT_COUNT_BADGE;
+      } else {
+        process.env.NEXT_PUBLIC_SHOW_PARENT_VARIANT_COUNT_BADGE = previous;
+      }
+    }
   });
 
   it('keeps the badge hidden by default for shared tile usage', () => {
@@ -325,7 +349,7 @@ describe('ProductTile', () => {
     expect(screen.queryByText('15')).not.toBeInTheDocument();
     expect(screen.queryByText('2342423')).not.toBeInTheDocument();
     expect(screen.queryByText('Extra two')).not.toBeInTheDocument();
-    expect(screen.getByTestId('parent-variant-count-badge')).toHaveTextContent('11');
+    expect(screen.queryByTestId('parent-variant-count-badge')).not.toBeInTheDocument();
     expect(screen.getAllByTestId('product-tile-variant-label-chip')[0]).toHaveClass('max-w-3/4');
     expect(screen.getByTestId('product-tile-variant-chips')).toHaveClass('flex-col', 'items-end');
     expect(screen.getByTestId('product-tile-variant-chips-last-row')).toHaveClass(
@@ -378,7 +402,7 @@ describe('ProductTile', () => {
     expect(screen.queryByText('1200W')).not.toBeInTheDocument();
     expect(screen.queryByText('600W')).not.toBeInTheDocument();
     expect(screen.queryByText('nominal-power')).not.toBeInTheDocument();
-    expect(screen.getByTestId('parent-variant-count-badge')).toHaveTextContent('2');
+    expect(screen.queryByTestId('parent-variant-count-badge')).not.toBeInTheDocument();
   });
 
   it('does not render variant-attribute i18n keys when only the raw key is available', () => {

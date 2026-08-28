@@ -10,6 +10,8 @@ import type { EmporixCountryApi as IEmporixCountryApi } from '../EmporixCountryA
 
 const createCountryMetrics = (route: string) => createFetchMetricsParams('country', route);
 
+export const DEFAULT_COUNTRIES_PAGE_SIZE = 300;
+
 @injectable('EmporixCountryApi', 'Singleton')
 class EmporixCountryApi implements IEmporixCountryApi {
   constructor(
@@ -21,12 +23,20 @@ class EmporixCountryApi implements IEmporixCountryApi {
   }
 
   async getCountries(active?: boolean): Promise<EmporixCountry[]> {
+    const query = new URLSearchParams({
+      pageSize: String(DEFAULT_COUNTRIES_PAGE_SIZE),
+    });
+    if (active !== undefined) {
+      query.set('active', String(active));
+    }
+
     const response = await this.apiClient.authenticatedFetch(
-      `/country/${this.config.tenant}/countries${active ? `?active=${active}` : ''}`,
+      `/country/${this.config.tenant}/countries?${query.toString()}`,
       {
         method: 'GET',
         headers: {
           'X-Version': 'v2',
+          'Accept-Language': '*',
         },
       },
       'public',

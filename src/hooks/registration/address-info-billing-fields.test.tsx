@@ -14,17 +14,23 @@ jest.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) => `${namespace}.${key}`,
 }));
 
+const EXPECTED_LOCALIZED_COUNTRY_LABELS = ['Austria', 'Germany', 'Zimbabwe'] as const;
+
 jest.mock('@/hooks/site/useSite', () => ({
   useSite: () => ({
     loading: false,
-    countries: [{ code: 'DE', name: 'Germany' }],
+    countries: [
+      { code: 'ZW', name: 'Zimbabwe' },
+      { code: 'DE', name: 'Germany' },
+      { code: 'AT', name: 'Austria' },
+    ],
     fetchSiteData: () => undefined,
   }),
 }));
 
 jest.mock('@/hooks/useL10n', () => ({
   useL10n: () => ({
-    l10n: (value: string | Record<string, string>) => (typeof value === 'string' ? value : 'Germany'),
+    l10n: (value: string | Record<string, string>) => (typeof value === 'string' ? value : (value.en ?? '')),
   }),
 }));
 
@@ -124,5 +130,24 @@ describe('AddressInfoSection billing fields', () => {
       'data-testid',
       'register-billing-phoneNumber',
     );
+  });
+
+  it('lists shipping and billing country options in localized-name order', async () => {
+    renderSection();
+
+    fireEvent.click(screen.getByTestId('register-country'));
+    const shippingOptions = await screen.findAllByRole('option');
+    expect(shippingOptions.map((option) => option.textContent)).toEqual([...EXPECTED_LOCALIZED_COUNTRY_LABELS]);
+
+    fireEvent.keyDown(shippingOptions[0], { key: 'Escape' });
+
+    fireEvent.click(screen.getByTestId('register-shippingSameAsBilling'));
+    await waitFor(() => {
+      expect(screen.getByTestId('register-billing-country')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('register-billing-country'));
+    const billingOptions = await screen.findAllByRole('option');
+    expect(billingOptions.map((option) => option.textContent)).toEqual([...EXPECTED_LOCALIZED_COUNTRY_LABELS]);
   });
 });

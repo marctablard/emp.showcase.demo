@@ -11,6 +11,7 @@ import type { LocalizedString, Paginated } from '@/platform/services/model/commo
 import type { Product, ProductLabel, ProductTemplateAttributeType } from '@/platform/services/model/product';
 import type { ProductFetchOptions, ProductService } from '@/platform/services/product/ProductService';
 import type { CategoryService } from '../../category/CategoryService';
+import type { LoggerService } from '../../logger/LoggerService';
 import type { Category } from '../../model/category';
 import type { ProductPrice } from '../../model/price';
 import type { ProductMapper } from '../../model/product/ProductMapper';
@@ -61,6 +62,7 @@ class EmporixProductService implements ProductService {
     @inject('CategoryService') private categoryService: CategoryService,
     @inject('SegmentFilterService') private segmentFilterService: SegmentFilterService,
     @inject('SessionService') private sessionService: SessionService,
+    @inject('LoggerService') private readonly logger: LoggerService,
   ) {}
 
   async getProductById(id: string, options?: ProductFetchOptions): Promise<Product | undefined> {
@@ -308,14 +310,21 @@ class EmporixProductService implements ProductService {
 
     for (let offset = 0; offset < ids.length; offset += TEMPLATE_REF_ID_CHUNK_SIZE) {
       const chunk = ids.slice(offset, offset + TEMPLATE_REF_ID_CHUNK_SIZE);
-      const response = await this.productApi.searchProducts({
-        page: 0,
-        size: chunk.length,
-        criteria: { id: `(${chunk.join(',')})` },
-        expand: ['template', 'parentVariant'],
-      });
-      for (const item of response.items ?? []) {
-        this.indexTemplateRefFromSearchItem(item, templateByProductId);
+      try {
+        const response = await this.productApi.searchProducts({
+          page: 0,
+          size: chunk.length,
+          criteria: { id: `(${chunk.join(',')})` },
+          expand: ['template', 'parentVariant'],
+        });
+        for (const item of response.items ?? []) {
+          this.indexTemplateRefFromSearchItem(item, templateByProductId);
+        }
+      } catch (error) {
+        this.logger.error(
+          { err: error, chunkSize: chunk.length },
+          'Failed to resolve product template refs; continuing without them',
+        );
       }
     }
 

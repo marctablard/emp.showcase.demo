@@ -68,8 +68,18 @@ function getProductUspIcon(icon: string): LucideIcon {
   return Circle;
 }
 
+/** Hidden until Battery Included parent-variant counts are investigated. */
+function isParentVariantCountBadgeEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_SHOW_PARENT_VARIANT_COUNT_BADGE === 'true';
+}
+
 function shouldShowParentVariantCountBadge(showParentVariantBadge: boolean, product: Product): boolean {
-  return showParentVariantBadge && Boolean(product.isParentVariant) && (product.variantCount ?? 0) > 0;
+  return (
+    isParentVariantCountBadgeEnabled() &&
+    showParentVariantBadge &&
+    Boolean(product.isParentVariant) &&
+    (product.variantCount ?? 0) > 0
+  );
 }
 
 function ProductTileChipOverflow({ count }: Readonly<{ count: number }>) {

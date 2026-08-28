@@ -21,6 +21,7 @@ import type {
   BatteryIncludedFacetOption,
   BatteryIncludedTreeFacetOption,
   Filter,
+  SearchFilterValue,
   SearchFilters,
   SearchParams,
   SearchResult,
@@ -49,6 +50,17 @@ import {
 const BATTERY_INCLUDED_SELECTION_CONTEXT_KEY = '__batteryIncludedSelection';
 // TODO: Replace this with the authoritative BI rating facet field id once a production sample is captured in-repo.
 const BATTERY_INCLUDED_RATING_FACET_IDS = new Set(['rating']);
+
+function collectLegacyCategoryIds(value: SearchFilterValue): string[] {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? [trimmed] : [];
+  }
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((id): id is string => typeof id === 'string' && id.trim() !== '').map((id) => id.trim());
+}
 
 /**
  * Implementation of SearchService for BatteryIncluded product data.
@@ -556,21 +568,124 @@ class BatteryIncludedSearchService implements SearchService {
     return directions.has('asc') && directions.has('desc') && fieldNames.size === 1;
   }
 
-  async searchProducts(params: SearchParams<Product>, locale?: string, site?: string): Promise<SearchResult<Product>> {
-    // Add filter with segmentIds if customer is logged in and has segments assigned.
-    let filters = params.filters;
-    if (params.customerSegments) {
-      const currentCustomer = await this.customerService.getCustomer();
-      if (currentCustomer) {
-        const segmentIds = await this.segmentFilterService.getSegmentIds();
-        if (segmentIds.length > 0) {
-          filters = {
-            ...filters,
-            segmentIds: segmentIds.join(','),
-          };
-        }
-      }
+  private async applyCustomerSegmentFilters(
+    filters: SearchFilters | undefined,
+    customerSegments?: boolean,
+  ): Promise<SearchFilters | undefined> {
+    if (!customerSegments) {
+      return filters;
     }
+
+    const currentCustomer = await this.customerService.getCustomer();
+    if (!currentCustomer) {
+      return filters;
+    }
+
+    const segmentIds = await this.segmentFilterService.getSegmentIds();
+    if (segmentIds.length === 0) {
+      return filters;
+    }
+
+    return {
+      ...filters,
+      segmentIds: segmentIds.join(','),
+    };
+  }
+
+  private async applyLegacyCategoryBreadcrumbFilters(
+    filters: SearchFilters | undefined,
+    resolvedSite?: string,
+    resolvedLocale?: string,
+    currentCountry?: string,
+  ): Promise<SearchFilters | undefined> {
+    const legacyCategoryIds = filters?.categoryIds;
+    if (!legacyCategoryIds || !resolvedSite || !resolvedLocale) {
+      return filters;
+    }
+
+    const ids = collectLegacyCategoryIds(legacyCategoryIds);
+    if (ids.length === 0) {
+      return filters;
+    }
+
+    const snapshot = await this.categoryTreeService.getSnapshot({
+      siteCode: resolvedSite,
+      locale: resolvedLocale,
+      country: currentCountry,
+      showUnpublished: false,
+    });
+    if (!snapshot) {
+      return filters;
+    }
+
+    const translated = ids
+      .map((id) => snapshot.byId[id]?.displayPath ?? snapshot.byId[id]?.facetValue)
+      .filter((value): value is string => Boolean(value));
+    if (translated.length !== ids.length) {
+      return filters;
+    }
+
+    const nextFilters: SearchFilters = {
+      ...filters,
+      [BATTERY_INCLUDED_BREADCRUMB_FILTER]: translated.length === 1 ? translated[0] : translated,
+    };
+    const { categoryIds: _removedCategoryIds, ...rest } = nextFilters;
+    return rest;
+  }
+
+  private async resolveFacetTranslator(resolvedLocale?: string): Promise<((key: string) => string) | undefined> {
+    if (!resolvedLocale) {
+      return undefined;
+    }
+
+    try {
+      const t = await getTranslations({ locale: resolvedLocale });
+      return (key: string) => t(key as never);
+    } catch {
+      return undefined;
+    }
+  }
+
+  private mapHitsWithVariantCounts(
+    hits: BatteryIncludedSearchResponse<BatteryIncludedProduct>['hits'],
+    resolvedSite: string | undefined,
+    currentCurrency: string | undefined,
+    variantCountByParentId: Map<string, number>,
+  ): Product[] {
+    return this.attachChildVariantsToParents(
+      hits.map((hit) => {
+        const product = this.productMapper.mapToService(
+          this.attachSelectionContext(hit.document, resolvedSite, currentCurrency),
+        );
+        if (!product.isParentVariant) {
+          return product;
+        }
+        return {
+          ...product,
+          variantCount: variantCountByParentId.get(product.id) ?? 0,
+        };
+      }),
+    );
+  }
+
+  private async enrichHitsWithTemplateMeta(mappedItems: Product[]): Promise<Product[]> {
+    try {
+      return await this.productService.addAdditionalData(mappedItems, {
+        prices: false,
+        variants: false,
+        categories: false,
+      });
+    } catch (error) {
+      this.logger.error(
+        { err: error },
+        'Search hit enrichment failed; returning Battery Included products without template meta',
+      );
+      return mappedItems;
+    }
+  }
+
+  async searchProducts(params: SearchParams<Product>, locale?: string, site?: string): Promise<SearchResult<Product>> {
+    let filters = await this.applyCustomerSegmentFilters(params.filters, params.customerSegments);
 
     const { resolvedLocale, resolvedSite, currentCountry, currentCurrency, visibilityVariables, publishedRootIds } =
       await this.resolveBatteryIncludedContext({
@@ -582,29 +697,7 @@ class BatteryIncludedSearchService implements SearchService {
       return this.buildEmptySearchResult(params.size);
     }
 
-    const legacyCategoryIds = filters?.categoryIds;
-    if (legacyCategoryIds && resolvedSite && resolvedLocale) {
-      const snapshot = await this.categoryTreeService.getSnapshot({
-        siteCode: resolvedSite,
-        locale: resolvedLocale,
-        country: currentCountry,
-        showUnpublished: false,
-      });
-      if (snapshot) {
-        const ids = Array.isArray(legacyCategoryIds) ? legacyCategoryIds : [legacyCategoryIds];
-        const translated = ids
-          .map((id) => snapshot.byId[String(id).trim()]?.displayPath ?? snapshot.byId[String(id).trim()]?.facetValue)
-          .filter((value): value is string => Boolean(value));
-        if (translated.length === ids.length) {
-          filters = {
-            ...filters,
-            [BATTERY_INCLUDED_BREADCRUMB_FILTER]: translated.length === 1 ? translated[0] : translated,
-          };
-          const { categoryIds: _removedCategoryIds, ...rest } = filters;
-          filters = rest;
-        }
-      }
-    }
+    filters = await this.applyLegacyCategoryBreadcrumbFilters(filters, resolvedSite, resolvedLocale, currentCountry);
 
     const requestSort = resolveBatteryIncludedSort(params.sort);
     const visibilityFilters: BatteryIncludedVisibilityFilters | undefined =
@@ -629,21 +722,8 @@ class BatteryIncludedSearchService implements SearchService {
         filters: visibilityFilters,
       },
     });
-    const variantCountByParentId = this.buildVariantCountByParentId(searchResult.hits);
 
-    // Resolve a translator for `#`-prefixed localized facet labels. `getTranslations` is only
-    // available in a server request context; degrade gracefully elsewhere (e.g. tests) so search
-    // never crashes and plain labels are unaffected. Note: keys used via the `#` marker (e.g.
-    // `bi.basePrice`) are resolved dynamically and are therefore invisible to `check-translations`.
-    let translate: ((key: string) => string) | undefined;
-    if (resolvedLocale) {
-      try {
-        const t = await getTranslations({ locale: resolvedLocale });
-        translate = (key: string) => t(key as never);
-      } catch {
-        translate = undefined;
-      }
-    }
+    const translate = await this.resolveFacetTranslator(resolvedLocale);
     const batteryIncludedFacets = searchResult.facet_counts
       .filter((facet) => facet.field_name !== 'segmentIds')
       .map((facet) => this.mapBatteryIncludedFacet(facet, filters, translate));
@@ -651,30 +731,13 @@ class BatteryIncludedSearchService implements SearchService {
     const availableFilters = batteryIncludedFacets
       .filter((facet) => facet.id !== BATTERY_INCLUDED_BREADCRUMB_FILTER)
       .map((facet) => this.toLegacyFilter(facet));
-    const mappedItems = this.attachChildVariantsToParents(
-      searchResult.hits.map((hit) => {
-        const product = this.productMapper.mapToService(
-          this.attachSelectionContext(hit.document, resolvedSite, currentCurrency),
-        );
-
-        if (product.isParentVariant) {
-          return {
-            ...product,
-            variantCount: variantCountByParentId.get(product.id) ?? 0,
-          };
-        }
-
-        return product;
-      }),
+    const mappedItems = this.mapHitsWithVariantCounts(
+      searchResult.hits,
+      resolvedSite,
+      currentCurrency,
+      this.buildVariantCountByParentId(searchResult.hits),
     );
-
-    // Resolve template attribute labels/types (same path as Emporix search / PDP key specs).
-    // Skip prices/variants — BI hits already carry priced display data.
-    const items = await this.productService.addAdditionalData(mappedItems, {
-      prices: false,
-      variants: false,
-      categories: false,
-    });
+    const items = await this.enrichHitsWithTemplateMeta(mappedItems);
 
     return {
       items,

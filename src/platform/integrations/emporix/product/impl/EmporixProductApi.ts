@@ -56,6 +56,10 @@ class EmporixProductApi implements IEmporixProductApi {
       undefined,
       createProductMetrics('/product/{tenant}/products/search'),
     );
+    if (!response.ok) {
+      const errorBody = (await response.text()).trim().slice(0, 200);
+      throw new Error(`Failed to search products: ${response.status} ${errorBody}`);
+    }
     return buildPaginatedResponse(params, response);
   }
 
