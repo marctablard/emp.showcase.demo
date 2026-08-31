@@ -5,8 +5,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { LockKeyhole } from 'lucide-react';
 import { useApprovalCheckout } from '@/hooks/approval/useApprovalCheckout';
-import { useCartTotal } from '@/hooks/cart/useCartTotal';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
+import { useCheckoutOrderSummary } from '@/hooks/checkout/useCheckoutOrderSummary';
 import { useElementScroll } from '@/hooks/ui/useElementScroll';
 import { useValidator } from '@/hooks/validation/useValidator';
 import { createCheckoutApprovalContext } from '@/lib/approval/contracts';
@@ -15,7 +15,7 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { Checkbox } from '../ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '../ui/form';
-import { H2 } from '../ui/h';
+import { H5 } from '../ui/h';
 import { ToastType, notify } from '../ui/toast-notification';
 import { ApprovalModal } from './approval-modal';
 import { focusFirstInvalid, useCheckoutValidation, useRegisterCheckoutForm } from './checkout-validation-registry';
@@ -72,11 +72,21 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
   const fixedContainer = useRef<HTMLDivElement>(null);
   // 112 = pinned top offset (`top-[112px]` below) — trigger and pin must use the same value.
   const { isFixed, isFixedToTop, isContainerBottom } = useElementScroll(fixedContainer, 112, leftContent);
-  const { cartTotal, shippingCosts } = useCartTotal();
+  const {
+    goodsNet,
+    goodsVat,
+    shippingFee,
+    shippingVat,
+    showShippingVat,
+    shippingVatLookupFailed,
+    feesTotal,
+    total,
+    currency,
+  } = useCheckoutOrderSummary();
   if (!cart) {
     return (
       <div className="bg-surface-page p-6 rounded-md shadow-sm">
-        <H2 className="mb-4">{t('title')}</H2>
+        <H5 className="mb-4">{t('title')}</H5>
       </div>
     );
   }
@@ -94,7 +104,7 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
         <Card className={cn('bg-surface-action-hover-2 p-6 border-none gap-4 w-full')} ref={summaryRootRef}>
           <CardHeader className="p-0">
             <CardTitle>
-              <H2 variant="h5">{t('title')}</H2>
+              <H5>{t('title')}</H5>
             </CardTitle>
           </CardHeader>
           <CardContent className="bg-surface-page rounded-md p-4">
@@ -103,32 +113,43 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
                 <span className="">{t('valueOfGoods')}</span>
                 <span>{formatCurrency(cart?.subTotalPrice.amount, cart?.subTotalPrice.currency)}</span>
               </div>
-              <div className="flex justify-between font-medium text-base pt-4 border-t border-border-primary">
+              <div className="flex justify-between text-base pt-4 border-t border-border-primary">
                 <span>{t('netValueOfGoods')}</span>
-                <span className="font-bold">{formatCurrency(cart.tax.netValue, cart.tax.currency)}</span>
+                <span className="font-bold">{formatCurrency(goodsNet, currency || cart.tax.currency)}</span>
               </div>
               <div className="flex flex-col gap-2">
-                <div className="flex justify-between font-medium text-base">
+                <div className="flex justify-between text-base">
                   <span>{tCommon('tax')}</span>
-                  <span>{formatCurrency(cart?.tax?.amount, cart?.tax?.currency)}</span>
+                  <span>{formatCurrency(goodsVat, currency || cart.tax.currency)}</span>
                 </div>
-                <div className="flex justify-between font-medium text-base">
-                  <span>{t('shippingCosts')}</span>
-                  {shippingCosts !== undefined ? (
-                    <span>{formatCurrency(shippingCosts, cart.currency)}</span>
+                <div className="flex justify-between text-base">
+                  <span>{t('shippingFee')}</span>
+                  {shippingFee !== undefined ? (
+                    <span>{formatCurrency(shippingFee, currency || cart.currency)}</span>
                   ) : (
                     <span>{t('calculatedAtCheckout')}</span>
                   )}
                 </div>
-                {cart.fees && (
-                  <div className="flex justify-between font-medium text-base">
-                    <span>{t('fees')}</span>
-                    <span>{formatCurrency(cart.fees.amount, cart.fees.currency)}</span>
+                {/* COP-5174: Shipping VAT is a Jira override — Figma Order Overview has no Shipping VAT line and shows Freight Costs instead. */}
+                {showShippingVat && (
+                  <div className="flex justify-between text-base" data-testid="checkout-summary-shipping-vat">
+                    <span>{t('shippingVat')}</span>
+                    <span>{formatCurrency(shippingVat, currency || cart.currency)}</span>
                   </div>
                 )}
-                <div className="flex justify-between font-bold text-lg">
-                  <span>{t('total')}</span>
-                  <span>{formatCurrency(cartTotal, cart.currency)}</span>
+                {cart.fees && (
+                  <div className="flex justify-between text-base">
+                    <span>{t('fees')}</span>
+                    <span>{formatCurrency(feesTotal, currency || cart.fees.currency)}</span>
+                  </div>
+                )}
+                <div
+                  className="flex justify-between"
+                  data-testid="checkout-summary-total"
+                  {...(shippingVatLookupFailed ? { 'data-shipping-vat-lookup-failed': 'true' } : {})}
+                >
+                  <H5>{t('total')}</H5>
+                  {!shippingVatLookupFailed && <H5>{formatCurrency(total, currency || cart.currency)}</H5>}
                 </div>
               </div>
             </div>

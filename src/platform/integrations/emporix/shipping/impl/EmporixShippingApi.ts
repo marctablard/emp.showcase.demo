@@ -6,7 +6,7 @@ import { DEFAULT_CACHE_REVALIDATE } from '../../common/cache-defaults';
 import type EmporixApiClient from '../../common/impl/EmporixApiInvoker';
 import type { EmporixConfig } from '../../config';
 import type { EmporixFindSiteRequest, EmporixShippingSite } from '../../model';
-import type { EmporixShippingMethod } from '../../model/shipping';
+import type { EmporixActualDeliveryWindow, EmporixShippingMethod } from '../../model/shipping';
 import type { EmporixShippingApi as IEmporixShippingApi } from '../EmporixShippingApi';
 
 const createShippingMetrics = (route: string) => createFetchMetricsParams('shipping', route);
@@ -78,6 +78,27 @@ class EmporixShippingApi implements IEmporixShippingApi {
 
     const result = await response.json();
     return Array.isArray(result) ? result : [result];
+  }
+
+  async getDeliveryWindowsByCart(cartId: string, postalCode?: string): Promise<EmporixActualDeliveryWindow[]> {
+    const query = postalCode ? `?postalCode=${encodeURIComponent(postalCode)}` : '';
+    const response = await this.apiClient.authenticatedFetch(
+      `/shipping/${this.config.tenant}/actualDeliveryWindows/${encodeURIComponent(cartId)}${query}`,
+      { method: 'GET' },
+      'public',
+      undefined,
+      createShippingMetrics('/shipping/{tenant}/actualDeliveryWindows/{id}'),
+    );
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return [];
+      }
+      throw new Error(`Failed to get delivery windows: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    return Array.isArray(result) ? result : [];
   }
 }
 

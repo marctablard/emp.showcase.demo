@@ -142,19 +142,35 @@ export const useCheckout = (): UseCheckout => {
     [setPaymentMethod],
   );
 
+  const shippingMethodRef = useRef(shippingMethod);
+  useEffect(() => {
+    shippingMethodRef.current = shippingMethod;
+  }, [shippingMethod]);
+
   const submitShippingMethod = useCallback(
     (method: ShippingMethod | null) => {
       if (!method) {
-        setShippingMethod(null);
+        if (shippingMethodRef.current) {
+          shippingMethodRef.current = null;
+          setShippingMethod(null);
+        }
         return;
       }
-      setShippingMethod({
+      const next = {
         methodId: method.id,
         zoneId: method.zoneId,
         methodName: method.name,
         amount: method.cost?.amount || 0,
         taxCode: method.taxCode,
-      });
+      };
+      const current = shippingMethodRef.current;
+      if (current?.methodId === next.methodId && current?.zoneId === next.zoneId) {
+        return;
+      }
+      shippingMethodRef.current = next;
+      // Display-only: checkout/mini-cart overlay the fee. Do not PATCH the cart —
+      // Emporix cannot persist findSite methodId, and a cart refresh flickered totals.
+      setShippingMethod(next);
     },
     [setShippingMethod],
   );
@@ -276,8 +292,11 @@ export const useCheckout = (): UseCheckout => {
   const shippingCountry = shippingAddress?.country;
   const shippingZip = shippingAddress?.zipCode;
   const checkoutCartId = checkoutCart?.id;
-  const orderAmount = checkoutCart?.totalPrice?.amount;
-  const orderCurrency = checkoutCart?.totalPrice?.currency;
+  // Goods value only — including shipping in this key refetches methods (and
+  // remounts the radio group) every time a method is persisted on the cart.
+  const orderAmount = checkoutCart?.subTotalPrice?.amount ?? checkoutCart?.totalPrice?.amount;
+  const orderCurrency =
+    checkoutCart?.subTotalPrice?.currency ?? checkoutCart?.totalPrice?.currency ?? checkoutCart?.currency;
 
   const lastShippingRatesKeyRef = useRef<string | null>(null);
 

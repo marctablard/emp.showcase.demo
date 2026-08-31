@@ -15,6 +15,7 @@ jest.mock('@/lib/client/carts', () => ({
   updateCartItemQuantity: jest.fn(),
   updateCartCurrency: jest.fn(),
   updateShippingInfo: jest.fn(),
+  updateShippingMethod: jest.fn(),
   loadSavedCart: jest.fn(),
   clearCartSession: jest.fn(),
 }));

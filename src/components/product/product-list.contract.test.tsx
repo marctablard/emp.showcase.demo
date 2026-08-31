@@ -4,6 +4,7 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { render, screen, within } from '@testing-library/react';
+import { PRODUCT_NO_IMAGE_SRC } from '@/lib/common/product-image';
 import { formatCurrency } from '@/lib/utils';
 import { ProductList } from './product-list';
 import type { ProductListItem, ProductListPresentationConfig } from './product-list';
@@ -92,7 +93,7 @@ describe('ProductList contract', () => {
     expect(within(missingGrossMobileRow).getByText(byNormalizedText('gross -'))).toBeInTheDocument();
   });
 
-  it('renders the empty-image state without an image element while keeping the product content', () => {
+  it('renders the empty-image state with no_image_alt while keeping the product content', () => {
     const emptyImageItem: ProductListItem = {
       ...contractItem,
       id: 'empty-image-item',
@@ -102,8 +103,10 @@ describe('ProductList contract', () => {
     render(<ProductList items={[emptyImageItem]} />);
 
     const desktopRow = screen.getByTestId(`product-item-desktop-${emptyImageItem.id}`);
+    const image = within(desktopRow).getByRole('img');
 
-    expect(within(desktopRow).queryByRole('img')).not.toBeInTheDocument();
+    expect(image).toHaveAttribute('src', PRODUCT_NO_IMAGE_SRC);
+    expect(image).toHaveAttribute('src', '/images/no_image_alt.png');
     expect(within(desktopRow).getByText(emptyImageItem.name)).toBeInTheDocument();
   });
 

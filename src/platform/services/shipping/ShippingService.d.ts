@@ -1,4 +1,4 @@
-import { ShippingMethod } from '../model/shipping';
+import { DeliveryWindow, ShippingMethod } from '../model/shipping';
 
 /**
  * Service for shipping operations
@@ -21,4 +21,9 @@ export interface ShippingService {
    * @param zoneId The zone ID
    */
   getShippingMethod(methodId: string, zoneId: string): Promise<ShippingMethod | null>;
+
+  /**
+   * Delivery windows available for a cart (requires cart country/zip).
+   */
+  getDeliveryWindowsForCart(cartId: string, postalCode?: string): Promise<DeliveryWindow[]>;
 }

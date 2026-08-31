@@ -8,6 +8,13 @@ import type { CartCurrencyUpdateErrorCode } from './errors';
  */
 export type CartShippingAddress = Partial<Omit<Address, 'id' | 'geoLocation'>>;
 
+/** Checkout shipping-method selection to persist on the Emporix cart. */
+export type CartShippingMethodSelection = {
+  methodId: string;
+  zoneId: string;
+  methodName?: string;
+};
+
 /**
  * Cart status enum for tracking cart item availability
  */
@@ -119,6 +126,13 @@ export interface CartService {
     shippingAddress: CartShippingAddress,
     billingAddress?: CartShippingAddress,
   ): Promise<void>;
+
+  /**
+   * Assign the selected shipping method on the cart via a matching delivery window
+   * so Emporix recalculates `calculatedPrice.totalShipping` / `finalPrice`.
+   * Returns the refreshed mapped cart (or the current cart when no window matches).
+   */
+  updateShippingMethod(cartId: string, method: CartShippingMethodSelection): Promise<Cart>;
 
   /**
    * Updates the currency for a cart

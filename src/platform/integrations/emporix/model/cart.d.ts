@@ -88,6 +88,13 @@ export interface EmporixCart {
   countryCode?: string;
   /** @deprecated Use addresses[] instead. Kept for deserialization of existing carts. */
   zipCode?: string;
+  /** @deprecated Use `deliveryWindow`. Still accepted on cart PUT. */
+  deliveryWindowId?: string;
+  deliveryWindow?: {
+    id?: string;
+    slotId?: string;
+    deliveryDate?: string;
+  };
   addresses?: EmporixCartAddress[];
   type?: string;
   status?: string;
@@ -95,10 +102,12 @@ export interface EmporixCart {
   calculatedPrice?: {
     price: EmporixCartPrice;
     finalPrice: EmporixCartPrice;
+    /** Pre-discount shipping. Prefer `totalShipping` when both are present. */
+    shipping?: EmporixCartPrice;
     upliftValue: EmporixCartPrice;
     discountedPrice: EmporixCartPrice;
     totalFee: EmporixCartPrice;
-    totalShipping: EmporixCartPrice;
+    totalShipping?: EmporixCartPrice;
     totalDiscount: {
       calculationType: 'ApplyDiscountBeforeTax' | 'ApplyDiscountAfterTax';
       value: number;

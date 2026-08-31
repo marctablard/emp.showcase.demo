@@ -10,6 +10,7 @@ import useCustomer from '@/hooks/customer/useCustomer';
 import { useOrder } from '@/hooks/order/useOrder';
 import { useL10n } from '@/hooks/useL10n';
 import { type OrderStatusKey, type PaymentModeKey, dk } from '@/i18n/dynamic-key';
+import { PRODUCT_NO_IMAGE_SRC, resolveProductImageSrc } from '@/lib/common/product-image';
 import { formatCurrency } from '@/lib/utils';
 import type { Order } from '@/platform/services/model/order/order';
 import { AddressDisplay } from '../common/address-display';
@@ -32,6 +33,7 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
   const tOrder = useTranslations('orders');
   const tOrderStatus = useTranslations('orders.OrderStatus');
   const tPayment = useTranslations('checkout.PaymentModes');
+  const tProduct = useTranslations('product');
   const { l10n } = useL10n();
   const { customer } = useCustomer();
   const isApprovalPendingConfirmation = isPendingApprovalConfirmationSegment(orderId);
@@ -122,15 +124,17 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
                 {order.items.map((item) => (
                   <div key={item.id} className="py-4 flex flex-wrap sm:flex-nowrap">
                     <div className="sm:w-16 sm:h-16 w-full h-24 bg-surface-image-background rounded-ss-md rounded-ee-md mb-4 sm:mb-0 sm:mr-4 flex-shrink-0">
-                      {item.images && item.images[0] && (
-                        <Image
-                          src={item.images[0]}
-                          alt={item.name || ''}
-                          width={150}
-                          height={150}
-                          className="w-full h-full object-cover rounded-ss-md rounded-ee-md"
-                        />
-                      )}
+                      <Image
+                        src={resolveProductImageSrc(item.images?.[0])}
+                        alt={
+                          resolveProductImageSrc(item.images?.[0]) === PRODUCT_NO_IMAGE_SRC
+                            ? tProduct('noImage')
+                            : item.name || ''
+                        }
+                        width={150}
+                        height={150}
+                        className="w-full h-full object-cover rounded-ss-md rounded-ee-md"
+                      />
                     </div>
                     <div className="flex-grow">
                       <H3>{item.name || `Product ${item.productId}`}</H3>

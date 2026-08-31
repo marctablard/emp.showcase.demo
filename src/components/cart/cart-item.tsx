@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Coins, Loader2, Minus, Package, Plus, ShoppingCart, Trash2 } from 'lucide-react';
+import { Coins, Loader2, Minus, Package, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import UiLink from '@/components/ui/link';
 import { UINotification } from '@/components/ui/molecules/ui-notification';
@@ -13,6 +13,7 @@ import { useNotifications } from '@/hooks/notifications/useNotifications';
 import { useAvailability } from '@/hooks/product/useAvailability';
 import { useL10n } from '@/hooks/useL10n';
 import { useWishlistAddWithAuth } from '@/hooks/wishlist/useWishlistAddWithAuth';
+import { PRODUCT_NO_IMAGE_SRC, resolveProductImageSrc } from '@/lib/common/product-image';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { Cart, CartItem, CartItemPriceChange, CartItemSubstitution } from '@/platform/services/model/cart/cart.d';
 import type { StorefrontNotification } from '@/platform/services/model/notification/notification';
@@ -30,6 +31,7 @@ interface CartItemProps {
 export function CartItemRow({ cart, item, showQty }: CartItemProps) {
   const { l10n } = useL10n();
   const t = useTranslations('cart');
+  const tProduct = useTranslations('product');
   const { updateItemQuantity, removeItem, loading } = useCart(cart);
   const [isProcessing, setIsProcessing] = useState(false);
   // Follows the item's quantity when it changes upstream, while staying locally editable.
@@ -138,24 +140,21 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
     addToWishlist(productId, item.quantity);
   };
 
+  const imageSrc = resolveProductImageSrc(item.product?.images?.[0]?.url);
+  const imageAlt = imageSrc === PRODUCT_NO_IMAGE_SRC ? tProduct('noImage') : l10n(item.product?.name || 'Product');
+
   return (
     <div className="py-6 first:border-none border-t border-border-primary sm:first:border-solid">
       <div className="grid grid-cols-[1fr_2fr] sm:grid-cols-[120px_2fr_1fr_1fr] md:grid-cols-[120px_3fr_1fr_1fr]">
         <div className="col-start-1 row-start-2 sm:row-start-1 row-end-3">
           <div className="rounded-ss-md rounded-ee-md w-[100px] h-[65px] sm:w-[120px] sm:h-[78px] object-fit overflow-hidden">
-            {item.product && item.product.images?.length ? (
-              <Image
-                width={100}
-                height={65}
-                src={String(item.product.images[0].url)}
-                alt={l10n(item.product.name || 'Product')}
-                className="rounded-ss-[inherit] rounded-ee-[inherit] w-[100px] h-[65px] sm:w-[120px] sm:h-[78px]"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-icon-secondary">
-                <ShoppingCart className="h-8 w-8 opacity-30" />
-              </div>
-            )}
+            <Image
+              width={100}
+              height={65}
+              src={imageSrc}
+              alt={imageAlt}
+              className="rounded-ss-[inherit] rounded-ee-[inherit] w-[100px] h-[65px] sm:w-[120px] sm:h-[78px]"
+            />
           </div>
         </div>
         <div className="col-start-1 col-end-3 row-start-1 sm:col-start-2 flex flex-col gap-1 mb-4 sm:mb-0 sm:mx-4">

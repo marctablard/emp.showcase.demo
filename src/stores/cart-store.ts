@@ -10,12 +10,17 @@ import {
   updateCartCurrency as apiUpdateCartCurrency,
   updateCartItemQuantity as apiUpdateCartItemQuantity,
   updateShippingInfo as apiUpdateShippingInfo,
+  updateShippingMethod as apiUpdateShippingMethod,
   clearCartSession,
   loadSavedCart,
 } from '@/lib/client/carts';
 import { devSyncLog } from '@/lib/client/dev-sync-log';
 import { getLogger } from '@/lib/logger/use-logger-client';
-import type { CartShippingAddress, ModifyCartItemResult } from '@/platform/services/cart/CartService';
+import type {
+  CartShippingAddress,
+  CartShippingMethodSelection,
+  ModifyCartItemResult,
+} from '@/platform/services/cart/CartService';
 import type { Cart } from '@/platform/services/model/cart/cart';
 
 export interface CartState {
@@ -56,11 +61,12 @@ interface CartActions {
   validateLegalEntity: (legalEntityId: string | undefined) => Promise<void>;
 
   // Cart API operations
-  fetchCart: (createCurrent?: boolean) => Promise<Cart | null | undefined>;
+  fetchCart: (createCurrent?: boolean, options?: { quiet?: boolean }) => Promise<Cart | null | undefined>;
   addToCart: (productId: string, quantity: number, _retryCount?: number) => Promise<ModifyCartItemResult>;
   updateItemQuantity: (itemId: string, quantity: number) => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
   updateShippingInfo: (shippingAddress: CartShippingAddress, billingAddress?: CartShippingAddress) => Promise<void>;
+  updateShippingMethod: (method: CartShippingMethodSelection) => Promise<void>;
   updateCurrency: (currency: string) => Promise<void>;
   clearCart: (options?: { deleteCart?: boolean; clearSession?: boolean }) => void;
 
@@ -197,7 +203,7 @@ export const createCartStore = (initState: CartState = defaultState) => {
        * session's `x-session-site-code` header or the local `lastSiteCode`. `_createCurrent` is
        * retained for API compatibility and ignored.
        */
-      fetchCart: async (_createCurrent: boolean = false) => {
+      fetchCart: async (_createCurrent: boolean = false, options?: { quiet?: boolean }) => {
         if (_fetchPromise) {
           return _fetchPromise;
         }
@@ -206,7 +212,7 @@ export const createCartStore = (initState: CartState = defaultState) => {
 
         const currentFetchPromise = (async () => {
           try {
-            set({ loading: true, error: null });
+            set(options?.quiet ? { error: null } : { loading: true, error: null });
 
             try {
               const { cart: fetchedCart, sessionSiteCode } = await apiFetchCurrentCart();
@@ -472,7 +478,6 @@ export const createCartStore = (initState: CartState = defaultState) => {
           }
 
           set({
-            loading: true,
             error: null,
             lastShippingUpdate: {
               country: shippingAddress.country,
@@ -496,11 +501,38 @@ export const createCartStore = (initState: CartState = defaultState) => {
 
           await apiUpdateShippingInfo(cart.id, shippingAddress, billingAddress);
 
-          await get().fetchCart();
+          await get().fetchCart(false, { quiet: true });
         } catch (err) {
           const error = err instanceof Error ? err : new Error('Failed to update shipping info');
           set({ error, loading: false });
           getLogger().error({ err }, 'Error updating shipping info');
+        } finally {
+          releaseNext();
+        }
+      },
+
+      updateShippingMethod: async (method: CartShippingMethodSelection) => {
+        const afterPrevious = _shippingUpdateGate;
+        let releaseNext!: () => void;
+        _shippingUpdateGate = new Promise<void>((resolve) => {
+          releaseNext = resolve;
+        });
+        await afterPrevious.catch(() => {});
+
+        try {
+          const { currentCart } = get();
+          if (!currentCart) {
+            return;
+          }
+
+          // Do not flip `loading` — checkout and the header total should keep showing
+          // the previous snapshot until the refreshed cart arrives.
+          const updatedCart = await apiUpdateShippingMethod(currentCart.id, method);
+          set({ currentCart: updatedCart, error: null });
+        } catch (err) {
+          const error = err instanceof Error ? err : new Error('Failed to update shipping method');
+          set({ error });
+          getLogger().error({ err }, 'Error updating shipping method');
         } finally {
           releaseNext();
         }

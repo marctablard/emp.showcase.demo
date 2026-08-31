@@ -1,5 +1,9 @@
 import { getLogger } from '@/lib/logger/use-logger-client';
-import type { CartShippingAddress, ModifyCartItemResult } from '@/platform/services/cart/CartService';
+import type {
+  CartShippingAddress,
+  CartShippingMethodSelection,
+  ModifyCartItemResult,
+} from '@/platform/services/cart/CartService';
 import type { Cart } from '@/platform/services/model/cart/cart';
 import { CartErrorCode } from '@/platform/services/model/cart/error-codes';
 
@@ -188,6 +192,25 @@ export async function updateShippingInfo(
   if (!response.ok) {
     throw new Error(`Failed to update shipping info: ${response.statusText}`);
   }
+}
+
+/**
+ * Persist the selected shipping method on the cart and return the refreshed cart.
+ */
+export async function updateShippingMethod(cartId: string, method: CartShippingMethodSelection): Promise<Cart> {
+  const response = await fetch(`/api/cart/${cartId}/shipping-method`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(method),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to update shipping method: ${response.statusText}`);
+  }
+
+  return (await response.json()) as Cart;
 }
 
 /**

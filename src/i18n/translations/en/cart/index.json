@@ -32,6 +32,7 @@
     "valueOfGoods": "Value of goods",
     "netValueOfGoods": "Net value of goods",
     "shippingCosts": "Shipping costs",
+    "shippingVat": "Shipping VAT",
     "untilFreeShipping": " until free shipping",
     "promoCodeInfo": "Promo Codes can be entered in the checkout process.",
     "freeShippingOn": "Free shipping on orders over 400.00 €!",

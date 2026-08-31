@@ -93,6 +93,8 @@
     "valueOfGoods": "Value of goods",
     "netValueOfGoods": "Net value of goods",
     "shippingCosts": "Shipping costs",
+    "shippingFee": "Shipping fee",
+    "shippingVat": "Shipping VAT",
     "fees": "Fees",
     "submitOrder": "Submit Order",
     "inquireForApproval": "Inquire for Approval",

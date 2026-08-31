@@ -4,9 +4,21 @@ import type { EmporixMonetaryAmount } from '@/platform/integrations/emporix/mode
 import type { EmporixShippingApi } from '@/platform/integrations/emporix/shipping/EmporixShippingApi';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { SessionService } from '@/platform/services/session/SessionService';
-import type { ShippingMethod } from '../../model/shipping';
+import type { DeliveryWindow, ShippingMethod } from '../../model/shipping';
 import type { ShippingMapper } from '../../model/shipping/ShippingMapper';
 import type { ShippingService } from '../ShippingService';
+
+function resolveLocalizedShippingName(value: string | Record<string, string> | undefined): string | undefined {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed === '' ? undefined : trimmed;
+  }
+  if (value && typeof value === 'object') {
+    const preferred = value.en || value.de || Object.values(value).find((entry) => typeof entry === 'string');
+    return typeof preferred === 'string' && preferred.trim() !== '' ? preferred.trim() : undefined;
+  }
+  return undefined;
+}
 
 /**
  * Implementation of ShippingService for Emporix shipping data
@@ -115,6 +127,33 @@ class EmporixShippingService implements ShippingService {
     } catch (error) {
       this.logger.error({ err: error }, 'Error getting shipping method');
       return null;
+    }
+  }
+
+  async getDeliveryWindowsForCart(cartId: string, postalCode?: string): Promise<DeliveryWindow[]> {
+    try {
+      const windows = await this.shippingApi.getDeliveryWindowsByCart(cartId, postalCode);
+      return windows.flatMap((window) => {
+        const id = window.id?.trim();
+        const deliveryDate = window.deliveryDate?.trim();
+        if (!id || !deliveryDate) {
+          return [];
+        }
+        return [
+          {
+            id,
+            slotId: window.slotId,
+            deliveryDate,
+            zoneId: window.zoneId,
+            deliveryMethod: resolveLocalizedShippingName(
+              window.deliveryMethod ?? window.shippingMethod ?? window.methodId,
+            ),
+          },
+        ];
+      });
+    } catch (error) {
+      this.logger.error({ err: error, cartId }, 'Error getting delivery windows for cart');
+      return [];
     }
   }
 }

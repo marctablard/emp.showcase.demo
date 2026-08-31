@@ -8,6 +8,7 @@ import { H6 } from '@/components/ui/h';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import type { ReturnReasonCode } from '@/lib/client/returns';
+import { resolveProductImageSrc } from '@/lib/common/product-image';
 import { formatCurrency } from '@/lib/utils';
 import type { OrderItem } from '@/platform/services/model/order/order';
 
@@ -29,11 +30,9 @@ export interface ReturnItemSelectorProps {
   reasonOptions: ReturnReasonCode[];
 }
 
+// COP-6218: Jira overrides Figma blank "img placeholder" — render PDP no_image_alt in the existing frame
 function getItemImage(item: OrderItem): string {
-  if (item.images && item.images.length > 0) {
-    return item.images[0];
-  }
-  return '/images/placeholder.png';
+  return resolveProductImageSrc(item.images?.[0]);
 }
 
 export function ReturnItemSelector({
