@@ -57,7 +57,8 @@ export interface EmporixAccessControl {
  */
 export interface EmporixGroup {
   id?: string;
-  name?: EmporixLocalizedString;
+  /** Locale map when `Accept-Language: *`; a resolved string when a specific language is requested. */
+  name?: EmporixLocalizedString | string;
   description?: EmporixLocalizedString;
   accessControls?: string[];
   templates?: string[];

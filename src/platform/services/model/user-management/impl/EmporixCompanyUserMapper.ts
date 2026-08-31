@@ -1,3 +1,5 @@
+import { routingConfig } from '@/i18n/routing';
+import { l10nOrEmpty } from '@/lib/l10n';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCustomerAdmin } from '@/platform/integrations/emporix/model/customer';
 import type { EmporixGroup } from '@/platform/integrations/emporix/model/iam';
@@ -8,6 +10,8 @@ const CUSTOMER_GROUP_CODE = 'CUSTOMER';
 export interface CompanyUserMappingContext {
   groups: EmporixGroup[];
   companyNameByLegalEntityId: ReadonlyMap<string, string>;
+  /** Storefront locale used to resolve custom IAM group `name` maps. */
+  locale?: string;
   legalEntityId?: string;
   legalEntityName?: string;
   isSelectedLegalEntityMember?: boolean;
@@ -29,7 +33,7 @@ class EmporixCompanyUserMapper {
       contactPhone: source.contactPhone,
       active: source.active === true,
       createdAt: source.metadataCreatedAt ?? source.metadata?.createdAt,
-      groups: this.mapGroups(context.groups, context.companyNameByLegalEntityId),
+      groups: this.mapGroups(context.groups, context.companyNameByLegalEntityId, context.locale),
     };
     if (context.legalEntityId !== undefined) {
       mapped.legalEntityId = context.legalEntityId;
@@ -46,8 +50,10 @@ class EmporixCompanyUserMapper {
   private mapGroups(
     groups: EmporixGroup[],
     companyNameByLegalEntityId: ReadonlyMap<string, string>,
+    locale?: string,
   ): CompanyUserGroup[] {
     const mapped: CompanyUserGroup[] = [];
+    const displayLocale = locale?.trim() || routingConfig.defaultLocale;
 
     for (const group of groups) {
       if (!group.id || group.code === CUSTOMER_GROUP_CODE) {
@@ -56,12 +62,12 @@ class EmporixCompanyUserMapper {
 
       const legalEntityId = group.b2b?.legalEntityId ?? '';
       const companyName = (legalEntityId && companyNameByLegalEntityId.get(legalEntityId)) || legalEntityId;
-      const role = this.toRoleLabel(group);
+      const role = this.toRoleLabel(group, displayLocale);
 
       mapped.push({
         id: group.id,
         legalEntityId,
-        displayName: `${companyName} - ${role}`,
+        displayName: role ? `${companyName} - ${role}` : companyName,
       });
     }
 
@@ -70,8 +76,9 @@ class EmporixCompanyUserMapper {
 
   /**
    * Jira picker labels: B2B_ADMIN→Admin, B2B_BUYER→Buyer, B2B_REQUESTER→Requestor, Contact→Contact.
+   * Custom groups use IAM localized `name` (Accept-Language: * map or resolved string).
    */
-  private toRoleLabel(group: EmporixGroup): string {
+  private toRoleLabel(group: EmporixGroup, locale: string): string {
     const code = group.code;
     if (code === 'B2B_ADMIN') {
       return 'Admin';
@@ -94,8 +101,21 @@ class EmporixCompanyUserMapper {
       return role;
     }
 
-    return code || role || '';
+    return localizedCustomGroupName(group.name, locale) || code || role || '';
   }
+}
+
+function localizedCustomGroupName(name: EmporixGroup['name'], locale: string): string {
+  const language = locale.split(/[-_]/)[0] || locale;
+  const resolved = l10nOrEmpty(name, language, routingConfig.defaultLocale, locale);
+  if (resolved) {
+    return resolved;
+  }
+  if (!name || typeof name !== 'object' || Array.isArray(name)) {
+    return '';
+  }
+  const first = Object.values(name).find((value): value is string => typeof value === 'string' && value.trim() !== '');
+  return first?.trim() ?? '';
 }
 
 export default EmporixCompanyUserMapper;

@@ -19,6 +19,8 @@ import type {
 import type { EmporixIamApi as IEmporixIamApi } from '../EmporixIamApi';
 
 const createIamMetrics = (route: string) => createFetchMetricsParams('iam', route);
+/** Keep localized IAM fields as locale maps so callers can resolve storefront language. */
+const ACCEPT_LANGUAGE_ALL: Record<string, string> = { 'Accept-Language': '*' };
 
 async function readResponseBody(response: Response): Promise<unknown> {
   const rawBody = await response.clone().text();
@@ -167,7 +169,7 @@ class EmporixIamApi implements IEmporixIamApi {
     const url = `/iam/${this.config.tenant}/groups?${queryParams.toString()}`;
     const response = await this.apiClient.authenticatedFetch(
       url,
-      { method: 'GET' },
+      { method: 'GET', headers: ACCEPT_LANGUAGE_ALL },
       tokenType,
       undefined,
       createIamMetrics('/iam/{tenant}/groups'),
@@ -184,7 +186,7 @@ class EmporixIamApi implements IEmporixIamApi {
     const url = `/iam/${this.config.tenant}/groups/${id}`;
     const response = await this.apiClient.authenticatedFetch(
       url,
-      { method: 'GET' },
+      { method: 'GET', headers: ACCEPT_LANGUAGE_ALL },
       'service',
       undefined,
       createIamMetrics('/iam/{tenant}/groups/{id}'),
@@ -381,7 +383,7 @@ class EmporixIamApi implements IEmporixIamApi {
     const url = `/iam/${this.config.tenant}/users/${userId}/groups?${query}`;
     const response = await this.apiClient.authenticatedFetch(
       url,
-      { method: 'GET', headers: { 'X-Total-Count': 'true' } },
+      { method: 'GET', headers: { 'X-Total-Count': 'true', ...ACCEPT_LANGUAGE_ALL } },
       tokenType,
       undefined,
       createIamMetrics('/iam/{tenant}/users/{id}/groups'),
