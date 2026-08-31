@@ -32,6 +32,7 @@
     "valueOfGoods": "Warenwert",
     "netValueOfGoods": "Netto-Warenwert",
     "shippingCosts": "Versandkosten",
+    "shippingVat": "Versand-MwSt.",
     "fees": "Zusatzkosten",
     "untilFreeShipping": " € bis gratis Versand",
     "freeShippingOn": "Gratisversand bei Bestellungen über 400.00 €!",

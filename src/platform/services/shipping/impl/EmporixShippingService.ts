@@ -1,12 +1,25 @@
 import { inject } from 'inversify';
+import { getApplicableShippingFee } from '@/lib/common/get-applicable-shipping-fee';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixMonetaryAmount } from '@/platform/integrations/emporix/model/common';
 import type { EmporixShippingApi } from '@/platform/integrations/emporix/shipping/EmporixShippingApi';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { SessionService } from '@/platform/services/session/SessionService';
-import type { ShippingMethod } from '../../model/shipping';
+import type { DeliveryWindow, ShippingMethod } from '../../model/shipping';
 import type { ShippingMapper } from '../../model/shipping/ShippingMapper';
 import type { ShippingService } from '../ShippingService';
+
+function resolveLocalizedShippingName(value: string | Record<string, string> | undefined): string | undefined {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed === '' ? undefined : trimmed;
+  }
+  if (value && typeof value === 'object') {
+    const preferred = value.en || value.de || Object.values(value).find((entry) => typeof entry === 'string');
+    return typeof preferred === 'string' && preferred.trim() !== '' ? preferred.trim() : undefined;
+  }
+  return undefined;
+}
 
 /**
  * Implementation of ShippingService for Emporix shipping data
@@ -71,11 +84,14 @@ class EmporixShippingService implements ShippingService {
             }
             let cost: EmporixMonetaryAmount | undefined = undefined;
             if (orderValue) {
-              const fee = method.fees
-                .filter((fee) => fee.minOrderValue.currency == orderValue.currency)
-                .filter((fee) => fee.minOrderValue.amount <= orderValue.amount)
-                .sort((b, a) => a.minOrderValue.amount - b.minOrderValue.amount)
-                .find((fee) => fee.cost.currency == orderValue.currency);
+              const fee = getApplicableShippingFee(
+                method.fees.filter(
+                  (candidate) =>
+                    candidate.minOrderValue.currency == orderValue.currency &&
+                    candidate.cost.currency == orderValue.currency,
+                ),
+                orderValue.amount,
+              );
               if (fee) {
                 cost = fee.cost;
               }
@@ -115,6 +131,33 @@ class EmporixShippingService implements ShippingService {
     } catch (error) {
       this.logger.error({ err: error }, 'Error getting shipping method');
       return null;
+    }
+  }
+
+  async getDeliveryWindowsForCart(cartId: string, postalCode?: string): Promise<DeliveryWindow[]> {
+    try {
+      const windows = await this.shippingApi.getDeliveryWindowsByCart(cartId, postalCode);
+      return windows.flatMap((window) => {
+        const id = window.id?.trim();
+        const deliveryDate = window.deliveryDate?.trim();
+        if (!id || !deliveryDate) {
+          return [];
+        }
+        return [
+          {
+            id,
+            slotId: window.slotId,
+            deliveryDate,
+            zoneId: window.zoneId,
+            deliveryMethod: resolveLocalizedShippingName(
+              window.deliveryMethod ?? window.shippingMethod ?? window.methodId,
+            ),
+          },
+        ];
+      });
+    } catch (error) {
+      this.logger.error({ err: error, cartId }, 'Error getting delivery windows for cart');
+      return [];
     }
   }
 }

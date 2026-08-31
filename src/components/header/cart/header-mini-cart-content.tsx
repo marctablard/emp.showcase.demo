@@ -18,7 +18,7 @@ interface HeaderMiniCartContentProps {
 export function HeaderMiniCartContent({ loading, cart, scrollHeight, scrollContainer }: HeaderMiniCartContentProps) {
   const t = useTranslations('cart');
   const tCommon = useTranslations('common');
-  const { cartTotal, shippingCosts, currency } = useCartTotal();
+  const { cartTotal, shippingCosts, shippingVat, showShippingVat, currency } = useCartTotal();
   const router = useRouter();
 
   if (loading) {
@@ -53,12 +53,18 @@ export function HeaderMiniCartContent({ loading, cart, scrollHeight, scrollConta
         </div>
         <div className="flex justify-between">
           <span>{t('summary.shippingCosts')}</span>
-          {shippingCosts ? (
-            <span>{formatCurrency(shippingCosts, currency)}</span>
-          ) : (
+          {shippingCosts === undefined ? (
             <span>{t('summary.calculatedAtCheckout')}</span>
+          ) : (
+            <span>{formatCurrency(shippingCosts, currency)}</span>
           )}
         </div>
+        {showShippingVat && (
+          <div className="flex justify-between" data-testid="mini-cart-shipping-vat">
+            <span>{t('summary.shippingVat')}</span>
+            <span>{formatCurrency(shippingVat, currency)}</span>
+          </div>
+        )}
 
         {cart.fees && (
           <div className="flex justify-between">

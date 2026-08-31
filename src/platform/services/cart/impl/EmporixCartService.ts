@@ -6,14 +6,21 @@ import type { EmporixCartApi } from '@/platform/integrations/emporix/cart/Empori
 import type EmporixCommonUtil from '@/platform/integrations/emporix/common/util/EmporixCommonUtil';
 import type { EmporixAddCartItemRequest, EmporixUpdateCartItemRequest } from '@/platform/integrations/emporix/model';
 import type { EmporixCart, EmporixCartAddress, EmporixCartItem } from '@/platform/integrations/emporix/model/cart';
-import type { CartService, CartShippingAddress, ModifyCartItemResult } from '@/platform/services/cart/CartService';
-import type { CartStatus, CartStatusDetailCode } from '@/platform/services/cart/CartService';
+import type {
+  CartService,
+  CartShippingAddress,
+  CartShippingMethodSelection,
+  CartStatus,
+  CartStatusDetailCode,
+  ModifyCartItemResult,
+} from '@/platform/services/cart/CartService';
 import {
   CART_CURRENCY_UPDATE_ERROR_CODE,
   CartCurrencyUpdateError,
   extractUpstreamBody,
   extractUpstreamStatus,
 } from '@/platform/services/cart/errors';
+import { matchDeliveryWindowForShippingMethod } from '@/platform/services/cart/match-delivery-window';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Cart } from '@/platform/services/model/cart/cart';
 import type { Session } from '@/platform/services/model/session/session';
@@ -23,6 +30,7 @@ import type { StockService } from '@/platform/services/stock/StockService';
 import type { CartMapper } from '../../model/cart/CartMapper';
 import type { Media, Paginated, PaginationQuery } from '../../model/common';
 import type { SessionService } from '../../session/SessionService';
+import type { ShippingService } from '../../shipping/ShippingService';
 import type { SiteService } from '../../site/SiteService';
 
 /**
@@ -41,6 +49,7 @@ class EmporixCartService implements CartService {
     @inject('StockService') private stockService: StockService,
     @inject('LoggerService') private logger: LoggerService,
     @inject('SiteService') private siteService: SiteService,
+    @inject('ShippingService') private readonly shippingService: ShippingService,
   ) {}
 
   private normalizeLegalEntityId(value: string | undefined): string {
@@ -557,23 +566,27 @@ class EmporixCartService implements CartService {
   private async updateShippingInfoOnce(
     cartId: string,
     shippingAddress: CartShippingAddress,
-    billingAddress?: CartShippingAddress,
+    _billingAddress?: CartShippingAddress,
   ): Promise<void> {
     const cart = await this.cartApi.getCart(cartId);
     if (!cart) {
       throw new Error('Cart not found');
     }
 
-    const addresses: EmporixCartAddress[] = [{ ...shippingAddress, type: 'SHIPPING' as const }];
-    if (billingAddress) {
-      addresses.push({ ...billingAddress, type: 'BILLING' as const });
-    }
+    // Destination-only tax-country write (COP-5174): REQUEST SHIPPING+BILLING from ship-to.
+    // Checkout billing is ignored so leftover/legal-entity DE cannot win Emporix's tax chain.
+    const addresses: EmporixCartAddress[] = [
+      { ...shippingAddress, type: 'SHIPPING' as const, origin: 'REQUEST' },
+      { ...shippingAddress, type: 'BILLING' as const, origin: 'REQUEST' },
+    ];
 
     await this.cartApi.updateCart(cartId, {
       metadata: {
         ...cart.metadata,
         version: (cart.metadata?.version ?? 0) + 1,
       },
+      countryCode: shippingAddress.country,
+      zipCode: shippingAddress.zipCode,
       addresses,
     });
     await this.refreshCartWithCleanup(cartId);
@@ -601,6 +614,93 @@ class EmporixCartService implements CartService {
         throw error;
       }
     }
+  }
+
+  private resolveCartDestination(cart: EmporixCart): { countryCode?: string; zipCode?: string } {
+    const shipping = cart.addresses?.find((address) => address.type === 'SHIPPING');
+    if (shipping?.country || shipping?.zipCode) {
+      return { countryCode: shipping.country, zipCode: shipping.zipCode };
+    }
+    const legacy = cart as unknown as Record<string, unknown>;
+    return {
+      countryCode: typeof legacy.countryCode === 'string' ? legacy.countryCode : undefined,
+      zipCode: typeof legacy.zipCode === 'string' ? legacy.zipCode : undefined,
+    };
+  }
+
+  private async mapCartById(cartId: string): Promise<Cart> {
+    const raw = await this.cartApi.getCart(cartId);
+    if (!raw) {
+      throw new Error('Cart not found');
+    }
+    return this.mapper.mapToService(raw);
+  }
+
+  private async updateShippingMethodOnce(cartId: string, method: CartShippingMethodSelection): Promise<Cart> {
+    const cart = await this.cartApi.getCart(cartId);
+    if (!cart) {
+      throw new Error('Cart not found');
+    }
+
+    const destination = this.resolveCartDestination(cart);
+    const windows = await this.shippingService.getDeliveryWindowsForCart(cartId, destination.zipCode);
+    const window = matchDeliveryWindowForShippingMethod(windows, method);
+
+    if (!window) {
+      this.logger.warn(
+        {
+          cartId,
+          methodId: method.methodId,
+          methodName: method.methodName,
+          zoneId: method.zoneId,
+          windowCount: windows.length,
+          windowMethods: windows.map((entry) => ({
+            id: entry.id,
+            deliveryMethod: entry.deliveryMethod,
+            zoneId: entry.zoneId,
+          })),
+        },
+        'No delivery window matches the selected shipping method — cart keeps the minimum shipping estimate',
+      );
+      return this.mapper.mapToService(cart);
+    }
+
+    await this.cartApi.updateCart(cartId, {
+      metadata: {
+        ...cart.metadata,
+        version: (cart.metadata?.version ?? 0) + 1,
+      },
+      countryCode: destination.countryCode,
+      zipCode: destination.zipCode,
+      deliveryWindowId: window.id,
+      deliveryWindow: {
+        id: window.id,
+        slotId: window.slotId,
+        deliveryDate: window.deliveryDate,
+      },
+    });
+    await this.refreshCartWithCleanup(cartId);
+    return this.mapCartById(cartId);
+  }
+
+  async updateShippingMethod(cartId: string, method: CartShippingMethodSelection): Promise<Cart> {
+    const maxAttempts = 3;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        return await this.updateShippingMethodOnce(cartId, method);
+      } catch (error) {
+        if (this.isCartOptimisticLockConflict(error) && attempt < maxAttempts - 1) {
+          this.logger.warn(
+            { cartId, attempt, methodId: method.methodId },
+            'Cart shipping-method update hit optimistic lock — retrying with fresh version',
+          );
+          await new Promise((r) => setTimeout(r, 55 * (attempt + 1)));
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw new Error('Failed to update shipping method');
   }
 
   async updateCurrency(cartId: string, currency: string): Promise<void> {

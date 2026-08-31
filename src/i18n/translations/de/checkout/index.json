@@ -84,6 +84,8 @@
   "summary": {
     "title": "Bestellzusammenfassung",
     "shippingCosts": "Versandkosten",
+    "shippingFee": "Versandgebühr",
+    "shippingVat": "Versand-MwSt.",
     "fees": "Zusatzkosten",
     "valueOfGoods": "Warenwert",
     "netValueOfGoods": "Netto-Warenwert",

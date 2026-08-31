@@ -1,8 +1,23 @@
 import { injectable } from '@/platform/core/di/injectable';
-import type { EmporixCart, EmporixCartItem } from '@/platform/integrations/emporix/model/cart';
-import type { Tax } from '../../common';
+import type { EmporixCart, EmporixCartItem, EmporixCartPrice } from '@/platform/integrations/emporix/model/cart';
+import type { Price, Tax } from '../../common';
 import type { CartMapper } from '../CartMapper';
 import type { Cart, Cart as ServiceCart, CartItem as ServiceCartItem } from '../cart';
+
+function mapCalculatedMoney(price: EmporixCartPrice, currency: string, amount: 'net' | 'gross'): Price {
+  return {
+    amount: amount === 'net' ? price.netValue : price.grossValue,
+    currency,
+    tax: {
+      amount: price.taxValue,
+      currency,
+      netValue: price.netValue,
+      grossValue: price.grossValue,
+      taxCode: price.taxCode,
+      taxRate: price.taxRate,
+    },
+  };
+}
 
 /**
  * Maps between Emporix Cart model and Service Cart model
@@ -15,56 +30,36 @@ export class EmporixCartMapper implements CartMapper<EmporixCart, EmporixCartIte
    * @returns A Service Cart
    */
   mapToService(emporixCart: EmporixCart): ServiceCart {
-    let totalPrice;
-    if (emporixCart.calculatedPrice?.finalPrice) {
-      totalPrice = {
-        amount: emporixCart.calculatedPrice.finalPrice.grossValue,
-        currency: emporixCart.currency,
-      };
-    } else {
-      totalPrice = {
-        amount: 0,
-        currency: emporixCart.currency,
-      };
-    }
-    let subTotalPrice;
-    if (emporixCart.calculatedPrice?.price) {
-      subTotalPrice = {
-        amount: emporixCart.calculatedPrice.price.grossValue,
-        currency: emporixCart.currency,
-      };
-    } else {
-      subTotalPrice = {
-        amount: 0,
-        currency: emporixCart.currency,
-      };
-    }
-    let tax;
-    if (emporixCart.calculatedPrice?.price) {
-      tax = {
-        amount: emporixCart.calculatedPrice.price.taxValue,
-        currency: emporixCart.currency,
-        netValue: emporixCart.calculatedPrice.price.netValue,
-        grossValue: emporixCart.calculatedPrice.price.grossValue,
-      };
-    } else {
-      tax = {
-        amount: 0,
-        currency: emporixCart.currency,
-        netValue: 0,
-        grossValue: 0,
-      };
-    }
+    const currency = emporixCart.currency;
+    const finalPrice = emporixCart.calculatedPrice?.finalPrice;
+    const goodsPrice = emporixCart.calculatedPrice?.price;
+    const shippingPrice = emporixCart.calculatedPrice?.totalShipping ?? emporixCart.calculatedPrice?.shipping;
 
-    let shippingCosts;
-    if (emporixCart.calculatedPrice?.totalShipping) {
-      shippingCosts = {
-        amount: emporixCart.calculatedPrice.totalShipping.grossValue,
-        currency: emporixCart.currency,
-      };
-    } else {
-      shippingCosts = undefined;
-    }
+    const totalPrice = finalPrice ? mapCalculatedMoney(finalPrice, currency, 'gross') : { amount: 0, currency };
+    const subTotalPrice = goodsPrice
+      ? {
+          amount: goodsPrice.grossValue,
+          currency,
+        }
+      : {
+          amount: 0,
+          currency,
+        };
+    const tax = goodsPrice
+      ? {
+          amount: goodsPrice.taxValue,
+          currency,
+          netValue: goodsPrice.netValue,
+          grossValue: goodsPrice.grossValue,
+        }
+      : {
+          amount: 0,
+          currency,
+          netValue: 0,
+          grossValue: 0,
+        };
+
+    const shippingCosts = shippingPrice ? mapCalculatedMoney(shippingPrice, currency, 'net') : undefined;
     let fees;
     if (emporixCart.calculatedPrice?.totalFee) {
       fees = {

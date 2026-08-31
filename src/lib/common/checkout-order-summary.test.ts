@@ -1,0 +1,240 @@
+import type { Cart } from '@/platform/services/model/cart';
+import { buildCheckoutOrderSummaryBreakdown, buildCheckoutOrderSummaryFromCart } from './checkout-order-summary';
+
+/** Confirmation-shaped oracle for the COP-5174 ticket numbers (not the helper formula written twice). */
+const CONFIRMATION_ORACLE_STANDARD = { total: { gross: 129.24 } };
+const CONFIRMATION_ORACLE_REDUCED = { total: { gross: 128.44 } };
+
+const CH_CART_TAX = { amount: 7.7, netValue: 100, grossValue: 107.7, currency: 'CHF' };
+
+describe('buildCheckoutOrderSummaryBreakdown', () => {
+  it('uses refreshed cart.tax.amount as goodsVat (CH 7.7, not leftover 19)', () => {
+    const breakdown = buildCheckoutOrderSummaryBreakdown({
+      goodsNet: CH_CART_TAX.netValue,
+      goodsVat: CH_CART_TAX.amount,
+      shippingFee: 20,
+      shippingVatRate: 7.7,
+      shippingTaxCodePresent: true,
+      currency: CH_CART_TAX.currency,
+    });
+
+    expect(breakdown.goodsVat).toBe(7.7);
+    expect(breakdown.goodsVat).not.toBe(19);
+  });
+
+  it('computes shipping VAT 1.54 at 7.7% on fee 20 and matches the confirmation oracle total', () => {
+    const breakdown = buildCheckoutOrderSummaryBreakdown({
+      goodsNet: 100,
+      goodsVat: 7.7,
+      shippingFee: 20,
+      shippingVatRate: 7.7,
+      shippingTaxCodePresent: true,
+      currency: 'CHF',
+    });
+
+    expect(breakdown.shippingVat).toBe(1.54);
+    expect(breakdown.showShippingVat).toBe(true);
+    expect(breakdown.shippingVatLookupFailed).toBe(false);
+    expect(breakdown.total).toBe(CONFIRMATION_ORACLE_STANDARD.total.gross);
+  });
+
+  it('computes shipping VAT 0.74 at 3.7% on fee 20 and matches the alternate confirmation oracle', () => {
+    const breakdown = buildCheckoutOrderSummaryBreakdown({
+      goodsNet: 100,
+      goodsVat: 7.7,
+      shippingFee: 20,
+      shippingVatRate: 3.7,
+      shippingTaxCodePresent: true,
+      currency: 'CHF',
+    });
+
+    expect(breakdown.shippingVat).toBe(0.74);
+    expect(breakdown.showShippingVat).toBe(true);
+    expect(breakdown.shippingVatLookupFailed).toBe(false);
+    expect(breakdown.total).toBe(CONFIRMATION_ORACLE_REDUCED.total.gross);
+  });
+
+  it('hides Shipping VAT as a successful 0 when the looked-up rate is 0', () => {
+    const breakdown = buildCheckoutOrderSummaryBreakdown({
+      goodsNet: 100,
+      goodsVat: 7.7,
+      shippingFee: 20,
+      shippingVatRate: 0,
+      shippingTaxCodePresent: true,
+      currency: 'CHF',
+    });
+
+    expect(breakdown.shippingVat).toBe(0);
+    expect(breakdown.showShippingVat).toBe(false);
+    expect(breakdown.shippingVatLookupFailed).toBe(false);
+    expect(breakdown.total).toBe(127.7);
+  });
+
+  it('hides Shipping VAT when the shipping fee is missing', () => {
+    const breakdown = buildCheckoutOrderSummaryBreakdown({
+      goodsNet: 100,
+      goodsVat: 7.7,
+      shippingVatRate: 7.7,
+      shippingTaxCodePresent: true,
+      currency: 'CHF',
+    });
+
+    expect(breakdown.shippingFee).toBeUndefined();
+    expect(breakdown.shippingVat).toBe(0);
+    expect(breakdown.showShippingVat).toBe(false);
+    expect(breakdown.shippingVatLookupFailed).toBe(false);
+    expect(breakdown.total).toBe(107.7);
+  });
+
+  it('includes feesTotal in the total', () => {
+    const breakdown = buildCheckoutOrderSummaryBreakdown({
+      goodsNet: 100,
+      goodsVat: 7.7,
+      shippingFee: 20,
+      shippingVatRate: 7.7,
+      shippingTaxCodePresent: true,
+      feesTotal: 5,
+      currency: 'CHF',
+    });
+
+    expect(breakdown.feesTotal).toBe(5);
+    expect(breakdown.total).toBe(134.24);
+  });
+
+  it('defaults feesTotal to 0', () => {
+    const breakdown = buildCheckoutOrderSummaryBreakdown({
+      goodsNet: 100,
+      goodsVat: 7.7,
+      shippingFee: 20,
+      shippingVatRate: 7.7,
+      shippingTaxCodePresent: true,
+      currency: 'CHF',
+    });
+
+    expect(breakdown.feesTotal).toBe(0);
+    expect(breakdown.total).toBe(CONFIRMATION_ORACLE_STANDARD.total.gross);
+  });
+
+  it('does not treat taxCode present + undefined rate as a successful VAT=0 hide', () => {
+    const breakdown = buildCheckoutOrderSummaryBreakdown({
+      goodsNet: 100,
+      goodsVat: 7.7,
+      shippingFee: 20,
+      shippingVatRate: undefined,
+      shippingTaxCodePresent: true,
+      currency: 'CHF',
+    });
+
+    expect(breakdown.shippingVatLookupFailed).toBe(true);
+    expect(breakdown.showShippingVat).toBe(false);
+    expect(breakdown.shippingVat).toBe(0);
+    expect(breakdown.total).toBe(127.7);
+  });
+});
+
+describe('buildCheckoutOrderSummaryFromCart', () => {
+  const cart: Cart = {
+    id: 'cart-1',
+    currency: 'EUR',
+    site: 'main',
+    items: [],
+    tax: { amount: 13.14, netValue: 69.15, grossValue: 82.29, currency: 'EUR' },
+    shippingCosts: {
+      amount: 0.01,
+      currency: 'EUR',
+      tax: {
+        amount: 0,
+        currency: 'EUR',
+        netValue: 0.01,
+        grossValue: 0.01,
+        taxCode: 'ZERO',
+        taxRate: 0,
+      },
+    },
+    subTotalPrice: { amount: 82.29, currency: 'EUR' },
+    totalPrice: { amount: 82.3, currency: 'EUR' },
+  };
+
+  it('uses mapped calculatedPrice fields and does not add fee × rate', () => {
+    const breakdown = buildCheckoutOrderSummaryFromCart(cart);
+
+    expect(breakdown.goodsNet).toBe(69.15);
+    expect(breakdown.goodsVat).toBe(13.14);
+    expect(breakdown.shippingFee).toBe(0.01);
+    expect(breakdown.shippingVat).toBe(0);
+    expect(breakdown.showShippingVat).toBe(false);
+    expect(breakdown.shippingVatLookupFailed).toBe(false);
+    expect(breakdown.total).toBe(82.3);
+    expect(breakdown.currency).toBe('EUR');
+  });
+
+  it('shows shipping VAT when the mapped cart tax amount is greater than 0', () => {
+    const breakdown = buildCheckoutOrderSummaryFromCart({
+      ...cart,
+      shippingCosts: {
+        amount: 20,
+        currency: 'CHF',
+        tax: {
+          amount: 1.54,
+          currency: 'CHF',
+          netValue: 20,
+          grossValue: 21.54,
+          taxCode: 'STANDARD',
+          taxRate: 7.7,
+        },
+      },
+      tax: CH_CART_TAX,
+      totalPrice: { amount: 129.24, currency: 'CHF' },
+      currency: 'CHF',
+    });
+
+    expect(breakdown.shippingVat).toBe(1.54);
+    expect(breakdown.showShippingVat).toBe(true);
+    expect(breakdown.total).toBe(129.24);
+  });
+
+  it('keeps cart totals when the selected shipping fee matches the cart snapshot', () => {
+    const breakdown = buildCheckoutOrderSummaryFromCart(cart, { amount: 0.01 });
+
+    expect(breakdown.shippingFee).toBe(0.01);
+    expect(breakdown.total).toBe(82.3);
+    expect(breakdown.showShippingVat).toBe(false);
+  });
+
+  it('overlays a different picked method fee without adding fee × rate VAT', () => {
+    const breakdown = buildCheckoutOrderSummaryFromCart(cart, { amount: 4.95 });
+
+    expect(breakdown.shippingFee).toBe(4.95);
+    expect(breakdown.shippingVat).toBe(0);
+    expect(breakdown.showShippingVat).toBe(false);
+    expect(breakdown.total).toBe(87.24);
+  });
+
+  it('matches checkout and mini-cart totals for the live DE cart + DHL Standard overlay', () => {
+    const liveCart: Cart = {
+      ...cart,
+      tax: { amount: 911.49, netValue: 4797, grossValue: 5708.49, currency: 'EUR' },
+      shippingCosts: {
+        amount: 0,
+        currency: 'EUR',
+        tax: {
+          amount: 0,
+          currency: 'EUR',
+          netValue: 0,
+          grossValue: 0,
+          taxCode: 'ZERO',
+          taxRate: 0,
+        },
+      },
+      subTotalPrice: { amount: 5708.49, currency: 'EUR' },
+      totalPrice: { amount: 5708.49, currency: 'EUR' },
+    };
+
+    const checkout = buildCheckoutOrderSummaryFromCart(liveCart, { amount: 4.95 });
+    const miniCart = buildCheckoutOrderSummaryFromCart(liveCart, { amount: 4.95 });
+
+    expect(checkout).toEqual(miniCart);
+    expect(checkout.shippingFee).toBe(4.95);
+    expect(checkout.total).toBe(5713.44);
+  });
+});

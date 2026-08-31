@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import type { Cart, CartItem } from '@platform/services/model/cart';
-import { Coins, Package, ShoppingCart } from 'lucide-react';
+import { Coins, Package } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useNotifications } from '@/hooks/notifications/useNotifications';
 import { useL10n } from '@/hooks/useL10n';
 import { useRouter } from '@/i18n/navigation';
+import { PRODUCT_NO_IMAGE_SRC, resolveProductImageSrc } from '@/lib/common/product-image';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency } from '@/lib/utils';
 import type { StorefrontNotification } from '@/platform/services/model/notification/notification';
@@ -17,6 +18,7 @@ interface HeaderMiniCartItemListProps {
 
 export function HeaderMiniCartItemList({ cart }: HeaderMiniCartItemListProps) {
   const t = useTranslations('cart');
+  const tProduct = useTranslations('product');
   const { registerNotificationListener, unregisterNotificationListener } = useNotifications();
   const { l10n } = useL10n();
   const router = useRouter();
@@ -57,6 +59,14 @@ export function HeaderMiniCartItemList({ cart }: HeaderMiniCartItemListProps) {
     );
   };
 
+  const resolveItemImage = (cartItem: CartItem) => {
+    const imageSrc = resolveProductImageSrc(cartItem.product?.images?.[0]?.url);
+    return {
+      imageSrc,
+      imageAlt: imageSrc === PRODUCT_NO_IMAGE_SRC ? tProduct('noImage') : l10n(cartItem.product?.name || 'Product'),
+    };
+  };
+
   // Register for cart notifications on mount
   useEffect(() => {
     const subscriptionId = registerNotificationListener('CART', handleCartNotification);
@@ -67,70 +77,64 @@ export function HeaderMiniCartItemList({ cart }: HeaderMiniCartItemListProps) {
 
   return (
     <>
-      {cart?.items?.map((item) => (
-        <div key={item.id} className="pt-4 first:pt-0 pb-4 border-b flex items-end justify-between gap-3">
-          <div className="flex gap-4">
-            <div className="rounded-ss-md rounded-ee-md w-[100px] h-[65px] object-fit overflow-hidden">
-              {item.product && item.product.images?.length ? (
-                <Image
-                  width={100}
-                  height={65}
-                  src={String(item.product.images[0].url)}
-                  alt={l10n(item.product.name || 'Product')}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-icon-secondary">
-                  <ShoppingCart className="h-6 w-6 opacity-30" />
+      {cart?.items?.map((item) => {
+        const { imageSrc, imageAlt } = resolveItemImage(item);
+        return (
+          <div key={item.id} className="pt-4 first:pt-0 pb-4 border-b flex items-end justify-between gap-3">
+            <div className="flex gap-4">
+              <div className="rounded-ss-md rounded-ee-md w-[100px] h-[65px] object-fit overflow-hidden">
+                <Image width={100} height={65} src={imageSrc} alt={imageAlt} className="w-full h-full object-cover" />
+              </div>
+              <div className="flex-grow min-w-0">
+                <p className="text-sm">{l10n(item.product?.brand?.name || '')}</p>
+                <p
+                  className="font-bold truncate font-headlines cursor-pointer"
+                  onClick={() => router.push(`/product/${item.product?.id}`)}
+                >
+                  {l10n(item.product?.name || 'Product')}
+                </p>
+                <div className="flex items-center">
+                  <p className="text-sm border-r border-border-primary pr-4">
+                    {t('itemNumber')}: {item.product?.id}
+                  </p>
+                  <p className="text-sm pl-4">
+                    <span
+                      className={`${getCartItemSubstitutions(item).length > 0 ? 'bg-surface-warning rounded-full px-1' : ''}`}
+                    >
+                      {t('qty')}: {item.quantity}
+                    </span>
+                  </p>
+                  {getCartItemSubstitutions(item).length > 0 && (
+                    <Badge
+                      variant="warning"
+                      className="h-5 min-w-5 ml-2 rounded-full px-1 tabular-nums tracking-normal"
+                    >
+                      <Package />
+                    </Badge>
+                  )}
                 </div>
-              )}
-            </div>
-            <div className="flex-grow min-w-0">
-              <p className="text-sm">{l10n(item.product?.brand?.name || '')}</p>
-              <p
-                className="font-bold truncate font-headlines cursor-pointer"
-                onClick={() => router.push(`/product/${item.product?.id}`)}
-              >
-                {l10n(item.product?.name || 'Product')}
-              </p>
-              <div className="flex items-center">
-                <p className="text-sm border-r border-border-primary pr-4">
-                  {t('itemNumber')}: {item.product?.id}
-                </p>
-                <p className="text-sm pl-4">
-                  <span
-                    className={`${getCartItemSubstitutions(item).length > 0 ? 'bg-surface-warning rounded-full px-1' : ''}`}
-                  >
-                    {t('qty')}: {item.quantity}
-                  </span>
-                </p>
-                {getCartItemSubstitutions(item).length > 0 && (
-                  <Badge variant="warning" className="h-5 min-w-5 ml-2 rounded-full px-1 tabular-nums tracking-normal">
-                    <Package />
-                  </Badge>
-                )}
               </div>
             </div>
-          </div>
-          <div>
-            <p className="flex items-center font-bold font-headlines">
-              {getCartItemPriceChanges(item).length > 0 && (
-                <Badge
-                  variant="warning"
-                  className="h-5 min-w-5 rounded-full px-1 tabular-nums tracking-normal float-left mr-2"
+            <div>
+              <p className="flex items-center font-bold font-headlines">
+                {getCartItemPriceChanges(item).length > 0 && (
+                  <Badge
+                    variant="warning"
+                    className="h-5 min-w-5 rounded-full px-1 tabular-nums tracking-normal float-left mr-2"
+                  >
+                    <Coins />
+                  </Badge>
+                )}
+                <span
+                  className={`${getCartItemPriceChanges(item).length > 0 ? 'bg-surface-warning rounded-full px-1' : ''}`}
                 >
-                  <Coins />
-                </Badge>
-              )}
-              <span
-                className={`${getCartItemPriceChanges(item).length > 0 ? 'bg-surface-warning rounded-full px-1' : ''}`}
-              >
-                {formatCurrency(item.price.amount, item.price.currency)}
-              </span>
-            </p>
+                  {formatCurrency(item.price.amount, item.price.currency)}
+                </span>
+              </p>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </>
   );
 }

@@ -1,4 +1,9 @@
-import { EmporixFindSiteRequest, EmporixShippingMethod, EmporixShippingSite } from '../model/shipping';
+import {
+  EmporixActualDeliveryWindow,
+  EmporixFindSiteRequest,
+  EmporixShippingMethod,
+  EmporixShippingSite,
+} from '../model/shipping';
 
 /**
  * Interface for shipping API operations
@@ -24,4 +29,10 @@ export interface EmporixShippingApi {
    * @param request - The find site request containing postal code and country
    */
   findSite(request: EmporixFindSiteRequest): Promise<EmporixShippingSite[]>;
+
+  /**
+   * Delivery windows for a cart. The cart must already have country/zip.
+   * Optional `postalCode` overrides the cart zip for the lookup.
+   */
+  getDeliveryWindowsByCart(cartId: string, postalCode?: string): Promise<EmporixActualDeliveryWindow[]>;
 }

@@ -11,6 +11,7 @@ import type { ProductPrice } from '@/platform/services/model/price';
 import type { PriceService } from '@/platform/services/price/PriceService';
 import type { ProductService } from '@/platform/services/product/ProductService';
 import type { SessionService } from '@/platform/services/session/SessionService';
+import type { ShippingService } from '@/platform/services/shipping/ShippingService';
 import type { SiteService } from '@/platform/services/site/SiteService';
 import type { StockService } from '@/platform/services/stock/StockService';
 import EmporixCartService from './EmporixCartService';
@@ -40,6 +41,7 @@ describe('EmporixCartService', () => {
   let mockStockService: jest.Mocked<Pick<StockService, 'getStockAvailability'>>;
   let mockCommonUtil: jest.Mocked<Pick<EmporixCommonUtil, 'generateProductYrn'>>;
   let mockMapper: jest.Mocked<Pick<CartMapper<EmporixCart, unknown>, 'mapToService'>>;
+  let mockShippingService: jest.Mocked<Pick<ShippingService, 'getDeliveryWindowsForCart'>>;
 
   // Minimal stubs for unused dependencies
   const noop = {} as Record<string, jest.Mock>;
@@ -107,6 +109,10 @@ describe('EmporixCartService', () => {
       mapToService: jest.fn(),
     };
 
+    mockShippingService = {
+      getDeliveryWindowsForCart: jest.fn().mockResolvedValue([]),
+    };
+
     container.bind('EmporixCommonUtil').toConstantValue(mockCommonUtil);
     container.bind('EmporixCartApi').toConstantValue(mockCartApi);
     container.bind('EmporixCartMapper').toConstantValue(mockMapper);
@@ -116,13 +122,14 @@ describe('EmporixCartService', () => {
     container.bind('StockService').toConstantValue(mockStockService);
     container.bind('LoggerService').toConstantValue(mockLogger);
     container.bind('SiteService').toConstantValue(mockSiteService);
+    container.bind('ShippingService').toConstantValue(mockShippingService);
     container.bind<EmporixCartService>('CartService').to(EmporixCartService);
 
     cartService = container.get<EmporixCartService>('CartService');
   });
 
   describe('updateShippingInfo', () => {
-    it('should send addresses array with SHIPPING entry to updateCart', async () => {
+    it('should replace addresses with REQUEST-origin SHIPPING and BILLING from ship-to', async () => {
       const fullCart: EmporixCart = {
         id: 'cart-123',
         yrn: 'yrn:emporix:cart:cart-123',
@@ -133,6 +140,9 @@ describe('EmporixCartService', () => {
         siteCode: 'main',
         status: 'OPEN',
         type: 'shopping',
+        countryCode: 'DE',
+        zipCode: '10115',
+        addresses: [{ country: 'DE', zipCode: '10115', type: 'BILLING' }],
         items: [
           {
             id: 'item-1',
@@ -152,24 +162,33 @@ describe('EmporixCartService', () => {
 
       expect(mockCartApi.updateCart).toHaveBeenCalledWith('cart-123', {
         metadata: { version: 6 },
-        addresses: [{ country: 'US', zipCode: '10001', type: 'SHIPPING' }],
+        countryCode: 'US',
+        zipCode: '10001',
+        addresses: [
+          { country: 'US', zipCode: '10001', type: 'SHIPPING', origin: 'REQUEST' },
+          { country: 'US', zipCode: '10001', type: 'BILLING', origin: 'REQUEST' },
+        ],
       });
 
       const updatePayload = mockCartApi.updateCart.mock.calls[0][1];
+      expect(updatePayload.addresses).toHaveLength(2);
+      expect(updatePayload.addresses.map((address: { type: string }) => address.type)).toEqual(['SHIPPING', 'BILLING']);
+      expect(updatePayload.addresses.every((address: { origin?: string }) => address.origin === 'REQUEST')).toBe(true);
+      expect(updatePayload.countryCode).toBe('US');
+      expect(updatePayload.zipCode).toBe('10001');
+      expect(updatePayload.addresses).not.toEqual(expect.arrayContaining([expect.objectContaining({ country: 'DE' })]));
       expect(updatePayload).not.toHaveProperty('id');
       expect(updatePayload).not.toHaveProperty('yrn');
       expect(updatePayload).not.toHaveProperty('customerId');
       expect(updatePayload).not.toHaveProperty('sessionId');
       expect(updatePayload).not.toHaveProperty('legalEntityId');
-      expect(updatePayload).not.toHaveProperty('countryCode');
-      expect(updatePayload).not.toHaveProperty('zipCode');
       expect(updatePayload).not.toHaveProperty('status');
       expect(updatePayload).not.toHaveProperty('items');
       expect(updatePayload).not.toHaveProperty('currency');
       expect(updatePayload).not.toHaveProperty('siteCode');
     });
 
-    it('should send both SHIPPING and BILLING addresses when billing is provided', async () => {
+    it('should ignore optional billingAddress so DE billing cannot win BILLING country', async () => {
       const cart: EmporixCart = {
         id: 'cart-both',
         currency: 'EUR',
@@ -181,17 +200,31 @@ describe('EmporixCartService', () => {
 
       await cartService.updateShippingInfo(
         'cart-both',
+        { country: 'CH', zipCode: '6300', city: 'Zug', street: 'Bahnhofstrasse' },
         { country: 'DE', zipCode: '10115', city: 'Berlin', street: 'Friedrichstr.' },
-        { country: 'DE', zipCode: '80331', city: 'München', street: 'Marienplatz' },
       );
 
       expect(mockCartApi.updateCart).toHaveBeenCalledWith('cart-both', {
         metadata: { version: 2 },
+        countryCode: 'CH',
+        zipCode: '6300',
         addresses: [
-          { country: 'DE', zipCode: '10115', city: 'Berlin', street: 'Friedrichstr.', type: 'SHIPPING' },
-          { country: 'DE', zipCode: '80331', city: 'München', street: 'Marienplatz', type: 'BILLING' },
+          {
+            country: 'CH',
+            zipCode: '6300',
+            city: 'Zug',
+            street: 'Bahnhofstrasse',
+            type: 'SHIPPING',
+            origin: 'REQUEST',
+          },
+          { country: 'CH', zipCode: '6300', city: 'Zug', street: 'Bahnhofstrasse', type: 'BILLING', origin: 'REQUEST' },
         ],
       });
+
+      const updatePayload = mockCartApi.updateCart.mock.calls[0][1];
+      const billingAddress = updatePayload.addresses.find((address: { type: string }) => address.type === 'BILLING');
+      expect(billingAddress).toEqual(expect.objectContaining({ country: 'CH', zipCode: '6300', origin: 'REQUEST' }));
+      expect(billingAddress.country).not.toBe('DE');
     });
 
     it('should handle cart with no metadata (version starts at 1)', async () => {
@@ -208,7 +241,12 @@ describe('EmporixCartService', () => {
 
       expect(mockCartApi.updateCart).toHaveBeenCalledWith('cart-no-meta', {
         metadata: { version: 1 },
-        addresses: [{ country: 'GB', zipCode: 'SW1A 1AA', type: 'SHIPPING' }],
+        countryCode: 'GB',
+        zipCode: 'SW1A 1AA',
+        addresses: [
+          { country: 'GB', zipCode: 'SW1A 1AA', type: 'SHIPPING', origin: 'REQUEST' },
+          { country: 'GB', zipCode: 'SW1A 1AA', type: 'BILLING', origin: 'REQUEST' },
+        ],
       });
     });
 
@@ -301,6 +339,89 @@ describe('EmporixCartService', () => {
         { cartId: 'cart-123' },
         expect.stringContaining('orphaned legalEntityId'),
       );
+    });
+  });
+
+  describe('updateShippingMethod', () => {
+    const mappedCart: Cart = {
+      id: 'cart-ship',
+      currency: 'EUR',
+      site: 'main',
+      items: [],
+      totalPrice: { amount: 120, currency: 'EUR' },
+      subTotalPrice: { amount: 100, currency: 'EUR' },
+      tax: { amount: 19, currency: 'EUR', netValue: 81, grossValue: 100 },
+    };
+
+    const method = { methodId: 'dhl-standard', zoneId: 'zone-de', methodName: 'DHL Standard' };
+
+    it('assigns a matching delivery window and refreshes the cart', async () => {
+      const cart: EmporixCart = {
+        id: 'cart-ship',
+        currency: 'EUR',
+        siteCode: 'main',
+        countryCode: 'DE',
+        zipCode: '10115',
+        metadata: { version: 3 },
+      };
+      mockCartApi.getCart.mockResolvedValue(cart);
+      mockShippingService.getDeliveryWindowsForCart.mockResolvedValue([
+        {
+          id: 'window-1',
+          slotId: 'slot-1',
+          deliveryDate: '2026-09-02T10:00:00.000Z',
+          zoneId: 'zone-de',
+          deliveryMethod: 'DHL Standard',
+        },
+      ]);
+      mockMapper.mapToService.mockReturnValue(mappedCart);
+
+      const result = await cartService.updateShippingMethod('cart-ship', method);
+
+      expect(mockCartApi.updateCart).toHaveBeenCalledWith('cart-ship', {
+        metadata: { version: 4 },
+        countryCode: 'DE',
+        zipCode: '10115',
+        deliveryWindowId: 'window-1',
+        deliveryWindow: {
+          id: 'window-1',
+          slotId: 'slot-1',
+          deliveryDate: '2026-09-02T10:00:00.000Z',
+        },
+      });
+      expect(mockCartApi.refreshCart).toHaveBeenCalledWith('cart-ship');
+      expect(result).toEqual(mappedCart);
+    });
+
+    it('does not update the cart when no delivery window matches', async () => {
+      const cart: EmporixCart = {
+        id: 'cart-ship',
+        currency: 'EUR',
+        siteCode: 'main',
+        countryCode: 'DE',
+        zipCode: '10115',
+        metadata: { version: 3 },
+      };
+      mockCartApi.getCart.mockResolvedValue(cart);
+      mockShippingService.getDeliveryWindowsForCart.mockResolvedValue([]);
+      mockMapper.mapToService.mockReturnValue(mappedCart);
+
+      const result = await cartService.updateShippingMethod('cart-ship', method);
+
+      expect(mockCartApi.updateCart).not.toHaveBeenCalled();
+      expect(mockCartApi.refreshCart).not.toHaveBeenCalled();
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ cartId: 'cart-ship', methodId: 'dhl-standard' }),
+        expect.stringContaining('No delivery window matches'),
+      );
+      expect(result).toEqual(mappedCart);
+    });
+
+    it('throws when the cart is missing', async () => {
+      mockCartApi.getCart.mockResolvedValue(null);
+
+      await expect(cartService.updateShippingMethod('missing', method)).rejects.toThrow('Cart not found');
+      expect(mockCartApi.updateCart).not.toHaveBeenCalled();
     });
   });
 

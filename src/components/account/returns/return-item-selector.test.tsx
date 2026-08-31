@@ -3,6 +3,7 @@
  */
 import '@testing-library/jest-dom';
 import { render, screen, within } from '@testing-library/react';
+import { PRODUCT_NO_IMAGE_SRC } from '@/lib/common/product-image';
 import type { OrderItem } from '@/platform/services/model/order/order';
 import { ReturnItemSelector } from './return-item-selector';
 
@@ -12,8 +13,7 @@ jest.mock('next-intl', () => ({
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  default: ({ alt }: { alt: string }) => <img alt={alt} />,
+  default: ({ alt, src }: { alt: string; src?: string }) => <img alt={alt} src={src} />,
 }));
 
 jest.mock('@/lib/utils', () => {
@@ -112,5 +112,47 @@ describe('ReturnItemSelector', () => {
     expect(within(mobile).queryByText('SKU-SOLAR-55')).not.toBeInTheDocument();
 
     expect(screen.getAllByText('itemNumber: SKU-SOLAR-55').length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('ReturnItemSelector empty thumbnail', () => {
+  function expectNoImageAltThumbnails() {
+    const images = screen.getAllByRole('img', { name: 'Solar Panel' });
+    expect(images.length).toBeGreaterThan(0);
+    for (const image of images) {
+      expect(image).toHaveAttribute('src', PRODUCT_NO_IMAGE_SRC);
+      expect(image).toHaveAttribute('src', '/images/no_image_alt.png');
+      expect(image).not.toHaveAttribute('src', '/images/placeholder.png');
+    }
+  }
+
+  it('renders no_image_alt when item.images is missing', () => {
+    render(<ReturnItemSelector {...defaultProps} />);
+
+    expectNoImageAltThumbnails();
+  });
+
+  it('renders no_image_alt when item.images is empty', () => {
+    render(<ReturnItemSelector {...defaultProps} items={[{ ...baseItem, images: [] }]} />);
+
+    expectNoImageAltThumbnails();
+  });
+
+  it('renders no_image_alt when item.images[0] is whitespace', () => {
+    render(<ReturnItemSelector {...defaultProps} items={[{ ...baseItem, images: ['   '] }]} />);
+
+    expectNoImageAltThumbnails();
+  });
+
+  it('renders the product image when item.images[0] is present', () => {
+    render(
+      <ReturnItemSelector {...defaultProps} items={[{ ...baseItem, images: ['https://cdn.example.com/solar.jpg'] }]} />,
+    );
+
+    const images = screen.getAllByRole('img', { name: 'Solar Panel' });
+    expect(images.length).toBeGreaterThan(0);
+    for (const image of images) {
+      expect(image).toHaveAttribute('src', 'https://cdn.example.com/solar.jpg');
+    }
   });
 });

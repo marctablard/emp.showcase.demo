@@ -2,7 +2,11 @@
 
 import { useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import type { CartShippingAddress, ModifyCartItemResult } from '@/platform/services/cart/CartService';
+import type {
+  CartShippingAddress,
+  CartShippingMethodSelection,
+  ModifyCartItemResult,
+} from '@/platform/services/cart/CartService';
 import type { Cart } from '@/platform/services/model/cart/cart';
 import { useCartStore } from '@/providers/StoreProvider';
 
@@ -18,6 +22,7 @@ interface UseCart {
   updateItemQuantity: (itemId: string, quantity: number) => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
   updateShippingInfo: (shippingAddress: CartShippingAddress, billingAddress?: CartShippingAddress) => Promise<void>;
+  updateShippingMethod: (method: CartShippingMethodSelection) => Promise<void>;
   clearCart: (options?: { deleteCart?: boolean; clearSession?: boolean }) => void;
   loadCart: (cartId: string, type?: string) => Promise<Cart | null | undefined>;
 
@@ -40,6 +45,7 @@ export const useCart = (initialCart?: Cart | null): UseCart => {
     updateItemQuantity,
     removeItem,
     updateShippingInfo,
+    updateShippingMethod,
     clearCart,
     fetchCart,
     setCurrentCart,
@@ -80,6 +86,7 @@ export const useCart = (initialCart?: Cart | null): UseCart => {
     updateItemQuantity,
     removeItem,
     updateShippingInfo,
+    updateShippingMethod,
     clearCart,
     refetch: async () => {
       await fetchCart(false);

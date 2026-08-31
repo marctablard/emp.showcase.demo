@@ -2,6 +2,7 @@ import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { H5, H6 } from '@/components/ui/h';
 import { Link } from '@/i18n/navigation';
+import { PRODUCT_NO_IMAGE_SRC, resolveProductImageSrc } from '@/lib/common/product-image';
 import { formatCurrency } from '@/lib/utils';
 import {
   type ProductListItem,
@@ -93,6 +94,7 @@ function resolveDesktopGridLayoutClass(desktopGridCols: string, hasProductColumn
 export function ProductItemRow({ item, locale, presentationConfig, showGrossUnderNet = false }: ProductItemRowProps) {
   const t = useTranslations('cart');
   const tOrders = useTranslations('orders');
+  const tProduct = useTranslations('product');
   const netPrice = item.netUnitPrice ?? item.unitPrice;
   const showGrossSecondary = presentationConfig?.showGrossSecondary ?? showGrossUnderNet;
   // Missing gross is rendered as a literal '-' secondary value; it is never derived from net/unit price.
@@ -112,23 +114,17 @@ export function ProductItemRow({ item, locale, presentationConfig, showGrossUnde
   const discountLabel = formatDiscountPercent(item.discountPercent);
   const hasProductColumnMetadata = productColumnMetadataSlots.length > 0;
 
+  const imageSrc = resolveProductImageSrc(item.imageUrl);
+  const imageAlt = imageSrc === PRODUCT_NO_IMAGE_SRC ? tProduct('noImage') : String(item.name);
+
   // Mobile keeps 120×78; from sm (table) match Figma 80×52 so narrow sidebar columns fit.
+  // COP-6218: Jira overrides Figma’s blank rectangle — PDP no_image_alt stays inside this frame.
   const productImage = (
     <div
       className="flex h-[78px] w-[120px] shrink-0 items-center justify-center overflow-hidden rounded-tl-lg rounded-br-lg bg-surface-image-background sm:h-[52px] sm:w-[80px]"
       data-testid={`product-image-wrapper-${item.id}`}
     >
-      {item.imageUrl ? (
-        <Image
-          width={120}
-          height={78}
-          src={String(item.imageUrl)}
-          alt={String(item.name)}
-          className="h-full w-full object-contain"
-        />
-      ) : (
-        <div className="h-full w-full bg-surface-image-background" />
-      )}
+      <Image width={120} height={78} src={imageSrc} alt={imageAlt} className="h-full w-full object-contain" />
     </div>
   );
 

@@ -24,7 +24,7 @@ export function CartSummary({ cart, boundingContent }: CartSummaryProps) {
   const fixedContainer = useRef<HTMLDivElement>(null);
   const topPosition = 112;
   const { isFixed, isFixedToTop, isContainerBottom } = useElementScroll(fixedContainer, topPosition, boundingContent);
-  const { cartTotal, shippingCosts, currency } = useCartTotal();
+  const { cartTotal, shippingCosts, shippingVat, showShippingVat, currency } = useCartTotal();
 
   return (
     <div className="mb-6 flex">
@@ -69,12 +69,18 @@ export function CartSummary({ cart, boundingContent }: CartSummaryProps) {
                   </div>
                   <div className="flex justify-between text-base">
                     <span>{t('shippingCosts')}</span>
-                    {shippingCosts !== undefined ? (
-                      <span>{formatCurrency(shippingCosts, currency)}</span>
-                    ) : (
+                    {shippingCosts === undefined ? (
                       <span>{t('calculatedAtCheckout')}</span>
+                    ) : (
+                      <span>{formatCurrency(shippingCosts, currency)}</span>
                     )}
                   </div>
+                  {showShippingVat && (
+                    <div className="flex justify-between text-base" data-testid="cart-summary-shipping-vat">
+                      <span>{t('shippingVat')}</span>
+                      <span>{formatCurrency(shippingVat, currency)}</span>
+                    </div>
+                  )}
                 </div>
                 {/*isDelivery && freeShippingValue - cart.totalPrice.amount > 0 && <CartFreeship cart={cart} />*/}
                 <div className="flex flex-col gap-2">

@@ -1,17 +1,17 @@
 import { renderHook } from '@testing-library/react';
 import { useCartTotal } from './useCartTotal';
 
-const mockUseCheckout = jest.fn();
 const mockUseCart = jest.fn();
 const mockUseSession = jest.fn();
 const mockUseSite = jest.fn();
-
-jest.mock('../checkout/useCheckout', () => ({
-  useCheckout: () => mockUseCheckout(),
-}));
+const mockUseSelectedShippingMethod = jest.fn();
 
 jest.mock('../cart/useCart', () => ({
   useCart: () => mockUseCart(),
+}));
+
+jest.mock('../checkout/useSelectedShippingMethod', () => ({
+  useSelectedShippingMethod: () => mockUseSelectedShippingMethod(),
 }));
 
 jest.mock('../session/useSession', () => ({
@@ -26,9 +26,6 @@ describe('useCartTotal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    mockUseCheckout.mockReturnValue({
-      shippingMethod: null,
-    });
     mockUseCart.mockReturnValue({
       cart: null,
     });
@@ -38,12 +35,87 @@ describe('useCartTotal', () => {
     mockUseSite.mockReturnValue({
       site: null,
     });
+    mockUseSelectedShippingMethod.mockReturnValue(null);
+  });
+
+  it('uses cart.totalPrice.amount as cartTotal when no shipping method is picked', () => {
+    mockUseCart.mockReturnValue({
+      cart: {
+        subTotalPrice: { amount: 82.29, currency: 'EUR' },
+        totalPrice: { amount: 82.3, currency: 'EUR' },
+        shippingCosts: {
+          amount: 0.01,
+          currency: 'EUR',
+          tax: {
+            amount: 0,
+            currency: 'EUR',
+            netValue: 0.01,
+            grossValue: 0.01,
+            taxCode: 'ZERO',
+            taxRate: 0,
+          },
+        },
+      },
+    });
+
+    const { result } = renderHook(() => useCartTotal());
+
+    expect(result.current.cartTotal).toBe(82.3);
+    expect(result.current.shippingCosts).toBe(0.01);
+    expect(result.current.shippingVat).toBe(0);
+    expect(result.current.showShippingVat).toBe(false);
+    expect(result.current.currency).toBe('EUR');
+  });
+
+  it('shows shipping VAT from cart.shippingCosts.tax when the amount is greater than 0', () => {
+    mockUseCart.mockReturnValue({
+      cart: {
+        subTotalPrice: { amount: 107.7, currency: 'CHF' },
+        totalPrice: { amount: 129.24, currency: 'CHF' },
+        shippingCosts: {
+          amount: 20,
+          currency: 'CHF',
+          tax: {
+            amount: 1.54,
+            currency: 'CHF',
+            netValue: 20,
+            grossValue: 21.54,
+            taxCode: 'STANDARD',
+            taxRate: 7.7,
+          },
+        },
+      },
+    });
+
+    const { result } = renderHook(() => useCartTotal());
+
+    expect(result.current.cartTotal).toBe(129.24);
+    expect(result.current.shippingVat).toBe(1.54);
+    expect(result.current.showShippingVat).toBe(true);
+  });
+
+  it('overlays the picked shipping fee so header and mini-cart match checkout', () => {
+    mockUseCart.mockReturnValue({
+      cart: {
+        subTotalPrice: { amount: 5708.49, currency: 'EUR' },
+        totalPrice: { amount: 5708.49, currency: 'EUR' },
+        shippingCosts: {
+          amount: 0,
+          currency: 'EUR',
+          tax: { amount: 0, currency: 'EUR', netValue: 0, grossValue: 0, taxRate: 0 },
+        },
+      },
+    });
+    mockUseSelectedShippingMethod.mockReturnValue({ amount: 4.95 });
+
+    const { result } = renderHook(() => useCartTotal());
+
+    expect(result.current.shippingCosts).toBe(4.95);
+    expect(result.current.cartTotal).toBe(5713.44);
+    expect(result.current.showShippingVat).toBe(false);
   });
 
   it('prefers session currency when cart totals are in a different currency (stale until sync)', () => {
-    mockUseCheckout.mockReturnValue({
-      shippingMethod: { amount: 5 },
-    });
     mockUseCart.mockReturnValue({
       cart: {
         subTotalPrice: { amount: 10, currency: 'USD' },
@@ -62,7 +134,7 @@ describe('useCartTotal', () => {
 
     const { result } = renderHook(() => useCartTotal());
 
-    expect(result.current.cartTotal).toBe(15);
+    expect(result.current.cartTotal).toBe(10);
     expect(result.current.currency).toBe('EUR');
   });
 
@@ -84,9 +156,6 @@ describe('useCartTotal', () => {
   });
 
   it('uses cart currency when session currency is not allowed for the site', () => {
-    mockUseCheckout.mockReturnValue({
-      shippingMethod: { amount: 2 },
-    });
     mockUseCart.mockReturnValue({
       cart: {
         subTotalPrice: { amount: 10, currency: 'USD' },
@@ -105,7 +174,7 @@ describe('useCartTotal', () => {
 
     const { result } = renderHook(() => useCartTotal());
 
-    expect(result.current.cartTotal).toBe(12);
+    expect(result.current.cartTotal).toBe(10);
     expect(result.current.currency).toBe('USD');
   });
 

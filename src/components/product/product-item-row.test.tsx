@@ -4,6 +4,7 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { render, screen, within } from '@testing-library/react';
+import { PRODUCT_NO_IMAGE_SRC } from '@/lib/common/product-image';
 import { formatCurrency } from '@/lib/utils';
 import { ProductItemRow } from './product-item-row';
 import type { ProductListItem } from './product-list';
@@ -158,5 +159,39 @@ describe('ProductItemRow omitMobileUnitPrice', () => {
       trailingRefundLabel.replaceAll(/\s+/g, ' ').trim(),
     );
     expect(within(desktopRow).getByText(byNormalizedText(unitPriceLabel))).toBeInTheDocument();
+  });
+});
+
+describe('ProductItemRow empty thumbnail', () => {
+  it('renders no_image_alt when imageUrl is null and still shows the product name', () => {
+    render(<ProductItemRow item={{ ...item, imageUrl: null }} />);
+
+    const images = screen.getAllByRole('img', { name: 'product.noImage' });
+    expect(images.length).toBeGreaterThan(0);
+    for (const image of images) {
+      expect(image).toHaveAttribute('src', PRODUCT_NO_IMAGE_SRC);
+    }
+    expect(screen.getAllByText(item.name).length).toBeGreaterThan(0);
+  });
+
+  it('renders no_image_alt when imageUrl is empty or whitespace', () => {
+    const { rerender } = render(<ProductItemRow item={{ ...item, imageUrl: '' }} />);
+
+    expect(screen.getAllByRole('img', { name: 'product.noImage' })[0]).toHaveAttribute(
+      'src',
+      '/images/no_image_alt.png',
+    );
+
+    rerender(<ProductItemRow item={{ ...item, imageUrl: '   ' }} />);
+
+    expect(screen.getAllByRole('img', { name: 'product.noImage' })[0]).toHaveAttribute('src', PRODUCT_NO_IMAGE_SRC);
+  });
+
+  it('renders the product image when imageUrl is present', () => {
+    render(<ProductItemRow item={{ ...item, imageUrl: 'https://cdn.example.com/widget.jpg' }} />);
+
+    const images = screen.getAllByRole('img', { name: item.name });
+    expect(images[0]).toHaveAttribute('src', 'https://cdn.example.com/widget.jpg');
+    expect(screen.queryByRole('img', { name: 'product.noImage' })).not.toBeInTheDocument();
   });
 });

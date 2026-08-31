@@ -18,12 +18,16 @@ AlwaysInclude:
     - CmsAdapter:none
     - CmsAdapter:storyblok
     - CmsAdapter:local
+    # COP-5174 Task 2.1: Tax BFF route lands in Task 2.2; keep TaxService + EmporixTaxApi until then.
+    - TaxService
   Client: []
   SSR:
     - DelegatingCmsServiceSSR
     - CmsAdapter:none
     - CmsAdapter:storyblok
     - CmsAdapter:local
+    # COP-5174 Task 2.1: Tax BFF route lands in Task 2.2; keep TaxService + EmporixTaxApi until then.
+    - TaxService
 
 # Files whose container lookups resolve the service ID at runtime, so `DI_PRUNE` cannot
 # trace them. Listing a file acknowledges that every ID it can reach is pinned above under
