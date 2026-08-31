@@ -98,7 +98,10 @@ class EmporixShippingApi implements IEmporixShippingApi {
     }
 
     const result = await response.json();
-    return Array.isArray(result) ? result : [];
+    if (Array.isArray(result)) {
+      return result;
+    }
+    return result ? [result] : [];
   }
 }
 

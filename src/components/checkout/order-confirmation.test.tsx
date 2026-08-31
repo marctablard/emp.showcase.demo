@@ -76,6 +76,12 @@ function buildOrder(overrides: Partial<Order> = {}): Order {
   };
 }
 
+/** Locale-tolerant money matcher (narrow/no-break spaces and `.` / `,` decimals). */
+function money(amount: number): RegExp {
+  const [whole, fraction] = amount.toFixed(2).split('.');
+  return new RegExp(`${whole}[.,]${fraction}`);
+}
+
 function mockUseOrder(order: Order) {
   useOrderMock.mockReturnValue({
     order,
@@ -133,11 +139,11 @@ describe('OrderConfirmation empty thumbnail', () => {
 
     const shippingRow = screen.getByText('orders.shipping').closest('div');
     expect(shippingRow).toHaveClass('flex', 'justify-between', 'mb-2');
-    expect(shippingRow).toHaveTextContent('20.00');
+    expect(shippingRow).toHaveTextContent(money(20));
 
     const totalRow = screen.getByText('orders.total').closest('div');
     expect(totalRow).toHaveClass('flex', 'justify-between', 'pt-2', 'border-t', 'border-border-primary');
-    expect(totalRow).toHaveTextContent('129.24');
+    expect(totalRow).toHaveTextContent(money(129.24));
 
     expect(screen.queryByText(/shippingVat/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Shipping VAT/i)).not.toBeInTheDocument();

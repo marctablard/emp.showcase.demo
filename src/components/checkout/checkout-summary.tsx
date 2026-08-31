@@ -124,10 +124,10 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
                 </div>
                 <div className="flex justify-between text-base">
                   <span>{t('shippingFee')}</span>
-                  {shippingFee !== undefined ? (
-                    <span>{formatCurrency(shippingFee, currency || cart.currency)}</span>
-                  ) : (
+                  {shippingFee === undefined ? (
                     <span>{t('calculatedAtCheckout')}</span>
+                  ) : (
+                    <span>{formatCurrency(shippingFee, currency || cart.currency)}</span>
                   )}
                 </div>
                 {/* COP-5174: Shipping VAT is a Jira override — Figma Order Overview has no Shipping VAT line and shows Freight Costs instead. */}

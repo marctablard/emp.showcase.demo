@@ -8,7 +8,7 @@ import type { TaxClassRate, TaxService } from '../TaxService';
  */
 @injectable('TaxService', 'Singleton')
 class EmporixTaxService implements TaxService {
-  constructor(@inject('EmporixTaxApi') private taxApi: EmporixTaxApi) {}
+  constructor(@inject('EmporixTaxApi') private readonly taxApi: EmporixTaxApi) {}
 
   async getTaxRate(countryCode: string, taxCode: string): Promise<number | undefined> {
     const configuration = await this.taxApi.getTaxConfiguration(countryCode);

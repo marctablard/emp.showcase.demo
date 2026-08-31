@@ -157,6 +157,24 @@ describe('EmporixShippingApi', () => {
       expect(result[0].id).toBe('window-1');
     });
 
+    it('normalizes a single window object into a one-element array', async () => {
+      (apiInvoker.authenticatedFetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: 'window-1',
+          deliveryDate: '2026-09-02T10:00:00.000Z',
+          slotId: 'slot-1',
+          zoneId: 'zone-de',
+          deliveryMethod: 'DHL Standard',
+        }),
+      });
+
+      const result = await shippingApi.getDeliveryWindowsByCart('cart-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('window-1');
+    });
+
     it('returns an empty list when Emporix responds 404', async () => {
       (apiInvoker.authenticatedFetch as jest.Mock).mockResolvedValue({
         ok: false,

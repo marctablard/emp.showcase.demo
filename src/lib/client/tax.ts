@@ -1,8 +1,6 @@
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { TaxClassRate } from '@/platform/services/tax/TaxService';
 
-export type { TaxClassRate };
-
 const taxClassesByCountry = new Map<string, TaxClassRate[]>();
 const taxClassesInFlight = new Map<string, Promise<TaxClassRate[]>>();
 

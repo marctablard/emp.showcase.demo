@@ -53,10 +53,10 @@ export function HeaderMiniCartContent({ loading, cart, scrollHeight, scrollConta
         </div>
         <div className="flex justify-between">
           <span>{t('summary.shippingCosts')}</span>
-          {shippingCosts !== undefined ? (
-            <span>{formatCurrency(shippingCosts, currency)}</span>
-          ) : (
+          {shippingCosts === undefined ? (
             <span>{t('summary.calculatedAtCheckout')}</span>
+          ) : (
+            <span>{formatCurrency(shippingCosts, currency)}</span>
           )}
         </div>
         {showShippingVat && (

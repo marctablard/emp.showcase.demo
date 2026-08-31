@@ -69,10 +69,10 @@ export function CartSummary({ cart, boundingContent }: CartSummaryProps) {
                   </div>
                   <div className="flex justify-between text-base">
                     <span>{t('shippingCosts')}</span>
-                    {shippingCosts !== undefined ? (
-                      <span>{formatCurrency(shippingCosts, currency)}</span>
-                    ) : (
+                    {shippingCosts === undefined ? (
                       <span>{t('calculatedAtCheckout')}</span>
+                    ) : (
+                      <span>{formatCurrency(shippingCosts, currency)}</span>
                     )}
                   </div>
                   {showShippingVat && (

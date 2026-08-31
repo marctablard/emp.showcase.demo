@@ -10,9 +10,10 @@ import type {
   CartService,
   CartShippingAddress,
   CartShippingMethodSelection,
+  CartStatus,
+  CartStatusDetailCode,
   ModifyCartItemResult,
 } from '@/platform/services/cart/CartService';
-import type { CartStatus, CartStatusDetailCode } from '@/platform/services/cart/CartService';
 import {
   CART_CURRENCY_UPDATE_ERROR_CODE,
   CartCurrencyUpdateError,
@@ -48,7 +49,7 @@ class EmporixCartService implements CartService {
     @inject('StockService') private stockService: StockService,
     @inject('LoggerService') private logger: LoggerService,
     @inject('SiteService') private siteService: SiteService,
-    @inject('ShippingService') private shippingService: ShippingService,
+    @inject('ShippingService') private readonly shippingService: ShippingService,
   ) {}
 
   private normalizeLegalEntityId(value: string | undefined): string {
@@ -617,9 +618,13 @@ class EmporixCartService implements CartService {
 
   private resolveCartDestination(cart: EmporixCart): { countryCode?: string; zipCode?: string } {
     const shipping = cart.addresses?.find((address) => address.type === 'SHIPPING');
+    if (shipping?.country || shipping?.zipCode) {
+      return { countryCode: shipping.country, zipCode: shipping.zipCode };
+    }
+    const legacy = cart as unknown as Record<string, unknown>;
     return {
-      countryCode: cart.countryCode || shipping?.country,
-      zipCode: cart.zipCode || shipping?.zipCode,
+      countryCode: typeof legacy.countryCode === 'string' ? legacy.countryCode : undefined,
+      zipCode: typeof legacy.zipCode === 'string' ? legacy.zipCode : undefined,
     };
   }
 
