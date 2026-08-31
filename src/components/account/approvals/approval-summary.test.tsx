@@ -338,6 +338,37 @@ describe('ApprovalSummary', () => {
     expect(shippingTaxRow).toHaveTextContent(/0,74/);
   });
 
+  it('uses subtotalAggregate.netValue for estimated shipping VAT when line items are missing', () => {
+    const approval: Approval = {
+      ...baseApproval,
+      resourceType: 'CART',
+      resource: {
+        id: 'cart-empty-items',
+        items: [],
+        totalPrice: {
+          currency: 'CHF',
+          amount: 170,
+          netValue: 170,
+          grossValue: 182.29,
+          taxValue: 12.29,
+        },
+        subtotalAggregate: { currency: 'CHF', netValue: 150, grossValue: 161.55, taxValue: 11.55 },
+      },
+      details: {
+        currency: 'CHF',
+        shipping: { amount: 20, taxCode: 'REDUCED_3' } as any,
+        addresses: [{ type: 'SHIPPING' } as any, { type: 'BILLING' } as any],
+        paymentMethods: [{ name: 'Card' } as any],
+      },
+    };
+
+    render(<ApprovalSummary approval={approval} />);
+
+    const shippingTaxRow = screen.getByTestId('approval-overview-shipping-tax-estimated');
+    expect(shippingTaxRow).toHaveTextContent(/0,74/);
+    expect(shippingTaxRow).not.toHaveTextContent(/150,74/);
+  });
+
   it('omits Shipping VAT (estimated) when leftover is 0 and still uses grossValue for Total', () => {
     const approval: Approval = {
       ...baseApproval,

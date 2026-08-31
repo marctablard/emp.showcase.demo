@@ -696,7 +696,7 @@ describe('OrderDetail', () => {
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    expect(screen.queryByText('shippingVat')).not.toBeInTheDocument();
+    expect(screen.queryByText(/shippingVat/)).not.toBeInTheDocument();
   });
 
   it('omits Shipping VAT when shipping tax rate is 0%', () => {

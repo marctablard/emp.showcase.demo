@@ -54,9 +54,10 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
   }, 0);
   const shippingCost = details?.shipping?.amount ?? 0;
   const vat = approval.resource.subtotalAggregate?.taxValue ?? 0;
+  const goodsNet = valueOfGoods > 0 ? valueOfGoods : (approval.resource.subtotalAggregate?.netValue ?? 0);
   const taxLine = {
     taxAmount: vat,
-    netAmount: valueOfGoods > 0 ? valueOfGoods : approval.resource.subtotalAggregate?.netValue,
+    netAmount: goodsNet,
     taxRate: resolveApprovalDisplayTaxRate(approval),
   };
   const showTaxLine = shouldDisplayTaxLine(taxLine);
@@ -64,7 +65,7 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
   const { shippingTaxEstimated, showShippingTaxEstimated } = resolveCartOrderOverviewShippingTax({
     totalGross,
     shippingFee: shippingCost,
-    goodsNet: valueOfGoods,
+    goodsNet,
     goodsVat: vat,
   });
 
