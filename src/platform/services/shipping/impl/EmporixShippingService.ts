@@ -1,4 +1,5 @@
 import { inject } from 'inversify';
+import { getApplicableShippingFee } from '@/lib/common/get-applicable-shipping-fee';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixMonetaryAmount } from '@/platform/integrations/emporix/model/common';
 import type { EmporixShippingApi } from '@/platform/integrations/emporix/shipping/EmporixShippingApi';
@@ -83,11 +84,14 @@ class EmporixShippingService implements ShippingService {
             }
             let cost: EmporixMonetaryAmount | undefined = undefined;
             if (orderValue) {
-              const fee = method.fees
-                .filter((fee) => fee.minOrderValue.currency == orderValue.currency)
-                .filter((fee) => fee.minOrderValue.amount <= orderValue.amount)
-                .sort((b, a) => a.minOrderValue.amount - b.minOrderValue.amount)
-                .find((fee) => fee.cost.currency == orderValue.currency);
+              const fee = getApplicableShippingFee(
+                method.fees.filter(
+                  (candidate) =>
+                    candidate.minOrderValue.currency == orderValue.currency &&
+                    candidate.cost.currency == orderValue.currency,
+                ),
+                orderValue.amount,
+              );
               if (fee) {
                 cost = fee.cost;
               }
