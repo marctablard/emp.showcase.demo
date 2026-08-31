@@ -14,6 +14,7 @@ import {
 const DEFAULT_PAGE_NUMBER = 1;
 const ALLOWED_SORT_FIELDS = new Set(['firstName', 'lastName', 'contactEmail', 'metadataCreatedAt', 'active']);
 const SAME_COMPANY_REQUIRED_MESSAGE = 'Customer can only assign new customer to the same company';
+const DUPLICATE_ACCOUNT_MESSAGE_PATTERN = /^Duplicate account '.+' for tenant '.+'\.$/;
 
 /**
  * GET /api/company-users
@@ -123,6 +124,18 @@ export async function POST(request: NextRequest) {
         );
       }
       return NextResponse.json({ error: 'Failed to create company user' }, { status: 400 });
+    }
+    if (upstreamStatus === 409) {
+      const duplicateAccountMessage = getDuplicateAccountMessage(error);
+      if (duplicateAccountMessage) {
+        return NextResponse.json(
+          {
+            error: duplicateAccountMessage,
+            code: USER_MANAGEMENT_ERROR_CODE.DUPLICATE_ACCOUNT,
+          },
+          { status: 409 },
+        );
+      }
     }
     return NextResponse.json({ error: 'Failed to create company user' }, { status: 500 });
   }
@@ -273,6 +286,18 @@ function getUpstreamStatus(error: unknown): number | undefined {
   }
   const status = (attached as Record<string, unknown>).status;
   return typeof status === 'number' ? status : undefined;
+}
+
+function getDuplicateAccountMessage(error: unknown): string | undefined {
+  const message = getParsedUpstreamMessage(error);
+  if (!message || !DUPLICATE_ACCOUNT_MESSAGE_PATTERN.test(message)) {
+    return undefined;
+  }
+  return redactEmails(message);
+}
+
+function redactEmails(value: string): string {
+  return value.replaceAll(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[REDACTED_EMAIL]');
 }
 
 function getParsedUpstreamMessage(error: unknown): string | undefined {

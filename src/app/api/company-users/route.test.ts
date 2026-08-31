@@ -435,6 +435,74 @@ describe('/api/company-users', () => {
     expect(JSON.stringify(logger.error.mock.calls[0]?.[0])).not.toContain('pii@example.com');
   });
 
+  it('allow-lists a 409 duplicate-account message and redacts the email', async () => {
+    const email = 'pii@example.com';
+    const body = JSON.stringify({
+      type: 'conflict_resource',
+      status: 409,
+      message: `Duplicate account '${email}' for tenant 'showcasedev'.`,
+      details: null,
+    });
+    const error = Object.assign(new Error(`Create customer failed with upstream status 409 Conflict: ${body}`), {
+      status: 409,
+      statusText: 'Conflict',
+      operation: 'Create customer',
+      body,
+      userManagementLogContext: {
+        status: 409,
+        statusText: 'Conflict',
+        operation: 'Create customer',
+        type: 'conflict_resource',
+        message: "Duplicate account '[REDACTED_EMAIL]' for tenant 'showcasedev'.",
+      },
+    });
+    userManagementService.createUser.mockRejectedValueOnce(error);
+
+    const response = await POST({
+      json: jest.fn().mockResolvedValue({
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        contactEmail: 'ada@example.com',
+        active: false,
+        groupAssignments: [{ legalEntityId: 'le-1', groupId: 'group-1' }],
+      }),
+    } as never);
+
+    expect(response.status).toBe(409);
+    const responseBody = await response.json();
+    expect(responseBody).toEqual({
+      error: "Duplicate account '[REDACTED_EMAIL]' for tenant 'showcasedev'.",
+      code: USER_MANAGEMENT_ERROR_CODE.DUPLICATE_ACCOUNT,
+    });
+    expect(JSON.stringify(responseBody)).not.toContain(email);
+  });
+
+  it('keeps unexpected 409 create errors generic at 500', async () => {
+    userManagementService.createUser.mockRejectedValueOnce(
+      Object.assign(new Error('conflict'), {
+        status: 409,
+        statusText: 'Conflict',
+        body: JSON.stringify({ message: 'Some other conflict for pii@example.com' }),
+      }),
+    );
+
+    const response = await POST({
+      json: jest.fn().mockResolvedValue({
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        contactEmail: 'ada@example.com',
+        active: false,
+        groupAssignments: [{ legalEntityId: 'le-1', groupId: 'group-1' }],
+      }),
+    } as never);
+
+    expect(response.status).toBe(500);
+    const responseBody = await response.json();
+    expect(responseBody).toEqual({ error: 'Failed to create company user' });
+    expect(JSON.stringify(responseBody)).not.toContain('pii@example.com');
+    expect(JSON.stringify(responseBody)).not.toContain('Some other conflict');
+  });
+
   it('keeps unexpected non-400 create errors generic at 500', async () => {
     userManagementService.createUser.mockRejectedValueOnce(
       Object.assign(new Error('sensitive upstream failure'), {
