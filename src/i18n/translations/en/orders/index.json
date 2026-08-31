@@ -271,6 +271,7 @@
     "searchPlaceholder": "Search by approval ID...",
     "noMatches": "No approvals match your search",
     "shippingVat": "Shipping VAT",
+    "shippingVatEstimated": "Shipping VAT (estimated)",
     "free": "Free",
     "baseNetUnitPrice": "Base Net Unit Price",
     "discount": "Discount"

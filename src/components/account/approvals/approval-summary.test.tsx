@@ -3,6 +3,8 @@
  */
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
+import deOrdersTranslations from '@/i18n/translations/de/orders/index.json';
+import enOrdersTranslations from '@/i18n/translations/en/orders/index.json';
 import type { Approval } from '@/platform/services/model/approval';
 import { ApprovalSummary } from './approval-summary';
 
@@ -51,6 +53,11 @@ const baseApproval: Approval = {
 };
 
 describe('ApprovalSummary', () => {
+  it('uses the estimated shipping-VAT copy so CART VAT is marked as frontend-calculated', () => {
+    expect(enOrdersTranslations.Approval.shippingVatEstimated).toBe('Shipping VAT (estimated)');
+    expect(deOrdersTranslations.Approval.shippingVatEstimated).toBe('Versand-MwSt. (geschätzt)');
+  });
+
   it('renders the order overview, shipping, payment, and other cards with H4 headings for a CART approval', () => {
     const approval: Approval = {
       ...baseApproval,
@@ -295,8 +302,43 @@ describe('ApprovalSummary', () => {
     expect(quotedPrice).not.toHaveClass('border-border-success');
   });
 
-  it('uses subtotalAggregate.netValue for Total, never totalPrice.amount or goods+vat invent (finding 26: 60.05)', () => {
-    // Characterization: items 37 + 23.05; model net 60.05; totalPrice.amount 63.05 and goods+shipping+vat would be wrong.
+  it('uses totalPrice.grossValue for CART Total value and never totalPrice.amount (170 vs 182.29)', () => {
+    const approval: Approval = {
+      ...baseApproval,
+      resourceType: 'CART',
+      resource: {
+        id: 'cart-ch-shipping-tax',
+        items: [{ productId: 'p1', quantity: 1, itemPrice: { currency: 'CHF', amount: 150, netValue: 150 } }],
+        totalPrice: {
+          currency: 'CHF',
+          amount: 170,
+          netValue: 170,
+          grossValue: 182.29,
+          taxValue: 12.29,
+        },
+        subtotalAggregate: { currency: 'CHF', netValue: 150, grossValue: 161.55, taxValue: 11.55 },
+      },
+      details: {
+        currency: 'CHF',
+        shipping: { amount: 20, taxCode: 'REDUCED_3' } as any,
+        addresses: [{ type: 'SHIPPING' } as any, { type: 'BILLING' } as any],
+        paymentMethods: [{ name: 'Card' } as any],
+      },
+    };
+
+    render(<ApprovalSummary approval={approval} />);
+
+    const totalValueHeading = screen.getByRole('heading', { level: 5, name: 'totalValue' });
+    const totalValueAmount = totalValueHeading.parentElement?.querySelectorAll('h5')[1];
+    expect(totalValueAmount).toHaveTextContent(/182,29/);
+    expect(totalValueAmount).not.toHaveTextContent(/170,00/);
+
+    const shippingTaxRow = screen.getByTestId('approval-overview-shipping-tax-estimated');
+    expect(shippingTaxRow).toHaveTextContent('shippingVatEstimated');
+    expect(shippingTaxRow).toHaveTextContent(/0,74/);
+  });
+
+  it('omits Shipping VAT (estimated) when leftover is 0 and still uses grossValue for Total', () => {
     const approval: Approval = {
       ...baseApproval,
       resourceType: 'CART',
@@ -306,7 +348,7 @@ describe('ApprovalSummary', () => {
           { productId: 'p1', quantity: 1, itemPrice: { currency: 'EUR', amount: 37 } },
           { productId: 'p2', quantity: 1, itemPrice: { currency: 'EUR', amount: 23.05 } },
         ],
-        totalPrice: { currency: 'EUR', amount: 63.05 },
+        totalPrice: { currency: 'EUR', amount: 63.05, grossValue: 63.05 },
         subtotalAggregate: { currency: 'EUR', netValue: 60.05, grossValue: 63.05, taxValue: 3 },
       },
       details: {
@@ -319,13 +361,14 @@ describe('ApprovalSummary', () => {
 
     render(<ApprovalSummary approval={approval} />);
 
-    // Net value of goods (item sum) and Total both show 60.05; totalPrice.amount 63.05 must not appear.
-    expect(screen.getAllByText(/60,05.*€/).length).toBeGreaterThanOrEqual(2);
-    expect(screen.queryByText(/63,05.*€/)).not.toBeInTheDocument();
+    expect(screen.getByText(/60,05.*€/)).toBeInTheDocument();
+    const totalValueHeading = screen.getByRole('heading', { level: 5, name: 'totalValue' });
+    const totalValueAmount = totalValueHeading.parentElement?.querySelectorAll('h5')[1];
+    expect(totalValueAmount).toHaveTextContent(/63,05.*€/);
+    expect(screen.queryByTestId('approval-overview-shipping-tax-estimated')).not.toBeInTheDocument();
   });
 
-  it('keeps CART Total value as goods-only net when shipping fee is 11 (COP-6178)', () => {
-    // Same finding-26 goods lock with a non-zero shipping line: footer stays 60.05, not goods+shipping 71.05.
+  it('omits Shipping VAT (estimated) when leftover is negative and shows totalPrice.grossValue', () => {
     const approval: Approval = {
       ...baseApproval,
       resourceType: 'CART',
@@ -335,7 +378,7 @@ describe('ApprovalSummary', () => {
           { productId: 'p1', quantity: 1, itemPrice: { currency: 'EUR', amount: 37 } },
           { productId: 'p2', quantity: 1, itemPrice: { currency: 'EUR', amount: 23.05 } },
         ],
-        totalPrice: { currency: 'EUR', amount: 63.05 },
+        totalPrice: { currency: 'EUR', amount: 63.05, grossValue: 63.05 },
         subtotalAggregate: { currency: 'EUR', netValue: 60.05, grossValue: 63.05, taxValue: 3 },
       },
       details: {
@@ -350,15 +393,11 @@ describe('ApprovalSummary', () => {
 
     const totalValueHeading = screen.getByRole('heading', { level: 5, name: 'totalValue' });
     const totalValueAmount = totalValueHeading.parentElement?.querySelectorAll('h5')[1];
-    expect(totalValueAmount).toHaveTextContent(/60,05.*€/);
-    expect(totalValueAmount).not.toHaveTextContent(/71,05.*€/);
-    expect(totalValueAmount).not.toHaveTextContent(/1\.205,79.*€/);
+    expect(totalValueAmount).toHaveTextContent(/63,05.*€/);
+    expect(screen.queryByTestId('approval-overview-shipping-tax-estimated')).not.toBeInTheDocument();
 
     const shippingFeeLabel = screen.getByText('shippingFee');
     expect(shippingFeeLabel.parentElement).toHaveTextContent(/11,00.*€/);
-
-    expect(screen.queryByText(/71,05.*€/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/1\.205,79.*€/)).not.toBeInTheDocument();
   });
 
   it('renders Base Price from unitPrice and Quoted Price from aggregate nets', () => {
