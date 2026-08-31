@@ -216,7 +216,7 @@ describe('ApprovalSummary', () => {
 
     render(<ApprovalSummary approval={approval} />);
 
-    expect(screen.getAllByText('shippingTax').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('shippingVat').length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText(/1,40\s*€/).length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText(/8\.539,14\s*€/).length).toBeGreaterThanOrEqual(2);
   });

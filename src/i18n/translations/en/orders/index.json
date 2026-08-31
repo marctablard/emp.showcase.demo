@@ -39,7 +39,7 @@
   "subtotal": "Subtotal",
   "netValueOfGoods": "Net value of goods",
   "shippingFee": "Shipping fee",
-  "shippingVat": "Shipping Tax",
+  "shippingVat": "Shipping VAT",
   "totalValue": "Total value",
   "shipping": "Shipping",
   "free": "Free",
@@ -270,7 +270,7 @@
     "pageIndicator": "Page {current} / {total}",
     "searchPlaceholder": "Search by approval ID...",
     "noMatches": "No approvals match your search",
-    "shippingTax": "Shipping Tax",
+    "shippingVat": "Shipping VAT",
     "free": "Free",
     "baseNetUnitPrice": "Base Net Unit Price",
     "discount": "Discount"
@@ -314,6 +314,5 @@
   },
   "orderAccessDenied": "You don't have permission to view this order.",
   "errorFetchingOrder": "Error fetching order details",
-  "viewOrders": "View Orders",
-  "shippingTax": "Shipping Tax"
+  "viewOrders": "View Orders"
 }

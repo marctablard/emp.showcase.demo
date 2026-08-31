@@ -452,7 +452,7 @@
     "relatedOrder": "Related Order",
     "shippingMethod": "Shipping method",
     "shippingAddress": "Shipping address",
-    "shippingTax": "Shipping Tax",
+    "shippingVat": "Shipping VAT",
     "free": "Free",
     "baseNetUnitPrice": "Base Net Unit Price",
     "discount": "Discount"

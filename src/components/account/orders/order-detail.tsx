@@ -341,7 +341,7 @@ export function OrderDetail({
                   order.shipping?.total.tax !== undefined && (
                     <div className="flex justify-between gap-4 pt-2">
                       <span>
-                        {tOrder('shippingTax')}
+                        {tOrder('shippingVat')}
                         {detailTaxRateSuffix({
                           taxRate: order.shipping.total.taxRate,
                           taxAmount: order.shipping.total.tax,

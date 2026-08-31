@@ -408,7 +408,7 @@
     "relatedOrder": "Zugehörige Bestellung",
     "shippingMethod": "Versandart",
     "shippingAddress": "Versandadresse",
-    "shippingTax": "Shipping Tax",
+    "shippingVat": "Versand-MwSt.",
     "free": "Kostenlos",
     "baseNetUnitPrice": "Basis-Nettostückpreis",
     "discount": "Rabatt"

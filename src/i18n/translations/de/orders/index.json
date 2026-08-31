@@ -47,7 +47,7 @@
   "gross": "Brutto",
   "netValueOfGoods": "Netto-Warenwert",
   "shippingFee": "Versandgebühr",
-  "shippingVat": "Shipping Tax",
+  "shippingVat": "Versand-MwSt.",
   "totalValue": "Gesamtwert",
   "keepOrder": "Bestellung behalten",
   "cancelOrderConfirmTitle": "Bestellung stornieren?",
@@ -267,7 +267,7 @@
     "pageIndicator": "Seite {current} / {total}",
     "searchPlaceholder": "Nach Freigabe-ID suchen...",
     "noMatches": "Keine Freigaben entsprechen Ihrer Suche",
-    "shippingTax": "Shipping Tax",
+    "shippingVat": "Versand-MwSt.",
     "free": "Kostenlos",
     "baseNetUnitPrice": "Basis-Nettostückpreis",
     "discount": "Rabatt"
@@ -314,6 +314,5 @@
   "viewOrders": "Bestellungen anzeigen",
   "deliveryDate": "Lieferdatum",
   "deliveryAddress": "Lieferadresse",
-  "orderValue": "Bestellwert",
-  "shippingTax": "Shipping Tax"
+  "orderValue": "Bestellwert"
 }

@@ -109,7 +109,7 @@ export const QuoteSummary: React.FC<QuoteSummaryProps> = ({ quote }) => {
         {showShippingTax ? (
           <div className="flex justify-between gap-4">
             <span>
-              {t('shippingTax')}
+              {t('shippingVat')}
               {detailTaxRateSuffix(shippingTaxLine)}
             </span>
             <span>{fmt(breakdown.shippingTax)}</span>

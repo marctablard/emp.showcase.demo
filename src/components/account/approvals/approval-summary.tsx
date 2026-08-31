@@ -141,7 +141,7 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
         </div>
         {breakdown.showShippingTax ? (
           <div className="flex justify-between gap-4">
-            <span>{t('shippingTax')}</span>
+            <span>{t('shippingVat')}</span>
             <span>{fmt(breakdown.shippingTax)}</span>
           </div>
         ) : null}
