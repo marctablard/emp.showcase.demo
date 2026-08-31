@@ -91,6 +91,7 @@ describe('CartItemRow empty thumbnail', () => {
     const image = screen.getByRole('img', { name: 'product.noImage' });
     expect(image).toHaveAttribute('src', PRODUCT_NO_IMAGE_SRC);
     expect(image).toHaveAttribute('src', '/images/no_image_alt.png');
+    expect(image).toHaveClass('object-contain');
     expect(document.querySelector('.lucide-shopping-cart')).not.toBeInTheDocument();
   });
 

@@ -106,6 +106,7 @@ describe('EmporixIamApi', () => {
       expect(parsedUrl.searchParams.get('q')).toBe('b2b.legalEntityId:"le-1"');
       expect(parsedUrl.searchParams.get('userType')).toBe('CUSTOMER');
       expect(options.method).toBe('GET');
+      expect(options.headers).toEqual({ 'Accept-Language': '*' });
       expect(tokenType).toBe('service');
     });
 
@@ -223,6 +224,7 @@ describe('EmporixIamApi', () => {
       const [url, options, tokenType] = mockApiClient.authenticatedFetch.mock.calls[0];
       expect(url).toBe('/iam/test-tenant/users/cust-1/groups?');
       expect(options.method).toBe('GET');
+      expect(options.headers).toEqual({ 'X-Total-Count': 'true', 'Accept-Language': '*' });
       expect(tokenType).toBe('service');
     });
 

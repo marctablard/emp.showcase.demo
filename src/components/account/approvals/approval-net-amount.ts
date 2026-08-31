@@ -1,8 +1,9 @@
 import type { Approval } from '@/platform/services/model/approval';
 
 /**
- * Resolves the model-backed goods net for CART Order Overview “Total value”
- * (COP-6178 ticket-scoped). Approval Details header uses `resolveApprovalTotalNetAmount`.
+ * Resolves the model-backed goods net (header “Total net amount” via
+ * `resolveApprovalTotalNetAmount`). CART Order Overview “Total value” uses
+ * `totalPrice.grossValue` in `approval-cart-overview.ts`.
  *
  * Finding 26: do not use `resource.totalPrice.amount` for net display — that field
  * is often VAT-inclusive (e.g. 63.05) while net of goods is `subtotalAggregate.netValue`

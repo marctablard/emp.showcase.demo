@@ -80,6 +80,39 @@ describe('EmporixCompanyUserMapper', () => {
     ]);
   });
 
+  it('uses the localized IAM name for custom groups and keeps Jira labels for predefined roles', () => {
+    const groups: EmporixGroup[] = [
+      {
+        id: 'g-admin',
+        code: 'B2B_ADMIN',
+        name: { en: 'Administrator', de: 'Administrator' },
+        b2b: { role: 'Admin', legalEntityId: 'le-1' },
+      },
+      {
+        id: 'promo_manager',
+        name: { en: 'Promo Manager', de: 'Aktionsmanager' },
+        b2b: { legalEntityId: 'le-1' },
+      },
+      {
+        id: 'g-string-name',
+        name: 'Warehouse Staff',
+        b2b: { legalEntityId: 'le-1' },
+      },
+    ];
+
+    const mapped = mapper.mapToService(customer, {
+      groups,
+      companyNameByLegalEntityId: new Map([['le-1', 'Acme']]),
+      locale: 'de',
+    });
+
+    expect(mapped.groups).toEqual([
+      { id: 'g-admin', legalEntityId: 'le-1', displayName: 'Acme - Admin' },
+      { id: 'promo_manager', legalEntityId: 'le-1', displayName: 'Acme - Aktionsmanager' },
+      { id: 'g-string-name', legalEntityId: 'le-1', displayName: 'Acme - Warehouse Staff' },
+    ]);
+  });
+
   it('sets optional legalEntityId and legalEntityName only when mapping context provides them', () => {
     const withoutLegalEntity = mapper.mapToService(customer, {
       groups: [],

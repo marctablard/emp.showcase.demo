@@ -2425,6 +2425,29 @@ describe('EmporixUserManagementService create/update/delete', () => {
     expect(result.flatMap((entry) => entry.groups.map((group) => group.id))).not.toContain(GROUP_CONTACT);
   });
 
+  it('labels custom assignable groups from the localized IAM name for the session language', async () => {
+    sessionService.getCurrent.mockResolvedValue({ legalEntityId: SELECTED_LE, language: 'de' });
+    iamApi.getGroups.mockResolvedValue([
+      {
+        id: GROUP_ADMIN,
+        code: 'B2B_ADMIN',
+        name: { en: 'Administrator', de: 'Administrator' },
+        userType: 'CUSTOMER',
+        b2b: { role: 'Admin', legalEntityId: SELECTED_LE },
+      },
+      {
+        id: 'promo_manager',
+        name: { en: 'Promo Manager', de: 'Aktionsmanager' },
+        userType: 'CUSTOMER',
+        b2b: { legalEntityId: SELECTED_LE },
+      },
+    ]);
+
+    const result = await service.listAssignableGroups();
+
+    expect(result[0]?.groups.map((group) => group.displayName)).toEqual(['Acme - Admin', 'Acme - Aktionsmanager']);
+  });
+
   it('keeps service-token query-scoped groups when the response omits LE metadata', async () => {
     companyService.getCompanies.mockResolvedValue([{ id: SELECTED_LE, name: 'Acme' }]);
     iamApi.getGroups.mockResolvedValue([

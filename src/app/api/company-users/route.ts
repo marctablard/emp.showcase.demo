@@ -14,6 +14,7 @@ import {
 const DEFAULT_PAGE_NUMBER = 1;
 const ALLOWED_SORT_FIELDS = new Set(['firstName', 'lastName', 'contactEmail', 'metadataCreatedAt', 'active']);
 const SAME_COMPANY_REQUIRED_MESSAGE = 'Customer can only assign new customer to the same company';
+const DUPLICATE_ACCOUNT_MESSAGE_PATTERN = /^Duplicate account '.+' for tenant '.+'\.$/;
 
 /**
  * GET /api/company-users
@@ -86,46 +87,70 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
-    if (error instanceof AdminRequiredError) {
-      return adminRequiredResponse(error);
-    }
-    if (error instanceof PredefinedGroupConflictError) {
+    return handleCreateCompanyUserError(error, createRequestForLog);
+  }
+}
+
+function handleCreateCompanyUserError(
+  error: unknown,
+  createRequestForLog: CreateCompanyUserRequest | undefined,
+): NextResponse {
+  if (error instanceof AdminRequiredError) {
+    return adminRequiredResponse(error);
+  }
+  if (error instanceof PredefinedGroupConflictError) {
+    return NextResponse.json(
+      {
+        error: error.message,
+        code: USER_MANAGEMENT_ERROR_CODE.PREDEFINED_GROUP_CONFLICT,
+      },
+      { status: 400 },
+    );
+  }
+
+  const logger = server.get<LoggerService>('LoggerService');
+  logger.error(
+    {
+      ...toPostErrorLogContext(error),
+      tokenType: 'service',
+      createDtoKeys: getAttachedCreateDtoKeys(error) ?? Object.keys(createRequestForLog ?? {}),
+      path: '/api/company-users',
+      method: 'POST',
+    },
+    'Error creating company user',
+  );
+
+  return createCompanyUserUpstreamErrorResponse(error);
+}
+
+function createCompanyUserUpstreamErrorResponse(error: unknown): NextResponse {
+  const upstreamStatus = getUpstreamStatus(error);
+  if (upstreamStatus === 400) {
+    const upstreamMessage = getParsedUpstreamMessage(error);
+    if (upstreamMessage === SAME_COMPANY_REQUIRED_MESSAGE) {
       return NextResponse.json(
         {
-          error: error.message,
-          code: USER_MANAGEMENT_ERROR_CODE.PREDEFINED_GROUP_CONFLICT,
+          error: SAME_COMPANY_REQUIRED_MESSAGE,
+          code: USER_MANAGEMENT_ERROR_CODE.SAME_COMPANY_REQUIRED,
         },
         { status: 400 },
       );
     }
-
-    const logger = server.get<LoggerService>('LoggerService');
-    logger.error(
-      {
-        ...toPostErrorLogContext(error),
-        tokenType: 'service',
-        createDtoKeys: getAttachedCreateDtoKeys(error) ?? Object.keys(createRequestForLog ?? {}),
-        path: '/api/company-users',
-        method: 'POST',
-      },
-      'Error creating company user',
-    );
-    const upstreamStatus = getUpstreamStatus(error);
-    if (upstreamStatus === 400) {
-      const upstreamMessage = getParsedUpstreamMessage(error);
-      if (upstreamMessage === SAME_COMPANY_REQUIRED_MESSAGE) {
-        return NextResponse.json(
-          {
-            error: SAME_COMPANY_REQUIRED_MESSAGE,
-            code: USER_MANAGEMENT_ERROR_CODE.SAME_COMPANY_REQUIRED,
-          },
-          { status: 400 },
-        );
-      }
-      return NextResponse.json({ error: 'Failed to create company user' }, { status: 400 });
-    }
-    return NextResponse.json({ error: 'Failed to create company user' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to create company user' }, { status: 400 });
   }
+  if (upstreamStatus === 409) {
+    const duplicateAccountMessage = getDuplicateAccountMessage(error);
+    if (duplicateAccountMessage) {
+      return NextResponse.json(
+        {
+          error: duplicateAccountMessage,
+          code: USER_MANAGEMENT_ERROR_CODE.DUPLICATE_ACCOUNT,
+        },
+        { status: 409 },
+      );
+    }
+  }
+  return NextResponse.json({ error: 'Failed to create company user' }, { status: 500 });
 }
 
 function isAllowedSort(sort: string): boolean {
@@ -273,6 +298,18 @@ function getUpstreamStatus(error: unknown): number | undefined {
   }
   const status = (attached as Record<string, unknown>).status;
   return typeof status === 'number' ? status : undefined;
+}
+
+function getDuplicateAccountMessage(error: unknown): string | undefined {
+  const message = getParsedUpstreamMessage(error);
+  if (!message || !DUPLICATE_ACCOUNT_MESSAGE_PATTERN.test(message)) {
+    return undefined;
+  }
+  return redactEmails(message);
+}
+
+function redactEmails(value: string): string {
+  return value.replaceAll(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[REDACTED_EMAIL]');
 }
 
 function getParsedUpstreamMessage(error: unknown): string | undefined {

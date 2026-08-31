@@ -3,6 +3,10 @@
 import React from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { CreditCard, List, NotebookPen, ReceiptText, Truck } from 'lucide-react';
+import {
+  resolveCartOrderOverviewShippingTax,
+  resolveCartOrderOverviewTotalGross,
+} from '@/components/account/approvals/approval-cart-overview';
 import { resolveApprovalNetAmount } from '@/components/account/approvals/approval-net-amount';
 import {
   type ApprovalPriceCardBreakdown,
@@ -50,14 +54,20 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
   }, 0);
   const shippingCost = details?.shipping?.amount ?? 0;
   const vat = approval.resource.subtotalAggregate?.taxValue ?? 0;
+  const goodsNet = valueOfGoods > 0 ? valueOfGoods : (approval.resource.subtotalAggregate?.netValue ?? 0);
   const taxLine = {
     taxAmount: vat,
-    netAmount: valueOfGoods > 0 ? valueOfGoods : approval.resource.subtotalAggregate?.netValue,
+    netAmount: goodsNet,
     taxRate: resolveApprovalDisplayTaxRate(approval),
   };
   const showTaxLine = shouldDisplayTaxLine(taxLine);
-  // Finding 26: model-backed net only — never totalPrice.amount or invented goods+shipping+vat.
-  const formattedNetTotal = netTotal ? formatCurrency(netTotal.amount, netTotal.currency, locale) : '-';
+  const totalGross = resolveCartOrderOverviewTotalGross(approval);
+  const { shippingTaxEstimated, showShippingTaxEstimated } = resolveCartOrderOverviewShippingTax({
+    totalGross,
+    shippingFee: shippingCost,
+    goodsNet,
+    goodsVat: vat,
+  });
 
   const shippingAddress = details?.addresses?.find?.((a: any) => a?.type === 'SHIPPING') || details?.addresses?.[0];
   const billingAddress = details?.addresses?.find?.((a: any) => a?.type === 'BILLING') || details?.addresses?.[1];
@@ -141,7 +151,7 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
         </div>
         {breakdown.showShippingTax ? (
           <div className="flex justify-between gap-4">
-            <span>{t('shippingTax')}</span>
+            <span>{t('shippingVat')}</span>
             <span>{fmt(breakdown.shippingTax)}</span>
           </div>
         ) : null}
@@ -230,9 +240,15 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
               <span>{t('shippingFee')}</span>
               <span>{formatShippingFeeDisplay(shippingCost, fmt, t('free'))}</span>
             </div>
+            {showShippingTaxEstimated && (
+              <div className="flex justify-between gap-4 pt-2" data-testid="approval-overview-shipping-tax-estimated">
+                <span>{t('shippingVatEstimated')}</span>
+                <span>{fmt(shippingTaxEstimated)}</span>
+              </div>
+            )}
             <div className="flex justify-between items-start gap-4 pt-2">
               <H5>{t('totalValue')}</H5>
-              <H5>{formattedNetTotal}</H5>
+              <H5>{typeof totalGross === 'number' ? fmt(totalGross) : '-'}</H5>
             </div>
           </div>
         </SummaryCard>

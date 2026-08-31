@@ -691,15 +691,15 @@ describe('OrderDetail', () => {
     expect(totalValueIndex).toBeGreaterThan(shippingFeeIndex);
   });
 
-  it('omits an optional Shipping Tax row when the order model has no independent shipping-tax value', () => {
+  it('omits an optional Shipping VAT row when the order model has no independent shipping-tax value', () => {
     mockUseOrder();
 
     render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
 
-    expect(screen.queryByText('shippingTax')).not.toBeInTheDocument();
+    expect(screen.queryByText(/shippingVat/)).not.toBeInTheDocument();
   });
 
-  it('omits Shipping Tax when shipping tax rate is 0%', () => {
+  it('omits Shipping VAT when shipping tax rate is 0%', () => {
     const orderWithZeroShippingTax: Order = {
       ...baseOrder,
       shipping: {
@@ -712,10 +712,10 @@ describe('OrderDetail', () => {
     render(<OrderDetail orderId={orderWithZeroShippingTax.id} initialOrder={orderWithZeroShippingTax} />);
 
     expect(screen.getByText('shippingFee')).toBeInTheDocument();
-    expect(screen.queryByText(/shippingTax/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/shippingVat/)).not.toBeInTheDocument();
   });
 
-  it('omits Shipping Tax when tax amount is 0 even if rate is positive (free shipping)', () => {
+  it('omits Shipping VAT when tax amount is 0 even if rate is positive (free shipping)', () => {
     const orderWithFreeShippingTaxRate: Order = {
       ...baseOrder,
       shipping: {
@@ -728,11 +728,11 @@ describe('OrderDetail', () => {
     render(<OrderDetail orderId={orderWithFreeShippingTaxRate.id} initialOrder={orderWithFreeShippingTaxRate} />);
 
     expect(screen.getByText('shippingFee')).toBeInTheDocument();
-    expect(screen.queryByText(/shippingTax/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/shippingVat/)).not.toBeInTheDocument();
     expect(screen.queryByText(/7%/)).not.toBeInTheDocument();
   });
 
-  it('renders Shipping Tax from the model tax field and Total from price.total.gross only', () => {
+  it('renders Shipping VAT from the model tax field and Total from price.total.gross only', () => {
     const orderWithShippingTax: Order = {
       ...baseOrder,
       price: {
@@ -756,7 +756,7 @@ describe('OrderDetail', () => {
 
     render(<OrderDetail orderId={orderWithShippingTax.id} initialOrder={orderWithShippingTax} />);
 
-    expect(screen.getByText('shippingTax (19%)')).toBeInTheDocument();
+    expect(screen.getByText('shippingVat (19%)')).toBeInTheDocument();
     expect(screen.getByText('1.71 EUR')).toBeInTheDocument();
     expect(screen.getByText('tax (19%)')).toBeInTheDocument();
 

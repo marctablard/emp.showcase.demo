@@ -1,5 +1,6 @@
 import { inject } from 'inversify';
 import { USERS_PER_PAGE } from '@/components/account/account-table-constants';
+import { routingConfig } from '@/i18n/routing';
 import { resolveLegalEntityIdFromSessionAndCustomer } from '@/lib/common/legal-entity-context';
 import { injectable } from '@/platform/core/di/injectable';
 import { isEmporixApiError } from '@/platform/integrations/emporix/common/EmporixApiError';
@@ -157,6 +158,7 @@ export class EmporixUserManagementService implements UserManagementService {
           this.mapper.mapToService(customer, {
             groups: groupsByCustomerId.get(customer.id) ?? [],
             companyNameByLegalEntityId,
+            locale: sessionDisplayLocale(session),
           }),
         ),
         totalCount: matching.length,
@@ -291,6 +293,7 @@ export class EmporixUserManagementService implements UserManagementService {
       const mapped = this.mapper.mapToService(DISPLAY_NAME_STUB_CUSTOMER, {
         groups,
         companyNameByLegalEntityId,
+        locale: sessionDisplayLocale(session),
       }).groups;
       const assignable: AssignableCompanyUserGroup[] = mapped.map((group) => ({
         id: group.id,
@@ -855,6 +858,7 @@ export class EmporixUserManagementService implements UserManagementService {
     sort?: string,
     query?: string,
   ): Promise<CompanyUserListResult> {
+    const session = await this.sessionService.getCurrent();
     const { assignments, memberIdsByLegalEntityId } = await this.collectCombinedAdminLegalEntityAssignments(
       currentCustomerId,
       adminLegalEntityIds,
@@ -921,6 +925,7 @@ export class EmporixUserManagementService implements UserManagementService {
         this.mapper.mapToService(row.customer, {
           groups: catalogGroupsForSourceLegalEntity(row.customer, selectedGroupsByMemberId, row.legalEntityId),
           companyNameByLegalEntityId,
+          locale: sessionDisplayLocale(session),
           legalEntityId: row.legalEntityId,
           legalEntityName: row.legalEntityName,
         }),
@@ -979,9 +984,11 @@ export class EmporixUserManagementService implements UserManagementService {
     const groupsByCustomerId = await this.joinGroupsForResultPage([customer]);
     const customerGroups = groupsByCustomerId.get(customer.id) ?? [];
     const companyNameByLegalEntityId = await this.companyNamesForGroups(customerGroups);
+    const session = await this.sessionService.getCurrent();
     return this.mapper.mapToService(customer, {
       groups: customerGroups,
       companyNameByLegalEntityId,
+      locale: sessionDisplayLocale(session),
       isSelectedLegalEntityMember: mapping?.isSelectedLegalEntityMember,
     });
   }
@@ -1283,7 +1290,8 @@ export class EmporixUserManagementService implements UserManagementService {
       const groups = await this.loadAssignableGroupsForLegalEntity(assignment.legalEntityId);
       const group = groups.find((item) => item.id === assignment.groupId);
       if (group) {
-        return this.groupDisplayName(group, companyNameByLegalEntityId);
+        const session = await this.sessionService.getCurrent();
+        return this.groupDisplayName(group, companyNameByLegalEntityId, sessionDisplayLocale(session));
       }
     } catch (error) {
       this.logger.warn(
@@ -1298,10 +1306,15 @@ export class EmporixUserManagementService implements UserManagementService {
     return `${companyName} - ${assignment.groupId}`;
   }
 
-  private groupDisplayName(group: EmporixGroup, companyNameByLegalEntityId: Map<string, string>): string {
+  private groupDisplayName(
+    group: EmporixGroup,
+    companyNameByLegalEntityId: Map<string, string>,
+    locale: string = routingConfig.defaultLocale,
+  ): string {
     const mapped = this.mapper.mapToService(DISPLAY_NAME_STUB_CUSTOMER, {
       groups: [group],
       companyNameByLegalEntityId,
+      locale,
     }).groups[0];
     return mapped?.displayName ?? group.id ?? group.code ?? 'Unknown group';
   }
@@ -1650,6 +1663,10 @@ function isUnauthorizedError(error: unknown): boolean {
     return false;
   }
   return /\b401\b|unauthorized/i.test(error.message);
+}
+
+function sessionDisplayLocale(session: UserManagementSession | undefined): string {
+  return session?.language?.trim() || routingConfig.defaultLocale;
 }
 
 function isUnauthorizedOrForbiddenError(error: unknown): boolean {

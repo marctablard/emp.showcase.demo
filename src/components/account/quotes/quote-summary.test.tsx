@@ -117,7 +117,7 @@ describe('QuoteSummary', () => {
     );
 
     // Base + Quoted both show shipping tax when shipping is paid
-    expect(screen.getAllByText(/shippingTax/).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(/shippingVat/).length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText(/0,95\s*€/).length).toBeGreaterThanOrEqual(2);
 
     rerender(
@@ -133,7 +133,7 @@ describe('QuoteSummary', () => {
       />,
     );
 
-    expect(screen.queryByText(/shippingTax/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/shippingVat/)).not.toBeInTheDocument();
   });
 
   it('renders Base Price from unitPrice and Quoted Price from API totals', () => {

@@ -1,6 +1,6 @@
 # Emporix Showcase — Documentation
 
-This is the documentation home for the Emporix Showcase (the _Journey Aware Storefront_), a Next.js B2B
+This is the documentation home for Emporix B2B Commerce Frontend, a Next.js B2B
 commerce storefront built on the Emporix platform with dependency injection (InversifyJS), multi-site
 routing, internationalization (next-intl), Auth.js, and a provider-agnostic CMS layer
 (Storyblok / local JSON / none). It groups the articles in this folder by area and provides guided

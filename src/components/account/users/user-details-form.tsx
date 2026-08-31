@@ -33,6 +33,7 @@ const TITLE_KEYS = ['MR', 'MRS', 'MS'] as const;
 const NO_SELECTION = '__none__';
 const SAME_COMPANY_REQUIRED_ERROR = 'Customer can only assign new customer to the same company';
 const PREDEFINED_GROUP_CONFLICT_CODE = 'PREDEFINED_GROUP_CONFLICT';
+const DUPLICATE_ACCOUNT_CODE = 'DUPLICATE_ACCOUNT';
 const PREDEFINED_GROUP_ROLE_NAMES = ['admin', 'buyer', 'requestor', 'requester'];
 const NOTIFY_DURATION_MS = 4000;
 const USERS_LIST_HREF = '/account/users';
@@ -86,6 +87,9 @@ function getCreateSubmitErrorTitle(error: unknown, translate: UserManagementTran
   if (conflictTitle) return conflictTitle;
   if (error instanceof Error && error.message === SAME_COMPANY_REQUIRED_ERROR) {
     return SAME_COMPANY_REQUIRED_ERROR;
+  }
+  if (getCompanyUserErrorCode(error) === DUPLICATE_ACCOUNT_CODE && error instanceof Error && error.message.trim()) {
+    return error.message;
   }
   return translate('notifications.genericFailure');
 }

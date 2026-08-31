@@ -832,6 +832,30 @@ describe('UserDetailsForm', () => {
     );
   });
 
+  it('shows the redacted duplicate-account create error through the notification', async () => {
+    const duplicateAccountError = Object.assign(
+      new Error("Duplicate account '[REDACTED_EMAIL]' for tenant 'showcasedev'."),
+      { code: 'DUPLICATE_ACCOUNT' },
+    );
+    mockCreateCompanyUser.mockRejectedValue(duplicateAccountError);
+    render(<UserDetailsForm />);
+    await screen.findByText('Selected Company - Admin');
+    fillRequiredFields();
+    fireEvent.click(screen.getByText('Selected Company - Admin'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'save' }));
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Duplicate account '[REDACTED_EMAIL]' for tenant 'showcasedev'.",
+          type: 'error',
+          duration: 4000,
+        }),
+      ),
+    );
+  });
+
   it('shows predefined-group conflict toast copy for create failures', async () => {
     const predefinedConflictError = Object.assign(new Error('conflict'), { code: 'PREDEFINED_GROUP_CONFLICT' });
     mockCreateCompanyUser.mockRejectedValue(predefinedConflictError);
