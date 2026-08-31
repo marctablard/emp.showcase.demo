@@ -20,6 +20,7 @@ import { useL10n } from '@/hooks/useL10n';
 import { useWishlist } from '@/hooks/wishlist/useWishlist';
 import { type ProductAttributeKey, dk } from '@/i18n/dynamic-key';
 import type { MoveWishlistItemToCartResult } from '@/lib/client/wishlist';
+import { PRODUCT_NO_IMAGE_SRC, resolveProductImageSrc } from '@/lib/common/product-image';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency } from '@/lib/utils';
 import type { Product } from '@/platform/services/model/product';
@@ -297,13 +298,11 @@ export function WishlistItem({ item, onMovedToCart }: WishlistItemProps) {
     </div>
   );
 
+  const imageSrc = resolveProductImageSrc(item.imageUrl);
+  const imageAlt = imageSrc === PRODUCT_NO_IMAGE_SRC ? tProduct('noImage') : displayName;
   const imageThumb = (
-    <div className="w-14 h-14 shrink-0 rounded-ss-md rounded-ee-md overflow-hidden bg-surface-image-background flex items-center justify-center">
-      {item.imageUrl ? (
-        <Image src={item.imageUrl} alt={displayName} width={56} height={56} className="object-contain w-full h-full" />
-      ) : (
-        <ShoppingCart className="h-5 w-5 opacity-30 text-icon-secondary" />
-      )}
+    <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-ss-md rounded-ee-md bg-surface-image-background">
+      <Image src={imageSrc} alt={imageAlt} width={56} height={56} className="max-h-full max-w-full object-contain" />
     </div>
   );
 

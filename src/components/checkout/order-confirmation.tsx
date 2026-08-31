@@ -123,7 +123,7 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
               <CardContent>
                 {order.items.map((item) => (
                   <div key={item.id} className="py-4 flex flex-wrap sm:flex-nowrap">
-                    <div className="sm:w-16 sm:h-16 w-full h-24 bg-surface-image-background rounded-ss-md rounded-ee-md mb-4 sm:mb-0 sm:mr-4 flex-shrink-0">
+                    <div className="mb-4 flex h-24 w-full shrink-0 items-center justify-center overflow-hidden rounded-ss-md rounded-ee-md bg-surface-image-background sm:mb-0 sm:mr-4 sm:h-16 sm:w-16">
                       <Image
                         src={resolveProductImageSrc(item.images?.[0])}
                         alt={
@@ -133,7 +133,7 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
                         }
                         width={150}
                         height={150}
-                        className="w-full h-full object-cover rounded-ss-md rounded-ee-md"
+                        className="max-h-full max-w-full object-contain"
                       />
                     </div>
                     <div className="flex-grow">

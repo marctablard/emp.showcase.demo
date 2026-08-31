@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Leaf, Package, ShoppingCart } from 'lucide-react';
+import { Leaf, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { H3 } from '@/components/ui/h';
@@ -15,6 +15,7 @@ import { useSession } from '@/hooks/session/useSession';
 import { useL10n } from '@/hooks/useL10n';
 import { fetchProductPrice } from '@/lib/client/prices';
 import { fetchProductById } from '@/lib/client/products';
+import { PRODUCT_NO_IMAGE_SRC, resolveProductImageSrc } from '@/lib/common/product-image';
 import { getPublicDefaultCurrency } from '@/lib/common/public-default-env';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import { formatCurrency } from '@/lib/utils';
@@ -33,7 +34,11 @@ interface SubstitutionModalProps {
 
 export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onDone }: SubstitutionModalProps) {
   const t = useTranslations('cart');
+  const tProduct = useTranslations('product');
   const { l10n } = useL10n();
+  const originalImageSrc = resolveProductImageSrc(cartItem.product?.images?.[0]?.url);
+  const originalImageAlt =
+    originalImageSrc === PRODUCT_NO_IMAGE_SRC ? tProduct('noImage') : l10n(cartItem.product?.name || 'Product');
   const { session } = useSession();
   const { updateItemQuantity, addItem, loading } = useCart();
   const [selectedSubstitutions, setSelectedSubstitutions] = useState<string[]>([]);
@@ -228,20 +233,14 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
           <div className="border-b pb-4">
             <H3 className="text-base font-medium mb-2">{t('substitution.originalProduct')}</H3>
             <div className="flex items-center gap-4">
-              <div className="rounded-ss-md rounded-ee-md w-[100px] h-[65px] object-fit overflow-hidden">
-                {cartItem.product && cartItem.product.images?.length ? (
-                  <Image
-                    width={100}
-                    height={65}
-                    src={String(cartItem.product.images[0].url)}
-                    alt={l10n(cartItem.product.name || 'Product')}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-icon-secondary">
-                    <ShoppingCart className="h-6 w-6 opacity-30" />
-                  </div>
-                )}
+              <div className="flex h-[65px] w-[100px] items-center justify-center overflow-hidden rounded-ss-md rounded-ee-md">
+                <Image
+                  width={100}
+                  height={65}
+                  src={originalImageSrc}
+                  alt={originalImageAlt}
+                  className="max-h-full max-w-full object-contain"
+                />
               </div>
               <div className="flex-grow">
                 <div className="flex items-center justify-between">
@@ -298,6 +297,7 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
             <div className="space-y-2">
               {substitution.substitutions.map((sub) => {
                 const isSelected = selectedSubstitutions.includes(sub.productId);
+                const substitutionImageSrc = resolveProductImageSrc(productMap[sub.productId]?.images?.[0]?.url);
                 return (
                   <div
                     key={sub.productId}
@@ -306,21 +306,21 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
                   >
                     <div className="flex-grow flex items-center gap-4">
                       {/* Product image thumbnail */}
-                      <div className="rounded-ss-md rounded-ee-md w-[60px] h-[60px] object-fit overflow-hidden flex-shrink-0">
+                      <div className="flex h-[60px] w-[60px] shrink-0 items-center justify-center overflow-hidden rounded-ss-md rounded-ee-md">
                         {isLoading ? (
-                          <div className="w-full h-full bg-surface-image-background animate-pulse" />
-                        ) : productMap[sub.productId]?.images?.length ? (
+                          <div className="h-full w-full animate-pulse bg-surface-image-background" />
+                        ) : (
                           <Image
                             width={60}
                             height={60}
-                            src={String(productMap[sub.productId]?.images?.[0]?.url || '')}
-                            alt={l10n(productMap[sub.productId]?.name || 'Product')}
-                            className="w-full h-full object-cover"
+                            src={substitutionImageSrc}
+                            alt={
+                              substitutionImageSrc === PRODUCT_NO_IMAGE_SRC
+                                ? tProduct('noImage')
+                                : l10n(productMap[sub.productId]?.name || 'Product')
+                            }
+                            className="max-h-full max-w-full object-contain"
                           />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-icon-secondary bg-surface-image-background">
-                            <ShoppingCart className="h-4 w-4 opacity-30" />
-                          </div>
                         )}
                       </div>
                       <div className="flex-grow">

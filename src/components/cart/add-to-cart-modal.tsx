@@ -2,12 +2,13 @@
 
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Cog, ShoppingCart } from 'lucide-react';
+import { Cog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { H3 } from '@/components/ui/h';
 import { useL10n } from '@/hooks/useL10n';
 import { useRouter } from '@/i18n/navigation';
+import { PRODUCT_NO_IMAGE_SRC, resolveProductImageSrc } from '@/lib/common/product-image';
 import type { CartStatus, CartStatusDetailCode } from '@/platform/services/cart/CartService';
 import type { Product } from '@/platform/services/model/product';
 import UINotification from '../ui/molecules/ui-notification';
@@ -34,9 +35,13 @@ export function AddToCartModal({
   onSaveCart,
 }: AddToCartModalProps) {
   const t = useTranslations('product.addToCartResult');
+  const tProduct = useTranslations('product');
   const tSubstitution = useTranslations('cart');
   const { l10n } = useL10n();
   const router = useRouter();
+  const imageSrc = resolveProductImageSrc(product.images?.[0]?.url);
+  const imageAlt =
+    imageSrc === PRODUCT_NO_IMAGE_SRC ? tProduct('noImage') : l10n(product.images?.[0]?.altText || product.name);
 
   const handleViewCart = () => {
     router.push('/cart');
@@ -66,20 +71,14 @@ export function AddToCartModal({
             <H3 className="text-base font-medium mb-2">{t('productAdded')}</H3>
             <div className="flex items-center gap-4">
               {/* Product image */}
-              <div className="rounded-ss-md rounded-ee-md w-[100px] h-[65px] object-fit overflow-hidden">
-                {product.images?.[0] ? (
-                  <Image
-                    width={100}
-                    height={65}
-                    src={product.images?.[0].url}
-                    alt={l10n(product.images?.[0].altText || product.name)}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-icon-secondary bg-surface-image-background">
-                    <ShoppingCart className="h-6 w-6 opacity-30" />
-                  </div>
-                )}
+              <div className="flex h-[65px] w-[100px] items-center justify-center overflow-hidden rounded-ss-md rounded-ee-md">
+                <Image
+                  width={100}
+                  height={65}
+                  src={imageSrc}
+                  alt={imageAlt}
+                  className="max-h-full max-w-full object-contain"
+                />
               </div>
 
               <div className="flex-grow">

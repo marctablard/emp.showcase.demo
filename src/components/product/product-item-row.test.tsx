@@ -170,6 +170,10 @@ describe('ProductItemRow empty thumbnail', () => {
     expect(images.length).toBeGreaterThan(0);
     for (const image of images) {
       expect(image).toHaveAttribute('src', PRODUCT_NO_IMAGE_SRC);
+      expect(image).toHaveClass('object-contain');
+    }
+    for (const wrapper of screen.getAllByTestId(`product-image-wrapper-${item.id}`)) {
+      expect(wrapper).toHaveClass('bg-surface-image-background');
     }
     expect(screen.getAllByText(item.name).length).toBeGreaterThan(0);
   });

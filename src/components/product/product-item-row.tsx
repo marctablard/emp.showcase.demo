@@ -124,7 +124,7 @@ export function ProductItemRow({ item, locale, presentationConfig, showGrossUnde
       className="flex h-[78px] w-[120px] shrink-0 items-center justify-center overflow-hidden rounded-tl-lg rounded-br-lg bg-surface-image-background sm:h-[52px] sm:w-[80px]"
       data-testid={`product-image-wrapper-${item.id}`}
     >
-      <Image width={120} height={78} src={imageSrc} alt={imageAlt} className="h-full w-full object-contain" />
+      <Image width={120} height={78} src={imageSrc} alt={imageAlt} className="max-h-full max-w-full object-contain" />
     </div>
   );
 

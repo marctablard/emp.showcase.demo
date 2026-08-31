@@ -75,7 +75,7 @@ export function ReturnItemSelector({
               {/* Desktop Layout */}
               <div className="hidden md:grid grid-cols-[1fr_154px_100px] gap-4 items-start">
                 <div className="flex gap-4">
-                  <div className="w-20 h-13 relative flex-shrink-0 bg-surface-image-background rounded">
+                  <div className="relative h-13 w-20 shrink-0 overflow-hidden rounded bg-surface-image-background">
                     <Image src={getItemImage(item)} alt={item.name || ''} fill className="object-contain p-1" />
                   </div>
                   <div className="flex flex-col gap-1" data-testid={`return-item-product-desktop-${item.id}`}>
@@ -186,7 +186,7 @@ export function ReturnItemSelector({
                 </div>
 
                 <div className="flex gap-4 w-full min-w-0">
-                  <div className="w-[100px] h-[65px] relative flex-shrink-0 bg-surface-image-background rounded-tl-lg rounded-br-lg">
+                  <div className="relative h-[65px] w-[100px] shrink-0 overflow-hidden rounded-tl-lg rounded-br-lg bg-surface-image-background">
                     <Image src={getItemImage(item)} alt={item.name || ''} fill className="object-contain p-2" />
                   </div>
 
