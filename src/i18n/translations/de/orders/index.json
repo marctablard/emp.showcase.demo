@@ -135,6 +135,7 @@
     "continueShopping": "Weiter einkaufen",
     "viewOrders": "Meine Bestellungen anzeigen",
     "viewApprovals": "Meine Freigaben",
+    "createdApproval": "Erstellte Freigabe",
     "freightShipping": "Frachtversand",
     "freightInfo": "Nach der Bestellung kontaktiert Sie die beauftragte Spedition mit weiteren Informationen."
   },
@@ -236,7 +237,9 @@
     "orderOverview": "Bestellübersicht",
     "netValueOfGoods": "Netto-Warenwert",
     "shippingFee": "Versandgebühr",
+    "shippingFeeEstimated": "Versandgebühr (geschätzt)",
     "totalValue": "Gesamtbetrag",
+    "totalValueOfGoods": "Gesamt-Warenwert",
     "shipping": "Versand",
     "shippingMethod": "Versandart",
     "shippingAddress": "Versandadresse",

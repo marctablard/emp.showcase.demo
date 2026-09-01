@@ -58,6 +58,15 @@ describe('ApprovalSummary', () => {
     expect(deOrdersTranslations.Approval.shippingVatEstimated).toBe('Versand-MwSt. (geschätzt)');
   });
 
+  it('uses CART-only goods-total and estimated shipping-fee copy', () => {
+    expect(enOrdersTranslations.Approval.totalValueOfGoods).toBe('Total value of goods');
+    expect(deOrdersTranslations.Approval.totalValueOfGoods).toBe('Gesamt-Warenwert');
+    expect(enOrdersTranslations.Approval.shippingFeeEstimated).toBe('Shipping fee (estimated)');
+    expect(deOrdersTranslations.Approval.shippingFeeEstimated).toBe('Versandgebühr (geschätzt)');
+    expect(enOrdersTranslations.Approval.totalValue).toBe('Total value');
+    expect(enOrdersTranslations.Approval.shippingFee).toBe('Shipping fee');
+  });
+
   it('renders the order overview, shipping, payment, and other cards with H4 headings for a CART approval', () => {
     const approval: Approval = {
       ...baseApproval,
@@ -81,8 +90,66 @@ describe('ApprovalSummary', () => {
     expect(screen.getByRole('heading', { level: 5, name: 'shippingAddress' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 5, name: 'paymentMethod' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 5, name: 'billingAddress' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 5, name: 'totalValue' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 5, name: 'totalValueOfGoods' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 5, name: 'totalValue' })).not.toBeInTheDocument();
+    expect(screen.getByText('shippingFeeEstimated')).toBeInTheDocument();
+    expect(screen.queryByText('shippingFee')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 5, name: 'note' })).toBeInTheDocument();
+  });
+
+  it('lists CART goods total before estimated shipping because totalPrice.grossValue excludes shipping', () => {
+    const approval: Approval = {
+      ...baseApproval,
+      resourceType: 'CART',
+      comment: '500+10',
+      resource: {
+        id: '6a968d9ef2ed195dd3e8a481',
+        items: [
+          {
+            productId: 'enjoysolar-200w-module',
+            quantity: 10,
+            itemPrice: {
+              currency: 'CHF',
+              amount: 538.5,
+              unitPrice: 50,
+              newUnitPrice: 50,
+              netValue: 500,
+              taxRate: 7.7,
+            },
+          },
+        ],
+        totalPrice: {
+          currency: 'CHF',
+          amount: 500,
+          netValue: 500,
+          grossValue: 538.5,
+          taxValue: 38.5,
+        },
+        subtotalAggregate: { currency: 'CHF', netValue: 500, grossValue: 538.5, taxValue: 38.5 },
+      },
+      details: {
+        currency: 'CHF',
+        shipping: {
+          methodId: 'fw-shipping',
+          zoneId: 'fw-zone',
+          methodName: 'Super Shipping',
+          amount: 10,
+          shippingTaxCode: 'REDUCED_3',
+        } as any,
+        addresses: [{ type: 'SHIPPING' } as any, { type: 'BILLING' } as any],
+        paymentMethods: [{ provider: 'none', method: 'invoice' } as any],
+      },
+    };
+
+    const { container } = render(<ApprovalSummary approval={approval} />);
+    const overview = container.querySelector('[data-slot="card"]');
+    const text = overview?.textContent ?? '';
+
+    expect(text.indexOf('netValueOfGoods')).toBeGreaterThanOrEqual(0);
+    expect(text.indexOf('tax (7.7%)')).toBeGreaterThan(text.indexOf('netValueOfGoods'));
+    expect(text.indexOf('totalValueOfGoods')).toBeGreaterThan(text.indexOf('tax (7.7%)'));
+    expect(text.indexOf('shippingFeeEstimated')).toBeGreaterThan(text.indexOf('totalValueOfGoods'));
+    expect(screen.queryByTestId('approval-overview-shipping-tax-estimated')).not.toBeInTheDocument();
   });
 
   it('uses 2 columns from sm and 4 columns from lg for CART approval cards', () => {
@@ -140,6 +207,9 @@ describe('ApprovalSummary', () => {
     expect(screen.getByRole('heading', { level: 4, name: 'quoteDetails' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 4, name: 'basePrice' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 4, name: 'quotedPrice' })).toBeInTheDocument();
+    expect(screen.getAllByText('shippingFee').length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText('shippingFeeEstimated')).not.toBeInTheDocument();
+    expect(screen.queryByText('totalValueOfGoods')).not.toBeInTheDocument();
   });
 
   it('renders Quote Reference / Number of products as H5 field headings (SummaryField)', () => {
@@ -353,7 +423,7 @@ describe('ApprovalSummary', () => {
 
     render(<ApprovalSummary approval={approval} />);
 
-    const totalValueHeading = screen.getByRole('heading', { level: 5, name: 'totalValue' });
+    const totalValueHeading = screen.getByRole('heading', { level: 5, name: 'totalValueOfGoods' });
     const totalValueAmount = totalValueHeading.parentElement?.querySelectorAll('h5')[1];
     expect(totalValueAmount).toHaveTextContent(/182,29/);
     expect(totalValueAmount).not.toHaveTextContent(/170,00/);
@@ -419,7 +489,7 @@ describe('ApprovalSummary', () => {
     render(<ApprovalSummary approval={approval} />);
 
     expect(screen.getByText(/60,05.*€/)).toBeInTheDocument();
-    const totalValueHeading = screen.getByRole('heading', { level: 5, name: 'totalValue' });
+    const totalValueHeading = screen.getByRole('heading', { level: 5, name: 'totalValueOfGoods' });
     const totalValueAmount = totalValueHeading.parentElement?.querySelectorAll('h5')[1];
     expect(totalValueAmount).toHaveTextContent(/63,05.*€/);
     expect(screen.queryByTestId('approval-overview-shipping-tax-estimated')).not.toBeInTheDocument();
@@ -448,12 +518,12 @@ describe('ApprovalSummary', () => {
 
     render(<ApprovalSummary approval={approval} />);
 
-    const totalValueHeading = screen.getByRole('heading', { level: 5, name: 'totalValue' });
+    const totalValueHeading = screen.getByRole('heading', { level: 5, name: 'totalValueOfGoods' });
     const totalValueAmount = totalValueHeading.parentElement?.querySelectorAll('h5')[1];
     expect(totalValueAmount).toHaveTextContent(/63,05.*€/);
     expect(screen.queryByTestId('approval-overview-shipping-tax-estimated')).not.toBeInTheDocument();
 
-    const shippingFeeLabel = screen.getByText('shippingFee');
+    const shippingFeeLabel = screen.getByText('shippingFeeEstimated');
     expect(shippingFeeLabel.parentElement).toHaveTextContent(/11,00.*€/);
   });
 

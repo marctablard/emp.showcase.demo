@@ -22,13 +22,19 @@ interface OrderConfirmationProps {
   orderId: string;
   initialOrder?: Order | null;
   customerEmail?: string;
+  createdApprovalId?: string;
 }
 
 /**
  * Order confirmation component
  * Displays confirmation details after a successful checkout
  */
-const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialOrder, customerEmail }) => {
+const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
+  orderId,
+  initialOrder,
+  customerEmail,
+  createdApprovalId,
+}) => {
   const t = useTranslations('orders.Confirmation');
   const tOrder = useTranslations('orders');
   const tOrderStatus = useTranslations('orders.OrderStatus');
@@ -279,6 +285,12 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
               {isApprovalPendingConfirmation ? t('viewApprovals') : t('viewOrders')}
             </UiLink>
           )}
+
+          {isApprovalPendingConfirmation && createdApprovalId ? (
+            <UiLink type="Link" href={`/account/approvals/${createdApprovalId}`}>
+              {t('createdApproval')}
+            </UiLink>
+          ) : null}
         </div>
       </div>
     </div>
