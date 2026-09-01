@@ -71,7 +71,7 @@ export function AddToCartModal({
             <H3 className="text-base font-medium mb-2">{t('productAdded')}</H3>
             <div className="flex items-center gap-4">
               {/* Product image */}
-              <div className="flex h-[65px] w-[100px] items-center justify-center overflow-hidden rounded-ss-md rounded-ee-md">
+              <div className="flex h-[65px] w-[100px] items-center justify-center overflow-hidden rounded-ss-md rounded-ee-md bg-surface-image-background">
                 <Image
                   width={100}
                   height={65}

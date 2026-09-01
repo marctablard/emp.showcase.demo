@@ -76,6 +76,7 @@ describe('HeaderMiniCartItemList empty thumbnail', () => {
     expect(image).toHaveAttribute('src', PRODUCT_NO_IMAGE_SRC);
     expect(image).toHaveAttribute('src', '/images/no_image_alt.png');
     expect(image).toHaveClass('object-contain');
+    expect(image.closest('.bg-surface-image-background')).toBeInTheDocument();
     expect(document.querySelector('.lucide-shopping-cart')).not.toBeInTheDocument();
   });
 
