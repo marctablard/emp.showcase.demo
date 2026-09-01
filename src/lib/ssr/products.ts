@@ -22,7 +22,7 @@ const _getProduct = cache(
       return product || null;
     } catch (error) {
       getLogger().error(
-        { error: error instanceof Error ? error.message : String(error), productId: id },
+        { err: error instanceof Error ? error : new Error(String(error)), productId: id },
         'SSR getCatalogProductById failed',
       );
       return undefined;
@@ -36,7 +36,7 @@ const _getProducts = cache(async (page: number, size: number, optionsJson: strin
     const products = await getProductService().getProducts(page, size, options);
     return products;
   } catch (_error) {
-    getLogger().error({ error: _error instanceof Error ? _error.message : String(_error) }, 'SSR getProducts failed');
+    getLogger().error({ err: _error instanceof Error ? _error : new Error(String(_error)) }, 'SSR getProducts failed');
     return { items: [], total: 0, page: 0, pageSize: 0 };
   }
 });
@@ -47,7 +47,7 @@ const _getAvailability = cache(async (site: string, id: string): Promise<StockAv
     return availability || null;
   } catch (error) {
     getLogger().error(
-      { error: error instanceof Error ? error.message : String(error), site, productId: id },
+      { err: error instanceof Error ? error : new Error(String(error)), site, productId: id },
       'SSR getStockAvailability failed',
     );
     return undefined;

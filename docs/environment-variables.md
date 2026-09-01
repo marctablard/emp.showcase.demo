@@ -76,6 +76,26 @@ NEXT_LOG_LEVEL=debug
 NEXT_LOG_LEVEL=info
 ```
 
+#### `NEXT_LOG_OTEL_ENABLED` (Server-Side)
+
+Private opt-in for OpenTelemetry-aligned JSON on **Node.js Pino stdout**. Default off.
+
+- Enable only with the exact string `true` (`TRUE`, `1`, `false`, or empty leaves today’s `level` / `time` / `msg` output)
+- Server-only — never `NEXT_PUBLIC_`. Browser Pino and Edge `edgeLog` ignore this flag
+- Restart the Node process after changing it (the logger is configured at process start)
+- Scope: API routes, Server Components / SSR, and platform services that use `LoggerService`
+
+See [Logging Guide](./logging-guide.md) for the stdout field contract (`timestamp`, `severity_text`, `severity_number`, `body`), `exception.*` mapping, and how to verify captured stdout JSON.
+
+**Example:**
+```env
+# Default — current Pino JSON / pino-pretty
+# NEXT_LOG_OTEL_ENABLED=
+
+# Opt in (server-only, restart required)
+NEXT_LOG_OTEL_ENABLED=true
+```
+
 #### `NEXT_PUBLIC_LOG_LEVEL` (Client-Side)
 
 Controls the log level for client-side logging (browser):
