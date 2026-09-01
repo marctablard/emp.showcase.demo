@@ -146,6 +146,8 @@ export interface EmporixQuoteShipping {
     [key: string]: string;
   };
   shippingTaxCode?: string;
+  /** Shipping VAT percent (e.g. 3.7). Independent of item `price.tax.taxRate`. */
+  taxRate?: number;
 }
 
 /**

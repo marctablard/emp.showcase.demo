@@ -16,19 +16,25 @@ import type { Order } from '@/platform/services/model/order/order';
 import { AddressDisplay } from '../common/address-display';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { H1, H2, H3 } from '../ui/h';
-import { isPendingApprovalConfirmationSegment } from './confirmation-constants';
+import { createdApprovalDetailsPath, isPendingApprovalConfirmationSegment } from './confirmation-constants';
 
 interface OrderConfirmationProps {
   orderId: string;
   initialOrder?: Order | null;
   customerEmail?: string;
+  createdApprovalId?: string;
 }
 
 /**
  * Order confirmation component
  * Displays confirmation details after a successful checkout
  */
-const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialOrder, customerEmail }) => {
+const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
+  orderId,
+  initialOrder,
+  customerEmail,
+  createdApprovalId,
+}) => {
   const t = useTranslations('orders.Confirmation');
   const tOrder = useTranslations('orders');
   const tOrderStatus = useTranslations('orders.OrderStatus');
@@ -279,6 +285,12 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderId, initialO
               {isApprovalPendingConfirmation ? t('viewApprovals') : t('viewOrders')}
             </UiLink>
           )}
+
+          {isApprovalPendingConfirmation && createdApprovalId ? (
+            <UiLink type="Link" href={createdApprovalDetailsPath(createdApprovalId)}>
+              {t('createdApproval')}
+            </UiLink>
+          ) : null}
         </div>
       </div>
     </div>

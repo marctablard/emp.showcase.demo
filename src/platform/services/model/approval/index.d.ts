@@ -27,6 +27,8 @@ export interface ApprovalPrice {
   netValue?: number;
   grossValue?: number;
   taxValue?: number;
+  /** Item tax rate percent from quote/cart `price.tax.taxRate` when present. */
+  taxRate?: number;
 }
 
 export interface ApprovalTaxablePrice {

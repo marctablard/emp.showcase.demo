@@ -17,7 +17,7 @@ import { CheckoutPayment } from './checkout-payment';
 import { CheckoutShipping } from './checkout-shipping';
 import CheckoutSummary from './checkout-summary';
 import { CheckoutValidationProvider } from './checkout-validation-registry';
-import { PENDING_APPROVAL_CONFIRMATION_SEGMENT } from './confirmation-constants';
+import { pendingApprovalConfirmationPath } from './confirmation-constants';
 import ContactData from './contact-data';
 
 interface CheckoutProps {
@@ -48,7 +48,7 @@ const Checkout: React.FC<CheckoutProps> = ({ onComplete }) => {
         return;
       }
       // Handle approval data
-      await createApproval({
+      const created = await createApproval({
         resourceType: 'CART' as const,
         resourceId: checkoutCart.id,
         action: 'CHECKOUT' as const,
@@ -66,8 +66,8 @@ const Checkout: React.FC<CheckoutProps> = ({ onComplete }) => {
       // Clear the cart after successful approval creation (also delete the cart entity
       // since Emporix does NOT auto-close the cart for approvals)
       clearCart({ deleteCart: true });
-      // Navigate to confirmation page
-      router.push(`/confirmation/${PENDING_APPROVAL_CONFIRMATION_SEGMENT}`);
+      // Navigate to confirmation page with the created approval id when present
+      router.push(pendingApprovalConfirmationPath(created?.id));
     } else {
       // Proceed with checkout
       await processCheckout();

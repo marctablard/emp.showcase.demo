@@ -25,6 +25,7 @@ export interface EmporixApprovalPrice {
   netValue?: number;
   grossValue?: number;
   taxValue?: number;
+  taxRate?: number;
   calculatedPrice?: {
     price?: {
       netValue?: number;

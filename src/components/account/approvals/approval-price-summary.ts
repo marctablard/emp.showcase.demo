@@ -1,4 +1,4 @@
-import { resolveSingleNumericRate, resolveSingleTaxRate } from '@/lib/common/tax-aggregate';
+import { resolveSharedPositiveTaxRate } from '@/lib/common/tax-aggregate';
 import type { Approval, ApprovalPrice, ApprovalResourceItem } from '@/platform/services/model/approval';
 
 export interface ApprovalPriceCardBreakdown {
@@ -16,6 +16,7 @@ export interface ApprovalPriceCardBreakdown {
   /** Net savings vs quoted goods when Base uses `unitPrice`. */
   discountAmount: number;
   taxRate?: number;
+  shippingTaxRate?: number;
 }
 
 function shippingFeeOf(approval: Approval): number {
@@ -41,8 +42,11 @@ function sumApprovalPriceCardLines(
   return breakdown.netValueOfGoods + breakdown.tax + breakdown.shippingFee + breakdown.shippingTax;
 }
 
-/** Effective tax rate % from mapped line price fields (approval API has no taxRate). */
+/** Effective tax rate %: prefer mapped `price.taxRate`, else derive from net/tax/gross. */
 export function resolveApprovalItemTaxRate(price: ApprovalPrice): number | undefined {
+  if (typeof price.taxRate === 'number' && price.taxRate > 0) {
+    return price.taxRate;
+  }
   const net = price.netValue ?? price.newUnitPrice;
   if (typeof net === 'number' && net > 0 && typeof price.taxValue === 'number') {
     return (price.taxValue / net) * 100;
@@ -51,6 +55,11 @@ export function resolveApprovalItemTaxRate(price: ApprovalPrice): number | undef
     return ((price.grossValue - net) / net) * 100;
   }
   return undefined;
+}
+
+export function resolveApprovalShippingTaxRate(approval: Approval): number | undefined {
+  const rate = approval.details?.shipping?.taxRate;
+  return typeof rate === 'number' && rate > 0 ? rate : undefined;
 }
 
 function lineQuotedNet(item: ApprovalResourceItem): number {
@@ -113,17 +122,10 @@ function quotedTaxFromResource(approval: Approval, items: ApprovalResourceItem[]
   return items.reduce((sum, item) => sum + (item.itemPrice.taxValue || 0), 0);
 }
 
-/** Single VAT % for `VAT (rate%)`; omit when taxAggregate / items mix rates. */
+/** Goods VAT % from item rates — ignore taxAggregate (shipping uses its own rate). */
 export function resolveApprovalDisplayTaxRate(approval: Approval): number | undefined {
-  const fromAggregate = resolveSingleTaxRate(approval.resource.taxAggregate?.lines);
-  if (fromAggregate !== undefined || (approval.resource.taxAggregate?.lines?.length ?? 0) > 1) {
-    return fromAggregate;
-  }
-  const itemRates = (approval.resource.items ?? []).map((item) => {
-    const rate = resolveApprovalItemTaxRate(item.itemPrice);
-    return typeof rate === 'number' ? Math.round(rate) : undefined;
-  });
-  return resolveSingleNumericRate(itemRates);
+  const itemRates = (approval.resource.items ?? []).map((item) => resolveApprovalItemTaxRate(item.itemPrice));
+  return resolveSharedPositiveTaxRate(itemRates);
 }
 
 /**
@@ -147,6 +149,7 @@ export function resolveApprovalBasePriceBreakdown(approval: Approval): ApprovalP
       total: sumApprovalPriceCardLines({ netValueOfGoods: quotedNet, tax, shippingFee, shippingTax }),
       discountAmount: 0,
       taxRate: resolveApprovalDisplayTaxRate(approval),
+      shippingTaxRate: resolveApprovalShippingTaxRate(approval),
     };
   }
 
@@ -167,6 +170,7 @@ export function resolveApprovalBasePriceBreakdown(approval: Approval): ApprovalP
     total: sumApprovalPriceCardLines({ netValueOfGoods, tax, shippingFee, shippingTax }),
     discountAmount: Math.max(0, netValueOfGoods - quotedNet),
     taxRate: resolveApprovalDisplayTaxRate(approval),
+    shippingTaxRate: resolveApprovalShippingTaxRate(approval),
   };
 }
 
@@ -189,5 +193,6 @@ export function resolveApprovalQuotedPriceBreakdown(approval: Approval): Approva
     total: sumApprovalPriceCardLines({ netValueOfGoods, tax, shippingFee, shippingTax }),
     discountAmount: 0,
     taxRate: resolveApprovalDisplayTaxRate(approval),
+    shippingTaxRate: resolveApprovalShippingTaxRate(approval),
   };
 }

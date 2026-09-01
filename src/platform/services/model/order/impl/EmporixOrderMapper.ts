@@ -1,6 +1,6 @@
 import { inject } from 'inversify';
 import { CUSTOMER_ID } from '@/lib/common/customer-identity';
-import { resolveSingleNumericRate, resolveSingleTaxRate } from '@/lib/common/tax-aggregate';
+import { resolveSharedPositiveTaxRate } from '@/lib/common/tax-aggregate';
 import { injectable } from '@/platform/core/di/injectable';
 import type {
   EmporixOrder,
@@ -18,6 +18,21 @@ import type {
   OrderPrice,
   OrderShipping,
 } from '@/platform/services/model/order/order';
+
+function resolveOrderGoodsTaxRate(
+  itemRates: Array<number | undefined>,
+  fallbackGoodsRate: number | undefined,
+): number | undefined {
+  const fromItems = resolveSharedPositiveTaxRate(itemRates);
+  if (fromItems !== undefined) {
+    return fromItems;
+  }
+  const hasAnyItemRate = itemRates.some((rate) => typeof rate === 'number');
+  if (hasAnyItemRate) {
+    return undefined;
+  }
+  return typeof fallbackGoodsRate === 'number' && fallbackGoodsRate > 0 ? fallbackGoodsRate : undefined;
+}
 
 /**
  * Implementation of OrderMapper for Emporix order data
@@ -53,12 +68,7 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
         integrationModel.calculatedPrice,
         integrationModel.currency,
       ),
-      price: this.mapPrice(
-        integrationModel.calculatedPrice,
-        integrationModel.currency,
-        integrationModel.entries,
-        integrationModel.taxAggregate,
-      ),
+      price: this.mapPrice(integrationModel.calculatedPrice, integrationModel.currency, integrationModel.entries),
       currency: integrationModel.currency,
       customer: integrationModel.customer
         ? {
@@ -247,20 +257,13 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
     calculatedPrice?: EmporixOrder['calculatedPrice'],
     currency?: string,
     entries?: EmporixOrderEntry[],
-    taxAggregate?: EmporixOrder['taxAggregate'],
   ): OrderPrice | undefined {
     if (!calculatedPrice || !currency) {
       return undefined;
     }
 
     const itemRates = (entries ?? []).map((entry) => entry.calculatedPrice?.price?.taxRate);
-    const fromAggregate = resolveSingleTaxRate(taxAggregate?.lines);
-    const mixedAggregate = (taxAggregate?.lines?.length ?? 0) > 1 && fromAggregate === undefined;
-    const mixedItems = new Set(itemRates.filter((rate): rate is number => typeof rate === 'number')).size > 1;
-    const goodsTaxRate =
-      mixedAggregate || mixedItems
-        ? undefined
-        : (fromAggregate ?? resolveSingleNumericRate(itemRates) ?? calculatedPrice.price?.taxRate);
+    const goodsTaxRate = resolveOrderGoodsTaxRate(itemRates, calculatedPrice.price?.taxRate);
 
     return {
       subtotal: {

@@ -66,7 +66,7 @@ export function ItemPriceChangeModal({ isOpen, onClose, cartItem, priceChange, o
           {/* Product information */}
           <div className="border-b pb-4">
             <div className="flex items-center gap-4">
-              <div className="flex h-[65px] w-[100px] items-center justify-center overflow-hidden rounded-ss-md rounded-ee-md">
+              <div className="flex h-[65px] w-[100px] items-center justify-center overflow-hidden rounded-ss-md rounded-ee-md bg-surface-image-background">
                 <Image
                   width={100}
                   height={65}

@@ -5,7 +5,8 @@ function round2(value: number): number {
 }
 
 /**
- * CART Order Overview total: `resource.totalPrice.grossValue` only.
+ * CART Order Overview “Total value of goods”: `resource.totalPrice.grossValue` only.
+ * Approval Service does not store CART shipping in that snapshot.
  * Do not fall back to `totalPrice.amount` — that field is often net (e.g. 170 vs 182.29).
  */
 export function resolveCartOrderOverviewTotalGross(approval: Approval): number | undefined {

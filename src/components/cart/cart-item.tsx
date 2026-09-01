@@ -147,7 +147,7 @@ export function CartItemRow({ cart, item, showQty }: CartItemProps) {
     <div className="py-6 first:border-none border-t border-border-primary sm:first:border-solid">
       <div className="grid grid-cols-[1fr_2fr] sm:grid-cols-[120px_2fr_1fr_1fr] md:grid-cols-[120px_3fr_1fr_1fr]">
         <div className="col-start-1 row-start-2 sm:row-start-1 row-end-3">
-          <div className="flex h-[65px] w-[100px] items-center justify-center overflow-hidden rounded-ss-md rounded-ee-md sm:h-[78px] sm:w-[120px]">
+          <div className="flex h-[65px] w-[100px] items-center justify-center overflow-hidden rounded-ss-md rounded-ee-md bg-surface-image-background sm:h-[78px] sm:w-[120px]">
             <Image
               width={120}
               height={78}

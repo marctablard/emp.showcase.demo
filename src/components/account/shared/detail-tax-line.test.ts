@@ -25,9 +25,11 @@ describe('detail-tax-line', () => {
   });
 
   describe('resolveDetailTaxRatePercent / detailTaxRateSuffix', () => {
-    it('prefers model taxRate', () => {
-      expect(resolveDetailTaxRatePercent({ taxRate: 19.4, taxAmount: 10, netAmount: 100 })).toBe(19);
+    it('prefers model taxRate without integer-rounding decimals', () => {
+      expect(resolveDetailTaxRatePercent({ taxRate: 19.4, taxAmount: 10, netAmount: 100 })).toBe(19.4);
       expect(detailTaxRateSuffix({ taxRate: 7, taxAmount: 1 })).toBe(' (7%)');
+      expect(detailTaxRateSuffix({ taxRate: 7.7, taxAmount: 7.7 })).toBe(' (7.7%)');
+      expect(detailTaxRateSuffix({ taxRate: 3.7, taxAmount: 0.74 })).toBe(' (3.7%)');
     });
 
     it('does not invent a blended rate from tax/net when taxRate is absent', () => {

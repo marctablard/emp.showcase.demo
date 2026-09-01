@@ -138,6 +138,7 @@
     "continueShopping": "Continue Shopping",
     "viewOrders": "View Orders",
     "viewApprovals": "My Approvals",
+    "createdApproval": "Created Approval",
     "freightShipping": "Freight Shipping",
     "freightInfo": "After the order is completed, the contracted shipping company will contact you with further information."
   },
@@ -240,7 +241,9 @@
     "orderOverview": "Order Overview",
     "netValueOfGoods": "Net value of goods",
     "shippingFee": "Shipping fee",
+    "shippingFeeEstimated": "Shipping fee (estimated)",
     "totalValue": "Total value",
+    "totalValueOfGoods": "Total value of goods",
     "shipping": "Shipping",
     "shippingMethod": "Shipping method",
     "shippingAddress": "Shipping address",

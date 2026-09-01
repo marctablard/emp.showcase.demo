@@ -286,6 +286,44 @@ describe('EmporixQuoteMapper', () => {
     expect(result.shippingCost).toBe(9.5);
   });
 
+  it('maps shipping.taxRate independently of item and taxAggregate rates', async () => {
+    const mapper = new EmporixQuoteMapper(siteService as never);
+
+    const result = await mapper.mapToService(
+      buildQuote({
+        shipping: {
+          value: 20,
+          grossValue: 20.74,
+          methodId: 'fw-shipping',
+          zoneId: 'fw-zone',
+          methodName: { en: 'Super Shipping' },
+          shippingTaxCode: 'REDUCED_3',
+          taxRate: 3.7,
+        },
+        items: [
+          {
+            id: 'item-1',
+            quantity: { quantity: 2, unitCode: 'pc' },
+            price: {
+              priceId: 'price-1',
+              unitPrice: 50,
+              totalNetValue: 100,
+              tax: {
+                taxClass: 'STANDARD',
+                taxRate: 7.7,
+                prices: { grossValue: 107.7, netValue: 100 },
+              },
+            },
+            product: { productId: 'enjoysolar-200w-module' },
+          },
+        ],
+      }),
+    );
+
+    expect(result.shippingTaxRate).toBe(3.7);
+    expect(result.items[0].product.itemPrice.taxRate).toBe(7.7);
+  });
+
   it('falls back to shipping methodId when methodName is absent', async () => {
     const mapper = new EmporixQuoteMapper(siteService as never);
 

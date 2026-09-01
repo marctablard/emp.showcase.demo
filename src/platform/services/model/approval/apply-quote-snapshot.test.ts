@@ -54,6 +54,42 @@ describe('applyQuoteSnapshotToApproval', () => {
     expect(enriched.details?.addresses?.[0]?.city).toBe('Berlin');
   });
 
+  it('overlays quote item and shipping tax rates onto the approval snapshot', () => {
+    const enriched = applyQuoteSnapshotToApproval(
+      {
+        ...baseApproval,
+        resource: {
+          id: 'Q1000510',
+          items: [
+            {
+              productId: 'enjoysolar-200w-module',
+              quantity: 2,
+              itemPrice: { currency: 'CHF', amount: 107.7, netValue: 100, taxValue: 7.7 },
+            },
+          ],
+        },
+      },
+      {
+        ...baseQuote,
+        currency: 'CHF',
+        shippingTaxRate: 3.7,
+        items: [
+          {
+            product: {
+              id: 'enjoysolar-200w-module',
+              quantity: 2,
+              itemPrice: { amount: 107.7, currency: 'CHF', taxRate: 7.7, netValue: 100, tax: 7.7 },
+            },
+            quantity: { quantity: 2, unitCode: 'pc' },
+          },
+        ],
+      },
+    );
+
+    expect(enriched.details?.shipping?.taxRate).toBe(3.7);
+    expect(enriched.resource.items?.[0]?.itemPrice.taxRate).toBe(7.7);
+  });
+
   it('keeps a non-zero approval shipping amount', () => {
     const enriched = applyQuoteSnapshotToApproval(
       {

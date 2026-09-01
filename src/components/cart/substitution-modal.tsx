@@ -233,7 +233,7 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
           <div className="border-b pb-4">
             <H3 className="text-base font-medium mb-2">{t('substitution.originalProduct')}</H3>
             <div className="flex items-center gap-4">
-              <div className="flex h-[65px] w-[100px] items-center justify-center overflow-hidden rounded-ss-md rounded-ee-md">
+              <div className="flex h-[65px] w-[100px] items-center justify-center overflow-hidden rounded-ss-md rounded-ee-md bg-surface-image-background">
                 <Image
                   width={100}
                   height={65}
@@ -306,7 +306,7 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
                   >
                     <div className="flex-grow flex items-center gap-4">
                       {/* Product image thumbnail */}
-                      <div className="flex h-[60px] w-[60px] shrink-0 items-center justify-center overflow-hidden rounded-ss-md rounded-ee-md">
+                      <div className="flex h-[60px] w-[60px] shrink-0 items-center justify-center overflow-hidden rounded-ss-md rounded-ee-md bg-surface-image-background">
                         {isLoading ? (
                           <div className="h-full w-full animate-pulse bg-surface-image-background" />
                         ) : (

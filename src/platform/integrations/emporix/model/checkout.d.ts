@@ -68,6 +68,8 @@ export interface EmporixShipping {
   shippingTaxCode?: string;
   /** Alias seen on some approval payloads. */
   taxCode?: string;
+  /** Shipping VAT percent when the payload includes it (e.g. quote overlay). */
+  taxRate?: number;
 }
 
 /**

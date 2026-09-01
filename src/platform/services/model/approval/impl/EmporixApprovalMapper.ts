@@ -172,6 +172,7 @@ export class EmporixApprovalMapper implements ApprovalMapper<EmporixApprovalResp
       netValue: source.netValue ?? source.calculatedPrice?.price?.netValue,
       grossValue: source.grossValue ?? source.calculatedPrice?.price?.grossValue,
       taxValue: source.taxValue ?? source.calculatedPrice?.price?.taxValue,
+      taxRate: source.taxRate,
     };
   }
 

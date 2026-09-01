@@ -29,9 +29,11 @@ export interface Quote {
   subtotalNet?: number;
   /** Goods-only tax from Emporix `subtotalPrice.taxValue`. */
   subtotalVat?: number;
-  /** Prefer from Emporix `taxAggregate.lines[].rate` when a single rate exists. */
+  /** Single taxAggregate rate when present; display VAT % uses item `taxRate` instead. */
   vatRate?: number;
-  /** Full VAT breakdown; used to omit `VAT (rate%)` when rates are mixed. */
+  /** Shipping VAT % from Emporix `shipping.taxRate` (independent of goods item rates). */
+  shippingTaxRate?: number;
+  /** Full VAT breakdown from Emporix. Goods VAT % is taken from item `taxRate` values, not this aggregate. */
   taxAggregate?: {
     lines: Array<{
       name: string;

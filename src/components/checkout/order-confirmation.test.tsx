@@ -34,13 +34,15 @@ jest.mock('@/hooks/useL10n', () => ({
   }),
 }));
 
+const useCustomerState = {
+  customer: null as { id: string } | null,
+  loading: false,
+  error: null,
+};
+
 jest.mock('@/hooks/customer/useCustomer', () => ({
   __esModule: true,
-  default: () => ({
-    customer: null,
-    loading: false,
-    error: null,
-  }),
+  default: () => useCustomerState,
 }));
 
 jest.mock('@/hooks/order/useOrder', () => ({
@@ -96,6 +98,7 @@ function mockUseOrder(order: Order) {
 describe('OrderConfirmation empty thumbnail', () => {
   beforeEach(() => {
     useOrderMock.mockReset();
+    useCustomerState.customer = null;
   });
 
   it('fills the image frame with no_image_alt when item.images[0] is missing', () => {
@@ -149,5 +152,58 @@ describe('OrderConfirmation empty thumbnail', () => {
 
     expect(screen.queryByText(/shippingVat/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Shipping VAT/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('OrderConfirmation pending approval links', () => {
+  beforeEach(() => {
+    useOrderMock.mockReset();
+    useCustomerState.customer = { id: 'customer-1' };
+    useOrderMock.mockReturnValue({
+      order: null,
+      loading: false,
+      error: null,
+      statusTransitions: [],
+      refetchOrder: jest.fn(),
+      refetchStatusTransitions: jest.fn(),
+    });
+  });
+
+  it('adds Created Approval as a third link to the created approval details page', () => {
+    render(<OrderConfirmation orderId="ApprovalRequested" createdApprovalId="6a968e55295fcf269f09c3ed" />);
+
+    expect(screen.getByRole('link', { name: 'orders.Confirmation.continueShopping' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'orders.Confirmation.viewApprovals' })).toHaveAttribute(
+      'href',
+      '/account/approvals',
+    );
+    expect(screen.getByRole('link', { name: 'orders.Confirmation.createdApproval' })).toHaveAttribute(
+      'href',
+      '/account/approvals/6a968e55295fcf269f09c3ed',
+    );
+  });
+
+  it('path-encodes reserved characters in the Created Approval href', () => {
+    render(<OrderConfirmation orderId="ApprovalRequested" createdApprovalId="id/with?special" />);
+
+    expect(screen.getByRole('link', { name: 'orders.Confirmation.createdApproval' })).toHaveAttribute(
+      'href',
+      '/account/approvals/id%2Fwith%3Fspecial',
+    );
+  });
+
+  it('does not render Created Approval without a created approval id', () => {
+    render(<OrderConfirmation orderId="ApprovalRequested" />);
+
+    expect(screen.getByRole('link', { name: 'orders.Confirmation.viewApprovals' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'orders.Confirmation.createdApproval' })).not.toBeInTheDocument();
+  });
+
+  it('does not render Created Approval on a regular order confirmation', () => {
+    mockUseOrder(buildOrder());
+
+    render(<OrderConfirmation orderId="order-1" createdApprovalId="6a968e55295fcf269f09c3ed" />);
+
+    expect(screen.queryByRole('link', { name: 'orders.Confirmation.createdApproval' })).not.toBeInTheDocument();
   });
 });

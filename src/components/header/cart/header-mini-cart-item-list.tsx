@@ -82,7 +82,7 @@ export function HeaderMiniCartItemList({ cart }: HeaderMiniCartItemListProps) {
         return (
           <div key={item.id} className="pt-4 first:pt-0 pb-4 border-b flex items-end justify-between gap-3">
             <div className="flex gap-4">
-              <div className="flex h-[65px] w-[100px] items-center justify-center overflow-hidden rounded-ss-md rounded-ee-md">
+              <div className="flex h-[65px] w-[100px] items-center justify-center overflow-hidden rounded-ss-md rounded-ee-md bg-surface-image-background">
                 <Image
                   width={100}
                   height={65}
