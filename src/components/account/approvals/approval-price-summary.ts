@@ -42,7 +42,7 @@ function sumApprovalPriceCardLines(
   return breakdown.netValueOfGoods + breakdown.tax + breakdown.shippingFee + breakdown.shippingTax;
 }
 
-/** Effective tax rate % from mapped line price fields (approval API has no taxRate). */
+/** Effective tax rate %: prefer mapped `price.taxRate`, else derive from net/tax/gross. */
 export function resolveApprovalItemTaxRate(price: ApprovalPrice): number | undefined {
   if (typeof price.taxRate === 'number' && price.taxRate > 0) {
     return price.taxRate;

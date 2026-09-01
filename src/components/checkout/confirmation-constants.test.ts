@@ -1,6 +1,7 @@
 import {
   CREATED_APPROVAL_ID_QUERY_PARAM,
   PENDING_APPROVAL_CONFIRMATION_SEGMENT,
+  createdApprovalDetailsPath,
   isPendingApprovalConfirmationSegment,
   pendingApprovalConfirmationPath,
   resolveCreatedApprovalId,
@@ -34,10 +35,15 @@ describe('confirmation-constants', () => {
     expect(pendingApprovalConfirmationPath('   ')).toBe(`/confirmation/${PENDING_APPROVAL_CONFIRMATION_SEGMENT}`);
   });
 
-  it('reads the first non-empty approvalId search param', () => {
+  it('reads only the first approvalId search param value', () => {
     expect(resolveCreatedApprovalId('6a968e55295fcf269f09c3ed')).toBe('6a968e55295fcf269f09c3ed');
     expect(resolveCreatedApprovalId(['6a968e55295fcf269f09c3ed', 'other'])).toBe('6a968e55295fcf269f09c3ed');
     expect(resolveCreatedApprovalId(['', 'other'])).toBeUndefined();
     expect(resolveCreatedApprovalId(undefined)).toBeUndefined();
+  });
+
+  it('path-encodes the created approval id in the details href', () => {
+    expect(createdApprovalDetailsPath('6a968e55295fcf269f09c3ed')).toBe('/account/approvals/6a968e55295fcf269f09c3ed');
+    expect(createdApprovalDetailsPath('id/with?special')).toBe('/account/approvals/id%2Fwith%3Fspecial');
   });
 });

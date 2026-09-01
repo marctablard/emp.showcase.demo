@@ -16,7 +16,7 @@ import type { Order } from '@/platform/services/model/order/order';
 import { AddressDisplay } from '../common/address-display';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { H1, H2, H3 } from '../ui/h';
-import { isPendingApprovalConfirmationSegment } from './confirmation-constants';
+import { createdApprovalDetailsPath, isPendingApprovalConfirmationSegment } from './confirmation-constants';
 
 interface OrderConfirmationProps {
   orderId: string;
@@ -287,7 +287,7 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
           )}
 
           {isApprovalPendingConfirmation && createdApprovalId ? (
-            <UiLink type="Link" href={`/account/approvals/${createdApprovalId}`}>
+            <UiLink type="Link" href={createdApprovalDetailsPath(createdApprovalId)}>
               {t('createdApproval')}
             </UiLink>
           ) : null}

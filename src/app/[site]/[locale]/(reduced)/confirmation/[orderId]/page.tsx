@@ -27,10 +27,10 @@ export async function generateMetadata({ params }: { params: Promise<Confirmatio
 export default async function ConfirmationPage({
   params,
   searchParams,
-}: {
+}: Readonly<{
   params: Promise<ConfirmationPageProps>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
+}>) {
   const { orderId } = await params;
   const search = await searchParams;
   const createdApprovalId = resolveCreatedApprovalId(search[CREATED_APPROVAL_ID_QUERY_PARAM]);

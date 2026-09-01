@@ -35,3 +35,7 @@ export function pendingApprovalConfirmationPath(approvalId?: string): string {
 
   return `${base}?${CREATED_APPROVAL_ID_QUERY_PARAM}=${encodeURIComponent(id)}`;
 }
+
+export function createdApprovalDetailsPath(approvalId: string): string {
+  return `/account/approvals/${encodeURIComponent(approvalId)}`;
+}

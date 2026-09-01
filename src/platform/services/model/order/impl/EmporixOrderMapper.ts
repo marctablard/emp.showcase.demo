@@ -19,6 +19,21 @@ import type {
   OrderShipping,
 } from '@/platform/services/model/order/order';
 
+function resolveOrderGoodsTaxRate(
+  itemRates: Array<number | undefined>,
+  fallbackGoodsRate: number | undefined,
+): number | undefined {
+  const fromItems = resolveSharedPositiveTaxRate(itemRates);
+  if (fromItems !== undefined) {
+    return fromItems;
+  }
+  const hasAnyItemRate = itemRates.some((rate) => typeof rate === 'number');
+  if (hasAnyItemRate) {
+    return undefined;
+  }
+  return typeof fallbackGoodsRate === 'number' && fallbackGoodsRate > 0 ? fallbackGoodsRate : undefined;
+}
+
 /**
  * Implementation of OrderMapper for Emporix order data
  */
@@ -248,16 +263,7 @@ class EmporixOrderMapper implements OrderMapper<EmporixOrder> {
     }
 
     const itemRates = (entries ?? []).map((entry) => entry.calculatedPrice?.price?.taxRate);
-    const fromItems = resolveSharedPositiveTaxRate(itemRates);
-    const hasAnyItemRate = itemRates.some((rate) => typeof rate === 'number');
-    const fallbackGoodsRate = calculatedPrice.price?.taxRate;
-    const goodsTaxRate =
-      fromItems ??
-      (hasAnyItemRate
-        ? undefined
-        : typeof fallbackGoodsRate === 'number' && fallbackGoodsRate > 0
-          ? fallbackGoodsRate
-          : undefined);
+    const goodsTaxRate = resolveOrderGoodsTaxRate(itemRates, calculatedPrice.price?.taxRate);
 
     return {
       subtotal: {

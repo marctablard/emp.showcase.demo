@@ -183,6 +183,15 @@ describe('OrderConfirmation pending approval links', () => {
     );
   });
 
+  it('path-encodes reserved characters in the Created Approval href', () => {
+    render(<OrderConfirmation orderId="ApprovalRequested" createdApprovalId="id/with?special" />);
+
+    expect(screen.getByRole('link', { name: 'orders.Confirmation.createdApproval' })).toHaveAttribute(
+      'href',
+      '/account/approvals/id%2Fwith%3Fspecial',
+    );
+  });
+
   it('does not render Created Approval without a created approval id', () => {
     render(<OrderConfirmation orderId="ApprovalRequested" />);
 
