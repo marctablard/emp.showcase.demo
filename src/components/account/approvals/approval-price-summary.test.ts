@@ -108,7 +108,7 @@ describe('approval-price-summary', () => {
     expect(resolveApprovalQuotedPriceBreakdown(approval).shippingFee).toBe(20);
   });
 
-  it('omits taxRate when taxAggregate mixes STANDARD and REDUCED', () => {
+  it('keeps goods taxRate from items when taxAggregate mixes STANDARD and REDUCED', () => {
     const approval: Approval = {
       ...sampleApproval,
       resource: {
@@ -119,6 +119,50 @@ describe('approval-price-summary', () => {
             { name: 'REDUCED', amount: 545.79, rate: 7, taxable: 8342.79 },
           ],
         },
+      },
+    };
+
+    expect(resolveApprovalQuotedPriceBreakdown(approval).taxRate).toBe(19);
+    expect(resolveApprovalBasePriceBreakdown(approval).taxRate).toBe(19);
+  });
+
+  it('uses shipping.taxRate independently of goods item rates', () => {
+    const approval: Approval = {
+      ...sampleApproval,
+      details: {
+        currency: 'EUR',
+        shipping: {
+          methodId: 'fw',
+          methodName: 'Super Shipping',
+          amount: 20,
+          zoneId: 'fw',
+          taxRate: 3.7,
+          grossAmount: 20.74,
+        },
+      },
+    };
+
+    const quoted = resolveApprovalQuotedPriceBreakdown(approval);
+    expect(quoted.taxRate).toBe(19);
+    expect(quoted.shippingTaxRate).toBe(3.7);
+  });
+
+  it('omits goods taxRate when item tax rates differ', () => {
+    const approval: Approval = {
+      ...sampleApproval,
+      resource: {
+        ...sampleApproval.resource,
+        items: [
+          {
+            ...sampleApproval.resource.items![0],
+            itemPrice: { ...sampleApproval.resource.items![0].itemPrice, taxRate: 7.7 },
+          },
+          {
+            ...sampleApproval.resource.items![1],
+            itemPrice: { ...sampleApproval.resource.items![1].itemPrice, taxRate: 19 },
+          },
+          sampleApproval.resource.items![2],
+        ],
       },
     };
 

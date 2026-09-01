@@ -59,6 +59,7 @@ class EmporixCheckoutMapper implements CheckoutMapper<EmporixCheckoutRequest> {
       amount: source.amount ?? 0,
       zoneId: source.zoneId,
       taxCode: source.shippingTaxCode ?? source.taxCode,
+      ...(typeof source.taxRate === 'number' ? { taxRate: source.taxRate } : {}),
     };
   }
 

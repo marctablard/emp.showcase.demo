@@ -76,6 +76,7 @@ export const QuoteSummary: React.FC<QuoteSummaryProps> = ({ quote }) => {
     };
     const showTaxLine = shouldDisplayTaxLine(taxLine);
     const shippingTaxLine = {
+      taxRate: breakdown.shippingTaxRate,
       taxAmount: breakdown.shippingTax,
       netAmount: breakdown.shippingFee,
     };

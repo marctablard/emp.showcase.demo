@@ -62,6 +62,8 @@ export interface OrderShipping {
    * QUOTE approvals overlay this from Quote Service (shipping tax = gross − amount).
    */
   grossAmount?: number;
+  /** Shipping VAT % from quote `shipping.taxRate` or checkout shipping when present. */
+  taxRate?: number;
 }
 
 /**

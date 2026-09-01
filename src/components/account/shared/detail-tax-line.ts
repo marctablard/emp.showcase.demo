@@ -28,21 +28,38 @@ export function shouldDisplayTaxLine({ taxRate, taxAmount }: DetailTaxLineInput)
 }
 
 /**
+ * Format a stored tax rate for `VAT (7.7%)` — never integer-round (7.7 must not become 8).
+ */
+export function formatTaxRatePercent(rate: number): string {
+  if (!Number.isFinite(rate) || rate <= 0) {
+    return '';
+  }
+  if (Number.isInteger(rate)) {
+    return String(rate);
+  }
+  return String(Number.parseFloat(rate.toPrecision(12)));
+}
+
+/**
  * Only an explicit single `taxRate` is shown as `VAT (rate%)`.
  * Do not derive a blended rate from tax/net — mixed taxAggregate lines would look like one rate.
  */
 export function resolveDetailTaxRatePercent({ taxRate }: DetailTaxLineInput): number | undefined {
-  if (typeof taxRate === 'number') {
-    return Math.round(taxRate);
+  if (typeof taxRate === 'number' && Number.isFinite(taxRate) && taxRate > 0) {
+    return taxRate;
   }
   return undefined;
 }
 
-/** Suffix like ` (19%)` for tax labels; empty when rate is absent or not displayable. */
+/** Suffix like ` (19%)` or ` (7.7%)` for tax labels; empty when rate is absent or not displayable. */
 export function detailTaxRateSuffix(input: DetailTaxLineInput): string {
   if (!shouldDisplayTaxLine(input)) {
     return '';
   }
   const rate = resolveDetailTaxRatePercent(input);
-  return typeof rate === 'number' ? ` (${rate}%)` : '';
+  if (typeof rate !== 'number') {
+    return '';
+  }
+  const formatted = formatTaxRatePercent(rate);
+  return formatted ? ` (${formatted}%)` : '';
 }

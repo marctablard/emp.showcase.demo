@@ -18,6 +18,7 @@ describe('EmporixApprovalMapper', () => {
             itemPrice: {
               currency: 'USD',
               amount: 191.4,
+              taxRate: 7.7,
             },
           },
         ],
@@ -44,6 +45,7 @@ describe('EmporixApprovalMapper', () => {
       expect.objectContaining({
         itemId: 'product-1',
         productId: 'product-1',
+        itemPrice: expect.objectContaining({ taxRate: 7.7 }),
       }),
     ]);
     expect(approval.modifiedAt).toBe('2026-06-01T00:00:00.000Z');

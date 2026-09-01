@@ -198,16 +198,66 @@ describe('quote-price-summary', () => {
     expect(resolveItemDiscountPercent({ unitPrice: 100, newUnitPrice: 65 })).toBe(35);
   });
 
-  it('omits taxRate on Base and Quoted when taxAggregate mixes STANDARD and REDUCED', () => {
+  it('keeps goods taxRate from items when taxAggregate mixes STANDARD and REDUCED', () => {
     const quote: Quote = {
       ...baseQuote,
       vatRate: undefined,
+      shippingTaxRate: 3.7,
       taxAggregate: {
         lines: [
-          { name: 'STANDARD', amount: 31.35, rate: 19, taxable: 196.35 },
-          { name: 'REDUCED', amount: 545.79, rate: 7, taxable: 8342.79 },
+          { name: 'STANDARD', amount: 7.7, rate: 7.7, taxable: 100 },
+          { name: 'REDUCED_3', amount: 0.74, rate: 3.7, taxable: 20 },
         ],
       },
+    };
+
+    expect(resolveQuoteBasePriceBreakdown(quote).taxRate).toBe(19);
+    expect(resolveQuoteQuotedPriceBreakdown(quote).taxRate).toBe(19);
+    expect(resolveQuoteBasePriceBreakdown(quote).shippingTaxRate).toBe(3.7);
+    expect(resolveQuoteQuotedPriceBreakdown(quote).shippingTaxRate).toBe(3.7);
+  });
+
+  it('uses the exact item taxRate (7.7) without rounding', () => {
+    const quote: Quote = {
+      ...baseQuote,
+      vatRate: undefined,
+      shippingTaxRate: 3.7,
+      items: [
+        {
+          product: {
+            id: 'p1',
+            quantity: 2,
+            itemPrice: { amount: 107.7, currency: 'CHF', taxRate: 7.7, netValue: 100, tax: 7.7 },
+          },
+          quantity: { quantity: 2, unitCode: 'pc' },
+        },
+      ],
+    };
+
+    expect(resolveQuoteQuotedPriceBreakdown(quote).taxRate).toBe(7.7);
+    expect(resolveQuoteBasePriceBreakdown(quote).taxRate).toBe(7.7);
+    expect(resolveQuoteQuotedPriceBreakdown(quote).shippingTaxRate).toBe(3.7);
+  });
+
+  it('omits goods taxRate when item tax rates differ', () => {
+    const quote: Quote = {
+      ...baseQuote,
+      items: [
+        {
+          ...baseQuote.items[0],
+          product: {
+            ...baseQuote.items[0].product,
+            itemPrice: { ...baseQuote.items[0].product.itemPrice, taxRate: 7.7 },
+          },
+        },
+        {
+          ...baseQuote.items[1],
+          product: {
+            ...baseQuote.items[1].product,
+            itemPrice: { ...baseQuote.items[1].product.itemPrice, taxRate: 19 },
+          },
+        },
+      ],
     };
 
     expect(resolveQuoteBasePriceBreakdown(quote).taxRate).toBeUndefined();

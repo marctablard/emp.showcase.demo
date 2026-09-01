@@ -1,4 +1,9 @@
-import { resolveSingleNumericRate, resolveSingleTaxRate, uniqueTaxRates } from './tax-aggregate';
+import {
+  resolveSharedPositiveTaxRate,
+  resolveSingleNumericRate,
+  resolveSingleTaxRate,
+  uniqueTaxRates,
+} from './tax-aggregate';
 
 describe('tax-aggregate', () => {
   it('returns a single rate when all lines share it', () => {
@@ -24,5 +29,12 @@ describe('tax-aggregate', () => {
     expect(resolveSingleNumericRate([19, 19, undefined])).toBe(19);
     expect(resolveSingleNumericRate([19, 7])).toBeUndefined();
     expect(resolveSingleNumericRate([])).toBeUndefined();
+  });
+
+  it('resolves a shared positive item rate without using taxAggregate', () => {
+    expect(resolveSharedPositiveTaxRate([7.7, 7.7])).toBe(7.7);
+    expect(resolveSharedPositiveTaxRate([19, 7])).toBeUndefined();
+    expect(resolveSharedPositiveTaxRate([0, 0])).toBeUndefined();
+    expect(resolveSharedPositiveTaxRate([19.012, 18.988])).toBe(19);
   });
 });

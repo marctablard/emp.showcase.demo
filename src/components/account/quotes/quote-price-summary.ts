@@ -1,5 +1,5 @@
 import { resolveItemDiscountPercent } from '@/components/account/shared/item-discount';
-import { resolveSingleNumericRate, resolveSingleTaxRate } from '@/lib/common/tax-aggregate';
+import { resolveSharedPositiveTaxRate } from '@/lib/common/tax-aggregate';
 import type { Quote, QuoteItemPrice } from '@/platform/services/model/quote';
 
 export { resolveItemDiscountPercent } from '@/components/account/shared/item-discount';
@@ -30,6 +30,8 @@ export interface QuotePriceCardBreakdown {
   discountAmount: number;
   /** Prefer a single shared rate for the tax-row suffix; omit when mixed/unknown. */
   taxRate?: number;
+  /** Shipping VAT % from `shipping.taxRate` when present and > 0. */
+  shippingTaxRate?: number;
 }
 
 /** Sum of price-card lines (goods net + tax + shipping fee + shipping tax). */
@@ -39,16 +41,17 @@ export function sumQuotePriceCardLines(
   return breakdown.netValueOfGoods + breakdown.tax + breakdown.shippingFee + breakdown.shippingTax;
 }
 
-/** Single VAT % for `VAT (rate%)`; omit when taxAggregate mixes STANDARD/REDUCED. */
+/** Goods VAT % from item `taxRate` values — ignore taxAggregate (shipping uses its own rate). */
 export function resolveQuoteDisplayTaxRate(
   quote: Quote,
   itemRates: Array<number | undefined> = [],
 ): number | undefined {
-  const fromAggregate = resolveSingleTaxRate(quote.taxAggregate?.lines);
-  if (fromAggregate !== undefined || (quote.taxAggregate?.lines?.length ?? 0) > 1) {
-    return fromAggregate;
-  }
-  return resolveSingleNumericRate(itemRates) ?? quote.vatRate;
+  const rates = itemRates.length > 0 ? itemRates : (quote.items || []).map((item) => item.product.itemPrice.taxRate);
+  return resolveSharedPositiveTaxRate(rates);
+}
+
+export function resolveQuoteShippingTaxRate(quote: Quote): number | undefined {
+  return typeof quote.shippingTaxRate === 'number' && quote.shippingTaxRate > 0 ? quote.shippingTaxRate : undefined;
 }
 
 function resolveShippingTax(quote: Quote): { shippingTax: number; showShippingTax: boolean } {
@@ -113,6 +116,7 @@ export function resolveQuoteBasePriceBreakdown(quote: Quote): QuotePriceCardBrea
       total,
       discountAmount: 0,
       taxRate: resolveQuoteDisplayTaxRate(quote),
+      shippingTaxRate: resolveQuoteShippingTaxRate(quote),
     };
   }
 
@@ -140,6 +144,7 @@ export function resolveQuoteBasePriceBreakdown(quote: Quote): QuotePriceCardBrea
     total,
     discountAmount: Math.max(0, netValueOfGoods - quotedGoodsNet),
     taxRate,
+    shippingTaxRate: resolveQuoteShippingTaxRate(quote),
   };
 }
 
@@ -169,6 +174,7 @@ export function resolveQuoteQuotedPriceBreakdown(quote: Quote): QuotePriceCardBr
     total,
     discountAmount: 0,
     taxRate: resolveQuoteDisplayTaxRate(quote),
+    shippingTaxRate: resolveQuoteShippingTaxRate(quote),
   };
 }
 

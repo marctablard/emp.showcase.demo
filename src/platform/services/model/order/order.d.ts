@@ -91,7 +91,7 @@ export interface OrderPrice {
     gross: number;
     tax: number;
     currency: string;
-    /** Goods tax rate (%) from `calculatedPrice.price.taxRate` when present. */
+    /** Goods tax rate (%) from a shared item `calculatedPrice.price.taxRate`; omit when item rates differ. */
     taxRate?: number;
   };
   total: {

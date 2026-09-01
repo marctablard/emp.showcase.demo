@@ -767,6 +767,26 @@ describe('OrderDetail', () => {
     expect(overviewCard).not.toHaveTextContent('gross:');
   });
 
+  it('shows goods and shipping VAT percents independently when rates differ', () => {
+    const splitRates: Order = {
+      ...baseOrder,
+      price: {
+        subtotal: { net: 100, gross: 107.7, tax: 7.7, currency: 'CHF', taxRate: 7.7 },
+        total: { net: 120, gross: 128.44, tax: 8.44, currency: 'CHF' },
+      },
+      shipping: {
+        methods: [{ id: 'fw', name: 'Super Shipping', price: 20, currency: 'CHF' }],
+        total: { value: 20, currency: 'CHF', tax: 0.74, taxRate: 3.7 },
+      },
+    };
+    mockUseOrder({ order: splitRates });
+
+    render(<OrderDetail orderId={splitRates.id} initialOrder={splitRates} />);
+
+    expect(screen.getByText('tax (7.7%)')).toBeInTheDocument();
+    expect(screen.getByText('shippingVat (3.7%)')).toBeInTheDocument();
+  });
+
   it('shows VAT without a derived percent when goods taxRate is omitted (mixed rates)', () => {
     const mixedRates: Order = {
       ...baseOrder,

@@ -150,10 +150,14 @@ describe('EmporixOrderMapper', () => {
     expect(result.price?.subtotal).toMatchObject({ tax: 62.7, taxRate: 19 });
   });
 
-  it('omits goods taxRate when taxAggregate or line items mix VAT rates', () => {
+  it('omits goods taxRate when line items mix VAT rates', () => {
     const result = mapper.mapToService(
       buildOrder({
         currency: 'EUR',
+        entries: [
+          { itemYrn: 'yrn:item:a', calculatedPrice: { price: { taxRate: 19 } } },
+          { itemYrn: 'yrn:item:b', calculatedPrice: { price: { taxRate: 7 } } },
+        ] as never,
         taxAggregate: {
           lines: [
             { name: 'STANDARD', rate: 19, amount: 31.35, taxable: 196.35 },
@@ -169,6 +173,27 @@ describe('EmporixOrderMapper', () => {
 
     expect(result.price?.subtotal.tax).toBe(575.74);
     expect(result.price?.subtotal.taxRate).toBeUndefined();
+  });
+
+  it('keeps goods taxRate from items when taxAggregate also includes shipping', () => {
+    const result = mapper.mapToService(
+      buildOrder({
+        currency: 'EUR',
+        entries: [{ itemYrn: 'yrn:item:solar', calculatedPrice: { price: { taxRate: 7.7 } } }] as never,
+        taxAggregate: {
+          lines: [
+            { name: 'STANDARD', rate: 7.7, amount: 7.7, taxable: 100 },
+            { name: 'REDUCED_3', rate: 3.7, amount: 0.74, taxable: 20 },
+          ],
+        },
+        calculatedPrice: {
+          price: { netValue: 100, grossValue: 107.7, taxValue: 7.7, taxRate: 7.7 },
+          finalPrice: { netValue: 120, grossValue: 128.44, taxValue: 8.44 },
+        },
+      }),
+    );
+
+    expect(result.price?.subtotal.taxRate).toBe(7.7);
   });
 
   it('falls back to shipping line tax.rate when totalShipping.taxRate is absent', () => {

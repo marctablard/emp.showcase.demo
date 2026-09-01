@@ -158,12 +158,23 @@ describe('ApprovalSummary', () => {
     expect(screen.getByRole('heading', { level: 5, name: 'numberOfProducts' })).toBeInTheDocument();
   });
 
-  it('shows VAT rate percent on Base/Quoted Price when a single taxAggregate rate exists', () => {
+  it('shows VAT rate percent on Base/Quoted Price from item taxRate', () => {
     const approval: Approval = {
       ...baseApproval,
       resourceType: 'QUOTE',
       resource: {
         ...baseApproval.resource,
+        items: [
+          {
+            productId: 'product-1',
+            quantity: 2,
+            itemPrice: {
+              currency: 'EUR',
+              amount: 100,
+              taxRate: 19,
+            },
+          },
+        ],
         taxAggregate: { lines: [{ name: 'STANDARD', amount: 19, rate: 19, taxable: 100 }] },
       },
       details: {
@@ -180,31 +191,43 @@ describe('ApprovalSummary', () => {
     expect(screen.getAllByText(/5,00\s*€/).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('shows VAT without a rate when taxAggregate mixes STANDARD and REDUCED', () => {
+  it('still shows goods and shipping VAT percents when taxAggregate mixes rates', () => {
     const approval: Approval = {
       ...baseApproval,
       resourceType: 'QUOTE',
       resource: {
         ...baseApproval.resource,
-        subtotalAggregate: { currency: 'EUR', netValue: 7942, grossValue: 8517.74, taxValue: 575.74 },
+        items: [
+          {
+            productId: 'enjoysolar-200w-module',
+            quantity: 2,
+            itemPrice: {
+              currency: 'CHF',
+              amount: 107.7,
+              netValue: 100,
+              taxValue: 7.7,
+              taxRate: 7.7,
+            },
+          },
+        ],
+        subtotalAggregate: { currency: 'CHF', netValue: 100, grossValue: 107.7, taxValue: 7.7 },
         taxAggregate: {
           lines: [
-            { name: 'STANDARD', amount: 31.35, rate: 19, taxable: 196.35 },
-            { name: 'REDUCED', amount: 545.79, rate: 7, taxable: 8342.79 },
+            { name: 'STANDARD', amount: 7.7, rate: 7.7, taxable: 100 },
+            { name: 'REDUCED_3', amount: 0.74, rate: 3.7, taxable: 20 },
           ],
         },
       },
       details: {
-        currency: 'EUR',
-        shipping: { amount: 20, methodName: 'DHL' } as any,
+        currency: 'CHF',
+        shipping: { amount: 20, methodName: 'Super Shipping', grossAmount: 20.74, taxRate: 3.7 } as any,
       },
     };
 
     render(<ApprovalSummary approval={approval} />);
 
-    expect(screen.getAllByText('tax').length).toBeGreaterThanOrEqual(1);
-    expect(screen.queryByText(/tax \(\d+%\)/)).not.toBeInTheDocument();
-    expect(screen.getAllByText(/20,00\s*€/).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('tax (7.7%)').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('shippingVat (3.7%)').length).toBeGreaterThanOrEqual(2);
   });
 
   it('shows shipping tax on Base and Quoted Price when quote grossAmount exceeds net fee', () => {
@@ -308,7 +331,9 @@ describe('ApprovalSummary', () => {
       resourceType: 'CART',
       resource: {
         id: 'cart-ch-shipping-tax',
-        items: [{ productId: 'p1', quantity: 1, itemPrice: { currency: 'CHF', amount: 150, netValue: 150 } }],
+        items: [
+          { productId: 'p1', quantity: 1, itemPrice: { currency: 'CHF', amount: 150, netValue: 150, taxRate: 7.7 } },
+        ],
         totalPrice: {
           currency: 'CHF',
           amount: 170,
@@ -320,7 +345,7 @@ describe('ApprovalSummary', () => {
       },
       details: {
         currency: 'CHF',
-        shipping: { amount: 20, taxCode: 'REDUCED_3' } as any,
+        shipping: { amount: 20, taxCode: 'REDUCED_3', taxRate: 3.7 } as any,
         addresses: [{ type: 'SHIPPING' } as any, { type: 'BILLING' } as any],
         paymentMethods: [{ name: 'Card' } as any],
       },
@@ -333,8 +358,9 @@ describe('ApprovalSummary', () => {
     expect(totalValueAmount).toHaveTextContent(/182,29/);
     expect(totalValueAmount).not.toHaveTextContent(/170,00/);
 
+    expect(screen.getByText('tax (7.7%)')).toBeInTheDocument();
     const shippingTaxRow = screen.getByTestId('approval-overview-shipping-tax-estimated');
-    expect(shippingTaxRow).toHaveTextContent('shippingVatEstimated');
+    expect(shippingTaxRow).toHaveTextContent('shippingVatEstimated (3.7%)');
     expect(shippingTaxRow).toHaveTextContent(/0,74/);
   });
 

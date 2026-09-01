@@ -104,6 +104,7 @@ export class EmporixQuoteMapper implements QuoteMapper<EmporixQuote> {
       },
       shippingCost: emporixQuote.shipping?.value || 0,
       shippingGross: emporixQuote.shipping?.grossValue,
+      shippingTaxRate: emporixQuote.shipping?.taxRate,
       // Prefer localized methodName over methodId (OQ6 / Task 3.1)
       shippingMethod: resolveQuoteShippingMethodName(emporixQuote.shipping),
       reference: emporixQuote.customerReference || emporixQuote.mixins?.additionalInfo?.reference,

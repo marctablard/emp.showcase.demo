@@ -26,7 +26,22 @@ const baseQuote: Quote = {
   totalNet: 100,
   totalVat: 19,
   vatRate: 19,
-  items: [],
+  items: [
+    {
+      product: {
+        id: 'p1',
+        quantity: 1,
+        itemPrice: {
+          amount: 119,
+          currency: 'EUR',
+          taxRate: 19,
+          netValue: 100,
+          tax: 19,
+        },
+      },
+      quantity: { quantity: 1, unitCode: 'pc' },
+    },
+  ],
   shippingAddress: {
     type: 'SHIPPING',
     contactName: 'Ada Lovelace',
@@ -47,8 +62,8 @@ describe('QuoteSummary', () => {
     expect(deAccountTranslations.quoteDetails.shippingAddress).toBe('Versandadresse');
   });
 
-  it('shows VAT rate from taxAggregate (vatRate) when present', () => {
-    render(<QuoteSummary quote={{ ...baseQuote, vatRate: 19, totalNet: 0, totalVat: 36.09 }} />);
+  it('shows VAT rate from item taxRate when present', () => {
+    render(<QuoteSummary quote={{ ...baseQuote, vatRate: undefined, totalNet: 0, totalVat: 36.09 }} />);
 
     expect(screen.getAllByText('tax (19%)').length).toBeGreaterThanOrEqual(1);
   });
@@ -63,24 +78,73 @@ describe('QuoteSummary', () => {
     expect(screen.getAllByText(/5,00\s*€/).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('shows VAT without a rate when taxAggregate mixes STANDARD and REDUCED', () => {
+  it('still shows goods VAT percent when taxAggregate mixes goods and shipping rates', () => {
     render(
       <QuoteSummary
         quote={{
           ...baseQuote,
           vatRate: undefined,
+          shippingCost: 20,
+          shippingGross: 20.74,
+          shippingTaxRate: 3.7,
           taxAggregate: {
             lines: [
-              { name: 'STANDARD', amount: 31.35, rate: 19, taxable: 196.35 },
-              { name: 'REDUCED', amount: 545.79, rate: 7, taxable: 8342.79 },
+              { name: 'STANDARD', amount: 7.7, rate: 7.7, taxable: 100 },
+              { name: 'REDUCED_3', amount: 0.74, rate: 3.7, taxable: 20 },
             ],
           },
+          items: [
+            {
+              product: {
+                id: 'p1',
+                quantity: 2,
+                itemPrice: { amount: 107.7, currency: 'CHF', taxRate: 7.7, netValue: 100, tax: 7.7 },
+              },
+              quantity: { quantity: 2, unitCode: 'pc' },
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getAllByText('tax (7.7%)').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('shippingVat (3.7%)').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('omits goods VAT percent when item tax rates differ, but still shows shipping VAT percent', () => {
+    render(
+      <QuoteSummary
+        quote={{
+          ...baseQuote,
+          vatRate: undefined,
+          shippingCost: 20,
+          shippingGross: 20.74,
+          shippingTaxRate: 3.7,
+          items: [
+            {
+              product: {
+                id: 'p1',
+                quantity: 1,
+                itemPrice: { amount: 107.7, currency: 'CHF', taxRate: 7.7, netValue: 100, tax: 7.7 },
+              },
+              quantity: { quantity: 1, unitCode: 'pc' },
+            },
+            {
+              product: {
+                id: 'p2',
+                quantity: 1,
+                itemPrice: { amount: 119, currency: 'CHF', taxRate: 19, netValue: 100, tax: 19 },
+              },
+              quantity: { quantity: 1, unitCode: 'pc' },
+            },
+          ],
         }}
       />,
     );
 
     expect(screen.getAllByText('tax').length).toBeGreaterThanOrEqual(1);
-    expect(screen.queryByText(/tax \(\d+%\)/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/tax \(\d/)).not.toBeInTheDocument();
+    expect(screen.getAllByText('shippingVat (3.7%)').length).toBeGreaterThanOrEqual(2);
   });
 
   it('omits the tax row when totalVat is 0 and vatRate is absent', () => {

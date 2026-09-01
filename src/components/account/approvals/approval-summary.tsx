@@ -68,6 +68,10 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
     goodsNet,
     goodsVat: vat,
   });
+  const shippingTaxLine = {
+    taxRate: approval.details?.shipping?.taxRate,
+    taxAmount: shippingTaxEstimated,
+  };
 
   const shippingAddress = details?.addresses?.find?.((a: any) => a?.type === 'SHIPPING') || details?.addresses?.[0];
   const billingAddress = details?.addresses?.find?.((a: any) => a?.type === 'BILLING') || details?.addresses?.[1];
@@ -151,7 +155,14 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
         </div>
         {breakdown.showShippingTax ? (
           <div className="flex justify-between gap-4">
-            <span>{t('shippingVat')}</span>
+            <span>
+              {t('shippingVat')}
+              {detailTaxRateSuffix({
+                taxRate: breakdown.shippingTaxRate,
+                taxAmount: breakdown.shippingTax,
+                netAmount: breakdown.shippingFee,
+              })}
+            </span>
             <span>{fmt(breakdown.shippingTax)}</span>
           </div>
         ) : null}
@@ -242,7 +253,10 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
             </div>
             {showShippingTaxEstimated && (
               <div className="flex justify-between gap-4 pt-2" data-testid="approval-overview-shipping-tax-estimated">
-                <span>{t('shippingVatEstimated')}</span>
+                <span>
+                  {t('shippingVatEstimated')}
+                  {detailTaxRateSuffix(shippingTaxLine)}
+                </span>
                 <span>{fmt(shippingTaxEstimated)}</span>
               </div>
             )}
