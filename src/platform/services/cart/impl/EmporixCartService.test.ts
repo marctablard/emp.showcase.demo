@@ -704,16 +704,12 @@ describe('EmporixCartService', () => {
       expect(result.status).toBe('OK');
     });
 
-    it('should align cart country with session before add when they differ', async () => {
+    it('does not PATCH cart country before add; prices still use session country', async () => {
       const roCart: EmporixCart = {
         ...rawCart,
         countryCode: 'RO',
       };
-      const chCart: EmporixCart = {
-        ...rawCart,
-        countryCode: 'CH',
-      };
-      mockCartApi.getCart.mockResolvedValueOnce(roCart).mockResolvedValueOnce(chCart).mockResolvedValueOnce(chCart);
+      mockCartApi.getCart.mockResolvedValueOnce(roCart).mockResolvedValueOnce(roCart);
       mockProductService.getProductById.mockResolvedValue(mockProduct);
       mockSessionService.getCurrent.mockResolvedValue({ ...mockSession, country: 'CH' });
       mockPriceService.getProductPrice.mockResolvedValue(mockPrice);
@@ -736,7 +732,7 @@ describe('EmporixCartService', () => {
 
       await cartService.addItemToCart('cart-us', 'prod-1', 1);
 
-      expect(mockCartApi.updateCart).toHaveBeenCalledWith('cart-us', expect.objectContaining({ countryCode: 'CH' }));
+      expect(mockCartApi.updateCart).not.toHaveBeenCalled();
       expect(mockPriceService.getProductPrice).toHaveBeenCalledWith('prod-1', 1, undefined, {
         siteCode: 'us-branch',
         currency: 'USD',
@@ -1314,13 +1310,7 @@ describe('EmporixCartService', () => {
   });
 
   describe('createCart', () => {
-    it('normalizes session country to uppercase on create', async () => {
-      mockSessionService.getCurrent.mockResolvedValue({
-        id: 'session-1',
-        siteCode: 'main',
-        currency: 'EUR',
-        country: ' ch ',
-      });
+    it('creates a cart without destination country so zip is not required', async () => {
       mockCartApi.createCart.mockResolvedValue('cart-new');
 
       const cartId = await cartService.createCart('EUR', 'main');
@@ -1330,9 +1320,10 @@ describe('EmporixCartService', () => {
         expect.objectContaining({
           siteCode: 'main',
           currency: 'EUR',
-          countryCode: 'CH',
         }),
       );
+      expect(mockCartApi.createCart.mock.calls[0][0]).not.toHaveProperty('countryCode');
+      expect(mockCartApi.createCart.mock.calls[0][0]).not.toHaveProperty('zipCode');
       expect(mockSessionService.setCart).toHaveBeenCalledWith('cart-new');
     });
   });

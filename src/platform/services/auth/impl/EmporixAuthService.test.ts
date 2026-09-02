@@ -213,7 +213,6 @@ describe('EmporixAuthService', () => {
       saveCart: jest.fn(),
       loadCart: jest.fn(),
       getCartByCriteria: jest.fn(),
-      alignCartCountry: jest.fn().mockResolvedValue(undefined),
     };
 
     mockSiteService = {
@@ -1228,7 +1227,7 @@ describe('EmporixAuthService', () => {
       expect(mockSessionService.setCurrency).not.toHaveBeenCalled();
     });
 
-    it('keeps a pre-login country allowed on the target site and aligns the cart', async () => {
+    it('keeps a pre-login country allowed on the target site', async () => {
       const shopperSession: ServiceSession = {
         ...oldServiceSession,
         country: 'DE',
@@ -1248,7 +1247,6 @@ describe('EmporixAuthService', () => {
         expect.objectContaining({ country: 'DE' }),
         expect.any(Object),
       );
-      expect(mockCartService.alignCartCountry).toHaveBeenCalledWith(customerCart.id, 'DE');
     });
 
     it('snaps a pre-login country that the target site does not list to site.defaultCountry', async () => {
@@ -1279,7 +1277,6 @@ describe('EmporixAuthService', () => {
         expect.objectContaining({ country: 'DE' }),
         expect.any(Object),
       );
-      expect(mockCartService.alignCartCountry).toHaveBeenCalledWith(customerCart.id, 'DE');
     });
 
     it('swallows combined PATCH failures, logs them, and still returns a usable Session', async () => {

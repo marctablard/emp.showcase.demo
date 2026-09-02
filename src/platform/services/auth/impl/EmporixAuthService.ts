@@ -128,7 +128,6 @@ export class EmporixAuthService implements AuthService {
       session,
       verifiedCustomerCart: merge.verifiedCustomerCart,
       preferredLoginCurrency,
-      finalCountry: settled.finalCountry,
     });
 
     if (verifiedCustomerCart && session.currency !== verifiedCustomerCart.currency) {
@@ -637,9 +636,8 @@ export class EmporixAuthService implements AuthService {
     session: EmporixSessionContext;
     verifiedCustomerCart: Cart | null;
     preferredLoginCurrency: string;
-    finalCountry: string | undefined;
   }): Promise<Cart | null> {
-    const { session, preferredLoginCurrency, finalCountry } = args;
+    const { session, preferredLoginCurrency } = args;
     let { verifiedCustomerCart } = args;
     if (!verifiedCustomerCart) {
       return null;
@@ -659,20 +657,6 @@ export class EmporixAuthService implements AuthService {
             preferredLoginCurrency,
           },
           'Failed to enforce preferred login currency on customer cart',
-        );
-      }
-    }
-    if (finalCountry) {
-      try {
-        await this.cartService.alignCartCountry(verifiedCustomerCart.id, finalCountry);
-      } catch (error) {
-        this.logger.warn(
-          {
-            err: error instanceof Error ? error : String(error),
-            cartId: verifiedCustomerCart.id,
-            country: finalCountry,
-          },
-          'Failed to align cart country with session after login',
         );
       }
     }
