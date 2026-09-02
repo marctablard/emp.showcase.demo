@@ -201,7 +201,7 @@ export class EmporixAuthService implements AuthService {
       const patched = await this.sessionService.updateContext(
         {
           siteCode: this.loginPreferenceDiffers(preferredSiteCode, serverSiteCode) ? preferredSiteCode : undefined,
-          currency: preferredLoginCurrency !== serverCurrency ? preferredLoginCurrency : undefined,
+          currency: preferredLoginCurrency === serverCurrency ? undefined : preferredLoginCurrency,
           language: this.loginPreferenceDiffers(finalLanguage, serverLanguage) ? finalLanguage : undefined,
           country: this.loginPreferenceDiffers(finalCountry, serverCountry) ? finalCountry : undefined,
           region: this.loginPreferenceDiffers(finalRegion, serverRegion) ? finalRegion : undefined,

@@ -138,7 +138,7 @@ class EmporixCartService implements CartService {
       throw new Error('Cart not found');
     }
     const cartItem = cart.items.find((item) => item.id === itemId);
-    if (!cartItem || !cartItem.product?.id) {
+    if (!cartItem?.product?.id) {
       throw new Error('Cart item not found');
     }
     return { cart, cartItem };

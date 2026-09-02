@@ -1,6 +1,10 @@
 import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
 import type { PriceFetchOptions } from '@/platform/services/price/PriceService';
 
+function normalizeMatchCode(value: string | undefined): string {
+  return typeof value === 'string' ? value.trim().toUpperCase() : '';
+}
+
 export type PriceMatchSession = {
   siteCode?: string;
   currency?: string;
@@ -25,11 +29,13 @@ export function priceFetchOptionsFromSession(
     siteCode,
     useFallback: false,
   };
-  if (session?.currency) {
-    options.currency = session.currency;
+  const currency = normalizeMatchCode(session?.currency);
+  if (currency) {
+    options.currency = currency;
   }
-  if (session?.country) {
-    options.country = session.country;
+  const country = normalizeMatchCode(session?.country);
+  if (country) {
+    options.country = country;
   }
   if (isAuthenticatedSessionCustomerId(session?.customerId)) {
     options.customerId = session.customerId;

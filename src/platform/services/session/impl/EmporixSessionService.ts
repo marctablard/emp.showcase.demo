@@ -437,16 +437,13 @@ class EmporixSessionService implements SessionService {
     result: Session,
     updateDefaults: Partial<EmporixSessionContext>,
   ): void {
-    const nextCountry = resolveCountryForSite(site, result.country);
     const currentCountry = this.normalizeSessionCountry(result.country);
-    if (nextCountry && nextCountry !== currentCountry) {
+    const nextCountry =
+      resolveCountryForSite(site, currentCountry || undefined) || (!currentCountry ? this.defaultCountry : undefined);
+    const rawCountry = typeof result.country === 'string' ? result.country : '';
+    if (nextCountry && nextCountry !== rawCountry) {
       updateDefaults.targetLocation = nextCountry;
       result.country = nextCountry;
-      return;
-    }
-    if (!result.country && this.defaultCountry) {
-      updateDefaults.targetLocation = this.defaultCountry;
-      result.country = this.defaultCountry;
     }
   }
 

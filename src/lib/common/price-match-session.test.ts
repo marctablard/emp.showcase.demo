@@ -18,6 +18,21 @@ describe('priceFetchOptionsFromSession', () => {
     });
   });
 
+  it('normalizes currency and country for explicit match-prices', () => {
+    expect(
+      priceFetchOptionsFromSession({
+        siteCode: 'fw-site',
+        currency: ' chf ',
+        country: ' ch ',
+      }),
+    ).toEqual({
+      siteCode: 'fw-site',
+      currency: 'CHF',
+      country: 'CH',
+      useFallback: false,
+    });
+  });
+
   it('sends principal and legal entity only for an authenticated customer', () => {
     expect(
       priceFetchOptionsFromSession({

@@ -880,6 +880,55 @@ describe('EmporixSessionService', () => {
       );
     });
 
+    it('should PATCH a lowercase or whitespace country to the normalized allowed code', async () => {
+      const fullyPopulatedContext: EmporixSessionContext = {
+        sessionId: 'test-session',
+        currency: 'CHF',
+        siteCode: 'fw-site',
+        targetLocation: ' ch ',
+        context: {
+          language: { key: 'language', value: 'en' },
+          region: { key: 'region', value: 'Europe' },
+        },
+        metadata: { version: 2 },
+      };
+      const mappedSession: Session = {
+        id: 'test-session',
+        currency: 'CHF',
+        siteCode: 'fw-site',
+        country: ' ch ',
+        language: 'en',
+        region: 'Europe',
+      };
+
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValue(fullyPopulatedContext);
+      mockSessionMapper.mapToService.mockReturnValue(mappedSession);
+      mockSiteService.getSite.mockResolvedValue({
+        code: 'fw-site',
+        name: 'FW',
+        defaultCountry: 'CH',
+        defaultCurrency: { id: 'CHF', code: 'CHF', name: 'Franc', active: true },
+        currencies: [{ id: 'CHF', code: 'CHF', name: 'Franc', active: true }],
+        countries: [{ code: 'CH' }, { code: 'DE' }],
+        shipToCountries: [],
+        regions: [],
+        paymentModes: [],
+        languages: ['en'],
+        defaultLanguage: 'en',
+        address: { contactName: '', street: '', zipCode: '', city: '', country: 'CH' },
+        includesTax: false,
+        decimals: 2,
+      });
+      mockSessionContextApi.updateOwnSessionContext.mockResolvedValue();
+
+      const result = await sessionService.getCurrent();
+
+      expect(result?.country).toBe('CH');
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledWith(
+        expect.objectContaining({ targetLocation: 'CH' }),
+      );
+    });
+
     it('should not include language on a currency PATCH when session language is already de', async () => {
       const fullyPopulatedContext: EmporixSessionContext = {
         sessionId: 'test-session',
