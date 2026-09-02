@@ -83,6 +83,23 @@ interface CartActions {
 export type CartStore = CartState & CartActions;
 
 const MAX_PENDING_CURRENCY_SYNC_RETRIES = 3;
+const SHIPPING_UPDATE_DEBOUNCE_MS = 2000;
+
+function shouldSkipShippingUpdate(
+  lastShippingUpdate: CartState['lastShippingUpdate'],
+  cartId: string | undefined,
+  shippingAddress: CartShippingAddress,
+): boolean {
+  if (!cartId || !lastShippingUpdate) {
+    return false;
+  }
+  return (
+    lastShippingUpdate.cartId === cartId &&
+    lastShippingUpdate.country === shippingAddress.country &&
+    lastShippingUpdate.zipCode === shippingAddress.zipCode &&
+    Date.now() - lastShippingUpdate.timestamp < SHIPPING_UPDATE_DEBOUNCE_MS
+  );
+}
 
 // default state explicitly 'undefined' since it means, we don't know the cart's state
 const defaultState: CartState = {
@@ -465,31 +482,19 @@ export const createCartStore = (initState: CartState = defaultState) => {
         await afterPrevious.catch(() => {});
 
         try {
-          const { lastShippingUpdate, currentCart } = get();
-          const now = Date.now();
-          const DEBOUNCE_TIME = 2000;
-          const cartId = currentCart?.id;
-
-          // Same country+zip on a *new* cart must still PATCH. Approval/quote
-          // leftover reuses the prior ship-to; debounce must be per cart id.
-          if (
-            cartId &&
-            lastShippingUpdate &&
-            lastShippingUpdate.cartId === cartId &&
-            lastShippingUpdate.country === shippingAddress.country &&
-            lastShippingUpdate.zipCode === shippingAddress.zipCode &&
-            now - lastShippingUpdate.timestamp < DEBOUNCE_TIME
-          ) {
+          let cart = get().currentCart;
+          if (!cart) {
+            await get().fetchCart();
+            cart = get().currentCart;
+          }
+          if (!cart) {
+            set({ loading: false });
             return;
           }
 
-          if (!currentCart) {
-            await get().fetchCart();
-          }
-
-          const cart = get().currentCart;
-          if (!cart) {
-            set({ loading: false });
+          // Debounce after the real cart id is known. Same country+zip on a
+          // *new* cart must still PATCH (leftover ship-to after approval/quote).
+          if (shouldSkipShippingUpdate(get().lastShippingUpdate, cart.id, shippingAddress)) {
             return;
           }
 

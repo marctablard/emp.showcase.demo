@@ -43,6 +43,16 @@ function fail(message) {
   throw new AuditPolicyError(message);
 }
 
+function consumeJsonStringChar(ch, escape) {
+  if (escape) {
+    return { inString: true, escape: false };
+  }
+  if (ch === '\\') {
+    return { inString: true, escape: true };
+  }
+  return { inString: ch !== '"', escape: false };
+}
+
 /**
  * npm/safe-chain sometimes append a notice after `npm audit --json`.
  * Take the first complete object; still fail if that object is not a report.
@@ -58,13 +68,7 @@ function extractFirstJsonObject(raw) {
   for (let i = start; i < raw.length; i++) {
     const ch = raw[i];
     if (inString) {
-      if (escape) {
-        escape = false;
-      } else if (ch === '\\') {
-        escape = true;
-      } else if (ch === '"') {
-        inString = false;
-      }
+      ({ inString, escape } = consumeJsonStringChar(ch, escape));
       continue;
     }
     if (ch === '"') {

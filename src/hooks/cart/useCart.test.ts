@@ -806,4 +806,33 @@ describe('CartStore - shipping destination debounce', () => {
     expect(mockUpdateShippingInfo).toHaveBeenCalledTimes(1);
     expect(mockUpdateShippingInfo).toHaveBeenCalledWith('cart-1', shipping, undefined);
   });
+
+  it('skips a repeat PATCH after fetchCart resolves the same cart id', async () => {
+    const store = createCartStore({
+      currentCart: buildCart('cart-1'),
+      loading: false,
+      error: null,
+      lastShippingUpdate: null,
+      sessionStatus: null,
+      lastSiteCode: 'main',
+      lastLegalEntityId: null,
+      pendingCurrencySync: null,
+      isSettling: false,
+    });
+
+    await act(async () => {
+      await store.getState().updateShippingInfo(shipping);
+    });
+
+    act(() => {
+      store.getState().setCurrentCart(null);
+    });
+    mockFetchCurrentCart.mockResolvedValue(fcResult(buildCart('cart-1')));
+
+    await act(async () => {
+      await store.getState().updateShippingInfo(shipping);
+    });
+
+    expect(mockUpdateShippingInfo).toHaveBeenCalledTimes(1);
+  });
 });
