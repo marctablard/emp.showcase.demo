@@ -103,19 +103,82 @@ export class EmporixAuthService implements AuthService {
     // aligned state and the post-login redirect becomes a no-op.
     const targetSiteCode = preferredSiteCode || session.siteCode || getPublicDefaultSite();
     const targetSite = await this.safeGetSite(targetSiteCode);
-    let finalCurrency = this.resolveFinalLoginCurrency(targetSite, oldSession?.currency, session.currency);
-    const preferredLoginCurrency = finalCurrency;
-    let customerCartId: string | undefined;
-    let customerCartBinding: { cartId?: string; currencyAligned: boolean; created: boolean; cart?: Cart } | undefined;
-    let verifiedCustomerCart: Cart | null = null;
-    let cartMergeStatus: Session['cartMergeStatus'] = this.CART_MERGE_STATUS.NOT_APPLICABLE;
-    let cartMergeReason: Session['cartMergeReason'] | undefined;
+    const preferredLoginCurrency = this.resolveFinalLoginCurrency(targetSite, oldSession?.currency, session.currency);
 
-    // ── Phase 2: Settle session context ──
-    // Realign siteCode / currency / language / country / region with the
-    // shopper's pre-login preferences BEFORE touching carts. This ensures
-    // that every subsequent getCart() / createCart() / merge call runs against
-    // a fully settled session (token, site, currency, language, legalEntityId).
+    const settled = await this.settleLoginSessionContext({
+      session,
+      targetSite,
+      preferredSiteCode,
+      preferredLanguage,
+      preferredCountry,
+      preferredRegion,
+      preferredLoginCurrency,
+    });
+    const binding = await this.bindCustomerCartAfterLogin(session, targetSiteCode, settled.finalCurrency);
+    const merge = await this.resolveLoginCartMerge({
+      anonymousCartId,
+      session,
+      targetSite,
+      customerCartBinding: binding.customerCartBinding,
+      verifiedCustomerCart: binding.verifiedCustomerCart,
+      customerCartId: binding.customerCartId,
+      finalCurrency: settled.finalCurrency,
+    });
+    const verifiedCustomerCart = await this.enforceLoginCartPreferences({
+      session,
+      verifiedCustomerCart: merge.verifiedCustomerCart,
+      preferredLoginCurrency,
+      finalCountry: settled.finalCountry,
+    });
+
+    if (verifiedCustomerCart && session.currency !== verifiedCustomerCart.currency) {
+      session.currency = verifiedCustomerCart.currency;
+    }
+
+    return this.buildLoginResult(session, merge.customerCartId, merge.cartMergeStatus, merge.cartMergeReason);
+  }
+
+  private loginPreferenceDiffers(preferred: string | undefined, server: string | undefined): boolean {
+    return preferred !== undefined && preferred !== server;
+  }
+
+  private applyPatchedLoginSession(
+    session: EmporixSessionContext,
+    patched: {
+      siteCode?: string;
+      currency?: string;
+      country?: string;
+      language?: string;
+      region?: string;
+    },
+  ): void {
+    if (patched.siteCode) session.siteCode = patched.siteCode;
+    if (patched.currency) session.currency = patched.currency;
+    if (patched.country) session.targetLocation = patched.country;
+    if (patched.language) session.language = patched.language;
+    if (patched.region) {
+      session.context = { ...session.context, region: patched.region };
+    }
+  }
+
+  private async settleLoginSessionContext(args: {
+    session: EmporixSessionContext;
+    targetSite: Site | null;
+    preferredSiteCode?: string;
+    preferredLanguage?: string;
+    preferredCountry?: string;
+    preferredRegion?: string;
+    preferredLoginCurrency: string;
+  }): Promise<{ finalCurrency: string; finalCountry: string | undefined }> {
+    const {
+      session,
+      targetSite,
+      preferredSiteCode,
+      preferredLanguage,
+      preferredCountry,
+      preferredRegion,
+      preferredLoginCurrency,
+    } = args;
     const serverSiteCode = session.siteCode;
     const serverCurrency = session.currency;
     const serverLanguage = session.language;
@@ -126,285 +189,494 @@ export class EmporixAuthService implements AuthService {
       resolveCountryForSite(targetSite, preferredCountry ?? serverCountry) ?? preferredCountry ?? serverCountry;
     const finalRegion = preferredRegion ?? serverRegion;
     const needsPatch =
-      (preferredSiteCode !== undefined && preferredSiteCode !== serverSiteCode) ||
-      finalCurrency !== serverCurrency ||
-      (finalLanguage !== undefined && finalLanguage !== serverLanguage) ||
-      (finalCountry !== undefined && finalCountry !== serverCountry) ||
-      (finalRegion !== undefined && finalRegion !== serverRegion);
-    if (needsPatch) {
-      try {
-        const patched = await this.sessionService.updateContext(
-          {
-            siteCode:
-              preferredSiteCode !== undefined && preferredSiteCode !== serverSiteCode ? preferredSiteCode : undefined,
-            currency: finalCurrency !== serverCurrency ? finalCurrency : undefined,
-            language: finalLanguage !== undefined && finalLanguage !== serverLanguage ? finalLanguage : undefined,
-            country: finalCountry !== undefined && finalCountry !== serverCountry ? finalCountry : undefined,
-            region: finalRegion !== undefined && finalRegion !== serverRegion ? finalRegion : undefined,
-          },
-          { expectedVersion: session.metadata?.version },
-        );
-        if (patched) {
-          if (patched.siteCode) session.siteCode = patched.siteCode;
-          if (patched.currency) session.currency = patched.currency;
-          if (patched.country) session.targetLocation = patched.country;
-          if (patched.language) session.language = patched.language;
-          if (patched.region) {
-            session.context = { ...session.context, region: patched.region };
-          }
-        }
-      } catch (error) {
+      this.loginPreferenceDiffers(preferredSiteCode, serverSiteCode) ||
+      preferredLoginCurrency !== serverCurrency ||
+      this.loginPreferenceDiffers(finalLanguage, serverLanguage) ||
+      this.loginPreferenceDiffers(finalCountry, serverCountry) ||
+      this.loginPreferenceDiffers(finalRegion, serverRegion);
+    if (!needsPatch) {
+      return { finalCurrency: preferredLoginCurrency, finalCountry };
+    }
+    try {
+      const patched = await this.sessionService.updateContext(
+        {
+          siteCode: this.loginPreferenceDiffers(preferredSiteCode, serverSiteCode) ? preferredSiteCode : undefined,
+          currency: preferredLoginCurrency !== serverCurrency ? preferredLoginCurrency : undefined,
+          language: this.loginPreferenceDiffers(finalLanguage, serverLanguage) ? finalLanguage : undefined,
+          country: this.loginPreferenceDiffers(finalCountry, serverCountry) ? finalCountry : undefined,
+          region: this.loginPreferenceDiffers(finalRegion, serverRegion) ? finalRegion : undefined,
+        },
+        { expectedVersion: session.metadata?.version },
+      );
+      if (patched) {
+        this.applyPatchedLoginSession(session, patched);
+      }
+    } catch (error) {
+      this.logger.error(
+        {
+          err: error instanceof Error ? error : String(error),
+          customerId: session.customerId,
+          preferredSiteCode,
+          preferredLanguage,
+          preferredCountry,
+          preferredRegion,
+          targetCurrency: preferredLoginCurrency,
+        },
+        'Failed to realign session context with pre-login preferences',
+      );
+    }
+    return { finalCurrency: preferredLoginCurrency, finalCountry };
+  }
+
+  private async bindCustomerCartAfterLogin(
+    session: EmporixSessionContext,
+    targetSiteCode: string,
+    finalCurrency: string,
+  ): Promise<{
+    customerCartBinding?: { cartId?: string; currencyAligned: boolean; created: boolean; cart?: Cart };
+    customerCartId?: string;
+    verifiedCustomerCart: Cart | null;
+  }> {
+    if (!session.customerId) {
+      return { verifiedCustomerCart: null };
+    }
+    try {
+      const customerCartBinding = await this.safeEnsureCustomerCartBinding(
+        session.customerId,
+        targetSiteCode,
+        finalCurrency,
+      );
+      const customerCartId = customerCartBinding.cartId;
+      const verifiedCustomerCart =
+        customerCartBinding.cart ??
+        (customerCartId ? await this.getVerifiedCustomerCart(customerCartId, session.customerId) : null);
+      if (customerCartId) {
+        await this.sessionService.setCart(customerCartId);
+      }
+      return { customerCartBinding, customerCartId, verifiedCustomerCart };
+    } catch (error) {
+      this.logger.error(
+        { err: error instanceof Error ? error : String(error) },
+        'Failed to ensure customer cart binding after login',
+      );
+      return { verifiedCustomerCart: null };
+    }
+  }
+
+  private notApplicableMerge(finalCurrency: string): {
+    customerCartId?: string;
+    verifiedCustomerCart: Cart | null;
+    cartMergeStatus: Session['cartMergeStatus'];
+    cartMergeReason?: Session['cartMergeReason'];
+    finalCurrency: string;
+  } {
+    return {
+      verifiedCustomerCart: null,
+      cartMergeStatus: this.CART_MERGE_STATUS.NOT_APPLICABLE,
+      cartMergeReason: this.CART_MERGE_REASON.ANONYMOUS_CART_NOT_ELIGIBLE,
+      finalCurrency,
+    };
+  }
+
+  private async resolveLoginCartMerge(args: {
+    anonymousCartId?: string;
+    session: EmporixSessionContext;
+    targetSite: Site | null;
+    customerCartBinding?: { cartId?: string; currencyAligned: boolean; created: boolean; cart?: Cart };
+    verifiedCustomerCart: Cart | null;
+    customerCartId?: string;
+    finalCurrency: string;
+  }): Promise<{
+    customerCartId?: string;
+    verifiedCustomerCart: Cart | null;
+    cartMergeStatus: Session['cartMergeStatus'];
+    cartMergeReason?: Session['cartMergeReason'];
+    finalCurrency: string;
+  }> {
+    const { anonymousCartId, session, verifiedCustomerCart, customerCartId, finalCurrency } = args;
+    if (!anonymousCartId || !session.customerId) {
+      return {
+        ...this.notApplicableMerge(finalCurrency),
+        verifiedCustomerCart,
+        customerCartId,
+      };
+    }
+    if (!verifiedCustomerCart) {
+      return {
+        customerCartId,
+        verifiedCustomerCart: null,
+        cartMergeStatus: this.CART_MERGE_STATUS.FALLBACK,
+        cartMergeReason: this.CART_MERGE_REASON.TARGET_CART_UNAVAILABLE,
+        finalCurrency,
+      };
+    }
+    return this.mergeAnonymousCartIfEligible({
+      ...args,
+      anonymousCartId,
+      session,
+      verifiedCustomerCart,
+    });
+  }
+
+  private async mergeAnonymousCartIfEligible(args: {
+    anonymousCartId: string;
+    session: EmporixSessionContext;
+    targetSite: Site | null;
+    customerCartBinding?: { cartId?: string; currencyAligned: boolean; created: boolean; cart?: Cart };
+    verifiedCustomerCart: Cart;
+    customerCartId?: string;
+    finalCurrency: string;
+  }): Promise<{
+    customerCartId?: string;
+    verifiedCustomerCart: Cart | null;
+    cartMergeStatus: Session['cartMergeStatus'];
+    cartMergeReason?: Session['cartMergeReason'];
+    finalCurrency: string;
+  }> {
+    const { anonymousCartId, verifiedCustomerCart, customerCartId, finalCurrency } = args;
+    try {
+      const oldCart = await this.cartService.getCartById(anonymousCartId, false);
+      if (!oldCart || oldCart.customerId || !oldCart.items?.length) {
+        return {
+          customerCartId,
+          verifiedCustomerCart,
+          cartMergeStatus: this.CART_MERGE_STATUS.NOT_APPLICABLE,
+          cartMergeReason: this.CART_MERGE_REASON.ANONYMOUS_CART_NOT_ELIGIBLE,
+          finalCurrency,
+        };
+      }
+      if (oldCart.currency !== finalCurrency) {
         this.logger.error(
+          {
+            anonymousCartId: oldCart.id,
+            customerCartId,
+            anonymousCurrency: oldCart.currency,
+            targetCurrency: finalCurrency,
+            cartMergeReason: this.CART_MERGE_REASON.CURRENCY_ALIGNMENT_FAILED,
+          },
+          'Cannot merge anonymous cart — currency mismatch after session settled',
+        );
+        return {
+          customerCartId,
+          verifiedCustomerCart,
+          cartMergeStatus: this.CART_MERGE_STATUS.FALLBACK,
+          cartMergeReason: this.CART_MERGE_REASON.CURRENCY_ALIGNMENT_FAILED,
+          finalCurrency,
+        };
+      }
+      return this.mergeEligibleAnonymousCart({ ...args, oldCart, verifiedCustomerCart });
+    } catch (error) {
+      this.logger.error(
+        {
+          err: error instanceof Error ? error : String(error),
+          anonymousCartId,
+          customerCartId,
+          cartMergeReason: this.CART_MERGE_REASON.TRANSITION_FAILED,
+        },
+        'Cart merge failed during login, continuing without merge',
+      );
+      return {
+        customerCartId,
+        verifiedCustomerCart,
+        cartMergeStatus: this.CART_MERGE_STATUS.FALLBACK,
+        cartMergeReason: this.CART_MERGE_REASON.TRANSITION_FAILED,
+        finalCurrency,
+      };
+    }
+  }
+
+  private async mergeEligibleAnonymousCart(args: {
+    oldCart: Cart;
+    session: EmporixSessionContext;
+    targetSite: Site | null;
+    customerCartBinding?: { cartId?: string; currencyAligned: boolean; created: boolean; cart?: Cart };
+    verifiedCustomerCart: Cart;
+    customerCartId?: string;
+    finalCurrency: string;
+  }): Promise<{
+    customerCartId?: string;
+    verifiedCustomerCart: Cart | null;
+    cartMergeStatus: Session['cartMergeStatus'];
+    cartMergeReason?: Session['cartMergeReason'];
+    finalCurrency: string;
+  }> {
+    const { oldCart, session, verifiedCustomerCart, customerCartId, finalCurrency } = args;
+    const customerId = session.customerId;
+    if (!customerId) {
+      return {
+        customerCartId,
+        verifiedCustomerCart,
+        cartMergeStatus: this.CART_MERGE_STATUS.NOT_APPLICABLE,
+        cartMergeReason: this.CART_MERGE_REASON.ANONYMOUS_CART_NOT_ELIGIBLE,
+        finalCurrency,
+      };
+    }
+    const customerCartQuantityBeforeMerge = this.getCartQuantity(verifiedCustomerCart);
+    const anonymousCartQuantity = this.getCartQuantity(oldCart);
+    this.logger.debug(
+      {
+        targetCurrency: finalCurrency,
+        anonymousCart: this.buildCartDebugSnapshot(oldCart),
+        customerCart: this.buildCartDebugSnapshot(verifiedCustomerCart),
+      },
+      'Login merge pre-check snapshot (post-settle)',
+    );
+
+    try {
+      const mergedCart = await this.mergeAndVerifyCarts(
+        oldCart,
+        verifiedCustomerCart,
+        customerId,
+        customerCartQuantityBeforeMerge,
+        anonymousCartQuantity,
+      );
+      await this.sessionService.setCart(mergedCart.id);
+      return {
+        customerCartId: mergedCart.id,
+        verifiedCustomerCart: mergedCart,
+        cartMergeStatus: this.CART_MERGE_STATUS.MERGED,
+        finalCurrency: mergedCart.currency,
+      };
+    } catch (mergeError) {
+      return this.recoverFailedAnonymousMerge({
+        ...args,
+        mergeError,
+        customerCartQuantityBeforeMerge,
+        anonymousCartQuantity,
+      });
+    }
+  }
+
+  private async recoverFailedAnonymousMerge(args: {
+    mergeError: unknown;
+    oldCart: Cart;
+    session: EmporixSessionContext;
+    targetSite: Site | null;
+    customerCartBinding?: { cartId?: string; currencyAligned: boolean; created: boolean; cart?: Cart };
+    verifiedCustomerCart: Cart;
+    customerCartId?: string;
+    finalCurrency: string;
+    customerCartQuantityBeforeMerge: number;
+    anonymousCartQuantity: number;
+  }): Promise<{
+    customerCartId?: string;
+    verifiedCustomerCart: Cart | null;
+    cartMergeStatus: Session['cartMergeStatus'];
+    cartMergeReason?: Session['cartMergeReason'];
+    finalCurrency: string;
+  }> {
+    const retriedMismatch = await this.tryRetryCurrencyMismatchMerge(args);
+    if (retriedMismatch) {
+      return retriedMismatch;
+    }
+    const retriedPrice = await this.tryRetryPriceMissingMerge(args);
+    if (retriedPrice) {
+      return retriedPrice;
+    }
+    this.logger.error(
+      {
+        err: args.mergeError instanceof Error ? args.mergeError : String(args.mergeError),
+        oldCartId: args.oldCart.id,
+        customerCartId: args.customerCartId,
+        cartMergeReason: this.CART_MERGE_REASON.MERGE_FAILED,
+      },
+      'Failed to merge carts during login',
+    );
+    return {
+      customerCartId: args.customerCartId,
+      verifiedCustomerCart: args.verifiedCustomerCart,
+      cartMergeStatus: this.CART_MERGE_STATUS.FALLBACK,
+      cartMergeReason: this.CART_MERGE_REASON.MERGE_FAILED,
+      finalCurrency: args.finalCurrency,
+    };
+  }
+
+  private async tryRetryCurrencyMismatchMerge(args: {
+    mergeError: unknown;
+    oldCart: Cart;
+    session: EmporixSessionContext;
+    verifiedCustomerCart: Cart;
+    customerCartId?: string;
+    finalCurrency: string;
+    customerCartQuantityBeforeMerge: number;
+    anonymousCartQuantity: number;
+  }): Promise<
+    | {
+        customerCartId?: string;
+        verifiedCustomerCart: Cart | null;
+        cartMergeStatus: Session['cartMergeStatus'];
+        cartMergeReason?: Session['cartMergeReason'];
+        finalCurrency: string;
+      }
+    | undefined
+  > {
+    const customerId = args.session.customerId;
+    if (
+      !customerId ||
+      !this.isMergeCurrencyMismatchError(args.mergeError) ||
+      !args.customerCartId ||
+      args.oldCart.currency !== args.finalCurrency
+    ) {
+      return undefined;
+    }
+    const retried = await this.retryMergeAfterCurrencyMismatch({
+      sourceCart: args.oldCart,
+      customerCart: args.verifiedCustomerCart,
+      customerId,
+      targetCurrency: args.finalCurrency,
+      customerCartQuantityBeforeMerge: args.customerCartQuantityBeforeMerge,
+      anonymousCartQuantity: args.anonymousCartQuantity,
+    });
+    if (!retried) {
+      return undefined;
+    }
+    await this.sessionService.setCart(retried.id);
+    return {
+      customerCartId: retried.id,
+      verifiedCustomerCart: retried,
+      cartMergeStatus: this.CART_MERGE_STATUS.MERGED,
+      finalCurrency: retried.currency,
+    };
+  }
+
+  private async tryRetryPriceMissingMerge(args: {
+    mergeError: unknown;
+    oldCart: Cart;
+    session: EmporixSessionContext;
+    targetSite: Site | null;
+    customerCartBinding?: { cartId?: string; currencyAligned: boolean; created: boolean; cart?: Cart };
+    verifiedCustomerCart: Cart;
+    customerCartId?: string;
+    finalCurrency: string;
+    customerCartQuantityBeforeMerge: number;
+    anonymousCartQuantity: number;
+  }): Promise<
+    | {
+        customerCartId?: string;
+        verifiedCustomerCart: Cart | null;
+        cartMergeStatus: Session['cartMergeStatus'];
+        cartMergeReason?: Session['cartMergeReason'];
+        finalCurrency: string;
+      }
+    | undefined
+  > {
+    const retryCurrency = this.resolveMergeRetryCurrency(args.targetSite, args.finalCurrency);
+    const shouldRetry =
+      args.customerCartBinding?.created &&
+      this.isPriceMissingMergeError(args.mergeError) &&
+      retryCurrency !== undefined &&
+      retryCurrency !== args.finalCurrency;
+    const customerId = args.session.customerId;
+    if (!shouldRetry || !retryCurrency || !customerId) {
+      return undefined;
+    }
+
+    const retriedAnonymousCartAlignment = await this.alignCartCurrency(args.oldCart, retryCurrency, {
+      allowRefreshOnlyFailure: true,
+    });
+    if (!retriedAnonymousCartAlignment.cart) {
+      return {
+        customerCartId: args.customerCartId,
+        verifiedCustomerCart: args.verifiedCustomerCart,
+        cartMergeStatus: this.CART_MERGE_STATUS.FALLBACK,
+        cartMergeReason: retriedAnonymousCartAlignment.reason || this.CART_MERGE_REASON.CURRENCY_ALIGNMENT_FAILED,
+        finalCurrency: args.finalCurrency,
+      };
+    }
+
+    const retriedCustomerCartAlignment = await this.alignCartCurrency(args.verifiedCustomerCart, retryCurrency, {
+      expectedCustomerId: args.session.customerId,
+    });
+    if (!retriedCustomerCartAlignment.cart) {
+      return {
+        customerCartId: args.customerCartId,
+        verifiedCustomerCart: args.verifiedCustomerCart,
+        cartMergeStatus: this.CART_MERGE_STATUS.FALLBACK,
+        cartMergeReason: retriedCustomerCartAlignment.reason || this.CART_MERGE_REASON.CURRENCY_ALIGNMENT_FAILED,
+        finalCurrency: args.finalCurrency,
+      };
+    }
+
+    try {
+      const mergedCart = await this.mergeAndVerifyCarts(
+        retriedAnonymousCartAlignment.cart,
+        retriedCustomerCartAlignment.cart,
+        customerId,
+        args.customerCartQuantityBeforeMerge,
+        args.anonymousCartQuantity,
+      );
+      await this.sessionService.setCart(mergedCart.id);
+      return {
+        customerCartId: mergedCart.id,
+        verifiedCustomerCart: mergedCart,
+        cartMergeStatus: this.CART_MERGE_STATUS.MERGED,
+        finalCurrency: mergedCart.currency,
+      };
+    } catch (retryError) {
+      this.logger.error(
+        {
+          err: retryError instanceof Error ? retryError : String(retryError),
+          oldCartId: args.oldCart.id,
+          customerCartId: args.customerCartId,
+          retryCurrency,
+          cartMergeReason: this.CART_MERGE_REASON.MERGE_FAILED,
+        },
+        'Failed to merge carts during login after retrying with fallback currency',
+      );
+      return {
+        customerCartId: args.customerCartId,
+        verifiedCustomerCart: args.verifiedCustomerCart,
+        cartMergeStatus: this.CART_MERGE_STATUS.FALLBACK,
+        cartMergeReason: this.CART_MERGE_REASON.MERGE_FAILED,
+        finalCurrency: args.finalCurrency,
+      };
+    }
+  }
+
+  private async enforceLoginCartPreferences(args: {
+    session: EmporixSessionContext;
+    verifiedCustomerCart: Cart | null;
+    preferredLoginCurrency: string;
+    finalCountry: string | undefined;
+  }): Promise<Cart | null> {
+    const { session, preferredLoginCurrency, finalCountry } = args;
+    let { verifiedCustomerCart } = args;
+    if (!verifiedCustomerCart) {
+      return null;
+    }
+    if (session.customerId && preferredLoginCurrency && verifiedCustomerCart.currency !== preferredLoginCurrency) {
+      const enforcedCurrencyCart = await this.alignCartCurrency(verifiedCustomerCart, preferredLoginCurrency, {
+        expectedCustomerId: session.customerId,
+      });
+      if (enforcedCurrencyCart.cart) {
+        verifiedCustomerCart = enforcedCurrencyCart.cart;
+      } else {
+        this.logger.warn(
+          {
+            customerId: session.customerId,
+            cartId: verifiedCustomerCart.id,
+            currentCurrency: verifiedCustomerCart.currency,
+            preferredLoginCurrency,
+          },
+          'Failed to enforce preferred login currency on customer cart',
+        );
+      }
+    }
+    if (finalCountry) {
+      try {
+        await this.cartService.alignCartCountry(verifiedCustomerCart.id, finalCountry);
+      } catch (error) {
+        this.logger.warn(
           {
             err: error instanceof Error ? error : String(error),
-            customerId: session.customerId,
-            preferredSiteCode,
-            preferredLanguage,
-            preferredCountry,
-            preferredRegion,
-            targetCurrency: finalCurrency,
+            cartId: verifiedCustomerCart.id,
+            country: finalCountry,
           },
-          'Failed to realign session context with pre-login preferences',
+          'Failed to align cart country with session after login',
         );
       }
     }
-
-    // ── Phase 3: Ensure customer cart binding ──
-    // Session is now settled (token + site + currency + language). getCart()
-    // will correctly skip the stale anonymous cart and find/create the
-    // customer's own cart.
-    if (session.customerId) {
-      try {
-        customerCartBinding = await this.safeEnsureCustomerCartBinding(
-          session.customerId,
-          targetSiteCode,
-          finalCurrency,
-        );
-        customerCartId = customerCartBinding.cartId;
-        verifiedCustomerCart =
-          customerCartBinding.cart ??
-          (customerCartId ? await this.getVerifiedCustomerCart(customerCartId, session.customerId) : null);
-        if (customerCartId) {
-          await this.sessionService.setCart(customerCartId);
-        }
-      } catch (error) {
-        this.logger.error(
-          { err: error instanceof Error ? error : String(error) },
-          'Failed to ensure customer cart binding after login',
-        );
-      }
-    }
-
-    // ── Phase 4: Merge anonymous cart → customer cart ──
-    // Both carts are now resolved against a fully settled session.
-    // Re-fetch the anonymous cart by ID (bypassing safety check) and merge
-    // its items into the customer cart via POST /carts/{targetCartId}/merge.
-    if (anonymousCartId && session.customerId && verifiedCustomerCart) {
-      try {
-        const oldCart = await this.cartService.getCartById(anonymousCartId, false);
-        if (oldCart && !oldCart.customerId && oldCart.items?.length > 0) {
-          if (oldCart.currency !== finalCurrency) {
-            cartMergeStatus = this.CART_MERGE_STATUS.FALLBACK;
-            cartMergeReason = this.CART_MERGE_REASON.CURRENCY_ALIGNMENT_FAILED;
-            this.logger.error(
-              {
-                anonymousCartId: oldCart.id,
-                customerCartId,
-                anonymousCurrency: oldCart.currency,
-                targetCurrency: finalCurrency,
-                cartMergeReason,
-              },
-              'Cannot merge anonymous cart — currency mismatch after session settled',
-            );
-          } else {
-            const customerCartQuantityBeforeMerge = this.getCartQuantity(verifiedCustomerCart);
-            const anonymousCartQuantity = this.getCartQuantity(oldCart);
-            this.logger.debug(
-              {
-                targetCurrency: finalCurrency,
-                anonymousCart: this.buildCartDebugSnapshot(oldCart),
-                customerCart: this.buildCartDebugSnapshot(verifiedCustomerCart),
-              },
-              'Login merge pre-check snapshot (post-settle)',
-            );
-
-            try {
-              const mergedCart = await this.mergeAndVerifyCarts(
-                oldCart,
-                verifiedCustomerCart,
-                session.customerId,
-                customerCartQuantityBeforeMerge,
-                anonymousCartQuantity,
-              );
-              await this.sessionService.setCart(mergedCart.id);
-              customerCartId = mergedCart.id;
-              verifiedCustomerCart = mergedCart;
-              finalCurrency = mergedCart.currency;
-              cartMergeStatus = this.CART_MERGE_STATUS.MERGED;
-            } catch (mergeError) {
-              let mergeRecovered = false;
-              const shouldRetryCurrencyMismatch =
-                this.isMergeCurrencyMismatchError(mergeError) && !!customerCartId && oldCart.currency === finalCurrency;
-              if (shouldRetryCurrencyMismatch) {
-                const retriedCurrencyMismatchMerge = await this.retryMergeAfterCurrencyMismatch({
-                  sourceCart: oldCart,
-                  customerCart: verifiedCustomerCart,
-                  customerId: session.customerId,
-                  targetCurrency: finalCurrency,
-                  customerCartQuantityBeforeMerge,
-                  anonymousCartQuantity,
-                });
-
-                if (retriedCurrencyMismatchMerge) {
-                  await this.sessionService.setCart(retriedCurrencyMismatchMerge.id);
-                  customerCartId = retriedCurrencyMismatchMerge.id;
-                  verifiedCustomerCart = retriedCurrencyMismatchMerge;
-                  finalCurrency = retriedCurrencyMismatchMerge.currency;
-                  cartMergeStatus = this.CART_MERGE_STATUS.MERGED;
-                  mergeRecovered = true;
-                }
-              }
-
-              if (!mergeRecovered) {
-                const retryCurrency = this.resolveMergeRetryCurrency(targetSite, finalCurrency);
-                const shouldRetryMerge =
-                  customerCartBinding?.created &&
-                  this.isPriceMissingMergeError(mergeError) &&
-                  retryCurrency !== undefined &&
-                  retryCurrency !== finalCurrency;
-
-                if (shouldRetryMerge) {
-                  const retriedAnonymousCartAlignment = await this.alignCartCurrency(oldCart, retryCurrency, {
-                    allowRefreshOnlyFailure: true,
-                  });
-
-                  if (!retriedAnonymousCartAlignment.cart) {
-                    cartMergeStatus = this.CART_MERGE_STATUS.FALLBACK;
-                    cartMergeReason =
-                      retriedAnonymousCartAlignment.reason || this.CART_MERGE_REASON.CURRENCY_ALIGNMENT_FAILED;
-                  } else {
-                    const retriedCustomerCartAlignment = await this.alignCartCurrency(
-                      verifiedCustomerCart,
-                      retryCurrency,
-                      { expectedCustomerId: session.customerId },
-                    );
-
-                    if (!retriedCustomerCartAlignment.cart) {
-                      cartMergeStatus = this.CART_MERGE_STATUS.FALLBACK;
-                      cartMergeReason =
-                        retriedCustomerCartAlignment.reason || this.CART_MERGE_REASON.CURRENCY_ALIGNMENT_FAILED;
-                    } else {
-                      try {
-                        const mergedCart = await this.mergeAndVerifyCarts(
-                          retriedAnonymousCartAlignment.cart,
-                          retriedCustomerCartAlignment.cart,
-                          session.customerId,
-                          customerCartQuantityBeforeMerge,
-                          anonymousCartQuantity,
-                        );
-                        await this.sessionService.setCart(mergedCart.id);
-                        customerCartId = mergedCart.id;
-                        verifiedCustomerCart = mergedCart;
-                        finalCurrency = mergedCart.currency;
-                        cartMergeStatus = this.CART_MERGE_STATUS.MERGED;
-                      } catch (retryError) {
-                        cartMergeStatus = this.CART_MERGE_STATUS.FALLBACK;
-                        cartMergeReason = this.CART_MERGE_REASON.MERGE_FAILED;
-                        this.logger.error(
-                          {
-                            err: retryError instanceof Error ? retryError : String(retryError),
-                            oldCartId: oldCart.id,
-                            customerCartId,
-                            retryCurrency,
-                            cartMergeReason,
-                          },
-                          'Failed to merge carts during login after retrying with fallback currency',
-                        );
-                      }
-                    }
-                  }
-                } else {
-                  cartMergeStatus = this.CART_MERGE_STATUS.FALLBACK;
-                  cartMergeReason = this.CART_MERGE_REASON.MERGE_FAILED;
-                  this.logger.error(
-                    {
-                      err: mergeError instanceof Error ? mergeError : String(mergeError),
-                      oldCartId: oldCart.id,
-                      customerCartId,
-                      cartMergeReason,
-                    },
-                    'Failed to merge carts during login',
-                  );
-                }
-              }
-            }
-          }
-        } else {
-          cartMergeStatus = this.CART_MERGE_STATUS.NOT_APPLICABLE;
-          cartMergeReason = this.CART_MERGE_REASON.ANONYMOUS_CART_NOT_ELIGIBLE;
-        }
-      } catch (error) {
-        cartMergeStatus = this.CART_MERGE_STATUS.FALLBACK;
-        cartMergeReason = this.CART_MERGE_REASON.TRANSITION_FAILED;
-        this.logger.error(
-          { err: error instanceof Error ? error : String(error), anonymousCartId, customerCartId, cartMergeReason },
-          'Cart merge failed during login, continuing without merge',
-        );
-      }
-    } else if (anonymousCartId && session.customerId && !verifiedCustomerCart) {
-      cartMergeStatus = this.CART_MERGE_STATUS.FALLBACK;
-      cartMergeReason = this.CART_MERGE_REASON.TARGET_CART_UNAVAILABLE;
-    } else {
-      cartMergeStatus = this.CART_MERGE_STATUS.NOT_APPLICABLE;
-      cartMergeReason = this.CART_MERGE_REASON.ANONYMOUS_CART_NOT_ELIGIBLE;
-    }
-
-    // ── Phase 5: Enforce preferred login currency ──
-    // After merge (or when no merge was needed), ensure the final customer
-    // cart uses the shopper's pre-login currency preference.
-    if (verifiedCustomerCart) {
-      if (session.customerId && preferredLoginCurrency && verifiedCustomerCart.currency !== preferredLoginCurrency) {
-        const enforcedCurrencyCart = await this.alignCartCurrency(verifiedCustomerCart, preferredLoginCurrency, {
-          expectedCustomerId: session.customerId,
-        });
-        if (enforcedCurrencyCart.cart) {
-          verifiedCustomerCart = enforcedCurrencyCart.cart;
-        } else {
-          this.logger.warn(
-            {
-              customerId: session.customerId,
-              cartId: verifiedCustomerCart.id,
-              currentCurrency: verifiedCustomerCart.currency,
-              preferredLoginCurrency,
-            },
-            'Failed to enforce preferred login currency on customer cart',
-          );
-        }
-      }
-      finalCurrency = verifiedCustomerCart.currency;
-      if (finalCountry) {
-        try {
-          await this.cartService.alignCartCountry(verifiedCustomerCart.id, finalCountry);
-        } catch (error) {
-          this.logger.warn(
-            {
-              err: error instanceof Error ? error : String(error),
-              cartId: verifiedCustomerCart.id,
-              country: finalCountry,
-            },
-            'Failed to align cart country with session after login',
-          );
-        }
-      }
-    }
-
-    // Mirror the verified customer cart currency into the session DTO used to
-    // build the login result.
-    if (verifiedCustomerCart && session.currency !== verifiedCustomerCart.currency) {
-      session.currency = verifiedCustomerCart.currency;
-    }
-
-    return this.buildLoginResult(session, customerCartId, cartMergeStatus, cartMergeReason);
+    return verifiedCustomerCart;
   }
 
   async logout(): Promise<void> {

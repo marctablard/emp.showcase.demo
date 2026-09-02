@@ -32,9 +32,9 @@ interface TargetSiteMetadata {
   currencies?: Array<string | { id?: string; code?: string }> | undefined;
   defaultCurrency?: string | { id?: string } | undefined;
   defaultLanguage?: string | undefined;
-  defaultCountry?: string | undefined;
-  countries?: Array<string | { code?: string }> | undefined;
-  shipToCountries?: Array<string | { code?: string }> | undefined;
+  defaultCountry?: string;
+  countries?: Array<string | { code?: string }>;
+  shipToCountries?: Array<string | { code?: string }>;
 }
 
 export interface SiteSwitchOptions {

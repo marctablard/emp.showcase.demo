@@ -413,39 +413,44 @@ class EmporixSessionService implements SessionService {
     }
   }
 
-  private async adjustSessionsSettings(sessionContext: EmporixSessionContext | undefined, result: Session) {
+  private applyDefaultSiteIfNeeded(
+    sessionContext: EmporixSessionContext | undefined,
+    result: Session,
+    updateDefaults: Partial<EmporixSessionContext>,
+  ): void {
     const resolvedDefaultSite = this.defaultSite || this.availableSites[0];
-    const updateDefaults: Partial<EmporixSessionContext> = {};
     if (resolvedDefaultSite && (!sessionContext?.siteCode || !this.availableSites.includes(sessionContext.siteCode))) {
       updateDefaults.siteCode = resolvedDefaultSite;
       result.siteCode = resolvedDefaultSite;
     }
+  }
 
-    const needsAdjustment = Object.keys(updateDefaults).length > 0;
-    this.logger.debug(
-      `adjustSessionsSettings entry site=${result.siteCode} currency=${result.currency} country=${result.country} language=${result.language} region=${result.region} needsAdjustment=${needsAdjustment}`,
-    );
-
-    const site = await this.siteService.getSite(result.siteCode);
-    if (!site) {
-      return;
-    }
-
+  private applySiteCurrencyIfNeeded(site: Site, result: Session, updateDefaults: Partial<EmporixSessionContext>): void {
     if (site.defaultCurrency?.id && (!result.currency || !this.isCurrencySupportedOnSite(site, result.currency))) {
       updateDefaults.currency = site.defaultCurrency.id;
       result.currency = site.defaultCurrency.id;
     }
+  }
+
+  private applySessionCountryDefaults(
+    site: Site,
+    result: Session,
+    updateDefaults: Partial<EmporixSessionContext>,
+  ): void {
     const nextCountry = resolveCountryForSite(site, result.country);
-    if (nextCountry && nextCountry !== this.normalizeSessionCountry(result.country)) {
+    const currentCountry = this.normalizeSessionCountry(result.country);
+    if (nextCountry && nextCountry !== currentCountry) {
       updateDefaults.targetLocation = nextCountry;
       result.country = nextCountry;
-    } else if (!result.country && nextCountry) {
-      updateDefaults.targetLocation = nextCountry;
-      result.country = nextCountry;
-    } else if (!result.country && this.defaultCountry) {
+      return;
+    }
+    if (!result.country && this.defaultCountry) {
       updateDefaults.targetLocation = this.defaultCountry;
       result.country = this.defaultCountry;
     }
+  }
+
+  private applyLanguageAndRegionDefaults(result: Session, updateDefaults: Partial<EmporixSessionContext>): void {
     if (!result.language) {
       // Top-level field since the 2026-04-21 BE changelog — write it at the
       // root of the PATCH payload so we don't have to round-trip the full
@@ -461,29 +466,56 @@ class EmporixSessionService implements SessionService {
       }
       result.region = this.defaultRegion;
     }
-    if (Object.keys(updateDefaults).length > 0) {
-      // Merge with existing `context` since PATCH replaces the whole object.
-      if (updateDefaults.context) {
-        updateDefaults.context = {
-          ...(sessionContext?.context ?? {}),
-          ...updateDefaults.context,
-        };
-      }
-      this.logger.info({ updateDefaults }, 'Patching session defaults');
-      updateDefaults.metadata = {
-        version: sessionContext?.metadata?.version || 1,
+  }
+
+  private async persistSessionDefaults(
+    sessionContext: EmporixSessionContext | undefined,
+    updateDefaults: Partial<EmporixSessionContext>,
+  ): Promise<void> {
+    if (Object.keys(updateDefaults).length === 0) {
+      return;
+    }
+    // Merge with existing `context` since PATCH replaces the whole object.
+    if (updateDefaults.context) {
+      updateDefaults.context = {
+        ...(sessionContext?.context ?? {}),
+        ...updateDefaults.context,
       };
-      // Await so later match-prices-by-context / cart reads see the same country.
-      // 404s are expected for newly-created sessions (eventual consistency).
-      try {
-        await this.sessionContextApi.updateOwnSessionContext(updateDefaults);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (!message.includes('Not Found')) {
-          this.logger.error({ error: message }, 'Unexpected error updating session defaults');
-        }
+    }
+    this.logger.info({ updateDefaults }, 'Patching session defaults');
+    updateDefaults.metadata = {
+      version: sessionContext?.metadata?.version || 1,
+    };
+    // Await so later match-prices-by-context / cart reads see the same country.
+    // 404s are expected for newly-created sessions (eventual consistency).
+    try {
+      await this.sessionContextApi.updateOwnSessionContext(updateDefaults);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes('Not Found')) {
+        this.logger.error({ error: message }, 'Unexpected error updating session defaults');
       }
     }
+  }
+
+  private async adjustSessionsSettings(sessionContext: EmporixSessionContext | undefined, result: Session) {
+    const updateDefaults: Partial<EmporixSessionContext> = {};
+    this.applyDefaultSiteIfNeeded(sessionContext, result, updateDefaults);
+
+    const needsAdjustment = Object.keys(updateDefaults).length > 0;
+    this.logger.debug(
+      `adjustSessionsSettings entry site=${result.siteCode} currency=${result.currency} country=${result.country} language=${result.language} region=${result.region} needsAdjustment=${needsAdjustment}`,
+    );
+
+    const site = await this.siteService.getSite(result.siteCode);
+    if (!site) {
+      return;
+    }
+
+    this.applySiteCurrencyIfNeeded(site, result, updateDefaults);
+    this.applySessionCountryDefaults(site, result, updateDefaults);
+    this.applyLanguageAndRegionDefaults(result, updateDefaults);
+    await this.persistSessionDefaults(sessionContext, updateDefaults);
   }
 
   private normalizeSessionCountry(value: string | undefined): string {

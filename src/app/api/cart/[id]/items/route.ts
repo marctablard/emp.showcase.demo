@@ -1,10 +1,9 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { extractUpstreamMessage } from '@/lib/common/extract-upstream-message';
 import server from '@/platform/server';
 import type { CartService } from '@/platform/services/cart';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
-import { CartErrorCode } from '@/platform/services/model/cart/error-codes';
+import { cartAddItemErrorResponse } from './cart-add-item-error';
 
 /**
  * GET /api/carts/[id]/items
@@ -82,48 +81,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       `Error adding item to cart ${cartId}`,
     );
 
-    const upstreamMessage = extractUpstreamMessage(errorMessage);
-
-    if (errorMessage.includes('PriceIds') && errorMessage.includes('invalid')) {
-      return NextResponse.json(
-        {
-          error: upstreamMessage || errorMessage,
-          code: CartErrorCode.PRICE_SITE_INCOMPATIBLE,
-          details: errorMessage,
-        },
-        { status: 400 },
-      );
-    }
-
-    if (errorMessage.includes('price is not available') || errorMessage.includes('not available for this site')) {
-      return NextResponse.json(
-        {
-          error: upstreamMessage || errorMessage,
-          code: CartErrorCode.PRICE_NOT_AVAILABLE,
-          details: errorMessage,
-        },
-        { status: 400 },
-      );
-    }
-
-    if (
-      errorMessage.includes('siteCode') &&
-      (errorMessage.includes('mismatch') || errorMessage.includes('does not match'))
-    ) {
-      return NextResponse.json(
-        {
-          error: upstreamMessage || errorMessage,
-          code: CartErrorCode.CART_SITE_MISMATCH,
-          details: errorMessage,
-        },
-        { status: 400 },
-      );
-    }
-
-    if (upstreamMessage) {
-      return NextResponse.json({ error: upstreamMessage, details: errorMessage }, { status: 400 });
-    }
-
-    return NextResponse.json({ error: errorMessage || 'Failed to add item to cart' }, { status: 500 });
+    return cartAddItemErrorResponse(errorMessage);
   }
 }

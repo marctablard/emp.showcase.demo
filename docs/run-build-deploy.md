@@ -184,6 +184,8 @@ The **Run npm audit** step of `.github/workflows/github-actions-deploy-pr-previe
 
 `ALLOWED_EXCEPTIONS` is **currently empty** — there is no active exception, and every high/critical advisory fails CI.
 
+High/critical `browserslist` advisories [`GHSA-c83g-rgw3-j3cx`](https://github.com/advisories/GHSA-c83g-rgw3-j3cx) and [`GHSA-73wf-gq98-2v4g`](https://github.com/advisories/GHSA-73wf-gq98-2v4g) are fixed by pinning the patched `4.28.8` release via `overrides` in `package.json` (same pattern as `brace-expansion`). Do not add those GHSAs to `ALLOWED_EXCEPTIONS`.
+
 The mechanism exists to allow narrowly-scoped, time-boxed exceptions when a fix genuinely is not yet available, while keeping every other failure mode fatal. Its one historical entry has been resolved:
 
 - **Advisory:** [`GHSA-mh99-v99m-4gvg`](https://github.com/advisories/GHSA-mh99-v99m-4gvg) — `brace-expansion` DoS via unbounded expansion length (CWE-400/CWE-770), pulled in transitively through `minimatch` by the ESLint and Jest toolchains.

@@ -7,6 +7,7 @@ import type { EmporixCartApi } from '@/platform/integrations/emporix/cart/Empori
 import type EmporixCommonUtil from '@/platform/integrations/emporix/common/util/EmporixCommonUtil';
 import type { EmporixAddCartItemRequest, EmporixUpdateCartItemRequest } from '@/platform/integrations/emporix/model';
 import type { EmporixCart, EmporixCartAddress, EmporixCartItem } from '@/platform/integrations/emporix/model/cart';
+import { cartTaxCountryWrite, readCartTaxCountry } from '@/platform/integrations/emporix/model/cart-tax-country';
 import type {
   CartService,
   CartShippingAddress,
@@ -86,13 +87,13 @@ class EmporixCartService implements CartService {
     if (!nextCountry) {
       return rawCart;
     }
-    const cartCountry = this.normalizeCountryCode(rawCart.countryCode);
+    const cartCountry = readCartTaxCountry(rawCart);
     if (cartCountry === nextCountry) {
       return rawCart;
     }
 
     this.logger.info(
-      { cartId: rawCart.id, cartCountry: rawCart.countryCode, sessionCountry: countryCode },
+      { cartId: rawCart.id, cartCountry, sessionCountry: countryCode },
       'Aligning cart country with session',
     );
     await this.cartApi.updateCart(rawCart.id, {
@@ -100,7 +101,7 @@ class EmporixCartService implements CartService {
         ...rawCart.metadata,
         version: (rawCart.metadata?.version ?? 0) + 1,
       },
-      countryCode: nextCountry,
+      ...cartTaxCountryWrite(nextCountry),
     });
     const refreshed = await this.cartApi.getCart(rawCart.id);
     if (!refreshed) {
@@ -114,6 +115,33 @@ class EmporixCartService implements CartService {
     session: Session,
   ): Promise<EmporixCart> {
     return this.patchCartCountryIfNeeded(rawCart, session.country ?? '');
+  }
+
+  private async alignCartContextBeforeLineMutation(rawCart: EmporixCart, session: Session): Promise<EmporixCart> {
+    const currencyAligned = await this.ensureCartCurrencyMatchesSessionBeforeLineMutation(rawCart, session);
+    return this.ensureCartCountryMatchesSessionBeforeLineMutation(currencyAligned, session);
+  }
+
+  private cartLineMutationContextChanged(before: EmporixCart, after: EmporixCart): boolean {
+    return (
+      this.normalizeCurrencyCode(before.currency) !== this.normalizeCurrencyCode(after.currency) ||
+      readCartTaxCountry(before) !== readCartTaxCountry(after)
+    );
+  }
+
+  private async reloadCartItemAfterContextAlign(
+    cartId: string,
+    itemId: string,
+  ): Promise<{ cart: Cart; cartItem: Cart['items'][number] }> {
+    const cart = await this.getCartById(cartId);
+    if (!cart) {
+      throw new Error('Cart not found');
+    }
+    const cartItem = cart.items.find((item) => item.id === itemId);
+    if (!cartItem || !cartItem.product?.id) {
+      throw new Error('Cart item not found');
+    }
+    return { cart, cartItem };
   }
 
   async alignCartCountry(cartId: string, countryCode: string): Promise<void> {
@@ -197,7 +225,7 @@ class EmporixCartService implements CartService {
   async createCart(currency: string, siteCode: string): Promise<string> {
     // TODO extract these information to a SiteConfigService
     const session = await this.sessionService.getCurrent().catch(() => undefined);
-    const sessionCountry = session?.country?.trim();
+    const sessionCountry = this.normalizeCountryCode(session?.country);
     const createCartRequest = {
       siteCode,
       currency,
@@ -485,25 +513,19 @@ class EmporixCartService implements CartService {
 
     const rawCartForCurrency = await this.cartApi.getCart(cartId);
     if (rawCartForCurrency) {
-      let aligned = await this.ensureCartCurrencyMatchesSessionBeforeLineMutation(rawCartForCurrency, session);
-      aligned = await this.ensureCartCountryMatchesSessionBeforeLineMutation(aligned, session);
-      if (
-        this.normalizeCurrencyCode(rawCartForCurrency.currency) !== this.normalizeCurrencyCode(aligned.currency) ||
-        this.normalizeCountryCode(rawCartForCurrency.countryCode) !== this.normalizeCountryCode(aligned.countryCode)
-      ) {
-        cart = await this.getCartById(cartId);
-        if (!cart) {
-          throw new Error('Cart not found');
-        }
-        cartItem = cart.items.find((item) => item.id === itemId);
-        if (!cartItem || !cartItem.product?.id) {
-          throw new Error('Cart item not found');
-        }
+      const aligned = await this.alignCartContextBeforeLineMutation(rawCartForCurrency, session);
+      if (this.cartLineMutationContextChanged(rawCartForCurrency, aligned)) {
+        ({ cart, cartItem } = await this.reloadCartItemAfterContextAlign(cartId, itemId));
       }
     }
 
+    const productId = cartItem.product?.id;
+    if (!productId) {
+      throw new Error('Cart item not found');
+    }
+
     const price = await this.priceService.getProductPrice(
-      cartItem.product.id,
+      productId,
       quantity,
       undefined,
       this.explicitPriceParamsForCartOperation(session, cartSiteCode),
@@ -522,7 +544,7 @@ class EmporixCartService implements CartService {
       },
     };
 
-    const { hasSufficientStock, availableQuantity } = await this.checkStock(cart?.site, cartItem.product.id, quantity);
+    const { hasSufficientStock, availableQuantity } = await this.checkStock(cart?.site, productId, quantity);
     await this.cartApi.updateCartItemQuantity(cartId, itemId, updateRequest);
 
     // Update Item

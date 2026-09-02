@@ -97,6 +97,24 @@ describe('ApprovalSummary', () => {
     expect(screen.getByRole('heading', { level: 5, name: 'note' })).toBeInTheDocument();
   });
 
+  it('shows VAT without a percent when CART items omit taxRate (does not calculate tax/net)', () => {
+    const approval: Approval = {
+      ...baseApproval,
+      resourceType: 'CART',
+      details: {
+        currency: 'EUR',
+        shipping: { amount: 5 } as any,
+        addresses: [{ type: 'SHIPPING' } as any, { type: 'BILLING' } as any],
+        paymentMethods: [{ name: 'Card' } as any],
+      },
+    };
+
+    render(<ApprovalSummary approval={approval} />);
+
+    expect(screen.getByText('tax')).toBeInTheDocument();
+    expect(screen.queryByText(/tax \(/)).not.toBeInTheDocument();
+  });
+
   it('lists CART goods total before estimated shipping because totalPrice.grossValue excludes shipping', () => {
     const approval: Approval = {
       ...baseApproval,

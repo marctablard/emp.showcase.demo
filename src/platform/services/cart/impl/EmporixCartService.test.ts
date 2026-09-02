@@ -31,6 +31,7 @@ describe('EmporixCartService', () => {
       | 'addItemToCart'
       | 'getCartByCriteria'
       | 'updateCartItemQuantity'
+      | 'createCart'
     >
   >;
   let mockLogger: jest.Mocked<LoggerService>;
@@ -66,6 +67,7 @@ describe('EmporixCartService', () => {
       addItemToCart: jest.fn().mockResolvedValue('new-item-id'),
       getCartByCriteria: jest.fn().mockResolvedValue(null),
       updateCartItemQuantity: jest.fn().mockResolvedValue(undefined),
+      createCart: jest.fn().mockResolvedValue('new-cart-id'),
     };
 
     mockLogger = {
@@ -1308,6 +1310,30 @@ describe('EmporixCartService', () => {
 
       expect(mockSessionService.clearCart).not.toHaveBeenCalled();
       expect(result).toBe(mappedCart);
+    });
+  });
+
+  describe('createCart', () => {
+    it('normalizes session country to uppercase on create', async () => {
+      mockSessionService.getCurrent.mockResolvedValue({
+        id: 'session-1',
+        siteCode: 'main',
+        currency: 'EUR',
+        country: ' ch ',
+      });
+      mockCartApi.createCart.mockResolvedValue('cart-new');
+
+      const cartId = await cartService.createCart('EUR', 'main');
+
+      expect(cartId).toBe('cart-new');
+      expect(mockCartApi.createCart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          siteCode: 'main',
+          currency: 'EUR',
+          countryCode: 'CH',
+        }),
+      );
+      expect(mockSessionService.setCart).toHaveBeenCalledWith('cart-new');
     });
   });
 });

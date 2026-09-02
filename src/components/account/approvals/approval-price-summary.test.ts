@@ -78,8 +78,9 @@ describe('approval-price-summary', () => {
 
     // 171 + 23.05 + 17
     expect(base.netValueOfGoods).toBeCloseTo(211.05, 2);
-    // tax ≈ 19% on each base line from calculated tax/net ratios
-    expect(base.tax).toBeCloseTo(40.1, 1);
+    // No item taxRate → do not invent a %; fall back to stored taxValue (quoted tax).
+    expect(base.tax).toBeCloseTo(36.09, 2);
+    expect(base.taxRate).toBeUndefined();
     expect(base.shippingFee).toBe(0);
     expect(base.discountAmount).toBeCloseTo(211.05 - 189.95, 2);
     expect(base.total).toBeCloseTo(base.netValueOfGoods + base.tax + base.shippingFee, 2);
@@ -92,7 +93,26 @@ describe('approval-price-summary', () => {
     expect(quoted.tax).toBeCloseTo(36.09, 2);
     expect(quoted.shippingFee).toBe(0);
     expect(quoted.total).toBeCloseTo(189.95 + 36.09, 2);
-    expect(quoted.taxRate).toBe(19);
+    expect(quoted.taxRate).toBeUndefined();
+  });
+
+  it('does not invent a display taxRate from tax/net when items omit taxRate', () => {
+    expect(resolveApprovalQuotedPriceBreakdown(sampleApproval).taxRate).toBeUndefined();
+    expect(resolveApprovalBasePriceBreakdown(sampleApproval).taxRate).toBeUndefined();
+  });
+
+  it('uses the exact shared item taxRate for display when present', () => {
+    const items = (sampleApproval.resource.items ?? []).map((item) => ({
+      ...item,
+      itemPrice: { ...item.itemPrice, taxRate: 19 },
+    }));
+    const approval: Approval = {
+      ...sampleApproval,
+      resource: { ...sampleApproval.resource, items },
+    };
+
+    expect(resolveApprovalQuotedPriceBreakdown(approval).taxRate).toBe(19);
+    expect(resolveApprovalBasePriceBreakdown(approval).taxRate).toBe(19);
   });
 
   it('uses details.shipping.amount on both price cards', () => {
@@ -122,8 +142,8 @@ describe('approval-price-summary', () => {
       },
     };
 
-    expect(resolveApprovalQuotedPriceBreakdown(approval).taxRate).toBe(19);
-    expect(resolveApprovalBasePriceBreakdown(approval).taxRate).toBe(19);
+    expect(resolveApprovalQuotedPriceBreakdown(approval).taxRate).toBeUndefined();
+    expect(resolveApprovalBasePriceBreakdown(approval).taxRate).toBeUndefined();
   });
 
   it('uses shipping.taxRate independently of goods item rates', () => {
@@ -143,7 +163,7 @@ describe('approval-price-summary', () => {
     };
 
     const quoted = resolveApprovalQuotedPriceBreakdown(approval);
-    expect(quoted.taxRate).toBe(19);
+    expect(quoted.taxRate).toBeUndefined();
     expect(quoted.shippingTaxRate).toBe(3.7);
   });
 

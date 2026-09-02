@@ -31,3 +31,18 @@ export function checkoutShippingBlockReason(input: CheckoutShippingGateInput): C
 export function canCollapseCheckoutShipping(input: CheckoutShippingGateInput): boolean {
   return checkoutShippingBlockReason(input) === null;
 }
+
+export function checkoutShippingMessageKey(
+  reason: CheckoutShippingBlockReason,
+): 'enterShippingAddressFirst' | 'loading' | 'noShippingMethodsAvailable' | 'selectShippingMethod' {
+  switch (reason) {
+    case 'address':
+      return 'enterShippingAddressFirst';
+    case 'loading':
+      return 'loading';
+    case 'no-methods':
+      return 'noShippingMethodsAvailable';
+    case 'pick-method':
+      return 'selectShippingMethod';
+  }
+}

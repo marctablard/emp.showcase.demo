@@ -1,4 +1,8 @@
-import { canCollapseCheckoutShipping, checkoutShippingBlockReason } from './checkout-shipping-gate';
+import {
+  canCollapseCheckoutShipping,
+  checkoutShippingBlockReason,
+  checkoutShippingMessageKey,
+} from './checkout-shipping-gate';
 
 describe('checkoutShippingBlockReason', () => {
   it('requires country and zip before collapse', () => {
@@ -29,5 +33,14 @@ describe('checkoutShippingBlockReason', () => {
         selectedMethodId: 'dhl',
       }),
     ).toBe(true);
+  });
+});
+
+describe('checkoutShippingMessageKey', () => {
+  it('maps each block reason to checkout.shipping copy', () => {
+    expect(checkoutShippingMessageKey('address')).toBe('enterShippingAddressFirst');
+    expect(checkoutShippingMessageKey('loading')).toBe('loading');
+    expect(checkoutShippingMessageKey('no-methods')).toBe('noShippingMethodsAvailable');
+    expect(checkoutShippingMessageKey('pick-method')).toBe('selectShippingMethod');
   });
 });

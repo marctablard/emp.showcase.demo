@@ -2,7 +2,11 @@ import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Check, NotebookText, Package, Pencil } from 'lucide-react';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
-import { canCollapseCheckoutShipping, checkoutShippingBlockReason } from '@/lib/common/checkout-shipping-gate';
+import {
+  canCollapseCheckoutShipping,
+  checkoutShippingBlockReason,
+  checkoutShippingMessageKey,
+} from '@/lib/common/checkout-shipping-gate';
 import type { Address } from '@/platform/services/model/common';
 import { AddressSelector } from '../address/address-selector';
 import { AddressDisplay } from '../common/address-display';
@@ -39,13 +43,9 @@ export function CheckoutShipping({ initialEdit }: { initialEdit: boolean }) {
       return;
     }
     const reason = checkoutShippingBlockReason(shippingGate);
-    if (reason === 'loading' || !canCollapseCheckoutShipping(shippingGate)) {
-      if (reason === 'address') {
-        notify({ type: ToastType.Error, title: t('enterShippingAddressFirst') });
-      } else if (reason === 'no-methods') {
-        notify({ type: ToastType.Error, title: t('noShippingMethodsAvailable') });
-      } else if (reason === 'pick-method') {
-        notify({ type: ToastType.Error, title: t('selectShippingMethod') });
+    if (reason || !canCollapseCheckoutShipping(shippingGate)) {
+      if (reason) {
+        notify({ type: ToastType.Error, title: t(checkoutShippingMessageKey(reason)) });
       }
       return;
     }
@@ -102,9 +102,7 @@ export function CheckoutShipping({ initialEdit }: { initialEdit: boolean }) {
                     <p>{shippingMethod?.methodName}</p>
                     {!shippingMethod && (
                       <p className="text-sm text-text-error">
-                        {shippingAddress?.country && shippingAddress?.zipCode
-                          ? t('noShippingMethodsAvailable')
-                          : t('enterShippingAddressFirst')}
+                        {t(checkoutShippingMessageKey(checkoutShippingBlockReason(shippingGate) ?? 'pick-method'))}
                       </p>
                     )}
                     {/*<p>Arrives on July 12, 2025</p>*/}

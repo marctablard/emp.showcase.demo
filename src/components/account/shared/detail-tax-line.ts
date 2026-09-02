@@ -5,11 +5,11 @@
  */
 
 export type DetailTaxLineInput = {
-  /** Explicit tax rate from the API/model when present (e.g. 19 or 0). */
+  /** Explicit tax rate from the API/model when present (e.g. 19 or 0). Never a calculated ratio. */
   taxRate?: number;
   /** Tax amount; when 0 the row is hidden even if taxRate is positive. */
   taxAmount?: number;
-  /** Net base for deriving a display rate when taxRate is absent. */
+  /** Optional net base for callers; not used to invent a display percent. */
   netAmount?: number;
 };
 
