@@ -23,8 +23,9 @@ describe('cartAddItemErrorResponse', () => {
     );
   });
 
-  it('returns 500 when there is no mapped code or upstream message', async () => {
+  it('returns a generic 500 message and does not echo the unexpected error', async () => {
     const response = cartAddItemErrorResponse('unexpected failure');
     expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({ error: 'Failed to add item to cart' });
   });
 });

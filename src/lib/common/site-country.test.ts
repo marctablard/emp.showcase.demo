@@ -1,10 +1,19 @@
-import { resolveCountryForSite, siteAllowsCountry } from './site-country';
+import { normalizeCountryCode, resolveCountryForSite, siteAllowsCountry } from './site-country';
 
 const fwSite = {
   defaultCountry: 'CH',
   countries: [{ code: 'CH' }, { code: 'DE' }],
   shipToCountries: [{ code: 'AT' }],
 };
+
+describe('normalizeCountryCode', () => {
+  it('trims and uppercases ISO country codes', () => {
+    expect(normalizeCountryCode(' ch ')).toBe('CH');
+    expect(normalizeCountryCode('de')).toBe('DE');
+    expect(normalizeCountryCode('')).toBe('');
+    expect(normalizeCountryCode(undefined)).toBe('');
+  });
+});
 
 describe('resolveCountryForSite', () => {
   it('keeps the current country when the site lists it', () => {

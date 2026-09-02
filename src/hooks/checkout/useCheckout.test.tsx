@@ -322,6 +322,62 @@ describe('useCheckout', () => {
     expect(setCountry).toHaveBeenCalledWith('CH');
   });
 
+  it('normalizes shipping-address country before setCountry', () => {
+    const setCountry = jest.fn();
+    mockUseShopSession.mockReturnValue({ session: { country: 'DE' }, setCountry });
+    mockUseCheckoutStore.mockReturnValue(
+      buildCheckoutStoreValue({
+        shippingAddress: DE_ADDRESS,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod: jest.fn(),
+      }),
+    );
+    mockUseCart.mockReturnValue(buildCartValue(CART));
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [],
+        clearShippingMethods: jest.fn(),
+        fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
+      }),
+    );
+
+    const { result } = renderHook(() => useCheckout());
+
+    act(() => {
+      result.current.submitShippingAddress(buildCheckoutAddress('SHIPPING', ' ch ', '6300'));
+    });
+
+    expect(setCountry).toHaveBeenCalledWith('CH');
+  });
+
+  it('does not call setCountry when only country casing differs', () => {
+    const setCountry = jest.fn();
+    mockUseShopSession.mockReturnValue({ session: { country: 'CH' }, setCountry });
+    mockUseCheckoutStore.mockReturnValue(
+      buildCheckoutStoreValue({
+        shippingAddress: DE_ADDRESS,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod: jest.fn(),
+      }),
+    );
+    mockUseCart.mockReturnValue(buildCartValue(CART));
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [],
+        clearShippingMethods: jest.fn(),
+        fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
+      }),
+    );
+
+    const { result } = renderHook(() => useCheckout());
+
+    act(() => {
+      result.current.submitShippingAddress(buildCheckoutAddress('SHIPPING', 'ch', '6300'));
+    });
+
+    expect(setCountry).not.toHaveBeenCalled();
+  });
+
   it('does not call updateShippingInfo when submitBillingAddress is used', () => {
     const updateShippingInfo = jest.fn();
     const clearShippingMethods = jest.fn();

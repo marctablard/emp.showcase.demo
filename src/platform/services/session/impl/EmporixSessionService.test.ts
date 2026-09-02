@@ -302,6 +302,34 @@ describe('EmporixSessionService', () => {
     });
   });
 
+  describe('setCountry', () => {
+    it('persists a trimmed uppercase country code', async () => {
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValue({
+        sessionId: 'test-session',
+        metadata: { version: 1 },
+      });
+      mockSessionContextApi.updateOwnSessionContext.mockResolvedValue();
+
+      await sessionService.setCountry(' ch ');
+
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledWith({
+        targetLocation: 'CH',
+        metadata: { version: 1 },
+      });
+    });
+
+    it('does not PATCH when the country is blank', async () => {
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValue({
+        sessionId: 'test-session',
+        metadata: { version: 1 },
+      });
+
+      await sessionService.setCountry('   ');
+
+      expect(mockSessionContextApi.updateOwnSessionContext).not.toHaveBeenCalled();
+    });
+  });
+
   describe('setSite', () => {
     it('should issue a single combined PATCH (siteCode + currency) when site changes', async () => {
       mockSessionContextApi.getOwnSessionContext.mockResolvedValueOnce({
@@ -363,6 +391,41 @@ describe('EmporixSessionService', () => {
       });
       expect(mockSessionContextApi.removeOwnSessionContextAttribute).not.toHaveBeenCalled();
       expect(mockSiteService.invalidateSiteCache).not.toHaveBeenCalled();
+    });
+
+    it('should PATCH targetLocation when the raw country only differs by casing or whitespace', async () => {
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValueOnce({
+        sessionId: 'test-session',
+        siteCode: 'main',
+        targetLocation: ' ch ',
+        metadata: { version: 1 },
+      });
+      mockSessionContextApi.updateOwnSessionContext.mockResolvedValue();
+      mockSiteService.getSite.mockResolvedValue({
+        code: 'fw-site',
+        name: 'FW',
+        defaultCountry: 'CH',
+        defaultCurrency: { id: 'CHF', code: 'CHF', name: 'Franc', active: true },
+        currencies: [{ id: 'CHF', code: 'CHF', name: 'Franc', active: true }],
+        countries: [{ code: 'CH' }, { code: 'DE' }],
+        shipToCountries: [],
+        regions: [],
+        paymentModes: [],
+        languages: ['en'],
+        defaultLanguage: 'en',
+        address: { contactName: '', street: '', zipCode: '', city: '', country: 'CH' },
+        includesTax: false,
+        decimals: 2,
+      });
+
+      await sessionService.setSite('fw-site', 'CHF');
+
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledWith({
+        siteCode: 'fw-site',
+        currency: 'CHF',
+        targetLocation: 'CH',
+        metadata: { version: 1 },
+      });
     });
 
     it('should PATCH targetLocation when the current country is not allowed on the new site', async () => {

@@ -75,9 +75,13 @@ class EmporixSessionService implements SessionService {
     if (!session) {
       return;
     }
+    const targetLocation = this.normalizeSessionCountry(country);
+    if (!targetLocation) {
+      return;
+    }
     // TODO propagate Country Switch via Event-System
     await this.sessionContextApi.updateOwnSessionContext({
-      targetLocation: country,
+      targetLocation,
       metadata: {
         version: session.metadata?.version || 1,
       },
@@ -99,7 +103,7 @@ class EmporixSessionService implements SessionService {
     }
     const targetSite = await this.siteService.getSite(site);
     const nextCountry = resolveCountryForSite(targetSite, initialSession.targetLocation);
-    if (nextCountry && nextCountry !== this.normalizeSessionCountry(initialSession.targetLocation)) {
+    if (nextCountry && nextCountry !== initialSession.targetLocation) {
       fields.targetLocation = nextCountry;
     }
 
@@ -439,7 +443,7 @@ class EmporixSessionService implements SessionService {
   ): void {
     const currentCountry = this.normalizeSessionCountry(result.country);
     const nextCountry =
-      resolveCountryForSite(site, currentCountry || undefined) || (!currentCountry ? this.defaultCountry : undefined);
+      resolveCountryForSite(site, currentCountry || undefined) || (currentCountry ? undefined : this.defaultCountry);
     const rawCountry = typeof result.country === 'string' ? result.country : '';
     if (nextCountry && nextCountry !== rawCountry) {
       updateDefaults.targetLocation = nextCountry;

@@ -33,19 +33,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    // Use client-provided currency if available to avoid race condition
-    // between client-side session store and server-side session context propagation
-    const currency = currencyOverride || session.currency;
+    // Client currency avoids a race with server session propagation; the helper
+    // trims/uppercases so we do not overwrite that with raw session values.
+    const currency = currencyOverride?.trim() || session.currency;
 
-    // Same explicit context as add-to-cart (site, currency, country, customer, LE).
     const priceService = server.get<PriceService>('PriceService');
-    const price = await priceService.getProductPrice(productId, quantity, unitCode, {
-      ...priceFetchOptionsFromSession({ ...session, currency }),
-      siteCode: session.siteCode,
-      currency,
-      country: session.country,
-      useFallback: false,
-    });
+    const price = await priceService.getProductPrice(
+      productId,
+      quantity,
+      unitCode,
+      priceFetchOptionsFromSession({ ...session, currency }),
+    );
 
     if (!price) {
       return NextResponse.json({ error: `Price for product with ID ${productId} not found` }, { status: 404 });

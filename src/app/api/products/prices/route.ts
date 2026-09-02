@@ -30,18 +30,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    // Use client-provided currency if available to avoid race condition
-    // between client-side session store and server-side session context propagation
-    const currency = (typeof currencyOverride === 'string' && currencyOverride) || session.currency;
+    // Client currency avoids a race with server session propagation; the helper
+    // trims/uppercases so we do not overwrite that with raw session values.
+    const currency = (typeof currencyOverride === 'string' && currencyOverride.trim()) || session.currency;
 
     const priceService = server.get<PriceService>('PriceService');
-    const priceMap = await priceService.getProductPrices(productIds as string[], undefined, undefined, {
-      ...priceFetchOptionsFromSession({ ...session, currency }),
-      siteCode: session.siteCode,
-      currency,
-      country: session.country,
-      useFallback: false,
-    });
+    const priceMap = await priceService.getProductPrices(
+      productIds as string[],
+      undefined,
+      undefined,
+      priceFetchOptionsFromSession({ ...session, currency }),
+    );
 
     const result: Record<string, unknown> = {};
     for (const [id, price] of priceMap) {

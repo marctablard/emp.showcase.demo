@@ -5,6 +5,7 @@ import { isEqual } from 'lodash';
 import { checkout } from '@/lib/client/checkout';
 import { ADDRESS_TYPE } from '@/lib/common/address-type-constants';
 import { resolveLegalEntityIdFromSessionAndCustomer } from '@/lib/common/legal-entity-context';
+import { normalizeCountryCode } from '@/lib/common/site-country';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { CartShippingAddress } from '@/platform/services/cart/CartService';
 import type { PaymentMode } from '@/platform/services/model';
@@ -129,8 +130,10 @@ export const useCheckout = (): UseCheckout => {
       if (checkoutCart?.id && countryOrPostalChanged) {
         void updateShippingInfo(checkoutAddressToCartShipping(address));
       }
-      if (address.country && address.country !== shopSession?.country && setCountry) {
-        void setCountry(address.country);
+      const nextCountry = normalizeCountryCode(address.country);
+      const sessionCountry = normalizeCountryCode(shopSession?.country);
+      if (nextCountry && nextCountry !== sessionCountry && setCountry) {
+        void setCountry(nextCountry);
       }
       setShippingAddress(address);
     },

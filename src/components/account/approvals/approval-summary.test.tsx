@@ -355,7 +355,7 @@ describe('ApprovalSummary', () => {
     expect(screen.queryAllByText(/5,00\s*€/)).toHaveLength(0);
   });
 
-  it('shows Free for shipping fee on CART order overview when shipping is 0', () => {
+  it('hides Shipping fee (estimated) on CART order overview when shipping is 0', () => {
     const approval: Approval = {
       ...baseApproval,
       details: {
@@ -366,7 +366,8 @@ describe('ApprovalSummary', () => {
 
     render(<ApprovalSummary approval={approval} />);
 
-    expect(screen.getByText('free')).toBeInTheDocument();
+    expect(screen.queryByText('shippingFeeEstimated')).not.toBeInTheDocument();
+    expect(screen.queryByText('free')).not.toBeInTheDocument();
   });
 
   it('omits the tax row when tax value is 0', () => {

@@ -4,7 +4,7 @@ export type SiteCountrySource = {
   shipToCountries?: Array<string | { code?: string }>;
 };
 
-function normalizeCountryCode(value: string | undefined | null): string {
+export function normalizeCountryCode(value: string | undefined | null): string {
   return typeof value === 'string' ? value.trim().toUpperCase() : '';
 }
 

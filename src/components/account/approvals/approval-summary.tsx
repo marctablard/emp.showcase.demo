@@ -251,10 +251,12 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
               <H5>{t('totalValueOfGoods')}</H5>
               <H5>{typeof totalGross === 'number' ? fmt(totalGross) : '-'}</H5>
             </div>
-            <div className="flex justify-between gap-4 pt-2">
-              <span>{t('shippingFeeEstimated')}</span>
-              <span>{formatShippingFeeDisplay(shippingCost, fmt, t('free'))}</span>
-            </div>
+            {shippingCost > 0 ? (
+              <div className="flex justify-between gap-4 pt-2">
+                <span>{t('shippingFeeEstimated')}</span>
+                <span>{fmt(shippingCost)}</span>
+              </div>
+            ) : null}
             {showShippingTaxEstimated && (
               <div className="flex justify-between gap-4 pt-2" data-testid="approval-overview-shipping-tax-estimated">
                 <span>

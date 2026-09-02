@@ -34,5 +34,6 @@ export function cartAddItemErrorResponse(errorMessage: string): NextResponse {
   if (upstreamMessage) {
     return NextResponse.json({ error: upstreamMessage, details: errorMessage }, { status: 400 });
   }
-  return NextResponse.json({ error: errorMessage || 'Failed to add item to cart' }, { status: 500 });
+  // Unexpected failures: generic client copy; the route already logs the real error.
+  return NextResponse.json({ error: 'Failed to add item to cart' }, { status: 500 });
 }
