@@ -35,8 +35,16 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
   const router = useRouter();
 
   const { clearCart } = useCart();
-  const { checkoutCart, shippingAddress, billingAddress, shippingMethod, submitShippingAddress, submitBillingAddress } =
-    useCheckout();
+  const {
+    checkoutCart,
+    shippingAddress,
+    billingAddress,
+    shippingMethod,
+    submitShippingAddress,
+    submitBillingAddress,
+    applyShippingDestinationToCart,
+    reset,
+  } = useCheckout();
 
   const [reference, setReference] = useState('');
   const [comment, setComment] = useState('');
@@ -82,6 +90,14 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
       throw new Error(t('failedDescription'));
     }
 
+    if (!shippingAddress?.country?.trim() || !shippingAddress?.zipCode?.trim()) {
+      throw new Error(t('failedDescription'));
+    }
+
+    // Quote Service taxes from cart destination, not shippingAddressId. Re-apply
+    // even when checkout already shows this address (leftover after a prior quote).
+    await applyShippingDestinationToCart(shippingAddress);
+
     const payload = {
       ...createFromCartPayload(),
       intent: 'REQUEST',
@@ -103,6 +119,7 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
     const data = await res.json();
 
     clearCart();
+    reset();
 
     toast({
       title: t('submittedTitle'),

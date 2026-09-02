@@ -6,6 +6,7 @@ import { checkout } from '@/lib/client/checkout';
 import { ADDRESS_TYPE } from '@/lib/common/address-type-constants';
 import { resolveLegalEntityIdFromSessionAndCustomer } from '@/lib/common/legal-entity-context';
 import { getLogger } from '@/lib/logger/use-logger-client';
+import type { CartShippingAddress } from '@/platform/services/cart/CartService';
 import type { PaymentMode } from '@/platform/services/model';
 import type { Cart } from '@/platform/services/model/cart/cart';
 import type {
@@ -44,6 +45,8 @@ interface UseCheckout {
   // Data submission
   submitContactData: (contactData: ContactData) => void;
   submitShippingAddress: (address: CheckoutAddress) => void;
+  /** Always write country+zip onto the current cart. Quote-from-cart taxes from cart destination, not shippingAddressId. */
+  applyShippingDestinationToCart: (address: CheckoutAddress) => Promise<void>;
   submitBillingAddress: (address: CheckoutAddress) => void;
   submitPaymentMethod: (method: CheckoutPaymentMethod) => void;
   submitShippingMethod: (method: ShippingMethod | null) => void;
@@ -52,6 +55,21 @@ interface UseCheckout {
   processCheckout: () => Promise<CheckoutResponse | null>;
   processQuoteCheckout: (quoteId: string, paymentMethod: CheckoutPaymentMethod) => Promise<CheckoutResponse | null>;
   reset: () => void;
+}
+
+export function checkoutAddressToCartShipping(address: CheckoutAddress): CartShippingAddress {
+  return {
+    contactName: address.contactName,
+    companyName: address.companyName,
+    street: address.street,
+    streetNumber: address.streetNumber,
+    streetAppendix: address.streetAppendix,
+    zipCode: address.zipCode,
+    city: address.city,
+    country: address.country,
+    state: address.state,
+    contactPhone: address.contactPhone,
+  };
 }
 
 /**
@@ -109,18 +127,7 @@ export const useCheckout = (): UseCheckout => {
         !shippingAddress || address.country !== shippingAddress.country || address.zipCode !== shippingAddress.zipCode;
 
       if (checkoutCart?.id && countryOrPostalChanged) {
-        updateShippingInfo({
-          contactName: address.contactName,
-          companyName: address.companyName,
-          street: address.street,
-          streetNumber: address.streetNumber,
-          streetAppendix: address.streetAppendix,
-          zipCode: address.zipCode,
-          city: address.city,
-          country: address.country,
-          state: address.state,
-          contactPhone: address.contactPhone,
-        });
+        void updateShippingInfo(checkoutAddressToCartShipping(address));
       }
       if (address.country && address.country !== shopSession?.country && setCountry) {
         void setCountry(address.country);
@@ -128,6 +135,16 @@ export const useCheckout = (): UseCheckout => {
       setShippingAddress(address);
     },
     [checkoutCart?.id, setCountry, shopSession?.country, shippingAddress, setShippingAddress, updateShippingInfo],
+  );
+
+  const applyShippingDestinationToCart = useCallback(
+    async (address: CheckoutAddress) => {
+      if (!checkoutCart?.id || !address.country?.trim() || !address.zipCode?.trim()) {
+        return;
+      }
+      await updateShippingInfo(checkoutAddressToCartShipping(address));
+    },
+    [checkoutCart?.id, updateShippingInfo],
   );
 
   const submitBillingAddress = useCallback(
@@ -481,6 +498,7 @@ export const useCheckout = (): UseCheckout => {
     shippingMethodsLoading,
     submitContactData,
     submitShippingAddress,
+    applyShippingDestinationToCart,
     submitBillingAddress,
     submitPaymentMethod,
     submitShippingMethod,

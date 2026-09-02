@@ -7,6 +7,8 @@ import QuoteRequestDialog from './quote-request-dialog';
 
 const push = jest.fn();
 const clearCart = jest.fn();
+const applyShippingDestinationToCart = jest.fn();
+const resetCheckout = jest.fn();
 const toast = jest.fn();
 const useCheckoutMock = jest.fn();
 
@@ -50,15 +52,19 @@ jest.mock('@/components/checkout/shipping-method', () => () => <div>ShippingMeth
 describe('QuoteRequestDialog', () => {
   beforeEach(() => {
     clearCart.mockReset();
+    applyShippingDestinationToCart.mockReset().mockResolvedValue(undefined);
+    resetCheckout.mockReset();
     push.mockReset();
     toast.mockReset();
     useCheckoutMock.mockReturnValue({
       checkoutCart: { id: 'cart-1', items: [{ id: 'item-1' }] },
-      shippingAddress: { id: 'shipping-1' },
+      shippingAddress: { id: 'shipping-1', country: 'CH', zipCode: '6300' },
       billingAddress: { id: 'billing-1' },
       shippingMethod: { amount: 5, methodId: 'method-1', zoneId: 'zone-1', taxCode: 'STANDARD' },
       submitShippingAddress: jest.fn(),
       submitBillingAddress: jest.fn(),
+      applyShippingDestinationToCart,
+      reset: resetCheckout,
     });
     global.fetch = jest.fn();
   });
@@ -91,7 +97,14 @@ describe('QuoteRequestDialog', () => {
       userComment: 'Need expedited review',
     });
 
+    expect(applyShippingDestinationToCart).toHaveBeenCalledWith(
+      expect.objectContaining({ country: 'CH', zipCode: '6300' }),
+    );
+    expect(applyShippingDestinationToCart.mock.invocationCallOrder[0]).toBeLessThan(
+      (global.fetch as jest.Mock).mock.invocationCallOrder[0],
+    );
     expect(clearCart).toHaveBeenCalledTimes(1);
+    expect(resetCheckout).toHaveBeenCalledTimes(1);
     expect(push).toHaveBeenCalledWith('/account/quotes/Q-1000');
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
@@ -116,7 +129,37 @@ describe('QuoteRequestDialog', () => {
     });
 
     expect(clearCart).not.toHaveBeenCalled();
+    expect(resetCheckout).not.toHaveBeenCalled();
     expect(push).not.toHaveBeenCalled();
+  });
+
+  it('does not create a quote when the selected shipping address has no country and zip', async () => {
+    useCheckoutMock.mockReturnValue({
+      checkoutCart: { id: 'cart-1', items: [{ id: 'item-1' }] },
+      shippingAddress: { id: 'shipping-1' },
+      billingAddress: { id: 'billing-1' },
+      shippingMethod: { amount: 5, methodId: 'method-1', zoneId: 'zone-1', taxCode: 'STANDARD' },
+      submitShippingAddress: jest.fn(),
+      submitBillingAddress: jest.fn(),
+      applyShippingDestinationToCart,
+      reset: resetCheckout,
+    });
+
+    render(<QuoteRequestDialog open onOpenChange={jest.fn()} />);
+    fireEvent.click(screen.getByTestId('quote-sendButton'));
+
+    await waitFor(() => {
+      expect(toast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'failedTitle',
+          description: 'failedDescription',
+        }),
+      );
+    });
+
+    expect(applyShippingDestinationToCart).not.toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(clearCart).not.toHaveBeenCalled();
   });
 
   it('shows the request-only dialog copy and never renders inquiry-only controls', () => {

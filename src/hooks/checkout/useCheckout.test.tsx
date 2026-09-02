@@ -353,6 +353,69 @@ describe('useCheckout', () => {
     expect(updateShippingInfo).not.toHaveBeenCalled();
   });
 
+  it('applyShippingDestinationToCart writes country+zip even when checkout already has that address', async () => {
+    const updateShippingInfo = jest.fn().mockResolvedValue(undefined);
+    const setShippingMethod = jest.fn();
+
+    mockUseCheckoutStore.mockReturnValue(
+      buildCheckoutStoreValue({
+        shippingAddress: CH_ADDRESS,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod,
+      }),
+    );
+    mockUseCart.mockReturnValue(buildCartValue(CART, updateShippingInfo));
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9 } }],
+        clearShippingMethods: jest.fn(),
+        fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
+      }),
+    );
+
+    const { result } = renderHook(() => useCheckout());
+
+    await act(async () => {
+      await result.current.applyShippingDestinationToCart(buildCheckoutAddress('SHIPPING', 'CH', '6300'));
+    });
+
+    expect(updateShippingInfo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        country: 'CH',
+        zipCode: '6300',
+      }),
+    );
+  });
+
+  it('applyShippingDestinationToCart no-ops without country and zip', async () => {
+    const updateShippingInfo = jest.fn();
+    const setShippingMethod = jest.fn();
+
+    mockUseCheckoutStore.mockReturnValue(
+      buildCheckoutStoreValue({
+        shippingAddress: CH_ADDRESS,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod,
+      }),
+    );
+    mockUseCart.mockReturnValue(buildCartValue(CART, updateShippingInfo));
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9 } }],
+        clearShippingMethods: jest.fn(),
+        fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
+      }),
+    );
+
+    const { result } = renderHook(() => useCheckout());
+
+    await act(async () => {
+      await result.current.applyShippingDestinationToCart(buildCheckoutAddress('SHIPPING', '', ''));
+    });
+
+    expect(updateShippingInfo).not.toHaveBeenCalled();
+  });
+
   it('stores a newly selected shipping method without persisting it on the cart', () => {
     const updateShippingMethod = jest.fn();
     const setShippingMethod = jest.fn();
