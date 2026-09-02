@@ -59,15 +59,17 @@ interface UseCheckout {
 }
 
 export function checkoutAddressToCartShipping(address: CheckoutAddress): CartShippingAddress {
+  const country = normalizeCountryCode(address.country);
+  const zipCode = address.zipCode?.trim();
   return {
     contactName: address.contactName,
     companyName: address.companyName,
     street: address.street,
     streetNumber: address.streetNumber,
     streetAppendix: address.streetAppendix,
-    zipCode: address.zipCode,
+    zipCode: zipCode || undefined,
     city: address.city,
-    country: address.country,
+    country: country || undefined,
     state: address.state,
     contactPhone: address.contactPhone,
   };
@@ -261,10 +263,7 @@ export const useCheckout = (): UseCheckout => {
       }
 
       clearCart();
-      setShippingMethod(null);
-      setPaymentMethod(null);
-      setShippingAddress(null);
-      setBillingAddress(null);
+      storeReset();
       setOrderResponse(checkoutResponse);
       return checkoutResponse;
     } catch (err) {

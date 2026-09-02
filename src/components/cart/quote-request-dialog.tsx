@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { AddressSelector } from '@/components/address/address-selector';
 import CheckoutAddress from '@/components/checkout/checkout-address';
@@ -48,6 +48,16 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
 
   const [reference, setReference] = useState('');
   const [comment, setComment] = useState('');
+
+  const checkoutCartId = checkoutCart?.id;
+  useEffect(() => {
+    if (!open || !checkoutCartId || !shippingAddress?.country?.trim() || !shippingAddress?.zipCode?.trim()) {
+      return;
+    }
+    // Leftover emp-checkout ship-to after a prior approval/quote does not
+    // re-fire submitShippingAddress. Write destination before quote snapshot.
+    void applyShippingDestinationToCart(shippingAddress);
+  }, [open, checkoutCartId, shippingAddress, applyShippingDestinationToCart]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     onOpenChange(nextOpen);
@@ -118,7 +128,7 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
 
     const data = await res.json();
 
-    clearCart();
+    clearCart({ deleteCart: true });
     reset();
 
     toast({

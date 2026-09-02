@@ -29,6 +29,7 @@ export interface CartState {
   loading: boolean;
   error: Error | null;
   lastShippingUpdate: {
+    cartId?: string;
     country?: string;
     zipCode?: string;
     timestamp: number;
@@ -464,12 +465,17 @@ export const createCartStore = (initState: CartState = defaultState) => {
         await afterPrevious.catch(() => {});
 
         try {
-          const { lastShippingUpdate } = get();
+          const { lastShippingUpdate, currentCart } = get();
           const now = Date.now();
           const DEBOUNCE_TIME = 2000;
+          const cartId = currentCart?.id;
 
+          // Same country+zip on a *new* cart must still PATCH. Approval/quote
+          // leftover reuses the prior ship-to; debounce must be per cart id.
           if (
+            cartId &&
             lastShippingUpdate &&
+            lastShippingUpdate.cartId === cartId &&
             lastShippingUpdate.country === shippingAddress.country &&
             lastShippingUpdate.zipCode === shippingAddress.zipCode &&
             now - lastShippingUpdate.timestamp < DEBOUNCE_TIME
@@ -477,20 +483,8 @@ export const createCartStore = (initState: CartState = defaultState) => {
             return;
           }
 
-          set({
-            error: null,
-            lastShippingUpdate: {
-              country: shippingAddress.country,
-              zipCode: shippingAddress.zipCode,
-              timestamp: now,
-            },
-          });
-
-          const { currentCart } = get();
           if (!currentCart) {
             await get().fetchCart();
-            const updatedCart = get().currentCart;
-            if (!updatedCart) return;
           }
 
           const cart = get().currentCart;
@@ -500,6 +494,15 @@ export const createCartStore = (initState: CartState = defaultState) => {
           }
 
           await apiUpdateShippingInfo(cart.id, shippingAddress, billingAddress);
+          set({
+            error: null,
+            lastShippingUpdate: {
+              cartId: cart.id,
+              country: shippingAddress.country,
+              zipCode: shippingAddress.zipCode,
+              timestamp: Date.now(),
+            },
+          });
 
           await get().fetchCart(false, { quiet: true });
         } catch (err) {

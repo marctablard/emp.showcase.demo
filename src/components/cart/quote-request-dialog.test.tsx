@@ -103,7 +103,7 @@ describe('QuoteRequestDialog', () => {
     expect(applyShippingDestinationToCart.mock.invocationCallOrder[0]).toBeLessThan(
       (global.fetch as jest.Mock).mock.invocationCallOrder[0],
     );
-    expect(clearCart).toHaveBeenCalledTimes(1);
+    expect(clearCart).toHaveBeenCalledWith({ deleteCart: true });
     expect(resetCheckout).toHaveBeenCalledTimes(1);
     expect(push).toHaveBeenCalledWith('/account/quotes/Q-1000');
     expect(onOpenChange).toHaveBeenCalledWith(false);
@@ -160,6 +160,15 @@ describe('QuoteRequestDialog', () => {
     expect(applyShippingDestinationToCart).not.toHaveBeenCalled();
     expect(global.fetch).not.toHaveBeenCalled();
     expect(clearCart).not.toHaveBeenCalled();
+  });
+
+  it('writes leftover checkout ship-to onto the current cart when the dialog opens', () => {
+    render(<QuoteRequestDialog open onOpenChange={jest.fn()} />);
+
+    expect(applyShippingDestinationToCart).toHaveBeenCalledWith(
+      expect.objectContaining({ country: 'CH', zipCode: '6300' }),
+    );
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it('shows the request-only dialog copy and never renders inquiry-only controls', () => {

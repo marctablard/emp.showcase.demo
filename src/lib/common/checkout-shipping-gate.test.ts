@@ -8,6 +8,8 @@ describe('checkoutShippingBlockReason', () => {
   it('requires country and zip before collapse', () => {
     expect(checkoutShippingBlockReason({})).toBe('address');
     expect(checkoutShippingBlockReason({ country: 'CH' })).toBe('address');
+    expect(checkoutShippingBlockReason({ country: '   ', zipCode: '6300' })).toBe('address');
+    expect(checkoutShippingBlockReason({ country: 'CH', zipCode: '   ' })).toBe('address');
     expect(checkoutShippingBlockReason({ country: 'CH', zipCode: '6300', methodsLoading: true })).toBe('loading');
   });
 

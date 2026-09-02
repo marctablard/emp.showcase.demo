@@ -6,6 +6,7 @@ import { Info } from 'lucide-react';
 import { H2 } from '@/components/ui/h';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
 import { useValidator } from '@/hooks/validation/useValidator';
+import { checkoutShippingBlockReason, checkoutShippingMessageKey } from '@/lib/common/checkout-shipping-gate';
 import { formatCurrency } from '@/lib/utils';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
@@ -56,9 +57,16 @@ const ShippingMethod: React.FC<ShippingMethodProps> = ({ isReadOnly = false, var
         )}
         {!loading && (!shippingMethods || shippingMethods.length === 0) && (
           <div className="py-4 text-center text-text-on-disabled">
-            {shippingAddress?.country && shippingAddress?.zipCode
-              ? t('noShippingMethodsAvailable')
-              : t('enterShippingAddressFirst')}
+            {t(
+              checkoutShippingMessageKey(
+                checkoutShippingBlockReason({
+                  country: shippingAddress?.country,
+                  zipCode: shippingAddress?.zipCode,
+                  methodsLoading: false,
+                  methodIds: [],
+                }) ?? 'no-methods',
+              ),
+            )}
           </div>
         )}
 

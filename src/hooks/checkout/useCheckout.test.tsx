@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import type { CheckoutAddress } from '@/platform/services/model/checkout';
-import { useCheckout } from './useCheckout';
+import { checkoutAddressToCartShipping, useCheckout } from './useCheckout';
 
 const mockUseCheckoutStore = jest.fn();
 const mockUseCart = jest.fn();
@@ -439,6 +439,35 @@ describe('useCheckout', () => {
       expect.objectContaining({
         country: 'CH',
         zipCode: '6300',
+      }),
+    );
+  });
+
+  it('checkoutAddressToCartShipping trims zip and uppercases country', () => {
+    expect(
+      checkoutAddressToCartShipping({
+        type: 'SHIPPING',
+        country: ' ch ',
+        zipCode: ' 6300 ',
+        city: 'Zug',
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        country: 'CH',
+        zipCode: '6300',
+        city: 'Zug',
+      }),
+    );
+    expect(
+      checkoutAddressToCartShipping({
+        type: 'SHIPPING',
+        country: '   ',
+        zipCode: '   ',
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        country: undefined,
+        zipCode: undefined,
       }),
     );
   });
