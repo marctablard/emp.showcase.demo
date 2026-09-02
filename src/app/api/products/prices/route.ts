@@ -5,6 +5,10 @@ import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { PriceService } from '@/platform/services/price/PriceService';
 import type { SessionService } from '@/platform/services/session/SessionService';
 
+function isNonEmptyStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.length > 0 && value.every((id) => typeof id === 'string');
+}
+
 export async function POST(request: Request) {
   let body: unknown;
   try {
@@ -15,7 +19,7 @@ export async function POST(request: Request) {
 
   const { productIds, currency: currencyOverride } = body as { productIds?: unknown; currency?: unknown };
 
-  if (!Array.isArray(productIds) || productIds.length === 0 || !productIds.every((id) => typeof id === 'string')) {
+  if (!isNonEmptyStringArray(productIds)) {
     return NextResponse.json({ error: 'productIds must be a non-empty array of strings' }, { status: 400 });
   }
 
@@ -36,7 +40,7 @@ export async function POST(request: Request) {
 
     const priceService = server.get<PriceService>('PriceService');
     const priceMap = await priceService.getProductPrices(
-      productIds as string[],
+      productIds,
       undefined,
       undefined,
       priceFetchOptionsFromSession({ ...session, currency }),

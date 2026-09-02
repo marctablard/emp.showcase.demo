@@ -43,6 +43,59 @@ function fail(message) {
   throw new AuditPolicyError(message);
 }
 
+/**
+ * npm/safe-chain sometimes append a notice after `npm audit --json`.
+ * Take the first complete object; still fail if that object is not a report.
+ */
+function extractFirstJsonObject(raw) {
+  const start = raw.indexOf('{');
+  if (start === -1) {
+    return undefined;
+  }
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < raw.length; i++) {
+    const ch = raw[i];
+    if (inString) {
+      if (escape) {
+        escape = false;
+      } else if (ch === '\\') {
+        escape = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === '{') {
+      depth += 1;
+    } else if (ch === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return raw.slice(start, i + 1);
+      }
+    }
+  }
+  return undefined;
+}
+
+function parseAuditReportJson(raw) {
+  const trimmed = raw.trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch (firstError) {
+    const extracted = extractFirstJsonObject(trimmed);
+    if (!extracted) {
+      throw firstError;
+    }
+    return JSON.parse(extracted);
+  }
+}
+
 function readReport(reportPath) {
   let raw;
   try {
@@ -55,7 +108,7 @@ function readReport(reportPath) {
   }
   let report;
   try {
-    report = JSON.parse(raw);
+    report = parseAuditReportJson(raw);
   } catch (err) {
     fail(`audit report at "${reportPath}" is not valid JSON: ${err.message}`);
   }

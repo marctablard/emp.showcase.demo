@@ -2,11 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Check, NotebookText, Package, Pencil } from 'lucide-react';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
-import {
-  canCollapseCheckoutShipping,
-  checkoutShippingBlockReason,
-  checkoutShippingMessageKey,
-} from '@/lib/common/checkout-shipping-gate';
+import { checkoutShippingBlockReason, checkoutShippingMessageKey } from '@/lib/common/checkout-shipping-gate';
 import type { Address } from '@/platform/services/model/common';
 import { AddressSelector } from '../address/address-selector';
 import { AddressDisplay } from '../common/address-display';
@@ -60,10 +56,8 @@ export function CheckoutShipping({ initialEdit }: { initialEdit: boolean }) {
       return;
     }
     const reason = checkoutShippingBlockReason(shippingGate);
-    if (reason || !canCollapseCheckoutShipping(shippingGate)) {
-      if (reason) {
-        notify({ type: ToastType.Error, title: t(checkoutShippingMessageKey(reason)) });
-      }
+    if (reason) {
+      notify({ type: ToastType.Error, title: t(checkoutShippingMessageKey(reason)) });
       return;
     }
     setIsShippingEdit(false);
