@@ -155,20 +155,20 @@ describe('buildCheckoutOrderSummaryFromCart', () => {
     totalPrice: { amount: 82.3, currency: 'EUR' },
   };
 
-  it('uses mapped calculatedPrice fields and does not add fee × rate', () => {
+  it('hides the cart minimum shipping estimate until a method is picked', () => {
     const breakdown = buildCheckoutOrderSummaryFromCart(cart);
 
     expect(breakdown.goodsNet).toBe(69.15);
     expect(breakdown.goodsVat).toBe(13.14);
-    expect(breakdown.shippingFee).toBe(0.01);
+    expect(breakdown.shippingFee).toBeUndefined();
     expect(breakdown.shippingVat).toBe(0);
     expect(breakdown.showShippingVat).toBe(false);
     expect(breakdown.shippingVatLookupFailed).toBe(false);
-    expect(breakdown.total).toBe(82.3);
+    expect(breakdown.total).toBe(82.29);
     expect(breakdown.currency).toBe('EUR');
   });
 
-  it('shows shipping VAT when the mapped cart tax amount is greater than 0', () => {
+  it('does not show cart shipping VAT until a method is picked', () => {
     const breakdown = buildCheckoutOrderSummaryFromCart({
       ...cart,
       shippingCosts: {
@@ -188,9 +188,10 @@ describe('buildCheckoutOrderSummaryFromCart', () => {
       currency: 'CHF',
     });
 
-    expect(breakdown.shippingVat).toBe(1.54);
-    expect(breakdown.showShippingVat).toBe(true);
-    expect(breakdown.total).toBe(129.24);
+    expect(breakdown.shippingFee).toBeUndefined();
+    expect(breakdown.shippingVat).toBe(0);
+    expect(breakdown.showShippingVat).toBe(false);
+    expect(breakdown.total).toBe(107.7);
   });
 
   it('keeps cart totals when the selected shipping fee matches the cart snapshot', () => {

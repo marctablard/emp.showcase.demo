@@ -123,6 +123,7 @@ export interface EmporixCreateCartRequest {
   customerId?: string;
   siteCode: string;
   currency: string;
+  countryCode?: string;
   type?: string;
   channel?: {
     name: string;

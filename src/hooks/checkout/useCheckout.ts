@@ -79,7 +79,7 @@ export const useCheckout = (): UseCheckout => {
   const { cart: checkoutCart, updateShippingInfo, clearCart } = useCart();
   const { customer } = useCustomer();
   const { addresses: customerAddresses } = useAddresses();
-  const { session: shopSession } = useShopSession();
+  const { session: shopSession, setCountry } = useShopSession();
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [orderResponse, setOrderResponse] = useState<CheckoutResponse | null>(null);
@@ -122,9 +122,12 @@ export const useCheckout = (): UseCheckout => {
           contactPhone: address.contactPhone,
         });
       }
+      if (address.country && address.country !== shopSession?.country && setCountry) {
+        void setCountry(address.country);
+      }
       setShippingAddress(address);
     },
-    [checkoutCart?.id, shippingAddress, setShippingAddress, updateShippingInfo],
+    [checkoutCart?.id, setCountry, shopSession?.country, shippingAddress, setShippingAddress, updateShippingInfo],
   );
 
   const submitBillingAddress = useCallback(
@@ -182,7 +185,7 @@ export const useCheckout = (): UseCheckout => {
     }
     // Validate each required checkout component individually
     if (!shippingMethod) {
-      setError(new Error('Missing shipping method'));
+      setError(new Error('checkout.shipping.selectShippingMethod'));
       return null;
     }
 
@@ -316,13 +319,14 @@ export const useCheckout = (): UseCheckout => {
     if (ratesKey === lastShippingRatesKeyRef.current) {
       return;
     }
+    const isRatesKeyChange = lastShippingRatesKeyRef.current !== null;
     lastShippingRatesKeyRef.current = ratesKey;
 
-    // Drop stale rates and any previously selected method synchronously so the
-    // auto-selection effect cannot re-pick from the previous list while the new
-    // fetch is in flight.
+    // Drop stale rates. Clear an existing pick only when the zone/cart key
+    // changed — the first fetch must not wipe a still-valid method (and the
+    // follow-up effect drops a pick that is not in the new findSite list).
     clearShippingMethods();
-    if (shippingMethod) {
+    if (isRatesKeyChange && shippingMethod) {
       submitShippingMethod(null);
     }
 
@@ -348,24 +352,27 @@ export const useCheckout = (): UseCheckout => {
       return;
     }
 
+    if (shippingMethodsLoading) {
+      return;
+    }
+
     if (availableShippingMethods.length === 0) {
-      // Clear stale shipping method when no methods are available for this currency/zone
+      // Fetch finished with no findSite rates — there is no honest method to keep.
       submitShippingMethod(null);
       return;
     }
 
-    let newShippingMethod: ShippingMethod | null = null;
-    if (shippingMethod) {
-      newShippingMethod = availableShippingMethods.find((method) => method.id === shippingMethod.methodId) || null;
+    // Keep an explicit pick only when it is still in the new findSite list.
+    // Do not auto-select the cheapest fee — the shopper must choose a real method.
+    if (!shippingMethod) {
+      return;
     }
-    if (!newShippingMethod) {
-      newShippingMethod = [...availableShippingMethods].sort(
-        (a, b) => (a.cost?.amount || 0) - (b.cost?.amount || 0),
-      )[0];
+    const stillAvailable = availableShippingMethods.find((method) => method.id === shippingMethod.methodId) || null;
+    if (!stillAvailable) {
+      submitShippingMethod(null);
     }
-    submitShippingMethod(newShippingMethod);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- shippingMethod excluded: this effect SETS it, including it would cause an infinite loop
-  }, [availableShippingMethods, checkoutCartId, submitShippingMethod]);
+  }, [availableShippingMethods, checkoutCartId, shippingMethodsLoading, submitShippingMethod]);
 
   // B2C-only address prefill: when the user has a default customer address and
   // no shipping/billing has been picked yet, seed it from the profile. B2B

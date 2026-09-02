@@ -1,5 +1,6 @@
 import { inject } from 'inversify';
 import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
+import { priceFetchOptionsFromSession } from '@/lib/common/price-match-session';
 import { baseUrl } from '@/lib/utils';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCartApi } from '@/platform/integrations/emporix/cart/EmporixCartApi';
@@ -260,11 +261,17 @@ class EmporixWishlistService implements WishlistService {
     siteCode: string,
     session: Session,
   ): Promise<ProductPrice | null> {
-    return this.priceService.getProductPrice(productId, quantity, undefined, {
-      siteCode,
-      currency: session.currency,
-      country: session.country,
-    });
+    return this.priceService.getProductPrice(
+      productId,
+      quantity,
+      undefined,
+      priceFetchOptionsFromSession(session, siteCode) ?? {
+        siteCode,
+        currency: session.currency,
+        country: session.country,
+        useFallback: false,
+      },
+    );
   }
 
   private buildPricePayload(price: ProductPrice) {
@@ -339,11 +346,17 @@ class EmporixWishlistService implements WishlistService {
           ),
         ),
         this.priceService
-          .getProductPrices(productIds, undefined, undefined, {
-            siteCode: wishlist.siteCode,
-            currency: session.currency,
-            country: session.country,
-          })
+          .getProductPrices(
+            productIds,
+            undefined,
+            undefined,
+            priceFetchOptionsFromSession(session, wishlist.siteCode) ?? {
+              siteCode: wishlist.siteCode,
+              currency: session.currency,
+              country: session.country,
+              useFallback: false,
+            },
+          )
           .catch((error) => {
             this.logger.warn(
               { err: error instanceof Error ? error.message : String(error) },

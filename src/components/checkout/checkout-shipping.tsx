@@ -2,25 +2,55 @@ import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Check, NotebookText, Package, Pencil } from 'lucide-react';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
+import { canCollapseCheckoutShipping, checkoutShippingBlockReason } from '@/lib/common/checkout-shipping-gate';
 import type { Address } from '@/platform/services/model/common';
 import { AddressSelector } from '../address/address-selector';
 import { AddressDisplay } from '../common/address-display';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { H2 } from '../ui/h';
+import { ToastType, notify } from '../ui/toast-notification';
 import CheckoutAddress from './checkout-address';
 import { useRegisterSectionExpander } from './checkout-validation-registry';
 import ShippingMethod from './shipping-method';
 
 export function CheckoutShipping({ initialEdit }: { initialEdit: boolean }) {
   const t = useTranslations('checkout.shipping');
-  const { availableShippingMethods, shippingAddress, shippingMethod, submitShippingAddress } = useCheckout();
+  const { availableShippingMethods, shippingAddress, shippingMethod, shippingMethodsLoading, submitShippingAddress } =
+    useCheckout();
   const [isShippingEdit, setIsShippingEdit] = useState(initialEdit || !shippingAddress || !shippingMethod);
 
   const expandShipping = useCallback(() => {
     if (!isShippingEdit) setIsShippingEdit(true);
   }, [isShippingEdit]);
   useRegisterSectionExpander('shipping', expandShipping);
+
+  const shippingGate = {
+    country: shippingAddress?.country,
+    zipCode: shippingAddress?.zipCode,
+    methodsLoading: shippingMethodsLoading,
+    methodIds: availableShippingMethods.map((method) => method.id),
+    selectedMethodId: shippingMethod?.methodId,
+  };
+
+  const handleShippingToggle = () => {
+    if (!isShippingEdit) {
+      setIsShippingEdit(true);
+      return;
+    }
+    const reason = checkoutShippingBlockReason(shippingGate);
+    if (reason === 'loading' || !canCollapseCheckoutShipping(shippingGate)) {
+      if (reason === 'address') {
+        notify({ type: ToastType.Error, title: t('enterShippingAddressFirst') });
+      } else if (reason === 'no-methods') {
+        notify({ type: ToastType.Error, title: t('noShippingMethodsAvailable') });
+      } else if (reason === 'pick-method') {
+        notify({ type: ToastType.Error, title: t('selectShippingMethod') });
+      }
+      return;
+    }
+    setIsShippingEdit(false);
+  };
 
   const handleShippingAddressChange = (address: Address) => {
     submitShippingAddress({
@@ -40,7 +70,7 @@ export function CheckoutShipping({ initialEdit }: { initialEdit: boolean }) {
           variant="link"
           size="default"
           className="normal-case text-base tracking-normal p-0 gap-1 underline"
-          onClick={() => (isShippingEdit ? setIsShippingEdit(false) : setIsShippingEdit(true))}
+          onClick={handleShippingToggle}
           data-testid="shipping-editButton"
         >
           {isShippingEdit ? (
@@ -70,8 +100,12 @@ export function CheckoutShipping({ initialEdit }: { initialEdit: boolean }) {
                   </div>
                   <div>
                     <p>{shippingMethod?.methodName}</p>
-                    {!shippingMethod && availableShippingMethods.length === 0 && (
-                      <p className="text-sm text-text-error">{t('noShippingMethodsAvailable')}</p>
+                    {!shippingMethod && (
+                      <p className="text-sm text-text-error">
+                        {shippingAddress?.country && shippingAddress?.zipCode
+                          ? t('noShippingMethodsAvailable')
+                          : t('enterShippingAddressFirst')}
+                      </p>
                     )}
                     {/*<p>Arrives on July 12, 2025</p>*/}
                   </div>

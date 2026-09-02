@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { extractUpstreamMessage } from '@/lib/common/extract-upstream-message';
 import server from '@/platform/server';
 import type { CartService } from '@/platform/services/cart';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
@@ -81,11 +82,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       `Error adding item to cart ${cartId}`,
     );
 
-    // Detect Emporix price/tax validation error and return structured 400
+    const upstreamMessage = extractUpstreamMessage(errorMessage);
+
     if (errorMessage.includes('PriceIds') && errorMessage.includes('invalid')) {
       return NextResponse.json(
         {
-          error: 'Product price is not available for this site',
+          error: upstreamMessage || errorMessage,
           code: CartErrorCode.PRICE_SITE_INCOMPATIBLE,
           details: errorMessage,
         },
@@ -93,11 +95,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       );
     }
 
-    // Generic site-specific price unavailability
     if (errorMessage.includes('price is not available') || errorMessage.includes('not available for this site')) {
       return NextResponse.json(
         {
-          error: "This product's price is not available for the current site.",
+          error: upstreamMessage || errorMessage,
           code: CartErrorCode.PRICE_NOT_AVAILABLE,
           details: errorMessage,
         },
@@ -105,14 +106,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       );
     }
 
-    // Cart-site mismatch from Emporix
     if (
       errorMessage.includes('siteCode') &&
       (errorMessage.includes('mismatch') || errorMessage.includes('does not match'))
     ) {
       return NextResponse.json(
         {
-          error: 'Your cart belongs to a different site. Please refresh the page.',
+          error: upstreamMessage || errorMessage,
           code: CartErrorCode.CART_SITE_MISMATCH,
           details: errorMessage,
         },
@@ -120,6 +120,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       );
     }
 
-    return NextResponse.json({ error: 'Failed to add item to cart' }, { status: 500 });
+    if (upstreamMessage) {
+      return NextResponse.json({ error: upstreamMessage, details: errorMessage }, { status: 400 });
+    }
+
+    return NextResponse.json({ error: errorMessage || 'Failed to add item to cart' }, { status: 500 });
   }
 }

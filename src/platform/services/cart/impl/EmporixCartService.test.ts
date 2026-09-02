@@ -676,7 +676,7 @@ describe('EmporixCartService', () => {
       expect(mockPriceService.getProductPrice).toHaveBeenCalledWith('prod-1', 1, undefined, {
         siteCode: 'us-branch',
         currency: 'USD',
-        country: undefined,
+        useFallback: false,
       });
 
       // Verify the addItemRequest uses cart's siteCode and sends the full localized
@@ -700,6 +700,47 @@ describe('EmporixCartService', () => {
 
       expect(result.cartItem.id).toBe('new-item-id');
       expect(result.status).toBe('OK');
+    });
+
+    it('should align cart country with session before add when they differ', async () => {
+      const roCart: EmporixCart = {
+        ...rawCart,
+        countryCode: 'RO',
+      };
+      const chCart: EmporixCart = {
+        ...rawCart,
+        countryCode: 'CH',
+      };
+      mockCartApi.getCart.mockResolvedValueOnce(roCart).mockResolvedValueOnce(chCart).mockResolvedValueOnce(chCart);
+      mockProductService.getProductById.mockResolvedValue(mockProduct);
+      mockSessionService.getCurrent.mockResolvedValue({ ...mockSession, country: 'CH' });
+      mockPriceService.getProductPrice.mockResolvedValue(mockPrice);
+      mockMapper.mapToService.mockReturnValue({
+        id: 'cart-us',
+        currency: 'USD',
+        site: 'us-branch',
+        items: [
+          {
+            id: 'new-item-id',
+            quantity: 1,
+            price: { amount: 29.99, originalAmount: 29.99, currency: 'USD' },
+            product: { id: 'prod-1' },
+          },
+        ],
+        totalPrice: { amount: 29.99, originalAmount: 29.99, currency: 'USD' },
+        subTotalPrice: { amount: 29.99, originalAmount: 29.99, currency: 'USD' },
+        tax: { amount: 0, currency: 'USD', grossValue: 29.99, netValue: 29.99 },
+      });
+
+      await cartService.addItemToCart('cart-us', 'prod-1', 1);
+
+      expect(mockCartApi.updateCart).toHaveBeenCalledWith('cart-us', expect.objectContaining({ countryCode: 'CH' }));
+      expect(mockPriceService.getProductPrice).toHaveBeenCalledWith('prod-1', 1, undefined, {
+        siteCode: 'us-branch',
+        currency: 'USD',
+        country: 'CH',
+        useFallback: false,
+      });
     });
 
     it('should align cart currency with session before add when they differ on the same site', async () => {
@@ -817,7 +858,7 @@ describe('EmporixCartService', () => {
       expect(mockPriceService.getProductPrice).toHaveBeenCalledWith('prod-1', 1, undefined, {
         siteCode: 'us-branch',
         currency: 'USD',
-        country: undefined,
+        useFallback: false,
       });
 
       // Should have added item to the recovered cart, not the original
@@ -948,7 +989,7 @@ describe('EmporixCartService', () => {
       expect(mockPriceService.getProductPrice).toHaveBeenCalledWith('prod-1', 3, undefined, {
         siteCode: 'us-branch',
         currency: 'USD',
-        country: undefined,
+        useFallback: false,
       });
 
       expect(result.cartItem.quantity).toBe(3);

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { priceFetchOptionsFromSession } from '@/lib/common/price-match-session';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { PriceService } from '@/platform/services/price/PriceService';
@@ -35,9 +36,11 @@ export async function POST(request: Request) {
 
     const priceService = server.get<PriceService>('PriceService');
     const priceMap = await priceService.getProductPrices(productIds as string[], undefined, undefined, {
+      ...priceFetchOptionsFromSession({ ...session, currency }),
       siteCode: session.siteCode,
       currency,
       country: session.country,
+      useFallback: false,
     });
 
     const result: Record<string, unknown> = {};

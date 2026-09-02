@@ -142,6 +142,12 @@ export interface CartService {
   updateCurrency(cartId: string, currency: string): Promise<void>;
 
   /**
+   * Align cart tax country with the shop session so Emporix does not pick
+   * legal-entity / customer-default / site-homebase country.
+   */
+  alignCartCountry(cartId: string, countryCode: string): Promise<void>;
+
+  /**
    * Retrieves the saved carts for the current customer
    * @param pagination The pagination query
    * @returns The saved carts

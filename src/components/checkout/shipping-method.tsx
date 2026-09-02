@@ -26,6 +26,7 @@ const ShippingMethod: React.FC<ShippingMethodProps> = ({ isReadOnly = false, var
     availableShippingMethods: shippingMethods,
     shippingMethodsLoading: loading,
     shippingMethod,
+    shippingAddress,
     submitShippingMethod,
   } = useCheckout();
 
@@ -54,7 +55,11 @@ const ShippingMethod: React.FC<ShippingMethodProps> = ({ isReadOnly = false, var
           </div>
         )}
         {!loading && (!shippingMethods || shippingMethods.length === 0) && (
-          <div className="py-4 text-center text-text-on-disabled">{t('noShippingMethodsAvailable')}</div>
+          <div className="py-4 text-center text-text-on-disabled">
+            {shippingAddress?.country && shippingAddress?.zipCode
+              ? t('noShippingMethodsAvailable')
+              : t('enterShippingAddressFirst')}
+          </div>
         )}
 
         <FormField

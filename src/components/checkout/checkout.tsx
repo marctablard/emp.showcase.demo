@@ -94,8 +94,15 @@ const Checkout: React.FC<CheckoutProps> = ({ onComplete }) => {
       return;
     }
     lastNotifiedErrorRef.current = error;
-    notify({ type: ToastType.Error, title: toHumanReadableGuestCheckoutNotification(error.message) });
-  }, [error]);
+    const shippingSelectKey = 'checkout.shipping.selectShippingMethod';
+    notify({
+      type: ToastType.Error,
+      title:
+        error.message === shippingSelectKey || error.message === 'Missing shipping method'
+          ? t('shipping.selectShippingMethod')
+          : toHumanReadableGuestCheckoutNotification(error.message),
+    });
+  }, [error, t]);
 
   if (customer === undefined || loading || orderResponse) {
     getLogger().debug({ customer, loading, orderResponse }, 'Checkout loading state');

@@ -133,7 +133,7 @@ describe('useCheckout', () => {
     mockUseCustomer.mockReturnValue({ customer: null });
     mockUseSite.mockReturnValue({ paymentModes: [], site: null });
     mockUseAddresses.mockReturnValue({ addresses: [] });
-    mockUseShopSession.mockReturnValue({ session: null });
+    mockUseShopSession.mockReturnValue({ session: null, setCountry: jest.fn() });
   });
 
   it('clears previous methods and selected method before fetching when country changes', () => {
@@ -229,7 +229,7 @@ describe('useCheckout', () => {
     expect(setShippingMethod).not.toHaveBeenCalled();
   });
 
-  it('auto-selects the only available shipping method after a fresh fetch', () => {
+  it('does not auto-select a shipping method after a fresh fetch', () => {
     const clearShippingMethods = jest.fn();
     const fetchShippingMethods = jest.fn().mockResolvedValue(undefined);
     const setShippingMethod = jest.fn();
@@ -253,17 +253,43 @@ describe('useCheckout', () => {
 
     renderHook(() => useCheckout());
 
-    const callArgs = setShippingMethod.mock.calls
+    const autoSelected = setShippingMethod.mock.calls
       .map(([payload]) => payload)
       .filter((payload) => payload && payload.methodId === freshMethod.id);
-    expect(callArgs.length).toBeGreaterThanOrEqual(1);
+    expect(autoSelected).toHaveLength(0);
+  });
+
+  it('clears a selected method that is no longer in the findSite list', () => {
+    const setShippingMethod = jest.fn();
+
+    mockUseCheckoutStore.mockReturnValue(
+      buildCheckoutStoreValue({
+        shippingAddress: CH_ADDRESS,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod,
+      }),
+    );
+    mockUseCart.mockReturnValue(buildCartValue(CART));
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [{ id: 'other-method', name: 'Other', cost: { amount: 3 } }],
+        clearShippingMethods: jest.fn(),
+        fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
+      }),
+    );
+
+    renderHook(() => useCheckout());
+
+    expect(setShippingMethod).toHaveBeenCalledWith(null);
   });
 
   it('calls updateShippingInfo when the shipping-address country changes', () => {
     const updateShippingInfo = jest.fn();
+    const setCountry = jest.fn();
     const clearShippingMethods = jest.fn();
     const fetchShippingMethods = jest.fn().mockResolvedValue(undefined);
     const setShippingMethod = jest.fn();
+    mockUseShopSession.mockReturnValue({ session: { country: 'DE' }, setCountry });
 
     mockUseCheckoutStore.mockReturnValue(
       buildCheckoutStoreValue({
@@ -293,6 +319,7 @@ describe('useCheckout', () => {
         zipCode: '6300',
       }),
     );
+    expect(setCountry).toHaveBeenCalledWith('CH');
   });
 
   it('does not call updateShippingInfo when submitBillingAddress is used', () => {

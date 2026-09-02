@@ -234,6 +234,36 @@ describe('performSiteSwitch', () => {
       );
     });
 
+    it('snaps session country to the site default when the previous country is not allowed', async () => {
+      const { stores } = buildStores({
+        session: { siteCode: 'main', currency: 'EUR', language: 'en', country: 'RO', metadata: { version: 3 } },
+      });
+      mockedUpdateSessionContext.mockResolvedValue({
+        siteCode: 'fw-site',
+        currency: 'CHF',
+        language: 'en',
+        country: 'CH',
+        metadata: { version: 4 },
+      });
+
+      await performSiteSwitch('fw-site', stores, {
+        source: 'deep-link',
+        getSiteByCode: () =>
+          Promise.resolve({
+            languages: ['en'],
+            currencies: ['CHF'],
+            defaultCurrency: 'CHF',
+            defaultCountry: 'CH',
+            countries: [{ code: 'CH' }, { code: 'DE' }],
+          }),
+      });
+
+      expect(mockedUpdateSessionContext).toHaveBeenCalledWith(
+        expect.objectContaining({ siteCode: 'fw-site', country: 'CH' }),
+        3,
+      );
+    });
+
     it('anonymous (no cart): still issues a single GET /api/cart that resolves to null for new sites', async () => {
       const { stores, cartState } = buildStores({
         session: { siteCode: 'a', currency: 'EUR', language: 'en', metadata: { version: 1 } },

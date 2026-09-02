@@ -5,6 +5,7 @@ import {
   getPublicDefaultLanguage,
   getPublicDefaultSite,
 } from '@/lib/common/public-default-env';
+import { resolveCountryForSite } from '@/lib/common/site-country';
 import { injectable } from '@/platform/core/di/injectable';
 import type EmporixCustomerApi from '@/platform/integrations/emporix/customer/impl/EmporixCustomerApi';
 import type { EmporixAddress } from '@/platform/integrations/emporix/model';
@@ -121,7 +122,8 @@ export class EmporixAuthService implements AuthService {
     const serverCountry = session.targetLocation;
     const serverRegion = session.context?.['region'] as string | undefined;
     const finalLanguage = preferredLanguage ?? serverLanguage;
-    const finalCountry = preferredCountry ?? serverCountry;
+    const finalCountry =
+      resolveCountryForSite(targetSite, preferredCountry ?? serverCountry) ?? preferredCountry ?? serverCountry;
     const finalRegion = preferredRegion ?? serverRegion;
     const needsPatch =
       (preferredSiteCode !== undefined && preferredSiteCode !== serverSiteCode) ||
@@ -380,6 +382,20 @@ export class EmporixAuthService implements AuthService {
         }
       }
       finalCurrency = verifiedCustomerCart.currency;
+      if (finalCountry) {
+        try {
+          await this.cartService.alignCartCountry(verifiedCustomerCart.id, finalCountry);
+        } catch (error) {
+          this.logger.warn(
+            {
+              err: error instanceof Error ? error : String(error),
+              cartId: verifiedCustomerCart.id,
+              country: finalCountry,
+            },
+            'Failed to align cart country with session after login',
+          );
+        }
+      }
     }
 
     // Mirror the verified customer cart currency into the session DTO used to

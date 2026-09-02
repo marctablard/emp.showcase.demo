@@ -1,4 +1,5 @@
 import { inject } from 'inversify';
+import { resolveCountryForSite } from '@/lib/common/site-country';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixTokenManager } from '@/platform/integrations/emporix/common/EmporixTokenManager';
 import { decodeTokenLegalEntityId } from '@/platform/integrations/emporix/common/util/common';
@@ -95,6 +96,11 @@ class EmporixSessionService implements SessionService {
     const fields: Partial<EmporixSessionContext> = { siteCode: site };
     if (siteChanged && defaultCurrency) {
       fields.currency = defaultCurrency;
+    }
+    const targetSite = await this.siteService.getSite(site);
+    const nextCountry = resolveCountryForSite(targetSite, initialSession.targetLocation);
+    if (nextCountry && nextCountry !== this.normalizeSessionCountry(initialSession.targetLocation)) {
+      fields.targetLocation = nextCountry;
     }
 
     await this.updateSessionContextWithRetry(fields, {
@@ -429,7 +435,14 @@ class EmporixSessionService implements SessionService {
       updateDefaults.currency = site.defaultCurrency.id;
       result.currency = site.defaultCurrency.id;
     }
-    if (!result.country) {
+    const nextCountry = resolveCountryForSite(site, result.country);
+    if (nextCountry && nextCountry !== this.normalizeSessionCountry(result.country)) {
+      updateDefaults.targetLocation = nextCountry;
+      result.country = nextCountry;
+    } else if (!result.country && nextCountry) {
+      updateDefaults.targetLocation = nextCountry;
+      result.country = nextCountry;
+    } else if (!result.country && this.defaultCountry) {
       updateDefaults.targetLocation = this.defaultCountry;
       result.country = this.defaultCountry;
     }
@@ -460,13 +473,21 @@ class EmporixSessionService implements SessionService {
       updateDefaults.metadata = {
         version: sessionContext?.metadata?.version || 1,
       };
-      // Fire-and-forget; 404s are expected for newly-created sessions (eventual consistency).
-      this.sessionContextApi.updateOwnSessionContext(updateDefaults).catch((error: Error) => {
-        if (!error.message.includes('Not Found')) {
-          this.logger.error({ error: error.message }, 'Unexpected error updating session defaults');
+      // Await so later match-prices-by-context / cart reads see the same country.
+      // 404s are expected for newly-created sessions (eventual consistency).
+      try {
+        await this.sessionContextApi.updateOwnSessionContext(updateDefaults);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!message.includes('Not Found')) {
+          this.logger.error({ error: message }, 'Unexpected error updating session defaults');
         }
-      });
+      }
     }
+  }
+
+  private normalizeSessionCountry(value: string | undefined): string {
+    return typeof value === 'string' ? value.trim().toUpperCase() : '';
   }
 
   private isCurrencySupportedOnSite(site: Site, currency: string): boolean {

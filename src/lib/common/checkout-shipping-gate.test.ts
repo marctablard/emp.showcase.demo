@@ -1,0 +1,33 @@
+import { canCollapseCheckoutShipping, checkoutShippingBlockReason } from './checkout-shipping-gate';
+
+describe('checkoutShippingBlockReason', () => {
+  it('requires country and zip before collapse', () => {
+    expect(checkoutShippingBlockReason({})).toBe('address');
+    expect(checkoutShippingBlockReason({ country: 'CH' })).toBe('address');
+    expect(checkoutShippingBlockReason({ country: 'CH', zipCode: '6300', methodsLoading: true })).toBe('loading');
+  });
+
+  it('blocks when findSite returned no methods or nothing is picked', () => {
+    expect(checkoutShippingBlockReason({ country: 'CH', zipCode: '6300', methodIds: [] })).toBe('no-methods');
+    expect(checkoutShippingBlockReason({ country: 'CH', zipCode: '6300', methodIds: ['dhl'] })).toBe('pick-method');
+    expect(
+      checkoutShippingBlockReason({
+        country: 'CH',
+        zipCode: '6300',
+        methodIds: ['dhl'],
+        selectedMethodId: 'other',
+      }),
+    ).toBe('pick-method');
+  });
+
+  it('allows collapse only for a real picked method', () => {
+    expect(
+      canCollapseCheckoutShipping({
+        country: 'CH',
+        zipCode: '6300',
+        methodIds: ['dhl'],
+        selectedMethodId: 'dhl',
+      }),
+    ).toBe(true);
+  });
+});

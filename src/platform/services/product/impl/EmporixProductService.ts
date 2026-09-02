@@ -1,4 +1,5 @@
 import { inject } from 'inversify';
+import { priceFetchOptionsFromSession } from '@/lib/common/price-match-session';
 import { resolveProductLabelImageUrl } from '@/lib/common/product-label-image';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixLabel, EmporixProductTemplateDefinition } from '@/platform/integrations/emporix/model';
@@ -568,11 +569,17 @@ class EmporixProductService implements ProductService {
         } else if (options?.prices === true) {
           sessionForProductPrices = await this.sessionService.getCurrent();
           if (sessionForProductPrices) {
-            return this.priceService.getProductPrices(ids, undefined, undefined, {
-              siteCode: sessionForProductPrices.siteCode,
-              currency: sessionForProductPrices.currency,
-              country: sessionForProductPrices.country,
-            });
+            return this.priceService.getProductPrices(
+              ids,
+              undefined,
+              undefined,
+              priceFetchOptionsFromSession(sessionForProductPrices) ?? {
+                siteCode: sessionForProductPrices.siteCode,
+                currency: sessionForProductPrices.currency,
+                country: sessionForProductPrices.country,
+                useFallback: false,
+              },
+            );
           }
           return this.priceService.getProductPrices(ids);
         }

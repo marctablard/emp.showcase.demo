@@ -365,6 +365,41 @@ describe('EmporixSessionService', () => {
       expect(mockSiteService.invalidateSiteCache).not.toHaveBeenCalled();
     });
 
+    it('should PATCH targetLocation when the current country is not allowed on the new site', async () => {
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValueOnce({
+        sessionId: 'test-session',
+        siteCode: 'main',
+        targetLocation: 'RO',
+        metadata: { version: 1 },
+      });
+      mockSessionContextApi.updateOwnSessionContext.mockResolvedValue();
+      mockSiteService.getSite.mockResolvedValue({
+        code: 'fw-site',
+        name: 'FW',
+        defaultCountry: 'CH',
+        defaultCurrency: { id: 'CHF', code: 'CHF', name: 'Franc', active: true },
+        currencies: [{ id: 'CHF', code: 'CHF', name: 'Franc', active: true }],
+        countries: [{ code: 'CH' }, { code: 'DE' }],
+        shipToCountries: [],
+        regions: [],
+        paymentModes: [],
+        languages: ['en'],
+        defaultLanguage: 'en',
+        address: { contactName: '', street: '', zipCode: '', city: '', country: 'CH' },
+        includesTax: false,
+        decimals: 2,
+      });
+
+      await sessionService.setSite('fw-site', 'CHF');
+
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledWith({
+        siteCode: 'fw-site',
+        currency: 'CHF',
+        targetLocation: 'CH',
+        metadata: { version: 1 },
+      });
+    });
+
     it('should not update currency when defaultCurrency is not provided (backward compatibility)', async () => {
       mockSessionContextApi.getOwnSessionContext.mockResolvedValueOnce({
         sessionId: 'test-session',
@@ -794,6 +829,55 @@ describe('EmporixSessionService', () => {
       expect(result).toBeDefined();
       expect(result?.currency).toBe('CHF');
       expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalled();
+    });
+
+    it('should snap a disallowed session country to site.defaultCountry', async () => {
+      const fullyPopulatedContext: EmporixSessionContext = {
+        sessionId: 'test-session',
+        currency: 'CHF',
+        siteCode: 'fw-site',
+        targetLocation: 'RO',
+        context: {
+          language: { key: 'language', value: 'en' },
+          region: { key: 'region', value: 'Europe' },
+        },
+        metadata: { version: 2 },
+      };
+      const mappedSession: Session = {
+        id: 'test-session',
+        currency: 'CHF',
+        siteCode: 'fw-site',
+        country: 'RO',
+        language: 'en',
+        region: 'Europe',
+      };
+
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValue(fullyPopulatedContext);
+      mockSessionMapper.mapToService.mockReturnValue(mappedSession);
+      mockSiteService.getSite.mockResolvedValue({
+        code: 'fw-site',
+        name: 'FW',
+        defaultCountry: 'CH',
+        defaultCurrency: { id: 'CHF', code: 'CHF', name: 'Franc', active: true },
+        currencies: [{ id: 'CHF', code: 'CHF', name: 'Franc', active: true }],
+        countries: [{ code: 'CH' }, { code: 'DE' }],
+        shipToCountries: [],
+        regions: [],
+        paymentModes: [],
+        languages: ['en'],
+        defaultLanguage: 'en',
+        address: { contactName: '', street: '', zipCode: '', city: '', country: 'CH' },
+        includesTax: false,
+        decimals: 2,
+      });
+      mockSessionContextApi.updateOwnSessionContext.mockResolvedValue();
+
+      const result = await sessionService.getCurrent();
+
+      expect(result?.country).toBe('CH');
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledWith(
+        expect.objectContaining({ targetLocation: 'CH' }),
+      );
     });
 
     it('should not include language on a currency PATCH when session language is already de', async () => {

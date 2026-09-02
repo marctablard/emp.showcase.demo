@@ -59,6 +59,7 @@
     "loading": "Loading shipping methods...",
     "noShippingMethodsAvailable": "No shipping methods available for your currency or location",
     "enterShippingAddressFirst": "Please enter your shipping address first",
+    "selectShippingMethod": "Select a shipping method from the available list",
     "freeShipping": "Free Shipping",
     "estimatedDelivery": "Estimated delivery: 3-5 business days",
     "orderNotes": "Order Notes",

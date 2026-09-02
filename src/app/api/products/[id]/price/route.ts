@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { priceFetchOptionsFromSession } from '@/lib/common/price-match-session';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { PriceService } from '@/platform/services/price/PriceService';
@@ -36,13 +37,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // between client-side session store and server-side session context propagation
     const currency = currencyOverride || session.currency;
 
-    // Get price service and fetch price using explicit session params
-    // to avoid race condition with Emporix session-context propagation
+    // Same explicit context as add-to-cart (site, currency, country, customer, LE).
     const priceService = server.get<PriceService>('PriceService');
     const price = await priceService.getProductPrice(productId, quantity, unitCode, {
+      ...priceFetchOptionsFromSession({ ...session, currency }),
       siteCode: session.siteCode,
       currency,
       country: session.country,
+      useFallback: false,
     });
 
     if (!price) {
