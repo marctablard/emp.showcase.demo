@@ -172,7 +172,7 @@ export const useCheckout = (): UseCheckout => {
         address.zipCode !== shippingAddress.zipCode;
 
       if (countryOrPostalChanged) {
-        void persistShippingSelectionOnCart(address);
+        persistShippingSelectionOnCart(address).catch(() => undefined);
       }
       syncSessionCountryFromAddress(address);
       if (!sameAsPersisted) {
@@ -367,7 +367,7 @@ export const useCheckout = (): UseCheckout => {
     if (destinationAppliedCartIdRef.current === checkoutCartId) {
       return;
     }
-    void persistShippingSelectionOnCart(shippingAddress);
+    persistShippingSelectionOnCart(shippingAddress).catch(() => undefined);
     syncSessionCountryFromAddress(shippingAddress);
   }, [checkoutCartId, persistShippingSelectionOnCart, shippingAddress, syncSessionCountryFromAddress]);
   // Goods value only — including shipping in this key refetches methods (and

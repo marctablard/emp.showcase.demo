@@ -70,6 +70,33 @@ function CartApprovalOrderNumber({ orderId }: { readonly orderId: string }) {
   );
 }
 
+function ApprovalRelatedResource({
+  approval,
+  cartOrderId,
+}: {
+  readonly approval: Approval;
+  readonly cartOrderId: string | undefined;
+}) {
+  const t = useTranslations('orders.Approval');
+
+  if (approval.resourceType === 'QUOTE') {
+    return (
+      <div className="flex flex-col gap-1">
+        <H5>{t('relatedQuote')}</H5>
+        <Link href={`/account/quotes/${approval.resource.id}`} className="text-base font-body text-text-action">
+          {approval.resource.id}
+        </Link>
+      </div>
+    );
+  }
+
+  if (cartOrderId) {
+    return <CartApprovalOrderNumber orderId={cartOrderId} />;
+  }
+
+  return null;
+}
+
 export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetailsProps) {
   const locale = useLocale();
   const t = useTranslations('orders.Approval');
@@ -434,19 +461,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
                   {approval.requestor.firstName} {approval.requestor.lastName}
                 </span>
               </div>
-              {approval.resourceType === 'QUOTE' ? (
-                <div className="flex flex-col gap-1">
-                  <H5>{t('relatedQuote')}</H5>
-                  <Link
-                    href={`/account/quotes/${approval.resource.id}`}
-                    className="text-base font-body text-text-action"
-                  >
-                    {approval.resource.id}
-                  </Link>
-                </div>
-              ) : cartOrderId ? (
-                <CartApprovalOrderNumber orderId={cartOrderId} />
-              ) : null}
+              <ApprovalRelatedResource approval={approval} cartOrderId={cartOrderId} />
             </div>
           </div>
         </div>

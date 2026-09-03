@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Check, NotebookText, Package, Pencil } from 'lucide-react';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
@@ -16,31 +16,14 @@ import ShippingMethod from './shipping-method';
 
 export function CheckoutShipping({ initialEdit }: { initialEdit: boolean }) {
   const t = useTranslations('checkout.shipping');
-  const {
-    availableShippingMethods,
-    checkoutCart,
-    shippingAddress,
-    shippingMethod,
-    shippingMethodsLoading,
-    submitShippingAddress,
-    applyShippingDestinationToCart,
-  } = useCheckout();
+  const { availableShippingMethods, shippingAddress, shippingMethod, shippingMethodsLoading, submitShippingAddress } =
+    useCheckout();
   const [isShippingEdit, setIsShippingEdit] = useState(initialEdit || !shippingAddress || !shippingMethod);
 
   const expandShipping = useCallback(() => {
     if (!isShippingEdit) setIsShippingEdit(true);
   }, [isShippingEdit]);
   useRegisterSectionExpander('shipping', expandShipping);
-
-  const checkoutCartId = checkoutCart?.id;
-  useEffect(() => {
-    if (!checkoutCartId || !shippingAddress) {
-      return;
-    }
-    // Leftover emp-checkout address after a prior approval/quote does not re-fire
-    // submitShippingAddress. Write country+zip onto this cart so tax follows ship-to.
-    void applyShippingDestinationToCart(shippingAddress);
-  }, [applyShippingDestinationToCart, checkoutCartId, shippingAddress]);
 
   const shippingGate = {
     country: shippingAddress?.country,

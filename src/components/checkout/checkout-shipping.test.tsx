@@ -37,29 +37,13 @@ describe('CheckoutShipping leftover destination', () => {
     applyShippingDestinationToCart.mockReset().mockResolvedValue(undefined);
   });
 
-  it('writes leftover checkout ship-to onto the current cart on mount', () => {
+  it('does not re-apply leftover ship-to; useCheckout owns that write', () => {
     const shippingAddress = { type: 'SHIPPING', country: 'CH', zipCode: '6300' };
     useCheckoutMock.mockReturnValue({
       availableShippingMethods: [{ id: 'm1' }],
       checkoutCart: { id: 'cart-2' },
       shippingAddress,
       shippingMethod: { methodId: 'm1', methodName: 'Standard' },
-      shippingMethodsLoading: false,
-      submitShippingAddress: jest.fn(),
-      applyShippingDestinationToCart,
-    });
-
-    render(<CheckoutShipping initialEdit={false} />);
-
-    expect(applyShippingDestinationToCart).toHaveBeenCalledWith(shippingAddress);
-  });
-
-  it('does not write destination when checkout has no leftover ship-to', () => {
-    useCheckoutMock.mockReturnValue({
-      availableShippingMethods: [],
-      checkoutCart: { id: 'cart-2' },
-      shippingAddress: null,
-      shippingMethod: null,
       shippingMethodsLoading: false,
       submitShippingAddress: jest.fn(),
       applyShippingDestinationToCart,
