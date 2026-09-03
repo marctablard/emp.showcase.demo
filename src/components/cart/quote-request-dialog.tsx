@@ -129,7 +129,7 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
     const data = await res.json();
 
     clearCart({ deleteCart: true });
-    reset();
+    reset({ keepAddresses: true });
 
     toast({
       title: t('submittedTitle'),

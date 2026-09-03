@@ -20,11 +20,16 @@ export interface CheckoutState {
   shippingMethod: OrderShipping | null;
 }
 
+export type CheckoutResetOptions = {
+  /** Keep buyer addresses (and payment/contact) for the next cart after an approval or quote. */
+  keepAddresses?: boolean;
+};
+
 interface CheckoutActions {
   // Checkout operations
   setCart: (cart: Cart) => void;
   getCart: () => Cart | null;
-  reset: () => void;
+  reset: (options?: CheckoutResetOptions) => void;
   setContactData: (contactData: ContactData | null) => void;
   setShippingAddress: (address: CheckoutAddress | null) => void;
   setBillingAddress: (address: CheckoutAddress | null) => void;
@@ -52,13 +57,15 @@ export const createCheckoutStore = (initState: CheckoutState = defaultState) => 
           set({ cart });
         },
         getCart: () => get().cart,
-        reset: () => {
+        reset: (options?: CheckoutResetOptions) => {
+          const keepAddresses = options?.keepAddresses === true;
           set({
             cart: null,
-            contactData: null,
-            shippingAddress: null,
-            billingAddress: null,
-            paymentMethod: null,
+            contactData: keepAddresses ? get().contactData : null,
+            shippingAddress: keepAddresses ? get().shippingAddress : null,
+            billingAddress: keepAddresses ? get().billingAddress : null,
+            paymentMethod: keepAddresses ? get().paymentMethod : null,
+            // Always drop the method — a new cart needs fresh findSite rates.
             shippingMethod: null,
           });
         },

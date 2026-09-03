@@ -247,17 +247,24 @@ export const ApprovalSummary: React.FC<ApprovalSummaryProps> = ({ approval }) =>
                 <span>{fmt(vat)}</span>
               </div>
             )}
+            {/* Free shipping is certain — show above goods total without “(estimated)”. */}
+            {shippingCost === 0 ? (
+              <div className="flex justify-between gap-4 pt-2" data-testid="approval-overview-shipping-fee">
+                <span>{t('shippingFee')}</span>
+                <span>{formatShippingFeeDisplay(shippingCost, fmt, t('free'))}</span>
+              </div>
+            ) : null}
             <div className="flex justify-between items-start gap-4 pt-2">
               <H5>{t('totalValueOfGoods')}</H5>
               <H5>{typeof totalGross === 'number' ? fmt(totalGross) : '-'}</H5>
             </div>
             {shippingCost > 0 ? (
-              <div className="flex justify-between gap-4 pt-2">
+              <div className="flex justify-between gap-4 pt-2" data-testid="approval-overview-shipping-fee">
                 <span>{t('shippingFeeEstimated')}</span>
                 <span>{fmt(shippingCost)}</span>
               </div>
             ) : null}
-            {showShippingTaxEstimated && (
+            {shippingCost > 0 && showShippingTaxEstimated && (
               <div className="flex justify-between gap-4 pt-2" data-testid="approval-overview-shipping-tax-estimated">
                 <span>
                   {t('shippingVatEstimated')}

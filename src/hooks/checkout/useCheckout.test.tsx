@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import type { CheckoutAddress } from '@/platform/services/model/checkout';
-import { checkoutAddressToCartShipping, useCheckout } from './useCheckout';
+import { checkoutAddressToCartShipping, hasCheckoutShippingDestination, useCheckout } from './useCheckout';
 
 const mockUseCheckoutStore = jest.fn();
 const mockUseCart = jest.fn();
@@ -370,6 +370,7 @@ describe('useCheckout', () => {
     );
 
     const { result } = renderHook(() => useCheckout());
+    setCountry.mockClear();
 
     act(() => {
       result.current.submitShippingAddress(buildCheckoutAddress('SHIPPING', 'ch', '6300'));
@@ -401,12 +402,112 @@ describe('useCheckout', () => {
     );
 
     const { result } = renderHook(() => useCheckout());
+    updateShippingInfo.mockClear();
 
     act(() => {
       result.current.submitBillingAddress(buildCheckoutAddress('BILLING', 'DE', '10115'));
     });
 
     expect(updateShippingInfo).not.toHaveBeenCalled();
+  });
+
+  it('applies leftover persisted ship-to onto a new cart as a first selection', () => {
+    const updateShippingInfo = jest.fn().mockResolvedValue(undefined);
+    const setCountry = jest.fn();
+    mockUseShopSession.mockReturnValue({ session: { country: 'DE' }, setCountry });
+    mockUseCheckoutStore.mockReturnValue(
+      buildCheckoutStoreValue({
+        shippingAddress: CH_ADDRESS,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod: jest.fn(),
+      }),
+    );
+    mockUseCart.mockReturnValue(buildCartValue(CART, updateShippingInfo));
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9 } }],
+        clearShippingMethods: jest.fn(),
+        fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
+      }),
+    );
+
+    renderHook(() => useCheckout());
+
+    expect(updateShippingInfo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        country: 'CH',
+        zipCode: '6300',
+      }),
+    );
+    expect(setCountry).toHaveBeenCalledWith('CH');
+  });
+
+  it('does not re-write leftover ship-to for the same cart after it was already applied', () => {
+    const updateShippingInfo = jest.fn().mockResolvedValue(undefined);
+    mockUseCheckoutStore.mockReturnValue(
+      buildCheckoutStoreValue({
+        shippingAddress: CH_ADDRESS,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod: jest.fn(),
+      }),
+    );
+    mockUseCart.mockReturnValue(buildCartValue(CART, updateShippingInfo));
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9 } }],
+        clearShippingMethods: jest.fn(),
+        fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
+      }),
+    );
+
+    const { result } = renderHook(() => useCheckout());
+    updateShippingInfo.mockClear();
+
+    act(() => {
+      result.current.submitShippingAddress(buildCheckoutAddress('SHIPPING', 'CH', '6300'));
+    });
+
+    expect(updateShippingInfo).not.toHaveBeenCalled();
+  });
+
+  it('re-applies leftover ship-to when the cart id changes', () => {
+    const updateShippingInfo = jest.fn().mockResolvedValue(undefined);
+    mockUseCheckoutStore.mockReturnValue(
+      buildCheckoutStoreValue({
+        shippingAddress: CH_ADDRESS,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod: jest.fn(),
+      }),
+    );
+    mockUseCart.mockReturnValue(buildCartValue(CART, updateShippingInfo));
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [{ id: 'ch-express', name: 'CH Express', cost: { amount: 9 } }],
+        clearShippingMethods: jest.fn(),
+        fetchShippingMethods: jest.fn().mockResolvedValue(undefined),
+      }),
+    );
+
+    const { rerender } = renderHook(() => useCheckout());
+    expect(updateShippingInfo).toHaveBeenCalledTimes(1);
+
+    mockUseCart.mockReturnValue(buildCartValue({ ...CART, id: 'cart-2' }, updateShippingInfo));
+    rerender();
+
+    expect(updateShippingInfo).toHaveBeenCalledTimes(2);
+    expect(updateShippingInfo).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        country: 'CH',
+        zipCode: '6300',
+      }),
+    );
+  });
+
+  it('hasCheckoutShippingDestination requires both country and zip', () => {
+    expect(hasCheckoutShippingDestination({ country: 'CH', zipCode: '6300' })).toBe(true);
+    expect(hasCheckoutShippingDestination({ country: 'CH', zipCode: '' })).toBe(false);
+    expect(hasCheckoutShippingDestination({ country: '', zipCode: '6300' })).toBe(false);
+    expect(hasCheckoutShippingDestination(null)).toBe(false);
   });
 
   it('applyShippingDestinationToCart writes country+zip even when checkout already has that address', async () => {
@@ -493,6 +594,7 @@ describe('useCheckout', () => {
     );
 
     const { result } = renderHook(() => useCheckout());
+    updateShippingInfo.mockClear();
 
     await act(async () => {
       await result.current.applyShippingDestinationToCart(buildCheckoutAddress('SHIPPING', '', ''));

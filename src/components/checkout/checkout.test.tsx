@@ -113,7 +113,7 @@ describe('Checkout approval submit', () => {
       }),
     );
     expect(clearCart).toHaveBeenCalledWith({ deleteCart: true });
-    expect(resetCheckout).toHaveBeenCalledTimes(1);
+    expect(resetCheckout).toHaveBeenCalledWith({ keepAddresses: true });
     expect(push).toHaveBeenCalledWith('/confirmation/ApprovalRequested?approvalId=approval-1');
   });
 });

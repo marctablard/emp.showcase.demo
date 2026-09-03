@@ -78,10 +78,10 @@ const Checkout: React.FC<CheckoutProps> = ({ onComplete }) => {
         },
       });
       // Clear the cart after successful approval creation (also delete the cart entity
-      // since Emporix does NOT auto-close the cart for approvals). Reset checkout so a
-      // leftover ship-to cannot skip the destination write on the next cart.
+      // since Emporix does NOT auto-close the cart for approvals). Keep ship-to so the
+      // next cart is prefilled, then apply it as a first-time selection.
       clearCart({ deleteCart: true });
-      reset();
+      reset({ keepAddresses: true });
       router.push(pendingApprovalConfirmationPath(created?.id));
     } else {
       // Proceed with checkout

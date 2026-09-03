@@ -104,7 +104,7 @@ describe('QuoteRequestDialog', () => {
       (global.fetch as jest.Mock).mock.invocationCallOrder[0],
     );
     expect(clearCart).toHaveBeenCalledWith({ deleteCart: true });
-    expect(resetCheckout).toHaveBeenCalledTimes(1);
+    expect(resetCheckout).toHaveBeenCalledWith({ keepAddresses: true });
     expect(push).toHaveBeenCalledWith('/account/quotes/Q-1000');
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });

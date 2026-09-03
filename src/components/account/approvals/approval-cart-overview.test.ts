@@ -49,6 +49,18 @@ describe('approval-cart-overview', () => {
     expect(result.showShippingTaxEstimated).toBe(true);
   });
 
+  it('hides the shipping-tax row when shipping is free, even if leftover would be positive', () => {
+    const result = resolveCartOrderOverviewShippingTax({
+      totalGross: 182.29,
+      shippingFee: 0,
+      goodsNet: 150,
+      goodsVat: 11.55,
+    });
+
+    expect(result.shippingTaxEstimated).toBe(0);
+    expect(result.showShippingTaxEstimated).toBe(false);
+  });
+
   it('hides the shipping-tax row when the leftover is 0', () => {
     const result = resolveCartOrderOverviewShippingTax({
       totalGross: 63.05,

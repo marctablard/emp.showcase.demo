@@ -22,6 +22,7 @@ import type { AddressType } from '@/platform/services/model/common';
 import type { CustomerAddress } from '@/platform/services/model/customer/customer';
 import type { ShippingMethod } from '@/platform/services/model/shipping';
 import { useCheckoutStore } from '@/providers/StoreProvider';
+import type { CheckoutResetOptions } from '@/stores/checkout-store';
 import { useCart } from '../cart/useCart';
 import { useAddresses } from '../customer/useAddresses';
 import useCustomer from '../customer/useCustomer';
@@ -46,7 +47,7 @@ interface UseCheckout {
   // Data submission
   submitContactData: (contactData: ContactData) => void;
   submitShippingAddress: (address: CheckoutAddress) => void;
-  /** Always write country+zip onto the current cart. Quote-from-cart taxes from cart destination, not shippingAddressId. */
+  /** Write country+zip onto the current cart, including leftover persist treated as a first selection. */
   applyShippingDestinationToCart: (address: CheckoutAddress) => Promise<void>;
   submitBillingAddress: (address: CheckoutAddress) => void;
   submitPaymentMethod: (method: CheckoutPaymentMethod) => void;
@@ -55,7 +56,13 @@ interface UseCheckout {
   createCheckoutData: () => CheckoutRequest | null;
   processCheckout: () => Promise<CheckoutResponse | null>;
   processQuoteCheckout: (quoteId: string, paymentMethod: CheckoutPaymentMethod) => Promise<CheckoutResponse | null>;
-  reset: () => void;
+  reset: (options?: CheckoutResetOptions) => void;
+}
+
+export function hasCheckoutShippingDestination(
+  address: Pick<CheckoutAddress, 'country' | 'zipCode'> | null | undefined,
+): address is CheckoutAddress {
+  return Boolean(address?.country?.trim() && address?.zipCode?.trim());
 }
 
 export function checkoutAddressToCartShipping(address: CheckoutAddress): CartShippingAddress {
@@ -120,37 +127,68 @@ export const useCheckout = (): UseCheckout => {
     [setContactData],
   );
 
-  const submitShippingAddress = useCallback(
-    (address: CheckoutAddress) => {
-      if (isEqual(shippingAddress, address)) {
+  // New cart after a sequential approval/quote must still receive leftover persist
+  // as a first-time selection (isEqual on emp-checkout must not skip the PATCH).
+  const destinationAppliedCartIdRef = useRef<string | null>(null);
+
+  const persistShippingSelectionOnCart = useCallback(
+    async (address: CheckoutAddress) => {
+      const cartId = checkoutCart?.id;
+      if (!cartId || !hasCheckoutShippingDestination(address)) {
         return;
       }
+      destinationAppliedCartIdRef.current = cartId;
+      await updateShippingInfo(checkoutAddressToCartShipping(address));
+    },
+    [checkoutCart?.id, updateShippingInfo],
+  );
 
-      const countryOrPostalChanged =
-        !shippingAddress || address.country !== shippingAddress.country || address.zipCode !== shippingAddress.zipCode;
-
-      if (checkoutCart?.id && countryOrPostalChanged) {
-        void updateShippingInfo(checkoutAddressToCartShipping(address));
-      }
+  const syncSessionCountryFromAddress = useCallback(
+    (address: CheckoutAddress) => {
       const nextCountry = normalizeCountryCode(address.country);
       const sessionCountry = normalizeCountryCode(shopSession?.country);
       if (nextCountry && nextCountry !== sessionCountry && setCountry) {
         void setCountry(nextCountry);
       }
-      setShippingAddress(address);
     },
-    [checkoutCart?.id, setCountry, shopSession?.country, shippingAddress, setShippingAddress, updateShippingInfo],
+    [setCountry, shopSession?.country],
   );
 
-  const applyShippingDestinationToCart = useCallback(
-    async (address: CheckoutAddress) => {
-      if (!checkoutCart?.id || !address.country?.trim() || !address.zipCode?.trim()) {
+  const submitShippingAddress = useCallback(
+    (address: CheckoutAddress) => {
+      const sameAsPersisted = isEqual(shippingAddress, address);
+      const cartId = checkoutCart?.id;
+      const newCartNeedsDestination = Boolean(cartId) && destinationAppliedCartIdRef.current !== cartId;
+
+      // Same leftover address on a new cart is still a first selection for that cart.
+      if (sameAsPersisted && !newCartNeedsDestination) {
         return;
       }
-      await updateShippingInfo(checkoutAddressToCartShipping(address));
+
+      const countryOrPostalChanged =
+        !shippingAddress ||
+        newCartNeedsDestination ||
+        address.country !== shippingAddress.country ||
+        address.zipCode !== shippingAddress.zipCode;
+
+      if (countryOrPostalChanged) {
+        void persistShippingSelectionOnCart(address);
+      }
+      syncSessionCountryFromAddress(address);
+      if (!sameAsPersisted) {
+        setShippingAddress(address);
+      }
     },
-    [checkoutCart?.id, updateShippingInfo],
+    [
+      checkoutCart?.id,
+      persistShippingSelectionOnCart,
+      shippingAddress,
+      setShippingAddress,
+      syncSessionCountryFromAddress,
+    ],
   );
+
+  const applyShippingDestinationToCart = persistShippingSelectionOnCart;
 
   const submitBillingAddress = useCallback(
     (address: CheckoutAddress) => {
@@ -305,15 +343,33 @@ export const useCheckout = (): UseCheckout => {
   /**
    * Reset the checkout state
    */
-  const reset = () => {
+  const reset = (options?: CheckoutResetOptions) => {
     setError(null);
     setOrderResponse(null);
-    storeReset();
+    destinationAppliedCartIdRef.current = null;
+    storeReset(options);
   };
 
   const shippingCountry = shippingAddress?.country;
   const shippingZip = shippingAddress?.zipCode;
   const checkoutCartId = checkoutCart?.id;
+
+  // Leftover emp-checkout ship-to after a sequential approval/quote: treat it as if
+  // the shopper just selected that address on this cart (same writes as first creation).
+  useEffect(() => {
+    if (!checkoutCartId) {
+      destinationAppliedCartIdRef.current = null;
+      return;
+    }
+    if (!hasCheckoutShippingDestination(shippingAddress)) {
+      return;
+    }
+    if (destinationAppliedCartIdRef.current === checkoutCartId) {
+      return;
+    }
+    void persistShippingSelectionOnCart(shippingAddress);
+    syncSessionCountryFromAddress(shippingAddress);
+  }, [checkoutCartId, persistShippingSelectionOnCart, shippingAddress, syncSessionCountryFromAddress]);
   // Goods value only — including shipping in this key refetches methods (and
   // remounts the radio group) every time a method is persisted on the cart.
   const orderAmount = checkoutCart?.subTotalPrice?.amount ?? checkoutCart?.totalPrice?.amount;

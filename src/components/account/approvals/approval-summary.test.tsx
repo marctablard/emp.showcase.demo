@@ -355,19 +355,36 @@ describe('ApprovalSummary', () => {
     expect(screen.queryAllByText(/5,00\s*€/)).toHaveLength(0);
   });
 
-  it('hides Shipping fee (estimated) on CART order overview when shipping is 0', () => {
+  it('shows Free shipping above Total Value of goods without (estimated) when shipping is 0', () => {
     const approval: Approval = {
       ...baseApproval,
+      resource: {
+        ...baseApproval.resource,
+        totalPrice: {
+          currency: 'EUR',
+          amount: 200,
+          netValue: 200,
+          // Leftover vs goods net + VAT would be positive — still hide shipping VAT when fee is 0.
+          grossValue: 238,
+        },
+      },
       details: {
         currency: 'EUR',
         shipping: { amount: 0 } as any,
       },
     };
 
-    render(<ApprovalSummary approval={approval} />);
+    const { container } = render(<ApprovalSummary approval={approval} />);
+    const overview = container.querySelector('[data-slot="card"]');
+    const text = overview?.textContent ?? '';
 
+    expect(screen.getByTestId('approval-overview-shipping-fee')).toHaveTextContent('shippingFee');
+    expect(screen.getByTestId('approval-overview-shipping-fee')).toHaveTextContent('free');
     expect(screen.queryByText('shippingFeeEstimated')).not.toBeInTheDocument();
-    expect(screen.queryByText('free')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('approval-overview-shipping-tax-estimated')).not.toBeInTheDocument();
+    expect(screen.queryByText('shippingVatEstimated')).not.toBeInTheDocument();
+    expect(text.indexOf('shippingFee')).toBeGreaterThanOrEqual(0);
+    expect(text.indexOf('totalValueOfGoods')).toBeGreaterThan(text.indexOf('shippingFee'));
   });
 
   it('omits the tax row when tax value is 0', () => {
