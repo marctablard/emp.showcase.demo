@@ -155,8 +155,11 @@ test.describe('Figma — registration card is centered and capped', () => {
     test(`@${w}px the registration card is centered`, async ({ page }) => {
       await page.setViewportSize({ width: w, height: 900 });
       await page.goto('/de/register', { waitUntil: 'domcontentloaded' });
+      // Client island shows a spinner first; the capped card mounts after session load.
+      await expect(page.getByTestId('register-submitButton')).toBeVisible({ timeout: 15_000 });
 
-      const card = page.locator('main [class~="max-w-228"]').first();
+      // Token is `lg:max-w-228` (912px). `[class~="max-w-228"]` does not match that class.
+      const card = page.locator('main [class~="lg:max-w-228"]').first();
       await expect(card).toBeAttached();
 
       const box = await card.evaluate((el) => {

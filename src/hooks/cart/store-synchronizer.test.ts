@@ -680,5 +680,57 @@ describe('Store Synchronizer', () => {
 
       expect(resetSiteSpy).not.toHaveBeenCalled();
     });
+
+    it('keeps previously used checkout addresses when only session currency changes', async () => {
+      const leftover = { type: 'SHIPPING' as const, country: 'CH', zipCode: '6300', city: 'Zug' };
+      checkoutStore.getState().setShippingAddress(leftover);
+      checkoutStore.getState().setShippingMethod({ methodId: 'm1', zoneId: 'z1', methodName: 'Standard', amount: 5 });
+
+      unsubscribers = setupStoreSynchronization({
+        sessionStore,
+        cartStore,
+        siteStore,
+        customerStore,
+        productStore,
+        availabilityStore,
+        checkoutStore,
+      });
+
+      await act(async () => {
+        sessionStore.setState({
+          session: createMockSession({ siteCode: 'main', currency: 'EUR' }),
+        });
+      });
+
+      expect(checkoutStore.getState().shippingAddress).toEqual(leftover);
+      expect(checkoutStore.getState().shippingMethod).toBeNull();
+    });
+
+    it('clears checkout addresses when the session site changes', async () => {
+      checkoutStore.getState().setShippingAddress({
+        type: 'SHIPPING',
+        country: 'CH',
+        zipCode: '6300',
+        city: 'Zug',
+      });
+
+      unsubscribers = setupStoreSynchronization({
+        sessionStore,
+        cartStore,
+        siteStore,
+        customerStore,
+        productStore,
+        availabilityStore,
+        checkoutStore,
+      });
+
+      await act(async () => {
+        sessionStore.setState({
+          session: createMockSession({ siteCode: 'other', currency: 'USD' }),
+        });
+      });
+
+      expect(checkoutStore.getState().shippingAddress).toBeNull();
+    });
   });
 });

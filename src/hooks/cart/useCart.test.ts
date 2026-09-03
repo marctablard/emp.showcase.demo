@@ -34,6 +34,7 @@ const mockCreateCart = require('@/lib/client/carts').createCart;
 const mockAddItemToCart = require('@/lib/client/carts').addItemToCart;
 const mockClearCartSession = require('@/lib/client/carts').clearCartSession;
 const mockUpdateCartCurrency = require('@/lib/client/carts').updateCartCurrency;
+const mockUpdateShippingInfo = require('@/lib/client/carts').updateShippingInfo;
 
 describe('CartStore - Site Validation', () => {
   let store: ReturnType<typeof createCartStore>;
@@ -731,5 +732,107 @@ describe('CartStore - fetchCart loading gap with pendingCurrencySync', () => {
 
     expect(store.getState().loading).toBe(false);
     expect(store.getState().currentCart).toEqual(cart);
+  });
+});
+
+describe('CartStore - shipping destination debounce', () => {
+  const shipping = { country: 'CH', zipCode: '6300', city: 'Zug', street: 'Bahnstrasse' };
+
+  const buildCart = (id: string): Cart =>
+    ({
+      id,
+      currency: 'CHF',
+      site: 'main',
+      items: [{ id: 'item-1', quantity: 1, price: { amount: 10, currency: 'CHF' } }],
+      totalPrice: { amount: 10, currency: 'CHF' },
+      subTotalPrice: { amount: 10, currency: 'CHF' },
+      tax: { amount: 0, currency: 'CHF', netValue: 0, grossValue: 0 },
+    }) as Cart;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUpdateShippingInfo.mockResolvedValue(undefined);
+    mockFetchCurrentCart.mockResolvedValue(fcResult(buildCart('cart-1')));
+  });
+
+  it('still PATCHes the same country+zip when the cart id changed', async () => {
+    const store = createCartStore({
+      currentCart: buildCart('cart-1'),
+      loading: false,
+      error: null,
+      lastShippingUpdate: null,
+      sessionStatus: null,
+      lastSiteCode: 'main',
+      lastLegalEntityId: null,
+      pendingCurrencySync: null,
+      isSettling: false,
+    });
+
+    await act(async () => {
+      await store.getState().updateShippingInfo(shipping);
+    });
+
+    act(() => {
+      store.getState().setCurrentCart(buildCart('cart-2'));
+    });
+    mockFetchCurrentCart.mockResolvedValue(fcResult(buildCart('cart-2')));
+
+    await act(async () => {
+      await store.getState().updateShippingInfo(shipping);
+    });
+
+    expect(mockUpdateShippingInfo).toHaveBeenCalledTimes(2);
+    expect(mockUpdateShippingInfo).toHaveBeenLastCalledWith('cart-2', shipping, undefined);
+  });
+
+  it('skips a repeat PATCH on the same cart within the debounce window', async () => {
+    const store = createCartStore({
+      currentCart: buildCart('cart-1'),
+      loading: false,
+      error: null,
+      lastShippingUpdate: null,
+      sessionStatus: null,
+      lastSiteCode: 'main',
+      lastLegalEntityId: null,
+      pendingCurrencySync: null,
+      isSettling: false,
+    });
+
+    await act(async () => {
+      await store.getState().updateShippingInfo(shipping);
+      await store.getState().updateShippingInfo(shipping);
+    });
+
+    expect(mockUpdateShippingInfo).toHaveBeenCalledTimes(1);
+    expect(mockUpdateShippingInfo).toHaveBeenCalledWith('cart-1', shipping, undefined);
+  });
+
+  it('skips a repeat PATCH after fetchCart resolves the same cart id', async () => {
+    const store = createCartStore({
+      currentCart: buildCart('cart-1'),
+      loading: false,
+      error: null,
+      lastShippingUpdate: null,
+      sessionStatus: null,
+      lastSiteCode: 'main',
+      lastLegalEntityId: null,
+      pendingCurrencySync: null,
+      isSettling: false,
+    });
+
+    await act(async () => {
+      await store.getState().updateShippingInfo(shipping);
+    });
+
+    act(() => {
+      store.getState().setCurrentCart(null);
+    });
+    mockFetchCurrentCart.mockResolvedValue(fcResult(buildCart('cart-1')));
+
+    await act(async () => {
+      await store.getState().updateShippingInfo(shipping);
+    });
+
+    expect(mockUpdateShippingInfo).toHaveBeenCalledTimes(1);
   });
 });

@@ -562,7 +562,7 @@ function PdpDetailView({
   const { shippingCost, postalCode: shippingPostalCode } = usePdpShippingCost(price, quantity);
   const stickyAtcVisible = usePdpStickyAtcVisibility(addToCartButton, isAboveMediumScreen);
   const showLabels = hasProductLabels(product);
-  const showTierPrices = price != null && price.tierValues.length > 1;
+  const showTierPrices = price != null && (price.tierValues?.length ?? 0) > 1;
   const deliveryDays = resolvePdpDeliveryDays(availability);
   const keySpecGroups = getKeySpecificationGroups(product);
   const technicalInfoGroups = getTechnicalInformationGroups(product);

@@ -1,5 +1,4 @@
 import { inject } from 'inversify';
-import { getPublicPriceMatchUseFallback } from '@/lib/common/public-default-env';
 import { injectable } from '@/platform/core/di/injectable';
 import type {
   EmporixMatchPricesRequest,
@@ -49,15 +48,7 @@ class EmporixPriceService implements PriceService {
           params.country = site.defaultCountry;
         }
       }
-      const matchRequest: EmporixMatchPricesRequest = {
-        targetCurrency: params.currency!,
-        siteCode: params.siteCode,
-        targetLocation: {
-          countryCode: params.country!,
-        },
-        items: [this.mapToMatchPriceItem(productId, quantity, unitCode)],
-        useFallback: getPublicPriceMatchUseFallback(),
-      };
+      const matchRequest = this.buildExplicitMatchRequest(params, items);
       matchedPrices = await this.priceApi.matchPrices(matchRequest);
     }
     const requestedCurrency = params?.currency;
@@ -102,13 +93,7 @@ class EmporixPriceService implements PriceService {
             params.country = site.defaultCountry;
           }
         }
-        matchedPrices = await this.priceApi.matchPrices({
-          targetCurrency: params.currency!,
-          siteCode: params.siteCode,
-          targetLocation: { countryCode: params.country! },
-          items,
-          useFallback: getPublicPriceMatchUseFallback(),
-        });
+        matchedPrices = await this.priceApi.matchPrices(this.buildExplicitMatchRequest(params, items));
       }
       allMatched.push(...matchedPrices);
     }
@@ -129,6 +114,28 @@ class EmporixPriceService implements PriceService {
     });
 
     return result;
+  }
+
+  private buildExplicitMatchRequest(
+    params: PriceFetchOptions,
+    items: EmporixPriceMatchItem[],
+  ): EmporixMatchPricesRequest {
+    const matchRequest: EmporixMatchPricesRequest = {
+      targetCurrency: params.currency!,
+      siteCode: params.siteCode,
+      targetLocation: {
+        countryCode: params.country!,
+      },
+      items,
+      useFallback: params.useFallback === true,
+    };
+    if (params.customerId) {
+      matchRequest.principal = { id: params.customerId, type: 'CUSTOMER' };
+    }
+    if (params.legalEntityId) {
+      matchRequest.legalEntityId = params.legalEntityId;
+    }
+    return matchRequest;
   }
 
   private pickPreferredMatchedPrice(

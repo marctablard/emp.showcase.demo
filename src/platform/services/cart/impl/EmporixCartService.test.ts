@@ -31,6 +31,7 @@ describe('EmporixCartService', () => {
       | 'addItemToCart'
       | 'getCartByCriteria'
       | 'updateCartItemQuantity'
+      | 'createCart'
     >
   >;
   let mockLogger: jest.Mocked<LoggerService>;
@@ -66,6 +67,7 @@ describe('EmporixCartService', () => {
       addItemToCart: jest.fn().mockResolvedValue('new-item-id'),
       getCartByCriteria: jest.fn().mockResolvedValue(null),
       updateCartItemQuantity: jest.fn().mockResolvedValue(undefined),
+      createCart: jest.fn().mockResolvedValue('new-cart-id'),
     };
 
     mockLogger = {
@@ -676,7 +678,7 @@ describe('EmporixCartService', () => {
       expect(mockPriceService.getProductPrice).toHaveBeenCalledWith('prod-1', 1, undefined, {
         siteCode: 'us-branch',
         currency: 'USD',
-        country: undefined,
+        useFallback: false,
       });
 
       // Verify the addItemRequest uses cart's siteCode and sends the full localized
@@ -700,6 +702,43 @@ describe('EmporixCartService', () => {
 
       expect(result.cartItem.id).toBe('new-item-id');
       expect(result.status).toBe('OK');
+    });
+
+    it('does not PATCH cart country before add; prices still use session country', async () => {
+      const roCart: EmporixCart = {
+        ...rawCart,
+        countryCode: 'RO',
+      };
+      mockCartApi.getCart.mockResolvedValueOnce(roCart).mockResolvedValueOnce(roCart);
+      mockProductService.getProductById.mockResolvedValue(mockProduct);
+      mockSessionService.getCurrent.mockResolvedValue({ ...mockSession, country: 'CH' });
+      mockPriceService.getProductPrice.mockResolvedValue(mockPrice);
+      mockMapper.mapToService.mockReturnValue({
+        id: 'cart-us',
+        currency: 'USD',
+        site: 'us-branch',
+        items: [
+          {
+            id: 'new-item-id',
+            quantity: 1,
+            price: { amount: 29.99, originalAmount: 29.99, currency: 'USD' },
+            product: { id: 'prod-1' },
+          },
+        ],
+        totalPrice: { amount: 29.99, originalAmount: 29.99, currency: 'USD' },
+        subTotalPrice: { amount: 29.99, originalAmount: 29.99, currency: 'USD' },
+        tax: { amount: 0, currency: 'USD', grossValue: 29.99, netValue: 29.99 },
+      });
+
+      await cartService.addItemToCart('cart-us', 'prod-1', 1);
+
+      expect(mockCartApi.updateCart).not.toHaveBeenCalled();
+      expect(mockPriceService.getProductPrice).toHaveBeenCalledWith('prod-1', 1, undefined, {
+        siteCode: 'us-branch',
+        currency: 'USD',
+        country: 'CH',
+        useFallback: false,
+      });
     });
 
     it('should align cart currency with session before add when they differ on the same site', async () => {
@@ -817,7 +856,7 @@ describe('EmporixCartService', () => {
       expect(mockPriceService.getProductPrice).toHaveBeenCalledWith('prod-1', 1, undefined, {
         siteCode: 'us-branch',
         currency: 'USD',
-        country: undefined,
+        useFallback: false,
       });
 
       // Should have added item to the recovered cart, not the original
@@ -948,7 +987,7 @@ describe('EmporixCartService', () => {
       expect(mockPriceService.getProductPrice).toHaveBeenCalledWith('prod-1', 3, undefined, {
         siteCode: 'us-branch',
         currency: 'USD',
-        country: undefined,
+        useFallback: false,
       });
 
       expect(result.cartItem.quantity).toBe(3);
@@ -1267,6 +1306,25 @@ describe('EmporixCartService', () => {
 
       expect(mockSessionService.clearCart).not.toHaveBeenCalled();
       expect(result).toBe(mappedCart);
+    });
+  });
+
+  describe('createCart', () => {
+    it('creates a cart without destination country so zip is not required', async () => {
+      mockCartApi.createCart.mockResolvedValue('cart-new');
+
+      const cartId = await cartService.createCart('EUR', 'main');
+
+      expect(cartId).toBe('cart-new');
+      expect(mockCartApi.createCart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          siteCode: 'main',
+          currency: 'EUR',
+        }),
+      );
+      expect(mockCartApi.createCart.mock.calls[0][0]).not.toHaveProperty('countryCode');
+      expect(mockCartApi.createCart.mock.calls[0][0]).not.toHaveProperty('zipCode');
+      expect(mockSessionService.setCart).toHaveBeenCalledWith('cart-new');
     });
   });
 });

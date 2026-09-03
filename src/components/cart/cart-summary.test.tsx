@@ -71,7 +71,7 @@ describe('CartSummary', () => {
   });
 
   it('displays the mapped cart total and hides Shipping VAT when tax is 0', () => {
-    render(<CartSummary cart={CART} boundingContent={createRef<HTMLDivElement>()} />);
+    render(<CartSummary cart={CART} boundingContent={createRef<HTMLDivElement>()} onRequestQuote={jest.fn()} />);
 
     expect(screen.getByText('total').nextElementSibling).toHaveTextContent(money(82.3));
     expect(screen.queryByTestId('cart-summary-shipping-vat')).not.toBeInTheDocument();
@@ -87,7 +87,7 @@ describe('CartSummary', () => {
       currency: 'CHF',
     });
 
-    render(<CartSummary cart={CART} boundingContent={createRef<HTMLDivElement>()} />);
+    render(<CartSummary cart={CART} boundingContent={createRef<HTMLDivElement>()} onRequestQuote={jest.fn()} />);
 
     expect(screen.getByTestId('cart-summary-shipping-vat')).toHaveTextContent('shippingVat');
     expect(screen.getByTestId('cart-summary-shipping-vat')).toHaveTextContent(money(1.54));

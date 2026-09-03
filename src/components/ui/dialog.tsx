@@ -43,6 +43,7 @@ function DialogContent({
   closeOnOutsideClick,
   onPointerDownOutside,
   onInteractOutside,
+  onFocusOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
@@ -66,6 +67,7 @@ function DialogContent({
             'bg-surface-page data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 relative grid w-full max-w-[calc(100%-2rem)] max-h-[calc(100dvh-var(--dialog-safe-top,5.25rem))] overflow-y-auto gap-4 rounded-md border p-4 sm:p-6 shadow-sm duration-200 sm:max-w-lg',
             className,
           )}
+          {...props}
           onPointerDownOutside={(e) => {
             if (!shouldCloseOnOutsideClick) e.preventDefault();
             onPointerDownOutside?.(e);
@@ -74,7 +76,12 @@ function DialogContent({
             if (!shouldCloseOnOutsideClick) e.preventDefault();
             onInteractOutside?.(e);
           }}
-          {...props}
+          onFocusOutside={(e) => {
+            // Nested dialogs (e.g. address book inside quote) move focus into a
+            // portaled layer. Treat that like an outside click unless enabled.
+            if (!shouldCloseOnOutsideClick) e.preventDefault();
+            onFocusOutside?.(e);
+          }}
         >
           {children}
           {showCloseButton && (

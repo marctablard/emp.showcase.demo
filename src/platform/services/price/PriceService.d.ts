@@ -5,6 +5,10 @@ export interface PriceFetchOptions {
   siteCode: string;
   currency?: string;
   country?: string;
+  customerId?: string;
+  legalEntityId?: string;
+  /** When omitted, storefront matching does not fall back to the main site. */
+  useFallback?: boolean;
 }
 
 /**

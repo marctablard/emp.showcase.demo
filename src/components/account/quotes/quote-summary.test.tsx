@@ -68,6 +68,30 @@ describe('QuoteSummary', () => {
     expect(screen.getAllByText('tax (19%)').length).toBeGreaterThanOrEqual(1);
   });
 
+  it('shows VAT without a percent when items omit taxRate', () => {
+    render(
+      <QuoteSummary
+        quote={{
+          ...baseQuote,
+          vatRate: undefined,
+          items: [
+            {
+              product: {
+                id: 'p1',
+                quantity: 1,
+                itemPrice: { amount: 119, currency: 'EUR', netValue: 100, tax: 19 },
+              },
+              quantity: { quantity: 1, unitCode: 'pc' },
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getAllByText('tax').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/tax \(/)).not.toBeInTheDocument();
+  });
+
   it('shows VAT rate percent when totalNet > 0 and formats amounts with locale currency symbols', () => {
     render(<QuoteSummary quote={baseQuote} />);
 

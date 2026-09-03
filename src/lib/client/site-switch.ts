@@ -4,6 +4,7 @@ import type { StoreApi } from 'zustand';
 import { devSyncLog } from '@/lib/client/dev-sync-log';
 import { updateSessionContext } from '@/lib/client/session';
 import { writeLocaleCookie } from '@/lib/common/locale-cookie';
+import { resolveCountryForSite } from '@/lib/common/site-country';
 import { type LoggerService, getLogger } from '@/lib/logger/use-logger-client';
 import type { Session } from '@/platform/services/model/session/session';
 import type { CartStore } from '@/stores/cart-store';
@@ -31,6 +32,9 @@ interface TargetSiteMetadata {
   currencies?: Array<string | { id?: string; code?: string }> | undefined;
   defaultCurrency?: string | { id?: string } | undefined;
   defaultLanguage?: string | undefined;
+  defaultCountry?: string;
+  countries?: Array<string | { code?: string }>;
+  shipToCountries?: Array<string | { code?: string }>;
 }
 
 export interface SiteSwitchOptions {
@@ -147,10 +151,12 @@ function buildSiteSwitchSessionFields(
   targetSite: string,
   nextCurrency: string | undefined,
   nextLanguage: string | undefined,
+  nextCountry: string | undefined,
   prevCurrency: string | undefined,
   prevLanguage: string | undefined,
-): { siteCode: string; currency?: string; language?: string } {
-  const sessionFields: { siteCode: string; currency?: string; language?: string } = {
+  prevCountry: string | undefined,
+): { siteCode: string; currency?: string; language?: string; country?: string } {
+  const sessionFields: { siteCode: string; currency?: string; language?: string; country?: string } = {
     siteCode: targetSite,
   };
   if (nextCurrency && nextCurrency !== prevCurrency) {
@@ -158,6 +164,9 @@ function buildSiteSwitchSessionFields(
   }
   if (nextLanguage && nextLanguage !== prevLanguage) {
     sessionFields.language = nextLanguage;
+  }
+  if (nextCountry && nextCountry.toUpperCase() !== (prevCountry ?? '').trim().toUpperCase()) {
+    sessionFields.country = nextCountry;
   }
   return sessionFields;
 }
@@ -410,7 +419,7 @@ type SiteSwitchPipelineArgs = {
   logger: LoggerService;
   telemetryBase: Record<string, unknown>;
   startedAt: number;
-  prev: { siteCode?: string; currency?: string; language?: string; version?: number };
+  prev: { siteCode?: string; currency?: string; language?: string; country?: string; version?: number };
   progress: { upstreamCalls: number };
 };
 
@@ -445,12 +454,15 @@ async function runSiteSwitchPipeline(args: SiteSwitchPipelineArgs): Promise<Site
 
   const nextCurrency = resolveNextCurrency(prev.currency, targetCurrencies, targetDefaultCurrency);
   const nextLanguage = resolveNextLanguage(prev.language, targetLanguages, targetSiteInfo?.defaultLanguage);
+  const nextCountry = resolveCountryForSite(targetSiteInfo, prev.country);
   const sessionFields = buildSiteSwitchSessionFields(
     targetSite,
     nextCurrency,
     nextLanguage,
+    nextCountry,
     prev.currency,
     prev.language,
+    prev.country,
   );
 
   const updatedSession = await updateSessionContext(sessionFields, prev.version);
@@ -574,6 +586,7 @@ export async function performSiteSwitch(
         siteCode: prevSession?.siteCode,
         currency: prevSession?.currency,
         language: prevSession?.language,
+        country: prevSession?.country,
         version: prevSession?.metadata?.version,
       },
       progress,

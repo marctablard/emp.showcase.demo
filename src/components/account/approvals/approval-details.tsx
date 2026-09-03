@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ToastType, notify } from '@/components/ui/toast-notification';
 import { useApproval } from '@/hooks/approval/useApproval';
 import useCustomer from '@/hooks/customer/useCustomer';
+import { useOrder } from '@/hooks/order/useOrder';
 import { useToast } from '@/hooks/ui/useToast';
 import { Link } from '@/i18n/navigation';
 import { checkoutApproval as checkoutApi } from '@/lib/client/checkout';
@@ -35,6 +36,65 @@ function formatApprovalNetAmount(approval: Approval, locale: string): string {
   const net = resolveApprovalTotalNetAmount(approval);
   if (!net) return '-';
   return formatCurrency(net.amount, net.currency, locale);
+}
+
+/** CART approval order id after checkout — prefer Approval Service `createdResource.id`. */
+export function resolveCartApprovalOrderId(approval: Approval): string | undefined {
+  if (approval.resourceType !== 'CART') {
+    return undefined;
+  }
+  const createdId = approval.createdResource?.id?.trim();
+  if (createdId) {
+    return createdId;
+  }
+  const resourceOrderId = approval.resource.orderId?.trim();
+  return resourceOrderId || undefined;
+}
+
+function CartApprovalOrderNumber({ orderId }: { readonly orderId: string }) {
+  const t = useTranslations('orders.Approval');
+  const { order } = useOrder({ orderId, autoFetchStatusTransitions: false });
+  const canViewOrder = Boolean(order);
+
+  return (
+    <div className="flex flex-col gap-1">
+      <H5>{t('orderNumber')}</H5>
+      {canViewOrder ? (
+        <Link href={`/account/orders/${orderId}`} className="text-base font-body text-text-action">
+          {orderId}
+        </Link>
+      ) : (
+        <span className="text-base font-body text-text-body">{orderId}</span>
+      )}
+    </div>
+  );
+}
+
+function ApprovalRelatedResource({
+  approval,
+  cartOrderId,
+}: {
+  readonly approval: Approval;
+  readonly cartOrderId: string | undefined;
+}) {
+  const t = useTranslations('orders.Approval');
+
+  if (approval.resourceType === 'QUOTE') {
+    return (
+      <div className="flex flex-col gap-1">
+        <H5>{t('relatedQuote')}</H5>
+        <Link href={`/account/quotes/${approval.resource.id}`} className="text-base font-body text-text-action">
+          {approval.resource.id}
+        </Link>
+      </div>
+    );
+  }
+
+  if (cartOrderId) {
+    return <CartApprovalOrderNumber orderId={cartOrderId} />;
+  }
+
+  return null;
 }
 
 export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetailsProps) {
@@ -313,6 +373,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
   } else {
     const canApprove = approval.status === 'PENDING' && isDesignatedApprover && !isRequestor;
     const canComment = approval.status === 'PENDING' && (isRequestor || isDesignatedApprover);
+    const cartOrderId = resolveCartApprovalOrderId(approval);
 
     content = (
       <div className="space-y-6">
@@ -400,21 +461,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
                   {approval.requestor.firstName} {approval.requestor.lastName}
                 </span>
               </div>
-              <div className="flex flex-col gap-1">
-                <H5>{approval.resourceType === 'QUOTE' ? t('relatedQuote') : t('relatedOrder')}</H5>
-                {approval.resourceType === 'QUOTE' ? (
-                  <Link
-                    href={`/account/quotes/${approval.resource.id}`}
-                    className="text-base font-body text-text-action"
-                  >
-                    {approval.resource.id}
-                  </Link>
-                ) : (
-                  <span className="text-base font-body text-text-body">
-                    {approval.resource.orderId || approval.resource.id}
-                  </span>
-                )}
-              </div>
+              <ApprovalRelatedResource approval={approval} cartOrderId={cartOrderId} />
             </div>
           </div>
         </div>

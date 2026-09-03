@@ -302,6 +302,34 @@ describe('EmporixSessionService', () => {
     });
   });
 
+  describe('setCountry', () => {
+    it('persists a trimmed uppercase country code', async () => {
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValue({
+        sessionId: 'test-session',
+        metadata: { version: 1 },
+      });
+      mockSessionContextApi.updateOwnSessionContext.mockResolvedValue();
+
+      await sessionService.setCountry(' ch ');
+
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledWith({
+        targetLocation: 'CH',
+        metadata: { version: 1 },
+      });
+    });
+
+    it('does not PATCH when the country is blank', async () => {
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValue({
+        sessionId: 'test-session',
+        metadata: { version: 1 },
+      });
+
+      await sessionService.setCountry('   ');
+
+      expect(mockSessionContextApi.updateOwnSessionContext).not.toHaveBeenCalled();
+    });
+  });
+
   describe('setSite', () => {
     it('should issue a single combined PATCH (siteCode + currency) when site changes', async () => {
       mockSessionContextApi.getOwnSessionContext.mockResolvedValueOnce({
@@ -363,6 +391,76 @@ describe('EmporixSessionService', () => {
       });
       expect(mockSessionContextApi.removeOwnSessionContextAttribute).not.toHaveBeenCalled();
       expect(mockSiteService.invalidateSiteCache).not.toHaveBeenCalled();
+    });
+
+    it('should PATCH targetLocation when the raw country only differs by casing or whitespace', async () => {
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValueOnce({
+        sessionId: 'test-session',
+        siteCode: 'main',
+        targetLocation: ' ch ',
+        metadata: { version: 1 },
+      });
+      mockSessionContextApi.updateOwnSessionContext.mockResolvedValue();
+      mockSiteService.getSite.mockResolvedValue({
+        code: 'fw-site',
+        name: 'FW',
+        defaultCountry: 'CH',
+        defaultCurrency: { id: 'CHF', code: 'CHF', name: 'Franc', active: true },
+        currencies: [{ id: 'CHF', code: 'CHF', name: 'Franc', active: true }],
+        countries: [{ code: 'CH' }, { code: 'DE' }],
+        shipToCountries: [],
+        regions: [],
+        paymentModes: [],
+        languages: ['en'],
+        defaultLanguage: 'en',
+        address: { contactName: '', street: '', zipCode: '', city: '', country: 'CH' },
+        includesTax: false,
+        decimals: 2,
+      });
+
+      await sessionService.setSite('fw-site', 'CHF');
+
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledWith({
+        siteCode: 'fw-site',
+        currency: 'CHF',
+        targetLocation: 'CH',
+        metadata: { version: 1 },
+      });
+    });
+
+    it('should PATCH targetLocation when the current country is not allowed on the new site', async () => {
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValueOnce({
+        sessionId: 'test-session',
+        siteCode: 'main',
+        targetLocation: 'RO',
+        metadata: { version: 1 },
+      });
+      mockSessionContextApi.updateOwnSessionContext.mockResolvedValue();
+      mockSiteService.getSite.mockResolvedValue({
+        code: 'fw-site',
+        name: 'FW',
+        defaultCountry: 'CH',
+        defaultCurrency: { id: 'CHF', code: 'CHF', name: 'Franc', active: true },
+        currencies: [{ id: 'CHF', code: 'CHF', name: 'Franc', active: true }],
+        countries: [{ code: 'CH' }, { code: 'DE' }],
+        shipToCountries: [],
+        regions: [],
+        paymentModes: [],
+        languages: ['en'],
+        defaultLanguage: 'en',
+        address: { contactName: '', street: '', zipCode: '', city: '', country: 'CH' },
+        includesTax: false,
+        decimals: 2,
+      });
+
+      await sessionService.setSite('fw-site', 'CHF');
+
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledWith({
+        siteCode: 'fw-site',
+        currency: 'CHF',
+        targetLocation: 'CH',
+        metadata: { version: 1 },
+      });
     });
 
     it('should not update currency when defaultCurrency is not provided (backward compatibility)', async () => {
@@ -794,6 +892,104 @@ describe('EmporixSessionService', () => {
       expect(result).toBeDefined();
       expect(result?.currency).toBe('CHF');
       expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalled();
+    });
+
+    it('should snap a disallowed session country to site.defaultCountry', async () => {
+      const fullyPopulatedContext: EmporixSessionContext = {
+        sessionId: 'test-session',
+        currency: 'CHF',
+        siteCode: 'fw-site',
+        targetLocation: 'RO',
+        context: {
+          language: { key: 'language', value: 'en' },
+          region: { key: 'region', value: 'Europe' },
+        },
+        metadata: { version: 2 },
+      };
+      const mappedSession: Session = {
+        id: 'test-session',
+        currency: 'CHF',
+        siteCode: 'fw-site',
+        country: 'RO',
+        language: 'en',
+        region: 'Europe',
+      };
+
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValue(fullyPopulatedContext);
+      mockSessionMapper.mapToService.mockReturnValue(mappedSession);
+      mockSiteService.getSite.mockResolvedValue({
+        code: 'fw-site',
+        name: 'FW',
+        defaultCountry: 'CH',
+        defaultCurrency: { id: 'CHF', code: 'CHF', name: 'Franc', active: true },
+        currencies: [{ id: 'CHF', code: 'CHF', name: 'Franc', active: true }],
+        countries: [{ code: 'CH' }, { code: 'DE' }],
+        shipToCountries: [],
+        regions: [],
+        paymentModes: [],
+        languages: ['en'],
+        defaultLanguage: 'en',
+        address: { contactName: '', street: '', zipCode: '', city: '', country: 'CH' },
+        includesTax: false,
+        decimals: 2,
+      });
+      mockSessionContextApi.updateOwnSessionContext.mockResolvedValue();
+
+      const result = await sessionService.getCurrent();
+
+      expect(result?.country).toBe('CH');
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledWith(
+        expect.objectContaining({ targetLocation: 'CH' }),
+      );
+    });
+
+    it('should PATCH a lowercase or whitespace country to the normalized allowed code', async () => {
+      const fullyPopulatedContext: EmporixSessionContext = {
+        sessionId: 'test-session',
+        currency: 'CHF',
+        siteCode: 'fw-site',
+        targetLocation: ' ch ',
+        context: {
+          language: { key: 'language', value: 'en' },
+          region: { key: 'region', value: 'Europe' },
+        },
+        metadata: { version: 2 },
+      };
+      const mappedSession: Session = {
+        id: 'test-session',
+        currency: 'CHF',
+        siteCode: 'fw-site',
+        country: ' ch ',
+        language: 'en',
+        region: 'Europe',
+      };
+
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValue(fullyPopulatedContext);
+      mockSessionMapper.mapToService.mockReturnValue(mappedSession);
+      mockSiteService.getSite.mockResolvedValue({
+        code: 'fw-site',
+        name: 'FW',
+        defaultCountry: 'CH',
+        defaultCurrency: { id: 'CHF', code: 'CHF', name: 'Franc', active: true },
+        currencies: [{ id: 'CHF', code: 'CHF', name: 'Franc', active: true }],
+        countries: [{ code: 'CH' }, { code: 'DE' }],
+        shipToCountries: [],
+        regions: [],
+        paymentModes: [],
+        languages: ['en'],
+        defaultLanguage: 'en',
+        address: { contactName: '', street: '', zipCode: '', city: '', country: 'CH' },
+        includesTax: false,
+        decimals: 2,
+      });
+      mockSessionContextApi.updateOwnSessionContext.mockResolvedValue();
+
+      const result = await sessionService.getCurrent();
+
+      expect(result?.country).toBe('CH');
+      expect(mockSessionContextApi.updateOwnSessionContext).toHaveBeenCalledWith(
+        expect.objectContaining({ targetLocation: 'CH' }),
+      );
     });
 
     it('should not include language on a currency PATCH when session language is already de', async () => {

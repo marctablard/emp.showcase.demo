@@ -42,17 +42,10 @@ function sumApprovalPriceCardLines(
   return breakdown.netValueOfGoods + breakdown.tax + breakdown.shippingFee + breakdown.shippingTax;
 }
 
-/** Effective tax rate %: prefer mapped `price.taxRate`, else derive from net/tax/gross. */
+/** Item `taxRate` only — never derive a percent from tax/net or gross. */
 export function resolveApprovalItemTaxRate(price: ApprovalPrice): number | undefined {
-  if (typeof price.taxRate === 'number' && price.taxRate > 0) {
+  if (typeof price.taxRate === 'number' && Number.isFinite(price.taxRate) && price.taxRate > 0) {
     return price.taxRate;
-  }
-  const net = price.netValue ?? price.newUnitPrice;
-  if (typeof net === 'number' && net > 0 && typeof price.taxValue === 'number') {
-    return (price.taxValue / net) * 100;
-  }
-  if (typeof net === 'number' && net > 0 && typeof price.grossValue === 'number') {
-    return ((price.grossValue - net) / net) * 100;
   }
   return undefined;
 }
@@ -122,9 +115,9 @@ function quotedTaxFromResource(approval: Approval, items: ApprovalResourceItem[]
   return items.reduce((sum, item) => sum + (item.itemPrice.taxValue || 0), 0);
 }
 
-/** Goods VAT % from item rates — ignore taxAggregate (shipping uses its own rate). */
+/** Goods VAT % from item `taxRate` only — ignore taxAggregate and do not invent a rate. */
 export function resolveApprovalDisplayTaxRate(approval: Approval): number | undefined {
-  const itemRates = (approval.resource.items ?? []).map((item) => resolveApprovalItemTaxRate(item.itemPrice));
+  const itemRates = (approval.resource.items ?? []).map((item) => item.itemPrice.taxRate);
   return resolveSharedPositiveTaxRate(itemRates);
 }
 

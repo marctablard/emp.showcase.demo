@@ -40,6 +40,8 @@ export interface AddressSelectorProps {
   addressType?: AddressType;
   className?: string;
   addressBook?: AddressBookMode;
+  /** Fired when the address-book dialog opens or closes. */
+  onOpenChange?: (open: boolean) => void;
 }
 
 function filterByAddressRole(
@@ -87,19 +89,25 @@ function AddressSelectorInner({
   className,
   flatAddresses,
   loading,
-}: AddressSelectorInnerProps) {
+  onOpenChange,
+}: Readonly<AddressSelectorInnerProps>) {
   const t = useTranslations('account.AddressForm');
   const [open, setOpen] = useState(false);
   const [internalSelectedId, setInternalSelectedId] = useState<string | undefined>(selectedAddressId);
 
   const resolvedSelectedId = selectedAddressId ?? internalSelectedId;
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    onOpenChange?.(nextOpen);
+  };
+
   const handleAddressSelect = (address: Address) => {
     if (selectedAddressId === undefined) {
       setInternalSelectedId(address.id);
     }
     onSelect(address);
-    setOpen(false);
+    handleOpenChange(false);
   };
 
   const flatList = flatAddresses ?? [];
@@ -107,15 +115,19 @@ function AddressSelectorInner({
   const selectedAddress = resolvedSelectedId ? flatList.find((addr) => addr.id === resolvedSelectedId) : undefined;
 
   const renderAddressBlock = (address: CustomerAddress) => (
-    <div
+    <button
+      type="button"
       key={address.id}
       className={cn(
-        'p-4 my-2 border rounded-md cursor-pointer transition-colors hover:bg-surface-action-hover-2',
+        'w-full text-left p-4 my-2 border rounded-md cursor-pointer transition-colors hover:bg-surface-action-hover-2',
         resolvedSelectedId === address.id
           ? 'bg-surface-action text-text-on-action hover:bg-surface-action-hover hover:text-text-ho'
           : '',
       )}
-      onClick={() => handleAddressSelect(address)}
+      onClick={(event) => {
+        event.stopPropagation();
+        handleAddressSelect(address);
+      }}
       data-testid={`addressSelector-item-${address.id}`}
     >
       <div className="flex justify-between items-start mb-1">
@@ -156,13 +168,13 @@ function AddressSelectorInner({
         {address.state ? <p>{address.state}</p> : null}
         <p>{address.country}</p>
       </div>
-    </div>
+    </button>
   );
 
   const hasContent = flatList.length > 0;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {triggerElement ? (
           triggerElement
@@ -172,7 +184,15 @@ function AddressSelectorInner({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent
+        className="sm:max-w-md"
+        onCloseAutoFocus={(event) => {
+          if (onOpenChange) {
+            // Nested quote/checkout dialogs must keep parent focus.
+            event.preventDefault();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{title || t('selectAnAddress')}</DialogTitle>
         </DialogHeader>
@@ -250,8 +270,9 @@ function AddressSelectorAutoBook(props: Omit<AddressSelectorProps, 'addressBook'
  * @param addressType - When set, filter to addresses whose `tags` include this role (e.g. checkout shipping passes shipping).
  * @param className - Extra classes on the default trigger button when `triggerElement` is omitted.
  * @param addressBook - See {@link AddressBookMode}. Defaults to `'auto'` which picks the right book based on B2B/B2C context.
+ * @param onOpenChange - Called when the address-book dialog opens or closes.
  */
-export function AddressSelector({ addressBook = 'auto', ...props }: AddressSelectorProps) {
+export function AddressSelector({ addressBook = 'auto', ...props }: Readonly<AddressSelectorProps>) {
   const { status } = useSession();
   if (status !== 'authenticated') {
     return null;
