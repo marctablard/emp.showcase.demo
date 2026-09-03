@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { H3 } from '@/components/ui/h';
 import { Spinner } from '@/components/ui/spinner';
@@ -13,6 +13,7 @@ import { CartDelivery } from './cart-delivery';
 import { CartEmpty } from './cart-empty';
 import { CartItemList } from './cart-itemlist';
 import { CartSummary } from './cart-summary';
+import QuoteRequestDialog from './quote-request-dialog';
 
 interface CartOverviewProps {
   initialCart?: Cart | null;
@@ -29,7 +30,9 @@ export function CartOverview({ initialCart }: CartOverviewProps) {
   const { ready: syncReady, reason: syncReason } = useGlobalSyncReady();
 
   const leftContent = useRef<HTMLDivElement>(null);
-  const currentCart = cart !== undefined ? cart : initialCart;
+  const [isQuoteOpen, setIsQuoteOpen] = useState(false);
+  const currentCart = cart === undefined ? initialCart : cart;
+  const quoteDialog = isQuoteOpen ? <QuoteRequestDialog open onOpenChange={setIsQuoteOpen} /> : null;
   // Only show the full-page shell when we genuinely have nothing to render, or when the
   // cross-store pipeline is not ready for a **structural** reason (site switch / session
   // mutation / cart-site mismatch). A transient `cart-loading` on a resolved cart is a
@@ -40,45 +43,56 @@ export function CartOverview({ initialCart }: CartOverviewProps) {
 
   if (showLoadingShell) {
     return (
-      <div className="max-w-6xl mx-auto mt-8" aria-busy="true">
-        <div className="mx-4 md:mx-9">
-          <div className="flex gap-3 align-end mb-8">
-            <H3>{t('title')}</H3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_340px] lg:grid-cols-[minmax(0,1fr)_444px] gap-4 md:gap-6 mb-11">
-            <div className="flex justify-center items-center col-span-full min-h-64">
-              <Spinner variant="lg" />
+      <>
+        <div className="max-w-6xl mx-auto mt-8" aria-busy="true">
+          <div className="mx-4 md:mx-9">
+            <div className="flex gap-3 align-end mb-8">
+              <H3>{t('title')}</H3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_340px] lg:grid-cols-[minmax(0,1fr)_444px] gap-4 md:gap-6 mb-11">
+              <div className="flex justify-center items-center col-span-full min-h-64">
+                <Spinner variant="lg" />
+              </div>
             </div>
           </div>
         </div>
-      </div>
+        {quoteDialog}
+      </>
     );
   }
 
   if (!currentCart || currentCart.items.length === 0) {
-    return <CartEmpty />;
+    return (
+      <>
+        <CartEmpty />
+        {quoteDialog}
+      </>
+    );
   }
 
   return (
-    <div className="max-w-6xl mx-auto mt-8">
-      <div className="mx-4 md:mx-9">
-        <div className="flex gap-3 align-end mb-8">
-          <H3>{t('title')}</H3>
-          <div className="text-text-on-disabled text-lg m-0 leading-[2]">
-            {currentCart.items.length > 1
-              ? currentCart.items.length + t('products')
-              : currentCart.items.length + t('product')}
+    <>
+      <div className="max-w-6xl mx-auto mt-8">
+        <div className="mx-4 md:mx-9">
+          <div className="flex gap-3 align-end mb-8">
+            <H3>{t('title')}</H3>
+            <div className="text-text-on-disabled text-lg m-0 leading-[2]">
+              {currentCart.items.length > 1
+                ? currentCart.items.length + t('products')
+                : currentCart.items.length + t('product')}
+            </div>
           </div>
-        </div>
-        <CartAction />
-        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_340px] lg:grid-cols-[minmax(0,1fr)_444px] gap-4 md:gap-6 mb-11">
-          <div className="min-w-0" ref={leftContent}>
-            {false && customer && <CartDelivery />}
-            <CartItemList cart={currentCart} />
+          <CartAction />
+          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_340px] lg:grid-cols-[minmax(0,1fr)_444px] gap-4 md:gap-6 mb-11">
+            <div className="min-w-0" ref={leftContent}>
+              {false && customer && <CartDelivery />}
+              <CartItemList cart={currentCart} />
+            </div>
+            <CartSummary cart={currentCart} boundingContent={leftContent} onRequestQuote={() => setIsQuoteOpen(true)} />
           </div>
-          <CartSummary cart={currentCart} boundingContent={leftContent} />
         </div>
       </div>
-    </div>
+      {quoteDialog}
+    </>
   );
 }

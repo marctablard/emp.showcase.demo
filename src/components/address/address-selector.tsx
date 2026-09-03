@@ -40,6 +40,8 @@ export interface AddressSelectorProps {
   addressType?: AddressType;
   className?: string;
   addressBook?: AddressBookMode;
+  /** Fired when the address-book dialog opens or closes. */
+  onOpenChange?: (open: boolean) => void;
 }
 
 function filterByAddressRole(
@@ -87,6 +89,7 @@ function AddressSelectorInner({
   className,
   flatAddresses,
   loading,
+  onOpenChange,
 }: AddressSelectorInnerProps) {
   const t = useTranslations('account.AddressForm');
   const [open, setOpen] = useState(false);
@@ -94,12 +97,17 @@ function AddressSelectorInner({
 
   const resolvedSelectedId = selectedAddressId ?? internalSelectedId;
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    onOpenChange?.(nextOpen);
+  };
+
   const handleAddressSelect = (address: Address) => {
     if (selectedAddressId === undefined) {
       setInternalSelectedId(address.id);
     }
     onSelect(address);
-    setOpen(false);
+    handleOpenChange(false);
   };
 
   const flatList = flatAddresses ?? [];
@@ -115,7 +123,10 @@ function AddressSelectorInner({
           ? 'bg-surface-action text-text-on-action hover:bg-surface-action-hover hover:text-text-ho'
           : '',
       )}
-      onClick={() => handleAddressSelect(address)}
+      onClick={(event) => {
+        event.stopPropagation();
+        handleAddressSelect(address);
+      }}
       data-testid={`addressSelector-item-${address.id}`}
     >
       <div className="flex justify-between items-start mb-1">
@@ -162,7 +173,7 @@ function AddressSelectorInner({
   const hasContent = flatList.length > 0;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {triggerElement ? (
           triggerElement
@@ -172,7 +183,15 @@ function AddressSelectorInner({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent
+        className="sm:max-w-md"
+        onCloseAutoFocus={(event) => {
+          if (onOpenChange) {
+            // Nested quote/checkout dialogs must keep parent focus.
+            event.preventDefault();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{title || t('selectAnAddress')}</DialogTitle>
         </DialogHeader>
@@ -250,6 +269,7 @@ function AddressSelectorAutoBook(props: Omit<AddressSelectorProps, 'addressBook'
  * @param addressType - When set, filter to addresses whose `tags` include this role (e.g. checkout shipping passes shipping).
  * @param className - Extra classes on the default trigger button when `triggerElement` is omitted.
  * @param addressBook - See {@link AddressBookMode}. Defaults to `'auto'` which picks the right book based on B2B/B2C context.
+ * @param onOpenChange - Called when the address-book dialog opens or closes.
  */
 export function AddressSelector({ addressBook = 'auto', ...props }: AddressSelectorProps) {
   const { status } = useSession();

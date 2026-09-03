@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronDown, FileText } from 'lucide-react';
 import useAuthentication from '@/hooks/authentication/useAuthentication';
@@ -6,12 +5,10 @@ import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
-import QuoteRequestDialog from './quote-request-dialog';
 
-export function CartRequest() {
+export function CartRequest({ onRequestQuote }: { onRequestQuote: () => void }) {
   const t = useTranslations('cart');
   const { isAuthenticated } = useAuthentication();
-  const [isQuoteOpen, setIsQuoteOpen] = useState(false);
   const titleText = t('requestQuote');
   const step1Text = t('requestQuotestep1');
   const step2Text = t('requestQuotestep2');
@@ -51,15 +48,9 @@ export function CartRequest() {
               </div>
             )}
           </div>
-          <Button
-            className="w-full mt-4"
-            variant="secondary"
-            disabled={!isAuthenticated}
-            onClick={() => setIsQuoteOpen(true)}
-          >
+          <Button className="w-full mt-4" variant="secondary" disabled={!isAuthenticated} onClick={onRequestQuote}>
             {buttonText}
           </Button>
-          <QuoteRequestDialog open={isQuoteOpen} onOpenChange={setIsQuoteOpen} />
         </CollapsibleContent>
       </Collapsible>
     </Card>

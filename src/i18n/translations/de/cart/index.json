@@ -82,6 +82,7 @@
     "submittedDescription": "Unser Team wird ein Angebot erstellen und sich so schnell wie möglich bei Ihnen melden. Sie können alle Ihre Angebote jederzeit in Ihrem Konto einsehen.",
     "failedTitle": "Übermittlung des Angebots fehlgeschlagen",
     "failedDescription": "Bitte versuchen Sie es später erneut",
+    "totalChanged": "Der Gesamtpreis hat sich für die neu gewählte Adresse geändert, jetzt: {total}.",
     "partialFailureDescription": "Das Angebot wurde erstellt, aber die Genehmigungsanfrage konnte nicht verknüpft werden. Öffnen Sie das erstellte Angebot, um die manuelle Nachbearbeitung fortzusetzen, ohne die Anfrage erneut zu senden.",
     "viewCreatedQuote": "Erstelltes Angebot öffnen"
   },

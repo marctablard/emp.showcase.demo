@@ -3,6 +3,7 @@
  */
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { notify } from '@/components/ui/toast-notification';
 import QuoteRequestDialog from './quote-request-dialog';
 
 const push = jest.fn();
@@ -11,9 +12,12 @@ const applyShippingDestinationToCart = jest.fn();
 const resetCheckout = jest.fn();
 const toast = jest.fn();
 const useCheckoutMock = jest.fn();
+const useGlobalSyncReadyMock = jest.fn();
 
 jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: { total?: string }) =>
+    values?.total != null ? `${key} ${values.total}` : key,
+  useLocale: () => 'en',
 }));
 
 jest.mock('@/i18n/navigation', () => ({
@@ -36,6 +40,15 @@ jest.mock('@/hooks/ui/useToast', () => ({
   useToast: () => ({ toast }),
 }));
 
+jest.mock('@/hooks/common/useGlobalSyncReady', () => ({
+  useGlobalSyncReady: () => useGlobalSyncReadyMock(),
+}));
+
+jest.mock('@/components/ui/toast-notification', () => ({
+  ToastType: { Warning: 'warning', Success: 'success', Error: 'error', Info: 'info' },
+  notify: jest.fn(),
+}));
+
 jest.mock('@/lib/logger/use-logger-client', () => ({
   getLogger: () => ({
     error: jest.fn(),
@@ -43,7 +56,55 @@ jest.mock('@/lib/logger/use-logger-client', () => ({
 }));
 
 jest.mock('@/components/address/address-selector', () => ({
-  AddressSelector: ({ triggerElement }: { triggerElement: React.ReactNode }) => <div>{triggerElement}</div>,
+  AddressSelector: ({
+    triggerElement,
+    onSelect,
+    onOpenChange,
+    addressType,
+  }: {
+    triggerElement: React.ReactNode;
+    onSelect: (address: { id: string; country: string; zipCode: string; city: string; contactName: string }) => void;
+    onOpenChange?: (open: boolean) => void;
+    addressType?: string;
+  }) => (
+    <div>
+      {triggerElement}
+      <button
+        type="button"
+        data-testid={`quote-addressbook-pick-${addressType ?? 'any'}-DE`}
+        onClick={() => {
+          onOpenChange?.(true);
+          onSelect({
+            id: 'addr-de',
+            country: 'DE',
+            zipCode: '10115',
+            city: 'Berlin',
+            contactName: 'Vitalii Buyer',
+          });
+          onOpenChange?.(false);
+        }}
+      >
+        pick DE
+      </button>
+      <button
+        type="button"
+        data-testid={`quote-addressbook-pick-${addressType ?? 'any'}-CH`}
+        onClick={() => {
+          onOpenChange?.(true);
+          onSelect({
+            id: 'addr-ch',
+            country: 'CH',
+            zipCode: '63000',
+            city: 'Zug',
+            contactName: 'Swiss Office',
+          });
+          onOpenChange?.(false);
+        }}
+      >
+        pick CH
+      </button>
+    </div>
+  ),
 }));
 
 jest.mock('@/components/checkout/checkout-address', () => () => <div>CheckoutAddress</div>);
@@ -56,8 +117,10 @@ describe('QuoteRequestDialog', () => {
     resetCheckout.mockReset();
     push.mockReset();
     toast.mockReset();
+    (notify as jest.Mock).mockReset();
+    useGlobalSyncReadyMock.mockReturnValue({ ready: true });
     useCheckoutMock.mockReturnValue({
-      checkoutCart: { id: 'cart-1', items: [{ id: 'item-1' }] },
+      checkoutCart: { id: 'cart-1', items: [{ id: 'item-1' }], totalPrice: { amount: 82.3, currency: 'EUR' } },
       shippingAddress: { id: 'shipping-1', country: 'CH', zipCode: '6300' },
       billingAddress: { id: 'billing-1' },
       shippingMethod: { amount: 5, methodId: 'method-1', zoneId: 'zone-1', taxCode: 'STANDARD' },
@@ -169,6 +232,156 @@ describe('QuoteRequestDialog', () => {
       expect.objectContaining({ country: 'CH', zipCode: '6300' }),
     );
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('fills a shipping address-book pick without closing the quote dialog', () => {
+    const onOpenChange = jest.fn();
+    const submitShippingAddress = jest.fn();
+    useCheckoutMock.mockReturnValue({
+      checkoutCart: { id: 'cart-1', items: [{ id: 'item-1' }], totalPrice: { amount: 82.3, currency: 'EUR' } },
+      shippingAddress: { id: 'shipping-1', country: 'DE', zipCode: '10115' },
+      billingAddress: { id: 'billing-1' },
+      shippingMethod: { amount: 5, methodId: 'method-1', zoneId: 'zone-1', taxCode: 'STANDARD' },
+      submitShippingAddress,
+      submitBillingAddress: jest.fn(),
+      applyShippingDestinationToCart,
+      reset: resetCheckout,
+    });
+
+    render(<QuoteRequestDialog open onOpenChange={onOpenChange} />);
+    fireEvent.click(screen.getByTestId('quote-addressbook-pick-SHIPPING-CH'));
+
+    expect(submitShippingAddress).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'addr-ch', country: 'CH', zipCode: '63000', type: 'SHIPPING' }),
+    );
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(screen.getByText('title')).toBeInTheDocument();
+  });
+
+  it('notifies when an address-book pick from DE to CH changes the cart total', async () => {
+    const deCart = { id: 'cart-1', items: [{ id: 'item-1' }], totalPrice: { amount: 82.3, currency: 'EUR' } };
+    const chCart = { id: 'cart-1', items: [{ id: 'item-1' }], totalPrice: { amount: 119.05, currency: 'CHF' } };
+    const checkoutState = {
+      checkoutCart: deCart,
+      shippingAddress: { id: 'addr-de', country: 'DE', zipCode: '10115' },
+      billingAddress: { id: 'billing-1' },
+      shippingMethod: { amount: 5, methodId: 'method-1', zoneId: 'zone-1', taxCode: 'STANDARD' },
+      submitShippingAddress: jest.fn(),
+      submitBillingAddress: jest.fn(),
+      applyShippingDestinationToCart,
+      reset: resetCheckout,
+    };
+    useCheckoutMock.mockImplementation(() => checkoutState);
+
+    const { rerender } = render(<QuoteRequestDialog open onOpenChange={jest.fn()} />);
+    fireEvent.click(screen.getByTestId('quote-addressbook-pick-SHIPPING-CH'));
+    expect(checkoutState.submitShippingAddress).toHaveBeenCalledWith(
+      expect.objectContaining({ country: 'CH', zipCode: '63000' }),
+    );
+
+    checkoutState.checkoutCart = chCart;
+    checkoutState.shippingAddress = { id: 'addr-ch', country: 'CH', zipCode: '63000' };
+    rerender(<QuoteRequestDialog open onOpenChange={jest.fn()} />);
+
+    await waitFor(() => {
+      expect(notify).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: expect.stringMatching(/totalChanged/),
+          type: 'warning',
+        }),
+      );
+    });
+    expect(String((notify as jest.Mock).mock.calls[0][0].title)).toMatch(/119|CHF|Fr/);
+    expect(screen.getByText('title')).toBeInTheDocument();
+  });
+
+  it('waits until country sync finishes before notifying about a DE to CH total change', async () => {
+    const deCart = { id: 'cart-1', items: [{ id: 'item-1' }], totalPrice: { amount: 82.3, currency: 'EUR' } };
+    const chCart = { id: 'cart-1', items: [{ id: 'item-1' }], totalPrice: { amount: 119.05, currency: 'CHF' } };
+    const checkoutState = {
+      checkoutCart: deCart,
+      shippingAddress: { id: 'addr-de', country: 'DE', zipCode: '10115' },
+      billingAddress: { id: 'billing-1' },
+      shippingMethod: { amount: 5, methodId: 'method-1', zoneId: 'zone-1', taxCode: 'STANDARD' },
+      submitShippingAddress: jest.fn(),
+      submitBillingAddress: jest.fn(),
+      applyShippingDestinationToCart,
+      reset: resetCheckout,
+    };
+    useCheckoutMock.mockImplementation(() => checkoutState);
+    useGlobalSyncReadyMock.mockReturnValue({ ready: false, reason: 'session-mutation' });
+
+    const { rerender } = render(<QuoteRequestDialog open onOpenChange={jest.fn()} />);
+    fireEvent.click(screen.getByTestId('quote-addressbook-pick-SHIPPING-CH'));
+    checkoutState.checkoutCart = chCart;
+    rerender(<QuoteRequestDialog open onOpenChange={jest.fn()} />);
+
+    expect(notify).not.toHaveBeenCalled();
+    expect(screen.getByText('title')).toBeInTheDocument();
+
+    useGlobalSyncReadyMock.mockReturnValue({ ready: true });
+    rerender(<QuoteRequestDialog open onOpenChange={jest.fn()} />);
+
+    await waitFor(() => {
+      expect(notify).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: expect.stringMatching(/totalChanged/),
+          type: 'warning',
+        }),
+      );
+    });
+  });
+
+  it('does not notify when an address-book pick keeps the same country and zip', async () => {
+    const deCart = { id: 'cart-1', items: [{ id: 'item-1' }], totalPrice: { amount: 82.3, currency: 'EUR' } };
+    const laterCart = { id: 'cart-1', items: [{ id: 'item-1' }], totalPrice: { amount: 154.7, currency: 'EUR' } };
+    const checkoutState = {
+      checkoutCart: deCart,
+      shippingAddress: { id: 'addr-de', country: 'DE', zipCode: '10115' },
+      billingAddress: { id: 'billing-1' },
+      shippingMethod: { amount: 5, methodId: 'method-1', zoneId: 'zone-1', taxCode: 'STANDARD' },
+      submitShippingAddress: jest.fn(),
+      submitBillingAddress: jest.fn(),
+      applyShippingDestinationToCart,
+      reset: resetCheckout,
+    };
+    useCheckoutMock.mockImplementation(() => checkoutState);
+
+    const { rerender } = render(<QuoteRequestDialog open onOpenChange={jest.fn()} />);
+    fireEvent.click(screen.getByTestId('quote-addressbook-pick-SHIPPING-DE'));
+    checkoutState.checkoutCart = laterCart;
+    rerender(<QuoteRequestDialog open onOpenChange={jest.fn()} />);
+
+    await waitFor(() => {
+      expect(checkoutState.submitShippingAddress).toHaveBeenCalled();
+    });
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  it('does not notify when a DE to CH address-book pick keeps the same total', async () => {
+    const deCart = { id: 'cart-1', items: [{ id: 'item-1' }], totalPrice: { amount: 100, currency: 'EUR' } };
+    const chCart = { id: 'cart-1', items: [{ id: 'item-1' }], totalPrice: { amount: 100, currency: 'EUR' } };
+    const checkoutState = {
+      checkoutCart: deCart,
+      shippingAddress: { id: 'addr-de', country: 'DE', zipCode: '10115' },
+      billingAddress: { id: 'billing-1' },
+      shippingMethod: { amount: 5, methodId: 'method-1', zoneId: 'zone-1', taxCode: 'STANDARD' },
+      submitShippingAddress: jest.fn(),
+      submitBillingAddress: jest.fn(),
+      applyShippingDestinationToCart,
+      reset: resetCheckout,
+    };
+    useCheckoutMock.mockImplementation(() => checkoutState);
+
+    const { rerender } = render(<QuoteRequestDialog open onOpenChange={jest.fn()} />);
+    fireEvent.click(screen.getByTestId('quote-addressbook-pick-SHIPPING-CH'));
+    checkoutState.checkoutCart = chCart;
+    rerender(<QuoteRequestDialog open onOpenChange={jest.fn()} />);
+
+    await waitFor(() => {
+      expect(checkoutState.submitShippingAddress).toHaveBeenCalled();
+    });
+    expect(notify).not.toHaveBeenCalled();
   });
 
   it('shows the request-only dialog copy and never renders inquiry-only controls', () => {

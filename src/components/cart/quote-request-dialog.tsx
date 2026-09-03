@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useEffect, useRef, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { AddressSelector } from '@/components/address/address-selector';
 import CheckoutAddress from '@/components/checkout/checkout-address';
 import ShippingMethod from '@/components/checkout/shipping-method';
@@ -16,11 +16,19 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { ToastType, notify } from '@/components/ui/toast-notification';
 import { useCart } from '@/hooks/cart/useCart';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
+import { useGlobalSyncReady } from '@/hooks/common/useGlobalSyncReady';
 import { useToast } from '@/hooks/ui/useToast';
 import { useRouter } from '@/i18n/navigation';
+import {
+  type PendingQuoteCartTotal,
+  evaluateQuoteCartTotalChange,
+  snapshotQuoteCartTotal,
+} from '@/lib/common/quote-cart-total';
 import { getLogger } from '@/lib/logger/use-logger-client';
+import { formatCurrency } from '@/lib/utils';
 import type { Address } from '@/platform/services/model/common';
 
 interface QuoteRequestDialogProps {
@@ -31,10 +39,12 @@ interface QuoteRequestDialogProps {
 export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestDialogProps) {
   const t = useTranslations('cart.quote');
   const tCheckout = useTranslations('checkout.shipping');
+  const locale = useLocale();
   const { toast } = useToast();
   const router = useRouter();
 
   const { clearCart } = useCart();
+  const { ready: syncReady } = useGlobalSyncReady();
   const {
     checkoutCart,
     shippingAddress,
@@ -48,6 +58,7 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
 
   const [reference, setReference] = useState('');
   const [comment, setComment] = useState('');
+  const pendingAddressTotalRef = useRef<PendingQuoteCartTotal | null>(null);
 
   const checkoutCartId = checkoutCart?.id;
   useEffect(() => {
@@ -56,16 +67,54 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
     }
     // Leftover emp-checkout ship-to after a prior approval/quote does not
     // re-fire submitShippingAddress. Write destination before quote snapshot.
-    void applyShippingDestinationToCart(shippingAddress);
+    applyShippingDestinationToCart(shippingAddress).catch(() => undefined);
   }, [open, checkoutCartId, shippingAddress, applyShippingDestinationToCart]);
 
-  const handleOpenChange = (nextOpen: boolean) => {
+  const addressBookOpenRef = useRef(false);
+  const handleAddressBookOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      addressBookOpenRef.current = true;
+      return;
+    }
+    // Keep the quote dialog from treating the nested dismiss as its own close.
+    queueMicrotask(() => {
+      addressBookOpenRef.current = false;
+    });
+  };
+
+  const handleQuoteOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen && addressBookOpenRef.current) {
+      return;
+    }
     onOpenChange(nextOpen);
   };
 
   const handleShippingChange = (address: Address) => {
+    const countryOrPostalChanged =
+      address.country !== shippingAddress?.country || address.zipCode !== shippingAddress?.zipCode;
+    if (countryOrPostalChanged) {
+      const previousTotal = snapshotQuoteCartTotal(checkoutCart);
+      pendingAddressTotalRef.current = previousTotal ? { total: previousTotal, cart: checkoutCart } : null;
+    }
     submitShippingAddress({ ...address, type: 'SHIPPING' });
   };
+
+  useEffect(() => {
+    const comparison = evaluateQuoteCartTotalChange(pendingAddressTotalRef.current, checkoutCart, syncReady);
+    if (comparison.status === 'wait') {
+      return;
+    }
+    pendingAddressTotalRef.current = null;
+    if (!comparison.nextTotal) {
+      return;
+    }
+    notify({
+      title: t('totalChanged', {
+        total: formatCurrency(comparison.nextTotal.amount, comparison.nextTotal.currency, locale),
+      }),
+      type: ToastType.Warning,
+    });
+  }, [checkoutCart, locale, syncReady, t]);
 
   const handleBillingChange = (address: Address) => {
     submitBillingAddress({ ...address, type: 'BILLING' });
@@ -171,8 +220,11 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-screen-lg lg:max-w-[1220px] flex min-h-0 flex-col overflow-hidden">
+    <Dialog open={open} onOpenChange={handleQuoteOpenChange}>
+      <DialogContent
+        closeOnOutsideClick={false}
+        className="w-[calc(100%-2rem)] sm:max-w-screen-lg lg:max-w-[1220px] flex min-h-0 flex-col overflow-hidden"
+      >
         <DialogHeader>
           <DialogTitle>{t('title')}</DialogTitle>
           <DialogDescription className="text-sm text-text-on-disabled">{t('subtitle')}</DialogDescription>
@@ -186,6 +238,7 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
             addressType="SHIPPING"
             selectedAddressId={shippingAddress?.id}
             onSelect={handleShippingChange}
+            onOpenChange={handleAddressBookOpenChange}
             triggerElement={
               <div className="flex gap-1 text-text-action font-bold mb-2 cursor-pointer">
                 <p>{tCheckout('fromAddressbook')}</p>
@@ -205,6 +258,7 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
             addressType="BILLING"
             selectedAddressId={billingAddress?.id}
             onSelect={handleBillingChange}
+            onOpenChange={handleAddressBookOpenChange}
             triggerElement={
               <div className="flex gap-1 text-text-action font-bold mb-2 cursor-pointer">
                 <p>{tCheckout('fromAddressbook')}</p>
@@ -263,7 +317,7 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
         </div>
 
         <DialogFooter className="shrink-0 border-t pt-4 bg-surface-page">
-          <Button variant="secondary" onClick={() => handleOpenChange(false)} data-testid="quote-cancelButton">
+          <Button variant="secondary" onClick={() => onOpenChange(false)} data-testid="quote-cancelButton">
             {t('cancel')}
           </Button>
           <Button onClick={handlePrimaryAction} data-testid="quote-sendButton">

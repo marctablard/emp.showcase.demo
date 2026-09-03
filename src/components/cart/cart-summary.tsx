@@ -14,9 +14,10 @@ import { CartRequest } from './cart-request';
 interface CartSummaryProps {
   cart: Cart;
   boundingContent: RefObject<HTMLDivElement | null>;
+  onRequestQuote: () => void;
 }
 
-export function CartSummary({ cart, boundingContent }: CartSummaryProps) {
+export function CartSummary({ cart, boundingContent, onRequestQuote }: CartSummaryProps) {
   const t = useTranslations('cart.summary');
   const tCommon = useTranslations('common');
   //const freeShippingValue = 400;
@@ -115,7 +116,7 @@ export function CartSummary({ cart, boundingContent }: CartSummaryProps) {
               </div>
             </CardFooter>
           </Card>
-          <CartRequest />
+          <CartRequest onRequestQuote={onRequestQuote} />
         </div>
       </div>
     </div>
