@@ -301,7 +301,9 @@ export const useCheckout = (): UseCheckout => {
       }
 
       clearCart();
-      storeReset();
+      // Sequential order → new cart: keep ship-to/billing so checkout/quote/approval
+      // forms stay filled. Leftover persist still writes destination onto the next cart.
+      storeReset({ keepAddresses: true });
       setOrderResponse(checkoutResponse);
       return checkoutResponse;
     } catch (err) {

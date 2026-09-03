@@ -287,7 +287,7 @@ describe('QuoteRequestDialog', () => {
       expect(notify).toHaveBeenCalledWith(
         expect.objectContaining({
           title: expect.stringMatching(/totalChanged/),
-          type: 'warning',
+          type: 'info',
         }),
       );
     });
@@ -326,7 +326,7 @@ describe('QuoteRequestDialog', () => {
       expect(notify).toHaveBeenCalledWith(
         expect.objectContaining({
           title: expect.stringMatching(/totalChanged/),
-          type: 'warning',
+          type: 'info',
         }),
       );
     });

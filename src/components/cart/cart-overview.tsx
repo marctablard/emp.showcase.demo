@@ -19,7 +19,7 @@ interface CartOverviewProps {
   initialCart?: Cart | null;
 }
 
-export function CartOverview({ initialCart }: CartOverviewProps) {
+export function CartOverview({ initialCart }: Readonly<CartOverviewProps>) {
   const t = useTranslations('cart');
   const { cart } = useCart(initialCart);
   const { customer } = useCustomer();

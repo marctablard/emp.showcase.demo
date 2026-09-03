@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
+import { checkout } from '@/lib/client/checkout';
 import type { CheckoutAddress } from '@/platform/services/model/checkout';
 import { checkoutAddressToCartShipping, hasCheckoutShippingDestination, useCheckout } from './useCheckout';
 
@@ -723,5 +724,38 @@ describe('useCheckout', () => {
 
     expect(fetchShippingMethods).not.toHaveBeenCalled();
     expect(clearShippingMethods).not.toHaveBeenCalled();
+  });
+
+  it('keeps leftover addresses after a sequential order checkout', async () => {
+    const reset = jest.fn();
+    const shipping = buildCheckoutAddress('SHIPPING', 'CH', '6300');
+    const billing = buildCheckoutAddress('BILLING', 'CH', '6300');
+    mockUseCheckoutStore.mockReturnValue({
+      ...buildCheckoutStoreValue({
+        shippingAddress: shipping,
+        shippingMethod: SELECTED_METHOD,
+        setShippingMethod: jest.fn(),
+      }),
+      billingAddress: billing,
+      paymentMethod: { id: 'invoice', code: 'invoice', active: true, provider: 'invoice' },
+      reset,
+    });
+    mockUseCart.mockReturnValue(buildCartValue(CART));
+    mockUseCustomer.mockReturnValue({ customer: { id: 'c1' } });
+    mockUseShippingMethods.mockReturnValue(
+      buildShippingMethodsValue({
+        methods: [{ id: 'de-standard', name: 'DE Standard', cost: { amount: 5 } }],
+        clearShippingMethods: jest.fn(),
+        fetchShippingMethods: jest.fn(),
+      }),
+    );
+    (checkout as jest.Mock).mockResolvedValue({ orderId: 'ord-1' });
+
+    const { result } = renderHook(() => useCheckout());
+    await act(async () => {
+      await result.current.processCheckout();
+    });
+
+    expect(reset).toHaveBeenCalledWith({ keepAddresses: true });
   });
 });

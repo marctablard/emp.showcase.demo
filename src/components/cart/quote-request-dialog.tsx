@@ -36,7 +36,7 @@ interface QuoteRequestDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestDialogProps) {
+export default function QuoteRequestDialog({ open, onOpenChange }: Readonly<QuoteRequestDialogProps>) {
   const t = useTranslations('cart.quote');
   const tCheckout = useTranslations('checkout.shipping');
   const locale = useLocale();
@@ -112,7 +112,7 @@ export default function QuoteRequestDialog({ open, onOpenChange }: QuoteRequestD
       title: t('totalChanged', {
         total: formatCurrency(comparison.nextTotal.amount, comparison.nextTotal.currency, locale),
       }),
-      type: ToastType.Warning,
+      type: ToastType.Info,
     });
   }, [checkoutCart, locale, syncReady, t]);
 

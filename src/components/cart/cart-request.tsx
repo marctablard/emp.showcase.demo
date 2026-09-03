@@ -6,7 +6,7 @@ import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
 
-export function CartRequest({ onRequestQuote }: { onRequestQuote: () => void }) {
+export function CartRequest({ onRequestQuote }: Readonly<{ onRequestQuote: () => void }>) {
   const t = useTranslations('cart');
   const { isAuthenticated } = useAuthentication();
   const titleText = t('requestQuote');

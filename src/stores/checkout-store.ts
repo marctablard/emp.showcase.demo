@@ -21,7 +21,7 @@ export interface CheckoutState {
 }
 
 export type CheckoutResetOptions = {
-  /** Keep buyer addresses (and payment/contact) for the next cart after an approval or quote. */
+  /** Keep buyer addresses (and payment/contact) for the next cart after an order, approval, or quote. */
   keepAddresses?: boolean;
 };
 

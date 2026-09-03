@@ -17,7 +17,7 @@ interface CartSummaryProps {
   onRequestQuote: () => void;
 }
 
-export function CartSummary({ cart, boundingContent, onRequestQuote }: CartSummaryProps) {
+export function CartSummary({ cart, boundingContent, onRequestQuote }: Readonly<CartSummaryProps>) {
   const t = useTranslations('cart.summary');
   const tCommon = useTranslations('common');
   //const freeShippingValue = 400;

@@ -53,7 +53,7 @@ describe('checkout-store reset', () => {
     expect(store.getState().shippingMethod).toBeNull();
   });
 
-  it('keeps buyer addresses for sequential approvals and drops the shipping method', () => {
+  it('keeps buyer addresses for sequential orders and drops the shipping method', () => {
     const store = createCheckoutStore();
     store.getState().setContactData(contactData);
     store.getState().setShippingAddress(shippingAddress);

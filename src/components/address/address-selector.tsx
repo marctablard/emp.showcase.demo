@@ -90,7 +90,7 @@ function AddressSelectorInner({
   flatAddresses,
   loading,
   onOpenChange,
-}: AddressSelectorInnerProps) {
+}: Readonly<AddressSelectorInnerProps>) {
   const t = useTranslations('account.AddressForm');
   const [open, setOpen] = useState(false);
   const [internalSelectedId, setInternalSelectedId] = useState<string | undefined>(selectedAddressId);
@@ -115,10 +115,11 @@ function AddressSelectorInner({
   const selectedAddress = resolvedSelectedId ? flatList.find((addr) => addr.id === resolvedSelectedId) : undefined;
 
   const renderAddressBlock = (address: CustomerAddress) => (
-    <div
+    <button
+      type="button"
       key={address.id}
       className={cn(
-        'p-4 my-2 border rounded-md cursor-pointer transition-colors hover:bg-surface-action-hover-2',
+        'w-full text-left p-4 my-2 border rounded-md cursor-pointer transition-colors hover:bg-surface-action-hover-2',
         resolvedSelectedId === address.id
           ? 'bg-surface-action text-text-on-action hover:bg-surface-action-hover hover:text-text-ho'
           : '',
@@ -167,7 +168,7 @@ function AddressSelectorInner({
         {address.state ? <p>{address.state}</p> : null}
         <p>{address.country}</p>
       </div>
-    </div>
+    </button>
   );
 
   const hasContent = flatList.length > 0;
@@ -271,7 +272,7 @@ function AddressSelectorAutoBook(props: Omit<AddressSelectorProps, 'addressBook'
  * @param addressBook - See {@link AddressBookMode}. Defaults to `'auto'` which picks the right book based on B2B/B2C context.
  * @param onOpenChange - Called when the address-book dialog opens or closes.
  */
-export function AddressSelector({ addressBook = 'auto', ...props }: AddressSelectorProps) {
+export function AddressSelector({ addressBook = 'auto', ...props }: Readonly<AddressSelectorProps>) {
   const { status } = useSession();
   if (status !== 'authenticated') {
     return null;
