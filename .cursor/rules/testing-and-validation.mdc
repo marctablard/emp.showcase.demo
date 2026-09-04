@@ -31,7 +31,7 @@ Run `npm audit --audit-level=high` only when the user asks for audit, or before 
 
 Do **not** run `sonarqube-scanner` / a repo `sonar:pr` helper for `jest`, `build`, commit, or push. That uploads a project analysis and waits on the quality gate (minutes, scanner quota).
 
-Official analysis is `.github/workflows/sonarqube-scan.yml` (internal host + `SONAR_LOGIN`). That job **skips** when the secret is missing so client copies without Sonar do not fail deploy.
+Official analysis is `.github/workflows/sonarqube-scan.yml` (internal host + `SONAR_LOGIN`). It still runs on PRs to `develop`. If the secret is missing, the scan step no-ops so client copies do not 401.
 
 ### Cheap local checks (no upload)
 

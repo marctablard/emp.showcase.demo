@@ -674,7 +674,7 @@ Both Jest and Playwright tests are configured to run in the CI pipeline. The con
 
 **Jest is not a clean-install/dependency check.** CI installs dependencies with `npm ci` behind Aikido safe-chain before any test step runs; `npm run jest` itself only exercises whatever is already in `node_modules`. Use `npm run verify:ci-install` locally (see [Local Clean-Install Parity Check](#local-clean-install-parity-check)) to validate the dependency install/audit step in isolation.
 
-Dedicated SonarQube analysis lives in `.github/workflows/sonarqube-scan.yml` (not the PR-preview job). That job skips when `SONAR_LOGIN` is unset. There is no repo-local scanner script — do not run `sonarqube-scanner` against the whole repo.
+Dedicated SonarQube analysis lives in `.github/workflows/sonarqube-scan.yml` (not the PR-preview job). It still runs on PRs to `develop`. If `SONAR_LOGIN` is unset, only the scan step no-ops. There is no repo-local scanner script — do not run `sonarqube-scanner` against the whole repo.
 
 ### Local Sonar-like checks (no upload)
 
