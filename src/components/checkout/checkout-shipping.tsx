@@ -125,13 +125,18 @@ export function CheckoutShipping({ initialEdit }: { initialEdit: boolean }) {
               <AddressSelector
                 addressBook="auto"
                 addressType="SHIPPING"
+                testIdPrefix="shipping"
                 selectedAddressId={shippingAddress?.id}
                 onSelect={handleShippingAddressChange}
                 triggerElement={
-                  <div className="flex gap-1 text-text-action font-bold mb-4 cursor-pointer">
+                  <button
+                    type="button"
+                    className="flex gap-1 text-text-action font-bold mb-4 cursor-pointer"
+                    data-testid="shipping-addressBook"
+                  >
                     <p>{t('fromAddressbook')}</p>
                     <NotebookText />
-                  </div>
+                  </button>
                 }
               />
               {/* Address Input */}

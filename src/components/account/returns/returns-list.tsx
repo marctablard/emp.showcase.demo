@@ -148,6 +148,7 @@ export function ReturnsList({
         type="button"
         onClick={() => toggleSort(field)}
         className="flex items-center gap-2 hover:text-text-action"
+        data-testid={`returns-sort-${field}`}
       >
         {label}
         {getSortIcon(field)}
@@ -193,7 +194,9 @@ export function ReturnsList({
           </div>
         </CardContent>
         <CardFooter>
-          <Button onClick={() => refreshReturns()}>{t('tryAgain')}</Button>
+          <Button onClick={() => refreshReturns()} data-testid="returns-retryButton">
+            {t('tryAgain')}
+          </Button>
         </CardFooter>
       </Card>
     );
@@ -231,6 +234,7 @@ export function ReturnsList({
               className="pr-10"
               endIcon={isTableReloading ? undefined : Search}
               aria-label={t('searchPlaceholder')}
+              data-testid="returns-search"
             />
             {isTableReloading && (
               <Spinner
@@ -284,6 +288,7 @@ export function ReturnsList({
                     )}
                     tabIndex={0}
                     aria-label={rowAriaLabel}
+                    data-testid={`returns-row-${returnItem.id}`}
                     onClick={() => router.push(returnHref)}
                     onKeyDown={(event) => {
                       if (event.target !== event.currentTarget) {
@@ -303,6 +308,7 @@ export function ReturnsList({
                         variant="table"
                         className="font-bold"
                         onClick={(event) => event.stopPropagation()}
+                        data-testid={`returns-id-${returnItem.id}`}
                       >
                         {returnItem.id}
                       </UiLink>
@@ -318,6 +324,7 @@ export function ReturnsList({
                           href={`/account/orders/${firstOrderId}`}
                           variant="table"
                           onClick={(event) => event.stopPropagation()}
+                          data-testid={`returns-relatedOrder-${firstOrderId}`}
                         >
                           {firstOrderId}
                         </UiLink>
@@ -339,6 +346,7 @@ export function ReturnsList({
                           variant="table"
                           onClick={(event) => event.stopPropagation()}
                           aria-label={t('viewReturnAriaLabel', { id: returnItem.id })}
+                          data-testid={`returns-view-${returnItem.id}`}
                         >
                           <ArrowRight className="h-6 w-6" />
                         </UiLink>

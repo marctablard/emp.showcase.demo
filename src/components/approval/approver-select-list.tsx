@@ -60,7 +60,7 @@ export function ApproverSelectList({
                 </div>
               </Avatar>
               <span className="text-text-body flex-1 font-bold">{getApproverDisplayName(approver)}</span>
-              <RadioGroupItem id={radioId} value={approver.userId} />
+              <RadioGroupItem id={radioId} value={approver.userId} data-testid={radioId} />
             </Label>
           );
         })}

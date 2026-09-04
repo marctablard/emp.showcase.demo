@@ -24,6 +24,8 @@ export type ConfirmationDialogProps = {
   onConfirm: () => void;
   pending?: boolean;
   confirmVariant?: ButtonVariant;
+  /** Prefix for BugBug `data-testid` on the dialog and its actions. */
+  testIdPrefix?: string;
 };
 
 /**
@@ -41,6 +43,7 @@ export function ConfirmationDialog({
   onConfirm,
   pending = false,
   confirmVariant = 'outlineError',
+  testIdPrefix = 'confirm',
 }: Readonly<ConfirmationDialogProps>) {
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
@@ -54,16 +57,26 @@ export function ConfirmationDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
+      <DialogContent data-testid={`${testIdPrefix}-dialog`} closeTestId={`${testIdPrefix}-closeButton`}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="secondary" onClick={onCancel} disabled={pending}>
+          <Button
+            variant="secondary"
+            onClick={onCancel}
+            disabled={pending}
+            data-testid={`${testIdPrefix}-cancelButton`}
+          >
             {cancelLabel}
           </Button>
-          <Button variant={confirmVariant} onClick={onConfirm} disabled={pending}>
+          <Button
+            variant={confirmVariant}
+            onClick={onConfirm}
+            disabled={pending}
+            data-testid={`${testIdPrefix}-confirmButton`}
+          >
             {confirmLabel}
           </Button>
         </DialogFooter>

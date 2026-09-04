@@ -119,9 +119,14 @@ const AddressForm: React.FC<AddressFormProps> = ({
                 <SelectTrigger data-testid={tid('country')}>
                   <SelectValue placeholder={t('country')} />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent data-testid={tid('country-list')}>
                   {sortedCountries.map((country) => (
-                    <SelectItem key={country.code} value={country.code} className="px-2">
+                    <SelectItem
+                      key={country.code}
+                      value={country.code}
+                      className="px-2"
+                      data-testid={tid(`country-${country.code}`)}
+                    >
                       {l10n(country.name) || country.code}
                     </SelectItem>
                   ))}

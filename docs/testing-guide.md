@@ -674,6 +674,17 @@ Both Jest and Playwright tests are configured to run in the CI pipeline. The con
 
 **Jest is not a clean-install/dependency check.** CI installs dependencies with `npm ci` behind Aikido safe-chain before any test step runs; `npm run jest` itself only exercises whatever is already in `node_modules`. Use `npm run verify:ci-install` locally (see [Local Clean-Install Parity Check](#local-clean-install-parity-check)) to validate the dependency install/audit step in isolation.
 
+Dedicated SonarQube analysis lives in `.github/workflows/sonarqube-scan.yml` (not the PR-preview job). It still runs on PRs to `develop`. If `SONAR_LOGIN` is unset, only the scan step no-ops. There is no repo-local scanner script — do not run `sonarqube-scanner` against the whole repo.
+
+### Local Sonar-like checks (no upload)
+
+Use these so cheap smells (`String#replaceAll`, nested ternaries, consecutive `push`) never wait on a quality-gate upload:
+
+1. Install **SonarQube for IDE** (Cursor / VS Code extension `SonarSource.sonarlint-vscode`, recommended in `.vscode/extensions.json`). Analysis runs in the editor and appears in Problems like TypeScript errors. It does not publish a project report or count against scanner limits. Optional connected mode (token in your OS keychain only) can sync this repo’s quality profile; client checkouts can ignore it and still use standalone Sonar Way rules.
+2. ESLint still runs in the editor and on pre-commit (lint-staged) for this repo’s existing lint rules.
+
+BugBug `data-testid` on actionable controls is a coding convention (`.cursor/rules/data-testid-bugbug.mdc`), not a CI or pre-push scanner.
+
 ## Troubleshooting Common Issues
 
 ### "Warning: An update to Component inside a test was not wrapped in act(...)"

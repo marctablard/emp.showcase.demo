@@ -83,13 +83,18 @@ export function CheckoutPayment({ initialEdit }: { initialEdit: boolean }) {
             <AddressSelector
               addressBook="auto"
               addressType="BILLING"
+              testIdPrefix="billing"
               selectedAddressId={billingAddress?.id}
               onSelect={handleBillingAddressChange}
               triggerElement={
-                <div className="flex gap-1 text-text-action font-bold mb-4 cursor-pointer">
+                <button
+                  type="button"
+                  className="flex gap-1 text-text-action font-bold mb-4 cursor-pointer"
+                  data-testid="billing-addressBook"
+                >
                   <p>{t('fromAddressbook')}</p>
                   <NotebookText />
-                </div>
+                </button>
               }
             />
             <div className="col-span-2 flex flex-col gap-4">

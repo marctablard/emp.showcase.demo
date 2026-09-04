@@ -60,7 +60,11 @@ function CartApprovalOrderNumber({ orderId }: { readonly orderId: string }) {
     <div className="flex flex-col gap-1">
       <H5>{t('orderNumber')}</H5>
       {canViewOrder ? (
-        <Link href={`/account/orders/${orderId}`} className="text-base font-body text-text-action">
+        <Link
+          href={`/account/orders/${orderId}`}
+          className="text-base font-body text-text-action"
+          data-testid="approval-relatedOrder"
+        >
           {orderId}
         </Link>
       ) : (
@@ -83,7 +87,11 @@ function ApprovalRelatedResource({
     return (
       <div className="flex flex-col gap-1">
         <H5>{t('relatedQuote')}</H5>
-        <Link href={`/account/quotes/${approval.resource.id}`} className="text-base font-body text-text-action">
+        <Link
+          href={`/account/quotes/${approval.resource.id}`}
+          className="text-base font-body text-text-action"
+          data-testid="approval-relatedQuote"
+        >
           {approval.resource.id}
         </Link>
       </div>
@@ -366,7 +374,9 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
           </div>
         </CardContent>
         <CardFooter>
-          <Button onClick={() => refreshApproval()}>{t('tryAgain')}</Button>
+          <Button onClick={() => refreshApproval()} data-testid="approval-retryButton">
+            {t('tryAgain')}
+          </Button>
         </CardFooter>
       </Card>
     );
@@ -403,6 +413,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
                   onClick={handleDeclineClick}
                   disabled={isProcessing}
                   className="w-full gap-2 sm:w-auto"
+                  data-testid="approval-declineButton"
                 >
                   <CircleX className="h-5 w-5" />
                   {t('decline')}
@@ -413,6 +424,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
                   onClick={handleApproveClick}
                   disabled={isProcessing}
                   className="w-full gap-2 sm:w-auto"
+                  data-testid="approval-approveButton"
                 >
                   <CircleCheck className="h-5 w-5" />
                   {t('approve')}
@@ -425,6 +437,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
                 size="small"
                 onClick={() => setIsCommentFormOpen((isOpen) => !isOpen)}
                 className="w-full gap-2 sm:w-auto"
+                data-testid="approval-addCommentButton"
               >
                 <MessageSquareText className="h-5 w-5" />
                 {t('addComment')}
@@ -476,12 +489,17 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
                 onChange={(e) => setComment(e.target.value)}
                 placeholder={t('enterComment')}
                 className="mb-2"
+                data-testid="approval-commentInput"
               />
               <div className="flex justify-end gap-3">
-                <Button variant="secondary" onClick={() => setIsCommentFormOpen(false)}>
+                <Button
+                  variant="secondary"
+                  onClick={() => setIsCommentFormOpen(false)}
+                  data-testid="approval-commentCancelButton"
+                >
                   {t('back')}
                 </Button>
-                <Button onClick={handleComment} disabled={!comment.trim()}>
+                <Button onClick={handleComment} disabled={!comment.trim()} data-testid="approval-commentSaveButton">
                   {t('saveComment')}
                 </Button>
               </div>
@@ -595,6 +613,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
         onCancel={handleCancelDecline}
         onConfirm={() => void handleConfirmDecline()}
         pending={isProcessing}
+        testIdPrefix="approval-decline"
       />
       <ConfirmationDialog
         open={isApproveDialogOpen}
@@ -610,6 +629,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
         onConfirm={() => void handleConfirmApprove()}
         pending={isProcessing}
         confirmVariant="outlineSuccess"
+        testIdPrefix="approval-approve"
       />
     </>
   );

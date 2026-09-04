@@ -221,6 +221,7 @@ export function MyOrdersTable({
                 handleReturnClick(order);
               }}
               className="text-base leading-6 font-bold underline text-text-action hover:text-text-action-hover"
+              data-testid={`orders-return-${order.id}`}
             >
               {t('returnLink')}
             </button>
@@ -248,10 +249,17 @@ export function MyOrdersTable({
             'hover:bg-surface-image-background cursor-pointer text-base',
             index % 2 === 0 ? 'bg-surface-page' : 'bg-surface-image-background',
           )}
+          data-testid={`orders-row-${order.id}`}
           onClick={() => router.push(`/account/orders/${order.id}`)}
         >
           <TableCell className="px-2 py-4 font-medium">
-            <UiLink type="Link" href={`/account/orders/${order.id}`} variant="table" className="font-bold">
+            <UiLink
+              type="Link"
+              href={`/account/orders/${order.id}`}
+              variant="table"
+              className="font-bold"
+              data-testid={`orders-id-${order.id}`}
+            >
               {order.id}
             </UiLink>
           </TableCell>
@@ -266,6 +274,7 @@ export function MyOrdersTable({
                 href={`/account/quotes/${order.quoteId}`}
                 variant="table"
                 onClick={(event) => event.stopPropagation()}
+                data-testid={`orders-relatedQuote-${order.quoteId}`}
               >
                 {order.quoteId}
               </UiLink>
@@ -286,7 +295,12 @@ export function MyOrdersTable({
           <TableCell className="px-2 py-4 text-center" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-center gap-3">
               {returnContent}
-              <UiLink type="Link" href={`/account/orders/${order.id}`} variant="table">
+              <UiLink
+                type="Link"
+                href={`/account/orders/${order.id}`}
+                variant="table"
+                data-testid={`orders-view-${order.id}`}
+              >
                 <ArrowRight className="h-6 w-6" />
               </UiLink>
             </div>
@@ -307,6 +321,7 @@ export function MyOrdersTable({
                   type="button"
                   onClick={() => toggleSort('orderNumber')}
                   className="flex items-center gap-2 hover:text-text-action"
+                  data-testid="orders-sort-orderNumber"
                 >
                   {t('columns.orderNumber')}
                   {getSortIcon('orderNumber')}
@@ -317,6 +332,7 @@ export function MyOrdersTable({
                   type="button"
                   onClick={() => toggleSort('orderDate')}
                   className="flex items-center gap-2 hover:text-text-action"
+                  data-testid="orders-sort-orderDate"
                 >
                   {t('columns.orderDate')}
                   {getSortIcon('orderDate')}
@@ -327,6 +343,7 @@ export function MyOrdersTable({
                   type="button"
                   onClick={() => toggleSort('status')}
                   className="flex items-center gap-2 hover:text-text-action"
+                  data-testid="orders-sort-status"
                 >
                   {t('columns.status')}
                   {getSortIcon('status')}
@@ -337,6 +354,7 @@ export function MyOrdersTable({
                   type="button"
                   onClick={() => toggleSort('relatedQuote')}
                   className="flex items-center gap-2 hover:text-text-action"
+                  data-testid="orders-sort-relatedQuote"
                 >
                   {t('relatedQuote')} #{getSortIcon('relatedQuote')}
                 </button>
@@ -346,6 +364,7 @@ export function MyOrdersTable({
                   type="button"
                   onClick={() => toggleSort('orderValue')}
                   className="flex items-center gap-2 hover:text-text-action"
+                  data-testid="orders-sort-orderValue"
                 >
                   {t('columns.orderValue')}
                   {getSortIcon('orderValue')}
@@ -356,6 +375,7 @@ export function MyOrdersTable({
                   type="button"
                   onClick={() => toggleSort('shippingCost')}
                   className="flex items-center gap-2 hover:text-text-action"
+                  data-testid="orders-sort-shippingCost"
                 >
                   {t('columns.totalShippingCost')}
                   {getSortIcon('shippingCost')}
@@ -367,6 +387,7 @@ export function MyOrdersTable({
                   type="button"
                   onClick={() => toggleSort('deliveryAddress')}
                   className="flex items-center gap-2 hover:text-text-action"
+                  data-testid="orders-sort-deliveryAddress"
                 >
                   {t('columns.deliveryAddress')}
                   {getSortIcon('deliveryAddress')}

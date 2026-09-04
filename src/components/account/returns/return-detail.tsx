@@ -417,6 +417,7 @@ function ProductDetailCard({ item, locale: _locale, t }: ProductDetailCardProps)
                     size="icon"
                     className="h-12 w-12 rounded-r-none border-r"
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    data-testid={`return-detail-decrease-${item.id}`}
                   >
                     {quantity === 1 ? <Trash2 className="h-4 w-4 text-action" /> : <Minus className="h-4 w-4" />}
                   </Button>
@@ -425,12 +426,14 @@ function ProductDetailCard({ item, locale: _locale, t }: ProductDetailCardProps)
                     value={quantity}
                     onChange={(e) => setQuantity(Math.max(1, Number.parseInt(e.target.value) || 1))}
                     className="h-12 w-15 text-center border-0 rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    data-testid={`return-detail-quantity-${item.id}`}
                   />
                   <Button
                     variant="secondary"
                     size="icon"
                     className="h-12 w-12 rounded-l-none border-l"
                     onClick={() => setQuantity(quantity + 1)}
+                    data-testid={`return-detail-increase-${item.id}`}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -447,6 +450,7 @@ function ProductDetailCard({ item, locale: _locale, t }: ProductDetailCardProps)
                   onChange={(e) => setItemName(e.target.value)}
                   className="h-12"
                   placeholder={t('itemName')}
+                  data-testid={`return-detail-itemName-${item.id}`}
                 />
               </div>
             </div>
@@ -456,12 +460,12 @@ function ProductDetailCard({ item, locale: _locale, t }: ProductDetailCardProps)
                 {t('claimReason')}
               </Label>
               <Select value={claimReason} onValueChange={setClaimReason}>
-                <SelectTrigger className="h-12">
+                <SelectTrigger className="h-12" data-testid={`return-detail-reason-${item.id}`}>
                   <SelectValue placeholder={t('selectReason')} />
                 </SelectTrigger>
                 <SelectContent>
                   {claimReasonValues.map((value) => (
-                    <SelectItem key={value} value={value}>
+                    <SelectItem key={value} value={value} data-testid={`return-detail-reason-${item.id}-${value}`}>
                       {t(RETURN_REASON_LABEL_KEYS[value])}
                     </SelectItem>
                   ))}
@@ -480,16 +484,19 @@ function ProductDetailCard({ item, locale: _locale, t }: ProductDetailCardProps)
                 className="min-h-[120px] resize-none"
                 placeholder={t('descriptionPlaceholder')}
                 maxLength={MAX_DESCRIPTION_CHARACTERS}
+                data-testid={`return-detail-description-${item.id}`}
               />
             </div>
           </div>
         </div>
 
         <div className="flex justify-end gap-3 mt-6">
-          <Button variant="secondary" className="uppercase">
+          <Button variant="secondary" className="uppercase" data-testid="return-detail-cancelButton">
             {t('cancel')}
           </Button>
-          <Button className="uppercase">{t('save')}</Button>
+          <Button className="uppercase" data-testid="return-detail-saveButton">
+            {t('save')}
+          </Button>
         </div>
       </CardContent>
     </Card>
@@ -537,9 +544,13 @@ export function ReturnDetail({ returnId, initialReturn }: ReturnDetailProps) {
           <AlertDescription>{error?.message || t('returnNotFound')}</AlertDescription>
         </Alert>
         <div className="flex gap-4">
-          <Button onClick={() => refreshReturn()}>{t('tryAgain')}</Button>
+          <Button onClick={() => refreshReturn()} data-testid="return-detail-retryButton">
+            {t('tryAgain')}
+          </Button>
           <Link href="/account/returns" passHref>
-            <Button variant="secondary">{t('backToList')}</Button>
+            <Button variant="secondary" data-testid="return-detail-backButton">
+              {t('backToList')}
+            </Button>
           </Link>
         </div>
       </div>
