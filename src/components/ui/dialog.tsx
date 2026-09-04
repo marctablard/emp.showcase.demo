@@ -41,12 +41,15 @@ function DialogContent({
   children,
   showCloseButton = true,
   closeOnOutsideClick,
+  closeTestId = 'dialog-closeButton',
   onPointerDownOutside,
   onInteractOutside,
   onFocusOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
+  /** BugBug locator for the X close control. Nested dialogs must pass a unique value. */
+  closeTestId?: string;
   /**
    * Whether clicking outside the dialog dismisses it.
    * Defaults to the NEXT_PUBLIC_DIALOGS_CLOSE_ON_OUTSIDE_CLICK env variable.
@@ -87,6 +90,7 @@ function DialogContent({
           {showCloseButton && (
             <DialogPrimitive.Close
               data-slot="dialog-close"
+              data-testid={closeTestId}
               className="ring-offset-surface-page focus:ring-border-focus data-[state=open]:bg-surface-disabled data-[state=open]:text-text-on-disabled absolute top-4 right-4 sm:top-6 sm:right-6 rounded-sm focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-6 cursor-pointer disabled:cursor-default"
             >
               <XIcon />

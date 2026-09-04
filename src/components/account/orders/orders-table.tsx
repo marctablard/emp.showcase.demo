@@ -31,13 +31,17 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
         {orders.map((order) => (
           <TableRow key={order.id}>
             <TableCell className="font-medium">
-              <UiLink href={`/account/orders/${order.id}`} type="Link">
+              <UiLink href={`/account/orders/${order.id}`} type="Link" data-testid={`orders-id-${order.id}`}>
                 #{order.id}
               </UiLink>
               {order.quoteId ? (
                 <div className="mt-1 text-sm text-text-placeholders">
                   {tOrder('relatedQuote')}{' '}
-                  <UiLink href={`/account/quotes/${order.quoteId}`} type="Link">
+                  <UiLink
+                    href={`/account/quotes/${order.quoteId}`}
+                    type="Link"
+                    data-testid={`orders-relatedQuote-${order.quoteId}`}
+                  >
                     #{order.quoteId}
                   </UiLink>
                 </div>

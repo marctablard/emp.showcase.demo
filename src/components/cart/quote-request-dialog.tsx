@@ -224,6 +224,8 @@ export default function QuoteRequestDialog({ open, onOpenChange }: Readonly<Quot
       <DialogContent
         closeOnOutsideClick={false}
         className="w-[calc(100%-2rem)] sm:max-w-screen-lg lg:max-w-[1220px] flex min-h-0 flex-col overflow-hidden"
+        data-testid="quote-request-dialog"
+        closeTestId="quote-closeButton"
       >
         <DialogHeader>
           <DialogTitle>{t('title')}</DialogTitle>
@@ -236,13 +238,18 @@ export default function QuoteRequestDialog({ open, onOpenChange }: Readonly<Quot
           <AddressSelector
             addressBook="auto"
             addressType="SHIPPING"
+            testIdPrefix="quoteShipping"
             selectedAddressId={shippingAddress?.id}
             onSelect={handleShippingChange}
             onOpenChange={handleAddressBookOpenChange}
             triggerElement={
-              <div className="flex gap-1 text-text-action font-bold mb-2 cursor-pointer">
+              <button
+                type="button"
+                className="flex gap-1 text-text-action font-bold mb-2 cursor-pointer"
+                data-testid="quote-shippingAddressBook"
+              >
                 <p>{tCheckout('fromAddressbook')}</p>
-              </div>
+              </button>
             }
           />
           <CheckoutAddress
@@ -256,13 +263,18 @@ export default function QuoteRequestDialog({ open, onOpenChange }: Readonly<Quot
           <AddressSelector
             addressBook="auto"
             addressType="BILLING"
+            testIdPrefix="quoteBilling"
             selectedAddressId={billingAddress?.id}
             onSelect={handleBillingChange}
             onOpenChange={handleAddressBookOpenChange}
             triggerElement={
-              <div className="flex gap-1 text-text-action font-bold mb-2 cursor-pointer">
+              <button
+                type="button"
+                className="flex gap-1 text-text-action font-bold mb-2 cursor-pointer"
+                data-testid="quote-billingAddressBook"
+              >
                 <p>{tCheckout('fromAddressbook')}</p>
-              </div>
+              </button>
             }
           />
           <CheckoutAddress

@@ -315,7 +315,7 @@ describe('QuoteDetails approval flow', () => {
 
     expect(screen.getByText('checkout.approval.selectApprover')).toBeInTheDocument();
 
-    const approverRows = screen.getAllByTestId(/quote-approval-approver-/);
+    const approverRows = screen.getAllByTestId(/^quote-approval-approver-approver-/);
     expect(approverRows[0]).toHaveTextContent('Ada Lovelace');
     expect(approverRows[1]).toHaveTextContent('Zoe Washburne');
 

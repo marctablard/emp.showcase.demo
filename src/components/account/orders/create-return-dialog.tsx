@@ -158,7 +158,11 @@ export function CreateReturnDialog({ open, onOpenChange, order, returnability }:
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="w-full max-w-none sm:max-w-[736px] md:max-w-[790px] lg:max-w-[1224px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
+      <DialogContent
+        className="w-full max-w-none sm:max-w-[736px] md:max-w-[790px] lg:max-w-[1224px] max-h-[90vh] overflow-y-auto overflow-x-hidden"
+        data-testid="return-dialog"
+        closeTestId="return-closeButton"
+      >
         <DialogHeader>
           <DialogTitle className="text-2xl md:text-3xl lg:text-4xl font-bold">{t('title')}</DialogTitle>
           <DialogDescription className="sr-only">{t('description')}</DialogDescription>
@@ -196,7 +200,7 @@ export function CreateReturnDialog({ open, onOpenChange, order, returnability }:
               </SelectTrigger>
               <SelectContent>
                 {RETURN_REASON_CODES.map((code) => (
-                  <SelectItem key={code} value={code}>
+                  <SelectItem key={code} value={code} data-testid={`return-reason-${code}`}>
                     {t(`reasons.${code}`)}
                   </SelectItem>
                 ))}
@@ -216,6 +220,7 @@ export function CreateReturnDialog({ open, onOpenChange, order, returnability }:
               disabled={loading}
               className="min-h-[144px] w-full md:max-w-[438px] resize-none"
               placeholder={t('descriptionPlaceholder')}
+              data-testid="return-description"
             />
             <p className="mt-2 text-xs text-text-on-disabled">
               {reasonDetails.length}/{MAX_DESCRIPTION_LENGTH}
@@ -228,6 +233,7 @@ export function CreateReturnDialog({ open, onOpenChange, order, returnability }:
               checked={provideAdditionalPerItemDetails}
               onCheckedChange={(checked) => setProvideAdditionalPerItemDetails(Boolean(checked))}
               disabled={loading}
+              data-testid="return-detailsPerItem"
             />
             <label htmlFor={detailsPerItemId} className="text-sm font-semibold text-text-body">
               {t('provideAdditionalPerItemDetails')}

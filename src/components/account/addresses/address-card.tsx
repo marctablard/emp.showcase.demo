@@ -51,6 +51,7 @@ export function AddressCard({ address, isDeleting = false, onEdit, onDelete }: A
                     className="h-8 w-8"
                     onClick={() => onEdit(address)}
                     aria-label={t('Address.editAddress')}
+                    data-testid={`accountAddress-edit-${address.id}`}
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -63,6 +64,7 @@ export function AddressCard({ address, isDeleting = false, onEdit, onDelete }: A
                     onClick={() => onDelete(address)}
                     disabled={isDeleting}
                     aria-label={t('Address.deleteAddress')}
+                    data-testid={`accountAddress-delete-${address.id}`}
                   >
                     {isDeleting ? <Spinner variant="sm" /> : <Trash className="h-4 w-4" />}
                   </Button>
@@ -103,7 +105,12 @@ export function AddressesList({ type = 'SHIPPING' as AddressType }) {
     return (
       <div className="text-center py-8">
         <p className="text-text-error">{t('Address.errorLoadingAddresses')}</p>
-        <Button variant="secondary" onClick={() => fetchAddresses()} className="mt-4">
+        <Button
+          variant="secondary"
+          onClick={() => fetchAddresses()}
+          className="mt-4"
+          data-testid="accountAddress-retryButton"
+        >
           {t('tryAgain')}
         </Button>
       </div>
@@ -114,7 +121,7 @@ export function AddressesList({ type = 'SHIPPING' as AddressType }) {
     return (
       <div className="text-center py-8">
         <p className="text-text-placeholders">{t('Address.noAddresses')}</p>
-        <Button onClick={() => setIsDialogOpen(true)} className="mt-4">
+        <Button onClick={() => setIsDialogOpen(true)} className="mt-4" data-testid="accountAddress-addButton">
           <Plus className="mr-2 h-4 w-4" />
           {t('Address.addNewAddress')}
         </Button>
@@ -126,7 +133,7 @@ export function AddressesList({ type = 'SHIPPING' as AddressType }) {
     <div>
       <div className="flex justify-between items-center mb-6">
         <H1>{type === 'SHIPPING' ? t('Address.shippingAddresses') : t('Address.billingAddresses')}</H1>
-        <Button onClick={() => setIsDialogOpen(true)}>
+        <Button onClick={() => setIsDialogOpen(true)} data-testid="accountAddress-addButton">
           <Plus className="mr-2 h-4 w-4" />
           {t('Address.addNewAddress')}
         </Button>
@@ -137,7 +144,7 @@ export function AddressesList({ type = 'SHIPPING' as AddressType }) {
           <p className="text-text-placeholders">
             {type === 'SHIPPING' ? t('Address.noShippingAddresses') : t('Address.noBillingAddresses')}
           </p>
-          <Button onClick={() => setIsDialogOpen(true)} className="mt-4">
+          <Button onClick={() => setIsDialogOpen(true)} className="mt-4" data-testid="accountAddress-addButton">
             <Plus className="mr-2 h-4 w-4" />
             {t('Address.addNewAddress')}
           </Button>

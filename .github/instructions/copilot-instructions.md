@@ -400,8 +400,12 @@ Do **not** run a local SonarQube scan for jest, build, commit, or push. The scan
 When the user asks for Sonar:
 
 ```
-SONAR_HOST_URL=https://sonarqube.k8s-tech.emporix.io SONAR_TOKEN="$SONAR_LOGIN" npx --yes sonarqube-scanner -Dsonar.projectKey=emporix-showcase
+npm run sonar:pr
 ```
+
+This matches the dedicated scan workflow on `pull_request` (new-code gate vs the PR base) and only analyzes files changed on the current PR/branch. Do **not** run a bare `npx sonarqube-scanner -Dsonar.projectKey=emporix-showcase` — that scans the whole repo.
+
+Husky **pre-push** runs `npm run verify:bugbug-selectors`: changed product TSX must put `data-testid` on every actionable control (see `.cursor/rules/data-testid-bugbug.mdc`).
 
 Workflow notes:
 

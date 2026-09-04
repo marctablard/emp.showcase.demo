@@ -53,7 +53,9 @@ Vercel automatically assigns URLs for development and PR preview deployments.
 
 **Process**:
 1. Checks out the code (full history, `fetch-depth: 0`)
-2. Runs the SonarQube scanner against an internal SonarQube host (`https://sonarqube.<internal-domain>`) using the `SONAR_LOGIN` secret and the `emporix-showcase` project key. This workflow is **internal only** — if packaged for external use, replace the host and project key with placeholders or omit it.
+2. Runs the SonarQube scanner against an internal SonarQube host (`https://sonarqube.<internal-domain>`) using the `SONAR_LOGIN` secret and the `emporix-showcase` project key. On `pull_request` the action uses `sonar.pullrequest.*` so the quality gate is **new code vs the PR base** (`develop`). This workflow is **internal only** — if packaged for external use, replace the host and project key with placeholders or omit it.
+
+**Local precheck** (`npm run sonar:pr`): same host, project key, `sonar-project.properties`, and PR parameters as the workflow on `pull_request`. The local script additionally limits analysis to files changed vs the PR base (plus the working tree) so it does not walk the whole checkout. It is not equivalent to the pinned `sonarsource/sonarqube-scan-action` SHA.
 
 ### 1. PR Preview Workflow (`github-actions-deploy-pr-preview.yml`)
 

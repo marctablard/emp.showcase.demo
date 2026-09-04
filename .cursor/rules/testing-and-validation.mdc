@@ -36,9 +36,20 @@ The scanner has usage limits. Run it only when the user explicitly asks (e.g. "r
 When asked:
 
 ```
-SONAR_HOST_URL=https://sonarqube.k8s-tech.emporix.io SONAR_TOKEN="$SONAR_LOGIN" npx --yes sonarqube-scanner -Dsonar.projectKey=emporix-showcase
+npm run sonar:pr
 ```
+
+This is a **PR analysis**, the same scenario as `.github/workflows/sonarqube-scan.yml` on `pull_request`:
+
+- Requires an open GitHub PR (or `SONAR_PR_KEY` / `SONAR_PR_BRANCH` / `SONAR_PR_BASE`)
+- Target is the PR base (normally `develop`)
+- Same host, project key, and `sonar-project.properties` source/test split as CI
+- Analyzes **only files changed vs that base** (plus the working tree) — never the whole repo
+
+Do **not** run a bare `npx sonarqube-scanner -Dsonar.projectKey=emporix-showcase`. That is a full-project analysis, is much slower, and counts against scanner limits.
 
 Do not claim local `sonarqube-scanner` equals the pinned GitHub Action SHA in `.github/workflows/sonarqube-scan.yml`.
 
 CI note: PR preview runs `audit → generate → lint → jest` (no build/Sonar). Dedicated Sonar stays in `.github/workflows/sonarqube-scan.yml`.
+
+Husky **pre-push** runs `npm run verify:bugbug-selectors` (changed product TSX must have `data-testid` on actionable controls — see `data-testid-bugbug.mdc`).

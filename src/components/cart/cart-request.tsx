@@ -19,7 +19,10 @@ export function CartRequest({ onRequestQuote }: Readonly<{ onRequestQuote: () =>
   return (
     <Card className="bg-surface-action-hover-2 p-6 border-none gap-4 shadow-sm text-text-heading">
       <Collapsible>
-        <CollapsibleTrigger className="w-full group flex items-center justify-between gap-2">
+        <CollapsibleTrigger
+          className="w-full group flex items-center justify-between gap-2"
+          data-testid="cart-requestQuoteToggle"
+        >
           <div className="flex gap-2">
             <FileText />
             <span className="flex items-center gap-2 font-headlines">{titleText}</span>
@@ -48,7 +51,13 @@ export function CartRequest({ onRequestQuote }: Readonly<{ onRequestQuote: () =>
               </div>
             )}
           </div>
-          <Button className="w-full mt-4" variant="secondary" disabled={!isAuthenticated} onClick={onRequestQuote}>
+          <Button
+            className="w-full mt-4"
+            variant="secondary"
+            disabled={!isAuthenticated}
+            onClick={onRequestQuote}
+            data-testid="cart-requestQuoteButton"
+          >
             {buttonText}
           </Button>
         </CollapsibleContent>

@@ -278,6 +278,11 @@ describe('QuoteSummary', () => {
     expect(screen.getByText('discount')).toBeInTheDocument();
   });
 
+  it('uses Netto-Warenwert for the German Quote netValue label', () => {
+    expect(enAccountTranslations.quoteDetails.netValue).toBe('Net value of goods');
+    expect(deAccountTranslations.quoteDetails.netValue).toBe('Netto-Warenwert');
+  });
+
   it('uses Total net amount label copy in EN/DE quoteDetails', () => {
     expect(enAccountTranslations.quoteDetails.totalAmount).toBe('Total net amount');
     expect(deAccountTranslations.quoteDetails.totalAmount).toBe('Nettogesamtwert');

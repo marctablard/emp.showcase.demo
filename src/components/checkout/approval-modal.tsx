@@ -91,6 +91,8 @@ export function ApprovalModal({ isOpen, onClose, resourceContext, approvalSubmit
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent
         className="sm:max-w-[500px]"
+        data-testid="approval-dialog"
+        closeTestId="approval-closeButton"
         aria-describedby={undefined}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
@@ -123,7 +125,7 @@ export function ApprovalModal({ isOpen, onClose, resourceContext, approvalSubmit
         {!loading && error && (
           <div className="text-center py-4 space-y-2">
             <p className="text-sm text-text-error">{t('errorFetchingApproversDescription')}</p>
-            <Button variant="secondary" size="small" onClick={() => refetch()}>
+            <Button variant="secondary" size="small" onClick={() => refetch()} data-testid="approval-retryButton">
               {t('retry')}
             </Button>
           </div>

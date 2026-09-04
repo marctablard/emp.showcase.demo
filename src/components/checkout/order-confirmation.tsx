@@ -276,18 +276,26 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
         </p>
 
         <div className="flex flex-col sm:flex-row justify-center gap-4 mt-6">
-          <UiLink type="Link" href="/">
+          <UiLink type="Link" href="/" data-testid="confirmation-continueShopping">
             {t('continueShopping')}
           </UiLink>
 
           {customer && (
-            <UiLink type="Link" href={isApprovalPendingConfirmation ? '/account/approvals' : '/account/orders'}>
+            <UiLink
+              type="Link"
+              href={isApprovalPendingConfirmation ? '/account/approvals' : '/account/orders'}
+              data-testid={isApprovalPendingConfirmation ? 'confirmation-viewApprovals' : 'confirmation-viewOrders'}
+            >
               {isApprovalPendingConfirmation ? t('viewApprovals') : t('viewOrders')}
             </UiLink>
           )}
 
           {isApprovalPendingConfirmation && createdApprovalId ? (
-            <UiLink type="Link" href={createdApprovalDetailsPath(createdApprovalId)}>
+            <UiLink
+              type="Link"
+              href={createdApprovalDetailsPath(createdApprovalId)}
+              data-testid="confirmation-createdApproval"
+            >
               {t('createdApproval')}
             </UiLink>
           ) : null}

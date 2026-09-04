@@ -674,6 +674,10 @@ Both Jest and Playwright tests are configured to run in the CI pipeline. The con
 
 **Jest is not a clean-install/dependency check.** CI installs dependencies with `npm ci` behind Aikido safe-chain before any test step runs; `npm run jest` itself only exercises whatever is already in `node_modules`. Use `npm run verify:ci-install` locally (see [Local Clean-Install Parity Check](#local-clean-install-parity-check)) to validate the dependency install/audit step in isolation.
 
+Dedicated SonarQube analysis lives in `.github/workflows/sonarqube-scan.yml` (not the PR-preview job). When a local Sonar precheck is requested, use `npm run sonar:pr`: it uses the same PR / new-code scenario as that workflow on `pull_request` and only scans files changed vs the PR base.
+
+Husky **pre-push** runs `npm run verify:bugbug-selectors` so changed product TSX keeps BugBug-stable `data-testid` attributes on actionable controls (see `.cursor/rules/data-testid-bugbug.mdc`).
+
 ## Troubleshooting Common Issues
 
 ### "Warning: An update to Component inside a test was not wrapped in act(...)"

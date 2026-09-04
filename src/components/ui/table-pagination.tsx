@@ -36,13 +36,13 @@ export function TablePagination({
     <div data-slot="table-pagination" className={cn('flex flex-wrap items-center justify-end gap-4 py-4', className)}>
       <p className="font-body text-right text-sm leading-5 whitespace-nowrap text-text-body">{pageIndicator}</p>
       {canPrev && onPreviousPage ? (
-        <Button variant="neutral" size="small" onClick={onPreviousPage}>
+        <Button variant="neutral" size="small" onClick={onPreviousPage} data-testid="table-pagination-previous">
           <ChevronLeft className="size-6 shrink-0" aria-hidden />
           {previousLabel}
         </Button>
       ) : null}
       {canNext && onNextPage ? (
-        <Button variant="neutral" size="small" onClick={onNextPage}>
+        <Button variant="neutral" size="small" onClick={onNextPage} data-testid="table-pagination-next">
           {nextLabel}
           <ChevronRight className="size-6 shrink-0" aria-hidden />
         </Button>

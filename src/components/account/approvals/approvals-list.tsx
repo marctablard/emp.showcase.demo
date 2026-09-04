@@ -108,6 +108,7 @@ export function ApprovalsList({ initialApprovals, currentUserId, initialTotalCou
               className="pr-10"
               endIcon={isSearchLoading ? undefined : Search}
               aria-label={t('searchPlaceholder')}
+              data-testid="approvals-search"
             />
             {isSearchLoading && (
               <Spinner
@@ -123,7 +124,9 @@ export function ApprovalsList({ initialApprovals, currentUserId, initialTotalCou
         {error ? (
           <div className="bg-surface-error border border-border-error text-text-error px-4 py-3 rounded space-y-3">
             <p>{error.message}</p>
-            <Button onClick={() => refreshApprovals()}>{t('tryAgain')}</Button>
+            <Button onClick={() => refreshApprovals()} data-testid="approvals-retryButton">
+              {t('tryAgain')}
+            </Button>
           </div>
         ) : (
           <ApprovalsTable

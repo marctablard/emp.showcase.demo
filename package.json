@@ -43,7 +43,9 @@
     "setup": "ts-node --project scripts/tsconfig.json scripts/setup-api.ts",
     "generate:sso-password": "ts-node --project scripts/tsconfig.json scripts/generate-sso-password.ts",
     "prepare": "husky",
-    "update-schemas": "ts-node --project scripts/tsconfig.json scripts/setup/schema-update.ts"
+    "update-schemas": "ts-node --project scripts/tsconfig.json scripts/setup/schema-update.ts",
+    "sonar:pr": "node scripts/sonar-pr-scan.cjs",
+    "verify:bugbug-selectors": "node scripts/check-bugbug-selectors.cjs --changed"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,css,scss,json,yml,yaml}": "prettier --write"

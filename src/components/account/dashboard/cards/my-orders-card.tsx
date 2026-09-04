@@ -120,6 +120,7 @@ export function MyOrdersCard({
           className="pr-10"
           endIcon={isSearchLoading ? undefined : Search}
           aria-label={t('search.placeholder')}
+          data-testid="orders-search"
         />
         {isSearchLoading && (
           <Spinner
@@ -138,7 +139,9 @@ export function MyOrdersCard({
       <p>
         {t('errorLoadingOrders')}: {error.message}
       </p>
-      <Button onClick={() => refetchOrders()}>{t('tryAgain')}</Button>
+      <Button onClick={() => refetchOrders()} data-testid="orders-retryButton">
+        {t('tryAgain')}
+      </Button>
     </div>
   ) : (
     <MyOrdersTable
@@ -174,7 +177,14 @@ export function MyOrdersCard({
         <CardTitle>
           <H4>{title || t('myOrders')}</H4>
         </CardTitle>
-        <UiLink type="Link" href="/account/orders" variant="primary" size="m" iconAfter={<ArrowRight />}>
+        <UiLink
+          type="Link"
+          href="/account/orders"
+          variant="primary"
+          size="m"
+          iconAfter={<ArrowRight />}
+          data-testid="orders-showAll"
+        >
           {t('showAllOrders')}
         </UiLink>
       </div>
