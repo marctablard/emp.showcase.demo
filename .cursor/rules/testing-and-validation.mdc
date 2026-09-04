@@ -27,13 +27,20 @@ Stop on first failure:
 
 Run `npm audit --audit-level=high` only when the user asks for audit, or before a release/security change.
 
-## SonarQube — CI only
+## SonarQube — CI only for the official scan
 
-Do **not** run a local Sonar scan for `jest`, `build`, commit, or push. There is no repo `sonar:pr` script.
+Do **not** run `sonarqube-scanner` / a repo `sonar:pr` helper for `jest`, `build`, commit, or push. That uploads a project analysis and waits on the quality gate (minutes, scanner quota).
 
 Official analysis is `.github/workflows/sonarqube-scan.yml` (internal host + `SONAR_LOGIN`). That job **skips** when the secret is missing so client copies without Sonar do not fail deploy.
 
-Do **not** add a local scanner helper to this repository. Do not run a bare `npx sonarqube-scanner` against the whole repo.
+### Cheap local checks (no upload)
+
+Obvious maintainability smells (`replaceAll`, nested ternary, consecutive `push`, …) should be fixed in the editor, not after a server scan.
+
+1. **SonarQube for IDE** (extension `SonarSource.sonarlint-vscode`, recommended in `.vscode/extensions.json`) — same SonarJS rules, local squiggles in Problems like TypeScript. Does **not** upload a project report. Optional connected mode (user token, local only) matches the server quality profile.
+2. **ESLint** — existing repo lint rules in the editor and on pre-commit (lint-staged on staged JS/TS). Do not enable Sonar’s full smell set in ESLint repo-wide; that is a large cleanup, not a cheap gate.
+
+Do not use Sonar MCP `analyze_code_snippet` as a pre-commit stand-in — that calls the server.
 
 CI note: PR preview runs `audit → generate → lint → jest` (no build/Sonar).
 

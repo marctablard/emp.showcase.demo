@@ -395,7 +395,7 @@ npm run jest:coverage     # With coverage report
 
 Stop on first failure. Default local gates are `npm run jest` and `npm run build`.
 
-Do **not** run a local SonarQube scan for jest, build, commit, or push. Official analysis is `.github/workflows/sonarqube-scan.yml` and is skipped when `SONAR_LOGIN` is unset (client copies without Sonar must not fail). Do not add a local `sonar:pr` helper to this repository.
+Do **not** run `sonarqube-scanner` or add a repo `sonar:pr` helper. Official analysis is `.github/workflows/sonarqube-scan.yml` and is skipped when `SONAR_LOGIN` is unset. For obvious Sonar maintainability smells while editing, use **SonarQube for IDE** (`SonarSource.sonarlint-vscode`); it is local and does not upload a project scan.
 
 BugBug `data-testid` on actionable controls is a coding rule (`.cursor/rules/data-testid-bugbug.mdc`), not a committed scanner.
 
