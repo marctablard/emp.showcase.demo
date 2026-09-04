@@ -8,7 +8,7 @@ alwaysApply: true
 
 BugBug's preferred locator is a **product-owned test attribute**. Use `data-testid` on every actionable control. Do not rely on copy, CSS classes, Radix/React Aria ids, or DOM position.
 
-Enforced on push: `npm run verify:bugbug-selectors` (`.husky/pre-push`).
+This is a coding convention, not a CI or pre-push scanner. Do not add a repo-local selector checker.
 
 ## Must have `data-testid`
 

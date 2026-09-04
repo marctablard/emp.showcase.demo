@@ -1,1 +1,0 @@
-node scripts/check-bugbug-selectors.cjs --changed

@@ -10,8 +10,10 @@ on:
 jobs:
   sonarqube-scan:
     name: SonarQube scan
-    # Dependabot-triggered PR runs do not receive Actions secrets (SONAR_LOGIN would be empty → 401), so skip them.
-    if: ${{ github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) }}
+    # Skip when Sonar is not configured: Dependabot/forks get no secrets, and
+    # client copies of this repo may omit SONAR_LOGIN. An empty token would 401
+    # and fail the check. Preview deploy does not depend on this job.
+    if: ${{ secrets.SONAR_LOGIN != '' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) }}
     runs-on: ubuntu-latest
     env:
       PROJECT_NAME: emporix-showcase

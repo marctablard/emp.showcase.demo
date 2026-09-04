@@ -395,17 +395,9 @@ npm run jest:coverage     # With coverage report
 
 Stop on first failure. Default local gates are `npm run jest` and `npm run build`.
 
-Do **not** run a local SonarQube scan for jest, build, commit, or push. The scanner has usage limits. Run it only when the user explicitly asks (e.g. "run sonar", "sonar scan").
+Do **not** run a local SonarQube scan for jest, build, commit, or push. Official analysis is `.github/workflows/sonarqube-scan.yml` and is skipped when `SONAR_LOGIN` is unset (client copies without Sonar must not fail). Do not add a local `sonar:pr` helper to this repository.
 
-When the user asks for Sonar:
-
-```
-npm run sonar:pr
-```
-
-This matches the dedicated scan workflow on `pull_request` (new-code gate vs the PR base) and only analyzes files changed on the current PR/branch. Do **not** run a bare `npx sonarqube-scanner -Dsonar.projectKey=emporix-showcase` — that scans the whole repo.
-
-Husky **pre-push** runs `npm run verify:bugbug-selectors`: changed product TSX must put `data-testid` on every actionable control (see `.cursor/rules/data-testid-bugbug.mdc`).
+BugBug `data-testid` on actionable controls is a coding rule (`.cursor/rules/data-testid-bugbug.mdc`), not a committed scanner.
 
 Workflow notes:
 

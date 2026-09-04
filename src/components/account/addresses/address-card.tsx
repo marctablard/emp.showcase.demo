@@ -144,7 +144,7 @@ export function AddressesList({ type = 'SHIPPING' as AddressType }) {
           <p className="text-text-placeholders">
             {type === 'SHIPPING' ? t('Address.noShippingAddresses') : t('Address.noBillingAddresses')}
           </p>
-          <Button onClick={() => setIsDialogOpen(true)} className="mt-4" data-testid="accountAddress-addButton">
+          <Button onClick={() => setIsDialogOpen(true)} className="mt-4" data-testid="accountAddress-emptyAddButton">
             <Plus className="mr-2 h-4 w-4" />
             {t('Address.addNewAddress')}
           </Button>

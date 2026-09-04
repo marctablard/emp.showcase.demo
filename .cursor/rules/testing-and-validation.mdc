@@ -27,29 +27,14 @@ Stop on first failure:
 
 Run `npm audit --audit-level=high` only when the user asks for audit, or before a release/security change.
 
-## Local SonarQube — only when the user asks
+## SonarQube — CI only
 
-Do **not** run a local Sonar scan for `jest`, `build`, commit, or push.
+Do **not** run a local Sonar scan for `jest`, `build`, commit, or push. There is no repo `sonar:pr` script.
 
-The scanner has usage limits. Run it only when the user explicitly asks (e.g. "run sonar", "sonar scan", "sonarqube").
+Official analysis is `.github/workflows/sonarqube-scan.yml` (internal host + `SONAR_LOGIN`). That job **skips** when the secret is missing so client copies without Sonar do not fail deploy.
 
-When asked:
+Do **not** add a local scanner helper to this repository. Do not run a bare `npx sonarqube-scanner` against the whole repo.
 
-```
-npm run sonar:pr
-```
+CI note: PR preview runs `audit → generate → lint → jest` (no build/Sonar).
 
-This is a **PR analysis**, the same scenario as `.github/workflows/sonarqube-scan.yml` on `pull_request`:
-
-- Requires an open GitHub PR (or `SONAR_PR_KEY` / `SONAR_PR_BRANCH` / `SONAR_PR_BASE`)
-- Target is the PR base (normally `develop`)
-- Same host, project key, and `sonar-project.properties` source/test split as CI
-- Analyzes **only files changed vs that base** (plus the working tree) — never the whole repo
-
-Do **not** run a bare `npx sonarqube-scanner -Dsonar.projectKey=emporix-showcase`. That is a full-project analysis, is much slower, and counts against scanner limits.
-
-Do not claim local `sonarqube-scanner` equals the pinned GitHub Action SHA in `.github/workflows/sonarqube-scan.yml`.
-
-CI note: PR preview runs `audit → generate → lint → jest` (no build/Sonar). Dedicated Sonar stays in `.github/workflows/sonarqube-scan.yml`.
-
-Husky **pre-push** runs `npm run verify:bugbug-selectors` (changed product TSX must have `data-testid` on actionable controls — see `data-testid-bugbug.mdc`).
+BugBug `data-testid` on actionable controls is a coding rule (`.cursor/rules/data-testid-bugbug.mdc`), not a committed scanner.

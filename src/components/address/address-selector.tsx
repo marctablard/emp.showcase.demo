@@ -186,12 +186,34 @@ function AddressSelectorInner({
 
   const hasContent = flatList.length > 0;
 
+  const renderAddressBookBody = () => {
+    if (loading) {
+      return (
+        <div className="space-y-2">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
+      );
+    }
+    if (hasContent) {
+      return (
+        <div className="max-h-[400px] overflow-y-auto" data-testid={`${testIdPrefix}-list`}>
+          {flatList.map(renderAddressBlock)}
+        </div>
+      );
+    }
+    return (
+      <div className="text-center py-8" data-testid={`${testIdPrefix}-empty`}>
+        {t('noAddresses')}
+      </div>
+    );
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        {triggerElement ? (
-          triggerElement
-        ) : (
+        {triggerElement ?? (
           <Button variant="secondary" className={className} data-testid={`${testIdPrefix}-trigger`}>
             {selectedAddress ? formatAddressSummary(selectedAddress).substring(0, 30) + '...' : t('selectAnAddress')}
           </Button>
@@ -212,23 +234,7 @@ function AddressSelectorInner({
           <DialogTitle>{title || t('selectAnAddress')}</DialogTitle>
         </DialogHeader>
 
-        <div className="py-4">
-          {loading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-            </div>
-          ) : hasContent ? (
-            <div className="max-h-[400px] overflow-y-auto" data-testid={`${testIdPrefix}-list`}>
-              {flatList.map(renderAddressBlock)}
-            </div>
-          ) : (
-            <div className="text-center py-8" data-testid={`${testIdPrefix}-empty`}>
-              {t('noAddresses')}
-            </div>
-          )}
-        </div>
+        <div className="py-4">{renderAddressBookBody()}</div>
       </DialogContent>
     </Dialog>
   );
