@@ -78,8 +78,13 @@ function assignExceptionLikeObject(target: Record<string, unknown>, err: Record<
   }
 }
 
-function hasExceptionLikeKeys(value: Record<string, unknown>): boolean {
-  return 'message' in value || 'stack' in value || 'type' in value || 'name' in value;
+function hasMappableExceptionFields(value: Record<string, unknown>): boolean {
+  return (
+    typeof value.message === 'string' ||
+    typeof value.stack === 'string' ||
+    typeof value.type === 'string' ||
+    typeof value.name === 'string'
+  );
 }
 
 function assignStringException(target: Record<string, unknown>, message: string, stack: unknown): void {
@@ -117,7 +122,7 @@ export function enrichOtelLog(object: Record<string, unknown>): Record<string, u
     return result;
   }
 
-  if (isPlainObject(err) && hasExceptionLikeKeys(err)) {
+  if (isPlainObject(err) && hasMappableExceptionFields(err)) {
     assignExceptionLikeObject(result, err);
     delete result.err;
     return result;

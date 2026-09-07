@@ -193,6 +193,16 @@ describe('enrichOtelLog', () => {
     });
   });
 
+  it('keeps a plain err object when exception-like keys are not strings', () => {
+    const err = { message: 404, stack: true, name: 1, code: 'ENOENT' };
+    const result = enrichOtelLog({ err, path: '/cart' });
+
+    expect(result).toEqual({ err, path: '/cart' });
+    expect(result).not.toHaveProperty('exception.message');
+    expect(result).not.toHaveProperty('exception.type');
+    expect(result).not.toHaveProperty('exception.stacktrace');
+  });
+
   it('does not invent exception.* from a non-string, non-Error error object', () => {
     const result = enrichOtelLog({ error: { code: 500, detail: 'upstream' }, method: 'POST' });
 
