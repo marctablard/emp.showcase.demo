@@ -95,7 +95,7 @@ function assignStringException(target: Record<string, unknown>, message: string,
  * Runs in `formatters.log` before Pino serializers.
  */
 export function enrichOtelLog(object: Record<string, unknown>): Record<string, unknown> {
-  if (!('err' in object) && !('error' in object) && !('stack' in object)) {
+  if (!('err' in object) && !('error' in object)) {
     return object;
   }
 

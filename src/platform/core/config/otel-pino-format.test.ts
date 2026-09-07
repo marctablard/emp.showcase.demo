@@ -177,6 +177,11 @@ describe('enrichOtelLog', () => {
     expect(enrichOtelLog(object)).toBe(object);
   });
 
+  it('returns the same object when only stack is present', () => {
+    const object = { stack: 'Error: leftover\n    at foo', module: 'cart' };
+    expect(enrichOtelLog(object)).toBe(object);
+  });
+
   it('maps a plain err object with name when type is missing', () => {
     const result = enrichOtelLog({
       err: { name: 'RangeError', message: 'out of range' },
