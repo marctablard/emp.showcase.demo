@@ -5,7 +5,9 @@ import { isEqual } from 'lodash';
 import { checkout } from '@/lib/client/checkout';
 import { ADDRESS_TYPE } from '@/lib/common/address-type-constants';
 import { resolveLegalEntityIdFromSessionAndCustomer } from '@/lib/common/legal-entity-context';
+import { normalizeCountryCode } from '@/lib/common/site-country';
 import { getLogger } from '@/lib/logger/use-logger-client';
+import type { CartShippingAddress } from '@/platform/services/cart/CartService';
 import type { PaymentMode } from '@/platform/services/model';
 import type { Cart } from '@/platform/services/model/cart/cart';
 import type {
@@ -20,6 +22,7 @@ import type { AddressType } from '@/platform/services/model/common';
 import type { CustomerAddress } from '@/platform/services/model/customer/customer';
 import type { ShippingMethod } from '@/platform/services/model/shipping';
 import { useCheckoutStore } from '@/providers/StoreProvider';
+import type { CheckoutResetOptions } from '@/stores/checkout-store';
 import { useCart } from '../cart/useCart';
 import { useAddresses } from '../customer/useAddresses';
 import useCustomer from '../customer/useCustomer';
@@ -44,6 +47,8 @@ interface UseCheckout {
   // Data submission
   submitContactData: (contactData: ContactData) => void;
   submitShippingAddress: (address: CheckoutAddress) => void;
+  /** Write country+zip onto the current cart, including leftover persist treated as a first selection. */
+  applyShippingDestinationToCart: (address: CheckoutAddress) => Promise<void>;
   submitBillingAddress: (address: CheckoutAddress) => void;
   submitPaymentMethod: (method: CheckoutPaymentMethod) => void;
   submitShippingMethod: (method: ShippingMethod | null) => void;
@@ -51,7 +56,30 @@ interface UseCheckout {
   createCheckoutData: () => CheckoutRequest | null;
   processCheckout: () => Promise<CheckoutResponse | null>;
   processQuoteCheckout: (quoteId: string, paymentMethod: CheckoutPaymentMethod) => Promise<CheckoutResponse | null>;
-  reset: () => void;
+  reset: (options?: CheckoutResetOptions) => void;
+}
+
+export function hasCheckoutShippingDestination(
+  address: Pick<CheckoutAddress, 'country' | 'zipCode'> | null | undefined,
+): address is CheckoutAddress {
+  return Boolean(address?.country?.trim() && address?.zipCode?.trim());
+}
+
+export function checkoutAddressToCartShipping(address: CheckoutAddress): CartShippingAddress {
+  const country = normalizeCountryCode(address.country);
+  const zipCode = address.zipCode?.trim();
+  return {
+    contactName: address.contactName,
+    companyName: address.companyName,
+    street: address.street,
+    streetNumber: address.streetNumber,
+    streetAppendix: address.streetAppendix,
+    zipCode: zipCode || undefined,
+    city: address.city,
+    country: country || undefined,
+    state: address.state,
+    contactPhone: address.contactPhone,
+  };
 }
 
 /**
@@ -79,7 +107,7 @@ export const useCheckout = (): UseCheckout => {
   const { cart: checkoutCart, updateShippingInfo, clearCart } = useCart();
   const { customer } = useCustomer();
   const { addresses: customerAddresses } = useAddresses();
-  const { session: shopSession } = useShopSession();
+  const { session: shopSession, setCountry } = useShopSession();
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [orderResponse, setOrderResponse] = useState<CheckoutResponse | null>(null);
@@ -99,33 +127,68 @@ export const useCheckout = (): UseCheckout => {
     [setContactData],
   );
 
+  // New cart after a sequential approval/quote must still receive leftover persist
+  // as a first-time selection (isEqual on emp-checkout must not skip the PATCH).
+  const destinationAppliedCartIdRef = useRef<string | null>(null);
+
+  const persistShippingSelectionOnCart = useCallback(
+    async (address: CheckoutAddress) => {
+      const cartId = checkoutCart?.id;
+      if (!cartId || !hasCheckoutShippingDestination(address)) {
+        return;
+      }
+      destinationAppliedCartIdRef.current = cartId;
+      await updateShippingInfo(checkoutAddressToCartShipping(address));
+    },
+    [checkoutCart?.id, updateShippingInfo],
+  );
+
+  const syncSessionCountryFromAddress = useCallback(
+    (address: CheckoutAddress) => {
+      const nextCountry = normalizeCountryCode(address.country);
+      const sessionCountry = normalizeCountryCode(shopSession?.country);
+      if (nextCountry && nextCountry !== sessionCountry && setCountry) {
+        void setCountry(nextCountry);
+      }
+    },
+    [setCountry, shopSession?.country],
+  );
+
   const submitShippingAddress = useCallback(
     (address: CheckoutAddress) => {
-      if (isEqual(shippingAddress, address)) {
+      const sameAsPersisted = isEqual(shippingAddress, address);
+      const cartId = checkoutCart?.id;
+      const newCartNeedsDestination = Boolean(cartId) && destinationAppliedCartIdRef.current !== cartId;
+
+      // Same leftover address on a new cart is still a first selection for that cart.
+      if (sameAsPersisted && !newCartNeedsDestination) {
         return;
       }
 
       const countryOrPostalChanged =
-        !shippingAddress || address.country !== shippingAddress.country || address.zipCode !== shippingAddress.zipCode;
+        !shippingAddress ||
+        newCartNeedsDestination ||
+        address.country !== shippingAddress.country ||
+        address.zipCode !== shippingAddress.zipCode;
 
-      if (checkoutCart?.id && countryOrPostalChanged) {
-        updateShippingInfo({
-          contactName: address.contactName,
-          companyName: address.companyName,
-          street: address.street,
-          streetNumber: address.streetNumber,
-          streetAppendix: address.streetAppendix,
-          zipCode: address.zipCode,
-          city: address.city,
-          country: address.country,
-          state: address.state,
-          contactPhone: address.contactPhone,
-        });
+      if (countryOrPostalChanged) {
+        persistShippingSelectionOnCart(address).catch(() => undefined);
       }
-      setShippingAddress(address);
+      syncSessionCountryFromAddress(address);
+      if (!sameAsPersisted) {
+        setShippingAddress(address);
+      }
     },
-    [checkoutCart?.id, shippingAddress, setShippingAddress, updateShippingInfo],
+    [
+      checkoutCart?.id,
+      persistShippingSelectionOnCart,
+      shippingAddress,
+      setShippingAddress,
+      syncSessionCountryFromAddress,
+    ],
   );
+
+  const applyShippingDestinationToCart = persistShippingSelectionOnCart;
 
   const submitBillingAddress = useCallback(
     (address: CheckoutAddress) => {
@@ -182,7 +245,7 @@ export const useCheckout = (): UseCheckout => {
     }
     // Validate each required checkout component individually
     if (!shippingMethod) {
-      setError(new Error('Missing shipping method'));
+      setError(new Error('checkout.shipping.selectShippingMethod'));
       return null;
     }
 
@@ -238,10 +301,9 @@ export const useCheckout = (): UseCheckout => {
       }
 
       clearCart();
-      setShippingMethod(null);
-      setPaymentMethod(null);
-      setShippingAddress(null);
-      setBillingAddress(null);
+      // Sequential order → new cart: keep ship-to/billing so checkout/quote/approval
+      // forms stay filled. Leftover persist still writes destination onto the next cart.
+      storeReset({ keepAddresses: true });
       setOrderResponse(checkoutResponse);
       return checkoutResponse;
     } catch (err) {
@@ -283,15 +345,33 @@ export const useCheckout = (): UseCheckout => {
   /**
    * Reset the checkout state
    */
-  const reset = () => {
+  const reset = (options?: CheckoutResetOptions) => {
     setError(null);
     setOrderResponse(null);
-    storeReset();
+    destinationAppliedCartIdRef.current = null;
+    storeReset(options);
   };
 
   const shippingCountry = shippingAddress?.country;
   const shippingZip = shippingAddress?.zipCode;
   const checkoutCartId = checkoutCart?.id;
+
+  // Leftover emp-checkout ship-to after a sequential approval/quote: treat it as if
+  // the shopper just selected that address on this cart (same writes as first creation).
+  useEffect(() => {
+    if (!checkoutCartId) {
+      destinationAppliedCartIdRef.current = null;
+      return;
+    }
+    if (!hasCheckoutShippingDestination(shippingAddress)) {
+      return;
+    }
+    if (destinationAppliedCartIdRef.current === checkoutCartId) {
+      return;
+    }
+    persistShippingSelectionOnCart(shippingAddress).catch(() => undefined);
+    syncSessionCountryFromAddress(shippingAddress);
+  }, [checkoutCartId, persistShippingSelectionOnCart, shippingAddress, syncSessionCountryFromAddress]);
   // Goods value only — including shipping in this key refetches methods (and
   // remounts the radio group) every time a method is persisted on the cart.
   const orderAmount = checkoutCart?.subTotalPrice?.amount ?? checkoutCart?.totalPrice?.amount;
@@ -316,13 +396,14 @@ export const useCheckout = (): UseCheckout => {
     if (ratesKey === lastShippingRatesKeyRef.current) {
       return;
     }
+    const isRatesKeyChange = lastShippingRatesKeyRef.current !== null;
     lastShippingRatesKeyRef.current = ratesKey;
 
-    // Drop stale rates and any previously selected method synchronously so the
-    // auto-selection effect cannot re-pick from the previous list while the new
-    // fetch is in flight.
+    // Drop stale rates. Clear an existing pick only when the zone/cart key
+    // changed — the first fetch must not wipe a still-valid method (and the
+    // follow-up effect drops a pick that is not in the new findSite list).
     clearShippingMethods();
-    if (shippingMethod) {
+    if (isRatesKeyChange && shippingMethod) {
       submitShippingMethod(null);
     }
 
@@ -348,24 +429,27 @@ export const useCheckout = (): UseCheckout => {
       return;
     }
 
+    if (shippingMethodsLoading) {
+      return;
+    }
+
     if (availableShippingMethods.length === 0) {
-      // Clear stale shipping method when no methods are available for this currency/zone
+      // Fetch finished with no findSite rates — there is no honest method to keep.
       submitShippingMethod(null);
       return;
     }
 
-    let newShippingMethod: ShippingMethod | null = null;
-    if (shippingMethod) {
-      newShippingMethod = availableShippingMethods.find((method) => method.id === shippingMethod.methodId) || null;
+    // Keep an explicit pick only when it is still in the new findSite list.
+    // Do not auto-select the cheapest fee — the shopper must choose a real method.
+    if (!shippingMethod) {
+      return;
     }
-    if (!newShippingMethod) {
-      newShippingMethod = [...availableShippingMethods].sort(
-        (a, b) => (a.cost?.amount || 0) - (b.cost?.amount || 0),
-      )[0];
+    const stillAvailable = availableShippingMethods.find((method) => method.id === shippingMethod.methodId) || null;
+    if (!stillAvailable) {
+      submitShippingMethod(null);
     }
-    submitShippingMethod(newShippingMethod);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- shippingMethod excluded: this effect SETS it, including it would cause an infinite loop
-  }, [availableShippingMethods, checkoutCartId, submitShippingMethod]);
+  }, [availableShippingMethods, checkoutCartId, shippingMethodsLoading, submitShippingMethod]);
 
   // B2C-only address prefill: when the user has a default customer address and
   // no shipping/billing has been picked yet, seed it from the profile. B2B
@@ -474,6 +558,7 @@ export const useCheckout = (): UseCheckout => {
     shippingMethodsLoading,
     submitContactData,
     submitShippingAddress,
+    applyShippingDestinationToCart,
     submitBillingAddress,
     submitPaymentMethod,
     submitShippingMethod,

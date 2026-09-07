@@ -41,11 +41,17 @@ function DialogContent({
   children,
   showCloseButton = true,
   closeOnOutsideClick,
+  closeTestId,
+  'data-testid': dataTestId,
   onPointerDownOutside,
   onInteractOutside,
+  onFocusOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
+  /** BugBug locator for the X close control. When omitted, derived from `data-testid` as `{id}-closeButton`. */
+  closeTestId?: string;
+  'data-testid'?: string;
   /**
    * Whether clicking outside the dialog dismisses it.
    * Defaults to the NEXT_PUBLIC_DIALOGS_CLOSE_ON_OUTSIDE_CLICK env variable.
@@ -56,16 +62,19 @@ function DialogContent({
 }) {
   const shouldCloseOnOutsideClick =
     closeOnOutsideClick ?? process.env.NEXT_PUBLIC_DIALOGS_CLOSE_ON_OUTSIDE_CLICK === 'true';
+  const resolvedCloseTestId = closeTestId ?? (dataTestId ? `${dataTestId}-closeButton` : undefined);
 
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay>
         <DialogPrimitive.Content
           data-slot="dialog-content"
+          data-testid={dataTestId}
           className={cn(
             'bg-surface-page data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 relative grid w-full max-w-[calc(100%-2rem)] max-h-[calc(100dvh-var(--dialog-safe-top,5.25rem))] overflow-y-auto gap-4 rounded-md border p-4 sm:p-6 shadow-sm duration-200 sm:max-w-lg',
             className,
           )}
+          {...props}
           onPointerDownOutside={(e) => {
             if (!shouldCloseOnOutsideClick) e.preventDefault();
             onPointerDownOutside?.(e);
@@ -74,12 +83,18 @@ function DialogContent({
             if (!shouldCloseOnOutsideClick) e.preventDefault();
             onInteractOutside?.(e);
           }}
-          {...props}
+          onFocusOutside={(e) => {
+            // Nested dialogs (e.g. address book inside quote) move focus into a
+            // portaled layer. Treat that like an outside click unless enabled.
+            if (!shouldCloseOnOutsideClick) e.preventDefault();
+            onFocusOutside?.(e);
+          }}
         >
           {children}
           {showCloseButton && (
             <DialogPrimitive.Close
               data-slot="dialog-close"
+              data-testid={resolvedCloseTestId}
               className="ring-offset-surface-page focus:ring-border-focus data-[state=open]:bg-surface-disabled data-[state=open]:text-text-on-disabled absolute top-4 right-4 sm:top-6 sm:right-6 rounded-sm focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-6 cursor-pointer disabled:cursor-default"
             >
               <XIcon />

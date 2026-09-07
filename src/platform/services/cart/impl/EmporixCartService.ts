@@ -1,5 +1,6 @@
 import { inject } from 'inversify';
 import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
+import { priceFetchOptionsFromSession } from '@/lib/common/price-match-session';
 import { baseUrl } from '@/lib/utils';
 import { injectable } from '@/platform/core/di/injectable';
 import type { EmporixCartApi } from '@/platform/integrations/emporix/cart/EmporixCartApi';
@@ -57,16 +58,38 @@ class EmporixCartService implements CartService {
   }
 
   /**
-   * Use explicit match-prices (site + session currency + country) for cart mutations.
+   * Use explicit match-prices (site + session currency + country + customer/LE) for cart mutations.
    * `match-prices-by-context` can diverge from the shop session cookie when propagation lags,
    * which produced priceIds incompatible with the cart currency.
    */
   private explicitPriceParamsForCartOperation(session: Session, cartSiteCode: string): PriceFetchOptions {
-    return {
-      siteCode: cartSiteCode,
-      currency: session.currency,
-      country: session.country,
-    };
+    return (
+      priceFetchOptionsFromSession(session, cartSiteCode) ?? {
+        siteCode: cartSiteCode,
+        currency: session.currency,
+        country: session.country,
+        useFallback: false,
+      }
+    );
+  }
+
+  private cartLineMutationContextChanged(before: EmporixCart, after: EmporixCart): boolean {
+    return this.normalizeCurrencyCode(before.currency) !== this.normalizeCurrencyCode(after.currency);
+  }
+
+  private async reloadCartItemAfterContextAlign(
+    cartId: string,
+    itemId: string,
+  ): Promise<{ cart: Cart; cartItem: Cart['items'][number] }> {
+    const cart = await this.getCartById(cartId);
+    if (!cart) {
+      throw new Error('Cart not found');
+    }
+    const cartItem = cart.items.find((item) => item.id === itemId);
+    if (!cartItem?.product?.id) {
+      throw new Error('Cart item not found');
+    }
+    return { cart, cartItem };
   }
 
   private normalizeCurrencyCode(value: string | undefined): string {
@@ -140,7 +163,8 @@ class EmporixCartService implements CartService {
   }
 
   async createCart(currency: string, siteCode: string): Promise<string> {
-    // TODO extract these information to a SiteConfigService
+    // Destination (legacy countryCode+zipCode, or addresses[]) is set at checkout
+    // when both country and zip are known. Cart Service rejects country-only writes.
     const createCartRequest = {
       siteCode,
       currency,
@@ -427,20 +451,18 @@ class EmporixCartService implements CartService {
     const rawCartForCurrency = await this.cartApi.getCart(cartId);
     if (rawCartForCurrency) {
       const aligned = await this.ensureCartCurrencyMatchesSessionBeforeLineMutation(rawCartForCurrency, session);
-      if (this.normalizeCurrencyCode(rawCartForCurrency.currency) !== this.normalizeCurrencyCode(aligned.currency)) {
-        cart = await this.getCartById(cartId);
-        if (!cart) {
-          throw new Error('Cart not found');
-        }
-        cartItem = cart.items.find((item) => item.id === itemId);
-        if (!cartItem || !cartItem.product?.id) {
-          throw new Error('Cart item not found');
-        }
+      if (this.cartLineMutationContextChanged(rawCartForCurrency, aligned)) {
+        ({ cart, cartItem } = await this.reloadCartItemAfterContextAlign(cartId, itemId));
       }
     }
 
+    const productId = cartItem.product?.id;
+    if (!productId) {
+      throw new Error('Cart item not found');
+    }
+
     const price = await this.priceService.getProductPrice(
-      cartItem.product.id,
+      productId,
       quantity,
       undefined,
       this.explicitPriceParamsForCartOperation(session, cartSiteCode),
@@ -459,7 +481,7 @@ class EmporixCartService implements CartService {
       },
     };
 
-    const { hasSufficientStock, availableQuantity } = await this.checkStock(cart?.site, cartItem.product.id, quantity);
+    const { hasSufficientStock, availableQuantity } = await this.checkStock(cart?.site, productId, quantity);
     await this.cartApi.updateCartItemQuantity(cartId, itemId, updateRequest);
 
     // Update Item

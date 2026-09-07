@@ -31,12 +31,20 @@ interface OrderSummaryProps {
  * Displays cart items, subtotal, shipping, and total
  */
 const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, onSubmit }) => {
-  const { checkoutCart: cart, loading: checkoutLoading } = useCheckout();
+  const {
+    checkoutCart: cart,
+    loading: checkoutLoading,
+    shippingAddress,
+    shippingMethod,
+    availableShippingMethods = [],
+    shippingMethodsLoading = false,
+  } = useCheckout();
   const { requiresApproval, loading: approvalLoading, setCartId } = useApprovalCheckout(cart?.id?.toString());
   const loading = checkoutLoading || approvalLoading;
   const t = useTranslations('checkout.summary');
   const tCommon = useTranslations('common');
   const tCheckout = useTranslations('checkout');
+  const tShipping = useTranslations('checkout.shipping');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [disabled, setDisabled] = useState(true);
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
@@ -184,6 +192,26 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
                   setIsSubmitting(true);
                   try {
                     const { valid, firstInvalid } = await validateAll();
+                    const hasAddress = Boolean(shippingAddress?.country?.trim() && shippingAddress?.zipCode?.trim());
+                    if (!hasAddress) {
+                      notify({ type: ToastType.Error, title: tShipping('enterShippingAddressFirst') });
+                      focusFirstInvalid(firstInvalid);
+                      return;
+                    }
+                    if (shippingMethodsLoading) {
+                      notify({ type: ToastType.Error, title: tShipping('loading') });
+                      return;
+                    }
+                    if (availableShippingMethods.length === 0) {
+                      notify({ type: ToastType.Error, title: tShipping('noShippingMethodsAvailable') });
+                      focusFirstInvalid(firstInvalid);
+                      return;
+                    }
+                    if (!shippingMethod) {
+                      notify({ type: ToastType.Error, title: tShipping('selectShippingMethod') });
+                      focusFirstInvalid(firstInvalid);
+                      return;
+                    }
                     if (!valid) {
                       notify({ type: ToastType.Error, title: tCheckout('formErrors') });
                       focusFirstInvalid(firstInvalid);

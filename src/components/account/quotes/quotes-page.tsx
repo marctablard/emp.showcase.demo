@@ -106,6 +106,7 @@ export default function QuotesPageContent({ initialQuotes, initialTotalCount }: 
               className="pr-10"
               endIcon={isSearchLoading ? undefined : Search}
               aria-label={t('searchPlaceholder')}
+              data-testid="quotes-search"
             />
             {isSearchLoading && (
               <Spinner

@@ -87,6 +87,7 @@
     "submittedDescription": "Our team will create a quote and get back to you as soon as possible. You can view all your quotes anytime in your account.",
     "failedTitle": "Failed to submit quote",
     "failedDescription": "Please try again later",
+    "totalChanged": "Total price has changed for the newly selected address, now: {total}.",
     "partialFailureDescription": "The quote was created, but the approval request could not be linked. Open the created quote to continue manual remediation without resubmitting the inquiry.",
     "viewCreatedQuote": "Open created quote"
   },

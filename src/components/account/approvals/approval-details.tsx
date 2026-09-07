@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ToastType, notify } from '@/components/ui/toast-notification';
 import { useApproval } from '@/hooks/approval/useApproval';
 import useCustomer from '@/hooks/customer/useCustomer';
+import { useOrder } from '@/hooks/order/useOrder';
 import { useToast } from '@/hooks/ui/useToast';
 import { Link } from '@/i18n/navigation';
 import { checkoutApproval as checkoutApi } from '@/lib/client/checkout';
@@ -35,6 +36,73 @@ function formatApprovalNetAmount(approval: Approval, locale: string): string {
   const net = resolveApprovalTotalNetAmount(approval);
   if (!net) return '-';
   return formatCurrency(net.amount, net.currency, locale);
+}
+
+/** CART approval order id after checkout — prefer Approval Service `createdResource.id`. */
+export function resolveCartApprovalOrderId(approval: Approval): string | undefined {
+  if (approval.resourceType !== 'CART') {
+    return undefined;
+  }
+  const createdId = approval.createdResource?.id?.trim();
+  if (createdId) {
+    return createdId;
+  }
+  const resourceOrderId = approval.resource.orderId?.trim();
+  return resourceOrderId || undefined;
+}
+
+function CartApprovalOrderNumber({ orderId }: { readonly orderId: string }) {
+  const t = useTranslations('orders.Approval');
+  const { order } = useOrder({ orderId, autoFetchStatusTransitions: false });
+  const canViewOrder = Boolean(order);
+
+  return (
+    <div className="flex flex-col gap-1">
+      <H5>{t('orderNumber')}</H5>
+      {canViewOrder ? (
+        <Link
+          href={`/account/orders/${orderId}`}
+          className="text-base font-body text-text-action"
+          data-testid="approval-relatedOrder"
+        >
+          {orderId}
+        </Link>
+      ) : (
+        <span className="text-base font-body text-text-body">{orderId}</span>
+      )}
+    </div>
+  );
+}
+
+function ApprovalRelatedResource({
+  approval,
+  cartOrderId,
+}: {
+  readonly approval: Approval;
+  readonly cartOrderId: string | undefined;
+}) {
+  const t = useTranslations('orders.Approval');
+
+  if (approval.resourceType === 'QUOTE') {
+    return (
+      <div className="flex flex-col gap-1">
+        <H5>{t('relatedQuote')}</H5>
+        <Link
+          href={`/account/quotes/${approval.resource.id}`}
+          className="text-base font-body text-text-action"
+          data-testid="approval-relatedQuote"
+        >
+          {approval.resource.id}
+        </Link>
+      </div>
+    );
+  }
+
+  if (cartOrderId) {
+    return <CartApprovalOrderNumber orderId={cartOrderId} />;
+  }
+
+  return null;
 }
 
 export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetailsProps) {
@@ -306,13 +374,16 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
           </div>
         </CardContent>
         <CardFooter>
-          <Button onClick={() => refreshApproval()}>{t('tryAgain')}</Button>
+          <Button onClick={() => refreshApproval()} data-testid="approval-retryButton">
+            {t('tryAgain')}
+          </Button>
         </CardFooter>
       </Card>
     );
   } else {
     const canApprove = approval.status === 'PENDING' && isDesignatedApprover && !isRequestor;
     const canComment = approval.status === 'PENDING' && (isRequestor || isDesignatedApprover);
+    const cartOrderId = resolveCartApprovalOrderId(approval);
 
     content = (
       <div className="space-y-6">
@@ -342,6 +413,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
                   onClick={handleDeclineClick}
                   disabled={isProcessing}
                   className="w-full gap-2 sm:w-auto"
+                  data-testid="approval-declineButton"
                 >
                   <CircleX className="h-5 w-5" />
                   {t('decline')}
@@ -352,6 +424,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
                   onClick={handleApproveClick}
                   disabled={isProcessing}
                   className="w-full gap-2 sm:w-auto"
+                  data-testid="approval-approveButton"
                 >
                   <CircleCheck className="h-5 w-5" />
                   {t('approve')}
@@ -364,6 +437,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
                 size="small"
                 onClick={() => setIsCommentFormOpen((isOpen) => !isOpen)}
                 className="w-full gap-2 sm:w-auto"
+                data-testid="approval-addCommentButton"
               >
                 <MessageSquareText className="h-5 w-5" />
                 {t('addComment')}
@@ -400,21 +474,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
                   {approval.requestor.firstName} {approval.requestor.lastName}
                 </span>
               </div>
-              <div className="flex flex-col gap-1">
-                <H5>{approval.resourceType === 'QUOTE' ? t('relatedQuote') : t('relatedOrder')}</H5>
-                {approval.resourceType === 'QUOTE' ? (
-                  <Link
-                    href={`/account/quotes/${approval.resource.id}`}
-                    className="text-base font-body text-text-action"
-                  >
-                    {approval.resource.id}
-                  </Link>
-                ) : (
-                  <span className="text-base font-body text-text-body">
-                    {approval.resource.orderId || approval.resource.id}
-                  </span>
-                )}
-              </div>
+              <ApprovalRelatedResource approval={approval} cartOrderId={cartOrderId} />
             </div>
           </div>
         </div>
@@ -429,12 +489,17 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
                 onChange={(e) => setComment(e.target.value)}
                 placeholder={t('enterComment')}
                 className="mb-2"
+                data-testid="approval-commentInput"
               />
               <div className="flex justify-end gap-3">
-                <Button variant="secondary" onClick={() => setIsCommentFormOpen(false)}>
+                <Button
+                  variant="secondary"
+                  onClick={() => setIsCommentFormOpen(false)}
+                  data-testid="approval-commentCancelButton"
+                >
                   {t('back')}
                 </Button>
-                <Button onClick={handleComment} disabled={!comment.trim()}>
+                <Button onClick={handleComment} disabled={!comment.trim()} data-testid="approval-commentSaveButton">
                   {t('saveComment')}
                 </Button>
               </div>
@@ -548,6 +613,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
         onCancel={handleCancelDecline}
         onConfirm={() => void handleConfirmDecline()}
         pending={isProcessing}
+        testIdPrefix="approval-decline"
       />
       <ConfirmationDialog
         open={isApproveDialogOpen}
@@ -563,6 +629,7 @@ export function ApprovalDetails({ approvalId, initialApproval }: ApprovalDetails
         onConfirm={() => void handleConfirmApprove()}
         pending={isProcessing}
         confirmVariant="outlineSuccess"
+        testIdPrefix="approval-approve"
       />
     </>
   );

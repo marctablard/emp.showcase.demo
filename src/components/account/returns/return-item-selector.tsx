@@ -144,12 +144,16 @@ export function ReturnItemSelector({
                     onValueChange={(value: string) => onItemReasonChange(item.id, value as ReturnReasonCode)}
                     disabled={loading || currentQty <= 0}
                   >
-                    <SelectTrigger id={`item-reason-${item.id}`} className="w-full">
+                    <SelectTrigger
+                      id={`item-reason-${item.id}`}
+                      className="w-full"
+                      data-testid={`return-item-reason-${item.id}`}
+                    >
                       <SelectValue placeholder={t('selectReason')} />
                     </SelectTrigger>
                     <SelectContent>
                       {reasonOptions.map((reason) => (
-                        <SelectItem key={reason} value={reason}>
+                        <SelectItem key={reason} value={reason} data-testid={`return-item-reason-${item.id}-${reason}`}>
                           {t(`reasons.${reason}`)}
                         </SelectItem>
                       ))}
@@ -171,6 +175,7 @@ export function ReturnItemSelector({
                     disabled={loading || currentQty <= 0}
                     className="min-h-[144px] w-full resize-none"
                     placeholder={t('descriptionPlaceholder' as any)}
+                    data-testid={`return-item-description-${item.id}`}
                   />
                   <p className="mt-2 text-xs text-text-on-disabled">
                     {(itemReasonDetails[item.id] || '').length}/{MAX_DESCRIPTION_LENGTH}
@@ -258,12 +263,20 @@ export function ReturnItemSelector({
                       onValueChange={(value: string) => onItemReasonChange(item.id, value as ReturnReasonCode)}
                       disabled={loading || currentQty <= 0}
                     >
-                      <SelectTrigger id={`item-reason-mobile-${item.id}`} className="w-full">
+                      <SelectTrigger
+                        id={`item-reason-mobile-${item.id}`}
+                        className="w-full"
+                        data-testid={`return-item-reason-mobile-${item.id}`}
+                      >
                         <SelectValue placeholder={t('selectReason')} />
                       </SelectTrigger>
                       <SelectContent>
                         {reasonOptions.map((reason) => (
-                          <SelectItem key={reason} value={reason}>
+                          <SelectItem
+                            key={reason}
+                            value={reason}
+                            data-testid={`return-item-reason-mobile-${item.id}-${reason}`}
+                          >
                             {t(`reasons.${reason}`)}
                           </SelectItem>
                         ))}
@@ -285,6 +298,7 @@ export function ReturnItemSelector({
                       disabled={loading || currentQty <= 0}
                       className="min-h-[144px] w-full resize-none"
                       placeholder={t('descriptionPlaceholder' as any)}
+                      data-testid={`return-item-description-mobile-${item.id}`}
                     />
                     <p className="mt-2 text-xs text-text-on-disabled">
                       {(itemReasonDetails[item.id] || '').length}/{MAX_DESCRIPTION_LENGTH}

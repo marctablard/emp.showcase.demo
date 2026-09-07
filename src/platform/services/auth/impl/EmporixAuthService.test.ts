@@ -1227,6 +1227,58 @@ describe('EmporixAuthService', () => {
       expect(mockSessionService.setCurrency).not.toHaveBeenCalled();
     });
 
+    it('keeps a pre-login country allowed on the target site', async () => {
+      const shopperSession: ServiceSession = {
+        ...oldServiceSession,
+        country: 'DE',
+      };
+      mockSessionService.getCurrent.mockResolvedValue(shopperSession);
+      mockCustomerApi.login.mockResolvedValue({
+        ...loginSessionContext,
+        targetLocation: 'US',
+      });
+      mockCartService.getCart.mockResolvedValue(customerCart);
+      mockSuccessfulMerge();
+      mockSessionService.setCart.mockResolvedValue(undefined);
+
+      await authService.login(credentials);
+
+      expect(mockSessionService.updateContext).toHaveBeenCalledWith(
+        expect.objectContaining({ country: 'DE' }),
+        expect.any(Object),
+      );
+    });
+
+    it('snaps a pre-login country that the target site does not list to site.defaultCountry', async () => {
+      const shopperSession: ServiceSession = {
+        ...oldServiceSession,
+        country: 'RO',
+      };
+      mockSiteService.getSite.mockResolvedValue({
+        ...mainSite,
+        defaultCountry: 'DE',
+        countries: [
+          { code: 'DE', name: 'Germany' },
+          { code: 'CH', name: 'Switzerland' },
+        ],
+      });
+      mockSessionService.getCurrent.mockResolvedValue(shopperSession);
+      mockCustomerApi.login.mockResolvedValue({
+        ...loginSessionContext,
+        targetLocation: 'US',
+      });
+      mockCartService.getCart.mockResolvedValue(customerCart);
+      mockSuccessfulMerge();
+      mockSessionService.setCart.mockResolvedValue(undefined);
+
+      await authService.login(credentials);
+
+      expect(mockSessionService.updateContext).toHaveBeenCalledWith(
+        expect.objectContaining({ country: 'DE' }),
+        expect.any(Object),
+      );
+    });
+
     it('swallows combined PATCH failures, logs them, and still returns a usable Session', async () => {
       // Scenario 6: updateContext rejects → login result is still returned
       // with the Emporix-migrated siteCode (so the redirect guard takes over),

@@ -223,7 +223,7 @@ export function OrderDetail({
             data-testid="order-detail-header-actions"
           >
             {showCancelButton && cancelOrder && (
-              <Button variant="secondary" onClick={() => setCancelDialogOpen(true)}>
+              <Button variant="secondary" onClick={() => setCancelDialogOpen(true)} data-testid="order-cancelButton">
                 <Ban className="h-6 w-6" />
                 {tOrder('cancelOrder')}
               </Button>
@@ -233,7 +233,12 @@ export function OrderDetail({
                 <Tooltip delayDuration={200}>
                   <TooltipTrigger asChild>
                     <span className="w-full sm:w-auto">
-                      <Button variant="secondary" disabled className="w-full sm:w-auto">
+                      <Button
+                        variant="secondary"
+                        disabled
+                        className="w-full sm:w-auto"
+                        data-testid="order-returnButton"
+                      >
                         <RotateCcw className="h-6 w-6" />
                         {tOrder('returnOrder')}
                       </Button>
@@ -244,13 +249,13 @@ export function OrderDetail({
                   </TooltipContent>
                 </Tooltip>
               ) : (
-                <Button variant="secondary" onClick={() => setReturnDialogOpen(true)}>
+                <Button variant="secondary" onClick={() => setReturnDialogOpen(true)} data-testid="order-returnButton">
                   <RotateCcw className="h-6 w-6" />
                   {tOrder('returnOrder')}
                 </Button>
               ))}
             {showTrackShipmentControl && (
-              <Button variant="secondary" disabled aria-disabled="true">
+              <Button variant="secondary" disabled aria-disabled="true" data-testid="order-trackShipmentButton">
                 <Truck className="h-6 w-6" />
                 {tOrder('trackShipment')}
               </Button>
@@ -272,7 +277,12 @@ export function OrderDetail({
             </SummaryField>
             {order.quoteId && (
               <SummaryField label={tOrder('relatedQuote')} valueClassName="text-sm">
-                <UiLink href={`/account/quotes/${order.quoteId}`} type="Link" variant="textNoUnderline">
+                <UiLink
+                  href={`/account/quotes/${order.quoteId}`}
+                  type="Link"
+                  variant="textNoUnderline"
+                  data-testid="order-relatedQuote"
+                >
                   {order.quoteId}
                 </UiLink>
               </SummaryField>
@@ -455,6 +465,7 @@ export function OrderDetail({
         onCancel={handleDismissCancelDialog}
         onConfirm={() => void handleConfirmCancelOrder()}
         pending={isCancelling}
+        testIdPrefix="order-cancel"
       />
     </div>
   );

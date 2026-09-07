@@ -84,6 +84,7 @@ export function QuotesTable({
         onClick={() => onToggleSort?.(field)}
         disabled={!onToggleSort}
         className="flex items-center gap-2 hover:text-text-action"
+        data-testid={`quotes-sort-${field}`}
       >
         {label}
         {getSortIcon(field)}
@@ -134,6 +135,7 @@ export function QuotesTable({
                     )}
                     tabIndex={0}
                     aria-label={rowAriaLabel}
+                    data-testid={`quotes-row-${quote.id}`}
                     onClick={() => router.push(quoteHref)}
                     onKeyDown={(event) => {
                       if (event.target !== event.currentTarget) {
@@ -153,6 +155,7 @@ export function QuotesTable({
                         variant="table"
                         className="font-bold"
                         onClick={(event) => event.stopPropagation()}
+                        data-testid={`quotes-id-${quote.id}`}
                       >
                         {quote.id}
                       </UiLink>
@@ -163,7 +166,12 @@ export function QuotesTable({
                     </TableCell>
                     <TableCell className="px-2 py-4" onClick={(event) => event.stopPropagation()}>
                       {quote.orderId ? (
-                        <UiLink type="Link" href={`/account/orders/${quote.orderId}`} variant="table">
+                        <UiLink
+                          type="Link"
+                          href={`/account/orders/${quote.orderId}`}
+                          variant="table"
+                          data-testid={`quotes-relatedOrder-${quote.orderId}`}
+                        >
                           {quote.orderId}
                         </UiLink>
                       ) : (
@@ -188,6 +196,7 @@ export function QuotesTable({
                           variant="table"
                           onClick={(event) => event.stopPropagation()}
                           aria-label={t('viewQuoteAriaLabel', { id: quote.id })}
+                          data-testid={`quotes-view-${quote.id}`}
                         >
                           <ArrowRight className="h-6 w-6" />
                         </UiLink>

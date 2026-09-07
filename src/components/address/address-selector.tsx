@@ -40,6 +40,13 @@ export interface AddressSelectorProps {
   addressType?: AddressType;
   className?: string;
   addressBook?: AddressBookMode;
+  /** Fired when the address-book dialog opens or closes. */
+  onOpenChange?: (open: boolean) => void;
+  /**
+   * Prefix for dialog / list / row `data-testid`s (BugBug).
+   * Default `addressSelector`. Pass `shipping` / `billing` / `quoteShipping` when two books can mount.
+   */
+  testIdPrefix?: string;
 }
 
 function filterByAddressRole(
@@ -87,19 +94,26 @@ function AddressSelectorInner({
   className,
   flatAddresses,
   loading,
-}: AddressSelectorInnerProps) {
+  onOpenChange,
+  testIdPrefix = 'addressSelector',
+}: Readonly<AddressSelectorInnerProps>) {
   const t = useTranslations('account.AddressForm');
   const [open, setOpen] = useState(false);
   const [internalSelectedId, setInternalSelectedId] = useState<string | undefined>(selectedAddressId);
 
   const resolvedSelectedId = selectedAddressId ?? internalSelectedId;
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    onOpenChange?.(nextOpen);
+  };
+
   const handleAddressSelect = (address: Address) => {
     if (selectedAddressId === undefined) {
       setInternalSelectedId(address.id);
     }
     onSelect(address);
-    setOpen(false);
+    handleOpenChange(false);
   };
 
   const flatList = flatAddresses ?? [];
@@ -107,22 +121,32 @@ function AddressSelectorInner({
   const selectedAddress = resolvedSelectedId ? flatList.find((addr) => addr.id === resolvedSelectedId) : undefined;
 
   const renderAddressBlock = (address: CustomerAddress) => (
-    <div
+    <button
+      type="button"
       key={address.id}
       className={cn(
-        'p-4 my-2 border rounded-md cursor-pointer transition-colors hover:bg-surface-action-hover-2',
+        'w-full text-left p-4 my-2 border rounded-md cursor-pointer transition-colors hover:bg-surface-action-hover-2',
         resolvedSelectedId === address.id
           ? 'bg-surface-action text-text-on-action hover:bg-surface-action-hover hover:text-text-ho'
           : '',
       )}
-      onClick={() => handleAddressSelect(address)}
-      data-testid={`addressSelector-item-${address.id}`}
+      onClick={(event) => {
+        event.stopPropagation();
+        handleAddressSelect(address);
+      }}
+      data-testid={`${testIdPrefix}-item-${address.id}`}
+      data-country={address.country}
     >
       <div className="flex justify-between items-start mb-1">
         <div className="flex items-center gap-2">
           <p className="font-bold">{address.contactName}</p>
           {address.source === 'customer' && address.isDefault ? (
-            <span className="text-xs px-2 py-0.5 rounded-sm bg-surface-success text-text-success">{t('default')}</span>
+            <span
+              className="text-xs px-2 py-0.5 rounded-sm bg-surface-success text-text-success"
+              data-testid={`${testIdPrefix}-item-${address.id}-default`}
+            >
+              {t('default')}
+            </span>
           ) : null}
         </div>
 
@@ -133,6 +157,7 @@ function AddressSelectorInner({
                 key={type}
                 className={`text-sm px-2 py-1 rounded-sm 
                               ${type === ADDRESS_TYPE.SHIPPING ? 'bg-surface-information text-text-action-hover' : 'bg-surface-warning text-text-warning'}`}
+                data-testid={`${testIdPrefix}-item-${address.id}-tag-${type.toLowerCase()}`}
               >
                 {type === ADDRESS_TYPE.SHIPPING ? t('shipping') : type === ADDRESS_TYPE.BILLING ? t('billing') : type}
               </span>
@@ -156,40 +181,60 @@ function AddressSelectorInner({
         {address.state ? <p>{address.state}</p> : null}
         <p>{address.country}</p>
       </div>
-    </div>
+    </button>
   );
 
   const hasContent = flatList.length > 0;
 
+  const renderAddressBookBody = () => {
+    if (loading) {
+      return (
+        <div className="space-y-2">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
+      );
+    }
+    if (hasContent) {
+      return (
+        <div className="max-h-[400px] overflow-y-auto" data-testid={`${testIdPrefix}-list`}>
+          {flatList.map(renderAddressBlock)}
+        </div>
+      );
+    }
+    return (
+      <div className="text-center py-8" data-testid={`${testIdPrefix}-empty`}>
+        {t('noAddresses')}
+      </div>
+    );
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        {triggerElement ? (
-          triggerElement
-        ) : (
-          <Button variant="secondary" className={className}>
+        {triggerElement ?? (
+          <Button variant="secondary" className={className} data-testid={`${testIdPrefix}-trigger`}>
             {selectedAddress ? formatAddressSummary(selectedAddress).substring(0, 30) + '...' : t('selectAnAddress')}
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent
+        className="sm:max-w-md"
+        data-testid={`${testIdPrefix}-dialog`}
+        closeTestId={`${testIdPrefix}-closeButton`}
+        onCloseAutoFocus={(event) => {
+          if (onOpenChange) {
+            // Nested quote/checkout dialogs must keep parent focus.
+            event.preventDefault();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{title || t('selectAnAddress')}</DialogTitle>
         </DialogHeader>
 
-        <div className="py-4">
-          {loading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-            </div>
-          ) : hasContent ? (
-            <div className="max-h-[400px] overflow-y-auto">{flatList.map(renderAddressBlock)}</div>
-          ) : (
-            <div className="text-center py-8">{t('noAddresses')}</div>
-          )}
-        </div>
+        <div className="py-4">{renderAddressBookBody()}</div>
       </DialogContent>
     </Dialog>
   );
@@ -250,8 +295,10 @@ function AddressSelectorAutoBook(props: Omit<AddressSelectorProps, 'addressBook'
  * @param addressType - When set, filter to addresses whose `tags` include this role (e.g. checkout shipping passes shipping).
  * @param className - Extra classes on the default trigger button when `triggerElement` is omitted.
  * @param addressBook - See {@link AddressBookMode}. Defaults to `'auto'` which picks the right book based on B2B/B2C context.
+ * @param onOpenChange - Called when the address-book dialog opens or closes.
+ * @param testIdPrefix - BugBug `data-testid` prefix for dialog, list, and rows. Defaults to `addressSelector`.
  */
-export function AddressSelector({ addressBook = 'auto', ...props }: AddressSelectorProps) {
+export function AddressSelector({ addressBook = 'auto', ...props }: Readonly<AddressSelectorProps>) {
   const { status } = useSession();
   if (status !== 'authenticated') {
     return null;

@@ -110,15 +110,11 @@ export async function addItemToCart(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => null);
-    if (errorData?.code === CartErrorCode.PRICE_SITE_INCOMPATIBLE) {
-      throw new Error(errorData.error || 'Product price is not available for this site');
-    }
-    if (errorData?.code === CartErrorCode.PRICE_NOT_AVAILABLE) {
-      throw new Error(errorData.error || "This product's price is not available for the current site.");
-    }
-    if (errorData?.code === CartErrorCode.CART_SITE_MISMATCH) {
-      const err = new Error(errorData.error || 'Your cart belongs to a different site. Please refresh the page.');
-      (err as Error & { code: string }).code = CartErrorCode.CART_SITE_MISMATCH;
+    if (errorData?.error) {
+      const err = new Error(errorData.error);
+      if (errorData.code === CartErrorCode.CART_SITE_MISMATCH) {
+        (err as Error & { code: string }).code = CartErrorCode.CART_SITE_MISMATCH;
+      }
       throw err;
     }
     throw new Error(`Failed to add item to cart: ${response.statusText}`);

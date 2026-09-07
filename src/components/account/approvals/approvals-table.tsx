@@ -116,6 +116,7 @@ export function ApprovalsTable({
         onClick={() => onToggleSort?.(field)}
         disabled={!onToggleSort}
         className="flex items-center gap-2 hover:text-text-action"
+        data-testid={`approvals-sort-${field}`}
       >
         {label}
         {getSortIcon(field)}
@@ -169,6 +170,7 @@ export function ApprovalsTable({
                     )}
                     tabIndex={0}
                     aria-label={rowAriaLabel}
+                    data-testid={`approvals-row-${approval.id}`}
                     onClick={() => router.push(approvalHref)}
                     onKeyDown={(event) => {
                       if (event.target !== event.currentTarget) {
@@ -188,6 +190,7 @@ export function ApprovalsTable({
                         variant="table"
                         className="font-bold"
                         onClick={(event) => event.stopPropagation()}
+                        data-testid={`approvals-id-${approval.id}`}
                       >
                         {approval.id}
                       </UiLink>
@@ -206,6 +209,7 @@ export function ApprovalsTable({
                           href={`/account/quotes/${approval.resource.id}`}
                           variant="table"
                           onClick={(event) => event.stopPropagation()}
+                          data-testid={`approvals-relatedQuote-${approval.resource.id}`}
                         >
                           {approval.resource.id}
                         </UiLink>
@@ -228,6 +232,7 @@ export function ApprovalsTable({
                           variant="table"
                           onClick={(event) => event.stopPropagation()}
                           aria-label={t('viewApprovalAriaLabel', { id: approval.id })}
+                          data-testid={`approvals-view-${approval.id}`}
                         >
                           <ArrowRight className="h-6 w-6" />
                         </UiLink>

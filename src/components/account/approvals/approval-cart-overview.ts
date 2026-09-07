@@ -17,7 +17,7 @@ export function resolveCartOrderOverviewTotalGross(approval: Approval): number |
 /**
  * Frontend-estimated shipping tax for CART Order Overview:
  * `totalPrice.grossValue − shipping fee − net value of goods − VAT`.
- * Hidden when the remainder is 0 or `grossValue` is missing.
+ * Hidden when shipping is free (no VAT line), the remainder is ≤ 0, or `grossValue` is missing.
  */
 export function resolveCartOrderOverviewShippingTax(input: {
   totalGross?: number;
@@ -26,7 +26,7 @@ export function resolveCartOrderOverviewShippingTax(input: {
   goodsVat: number;
 }): { shippingTaxEstimated: number; showShippingTaxEstimated: boolean } {
   const { totalGross, shippingFee, goodsNet, goodsVat } = input;
-  if (typeof totalGross !== 'number') {
+  if (typeof totalGross !== 'number' || shippingFee <= 0) {
     return { shippingTaxEstimated: 0, showShippingTaxEstimated: false };
   }
 

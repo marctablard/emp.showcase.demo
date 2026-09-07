@@ -395,13 +395,9 @@ npm run jest:coverage     # With coverage report
 
 Stop on first failure. Default local gates are `npm run jest` and `npm run build`.
 
-Do **not** run a local SonarQube scan for jest, build, commit, or push. The scanner has usage limits. Run it only when the user explicitly asks (e.g. "run sonar", "sonar scan").
+Do **not** run `sonarqube-scanner` or add a repo `sonar:pr` helper. Official analysis is `.github/workflows/sonarqube-scan.yml` and still runs on PRs to `develop`. If `SONAR_LOGIN` is unset, the scan step no-ops. For obvious Sonar maintainability smells while editing, use **SonarQube for IDE** (`SonarSource.sonarlint-vscode`); it is local and does not upload a project scan.
 
-When the user asks for Sonar:
-
-```
-SONAR_HOST_URL=https://sonarqube.k8s-tech.emporix.io SONAR_TOKEN="$SONAR_LOGIN" npx --yes sonarqube-scanner -Dsonar.projectKey=emporix-showcase
-```
+BugBug `data-testid` on actionable controls is a coding rule (`.cursor/rules/data-testid-bugbug.mdc`), not a committed scanner.
 
 Workflow notes:
 

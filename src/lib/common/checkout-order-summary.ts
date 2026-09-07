@@ -91,8 +91,21 @@ export function buildCheckoutOrderSummaryFromCart(
     currency: cart?.tax?.currency ?? cart?.currency ?? '',
   };
 
-  if (!cart || selectedShipping == null || !Number.isFinite(selectedShipping.amount)) {
+  if (!cart) {
     return fromCart;
+  }
+
+  // Emporix cart shipping is a minimum estimate until the shopper picks a findSite method.
+  // Do not treat that quote as a chosen fee on checkout / cart / mini-cart.
+  if (selectedShipping == null || !Number.isFinite(selectedShipping.amount)) {
+    const cartShippingGross = mappedCartShippingGross(cart);
+    return {
+      ...fromCart,
+      shippingFee: undefined,
+      shippingVat: 0,
+      showShippingVat: false,
+      total: round2((cart.totalPrice?.amount ?? 0) - cartShippingGross),
+    };
   }
 
   const cartShippingFee = cart.shippingCosts?.amount ?? 0;

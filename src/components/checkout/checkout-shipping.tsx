@@ -2,25 +2,49 @@ import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Check, NotebookText, Package, Pencil } from 'lucide-react';
 import { useCheckout } from '@/hooks/checkout/useCheckout';
+import { checkoutShippingBlockReason, checkoutShippingMessageKey } from '@/lib/common/checkout-shipping-gate';
 import type { Address } from '@/platform/services/model/common';
 import { AddressSelector } from '../address/address-selector';
 import { AddressDisplay } from '../common/address-display';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { H2 } from '../ui/h';
+import { ToastType, notify } from '../ui/toast-notification';
 import CheckoutAddress from './checkout-address';
 import { useRegisterSectionExpander } from './checkout-validation-registry';
 import ShippingMethod from './shipping-method';
 
 export function CheckoutShipping({ initialEdit }: { initialEdit: boolean }) {
   const t = useTranslations('checkout.shipping');
-  const { availableShippingMethods, shippingAddress, shippingMethod, submitShippingAddress } = useCheckout();
+  const { availableShippingMethods, shippingAddress, shippingMethod, shippingMethodsLoading, submitShippingAddress } =
+    useCheckout();
   const [isShippingEdit, setIsShippingEdit] = useState(initialEdit || !shippingAddress || !shippingMethod);
 
   const expandShipping = useCallback(() => {
     if (!isShippingEdit) setIsShippingEdit(true);
   }, [isShippingEdit]);
   useRegisterSectionExpander('shipping', expandShipping);
+
+  const shippingGate = {
+    country: shippingAddress?.country,
+    zipCode: shippingAddress?.zipCode,
+    methodsLoading: shippingMethodsLoading,
+    methodIds: availableShippingMethods.map((method) => method.id),
+    selectedMethodId: shippingMethod?.methodId,
+  };
+
+  const handleShippingToggle = () => {
+    if (!isShippingEdit) {
+      setIsShippingEdit(true);
+      return;
+    }
+    const reason = checkoutShippingBlockReason(shippingGate);
+    if (reason) {
+      notify({ type: ToastType.Error, title: t(checkoutShippingMessageKey(reason)) });
+      return;
+    }
+    setIsShippingEdit(false);
+  };
 
   const handleShippingAddressChange = (address: Address) => {
     submitShippingAddress({
@@ -40,7 +64,7 @@ export function CheckoutShipping({ initialEdit }: { initialEdit: boolean }) {
           variant="link"
           size="default"
           className="normal-case text-base tracking-normal p-0 gap-1 underline"
-          onClick={() => (isShippingEdit ? setIsShippingEdit(false) : setIsShippingEdit(true))}
+          onClick={handleShippingToggle}
           data-testid="shipping-editButton"
         >
           {isShippingEdit ? (
@@ -70,8 +94,10 @@ export function CheckoutShipping({ initialEdit }: { initialEdit: boolean }) {
                   </div>
                   <div>
                     <p>{shippingMethod?.methodName}</p>
-                    {!shippingMethod && availableShippingMethods.length === 0 && (
-                      <p className="text-sm text-text-error">{t('noShippingMethodsAvailable')}</p>
+                    {!shippingMethod && (
+                      <p className="text-sm text-text-error">
+                        {t(checkoutShippingMessageKey(checkoutShippingBlockReason(shippingGate) ?? 'pick-method'))}
+                      </p>
                     )}
                     {/*<p>Arrives on July 12, 2025</p>*/}
                   </div>
@@ -99,13 +125,18 @@ export function CheckoutShipping({ initialEdit }: { initialEdit: boolean }) {
               <AddressSelector
                 addressBook="auto"
                 addressType="SHIPPING"
+                testIdPrefix="shipping"
                 selectedAddressId={shippingAddress?.id}
                 onSelect={handleShippingAddressChange}
                 triggerElement={
-                  <div className="flex gap-1 text-text-action font-bold mb-4 cursor-pointer">
+                  <button
+                    type="button"
+                    className="flex gap-1 text-text-action font-bold mb-4 cursor-pointer"
+                    data-testid="shipping-addressBook"
+                  >
                     <p>{t('fromAddressbook')}</p>
                     <NotebookText />
-                  </div>
+                  </button>
                 }
               />
               {/* Address Input */}

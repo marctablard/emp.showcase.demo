@@ -29,6 +29,7 @@ export interface CartState {
   loading: boolean;
   error: Error | null;
   lastShippingUpdate: {
+    cartId?: string;
     country?: string;
     zipCode?: string;
     timestamp: number;
@@ -82,6 +83,23 @@ interface CartActions {
 export type CartStore = CartState & CartActions;
 
 const MAX_PENDING_CURRENCY_SYNC_RETRIES = 3;
+const SHIPPING_UPDATE_DEBOUNCE_MS = 2000;
+
+function shouldSkipShippingUpdate(
+  lastShippingUpdate: CartState['lastShippingUpdate'],
+  cartId: string | undefined,
+  shippingAddress: CartShippingAddress,
+): boolean {
+  if (!cartId || !lastShippingUpdate) {
+    return false;
+  }
+  return (
+    lastShippingUpdate.cartId === cartId &&
+    lastShippingUpdate.country === shippingAddress.country &&
+    lastShippingUpdate.zipCode === shippingAddress.zipCode &&
+    Date.now() - lastShippingUpdate.timestamp < SHIPPING_UPDATE_DEBOUNCE_MS
+  );
+}
 
 // default state explicitly 'undefined' since it means, we don't know the cart's state
 const defaultState: CartState = {
@@ -464,42 +482,32 @@ export const createCartStore = (initState: CartState = defaultState) => {
         await afterPrevious.catch(() => {});
 
         try {
-          const { lastShippingUpdate } = get();
-          const now = Date.now();
-          const DEBOUNCE_TIME = 2000;
-
-          if (
-            lastShippingUpdate &&
-            lastShippingUpdate.country === shippingAddress.country &&
-            lastShippingUpdate.zipCode === shippingAddress.zipCode &&
-            now - lastShippingUpdate.timestamp < DEBOUNCE_TIME
-          ) {
-            return;
-          }
-
-          set({
-            error: null,
-            lastShippingUpdate: {
-              country: shippingAddress.country,
-              zipCode: shippingAddress.zipCode,
-              timestamp: now,
-            },
-          });
-
-          const { currentCart } = get();
-          if (!currentCart) {
+          let cart = get().currentCart;
+          if (!cart) {
             await get().fetchCart();
-            const updatedCart = get().currentCart;
-            if (!updatedCart) return;
+            cart = get().currentCart;
           }
-
-          const cart = get().currentCart;
           if (!cart) {
             set({ loading: false });
             return;
           }
 
+          // Debounce after the real cart id is known. Same country+zip on a
+          // *new* cart must still PATCH (leftover ship-to after approval/quote).
+          if (shouldSkipShippingUpdate(get().lastShippingUpdate, cart.id, shippingAddress)) {
+            return;
+          }
+
           await apiUpdateShippingInfo(cart.id, shippingAddress, billingAddress);
+          set({
+            error: null,
+            lastShippingUpdate: {
+              cartId: cart.id,
+              country: shippingAddress.country,
+              zipCode: shippingAddress.zipCode,
+              timestamp: Date.now(),
+            },
+          });
 
           await get().fetchCart(false, { quiet: true });
         } catch (err) {

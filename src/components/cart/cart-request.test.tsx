@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import '@testing-library/jest-dom';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { CartRequest } from './cart-request';
 
 const useAuthenticationMock = jest.fn();
@@ -26,31 +26,26 @@ jest.mock('../ui/collapsible', () => ({
   ),
 }));
 
-jest.mock('./quote-request-dialog', () => ({
-  __esModule: true,
-  default: ({ open }: { open: boolean }) => <div data-testid="quote-request-dialog">{String(open)}</div>,
-}));
-
 describe('CartRequest', () => {
   beforeEach(() => {
     useAuthenticationMock.mockReturnValue({ isAuthenticated: true });
   });
 
   it('renders the request quote CTA in request mode', () => {
-    render(<CartRequest />);
+    const onRequestQuote = jest.fn();
+    render(<CartRequest onRequestQuote={onRequestQuote} />);
 
     expect(screen.getByText('requestQuote')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'requestQuoteButton' })).toBeInTheDocument();
-    expect(screen.getByTestId('quote-request-dialog')).toHaveTextContent('false');
+    fireEvent.click(screen.getByRole('button', { name: 'requestQuoteButton' }));
+    expect(onRequestQuote).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the request CTA copy for unauthenticated users', () => {
     useAuthenticationMock.mockReturnValue({ isAuthenticated: false });
 
-    render(<CartRequest />);
+    render(<CartRequest onRequestQuote={jest.fn()} />);
 
     expect(screen.getByText('requestQuote')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'requestQuoteButton' })).toBeDisabled();
-    expect(screen.getByTestId('quote-request-dialog')).toHaveTextContent('false');
   });
 });

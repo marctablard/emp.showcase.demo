@@ -146,6 +146,27 @@ describe('ReturnDetail', () => {
     expect(within(overview).queryByText('gross')).not.toBeInTheDocument();
   });
 
+  it('shows Tax without a percent when finalPrice omits taxRate', () => {
+    mockUseReturn.mockReturnValue({
+      returnItem: {
+        ...buildReturn(),
+        calculatedPrice: {
+          finalPrice: { netValue: 100, grossValue: 119, taxValue: 19, currency: 'EUR' },
+        },
+      },
+      loading: false,
+      error: null,
+      refreshReturn: jest.fn(),
+    });
+
+    render(<ReturnDetail returnId="return-123" />);
+
+    const overview = screen.getByText('returnOverview').closest('.bg-surface-primary') as HTMLElement;
+    expect(within(overview).getByText('tax')).toBeInTheDocument();
+    expect(within(overview).queryByText(/tax \(/)).not.toBeInTheDocument();
+    expect(within(overview).getByText('€19.00')).toBeInTheDocument();
+  });
+
   it('omits Tax from Return Overview when tax rate is 0%', () => {
     mockUseReturn.mockReturnValue({
       returnItem: {

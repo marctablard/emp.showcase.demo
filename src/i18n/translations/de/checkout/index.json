@@ -55,6 +55,7 @@
     "loading": "Versandarten werden geladen...",
     "noShippingMethodsAvailable": "Keine Versandarten für Ihre Währung oder Ihren Standort verfügbar",
     "enterShippingAddressFirst": "Bitte geben Sie zuerst Ihre Lieferadresse ein",
+    "selectShippingMethod": "Bitte wählen Sie eine Versandart aus der verfügbaren Liste",
     "freeShipping": "Kostenloser Versand",
     "estimatedDelivery": "Voraussichtliche Lieferung: 3-5 Werktage",
     "multiplePackages": "Um Ihnen Ihre Produkte so schnell wie möglich zu liefern, können wir Ihre Bestellung in mehreren Paketen versenden, die an verschiedenen Tagen ankommen.",

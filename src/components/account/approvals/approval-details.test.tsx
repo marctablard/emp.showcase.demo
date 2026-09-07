@@ -5,7 +5,7 @@ import '@testing-library/jest-dom';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { checkoutApproval } from '@/lib/client/checkout';
 import type { Approval } from '@/platform/services/model/approval';
-import { ApprovalDetails } from './approval-details';
+import { ApprovalDetails, resolveCartApprovalOrderId } from './approval-details';
 
 const refreshApproval = jest.fn();
 const updateApprovalStatus = jest.fn();
@@ -54,6 +54,7 @@ let mockLoading = false;
 let mockError: Error | null = null;
 let mockCustomer: { id: string } | null = { id: 'requestor-1' };
 let mockCustomerLoading = false;
+let mockOrder: { id: string } | null = null;
 
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -83,6 +84,14 @@ jest.mock('@/hooks/approval/useApproval', () => ({
     updateApproverComment,
     updateRequestorComment,
     refreshApproval,
+  }),
+}));
+
+jest.mock('@/hooks/order/useOrder', () => ({
+  useOrder: () => ({
+    order: mockOrder,
+    loading: false,
+    error: null,
   }),
 }));
 
@@ -136,6 +145,7 @@ describe('ApprovalDetails', () => {
     mockError = null;
     mockCustomer = { id: 'requestor-1' };
     mockCustomerLoading = false;
+    mockOrder = null;
   });
 
   it('links quote resource IDs to the quote details page and formats dates with the active locale', () => {
@@ -284,23 +294,78 @@ describe('ApprovalDetails', () => {
     },
   );
 
-  it('falls back to the resource id as the related order when the resource has no order id (CART approval)', () => {
+  it('omits Order Number for a CART approval that has not created an order yet', () => {
     mockApproval = { ...baseApproval, resourceType: 'CART', resource: { id: 'cart-1' } };
 
     render(<ApprovalDetails approvalId="approval-requestor-1" />);
 
-    const label = screen.getByText('relatedOrder');
-    expect(label.nextElementSibling).toHaveTextContent('cart-1');
+    expect(screen.queryByText('orderNumber')).not.toBeInTheDocument();
+    expect(screen.queryByText('relatedOrder')).not.toBeInTheDocument();
     expect(screen.queryByText('relatedQuote')).not.toBeInTheDocument();
+    expect(screen.queryByText('cart-1')).not.toBeInTheDocument();
   });
 
-  it('renders the source-backed related order id when present on the resource (CART approval)', () => {
-    mockApproval = { ...baseApproval, resourceType: 'CART', resource: { id: 'cart-1', orderId: 'ORDER-5' } };
+  it('shows createdResource.id as Order Number text when the user cannot view the order', () => {
+    mockApproval = {
+      ...baseApproval,
+      resourceType: 'CART',
+      resource: { id: 'cart-1' },
+      createdResource: { id: 'ORDER-9' },
+    };
+    mockOrder = null;
 
     render(<ApprovalDetails approvalId="approval-requestor-1" />);
 
-    const label = screen.getByText('relatedOrder');
-    expect(label.nextElementSibling).toHaveTextContent('ORDER-5');
+    const label = screen.getByText('orderNumber');
+    expect(label.nextElementSibling).toHaveTextContent('ORDER-9');
+    expect(label.nextElementSibling?.tagName.toLowerCase()).toBe('span');
+    expect(screen.queryByRole('link', { name: 'ORDER-9' })).not.toBeInTheDocument();
+    expect(screen.queryByText('relatedOrder')).not.toBeInTheDocument();
+  });
+
+  it('links Order Number to the order when the user can view it', () => {
+    mockApproval = {
+      ...baseApproval,
+      resourceType: 'CART',
+      resource: { id: 'cart-1' },
+      createdResource: { id: 'ORDER-9' },
+    };
+    mockOrder = { id: 'ORDER-9' };
+
+    render(<ApprovalDetails approvalId="approval-requestor-1" />);
+
+    expect(screen.getByText('orderNumber')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'ORDER-9' })).toHaveAttribute('href', '/account/orders/ORDER-9');
+  });
+
+  it('falls back to resource.orderId as Order Number when createdResource is missing', () => {
+    mockApproval = { ...baseApproval, resourceType: 'CART', resource: { id: 'cart-1', orderId: 'ORDER-5' } };
+    mockOrder = null;
+
+    render(<ApprovalDetails approvalId="approval-requestor-1" />);
+
+    expect(screen.getByText('orderNumber')).toBeInTheDocument();
+    expect(screen.getByText('ORDER-5')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'ORDER-5' })).not.toBeInTheDocument();
+  });
+
+  it('resolves CART order id from createdResource before resource.orderId', () => {
+    expect(
+      resolveCartApprovalOrderId({
+        ...baseApproval,
+        resourceType: 'CART',
+        resource: { id: 'cart-1', orderId: 'ORDER-5' },
+        createdResource: { id: 'ORDER-9' },
+      }),
+    ).toBe('ORDER-9');
+    expect(
+      resolveCartApprovalOrderId({
+        ...baseApproval,
+        resourceType: 'QUOTE',
+        resource: { id: 'Q-1000' },
+        createdResource: { id: 'ORDER-9' },
+      }),
+    ).toBeUndefined();
   });
 
   it('labels the related resource as Related Quote for QUOTE approvals', () => {

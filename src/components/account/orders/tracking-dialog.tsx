@@ -82,7 +82,11 @@ export function TrackingDialog({ orderId, open, onOpenChange }: TrackingDialogPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent
+        className="sm:max-w-lg"
+        data-testid="order-tracking-dialog"
+        closeTestId="order-tracking-closeButton"
+      >
         <DialogHeader>
           <DialogTitle>{tTracking('trackingInformation')}</DialogTitle>
         </DialogHeader>
@@ -170,7 +174,11 @@ export function TrackingDialog({ orderId, open, onOpenChange }: TrackingDialogPr
             {/* External tracking link */}
             {trackingInfo.carrier.trackingUrl && (
               <div className="pt-2 text-center">
-                <Button variant="secondary" onClick={() => window.open(trackingInfo.carrier.trackingUrl, '_blank')}>
+                <Button
+                  variant="secondary"
+                  onClick={() => window.open(trackingInfo.carrier.trackingUrl, '_blank')}
+                  data-testid="order-tracking-carrierLink"
+                >
                   {tTracking('viewOnCarrierWebsite')}
                 </Button>
               </div>

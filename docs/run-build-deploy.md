@@ -184,6 +184,8 @@ The **Run npm audit** step of `.github/workflows/github-actions-deploy-pr-previe
 
 `ALLOWED_EXCEPTIONS` is **currently empty** — there is no active exception, and every high/critical advisory fails CI.
 
+High/critical `browserslist` advisories [`GHSA-c83g-rgw3-j3cx`](https://github.com/advisories/GHSA-c83g-rgw3-j3cx) and [`GHSA-73wf-gq98-2v4g`](https://github.com/advisories/GHSA-73wf-gq98-2v4g) are fixed by pinning the patched `4.28.8` release via `overrides` in `package.json` (same pattern as `brace-expansion`). Do not add those GHSAs to `ALLOWED_EXCEPTIONS`. `browserslist@4.28.8` also pulls a too-new `electron-to-chromium` that safe-chain's minimum-package-age gate rejects on workflows without `--safe-chain-skip-minimum-package-age` (smoke / branch deploys). Pin `electron-to-chromium` to the previously settled `1.5.389` until a newer release has aged in; then drop that override.
+
 The mechanism exists to allow narrowly-scoped, time-boxed exceptions when a fix genuinely is not yet available, while keeping every other failure mode fatal. Its one historical entry has been resolved:
 
 - **Advisory:** [`GHSA-mh99-v99m-4gvg`](https://github.com/advisories/GHSA-mh99-v99m-4gvg) — `brace-expansion` DoS via unbounded expansion length (CWE-400/CWE-770), pulled in transitively through `minimatch` by the ESLint and Jest toolchains.
@@ -196,6 +198,7 @@ If a new exception ever becomes necessary, it MUST carry an explicit short-lived
 
 - Any high/critical advisory **not** in `ALLOWED_EXCEPTIONS` fails CI.
 - A missing, empty, unparsable, or unexpectedly-shaped audit report (e.g. a registry/network error instead of a real report) fails CI.
+- Trailing npm/safe-chain notices after the first JSON object are ignored so a valid report is not rejected as malformed. The first object must still be a real audit report.
 - It is robust to the two shapes `npm audit --json` uses inside each vulnerability's `via` array: a plain dependency-name string (transitive propagation through an already-reported package) versus an advisory object (an actual disclosed vulnerability, carrying its own `severity`/`url`/`title`). Only advisory objects are checked against the allowlist.
 
 To reproduce this exact CI check locally:

@@ -38,7 +38,7 @@ describe('useCartTotal', () => {
     mockUseSelectedShippingMethod.mockReturnValue(null);
   });
 
-  it('uses cart.totalPrice.amount as cartTotal when no shipping method is picked', () => {
+  it('hides the cart minimum shipping estimate when no shipping method is picked', () => {
     mockUseCart.mockReturnValue({
       cart: {
         subTotalPrice: { amount: 82.29, currency: 'EUR' },
@@ -60,14 +60,14 @@ describe('useCartTotal', () => {
 
     const { result } = renderHook(() => useCartTotal());
 
-    expect(result.current.cartTotal).toBe(82.3);
-    expect(result.current.shippingCosts).toBe(0.01);
+    expect(result.current.cartTotal).toBe(82.29);
+    expect(result.current.shippingCosts).toBeUndefined();
     expect(result.current.shippingVat).toBe(0);
     expect(result.current.showShippingVat).toBe(false);
     expect(result.current.currency).toBe('EUR');
   });
 
-  it('shows shipping VAT from cart.shippingCosts.tax when the amount is greater than 0', () => {
+  it('does not show cart shipping VAT until a checkout method is picked', () => {
     mockUseCart.mockReturnValue({
       cart: {
         subTotalPrice: { amount: 107.7, currency: 'CHF' },
@@ -89,9 +89,10 @@ describe('useCartTotal', () => {
 
     const { result } = renderHook(() => useCartTotal());
 
-    expect(result.current.cartTotal).toBe(129.24);
-    expect(result.current.shippingVat).toBe(1.54);
-    expect(result.current.showShippingVat).toBe(true);
+    expect(result.current.cartTotal).toBe(107.7);
+    expect(result.current.shippingCosts).toBeUndefined();
+    expect(result.current.shippingVat).toBe(0);
+    expect(result.current.showShippingVat).toBe(false);
   });
 
   it('overlays the picked shipping fee so header and mini-cart match checkout', () => {

@@ -27,18 +27,21 @@ Stop on first failure:
 
 Run `npm audit --audit-level=high` only when the user asks for audit, or before a release/security change.
 
-## Local SonarQube — only when the user asks
+## SonarQube — CI only for the official scan
 
-Do **not** run a local Sonar scan for `jest`, `build`, commit, or push.
+Do **not** run `sonarqube-scanner` / a repo `sonar:pr` helper for `jest`, `build`, commit, or push. That uploads a project analysis and waits on the quality gate (minutes, scanner quota).
 
-The scanner has usage limits. Run it only when the user explicitly asks (e.g. "run sonar", "sonar scan", "sonarqube").
+Official analysis is `.github/workflows/sonarqube-scan.yml` (internal host + `SONAR_LOGIN`). It still runs on PRs to `develop`. If the secret is missing, the scan step no-ops so client copies do not 401.
 
-When asked:
+### Cheap local checks (no upload)
 
-```
-SONAR_HOST_URL=https://sonarqube.k8s-tech.emporix.io SONAR_TOKEN="$SONAR_LOGIN" npx --yes sonarqube-scanner -Dsonar.projectKey=emporix-showcase
-```
+Obvious maintainability smells (`replaceAll`, nested ternary, consecutive `push`, …) should be fixed in the editor, not after a server scan.
 
-Do not claim local `sonarqube-scanner` equals the pinned GitHub Action SHA in `.github/workflows/sonarqube-scan.yml`.
+1. **SonarQube for IDE** (extension `SonarSource.sonarlint-vscode`, recommended in `.vscode/extensions.json`) — same SonarJS rules, local squiggles in Problems like TypeScript. Does **not** upload a project report. Optional connected mode (user token, local only) matches the server quality profile.
+2. **ESLint** — existing repo lint rules in the editor and on pre-commit (lint-staged on staged JS/TS). Do not enable Sonar’s full smell set in ESLint repo-wide; that is a large cleanup, not a cheap gate.
 
-CI note: PR preview runs `audit → generate → lint → jest` (no build/Sonar). Dedicated Sonar stays in `.github/workflows/sonarqube-scan.yml`.
+Do not use Sonar MCP `analyze_code_snippet` as a pre-commit stand-in — that calls the server.
+
+CI note: PR preview runs `audit → generate → lint → jest` (no build/Sonar).
+
+BugBug `data-testid` on actionable controls is a coding rule (`.cursor/rules/data-testid-bugbug.mdc`), not a committed scanner.

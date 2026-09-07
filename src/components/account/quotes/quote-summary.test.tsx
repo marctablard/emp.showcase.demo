@@ -68,6 +68,30 @@ describe('QuoteSummary', () => {
     expect(screen.getAllByText('tax (19%)').length).toBeGreaterThanOrEqual(1);
   });
 
+  it('shows VAT without a percent when items omit taxRate', () => {
+    render(
+      <QuoteSummary
+        quote={{
+          ...baseQuote,
+          vatRate: undefined,
+          items: [
+            {
+              product: {
+                id: 'p1',
+                quantity: 1,
+                itemPrice: { amount: 119, currency: 'EUR', netValue: 100, tax: 19 },
+              },
+              quantity: { quantity: 1, unitCode: 'pc' },
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getAllByText('tax').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/tax \(/)).not.toBeInTheDocument();
+  });
+
   it('shows VAT rate percent when totalNet > 0 and formats amounts with locale currency symbols', () => {
     render(<QuoteSummary quote={baseQuote} />);
 
@@ -252,6 +276,11 @@ describe('QuoteSummary', () => {
     expect(screen.getByText(/1\.194,79\s*€/)).toBeInTheDocument();
     // Discount savings row on Base card
     expect(screen.getByText('discount')).toBeInTheDocument();
+  });
+
+  it('uses Netto-Warenwert for the German Quote netValue label', () => {
+    expect(enAccountTranslations.quoteDetails.netValue).toBe('Net value of goods');
+    expect(deAccountTranslations.quoteDetails.netValue).toBe('Netto-Warenwert');
   });
 
   it('uses Total net amount label copy in EN/DE quoteDetails', () => {

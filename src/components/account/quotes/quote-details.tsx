@@ -99,7 +99,9 @@ function renderQuoteDetailsUnavailableState(deps: {
         <div className="bg-surface-error p-4 rounded-md text-text-error">{error?.message || 'Quote not found'}</div>
       </CardContent>
       <CardFooter>
-        <Button onClick={onBack}>{t('backToQuotes')}</Button>
+        <Button onClick={onBack} data-testid="quote-backButton">
+          {t('backToQuotes')}
+        </Button>
       </CardFooter>
     </Card>
   );
@@ -622,6 +624,7 @@ function RelatedApprovalField({
           href={getApprovalHref(relatedApproval, currentUserId)}
           variant="textNoUnderline"
           className="block min-w-0 max-w-full truncate"
+          data-testid="quote-relatedApproval"
         >
           {approvalId}
         </UiLink>
@@ -833,7 +836,11 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
   return (
     <div>
       <Dialog open={showApprovalInquiryDialog} onOpenChange={handleApprovalInquiryDialogChange}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent
+          className="sm:max-w-[500px]"
+          data-testid="quote-approval-dialog"
+          closeTestId="quote-approval-closeButton"
+        >
           <DialogHeader>
             <DialogTitle>{tApproval('selectApprover')}</DialogTitle>
             <DialogDescription>{tApproval('selectApproverRequired')}</DialogDescription>
@@ -861,7 +868,12 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
           {!approverSearchLoading && approverSearchError && (
             <div className="space-y-2 py-4 text-center">
               <p className="text-sm text-text-error">{tApproval('errorFetchingApproversDescription')}</p>
-              <Button variant="secondary" size="small" onClick={() => void refetchApprovers()}>
+              <Button
+                variant="secondary"
+                size="small"
+                onClick={() => void refetchApprovers()}
+                data-testid="quote-approval-retryButton"
+              >
                 {tApproval('retry')}
               </Button>
             </div>
@@ -937,6 +949,7 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
               onClick={() => {
                 handleDecisionDialogChange('DECLINE');
               }}
+              data-testid="quote-rejectButton"
             >
               <CircleX className="h-6 w-6" />
               {t('reject')}
@@ -950,6 +963,7 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
               onClick={() => {
                 void handleQuotePrimaryAction();
               }}
+              data-testid="quote-primaryButton"
             >
               <CircleCheck className="h-6 w-6" />
               {primaryActionLabel}
@@ -963,6 +977,7 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
               onClick={() => {
                 handleDecisionDialogChange('CHANGE');
               }}
+              data-testid="quote-requestChangeButton"
             >
               <Pencil className="h-6 w-6" />
               {t('requestChange')}
@@ -1000,6 +1015,7 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
                     href={`/account/orders/${quote.orderId}`}
                     variant="textNoUnderline"
                     className="w-fit"
+                    data-testid="quote-relatedOrder"
                   >
                     {quote.orderId}
                   </UiLink>
@@ -1044,16 +1060,17 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
                       value={acceptComment}
                       onChange={(e) => setAcceptComment(e.target.value)}
                       maxLength={maxCommentLength}
+                      data-testid="quote-acceptComment"
                     />
                   </div>
 
                   <div className="mb-4">
                     {t('termsAgreement')}{' '}
-                    <UiLink type="Link" variant="text" href="/privacy-policy">
+                    <UiLink type="Link" variant="text" href="/privacy-policy" data-testid="quote-privacyPolicy">
                       {t('privacyPolicy')}
                     </UiLink>
                     and{' '}
-                    <UiLink type="Link" variant="text" href="/terms-and-conditions">
+                    <UiLink type="Link" variant="text" href="/terms-and-conditions" data-testid="quote-termsOfUse">
                       {t('termsOfUse')}
                     </UiLink>
                   </div>
@@ -1066,6 +1083,7 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
                         setShowAcceptConfirmation(false);
                         setAcceptComment('');
                       }}
+                      data-testid="quote-acceptCancelButton"
                     >
                       {t('cancel')}
                     </Button>
@@ -1083,6 +1101,7 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
                           setAcceptComment,
                         });
                       }}
+                      data-testid="quote-createOrderButton"
                     >
                       {isProcessing ? t('creating') : t('createOrder')}
                     </Button>
@@ -1100,12 +1119,20 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
                   <div className="space-y-2">
                     <Label htmlFor="quote-decision-reason">{t('decisionReasonLabel')}</Label>
                     <Select value={decisionReasonCode} onValueChange={setDecisionReasonCode}>
-                      <SelectTrigger id="quote-decision-reason" aria-label={t('decisionReasonLabel')}>
+                      <SelectTrigger
+                        id="quote-decision-reason"
+                        aria-label={t('decisionReasonLabel')}
+                        data-testid="quote-declineReason"
+                      >
                         <SelectValue placeholder={t('decisionReasonPlaceholder')} />
                       </SelectTrigger>
                       <SelectContent>
                         {QUOTE_DECISION_REASON_OPTIONS.DECLINE.map((reasonCode) => (
-                          <SelectItem key={reasonCode} value={reasonCode}>
+                          <SelectItem
+                            key={reasonCode}
+                            value={reasonCode}
+                            data-testid={`quote-declineReason-${reasonCode}`}
+                          >
                             {t(`decisionReasons.${reasonCode}`)}
                           </SelectItem>
                         ))}
@@ -1123,6 +1150,7 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
                       value={decisionComment}
                       onChange={(e) => setDecisionComment(e.target.value)}
                       maxLength={maxCommentLength}
+                      data-testid="quote-declineComment"
                     />
                   </div>
 
@@ -1137,6 +1165,7 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
                       variant="secondary"
                       disabled={isProcessing}
                       onClick={() => handleDecisionDialogChange(null)}
+                      data-testid="quote-declineCancelButton"
                     >
                       {t('cancel')}
                     </Button>
@@ -1146,6 +1175,7 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
                       onClick={() => {
                         void handleQuoteDecisionSubmit();
                       }}
+                      data-testid="quote-declineConfirmButton"
                     >
                       {isProcessing ? t('rejecting') : t('rejectQuote')}
                     </Button>
@@ -1165,12 +1195,20 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
                   <div className="space-y-2">
                     <Label htmlFor="quote-change-reason">{t('decisionReasonLabel')}</Label>
                     <Select value={decisionReasonCode} onValueChange={setDecisionReasonCode}>
-                      <SelectTrigger id="quote-change-reason" aria-label={t('decisionReasonLabel')}>
+                      <SelectTrigger
+                        id="quote-change-reason"
+                        aria-label={t('decisionReasonLabel')}
+                        data-testid="quote-changeReason"
+                      >
                         <SelectValue placeholder={t('decisionReasonPlaceholder')} />
                       </SelectTrigger>
                       <SelectContent>
                         {QUOTE_DECISION_REASON_OPTIONS.CHANGE.map((reasonCode) => (
-                          <SelectItem key={reasonCode} value={reasonCode}>
+                          <SelectItem
+                            key={reasonCode}
+                            value={reasonCode}
+                            data-testid={`quote-changeReason-${reasonCode}`}
+                          >
                             {t(`decisionReasons.${reasonCode}`)}
                           </SelectItem>
                         ))}
@@ -1188,6 +1226,7 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
                       value={decisionComment}
                       onChange={(event) => setDecisionComment(event.target.value)}
                       maxLength={maxCommentLength}
+                      data-testid="quote-changeComment"
                     />
                   </div>
 
@@ -1202,6 +1241,7 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
                       variant="secondary"
                       disabled={isProcessing}
                       onClick={() => handleDecisionDialogChange(null)}
+                      data-testid="quote-changeCancelButton"
                     >
                       {t('cancel')}
                     </Button>
@@ -1210,6 +1250,7 @@ export function QuoteDetails({ quoteId, initialQuote }: Readonly<QuoteDetailsPro
                       onClick={() => {
                         void handleQuoteDecisionSubmit();
                       }}
+                      data-testid="quote-changeConfirmButton"
                     >
                       {isProcessing ? t('requestingChange') : t('requestChange')}
                     </Button>
