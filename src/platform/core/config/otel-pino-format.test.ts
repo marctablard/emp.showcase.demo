@@ -119,6 +119,20 @@ describe('enrichOtelLog', () => {
     expectNoTraceIds(result);
   });
 
+  it('uses sibling stack when error.stack is missing', () => {
+    const error = new Error('ssr failed');
+    Object.defineProperty(error, 'stack', { value: undefined });
+    const stack = 'Error: ssr failed\n    at logRouteError';
+    const result = enrichOtelLog({ error, stack, productId: 'p1' });
+
+    expect(result).toEqual({
+      productId: 'p1',
+      'exception.type': 'Error',
+      'exception.message': 'ssr failed',
+      'exception.stacktrace': stack,
+    });
+  });
+
   it('maps { error: Error, stack } like step 1 and drops error / stack', () => {
     const error = new Error('ssr failed');
     const result = enrichOtelLog({ error, stack: 'ignored sibling', productId: 'p1' });

@@ -130,6 +130,9 @@ export function enrichOtelLog(object: Record<string, unknown>): Record<string, u
 
   if (error instanceof Error) {
     assignErrorException(result, error);
+    if (result[EXCEPTION_STACKTRACE] === undefined && typeof stack === 'string') {
+      result[EXCEPTION_STACKTRACE] = stack;
+    }
     delete result.error;
     delete result.stack;
     return result;
