@@ -24,7 +24,7 @@ const EXCEPTION_STACKTRACE = 'exception.stacktrace';
  * Pino `timestamp` callback: ISO 8601 UTC under the `timestamp` key.
  */
 export function otelPinoTimestamp(): string {
-  return `,"timestamp":"${new Date(Date.now()).toISOString()}"`;
+  return `,"timestamp":"${new Date().toISOString()}"`;
 }
 
 /**
@@ -55,8 +55,18 @@ function assignErrorException(target: Record<string, unknown>, error: Error): vo
   }
 }
 
+function exceptionTypeFromObject(err: Record<string, unknown>): string | undefined {
+  if (typeof err.type === 'string') {
+    return err.type;
+  }
+  if (typeof err.name === 'string') {
+    return err.name;
+  }
+  return undefined;
+}
+
 function assignExceptionLikeObject(target: Record<string, unknown>, err: Record<string, unknown>): void {
-  const type = typeof err.type === 'string' ? err.type : typeof err.name === 'string' ? err.name : undefined;
+  const type = exceptionTypeFromObject(err);
   if (type !== undefined) {
     target[EXCEPTION_TYPE] = type;
   }
@@ -85,6 +95,10 @@ function assignStringException(target: Record<string, unknown>, message: string,
  * Runs in `formatters.log` before Pino serializers.
  */
 export function enrichOtelLog(object: Record<string, unknown>): Record<string, unknown> {
+  if (!('err' in object) && !('error' in object) && !('stack' in object)) {
+    return object;
+  }
+
   const result: Record<string, unknown> = { ...object };
   const { err, error, stack } = result;
 

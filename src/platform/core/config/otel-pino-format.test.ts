@@ -172,6 +172,22 @@ describe('enrichOtelLog', () => {
     });
   });
 
+  it('returns the same object when there is nothing to enrich', () => {
+    const object = { module: 'cart', path: '/cart' };
+    expect(enrichOtelLog(object)).toBe(object);
+  });
+
+  it('maps a plain err object with name when type is missing', () => {
+    const result = enrichOtelLog({
+      err: { name: 'RangeError', message: 'out of range' },
+    });
+
+    expect(result).toEqual({
+      'exception.type': 'RangeError',
+      'exception.message': 'out of range',
+    });
+  });
+
   it('does not invent exception.* from a non-string, non-Error error object', () => {
     const result = enrichOtelLog({ error: { code: 500, detail: 'upstream' }, method: 'POST' });
 
