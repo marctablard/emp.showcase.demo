@@ -134,7 +134,9 @@ export function enrichOtelLog(object: Record<string, unknown>): Record<string, u
       result[EXCEPTION_STACKTRACE] = stack;
     }
     delete result.error;
-    delete result.stack;
+    if (typeof stack === 'string') {
+      delete result.stack;
+    }
     return result;
   }
 
