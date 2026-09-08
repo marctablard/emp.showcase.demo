@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
 /**
- * Figma grid contract, verified against the rendered app (SHOW-320).
+ * Figma grid contract, verified against the rendered app.
  *
  * The SOLL values below are measured from the Figma file `TYdPJprCUxuqn564qa9urk`
  * ("B2B New Showcase"), page "Grid" (`416:8805`). They are checked in deliberately rather
@@ -89,7 +89,7 @@ test.describe('Figma grid — content container side margins', () => {
 });
 
 /**
- * The regression SHOW-320 was actually about: the header switched to 36px at md (1024) while
+ * The regression this suite covers: the header switched to 36px at md (1024) while
  * the page content switched at lg (1280), so both were offset by 20px across 1024–1279.
  * In Figma both sit on x=36 in the md frames — grid `420:10335` and PLP `12185:48039`.
  */

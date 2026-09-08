@@ -187,7 +187,7 @@ export function ProductPriceComponent({ price, isAddToCartBar }: Readonly<Produc
     return null;
   }
 
-  // Net-first (COP-6056 / B2B): large figure is always net; gross stays in small print.
+  // Net-first (B2B): large figure is always net; gross stays in small print.
   // Figma may still show gross-first — Jira requirements win unless a ticket explicitly overrides.
   const displayAmount = resolveNetDisplayAmount(price);
   const partSizes = isAddToCartBar ? CURRENCY_PART_SIZES.addToCartBar : CURRENCY_PART_SIZES.default;

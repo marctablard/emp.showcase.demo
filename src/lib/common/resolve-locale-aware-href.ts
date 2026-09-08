@@ -8,7 +8,7 @@ export type LocaleAwareHref = string | { pathname: string };
 /**
  * next-intl-aligned locale path for site-aware `useRouter`.
  * Omitting `nextLocale` (or passing the current locale) uses `currentLocale`
- * without `forcePrefix` so default `en` stays unprefixed (COP-5852).
+ * without `forcePrefix` so default `en` stays unprefixed.
  * `forcePrefix` is only used when switching to a different locale.
  */
 export function resolveLocaleAwareHref(href: LocaleAwareHref, currentLocale: string, nextLocale?: string): string {

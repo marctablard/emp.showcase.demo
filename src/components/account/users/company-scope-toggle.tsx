@@ -13,7 +13,7 @@ interface CompanyScopeToggleProps {
 
 /**
  * Figma 184:94269 / Segmented Control 192:16583 — current company / All companies.
- * COP-4807: replaces the Q26 “show users from my other companies” checkbox.
+ * Replaces the Q26 “show users from my other companies” checkbox.
  */
 export function CompanyScopeToggle({
   currentCompanyName,

@@ -125,7 +125,7 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
     return getProduct(id);
   });
   // Keep a sync ref so async fetch handlers can preserve last-known same-id product
-  // without relying on stale closures or post-await setState updater timing (COP-5787).
+  // without relying on stale closures or post-await setState updater timing.
   const productRef = useRef<Product | null>(product);
 
   useEffect(() => {
@@ -161,7 +161,7 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
         }
 
         // Preserve known same-id product during session-driven pricing/enrichment refetch.
-        // Only clear when switching to a different product id (COP-5787).
+        // Only clear when switching to a different product id.
         setProduct((p) => (p && p.id !== id ? null : p));
 
         const data = await fetchProductById(id, options, clientDedupeScope);

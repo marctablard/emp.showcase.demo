@@ -1122,7 +1122,7 @@ export class EmporixUserManagementService implements UserManagementService {
 
     let created: { id: string };
     try {
-      // COP-4807: multi-company `_own` create can return a same-company 400 even
+      // Multi-company `_own` create can return a same-company 400 even
       // with a scoped session token, so only this profile create uses service auth.
       created = await this.customerAdminApi.createCustomer(createRequest, selectedLegalEntity.id);
     } catch (error) {

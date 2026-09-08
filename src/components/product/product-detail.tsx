@@ -455,7 +455,7 @@ function PdpKeySpecsCard({
             </>
           ) : null}
 
-          {/* D6 (COP-6020): keep "More product features" despite newest Figma Specs List Area omitting it.
+          {/* D6: keep "More product features" despite newest Figma Specs List Area omitting it.
               Same row as item number (right-aligned); wraps as a unit when the row is too narrow. */}
           <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <div className="flex min-w-0 max-w-full items-center">
@@ -776,7 +776,7 @@ export default function ProductDetail({
   const { session } = useSession();
   const { site } = useSite();
   // Usable SSR seed = full Product object (not an id string). Keep it as fallback during
-  // session/pricing bootstrap so a transient null/error does not become false Not Found (COP-5787).
+  // session/pricing bootstrap so a transient null/error does not become false Not Found.
   const ssrSeedProduct = initialProduct && typeof initialProduct !== 'string' ? initialProduct : undefined;
   const resolvedProduct = product ?? ssrSeedProduct ?? null;
   const { price, availability } = usePdpPurchaseData(resolvedProduct, session, site);

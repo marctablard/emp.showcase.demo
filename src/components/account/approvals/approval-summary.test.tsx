@@ -536,7 +536,7 @@ describe('ApprovalSummary', () => {
       ...baseApproval,
       resourceType: 'CART',
       resource: {
-        id: 'order-cop-6178-footer',
+        id: 'order-shipping-inclusive-footer',
         items: [
           { productId: 'p1', quantity: 1, itemPrice: { currency: 'EUR', amount: 37 } },
           { productId: 'p2', quantity: 1, itemPrice: { currency: 'EUR', amount: 23.05 } },

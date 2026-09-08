@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  *
- * Not Found contract for `ProductDetail` cold-bootstrap vs true absence (COP-5787).
+ * Not Found contract for `ProductDetail` cold-bootstrap vs true absence.
  *
  * Documents:
  * - True absence (no usable SSR seed + ready + !loading + product null) → `notFound()`
@@ -288,7 +288,7 @@ describe('ProductDetail — Not Found contract (true absence vs cold bootstrap)'
   });
 
   /**
-   * COP-5787: SSR object seed + resolved client null/error must not map to permanent absence.
+   * SSR object seed + resolved client null/error must not map to permanent absence.
    */
   it('does not invoke notFound when SSR initialProduct exists and hook reports transient null with error', () => {
     mockReadyHooks({

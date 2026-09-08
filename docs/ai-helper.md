@@ -56,9 +56,9 @@ Live `frontendAgent` streams send the reply as token `content` chunks. The BFF c
 
 If no token `content` reconstitutes a non-empty `message` and no artifact items arrived, the BFF returns the existing chat error (`AI_SERVICE_ERROR`). The storefront shows the standard error notification (toast) and an AI chat bubble on that turn, both using the existing AI Helper error copy, so the shopper can see which question failed. The helper card stays usable so they can try again. An empty stream is not treated as a successful blank reply.
 
-If a tenant’s `chat-stream` truly finishes with no token content (COP-6164 empty-stream cases), set `NEXT_AI_CHAT_STREAMING=false` to use batch.
+If a tenant’s `chat-stream` truly finishes with no token content (empty-stream cases), set `NEXT_AI_CHAT_STREAMING=false` to use batch.
 
-## Session isolation (COP-6181)
+## Session isolation
 
 The Helper persists the transcript, chat-mode flag, and a client-generated conversation id in `localStorage` so a refresh does not wipe the thread. Those keys are **not** the Emporix customer session.
 
@@ -80,7 +80,7 @@ Typed widgets should come from tool artifacts, not from the model re-serializing
 
 ## Quality examples
 
-COP-5482 lists typical Frontend Agent prompts (open quotes, profile, pending or open orders, product-quality search). Use them as **manual quality examples**. They are not latency SLAs and not automated Definition of Done for this storefront mode switch.
+Typical Frontend Agent prompts (open quotes, profile, pending or open orders, product-quality search) are **manual quality examples**. They are not latency SLAs and not automated Definition of Done for this storefront mode switch.
 
 ## Related Documentation
 

@@ -1,5 +1,5 @@
 /**
- * Dual naming for Storyblok / CMS env keys (SHOW-323 legacy compat).
+ * Dual naming for Storyblok / CMS env keys (legacy compat).
  *
  * Prefer server-only `NEXT_STORYBLOK_*` / `NEXT_CMS_*` when set (non-empty after
  * trim); otherwise fall back to legacy `NEXT_PUBLIC_STORYBLOK_*` /
@@ -21,7 +21,7 @@ export const STORYBLOK_ENV_SUFFIXES = ['ACCESS_TOKEN', 'SPACE_ID', 'MULTI_SITE',
 
 export type StoryblokEnvSuffix = (typeof STORYBLOK_ENV_SUFFIXES)[number];
 
-/** CMS keys renamed from `NEXT_PUBLIC_CMS_*` → `NEXT_CMS_*` in SHOW-323. */
+/** CMS keys renamed from `NEXT_PUBLIC_CMS_*` → `NEXT_CMS_*`. */
 export const CMS_ENV_SUFFIXES = [
   'PROVIDER',
   'FALLBACK_PROVIDER',
@@ -45,7 +45,7 @@ function resolveDualEnv(preferredKey: string, legacyKey: string, env: NodeJS.Pro
   if (preferred !== undefined) {
     return preferred;
   }
-  // Legacy SHOW-323 compat: allow NEXT_PUBLIC_* until deploy envs migrate.
+  // Legacy compat: allow NEXT_PUBLIC_* until deploy envs migrate.
   return trimOrUndefined(env[legacyKey]);
 }
 

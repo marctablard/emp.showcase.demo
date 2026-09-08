@@ -216,7 +216,7 @@ export function AccountLayout({ children, breadcrumbs }: AccountLayoutProps) {
         items-start + no min-h-screen: the tall desktop sidebar must not stretch <main>
         and invent empty space above the site footer.
         mt-4 / mb-4 keep a 1rem gap under breadcrumbs and above the site footer.
-        sm:mx-4 / md:mx-9 (SHOW-320) align the side margins with the Figma grid.
+        sm:mx-4 / md:mx-9 align the side margins with the Figma grid.
       */}
       <div className="mt-4 mb-4 flex items-start sm:mx-4 md:mx-9">
         {/* Desktop Sidebar - always visible on desktop. Q30: page/document scrolls, not the rail. */}

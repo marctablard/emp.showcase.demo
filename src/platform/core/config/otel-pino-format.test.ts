@@ -119,6 +119,43 @@ describe('enrichOtelLog', () => {
     expectNoTraceIds(result);
   });
 
+  it('uses sibling stack when err.stack is missing', () => {
+    const err = new Error('ssr failed');
+    Object.defineProperty(err, 'stack', { value: undefined });
+    const stack = 'Error: ssr failed\n    at logRouteError';
+    const result = enrichOtelLog({ err, stack, productId: 'p1' });
+
+    expect(result).toEqual({
+      productId: 'p1',
+      'exception.type': 'Error',
+      'exception.message': 'ssr failed',
+      'exception.stacktrace': stack,
+    });
+    expect(result.err).toBeUndefined();
+    expect(result.stack).toBeUndefined();
+  });
+
+  it('maps { err: Error, stack } and drops a consumed string stack', () => {
+    const err = new Error('boom');
+    const result = enrichOtelLog({ err, stack: 'ignored sibling', path: '/cart' });
+
+    expect(result['exception.type']).toBe('Error');
+    expect(result['exception.message']).toBe('boom');
+    expect(result['exception.stacktrace']).toBe(err.stack);
+    expect(result.path).toBe('/cart');
+    expect(result.err).toBeUndefined();
+    expect(result.stack).toBeUndefined();
+  });
+
+  it('keeps a non-string sibling stack when err is Error', () => {
+    const err = new Error('boom');
+    const result = enrichOtelLog({ err, stack: 12, path: '/cart' });
+
+    expect(result['exception.stacktrace']).toBe(err.stack);
+    expect(result.stack).toBe(12);
+    expect(result.err).toBeUndefined();
+  });
+
   it('uses sibling stack when error.stack is missing', () => {
     const error = new Error('ssr failed');
     Object.defineProperty(error, 'stack', { value: undefined });

@@ -100,7 +100,7 @@ export const useAuthentication = (): AuthenticationHook => {
         setIsAuthenticated(false);
       } else {
         setIsAuthenticated(true);
-        // Drop leftover unscoped Helper keys before the dashboard mounts (COP-6181).
+        // Drop leftover unscoped Helper keys before the dashboard mounts.
         // Other shoppers' namespaced keys are pruned when the Helper adopts the new customer id.
         clearUnscopedAIHelperStorage();
         // Clear Zustand cart state only — do NOT clear server session.

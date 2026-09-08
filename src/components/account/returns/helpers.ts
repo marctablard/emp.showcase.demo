@@ -39,7 +39,7 @@ export function getReturnCustomerName(returnItem: Return): string {
 }
 
 /**
- * Net Return Value per the approved COP-6067 contract: prefers
+ * Net Return Value per the approved contract: prefers
  * calculatedPrice.finalPrice.netValue (and its currency) when present, falling
  * back to the customer-visible Return.total (value/currency) otherwise. This
  * mirrors the same fallback already used on the return detail page.

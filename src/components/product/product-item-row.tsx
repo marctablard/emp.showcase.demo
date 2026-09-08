@@ -118,7 +118,7 @@ export function ProductItemRow({ item, locale, presentationConfig, showGrossUnde
   const imageAlt = imageSrc === PRODUCT_NO_IMAGE_SRC ? tProduct('noImage') : String(item.name);
 
   // Mobile keeps 120×78; from sm (table) match Figma 80×52 so narrow sidebar columns fit.
-  // COP-6218: Jira overrides Figma’s blank rectangle — PDP no_image_alt stays inside this frame.
+  // Jira overrides Figma’s blank rectangle — PDP no_image_alt stays inside this frame.
   const productImage = (
     <div
       className="flex h-[78px] w-[120px] shrink-0 items-center justify-center overflow-hidden rounded-tl-lg rounded-br-lg bg-surface-image-background sm:h-[52px] sm:w-[80px]"

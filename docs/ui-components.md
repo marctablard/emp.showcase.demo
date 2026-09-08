@@ -57,7 +57,7 @@ Domain composition for the basic-product PDP lives outside `src/components/ui` b
 | Component | Path | Role |
 |---|---|---|
 | `ProductDetail` | `src/components/product/product-detail.tsx` | Page shell: media, title block, key specs / highlights, purchase column, technical information |
-| `ProductPriceComponent` | `src/components/product/product-price.tsx` | Net-first price row (COP-6056 / B2B): large net, small gross + VAT; discount badge wording; inline list price |
+| `ProductPriceComponent` | `src/components/product/product-price.tsx` | Net-first price row (B2B): large net, small gross + VAT; discount badge wording; inline list price |
 | `ProductTierPrices` | `src/components/product/product-tier-prices.tsx` | Figma Tier Prices Table (`12799:113152`): Quantity / Price per unit; hidden when fewer than 2 tiers; active row by PDP quantity; net-first unit prices; trailing unit copy from `price.priceModelType` (`TIERED` → for units min–max / min+; `VOLUME` → for each unit) |
 | `ProductTile` | `src/components/product/product-tile.tsx` | PLP card: parent tiles show up to 6 **label-only** variant-axis badges (`+N` overflow); sellable variants show up to 3 value+label pairs (`+N` overflow). Order follows `templateAttributeOrder`. Badge max width is 75% of the image chip stack (`max-w-3/4`). |
 | `ProductVariantSelector` | `src/components/product/product-variant-selector.tsx` | Loads sellable variants + batch prices; composes attribute chips + carousel |

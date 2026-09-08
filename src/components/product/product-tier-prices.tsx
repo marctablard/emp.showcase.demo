@@ -88,7 +88,7 @@ function resolveUnitSuffix(
 
 /**
  * Figma Tier Prices Table (`12799:113152`) — two columns (Quantity | Price per unit).
- * Net-first (COP-6056): large unit figure is net; gross stays in the smaller VAT line.
+ * Net-first: large unit figure is net; gross stays in the smaller VAT line.
  * Trailing unit copy differs by price model (TIERED range vs VOLUME for-each-unit).
  */
 export function ProductTierPrices({

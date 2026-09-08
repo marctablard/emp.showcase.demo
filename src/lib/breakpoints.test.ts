@@ -1,5 +1,5 @@
 /**
- * Breakpoint consistency guard (SHOW-320).
+ * Breakpoint consistency guard.
  *
  * Breakpoints unavoidably live in two places: CSS (`globals.css`, in `rem`, used at
  * build time for the Tailwind `sm`/`md`/`lg` variants) and TS (`src/lib/breakpoints.ts`,

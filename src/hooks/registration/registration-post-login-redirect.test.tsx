@@ -110,7 +110,7 @@ jest.mock('next-intl', () => ({
     }),
 }));
 
-describe('Registration post-register redirect (COP-4861)', () => {
+describe('Registration post-register redirect', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockRegister.mockResolvedValue({ success: true });

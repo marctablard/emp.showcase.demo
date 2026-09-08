@@ -1,5 +1,5 @@
 /**
- * COP-5852 tenant snapshot from GET http://localhost:3000/api/site/us-branch (2026-08-17):
+ * Tenant snapshot from GET http://localhost:3000/api/site/us-branch (2026-08-17):
  * - languages: ["en"]
  * - currencies: USD, CHF
  * - defaultLanguage: "en"

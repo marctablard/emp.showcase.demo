@@ -206,7 +206,7 @@ export const getSelectedCompanyName = cache(async (): Promise<string | undefined
 /**
  * Admin-LE ids and whether the selected company is one of them.
  * Session LE when it is in `getCompanies()`; otherwise token claim then
- * `customer.legalEntityId` if permitted. Do not invent companies[0] (COP-4807).
+ * `customer.legalEntityId` if permitted. Do not invent companies[0].
  */
 export const getUserManagementCompanyAccess = cache(async (): Promise<UserManagementCompanyAccess> => {
   try {

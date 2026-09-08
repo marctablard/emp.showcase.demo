@@ -204,7 +204,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
    * - omits site/locale/currency from the API request (path encodes site/locale;
    *   currency is session-owned for `/api/search`)
    * - preserves an existing storefront `?currency=` so inbound/share links stay
-   *   visible for CurrencyUrlAligner (COP-5942)
+   *   visible for CurrencyUrlAligner
    * Skips navigation if the current URL is already equivalent.
    */
   const updateBrowserUrl = useCallback(
@@ -222,7 +222,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         const out = new URLSearchParams();
         src.forEach((value, key) => {
           // API-only: path already encodes site/locale. Do not copy session currency
-          // onto the storefront (COP-5942 — defaults stay out of the URL).
+          // onto the storefront (defaults stay out of the URL).
           if (key === 'site' || key === 'locale' || key === 'currency') {
             return;
           }

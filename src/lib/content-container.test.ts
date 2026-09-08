@@ -1,5 +1,5 @@
 /**
- * content-container @utility (SHOW-320).
+ * content-container @utility.
  *
  * The shared layout container must compile to the Figma grid contract:
  *   max-width 1920px (the 6xl token) + auto side margins + 16px side padding below md

@@ -4,7 +4,7 @@
  * `GET /order-v2/{tenant}/orders` is customer-scoped and does not auto-filter by
  * the token LE. OpenAPI `q` matches order fields (`q=currency:USD`); orders carry
  * `legalEntityId`. When a company is selected, AND that clause onto the list query
- * so My Orders only returns orders placed on behalf of that legal entity (COP-5861).
+ * so My Orders only returns orders placed on behalf of that legal entity.
  *
  * Space-separated `q` terms are AND. Session LE replaces any client `legalEntityId:`
  * clause so the storefront cannot query another company.

@@ -77,7 +77,7 @@ function loadingEmpty(): ResolveAutoCheckoutAddressBookResult {
 
 /**
  * Pure checkout `auto` book: customer-only when not B2B+LE; empty or dual-tagged-only
- * legal-entity books fall back to / append the customer book (COP-4861).
+ * legal-entity books fall back to / append the customer book.
  */
 export function resolveAutoCheckoutAddressBook(
   input: ResolveAutoCheckoutAddressBookInput,

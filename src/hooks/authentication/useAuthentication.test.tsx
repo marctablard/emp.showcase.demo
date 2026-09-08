@@ -205,7 +205,7 @@ describe('useAuthentication login', () => {
     });
   });
 
-  it('clears leftover unscoped AI Helper transcript on login (COP-6181)', async () => {
+  it('clears leftover unscoped AI Helper transcript on login', async () => {
     localStorage.setItem('ai-session-id', 'session-a');
     localStorage.setItem('ai-helper-chat-messages', '[{"content":"secret"}]');
     localStorage.setItem('ai-helper-chat-mode', 'true');

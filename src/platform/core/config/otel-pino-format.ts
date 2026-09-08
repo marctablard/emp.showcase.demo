@@ -101,11 +101,19 @@ function deleteSiblingStack(result: Record<string, unknown>, stack: unknown): vo
   }
 }
 
+function assignErrorExceptionWithSiblingStack(result: Record<string, unknown>, error: Error, stack: unknown): void {
+  assignErrorException(result, error);
+  if (result[EXCEPTION_STACKTRACE] === undefined && typeof stack === 'string') {
+    result[EXCEPTION_STACKTRACE] = stack;
+  }
+}
+
 function tryEnrichFromErr(result: Record<string, unknown>): boolean {
   const { err, stack } = result;
   if (err instanceof Error) {
-    assignErrorException(result, err);
+    assignErrorExceptionWithSiblingStack(result, err, stack);
     delete result.err;
+    deleteSiblingStack(result, stack);
     return true;
   }
   if (typeof err === 'string') {
@@ -125,10 +133,7 @@ function tryEnrichFromErr(result: Record<string, unknown>): boolean {
 function tryEnrichFromError(result: Record<string, unknown>): boolean {
   const { error, stack } = result;
   if (error instanceof Error) {
-    assignErrorException(result, error);
-    if (result[EXCEPTION_STACKTRACE] === undefined && typeof stack === 'string') {
-      result[EXCEPTION_STACKTRACE] = stack;
-    }
+    assignErrorExceptionWithSiblingStack(result, error, stack);
     delete result.error;
     deleteSiblingStack(result, stack);
     return true;

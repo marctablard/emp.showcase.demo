@@ -56,11 +56,11 @@ describe('AccountLayout responsive sidebar/mobile-menu switching', () => {
     setViewportWidth(originalInnerWidth);
   });
 
-  // Regression coverage for COP-4880/COP-6025: the persistent account rail and the mobile
+  // Regression coverage for the persistent account rail and the mobile
   // off-canvas menu toggle must switch on one and the same useBreakpoint boundary, keeping the
   // spacing and sidebar width classes aligned to it.
   //
-  // SHOW-320 moved that boundary from 'md' (1024) to 'sm' (768). Figma draws a persistent rail on
+  // The boundary later moved from 'md' (1024) to 'sm' (768). Figma draws a persistent rail on
   // all four account templates at 768 — Order History 6354:68313 closes exactly on
   // 16 + 180 + 24 + 532 + 16 = 768 — and drops it only at 360, where an "ACCOUNT MENU" button
   // (6354:68546, 328x48) takes its place. The 'Account nav bar' component set 3445:157880 backs

@@ -324,7 +324,7 @@ describe('useProduct hook', () => {
   });
 
   /**
-   * COP-5787 cold-bootstrap race (preserve-on-failure contract for Phase 2).
+   * Cold-bootstrap race (preserve-on-failure contract for Phase 2).
    * Public PDP SSR seeds omit price.currency (PUBLIC_PRODUCT_OPTIONS.prices = false).
    * When sessionPricingKey arrives, current production force-refreshes and clears product to null;
    * a failed/null client refetch then yields loading=false + product=null (false Not Found path).

@@ -1,5 +1,5 @@
 /**
- * COP-5852 HeaderTopBanner sequence (local / tenant-dependent).
+ * HeaderTopBanner sequence (local / tenant-dependent).
  *
  * Tenant snapshot from GET http://localhost:3000/api/site/us-branch (2026-08-17):
  * - languages: ["en"]
@@ -288,7 +288,7 @@ async function runCop5852SequenceAndAssert(page: Page): Promise<void> {
     .toEqual(US_AGREEMENT);
 }
 
-test.describe('COP-5852 header site language currency sequence', () => {
+test.describe('header site language currency sequence', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
   test.describe.configure({ timeout: 120_000 });
 

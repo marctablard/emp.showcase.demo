@@ -83,7 +83,7 @@ export interface UserManagementService {
   /**
    * Legal-entity ids where the current customer is Admin (IAM `b2b.role`, not
    * group name). Used by User Management to force All companies and disable
-   * create when the session company is not an Admin LE (COP-4807).
+   * create when the session company is not an Admin LE.
    */
   listAdminLegalEntityIds(): Promise<string[]>;
 }

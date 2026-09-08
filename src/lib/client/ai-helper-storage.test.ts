@@ -113,7 +113,7 @@ describe('clearAllPersistedStores', () => {
     sessionStorage.clear();
   });
 
-  it('removes unscoped Frontend Agent keys on logout without deleting other localStorage (COP-6181)', () => {
+  it('removes unscoped Frontend Agent keys on logout without deleting other localStorage', () => {
     const namespaced = aiHelperStorageKeys('cust-a');
     localStorage.setItem(LEGACY_AI_HELPER_STORAGE_KEYS.sessionId, 'session-a');
     localStorage.setItem(LEGACY_AI_HELPER_STORAGE_KEYS.messages, '[{"content":"admin orders"}]');

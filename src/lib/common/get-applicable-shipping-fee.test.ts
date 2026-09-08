@@ -1,6 +1,6 @@
 import { type ShippingFeeCandidate, getApplicableShippingFee } from './get-applicable-shipping-fee';
 
-/** New Shipping 7% tiers from COP-6407 / Q1000510. */
+/** New Shipping 7% tiers from Q1000510. */
 function newShipping7Fees(): ShippingFeeCandidate[] {
   return [
     { minOrderValue: { amount: 0 }, cost: { amount: 10 } },

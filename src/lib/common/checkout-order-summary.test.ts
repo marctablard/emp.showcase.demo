@@ -1,7 +1,7 @@
 import type { Cart } from '@/platform/services/model/cart';
 import { buildCheckoutOrderSummaryBreakdown, buildCheckoutOrderSummaryFromCart } from './checkout-order-summary';
 
-/** Confirmation-shaped oracle for the COP-5174 ticket numbers (not the helper formula written twice). */
+/** Confirmation-shaped oracle for the ticket numbers (not the helper formula written twice). */
 const CONFIRMATION_ORACLE_STANDARD = { total: { gross: 129.24 } };
 const CONFIRMATION_ORACLE_REDUCED = { total: { gross: 128.44 } };
 

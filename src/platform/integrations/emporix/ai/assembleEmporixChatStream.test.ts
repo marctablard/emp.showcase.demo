@@ -13,7 +13,7 @@ function toContentToken(content: string): string {
   return toNamedSseEvent('token', JSON.stringify({ content }));
 }
 
-// Observed (live frontendAgent chat-stream + COP-5591 sibling parser):
+// Observed (live frontendAgent chat-stream + sibling parser):
 // token `{content}`, tool_* metadata, done without message, plain-text, one-shot envelopes.
 describe('assembleEmporixChatStream', () => {
   it('concatenates non-JSON and JSON-string data payloads', async () => {

@@ -30,7 +30,7 @@ export interface ReturnItemSelectorProps {
   reasonOptions: ReturnReasonCode[];
 }
 
-// COP-6218: Jira overrides Figma blank "img placeholder" — render PDP no_image_alt in the existing frame
+// Jira overrides Figma blank "img placeholder" — render PDP no_image_alt in the existing frame
 function getItemImage(item: OrderItem): string {
   return resolveProductImageSrc(item.images?.[0]);
 }

@@ -1,5 +1,5 @@
 /**
- * Dual naming for Storyblok/CMS env keys (SHOW-323 legacy compat).
+ * Dual naming for Storyblok/CMS env keys (legacy compat).
  *
  * Tier: Library tests (Jest `Library Tests` project, node env).
  * Exercises the server re-export path (includes `server-only` mock).
