@@ -4,7 +4,7 @@ export type ShippingFeeCandidate = {
 };
 
 /**
- * COP-6407: fee with the highest `minOrderValue` that is still ≤ `subtotal`.
+ * Fee with the highest `minOrderValue` that is still ≤ `subtotal`.
  * Does not mutate `fees`. Empty / missing fees return `undefined`; if no tier
  * is eligible, falls back to the first fee.
  */

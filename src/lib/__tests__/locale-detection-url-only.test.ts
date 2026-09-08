@@ -15,9 +15,9 @@ function locationPath(response: Response): string | null {
 
 /**
  * Site middleware strips `/{site}` before next-intl runs, so intl sees `/` for
- * `/us-branch`. Cookie / Accept-Language redirects on that path are the COP-5852 freeze.
+ * `/us-branch`. Cookie / Accept-Language redirects on that path are the cookie-less freeze.
  */
-describe('localeDetection is URL-only (COP-5852 cookie-less freeze)', () => {
+describe('localeDetection is URL-only (cookie-less freeze)', () => {
   const middleware = createIntlMiddleware(routing);
 
   it('disables cookie and Accept-Language locale detection', () => {

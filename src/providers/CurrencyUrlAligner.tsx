@@ -21,7 +21,7 @@ import { SessionStoreContext } from '@/providers/StoreProvider';
 
 /**
  * Honors inbound `?currency=` (share / external links) and keeps that query
- * aligned with session + cart (COP-5942).
+ * aligned with session + cart.
  *
  * - Missing param: do nothing. Defaults stay out of the URL.
  * - Valid param ≠ session: try `setCurrency`. Success keeps the URL; failure
@@ -92,7 +92,7 @@ function CurrencyUrlAlignerContent() {
 
     // Wait until site/session/cart are settled. Calling setCurrency while another
     // mutation holds the lock returns success:false and must not rewrite the URL
-    // back to the old session currency (COP-5942).
+    // back to the old session currency.
     if (!syncReady) {
       return;
     }

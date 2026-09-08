@@ -16,7 +16,7 @@ From the Jira summary, drop:
 
 Keep the remaining title as-is (do not lowercase it).
 
-Example ticket: `COP-6002 B2BCF|FE Agent in streaming mode`  
+Example ticket: `PROJ-1234 B2BCF|FE Agent in streaming mode`  
 Cleaned name: `FE Agent in streaming mode`
 
 ## Branch name
@@ -24,7 +24,7 @@ Cleaned name: `FE Agent in streaming mode`
 `{TICKET}-{cleaned-name-in-kebab-case}` — spaces become hyphens; keep original word casing.
 
 ```
-COP-6002-FE-Agent-in-streaming-mode
+PROJ-1234-FE-Agent-in-streaming-mode
 ```
 
 ## Pull request title
@@ -32,7 +32,7 @@ COP-6002-FE-Agent-in-streaming-mode
 `{TICKET} {cleaned name}` — ticket, space, cleaned summary (not kebab-case).
 
 ```
-COP-6002 FE Agent in streaming mode
+PROJ-1234 FE Agent in streaming mode
 ```
 
 ## If there is no Jira ticket

@@ -29,8 +29,7 @@ function logChatError(error: unknown, retryable: boolean): void {
   const logger = server.get<LoggerService>('LoggerService');
   logger.error(
     {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
+      err: error instanceof Error ? error : new Error(String(error)),
       path: '/api/ai/chat',
       method: 'POST',
       retryable,

@@ -12,8 +12,8 @@
 {{serverOnlyImport}}import { addInjectableModule } from '@/platform/core/di/registry';
 import { Container } from 'inversify';
 import pino from 'pino';
-
-const _diLogger = pino({ level: process.env.NODE_ENV === 'development' ? 'debug' : 'info' });
+{{diLoggerImport}}
+const _diLogger = {{diLoggerInit}};
 
 // Static imports
 {{imports}}

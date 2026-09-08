@@ -3,8 +3,14 @@
  * Provides environment detection and log level resolution for PINO logger
  */
 import pino from 'pino';
+import { otelPinoFormatters, otelPinoTimestamp } from './otel-pino-format';
 
 export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
+
+export type GetServerLoggerConfigOptions = {
+  /** Default true. Set false for unused `_diLogger` so it does not attach a pretty worker. */
+  includePrettyTransport?: boolean;
+};
 
 /**
  * Checks if the current environment is development
@@ -61,25 +67,51 @@ export function isClientLoggingEnabled(): boolean {
 }
 
 /**
+ * Opt-in OpenTelemetry stdout formatting. Exact string `true` only (same as NEXT_METRICS_ENABLED).
+ */
+export function isOtelLoggingEnabled(): boolean {
+  return process.env.NEXT_LOG_OTEL_ENABLED === 'true';
+}
+
+const PRETTY_TRANSPORT_BASE = {
+  colorize: true,
+  translateTime: 'HH:MM:ss.l',
+  ignore: 'pid,hostname',
+} as const;
+
+/**
  * Gets server-side PINO logger configuration
  * @returns PINO configuration object
  */
-export function getServerLoggerConfig() {
+export function getServerLoggerConfig(options?: GetServerLoggerConfigOptions): pino.LoggerOptions {
   const isDev = isDevelopment();
   const level = getServerLogLevel();
+  const includePrettyTransport = options?.includePrettyTransport !== false;
+  const otelEnabled = isOtelLoggingEnabled();
 
   return {
     level,
-    ...(isDev && {
-      transport: {
-        target: 'pino-pretty',
-        options: {
-          colorize: true,
-          translateTime: 'HH:MM:ss.l',
-          ignore: 'pid,hostname',
-        },
+    ...(otelEnabled && {
+      timestamp: otelPinoTimestamp,
+      formatters: otelPinoFormatters,
+      messageKey: 'body',
+      serializers: {
+        err: pino.stdSerializers.err,
       },
     }),
+    ...(isDev &&
+      includePrettyTransport && {
+        transport: {
+          target: 'pino-pretty',
+          options: {
+            ...PRETTY_TRANSPORT_BASE,
+            ...(otelEnabled && {
+              timestampKey: 'timestamp',
+              messageKey: 'body',
+            }),
+          },
+        },
+      }),
   };
 }
 

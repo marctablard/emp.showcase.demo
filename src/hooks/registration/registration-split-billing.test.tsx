@@ -178,7 +178,7 @@ function submitRegistration() {
   fireEvent.submit(form!);
 }
 
-describe('Registration split billing submit (COP-4861)', () => {
+describe('Registration split billing submit', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockRegister.mockResolvedValue({ success: true });

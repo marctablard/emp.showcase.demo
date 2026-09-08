@@ -21,7 +21,7 @@ export interface ProductVariantAttributeGroupsProps {
   selectedValues?: Record<string, string>;
   /**
    * Values compatible with the current selection per attribute key.
-   * Reserved for COP-4811 interactive filtering — chips are display-only for now.
+   * Reserved for interactive filtering — chips are display-only for now.
    */
   compatibleValuesByAttribute?: Record<string, ReadonlySet<string>>;
   /** Localized names from Product Templates `attributes[].name`. */
@@ -43,7 +43,7 @@ function resolveChipState(
 
 /**
  * Figma Variant Selection (`12799:113082`) — chips of possible values grouped by
- * `productVariantAttributes`. Display-only for now (COP-4811 filters later):
+ * `productVariantAttributes`. Display-only for now (interactive filters later):
  * selected chip keeps the strong border; all others are grayed with not-allowed cursor
  * and a tooltip pointing shoppers to the sellable variant list.
  */

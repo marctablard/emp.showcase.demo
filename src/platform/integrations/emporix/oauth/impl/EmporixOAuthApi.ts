@@ -54,7 +54,7 @@ class EmporixOAuthApi implements IEmporixOAuthApi {
    * Get an anonymous token
    * @param tenant The tenant ID
    * @param clientId Client ID for anonymous access
-   * @param sessionParams Optional session context values to pre-seed the new session (COP-5047)
+   * @param sessionParams Optional session context values to pre-seed the new session
    * @returns Promise with the anonymous token response
    */
   async getAnonymousToken(

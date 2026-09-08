@@ -1,7 +1,7 @@
 import type { EmporixCart } from '@/platform/integrations/emporix/model/cart';
 import { EmporixCartMapper } from './EmporixCartMapper';
 
-/** Live cart payload shape from COP-5174 (DE, shipping tax 0, final gross 82.3). */
+/** Live cart payload shape (DE, shipping tax 0, final gross 82.3). */
 function showcaseDevCart(overrides: Partial<EmporixCart['calculatedPrice']> = {}): EmporixCart {
   return {
     id: '6a73439ecda403271df7b27e',

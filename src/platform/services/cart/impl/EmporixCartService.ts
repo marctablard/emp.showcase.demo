@@ -595,7 +595,7 @@ class EmporixCartService implements CartService {
       throw new Error('Cart not found');
     }
 
-    // Destination-only tax-country write (COP-5174): REQUEST SHIPPING+BILLING from ship-to.
+    // Destination-only tax-country write: REQUEST SHIPPING+BILLING from ship-to.
     // Checkout billing is ignored so leftover/legal-entity DE cannot win Emporix's tax chain.
     const addresses: EmporixCartAddress[] = [
       { ...shippingAddress, type: 'SHIPPING' as const, origin: 'REQUEST' },

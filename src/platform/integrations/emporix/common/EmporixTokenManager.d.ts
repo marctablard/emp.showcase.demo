@@ -15,7 +15,7 @@ export interface EmporixTokenManager {
   /**
    * Get a valid anonymous token, refreshing if necessary
    * @param tenant The tenant ID
-   * @param sessionParams Optional session context values to pre-seed the new session (COP-5047)
+   * @param sessionParams Optional session context values to pre-seed the new session
    * @returns Promise with the token
    */
   getAnonymousToken(

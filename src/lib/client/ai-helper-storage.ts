@@ -1,7 +1,7 @@
 import { isAuthenticatedSessionCustomerId } from '@/lib/common/customer-identity';
 
 /**
- * Browser-only Frontend Agent conversation storage (COP-6181).
+ * Browser-only Frontend Agent conversation storage.
  *
  * Keys are scoped to the Emporix customer id, not NextAuth, so two shoppers on the
  * same browser cannot read each other's transcript. Unscoped legacy keys and other

@@ -68,7 +68,7 @@ function expectLargeFigure(amount: number): void {
   expect(normalizedText(priceNode)).toContain(integerPart);
 }
 
-describe('ProductPriceComponent net-first hierarchy (COP-6056)', () => {
+describe('ProductPriceComponent net-first hierarchy', () => {
   it('with includesTax:false shows net as large figure and plusTax + gross as small print', () => {
     const price = buildPrice({ includesTax: false });
     render(<ProductPriceComponent price={price} />);

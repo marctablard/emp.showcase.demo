@@ -1,5 +1,5 @@
 /**
- * Figma alignment regression locks (SHOW-320 review round).
+ * Figma alignment regression locks (review round).
  *
  * Every assertion here encodes a Figma-verified SOLL value from the design review
  * (7 extraction agents + 14 adversarial verifications, all confirmed; measured values
@@ -16,7 +16,7 @@ const ROOT = path.resolve(__dirname, '../..');
 const read = (rel: string): string => readFileSync(path.join(ROOT, rel), 'utf8');
 
 // These locks read components by PATH, so a file move breaks them with ENOENT rather
-// than a failed assertion. SHOW-323 moved the CMS components into per-component folders
+// than a failed assertion. CMS components later moved into per-component folders
 // (`cms/hero.tsx` → `cms/hero/hero.tsx`, and likewise for column-teaser and media-text);
 // the paths below follow that layout. If a component moves again, update the path here —
 // the measured Figma values themselves are unaffected by where the file lives.

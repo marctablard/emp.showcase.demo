@@ -19,7 +19,7 @@
  * Token JSON widgets paint as soon as `type`/`data` are available; tool results
  * win and appear as soon as the tool returns. `tool_start` shows a typed skeleton.
  * Thinking progress is an opaque status flag only (never raw chain-of-thought).
- * COP-5591 sibling parser (`emporix/hosting-md-extension`) also emits
+ * Sibling parser (`emporix/hosting-md-extension`) also emits
  * plain-text tokens + metadata-only frames.
  */
 import {

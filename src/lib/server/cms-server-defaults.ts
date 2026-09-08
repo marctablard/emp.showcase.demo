@@ -11,7 +11,7 @@ import { getCmsEnv } from '@/lib/server/storyblok-env';
  * `NEXT_PUBLIC_*` default.
  *
  * Resolves `NEXT_CMS_LOCAL_DEFAULT_SITE`, with legacy
- * `NEXT_PUBLIC_CMS_LOCAL_DEFAULT_SITE` fallback (SHOW-323 dual naming).
+ * `NEXT_PUBLIC_CMS_LOCAL_DEFAULT_SITE` fallback (dual naming).
  */
 export function getCmsLocalDefaultSite(): string {
   return getCmsEnv('LOCAL_DEFAULT_SITE') ?? '_default_';

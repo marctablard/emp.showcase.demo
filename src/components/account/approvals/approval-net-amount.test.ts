@@ -29,12 +29,12 @@ const finding26Approval: Approval = {
   createdAt: '2026-06-03T07:09:38.112Z',
 };
 
-const cop6178Approval: Approval = {
+const shippingInclusiveApproval: Approval = {
   ...finding26Approval,
-  id: 'approval-cop-6178',
+  id: 'approval-shipping-inclusive',
   resource: {
     ...finding26Approval.resource,
-    id: 'cart-cop-6178',
+    id: 'cart-shipping-inclusive',
     totalPrice: { currency: 'EUR', amount: 1445.89, netValue: 1205.79 },
     subtotalAggregate: { currency: 'EUR', netValue: 1194.79, grossValue: 1421.8, taxValue: 226.99 },
   },
@@ -60,12 +60,12 @@ describe('approval-net-amount', () => {
   });
 
   it('resolves total net amount as goods net + shipping net', () => {
-    expect(resolveApprovalTotalNetAmount(cop6178Approval)?.amount).toBeCloseTo(1205.79, 2);
-    expect(resolveApprovalTotalNetAmount(cop6178Approval)).toEqual({ amount: 1205.79, currency: 'EUR' });
+    expect(resolveApprovalTotalNetAmount(shippingInclusiveApproval)?.amount).toBeCloseTo(1205.79, 2);
+    expect(resolveApprovalTotalNetAmount(shippingInclusiveApproval)).toEqual({ amount: 1205.79, currency: 'EUR' });
   });
 
   it('adds shipping amount only and never a shipping-tax term', () => {
-    const total = resolveApprovalTotalNetAmount(cop6178Approval);
+    const total = resolveApprovalTotalNetAmount(shippingInclusiveApproval);
 
     expect(total).toEqual({ amount: 1194.79 + 11, currency: 'EUR' });
     expect(total?.amount).not.toBe(1194.79 + 11 + 2.1);
@@ -82,8 +82,8 @@ describe('approval-net-amount', () => {
   });
 
   it('leaves the goods helper unchanged when shipping is 11', () => {
-    expect(resolveApprovalNetAmount(cop6178Approval)).toEqual({ amount: 1194.79, currency: 'EUR' });
-    expect(resolveApprovalNetAmount(cop6178Approval)?.amount).not.toBe(1205.79);
+    expect(resolveApprovalNetAmount(shippingInclusiveApproval)).toEqual({ amount: 1194.79, currency: 'EUR' });
+    expect(resolveApprovalNetAmount(shippingInclusiveApproval)?.amount).not.toBe(1205.79);
   });
 
   it('returns null for total net when the goods helper returns null', () => {

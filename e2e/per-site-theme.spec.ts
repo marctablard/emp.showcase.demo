@@ -12,7 +12,7 @@
  * 2. **Shared default palette** — registered theme files currently ship with
  *    no `:root` color overrides (demo hex accents cleared), so
  *    `--color-surface-action` resolves to the shared `mapped.css` default
- *    (`var(--color-primary-500)`), matching the pre–SHOW-323 storefront look.
+ *    (`var(--color-primary-500)`), matching the previous storefront look.
  *    Raw custom-property values must not be a hex override (`/^#/`).
  * 3. **Default fallback (no cascade leak)** — a site without an explicit theme
  *    file resolves to the empty `_default_.css` and likewise keeps the mapped

@@ -1258,9 +1258,19 @@ async function generateContainerFile(
   // container from client code fails the build instead of leaking server code at runtime.
   // The client container must not carry it — it is meant to load in the browser.
   const serverOnlyImport = type === 'client' ? '' : "import 'server-only';\n\n";
+  // Node containers share getServerLoggerConfig (OTel/off) without a pretty worker.
+  // Client keeps a bare pino() so generated client.ts never imports server logger config.
+  const diLoggerImport =
+    type === 'client' ? '' : "import { getServerLoggerConfig } from '@/platform/core/config/logger-config';\n";
+  const diLoggerInit =
+    type === 'client'
+      ? "pino({ level: process.env.NODE_ENV === 'development' ? 'debug' : 'info' })"
+      : 'pino(getServerLoggerConfig({ includePrettyTransport: false }))';
 
   const output = template
     .replace('{{serverOnlyImport}}', serverOnlyImport)
+    .replace('{{diLoggerImport}}', diLoggerImport)
+    .replace('{{diLoggerInit}}', diLoggerInit)
     .replace('{{imports}}', allImports)
     .replace('{{moduleArray}}', moduleArray)
     .replace('{{aliasBindings}}', aliasBindings)

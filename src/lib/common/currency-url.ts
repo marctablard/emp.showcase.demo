@@ -57,7 +57,7 @@ export function replaceCurrencySearchParam(pathname: string, search: string, cur
 
 /**
  * Copy an existing storefront `?currency=` onto a newly built browse URL.
- * Does not invent a currency from session — COP-5942 keeps defaults out of the URL.
+ * Does not invent a currency from session — keep defaults out of the URL.
  */
 export function copyStorefrontCurrencyParam(from: URLSearchParams, to: URLSearchParams): void {
   const value = from.get(CURRENCY_QUERY_PARAM);

@@ -197,7 +197,7 @@ The `[site]/[locale]` layout appends `emp_locale=<supported>` after `getPathname
 
 The freeze breaker is **not** that cookie. `src/i18n/routing.ts` sets `localeDetection: false`, so after the 302 to the unprefixed default-locale URL, next-intl will not send the shopper back to `/de` from a missing cookie, a stale `de` cookie, or `Accept-Language`. The storefront must stay usable when cookies are cleared or blocked. Locale/currency do not need to be remembered across a site switch.
 
-### Storefront currency query (`?currency=`, COP-5942)
+### Storefront currency query (`?currency=`)
 
 Language for external links is the **path locale** (`/de/...`), not a query param.
 
