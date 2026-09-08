@@ -95,6 +95,53 @@ function assignStringException(target: Record<string, unknown>, message: string,
   }
 }
 
+function deleteSiblingStack(result: Record<string, unknown>, stack: unknown): void {
+  if (typeof stack === 'string') {
+    delete result.stack;
+  }
+}
+
+function tryEnrichFromErr(result: Record<string, unknown>): boolean {
+  const { err, stack } = result;
+  if (err instanceof Error) {
+    assignErrorException(result, err);
+    delete result.err;
+    return true;
+  }
+  if (typeof err === 'string') {
+    assignStringException(result, err, stack);
+    delete result.err;
+    deleteSiblingStack(result, stack);
+    return true;
+  }
+  if (isPlainObject(err) && hasMappableExceptionFields(err)) {
+    assignExceptionLikeObject(result, err);
+    delete result.err;
+    return true;
+  }
+  return false;
+}
+
+function tryEnrichFromError(result: Record<string, unknown>): boolean {
+  const { error, stack } = result;
+  if (error instanceof Error) {
+    assignErrorException(result, error);
+    if (result[EXCEPTION_STACKTRACE] === undefined && typeof stack === 'string') {
+      result[EXCEPTION_STACKTRACE] = stack;
+    }
+    delete result.error;
+    deleteSiblingStack(result, stack);
+    return true;
+  }
+  if (typeof error === 'string') {
+    assignStringException(result, error, stack);
+    delete result.error;
+    deleteSiblingStack(result, stack);
+    return true;
+  }
+  return false;
+}
+
 /**
  * Maps `{ err }` / `{ error, stack }` merge objects to dotted `exception.*` keys.
  * Runs in `formatters.log` before Pino serializers.
@@ -105,50 +152,10 @@ export function enrichOtelLog(object: Record<string, unknown>): Record<string, u
   }
 
   const result: Record<string, unknown> = { ...object };
-  const { err, error, stack } = result;
-
-  if (err instanceof Error) {
-    assignErrorException(result, err);
-    delete result.err;
+  if (tryEnrichFromErr(result)) {
     return result;
   }
-
-  if (typeof err === 'string') {
-    assignStringException(result, err, stack);
-    delete result.err;
-    if (typeof stack === 'string') {
-      delete result.stack;
-    }
-    return result;
-  }
-
-  if (isPlainObject(err) && hasMappableExceptionFields(err)) {
-    assignExceptionLikeObject(result, err);
-    delete result.err;
-    return result;
-  }
-
-  if (error instanceof Error) {
-    assignErrorException(result, error);
-    if (result[EXCEPTION_STACKTRACE] === undefined && typeof stack === 'string') {
-      result[EXCEPTION_STACKTRACE] = stack;
-    }
-    delete result.error;
-    if (typeof stack === 'string') {
-      delete result.stack;
-    }
-    return result;
-  }
-
-  if (typeof error === 'string') {
-    assignStringException(result, error, stack);
-    delete result.error;
-    if (typeof stack === 'string') {
-      delete result.stack;
-    }
-    return result;
-  }
-
+  tryEnrichFromError(result);
   return result;
 }
 
