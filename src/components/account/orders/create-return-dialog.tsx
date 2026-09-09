@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { formatReturnDate } from '@/components/account/returns/helpers';
 import { type ItemQuantity, ReturnItemSelector } from '@/components/account/returns/return-item-selector';
+import { useReturnErrorMessage } from '@/components/account/returns/use-return-error-message';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -41,6 +42,7 @@ export function CreateReturnDialog({ open, onOpenChange, order, returnability }:
   const t = useTranslations('account.returns.createDialog');
   const tReturns = useTranslations('account.returns');
   const locale = useLocale();
+  const returnErrorMessage = useReturnErrorMessage();
   const router = useRouter();
   const [quantities, setQuantities] = useState<ItemQuantity>({});
   const [reasonCode, setReasonCode] = useState<ReturnReasonCode | ''>('');
@@ -126,13 +128,13 @@ export function CreateReturnDialog({ open, onOpenChange, order, returnability }:
       onOpenChange(false);
       router.push(`/account/returns/${response.id}`);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : t('submitError');
+      // The server's English text goes to the log; the shopper sees the translated code.
       getLogger().error(
         { err, orderId: order.id, selectedItems: Object.keys(quantities).length },
         'Failed to create return',
       );
       notify({
-        title: errorMessage,
+        title: returnErrorMessage(err),
         type: ToastType.Error,
       });
     } finally {

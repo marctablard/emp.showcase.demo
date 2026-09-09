@@ -23,6 +23,7 @@ import {
 } from './helpers';
 import { renderReturnReasonLabel } from './reason-labels';
 import { ReturnStatusBadge } from './return-status-badge';
+import { useReturnErrorMessage } from './use-return-error-message';
 
 type ReturnSortField = 'date' | 'status' | 'returnNumber' | 'netValue' | 'reason' | 'customer';
 const RETURNS_PER_PAGE = 5;
@@ -56,6 +57,7 @@ export function ReturnsList({
   initialTotalCount,
 }: Readonly<ReturnsListProps>) {
   const t = useTranslations('account.returns');
+  const returnErrorMessage = useReturnErrorMessage();
   const locale = useLocale();
   const router = useRouter();
   const [quickSearch, setQuickSearch] = useState('');
@@ -189,9 +191,7 @@ export function ReturnsList({
           <CardDescription>{t('description')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="bg-surface-error p-4 rounded-md text-text-error">
-            {t('errorLoading')}: {error.message}
-          </div>
+          <div className="bg-surface-error p-4 rounded-md text-text-error">{returnErrorMessage(error)}</div>
         </CardContent>
         <CardFooter>
           <Button onClick={() => refreshReturns()} data-testid="returns-retryButton">

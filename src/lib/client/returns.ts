@@ -1,3 +1,8 @@
+import {
+  RETURN_ERROR_CODE,
+  type ReturnErrorCode,
+  type ReturnErrorParams,
+} from '@/lib/common/returns/return-api-error-mapping';
 import type { Return } from '@/platform/services/model/return';
 
 const REQUEST_CACHE_TTL_MS = 60_000;
@@ -37,13 +42,21 @@ export interface CreateReturnResponse {
 
 export interface ReturnApiErrorResponse {
   error?: string;
+  code?: ReturnErrorCode;
+  params?: ReturnErrorParams;
   reason?: string;
   upstreamStatus?: number;
   upstreamMessage?: string;
 }
 
+/**
+ * `message` is the server's English text and stays diagnostic - it is logged, never rendered.
+ * The customer-facing sentence comes from `code` via useReturnErrorMessage.
+ */
 export class ReturnApiError extends Error {
   public readonly status: number;
+  public readonly code?: ReturnErrorCode;
+  public readonly params?: ReturnErrorParams;
   public readonly reason?: string;
   public readonly upstreamStatus?: number;
   public readonly upstreamMessage?: string;
@@ -52,6 +65,8 @@ export class ReturnApiError extends Error {
     super(message);
     this.name = 'ReturnApiError';
     this.status = status;
+    this.code = details?.code;
+    this.params = details?.params;
     this.reason = details?.reason;
     this.upstreamStatus = details?.upstreamStatus;
     this.upstreamMessage = details?.upstreamMessage;
@@ -167,8 +182,8 @@ export async function fetchReturnsPage(
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to fetch returns');
+      const errorData = await readErrorResponse(response);
+      throw new ReturnApiError(errorData.error || 'Failed to fetch returns', response.status, errorData);
     }
 
     const totalCountHeader = response.headers.get('x-total-count');
@@ -239,11 +254,12 @@ export async function fetchReturnById(returnId: string): Promise<Return> {
   });
 
   if (!response.ok) {
+    // A 404 needs no body: the code is implied by the status.
     if (response.status === 404) {
-      throw new Error('Return not found');
+      throw new ReturnApiError('Return not found', response.status, { code: RETURN_ERROR_CODE.RETURN_NOT_FOUND });
     }
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to fetch return');
+    const errorData = await readErrorResponse(response);
+    throw new ReturnApiError(errorData.error || 'Failed to fetch return', response.status, errorData);
   }
 
   return response.json();

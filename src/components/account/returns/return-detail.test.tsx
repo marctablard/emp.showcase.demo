@@ -2,14 +2,14 @@
  * @jest-environment jsdom
  */
 import '@testing-library/jest-dom';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import type { Return } from '@/platform/services/model/return';
 import { ReturnDetail } from './return-detail';
 
 const mockUseReturn = jest.fn();
 
 jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => Object.assign((key: string) => key, { has: () => true }),
   useLocale: () => 'en-US',
 }));
 
@@ -435,5 +435,26 @@ describe('ReturnDetail', () => {
     expect(desktopRow.className).toContain('sm:grid');
     expect(trailingCell).toHaveClass('min-w-0', 'text-right');
     expect(within(trailingCell).getByText('€100.00')).toBeInTheDocument();
+  });
+
+  it('shows a translated error alert and retries via refreshReturn on click', () => {
+    const refreshReturn = jest.fn();
+    mockUseReturn.mockReturnValue({
+      returnItem: null,
+      loading: false,
+      error: new Error('Network exploded'),
+      refreshReturn,
+    });
+
+    render(<ReturnDetail returnId="return-err" />);
+
+    expect(screen.getByText('error')).toBeInTheDocument();
+    // The raw Error carries no code, so the generic translated sentence is shown.
+    expect(screen.getByText('UNEXPECTED')).toBeInTheDocument();
+    expect(screen.queryByText('Network exploded')).not.toBeInTheDocument();
+    expect(screen.queryByText('returnNotFound')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('return-detail-retryButton'));
+    expect(refreshReturn).toHaveBeenCalledTimes(1);
   });
 });

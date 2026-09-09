@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { RETURN_ERROR_CODE } from '@/lib/common/returns/return-api-error-mapping';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Return, ReturnItem } from '@/platform/services/model/return';
@@ -76,7 +77,10 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     const returnItem = await returnService.getReturn(id);
 
     if (!returnItem) {
-      return NextResponse.json({ error: 'Return not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Return not found', code: RETURN_ERROR_CODE.RETURN_NOT_FOUND },
+        { status: 404 },
+      );
     }
 
     const enriched = await enrichReturnWithOrderData(returnItem);
@@ -93,6 +97,9 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       },
       `Error fetching return ${id}`,
     );
-    return NextResponse.json({ error: 'Failed to fetch return' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch return', code: RETURN_ERROR_CODE.RETURN_FETCH_FAILED },
+      { status: 500 },
+    );
   }
 }

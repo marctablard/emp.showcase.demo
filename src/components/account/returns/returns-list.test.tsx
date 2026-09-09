@@ -3,19 +3,24 @@
  */
 import '@testing-library/jest-dom';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { ReturnApiError } from '@/lib/client/returns';
 import type { Return } from '@/platform/services/model/return';
 import { ReturnsList } from './returns-list';
 
 const push = jest.fn();
 
 jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, string | number>) => {
-    if (values && 'id' in values) {
-      return `${key}:${values.id}`;
-    }
+  useTranslations: () =>
+    Object.assign(
+      (key: string, values?: Record<string, string | number>) => {
+        if (values && 'id' in values) {
+          return `${key}:${values.id}`;
+        }
 
-    return key;
-  },
+        return key;
+      },
+      { has: () => true },
+    ),
   useLocale: () => 'en-US',
 }));
 
@@ -512,14 +517,23 @@ describe('ReturnsList', () => {
     expect(screen.getByText('noReturns')).toBeInTheDocument();
   });
 
-  it('shows an error state and retries via refreshReturns', () => {
+  it('shows a translated error and retries via refreshReturns', () => {
     const refreshReturns = jest.fn();
     mockReturnsResult({ returns: [], totalCount: 0, error: new Error('boom'), refreshReturns });
     render(<ReturnsList initialReturns={[]} />);
 
-    expect(screen.getByText(/errorLoading/)).toBeInTheDocument();
+    expect(screen.getByText('UNEXPECTED')).toBeInTheDocument();
     fireEvent.click(screen.getByText('tryAgain'));
     expect(refreshReturns).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the translated message for a coded failure, not the English server text', () => {
+    const coded = new ReturnApiError('Failed to fetch returns', 500, { code: 'RETURNS_FETCH_FAILED' });
+    mockReturnsResult({ returns: [], totalCount: 0, error: coded });
+    render(<ReturnsList initialReturns={[]} />);
+
+    expect(screen.getByText('RETURNS_FETCH_FAILED')).toBeInTheDocument();
+    expect(screen.queryByText('Failed to fetch returns')).not.toBeInTheDocument();
   });
 
   it('shows only the Next control on the first page and only the Previous control on the last page', () => {
