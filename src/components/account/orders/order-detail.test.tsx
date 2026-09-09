@@ -19,6 +19,9 @@ const useProductsMock = jest.fn(() => ({
 }));
 
 jest.mock('next-intl', () => ({
+  // Two consumers need useLocale(): useL10n for the item name (the fixture carries
+  // plain strings, so l10n passes them through) and the order/delivery date, which
+  // is asserted in the active locale.
   useLocale: () => 'en',
   useTranslations: () => {
     const translate = (key: string) => key;
@@ -662,6 +665,14 @@ describe('OrderDetail', () => {
 
     expect(overviewCard).not.toHaveTextContent('orderDate');
     expect(overviewCard).not.toHaveTextContent('subtotal');
+  });
+
+  it('renders the order date in the active locale, not in English', () => {
+    mockUseOrder();
+
+    render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
+
+    expect(screen.getByText('05/31/2026')).toBeInTheDocument();
   });
 
   it('renders the Order Overview rows in the exact required sequence: Net value of goods, VAT, Shipping fee, Total value', () => {

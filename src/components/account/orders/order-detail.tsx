@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { format } from 'date-fns';
 import { Ban, CreditCard, ReceiptText, RotateCcw, Truck } from 'lucide-react';
 import { detailTaxRateSuffix, shouldDisplayTaxLine } from '@/components/account/shared/detail-tax-line';
 import { formatShippingFeeDisplay } from '@/components/account/shared/format-shipping-fee';
@@ -22,6 +21,7 @@ import { isOrderAccessDeniedError } from '@/lib/client/orders';
 import { fetchReturnsForOrder } from '@/lib/client/returns';
 import { ORDER_CUSTOMER_DECLINE_NOT_ALLOWED_MESSAGE } from '@/lib/common/order-customer-decline-not-allowed';
 import { type OrderReturnability, computeOrderReturnability } from '@/lib/common/returns/returnability';
+import { formatDate } from '@/lib/date-utils';
 import { getLogger } from '@/lib/logger/use-logger-client';
 import type { Address } from '@/platform/services/model/common';
 import type { Order, OrderStatus } from '@/platform/services/model/order/order';
@@ -273,7 +273,7 @@ export function OrderDetail({
               {order.id}
             </SummaryField>
             <SummaryField label={tOrder('orderDate')} valueClassName="text-sm">
-              {order.createdAt ? format(new Date(order.createdAt), 'PPP') : '-'}
+              {order.createdAt ? formatDate(order.createdAt, locale) : '-'}
             </SummaryField>
             {order.quoteId && (
               <SummaryField label={tOrder('relatedQuote')} valueClassName="text-sm">
@@ -396,7 +396,7 @@ export function OrderDetail({
               {shippingMethodName && <SummaryField label={tOrder('shippingMethod')}>{shippingMethodName}</SummaryField>}
               {order.expectedDeliveryDate && (
                 <SummaryField label={tOrder('deliveryDate')}>
-                  {format(new Date(order.expectedDeliveryDate), 'PPP')}
+                  {formatDate(order.expectedDeliveryDate, locale)}
                 </SummaryField>
               )}
               {order.shippingAddress && (

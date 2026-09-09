@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
-import { format } from 'date-fns';
+import { useLocale, useTranslations } from 'next-intl';
+import { formatReturnDate } from '@/components/account/returns/helpers';
 import { type ItemQuantity, ReturnItemSelector } from '@/components/account/returns/return-item-selector';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -40,6 +40,7 @@ export function CreateReturnDialog({ open, onOpenChange, order, returnability }:
   const MAX_DESCRIPTION_LENGTH = 500;
   const t = useTranslations('account.returns.createDialog');
   const tReturns = useTranslations('account.returns');
+  const locale = useLocale();
   const router = useRouter();
   const [quantities, setQuantities] = useState<ItemQuantity>({});
   const [reasonCode, setReasonCode] = useState<ReturnReasonCode | ''>('');
@@ -59,11 +60,6 @@ export function CreateReturnDialog({ open, onOpenChange, order, returnability }:
     : order.items;
 
   const totalSelectedItems = Object.values(quantities).reduce((sum, qty) => sum + qty, 0);
-
-  const formatDate = (dateString: string | undefined): string => {
-    if (!dateString) return '-';
-    return format(new Date(dateString), 'MMMM d, yyyy');
-  };
 
   const updateQuantity = (itemId: string, newQty: number, maxQty: number): void => {
     const clampedQty = Math.max(0, Math.min(newQty, maxQty));
@@ -176,7 +172,7 @@ export function CreateReturnDialog({ open, onOpenChange, order, returnability }:
           </div>
           <div>
             <p className="text-sm font-semibold text-text-body">{t('deliveryDate')}</p>
-            <p className="font-normal">{formatDate(order.lastStatusChange)}</p>
+            <p className="font-normal">{formatReturnDate(order.lastStatusChange, locale)}</p>
           </div>
         </div>
 
