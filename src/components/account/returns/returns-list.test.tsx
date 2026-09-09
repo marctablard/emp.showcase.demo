@@ -536,6 +536,28 @@ describe('ReturnsList', () => {
     expect(screen.queryByText('Failed to fetch returns')).not.toBeInTheDocument();
   });
 
+  it('keeps the search field usable while an error is shown, so the offending term can be cleared', () => {
+    mockReturnsResult({ returns: [], totalCount: 0, error: new Error('boom') });
+    render(<ReturnsList initialReturns={[]} />);
+
+    // The error replaces the table only; heading and search stay mounted.
+    const search = screen.getByLabelText('searchPlaceholder');
+    expect(search).toBeInTheDocument();
+    expect(screen.getByText('UNEXPECTED')).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+
+    fireEvent.change(search, { target: { value: '' } });
+    expect(search).toHaveValue('');
+  });
+
+  it('shows the error instead of the empty state when a load fails without a search term', () => {
+    mockReturnsResult({ returns: [], totalCount: 0, error: new Error('boom') });
+    render(<ReturnsList initialReturns={[]} />);
+
+    expect(screen.getByText('UNEXPECTED')).toBeInTheDocument();
+    expect(screen.queryByText('noReturns')).not.toBeInTheDocument();
+  });
+
   it('shows only the Next control on the first page and only the Previous control on the last page', () => {
     const returns = Array.from({ length: 5 }, (_, index) => buildReturn({ id: `ret-${index}` }));
     mockReturnsResult({ returns, totalCount: 12 });
