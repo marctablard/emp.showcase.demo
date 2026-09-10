@@ -34,6 +34,23 @@ export function isCartCurrencyUpdateError(error: unknown): error is CartCurrency
   );
 }
 
+export class CartDiscountError extends Error {
+  public readonly upstreamStatus?: number;
+  public readonly upstreamBody?: string;
+
+  constructor(message: string, details?: { upstreamStatus?: number; upstreamBody?: string }) {
+    super(message);
+    this.name = 'CartDiscountError';
+    this.upstreamStatus = details?.upstreamStatus;
+    this.upstreamBody = details?.upstreamBody;
+  }
+}
+
+/** Works across bundle boundaries where `instanceof` can fail for the same class. */
+export function isCartDiscountError(error: unknown): error is CartDiscountError {
+  return error instanceof CartDiscountError || (error instanceof Error && error.name === 'CartDiscountError');
+}
+
 const UPSTREAM_STATUS_REGEX = /(?:\bstatus\b["':\s]+)?(400|401|403|404|409|422|500|502|503)\b/i;
 
 export function extractUpstreamStatus(message: string): number | undefined {

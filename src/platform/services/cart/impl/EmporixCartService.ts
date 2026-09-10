@@ -18,8 +18,10 @@ import type {
 import {
   CART_CURRENCY_UPDATE_ERROR_CODE,
   CartCurrencyUpdateError,
+  CartDiscountError,
   extractUpstreamBody,
   extractUpstreamStatus,
+  isCartDiscountError,
 } from '@/platform/services/cart/errors';
 import { matchDeliveryWindowForShippingMethod } from '@/platform/services/cart/match-delivery-window';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
@@ -753,6 +755,48 @@ class EmporixCartService implements CartService {
     }
   }
 
+  async applyDiscount(cartId: string, code: string): Promise<Cart> {
+    const trimmedCode = code.trim();
+    if (!trimmedCode) {
+      throw new CartDiscountError('Coupon code is required');
+    }
+
+    try {
+      await this.cartApi.applyDiscount(cartId, trimmedCode);
+    } catch (error) {
+      throw this.mapCartDiscountError(error, 'Failed to apply discount');
+    }
+
+    let cart = await this.getCartById(cartId);
+    if (!cart) {
+      throw new CartDiscountError('Cart not found');
+    }
+
+    if (this.isCartMissingDiscountsAndSavings(cart)) {
+      await this.refreshCartWithCleanup(cartId);
+      cart = await this.getCartById(cartId);
+      if (!cart) {
+        throw new CartDiscountError('Cart not found');
+      }
+    }
+
+    return cart;
+  }
+
+  async removeDiscount(cartId: string, discountIndex: number): Promise<Cart> {
+    try {
+      await this.cartApi.removeDiscount(cartId, discountIndex);
+    } catch (error) {
+      throw this.mapCartDiscountError(error, 'Failed to remove discount');
+    }
+
+    const cart = await this.getCartById(cartId);
+    if (!cart) {
+      throw new CartDiscountError('Cart not found');
+    }
+    return cart;
+  }
+
   async getSavedCarts(pagination: PaginationQuery): Promise<Paginated<Cart>> {
     const session = await this.sessionService.getCurrent();
     if (!session?.customerId) {
@@ -848,6 +892,22 @@ class EmporixCartService implements CartService {
     }
 
     return canonicalRawCart;
+  }
+
+  private isCartMissingDiscountsAndSavings(cart: Cart): boolean {
+    return !cart.discounts?.length && cart.savingsTotal == null;
+  }
+
+  private mapCartDiscountError(error: unknown, message: string): CartDiscountError {
+    if (isCartDiscountError(error)) {
+      return error;
+    }
+
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return new CartDiscountError(message, {
+      upstreamStatus: extractUpstreamStatus(errorMessage),
+      upstreamBody: extractUpstreamBody(errorMessage),
+    });
   }
 
   private mapCartResolutionError(

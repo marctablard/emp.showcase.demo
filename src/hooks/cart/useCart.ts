@@ -23,6 +23,8 @@ interface UseCart {
   removeItem: (itemId: string) => Promise<void>;
   updateShippingInfo: (shippingAddress: CartShippingAddress, billingAddress?: CartShippingAddress) => Promise<void>;
   updateShippingMethod: (method: CartShippingMethodSelection) => Promise<void>;
+  applyDiscount: (code: string) => Promise<void>;
+  removeDiscount: (discountIndex: number) => Promise<void>;
   clearCart: (options?: { deleteCart?: boolean; clearSession?: boolean }) => void;
   loadCart: (cartId: string, type?: string) => Promise<Cart | null | undefined>;
 
@@ -46,6 +48,8 @@ export const useCart = (initialCart?: Cart | null): UseCart => {
     removeItem,
     updateShippingInfo,
     updateShippingMethod,
+    applyDiscount,
+    removeDiscount,
     clearCart,
     fetchCart,
     setCurrentCart,
@@ -87,6 +91,8 @@ export const useCart = (initialCart?: Cart | null): UseCart => {
     removeItem,
     updateShippingInfo,
     updateShippingMethod,
+    applyDiscount,
+    removeDiscount,
     clearCart,
     refetch: async () => {
       await fetchCart(false);

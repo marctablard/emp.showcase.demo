@@ -4,8 +4,10 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import {
   addItemToCart as apiAddItemToCart,
+  applyCartDiscount as apiApplyCartDiscount,
   createCart as apiCreateCart,
   fetchCurrentCart as apiFetchCurrentCart,
+  removeCartDiscount as apiRemoveCartDiscount,
   removeCartItem as apiRemoveCartItem,
   updateCartCurrency as apiUpdateCartCurrency,
   updateCartItemQuantity as apiUpdateCartItemQuantity,
@@ -68,6 +70,8 @@ interface CartActions {
   removeItem: (itemId: string) => Promise<void>;
   updateShippingInfo: (shippingAddress: CartShippingAddress, billingAddress?: CartShippingAddress) => Promise<void>;
   updateShippingMethod: (method: CartShippingMethodSelection) => Promise<void>;
+  applyDiscount: (code: string) => Promise<void>;
+  removeDiscount: (discountIndex: number) => Promise<void>;
   updateCurrency: (currency: string) => Promise<void>;
   clearCart: (options?: { deleteCart?: boolean; clearSession?: boolean }) => void;
 
@@ -543,6 +547,43 @@ export const createCartStore = (initState: CartState = defaultState) => {
           getLogger().error({ err }, 'Error updating shipping method');
         } finally {
           releaseNext();
+        }
+      },
+
+      applyDiscount: async (code: string) => {
+        const { currentCart } = get();
+        if (!currentCart) {
+          return;
+        }
+
+        // Do not flip `loading` — checkout must keep the previous cart snapshot
+        // so a field error can show without a global spinner.
+        try {
+          const updatedCart = await apiApplyCartDiscount(currentCart.id, code);
+          set({ currentCart: updatedCart, error: null });
+        } catch (err) {
+          const error = err instanceof Error ? err : new Error('Failed to apply cart discount');
+          set({ error });
+          getLogger().error({ err, cartId: currentCart.id }, 'Error applying cart discount');
+          throw error;
+        }
+      },
+
+      removeDiscount: async (discountIndex: number) => {
+        const { currentCart } = get();
+        if (!currentCart) {
+          return;
+        }
+
+        // Do not flip `loading` — same contract as updateShippingMethod / applyDiscount.
+        try {
+          const updatedCart = await apiRemoveCartDiscount(currentCart.id, discountIndex);
+          set({ currentCart: updatedCart, error: null });
+        } catch (err) {
+          const error = err instanceof Error ? err : new Error('Failed to remove cart discount');
+          set({ error });
+          getLogger().error({ err, cartId: currentCart.id }, 'Error removing cart discount');
+          throw error;
         }
       },
 

@@ -1,10 +1,16 @@
-import { CART_CURRENCY_UPDATE_ERROR_CODE, CartCurrencyUpdateError } from '@/platform/services/cart/errors';
+import {
+  CART_CURRENCY_UPDATE_ERROR_CODE,
+  CartCurrencyUpdateError,
+  isCartDiscountError,
+} from '@/platform/services/cart/errors';
 
 export const CART_API_REASON = {
   NOT_FOUND: 'not_found',
   FORBIDDEN: 'forbidden',
   CONTEXT_MISMATCH: 'context_mismatch',
   UNSUPPORTED_CURRENCY: 'unsupported_currency',
+  DISCOUNT_NOT_APPLICABLE: 'discount_not_applicable',
+  UNAUTHORIZED: 'unauthorized',
   UPSTREAM_FAILURE: 'upstream_failure',
 } as const;
 
@@ -110,4 +116,80 @@ export function mapCartCurrencyPutError(error: unknown): CartApiErrorMapping {
     response: { error: 'Failed to update cart currency', reason: CART_API_REASON.UPSTREAM_FAILURE },
     logContext: { reason: CART_API_REASON.UPSTREAM_FAILURE },
   };
+}
+
+function mapCartDiscountMutationError(error: unknown, upstreamFailureMessage: string): CartApiErrorMapping {
+  if (isCartDiscountError(error)) {
+    if (error.upstreamStatus === 401) {
+      return {
+        status: 401,
+        response: { error: 'Authentication required', reason: CART_API_REASON.UNAUTHORIZED },
+        logContext: {
+          reason: CART_API_REASON.UNAUTHORIZED,
+          upstreamStatus: error.upstreamStatus,
+          upstreamBody: error.upstreamBody,
+        },
+      };
+    }
+
+    if (error.upstreamStatus === 403) {
+      return {
+        status: 403,
+        response: { error: 'Cart context is forbidden', reason: CART_API_REASON.FORBIDDEN },
+        logContext: {
+          reason: CART_API_REASON.FORBIDDEN,
+          upstreamStatus: error.upstreamStatus,
+          upstreamBody: error.upstreamBody,
+        },
+      };
+    }
+
+    if (error.upstreamStatus === 404 || error.message === 'Cart not found') {
+      return {
+        status: 404,
+        response: { error: 'Cart not found', reason: CART_API_REASON.NOT_FOUND },
+        logContext: {
+          reason: CART_API_REASON.NOT_FOUND,
+          upstreamStatus: error.upstreamStatus,
+          upstreamBody: error.upstreamBody,
+        },
+      };
+    }
+
+    if (error.upstreamStatus === 502 || error.upstreamStatus === 503) {
+      return {
+        status: 500,
+        response: { error: upstreamFailureMessage, reason: CART_API_REASON.UPSTREAM_FAILURE },
+        logContext: {
+          reason: CART_API_REASON.UPSTREAM_FAILURE,
+          upstreamStatus: error.upstreamStatus,
+          upstreamBody: error.upstreamBody,
+        },
+      };
+    }
+
+    return {
+      status: 400,
+      response: { error: 'Discount is not applicable', reason: CART_API_REASON.DISCOUNT_NOT_APPLICABLE },
+      logContext: {
+        reason: CART_API_REASON.DISCOUNT_NOT_APPLICABLE,
+        upstreamStatus: error.upstreamStatus,
+        upstreamBody: error.upstreamBody,
+      },
+    };
+  }
+
+  return {
+    status: 500,
+    response: { error: upstreamFailureMessage, reason: CART_API_REASON.UPSTREAM_FAILURE },
+    logContext: { reason: CART_API_REASON.UPSTREAM_FAILURE },
+  };
+}
+
+export function mapCartDiscountApplyError(error: unknown): CartApiErrorMapping {
+  return mapCartDiscountMutationError(error, 'Failed to apply discount');
+}
+
+export function mapCartDiscountRemoveError(error: unknown): CartApiErrorMapping {
+  return mapCartDiscountMutationError(error, 'Failed to remove discount');
 }

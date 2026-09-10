@@ -238,4 +238,45 @@ describe('buildCheckoutOrderSummaryFromCart', () => {
     expect(checkout.shippingFee).toBe(4.95);
     expect(checkout.total).toBe(5713.44);
   });
+
+  it('does not expose original/savings flags when the cart has no discounts', () => {
+    const breakdown = buildCheckoutOrderSummaryFromCart(cart);
+
+    expect(breakdown.hasAppliedCoupons).toBeUndefined();
+    expect(breakdown.originalGoodsNet).toBeUndefined();
+    expect(breakdown.savingsTotal).toBeUndefined();
+    expect(breakdown.goodsNet).toBe(69.15);
+    expect(breakdown.goodsVat).toBe(13.14);
+    expect(breakdown.shippingFee).toBeUndefined();
+    expect(breakdown.total).toBe(82.29);
+  });
+
+  it('exposes original goods net, discounted goods, and platform savings when coupons apply', () => {
+    const breakdown = buildCheckoutOrderSummaryFromCart({
+      ...cart,
+      discounts: [{ code: 'LS10PTOTAL', discountIndex: 0, amount: 11.22, currency: 'EUR' }],
+      savingsTotal: 11.22,
+      goodsDiscountedNet: 57.93,
+      goodsDiscountedVat: 11.01,
+    });
+
+    expect(breakdown.hasAppliedCoupons).toBe(true);
+    expect(breakdown.originalGoodsNet).toBe(69.15);
+    expect(breakdown.goodsNet).toBe(57.93);
+    expect(breakdown.goodsVat).toBe(11.01);
+    expect(breakdown.savingsTotal).toBe(11.22);
+  });
+
+  it('keeps current goodsNet when savings exist without discounted net', () => {
+    const breakdown = buildCheckoutOrderSummaryFromCart({
+      ...cart,
+      savingsTotal: 6.915,
+    });
+
+    expect(breakdown.hasAppliedCoupons).toBe(true);
+    expect(breakdown.originalGoodsNet).toBe(69.15);
+    expect(breakdown.savingsTotal).toBe(6.915);
+    expect(breakdown.goodsNet).toBe(69.15);
+    expect(breakdown.goodsVat).toBe(13.14);
+  });
 });

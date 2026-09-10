@@ -29,7 +29,7 @@ Buttons, links used as actions, inputs, textareas, checkboxes, switches, radios,
 Reuse the same prefix when a form is mounted twice (`quoteShipping-*` vs `quoteBilling-*`, `shipping-*` vs `billing-*`).
 
 ## Do not
-
+- change or delete existing selector names to not brake existing test cases
 - Use `data-bugbug-*`, generated ids, or translated text as the primary locator
 - Leave clickable `<div>`s — use `<button type="button">` (or a real control) **and** `data-testid`
 - Skip a control because Playwright/Jest can find it by role; BugBug still needs the attribute

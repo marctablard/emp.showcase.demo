@@ -142,6 +142,22 @@ export interface CartService {
   updateCurrency(cartId: string, currency: string): Promise<void>;
 
   /**
+   * Applies a discount coupon to the cart, then returns the refreshed mapped cart.
+   * @param cartId The ID of the cart
+   * @param code Coupon code
+   * @returns Promise<Cart>
+   */
+  applyDiscount(cartId: string, code: string): Promise<Cart>;
+
+  /**
+   * Removes one discount from the cart by index, then returns the refreshed mapped cart.
+   * @param cartId The ID of the cart
+   * @param discountIndex Discount index from the cart discounts list
+   * @returns Promise<Cart>
+   */
+  removeDiscount(cartId: string, discountIndex: number): Promise<Cart>;
+
+  /**
    * Retrieves the saved carts for the current customer
    * @param pagination The pagination query
    * @returns The saved carts

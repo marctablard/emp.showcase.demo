@@ -52,6 +52,8 @@ Below is a categorization of API endpoints based on their security requirements:
 ### Protected Endpoints (State-Changing)
 - `/api/cart` (POST) - Requires authentication and CSRF protection
 - `/api/cart/[id]/items` (POST) - Requires authentication and CSRF protection
+- `/api/cart/[id]/discounts` (POST) - Requires authentication and CSRF protection. Coupon eligibility is enforced platform-side (COP-6043); the storefront does not call `/me/segments`.
+- `/api/cart/[id]/discounts/[discountIndex]` (DELETE) - Requires authentication and CSRF protection
 - `/api/customer/current/profile` (PATCH) - Requires authentication and CSRF protection
 - `/api/customer/current/addresses` (POST) - Requires authentication and CSRF protection
 - `/api/checkout` (POST) - Requires authentication and CSRF protection

@@ -71,6 +71,67 @@ function showcaseDevCart(overrides: Partial<EmporixCart['calculatedPrice']> = {}
   } as EmporixCart;
 }
 
+/** OpenAPI cart GET example: `discounts[].id: '0'`, `code: LS10PTOTAL`, no `discountIndex`. */
+function ls10pTotalOpenApiCart(): EmporixCart {
+  return {
+    id: '612c9ae63cff1d66f699b691',
+    currency: 'EUR',
+    siteCode: 'main',
+    discounts: [
+      {
+        id: '0',
+        code: 'LS10PTOTAL',
+        name: 'LS10PTOTAL',
+        currency: 'EUR',
+        discountRate: 10,
+        valid: true,
+      },
+    ],
+    calculatedPrice: {
+      price: {
+        netValue: 100,
+        grossValue: 110,
+        taxValue: 10,
+        taxCode: 'STANDARD',
+        taxRate: 10,
+      },
+      discountedPrice: {
+        netValue: 90,
+        grossValue: 99,
+        taxValue: 9,
+        taxCode: 'STANDARD',
+        taxRate: 10,
+      },
+      totalDiscount: {
+        calculationType: 'ApplyDiscountBeforeTax',
+        value: 11.22,
+        appliedDiscounts: [
+          {
+            id: 'LS10PTOTAL',
+            value: 11.22,
+            discountType: 'PERCENT',
+            origin: 'INTERNAL',
+          },
+        ],
+      },
+      totalShipping: {
+        netValue: 6.5,
+        grossValue: 6.955,
+        taxValue: 0.455,
+        taxCode: 'REDUCED',
+        taxRate: 7,
+      },
+      finalPrice: {
+        netValue: 101,
+        grossValue: 110.455,
+        taxValue: 9.455,
+        taxCode: 'STANDARD',
+        taxRate: 10,
+      },
+    },
+  } as EmporixCart;
+}
+
 describe('EmporixCartMapper', () => {
   const mapper = new EmporixCartMapper();
 
@@ -87,6 +148,62 @@ describe('EmporixCartMapper', () => {
     expect(mapped.shippingCosts?.tax?.amount).toBe(0);
     expect(mapped.shippingCosts?.tax?.taxCode).toBe('ZERO');
     expect(mapped.shippingCosts?.tax?.taxRate).toBe(0);
+    expect(mapped.discounts).toBeUndefined();
+    expect(mapped.savingsTotal).toBeUndefined();
+    expect(mapped.goodsDiscountedNet).toBeUndefined();
+    expect(mapped.goodsDiscountedVat).toBeUndefined();
+  });
+
+  it('maps LS10PTOTAL OpenAPI GET chips without discountIndex to domain index 0', () => {
+    const mapped = mapper.mapToService(ls10pTotalOpenApiCart());
+
+    expect(mapped.discounts).toEqual([
+      {
+        code: 'LS10PTOTAL',
+        name: 'LS10PTOTAL',
+        discountIndex: 0,
+        amount: 11.22,
+        currency: 'EUR',
+      },
+    ]);
+    expect(mapped.savingsTotal).toBe(11.22);
+    expect(mapped.goodsDiscountedNet).toBe(90);
+    expect(mapped.goodsDiscountedVat).toBe(9);
+    expect(mapped.totalPrice.amount).toBe(110.455);
+    expect(mapped.tax.netValue).toBe(100);
+    expect(mapped.subTotalPrice.amount).toBe(110);
+    expect(mapped.shippingCosts?.amount).toBe(6.5);
+  });
+
+  it('builds chips from appliedDiscounts when discounts[] is empty', () => {
+    const mapped = mapper.mapToService(
+      showcaseDevCart({
+        totalDiscount: {
+          calculationType: 'ApplyDiscountBeforeTax',
+          value: 6.915,
+          appliedDiscounts: [
+            {
+              id: 'LS10PTOTAL',
+              value: 6.915,
+              discountType: 'PERCENT',
+              origin: 'INTERNAL',
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(mapped.discounts).toEqual([
+      {
+        code: 'LS10PTOTAL',
+        discountIndex: 0,
+        amount: 6.915,
+        currency: 'EUR',
+      },
+    ]);
+    expect(mapped.savingsTotal).toBe(6.915);
+    expect(mapped.tax.netValue).toBe(69.15);
+    expect(mapped.totalPrice.amount).toBe(82.3);
   });
 
   it('prefers totalShipping over shipping when both are present', () => {

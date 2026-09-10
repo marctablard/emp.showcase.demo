@@ -1,5 +1,15 @@
-import { CART_API_REASON, mapCartCurrencyPutError, mapCartGetError } from '@/lib/common/cart-api-error-mapping';
-import { CART_CURRENCY_UPDATE_ERROR_CODE, CartCurrencyUpdateError } from '@/platform/services/cart/errors';
+import {
+  CART_API_REASON,
+  mapCartCurrencyPutError,
+  mapCartDiscountApplyError,
+  mapCartDiscountRemoveError,
+  mapCartGetError,
+} from '@/lib/common/cart-api-error-mapping';
+import {
+  CART_CURRENCY_UPDATE_ERROR_CODE,
+  CartCurrencyUpdateError,
+  CartDiscountError,
+} from '@/platform/services/cart/errors';
 
 describe('cart-api-error-mapping', () => {
   describe('mapCartGetError', () => {
@@ -37,6 +47,65 @@ describe('cart-api-error-mapping', () => {
 
     it('maps unknown errors to 500 upstream_failure', () => {
       const mapping = mapCartCurrencyPutError(new Error('boom'));
+
+      expect(mapping.status).toBe(500);
+      expect(mapping.response.reason).toBe(CART_API_REASON.UPSTREAM_FAILURE);
+    });
+  });
+
+  describe('mapCartDiscountApplyError', () => {
+    it('maps typed discount reject to 400 discount_not_applicable', () => {
+      const mapping = mapCartDiscountApplyError(
+        new CartDiscountError('Failed to apply discount', {
+          upstreamStatus: 400,
+          upstreamBody: '{"status":400}',
+        }),
+      );
+
+      expect(mapping.status).toBe(400);
+      expect(mapping.response.reason).toBe(CART_API_REASON.DISCOUNT_NOT_APPLICABLE);
+      expect(mapping.response.error).toBe('Discount is not applicable');
+      expect(mapping.logContext.upstreamStatus).toBe(400);
+    });
+
+    it('maps typed 401/403/404 discount errors to matching statuses', () => {
+      const unauthorized = mapCartDiscountApplyError(
+        new CartDiscountError('Failed to apply discount', { upstreamStatus: 401 }),
+      );
+      expect(unauthorized.status).toBe(401);
+      expect(unauthorized.response.reason).toBe(CART_API_REASON.UNAUTHORIZED);
+
+      const forbidden = mapCartDiscountApplyError(
+        new CartDiscountError('Failed to apply discount', { upstreamStatus: 403 }),
+      );
+      expect(forbidden.status).toBe(403);
+      expect(forbidden.response.reason).toBe(CART_API_REASON.FORBIDDEN);
+
+      const notFound = mapCartDiscountApplyError(new CartDiscountError('Cart not found'));
+      expect(notFound.status).toBe(404);
+      expect(notFound.response.reason).toBe(CART_API_REASON.NOT_FOUND);
+    });
+
+    it('maps unknown errors to 500 upstream_failure', () => {
+      const mapping = mapCartDiscountApplyError(new Error('boom'));
+
+      expect(mapping.status).toBe(500);
+      expect(mapping.response.reason).toBe(CART_API_REASON.UPSTREAM_FAILURE);
+    });
+  });
+
+  describe('mapCartDiscountRemoveError', () => {
+    it('maps typed discount reject to 400 discount_not_applicable', () => {
+      const mapping = mapCartDiscountRemoveError(
+        new CartDiscountError('Failed to remove discount', { upstreamStatus: 409 }),
+      );
+
+      expect(mapping.status).toBe(400);
+      expect(mapping.response.reason).toBe(CART_API_REASON.DISCOUNT_NOT_APPLICABLE);
+    });
+
+    it('maps unknown errors to 500 upstream_failure', () => {
+      const mapping = mapCartDiscountRemoveError(new Error('boom'));
 
       expect(mapping.status).toBe(500);
       expect(mapping.response.reason).toBe(CART_API_REASON.UPSTREAM_FAILURE);

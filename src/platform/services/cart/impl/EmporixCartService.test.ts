@@ -3,7 +3,7 @@ import 'reflect-metadata';
 import type { EmporixCartApi } from '@/platform/integrations/emporix/cart/EmporixCartApi';
 import type EmporixCommonUtil from '@/platform/integrations/emporix/common/util/EmporixCommonUtil';
 import type { EmporixCart } from '@/platform/integrations/emporix/model/cart';
-import { CartCurrencyUpdateError } from '@/platform/services/cart/errors';
+import { CartCurrencyUpdateError, CartDiscountError } from '@/platform/services/cart/errors';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { CartMapper } from '@/platform/services/model/cart/CartMapper';
 import type { Cart } from '@/platform/services/model/cart/cart';
@@ -32,6 +32,8 @@ describe('EmporixCartService', () => {
       | 'getCartByCriteria'
       | 'updateCartItemQuantity'
       | 'createCart'
+      | 'applyDiscount'
+      | 'removeDiscount'
     >
   >;
   let mockLogger: jest.Mocked<LoggerService>;
@@ -68,6 +70,8 @@ describe('EmporixCartService', () => {
       getCartByCriteria: jest.fn().mockResolvedValue(null),
       updateCartItemQuantity: jest.fn().mockResolvedValue(undefined),
       createCart: jest.fn().mockResolvedValue('new-cart-id'),
+      applyDiscount: jest.fn().mockResolvedValue(undefined),
+      removeDiscount: jest.fn().mockResolvedValue(undefined),
     };
 
     mockLogger = {
@@ -601,6 +605,123 @@ describe('EmporixCartService', () => {
         expect.objectContaining({
           code: 'FORBIDDEN',
           upstreamStatus: 403,
+        }),
+      );
+    });
+  });
+
+  describe('applyDiscount', () => {
+    const rawCart: EmporixCart = {
+      id: 'cart-1',
+      currency: 'EUR',
+      siteCode: 'main',
+      metadata: { version: 1 },
+    };
+
+    const mappedCartWithDiscount: Cart = {
+      id: 'cart-1',
+      currency: 'EUR',
+      site: 'main',
+      items: [],
+      totalPrice: { amount: 90, originalAmount: 100, currency: 'EUR' },
+      subTotalPrice: { amount: 90, originalAmount: 100, currency: 'EUR' },
+      tax: { amount: 19, currency: 'EUR', netValue: 81, grossValue: 100 },
+      discounts: [{ code: 'LS10PTOTAL', discountIndex: 0, amount: 10, currency: 'EUR' }],
+      savingsTotal: 10,
+    };
+
+    it('applies a trimmed code and returns the mapped cart', async () => {
+      mockCartApi.getCart.mockResolvedValue(rawCart);
+      mockMapper.mapToService.mockReturnValue(mappedCartWithDiscount);
+
+      const result = await cartService.applyDiscount('cart-1', '  LS10PTOTAL  ');
+
+      expect(mockCartApi.applyDiscount).toHaveBeenCalledWith('cart-1', 'LS10PTOTAL');
+      expect(mockCartApi.applyDiscount).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mappedCartWithDiscount);
+      expect(mockCartApi.refreshCart).not.toHaveBeenCalled();
+    });
+
+    it('rejects an empty code without calling the API', async () => {
+      await expect(cartService.applyDiscount('cart-1', '')).rejects.toBeInstanceOf(CartDiscountError);
+      await expect(cartService.applyDiscount('cart-1', '   ')).rejects.toBeInstanceOf(CartDiscountError);
+
+      expect(mockCartApi.applyDiscount).not.toHaveBeenCalled();
+      expect(mockCartApi.getCart).not.toHaveBeenCalled();
+    });
+
+    it('refreshes once via cleanup when apply succeeds but discounts and savings are missing', async () => {
+      const mappedWithoutSavings: Cart = {
+        id: 'cart-1',
+        currency: 'EUR',
+        site: 'main',
+        items: [],
+        totalPrice: { amount: 100, originalAmount: 100, currency: 'EUR' },
+        subTotalPrice: { amount: 100, originalAmount: 100, currency: 'EUR' },
+        tax: { amount: 19, currency: 'EUR', netValue: 81, grossValue: 100 },
+      };
+      mockCartApi.getCart.mockResolvedValue(rawCart);
+      mockMapper.mapToService.mockReturnValueOnce(mappedWithoutSavings).mockReturnValueOnce(mappedCartWithDiscount);
+
+      const result = await cartService.applyDiscount('cart-1', 'LS10PTOTAL');
+
+      expect(mockCartApi.refreshCart).toHaveBeenCalledTimes(1);
+      expect(mockCartApi.refreshCart).toHaveBeenCalledWith('cart-1');
+      expect(result).toEqual(mappedCartWithDiscount);
+    });
+
+    it('throws CartDiscountError when apply is not OK', async () => {
+      mockCartApi.applyDiscount.mockRejectedValue(
+        new Error('Failed to apply discount to cart: 400 Bad Request {"status":400,"message":"not allowed"}'),
+      );
+
+      await expect(cartService.applyDiscount('cart-1', 'NOTALLOWED')).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Failed to apply discount',
+          upstreamStatus: 400,
+          upstreamBody: '{"status":400,"message":"not allowed"}',
+        }),
+      );
+      expect(mockCartApi.getCart).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('removeDiscount', () => {
+    const mappedCart: Cart = {
+      id: 'cart-1',
+      currency: 'EUR',
+      site: 'main',
+      items: [],
+      totalPrice: { amount: 100, originalAmount: 100, currency: 'EUR' },
+      subTotalPrice: { amount: 100, originalAmount: 100, currency: 'EUR' },
+      tax: { amount: 19, currency: 'EUR', netValue: 81, grossValue: 100 },
+    };
+
+    it('removes by index and returns the mapped cart', async () => {
+      mockCartApi.getCart.mockResolvedValue({
+        id: 'cart-1',
+        currency: 'EUR',
+        siteCode: 'main',
+      });
+      mockMapper.mapToService.mockReturnValue(mappedCart);
+
+      const result = await cartService.removeDiscount('cart-1', 0);
+
+      expect(mockCartApi.removeDiscount).toHaveBeenCalledWith('cart-1', 0);
+      expect(result).toEqual(mappedCart);
+    });
+
+    it('throws CartDiscountError when remove is not OK', async () => {
+      mockCartApi.removeDiscount.mockRejectedValue(
+        new Error('Failed to remove discount from cart: 404 Not Found {"status":404}'),
+      );
+
+      await expect(cartService.removeDiscount('cart-1', 0)).rejects.toEqual(
+        expect.objectContaining({
+          name: 'CartDiscountError',
+          message: 'Failed to remove discount',
+          upstreamStatus: 404,
         }),
       );
     });

@@ -49,6 +49,17 @@ export interface EmporixCalculatedAppliedDiscount {
   origin: 'INTERNAL' | 'EXTERNAL';
 }
 
+export interface EmporixCartDiscount {
+  id?: string;
+  code: string;
+  name?: string;
+  discountIndex?: number;
+  valid?: boolean;
+  amount?: number;
+  currency?: string;
+  discountRate?: number;
+}
+
 export interface EmporixTaxInfo {
   taxRate: number;
   taxCode: string;
@@ -114,6 +125,7 @@ export interface EmporixCart {
       appliedDiscounts: EmporixCalculatedAppliedDiscount[];
     };
   };
+  discounts?: EmporixCartDiscount[];
   totalUnitsCount?: number;
   metadata?: EmporixMetadata;
   mixins?: Mixins;

@@ -1,6 +1,14 @@
 import { Price, Tax } from '../common';
 import { Product } from '../product';
 
+export interface CartAppliedDiscount {
+  code: string;
+  name?: string;
+  discountIndex: number;
+  amount: number;
+  currency: string;
+}
+
 export interface Cart {
   id: string;
   currency: string;
@@ -15,6 +23,10 @@ export interface Cart {
   totalPrice: Price;
   subTotalPrice: Price;
   tax: Tax;
+  discounts?: CartAppliedDiscount[];
+  savingsTotal?: number;
+  goodsDiscountedNet?: number;
+  goodsDiscountedVat?: number;
 }
 
 export interface CartItem {

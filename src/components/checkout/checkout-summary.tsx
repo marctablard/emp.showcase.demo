@@ -18,6 +18,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel } from '../ui/form';
 import { H5 } from '../ui/h';
 import { ToastType, notify } from '../ui/toast-notification';
 import { ApprovalModal } from './approval-modal';
+import { CheckoutPromoCodeBox } from './checkout-promo-code';
 import { focusFirstInvalid, useCheckoutValidation, useRegisterCheckoutForm } from './checkout-validation-registry';
 
 interface OrderSummaryProps {
@@ -90,6 +91,9 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
     feesTotal,
     total,
     currency,
+    hasAppliedCoupons,
+    originalGoodsNet,
+    savingsTotal,
   } = useCheckoutOrderSummary();
   if (!cart) {
     return (
@@ -115,12 +119,38 @@ const CheckoutSummaryComponent: React.FC<OrderSummaryProps> = ({ leftContent, on
               <H5>{t('title')}</H5>
             </CardTitle>
           </CardHeader>
+          <CheckoutPromoCodeBox />
           <CardContent className="bg-surface-page rounded-md p-4">
             <div className="space-y-4">
-              <div className="flex justify-between">
-                <span className="">{t('valueOfGoods')}</span>
-                <span>{formatCurrency(cart?.subTotalPrice.amount, cart?.subTotalPrice.currency)}</span>
-              </div>
+              {/* COP-5589: coupons replace the gross valueOfGoods row — do not stack it with original/savings. */}
+              {hasAppliedCoupons ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between" data-testid="checkout-originalValueOfGoods">
+                    <span>{t('originalValueOfGoods')}</span>
+                    <span className="line-through">
+                      {formatCurrency(originalGoodsNet ?? goodsNet, currency || cart.tax.currency)}
+                    </span>
+                  </div>
+                  {typeof savingsTotal === 'number' ? (
+                    <div className="flex justify-end">
+                      <div
+                        className="rounded-sm bg-surface-success px-2 py-1 text-xs leading-5 text-text-body"
+                        data-testid="checkout-yourSavings"
+                      >
+                        <span>{t('yourSavings')} </span>
+                        <span className="font-bold">
+                          {formatCurrency(-Math.abs(savingsTotal), currency || cart.tax.currency)}
+                        </span>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="flex justify-between">
+                  <span className="">{t('valueOfGoods')}</span>
+                  <span>{formatCurrency(cart?.subTotalPrice.amount, cart?.subTotalPrice.currency)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-base pt-4 border-t border-border-primary">
                 <span>{t('netValueOfGoods')}</span>
                 <span className="font-bold">{formatCurrency(goodsNet, currency || cart.tax.currency)}</span>

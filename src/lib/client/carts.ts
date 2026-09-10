@@ -209,6 +209,67 @@ export async function updateShippingMethod(cartId: string, method: CartShippingM
   return (await response.json()) as Cart;
 }
 
+type CartDiscountClientError = Error & {
+  reason?: string;
+  apiMessage?: string;
+  status?: number;
+};
+
+function throwCartDiscountClientError(errorData: unknown, fallback: string, status: number): never {
+  const body =
+    errorData && typeof errorData === 'object'
+      ? (errorData as { error?: unknown; reason?: unknown; message?: unknown })
+      : undefined;
+  const errorText = typeof body?.error === 'string' && body.error.length > 0 ? body.error : fallback;
+  const err: CartDiscountClientError = new Error(errorText);
+  if (typeof body?.reason === 'string') {
+    err.reason = body.reason;
+  }
+  if (typeof body?.message === 'string') {
+    err.apiMessage = body.message;
+  }
+  err.status = status;
+  throw err;
+}
+
+/**
+ * Apply a coupon code to a cart and return the refreshed cart.
+ */
+export async function applyCartDiscount(cartId: string, code: string): Promise<Cart> {
+  const response = await fetch(`/api/cart/${cartId}/discounts`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      code,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throwCartDiscountClientError(errorData, `Failed to apply cart discount: ${response.statusText}`, response.status);
+  }
+
+  return (await response.json()) as Cart;
+}
+
+/**
+ * Remove one cart discount by index and return the refreshed cart.
+ */
+export async function removeCartDiscount(cartId: string, discountIndex: number): Promise<Cart> {
+  const response = await fetch(`/api/cart/${cartId}/discounts/${discountIndex}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throwCartDiscountClientError(errorData, `Failed to remove cart discount: ${response.statusText}`, response.status);
+  }
+
+  return (await response.json()) as Cart;
+}
+
 /**
  * Update cart currency
  */

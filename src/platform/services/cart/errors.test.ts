@@ -1,4 +1,10 @@
-import { CART_CURRENCY_UPDATE_ERROR_CODE, CartCurrencyUpdateError, isCartCurrencyUpdateError } from './errors';
+import {
+  CART_CURRENCY_UPDATE_ERROR_CODE,
+  CartCurrencyUpdateError,
+  CartDiscountError,
+  isCartCurrencyUpdateError,
+  isCartDiscountError,
+} from './errors';
 
 describe('cart errors', () => {
   it('isCartCurrencyUpdateError recognizes instances', () => {
@@ -15,5 +21,26 @@ describe('cart errors', () => {
   it('isCartCurrencyUpdateError rejects unrelated errors', () => {
     expect(isCartCurrencyUpdateError(new Error('other'))).toBe(false);
     expect(isCartCurrencyUpdateError(null)).toBe(false);
+  });
+
+  it('isCartDiscountError recognizes instances', () => {
+    const err = new CartDiscountError('x', { upstreamStatus: 400, upstreamBody: '{"status":400}' });
+    expect(isCartDiscountError(err)).toBe(true);
+    expect(err.upstreamStatus).toBe(400);
+    expect(err.upstreamBody).toBe('{"status":400}');
+  });
+
+  it('isCartDiscountError recognizes duck-typed errors', () => {
+    const err = new Error('x');
+    err.name = 'CartDiscountError';
+    expect(isCartDiscountError(err)).toBe(true);
+  });
+
+  it('isCartDiscountError rejects unrelated errors', () => {
+    expect(isCartDiscountError(new Error('other'))).toBe(false);
+    expect(isCartDiscountError(new CartCurrencyUpdateError(CART_CURRENCY_UPDATE_ERROR_CODE.FORBIDDEN, 'x'))).toBe(
+      false,
+    );
+    expect(isCartDiscountError(null)).toBe(false);
   });
 });

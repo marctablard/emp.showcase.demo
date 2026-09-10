@@ -1,8 +1,14 @@
 import { injectable } from '@/platform/core/di/injectable';
-import type { EmporixCart, EmporixCartItem, EmporixCartPrice } from '@/platform/integrations/emporix/model/cart';
+import type {
+  EmporixCalculatedAppliedDiscount,
+  EmporixCart,
+  EmporixCartDiscount,
+  EmporixCartItem,
+  EmporixCartPrice,
+} from '@/platform/integrations/emporix/model/cart';
 import type { Price, Tax } from '../../common';
 import type { CartMapper } from '../CartMapper';
-import type { Cart, Cart as ServiceCart, CartItem as ServiceCartItem } from '../cart';
+import type { Cart, CartAppliedDiscount, Cart as ServiceCart, CartItem as ServiceCartItem } from '../cart';
 
 function mapCalculatedMoney(price: EmporixCartPrice, currency: string, amount: 'net' | 'gross'): Price {
   return {
@@ -17,6 +23,50 @@ function mapCalculatedMoney(price: EmporixCartPrice, currency: string, amount: '
       taxRate: price.taxRate,
     },
   };
+}
+
+function resolveDiscountIndex(discountIndex: number | undefined, id: string | undefined, arrayIndex: number): number {
+  if (discountIndex != null) {
+    return discountIndex;
+  }
+  const parsedId = Number(id);
+  if (Number.isFinite(parsedId)) {
+    return parsedId;
+  }
+  return arrayIndex;
+}
+
+function findAppliedDiscountValue(
+  appliedDiscounts: EmporixCalculatedAppliedDiscount[],
+  discount: EmporixCartDiscount,
+): number | undefined {
+  return appliedDiscounts.find((applied) => applied.id === discount.code || applied.id === discount.id)?.value;
+}
+
+function mapCartDiscounts(
+  sourceDiscounts: EmporixCartDiscount[] | undefined,
+  appliedDiscounts: EmporixCalculatedAppliedDiscount[] | undefined,
+  currency: string,
+): CartAppliedDiscount[] | undefined {
+  const applied = appliedDiscounts ?? [];
+  if (sourceDiscounts && sourceDiscounts.length > 0) {
+    return sourceDiscounts.map((discount, arrayIndex) => ({
+      code: discount.code,
+      name: discount.name,
+      discountIndex: resolveDiscountIndex(discount.discountIndex, discount.id, arrayIndex),
+      amount: findAppliedDiscountValue(applied, discount) ?? discount.amount ?? 0,
+      currency: discount.currency ?? currency,
+    }));
+  }
+  if (applied.length > 0) {
+    return applied.map((entry, arrayIndex) => ({
+      code: entry.id,
+      discountIndex: arrayIndex,
+      amount: entry.value,
+      currency,
+    }));
+  }
+  return undefined;
 }
 
 /**
@@ -69,6 +119,9 @@ export class EmporixCartMapper implements CartMapper<EmporixCart, EmporixCartIte
     } else {
       fees = undefined;
     }
+    const totalDiscount = emporixCart.calculatedPrice?.totalDiscount;
+    const discountedPrice = emporixCart.calculatedPrice?.discountedPrice;
+    const discounts = mapCartDiscounts(emporixCart.discounts, totalDiscount?.appliedDiscounts, currency);
     return {
       id: emporixCart.id,
       customerId: emporixCart.customerId,
@@ -83,6 +136,14 @@ export class EmporixCartMapper implements CartMapper<EmporixCart, EmporixCartIte
       totalPrice: totalPrice,
       subTotalPrice: subTotalPrice,
       tax: tax,
+      ...(discounts ? { discounts } : {}),
+      ...(totalDiscount ? { savingsTotal: totalDiscount.value } : {}),
+      ...(discountedPrice
+        ? {
+            goodsDiscountedNet: discountedPrice.netValue,
+            goodsDiscountedVat: discountedPrice.taxValue,
+          }
+        : {}),
     };
   }
 

@@ -102,7 +102,15 @@
     "processing": "Processing...",
     "calculatedAtCheckout": "Pick shipping method",
     "dataTransmittedSecure": "Your data is transmitted securely and encrypted.",
-    "termsAndConditions": "Yes, I agree to the terms and conditions. You can find our privacy policy here."
+    "termsAndConditions": "Yes, I agree to the terms and conditions. You can find our privacy policy here.",
+    "promoCode": "Promo Code",
+    "apply": "Apply",
+    "promoCodeError": "This is not an active promo code. Please check your entry.",
+    "promoCodeOnePerProduct": "Only one promo code can be applied to each product.",
+    "promoCodeBestPrice": "Our best-price logic always applies the highest discount available for you.",
+    "originalValueOfGoods": "Original value of goods",
+    "yourSavings": "Your savings",
+    "removePromo": "Remove promo code"
   },
   "promoCode": "Promo Code",
   "apply": "Apply",

@@ -3,7 +3,7 @@
  */
 import React, { createRef } from 'react';
 import '@testing-library/jest-dom';
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import deCheckoutTranslations from '@/i18n/translations/de/checkout/index.json';
 import enCheckoutTranslations from '@/i18n/translations/en/checkout/index.json';
 import type { CheckoutOrderSummaryBreakdown } from '@/lib/common/checkout-order-summary';
@@ -12,6 +12,8 @@ import CheckoutSummaryComponent from './checkout-summary';
 const mockUseCheckout = jest.fn();
 const mockUseCheckoutOrderSummary = jest.fn();
 const mockUseCartTotal = jest.fn();
+const mockUseCheckoutPromoCode = jest.fn();
+const mockUseApprovalCheckout = jest.fn();
 
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -30,12 +32,12 @@ jest.mock('@/hooks/cart/useCartTotal', () => ({
   useCartTotal: () => mockUseCartTotal(),
 }));
 
+jest.mock('@/hooks/checkout/useCheckoutPromoCode', () => ({
+  useCheckoutPromoCode: () => mockUseCheckoutPromoCode(),
+}));
+
 jest.mock('@/hooks/approval/useApprovalCheckout', () => ({
-  useApprovalCheckout: () => ({
-    requiresApproval: false,
-    loading: false,
-    setCartId: jest.fn(),
-  }),
+  useApprovalCheckout: () => mockUseApprovalCheckout(),
 }));
 
 jest.mock('@/hooks/ui/useElementScroll', () => ({
@@ -114,6 +116,21 @@ describe('CheckoutSummaryComponent', () => {
       cartTotal: 99999,
       shippingCosts: 20,
       currency: 'CHF',
+    });
+    mockUseCheckoutPromoCode.mockReturnValue({
+      code: '',
+      setCode: jest.fn(),
+      applying: false,
+      removing: false,
+      fieldError: null,
+      apply: jest.fn(),
+      remove: jest.fn(),
+      discounts: [],
+    });
+    mockUseApprovalCheckout.mockReturnValue({
+      requiresApproval: false,
+      loading: false,
+      setCartId: jest.fn(),
     });
   });
 
@@ -240,5 +257,48 @@ describe('CheckoutSummaryComponent', () => {
 
     expect(screen.getByText('calculatedAtCheckout')).toBeInTheDocument();
     expect(screen.queryByTestId('checkout-summary-shipping-vat')).not.toBeInTheDocument();
+  });
+
+  it('keeps the promo box on payment and Inquire for Approval checkouts', () => {
+    renderSummary();
+    expect(screen.getByTestId('checkout-promoCode')).toBeInTheDocument();
+    expect(screen.getByTestId('checkout-applyPromo')).toBeInTheDocument();
+    expect(screen.getByText('valueOfGoods')).toBeInTheDocument();
+    expect(screen.queryByTestId('checkout-originalValueOfGoods')).not.toBeInTheDocument();
+    expect(screen.getByTestId('checkout-submitOrder')).toHaveTextContent('submitOrder');
+
+    cleanup();
+    mockUseApprovalCheckout.mockReturnValue({
+      requiresApproval: true,
+      loading: false,
+      setCartId: jest.fn(),
+    });
+    renderSummary();
+    expect(screen.getByTestId('checkout-promoCode')).toBeInTheDocument();
+    expect(screen.getByText('inquireForApproval')).toBeInTheDocument();
+  });
+
+  it('replaces the gross valueOfGoods row with Original value of goods and Your savings when coupons are applied', () => {
+    mockUseCheckoutOrderSummary.mockReturnValue(
+      breakdown({
+        hasAppliedCoupons: true,
+        originalGoodsNet: 100,
+        savingsTotal: 10,
+        goodsNet: 90,
+        total: 119.24,
+      }),
+    );
+
+    renderSummary();
+
+    expect(screen.queryByText('valueOfGoods')).not.toBeInTheDocument();
+    expect(screen.queryByText(money(107.7))).not.toBeInTheDocument();
+    expect(screen.getByTestId('checkout-originalValueOfGoods')).toHaveTextContent('originalValueOfGoods');
+    expect(screen.getByTestId('checkout-originalValueOfGoods')).toHaveTextContent(money(100));
+    expect(screen.getByTestId('checkout-yourSavings')).toHaveTextContent('yourSavings');
+    expect(screen.getByTestId('checkout-yourSavings')).toHaveTextContent(money(10));
+    expect(screen.getByText('netValueOfGoods').nextElementSibling).toHaveTextContent(money(90));
+    expect(screen.getByTestId('checkout-summary-shipping-vat')).toBeInTheDocument();
+    expect(screen.getByTestId('checkout-promoCode')).toBeInTheDocument();
   });
 });
