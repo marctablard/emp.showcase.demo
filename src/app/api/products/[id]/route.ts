@@ -1,13 +1,23 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { PRODUCTS_MODE_COOKIE_NAME } from '@/lib/common/products-mode-cookie';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { PriceFetchOptions } from '@/platform/services/price/PriceService';
+import type { ProductFetchOptions } from '@/platform/services/product/ProductService';
+import type { ProductsModeService } from '@/platform/services/products-mode/ProductsModeService';
 import type { SearchService } from '@/platform/services/search/SearchService';
+
+const PRIVATE_NO_STORE = { 'Cache-Control': 'private, no-store' } as const;
 
 /**
  * API endpoint to get a specific product by ID
  * GET /api/products/[id]?variants=true&prices=true&categories=true
+ *
+ * COP-4822: the products mode is resolved server-side (opt-in cookie + `site`/`priceSiteCode`);
+ * in `assigned` mode the segment scope is added to the fetch options and an out-of-scope product
+ * yields the regular 404. `segmentIds` is never read from the request. Personalised responses
+ * (`assigned` / `all`) are `Cache-Control: private, no-store`.
  */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: productId } = await params;
@@ -30,19 +40,35 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     };
   }
 
+  let headers: Record<string, string> | undefined;
+
   try {
-    const searchService = server.get<SearchService>('SearchService');
-    const product = await searchService.getCatalogProductById(productId, {
+    const productsModeService = server.get<ProductsModeService>('ProductsModeService');
+    const ctx = await productsModeService.resolve({
+      optInCookieValue: request.cookies.get(PRODUCTS_MODE_COOKIE_NAME)?.value,
+      siteCode: searchParams.get('site') ?? priceSiteCode,
+    });
+    if (ctx.mode === 'assigned' || ctx.mode === 'all') {
+      headers = PRIVATE_NO_STORE;
+    }
+
+    const options: ProductFetchOptions = {
       variants: includeVariants,
       prices: includePrices ? priceOptions : false,
       categories: includeCategories,
-    });
-
-    if (!product) {
-      return NextResponse.json({ error: `Product with ID ${productId} not found` }, { status: 404 });
+    };
+    if (ctx.mode === 'assigned') {
+      options.segmentIds = ctx.segmentIds;
     }
 
-    return NextResponse.json(product);
+    const searchService = server.get<SearchService>('SearchService');
+    const product = await searchService.getCatalogProductById(productId, options);
+
+    if (!product) {
+      return NextResponse.json({ error: `Product with ID ${productId} not found` }, { status: 404, headers });
+    }
+
+    return NextResponse.json(product, { headers });
   } catch (error) {
     const logger = server.get<LoggerService>('LoggerService');
     logger.error(
@@ -55,6 +81,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       },
       'Error fetching product',
     );
-    return NextResponse.json({ error: 'Failed to fetch product' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch product' }, { status: 500, headers });
   }
 }

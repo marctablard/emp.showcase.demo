@@ -336,7 +336,6 @@ describe('useProduct hook', () => {
       variants: false,
       categories: false,
       availability: false,
-      customerSegments: false,
     };
 
     const ssrProductWithoutPrice = {

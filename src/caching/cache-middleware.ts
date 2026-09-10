@@ -49,6 +49,20 @@ function replacePlaceholders(tags: string[], groups: string[]): string[] {
 }
 
 /**
+ * Auth.js v5 default session cookie name. `src/auth/auth.config.ts` sets no
+ * custom `cookies.sessionToken.name`, so the default applies. Matched with
+ * `includes` to cover the `__Secure-` prefix and chunked `.0`/`.1` suffixes.
+ */
+const AUTHJS_SESSION_COOKIE_FRAGMENT = 'authjs.session-token';
+
+/**
+ * Detect an Auth.js session on the request (Edge runtime: `NextRequest.cookies` only).
+ */
+function hasAuthSession(req: NextRequest): boolean {
+  return req.cookies.getAll().some((cookie) => cookie.name.includes(AUTHJS_SESSION_COOKIE_FRAGMENT));
+}
+
+/**
  * Build Cache-Control header value
  */
 function buildCacheControlHeader(revalidate?: number): string {
@@ -69,6 +83,12 @@ export function applyCacheDirectives(req: NextRequest, response: Response): Resp
   }
   const siteAppPath = response.headers.get(NEXT_MIDDLEWARE_PREFIX + INTERNAL_APP_PATH_HEADER);
   const pathname = siteAppPath ? siteAppPath : req.nextUrl.pathname;
+  // Personalised responses (customer-segment scoped catalog, PDP, suggestions)
+  // must never be shared through a public cache. The rules below would
+  // otherwise override any route-level headers for `/product/*` and
+  // `/api/search/*`, so authenticated requests are forced to `private, no-store`
+  // here and no `X-Cache-Tags` are emitted for them.
+  const authenticated = hasAuthSession(req);
   // Find first matching cache rule
   for (const rule of cacheRules) {
     const { matches, groups } = matchPattern(pathname, rule.url);
@@ -76,10 +96,10 @@ export function applyCacheDirectives(req: NextRequest, response: Response): Resp
       const { revalidate = DEFAULT_CACHE_REVALIDATE, tags = [] } = rule.cache || {};
 
       // Set Cache-Control header
-      const cacheControl = buildCacheControlHeader(revalidate);
+      const cacheControl = authenticated ? buildCacheControlHeader(0) : buildCacheControlHeader(revalidate);
       response.headers.set('Cache-Control', cacheControl);
-      // Set cache tags if provided
-      if (tags.length > 0) {
+      // Set cache tags if provided (never for authenticated requests)
+      if (!authenticated && tags.length > 0) {
         const processedTags = replacePlaceholders(tags, groups);
         response.headers.set('X-Cache-Tags', processedTags.join(','));
       }

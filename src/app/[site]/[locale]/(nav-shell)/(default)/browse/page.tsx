@@ -2,14 +2,21 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { SearchResultsComponent } from '@/components/search/search-results';
 import { Heading } from '@/components/ui/h';
+import { redirect } from '@/i18n/edge/navigation';
+import { browseHeadingKey } from '@/lib/search/browse-heading-key';
 import { createBrowseInitialSearch } from '@/lib/search/create-browse-initial-search';
+import { sanitizeBrowseCategoryIdParams } from '@/lib/search/sanitize-browse-category-id-params';
 import { getCachedNavigationCategoryTrees } from '@/lib/ssr/navigation-category-trees';
+import { getProductsModeContext, getSegmentCategoryScope, getSegmentNavigationRoots } from '@/lib/ssr/products-mode';
 import { getSearchResultsLayout, searchProducts } from '@/lib/ssr/search';
 import { getPageTitle } from '@/lib/ssr/seo';
 import { isSearchSsrEnabled } from '@/lib/ssr/ssr-config';
+import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Category } from '@/platform/services/model/category';
 import type { SearchParams } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
+import type { ProductsMode } from '@/platform/services/products-mode/ProductsModeService';
+import ssr from '@/platform/ssr';
 
 export async function generateBrowsePageMetadata(locale: string): Promise<Metadata> {
   const t = await getTranslations({ locale, namespace: 'search.searchResults' });
@@ -24,8 +31,83 @@ export async function generateBrowsePageMetadata(locale: string): Promise<Metada
   };
 }
 
+/**
+ * Resolves the products mode of the request and builds the mode-aware PLP inputs (COP-4822).
+ *
+ * - `assigned`: the SSR search is scoped by `segmentIds`, `filters[categoryIds]` is sanitised against
+ *   the segment category scope (AC5) and the category tree is the segment forest (BI-enriched via
+ *   `getSegmentNavigationRoots` on BatteryIncluded). When the URL carried
+ *   out-of-scope category ids the request is redirected to the sanitised URL so the URL, the client
+ *   filter state and the server search agree (no stale active-filter chips).
+ * - every other mode (`anonymous`, `unsegmented`, `all`): today's behaviour — unscoped search and
+ *   the site-wide navigation forest.
+ *
+ * Shared by the public and the authenticated browse page so both behave identically.
+ */
+export async function resolveBrowsePageData({
+  site,
+  locale,
+  rawParams,
+  ssrSearch,
+}: {
+  site: string;
+  locale: string;
+  rawParams: Record<string, string | string[]>;
+  ssrSearch: boolean;
+}) {
+  const ctx = await getProductsModeContext(site);
+
+  if (ctx.mode === 'assigned') {
+    const scope = await getSegmentCategoryScope(site);
+
+    const sanitizedUrl = sanitizeBrowseCategoryIdParams(rawParams, scope.allowedCategoryIds);
+    if (sanitizedUrl) {
+      ssr
+        .get<LoggerService>('LoggerService')
+        .debug(
+          { droppedCategoryIds: sanitizedUrl.droppedCategoryIds, siteCode: site },
+          'Redirecting /browse to the sanitised URL: out-of-scope categoryIds dropped (assigned mode)',
+        );
+      // `redirect()` throws NEXT_REDIRECT — keep it outside try/catch and Promise.all callbacks.
+      // No `query` when nothing survived so the Location is `/browse`, not `/browse?`.
+      const hasRemainingParams = Object.keys(sanitizedUrl.params).length > 0;
+      redirect({
+        href: hasRemainingParams ? { pathname: '/browse', query: sanitizedUrl.params } : { pathname: '/browse' },
+        locale,
+        site,
+      });
+    }
+
+    const { initialSearch, q } = createBrowseInitialSearch(rawParams, site, locale, {
+      segmentIds: ctx.segmentIds,
+      allowedCategoryIds: scope.allowedCategoryIds,
+    });
+    // The segment forest enriched with BI category metadata (when the engine is BatteryIncluded) so the
+    // PLP tree resolves hrefs, the selected category and counts through the segment-scoped breadcrumb
+    // facet like the public PLP. The AC5 sanitising above deliberately keeps using `scope.allowedCategoryIds`.
+    const [initialResults, navigationRoots] = await Promise.all([
+      ssrSearch ? searchProducts(initialSearch) : Promise.resolve(undefined),
+      getSegmentNavigationRoots(site, locale),
+    ]);
+
+    return { mode: ctx.mode, q, initialSearch, initialResults, navigationRoots };
+  }
+
+  const { initialSearch, q } = createBrowseInitialSearch(rawParams, site, locale);
+
+  // Fetch navigation forest in parallel with the SSR product search so the PLP has the full
+  // category tree available without a second round-trip on first paint.
+  const [initialResults, navigationRoots] = await Promise.all([
+    ssrSearch ? searchProducts(initialSearch) : Promise.resolve(undefined),
+    getCachedNavigationCategoryTrees(site, locale),
+  ]);
+
+  return { mode: ctx.mode, q, initialSearch, initialResults, navigationRoots };
+}
+
 export async function renderBrowsePage({
   locale,
+  mode,
   q,
   initialSearch,
   initialResults,
@@ -33,6 +115,7 @@ export async function renderBrowsePage({
   initialLayout,
 }: {
   locale: string;
+  mode: ProductsMode;
   q?: string;
   initialSearch: SearchParams<Product>;
   initialResults?: Awaited<ReturnType<typeof searchProducts>>;
@@ -43,8 +126,9 @@ export async function renderBrowsePage({
 
   return (
     <div className="content-container pb-32">
-      {/** When a search phrase is present, the PLP heading should read Search Results rather than All Products. */}
+      {/** Keyed by products mode so an assigned <-> all toggle remounts the client search hook with the new initial state. */}
       <SearchResultsComponent
+        key={mode}
         initialSearch={initialSearch}
         initialResults={initialResults}
         initialLayout={initialLayout}
@@ -52,7 +136,7 @@ export async function renderBrowsePage({
         navigationRoots={navigationRoots}
         headingNode={
           <Heading variant="h2" className="mb-0">
-            {q?.trim() ? t('searchResults') : t('allProducts')}
+            {t(browseHeadingKey(mode, q))}
           </Heading>
         }
       />
@@ -75,18 +159,17 @@ export default async function BrowsePage({
   const { locale, site } = await params;
   const rawParams = await searchParams;
 
-  const { initialSearch, q } = createBrowseInitialSearch(rawParams, false, site, locale);
   const initialLayout = getSearchResultsLayout();
-
-  // Fetch navigation forest in parallel with the SSR product search so the PLP has the full
-  // category tree available without a second round-trip on first paint.
-  const [initialResults, navigationRoots] = await Promise.all([
-    isSearchSsrEnabled() ? searchProducts(initialSearch) : Promise.resolve(undefined),
-    getCachedNavigationCategoryTrees(site, locale),
-  ]);
+  const { mode, q, initialSearch, initialResults, navigationRoots } = await resolveBrowsePageData({
+    site,
+    locale,
+    rawParams,
+    ssrSearch: isSearchSsrEnabled(),
+  });
 
   return renderBrowsePage({
     locale,
+    mode,
     q,
     initialSearch,
     initialResults,

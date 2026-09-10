@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { ListFilter, Trash2, X } from 'lucide-react';
 import { PlpFacetPanel } from '@/components/search/facets';
 import { PlpCategoryTree } from '@/components/search/list-view/plp-category-tree';
+import { PlpProductsModeSwitch } from '@/components/search/list-view/plp-products-mode-switch';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerClose, DrawerContent, DrawerTrigger } from '@/components/ui/drawer';
 import { useCategoryProductCounts } from '@/hooks/category/useCategoryProductCounts';
@@ -143,6 +144,8 @@ export function MobileCategoryDrawer({
             </div>
 
             <div className="px-6 py-4">
+              {/* COP-4822 CR-1: the nested tree has no card header, so the ASSIGNED / ALL switch sits above it (the drawer title row is too narrow on phones). */}
+              <PlpProductsModeSwitch className="mb-4" />
               <PlpCategoryTree
                 plpCategoryContext={resolvedCategoryContext}
                 locale={locale}

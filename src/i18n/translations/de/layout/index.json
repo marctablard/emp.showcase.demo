@@ -18,6 +18,7 @@
     "quickOrder": "Schnellauftrag",
     "wishlists": "Wunschliste",
     "allProducts": "Produkte",
+    "assignedProducts": "Zugeordnete Produkte",
     "products": "Produkte",
     "services": "Services",
     "solutions": "Lösungen",
@@ -79,6 +80,7 @@
   "footerLinks": {
     "showAllCategories": "Alle anzeigen",
     "products": "Produkte",
+    "assignedProducts": "Zugeordnete Produkte",
     "solarPanels": "Solarpaneele",
     "inverters": "Wechselrichter",
     "batterySolutions": "Batterielösungen",

@@ -105,9 +105,15 @@ export type FooterTopProductCategoryLink = { label: string; href: string };
 export function FooterLinks({
   topProductCategories,
   showAllProductsBrowse = false,
+  assignedProductsMode = false,
 }: {
   topProductCategories?: FooterTopProductCategoryLink[];
   showAllProductsBrowse?: boolean;
+  /**
+   * COP-4822 (AC1): when the customer is segmented, the footer shares the header's assigned
+   * category forest and the column heading reads "Assigned Products" instead of "Products".
+   */
+  assignedProductsMode?: boolean;
 }) {
   const t = useTranslations('layout.footerLinks');
   const categoryPreviewCount = getNavigationRootCategoriesPageSize();
@@ -119,7 +125,7 @@ export function FooterLinks({
   return (
     <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 md:gap-6 ml-4 mr-4 md:ml-6 md:mr-6 py-4 md:py-6 border-b border-b-border-primary">
       <div className="flex flex-col gap-2">
-        <p className="text-lg mb-1">{t('products')}</p>
+        <p className="text-lg mb-1">{assignedProductsMode ? t('assignedProducts') : t('products')}</p>
         {topProductCategories && topProductCategories.length > 0 ? (
           <>
             {visibleTopProductCategories.map((link) => (

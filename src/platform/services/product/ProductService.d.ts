@@ -13,8 +13,13 @@ export interface ProductFetchOptions {
   availability?: boolean;
   /** Include product categories */
   categories?: boolean;
-  /** Include customer segments filtering */
-  customerSegments?: boolean;
+  /**
+   * Active customer-segment ids resolved server-side. `undefined` = unscoped (anonymous /
+   * unsegmented); an array = products outside the segment scope are dropped; `[]` = empty scope,
+   * nothing is returned and no upstream membership call is made (fail closed). Never taken from
+   * the client request.
+   */
+  segmentIds?: string[];
 }
 
 /**

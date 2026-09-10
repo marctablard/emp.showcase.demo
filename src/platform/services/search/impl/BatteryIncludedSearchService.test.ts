@@ -44,8 +44,6 @@ describe('BatteryIncludedSearchService', () => {
       { mapToService: jest.fn() } as never,
       { getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'DE', currency: 'EUR' }) } as never,
       { addAdditionalData: jest.fn(async (products: unknown) => products) } as never,
-      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
-      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
       { getSnapshot: jest.fn() } as never,
       { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(['root-a']) } as never,
       { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }) } as never,
@@ -131,8 +129,6 @@ describe('BatteryIncludedSearchService', () => {
       productMapper as never,
       { getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'DE', currency: 'EUR' }) } as never,
       { addAdditionalData } as never,
-      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
-      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
       { getSnapshot: jest.fn() } as never,
       { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(['root-a']) } as never,
       { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }) } as never,
@@ -201,8 +197,6 @@ describe('BatteryIncludedSearchService', () => {
       { mapToService: jest.fn() } as never,
       { getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'DE', currency: 'EUR' }) } as never,
       { addAdditionalData: jest.fn(async (products: unknown) => products) } as never,
-      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
-      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
       { getSnapshot: jest.fn() } as never,
       { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(['root-a']) } as never,
       { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }) } as never,
@@ -284,14 +278,8 @@ describe('BatteryIncludedSearchService', () => {
     const sessionService = {
       getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'DE', currency: 'EUR' }),
     };
-    const segmentFilterService = {
-      getSegmentIds: jest.fn().mockResolvedValue([]),
-    };
     const siteService = {
       getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }),
-    };
-    const customerService = {
-      getCustomer: jest.fn().mockResolvedValue(null),
     };
     const categoryTreeService = {
       getSnapshot: jest.fn().mockResolvedValue({
@@ -326,8 +314,6 @@ describe('BatteryIncludedSearchService', () => {
       productMapper as never,
       sessionService as never,
       { addAdditionalData: jest.fn(async (products: unknown) => products) } as never,
-      segmentFilterService as never,
-      customerService as never,
       categoryTreeService as never,
       { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(['root-a']) } as never,
       siteService as never,
@@ -387,8 +373,6 @@ describe('BatteryIncludedSearchService', () => {
       { mapToService: jest.fn() } as never,
       { getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'DE', currency: 'EUR' }) } as never,
       { addAdditionalData: jest.fn(async (products: unknown) => products) } as never,
-      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
-      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
       { getSnapshot: jest.fn() } as never,
       { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(['root-a']) } as never,
       { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }) } as never,
@@ -490,8 +474,8 @@ describe('BatteryIncludedSearchService', () => {
             ],
           },
           {
-            field_name: 'segmentIds',
-            field_label: 'Segments',
+            field_name: '_product_siteAware.segmentIds',
+            field_label: 'Segments IDs',
             type: 'select',
             stats: { total_values: 1 },
             counts: [{ count: 1, value: 'vip' }],
@@ -509,8 +493,6 @@ describe('BatteryIncludedSearchService', () => {
       { mapToService: jest.fn().mockReturnValue({ id: 'mapped-product-1' }) } as never,
       { getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'DE', currency: 'EUR' }) } as never,
       { addAdditionalData: jest.fn(async (products: unknown) => products) } as never,
-      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
-      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
       { getSnapshot: jest.fn() } as never,
       { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(['root-a']) } as never,
       { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }) } as never,
@@ -632,8 +614,8 @@ describe('BatteryIncludedSearchService', () => {
         size: 12,
         facet_counts: [
           {
-            field_name: 'segmentIds',
-            field_label: 'Segments',
+            field_name: '_product_siteAware.segmentIds',
+            field_label: 'Segments IDs',
             type: 'select',
             stats: { total_values: 1 },
             counts: [{ count: 1, value: 'vip' }],
@@ -682,8 +664,6 @@ describe('BatteryIncludedSearchService', () => {
       { mapToService: jest.fn().mockReturnValue({ id: 'mapped-product-1' }) } as never,
       { getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'DE', currency: 'EUR' }) } as never,
       { addAdditionalData: jest.fn(async (products: unknown) => products) } as never,
-      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
-      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
       { getSnapshot: jest.fn() } as never,
       { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(['root-a']) } as never,
       { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }) } as never,
@@ -786,8 +766,6 @@ describe('BatteryIncludedSearchService', () => {
       { mapToService: jest.fn().mockReturnValue({ id: 'mapped-product-1' }) } as never,
       { getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'DE', currency: 'EUR' }) } as never,
       { addAdditionalData: jest.fn(async (products: unknown) => products) } as never,
-      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
-      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
       { getSnapshot: jest.fn() } as never,
       { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(['root-a']) } as never,
       { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }) } as never,
@@ -846,8 +824,6 @@ describe('BatteryIncludedSearchService', () => {
       { mapToService: jest.fn().mockReturnValue({ id: 'mapped-product-1' }) } as never,
       { getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'DE', currency: 'EUR' }) } as never,
       { addAdditionalData: jest.fn(async (products: unknown) => products) } as never,
-      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
-      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
       { getSnapshot: jest.fn() } as never,
       { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(['root-a']) } as never,
       { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'US' }) } as never,
@@ -906,8 +882,6 @@ describe('BatteryIncludedSearchService', () => {
       { mapToService: jest.fn().mockReturnValue({ id: 'mapped-product-1' }) } as never,
       { getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'US', currency: 'USD' }) } as never,
       { addAdditionalData: jest.fn(async (products: unknown) => products) } as never,
-      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
-      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
       { getSnapshot: jest.fn() } as never,
       { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(['root-a']) } as never,
       { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'US' }) } as never,
@@ -955,8 +929,6 @@ describe('BatteryIncludedSearchService', () => {
       { mapToService: jest.fn().mockReturnValue({ id: 'mapped-product-1' }) } as never,
       { getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'DE', currency: 'EUR' }) } as never,
       { addAdditionalData: jest.fn(async (products: unknown) => products) } as never,
-      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
-      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
       { getSnapshot: jest.fn() } as never,
       { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(['root-a']) } as never,
       { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }) } as never,
@@ -1046,8 +1018,6 @@ describe('BatteryIncludedSearchService', () => {
       { mapToService: jest.fn().mockReturnValue({ id: 'mapped-product-1' }) } as never,
       { getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'DE', currency: 'EUR' }) } as never,
       { addAdditionalData: jest.fn(async (products: unknown) => products) } as never,
-      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
-      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
       { getSnapshot: jest.fn() } as never,
       { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(['root-a']) } as never,
       { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }) } as never,
@@ -1157,8 +1127,6 @@ describe('BatteryIncludedSearchService', () => {
       { mapToService: jest.fn() } as never,
       sessionService as never,
       { addAdditionalData: jest.fn(async (products: unknown) => products) } as never,
-      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
-      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
       categoryTreeService as never,
       { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(['root-a']) } as never,
       { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }) } as never,
@@ -1228,8 +1196,6 @@ describe('BatteryIncludedSearchService', () => {
       { mapToService: jest.fn() } as never,
       sessionService as never,
       { addAdditionalData: jest.fn(async (products: unknown) => products) } as never,
-      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
-      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
       { getSnapshot: jest.fn() } as never,
       { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(['root-a']) } as never,
       siteService as never,
@@ -1311,8 +1277,6 @@ describe('BatteryIncludedSearchService', () => {
       { mapToService: jest.fn() } as never,
       sessionService as never,
       { addAdditionalData: jest.fn(async (products: unknown) => products) } as never,
-      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
-      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
       categoryTreeService as never,
       { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(['root-a']) } as never,
       { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }) } as never,
@@ -1379,8 +1343,6 @@ describe('BatteryIncludedSearchService', () => {
       { mapToService: jest.fn() } as never,
       sessionService as never,
       { addAdditionalData: jest.fn(async (products: unknown) => products) } as never,
-      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
-      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
       { getSnapshot: jest.fn() } as never,
       { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(['root-a']) } as never,
       { getSite: jest.fn().mockResolvedValue({ defaultCountry: null }) } as never,
@@ -1483,8 +1445,6 @@ describe('BatteryIncludedSearchService', () => {
       productMapper as never,
       sessionService as never,
       { addAdditionalData: jest.fn(async (products: unknown) => products) } as never,
-      { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
-      { getCustomer: jest.fn().mockResolvedValue(null) } as never,
       { getSnapshot: jest.fn() } as never,
       { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(['root-a']) } as never,
       { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }) } as never,
@@ -1532,7 +1492,7 @@ describe('BatteryIncludedSearchService', () => {
     ]);
   });
 
-  it('passes multi-segment customer filters to BI suggest as repeated segment ids', async () => {
+  it('passes params.segmentIds to BI suggest as repeated segment ids', async () => {
     const shopApi = {
       browse: jest.fn(),
       suggest: jest.fn().mockResolvedValue([]),
@@ -1551,20 +1511,12 @@ describe('BatteryIncludedSearchService', () => {
     const sessionService = {
       getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'DE', currency: 'EUR' }),
     };
-    const segmentFilterService = {
-      getSegmentIds: jest.fn().mockResolvedValue(['seg-a', 'seg-b']),
-    };
-    const customerService = {
-      getCustomer: jest.fn().mockResolvedValue({ id: 'customer-1' }),
-    };
 
     const service = new BatteryIncludedSearchService(
       shopApi as never,
       productMapper as never,
       sessionService as never,
       { addAdditionalData: jest.fn(async (products: unknown) => products) } as never,
-      segmentFilterService as never,
-      customerService as never,
       { getSnapshot: jest.fn() } as never,
       { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(['root-a']) } as never,
       { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }) } as never,
@@ -1578,9 +1530,8 @@ describe('BatteryIncludedSearchService', () => {
       } as never,
     );
 
-    await service.getSuggestions({ query: 'pho', locale: 'en', customerSegments: true });
+    await service.getSuggestions({ query: 'pho', locale: 'en', segmentIds: ['seg-a', 'seg-b'] });
 
-    expect(segmentFilterService.getSegmentIds).toHaveBeenCalled();
     expect(shopApi.suggest).toHaveBeenCalledWith({
       query: 'pho',
       visibility: {
@@ -1596,6 +1547,254 @@ describe('BatteryIncludedSearchService', () => {
         },
       },
       segmentIds: ['seg-a', 'seg-b'],
+    });
+  });
+
+  describe('segment scoping (COP-4822)', () => {
+    function createSearchService(shopApi: Record<string, jest.Mock>) {
+      return new BatteryIncludedSearchService(
+        shopApi as never,
+        { mapToService: jest.fn().mockReturnValue({ id: 'mapped-product-1' }) } as never,
+        { getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'DE', currency: 'EUR' }) } as never,
+        { addAdditionalData: jest.fn(async (products: unknown) => products) } as never,
+        { getSnapshot: jest.fn() } as never,
+        { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(['root-a']) } as never,
+        { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }) } as never,
+        {
+          trace: jest.fn(),
+          debug: jest.fn(),
+          info: jest.fn(),
+          warn: jest.fn(),
+          error: jest.fn(),
+          fatal: jest.fn(),
+        } as never,
+      );
+    }
+
+    const emptyBrowse = { hits: [], found: 0, page: 1, size: 12, facet_counts: [] };
+
+    it('passes params.segmentIds to BI browse as an array filter', async () => {
+      const shopApi = {
+        browse: jest.fn().mockResolvedValue(emptyBrowse),
+        suggest: jest.fn(),
+        getHighlights: jest.fn(),
+        getRecommendations: jest.fn(),
+        getPresets: jest.fn(),
+      };
+      const service = createSearchService(shopApi);
+
+      await service.searchProducts(
+        { page: 0, size: 12, filters: { color: ['red'] }, segmentIds: ['s1', 's2'] },
+        'en',
+        'main',
+      );
+
+      expect(shopApi.browse).toHaveBeenCalledWith(
+        expect.objectContaining({
+          visibility: expect.objectContaining({
+            filters: {
+              color: ['red'],
+              '_product_siteAware.segmentIds': ['s1', 's2'],
+              '_product.published': 'true',
+              '_product.categoryIds': ['root-a'],
+            },
+          }),
+        }),
+      );
+      // A top-level `segmentIds` filter is silently ignored by BI (COP-4822).
+      expect(shopApi.browse.mock.calls[0][0].visibility.filters).not.toHaveProperty('segmentIds');
+    });
+
+    it('strips the BI segment facet from availableFilters and batteryIncludedFacets', async () => {
+      const shopApi = {
+        browse: jest.fn().mockResolvedValue({
+          ...emptyBrowse,
+          facet_counts: [
+            {
+              field_name: '_product_siteAware.segmentIds',
+              field_label: 'Segments IDs',
+              type: 'ignore',
+              stats: { total_values: 1 },
+              counts: [{ count: 9594, value: 'solarpanelfans' }],
+            },
+            {
+              field_name: 'color',
+              field_label: 'Color',
+              type: 'select',
+              stats: { total_values: 1 },
+              counts: [{ count: 1, value: 'red' }],
+            },
+          ],
+        }),
+        suggest: jest.fn(),
+        getHighlights: jest.fn(),
+        getRecommendations: jest.fn(),
+        getPresets: jest.fn(),
+      };
+      const service = createSearchService(shopApi);
+
+      const result = await service.searchProducts({ page: 0, size: 12, segmentIds: ['solarpanelfans'] }, 'en', 'main');
+
+      expect(result.availableFilters.map((filter) => filter.id)).toEqual(['color']);
+      expect(result.batteryIncludedFacets?.map((facet) => facet.id)).toEqual(['color']);
+    });
+
+    it('does not add a segmentIds filter when params.segmentIds is undefined', async () => {
+      const shopApi = {
+        browse: jest.fn().mockResolvedValue(emptyBrowse),
+        suggest: jest.fn(),
+        getHighlights: jest.fn(),
+        getRecommendations: jest.fn(),
+        getPresets: jest.fn(),
+      };
+      const service = createSearchService(shopApi);
+
+      await service.searchProducts({ page: 0, size: 12, filters: { color: ['red'] } }, 'en', 'main');
+
+      const browseFilters = shopApi.browse.mock.calls[0][0].visibility.filters;
+      expect(browseFilters).not.toHaveProperty('_product_siteAware.segmentIds');
+      expect(browseFilters).toEqual({
+        color: ['red'],
+        '_product.published': 'true',
+        '_product.categoryIds': ['root-a'],
+      });
+    });
+
+    it('returns an empty result without calling BI when params.segmentIds is [] (empty scope, fail closed)', async () => {
+      const shopApi = {
+        browse: jest.fn().mockResolvedValue(emptyBrowse),
+        suggest: jest.fn(),
+        getHighlights: jest.fn(),
+        getRecommendations: jest.fn(),
+        getPresets: jest.fn(),
+      };
+      const service = createSearchService(shopApi);
+
+      const result = await service.searchProducts({ page: 0, size: 24, segmentIds: [] }, 'en', 'main');
+
+      expect(shopApi.browse).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        items: [],
+        page: 0,
+        pageSize: 24,
+        total: 0,
+        availableFilters: [],
+        availableSorts: [],
+        batteryIncludedFacets: [],
+      });
+    });
+
+    it('returns empty suggestions without calling BI suggest when params.segmentIds is []', async () => {
+      const shopApi = {
+        browse: jest.fn(),
+        suggest: jest.fn().mockResolvedValue([]),
+        getHighlights: jest.fn(),
+        getRecommendations: jest.fn(),
+        getPresets: jest.fn(),
+      };
+      const service = createSearchService(shopApi);
+
+      const result = await service.getSuggestions({ query: 'pho', locale: 'en', segmentIds: [] });
+
+      expect(shopApi.suggest).not.toHaveBeenCalled();
+      expect(result).toEqual({ queryCompletions: [], products: [], categories: [] });
+    });
+
+    it('does not forward segmentIds to BI suggest when params.segmentIds is undefined', async () => {
+      const shopApi = {
+        browse: jest.fn(),
+        suggest: jest.fn().mockResolvedValue([]),
+        getHighlights: jest.fn(),
+        getRecommendations: jest.fn(),
+        getPresets: jest.fn(),
+      };
+      const service = new BatteryIncludedSearchService(
+        shopApi as never,
+        { mapToService: jest.fn(), mapSearchSuggestions: jest.fn().mockReturnValue({}) } as never,
+        { getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'DE', currency: 'EUR' }) } as never,
+        { addAdditionalData: jest.fn(async (products: unknown) => products) } as never,
+        { getSnapshot: jest.fn() } as never,
+        { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(['root-a']) } as never,
+        { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }) } as never,
+        {
+          trace: jest.fn(),
+          debug: jest.fn(),
+          info: jest.fn(),
+          warn: jest.fn(),
+          error: jest.fn(),
+          fatal: jest.fn(),
+        } as never,
+      );
+
+      await service.getSuggestions({ query: 'pho', locale: 'en' });
+
+      expect(shopApi.suggest.mock.calls[0][0]).not.toHaveProperty('segmentIds');
+    });
+
+    describe('getRecommendations', () => {
+      const recommendationHits = [{ document: { id: 'rec-1' } }, { document: { id: 'rec-2' } }];
+
+      it('returns [] without calling BI when segmentIds is an empty scope', async () => {
+        const shopApi = {
+          browse: jest.fn(),
+          suggest: jest.fn(),
+          getHighlights: jest.fn(),
+          getRecommendations: jest.fn(),
+          getPresets: jest.fn(),
+        };
+        const service = createSearchService(shopApi);
+
+        await expect(
+          service.getRecommendations('product-1', 'en', 'main', 12, undefined, { segmentIds: [] }),
+        ).resolves.toEqual([]);
+
+        expect(shopApi.getRecommendations).not.toHaveBeenCalled();
+        expect(shopApi.browse).not.toHaveBeenCalled();
+      });
+
+      it('adds the segment filter to the BI recommendations visibility filters', async () => {
+        const shopApi = {
+          browse: jest.fn(),
+          suggest: jest.fn(),
+          getHighlights: jest.fn(),
+          getRecommendations: jest.fn().mockResolvedValue(recommendationHits),
+          getPresets: jest.fn(),
+        };
+        const service = createSearchService(shopApi);
+
+        const result = await service.getRecommendations('product-1', 'en', 'main', 12, undefined, {
+          segmentIds: ['s1', 's2'],
+        });
+
+        expect(shopApi.getRecommendations).toHaveBeenCalledTimes(1);
+        expect(shopApi.getRecommendations).toHaveBeenCalledWith('product-1', {
+          variables: expect.objectContaining({ siteAware: 'main' }),
+          filters: {
+            '_product.published': 'true',
+            '_product.categoryIds': ['root-a'],
+            '_product_siteAware.segmentIds': ['s1', 's2'],
+          },
+        });
+        expect(result).toHaveLength(2);
+      });
+
+      it('does not add a segment filter when segmentIds is undefined', async () => {
+        const shopApi = {
+          browse: jest.fn(),
+          suggest: jest.fn(),
+          getHighlights: jest.fn(),
+          getRecommendations: jest.fn().mockResolvedValue(recommendationHits),
+          getPresets: jest.fn(),
+        };
+        const service = createSearchService(shopApi);
+
+        await service.getRecommendations('product-1', 'en', 'main', 12);
+
+        expect(shopApi.getRecommendations.mock.calls[0][1].filters).toEqual({
+          '_product.published': 'true',
+          '_product.categoryIds': ['root-a'],
+        });
+      });
     });
   });
 
@@ -1617,8 +1816,6 @@ describe('BatteryIncludedSearchService', () => {
       productMapper as never,
       { getCurrent: jest.fn().mockResolvedValue({ siteCode: 'main', country: 'DE', currency: 'EUR' }) } as never,
       { addAdditionalData: jest.fn(async (products: unknown) => products) } as never,
-      { getSegmentIds: jest.fn().mockResolvedValue(['seg-a']) } as never,
-      { getCustomer: jest.fn().mockResolvedValue({ id: 'customer-1' }) } as never,
       { getSnapshot: jest.fn() } as never,
       { getRootCategoryIdsForSite: jest.fn().mockResolvedValue([]) } as never,
       { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }) } as never,
@@ -1707,8 +1904,6 @@ describe('BatteryIncludedSearchService', () => {
             ),
         } as never,
         productService as never,
-        { getSegmentIds: jest.fn().mockResolvedValue([]) } as never,
-        { getCustomer: jest.fn().mockResolvedValue(null) } as never,
         { getSnapshot: jest.fn() } as never,
         { getRootCategoryIdsForSite: jest.fn().mockResolvedValue(overrides?.rootIds ?? ['root-a']) } as never,
         { getSite: jest.fn().mockResolvedValue({ defaultCountry: 'DE' }) } as never,
@@ -1893,6 +2088,100 @@ describe('BatteryIncludedSearchService', () => {
         variants: false,
         categories: false,
       });
+    });
+
+    it('adds segmentIds to both id-filter browse attempts and forwards them to addAdditionalData', async () => {
+      const retryDocument = { id: 'sku-123', _product: { id: 'other' } };
+      const browse = jest
+        .fn()
+        .mockResolvedValueOnce(emptyBrowse)
+        .mockResolvedValueOnce({
+          hits: [{ document: retryDocument }],
+          found: 1,
+          page: 1,
+          size: 1,
+          facet_counts: [],
+        });
+      const { service, shopApi, productService } = createService({ browse });
+
+      const result = await service.getCatalogProductById('sku-123', { segmentIds: ['s1', 's2'] }, 'en', 'main');
+
+      expect(shopApi.browse).toHaveBeenCalledTimes(2);
+      expect(shopApi.browse).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          visibility: expect.objectContaining({
+            filters: {
+              '_product.id': 'sku-123',
+              '_product_siteAware.segmentIds': ['s1', 's2'],
+              '_product.published': 'true',
+              '_product.categoryIds': ['root-a'],
+            },
+          }),
+        }),
+      );
+      expect(shopApi.browse).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          visibility: expect.objectContaining({
+            filters: {
+              id: 'sku-123',
+              '_product_siteAware.segmentIds': ['s1', 's2'],
+              '_product.published': 'true',
+              '_product.categoryIds': ['root-a'],
+            },
+          }),
+        }),
+      );
+      expect(productService.addAdditionalData).toHaveBeenCalledWith([expect.objectContaining({ id: 'sku-123' })], {
+        prices: false,
+        variants: false,
+        categories: false,
+        segmentIds: ['s1', 's2'],
+      });
+      expect(result).toEqual(expect.objectContaining({ id: 'sku-123' }));
+    });
+
+    it('returns undefined when BI has no hit for a segment-scoped lookup', async () => {
+      const { service, shopApi, productService } = createService();
+
+      const result = await service.getCatalogProductById('sku-123', { segmentIds: ['s1'] }, 'en', 'main');
+
+      expect(shopApi.browse).toHaveBeenCalledTimes(2);
+      expect(shopApi.browse.mock.calls[0][0].visibility.filters).toMatchObject({
+        '_product_siteAware.segmentIds': ['s1'],
+      });
+      expect(productService.addAdditionalData).not.toHaveBeenCalled();
+      expect(productService.getProductById).not.toHaveBeenCalled();
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined without any BI call when options.segmentIds is [] (empty scope, fail closed)', async () => {
+      const { service, shopApi, productService } = createService();
+
+      const result = await service.getCatalogProductById('sku-123', { segmentIds: [] }, 'en', 'main');
+
+      expect(shopApi.browse).not.toHaveBeenCalled();
+      expect(productService.addAdditionalData).not.toHaveBeenCalled();
+      expect(productService.getProductById).not.toHaveBeenCalled();
+      expect(result).toBeUndefined();
+    });
+
+    it('omits the segmentIds filter from the PDP lookup when options.segmentIds is absent', async () => {
+      const document = { id: 'sku-123', _product: { id: 'sku-123' } };
+      const { service, shopApi } = createService({
+        browse: jest.fn().mockResolvedValue({
+          hits: [{ document }],
+          found: 1,
+          page: 1,
+          size: 1,
+          facet_counts: [],
+        }),
+      });
+
+      await service.getCatalogProductById('sku-123', { prices: true }, 'en', 'main');
+
+      expect(shopApi.browse.mock.calls[0][0].visibility.filters).not.toHaveProperty('_product_siteAware.segmentIds');
     });
 
     it('omits BI snapshot price and availability for prices=false catalog identities', async () => {

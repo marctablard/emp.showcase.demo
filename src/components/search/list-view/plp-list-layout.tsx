@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
+import { useProductsMode } from '@/components/navigation/products-mode-context';
 import { PlpFacetPanel } from '@/components/search/facets';
 import { PlpCategoryBreadcrumbs } from '@/components/search/list-view/plp-category-breadcrumbs';
 import { PlpCategoryTree } from '@/components/search/list-view/plp-category-tree';
@@ -77,6 +78,7 @@ export function PlpListLayout({
   searchQuery,
 }: PlpListLayoutProps) {
   const t = useTranslations('search.searchResults');
+  const { mode: productsMode } = useProductsMode();
   const staticPlpContext = resolvePlpCategoryContext(navigationRoots, selectedCategoryId);
   const liveCategoryTreeContext = useMemo(
     () => resolvePlpCategoryTreeFacetContext(batteryIncludedFacets, navigationRoots, selectedCategoryId, locale),
@@ -132,7 +134,9 @@ export function PlpListLayout({
   const currentCategoryName = resolvedCategoryContext.currentCategory
     ? l10nOrEmpty(resolvedCategoryContext.currentCategory.name, locale)
     : '';
-  const summaryTitle = searchQuery?.trim() ? t('searchResults') : currentCategoryName || t('allProducts');
+  // COP-4822 AC2: segmented customers see "Assigned Products" at the root; ALL mode and anonymous keep "All Products".
+  const rootTitle = productsMode === 'assigned' ? t('assignedProducts') : t('allProducts');
+  const summaryTitle = searchQuery?.trim() ? t('searchResults') : currentCategoryName || rootTitle;
   const summaryDescription =
     !searchQuery?.trim() && resolvedCategoryContext.currentCategory
       ? l10nOrEmpty(resolvedCategoryContext.currentCategory.description, locale)
@@ -158,7 +162,7 @@ export function PlpListLayout({
       </section>
 
       <div className="grid grid-cols-1 gap-6 min-[1024px]:grid-cols-[minmax(0,274px)_minmax(0,1fr)] min-[1440px]:grid-cols-[minmax(0,444px)_minmax(0,1fr)]">
-        <aside className="hidden min-[1024px]:block" aria-label={t('allProducts')}>
+        <aside className="hidden min-[1024px]:block" aria-label={rootTitle}>
           <PlpCategoryTree
             plpCategoryContext={resolvedCategoryContext}
             locale={locale}

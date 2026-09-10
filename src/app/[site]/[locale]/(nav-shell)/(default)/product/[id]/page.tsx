@@ -8,11 +8,9 @@ import { generateVisibleBreadcrumbForPdp } from '@/lib/breadcrumb';
 import { findDeepestCategoryPath } from '@/lib/category/category-tree-utils';
 import { resolveCatalogDisplayName } from '@/lib/product/resolve-catalog-display-name';
 import { getCategoryAncestorTrail } from '@/lib/ssr/category-ancestor-trail';
-import {
-  getCachedBatteryIncludedCategorySnapshot,
-  getCachedNavigationCategoryTrees,
-} from '@/lib/ssr/navigation-category-trees';
+import { getCachedBatteryIncludedCategorySnapshot } from '@/lib/ssr/navigation-category-trees';
 import { getProductById, getProducts } from '@/lib/ssr/products';
+import { getNavigationCategoryTreesForMode, getProductsModeContext } from '@/lib/ssr/products-mode';
 import { getActiveSearchEngine } from '@/lib/ssr/search-engine';
 import { generateProductJsonLd, generateProductMetadata } from '@/lib/ssr/seo';
 import { getAvailableSites, getSite } from '@/lib/ssr/site';
@@ -31,7 +29,6 @@ export const PUBLIC_PRODUCT_OPTIONS = {
   variants: false,
   categories: false,
   availability: false,
-  customerSegments: false,
 };
 
 // Uncomment this, if you want to use Incremental Site Regeneration
@@ -63,11 +60,19 @@ export async function generateStaticParams() {
   return params;
 }
 
-export function createProductOptions(
+/**
+ * Builds the server-side product fetch options for the PDP (COP-4822).
+ *
+ * In `assigned` mode the customer's segment ids are attached so the services drop out-of-scope
+ * products (fail closed → `notFound()`); the `all` mode and non-segmented modes pass no
+ * `segmentIds`. `generateMetadata` and the page must both call this helper so the object passed
+ * to `getProductById` serialises identically and the React `cache()` key matches.
+ */
+export async function createProductOptions(
   baseOptions: ProductFetchOptions,
   authenticated: boolean,
   siteCode: string,
-): { ssr: boolean; options: ProductFetchOptions } {
+): Promise<{ ssr: boolean; options: ProductFetchOptions }> {
   const productConfig = isProductSsrEnabled();
 
   // Build fetch options based on SSR configuration
@@ -86,7 +91,22 @@ export function createProductOptions(
       siteCode: siteCode,
     };
   }
+
+  const ctx = await getProductsModeContext(siteCode);
+  if (ctx.mode === 'assigned') {
+    options.segmentIds = ctx.segmentIds;
+  }
+
   return { ssr: !!productConfig, options };
+}
+
+/**
+ * Server-only fields must never reach the client `ProductDetail` component; its refresh path
+ * (`/api/products/[id]`) re-derives the products mode itself.
+ */
+function toClientProductOptions(options: ProductFetchOptions): ProductFetchOptions {
+  const { segmentIds: _segmentIds, ...clientOptions } = options;
+  return clientOptions;
 }
 
 export async function generateProductPageMetadata(
@@ -125,7 +145,9 @@ export async function renderProductPage(
     notFound();
   }
 
-  const navigationRoots = siteCode ? await getCachedNavigationCategoryTrees(siteCode, locale) : null;
+  const navigationRoots = siteCode
+    ? await getNavigationCategoryTreesForMode(siteCode, locale, await getProductsModeContext(siteCode))
+    : null;
   const candidateCategoryIds = Array.from(
     new Set(
       [
@@ -178,7 +200,7 @@ export async function renderProductPage(
         <ProductDetail
           className="mt-4 content-container sm:gap-x-6"
           product={product}
-          options={options}
+          options={toClientProductOptions(options)}
           catalogDisplayName={catalogDisplayName}
         />
       </div>
@@ -192,12 +214,12 @@ export async function generateMetadata(
   _parent: ResolvingMetadata,
 ): Promise<Metadata> {
   const { id, locale, site } = await params;
-  const { ssr, options } = createProductOptions(PUBLIC_PRODUCT_OPTIONS, false, site);
+  const { ssr, options } = await createProductOptions(PUBLIC_PRODUCT_OPTIONS, false, site);
   return generateProductPageMetadata(id, locale, options, ssr, site);
 }
 
 export default async function ProductPage({ params }: { params: Promise<ProductPageProps> }) {
   const { id, locale, site } = await params;
-  const { ssr, options } = createProductOptions(PUBLIC_PRODUCT_OPTIONS, false, site);
+  const { ssr, options } = await createProductOptions(PUBLIC_PRODUCT_OPTIONS, false, site);
   return renderProductPage(id, locale, options, ssr, site);
 }

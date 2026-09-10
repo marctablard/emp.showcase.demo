@@ -4,9 +4,19 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { ProductsModeProvider } from '@/components/navigation/products-mode-context';
 import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
 import type { BatteryIncludedFacet } from '@/platform/services/model/common';
 import { MobileCategoryDrawer } from './mobile-category-drawer';
+
+jest.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ refresh: jest.fn(), push: jest.fn() }),
+}));
+
+jest.mock('@/lib/client/customer-segment', () => ({
+  setProductsMode: jest.fn(),
+}));
 
 jest.mock('@/i18n/navigation', () => ({
   useRouter: () => ({
@@ -161,6 +171,54 @@ describe('MobileCategoryDrawer', () => {
 
     expect(tree.compareDocumentPosition(facetPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(facetPanel.compareDocumentPosition(cta) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('mounts the products mode switch above the nested tree when the toggle is available (COP-4822 CR-1)', async () => {
+    render(
+      <ProductsModeProvider value={{ mode: 'assigned', isSegmented: true, canToggleAllProducts: true }}>
+        <MobileCategoryDrawer
+          plpCategoryContext={plpCategoryContext}
+          locale="en"
+          total={12}
+          facets={facets}
+          activeFilters={{}}
+          applyFacet={jest.fn()}
+          applyRangeFacet={jest.fn()}
+          resetFacet={jest.fn()}
+        />
+      </ProductsModeProvider>,
+    );
+
+    fireEvent.click(screen.getByTestId('mobile-category-drawer-toggle'));
+
+    const dialog = await screen.findByRole('dialog');
+    const control = screen.getByTestId('plp-productsModeSwitch');
+    const tree = screen.getByTestId('plp-category-tree-nested');
+
+    expect(dialog).toContainElement(control);
+    expect(control).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByTestId('plp-productsModeLabel')).toHaveTextContent('assignedProducts');
+    expect(control.compareDocumentPosition(tree) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('does not mount the products mode switch when the toggle is not available', async () => {
+    render(
+      <MobileCategoryDrawer
+        plpCategoryContext={plpCategoryContext}
+        locale="en"
+        total={12}
+        facets={facets}
+        activeFilters={{}}
+        applyFacet={jest.fn()}
+        applyRangeFacet={jest.fn()}
+        resetFacet={jest.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('mobile-category-drawer-toggle'));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+
+    expect(screen.queryByTestId('plp-productsModeSwitch')).not.toBeInTheDocument();
   });
 
   it('closes the drawer through both close affordances', async () => {

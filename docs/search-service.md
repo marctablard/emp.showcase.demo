@@ -91,7 +91,66 @@ When the BI search request includes same-field category selection, the service n
 
 ## Browse initial search
 
-Public and authenticated browse pages seed `initialSearch` with `createBrowseInitialSearch` in `src/lib/search/create-browse-initial-search.ts`. The helper copies URL `q`, `page`, `size`, `filters`, and `sort` (first string when the query is an array; omitted when absent) so a shared or refreshed `?sort=` URL starts with the same sort token the client later reads.
+Public and authenticated browse pages seed `initialSearch` with `createBrowseInitialSearch(rawParams, site, locale, scope?)` in `src/lib/search/create-browse-initial-search.ts`. The helper copies URL `q`, `page`, `size`, `filters`, and `sort` (first string when the query is an array; omitted when absent) so a shared or refreshed `?sort=` URL starts with the same sort token the client later reads.
+
+The optional `scope` (`{ segmentIds, allowedCategoryIds }`) is passed only in `assigned` products mode (see below). It is resolved server-side from `getProductsModeContext` + `getSegmentCategoryScope`, never from the URL; when present, `filters.categoryIds` is sanitised against `allowedCategoryIds` and `segmentIds` is added to `initialSearch`.
+
+## Customer segments & products mode (COP-4822)
+
+Customers assigned to Emporix customer segments see only the segment assortment ("Assigned Products") in header, footer, PLP, search suggestions and PDP. The mode is decided on the server for every request; the client can never widen it.
+
+### Mode resolution
+
+`ProductsModeService` (`src/platform/services/products-mode/ProductsModeService.d.ts`, default implementation `impl/DefaultProductsModeService.ts`) is the single authority. `resolve({ optInCookieValue, siteCode })` returns a `ProductsModeContext` with `mode`, `segmentIds`, `canToggleAllProducts`, `engine`, `siteCode` and `customerId`.
+
+| Mode | When | Catalog |
+| --- | --- | --- |
+| `anonymous` | No logged-in customer | Full catalog (unchanged behaviour) |
+| `unsegmented` | Customer without active segments for the site | Full catalog (unchanged behaviour) |
+| `assigned` | Segmented customer (default) | Segment assortment only |
+| `all` | Segmented customer who opted in | Full catalog — behaves exactly like `anonymous` / `unsegmented` everywhere (search, PDP, site-wide header/footer forest, "All Products" labels); requires `canToggleAllProducts`, which keeps the toggle visible so the customer can switch back |
+
+Rules:
+
+- `canToggleAllProducts = NEXT_PUBLIC_ALLOW_SEGMENTS_OVERRIDE === 'true' && segmented` (see [Environment Variables](./environment-variables.md#next_public_allow_segments_override-optional-public)). ALL PRODUCTS MODE is engine-agnostic: it is available with both `BatteryIncludedSearchService` and `EmporixSearchService`. The routes and SSR helpers forward `segmentIds` only in `assigned` mode, so `all` reaches the services exactly like an unsegmented request; neither engine special-cases it.
+- **Hard rule:** the opt-in lives in the httpOnly session cookie `next-products-mode` (`src/lib/common/products-mode-cookie.ts`). Its value is bound to the customer id (`all.<customerId>`), so a stale cookie from another user is ignored. It is written or cleared only by `PUT /api/customer-segment/products-mode` (`{ mode: 'all' | 'assigned' }`, client helper `setProductsMode` in `src/lib/client/customer-segment.ts`) after the server re-validated `canToggleAllProducts`; otherwise the route answers `403 ALL_PRODUCTS_MODE_NOT_ALLOWED` and deletes the cookie. Query params, request bodies and localStorage are never consulted for the mode.
+- **Fail closed:** when the segment lookup rejects, the customer is resolved as `assigned` with `segmentIds: []`. The services distinguish `segmentIds === undefined` (unscoped — `anonymous` / `unsegmented`, the routes and SSR helpers pass no `segmentIds` at all) from an array (scoped) and treat `[]` as an **empty scope**: `searchProducts`, `getSuggestions`, `getCatalogProductById`, `getProductById` and `getVariantProducts` return an empty result / not found on both engines without any upstream call, so no out-of-segment product is exposed during an outage. An empty segment list from a successful lookup is `unsegmented`.
+
+### Segment lookup (`getMySegments()`)
+
+`EmporixCustomerSegmentService.getMySegments()` first calls `GET /customer-segment/{tenant}/me/segments` (backend COP-5908). The integration treats the answer as usable only when it is a JSON array; a non-ok status, missing JSON `content-type`, empty body, or an array whose entries carry no string `id` (shape drift) makes it fall back to `GET /customer-segment/{tenant}/segments` (`segment_read_own`, page size 100) with a `warn` log (`me/segments unavailable; falling back to GET /segments`). Results are then filtered to `ACTIVE` segments of the requested `siteCode` within their validity window.
+
+At implementation time the api-develop probe of `me/segments` returned `HTTP 200` with an empty body and no `content-type` (identical to an unknown `me/*` route), so the `GET /segments` fallback is what actually serves customers today. Once COP-5908 responds with a JSON array the primary path takes over without a code change.
+
+Scopes are provided by `SegmentFilterService` (`src/platform/services/search/impl/SegmentFilterService.ts`):
+
+- `getCategoryScope(siteCode)` — `GET /segments/items/category-trees` → published segment forest (`roots`), `treeCategoryIds`, `assignedCategoryIds` (passed unexpanded to Emporix) and `allowedCategoryIds` (tree ∪ self + descendants of assigned nodes).
+- `getProductScope(siteCode)` — `GET /segments/items?q=type:PRODUCT` (paged, `X-Total-Count`) → directly assigned product ids.
+- `filterProductIdsInScope(ids, siteCode)` — engine-agnostic membership check used by the Emporix PDP and by variants on both engines (`ProductService.getVariantProducts(id, { segmentIds })`).
+
+### Engine scoping
+
+| Bound implementation | How the segment scope reaches the engine |
+| --- | --- |
+| `BatteryIncludedSearchService` | `applyCustomerSegmentFilters` adds `segmentIds` to the filters, serialised as repeated `f[_product_siteAware.segmentIds][]=<id>` entries on search, suggestions and the PDP lookup (`getCatalogProductById`). The `_product_siteAware.segmentIds` facet is dropped from the response. An out-of-segment product is a BI miss → 404. |
+| `EmporixSearchService` | `buildSegmentScopeCompoundQuery` (`src/platform/integrations/emporix/product/buildProductCatalogScopeQ.ts`) appends one verbatim fragment to `q`: `compoundLogicalQuery:((categoryIds:(a,b)) OR (id:(p1,p2)))`, or `((categoryIds:(sel)) AND (…))` when a sanitised category filter is selected. Id lists are unquoted `(a,b)`. It replaces the root `categoryIds` scoping, is applied **before and regardless of** `isUnscopedProductSearch` (`searchAllProducts` / `NEXT_PUBLIC_SEARCH_OMIT_CATALOG_CATALOG_FILTER` never bypass it) and does no post-filtering, so paging and totals stay correct. An empty scope returns no results. PDP membership uses `filterProductIdsInScope`. |
+
+### Route and SSR contract
+
+- `GET /api/search`, `GET /api/search/suggestions`, `GET /api/products/[id]` and `GET /api/products/[id]/variants` re-derive the mode from `ProductsModeService` (session + cookie) and ignore any client-supplied `segmentIds`. In `assigned` mode they pass `ctx.segmentIds` to the service and `/api/search` forces `searchAllProducts=false`.
+- `GET /api/search/recommendations/[id]` (CMS "recommendations" carousel) is mode-aware too: in `assigned` mode it passes `{ segmentIds }` as `getRecommendations` options — `BatteryIncludedSearchService` applies them natively as `f[_product_siteAware.segmentIds][]` on the BI `/recommendations` endpoint (same `f[...]` visibility filters as `/browse`), `[]` returns `[]` without a BI call, and the Emporix stub keeps returning `[]`. Responses in `assigned` / `all` mode (including errors) are `Cache-Control: private, no-store`.
+- **AC5 filter sanitising:** `sanitizeCategoryFilters(filters, allowedCategoryIds)` (`src/lib/search/sanitize-category-filters.ts`) keeps only `filters.categoryIds` values inside `SegmentCategoryScope.allowedCategoryIds`; out-of-scope ids are dropped, never widened. Applied in `/api/search` and in `createBrowseInitialSearch`. Without a resolvable site the allow-list is empty (fail closed).
+- **Per-request caching rule:** `src/lib/ssr/products-mode.ts` wraps `getProductsModeContext(siteCode)` and `getSegmentCategoryScope(siteCode)` in React `cache()` so `(nav-shell)/layout.tsx`, `browse/page.tsx` and `product/[id]/page.tsx` resolve the mode once per render pass. Personalised data uses no Next.js data cache and no module-level state; nothing is shared across requests. `getNavigationCategoryTreesForMode` returns the segment forest (`getSegmentNavigationRoots`) in `assigned` mode only and the site-wide navigation trees otherwise (`anonymous`, `unsegmented` and the `all` opt-out); `isSegmentedMode(ctx)` is likewise `true` only for `assigned`.
+- **Segment forest on BatteryIncluded:** `SegmentCategoryScope.roots` come from the Emporix category-trees and carry no BI metadata, so `getSegmentNavigationRoots(siteCode, locale)` enriches them per request with the BI category metadata (`displayPath`, `facetValue`, `labelPath`, `idPath`, …) of the public category snapshot (`getCachedBatteryIncludedCategorySnapshot`, keyed by category id; `enrichCategoriesWithBatteryIncludedMetadata` in `src/lib/category/`). Hrefs, selected-category resolution and the PLP tree counts then use the segment-scoped `_product_i18n.categoryBreadcrumbs.displayPath` facet exactly like the public PLP; the snapshot's public `count` is deliberately not copied. Nodes missing from the snapshot (and every node when the snapshot is unavailable or the engine is Emporix) keep working through `filters[categoryIds]` links and the Emporix per-category counts. `scope.roots` itself stays un-enriched; AC5 sanitising keeps using `scope.allowedCategoryIds`.
+- **HTTP caching:** responses in `assigned` or `all` mode are sent with `Cache-Control: private, no-store` (`/api/search` and `/api/search/suggestions` also mark error responses private when the mode could not be resolved); `anonymous` / `unsegmented` responses keep their previous headers. `PUT /api/customer-segment/products-mode` is always `private, no-store`. Additionally, the [cache middleware](./cache-middleware.md#authenticated-requests-bypass) never marks a response `public` when an Auth.js session cookie is present.
+
+### UI surfaces
+
+- Header and footer show "Assigned Products" (`layout.header.assignedProducts`, `layout.footerLinks.assignedProducts`) with the segment forest as category menu in `assigned` mode only; in `all` mode they show "All Products" with the site-wide forest, exactly like an anonymous customer.
+- The PLP heading is "Assigned Products" (`search.searchResults.assignedProducts`) in `assigned` mode, even with a search phrase.
+- The ASSIGNED / ALL products switch (`PlpProductsModeSwitch`, `data-testid="plp-productsModeSwitch"`, label `plp-productsModeLabel` showing the current mode via `search.searchResults.assignedProducts` / `allProducts`, `aria-label` `productsModeSwitchLabel`) lives in the PLP "Categories" card header (`PlpCategoryTree`) and above the nested tree in the mobile category drawer (list layout, BatteryIncluded). In the `grid` layout (Emporix engine, no category tree card) `SearchResultsComponent` mounts it once as its own row directly above the Filter + Sort toolbar, before the filters, for every breakpoint. It is rendered only when `canToggleAllProducts` is true; toggling calls `setProductsMode('all' | 'assigned')` and then `router.refresh()` so the server re-resolves the mode (category tree, header/footer labels and results).
+- `ProductsModeSessionSync` (`src/components/navigation/products-mode-session-sync.tsx`, mounted inside `ProductsModeProvider` by the nav-shell layout) calls `router.refresh()` once per pathname when the NextAuth session status disagrees with the server-seeded mode (authenticated + `anonymous`, or unauthenticated + personalised), so a login through the `/login` dialog or an expired session updates the mode and the category trees without a manual reload.
+- The header search fly-out re-validates the "last seen" products against `/api/products/[id]` in `assigned` mode (`useModeScopedLastSeen`, `src/hooks/history/useModeScopedLastSeen.ts`): the `HistoryStore` persists full `Product` objects, so only the ids that still resolve are rendered (404 → hidden, list hidden while pending, cached per `[mode, ids]` and cleared when the mode leaves `assigned`); every other mode renders the cached items without a request.
 
 ## PDP catalog identity
 

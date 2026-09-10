@@ -5,6 +5,10 @@ describe('EmporixProductService template meta enrichment', () => {
   function createService(overrides?: {
     searchProducts?: jest.Mock;
     getProductTemplate?: jest.Mock;
+    getProduct?: jest.Mock;
+    mapToService?: jest.Mock;
+    filterProductIdsInScope?: jest.Mock;
+    getCurrent?: jest.Mock;
   }): EmporixProductService {
     const searchProducts =
       overrides?.searchProducts ??
@@ -37,17 +41,144 @@ describe('EmporixProductService template meta enrichment', () => {
 
     return new EmporixProductService(
       { getProductPrices: jest.fn().mockResolvedValue(new Map()) } as never,
-      { mapToService: jest.fn() } as never,
-      { searchProducts, getProduct: jest.fn() } as never,
+      { mapToService: overrides?.mapToService ?? jest.fn() } as never,
+      { searchProducts, getProduct: overrides?.getProduct ?? jest.fn() } as never,
       { getBrand: jest.fn() } as never,
       { getLabels: jest.fn(), getLabel: jest.fn() } as never,
       { getProductTemplate } as never,
       { getCategoriesForProduct: jest.fn() } as never,
-      { filterByCustomerSegments: jest.fn(async (items: unknown) => items) } as never,
-      { getCurrent: jest.fn().mockResolvedValue(null) } as never,
+      { filterProductIdsInScope: overrides?.filterProductIdsInScope ?? jest.fn() } as never,
+      { getCurrent: overrides?.getCurrent ?? jest.fn().mockResolvedValue(null) } as never,
       { error: jest.fn(), warn: jest.fn() } as never,
     );
   }
+
+  describe('segment scope (segmentIds)', () => {
+    const rawProduct = { id: 'p1', code: 'c1', name: { en: 'P1' } };
+    const mapToService = jest.fn();
+    const getCurrent = jest.fn();
+
+    // Jest resets mock implementations between tests, so (re)apply them here.
+    beforeEach(() => {
+      mapToService.mockImplementation((product: { id: string }) => ({
+        id: product.id,
+        name: { en: product.id },
+        description: {},
+        purchasable: true,
+      }));
+      getCurrent.mockResolvedValue({ siteCode: 'main' });
+    });
+
+    it('getProductById returns undefined for an out-of-scope product', async () => {
+      const filterProductIdsInScope = jest.fn().mockResolvedValue(new Set());
+      const service = createService({
+        getProduct: jest.fn().mockResolvedValue(rawProduct),
+        mapToService,
+        filterProductIdsInScope,
+        getCurrent,
+      });
+
+      await expect(service.getProductById('p1', { segmentIds: ['s1'] })).resolves.toBeUndefined();
+
+      expect(filterProductIdsInScope).toHaveBeenCalledWith(['p1'], 'main');
+      expect(mapToService).not.toHaveBeenCalled();
+    });
+
+    it('getProductById returns the mapped product when it is in scope', async () => {
+      const filterProductIdsInScope = jest.fn().mockResolvedValue(new Set(['p1']));
+      const service = createService({
+        getProduct: jest.fn().mockResolvedValue(rawProduct),
+        mapToService,
+        filterProductIdsInScope,
+        getCurrent,
+      });
+
+      const product = await service.getProductById('p1', { segmentIds: ['s1'] });
+
+      expect(product?.id).toBe('p1');
+      expect(filterProductIdsInScope).toHaveBeenCalledWith(['p1'], 'main');
+    });
+
+    it('getProductById skips the scope check without segmentIds', async () => {
+      const filterProductIdsInScope = jest.fn();
+      const service = createService({
+        getProduct: jest.fn().mockResolvedValue(rawProduct),
+        mapToService,
+        filterProductIdsInScope,
+        getCurrent,
+      });
+
+      const product = await service.getProductById('p1', {});
+
+      expect(product?.id).toBe('p1');
+      expect(filterProductIdsInScope).not.toHaveBeenCalled();
+    });
+
+    it('getProductById fails closed when the session has no site', async () => {
+      const filterProductIdsInScope = jest.fn();
+      const service = createService({
+        getProduct: jest.fn().mockResolvedValue(rawProduct),
+        mapToService,
+        filterProductIdsInScope,
+        getCurrent: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(service.getProductById('p1', { segmentIds: ['s1'] })).resolves.toBeUndefined();
+      expect(filterProductIdsInScope).not.toHaveBeenCalled();
+    });
+
+    it('getProductById returns undefined without any upstream call when segmentIds is [] (empty scope)', async () => {
+      const getProduct = jest.fn().mockResolvedValue(rawProduct);
+      const filterProductIdsInScope = jest.fn();
+      const service = createService({ getProduct, mapToService, filterProductIdsInScope, getCurrent });
+
+      await expect(service.getProductById('p1', { segmentIds: [] })).resolves.toBeUndefined();
+
+      expect(getProduct).not.toHaveBeenCalled();
+      expect(filterProductIdsInScope).not.toHaveBeenCalled();
+      expect(mapToService).not.toHaveBeenCalled();
+    });
+
+    it('getVariantProducts returns [] without any upstream call when segmentIds is [] (empty scope)', async () => {
+      const searchProducts = jest.fn();
+      const filterProductIdsInScope = jest.fn();
+      const service = createService({ searchProducts, mapToService, filterProductIdsInScope, getCurrent });
+
+      await expect(service.getVariantProducts('p1', { segmentIds: [] })).resolves.toEqual([]);
+
+      expect(searchProducts).not.toHaveBeenCalled();
+      expect(filterProductIdsInScope).not.toHaveBeenCalled();
+    });
+
+    it('getVariantProducts keeps only in-scope variants', async () => {
+      const searchProducts = jest.fn().mockResolvedValue({
+        items: [{ id: 'v1', parentVariantId: 'p1' }, { id: 'v2', parentVariantId: 'p1' }, { parentVariantId: 'p1' }],
+      });
+      const filterProductIdsInScope = jest.fn().mockResolvedValue(new Set(['v2']));
+      const service = createService({ searchProducts, mapToService, filterProductIdsInScope, getCurrent });
+
+      const variants = await service.getVariantProducts('p1', { segmentIds: ['s1'] });
+
+      expect(filterProductIdsInScope).toHaveBeenCalledWith(['v1', 'v2'], 'main');
+      expect(variants.map((variant) => variant.id)).toEqual(['v2']);
+    });
+
+    it('addAdditionalData forwards only segmentIds into getVariantProducts', async () => {
+      const service = createService({ searchProducts: jest.fn(), mapToService, getCurrent });
+      const getVariantProducts = jest.spyOn(service, 'getVariantProducts').mockResolvedValue([]);
+      const segmentIds = ['s1'];
+
+      await service.addAdditionalData(
+        [{ id: 'p1', name: { en: 'P1' }, description: {}, purchasable: true, template: { id: 'tmpl-1' } }],
+        { variants: true, prices: true, categories: false, segmentIds },
+      );
+
+      expect(getVariantProducts).toHaveBeenCalledTimes(1);
+      const [, forwardedOptions] = getVariantProducts.mock.calls[0];
+      expect(forwardedOptions).toEqual({ segmentIds });
+      expect(Object.keys(forwardedOptions ?? {})).toEqual(['segmentIds']);
+    });
+  });
 
   it('resolves missing template.id via product search then fills labels/types from Templates API', async () => {
     const searchProducts = jest.fn().mockResolvedValue({
@@ -67,6 +198,7 @@ describe('EmporixProductService template meta enrichment', () => {
       {
         id: 'prod-1',
         name: { en: 'Sample' },
+        description: {},
         purchasable: true,
         templateAttributes: {
           'pick-a-list-optional': 'Value 4',
@@ -114,6 +246,7 @@ describe('EmporixProductService template meta enrichment', () => {
       {
         id: 'prod-1',
         name: { en: 'Sample' },
+        description: {},
         purchasable: true,
         template: { id: 'tmpl-1' },
         templateAttributes: { 'pick-a-list-optional': 'Value 4' },
@@ -145,6 +278,7 @@ describe('EmporixProductService template meta enrichment', () => {
       {
         id: 'prod-1',
         name: { en: 'Sample' },
+        description: {},
         purchasable: false,
         isParentVariant: true,
         template: { id: 'tmpl-1', version: '2' },
@@ -201,6 +335,7 @@ describe('EmporixProductService template meta enrichment', () => {
       {
         id: 'prod-1',
         name: { en: 'Sample' },
+        description: {},
         purchasable: false,
         isParentVariant: true,
         variantAttributes: [{ key: 'width', values: [{ key: '20', selected: true }] }],
@@ -230,6 +365,7 @@ describe('EmporixProductService template meta enrichment', () => {
       {
         id: 'parent-1',
         name: { en: 'Parent' },
+        description: {},
         purchasable: false,
         isParentVariant: true,
         template: { id: 'tmpl-1' },
@@ -238,6 +374,7 @@ describe('EmporixProductService template meta enrichment', () => {
           {
             id: 'child-1',
             name: { en: 'Child' },
+            description: {},
             purchasable: true,
             parentVariantId: 'parent-1',
             variantAttributes: [{ key: 'width', name: { en: 'width' }, values: [{ key: '20', selected: true }] }],
@@ -275,6 +412,7 @@ describe('EmporixProductService template meta enrichment', () => {
       {
         id: 'child-1',
         name: { en: 'Child' },
+        description: {},
         purchasable: true,
         parentVariantId: 'parent-1',
         variantAttributes: [
@@ -309,7 +447,7 @@ describe('EmporixProductService template meta enrichment', () => {
       { getLabels: jest.fn(), getLabel: jest.fn() } as never,
       { getProductTemplate } as never,
       { getCategoriesForProduct: jest.fn() } as never,
-      { filterByCustomerSegments: jest.fn(async (items: unknown) => items) } as never,
+      { filterProductIdsInScope: jest.fn() } as never,
       { getCurrent: jest.fn().mockResolvedValue(null) } as never,
       logger as never,
     );
@@ -318,6 +456,7 @@ describe('EmporixProductService template meta enrichment', () => {
       {
         id: 'prod-1',
         name: { en: 'Sample' },
+        description: {},
         purchasable: true,
         templateAttributes: { 'pick-a-list-optional': 'Value 4' },
       },

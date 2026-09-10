@@ -8,7 +8,7 @@ import { SideBar } from '@/components/header/search/side-bar';
 import { ProductTileFlyOut } from '@/components/product/product-tile-fly-out';
 import { Button } from '@/components/ui/button';
 import { Heading } from '@/components/ui/h';
-import useHistory from '@/hooks/history/useHistory';
+import { useModeScopedLastSeen } from '@/hooks/history/useModeScopedLastSeen';
 import type { SearchSuggestions } from '@/platform/services/model/search';
 
 export interface SearchResultFlyOutProps {
@@ -37,10 +37,13 @@ export const SearchFlyOut = forwardRef<HTMLDivElement, SearchResultFlyOutProps>(
     },
     ref,
   ) => {
-    const { lastSeenProducts } = useHistory();
+    // COP-4822: last-seen items are re-validated against the products mode (assigned → only in-scope products).
+    const { products: lastSeenProducts, validating: lastSeenValidating } = useModeScopedLastSeen();
     const t = useTranslations('layout.header');
     const isProductsShown = query.length > 2;
     const productsShow = isProductsShown ? products : lastSeenProducts;
+    // Do not flash "no results" while the last-seen list is still being validated in assigned mode.
+    const showNoResults = hasInitialSearch && !loading && (isProductsShown || !lastSeenValidating);
 
     return (
       <section
@@ -82,7 +85,7 @@ export const SearchFlyOut = forwardRef<HTMLDivElement, SearchResultFlyOutProps>(
                   ))}
                 </>
               ) : (
-                hasInitialSearch && !loading && <NoResults {...{ queryCompletions, setQuery, onQuerySelect }} />
+                showNoResults && <NoResults {...{ queryCompletions, setQuery, onQuerySelect }} />
               )}
             </div>
           </div>

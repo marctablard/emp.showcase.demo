@@ -3,22 +3,33 @@ import { injectable } from '@/platform/core/di/injectable';
 import type { BatteryIncludedBrowseVariables } from '@/platform/integrations/batteryincluded/model';
 import type { EmporixPaginatedResponse, EmporixProduct } from '@/platform/integrations/emporix/model';
 import type { EmporixProductApi } from '@/platform/integrations/emporix/product/EmporixProductApi';
-import { buildProductCategoryIdsCriteriaValue } from '@/platform/integrations/emporix/product/buildProductCatalogScopeQ';
+import {
+  buildProductCategoryIdsCriteriaValue,
+  buildSegmentScopeCompoundQuery,
+} from '@/platform/integrations/emporix/product/buildProductCatalogScopeQ';
 import type { CategoryService } from '@/platform/services/category/CategoryService';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { SearchParams, SearchResult, SearchSortOption } from '@/platform/services/model/common';
 import type { Product } from '@/platform/services/model/product';
 import type { PriceFetchOptions } from '@/platform/services/price/PriceService';
 import type { ProductFetchOptions, ProductService } from '@/platform/services/product/ProductService';
-import type { SearchService } from '@/platform/services/search/SearchService';
+import type { RecommendationsOptions, SearchService } from '@/platform/services/search/SearchService';
 import type { SessionService } from '@/platform/services/session/SessionService';
 import type { ProductMapper } from '../../model/product/ProductMapper';
 import type { SearchSuggestions } from '../../model/search';
 import type SegmentFilterService from './SegmentFilterService';
 
+/** Very long `id:(…)` lists inflate the request; warn (no truncation) above this many product ids. */
+const SEGMENT_PRODUCT_IDS_WARN_THRESHOLD = 200;
+
+/**
+ * A search is "scoped" when it carries a root `categoryIds` criteria or a segment
+ * `compoundLogicalQuery` fragment (which already contains the category / product scope).
+ */
 function criteriaIncludesCategoryIds(criteria: Partial<EmporixProduct>): boolean {
-  const v = (criteria as Record<string, unknown>).categoryIds;
-  return typeof v === 'string' && v.trim().length > 0;
+  const record = criteria as Record<string, unknown>;
+  const isNonEmptyString = (v: unknown): boolean => typeof v === 'string' && v.trim().length > 0;
+  return isNonEmptyString(record.categoryIds) || isNonEmptyString(record.compoundLogicalQuery);
 }
 
 function isUnscopedProductSearch(params: SearchParams<Product>): boolean {
@@ -110,9 +121,8 @@ class EmporixSearchService implements SearchService {
     enrichOptions?: ProductFetchOptions,
   ): Promise<Product[]> {
     const withIds = items.filter((item) => !!item.id);
-    const filteredItems = (await this.segmentFilterService.filterByCustomerSegments(withIds)) as EmporixProduct[];
 
-    const products = filteredItems.map((item) => this.productMapper.mapToService(item));
+    const products = withIds.map((item) => this.productMapper.mapToService(item));
     return this.productService.addAdditionalData(
       products,
       enrichOptions ?? { prices: true, variants: true, categories: false },
@@ -137,7 +147,63 @@ class EmporixSearchService implements SearchService {
   }
 
   /**
+   * Segment-scoped criteria (COP-4822): the customer's assigned categories (unexpanded — Emporix
+   * resolves subcategories) OR directly assigned products, narrowed by the already-sanitised
+   * `filters.categoryIds`, as one verbatim `compoundLogicalQuery:(…)` fragment. Replaces the root
+   * `categoryIds` scoping; no post-filtering so paging and totals stay correct.
+   * Returns `null` (empty result) when `segmentIds` is empty (nothing visible, e.g. after a failed
+   * segment lookup), when the site cannot be resolved or when the whole scope is empty — fail closed.
+   */
+  private async buildSegmentScopedCriteria(
+    segmentIds: string[],
+    selectedCategoryIds: string[],
+    effectiveSite: string | undefined,
+    queryCriteria: Record<string, string>,
+  ): Promise<Partial<EmporixProduct> | null> {
+    if (segmentIds.length === 0) {
+      this.logger.debug(
+        { site: effectiveSite },
+        'Empty segmentIds scope; returning empty results without upstream calls',
+      );
+      return null;
+    }
+
+    const siteCode = await this.resolveSiteCode(effectiveSite);
+    if (!siteCode) {
+      this.logger.warn({}, 'Segment-scoped search missing site; returning empty results');
+      return null;
+    }
+
+    const [categoryScope, productScope] = await Promise.all([
+      this.segmentFilterService.getCategoryScope(siteCode),
+      this.segmentFilterService.getProductScope(siteCode),
+    ]);
+    if (productScope.productIds.length > SEGMENT_PRODUCT_IDS_WARN_THRESHOLD) {
+      this.logger.warn(
+        { siteCode, productIds: productScope.productIds.length },
+        'Segment product scope is very large; the id:(…) list inflates the search request',
+      );
+    }
+
+    const fragment = buildSegmentScopeCompoundQuery({
+      selectedCategoryIds,
+      assignedCategoryIds: categoryScope.assignedCategoryIds,
+      productIds: productScope.productIds,
+    });
+    if (!fragment) {
+      this.logger.debug({ siteCode }, 'Segment scope is empty; returning empty results');
+      return null;
+    }
+
+    return { ...queryCriteria, compoundLogicalQuery: fragment } as Partial<EmporixProduct>;
+  }
+
+  /**
    * Builds product search `q` criteria: optional name match plus `categoryIds` when scoped.
+   * With `params.segmentIds` defined (`[]` included — an empty scope yields no results) the segment
+   * scope is applied as a `compoundLogicalQuery` fragment **before and regardless of**
+   * `isUnscopedProductSearch` (`searchAllProducts` / `NEXT_PUBLIC_SEARCH_OMIT_CATALOG_CATALOG_FILTER`
+   * never bypass it). `segmentIds === undefined` means unscoped (anonymous / unsegmented).
    * Default `/browse` (no `filters.categoryIds`) uses **published navigation root** ids only — same trees as
    * header/footer — so products tied only to unpublished categories are not in scope. User-selected
    * `filters.categoryIds` are passed through unchanged; Emporix resolves subcategories in search.
@@ -154,6 +220,10 @@ class EmporixSearchService implements SearchService {
         : (Array.isArray(filterCategoryRaw) ? filterCategoryRaw : [filterCategoryRaw]).filter(
             (id): id is string => typeof id === 'string' && id.trim().length > 0,
           );
+
+    if (params.segmentIds !== undefined) {
+      return this.buildSegmentScopedCriteria(params.segmentIds, filterCategoryIds, effectiveSite, queryCriteria);
+    }
 
     let categoryValue: string | undefined;
     if (filterCategoryIds.length > 0) {
@@ -314,12 +384,17 @@ class EmporixSearchService implements SearchService {
     return [];
   }
 
+  /**
+   * Emporix has no recommendations engine: this is a stub that always returns `[]`, so the
+   * `RecommendationsOptions.segmentIds` contract (COP-4822) is honoured trivially with no upstream call.
+   */
   async getRecommendations(
     _productId: string,
     _locale?: string,
     _site?: string,
     _limit?: number,
     _visibility?: BatteryIncludedBrowseVariables,
+    _options?: RecommendationsOptions,
   ): Promise<Product[]> {
     return [];
   }

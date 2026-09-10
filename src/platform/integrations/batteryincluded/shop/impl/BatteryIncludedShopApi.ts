@@ -2,6 +2,7 @@ import { inject } from 'inversify';
 import 'server-only';
 import { injectable } from '@/platform/core/di/injectable';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
+import { BATTERY_INCLUDED_SEGMENT_IDS_FILTER } from '@/platform/services/model/category/batteryincluded-category';
 import type BatteryIncludedApiInvoker from '../../common/impl/BatteryIncludedApiInvoker';
 import { appendBatteryIncludedVisibility, buildSearchParams } from '../../common/util/common';
 import type { BatteryIncludedConfig, BatteryIncludedRuntimeConfig } from '../../config';
@@ -97,7 +98,7 @@ class BatteryIncludedShopApi implements IBatteryIncludedShopApi {
 
     if (segmentIds?.length) {
       segmentIds.forEach((segmentId) => {
-        searchParams.append('f[segmentIds][]', segmentId);
+        searchParams.append(`f[${BATTERY_INCLUDED_SEGMENT_IDS_FILTER}][]`, segmentId);
       });
     }
 

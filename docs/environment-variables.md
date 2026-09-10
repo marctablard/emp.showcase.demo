@@ -453,6 +453,18 @@ The Setup API (`NEXT_SETUP_API_*`) provides an endpoint for initial system confi
 | `NEXT_STARTUP_HEALTHCHECK_ENABLED` | `true` / `false` | `true` | Enable Tier 2 runtime startup healthcheck. When enabled, the server validates configured sites, currencies, and languages against the Emporix API at startup. See [Health Checks — Startup Configuration Validation](health-checks.md#startup-configuration-validation). |
 | `NEXT_PUBLIC_DISABLE_PUSH_NOTIFICATIONS` | `true` / `false` | `false` | Explicitly disable push notifications regardless of VAPID key configuration. |
 | `NEXT_AI_CHAT_STREAMING` | unset / any value other than `false` / `false` | streaming (on) | Optional server-only flag for the account-dashboard AI Helper. Unset means streaming. Set to `false` for batch. Do not use `NEXT_PUBLIC_`. See [AI Helper](./ai-helper.md). |
+| `NEXT_PUBLIC_ALLOW_SEGMENTS_OVERRIDE` | `true` / `false` | `false` | Public. Allows segmented customers to opt into ALL PRODUCTS MODE via the PLP "Show all products" checkbox on every search engine. Only reveals that the toggle exists — the mode itself is server-validated. See [Search Service — Customer segments & products mode](./search-service.md#customer-segments--products-mode-cop-4822). |
+
+#### `NEXT_PUBLIC_ALLOW_SEGMENTS_OVERRIDE` (optional, public)
+
+Controls whether a customer with active customer segments may leave the segment-restricted catalog ("Assigned Products") and browse the full catalog like an anonymous / unsegmented customer (COP-4822).
+
+- **Unset / any value other than the exact string `true` (default):** segmented customers always see the assigned assortment; the PLP checkbox is hidden and the `next-products-mode` cookie is ignored.
+- **`true`:** the PLP shows the "Show all products" checkbox and `PUT /api/customer-segment/products-mode` may set the opt-in cookie. Effective with both `BatteryIncludedSearchService` and `EmporixSearchService`.
+
+Anonymous and unsegmented customers are unaffected. The variable is `NEXT_PUBLIC_`, so its value is visible to the browser — it only reveals **whether the toggle exists**. The mode itself is never trusted from the client: it lives in the server-validated `httpOnly` cookie `next-products-mode`, written only by `PUT /api/customer-segment/products-mode` after `ProductsModeService` re-checked the flag and the customer's segments. `ProductsModeService` reads the flag once at process start; restart the app after changing it.
+
+Mode resolution, caching and the engine differences are documented in [Search Service — Customer segments & products mode](./search-service.md#customer-segments--products-mode-cop-4822).
 
 #### `NEXT_AI_CHAT_STREAMING` (optional, server-only)
 

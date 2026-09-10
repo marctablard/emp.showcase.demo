@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { useCategoryDisplayLabelIndex } from '@/components/navigation/category-display-label-index-context';
+import { PlpProductsModeSwitch } from '@/components/search/list-view/plp-products-mode-switch';
 import { MobileCategoryDrawer } from '@/components/search/mobile-category-drawer';
 import { SearchActiveFiltersWithReset } from '@/components/search/search-active-filters-with-reset';
 import { SearchFilter } from '@/components/search/search-filter';
@@ -309,6 +310,11 @@ export function SearchResultsComponent({
       {/* Row: SearchFilter controls on mobile and desktop. */}
       {/* Search Layout Top Bar */}
       <div className="flex w-full flex-col gap-4 lg:justify-between">
+        {/* COP-4822 CR-1: the grid layout has no category tree card, so the ASSIGNED / ALL switch gets its own row
+            above the Filter + Sort toolbar (single mount for every breakpoint). The list layout mounts it in the
+            "Categories" card header and the mobile category drawer instead. */}
+        {layout === 'grid' ? <PlpProductsModeSwitch /> : null}
+
         {/* Mobile / Tablet Filter + Sort */}
         <div className="flex w-full items-center gap-3 min-[1024px]:hidden">
           {plpCategoryContext ? (

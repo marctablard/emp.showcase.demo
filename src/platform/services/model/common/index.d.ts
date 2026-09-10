@@ -122,10 +122,7 @@ export interface BatteryIncludedRatingFacet extends BatteryIncludedFacetBase {
 }
 
 export type BatteryIncludedFacet =
-  | BatteryIncludedSelectFacet
-  | BatteryIncludedTreeFacet
-  | BatteryIncludedRangeFacet
-  | BatteryIncludedRatingFacet;
+  BatteryIncludedSelectFacet | BatteryIncludedTreeFacet | BatteryIncludedRangeFacet | BatteryIncludedRatingFacet;
 
 export type SearchSortDirection = 'asc' | 'desc';
 
@@ -169,7 +166,12 @@ export interface SearchParams<T> extends PaginationQuery {
   sort?: string;
   criteria?: Partial<T>;
   filters?: SearchFilters;
-  customerSegments?: boolean;
+  /**
+   * Active customer-segment ids resolved server-side (`ProductsModeService`). `undefined` = unscoped
+   * (anonymous / unsegmented); an array = scoped to those segments; `[]` = empty scope, the engine
+   * returns no results without an upstream call (fail closed). Never taken from the client request.
+   */
+  segmentIds?: string[];
   locale?: string;
   site?: string;
   currency?: string;

@@ -4,6 +4,7 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
+import { type ProductsModeContextValue, ProductsModeProvider } from '@/components/navigation/products-mode-context';
 import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
 import type { Category } from '@/platform/services/model/category';
 import { BATTERY_INCLUDED_BREADCRUMB_FILTER } from '@/platform/services/model/category/batteryincluded-category';
@@ -171,8 +172,9 @@ const renderLayout = (options?: {
   facets?: BatteryIncludedFacet[];
   roots?: Category[];
   searchQuery?: string;
+  productsMode?: ProductsModeContextValue;
 }) => {
-  render(
+  const layout = (
     <PlpListLayout
       products={[]}
       locale="en"
@@ -191,7 +193,11 @@ const renderLayout = (options?: {
       applyRangeFacet={jest.fn()}
       resetFacet={jest.fn()}
       searchQuery={options?.searchQuery}
-    />,
+    />
+  );
+
+  render(
+    options?.productsMode ? <ProductsModeProvider value={options.productsMode}>{layout}</ProductsModeProvider> : layout,
   );
 };
 
@@ -236,6 +242,37 @@ describe('PlpListLayout', () => {
 
     expect(summary).toHaveTextContent('allProducts');
     expect(summary).not.toHaveTextContent('Current category description');
+  });
+
+  it('titles the root summary "Assigned Products" in assigned mode without a category or query', () => {
+    renderLayout({ productsMode: { mode: 'assigned', isSegmented: true, canToggleAllProducts: false } });
+
+    const summary = screen.getByTestId('plp-category-summary');
+
+    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('assignedProducts');
+    expect(summary).toHaveAttribute('aria-label', 'assignedProducts');
+    expect(summary).not.toHaveTextContent('allProducts');
+    // Sidebar landmark name must match the visible root copy in assigned mode.
+    expect(screen.getByRole('complementary', { name: 'assignedProducts' })).toContainElement(
+      screen.getByTestId('plp-category-tree'),
+    );
+  });
+
+  it('keeps the "All Products" root summary in ALL mode', () => {
+    renderLayout({ productsMode: { mode: 'all', isSegmented: true, canToggleAllProducts: true } });
+
+    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('allProducts');
+    expect(screen.getByTestId('plp-category-summary')).not.toHaveTextContent('assignedProducts');
+  });
+
+  it('does not render a products mode control above the grid (COP-4822 CR-1: it lives in the category tree header)', () => {
+    renderLayout({ productsMode: { mode: 'assigned', isSegmented: true, canToggleAllProducts: true } });
+
+    expect(screen.queryByTestId('plp-showAllProductsCheckbox')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('plp-productsModeSwitch')).not.toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: 'assignedProducts' })).toContainElement(
+      screen.getByTestId('plp-category-tree'),
+    );
   });
 
   it('shows Search Results when a search query is present', () => {

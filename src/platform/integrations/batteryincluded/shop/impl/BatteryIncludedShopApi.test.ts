@@ -202,9 +202,11 @@ describe('BatteryIncludedShopApi', () => {
       expect(url).toContain('f%5B_product.published%5D=true');
       expect(url).toContain('f%5B_product.categoryIds%5D%5B%5D=root-a');
       expect(url).toContain('f%5B_product.categoryIds%5D%5B%5D=root-b');
-      expect(url).toContain('f%5BsegmentIds%5D%5B%5D=segment-a');
-      expect(url).toContain('f%5BsegmentIds%5D%5B%5D=segment-b');
-      expect(url).not.toContain('f%5BsegmentIds%5D%5B%5D=segment-a%2Csegment-b');
+      expect(url).toContain('f%5B_product_siteAware.segmentIds%5D%5B%5D=segment-a');
+      expect(url).toContain('f%5B_product_siteAware.segmentIds%5D%5B%5D=segment-b');
+      expect(url).not.toContain('f%5B_product_siteAware.segmentIds%5D%5B%5D=segment-a%2Csegment-b');
+      // A top-level `segmentIds` filter is silently ignored by BI (COP-4822).
+      expect(url).not.toContain('f%5BsegmentIds%5D');
     });
   });
 

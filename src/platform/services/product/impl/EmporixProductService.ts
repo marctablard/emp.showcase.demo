@@ -28,6 +28,14 @@ const TEMPLATE_REF_ID_CHUNK_SIZE = 50;
 
 type ProductTemplateRef = { id: string; version?: string };
 
+/**
+ * `true` when the caller is segment-scoped but the scope is empty (COP-4822 fail closed, e.g. after
+ * a failed segment lookup): `undefined` means unscoped, `[]` means nothing is visible.
+ */
+function isEmptySegmentScope(segmentIds: string[] | undefined): boolean {
+  return segmentIds !== undefined && segmentIds.length === 0;
+}
+
 function templateCacheKey(id: string, version?: string): string {
   return version ? `${id}@${version}` : id;
 }
@@ -67,13 +75,15 @@ class EmporixProductService implements ProductService {
   ) {}
 
   async getProductById(id: string, options?: ProductFetchOptions): Promise<Product | undefined> {
+    // Empty segment scope: nothing is visible, so the lookup is a miss without any upstream call (COP-4822).
+    if (isEmptySegmentScope(options?.segmentIds)) return undefined;
+
     const product = await this.productApi.getProduct(id);
     if (!product || !product.id) return undefined;
 
-    // Filter by customer segments if requested
-    if (options?.customerSegments) {
-      const [filteredProduct] = await this.segmentFilterService.filterByCustomerSegments([product]);
-      if (!filteredProduct) return undefined;
+    if (options?.segmentIds !== undefined) {
+      const inScope = await this.filterIdsInSegmentScope([product.id]);
+      if (!inScope.has(product.id)) return undefined;
     }
 
     // Map the base product
@@ -86,6 +96,8 @@ class EmporixProductService implements ProductService {
   }
 
   async getVariantProducts(parentId: string, options?: ProductFetchOptions): Promise<Product[]> {
+    if (isEmptySegmentScope(options?.segmentIds)) return [];
+
     const paginated = await this.productApi.searchProducts({
       expand: ['parentVariant', 'template'],
       criteria: { parentVariantId: parentId },
@@ -93,15 +105,7 @@ class EmporixProductService implements ProductService {
       size: 100,
     });
 
-    // Filter by customer segments before mapping
-    let items: EmporixProduct[] = [];
-    if (options?.customerSegments) {
-      items = (await this.segmentFilterService.filterByCustomerSegments(
-        paginated.items.filter((item: EmporixProduct) => !!item.id),
-      )) as EmporixProduct[];
-    } else {
-      items = paginated.items;
-    }
+    const items = await this.applySegmentScope(paginated.items, options);
 
     // Map all variant products first
     const mappedProducts = items.map((product: EmporixProduct) => this.productMapper.mapToService(product));
@@ -115,15 +119,7 @@ class EmporixProductService implements ProductService {
   async getProducts(page?: number, pageSize?: number, options?: ProductFetchOptions): Promise<Paginated<Product>> {
     const paginated = await this.productApi.getProducts(page, pageSize);
 
-    // Filter by customer segments before mapping
-    let items: EmporixProduct[] = [];
-    if (options?.customerSegments) {
-      items = (await this.segmentFilterService.filterByCustomerSegments(
-        paginated.items.filter((item: EmporixProduct) => !!item.id),
-      )) as EmporixProduct[];
-    } else {
-      items = paginated.items;
-    }
+    const items = await this.applySegmentScope(paginated.items, options);
     const mappedProducts: Product[] = items.map((product: EmporixProduct) => this.productMapper.mapToService(product));
 
     // Add additional data to all products
@@ -135,6 +131,37 @@ class EmporixProductService implements ProductService {
       pageSize: paginated.size,
       total: paginated.total,
     };
+  }
+
+  /**
+   * Keeps only the products inside the customer's segment scope when `options.segmentIds` is set
+   * (fail closed). `undefined` leaves the items untouched; `[]` is an empty scope and drops every
+   * item without an upstream membership call.
+   */
+  private async applySegmentScope(items: EmporixProduct[], options?: ProductFetchOptions): Promise<EmporixProduct[]> {
+    if (options?.segmentIds === undefined) {
+      return items;
+    }
+    if (isEmptySegmentScope(options.segmentIds)) {
+      return [];
+    }
+    const withIds = items.filter((item: EmporixProduct) => !!item.id);
+    const inScope = await this.filterIdsInSegmentScope(withIds.map((item) => item.id as string));
+    return withIds.filter((item) => inScope.has(item.id as string));
+  }
+
+  /**
+   * Segment membership for the session site — the same site authority this service already uses
+   * for prices. Without a session site nothing can be proven in scope, so the result is empty.
+   */
+  private async filterIdsInSegmentScope(ids: string[]): Promise<Set<string>> {
+    const session = await this.sessionService.getCurrent();
+    const siteCode = session?.siteCode;
+    if (!siteCode) {
+      this.logger.warn({ ids: ids.length }, 'Segment scope requested without a session site; failing closed');
+      return new Set();
+    }
+    return this.segmentFilterService.filterProductIdsInScope(ids, siteCode);
   }
 
   /**
@@ -585,7 +612,12 @@ class EmporixProductService implements ProductService {
         }
         return new Map<string, ProductPrice | null>();
       })(),
-      Promise.all([...productIds].map((id) => (options?.variants ? this.getVariantProducts(id) : undefined))),
+      // Forward ONLY `segmentIds`: passing the full options would re-enter variant/price enrichment per variant.
+      Promise.all(
+        [...productIds].map((id) =>
+          options?.variants ? this.getVariantProducts(id, { segmentIds: options.segmentIds }) : undefined,
+        ),
+      ),
     ]);
 
     // Create lookup maps for brands

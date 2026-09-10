@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { ChevronRight } from 'lucide-react';
 // import { Link } from '@/i18n/navigation';
+import { useProductsMode } from '@/components/navigation/products-mode-context';
 import { PlpPendingLink } from '@/components/search/list-view/plp-pending-link';
 import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
 import {
@@ -23,6 +24,9 @@ export function PlpCategoryBreadcrumbs({ plpCategoryContext, locale }: PlpCatego
   const tCommon = useTranslations('common.Breadcrumb');
   const tSearch = useTranslations('search.searchResults');
   const searchParams = useSearchParams();
+  const { mode: productsMode } = useProductsMode();
+  // COP-4822 AC2/AC6: segmented customers see "Assigned Products" as the root crumb; ALL mode and anonymous keep "All Products".
+  const rootLabel = productsMode === 'assigned' ? tSearch('assignedProducts') : tSearch('allProducts');
   const getCategoryLabel = (name: L10nInput) => l10nOrEmpty(name, locale);
   const breadcrumbItems = plpCategoryContext.currentCategory
     ? [...plpCategoryContext.ancestorTrail, { kind: 'category' as const, category: plpCategoryContext.currentCategory }]
@@ -31,7 +35,7 @@ export function PlpCategoryBreadcrumbs({ plpCategoryContext, locale }: PlpCatego
   const hasSearchPhrase = !!searchParams?.get('q');
 
   return (
-    <nav aria-label={tSearch('allProducts')} className="w-full" data-testid="plp-category-breadcrumbs">
+    <nav aria-label={rootLabel} className="w-full" data-testid="plp-category-breadcrumbs">
       <ol className="flex flex-wrap items-center gap-1 text-base text-text-body">
         <li className="inline-flex items-center">
           <PlpPendingLink href="/" className="font-bold text-text-action underline hover:text-text-action-hover">
@@ -49,7 +53,7 @@ export function PlpCategoryBreadcrumbs({ plpCategoryContext, locale }: PlpCatego
                   href={buildBrowseHrefResetAll(searchParams)}
                   className="font-bold text-text-action underline hover:text-text-action-hover"
                 >
-                  {tSearch('allProducts')}
+                  {rootLabel}
                 </PlpPendingLink>
                 <span className="inline-flex items-center text-text-placeholders" aria-hidden="true">
                   <ChevronRight className="size-4" />
@@ -58,7 +62,7 @@ export function PlpCategoryBreadcrumbs({ plpCategoryContext, locale }: PlpCatego
               </li>
             ) : (
               <li className="inline-flex items-center" aria-current="page">
-                <span className="text-text-body">{tSearch('allProducts')}</span>
+                <span className="text-text-body">{rootLabel}</span>
               </li>
             )}
           </>
@@ -74,7 +78,7 @@ export function PlpCategoryBreadcrumbs({ plpCategoryContext, locale }: PlpCatego
                 {item.kind === 'virtual-all-products' ? (
                   isLast ? (
                     <span className="inline-flex items-center text-text-body" aria-current="page">
-                      {tSearch('allProducts')}
+                      {rootLabel}
                     </span>
                   ) : (
                     <>
@@ -82,7 +86,7 @@ export function PlpCategoryBreadcrumbs({ plpCategoryContext, locale }: PlpCatego
                         href={buildBrowseHrefResetAll(searchParams)}
                         className="inline-flex items-center font-bold text-text-action underline hover:text-text-action-hover"
                       >
-                        {tSearch('allProducts')}
+                        {rootLabel}
                       </PlpPendingLink>
                       {hasSearchPhrase && (
                         <>
