@@ -543,7 +543,9 @@ export function ReturnDetail({ returnId, initialReturn }: ReturnDetailProps) {
         <Alert variant="destructive">
           <CircleAlert className="h-4 w-4" />
           <AlertTitle>{t('error')}</AlertTitle>
-          <AlertDescription>{error ? returnErrorMessage(error) : t('returnNotFound')}</AlertDescription>
+          <AlertDescription>
+            {error ? (returnErrorMessage(error) ?? t('errorLoading')) : t('returnNotFound')}
+          </AlertDescription>
         </Alert>
         <div className="flex gap-4">
           <Button onClick={() => refreshReturn()} data-testid="return-detail-retryButton">

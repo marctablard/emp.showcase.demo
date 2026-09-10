@@ -28,6 +28,7 @@ import { useReturnErrorMessage } from './use-return-error-message';
 type ReturnSortField = 'date' | 'status' | 'returnNumber' | 'netValue' | 'reason' | 'customer';
 const RETURNS_PER_PAGE = 5;
 const SEARCH_DEBOUNCE_MS = 500;
+const ERROR_MESSAGE_ID = 'returns-list-error';
 /**
  * Raw upstream Emporix Return fields backing each sortable column (see resources/emporix/returns.yml).
  * Customer sorts by `requestor.firstName` (the first sub-field of the displayed name), mirroring the
@@ -215,6 +216,8 @@ export function ReturnsList({
               className="pr-10"
               endIcon={isTableReloading ? undefined : Search}
               aria-label={t('searchPlaceholder')}
+              aria-invalid={!!error}
+              aria-describedby={error ? ERROR_MESSAGE_ID : undefined}
               data-testid="returns-search"
             />
             {isTableReloading && (
@@ -229,8 +232,13 @@ export function ReturnsList({
         </div>
 
         {error ? (
-          <div className="bg-surface-error border border-border-error text-text-error px-4 py-3 rounded space-y-3">
-            <p>{returnErrorMessage(error)}</p>
+          <div
+            id={ERROR_MESSAGE_ID}
+            role="alert"
+            className="bg-surface-error border border-border-error text-text-error px-4 py-3 rounded space-y-3"
+          >
+            {/* Loading a list reads differently from submitting a return, so the context sentence is ours. */}
+            <p>{returnErrorMessage(error) ?? t('errorLoading')}</p>
             <Button onClick={() => refreshReturns()} data-testid="returns-retryButton">
               {t('tryAgain')}
             </Button>

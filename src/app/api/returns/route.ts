@@ -1,11 +1,8 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { normalizeReasonCode, normalizeReasonDetails } from '@/lib/common/returns/reason-normalization';
-import {
-  RETURN_ERROR_CODE,
-  mapReturnCreateError,
-  mapReturnValidationError,
-} from '@/lib/common/returns/return-api-error-mapping';
+import { mapReturnCreateError, mapReturnValidationError } from '@/lib/common/returns/return-api-error-mapping';
+import { RETURN_ERROR_CODE } from '@/lib/common/returns/return-error-codes';
 import { computeOrderReturnability } from '@/lib/common/returns/returnability';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
@@ -131,7 +128,6 @@ export async function POST(request: NextRequest) {
           {
             error: `item.reasonCode is invalid for item ${item.id}`,
             code: RETURN_ERROR_CODE.ITEM_REASON_CODE_INVALID,
-            params: { itemId: item.id },
           },
           { status: 400 },
         );
@@ -160,6 +156,8 @@ export async function POST(request: NextRequest) {
         const returnability = computeOrderReturnability(orderId, order.items, orderReturns);
 
         const remainingMap = new Map(returnability.orderItemSummaries.map((s) => [s.itemId, s.remaining]));
+        // The shopper only ever sees the article number, never the order-entry id.
+        const skuByItemId = new Map(order.items.map((orderItem) => [orderItem.id, orderItem.sku]));
 
         for (const item of items) {
           const remaining = remainingMap.get(item.id);
@@ -168,7 +166,6 @@ export async function POST(request: NextRequest) {
               {
                 error: `Item ${item.id} does not belong to order ${orderId}`,
                 code: RETURN_ERROR_CODE.ITEM_NOT_IN_ORDER,
-                params: { itemId: item.id, orderId },
               },
               { status: 422 },
             );
@@ -183,7 +180,7 @@ export async function POST(request: NextRequest) {
               {
                 error: `Item ${item.id} exceeds returnable quantity (requested: ${item.quantity}, remaining: ${remaining})`,
                 code: RETURN_ERROR_CODE.ITEM_EXCEEDS_RETURNABLE_QUANTITY,
-                params: { itemId: item.id, requested: item.quantity, remaining },
+                params: { sku: skuByItemId.get(item.id) ?? item.id, requested: item.quantity, remaining },
               },
               { status: 422 },
             );

@@ -2,7 +2,7 @@ import {
   RETURN_ERROR_CODE,
   type ReturnErrorCode,
   type ReturnErrorParams,
-} from '@/lib/common/returns/return-api-error-mapping';
+} from '@/lib/common/returns/return-error-codes';
 import type { Return } from '@/platform/services/model/return';
 
 const REQUEST_CACHE_TTL_MS = 60_000;

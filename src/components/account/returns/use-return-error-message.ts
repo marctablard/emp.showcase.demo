@@ -1,9 +1,8 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { type ReturnApiErrorKey, dk } from '@/i18n/dynamic-key';
 import { ReturnApiError } from '@/lib/client/returns';
-import type { ReturnErrorParams } from '@/lib/common/returns/return-api-error-mapping';
+import type { ReturnErrorParams } from '@/lib/common/returns/return-error-codes';
 
 /**
  * next-intl expects an index-signature record; the typed params object is not one,
@@ -16,19 +15,21 @@ function toMessageValues(params: ReturnErrorParams | undefined): Record<string, 
 }
 
 /**
- * Turns a returns API failure into a sentence in the shopper's language. The server also
- * sends an English `error` text, but that one is diagnostic and stays in the logs.
- * Anything without a known code falls back to the generic message.
+ * Translates a returns API failure. The server also sends an English `error` text, but that one
+ * is diagnostic and stays in the logs.
+ *
+ * Returns `undefined` when the failure carries no code this namespace knows. The calling surface
+ * then supplies a sentence that fits its own context — loading a list reads differently from
+ * submitting a return, and one shared fallback got that wrong.
  */
-export function useReturnErrorMessage(): (error: unknown) => string {
+export function useReturnErrorMessage(): (error: unknown) => string | undefined {
   const t = useTranslations('account.returns.apiError');
 
-  return (error: unknown): string => {
-    if (!(error instanceof ReturnApiError) || !error.code) {
-      return t('UNEXPECTED');
+  return (error: unknown): string | undefined => {
+    if (!(error instanceof ReturnApiError) || !error.code || !t.has(error.code)) {
+      return undefined;
     }
 
-    const key = dk<ReturnApiErrorKey>(error.code);
-    return t.has(key) ? t(key, toMessageValues(error.params)) : t('UNEXPECTED');
+    return t(error.code, toMessageValues(error.params));
   };
 }

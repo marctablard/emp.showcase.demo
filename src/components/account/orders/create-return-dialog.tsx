@@ -134,7 +134,8 @@ export function CreateReturnDialog({ open, onOpenChange, order, returnability }:
         'Failed to create return',
       );
       notify({
-        title: returnErrorMessage(err),
+        title: t('submitError'),
+        description: returnErrorMessage(err),
         type: ToastType.Error,
       });
     } finally {

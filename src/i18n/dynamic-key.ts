@@ -219,34 +219,6 @@ export type DocumentKey =
   'title' | 'categories.contracts' | 'categories.company' | 'categories.manuals' | 'categories.warranty' | 'seeAll';
 
 // ---------------------------------------------------------------------------
-// Namespace: account  (sub-path: returns.apiError.*)
-// Used by: use-return-error-message.ts
-// Codes come from `/api/returns` and `/api/returns/[id]` (RETURN_ERROR_CODE),
-// plus 'UNEXPECTED' for a failure that carries no code at all.
-// ---------------------------------------------------------------------------
-export type ReturnApiErrorKey =
-  | 'UNEXPECTED'
-  | 'RETURNS_FETCH_FAILED'
-  | 'RETURN_FETCH_FAILED'
-  | 'RETURN_NOT_FOUND'
-  | 'ORDER_ID_REQUIRED'
-  | 'ITEMS_REQUIRED'
-  | 'REASON_CODE_REQUIRED'
-  | 'REASON_CODE_INVALID'
-  | 'REASON_DETAILS_INVALID'
-  | 'ITEM_ID_INVALID'
-  | 'ITEM_QUANTITY_INVALID'
-  | 'ITEM_REASON_CODE_TYPE_INVALID'
-  | 'ITEM_REASON_CODE_INVALID'
-  | 'ITEM_REASON_DETAILS_INVALID'
-  | 'ITEM_NOT_IN_ORDER'
-  | 'ITEM_EXCEEDS_RETURNABLE_QUANTITY'
-  | 'VALIDATION_UNAVAILABLE'
-  | 'UPSTREAM_REJECTED'
-  | 'UPSTREAM_UNAVAILABLE'
-  | 'UPSTREAM_FAILURE';
-
-// ---------------------------------------------------------------------------
 // Namespace: validation
 // Used by: form.tsx
 // ---------------------------------------------------------------------------

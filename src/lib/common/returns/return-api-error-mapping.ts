@@ -1,42 +1,5 @@
 import { isEmporixApiError } from '@/platform/integrations/emporix/common/EmporixApiError';
-
-/**
- * Stable selector for the customer-facing message. The English `error` text stays in the
- * response as a diagnostic for logs and non-UI consumers; the storefront renders the
- * translation behind this code instead.
- */
-export const RETURN_ERROR_CODE = {
-  RETURNS_FETCH_FAILED: 'RETURNS_FETCH_FAILED',
-  RETURN_FETCH_FAILED: 'RETURN_FETCH_FAILED',
-  RETURN_NOT_FOUND: 'RETURN_NOT_FOUND',
-  ORDER_ID_REQUIRED: 'ORDER_ID_REQUIRED',
-  ITEMS_REQUIRED: 'ITEMS_REQUIRED',
-  REASON_CODE_REQUIRED: 'REASON_CODE_REQUIRED',
-  REASON_CODE_INVALID: 'REASON_CODE_INVALID',
-  REASON_DETAILS_INVALID: 'REASON_DETAILS_INVALID',
-  ITEM_ID_INVALID: 'ITEM_ID_INVALID',
-  ITEM_QUANTITY_INVALID: 'ITEM_QUANTITY_INVALID',
-  ITEM_REASON_CODE_TYPE_INVALID: 'ITEM_REASON_CODE_TYPE_INVALID',
-  ITEM_REASON_CODE_INVALID: 'ITEM_REASON_CODE_INVALID',
-  ITEM_REASON_DETAILS_INVALID: 'ITEM_REASON_DETAILS_INVALID',
-  ITEM_NOT_IN_ORDER: 'ITEM_NOT_IN_ORDER',
-  ITEM_EXCEEDS_RETURNABLE_QUANTITY: 'ITEM_EXCEEDS_RETURNABLE_QUANTITY',
-  VALIDATION_UNAVAILABLE: 'VALIDATION_UNAVAILABLE',
-  UPSTREAM_REJECTED: 'UPSTREAM_REJECTED',
-  UPSTREAM_UNAVAILABLE: 'UPSTREAM_UNAVAILABLE',
-  UPSTREAM_FAILURE: 'UPSTREAM_FAILURE',
-} as const;
-
-export type ReturnErrorCode = (typeof RETURN_ERROR_CODE)[keyof typeof RETURN_ERROR_CODE];
-
-/** Values a translated message may interpolate. Sent alongside the code, never pre-rendered. */
-export interface ReturnErrorParams {
-  itemId?: string;
-  orderId?: string;
-  requested?: number;
-  remaining?: number;
-  upstreamStatus?: number;
-}
+import { RETURN_ERROR_CODE, type ReturnErrorCode, type ReturnErrorParams } from './return-error-codes';
 
 export const RETURN_API_REASON = {
   VALIDATION_UNAVAILABLE: 'validation_unavailable',
@@ -101,6 +64,18 @@ function getStatusForUpstreamFailure(upstreamStatus: number): number {
   return upstreamStatus;
 }
 
+/**
+ * 401/403 are not an input problem: the session expired or the scope is missing. Telling the
+ * shopper to check their entries would send them down the wrong path, so they get their own code.
+ */
+function getCreateErrorCode(upstreamStatus: number): ReturnErrorCode {
+  if (upstreamStatus === 401 || upstreamStatus === 403) {
+    return RETURN_ERROR_CODE.UPSTREAM_UNAUTHORIZED;
+  }
+
+  return upstreamStatus >= 500 ? RETURN_ERROR_CODE.UPSTREAM_FAILURE : RETURN_ERROR_CODE.UPSTREAM_REJECTED;
+}
+
 export function mapReturnCreateError(error: unknown): ReturnApiErrorMapping {
   if (isEmporixApiError(error)) {
     const upstreamMessage = getUpstreamMessage(error.body);
@@ -110,7 +85,7 @@ export function mapReturnCreateError(error: unknown): ReturnApiErrorMapping {
       status: getStatusForUpstreamFailure(error.status),
       response: {
         error: isUpstreamServerError ? 'Returns service failed upstream' : 'Returns service rejected the request',
-        code: isUpstreamServerError ? RETURN_ERROR_CODE.UPSTREAM_FAILURE : RETURN_ERROR_CODE.UPSTREAM_REJECTED,
+        code: getCreateErrorCode(error.status),
         params: { upstreamStatus: error.status },
         reason: isUpstreamServerError ? RETURN_API_REASON.UPSTREAM_FAILURE : RETURN_API_REASON.UPSTREAM_REJECTED,
         upstreamStatus: error.status,

@@ -675,6 +675,15 @@ describe('OrderDetail', () => {
     expect(screen.getByText('05/31/2026')).toBeInTheDocument();
   });
 
+  it('renders the expected delivery date in the active locale, not in English', () => {
+    // The second formatDate call site: without a fixture that sets the field, the branch never runs.
+    mockUseOrder({ order: { ...baseOrder, expectedDeliveryDate: '2026-06-02T10:00:00.000Z' } });
+
+    render(<OrderDetail orderId={baseOrder.id} initialOrder={baseOrder} />);
+
+    expect(screen.getByText('06/02/2026')).toBeInTheDocument();
+  });
+
   it('renders the Order Overview rows in the exact required sequence: Net value of goods, VAT, Shipping fee, Total value', () => {
     const orderWithShipping = {
       ...baseOrder,

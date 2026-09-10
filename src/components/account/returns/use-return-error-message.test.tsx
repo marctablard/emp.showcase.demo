@@ -19,37 +19,37 @@ jest.mock('next-intl', () => ({
     ),
 }));
 
-function resolve(error: unknown): string {
+function resolve(error: unknown): string | undefined {
   const { result } = renderHook(() => useReturnErrorMessage());
   return result.current(error);
 }
 
 describe('useReturnErrorMessage', () => {
   beforeEach(() => {
-    knownKeys = ['UNEXPECTED', 'RETURNS_FETCH_FAILED', 'ITEM_EXCEEDS_RETURNABLE_QUANTITY'];
+    knownKeys = ['RETURNS_FETCH_FAILED', 'ITEM_EXCEEDS_RETURNABLE_QUANTITY'];
     receivedValues.mockClear();
   });
 
   it('translates a coded failure and passes its values to the message', () => {
-    const error = new ReturnApiError('Item item-1 exceeds returnable quantity', 422, {
+    const error = new ReturnApiError('Item ART-4711 exceeds returnable quantity', 422, {
       code: 'ITEM_EXCEEDS_RETURNABLE_QUANTITY',
-      params: { itemId: 'item-1', requested: 2, remaining: 1 },
+      params: { sku: 'ART-4711', requested: 2, remaining: 1 },
     });
 
-    expect(resolve(error)).toBe('ITEM_EXCEEDS_RETURNABLE_QUANTITY({"itemId":"item-1","requested":2,"remaining":1})');
+    expect(resolve(error)).toBe('ITEM_EXCEEDS_RETURNABLE_QUANTITY({"sku":"ART-4711","requested":2,"remaining":1})');
   });
 
   it('drops absent values instead of passing them through as undefined', () => {
-    const error = new ReturnApiError('Failed to validate return request', 503, {
+    const error = new ReturnApiError('Failed to fetch returns', 500, {
       code: 'RETURNS_FETCH_FAILED',
-      params: { itemId: undefined, upstreamStatus: 500 },
+      params: { sku: undefined, upstreamStatus: 500 },
     });
 
     expect(resolve(error)).toBe('RETURNS_FETCH_FAILED({"upstreamStatus":500})');
-    // Asserted on the object itself, not on its JSON: JSON.stringify would hide an
-    // `itemId: undefined` that actually reached next-intl.
+    // Asserted on the object itself, not on its JSON: JSON.stringify would hide a
+    // `sku: undefined` that actually reached next-intl.
     expect(receivedValues).toHaveBeenLastCalledWith({ upstreamStatus: 500 });
-    expect(receivedValues.mock.lastCall?.[0]).not.toHaveProperty('itemId');
+    expect(receivedValues.mock.lastCall?.[0]).not.toHaveProperty('sku');
   });
 
   it('translates a coded failure that carries no values', () => {
@@ -58,17 +58,17 @@ describe('useReturnErrorMessage', () => {
     expect(resolve(error)).toBe('RETURNS_FETCH_FAILED');
   });
 
-  it('falls back to the generic message for a code the namespace does not know', () => {
+  it('yields nothing for a code the namespace does not know, so the surface can supply its own text', () => {
     const error = new ReturnApiError('Failed to create return', 500, { code: 'UPSTREAM_UNAVAILABLE' });
 
-    expect(resolve(error)).toBe('UNEXPECTED');
+    expect(resolve(error)).toBeUndefined();
   });
 
-  it('falls back to the generic message for a failure without a code', () => {
-    expect(resolve(new ReturnApiError('boom', 500))).toBe('UNEXPECTED');
+  it('yields nothing for a failure without a code', () => {
+    expect(resolve(new ReturnApiError('boom', 500))).toBeUndefined();
   });
 
-  it('falls back to the generic message for anything that is not a returns API error', () => {
-    expect(resolve(new Error('network down'))).toBe('UNEXPECTED');
+  it('yields nothing for anything that is not a returns API error', () => {
+    expect(resolve(new Error('network down'))).toBeUndefined();
   });
 });

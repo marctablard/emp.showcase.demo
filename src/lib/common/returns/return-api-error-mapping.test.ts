@@ -1,5 +1,6 @@
 import { EmporixApiError } from '@/platform/integrations/emporix/common/EmporixApiError';
 import { RETURN_API_REASON, mapReturnCreateError, mapReturnValidationError } from './return-api-error-mapping';
+import { RETURN_ERROR_CODE } from './return-error-codes';
 
 describe('return-api-error-mapping', () => {
   it('maps upstream 5xx create failures to backend failure responses', () => {
@@ -13,6 +14,7 @@ describe('return-api-error-mapping', () => {
     );
 
     expect(mapping.status).toBe(502);
+    expect(mapping.response.code).toBe(RETURN_ERROR_CODE.UPSTREAM_FAILURE);
     expect(mapping.response.reason).toBe(RETURN_API_REASON.UPSTREAM_FAILURE);
     expect(mapping.response.upstreamStatus).toBe(502);
     expect(mapping.response.upstreamMessage).toBe('Bad Gateway');
@@ -29,6 +31,7 @@ describe('return-api-error-mapping', () => {
     );
 
     expect(mapping.status).toBe(409);
+    expect(mapping.response.code).toBe(RETURN_ERROR_CODE.UPSTREAM_REJECTED);
     expect(mapping.response.reason).toBe(RETURN_API_REASON.UPSTREAM_REJECTED);
     expect(mapping.response.upstreamMessage).toBe('Return already exists');
   });
@@ -43,7 +46,17 @@ describe('return-api-error-mapping', () => {
     );
 
     expect(mapping.status).toBe(503);
+    expect(mapping.response.code).toBe(RETURN_ERROR_CODE.VALIDATION_UNAVAILABLE);
     expect(mapping.response.reason).toBe(RETURN_API_REASON.VALIDATION_UNAVAILABLE);
     expect(mapping.response.upstreamStatus).toBe(503);
+  });
+
+  it.each([401, 403])('maps upstream %s to its own code instead of blaming the input', (status) => {
+    const mapping = mapReturnCreateError(
+      new EmporixApiError({ operation: 'Create return', status, statusText: 'Denied' }),
+    );
+
+    expect(mapping.response.code).toBe(RETURN_ERROR_CODE.UPSTREAM_UNAUTHORIZED);
+    expect(mapping.response.code).not.toBe(RETURN_ERROR_CODE.UPSTREAM_REJECTED);
   });
 });

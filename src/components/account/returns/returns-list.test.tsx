@@ -522,7 +522,7 @@ describe('ReturnsList', () => {
     mockReturnsResult({ returns: [], totalCount: 0, error: new Error('boom'), refreshReturns });
     render(<ReturnsList initialReturns={[]} />);
 
-    expect(screen.getByText('UNEXPECTED')).toBeInTheDocument();
+    expect(screen.getByText('errorLoading')).toBeInTheDocument();
     fireEvent.click(screen.getByText('tryAgain'));
     expect(refreshReturns).toHaveBeenCalledTimes(1);
   });
@@ -534,27 +534,50 @@ describe('ReturnsList', () => {
 
     expect(screen.getByText('RETURNS_FETCH_FAILED')).toBeInTheDocument();
     expect(screen.queryByText('Failed to fetch returns')).not.toBeInTheDocument();
+    expect(screen.queryByText('errorLoading')).not.toBeInTheDocument();
   });
 
-  it('keeps the search field usable while an error is shown, so the offending term can be cleared', () => {
+  it('still runs a fresh query when the term is changed while the error is shown', () => {
+    // The point of the in-form error: the term that broke the search stays editable and a
+    // corrected term reaches the hook. Asserting only that the field renders would not show that.
     mockReturnsResult({ returns: [], totalCount: 0, error: new Error('boom') });
     render(<ReturnsList initialReturns={[]} />);
 
-    // The error replaces the table only; heading and search stay mounted.
     const search = screen.getByLabelText('searchPlaceholder');
-    expect(search).toBeInTheDocument();
-    expect(screen.getByText('UNEXPECTED')).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
 
-    fireEvent.change(search, { target: { value: '' } });
-    expect(search).toHaveValue('');
+    fireEvent.change(search, { target: { value: ')' } });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+    const [, brokenOptions] = mockUseReturns.mock.calls[mockUseReturns.mock.calls.length - 1];
+    expect(brokenOptions.query).toBe('id:~())');
+
+    fireEvent.change(search, { target: { value: 'RET-7' } });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+    const [, correctedOptions] = mockUseReturns.mock.calls[mockUseReturns.mock.calls.length - 1];
+    expect(correctedOptions.query).toBe('id:~(RET-7)');
+  });
+
+  it('marks the search field invalid and announces the error to assistive technology', () => {
+    mockReturnsResult({ returns: [], totalCount: 0, error: new Error('boom') });
+    render(<ReturnsList initialReturns={[]} />);
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('errorLoading');
+
+    const search = screen.getByLabelText('searchPlaceholder');
+    expect(search).toHaveAttribute('aria-invalid', 'true');
+    expect(search).toHaveAttribute('aria-describedby', alert.id);
   });
 
   it('shows the error instead of the empty state when a load fails without a search term', () => {
     mockReturnsResult({ returns: [], totalCount: 0, error: new Error('boom') });
     render(<ReturnsList initialReturns={[]} />);
 
-    expect(screen.getByText('UNEXPECTED')).toBeInTheDocument();
+    expect(screen.getByText('errorLoading')).toBeInTheDocument();
     expect(screen.queryByText('noReturns')).not.toBeInTheDocument();
   });
 

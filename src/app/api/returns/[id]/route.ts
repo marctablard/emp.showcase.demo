@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { RETURN_ERROR_CODE } from '@/lib/common/returns/return-api-error-mapping';
+import { RETURN_ERROR_CODE } from '@/lib/common/returns/return-error-codes';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
 import type { Return, ReturnItem } from '@/platform/services/model/return';

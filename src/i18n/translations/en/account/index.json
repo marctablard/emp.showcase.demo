@@ -193,7 +193,6 @@
   "orders": "Orders",
   "returns": {
     "apiError": {
-      "UNEXPECTED": "The return could not be processed. Please try again.",
       "RETURNS_FETCH_FAILED": "Your returns could not be loaded. Please try again.",
       "RETURN_FETCH_FAILED": "This return could not be loaded. Please try again.",
       "RETURN_NOT_FOUND": "This return does not exist.",
@@ -205,10 +204,11 @@
       "ITEM_ID_INVALID": "One of the selected items is invalid. Please reload the page.",
       "ITEM_QUANTITY_INVALID": "Please enter a valid quantity for every item.",
       "ITEM_REASON_CODE_TYPE_INVALID": "A per-item return reason could not be accepted. Please check your input.",
-      "ITEM_REASON_CODE_INVALID": "The return reason for item {itemId} is not allowed. Please pick another one.",
+      "ITEM_REASON_CODE_INVALID": "One of the selected return reasons is not allowed. Please pick another one.",
       "ITEM_REASON_DETAILS_INVALID": "A per-item description could not be accepted. Please check your input.",
-      "ITEM_NOT_IN_ORDER": "Item {itemId} does not belong to this order. Please reload the page.",
-      "ITEM_EXCEEDS_RETURNABLE_QUANTITY": "Only {remaining} left to return for item {itemId}, but {requested} were requested. Please reload the page.",
+      "ITEM_NOT_IN_ORDER": "One of the selected items does not belong to this order. Please reload the page.",
+      "ITEM_EXCEEDS_RETURNABLE_QUANTITY": "Only {remaining} left to return for item {sku}, but {requested} were requested. Please reload the page.",
+      "UPSTREAM_UNAUTHORIZED": "Your session has expired. Please sign in again and retry.",
       "VALIDATION_UNAVAILABLE": "We could not check your return just now. Please try again shortly.",
       "UPSTREAM_REJECTED": "Your return was not accepted. Please check your details.",
       "UPSTREAM_UNAVAILABLE": "The return could not be created. Please try again.",

@@ -3,6 +3,7 @@
  */
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { ReturnApiError } from '@/lib/client/returns';
 import type { Return } from '@/platform/services/model/return';
 import { ReturnDetail } from './return-detail';
 
@@ -449,12 +450,26 @@ describe('ReturnDetail', () => {
     render(<ReturnDetail returnId="return-err" />);
 
     expect(screen.getByText('error')).toBeInTheDocument();
-    // The raw Error carries no code, so the generic translated sentence is shown.
-    expect(screen.getByText('UNEXPECTED')).toBeInTheDocument();
+    // The raw Error carries no code, so the page supplies its own load-context sentence.
+    expect(screen.getByText('errorLoading')).toBeInTheDocument();
     expect(screen.queryByText('Network exploded')).not.toBeInTheDocument();
     expect(screen.queryByText('returnNotFound')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('return-detail-retryButton'));
     expect(refreshReturn).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the translated message for a coded failure instead of the load-context fallback', () => {
+    mockUseReturn.mockReturnValue({
+      returnItem: null,
+      loading: false,
+      error: new ReturnApiError('Failed to fetch return', 500, { code: 'RETURN_FETCH_FAILED' }),
+      refreshReturn: jest.fn(),
+    });
+
+    render(<ReturnDetail returnId="return-err" />);
+
+    expect(screen.getByText('RETURN_FETCH_FAILED')).toBeInTheDocument();
+    expect(screen.queryByText('errorLoading')).not.toBeInTheDocument();
   });
 });
