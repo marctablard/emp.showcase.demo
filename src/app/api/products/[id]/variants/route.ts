@@ -13,31 +13,37 @@ const PRIVATE_NO_STORE = { 'Cache-Control': 'private, no-store' } as const;
  * GET /api/products/[id]/variants
  *
  * COP-4822: the products mode is resolved server-side (opt-in cookie + `site`/`priceSiteCode`);
- * in `assigned` mode the variants are filtered by the service through `{ segmentIds }`.
- * `segmentIds` is never read from the request. Personalised responses (`assigned` / `all`)
- * are `Cache-Control: private, no-store`.
+ * in `assigned` mode the variants are filtered by the service through `{ segmentIds, siteCode }`
+ * (the effective site the mode was resolved for). `segmentIds` is never read from the request.
+ * Caching fails closed: every response starts as `Cache-Control: private, no-store` and is relaxed
+ * only once the mode is known to be `anonymous` / `unsegmented`.
  */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: productId } = await params;
   const { searchParams } = new URL(request.url);
 
-  let headers: Record<string, string> | undefined;
+  // Fail closed on caching: private until the mode is known to be non-personalised.
+  let headers: Record<string, string> | undefined = PRIVATE_NO_STORE;
 
   try {
+    const requestSite = searchParams.get('site') ?? searchParams.get('priceSiteCode') ?? undefined;
     const productsModeService = server.get<ProductsModeService>('ProductsModeService');
     const ctx = await productsModeService.resolve({
       optInCookieValue: request.cookies.get(PRODUCTS_MODE_COOKIE_NAME)?.value,
-      siteCode: searchParams.get('site') ?? searchParams.get('priceSiteCode') ?? undefined,
+      siteCode: requestSite,
     });
-    if (ctx.mode === 'assigned' || ctx.mode === 'all') {
-      headers = PRIVATE_NO_STORE;
+    if (ctx.mode === 'anonymous' || ctx.mode === 'unsegmented') {
+      headers = undefined;
     }
 
     const productService = server.get<ProductService>('ProductService');
 
     const variants =
       ctx.mode === 'assigned'
-        ? await productService.getVariantProducts(productId, { segmentIds: ctx.segmentIds })
+        ? await productService.getVariantProducts(productId, {
+            segmentIds: ctx.segmentIds,
+            siteCode: ctx.siteCode ?? requestSite,
+          })
         : await productService.getVariantProducts(productId);
 
     if (!variants || variants.length === 0) {

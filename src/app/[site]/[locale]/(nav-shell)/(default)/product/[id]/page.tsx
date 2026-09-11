@@ -63,10 +63,11 @@ export async function generateStaticParams() {
 /**
  * Builds the server-side product fetch options for the PDP (COP-4822).
  *
- * In `assigned` mode the customer's segment ids are attached so the services drop out-of-scope
- * products (fail closed → `notFound()`); the `all` mode and non-segmented modes pass no
- * `segmentIds`. `generateMetadata` and the page must both call this helper so the object passed
- * to `getProductById` serialises identically and the React `cache()` key matches.
+ * In `assigned` mode the customer's segment ids and the effective site they were resolved for are
+ * attached so the services drop out-of-scope products (fail closed → `notFound()`); the `all` mode
+ * and non-segmented modes pass neither `segmentIds` nor `siteCode`. `generateMetadata` and the page
+ * must both call this helper so the object passed to `getProductById` serialises identically and the
+ * React `cache()` key matches.
  */
 export async function createProductOptions(
   baseOptions: ProductFetchOptions,
@@ -95,6 +96,8 @@ export async function createProductOptions(
   const ctx = await getProductsModeContext(siteCode);
   if (ctx.mode === 'assigned') {
     options.segmentIds = ctx.segmentIds;
+    // Membership is checked for the same site the mode/segments were resolved for.
+    options.siteCode = ctx.siteCode ?? siteCode;
   }
 
   return { ssr: !!productConfig, options };
@@ -105,7 +108,7 @@ export async function createProductOptions(
  * (`/api/products/[id]`) re-derives the products mode itself.
  */
 function toClientProductOptions(options: ProductFetchOptions): ProductFetchOptions {
-  const { segmentIds: _segmentIds, ...clientOptions } = options;
+  const { segmentIds: _segmentIds, siteCode: _siteCode, ...clientOptions } = options;
   return clientOptions;
 }
 

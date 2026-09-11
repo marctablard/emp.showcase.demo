@@ -58,7 +58,7 @@ export async function resolveBrowsePageData({
   const ctx = await getProductsModeContext(site);
 
   if (ctx.mode === 'assigned') {
-    const scope = await getSegmentCategoryScope(site);
+    const scope = await getSegmentCategoryScope(site, ctx.segmentIds);
 
     const sanitizedUrl = sanitizeBrowseCategoryIdParams(rawParams, scope.allowedCategoryIds);
     if (sanitizedUrl) {
@@ -87,7 +87,7 @@ export async function resolveBrowsePageData({
     // facet like the public PLP. The AC5 sanitising above deliberately keeps using `scope.allowedCategoryIds`.
     const [initialResults, navigationRoots] = await Promise.all([
       ssrSearch ? searchProducts(initialSearch) : Promise.resolve(undefined),
-      getSegmentNavigationRoots(site, locale),
+      getSegmentNavigationRoots(site, locale, ctx.segmentIds),
     ]);
 
     return { mode: ctx.mode, q, initialSearch, initialResults, navigationRoots };

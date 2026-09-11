@@ -130,7 +130,7 @@ describe('GET /api/search', () => {
 
       await GET(createRequest('?filters[categoryIds][]=cat-in&filters[categoryIds][]=cat-out&filters[brand]=acme'));
 
-      expect(segmentFilterService.getCategoryScope).toHaveBeenCalledWith('main');
+      expect(segmentFilterService.getCategoryScope).toHaveBeenCalledWith('main', ['seg-1', 'seg-2']);
       expect(searchParamsOf(searchService.searchProducts).filters).toEqual({
         categoryIds: ['cat-in'],
         brand: 'acme',
@@ -162,7 +162,7 @@ describe('GET /api/search', () => {
       await GET(createRequest('?query=drill'));
 
       expect(productsModeService.resolve).toHaveBeenCalledWith({ optInCookieValue: undefined, siteCode: undefined });
-      expect(segmentFilterService.getCategoryScope).toHaveBeenCalledWith('us');
+      expect(segmentFilterService.getCategoryScope).toHaveBeenCalledWith('us', ['seg-1', 'seg-2']);
       expect(searchParamsOf(searchService.searchProducts).site).toBe('us');
       expect(searchService.searchProducts.mock.calls[0][2]).toBe('us');
     });

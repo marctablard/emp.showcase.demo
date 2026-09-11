@@ -22,7 +22,11 @@ export interface ProductsModeContext {
   /** `NEXT_PUBLIC_ALLOW_SEGMENTS_OVERRIDE === 'true'` AND segmented — engine-agnostic (AC3a). */
   canToggleAllProducts: boolean;
   engine: SearchEngineKind;
-  /** Site the segments were filtered for (input `siteCode` or the session site). */
+  /**
+   * Site the segments were filtered for (trimmed input `siteCode`, else the session site). Consumers
+   * pass it on as the effective site for scope / membership lookups. `undefined` only for
+   * `anonymous` or for the fail-closed `assigned` / `[]` result when no usable site exists.
+   */
   siteCode?: string;
   customerId?: string;
 }
@@ -30,7 +34,10 @@ export interface ProductsModeContext {
 export interface ProductsModeResolveInput {
   /** Raw value of the `next-products-mode` cookie, read by the caller (route / SSR helper). */
   optInCookieValue?: string;
-  /** Site to filter segments for; defaults to the session site. */
+  /**
+   * Site to filter segments for; trimmed, a blank value falls back to the session site. An
+   * authenticated customer without any usable site resolves fail closed (`assigned`, `[]`).
+   */
   siteCode?: string;
 }
 

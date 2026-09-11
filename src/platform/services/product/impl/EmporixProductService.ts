@@ -82,7 +82,7 @@ class EmporixProductService implements ProductService {
     if (!product || !product.id) return undefined;
 
     if (options?.segmentIds !== undefined) {
-      const inScope = await this.filterIdsInSegmentScope([product.id]);
+      const inScope = await this.filterIdsInSegmentScope([product.id], options.segmentIds, options.siteCode);
       if (!inScope.has(product.id)) return undefined;
     }
 
@@ -146,22 +146,35 @@ class EmporixProductService implements ProductService {
       return [];
     }
     const withIds = items.filter((item: EmporixProduct) => !!item.id);
-    const inScope = await this.filterIdsInSegmentScope(withIds.map((item) => item.id as string));
+    const inScope = await this.filterIdsInSegmentScope(
+      withIds.map((item) => item.id as string),
+      options.segmentIds,
+      options.siteCode,
+    );
     return withIds.filter((item) => inScope.has(item.id as string));
   }
 
   /**
-   * Segment membership for the session site — the same site authority this service already uses
-   * for prices. Without a session site nothing can be proven in scope, so the result is empty.
+   * Segment membership for the effective site the mode was resolved for (`options.siteCode`),
+   * falling back to the session site — the same site authority this service already uses for
+   * prices. Only the active `segmentIds` count; without any usable site nothing can be proven in
+   * scope, so the result is empty.
    */
-  private async filterIdsInSegmentScope(ids: string[]): Promise<Set<string>> {
-    const session = await this.sessionService.getCurrent();
-    const siteCode = session?.siteCode;
+  private async filterIdsInSegmentScope(
+    ids: string[],
+    segmentIds: string[],
+    effectiveSiteCode: string | undefined,
+  ): Promise<Set<string>> {
+    let siteCode = effectiveSiteCode?.trim() || undefined;
     if (!siteCode) {
-      this.logger.warn({ ids: ids.length }, 'Segment scope requested without a session site; failing closed');
+      const session = await this.sessionService.getCurrent();
+      siteCode = session?.siteCode?.trim() || undefined;
+    }
+    if (!siteCode) {
+      this.logger.warn({ ids: ids.length }, 'Segment scope requested without a usable site; failing closed');
       return new Set();
     }
-    return this.segmentFilterService.filterProductIdsInScope(ids, siteCode);
+    return this.segmentFilterService.filterProductIdsInScope(ids, siteCode, segmentIds);
   }
 
   /**
@@ -612,9 +625,14 @@ class EmporixProductService implements ProductService {
         }
         return new Map<string, ProductPrice | null>();
       })(),
-      // Forward ONLY `segmentIds`: passing the full options would re-enter variant/price enrichment per variant.
+      // Forward ONLY the segment scope (`segmentIds` + effective `siteCode`): passing the full options
+      // would re-enter variant/price enrichment per variant.
       options?.variants
-        ? Promise.all([...productIds].map((id) => this.getVariantProducts(id, { segmentIds: options.segmentIds })))
+        ? Promise.all(
+            [...productIds].map((id) =>
+              this.getVariantProducts(id, { segmentIds: options.segmentIds, siteCode: options.siteCode }),
+            ),
+          )
         : Promise.resolve<Product[][]>([]),
     ]);
 

@@ -70,22 +70,33 @@ function emptySegmentCategoryScope(): SegmentCategoryScope {
   return { roots: [], treeCategoryIds: [], assignedCategoryIds: [], allowedCategoryIds: [] };
 }
 
-const _getSegmentCategoryScope = cache(async (siteCode: string): Promise<SegmentCategoryScope> => {
-  try {
-    return await ssr.get<SegmentFilterService>('SegmentFilterService').getCategoryScope(siteCode);
-  } catch (error) {
-    // Fail closed: an upstream outage must neither expose out-of-segment categories nor take every
-    // nav-shell page down (the layout awaits this for the header/footer). An empty scope renders no
-    // segment categories and sanitises every PLP category filter away while `segmentIds` stay applied.
-    ssr
-      .get<LoggerService>('LoggerService')
-      .error(
-        { err: error instanceof Error ? error : String(error), siteCode },
-        'SSR getSegmentCategoryScope failed; returning an empty segment scope (fail closed)',
-      );
-    return emptySegmentCategoryScope();
-  }
-});
+/**
+ * Stable per-request cache key for the active segment ids: React `cache()` compares object
+ * arguments by reference, so the array is serialised (sorted, de-duplicated) to dedupe across callers.
+ */
+function toSegmentIdsKey(segmentIds: readonly string[]): string {
+  return JSON.stringify([...new Set(segmentIds)].sort((a, b) => a.localeCompare(b)));
+}
+
+const _getSegmentCategoryScope = cache(
+  async (siteCode: string, segmentIdsKey: string): Promise<SegmentCategoryScope> => {
+    try {
+      const segmentIds = JSON.parse(segmentIdsKey) as string[];
+      return await ssr.get<SegmentFilterService>('SegmentFilterService').getCategoryScope(siteCode, segmentIds);
+    } catch (error) {
+      // Fail closed: an upstream outage must neither expose out-of-segment categories nor take every
+      // nav-shell page down (the layout awaits this for the header/footer). An empty scope renders no
+      // segment categories and sanitises every PLP category filter away while `segmentIds` stay applied.
+      ssr
+        .get<LoggerService>('LoggerService')
+        .error(
+          { err: error instanceof Error ? error : String(error), siteCode },
+          'SSR getSegmentCategoryScope failed; returning an empty segment scope (fail closed)',
+        );
+      return emptySegmentCategoryScope();
+    }
+  },
+);
 
 /**
  * Resolves the products mode of the current request from `ProductsModeService`, forwarding the
@@ -96,36 +107,42 @@ export function getProductsModeContext(siteCode: string): Promise<ProductsModeCo
 }
 
 /**
- * Segment category scope (forest + id sets) of the current customer for `siteCode`.
+ * Segment category scope (forest + id sets) of the current customer for `siteCode`, restricted to
+ * the active `segmentIds` of the resolved `ProductsModeContext` (unrelated segments never widen it).
  * Cached per request; callers must only use it when `isSegmentedMode(ctx)` is true.
  *
  * Never rejects: when the scope lookup fails the error is logged and an **empty** scope is
  * returned (fail closed — no segment categories, every category filter sanitised away).
  */
-export function getSegmentCategoryScope(siteCode: string): Promise<SegmentCategoryScope> {
-  return _getSegmentCategoryScope(siteCode);
+export function getSegmentCategoryScope(
+  siteCode: string,
+  segmentIds: readonly string[],
+): Promise<SegmentCategoryScope> {
+  return _getSegmentCategoryScope(siteCode, toSegmentIdsKey(segmentIds));
 }
 
-const _getSegmentNavigationRoots = cache(async (siteCode: string, locale: string): Promise<Category[]> => {
-  const { roots } = await getSegmentCategoryScope(siteCode);
-  if (roots.length === 0 || getActiveSearchEngine() !== 'batteryincluded') {
-    return roots;
-  }
-  try {
-    const snapshot = await getCachedBatteryIncludedCategorySnapshot(siteCode, locale);
-    return enrichCategoriesWithBatteryIncludedMetadata(roots, snapshot);
-  } catch (error) {
-    // Degrade gracefully: the un-enriched forest still renders and links via `filters[categoryIds]`;
-    // only the segment-scoped PLP tree counts fall back to the Emporix per-category counts.
-    ssr
-      .get<LoggerService>('LoggerService')
-      .warn(
-        { err: error instanceof Error ? error : String(error), siteCode },
-        'SSR getSegmentNavigationRoots: BatteryIncluded category snapshot lookup failed; returning the segment forest without BI metadata',
-      );
-    return roots;
-  }
-});
+const _getSegmentNavigationRoots = cache(
+  async (siteCode: string, locale: string, segmentIdsKey: string): Promise<Category[]> => {
+    const { roots } = await _getSegmentCategoryScope(siteCode, segmentIdsKey);
+    if (roots.length === 0 || getActiveSearchEngine() !== 'batteryincluded') {
+      return roots;
+    }
+    try {
+      const snapshot = await getCachedBatteryIncludedCategorySnapshot(siteCode, locale);
+      return enrichCategoriesWithBatteryIncludedMetadata(roots, snapshot);
+    } catch (error) {
+      // Degrade gracefully: the un-enriched forest still renders and links via `filters[categoryIds]`;
+      // only the segment-scoped PLP tree counts fall back to the Emporix per-category counts.
+      ssr
+        .get<LoggerService>('LoggerService')
+        .warn(
+          { err: error instanceof Error ? error : String(error), siteCode },
+          'SSR getSegmentNavigationRoots: BatteryIncluded category snapshot lookup failed; returning the segment forest without BI metadata',
+        );
+      return roots;
+    }
+  },
+);
 
 /**
  * Segment navigation forest of the current customer, ready for the nav shell and the PLP.
@@ -140,8 +157,12 @@ const _getSegmentNavigationRoots = cache(async (siteCode: string, locale: string
  * Never rejects: a failed snapshot lookup is logged at `warn` and the un-enriched roots are
  * returned; a failed scope lookup yields `[]` (see `getSegmentCategoryScope`).
  */
-export function getSegmentNavigationRoots(siteCode: string, locale: string): Promise<Category[]> {
-  return _getSegmentNavigationRoots(siteCode, locale);
+export function getSegmentNavigationRoots(
+  siteCode: string,
+  locale: string,
+  segmentIds: readonly string[],
+): Promise<Category[]> {
+  return _getSegmentNavigationRoots(siteCode, locale, toSegmentIdsKey(segmentIds));
 }
 
 /**
@@ -155,10 +176,10 @@ export function getSegmentNavigationRoots(siteCode: string, locale: string): Pro
 export async function getNavigationCategoryTreesForMode(
   siteCode: string,
   locale: string,
-  ctx: Pick<ProductsModeContext, 'mode'>,
+  ctx: Pick<ProductsModeContext, 'mode' | 'segmentIds'>,
 ): Promise<Category[]> {
   if (isSegmentedMode(ctx)) {
-    return getSegmentNavigationRoots(siteCode, locale);
+    return getSegmentNavigationRoots(siteCode, locale, ctx.segmentIds);
   }
   return getCachedNavigationCategoryTrees(siteCode, locale);
 }

@@ -155,10 +155,41 @@ describe('GET /api/products/[id]', () => {
         ...BASE_OPTIONS,
         variants: true,
         segmentIds: ['seg-1', 'seg-2'],
+        siteCode: 'main',
       });
       expect(response.status).toBe(200);
       expect(response.headers.get('cache-control')).toBe('private, no-store');
       await expect(response.json()).resolves.toEqual(product);
+    });
+
+    it('assigned + context without siteCode → membership site falls back to the request ?site', async () => {
+      productsModeService.resolve.mockResolvedValue(
+        modeContext({ mode: 'assigned', segmentIds: ['seg-1'], siteCode: undefined }),
+      );
+      searchService.getCatalogProductById.mockResolvedValue({ id: 'sku-123' });
+
+      await GET(createRequest('http://localhost/api/products/sku-123?site=us'), {
+        params: Promise.resolve({ id: 'sku-123' }),
+      });
+
+      expect(searchService.getCatalogProductById).toHaveBeenCalledWith('sku-123', {
+        ...BASE_OPTIONS,
+        segmentIds: ['seg-1'],
+        siteCode: 'us',
+      });
+    });
+
+    it('resolve failure → 500 with private, no-store and no product lookup (fail closed on caching)', async () => {
+      productsModeService.resolve.mockRejectedValue(new Error('mode down'));
+
+      const response = await GET(createRequest('http://localhost/api/products/sku-123'), {
+        params: Promise.resolve({ id: 'sku-123' }),
+      });
+
+      expect(searchService.getCatalogProductById).not.toHaveBeenCalled();
+      expect(response.status).toBe(500);
+      expect(response.headers.get('cache-control')).toBe('private, no-store');
+      await expect(response.json()).resolves.toEqual({ error: 'Failed to fetch product' });
     });
 
     it('assigned + out-of-scope product (undefined) → 404, still private, no-store', async () => {
@@ -182,7 +213,11 @@ describe('GET /api/products/[id]', () => {
         params: Promise.resolve({ id: 'sku-123' }),
       });
 
-      expect(searchService.getCatalogProductById).toHaveBeenCalledWith('sku-123', { ...BASE_OPTIONS, segmentIds: [] });
+      expect(searchService.getCatalogProductById).toHaveBeenCalledWith('sku-123', {
+        ...BASE_OPTIONS,
+        segmentIds: [],
+        siteCode: 'main',
+      });
       expect(response.status).toBe(404);
       expect(response.headers.get('cache-control')).toBe('private, no-store');
     });

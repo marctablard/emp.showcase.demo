@@ -14,6 +14,12 @@ import type {
   SearchEngineKind,
 } from '../ProductsModeService';
 
+/** Trimmed site code; blank / undefined → `undefined` so a `?site=` of spaces never reaches upstream. */
+function normalizeSiteCode(siteCode: string | undefined): string | undefined {
+  const trimmed = siteCode?.trim();
+  return trimmed || undefined;
+}
+
 /**
  * Default `ProductsModeService`: resolves the products mode from the session identity, the
  * customer's active segments, the public `NEXT_PUBLIC_ALLOW_SEGMENTS_OVERRIDE` flag and the
@@ -55,15 +61,28 @@ class DefaultProductsModeService implements ProductsModeService {
    * `segmentIds: []`. Consumers forward `segmentIds` only in `assigned` mode, and the services treat
    * `segmentIds === undefined` as unscoped but `[]` as an empty scope (no results, no upstream
    * call), so no out-of-segment product is exposed during an outage.
+   *
+   * Site rule: the request site is trimmed; when blank the validated session site is used (the
+   * same source `EmporixProductService` uses). Segments are site-bound, so an authenticated
+   * customer without any usable site cannot be matched against them — that also fails closed as
+   * `assigned` / `segmentIds: []` (logged at `warn`) instead of resolving to an unscoped catalog.
    * An empty segment list from a successful lookup is not an error and yields `unsegmented`.
    */
   async resolve(input: ProductsModeResolveInput): Promise<ProductsModeContext> {
     const session = await this.sessionService.getCurrent();
-    const siteCode = input.siteCode ?? session?.siteCode;
+    const siteCode = normalizeSiteCode(input.siteCode) ?? normalizeSiteCode(session?.siteCode);
     const customerId = session?.customerId;
 
     if (!isAuthenticatedSessionCustomerId(customerId)) {
       return this.buildContext('anonymous', [], false, siteCode);
+    }
+
+    if (siteCode === undefined) {
+      this.logger.warn(
+        { customerId },
+        'No usable site for the segment lookup (request site blank, session without site); resolving products mode as assigned with no segments (fail closed)',
+      );
+      return this.buildContext('assigned', [], false, undefined, customerId);
     }
 
     let segmentIds: string[];

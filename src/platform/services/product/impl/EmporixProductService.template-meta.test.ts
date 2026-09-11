@@ -80,7 +80,7 @@ describe('EmporixProductService template meta enrichment', () => {
 
       await expect(service.getProductById('p1', { segmentIds: ['s1'] })).resolves.toBeUndefined();
 
-      expect(filterProductIdsInScope).toHaveBeenCalledWith(['p1'], 'main');
+      expect(filterProductIdsInScope).toHaveBeenCalledWith(['p1'], 'main', ['s1']);
       expect(mapToService).not.toHaveBeenCalled();
     });
 
@@ -96,7 +96,7 @@ describe('EmporixProductService template meta enrichment', () => {
       const product = await service.getProductById('p1', { segmentIds: ['s1'] });
 
       expect(product?.id).toBe('p1');
-      expect(filterProductIdsInScope).toHaveBeenCalledWith(['p1'], 'main');
+      expect(filterProductIdsInScope).toHaveBeenCalledWith(['p1'], 'main', ['s1']);
     });
 
     it('getProductById skips the scope check without segmentIds', async () => {
@@ -112,6 +112,36 @@ describe('EmporixProductService template meta enrichment', () => {
 
       expect(product?.id).toBe('p1');
       expect(filterProductIdsInScope).not.toHaveBeenCalled();
+    });
+
+    it('getProductById checks membership for the effective options.siteCode, not the session site', async () => {
+      const filterProductIdsInScope = jest.fn().mockResolvedValue(new Set(['p1']));
+      const service = createService({
+        getProduct: jest.fn().mockResolvedValue(rawProduct),
+        mapToService,
+        filterProductIdsInScope,
+        getCurrent,
+      });
+
+      const product = await service.getProductById('p1', { segmentIds: ['s1'], siteCode: 'us' });
+
+      expect(product?.id).toBe('p1');
+      expect(filterProductIdsInScope).toHaveBeenCalledWith(['p1'], 'us', ['s1']);
+      expect(getCurrent).not.toHaveBeenCalled();
+    });
+
+    it('getProductById falls back to the session site when options.siteCode is blank', async () => {
+      const filterProductIdsInScope = jest.fn().mockResolvedValue(new Set(['p1']));
+      const service = createService({
+        getProduct: jest.fn().mockResolvedValue(rawProduct),
+        mapToService,
+        filterProductIdsInScope,
+        getCurrent,
+      });
+
+      await service.getProductById('p1', { segmentIds: ['s1'], siteCode: '   ' });
+
+      expect(filterProductIdsInScope).toHaveBeenCalledWith(['p1'], 'main', ['s1']);
     });
 
     it('getProductById fails closed when the session has no site', async () => {
@@ -159,24 +189,24 @@ describe('EmporixProductService template meta enrichment', () => {
 
       const variants = await service.getVariantProducts('p1', { segmentIds: ['s1'] });
 
-      expect(filterProductIdsInScope).toHaveBeenCalledWith(['v1', 'v2'], 'main');
+      expect(filterProductIdsInScope).toHaveBeenCalledWith(['v1', 'v2'], 'main', ['s1']);
       expect(variants.map((variant) => variant.id)).toEqual(['v2']);
     });
 
-    it('addAdditionalData forwards only segmentIds into getVariantProducts', async () => {
+    it('addAdditionalData forwards only the segment scope (segmentIds + siteCode) into getVariantProducts', async () => {
       const service = createService({ searchProducts: jest.fn(), mapToService, getCurrent });
       const getVariantProducts = jest.spyOn(service, 'getVariantProducts').mockResolvedValue([]);
       const segmentIds = ['s1'];
 
       await service.addAdditionalData(
         [{ id: 'p1', name: { en: 'P1' }, description: {}, purchasable: true, template: { id: 'tmpl-1' } }],
-        { variants: true, prices: true, categories: false, segmentIds },
+        { variants: true, prices: true, categories: false, segmentIds, siteCode: 'us' },
       );
 
       expect(getVariantProducts).toHaveBeenCalledTimes(1);
       const [, forwardedOptions] = getVariantProducts.mock.calls[0];
-      expect(forwardedOptions).toEqual({ segmentIds });
-      expect(Object.keys(forwardedOptions ?? {})).toEqual(['segmentIds']);
+      expect(forwardedOptions).toEqual({ segmentIds, siteCode: 'us' });
+      expect(Object.keys(forwardedOptions ?? {}).sort()).toEqual(['segmentIds', 'siteCode']);
     });
   });
 

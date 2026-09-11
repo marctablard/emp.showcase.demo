@@ -15,9 +15,11 @@ const PRIVATE_NO_STORE = { 'Cache-Control': 'private, no-store' } as const;
  * GET /api/products/[id]?variants=true&prices=true&categories=true
  *
  * COP-4822: the products mode is resolved server-side (opt-in cookie + `site`/`priceSiteCode`);
- * in `assigned` mode the segment scope is added to the fetch options and an out-of-scope product
- * yields the regular 404. `segmentIds` is never read from the request. Personalised responses
- * (`assigned` / `all`) are `Cache-Control: private, no-store`.
+ * in `assigned` mode the segment scope (`segmentIds` + the effective `siteCode` the mode was
+ * resolved for) is added to the fetch options and an out-of-scope product yields the regular 404.
+ * `segmentIds` is never read from the request. Caching fails closed: every response starts as
+ * `Cache-Control: private, no-store` and is relaxed only once the mode is known to be
+ * `anonymous` / `unsegmented`, so a failure while resolving the mode never yields a cacheable body.
  */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: productId } = await params;
@@ -40,16 +42,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     };
   }
 
-  let headers: Record<string, string> | undefined;
+  // Fail closed on caching: private until the mode is known to be non-personalised.
+  let headers: Record<string, string> | undefined = PRIVATE_NO_STORE;
 
   try {
+    const requestSite = searchParams.get('site') ?? priceSiteCode;
     const productsModeService = server.get<ProductsModeService>('ProductsModeService');
     const ctx = await productsModeService.resolve({
       optInCookieValue: request.cookies.get(PRODUCTS_MODE_COOKIE_NAME)?.value,
-      siteCode: searchParams.get('site') ?? priceSiteCode,
+      siteCode: requestSite,
     });
-    if (ctx.mode === 'assigned' || ctx.mode === 'all') {
-      headers = PRIVATE_NO_STORE;
+    if (ctx.mode === 'anonymous' || ctx.mode === 'unsegmented') {
+      headers = undefined;
     }
 
     const options: ProductFetchOptions = {
@@ -59,6 +63,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     };
     if (ctx.mode === 'assigned') {
       options.segmentIds = ctx.segmentIds;
+      // Membership is checked for the same site the mode/segments were resolved for.
+      options.siteCode = ctx.siteCode ?? requestSite;
     }
 
     const searchService = server.get<SearchService>('SearchService');

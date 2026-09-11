@@ -76,8 +76,11 @@ async function handleSearch(request: NextRequest): Promise<NextResponse> {
       // AC5: a client-supplied category filter outside the segment scope is dropped, never widened.
       // Without a resolvable site the scope cannot be loaded → fail closed with an empty allow-list.
       const allowedCategoryIds = effectiveSite
-        ? (await server.get<SegmentFilterService>('SegmentFilterService').getCategoryScope(effectiveSite))
-            .allowedCategoryIds
+        ? (
+            await server
+              .get<SegmentFilterService>('SegmentFilterService')
+              .getCategoryScope(effectiveSite, ctx.segmentIds)
+          ).allowedCategoryIds
         : [];
       filters = sanitizeCategoryFilters(filters, allowedCategoryIds);
     }

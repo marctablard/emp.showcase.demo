@@ -86,7 +86,10 @@ describe('GET /api/products/[id]/variants', () => {
     const response = await GET(createRequest(), ROUTE_PARAMS);
 
     expect(productService.getVariantProducts).toHaveBeenCalledTimes(1);
-    expect(productService.getVariantProducts).toHaveBeenCalledWith('parent-1', { segmentIds: ['seg-1', 'seg-2'] });
+    expect(productService.getVariantProducts).toHaveBeenCalledWith('parent-1', {
+      segmentIds: ['seg-1', 'seg-2'],
+      siteCode: 'main',
+    });
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toBe('private, no-store');
     await expect(response.json()).resolves.toEqual({ variants });
@@ -199,5 +202,7 @@ describe('GET /api/products/[id]/variants', () => {
       'Error fetching product variants',
     );
     expect(response.status).toBe(500);
+    // Fail closed on caching: the mode is unknown, so the error body is never cacheable.
+    expect(response.headers.get('cache-control')).toBe('private, no-store');
   });
 });

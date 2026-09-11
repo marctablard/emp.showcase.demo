@@ -149,6 +149,43 @@ describe('EmporixCustomerSegmentService', () => {
         expect(result.map((s) => s.id)).toEqual(['no-site', 'no-status', 'current', 'solarpanelfans']);
       });
 
+      it('logs each dropped segment at debug with its reason and a summary of applicable / dropped ids', async () => {
+        api.getMySegments.mockResolvedValue([
+          { id: 'inactive', status: 'INACTIVE', siteCode: 'main' },
+          { id: 'other-site', status: 'ACTIVE', siteCode: 'other' },
+          { id: 'expired', status: 'ACTIVE', siteCode: 'main', validity: { from: past, to: past } },
+          solarSegment,
+        ]);
+
+        await service.getMySegments();
+
+        const message = 'Customer segment not applicable; excluded from the products mode scope';
+        expect(logger.debug).toHaveBeenCalledWith(
+          {
+            segmentId: 'inactive',
+            reason: 'status',
+            status: 'INACTIVE',
+            segmentSiteCode: 'main',
+            requestSiteCode: 'main',
+            validity: undefined,
+          },
+          message,
+        );
+        expect(logger.debug).toHaveBeenCalledWith(
+          expect.objectContaining({ segmentId: 'other-site', reason: 'site', segmentSiteCode: 'other' }),
+          message,
+        );
+        expect(logger.debug).toHaveBeenCalledWith(
+          expect.objectContaining({ segmentId: 'expired', reason: 'validity', validity: { from: past, to: past } }),
+          message,
+        );
+        expect(logger.debug).toHaveBeenCalledWith(
+          { total: 4, applicable: ['solarpanelfans'], dropped: ['inactive', 'other-site', 'expired'] },
+          'Resolved applicable customer segments',
+        );
+        expect(logger.debug).toHaveBeenCalledTimes(4);
+      });
+
       it('lets options.siteCode win over the session site', async () => {
         api.getMySegments.mockResolvedValue([
           { id: 'main-segment', status: 'ACTIVE', siteCode: 'main' },

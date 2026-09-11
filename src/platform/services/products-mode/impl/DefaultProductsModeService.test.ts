@@ -252,6 +252,57 @@ describe('DefaultProductsModeService', () => {
     expect(context.siteCode).toBe('main');
   });
 
+  it('trims the input siteCode before the segment lookup', async () => {
+    const service = createService({ flag: 'true' });
+
+    const context = await service.resolve({ siteCode: '  us-branch ' });
+
+    expect(customerSegmentService.getMySegments).toHaveBeenCalledWith({ siteCode: 'us-branch' });
+    expect(context.siteCode).toBe('us-branch');
+  });
+
+  it('falls back to the validated session site when the input siteCode is blank', async () => {
+    const service = createService({ flag: 'true' });
+
+    const context = await service.resolve({ siteCode: '   ' });
+
+    expect(customerSegmentService.getMySegments).toHaveBeenCalledWith({ siteCode: 'main' });
+    expect(context).toMatchObject({ mode: 'assigned', segmentIds: ['s1', 's2'], siteCode: 'main' });
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('fails closed (assigned, no segments, warn) for an authenticated customer without any usable site', async () => {
+    sessionService.getCurrent.mockResolvedValue({ ...customerSession, siteCode: ' ' });
+    const service = createService({ flag: 'true' });
+
+    const context = await service.resolve({ siteCode: '', optInCookieValue: 'all.c1' });
+
+    expect(customerSegmentService.getMySegments).not.toHaveBeenCalled();
+    expect(context).toEqual({
+      mode: 'assigned',
+      segmentIds: [],
+      canToggleAllProducts: false,
+      engine: 'batteryincluded',
+      siteCode: undefined,
+      customerId: 'c1',
+    });
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ customerId: 'c1' }),
+      expect.stringContaining('fail closed'),
+    );
+  });
+
+  it('resolves anonymous without a site and without a warning when the session is not a customer', async () => {
+    sessionService.getCurrent.mockResolvedValue({ ...anonymousSession, siteCode: '' });
+    const service = createService({ flag: 'true' });
+
+    const context = await service.resolve({ siteCode: ' ' });
+
+    expect(context.mode).toBe('anonymous');
+    expect(context.siteCode).toBeUndefined();
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
   it('parses the flag once in the constructor and does not re-read process.env per call', async () => {
     const service = createService({ flag: 'true' });
     process.env[FLAG] = 'false';

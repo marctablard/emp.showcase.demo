@@ -17,6 +17,7 @@ const SEGMENT_ITEMS_MAX_PAGES = 50;
 const SEGMENTS_FALLBACK_PAGE_SIZE = 100;
 
 type MySegmentsFallbackReason = 'unavailable' | 'shape-drift';
+type SegmentInapplicabilityReason = 'status' | 'site' | 'validity';
 
 @injectable('CustomerSegmentService', 'Singleton')
 export class EmporixCustomerSegmentService implements CustomerSegmentService {
@@ -48,10 +49,35 @@ export class EmporixCustomerSegmentService implements CustomerSegmentService {
       }
 
       const now = Date.now();
-      return source
+      const mapped = source
         .map((segment) => this.customerSegmentMapper.mapSegment(segment))
-        .filter((segment): segment is Segment => segment !== undefined)
-        .filter((segment) => this.isSegmentApplicable(segment, siteCode, now));
+        .filter((segment): segment is Segment => segment !== undefined);
+      const applicable: Segment[] = [];
+      const dropped: string[] = [];
+      for (const segment of mapped) {
+        const reason = this.getSegmentInapplicabilityReason(segment, siteCode, now);
+        if (reason === undefined) {
+          applicable.push(segment);
+          continue;
+        }
+        dropped.push(segment.id);
+        this.logger.debug(
+          {
+            segmentId: segment.id,
+            reason,
+            status: segment.status,
+            segmentSiteCode: segment.siteCode,
+            requestSiteCode: siteCode,
+            validity: segment.validity,
+          },
+          'Customer segment not applicable; excluded from the products mode scope',
+        );
+      }
+      this.logger.debug(
+        { total: mapped.length, applicable: applicable.map((segment) => segment.id), dropped },
+        'Resolved applicable customer segments',
+      );
+      return applicable;
     } catch (error) {
       this.logger.error(
         {
@@ -169,15 +195,21 @@ export class EmporixCustomerSegmentService implements CustomerSegmentService {
    * The schema enum is `ACTIVE | INACTIVE`. A segment is excluded only when a non-`ACTIVE` status is
    * explicitly present; an absent status counts as applicable, because dropping segments widens the
    * catalog (the customer would resolve as `unsegmented`) — fail closed.
+   * Returns the reason a segment is dropped (`undefined` = applicable) so the filter and the debug
+   * diagnostics in `getMySegments` share one source of truth.
    */
-  private isSegmentApplicable(segment: Segment, siteCode: Session['siteCode'] | undefined, now: number): boolean {
+  private getSegmentInapplicabilityReason(
+    segment: Segment,
+    siteCode: Session['siteCode'] | undefined,
+    now: number,
+  ): SegmentInapplicabilityReason | undefined {
     if (segment.status !== undefined && segment.status !== 'ACTIVE') {
-      return false;
+      return 'status';
     }
     if (segment.siteCode !== undefined && segment.siteCode !== siteCode) {
-      return false;
+      return 'site';
     }
-    return this.isValidityContaining(segment.validity, now);
+    return this.isValidityContaining(segment.validity, now) ? undefined : 'validity';
   }
 
   /** Unparsable bounds are ignored rather than excluding the segment (excluding would widen the catalog). */

@@ -54,6 +54,9 @@ const { getCachedNavigationCategoryTrees, getCachedBatteryIncludedCategorySnapsh
 const { getActiveSearchEngine } = jest.requireMock('./search-engine') as { getActiveSearchEngine: jest.Mock };
 const { getSessionForSite } = jest.requireMock('./session') as { getSessionForSite: jest.Mock };
 
+/** Active segment ids of the resolved products mode used by the scope helpers in these tests. */
+const SEGMENTS = ['seg-1', 'seg-2'];
+
 function buildContext(overrides: Partial<ProductsModeContext> = {}): ProductsModeContext {
   return {
     mode: 'anonymous',
@@ -181,20 +184,29 @@ describe('products-mode SSR helpers', () => {
   });
 
   describe('getSegmentCategoryScope', () => {
-    it('delegates to SegmentFilterService.getCategoryScope with the siteCode', async () => {
+    it('delegates to SegmentFilterService.getCategoryScope with the siteCode and the active segmentIds', async () => {
       const scope = { roots: [], treeCategoryIds: [], assignedCategoryIds: [], allowedCategoryIds: [] };
       segmentFilterService.getCategoryScope.mockResolvedValue(scope);
 
-      await expect(getSegmentCategoryScope('main')).resolves.toBe(scope);
+      await expect(getSegmentCategoryScope('main', SEGMENTS)).resolves.toBe(scope);
 
-      expect(segmentFilterService.getCategoryScope).toHaveBeenCalledWith('main');
+      expect(segmentFilterService.getCategoryScope).toHaveBeenCalledWith('main', SEGMENTS);
+    });
+
+    it('passes the segment ids through the stable cache key (sorted, de-duplicated)', async () => {
+      const scope = { roots: [], treeCategoryIds: [], assignedCategoryIds: [], allowedCategoryIds: [] };
+      segmentFilterService.getCategoryScope.mockResolvedValue(scope);
+
+      await getSegmentCategoryScope('main', ['seg-2', 'seg-1', 'seg-2']);
+
+      expect(segmentFilterService.getCategoryScope).toHaveBeenCalledWith('main', ['seg-1', 'seg-2']);
     });
 
     it('logs and returns an empty scope when the service rejects (fail closed, no crash)', async () => {
       const failure = new Error('Forbidden');
       segmentFilterService.getCategoryScope.mockRejectedValue(failure);
 
-      await expect(getSegmentCategoryScope('main')).resolves.toEqual({
+      await expect(getSegmentCategoryScope('main', SEGMENTS)).resolves.toEqual({
         roots: [],
         treeCategoryIds: [],
         assignedCategoryIds: [],
@@ -211,7 +223,7 @@ describe('products-mode SSR helpers', () => {
     it('wraps a non-Error rejection as a string in the log context', async () => {
       segmentFilterService.getCategoryScope.mockRejectedValue('boom');
 
-      await expect(getSegmentCategoryScope('main')).resolves.toMatchObject({ roots: [] });
+      await expect(getSegmentCategoryScope('main', SEGMENTS)).resolves.toMatchObject({ roots: [] });
 
       expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ err: 'boom' }), expect.any(String));
     });
@@ -271,7 +283,7 @@ describe('products-mode SSR helpers', () => {
     it('attaches BI category metadata (without the public count) when the BI snapshot is available', async () => {
       getCachedBatteryIncludedCategorySnapshot.mockResolvedValue(snapshot);
 
-      const roots = await getSegmentNavigationRoots('main', 'en');
+      const roots = await getSegmentNavigationRoots('main', 'en', SEGMENTS);
 
       expect(getCachedBatteryIncludedCategorySnapshot).toHaveBeenCalledWith('main', 'en');
       expect(roots).toHaveLength(1);
@@ -295,7 +307,7 @@ describe('products-mode SSR helpers', () => {
     it('returns the roots unchanged when the BI snapshot is null', async () => {
       getCachedBatteryIncludedCategorySnapshot.mockResolvedValue(null);
 
-      const roots = await getSegmentNavigationRoots('main', 'en');
+      const roots = await getSegmentNavigationRoots('main', 'en', SEGMENTS);
 
       expect(roots).toEqual(segmentRoots);
       expect(getBatteryIncludedCategoryMetadata(roots[0])).toBeUndefined();
@@ -305,7 +317,7 @@ describe('products-mode SSR helpers', () => {
     it('skips the snapshot lookup and returns the raw roots on the Emporix engine', async () => {
       getActiveSearchEngine.mockReturnValue('emporix');
 
-      await expect(getSegmentNavigationRoots('main', 'en')).resolves.toBe(segmentRoots);
+      await expect(getSegmentNavigationRoots('main', 'en', SEGMENTS)).resolves.toBe(segmentRoots);
 
       expect(getCachedBatteryIncludedCategorySnapshot).not.toHaveBeenCalled();
     });
@@ -314,7 +326,7 @@ describe('products-mode SSR helpers', () => {
       const failure = new Error('BI bootstrap failed');
       getCachedBatteryIncludedCategorySnapshot.mockRejectedValue(failure);
 
-      await expect(getSegmentNavigationRoots('main', 'en')).resolves.toBe(segmentRoots);
+      await expect(getSegmentNavigationRoots('main', 'en', SEGMENTS)).resolves.toBe(segmentRoots);
 
       expect(logger.warn).toHaveBeenCalledTimes(1);
       expect(logger.warn).toHaveBeenCalledWith(
@@ -327,7 +339,7 @@ describe('products-mode SSR helpers', () => {
     it('returns an empty forest without touching the snapshot when the scope lookup failed', async () => {
       segmentFilterService.getCategoryScope.mockRejectedValue(new Error('Forbidden'));
 
-      await expect(getSegmentNavigationRoots('main', 'en')).resolves.toEqual([]);
+      await expect(getSegmentNavigationRoots('main', 'en', SEGMENTS)).resolves.toEqual([]);
 
       expect(getCachedBatteryIncludedCategorySnapshot).not.toHaveBeenCalled();
       expect(logger.error).toHaveBeenCalledTimes(1);
@@ -350,10 +362,10 @@ describe('products-mode SSR helpers', () => {
 
     it('returns the segment roots in assigned mode', async () => {
       await expect(
-        getNavigationCategoryTreesForMode('main', 'en', buildContext({ mode: 'assigned' })),
+        getNavigationCategoryTreesForMode('main', 'en', buildContext({ mode: 'assigned', segmentIds: SEGMENTS })),
       ).resolves.toEqual(segmentRoots);
 
-      expect(segmentFilterService.getCategoryScope).toHaveBeenCalledWith('main');
+      expect(segmentFilterService.getCategoryScope).toHaveBeenCalledWith('main', SEGMENTS);
       expect(getCachedBatteryIncludedCategorySnapshot).toHaveBeenCalledWith('main', 'en');
       expect(getCachedNavigationCategoryTrees).not.toHaveBeenCalled();
     });
@@ -377,7 +389,11 @@ describe('products-mode SSR helpers', () => {
         countsById: {},
       });
 
-      const roots = await getNavigationCategoryTreesForMode('main', 'en', buildContext({ mode: 'assigned' }));
+      const roots = await getNavigationCategoryTreesForMode(
+        'main',
+        'en',
+        buildContext({ mode: 'assigned', segmentIds: SEGMENTS }),
+      );
 
       expect(getBatteryIncludedCategoryMetadata(roots[0])).toMatchObject({ facetValue: 'Segment Root' });
     });
@@ -393,7 +409,7 @@ describe('products-mode SSR helpers', () => {
       segmentFilterService.getCategoryScope.mockRejectedValue(new Error('Forbidden'));
 
       await expect(
-        getNavigationCategoryTreesForMode('main', 'en', buildContext({ mode: 'assigned' })),
+        getNavigationCategoryTreesForMode('main', 'en', buildContext({ mode: 'assigned', segmentIds: SEGMENTS })),
       ).resolves.toEqual([]);
 
       expect(logger.error).toHaveBeenCalledTimes(1);

@@ -2,12 +2,14 @@
  * @jest-environment jsdom
  */
 import React from 'react';
+import { useSession } from 'next-auth/react';
 import '@testing-library/jest-dom';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { SearchFlyOut } from '@/components/header/search/search-fly-out';
 import { useProductsMode } from '@/components/navigation/products-mode-context';
 import { useHistory } from '@/hooks/history/useHistory';
 import { clearModeScopedLastSeenCache } from '@/hooks/history/useModeScopedLastSeen';
+import { useSiteCode } from '@/hooks/site/useSiteCode';
 import { fetchProductById } from '@/lib/client/products';
 import type { Product } from '@/platform/services/model/product';
 import type { ProductsMode } from '@/platform/services/products-mode/ProductsModeService';
@@ -51,9 +53,27 @@ jest.mock('@/lib/client/products', () => ({
   fetchProductById: jest.fn(),
 }));
 
+jest.mock('next-auth/react', () => ({
+  useSession: jest.fn(),
+}));
+
+jest.mock('@/hooks/site/useSiteCode', () => ({
+  useSiteCode: jest.fn(),
+}));
+
 const mockUseProductsMode = useProductsMode as jest.MockedFunction<typeof useProductsMode>;
 const mockUseHistory = useHistory as jest.MockedFunction<typeof useHistory>;
 const mockFetchProductById = fetchProductById as jest.MockedFunction<typeof fetchProductById>;
+const mockUseSession = useSession as jest.MockedFunction<typeof useSession>;
+const mockUseSiteCode = useSiteCode as jest.MockedFunction<typeof useSiteCode>;
+
+function setCustomer(customerId: string | undefined) {
+  mockUseSession.mockReturnValue({
+    data: customerId ? ({ user: { id: customerId }, expires: '' } as never) : null,
+    status: customerId ? 'authenticated' : 'unauthenticated',
+    update: jest.fn(),
+  } as never);
+}
 
 const product = (id: string): Product => ({ id, name: { en: `Product ${id}` } }) as unknown as Product;
 
@@ -96,6 +116,8 @@ describe('SearchFlyOut last-seen products (COP-4822 products mode)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     clearModeScopedLastSeenCache();
+    mockUseSiteCode.mockReturnValue('main');
+    setCustomer('customer-1');
     mockFetchProductById.mockImplementation(async (id) => (id === OUT_OF_SCOPE.id ? null : product(id)));
   });
 
@@ -128,9 +150,11 @@ describe('SearchFlyOut last-seen products (COP-4822 products mode)', () => {
       expect(screen.queryByTestId(`tile-${OUT_OF_SCOPE.id}`)).not.toBeInTheDocument();
 
       expect(mockFetchProductById).toHaveBeenCalledTimes(3);
-      expect(mockFetchProductById).toHaveBeenCalledWith(IN_SCOPE.id);
-      expect(mockFetchProductById).toHaveBeenCalledWith(OUT_OF_SCOPE.id);
-      expect(mockFetchProductById).toHaveBeenCalledWith(ALSO_IN_SCOPE.id);
+      // Own in-flight dedupe scope (mode + site + customer + ids): never shares a concurrent regular product request.
+      const dedupeScope = expect.stringMatching(/^products-mode-validation:assigned:main:customer-1:/);
+      expect(mockFetchProductById).toHaveBeenCalledWith(IN_SCOPE.id, undefined, dedupeScope);
+      expect(mockFetchProductById).toHaveBeenCalledWith(OUT_OF_SCOPE.id, undefined, dedupeScope);
+      expect(mockFetchProductById).toHaveBeenCalledWith(ALSO_IN_SCOPE.id, undefined, dedupeScope);
       expect(mockLoggerDebug).toHaveBeenCalledWith(
         { mode: 'assigned', total: 3, dropped: 1 },
         'Hid last-seen products outside the assigned products scope',
@@ -205,6 +229,95 @@ describe('SearchFlyOut last-seen products (COP-4822 products mode)', () => {
 
       await waitFor(() => expect(screen.getByTestId('no-results')).toBeInTheDocument());
       expect(screen.queryByTestId(`tile-${IN_SCOPE.id}`)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('identity scope (site / customer)', () => {
+    const rerenderFlyOut = (rerender: ReturnType<typeof render>['rerender']) =>
+      rerender(
+        <SearchFlyOut
+          suggestions={{ categories: [], queryCompletions: [], products: [] }}
+          hasInitialSearch
+          query=""
+          loading={false}
+          setQuery={jest.fn()}
+        />,
+      );
+
+    /** Renders in assigned mode, waits for the first verdict, then makes the next lookup hang. */
+    async function renderValidatedThenHoldNextLookup() {
+      setMode('assigned');
+      setLastSeen([IN_SCOPE]);
+
+      const { rerender } = renderFlyOut();
+      await waitFor(() => expect(screen.getByTestId(`tile-${IN_SCOPE.id}`)).toBeInTheDocument());
+      expect(mockFetchProductById).toHaveBeenCalledTimes(1);
+
+      let resolveLookup: (value: Product | null) => void = () => {};
+      mockFetchProductById.mockImplementation(
+        () =>
+          new Promise<Product | null>((resolve) => {
+            resolveLookup = resolve;
+          }),
+      );
+
+      return { rerender, resolveLookup: (value: Product | null) => resolveLookup(value) };
+    }
+
+    it('re-validates when another customer takes over the session while staying in assigned mode', async () => {
+      const { rerender, resolveLookup } = await renderValidatedThenHoldNextLookup();
+
+      setCustomer('customer-2');
+      rerenderFlyOut(rerender);
+
+      // The verdict for customer-1 is not reused: hidden until the fresh lookup for customer-2 resolves.
+      expect(screen.queryByTestId(`tile-${IN_SCOPE.id}`)).not.toBeInTheDocument();
+      expect(mockFetchProductById).toHaveBeenCalledTimes(2);
+      expect(mockFetchProductById).toHaveBeenLastCalledWith(
+        IN_SCOPE.id,
+        undefined,
+        expect.stringMatching(/^products-mode-validation:assigned:main:customer-2:/),
+      );
+
+      await act(async () => {
+        resolveLookup(IN_SCOPE);
+      });
+      expect(screen.getByTestId(`tile-${IN_SCOPE.id}`)).toBeInTheDocument();
+    });
+
+    it('re-validates when the site changes while staying in assigned mode', async () => {
+      const { rerender, resolveLookup } = await renderValidatedThenHoldNextLookup();
+
+      mockUseSiteCode.mockReturnValue('other-site');
+      rerenderFlyOut(rerender);
+
+      expect(screen.queryByTestId(`tile-${IN_SCOPE.id}`)).not.toBeInTheDocument();
+      expect(mockFetchProductById).toHaveBeenCalledTimes(2);
+      expect(mockFetchProductById).toHaveBeenLastCalledWith(
+        IN_SCOPE.id,
+        undefined,
+        expect.stringMatching(/^products-mode-validation:assigned:other-site:customer-1:/),
+      );
+
+      await act(async () => {
+        resolveLookup(null);
+      });
+      // The new site does not expose the product: fail closed.
+      expect(screen.queryByTestId(`tile-${IN_SCOPE.id}`)).not.toBeInTheDocument();
+      expect(screen.getByTestId('no-results')).toBeInTheDocument();
+    });
+
+    it('does not refetch when the fly-out is re-opened by the same customer on the same site', async () => {
+      setMode('assigned');
+      setLastSeen([IN_SCOPE]);
+
+      const first = renderFlyOut();
+      await waitFor(() => expect(screen.getByTestId(`tile-${IN_SCOPE.id}`)).toBeInTheDocument());
+      first.unmount();
+
+      renderFlyOut();
+      await waitFor(() => expect(screen.getByTestId(`tile-${IN_SCOPE.id}`)).toBeInTheDocument());
+      expect(mockFetchProductById).toHaveBeenCalledTimes(1);
     });
   });
 

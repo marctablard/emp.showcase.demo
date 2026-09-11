@@ -20,6 +20,12 @@ export interface ProductFetchOptions {
    * the client request.
    */
   segmentIds?: string[];
+  /**
+   * Effective site the products mode / `segmentIds` were resolved for. Segment membership checks
+   * use it so the scope and the mode agree on one site; when absent the session site is used
+   * (COP-4822). Only meaningful together with `segmentIds`; never taken from the client request.
+   */
+  siteCode?: string;
 }
 
 /**
