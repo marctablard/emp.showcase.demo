@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { SearchResultsComponent } from '@/components/search/search-results';
 import { Heading } from '@/components/ui/h';
 import { redirect } from '@/i18n/edge/navigation';
-import { browseHeadingKey } from '@/lib/search/browse-heading-key';
+import { browseHeadingKey, browseSearchResultsRemountKey } from '@/lib/search/browse-heading-key';
 import { createBrowseInitialSearch } from '@/lib/search/create-browse-initial-search';
 import { sanitizeBrowseCategoryIdParams } from '@/lib/search/sanitize-browse-category-id-params';
 import { getCachedNavigationCategoryTrees } from '@/lib/ssr/navigation-category-trees';
@@ -90,7 +90,7 @@ export async function resolveBrowsePageData({
       getSegmentNavigationRoots(site, locale, ctx.segmentIds),
     ]);
 
-    return { mode: ctx.mode, q, initialSearch, initialResults, navigationRoots };
+    return { mode: ctx.mode, customerId: ctx.customerId, q, initialSearch, initialResults, navigationRoots };
   }
 
   const { initialSearch, q } = createBrowseInitialSearch(rawParams, site, locale);
@@ -102,12 +102,13 @@ export async function resolveBrowsePageData({
     getCachedNavigationCategoryTrees(site, locale),
   ]);
 
-  return { mode: ctx.mode, q, initialSearch, initialResults, navigationRoots };
+  return { mode: ctx.mode, customerId: ctx.customerId, q, initialSearch, initialResults, navigationRoots };
 }
 
 export async function renderBrowsePage({
   locale,
   mode,
+  customerId,
   q,
   initialSearch,
   initialResults,
@@ -116,6 +117,7 @@ export async function renderBrowsePage({
 }: {
   locale: string;
   mode: ProductsMode;
+  customerId?: string;
   q?: string;
   initialSearch: SearchParams<Product>;
   initialResults?: Awaited<ReturnType<typeof searchProducts>>;
@@ -126,9 +128,9 @@ export async function renderBrowsePage({
 
   return (
     <div className="content-container pb-32">
-      {/** Keyed by products mode so an assigned <-> all toggle remounts the client search hook with the new initial state. */}
+      {/** Mode + customer so A→B in assigned remounts with the new SSR results (COP-4822). */}
       <SearchResultsComponent
-        key={mode}
+        key={browseSearchResultsRemountKey(mode, customerId)}
         initialSearch={initialSearch}
         initialResults={initialResults}
         initialLayout={initialLayout}
@@ -160,7 +162,7 @@ export default async function BrowsePage({
   const rawParams = await searchParams;
 
   const initialLayout = getSearchResultsLayout();
-  const { mode, q, initialSearch, initialResults, navigationRoots } = await resolveBrowsePageData({
+  const { mode, customerId, q, initialSearch, initialResults, navigationRoots } = await resolveBrowsePageData({
     site,
     locale,
     rawParams,
@@ -170,6 +172,7 @@ export default async function BrowsePage({
   return renderBrowsePage({
     locale,
     mode,
+    customerId,
     q,
     initialSearch,
     initialResults,

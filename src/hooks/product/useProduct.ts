@@ -53,6 +53,7 @@ function applyProductFetchMiss(
   setProduct: (product: Product | null) => void,
   setError: (error: Error | null) => void,
   failClosed: boolean,
+  invalidateCached?: (id: string) => void,
 ): void {
   // Confirmed client miss (404 → null). Keep prior same-id product when present
   // so SSR-seeded PDPs do not become Not Found–eligible empty success; true
@@ -66,6 +67,7 @@ function applyProductFetchMiss(
       return;
     }
   }
+  invalidateCached?.(productId);
   setProduct(null);
 }
 
@@ -182,7 +184,15 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
           addProduct(next);
           setProduct(next);
         } else {
-          applyProductFetchMiss(id, productRef.current, getProduct, setProduct, setError, mustRevalidateAssignedSeed);
+          applyProductFetchMiss(
+            id,
+            productRef.current,
+            getProduct,
+            setProduct,
+            setError,
+            mustRevalidateAssignedSeed,
+            addProduct,
+          );
         }
       } catch (err) {
         applyProductFetchError(id, productRef.current, getProduct, setProduct, setError, err);
@@ -263,7 +273,9 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
 
     if (prevClientDedupeScopeRef.current !== clientDedupeScope) {
       prevClientDedupeScopeRef.current = clientDedupeScope;
-      void fetchProduct(true, clientDedupeScope);
+      fetchProduct(true, clientDedupeScope).catch((err: unknown) => {
+        getLogger().error({ err }, 'Product refetch after scope change failed');
+      });
     }
   }, [id, sessionPricingKey, clientDedupeScope, fetchProduct, seededProductObject, mustRevalidateAssignedSeed]);
 

@@ -5,7 +5,9 @@ import { BATTERY_INCLUDED_BREADCRUMB_FILTER } from '@/platform/services/model/ca
 import { USE_SEARCH_CLIENT_ERROR, useSearch } from './useSearch';
 
 const mockPush = jest.fn();
-const mockUseSessionStore = jest.fn(() => ({ session: { currency: 'EUR' } }));
+const mockUseSessionStore = jest.fn(() => ({
+  session: { currency: 'EUR' } as { currency: string; customerId?: string },
+}));
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
@@ -449,6 +451,24 @@ describe('useSearch', () => {
     });
 
     expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('still fetches when the products-mode customer scope changes', async () => {
+    const { result, rerender } = renderHook(() => useSearch());
+
+    await act(async () => {
+      await result.current.search({ page: 0, size: 12, query: 'solar' });
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+
+    mockUseSessionStore.mockReturnValue({ session: { currency: 'EUR', customerId: 'cust-b' } });
+
+    await act(async () => {
+      rerender();
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(2);
   });
 
   it('still fetches when only session currency changes', async () => {

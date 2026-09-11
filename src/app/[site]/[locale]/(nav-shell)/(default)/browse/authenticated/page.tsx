@@ -20,12 +20,21 @@ export default async function AuthenticatedBrowsePage({
   const rawParams = await searchParams;
 
   const initialLayout = getSearchResultsLayout();
-  const { mode, q, initialSearch, initialResults, navigationRoots } = await resolveBrowsePageData({
+  const { mode, customerId, q, initialSearch, initialResults, navigationRoots } = await resolveBrowsePageData({
     site,
     locale,
     rawParams,
     ssrSearch: true,
   });
 
-  return renderBrowsePage({ locale, mode, q, initialSearch, initialResults, navigationRoots, initialLayout });
+  return renderBrowsePage({
+    locale,
+    mode,
+    customerId,
+    q,
+    initialSearch,
+    initialResults,
+    navigationRoots,
+    initialLayout,
+  });
 }

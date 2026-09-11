@@ -133,6 +133,41 @@ describe('EmporixCustomerSegmentService', () => {
       expect(api.getSegments).toHaveBeenNthCalledWith(2, expect.objectContaining({ pageNumber: 2, pageSize: 100 }));
     });
 
+    it('fails closed when the GET /segments fallback is truncated before X-Total-Count', async () => {
+      api.getMySegments.mockResolvedValue(null);
+      api.getSegments
+        .mockResolvedValueOnce({ items: [solarSegment], totalCount: 2 })
+        .mockResolvedValueOnce({ items: [], totalCount: 2 });
+
+      await expect(service.getMySegments()).rejects.toThrow(
+        'Failed to retrieve customer segments: GET /segments fallback pagination ended before X-Total-Count was reached',
+      );
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ customerId: 'customer-1', collected: 1, totalCount: 2 }),
+        expect.stringContaining('failing closed'),
+      );
+    });
+
+    it('fails closed when the GET /segments fallback hits the hard page cap', async () => {
+      api.getMySegments.mockResolvedValue(null);
+      api.getSegments.mockImplementation(async (params) => ({
+        items: Array.from({ length: 100 }, (_, i) => ({
+          ...solarSegment,
+          id: `seg-${((params?.pageNumber ?? 1) - 1) * 100 + i}`,
+        })),
+        totalCount: 10_000,
+      }));
+
+      await expect(service.getMySegments()).rejects.toThrow(
+        'Failed to retrieve customer segments: GET /segments fallback pagination stopped at the hard page cap',
+      );
+      expect(api.getSegments).toHaveBeenCalledTimes(50);
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ maxPages: 50, collected: 5_000, totalCount: 10_000 }),
+        expect.stringContaining('failing closed'),
+      );
+    });
+
     it('fails closed when the fallback payload has no string ids (shape drift)', async () => {
       api.getMySegments.mockResolvedValue(null);
       api.getSegments.mockResolvedValue({ items: [{ foo: 'bar' } as unknown as SegmentResponse], totalCount: 1 });

@@ -197,7 +197,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     filters: initialSearch?.filters,
   });
   const searchGeneration = useRef(0);
-  const lastSearchCurrency = useRef<string | undefined>(sessionCurrency);
+  const lastClientFetchScope = useRef<string | undefined>(undefined);
   const lastCompletedSearchKey = useRef<string | undefined>(undefined);
   const inFlightSearch = useRef<{ key: string; promise: Promise<void> } | undefined>(undefined);
   // The pathname where this search hook is hosted (e.g. /browse), captured on mount.
@@ -324,7 +324,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         query: normalizedQuery,
         filters: filtersToApply,
       };
-      lastSearchCurrency.current = sessionCurrency;
+      lastClientFetchScope.current = clientFetchScope;
 
       const requestUrl = url.toString();
       const gen = ++searchGeneration.current;
@@ -379,21 +379,19 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   );
 
   useEffect(() => {
-    if (!sessionCurrency) {
+    if (lastClientFetchScope.current === undefined) {
+      lastClientFetchScope.current = clientFetchScope;
       return;
     }
-    if (lastSearchCurrency.current === undefined) {
-      lastSearchCurrency.current = sessionCurrency;
+    if (lastClientFetchScope.current === clientFetchScope) {
       return;
     }
-    if (lastSearchCurrency.current === sessionCurrency) {
-      return;
-    }
-    lastSearchCurrency.current = sessionCurrency;
+    lastClientFetchScope.current = clientFetchScope;
+    lastCompletedSearchKey.current = undefined;
     search(lastSearchParams.current).catch((err: unknown) => {
-      getLogger().error({ err, event: 'search_currency_refresh_failed' }, 'Product search currency refresh failed');
+      getLogger().error({ err, event: 'search_scope_refresh_failed' }, 'Product search scope refresh failed');
     });
-  }, [sessionCurrency, search]);
+  }, [clientFetchScope, search]);
 
   /**
    * Apply a facet filter to the search

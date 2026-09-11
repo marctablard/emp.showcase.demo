@@ -14,3 +14,12 @@ export function browseHeadingKey(mode: ProductsMode, q?: string): BrowseHeadingK
   }
   return mode === 'assigned' ? 'assignedProducts' : 'allProducts';
 }
+
+/**
+ * Remount key for the PLP search tree (COP-4822). Mode alone is not enough: switching
+ * from customer A to customer B can stay in `assigned` and would otherwise keep A's
+ * client search state.
+ */
+export function browseSearchResultsRemountKey(mode: ProductsMode, customerId?: string): string {
+  return `${mode}:${customerId ?? ''}`;
+}

@@ -67,6 +67,8 @@ class DefaultProductsModeService implements ProductsModeService {
    * customer without any usable site cannot be matched against them — that also fails closed as
    * `assigned` / `segmentIds: []` (logged at `warn`) instead of resolving to an unscoped catalog.
    * An empty segment list from a successful lookup is not an error and yields `unsegmented`.
+   * A non-empty lookup whose ids are all blank after trim is fail-closed (`assigned` / `[]`) so
+   * BatteryIncluded cannot drop those values and send an unscoped visibility filter.
    */
   async resolve(input: ProductsModeResolveInput): Promise<ProductsModeContext> {
     const session = await this.sessionService.getCurrent();
@@ -88,7 +90,14 @@ class DefaultProductsModeService implements ProductsModeService {
     let segmentIds: string[];
     try {
       const segments = await this.customerSegmentService.getMySegments({ siteCode });
-      segmentIds = segments.map((segment) => segment.id);
+      segmentIds = segments.map((segment) => segment.id.trim()).filter((id) => id.length > 0);
+      if (segments.length > 0 && segmentIds.length === 0) {
+        this.logger.warn(
+          { customerId, siteCode },
+          'Segment lookup returned no usable ids after normalize; resolving products mode as assigned with no segments (fail closed)',
+        );
+        return this.buildContext('assigned', [], false, siteCode, customerId);
+      }
     } catch (error) {
       this.logger.error(
         { err: error instanceof Error ? error : String(error), customerId },

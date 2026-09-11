@@ -108,6 +108,42 @@ describe('DefaultProductsModeService', () => {
     expect(logger.error).not.toHaveBeenCalled();
   });
 
+  it('trims segment ids and keeps assigned when at least one usable id remains', async () => {
+    customerSegmentService.getMySegments.mockResolvedValue([
+      { id: '  s1  ', status: 'ACTIVE' },
+      { id: '   ', status: 'ACTIVE' },
+    ]);
+    const service = createService({ flag: undefined });
+
+    const context = await service.resolve({});
+
+    expect(context.mode).toBe('assigned');
+    expect(context.segmentIds).toEqual(['s1']);
+  });
+
+  it('fails closed (assigned, no segments) when a non-empty lookup has only blank ids', async () => {
+    customerSegmentService.getMySegments.mockResolvedValue([
+      { id: '   ', status: 'ACTIVE' },
+      { id: '\t', status: 'ACTIVE' },
+    ]);
+    const service = createService({ flag: 'true' });
+
+    const context = await service.resolve({ optInCookieValue: 'all.c1' });
+
+    expect(context).toEqual({
+      mode: 'assigned',
+      segmentIds: [],
+      canToggleAllProducts: false,
+      engine: 'batteryincluded',
+      siteCode: 'main',
+      customerId: 'c1',
+    });
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ customerId: 'c1', siteCode: 'main' }),
+      expect.stringContaining('no usable ids'),
+    );
+  });
+
   it('resolves unsegmented when the customer has no active segments', async () => {
     customerSegmentService.getMySegments.mockResolvedValue([]);
     const service = createService({ flag: 'true' });

@@ -233,14 +233,15 @@ export class EmporixCustomerSegmentService implements CustomerSegmentService {
         if (reason === 'cap') {
           this.logger.warn(
             { customerId, collected, totalCount, maxPages: SEGMENTS_FALLBACK_MAX_PAGES },
-            'GET /segments fallback pagination stopped at the hard page cap; result is truncated',
+            'GET /segments fallback pagination stopped at the hard page cap; failing closed',
           );
-          return;
+          throw new Error('GET /segments fallback pagination stopped at the hard page cap');
         }
         this.logger.warn(
           { customerId, collected, totalCount },
-          'GET /segments fallback pagination ended before X-Total-Count was reached; result is truncated',
+          'GET /segments fallback pagination ended before X-Total-Count was reached; failing closed',
         );
+        throw new Error('GET /segments fallback pagination ended before X-Total-Count was reached');
       },
     );
   }
