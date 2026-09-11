@@ -6,6 +6,8 @@ import { createCheckoutStore } from './checkout-store';
 
 const shippingAddress: CheckoutAddress = {
   type: 'SHIPPING',
+  contactName: 'Test Buyer',
+  street: 'Bahnhofstrasse',
   country: 'CH',
   zipCode: '6300',
   city: 'Zug',
@@ -13,6 +15,8 @@ const shippingAddress: CheckoutAddress = {
 
 const billingAddress: CheckoutAddress = {
   type: 'BILLING',
+  contactName: 'Test Buyer',
+  street: 'Bahnhofstrasse',
   country: 'CH',
   zipCode: '6300',
   city: 'Zug',

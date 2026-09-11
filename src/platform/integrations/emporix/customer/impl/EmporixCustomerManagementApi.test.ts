@@ -52,8 +52,8 @@ describe('EmporixCustomerManagementApi', () => {
       expect(url.startsWith('/test-tenant/contact-assignments')).toBe(false);
       expect(url).not.toContain('customerId=');
       expect(url).not.toContain('type=');
-      expect(options.method).toBe('GET');
-      expect(options.headers).toEqual({ 'X-Total-Count': 'true' });
+      expect(options?.method).toBe('GET');
+      expect(options?.headers).toEqual({ 'X-Total-Count': 'true' });
       expect(tokenType).toBe('service');
     });
 
@@ -100,10 +100,10 @@ describe('EmporixCustomerManagementApi', () => {
       const [url, options, tokenType] = mockApiClient.authenticatedFetch.mock.calls[0];
       expect(url).toBe('customer-management/test-tenant/contact-assignments');
       expect(url).not.toBe('/test-tenant/contact-assignments');
-      expect(options.method).toBe('POST');
+      expect(options?.method).toBe('POST');
       expect(tokenType).toBe('service');
       expect(mockApiClient.authenticatedFetch.mock.calls[0]?.[3]).toBeUndefined();
-      expect(JSON.parse(String(options.body))).toEqual({
+      expect(JSON.parse(String(options?.body))).toEqual({
         legalEntity: { id: 'le-1' },
         customer: { id: 'cust-1' },
         type: 'CONTACT',
@@ -120,7 +120,7 @@ describe('EmporixCustomerManagementApi', () => {
       } as Pick<EmporixContactAssignment, 'legalEntity' | 'customer'> & { type: 'PRIMARY' });
 
       const [, options] = mockApiClient.authenticatedFetch.mock.calls[0];
-      expect(JSON.parse(String(options.body)).type).toBe('CONTACT');
+      expect(JSON.parse(String(options?.body)).type).toBe('CONTACT');
     });
 
     it('throws without retrying as PRIMARY when CONTACT is rejected', async () => {
@@ -139,7 +139,7 @@ describe('EmporixCustomerManagementApi', () => {
 
       expect(mockApiClient.authenticatedFetch).toHaveBeenCalledTimes(1);
       const [, options] = mockApiClient.authenticatedFetch.mock.calls[0];
-      expect(JSON.parse(String(options.body)).type).toBe('CONTACT');
+      expect(JSON.parse(String(options?.body)).type).toBe('CONTACT');
     });
   });
 

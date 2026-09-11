@@ -105,8 +105,8 @@ describe('EmporixIamApi', () => {
       expect(parsedUrl.pathname).toBe('/iam/test-tenant/groups');
       expect(parsedUrl.searchParams.get('q')).toBe('b2b.legalEntityId:"le-1"');
       expect(parsedUrl.searchParams.get('userType')).toBe('CUSTOMER');
-      expect(options.method).toBe('GET');
-      expect(options.headers).toEqual({ 'Accept-Language': '*' });
+      expect(options?.method).toBe('GET');
+      expect(options?.headers).toEqual({ 'Accept-Language': '*' });
       expect(tokenType).toBe('service');
     });
 
@@ -132,9 +132,9 @@ describe('EmporixIamApi', () => {
       expect(mockApiClient.authenticatedFetch).toHaveBeenCalledTimes(1);
       const [url, options, tokenType] = mockApiClient.authenticatedFetch.mock.calls[0];
       expect(url).toBe('/iam/test-tenant/groups/group-1/users');
-      expect(options.method).toBe('POST');
+      expect(options?.method).toBe('POST');
       expect(tokenType).toBe('service');
-      expect(JSON.parse(String(options.body))).toEqual(assignment);
+      expect(JSON.parse(String(options?.body))).toEqual(assignment);
       expect(mockLogger.info).toHaveBeenCalledWith(
         {
           operation: 'Add user to group',
@@ -197,7 +197,7 @@ describe('EmporixIamApi', () => {
       expect(mockApiClient.authenticatedFetch).toHaveBeenCalledTimes(1);
       const [url, options, tokenType] = mockApiClient.authenticatedFetch.mock.calls[0];
       expect(url).toBe('/iam/test-tenant/groups/group-1/users/cust-1');
-      expect(options.method).toBe('DELETE');
+      expect(options?.method).toBe('DELETE');
       expect(tokenType).toBe('service');
     });
 
@@ -223,8 +223,8 @@ describe('EmporixIamApi', () => {
       expect(mockApiClient.authenticatedFetch).toHaveBeenCalledTimes(1);
       const [url, options, tokenType] = mockApiClient.authenticatedFetch.mock.calls[0];
       expect(url).toBe('/iam/test-tenant/users/cust-1/groups?');
-      expect(options.method).toBe('GET');
-      expect(options.headers).toEqual({ 'X-Total-Count': 'true', 'Accept-Language': '*' });
+      expect(options?.method).toBe('GET');
+      expect(options?.headers).toEqual({ 'X-Total-Count': 'true', 'Accept-Language': '*' });
       expect(tokenType).toBe('service');
     });
 

@@ -1,5 +1,14 @@
 import { parseAIResponse } from '@/components/account/dashboard/cards/ai/utils/response-parser';
+import type { AIChatStreamProgressUpdate } from '@/lib/common/ai-stream-preview';
 import { assembleEmporixChatStream } from './assembleEmporixChatStream';
+
+type QuoteListWidgetData = { quotes?: Array<{ id?: string; quoteId?: string }> };
+type ProductListWidgetData = { products?: unknown[] };
+
+/** Widget previews carry `data: unknown`; tests narrow it to the widget payload they assert on. */
+function widgetData<T>(update: AIChatStreamProgressUpdate): T | undefined {
+  return update.preview?.kind === 'widget' ? (update.preview.data as T | undefined) : undefined;
+}
 
 function toSseEvent(payload: string): string {
   return `data: ${payload}\n\n`;
@@ -462,11 +471,7 @@ describe('assembleEmporixChatStream', () => {
   });
 
   it('shows a quote-list skeleton on get-quotes tool_start, then fills two quotes', async () => {
-    const progressUpdates: Array<{
-      chunks: number;
-      preview?: { kind: string; type?: string; data?: { quotes?: Array<{ quoteId?: string }> } };
-      thinking?: string;
-    }> = [];
+    const progressUpdates: AIChatStreamProgressUpdate[] = [];
     const streamBody = [
       toNamedSseEvent('tool_start', JSON.stringify({ tool_name: 'get-quotes', tool_call_id: 'call-1' })),
       toNamedSseEvent(
@@ -495,10 +500,10 @@ describe('assembleEmporixChatStream', () => {
       message: '',
       data: {},
     });
-    const filled = progressUpdates.find(
-      (update) => Array.isArray(update.preview?.data?.quotes) && update.preview.data.quotes.length === 2,
-    );
-    expect(filled?.preview?.data?.quotes?.map((quote) => quote.id ?? quote.quoteId)).toEqual(['Q1', 'Q2']);
+    const filled = progressUpdates
+      .map((update) => widgetData<QuoteListWidgetData>(update))
+      .find((data) => Array.isArray(data?.quotes) && data.quotes.length === 2);
+    expect(filled?.quotes?.map((quote) => quote.id ?? quote.quoteId)).toEqual(['Q1', 'Q2']);
     const parsed = JSON.parse(assembled.message);
     expect(parsed.type).toBe('quote_list');
     expect(parsed.message).toBe('Here are your quotes.');
@@ -807,7 +812,7 @@ describe('assembleEmporixChatStream', () => {
   });
 
   it('fills product_list from indexedProducts tool_result before final tokens', async () => {
-    const progressUpdates: Array<{ preview?: { kind: string; type?: string; data?: { products?: unknown[] } } }> = [];
+    const progressUpdates: AIChatStreamProgressUpdate[] = [];
     const streamBody = [
       toNamedSseEvent(
         'tool_start',
@@ -844,13 +849,11 @@ describe('assembleEmporixChatStream', () => {
     });
 
     expect(
-      progressUpdates.some(
-        (update) =>
-          update.preview?.kind === 'widget' &&
-          update.preview.type === 'product_list' &&
-          Array.isArray(update.preview.data?.products) &&
-          update.preview.data.products.length === 1,
-      ),
+      progressUpdates.some((update) => {
+        if (update.preview?.kind !== 'widget' || update.preview.type !== 'product_list') return false;
+        const products = widgetData<ProductListWidgetData>(update)?.products;
+        return Array.isArray(products) && products.length === 1;
+      }),
     ).toBe(true);
 
     const parsed = JSON.parse(assembled.message);

@@ -682,7 +682,14 @@ describe('Store Synchronizer', () => {
     });
 
     it('keeps previously used checkout addresses when only session currency changes', async () => {
-      const leftover = { type: 'SHIPPING' as const, country: 'CH', zipCode: '6300', city: 'Zug' };
+      const leftover = {
+        type: 'SHIPPING' as const,
+        contactName: 'Test Buyer',
+        street: 'Bahnhofstrasse',
+        country: 'CH',
+        zipCode: '6300',
+        city: 'Zug',
+      };
       checkoutStore.getState().setShippingAddress(leftover);
       checkoutStore.getState().setShippingMethod({ methodId: 'm1', zoneId: 'z1', methodName: 'Standard', amount: 5 });
 
@@ -709,6 +716,8 @@ describe('Store Synchronizer', () => {
     it('clears checkout addresses when the session site changes', async () => {
       checkoutStore.getState().setShippingAddress({
         type: 'SHIPPING',
+        contactName: 'Test Buyer',
+        street: 'Bahnhofstrasse',
         country: 'CH',
         zipCode: '6300',
         city: 'Zug',

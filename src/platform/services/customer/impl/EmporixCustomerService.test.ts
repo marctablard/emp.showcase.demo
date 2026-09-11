@@ -60,13 +60,15 @@ describe('EmporixCustomerService', () => {
       error: jest.fn(),
     };
 
-    container.bind<EmporixCustomerApi>('EmporixCustomerApi').toConstantValue(mockCustomerApi as EmporixCustomerApi);
+    container
+      .bind<EmporixCustomerApi>('EmporixCustomerApi')
+      .toConstantValue(mockCustomerApi as unknown as EmporixCustomerApi);
     container
       .bind<EmporixSessionContextApi>('EmporixSessionContextApi')
       .toConstantValue({} as EmporixSessionContextApi);
     container.bind('EmporixAddressMapper').toConstantValue(new EmporixAddressMapper());
     container.bind<EmporixIamApi>('EmporixIamApi').toConstantValue({} as EmporixIamApi);
-    container.bind<LoggerService>('LoggerService').toConstantValue(mockLoggerService as LoggerService);
+    container.bind<LoggerService>('LoggerService').toConstantValue(mockLoggerService as unknown as LoggerService);
     container.bind<EmporixCustomerService>('CustomerService').to(EmporixCustomerService);
 
     customerService = container.get<EmporixCustomerService>('CustomerService');

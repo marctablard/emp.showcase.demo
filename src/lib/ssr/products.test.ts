@@ -1,3 +1,5 @@
+import type { Product } from '@/platform/services/model/product';
+
 describe('getProductById', () => {
   async function loadModule() {
     jest.resetModules();
@@ -31,14 +33,12 @@ describe('getProductById', () => {
     };
   }
 
-  const product = { id: 'sku-123', name: { en: 'Widget' } };
+  const product = { id: 'sku-123', name: { en: 'Widget' } } as unknown as Product;
   const options = { prices: false, variants: false, categories: false };
 
   it('calls SearchService.getCatalogProductById with id, options, locale, and site when BatteryIncluded is bound', async () => {
     const { getProductById, BatteryIncludedSearchService, services } = await loadModule();
     const searchService = new BatteryIncludedSearchService(
-      {} as never,
-      {} as never,
       {} as never,
       {} as never,
       {} as never,

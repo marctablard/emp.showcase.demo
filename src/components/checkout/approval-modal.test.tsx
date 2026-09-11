@@ -54,7 +54,8 @@ jest.mock('@/lib/logger/use-logger-client', () => ({
 // Avoid Radix ScrollArea noise in jsdom (structural stub; type via attribute for inspectability).
 jest.mock('@/components/ui/scroll-area', () => ({
   ScrollArea: ({ children, type, className, ...props }: React.ComponentProps<'div'> & { type?: string }) => (
-    <div data-slot="scroll-area" type={type} className={className} {...props}>
+    // `type` is not a <div> prop — spread it so the stub still exposes it as a DOM attribute.
+    <div data-slot="scroll-area" className={className} {...props} {...{ type }}>
       <div data-slot="scroll-area-viewport">{children}</div>
     </div>
   ),
