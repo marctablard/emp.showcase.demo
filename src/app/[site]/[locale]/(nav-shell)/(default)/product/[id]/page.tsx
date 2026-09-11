@@ -35,6 +35,8 @@ export const PUBLIC_PRODUCT_OPTIONS = {
 // https://nextjs.org/docs/app/guides/incremental-static-regeneration
 // NEXT_SSG_PRODUCT_COUNT must be set to a value greater than 0 to enable SSG
 // export const revalidate = 360;
+// COP-4822 AC4: never serve a build-time / cached public PDP to a segmented customer.
+export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function generateStaticParams() {
@@ -64,10 +66,12 @@ export async function generateStaticParams() {
  * Builds the server-side product fetch options for the PDP (COP-4822).
  *
  * In `assigned` mode the customer's segment ids and the effective site they were resolved for are
- * attached so the services drop out-of-scope products (fail closed → `notFound()`); the `all` mode
- * and non-segmented modes pass neither `segmentIds` nor `siteCode`. `generateMetadata` and the page
- * must both call this helper so the object passed to `getProductById` serialises identically and the
- * React `cache()` key matches.
+ * attached so both engines drop out-of-scope products (fail closed → `notFound()`): Emporix via
+ * `filterProductIdsInScope`, BatteryIncluded via the same membership check before the catalog
+ * identity browse (COP-4822 AC4 — direct PDP URL, override off). The `all` mode and non-segmented
+ * modes pass neither `segmentIds` nor `siteCode`. `generateMetadata` and the page must both call
+ * this helper so the object passed to `getProductById` serialises identically and the React
+ * `cache()` key matches.
  */
 export async function createProductOptions(
   baseOptions: ProductFetchOptions,

@@ -18,6 +18,7 @@ import React from 'react';
 import { notFound } from 'next/navigation';
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
+import { useProductsMode } from '@/components/navigation/products-mode-context';
 import { useShopContextReady } from '@/hooks/common/useShopContextReady';
 import { usePdpCurrentProduct } from '@/hooks/product/usePdpCurrentProduct';
 import { usePdpPurchaseData } from '@/hooks/product/usePdpPurchaseData';
@@ -46,6 +47,10 @@ jest.mock('next/image', () => ({
 
 jest.mock('next-auth/react', () => ({
   useSession: () => ({ data: null, status: 'unauthenticated' }),
+}));
+
+jest.mock('@/components/navigation/products-mode-context', () => ({
+  useProductsMode: jest.fn(),
 }));
 
 jest.mock('@/hooks/common/useShopContextReady', () => ({
@@ -173,6 +178,7 @@ class ResizeObserverStub {
 Object.defineProperty(globalThis, 'ResizeObserver', { writable: true, value: ResizeObserverStub });
 Object.defineProperty(window, 'ResizeObserver', { writable: true, value: ResizeObserverStub });
 
+const useProductsModeMock = useProductsMode as jest.Mock;
 const useShopContextReadyMock = useShopContextReady as jest.Mock;
 const useProductMock = useProduct as jest.Mock;
 const useSessionMock = useSession as jest.Mock;
@@ -218,6 +224,11 @@ function mockReadyHooks(productResult: { product: Product | null; loading: boole
 
 beforeEach(() => {
   jest.clearAllMocks();
+  useProductsModeMock.mockReturnValue({
+    mode: 'anonymous',
+    isSegmented: false,
+    canToggleAllProducts: false,
+  });
   notFoundMock.mockImplementation(() => {
     throw new Error('NEXT_NOT_FOUND');
   });
@@ -316,6 +327,21 @@ describe('ProductDetail — Not Found contract (true absence vs cold bootstrap)'
     );
 
     expect(notFoundMock).not.toHaveBeenCalled();
+  });
+
+  it('invokes notFound in assigned mode when the catalog miss is confirmed even if an SSR seed exists', () => {
+    useProductsModeMock.mockReturnValue({
+      mode: 'assigned',
+      isSegmented: true,
+      canToggleAllProducts: false,
+    });
+    mockReadyHooks({ product: null, loading: false, error: null });
+
+    expect(() => render(<ProductDetail product={ssrSeedProduct} options={PUBLIC_PDP_OPTIONS} />)).toThrow(
+      'NEXT_NOT_FOUND',
+    );
+
+    expect(notFoundMock).toHaveBeenCalled();
   });
 
   it('paints catalogDisplayName on H1 when the seed name is parent-shaped and does not call notFound', () => {

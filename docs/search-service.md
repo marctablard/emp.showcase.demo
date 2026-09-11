@@ -134,7 +134,7 @@ Scopes are provided by `SegmentFilterService` (`src/platform/services/search/imp
 
 | Bound implementation | How the segment scope reaches the engine |
 | --- | --- |
-| `BatteryIncludedSearchService` | `applyCustomerSegmentFilters` adds `segmentIds` to the filters, serialised as repeated `f[_product_siteAware.segmentIds][]=<id>` entries on search, suggestions and the PDP lookup (`getCatalogProductById`). The `_product_siteAware.segmentIds` facet is dropped from the response. An out-of-segment product is a BI miss → 404. |
+| `BatteryIncludedSearchService` | `applyCustomerSegmentFilters` adds `segmentIds` to the filters, serialised as repeated `f[_product_siteAware.segmentIds][]=<id>` entries on search, suggestions and recommendations. The `_product_siteAware.segmentIds` facet is dropped from the response. PDP identity (`getCatalogProductById`) does **not** use that field as the access gate: in `assigned` mode it first runs `ProductService.isInSegmentScope` (`filterProductIdsInScope` — category-assigned and directly assigned products). Out of scope → `undefined` / 404 without a BI call (COP-4822 AC4). In scope, catalog copy still comes from the visibility-scoped BI id browse. |
 | `EmporixSearchService` | `buildSegmentScopeCompoundQuery` (`src/platform/integrations/emporix/product/buildProductCatalogScopeQ.ts`) appends one verbatim fragment to `q`: `compoundLogicalQuery:((categoryIds:(a,b)) OR (id:(p1,p2)))`, or `((categoryIds:(sel)) AND (…))` when a sanitised category filter is selected. Id lists are unquoted `(a,b)`. It replaces the root `categoryIds` scoping, is applied **before and regardless of** `isUnscopedProductSearch` (`searchAllProducts` / `NEXT_PUBLIC_SEARCH_OMIT_CATALOG_CATALOG_FILTER` never bypass it) and does no post-filtering, so paging and totals stay correct. An empty scope returns no results. PDP membership uses `filterProductIdsInScope`. |
 
 ### Route and SSR contract
@@ -162,7 +162,7 @@ H1, last breadcrumb crumb, document title, Open Graph, and JSON-LD share the cat
 
 | Bound implementation | Identity / copy |
 | --- | --- |
-| `BatteryIncludedSearchService` | Visibility-scoped BI browse by URL id (`f[_product.id]`, then one retry with `f[id]`). Mapped like PLP. A miss is not a Product GET fallback — the method returns `undefined` and PDP calls `notFound()`. |
+| `BatteryIncludedSearchService` | In `assigned` mode, Emporix membership (`isInSegmentScope`) runs first — out of scope is `undefined` / `notFound()` with no BI call (COP-4822 AC4). In scope (and when unscoped), visibility-scoped BI browse by URL id (`f[_product.id]`, then one retry with `f[id]`). Mapped like PLP. A miss is not a Product GET fallback. |
 | `EmporixSearchService` | Full Emporix Product GET via `ProductService.getProductById`. |
 
 For Battery Included, `BatteryIncludedProductMapper` sets `Product.name` from `_product_i18n` when any i18n name exists — not from `_product.name`:

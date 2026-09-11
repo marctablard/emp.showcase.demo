@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { ProductsModeProvider } from '@/components/navigation/products-mode-context';
 import { fetchProductById } from '@/lib/client/products';
 import type { Session } from '@/platform/services/model/session/session';
 import {
@@ -468,6 +469,37 @@ describe('useProduct hook', () => {
       );
       expect(result.current.product?.name).toBe(refetchedProduct.name);
       expect(result.current.loading).toBe(false);
+    });
+
+    test('assigned mode drops an SSR seed after a confirmed catalog 404 (COP-4822 AC4)', async () => {
+      const sessionStore = createSessionStore({
+        session: { ...readySession, customerId: 'cust-42' },
+        loading: false,
+      });
+      const assignedWrapper = ({ children }: { children: ReactNode }) => {
+        const Inner = createBootstrapWrapper(sessionStore);
+        return (
+          <ProductsModeProvider value={{ mode: 'assigned', isSegmented: true, canToggleAllProducts: false }}>
+            <Inner>{children}</Inner>
+          </ProductsModeProvider>
+        );
+      };
+      (fetchProductById as jest.Mock).mockResolvedValue(null);
+
+      const { result } = renderHook(() => useProduct(ssrProductWithoutPrice, publicProductOptions), {
+        wrapper: assignedWrapper,
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+        expect(result.current.product).toBeNull();
+      });
+
+      expect(fetchProductById).toHaveBeenCalledWith(
+        ssrProductWithoutPrice.id,
+        publicProductOptions,
+        'assigned:main:cust-42:USD',
+      );
     });
 
     test('session-null fail-safe does not strand SSR-seeded product as null without loading', async () => {

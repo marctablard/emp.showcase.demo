@@ -65,4 +65,11 @@ export interface ProductService {
    * @returns Enhanced products with additional data.
    */
   addAdditionalData(mappedProducts: Product[], options?: ProductFetchOptions): Promise<Product[]>;
+
+  /**
+   * COP-4822 AC4: whether `productId` is inside the resolved segment scope.
+   * `segmentIds === undefined` is unscoped (anonymous / unsegmented / All Products) and returns
+   * `true`. `[]` or a missing site is an empty scope and returns `false` without an upstream call.
+   */
+  isInSegmentScope(productId: string, options?: Pick<ProductFetchOptions, 'segmentIds' | 'siteCode'>): Promise<boolean>;
 }

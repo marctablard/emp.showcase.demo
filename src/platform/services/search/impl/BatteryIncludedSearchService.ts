@@ -883,6 +883,19 @@ class BatteryIncludedSearchService implements SearchService {
       return undefined;
     }
 
+    // COP-4822 AC4: Emporix membership is the source of truth (category-assigned + directly
+    // assigned products). The BI `_product_siteAware.segmentIds` field is not a reliable PDP
+    // gate — a direct URL must 404 when the product is outside the customer's segments.
+    if (options?.segmentIds !== undefined) {
+      const inScope = await this.productService.isInSegmentScope(id, {
+        segmentIds: options.segmentIds,
+        siteCode: options.siteCode ?? site,
+      });
+      if (!inScope) {
+        return undefined;
+      }
+    }
+
     const session = await this.sessionService.getCurrent();
     const { resolvedSite, currentCurrency, visibilityVariables, publishedRootIds } =
       await this.resolveBatteryIncludedContext({
@@ -894,9 +907,6 @@ class BatteryIncludedSearchService implements SearchService {
       return undefined;
     }
 
-    // Segment scope applies to the PDP lookup as well, so an out-of-segment product is a BI miss (COP-4822).
-    const segmentFilters = this.applyCustomerSegmentFilters(undefined, options?.segmentIds);
-
     const mapped =
       (await this.browseCatalogProductByIdFilter(
         id,
@@ -905,7 +915,6 @@ class BatteryIncludedSearchService implements SearchService {
         visibilityVariables,
         resolvedSite,
         currentCurrency,
-        segmentFilters,
       )) ??
       (await this.browseCatalogProductByIdFilter(
         id,
@@ -914,7 +923,6 @@ class BatteryIncludedSearchService implements SearchService {
         visibilityVariables,
         resolvedSite,
         currentCurrency,
-        segmentFilters,
       ));
 
     if (!mapped) {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useProductsMode } from '@/components/navigation/products-mode-context';
 import { useClientFetchScope } from '@/hooks/common/useClientFetchScope';
 import { useHistory } from '@/hooks/history/useHistory';
 import { useSession } from '@/hooks/session/useSession';
@@ -51,15 +52,19 @@ function applyProductFetchMiss(
   getCached: (id: string) => Product | undefined | null,
   setProduct: (product: Product | null) => void,
   setError: (error: Error | null) => void,
+  failClosed: boolean,
 ): void {
   // Confirmed client miss (404 → null). Keep prior same-id product when present
   // so SSR-seeded PDPs do not become Not Found–eligible empty success; true
   // id-only fetches with no prior product still resolve to null.
-  const prior = resolvePriorSameIdProduct(productId, localProduct, getCached);
-  if (prior) {
-    setProduct(prior);
-    setError(new Error('Product refetch returned no data'));
-    return;
+  // COP-4822 AC4: in `assigned` mode a 404 must not keep an out-of-segment seed on screen.
+  if (!failClosed) {
+    const prior = resolvePriorSameIdProduct(productId, localProduct, getCached);
+    if (prior) {
+      setProduct(prior);
+      setError(new Error('Product refetch returned no data'));
+      return;
+    }
   }
   setProduct(null);
 }
@@ -85,6 +90,8 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
   const { session, loading: sessionLoading } = useSession();
   const { site } = useSite();
   const { getProduct, setCurrentProduct, addProduct, currentProductId } = useProductStore();
+  const { mode: productsMode } = useProductsMode();
+  const mustRevalidateAssignedSeed = productsMode === 'assigned';
 
   // Read out of `session` once: optional-chained member expressions in a dependency array
   // cannot be tracked as stable dependencies.
@@ -113,7 +120,7 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
 
   const [loading, setLoading] = useState<boolean>(() => {
     if (!id) return false;
-    if (seededProductObject) {
+    if (seededProductObject && !mustRevalidateAssignedSeed) {
       return false;
     }
     return true;
@@ -175,7 +182,7 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
           addProduct(next);
           setProduct(next);
         } else {
-          applyProductFetchMiss(id, productRef.current, getProduct, setProduct, setError);
+          applyProductFetchMiss(id, productRef.current, getProduct, setProduct, setError, mustRevalidateAssignedSeed);
         }
       } catch (err) {
         applyProductFetchError(id, productRef.current, getProduct, setProduct, setError, err);
@@ -183,7 +190,7 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
         setLoading(false);
       }
     },
-    [id, getProduct, addProduct, options, sessionPricingContext, site],
+    [id, getProduct, addProduct, options, sessionPricingContext, site, mustRevalidateAssignedSeed],
   );
 
   const refetch = useCallback(async () => {
@@ -249,7 +256,7 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
 
     // Skip catalog refetch iff the hook argument is a Product object with an id.
     // ProductStore cache hit is not a skip. Catalog copy is not currency-dependent.
-    if (seededProductObject) {
+    if (seededProductObject && !mustRevalidateAssignedSeed) {
       prevClientDedupeScopeRef.current = clientDedupeScope;
       return;
     }
@@ -258,7 +265,7 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
       prevClientDedupeScopeRef.current = clientDedupeScope;
       void fetchProduct(true, clientDedupeScope);
     }
-  }, [id, sessionPricingKey, clientDedupeScope, fetchProduct, seededProductObject]);
+  }, [id, sessionPricingKey, clientDedupeScope, fetchProduct, seededProductObject, mustRevalidateAssignedSeed]);
 
   return {
     currentProductId,

@@ -157,6 +157,21 @@ describe('EmporixProductService template meta enrichment', () => {
       expect(filterProductIdsInScope).not.toHaveBeenCalled();
     });
 
+    it('isInSegmentScope is true when unscoped and false for an empty or out-of-scope id', async () => {
+      const inScope = jest.fn().mockResolvedValue(new Set(['p1']));
+      const outOfScope = jest.fn().mockResolvedValue(new Set());
+      const unscoped = createService({ filterProductIdsInScope: jest.fn(), getCurrent });
+      const allowed = createService({ filterProductIdsInScope: inScope, getCurrent });
+      const denied = createService({ filterProductIdsInScope: outOfScope, getCurrent });
+
+      await expect(unscoped.isInSegmentScope('p1')).resolves.toBe(true);
+      await expect(unscoped.isInSegmentScope('p1', {})).resolves.toBe(true);
+      await expect(unscoped.isInSegmentScope('p1', { segmentIds: [] })).resolves.toBe(false);
+      await expect(allowed.isInSegmentScope('p1', { segmentIds: ['s1'], siteCode: 'us' })).resolves.toBe(true);
+      expect(inScope).toHaveBeenCalledWith(['p1'], 'us', ['s1']);
+      await expect(denied.isInSegmentScope('p1', { segmentIds: ['s1'] })).resolves.toBe(false);
+    });
+
     it('getProductById returns undefined without any upstream call when segmentIds is [] (empty scope)', async () => {
       const getProduct = jest.fn().mockResolvedValue(rawProduct);
       const filterProductIdsInScope = jest.fn();

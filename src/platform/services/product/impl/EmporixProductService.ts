@@ -154,6 +154,24 @@ class EmporixProductService implements ProductService {
     return withIds.filter((item) => inScope.has(item.id as string));
   }
 
+  async isInSegmentScope(
+    productId: string,
+    options?: Pick<ProductFetchOptions, 'segmentIds' | 'siteCode'>,
+  ): Promise<boolean> {
+    if (options?.segmentIds === undefined) {
+      return true;
+    }
+    if (isEmptySegmentScope(options.segmentIds)) {
+      return false;
+    }
+    const id = productId.trim();
+    if (!id) {
+      return false;
+    }
+    const inScope = await this.filterIdsInSegmentScope([id], options.segmentIds, options.siteCode);
+    return inScope.has(id);
+  }
+
   /**
    * Segment membership for the effective site the mode was resolved for (`options.siteCode`),
    * falling back to the session site — the same site authority this service already uses for

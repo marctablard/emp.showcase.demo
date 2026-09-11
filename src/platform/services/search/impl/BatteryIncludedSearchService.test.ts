@@ -1873,6 +1873,7 @@ describe('BatteryIncludedSearchService', () => {
       mapToService?: jest.Mock;
       addAdditionalData?: jest.Mock;
       getProductById?: jest.Mock;
+      isInSegmentScope?: jest.Mock;
       rootIds?: string[];
     }) {
       const shopApi = {
@@ -1892,6 +1893,7 @@ describe('BatteryIncludedSearchService', () => {
       const productService = {
         addAdditionalData: overrides?.addAdditionalData ?? jest.fn(async (products: unknown) => products),
         getProductById: overrides?.getProductById ?? jest.fn(),
+        isInSegmentScope: overrides?.isInSegmentScope ?? jest.fn().mockResolvedValue(true),
       };
       const service = new BatteryIncludedSearchService(
         shopApi as never,
@@ -2090,7 +2092,7 @@ describe('BatteryIncludedSearchService', () => {
       });
     });
 
-    it('adds segmentIds to both id-filter browse attempts and forwards them to addAdditionalData', async () => {
+    it('checks Emporix membership then browses by id without the BI segmentIds field filter', async () => {
       const retryDocument = { id: 'sku-123', _product: { id: 'other' } };
       const browse = jest
         .fn()
@@ -2106,6 +2108,10 @@ describe('BatteryIncludedSearchService', () => {
 
       const result = await service.getCatalogProductById('sku-123', { segmentIds: ['s1', 's2'] }, 'en', 'main');
 
+      expect(productService.isInSegmentScope).toHaveBeenCalledWith('sku-123', {
+        segmentIds: ['s1', 's2'],
+        siteCode: 'main',
+      });
       expect(shopApi.browse).toHaveBeenCalledTimes(2);
       expect(shopApi.browse).toHaveBeenNthCalledWith(
         1,
@@ -2113,7 +2119,6 @@ describe('BatteryIncludedSearchService', () => {
           visibility: expect.objectContaining({
             filters: {
               '_product.id': 'sku-123',
-              '_product_siteAware.segmentIds': ['s1', 's2'],
               '_product.published': 'true',
               '_product.categoryIds': ['root-a'],
             },
@@ -2126,13 +2131,13 @@ describe('BatteryIncludedSearchService', () => {
           visibility: expect.objectContaining({
             filters: {
               id: 'sku-123',
-              '_product_siteAware.segmentIds': ['s1', 's2'],
               '_product.published': 'true',
               '_product.categoryIds': ['root-a'],
             },
           }),
         }),
       );
+      expect(shopApi.browse.mock.calls[0][0].visibility.filters).not.toHaveProperty('_product_siteAware.segmentIds');
       expect(productService.addAdditionalData).toHaveBeenCalledWith([expect.objectContaining({ id: 'sku-123' })], {
         prices: false,
         variants: false,
@@ -2142,15 +2147,46 @@ describe('BatteryIncludedSearchService', () => {
       expect(result).toEqual(expect.objectContaining({ id: 'sku-123' }));
     });
 
+    it('returns undefined without a BI call when the product is outside the segment scope (AC4)', async () => {
+      const browse = jest.fn().mockResolvedValue({
+        hits: [{ document: { id: 'sku-123', _product: { id: 'sku-123' } } }],
+        found: 1,
+        page: 1,
+        size: 1,
+        facet_counts: [],
+      });
+      const { service, shopApi, productService } = createService({
+        browse,
+        isInSegmentScope: jest.fn().mockResolvedValue(false),
+      });
+
+      const result = await service.getCatalogProductById(
+        'sku-123',
+        { segmentIds: ['s1'], siteCode: 'us' },
+        'en',
+        'main',
+      );
+
+      expect(productService.isInSegmentScope).toHaveBeenCalledWith('sku-123', {
+        segmentIds: ['s1'],
+        siteCode: 'us',
+      });
+      expect(shopApi.browse).not.toHaveBeenCalled();
+      expect(productService.addAdditionalData).not.toHaveBeenCalled();
+      expect(result).toBeUndefined();
+    });
+
     it('returns undefined when BI has no hit for a segment-scoped lookup', async () => {
       const { service, shopApi, productService } = createService();
 
       const result = await service.getCatalogProductById('sku-123', { segmentIds: ['s1'] }, 'en', 'main');
 
-      expect(shopApi.browse).toHaveBeenCalledTimes(2);
-      expect(shopApi.browse.mock.calls[0][0].visibility.filters).toMatchObject({
-        '_product_siteAware.segmentIds': ['s1'],
+      expect(productService.isInSegmentScope).toHaveBeenCalledWith('sku-123', {
+        segmentIds: ['s1'],
+        siteCode: 'main',
       });
+      expect(shopApi.browse).toHaveBeenCalledTimes(2);
+      expect(shopApi.browse.mock.calls[0][0].visibility.filters).not.toHaveProperty('_product_siteAware.segmentIds');
       expect(productService.addAdditionalData).not.toHaveBeenCalled();
       expect(productService.getProductById).not.toHaveBeenCalled();
       expect(result).toBeUndefined();
