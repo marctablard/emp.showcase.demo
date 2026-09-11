@@ -81,8 +81,15 @@ export function useProducts(productIds: Product['id'][] = [], fetchOptions?: Pro
   const [error, setError] = useState<Error | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
 
+  // Monotonic fetch generation (COP-4822): a pass that resolves after a newer pass started
+  // (products-mode / customer scope change, id-list change, refetch) is discarded — neither the
+  // unscoped id-keyed store nor the returned list may be filled from a superseded scope.
+  const fetchGeneration = useRef(0);
+
   const fetchProducts = useCallback(
     async (forceRefresh = false) => {
+      const generation = ++fetchGeneration.current;
+      const isStale = () => generation !== fetchGeneration.current;
       setLoading(true);
       setError(null);
       try {
@@ -140,6 +147,10 @@ export function useProducts(productIds: Product['id'][] = [], fetchOptions?: Pro
           }),
         );
 
+        if (isStale()) {
+          return;
+        }
+
         // Add all fetched products to the store
         const validFetched = fetchedProducts.filter(Boolean) as Product[];
         if (validFetched.length > 0) {
@@ -153,9 +164,14 @@ export function useProducts(productIds: Product['id'][] = [], fetchOptions?: Pro
 
         setProducts(mergeProductFetchResults(productIds, fetchedProducts, getProduct, new Set(uniqueIdsToFetch)));
       } catch (err) {
-        setError(err as Error);
+        if (!isStale()) {
+          setError(err as Error);
+        }
       } finally {
-        setLoading(false);
+        // The newest pass owns `loading`; a superseded one must not clear it early.
+        if (!isStale()) {
+          setLoading(false);
+        }
       }
     },
     [productIds, getProduct, addProduct, addProducts, logger, clientDedupeScope],

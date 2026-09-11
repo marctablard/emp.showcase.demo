@@ -26,6 +26,7 @@ import { buildSearchPaginationUrl } from './build-search-pagination-url';
 
 const DEFAULT_PAGE_INDEX = 0;
 const DEFAULT_PAGE_SIZE = 12;
+const EMPTY_SUGGESTIONS: SearchSuggestions = { queryCompletions: [], products: [], categories: [] };
 
 /** Returned on {@link useSearch}; map to `search.errors.*` in next-intl. */
 export const USE_SEARCH_CLIENT_ERROR = {
@@ -171,11 +172,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   const [currentQuery, setCurrentQuery] = useState<string | undefined>(initialSearch?.query);
   const [currentSort, setCurrentSort] = useState<string | undefined>(initialSearch?.sort);
   // Suggestions state
-  const [suggestions, setSuggestions] = useState<SearchSuggestions>({
-    queryCompletions: [],
-    products: [],
-    categories: [],
-  });
+  const [suggestions, setSuggestions] = useState<SearchSuggestions>(EMPTY_SUGGESTIONS);
   const siteCode = useSiteCode();
   const locale = useLocale();
   const session = useSessionStore().session;
@@ -197,6 +194,10 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     filters: initialSearch?.filters,
   });
   const searchGeneration = useRef(0);
+  // Latest scope for the direct fetches below (suggestions, load-more): a response captured under
+  // an older products-mode / customer scope must never populate the new scope's UI (COP-4822).
+  const clientFetchScopeRef = useRef(clientFetchScope);
+  const suggestionsGeneration = useRef(0);
   const lastClientFetchScope = useRef<string | undefined>(undefined);
   const lastCompletedSearchKey = useRef<string | undefined>(undefined);
   const inFlightSearch = useRef<{ key: string; promise: Promise<void> } | undefined>(undefined);
@@ -379,6 +380,10 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   );
 
   useEffect(() => {
+    clientFetchScopeRef.current = clientFetchScope;
+  }, [clientFetchScope]);
+
+  useEffect(() => {
     if (lastClientFetchScope.current === undefined) {
       lastClientFetchScope.current = clientFetchScope;
       return;
@@ -388,6 +393,9 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     }
     lastClientFetchScope.current = clientFetchScope;
     lastCompletedSearchKey.current = undefined;
+    // Suggestions were produced under the previous scope: drop them and invalidate any in-flight request.
+    suggestionsGeneration.current += 1;
+    setSuggestions(EMPTY_SUGGESTIONS);
     search(lastSearchParams.current).catch((err: unknown) => {
       getLogger().error({ err, event: 'search_scope_refresh_failed' }, 'Product search scope refresh failed');
     });
@@ -533,6 +541,8 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     if (!resolvedSite) return;
 
     const nextPage = currentPage + 1;
+    const scopeAtRequest = clientFetchScope;
+    const searchGenerationAtRequest = searchGeneration.current;
     try {
       setLoadingMore(true);
       setError(null);
@@ -555,6 +565,12 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
 
       const result: SearchResult<T> = await response.json();
 
+      // Scope changed or a new search started while this page was in flight: the page belongs
+      // to the previous result set and must not be appended.
+      if (clientFetchScopeRef.current !== scopeAtRequest || searchGeneration.current !== searchGenerationAtRequest) {
+        return;
+      }
+
       setData((prev) => [...prev, ...result.items]);
       setCurrentPage(nextPage);
       setTotal(result.total);
@@ -570,17 +586,20 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
     } finally {
       setLoadingMore(false);
     }
-  }, [hasMore, loadingMore, loading, currentPage, pageSize, siteCode, locale, sessionCurrency]);
+  }, [hasMore, loadingMore, loading, currentPage, pageSize, siteCode, locale, sessionCurrency, clientFetchScope]);
 
   const getSuggestions = useCallback(
     async (query: string, locale?: string): Promise<void> => {
+      const generation = ++suggestionsGeneration.current;
+      const scopeAtRequest = clientFetchScope;
+      // Superseded by a newer suggestions request, or the products-mode / customer scope changed
+      // while in flight: the payload belongs to the previous scope and must not be shown.
+      const isStale = () =>
+        generation !== suggestionsGeneration.current || clientFetchScopeRef.current !== scopeAtRequest;
+
       setLoading(true);
       if (!query?.trim()) {
-        setSuggestions({
-          queryCompletions: [],
-          products: [],
-          categories: [],
-        });
+        setSuggestions(EMPTY_SUGGESTIONS);
         setLoading(false);
         return;
       }
@@ -605,15 +624,21 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         }
         const data = await response.json();
 
+        if (isStale()) {
+          return;
+        }
         // Set suggestions directly from API response
         setSuggestions(data);
       } catch (err) {
         getLogger().error({ err, query }, 'Error fetching suggestions');
       } finally {
-        setLoading(false);
+        // The newest suggestions request owns `loading`; a superseded one must not clear it early.
+        if (generation === suggestionsGeneration.current) {
+          setLoading(false);
+        }
       }
     },
-    [siteCode, sessionCurrency],
+    [siteCode, sessionCurrency, clientFetchScope],
   );
 
   const changeSort = useCallback(

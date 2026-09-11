@@ -502,6 +502,58 @@ describe('useProduct hook', () => {
       );
     });
 
+    test('discards a product response from a superseded customer scope (COP-4822 race guard)', async () => {
+      const sessionStore = createSessionStore({
+        session: readySession,
+        loading: false,
+      });
+      const sharedStore = createProductStore();
+      const raceWrapper = ({ children }: { children: ReactNode }) => (
+        <SessionStoreContext.Provider value={sessionStore}>
+          <CartStoreContext.Provider value={createCartStore()}>
+            <HistoryStoreContext.Provider value={createHistoryStore()}>
+              <ProductStoreContext.Provider value={sharedStore}>{children}</ProductStoreContext.Provider>
+            </HistoryStoreContext.Provider>
+          </CartStoreContext.Provider>
+        </SessionStoreContext.Provider>
+      );
+
+      let resolveStale: (value: unknown) => void = () => {};
+      (fetchProductById as jest.Mock)
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveStale = resolve;
+            }),
+        )
+        // Refetch under the logged-in scope: the product is not in the customer's scope → 404.
+        .mockResolvedValueOnce(null);
+
+      const { result } = renderHook(() => useProduct(mockProduct.id), { wrapper: raceWrapper });
+
+      await waitFor(() => expect(fetchProductById).toHaveBeenCalledTimes(1));
+      expect(fetchProductById).toHaveBeenLastCalledWith(mockProduct.id, undefined, 'anonymous:main:ANONYMOUS:USD');
+
+      // Customer transition while the anonymous request is still in flight.
+      await act(async () => {
+        sessionStore.getState().setSession({ ...readySession, customerId: 'cust-42' });
+      });
+
+      await waitFor(() => expect(fetchProductById).toHaveBeenCalledTimes(2));
+      expect(fetchProductById).toHaveBeenLastCalledWith(mockProduct.id, undefined, 'anonymous:main:cust-42:USD');
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      expect(result.current.product).toBeNull();
+
+      // The stale anonymous-scope response resolves late: it must not be rendered or cached.
+      await act(async () => {
+        resolveStale(mockProduct);
+      });
+
+      expect(result.current.product).toBeNull();
+      expect(sharedStore.getState().getProduct(mockProduct.id)).toBeNull();
+      expect(result.current.loading).toBe(false);
+    });
+
     test('session-null fail-safe does not strand SSR-seeded product as null without loading', async () => {
       const sessionStore = createSessionStore({
         session: null,

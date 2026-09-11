@@ -491,6 +491,120 @@ describe('useSearch', () => {
     expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('currency=USD'));
   });
 
+  it('discards suggestions that resolve after the customer scope changed', async () => {
+    let resolveSuggestions: (value: unknown) => void = () => {};
+    (global.fetch as jest.Mock).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveSuggestions = resolve;
+        }),
+    );
+
+    const { result, rerender } = renderHook(() => useSearch());
+
+    let pending: Promise<void> = Promise.resolve();
+    act(() => {
+      pending = result.current.getSuggestions('sol');
+    });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenLastCalledWith(expect.stringContaining('/api/search/suggestions'));
+
+    // Login / mode transition while the anonymous suggestions request is in flight.
+    mockUseSessionStore.mockReturnValue({ session: { currency: 'EUR', customerId: 'cust-b' } });
+    await act(async () => {
+      rerender();
+    });
+
+    await act(async () => {
+      resolveSuggestions({
+        ok: true,
+        json: async () => ({ queryCompletions: ['solar'], products: [{ id: 'out-of-scope' }], categories: [] }),
+      });
+      await pending;
+    });
+
+    expect(result.current.suggestions).toEqual({ queryCompletions: [], products: [], categories: [] });
+  });
+
+  it('keeps only the newest suggestions response when requests overlap', async () => {
+    let resolveFirst: (value: unknown) => void = () => {};
+    (global.fetch as jest.Mock)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirst = resolve;
+          }),
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ queryCompletions: ['solar panel'], products: [], categories: [] }),
+      });
+
+    const { result } = renderHook(() => useSearch());
+
+    let first: Promise<void> = Promise.resolve();
+    act(() => {
+      first = result.current.getSuggestions('so');
+    });
+    await act(async () => {
+      await result.current.getSuggestions('sol');
+    });
+    expect(result.current.suggestions.queryCompletions).toEqual(['solar panel']);
+
+    await act(async () => {
+      resolveFirst({ ok: true, json: async () => ({ queryCompletions: ['stale'], products: [], categories: [] }) });
+      await first;
+    });
+
+    expect(result.current.suggestions.queryCompletions).toEqual(['solar panel']);
+    expect(result.current.loading).toBe(false);
+  });
+
+  it('does not append a load-more page that resolves after the customer scope changed', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ items: [{ id: 'a' }], total: 3, page: 0, pageSize: 1, availableSorts: [] }),
+    });
+    const { result, rerender } = renderHook(() => useSearch<{ id: string }>());
+
+    await act(async () => {
+      await result.current.search({ page: 0, size: 1 });
+    });
+    expect(result.current.data).toEqual([{ id: 'a' }]);
+
+    let resolvePage: (value: unknown) => void = () => {};
+    (global.fetch as jest.Mock).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolvePage = resolve;
+        }),
+    );
+    let pending: Promise<void> = Promise.resolve();
+    act(() => {
+      pending = result.current.loadMore();
+    });
+
+    // Scope change re-runs the search (fetch #3) and invalidates the in-flight page.
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ items: [{ id: 'scoped' }], total: 1, page: 0, pageSize: 1, availableSorts: [] }),
+    });
+    mockUseSessionStore.mockReturnValue({ session: { currency: 'EUR', customerId: 'cust-b' } });
+    await act(async () => {
+      rerender();
+    });
+
+    await act(async () => {
+      resolvePage({
+        ok: true,
+        json: async () => ({ items: [{ id: 'out-of-scope' }], total: 3, page: 1, pageSize: 1, availableSorts: [] }),
+      });
+      await pending;
+    });
+
+    expect(result.current.data).toEqual([{ id: 'scoped' }]);
+  });
+
   it('retries a failed search with the same key', async () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: false,

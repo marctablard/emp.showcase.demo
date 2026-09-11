@@ -151,9 +151,17 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
     }
   }, [seededProductObject, productOrId, addProduct]);
 
+  // Monotonic fetch generation (COP-4822): a response that resolves after a newer fetch started
+  // (products-mode / customer scope change, id change, explicit refetch) is discarded instead of
+  // being committed to local state or the unscoped id-keyed store — otherwise an `all`-mode
+  // product resolving late could re-render an out-of-scope PDP in `assigned` mode.
+  const fetchGeneration = useRef(0);
+
   const fetchProduct = useCallback(
-    async (forceRefresh = false, clientDedupeScope = '') => {
+    async (forceRefresh: boolean, clientDedupeScope: string) => {
       if (!id) return;
+      const generation = ++fetchGeneration.current;
+      const isStale = () => generation !== fetchGeneration.current;
 
       try {
         setLoading(true);
@@ -176,6 +184,9 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
         setProduct((p) => (p && p.id !== id ? null : p));
 
         const data = await fetchProductById(id, options, clientDedupeScope);
+        if (isStale()) {
+          return;
+        }
         const next =
           data && sessionPricingContext?.currency
             ? stripProductPriceIfNotDisplayableForShopContext(data, sessionPricingContext, site)
@@ -195,9 +206,15 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
           );
         }
       } catch (err) {
+        if (isStale()) {
+          return;
+        }
         applyProductFetchError(id, productRef.current, getProduct, setProduct, setError, err);
       } finally {
-        setLoading(false);
+        // The newest fetch owns `loading`; a superseded one must not clear it early.
+        if (!isStale()) {
+          setLoading(false);
+        }
       }
     },
     [id, getProduct, addProduct, options, sessionPricingContext, site, mustRevalidateAssignedSeed],
