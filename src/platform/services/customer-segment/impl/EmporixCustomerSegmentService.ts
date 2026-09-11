@@ -165,9 +165,13 @@ export class EmporixCustomerSegmentService implements CustomerSegmentService {
     return undefined;
   }
 
-  /** The schema enum is `ACTIVE | INACTIVE`; only `ACTIVE` applies, so a missing status counts as INACTIVE. */
+  /**
+   * The schema enum is `ACTIVE | INACTIVE`. A segment is excluded only when a non-`ACTIVE` status is
+   * explicitly present; an absent status counts as applicable, because dropping segments widens the
+   * catalog (the customer would resolve as `unsegmented`) — fail closed.
+   */
   private isSegmentApplicable(segment: Segment, siteCode: Session['siteCode'] | undefined, now: number): boolean {
-    if (segment.status !== 'ACTIVE') {
+    if (segment.status !== undefined && segment.status !== 'ACTIVE') {
       return false;
     }
     if (segment.siteCode !== undefined && segment.siteCode !== siteCode) {

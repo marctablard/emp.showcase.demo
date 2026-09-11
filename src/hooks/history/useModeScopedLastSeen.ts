@@ -15,8 +15,15 @@ interface UseModeScopedLastSeenResult {
   validating: boolean;
 }
 
+/**
+ * Self-describing validation result: it names the mode and ids it was computed for and the cached
+ * lookup that produced it, so staleness is derived during render instead of resetting state.
+ */
 interface ValidatedIds {
-  key: string;
+  mode: ProductsMode;
+  idsKey: string;
+  /** The cached lookup this result came from; a cleared/replaced cache entry makes the result stale. */
+  source: Promise<Set<string>>;
   resolvedIds: Set<string>;
 }
 
@@ -27,9 +34,11 @@ interface ValidatedIds {
  * — possibly another customer — is validated afresh.
  */
 const validationCache = new Map<string, Promise<Set<string>>>();
+/** Lookups that rejected stay in the cache (so the fail-closed result remains current) but are retried on the next open. */
+const rejectedLookups = new WeakSet<Promise<Set<string>>>();
 
-function buildCacheKey(mode: ProductsMode, ids: string[]): string {
-  return `${mode}:${ids.join(',')}`;
+function buildCacheKey(mode: ProductsMode, idsKey: string): string {
+  return `${mode}:${idsKey}`;
 }
 
 /** Drops every cached `[mode, ids]` validation result. */
@@ -39,11 +48,11 @@ export function clearModeScopedLastSeenCache(): void {
 
 /**
  * Resolves the ids that `/api/products/[id]` still returns in the current mode (an out-of-scope
- * product answers 404 → `null`). A rejected lookup drops the cache entry so the next open retries.
+ * product answers 404 → `null`). A rejected lookup is replaced on the next call so the next open retries.
  */
 function validateIds(ids: string[], cacheKey: string): Promise<Set<string>> {
   const existing = validationCache.get(cacheKey);
-  if (existing) {
+  if (existing && !rejectedLookups.has(existing)) {
     return existing;
   }
 
@@ -52,12 +61,29 @@ function validateIds(ids: string[], cacheKey: string): Promise<Set<string>> {
   );
   validationCache.set(cacheKey, promise);
   promise.catch(() => {
-    if (validationCache.get(cacheKey) === promise) {
-      validationCache.delete(cacheKey);
-    }
+    rejectedLookups.add(promise);
   });
 
   return promise;
+}
+
+/**
+ * A stored result is current only for the mode and ids it was computed for **and** while the cache
+ * still holds the lookup that produced it. Leaving `assigned` clears the cache, so after re-entering
+ * (possibly as another customer) the earlier result is stale until the fresh lookup resolves.
+ */
+function isCurrentValidation(
+  validated: ValidatedIds | null,
+  mode: ProductsMode,
+  idsKey: string,
+  cacheKey: string,
+): validated is ValidatedIds {
+  return (
+    validated !== null &&
+    validated.mode === mode &&
+    validated.idsKey === idsKey &&
+    validationCache.get(cacheKey) === validated.source
+  );
 }
 
 /**
@@ -75,17 +101,13 @@ export function useModeScopedLastSeen(): UseModeScopedLastSeenResult {
   const [validated, setValidated] = useState<ValidatedIds | null>(null);
 
   const ids = useMemo(() => lastSeenProducts.map((product) => product.id), [lastSeenProducts]);
-  const cacheKey = buildCacheKey(mode, ids);
+  const idsKey = ids.join(',');
+  const cacheKey = buildCacheKey(mode, idsKey);
   const needsValidation = mode === 'assigned' && ids.length > 0;
 
-  // Leaving the segmented scope (logout, ALL products) forgets the local validation result so the
-  // next assigned session — possibly another customer — starts from a fresh lookup. Adjusted during
-  // render (not from an effect); once `validated` is null the condition no longer holds.
-  if (mode !== 'assigned' && validated !== null) {
-    setValidated(null);
-  }
-
   useEffect(() => {
+    // Leaving the segmented scope (logout, ALL products) forgets the cached lookups, which also marks
+    // the local result stale (see `isCurrentValidation`) so the next assigned session starts afresh.
     if (mode !== 'assigned') {
       clearModeScopedLastSeenCache();
     }
@@ -94,7 +116,13 @@ export function useModeScopedLastSeen(): UseModeScopedLastSeenResult {
     }
 
     let cancelled = false;
-    validateIds(ids, cacheKey)
+    const source = validateIds(ids, cacheKey);
+    const commit = (resolvedIds: Set<string>) => {
+      // Skip the no-op update when the same lookup was already applied (e.g. a re-run of the effect).
+      setValidated((previous) => (previous?.source === source ? previous : { mode, idsKey, source, resolvedIds }));
+    };
+
+    source
       .then((resolvedIds) => {
         if (cancelled) {
           return;
@@ -103,34 +131,32 @@ export function useModeScopedLastSeen(): UseModeScopedLastSeenResult {
           { mode, total: ids.length, dropped: ids.length - resolvedIds.size },
           'Hid last-seen products outside the assigned products scope',
         );
-        // Skip the no-op update when the same key was already applied (e.g. a re-run of the effect).
-        setValidated((previous) => (previous?.key === cacheKey ? previous : { key: cacheKey, resolvedIds }));
+        commit(resolvedIds);
       })
       .catch(() => {
         if (!cancelled) {
           // Fail closed: a failed lookup hides the cached items instead of exposing out-of-scope products.
-          setValidated((previous) =>
-            previous?.key === cacheKey ? previous : { key: cacheKey, resolvedIds: new Set<string>() },
-          );
+          commit(new Set<string>());
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [mode, ids, cacheKey, needsValidation, logger]);
+  }, [mode, ids, idsKey, cacheKey, needsValidation, logger]);
 
-  const validating = needsValidation && validated?.key !== cacheKey;
+  const currentValidation = isCurrentValidation(validated, mode, idsKey, cacheKey) ? validated : null;
+  const validating = needsValidation && currentValidation === null;
 
   const products = useMemo(() => {
     if (!needsValidation) {
       return lastSeenProducts;
     }
-    if (validating || !validated) {
+    if (currentValidation === null) {
       return [];
     }
-    return lastSeenProducts.filter((product) => validated.resolvedIds.has(product.id));
-  }, [needsValidation, validating, validated, lastSeenProducts]);
+    return lastSeenProducts.filter((product) => currentValidation.resolvedIds.has(product.id));
+  }, [needsValidation, currentValidation, lastSeenProducts]);
 
   return { products, validating };
 }

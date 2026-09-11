@@ -102,11 +102,7 @@ export default function Footer({ reduced = false }: { reduced?: boolean }) {
 
 export type FooterTopProductCategoryLink = { label: string; href: string };
 
-export function FooterLinks({
-  topProductCategories,
-  showAllProductsBrowse = false,
-  assignedProductsMode = false,
-}: {
+interface FooterLinksProps {
   topProductCategories?: FooterTopProductCategoryLink[];
   showAllProductsBrowse?: boolean;
   /**
@@ -114,7 +110,13 @@ export function FooterLinks({
    * category forest and the column heading reads "Assigned Products" instead of "Products".
    */
   assignedProductsMode?: boolean;
-}) {
+}
+
+export function FooterLinks({
+  topProductCategories,
+  showAllProductsBrowse = false,
+  assignedProductsMode = false,
+}: Readonly<FooterLinksProps>) {
   const t = useTranslations('layout.footerLinks');
   const categoryPreviewCount = getNavigationRootCategoriesPageSize();
   const { visible: visibleTopProductCategories } = takeRootCategoryPage(

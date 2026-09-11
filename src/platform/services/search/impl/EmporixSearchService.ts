@@ -39,6 +39,15 @@ function isUnscopedProductSearch(params: SearchParams<Product>): boolean {
   return process.env.NEXT_PUBLIC_SEARCH_OMIT_CATALOG_CATALOG_FILTER === 'true';
 }
 
+/** Normalises the raw `filters.categoryIds` value (string | string[] | empty) to trimmed non-empty ids. */
+function normalizeFilterCategoryIds(raw: unknown): string[] {
+  if (raw === undefined || raw === null || raw === '') {
+    return [];
+  }
+  const values: unknown[] = Array.isArray(raw) ? raw : [raw];
+  return values.filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
+}
+
 const EMPORIX_AVAILABLE_SORTS: SearchSortOption[] = [
   {
     id: 'name',
@@ -213,45 +222,23 @@ class EmporixSearchService implements SearchService {
     effectiveSite?: string,
     queryCriteria: Record<string, string> = {},
   ): Promise<Partial<EmporixProduct> | null> {
-    const filterCategoryRaw = params.filters?.categoryIds;
-    const filterCategoryIds =
-      filterCategoryRaw === undefined || filterCategoryRaw === null || filterCategoryRaw === ''
-        ? []
-        : (Array.isArray(filterCategoryRaw) ? filterCategoryRaw : [filterCategoryRaw]).filter(
-            (id): id is string => typeof id === 'string' && id.trim().length > 0,
-          );
+    const filterCategoryIds = normalizeFilterCategoryIds(params.filters?.categoryIds);
 
     if (params.segmentIds !== undefined) {
       return this.buildSegmentScopedCriteria(params.segmentIds, filterCategoryIds, effectiveSite, queryCriteria);
     }
 
+    // `''` means "no usable category ids" → empty result; `undefined` means unscoped.
     let categoryValue: string | undefined;
     if (filterCategoryIds.length > 0) {
-      categoryValue = buildProductCategoryIdsCriteriaValue(filterCategoryIds);
-      if (!categoryValue) {
-        return null;
-      }
+      categoryValue = buildProductCategoryIdsCriteriaValue(filterCategoryIds) ?? '';
     } else if (isUnscopedProductSearch(params)) {
       categoryValue = undefined;
     } else {
-      const siteCode = await this.resolveSiteCode(effectiveSite);
-      if (!siteCode) {
-        this.logger.warn({}, 'Catalog-scoped search missing site; returning empty results');
-        return null;
-      }
-      const navigationRoots = await this.categoryService.getNavigationCategoryTrees(siteCode, false);
-      if (navigationRoots.length === 0) {
-        this.logger.warn({ siteCode }, 'Scoped product search: no published navigation category roots');
-        return null;
-      }
-      const rootIds = navigationRoots.map((c) => c.id).filter((id) => typeof id === 'string' && id.trim().length > 0);
-      if (rootIds.length === 0) {
-        return null;
-      }
-      categoryValue = buildProductCategoryIdsCriteriaValue(rootIds);
-      if (!categoryValue) {
-        return null;
-      }
+      categoryValue = await this.buildNavigationRootCategoryValue(effectiveSite);
+    }
+    if (categoryValue === '') {
+      return null;
     }
 
     const criteriaRecord: Record<string, string> = {
@@ -260,6 +247,26 @@ class EmporixSearchService implements SearchService {
     };
 
     return criteriaRecord as Partial<EmporixProduct>;
+  }
+
+  /**
+   * `categoryIds` criteria value for the default catalog-scoped search: the **published navigation
+   * root** ids of the site. Returns `''` (→ empty result) when the site, the roots or their ids
+   * cannot be resolved.
+   */
+  private async buildNavigationRootCategoryValue(effectiveSite?: string): Promise<string> {
+    const siteCode = await this.resolveSiteCode(effectiveSite);
+    if (!siteCode) {
+      this.logger.warn({}, 'Catalog-scoped search missing site; returning empty results');
+      return '';
+    }
+    const navigationRoots = await this.categoryService.getNavigationCategoryTrees(siteCode, false);
+    if (navigationRoots.length === 0) {
+      this.logger.warn({ siteCode }, 'Scoped product search: no published navigation category roots');
+      return '';
+    }
+    const rootIds = navigationRoots.map((c) => c.id).filter((id) => typeof id === 'string' && id.trim().length > 0);
+    return buildProductCategoryIdsCriteriaValue(rootIds) ?? '';
   }
 
   async searchProducts(

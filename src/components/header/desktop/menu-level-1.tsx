@@ -34,26 +34,19 @@ export function MenuLevel1({ className, onMenuHover, activeMenuId }: HeaderNavig
       {navigationMenuItems.map((item) => (
         <li key={item.id}>
           {item.href && !item.hasSubmenu ? (
-            <>
-              <Link href={item.href} className="text-lg" onMouseEnter={() => onMenuHover?.(item)}>
-                {itemLabel(item)}
-              </Link>
-            </>
+            <Link href={item.href} className="text-lg" onMouseEnter={() => onMenuHover?.(item)}>
+              {itemLabel(item)}
+            </Link>
           ) : (
-            <>
-              <button
-                className={cn(
-                  'flex items-center text-lg cursor-pointer',
-                  activeMenuId === item.id && 'text-text-action',
-                )}
-                onMouseEnter={() => onMenuHover?.(item)}
-                onClick={() => handleMenuClick(item)}
-                data-testid={item.id === ALL_PRODUCTS_NAVIGATION_ITEM_ID ? 'header-allProductsMenu' : undefined}
-              >
-                {itemLabel(item)}
-                <ChevronDown className="w-5 h-5 ms-1" />
-              </button>
-            </>
+            <button
+              className={cn('flex items-center text-lg cursor-pointer', activeMenuId === item.id && 'text-text-action')}
+              onMouseEnter={() => onMenuHover?.(item)}
+              onClick={() => handleMenuClick(item)}
+              data-testid={item.id === ALL_PRODUCTS_NAVIGATION_ITEM_ID ? 'header-allProductsMenu' : undefined}
+            >
+              {itemLabel(item)}
+              <ChevronDown className="w-5 h-5 ms-1" />
+            </button>
           )}
         </li>
       ))}

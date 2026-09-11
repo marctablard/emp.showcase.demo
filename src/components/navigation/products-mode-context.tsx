@@ -23,7 +23,10 @@ export const ANONYMOUS_PRODUCTS_MODE: ProductsModeContextValue = {
 
 const ProductsModeContext = createContext<ProductsModeContextValue>(ANONYMOUS_PRODUCTS_MODE);
 
-export function ProductsModeProvider({ value, children }: { value: ProductsModeContextValue; children: ReactNode }) {
+export function ProductsModeProvider({
+  value,
+  children,
+}: Readonly<{ value: ProductsModeContextValue; children: ReactNode }>) {
   const { mode, isSegmented, canToggleAllProducts } = value;
   const memoised = useMemo<ProductsModeContextValue>(
     () => ({ mode, isSegmented, canToggleAllProducts }),

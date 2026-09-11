@@ -253,6 +253,34 @@ describe('SearchFlyOut last-seen products (COP-4822 products mode)', () => {
       expect(mockFetchProductById).toHaveBeenCalledTimes(2);
     });
 
+    it('switches modes without a render-phase state update warning', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      try {
+        setMode('assigned');
+        setLastSeen([IN_SCOPE, OUT_OF_SCOPE]);
+
+        const { rerender } = renderFlyOut();
+        await waitFor(() => expect(screen.getByTestId(`tile-${IN_SCOPE.id}`)).toBeInTheDocument());
+
+        setMode('all');
+        rerenderFlyOut(rerender);
+        expect(screen.getByTestId(`tile-${OUT_OF_SCOPE.id}`)).toBeInTheDocument();
+
+        setMode('assigned');
+        rerenderFlyOut(rerender);
+        await waitFor(() => expect(screen.getByTestId(`tile-${IN_SCOPE.id}`)).toBeInTheDocument());
+
+        const renderPhaseWarnings = consoleErrorSpy.mock.calls.filter((call) =>
+          call.some((arg) => typeof arg === 'string' && arg.includes('Cannot update a component')),
+        );
+        expect(renderPhaseWarnings).toHaveLength(0);
+        expect(consoleErrorSpy).not.toHaveBeenCalled();
+      } finally {
+        consoleErrorSpy.mockRestore();
+      }
+    });
+
     it('re-validates after leaving and re-entering assigned mode (cache cleared on logout / ALL)', async () => {
       setMode('assigned');
       setLastSeen([IN_SCOPE]);

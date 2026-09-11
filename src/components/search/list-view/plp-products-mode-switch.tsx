@@ -21,7 +21,7 @@ interface PlpProductsModeSwitchProps {
  * the server re-resolves the products mode (category tree, header/footer labels and results).
  * Figma: n/a — Figma not ready; built from the AC text and the existing switch/label primitives.
  */
-export function PlpProductsModeSwitch({ className }: PlpProductsModeSwitchProps) {
+export function PlpProductsModeSwitch({ className }: Readonly<PlpProductsModeSwitchProps>) {
   const { mode, canToggleAllProducts } = useProductsMode();
 
   if (!canToggleAllProducts) {
@@ -32,7 +32,7 @@ export function PlpProductsModeSwitch({ className }: PlpProductsModeSwitchProps)
 }
 
 /** Inner control — only mounted when the switch is available, so router/logger hooks stay out of anonymous renders. */
-function PlpProductsModeSwitchControl({ checked, className }: { checked: boolean; className?: string }) {
+function PlpProductsModeSwitchControl({ checked, className }: Readonly<{ checked: boolean; className?: string }>) {
   const t = useTranslations('search.searchResults');
   const router = useRouter();
   const logger = useLogger();

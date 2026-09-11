@@ -160,11 +160,15 @@ describe('PlpCategoryTree', () => {
     it('renders the products mode switch in the card header when the toggle is available', () => {
       renderWithMode({ mode: 'assigned', isSegmented: true, canToggleAllProducts: true });
 
-      const header = screen.getByRole('heading', { level: 5, name: 'title' }).parentElement;
+      const heading = screen.getByRole('heading', { level: 5, name: 'title' });
+      const header = heading.parentElement as HTMLElement;
       const control = screen.getByTestId('plp-productsModeSwitch');
 
       expect(header).toHaveAttribute('data-slot', 'card-header');
-      expect(header).toHaveClass('flex', 'items-center', 'justify-between');
+      // Wraps the switch group onto its own row in the 274px sidebar instead of overflowing the card.
+      expect(header).toHaveClass('flex', 'flex-wrap', 'items-center', 'justify-between', 'gap-x-4', 'gap-y-2');
+      expect(header).not.toHaveClass('gap-4');
+      expect(header.firstElementChild).toBe(heading);
       expect(header).toContainElement(control);
       expect(header).toContainElement(screen.getByTestId('plp-productsModeLabel'));
       expect(control).toHaveAttribute('aria-checked', 'false');

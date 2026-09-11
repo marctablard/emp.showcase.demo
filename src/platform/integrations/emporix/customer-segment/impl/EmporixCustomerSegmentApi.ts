@@ -163,7 +163,8 @@ class EmporixCustomerSegmentApi implements IEmporixCustomerSegmentApi {
 
   private buildUrl(path: string, params?: CustomerSegmentQueryParams): string {
     const queryString = this.buildQueryString(params);
-    return `/customer-segment/${this.config.tenant}${path}${queryString ? `?${queryString}` : ''}`;
+    const querySuffix = queryString ? `?${queryString}` : '';
+    return `/customer-segment/${this.config.tenant}${path}${querySuffix}`;
   }
 
   private parseTotalCount(headerValue: string | null): number | undefined {
@@ -174,34 +175,33 @@ class EmporixCustomerSegmentApi implements IEmporixCustomerSegmentApi {
     return Number.isNaN(parsed) ? undefined : parsed;
   }
 
+  /**
+   * Serialises the query params in a fixed order. Truthy string/number params are appended
+   * (falsy values such as `''` / `0` are skipped, as before); `onlyActive` is appended whenever it is
+   * defined, as `'true'` / `'false'`.
+   */
   private buildQueryString(params?: CustomerSegmentQueryParams): string {
     const queryParams = new URLSearchParams();
+    if (!params) {
+      return '';
+    }
 
-    if (params) {
-      if (params.q) {
-        queryParams.append('q', params.q);
+    const truthyParams: Array<[key: string, value: string | number | undefined]> = [
+      ['q', params.q],
+      ['pageSize', params.pageSize],
+      ['pageNumber', params.pageNumber],
+      ['sort', params.sort],
+      ['fields', params.fields],
+      ['legalEntityId', params.legalEntityId],
+      ['siteCode', params.siteCode],
+    ];
+    for (const [key, value] of truthyParams) {
+      if (value) {
+        queryParams.append(key, value.toString());
       }
-      if (params.pageSize) {
-        queryParams.append('pageSize', params.pageSize.toString());
-      }
-      if (params.pageNumber) {
-        queryParams.append('pageNumber', params.pageNumber.toString());
-      }
-      if (params.sort) {
-        queryParams.append('sort', params.sort);
-      }
-      if (params.fields) {
-        queryParams.append('fields', params.fields);
-      }
-      if (params.legalEntityId) {
-        queryParams.append('legalEntityId', params.legalEntityId);
-      }
-      if (params.siteCode) {
-        queryParams.append('siteCode', params.siteCode);
-      }
-      if (params.onlyActive !== undefined) {
-        queryParams.append('onlyActive', params.onlyActive ? 'true' : 'false');
-      }
+    }
+    if (params.onlyActive !== undefined) {
+      queryParams.append('onlyActive', params.onlyActive ? 'true' : 'false');
     }
     return queryParams.toString();
   }

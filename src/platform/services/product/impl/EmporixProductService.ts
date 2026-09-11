@@ -33,7 +33,7 @@ type ProductTemplateRef = { id: string; version?: string };
  * a failed segment lookup): `undefined` means unscoped, `[]` means nothing is visible.
  */
 function isEmptySegmentScope(segmentIds: string[] | undefined): boolean {
-  return segmentIds !== undefined && segmentIds.length === 0;
+  return segmentIds?.length === 0;
 }
 
 function templateCacheKey(id: string, version?: string): string {
@@ -613,11 +613,9 @@ class EmporixProductService implements ProductService {
         return new Map<string, ProductPrice | null>();
       })(),
       // Forward ONLY `segmentIds`: passing the full options would re-enter variant/price enrichment per variant.
-      Promise.all(
-        [...productIds].map((id) =>
-          options?.variants ? this.getVariantProducts(id, { segmentIds: options.segmentIds }) : undefined,
-        ),
-      ),
+      options?.variants
+        ? Promise.all([...productIds].map((id) => this.getVariantProducts(id, { segmentIds: options.segmentIds })))
+        : Promise.resolve<Product[][]>([]),
     ]);
 
     // Create lookup maps for brands

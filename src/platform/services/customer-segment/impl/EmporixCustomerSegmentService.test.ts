@@ -131,7 +131,7 @@ describe('EmporixCustomerSegmentService', () => {
       const past = new Date(Date.now() - 86_400_000).toISOString();
       const future = new Date(Date.now() + 86_400_000).toISOString();
 
-      it('excludes INACTIVE, other-site and expired segments; keeps site-less and ACTIVE segments for the requested site', async () => {
+      it('excludes INACTIVE, other-site and expired segments; keeps site-less, status-less and ACTIVE segments for the requested site', async () => {
         api.getMySegments.mockResolvedValue([
           { id: 'inactive', status: 'INACTIVE', siteCode: 'main' },
           { id: 'other-site', status: 'ACTIVE', siteCode: 'other' },
@@ -145,8 +145,8 @@ describe('EmporixCustomerSegmentService', () => {
 
         const result = await service.getMySegments();
 
-        // A missing `status` counts as INACTIVE (schema enum `ACTIVE | INACTIVE`; only `ACTIVE` applies).
-        expect(result.map((s) => s.id)).toEqual(['no-site', 'current', 'solarpanelfans']);
+        // A missing `status` counts as applicable (fail closed): only an explicit non-ACTIVE status excludes.
+        expect(result.map((s) => s.id)).toEqual(['no-site', 'no-status', 'current', 'solarpanelfans']);
       });
 
       it('lets options.siteCode win over the session site', async () => {

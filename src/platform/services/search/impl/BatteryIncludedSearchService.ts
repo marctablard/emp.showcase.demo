@@ -568,7 +568,7 @@ class BatteryIncludedSearchService implements SearchService {
    * return an empty result without any BI call.
    */
   private isEmptySegmentScope(segmentIds: string[] | undefined): boolean {
-    return segmentIds !== undefined && segmentIds.length === 0;
+    return segmentIds?.length === 0;
   }
 
   /**
@@ -780,7 +780,7 @@ class BatteryIncludedSearchService implements SearchService {
           variables: visibilityVariables,
           filters: visibilityFilters,
         },
-        ...(segmentIds !== undefined ? { segmentIds } : {}),
+        ...(segmentIds === undefined ? {} : { segmentIds }),
       });
 
       return this.suggestionsMapper.mapSearchSuggestions(
