@@ -171,6 +171,33 @@ describe('EmporixSessionService', () => {
       expect(mockSessionMapper.mapToService).not.toHaveBeenCalled();
       expect(result).toBeUndefined();
     });
+
+    it('getCurrent swallows a failed lookup and resolves undefined', async () => {
+      mockSessionContextApi.getOwnSessionContext.mockRejectedValue(new Error('session-context down'));
+
+      await expect(sessionService.getCurrent()).resolves.toBeUndefined();
+    });
+  });
+
+  describe('getCurrentOrThrow', () => {
+    it('maps the current session context', async () => {
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValue(mockSessionContext);
+      mockSessionMapper.mapToService.mockReturnValue(mockSession);
+
+      await expect(sessionService.getCurrentOrThrow()).resolves.toEqual(mockSession);
+    });
+
+    it('resolves undefined when there is no session', async () => {
+      mockSessionContextApi.getOwnSessionContext.mockResolvedValue(undefined);
+
+      await expect(sessionService.getCurrentOrThrow()).resolves.toBeUndefined();
+    });
+
+    it('rejects when the session lookup fails (no anonymous fallback)', async () => {
+      mockSessionContextApi.getOwnSessionContext.mockRejectedValue(new Error('session-context down'));
+
+      await expect(sessionService.getCurrentOrThrow()).rejects.toThrow('session-context down');
+    });
   });
 
   describe('getCustomerTokenLegalEntityId', () => {

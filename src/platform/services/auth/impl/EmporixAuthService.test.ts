@@ -185,6 +185,7 @@ describe('EmporixAuthService', () => {
 
     mockSessionService = {
       getCurrent: jest.fn(),
+      getCurrentOrThrow: jest.fn(),
       getById: jest.fn(),
       setLanguage: jest.fn(),
       setCurrency: jest.fn(),

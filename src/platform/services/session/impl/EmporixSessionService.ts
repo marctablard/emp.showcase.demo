@@ -400,21 +400,29 @@ class EmporixSessionService implements SessionService {
   }
 
   /**
-   * Get the current session context
+   * Get the current session context; a failed lookup is swallowed (best-effort read).
    */
   async getCurrent(): Promise<Session | undefined> {
     try {
-      const sessionContext = await this.sessionContextApi.getOwnSessionContext();
-      const result = sessionContext ? this.mapper.mapToService(sessionContext) : undefined;
-      if (!result) {
-        return undefined;
-      }
-      await this.adjustSessionsSettings(sessionContext, result);
-      return result;
+      return await this.getCurrentOrThrow();
     } catch (_error) {
       // fail silently for ssr context
       return undefined;
     }
+  }
+
+  /**
+   * Get the current session context; `undefined` only when there is no session, a failed lookup
+   * rejects so access-gating callers can fail closed.
+   */
+  async getCurrentOrThrow(): Promise<Session | undefined> {
+    const sessionContext = await this.sessionContextApi.getOwnSessionContext();
+    const result = sessionContext ? this.mapper.mapToService(sessionContext) : undefined;
+    if (!result) {
+      return undefined;
+    }
+    await this.adjustSessionsSettings(sessionContext, result);
+    return result;
   }
 
   private applyDefaultSiteIfNeeded(

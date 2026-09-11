@@ -32,7 +32,7 @@ describe('DefaultProductsModeService', () => {
     );
   const emporixSearchService = () => ({ searchProducts: jest.fn() }) as unknown as SearchService;
 
-  let sessionService: jest.Mocked<Pick<SessionService, 'getCurrent'>>;
+  let sessionService: jest.Mocked<Pick<SessionService, 'getCurrentOrThrow'>>;
   let customerSegmentService: jest.Mocked<Pick<CustomerSegmentService, 'getMySegments'>>;
   let logger: jest.Mocked<LoggerService>;
 
@@ -53,7 +53,7 @@ describe('DefaultProductsModeService', () => {
   };
 
   beforeEach(() => {
-    sessionService = { getCurrent: jest.fn().mockResolvedValue(customerSession) };
+    sessionService = { getCurrentOrThrow: jest.fn().mockResolvedValue(customerSession) };
     customerSegmentService = { getMySegments: jest.fn().mockResolvedValue(segments) };
     logger = {
       trace: jest.fn(),
@@ -74,7 +74,7 @@ describe('DefaultProductsModeService', () => {
   });
 
   it('resolves anonymous when the session has no customerId and does not look up segments', async () => {
-    sessionService.getCurrent.mockResolvedValue(anonymousSession);
+    sessionService.getCurrentOrThrow.mockResolvedValue(anonymousSession);
     const service = createService({ flag: 'true' });
 
     const context = await service.resolve({ optInCookieValue: 'all.c1' });
@@ -90,8 +90,34 @@ describe('DefaultProductsModeService', () => {
     expect(customerSegmentService.getMySegments).not.toHaveBeenCalled();
   });
 
+  it('resolves anonymous when there is no session at all (getCurrentOrThrow → undefined)', async () => {
+    sessionService.getCurrentOrThrow.mockResolvedValue(undefined);
+    const service = createService({ flag: 'true' });
+
+    const context = await service.resolve({ siteCode: 'main' });
+
+    expect(context.mode).toBe('anonymous');
+    expect(customerSegmentService.getMySegments).not.toHaveBeenCalled();
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('rejects (fail closed, never anonymous) when the session lookup fails', async () => {
+    const failure = new Error('session-context down');
+    sessionService.getCurrentOrThrow.mockRejectedValue(failure);
+    const service = createService({ flag: 'true' });
+
+    await expect(service.resolve({ optInCookieValue: 'all.c1' })).rejects.toThrow(
+      'Failed to resolve products mode: session lookup failed: session-context down',
+    );
+    expect(customerSegmentService.getMySegments).not.toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ err: failure }),
+      expect.stringContaining('fail closed'),
+    );
+  });
+
   it('resolves anonymous for the Emporix "ANONYMOUS" session customerId and does not look up segments', async () => {
-    sessionService.getCurrent.mockResolvedValue({ ...anonymousSession, customerId: 'ANONYMOUS' });
+    sessionService.getCurrentOrThrow.mockResolvedValue({ ...anonymousSession, customerId: 'ANONYMOUS' });
     const service = createService({ flag: 'true' });
 
     const context = await service.resolve({ optInCookieValue: 'all.ANONYMOUS' });
@@ -308,7 +334,7 @@ describe('DefaultProductsModeService', () => {
   });
 
   it('fails closed (assigned, no segments, warn) for an authenticated customer without any usable site', async () => {
-    sessionService.getCurrent.mockResolvedValue({ ...customerSession, siteCode: ' ' });
+    sessionService.getCurrentOrThrow.mockResolvedValue({ ...customerSession, siteCode: ' ' });
     const service = createService({ flag: 'true' });
 
     const context = await service.resolve({ siteCode: '', optInCookieValue: 'all.c1' });
@@ -329,7 +355,7 @@ describe('DefaultProductsModeService', () => {
   });
 
   it('resolves anonymous without a site and without a warning when the session is not a customer', async () => {
-    sessionService.getCurrent.mockResolvedValue({ ...anonymousSession, siteCode: '' });
+    sessionService.getCurrentOrThrow.mockResolvedValue({ ...anonymousSession, siteCode: '' });
     const service = createService({ flag: 'true' });
 
     const context = await service.resolve({ siteCode: ' ' });

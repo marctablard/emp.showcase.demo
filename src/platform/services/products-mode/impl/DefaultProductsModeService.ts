@@ -4,6 +4,7 @@ import { isProductsModeOptIn } from '@/lib/common/products-mode-cookie';
 import { injectable } from '@/platform/core/di/injectable';
 import type { CustomerSegmentService } from '../../customer-segment/CustomerSegmentService';
 import type { LoggerService } from '../../logger/LoggerService';
+import type { Session } from '../../model/session/session';
 import type { SearchService } from '../../search';
 import BatteryIncludedSearchService from '../../search/impl/BatteryIncludedSearchService';
 import type { SessionService } from '../../session';
@@ -62,6 +63,11 @@ class DefaultProductsModeService implements ProductsModeService {
    * `segmentIds === undefined` as unscoped but `[]` as an empty scope (no results, no upstream
    * call), so no out-of-segment product is exposed during an outage.
    *
+   * Session rule: the session is read with `getCurrentOrThrow()`. `undefined` (no session) is
+   * `anonymous`; a failed session lookup is **not** — it rejects, so a logged-in customer during a
+   * session/API outage can never be widened to the unscoped catalog. Callers already treat a
+   * rejected `resolve()` as fail closed (SSR rethrows, routes answer a private `500`).
+   *
    * Site rule: the request site is trimmed; when blank the validated session site is used (the
    * same source `EmporixProductService` uses). Segments are site-bound, so an authenticated
    * customer without any usable site cannot be matched against them — that also fails closed as
@@ -71,7 +77,18 @@ class DefaultProductsModeService implements ProductsModeService {
    * BatteryIncluded cannot drop those values and send an unscoped visibility filter.
    */
   async resolve(input: ProductsModeResolveInput): Promise<ProductsModeContext> {
-    const session = await this.sessionService.getCurrent();
+    let session: Session | undefined;
+    try {
+      session = await this.sessionService.getCurrentOrThrow();
+    } catch (error) {
+      this.logger.error(
+        { err: error instanceof Error ? error : String(error) },
+        'Session lookup failed; products mode cannot be resolved (fail closed, not anonymous)',
+      );
+      throw new Error(
+        `Failed to resolve products mode: session lookup failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
     const siteCode = normalizeSiteCode(input.siteCode) ?? normalizeSiteCode(session?.siteCode);
     const customerId = session?.customerId;
 
