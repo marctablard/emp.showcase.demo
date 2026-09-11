@@ -2,6 +2,7 @@ import {
   CategoryTreeItemResponse,
   CustomerSegmentQueryParams,
   ItemAssignmentPageResponse,
+  SegmentPageResponse,
   SegmentResponse,
 } from '../model';
 
@@ -17,11 +18,12 @@ export interface EmporixCustomerSegmentApi {
   getMySegments(params?: CustomerSegmentQueryParams): Promise<SegmentResponse[] | null>;
 
   /**
-   * Retrieve customer segments visible to the current session (`GET /customer-segment/{tenant}/segments`).
+   * Retrieve one page of customer segments visible to the current session
+   * (`GET /customer-segment/{tenant}/segments`).
    * @param params Query parameters for filtering and pagination
-   * @returns Promise with array of segments
+   * @returns Promise with the page items and the `X-Total-Count` total
    */
-  getSegments(params?: CustomerSegmentQueryParams): Promise<SegmentResponse[]>;
+  getSegments(params?: CustomerSegmentQueryParams): Promise<SegmentPageResponse>;
 
   /**
    * Retrieve one page of item assignments for all customer segments

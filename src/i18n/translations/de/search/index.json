@@ -10,6 +10,8 @@
     "tryAdjusting": "Versuchen Sie, Ihre Suche oder Filter anzupassen",
     "allProducts": "Alle Produkte",
     "assignedProducts": "Zugeordnete Produkte",
+    "allProductsShort": "Alle",
+    "assignedProductsShort": "Nur meine",
     "productsModeSwitchLabel": "Zwischen zugewiesenen und allen Produkten wechseln",
     "searchResults": "Suchergebnisse",
     "allCategories": "Alle Kategorien",

@@ -173,18 +173,33 @@ class SegmentFilterService {
    * that best-effort step only affects tree visibility and never the product scope.
    * Empty `segmentIds` → empty scope without upstream calls.
    */
-  async getCategoryScope(siteCode: string, segmentIds: readonly string[]): Promise<SegmentCategoryScope> {
+  /**
+   * @param productIds Optional already-resolved directly assigned product ids. When provided
+   * (array or promise) `getProductScope` is not called again — callers that also need the
+   * product scope (Emporix assigned search) share one lookup. Omitted callers keep the
+   * best-effort graft path that swallows a failed items lookup.
+   */
+  async getCategoryScope(
+    siteCode: string,
+    segmentIds: readonly string[],
+    productIds?: readonly string[] | Promise<readonly string[]>,
+  ): Promise<SegmentCategoryScope> {
     const activeSegmentIds = normalizeSegmentIds(segmentIds);
     if (activeSegmentIds.length === 0) {
       return { ...EMPTY_CATEGORY_SCOPE };
     }
 
-    const [collected, productIds] = await Promise.all([
+    const [collected, graftProductIds] = await Promise.all([
       this.collectCategoryScope(siteCode),
-      this.resolveProductIdsForGraft(siteCode, activeSegmentIds),
+      this.resolveGraftProductIds(siteCode, activeSegmentIds, productIds),
     ]);
     const treeCategoryIds = [...collected.treeCategoryIds];
-    const roots = await this.graftProductAssignedCategories(siteCode, productIds, collected.roots, treeCategoryIds);
+    const roots = await this.graftProductAssignedCategories(
+      siteCode,
+      graftProductIds,
+      collected.roots,
+      treeCategoryIds,
+    );
 
     const allowed = new Set(treeCategoryIds);
     if (collected.assignedCategoryIds.length > 0) {
@@ -306,6 +321,21 @@ class SegmentFilterService {
 
     const roots = trees.map(toCategory).filter((root): root is Category => root !== undefined);
     return { roots, treeCategoryIds, assignedCategoryIds };
+  }
+
+  /**
+   * Uses a caller-supplied product-id list when present; otherwise looks the ids up and
+   * swallows a failure (tree-only impact).
+   */
+  private async resolveGraftProductIds(
+    siteCode: string,
+    segmentIds: readonly string[],
+    provided?: readonly string[] | Promise<readonly string[]>,
+  ): Promise<string[]> {
+    if (provided !== undefined) {
+      return [...(await provided)];
+    }
+    return this.resolveProductIdsForGraft(siteCode, segmentIds);
   }
 
   /** Directly assigned product ids for the graft; a failed lookup is logged and skipped (tree-only impact). */

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useClientFetchScope } from '@/hooks/common/useClientFetchScope';
 import { useHistory } from '@/hooks/history/useHistory';
 import { useSession } from '@/hooks/session/useSession';
 import { useSite } from '@/hooks/site/useSite';
@@ -89,6 +90,7 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
   // cannot be tracked as stable dependencies.
   const sessionCurrency = session?.currency;
   const sessionSiteCode = session?.siteCode;
+  const clientDedupeScope = useClientFetchScope(sessionCurrency);
 
   const sessionPricingContext = useMemo(
     () => (session != null ? { currency: session.currency, siteCode: session.siteCode } : session),
@@ -185,9 +187,8 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
   );
 
   const refetch = useCallback(async () => {
-    const scope = sessionSiteCode && sessionCurrency ? `${sessionSiteCode}|${sessionCurrency}` : '';
-    await fetchProduct(true, scope);
-  }, [sessionSiteCode, sessionCurrency, fetchProduct]);
+    await fetchProduct(true, clientDedupeScope);
+  }, [clientDedupeScope, fetchProduct]);
 
   const productForUi = useMemo(() => {
     if (!product) {
@@ -228,13 +229,13 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
   }
 
   const sessionPricingKey = sessionSiteCode && sessionCurrency ? `${sessionSiteCode}|${sessionCurrency}` : '';
-  const prevSessionPricingKeyRef = useRef<string | null>(null);
+  const prevClientDedupeScopeRef = useRef<string | null>(null);
   const prevProductIdRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     if (prevProductIdRef.current !== id) {
       prevProductIdRef.current = id;
-      prevSessionPricingKeyRef.current = null;
+      prevClientDedupeScopeRef.current = null;
     }
   }, [id]);
 
@@ -249,15 +250,15 @@ export const useProduct = (productOrId?: string | Product, options?: ProductFetc
     // Skip catalog refetch iff the hook argument is a Product object with an id.
     // ProductStore cache hit is not a skip. Catalog copy is not currency-dependent.
     if (seededProductObject) {
-      prevSessionPricingKeyRef.current = sessionPricingKey;
+      prevClientDedupeScopeRef.current = clientDedupeScope;
       return;
     }
 
-    if (prevSessionPricingKeyRef.current !== sessionPricingKey) {
-      prevSessionPricingKeyRef.current = sessionPricingKey;
-      void fetchProduct(true, sessionPricingKey);
+    if (prevClientDedupeScopeRef.current !== clientDedupeScope) {
+      prevClientDedupeScopeRef.current = clientDedupeScope;
+      void fetchProduct(true, clientDedupeScope);
     }
-  }, [id, sessionPricingKey, fetchProduct, seededProductObject]);
+  }, [id, sessionPricingKey, clientDedupeScope, fetchProduct, seededProductObject]);
 
   return {
     currentProductId,

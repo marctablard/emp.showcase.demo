@@ -161,16 +161,21 @@ describe('EmporixCustomerSegmentApi', () => {
     it('returns the JSON array with the session token and metrics', async () => {
       apiClient.authenticatedFetch.mockResolvedValue(jsonResponse([segment]));
 
-      await expect(api.getSegments({ legalEntityId: 'le-1', siteCode: 'main', pageSize: 100 })).resolves.toEqual([
-        segment,
-      ]);
+      await expect(api.getSegments({ legalEntityId: 'le-1', siteCode: 'main', pageSize: 100 })).resolves.toEqual({
+        items: [segment],
+        totalCount: 1,
+      });
 
       const { parsedUrl, options, tokenType, metrics } = lastCall();
       expect(parsedUrl.pathname).toBe('/customer-segment/test-tenant/segments');
       expect(parsedUrl.searchParams.get('legalEntityId')).toBe('le-1');
       expect(parsedUrl.searchParams.get('siteCode')).toBe('main');
       expect(parsedUrl.searchParams.get('pageSize')).toBe('100');
-      expect(options).toEqual({ method: 'GET' });
+      expect(options).toEqual({ method: 'GET', headers: { 'X-Total-Count': 'true' } });
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ route: '/customer-segment/{tenant}/segments', itemCount: 1 }),
+        expect.stringContaining('X-Total-Count'),
+      );
       expect(tokenType).toBe('session');
       expect(metrics).toEqual({ source: 'customer-segment', routePattern: '/customer-segment/{tenant}/segments' });
     });
@@ -179,6 +184,16 @@ describe('EmporixCustomerSegmentApi', () => {
       apiClient.authenticatedFetch.mockResolvedValue(rawResponse('', { status: 403, statusText: 'Forbidden' }));
 
       await expect(api.getSegments()).rejects.toThrow('Failed to retrieve customer segments: Forbidden');
+    });
+
+    it('returns X-Total-Count when the header is present', async () => {
+      apiClient.authenticatedFetch.mockResolvedValue(jsonResponse([segment], { headers: { 'X-Total-Count': '250' } }));
+
+      await expect(api.getSegments({ pageSize: 100, pageNumber: 2 })).resolves.toEqual({
+        items: [segment],
+        totalCount: 250,
+      });
+      expect(logger.warn).not.toHaveBeenCalled();
     });
   });
 

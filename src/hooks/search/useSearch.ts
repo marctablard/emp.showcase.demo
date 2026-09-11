@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale } from 'next-intl';
 import { usePathname, useRouter } from 'next/navigation';
+import { useProductsMode } from '@/components/navigation/products-mode-context';
 import useHistory from '@/hooks/history/useHistory';
 import { useSiteCode } from '@/hooks/site/useSiteCode';
+import { buildClientFetchScope } from '@/lib/client/client-fetch-scope';
 import { fetchSearchResult } from '@/lib/client/search';
 import { copyStorefrontCurrencyParam } from '@/lib/common/currency-url';
 import { getLogger } from '@/lib/logger/use-logger-client';
@@ -52,8 +54,9 @@ function buildSearchRequestKey(
   site: string,
   locale: string,
   currency: string | undefined,
+  clientScope: string,
 ): string {
-  return `${browseSearchStateSignature(state)}|${site}|${locale}|${currency ?? ''}`;
+  return `${browseSearchStateSignature(state)}|${site}|${locale}|${currency ?? ''}|${clientScope}`;
 }
 
 function buildSearchRequestUrl<T>(
@@ -175,7 +178,15 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
   });
   const siteCode = useSiteCode();
   const locale = useLocale();
-  const sessionCurrency = useSessionStore().session?.currency;
+  const session = useSessionStore().session;
+  const sessionCurrency = session?.currency;
+  const { mode } = useProductsMode();
+  const clientFetchScope = buildClientFetchScope({
+    mode,
+    siteCode,
+    customerId: session?.customerId,
+    extra: sessionCurrency,
+  });
 
   // Keep track of the last search params for pagination
   const lastSearchParams = useRef<SearchParams<T>>({
@@ -286,6 +297,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         resolvedSite,
         locale,
         sessionCurrency,
+        clientFetchScope,
       );
 
       const inFlight = inFlightSearch.current;
@@ -341,7 +353,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         // Update browser URL with the same parameters (but with 'q' instead of 'query')
         updateBrowserUrl(url.searchParams);
 
-        const data = await fetchSearchResult<T>(requestUrl);
+        const data = await fetchSearchResult<T>(requestUrl, clientFetchScope);
 
         if (gen !== searchGeneration.current) {
           return;
@@ -363,7 +375,7 @@ export function useSearch<T>(initialSearch?: SearchParams<T>, initialResult?: Se
         finishSearchInFlight(gen, searchGeneration.current, requestKey, inFlightSearch, setLoading, settleInFlight);
       }
     },
-    [updateBrowserUrl, locale, siteCode, sessionCurrency],
+    [updateBrowserUrl, locale, siteCode, sessionCurrency, clientFetchScope],
   );
 
   useEffect(() => {

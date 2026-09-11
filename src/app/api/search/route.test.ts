@@ -156,15 +156,31 @@ describe('GET /api/search', () => {
       );
     });
 
-    it('uses ctx.siteCode for scope and engine call when the request has no ?site', async () => {
+    it('does not load the Emporix category scope when no categoryIds filter is present', async () => {
+      productsModeService.resolve.mockResolvedValue(context('assigned'));
+
+      await GET(createRequest('?query=drill&site=main'));
+
+      expect(segmentFilterService.getCategoryScope).not.toHaveBeenCalled();
+    });
+
+    it('uses ctx.siteCode for the engine call when the request has no ?site', async () => {
       productsModeService.resolve.mockResolvedValue(context('assigned', { siteCode: 'us' }));
 
       await GET(createRequest('?query=drill'));
 
       expect(productsModeService.resolve).toHaveBeenCalledWith({ optInCookieValue: undefined, siteCode: undefined });
-      expect(segmentFilterService.getCategoryScope).toHaveBeenCalledWith('us', ['seg-1', 'seg-2']);
+      expect(segmentFilterService.getCategoryScope).not.toHaveBeenCalled();
       expect(searchParamsOf(searchService.searchProducts).site).toBe('us');
       expect(searchService.searchProducts.mock.calls[0][2]).toBe('us');
+    });
+
+    it('uses ctx.siteCode for AC5 scope when a categoryIds filter is present', async () => {
+      productsModeService.resolve.mockResolvedValue(context('assigned', { siteCode: 'us' }));
+
+      await GET(createRequest('?filters[categoryIds]=cat-in'));
+
+      expect(segmentFilterService.getCategoryScope).toHaveBeenCalledWith('us', ['seg-1', 'seg-2']);
     });
 
     it('fails closed on the category filter when no site can be resolved', async () => {

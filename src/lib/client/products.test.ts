@@ -64,8 +64,8 @@ describe('fetchProductVariants', () => {
 
     const { fetchProductVariants: fetchVariants } = await import('@/lib/client/products');
 
-    const p1 = fetchVariants('parent-1');
-    const p2 = fetchVariants('parent-1');
+    const p1 = fetchVariants('parent-1', 'assigned:main:c-1');
+    const p2 = fetchVariants('parent-1', 'assigned:main:c-1');
 
     resolveResponse({
       ok: true,
@@ -77,5 +77,24 @@ describe('fetchProductVariants', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(a).toEqual([{ id: 'v1' }]);
     expect(b).toEqual([{ id: 'v1' }]);
+  });
+
+  it('does not reuse an in-flight variants request from another products-mode scope', async () => {
+    const pendingAssigned = new Promise<Response>(() => {});
+    const fetchMock = jest
+      .fn()
+      .mockReturnValueOnce(pendingAssigned)
+      .mockReturnValueOnce(
+        Promise.resolve({ ok: true, json: async () => ({ variants: [{ id: 'v-all' }] }) } as Response),
+      );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { fetchProductVariants: fetchVariants } = await import('@/lib/client/products');
+
+    void fetchVariants('parent-1', 'assigned:main:c-1');
+    const allMode = await fetchVariants('parent-1', 'all:main:c-1');
+
+    expect(allMode).toEqual([{ id: 'v-all' }]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

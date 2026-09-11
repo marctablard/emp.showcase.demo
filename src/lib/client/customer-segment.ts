@@ -15,9 +15,11 @@ export interface SetProductsModeResult {
  * opt-in cookie. The server validates `canToggleAllProducts`; a 403 means the toggle is not
  * available for this customer. The CSRF header is injected by the global fetch override.
  */
-export async function setProductsMode(mode: RequestedProductsMode): Promise<SetProductsModeResult> {
+export async function setProductsMode(mode: RequestedProductsMode, siteCode?: string): Promise<SetProductsModeResult> {
   try {
-    const response = await fetch('/api/customer-segment/products-mode', {
+    const trimmedSite = siteCode?.trim();
+    const query = trimmedSite ? `?site=${encodeURIComponent(trimmedSite)}` : '';
+    const response = await fetch(`/api/customer-segment/products-mode${query}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mode }),

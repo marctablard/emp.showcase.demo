@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { PRODUCTS_MODE_COOKIE_NAME } from '@/lib/common/products-mode-cookie';
-import { sanitizeCategoryFilters } from '@/lib/search/sanitize-category-filters';
+import { hasCategoryIdsFilter, sanitizeCategoryFilters } from '@/lib/search/sanitize-category-filters';
 import { withApiRouteDebug } from '@/platform/core/utils/debug-utils';
 import server from '@/platform/server';
 import type { LoggerService } from '@/platform/services/logger/LoggerService';
@@ -20,6 +20,27 @@ function isPersonalised(ctx: ProductsModeContext | undefined): boolean {
 
 function jsonResponse(body: unknown, personalised: boolean, status: number = 200): NextResponse {
   return NextResponse.json(body, personalised ? { status, headers: PRIVATE_NO_STORE } : { status });
+}
+
+/**
+ * AC5: drop client-supplied `filters.categoryIds` outside the segment forest.
+ * BI search does not use this Emporix scope, so it is loaded only when a category filter is present.
+ * Without a resolvable site the allow-list is empty (fail closed).
+ */
+async function sanitizeAssignedCategoryFilters(
+  assigned: boolean,
+  filters: SearchFilters | undefined,
+  effectiveSite: string | undefined,
+  segmentIds: string[] | undefined,
+): Promise<SearchFilters | undefined> {
+  if (!assigned || !hasCategoryIdsFilter(filters)) {
+    return filters;
+  }
+  const allowedCategoryIds = effectiveSite
+    ? (await server.get<SegmentFilterService>('SegmentFilterService').getCategoryScope(effectiveSite, segmentIds ?? []))
+        .allowedCategoryIds
+    : [];
+  return sanitizeCategoryFilters(filters, allowedCategoryIds);
 }
 
 /**
@@ -70,20 +91,8 @@ async function handleSearch(request: NextRequest): Promise<NextResponse> {
     }
 
     const filtersRecord = extractFiltersFromUrlSearchParams(url.searchParams);
-    let filters: SearchFilters | undefined = Object.keys(filtersRecord).length > 0 ? filtersRecord : undefined;
-
-    if (assigned) {
-      // AC5: a client-supplied category filter outside the segment scope is dropped, never widened.
-      // Without a resolvable site the scope cannot be loaded → fail closed with an empty allow-list.
-      const allowedCategoryIds = effectiveSite
-        ? (
-            await server
-              .get<SegmentFilterService>('SegmentFilterService')
-              .getCategoryScope(effectiveSite, ctx.segmentIds)
-          ).allowedCategoryIds
-        : [];
-      filters = sanitizeCategoryFilters(filters, allowedCategoryIds);
-    }
+    const rawFilters: SearchFilters | undefined = Object.keys(filtersRecord).length > 0 ? filtersRecord : undefined;
+    const filters = await sanitizeAssignedCategoryFilters(assigned, rawFilters, effectiveSite, ctx.segmentIds);
 
     const searchResults = await searchService.searchProducts(
       {

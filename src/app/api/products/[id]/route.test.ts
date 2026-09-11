@@ -5,8 +5,8 @@ import { GET } from './route';
 
 /**
  * Route-level tests for `GET /api/products/[id]`. Focus: catalog identity
- * comes from SearchService.getCatalogProductById with parsed options only
- * (no locale/site query params; session fallback lives on the service), and
+ * comes from SearchService.getCatalogProductById with parsed options plus
+ * the effective site as the 4th argument (BatteryIncluded reads site there), and
  * the products mode (COP-4822) is resolved server-side through
  * ProductsModeService — `segmentIds` is never taken from the request.
  */
@@ -87,7 +87,7 @@ describe('GET /api/products/[id]', () => {
     mockedServer.default.get.mockImplementation((id: string) => mockedServer.default.__services.get(id));
   });
 
-  it('calls SearchService.getCatalogProductById with id and parsed options only', async () => {
+  it('calls SearchService.getCatalogProductById with id, parsed options and the request site', async () => {
     const product = { id: 'sku-123', name: { en: 'Widget' } };
     searchService.getCatalogProductById.mockResolvedValue(product);
 
@@ -99,11 +99,16 @@ describe('GET /api/products/[id]', () => {
     );
 
     expect(searchService.getCatalogProductById).toHaveBeenCalledTimes(1);
-    expect(searchService.getCatalogProductById).toHaveBeenCalledWith('sku-123', {
-      variants: true,
-      prices: true,
-      categories: true,
-    });
+    expect(searchService.getCatalogProductById).toHaveBeenCalledWith(
+      'sku-123',
+      {
+        variants: true,
+        prices: true,
+        categories: true,
+      },
+      undefined,
+      'main',
+    );
     expect(productService.getProductById).not.toHaveBeenCalled();
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual(product);
@@ -151,12 +156,17 @@ describe('GET /api/products/[id]', () => {
         params: Promise.resolve({ id: 'sku-123' }),
       });
 
-      expect(searchService.getCatalogProductById).toHaveBeenCalledWith('sku-123', {
-        ...BASE_OPTIONS,
-        variants: true,
-        segmentIds: ['seg-1', 'seg-2'],
-        siteCode: 'main',
-      });
+      expect(searchService.getCatalogProductById).toHaveBeenCalledWith(
+        'sku-123',
+        {
+          ...BASE_OPTIONS,
+          variants: true,
+          segmentIds: ['seg-1', 'seg-2'],
+          siteCode: 'main',
+        },
+        undefined,
+        'main',
+      );
       expect(response.status).toBe(200);
       expect(response.headers.get('cache-control')).toBe('private, no-store');
       await expect(response.json()).resolves.toEqual(product);
@@ -172,11 +182,16 @@ describe('GET /api/products/[id]', () => {
         params: Promise.resolve({ id: 'sku-123' }),
       });
 
-      expect(searchService.getCatalogProductById).toHaveBeenCalledWith('sku-123', {
-        ...BASE_OPTIONS,
-        segmentIds: ['seg-1'],
-        siteCode: 'us',
-      });
+      expect(searchService.getCatalogProductById).toHaveBeenCalledWith(
+        'sku-123',
+        {
+          ...BASE_OPTIONS,
+          segmentIds: ['seg-1'],
+          siteCode: 'us',
+        },
+        undefined,
+        'us',
+      );
     });
 
     it('resolve failure → 500 with private, no-store and no product lookup (fail closed on caching)', async () => {
@@ -213,11 +228,16 @@ describe('GET /api/products/[id]', () => {
         params: Promise.resolve({ id: 'sku-123' }),
       });
 
-      expect(searchService.getCatalogProductById).toHaveBeenCalledWith('sku-123', {
-        ...BASE_OPTIONS,
-        segmentIds: [],
-        siteCode: 'main',
-      });
+      expect(searchService.getCatalogProductById).toHaveBeenCalledWith(
+        'sku-123',
+        {
+          ...BASE_OPTIONS,
+          segmentIds: [],
+          siteCode: 'main',
+        },
+        undefined,
+        'main',
+      );
       expect(response.status).toBe(404);
       expect(response.headers.get('cache-control')).toBe('private, no-store');
     });
@@ -230,7 +250,7 @@ describe('GET /api/products/[id]', () => {
         params: Promise.resolve({ id: 'sku-123' }),
       });
 
-      expect(searchService.getCatalogProductById).toHaveBeenCalledWith('sku-123', BASE_OPTIONS);
+      expect(searchService.getCatalogProductById).toHaveBeenCalledWith('sku-123', BASE_OPTIONS, undefined, 'main');
       expect(searchService.getCatalogProductById.mock.calls[0][1]).not.toHaveProperty('segmentIds');
       expect(response.headers.get('cache-control')).toBeNull();
     });
@@ -243,7 +263,7 @@ describe('GET /api/products/[id]', () => {
         params: Promise.resolve({ id: 'sku-123' }),
       });
 
-      expect(searchService.getCatalogProductById).toHaveBeenCalledWith('sku-123', BASE_OPTIONS);
+      expect(searchService.getCatalogProductById).toHaveBeenCalledWith('sku-123', BASE_OPTIONS, undefined, 'main');
       expect(response.headers.get('cache-control')).toBeNull();
     });
 
@@ -257,7 +277,7 @@ describe('GET /api/products/[id]', () => {
         params: Promise.resolve({ id: 'sku-123' }),
       });
 
-      expect(searchService.getCatalogProductById).toHaveBeenCalledWith('sku-123', BASE_OPTIONS);
+      expect(searchService.getCatalogProductById).toHaveBeenCalledWith('sku-123', BASE_OPTIONS, undefined, 'main');
       expect(response.headers.get('cache-control')).toBe('private, no-store');
     });
 
@@ -269,7 +289,7 @@ describe('GET /api/products/[id]', () => {
         params: Promise.resolve({ id: 'sku-123' }),
       });
 
-      expect(searchService.getCatalogProductById).toHaveBeenCalledWith('sku-123', BASE_OPTIONS);
+      expect(searchService.getCatalogProductById).toHaveBeenCalledWith('sku-123', BASE_OPTIONS, undefined, 'main');
       expect(searchService.getCatalogProductById.mock.calls[0][1]).not.toHaveProperty('segmentIds');
     });
 

@@ -166,7 +166,7 @@ describe('EmporixSearchService', () => {
         'main',
       );
 
-      expect(segmentFilterService.getCategoryScope).toHaveBeenCalledWith('main', ['s1']);
+      expect(segmentFilterService.getCategoryScope).toHaveBeenCalledWith('main', ['s1'], expect.any(Promise));
       expect(segmentFilterService.getProductScope).toHaveBeenCalledWith('main', ['s1']);
       expect(categoryService.getNavigationCategoryTrees).not.toHaveBeenCalled();
       expect(productApi.searchProducts).toHaveBeenCalledTimes(1);
@@ -235,7 +235,7 @@ describe('EmporixSearchService', () => {
       const service = createService();
 
       await service.searchProducts({ page: 0, size: 12, segmentIds: ['s1'] });
-      expect(segmentFilterService.getCategoryScope).toHaveBeenCalledWith('de', ['s1']);
+      expect(segmentFilterService.getCategoryScope).toHaveBeenCalledWith('de', ['s1'], expect.any(Promise));
 
       jest.clearAllMocks();
       sessionService.getCurrent.mockResolvedValueOnce({ currency: 'USD' });

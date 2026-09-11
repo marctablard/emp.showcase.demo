@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import '@testing-library/jest-dom';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { type ProductsModeContextValue, ProductsModeProvider } from '@/components/navigation/products-mode-context';
 import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
 import { PlpCategoryTree } from './plp-category-tree';
@@ -166,13 +166,15 @@ describe('PlpCategoryTree', () => {
 
       expect(header).toHaveAttribute('data-slot', 'card-header');
       // Wraps the switch group onto its own row in the 274px sidebar instead of overflowing the card.
-      expect(header).toHaveClass('flex', 'flex-wrap', 'items-center', 'justify-between', 'gap-x-4', 'gap-y-2');
+      expect(header).toHaveClass('flex', 'flex-nowrap', 'items-center', 'justify-between', 'gap-x-2');
       expect(header).not.toHaveClass('gap-4');
       expect(header.firstElementChild).toBe(heading);
       expect(header).toContainElement(control);
       expect(header).toContainElement(screen.getByTestId('plp-productsModeLabel'));
-      expect(control).toHaveAttribute('aria-checked', 'false');
-      expect(screen.getByTestId('plp-productsModeLabel')).toHaveTextContent('assignedProducts');
+      expect(control).toHaveAttribute('role', 'radiogroup');
+      expect(screen.getByTestId('plp-productsModeAssigned')).toBeChecked();
+      expect(screen.getByTestId('plp-productsModeLabel')).toHaveTextContent('assignedProductsShort');
+      expect(screen.getByRole('radio', { name: 'allProductsShort' })).toBeInTheDocument();
     });
 
     it('does not render the products mode switch when the toggle is not available', () => {
@@ -199,14 +201,15 @@ describe('PlpCategoryTree', () => {
       expect(currLink).toHaveAttribute('title', 'assignedProducts');
       expect(currLink).toHaveAttribute('aria-current', 'page');
       expect(currLink).toHaveAttribute('href', '/browse');
-      expect(screen.queryByText('allProducts')).not.toBeInTheDocument();
+      expect(within(currLink).queryByText('allProducts')).not.toBeInTheDocument();
     });
 
     it('keeps the "All Products" root row in ALL mode', () => {
       renderWithMode({ mode: 'all', isSegmented: true, canToggleAllProducts: true });
 
-      expect(screen.getByTestId('plp-category-tree-current')).toHaveTextContent('allProducts');
-      expect(screen.queryByText('assignedProducts')).not.toBeInTheDocument();
+      const currLink = screen.getByTestId('plp-category-tree-current');
+      expect(currLink).toHaveTextContent('allProducts');
+      expect(within(currLink).queryByText('assignedProducts')).not.toBeInTheDocument();
     });
   });
 });

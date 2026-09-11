@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useClientFetchScope } from '@/hooks/common/useClientFetchScope';
 import { useSession } from '@/hooks/session/useSession';
 import { fetchProductPrices } from '@/lib/client/prices';
 import { fetchProductVariants } from '@/lib/client/products';
@@ -32,6 +33,7 @@ export default function ProductVariantSelector({ product, className }: ProductVa
   const [variantsLoaded, setVariantsLoaded] = useState(false);
   const [variantPrices, setVariantPrices] = useState<ProductPrice[] | undefined>(undefined);
   const { session } = useSession();
+  const clientDedupeScope = useClientFetchScope();
 
   const parentId = product.parentVariantId || product.id;
   const shouldLoadVariants = isVariantFamilyProduct(product);
@@ -61,7 +63,7 @@ export default function ProductVariantSelector({ product, className }: ProductVa
 
     const loadVariants = async (): Promise<void> => {
       try {
-        const fetchedVariants = await fetchProductVariants(parentId);
+        const fetchedVariants = await fetchProductVariants(parentId, clientDedupeScope);
         if (isCancelled) {
           return;
         }
@@ -85,7 +87,7 @@ export default function ProductVariantSelector({ product, className }: ProductVa
     return () => {
       isCancelled = true;
     };
-  }, [parentId, shouldLoadVariants]);
+  }, [parentId, shouldLoadVariants, clientDedupeScope]);
 
   useEffect(() => {
     if (!variantsLoaded || variants.length === 0) {

@@ -274,6 +274,15 @@ describe('SegmentFilterService', () => {
         expect(categoryApi.getCategoriesByReferenceId).not.toHaveBeenCalled();
         expect(categoryService.getNavigationCategoryTrees).not.toHaveBeenCalled();
       });
+
+      it('reuses caller-supplied product ids and does not call getSegmentItems again', async () => {
+        customerSegmentService.getCategoryTrees.mockResolvedValue([node('A')]);
+
+        await createService().getCategoryScope('main', SEGMENTS, ['p-supplied']);
+
+        expect(customerSegmentService.getSegmentItems).not.toHaveBeenCalled();
+        expect(categoryApi.getCategoriesByReferenceId).toHaveBeenCalledWith('p-supplied', true);
+      });
     });
   });
 

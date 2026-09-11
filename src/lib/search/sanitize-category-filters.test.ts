@@ -1,4 +1,4 @@
-import { sanitizeCategoryFilters } from '@/lib/search/sanitize-category-filters';
+import { hasCategoryIdsFilter, sanitizeCategoryFilters } from '@/lib/search/sanitize-category-filters';
 import type { SearchFilters } from '@/platform/services/model/common';
 
 describe('sanitizeCategoryFilters', () => {
@@ -66,5 +66,14 @@ describe('sanitizeCategoryFilters', () => {
     sanitizeCategoryFilters(filters, allowed);
 
     expect(filters).toEqual({ categoryIds: ['cat-a', 'cat-x'], brand: 'acme' });
+  });
+});
+
+describe('hasCategoryIdsFilter', () => {
+  it('is true only when the categoryIds key is present', () => {
+    expect(hasCategoryIdsFilter(undefined)).toBe(false);
+    expect(hasCategoryIdsFilter({ brand: 'acme' })).toBe(false);
+    expect(hasCategoryIdsFilter({ categoryIds: 'cat-a' })).toBe(true);
+    expect(hasCategoryIdsFilter({ categoryIds: ['cat-a'] })).toBe(true);
   });
 });

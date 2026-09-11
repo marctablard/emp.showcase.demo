@@ -636,8 +636,10 @@ describe('SearchResultsComponent', () => {
       const [firstSort] = screen.getAllByTestId('SearchSort');
       const grid = screen.getByTestId('SearchResultsGrid');
 
-      expect(control).toHaveAttribute('aria-checked', 'false');
-      expect(screen.getByTestId('plp-productsModeLabel')).toHaveTextContent('assignedProducts');
+      expect(control).toHaveAttribute('role', 'radiogroup');
+      expect(screen.getByTestId('plp-productsModeAssigned')).toBeChecked();
+      expect(screen.getByTestId('plp-productsModeLabel')).toHaveTextContent('assignedProductsShort');
+      expect(screen.getByRole('radio', { name: 'allProductsShort' })).toBeInTheDocument();
       expect(grid).not.toContainElement(control);
       expect(control.compareDocumentPosition(firstFilter) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(control.compareDocumentPosition(firstSort) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

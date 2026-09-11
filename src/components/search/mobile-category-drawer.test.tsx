@@ -203,8 +203,10 @@ describe('MobileCategoryDrawer', () => {
     const tree = screen.getByTestId('plp-category-tree-nested');
 
     expect(dialog).toContainElement(control);
-    expect(control).toHaveAttribute('aria-checked', 'false');
-    expect(screen.getByTestId('plp-productsModeLabel')).toHaveTextContent('assignedProducts');
+    expect(control).toHaveAttribute('role', 'radiogroup');
+    expect(screen.getByTestId('plp-productsModeAssigned')).toBeChecked();
+    expect(screen.getByTestId('plp-productsModeLabel')).toHaveTextContent('assignedProductsShort');
+    expect(screen.getByRole('radio', { name: 'allProductsShort' })).toBeInTheDocument();
     expect(control.compareDocumentPosition(tree) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 

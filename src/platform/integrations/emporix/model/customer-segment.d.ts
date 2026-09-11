@@ -26,6 +26,16 @@ export interface ItemAssignmentPageResponse {
 }
 
 /**
+ * One page of `GET /customer-segment/{tenant}/segments`.
+ * `totalCount` comes from the opt-in `X-Total-Count` response header; when the header is
+ * missing it falls back to `items.length` (pagination then stops after the first page).
+ */
+export interface SegmentPageResponse {
+  items: SegmentResponse[];
+  totalCount: number;
+}
+
+/**
  * Customer segment as returned by `GET /customer-segment/{tenant}/segments` and
  * `GET /customer-segment/{tenant}/me/segments`. Kept tolerant: only `id` is required and
  * unknown fields are preserved (COP-5908 contract not yet observable on api-develop).

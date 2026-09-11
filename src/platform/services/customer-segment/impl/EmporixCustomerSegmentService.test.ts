@@ -84,13 +84,18 @@ describe('EmporixCustomerSegmentService', () => {
 
     it('falls back to getSegments once and warns when the primary resolves null', async () => {
       api.getMySegments.mockResolvedValue(null);
-      api.getSegments.mockResolvedValue([solarSegment]);
+      api.getSegments.mockResolvedValue({ items: [solarSegment], totalCount: 1 });
 
       const result = await service.getMySegments();
 
       expect(result.map((s) => s.id)).toEqual(['solarpanelfans']);
       expect(api.getSegments).toHaveBeenCalledTimes(1);
-      expect(api.getSegments).toHaveBeenCalledWith({ legalEntityId: 'le-1', siteCode: 'main', pageSize: 100 });
+      expect(api.getSegments).toHaveBeenCalledWith({
+        legalEntityId: 'le-1',
+        siteCode: 'main',
+        pageSize: 100,
+        pageNumber: 1,
+      });
       expect(logger.warn).toHaveBeenCalledTimes(1);
       expect(logger.warn).toHaveBeenCalledWith(
         { customerId: 'customer-1', reason: 'unavailable' },
@@ -100,7 +105,7 @@ describe('EmporixCustomerSegmentService', () => {
 
     it('treats a non-empty array without string ids as shape drift: falls back once and warns', async () => {
       api.getMySegments.mockResolvedValue([{ foo: 'bar' } as unknown as SegmentResponse]);
-      api.getSegments.mockResolvedValue([solarSegment]);
+      api.getSegments.mockResolvedValue({ items: [solarSegment], totalCount: 1 });
 
       const result = await service.getMySegments();
 
@@ -108,6 +113,37 @@ describe('EmporixCustomerSegmentService', () => {
       expect(api.getSegments).toHaveBeenCalledTimes(1);
       expect(logger.warn).toHaveBeenCalledTimes(1);
       expect(logger.warn).toHaveBeenCalledWith({ customerId: 'customer-1', reason: 'shape-drift' }, expect.any(String));
+    });
+
+    it('pages the GET /segments fallback until X-Total-Count is reached', async () => {
+      const page1 = Array.from({ length: 100 }, (_, i) => ({
+        ...solarSegment,
+        id: `seg-${i}`,
+      }));
+      const page2 = [{ ...solarSegment, id: 'seg-100' }];
+      api.getMySegments.mockResolvedValue(null);
+      api.getSegments
+        .mockResolvedValueOnce({ items: page1, totalCount: 101 })
+        .mockResolvedValueOnce({ items: page2, totalCount: 101 });
+
+      const result = await service.getMySegments();
+
+      expect(result).toHaveLength(101);
+      expect(api.getSegments).toHaveBeenCalledTimes(2);
+      expect(api.getSegments).toHaveBeenNthCalledWith(2, expect.objectContaining({ pageNumber: 2, pageSize: 100 }));
+    });
+
+    it('fails closed when the fallback payload has no string ids (shape drift)', async () => {
+      api.getMySegments.mockResolvedValue(null);
+      api.getSegments.mockResolvedValue({ items: [{ foo: 'bar' } as unknown as SegmentResponse], totalCount: 1 });
+
+      await expect(service.getMySegments()).rejects.toThrow(
+        'Failed to retrieve customer segments: GET /segments fallback returned unusable payload',
+      );
+      expect(logger.error).toHaveBeenCalledWith(
+        { customerId: 'customer-1', reason: 'shape-drift' },
+        expect.stringContaining('failing closed'),
+      );
     });
 
     it('returns [] without fallback when the primary resolves an empty array', async () => {
@@ -200,7 +236,10 @@ describe('EmporixCustomerSegmentService', () => {
 
       it('applies the same filtering to the fallback result', async () => {
         api.getMySegments.mockResolvedValue(null);
-        api.getSegments.mockResolvedValue([solarSegment, { id: 'inactive', status: 'INACTIVE', siteCode: 'main' }]);
+        api.getSegments.mockResolvedValue({
+          items: [solarSegment, { id: 'inactive', status: 'INACTIVE', siteCode: 'main' }],
+          totalCount: 2,
+        });
 
         const result = await service.getMySegments();
 

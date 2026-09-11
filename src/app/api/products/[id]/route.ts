@@ -68,7 +68,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const searchService = server.get<SearchService>('SearchService');
-    const product = await searchService.getCatalogProductById(productId, options);
+    // BI resolves the browse site from the 4th argument, not `options.siteCode`.
+    const catalogSite = ctx.siteCode ?? requestSite;
+    const product = await searchService.getCatalogProductById(productId, options, undefined, catalogSite);
 
     if (!product) {
       return NextResponse.json({ error: `Product with ID ${productId} not found` }, { status: 404, headers });

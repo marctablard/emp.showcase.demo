@@ -13,6 +13,8 @@ export interface ProductsModeContextValue {
   isSegmented: boolean;
   /** `NEXT_PUBLIC_ALLOW_SEGMENTS_OVERRIDE` on AND segmented (any engine) — the "all products" toggle may render. */
   canToggleAllProducts: boolean;
+  /** Server-seeded Emporix customer id, when the layout resolved an authenticated session. */
+  customerId?: string;
 }
 
 export const ANONYMOUS_PRODUCTS_MODE: ProductsModeContextValue = {
@@ -27,11 +29,14 @@ export function ProductsModeProvider({
   value,
   children,
 }: Readonly<{ value: ProductsModeContextValue; children: ReactNode }>) {
-  const { mode, isSegmented, canToggleAllProducts } = value;
-  const memoised = useMemo<ProductsModeContextValue>(
-    () => ({ mode, isSegmented, canToggleAllProducts }),
-    [mode, isSegmented, canToggleAllProducts],
-  );
+  const { mode, isSegmented, canToggleAllProducts, customerId } = value;
+  const memoised = useMemo<ProductsModeContextValue>(() => {
+    const next: ProductsModeContextValue = { mode, isSegmented, canToggleAllProducts };
+    if (customerId !== undefined) {
+      next.customerId = customerId;
+    }
+    return next;
+  }, [mode, isSegmented, canToggleAllProducts, customerId]);
   return <ProductsModeContext.Provider value={memoised}>{children}</ProductsModeContext.Provider>;
 }
 

@@ -10,6 +10,7 @@ import { H3 } from '@/components/ui/h';
 import UiLink from '@/components/ui/link';
 import { Spinner } from '@/components/ui/spinner';
 import { useCart } from '@/hooks/cart/useCart';
+import { useClientFetchScope } from '@/hooks/common/useClientFetchScope';
 import { useAvailability } from '@/hooks/product/useAvailability';
 import { useSession } from '@/hooks/session/useSession';
 import { useL10n } from '@/hooks/useL10n';
@@ -40,6 +41,7 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
   const originalImageAlt =
     originalImageSrc === PRODUCT_NO_IMAGE_SRC ? tProduct('noImage') : l10n(cartItem.product?.name || 'Product');
   const { session } = useSession();
+  const clientDedupeScope = useClientFetchScope();
   const { updateItemQuantity, addItem, loading } = useCart();
   const [selectedSubstitutions, setSelectedSubstitutions] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -72,7 +74,7 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
       try {
         const productIds = substitution.substitutions.map((sub) => sub.productId);
         productIds.push(originalProductId);
-        const productPromises = productIds.map((id) => fetchProductById(id));
+        const productPromises = productIds.map((id) => fetchProductById(id, undefined, clientDedupeScope));
         const products = await Promise.all(productPromises);
 
         // Create a map of product ID to product data
@@ -95,7 +97,7 @@ export function SubstitutionModal({ isOpen, onClose, cartItem, substitution, onD
       fetchSubstitutionProducts();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [substitution]);
+  }, [substitution, clientDedupeScope]);
 
   // Fetch prices for original product and substitutions
   useEffect(() => {

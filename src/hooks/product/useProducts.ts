@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useClientFetchScope } from '@/hooks/common/useClientFetchScope';
 import { useLogger } from '@/hooks/common/useLogger';
 import { fetchProductById } from '@/lib/client/products';
 import type { Product } from '@/platform/services/model/product';
@@ -15,6 +16,7 @@ interface UseProductsResult {
 
 export function useProducts(productIds: Product['id'][] = [], fetchOptions?: ProductFetchOptions): UseProductsResult {
   const logger = useLogger();
+  const clientDedupeScope = useClientFetchScope();
   const { getProduct, addProducts, cacheGeneration } = useProductStore();
   const fetchOptionsKey = JSON.stringify({
     variants: fetchOptions?.variants ?? false,
@@ -91,7 +93,7 @@ export function useProducts(productIds: Product['id'][] = [], fetchOptions?: Pro
           uniqueIdsToFetch.map(async (id) => {
             if (!id) return null;
             try {
-              const fetched = await fetchProductById(id, fetchOptionsRef.current);
+              const fetched = await fetchProductById(id, fetchOptionsRef.current, clientDedupeScope);
               return fetched;
             } catch (_err) {
               logger.error(
@@ -121,7 +123,7 @@ export function useProducts(productIds: Product['id'][] = [], fetchOptions?: Pro
         setLoading(false);
       }
     },
-    [productIds, getProduct, addProducts, logger],
+    [productIds, getProduct, addProducts, logger, clientDedupeScope],
   );
 
   const prevCacheGenRef = useRef(cacheGeneration);
@@ -133,7 +135,7 @@ export function useProducts(productIds: Product['id'][] = [], fetchOptions?: Pro
       fetchProducts(generationChanged);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productIds.join(','), cacheGeneration, fetchOptionsKey]);
+  }, [productIds.join(','), cacheGeneration, fetchOptionsKey, clientDedupeScope]);
 
   const refetch = useCallback(() => fetchProducts(true), [fetchProducts]);
 

@@ -30,6 +30,11 @@ function sanitizeCategoryIdsValue(
  *
  * Pure and I/O-free so it can be shared by API routes and server pages.
  */
+/** `true` when the caller supplied a `categoryIds` filter (AC5 only needs a scope then). */
+export function hasCategoryIdsFilter(filters: SearchFilters | undefined): boolean {
+  return Boolean(filters && CATEGORY_IDS_FILTER_KEY in filters);
+}
+
 export function sanitizeCategoryFilters(
   filters: SearchFilters | undefined,
   allowedCategoryIds: ReadonlySet<string> | string[],

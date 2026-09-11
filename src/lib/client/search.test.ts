@@ -39,4 +39,25 @@ describe('fetchSearchResult', () => {
 
     await expect(fetchSearchResult('http://localhost/api/search')).rejects.toThrow('Search failed: 503 Request failed');
   });
+
+  it('does not reuse an in-flight search from another products-mode scope', async () => {
+    const pendingAssigned = new Promise<Response>(() => {});
+    const fetchMock = jest
+      .fn()
+      .mockReturnValueOnce(pendingAssigned)
+      .mockReturnValueOnce(
+        Promise.resolve({
+          ok: true,
+          json: async () => ({ items: [{ id: 'all' }], total: 1, page: 0, pageSize: 12 }),
+        } as Response),
+      );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const url = 'http://localhost/api/search?page=0';
+    void fetchSearchResult(url, 'assigned:main:c-1');
+    const allMode = await fetchSearchResult(url, 'all:main:c-1');
+
+    expect(allMode).toEqual({ items: [{ id: 'all' }], total: 1, page: 0, pageSize: 12 });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });

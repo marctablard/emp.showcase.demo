@@ -162,10 +162,9 @@ export function PlpCategoryTree({
       data-testid="plp-category-tree"
       className={className || 'gap-0 pt-4 pb-6 shadow-sm border-border-primary rounded-[8px]'}
     >
-      {/* COP-4822 CR-1: the ASSIGNED / ALL products switch sits right of the "Categories" title when the column is
-          wide enough (≥1440px) and wraps onto its own row below the title in the narrow 274px sidebar. */}
-      <CardHeader className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 pb-4 pt-0">
-        <H5>{t('title')}</H5>
+      {/* COP-4822 CR-1: ASSIGNED / ALL sits on one row with the "Categories" title (12px toggle type in the 274px sidebar). */}
+      <CardHeader className="flex flex-nowrap items-center justify-between gap-x-2 px-6 pb-4 pt-0">
+        <H5 className="shrink-0">{t('title')}</H5>
         <PlpProductsModeSwitch />
       </CardHeader>
       <CardContent className="px-6 pb-0">{treeContent}</CardContent>

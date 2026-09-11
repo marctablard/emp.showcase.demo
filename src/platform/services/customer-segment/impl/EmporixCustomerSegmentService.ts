@@ -15,6 +15,43 @@ const SEGMENT_ITEMS_PAGE_SIZE = 200;
 const SEGMENT_ITEMS_MAX_PAGES = 50;
 /** Page size for the `GET /segments` fallback. */
 const SEGMENTS_FALLBACK_PAGE_SIZE = 100;
+/** Hard cap on pages fetched by the `GET /segments` fallback. */
+const SEGMENTS_FALLBACK_MAX_PAGES = 50;
+
+type PagedItems<T> = { items: readonly T[]; totalCount: number };
+
+/**
+ * Walks `pageNumber` until `X-Total-Count` is reached, an empty page, or `maxPages`.
+ * A short page alone does not stop the loop while the total says more items remain.
+ */
+async function collectPagedItems<T>(
+  fetchPage: (pageNumber: number) => Promise<PagedItems<T>>,
+  maxPages: number,
+  onStop: (reason: 'cap' | 'truncated', collected: number, totalCount: number) => void,
+): Promise<T[]> {
+  const collected: T[] = [];
+  let pageNumber = 1;
+  let totalCount = Number.POSITIVE_INFINITY;
+
+  while (collected.length < totalCount) {
+    if (pageNumber > maxPages) {
+      onStop('cap', collected.length, totalCount);
+      return collected;
+    }
+    const page = await fetchPage(pageNumber);
+    totalCount = page.totalCount;
+    collected.push(...page.items);
+    if (page.items.length === 0) {
+      break;
+    }
+    pageNumber += 1;
+  }
+
+  if (collected.length < totalCount) {
+    onStop('truncated', collected.length, totalCount);
+  }
+  return collected;
+}
 
 type MySegmentsFallbackReason = 'unavailable' | 'shape-drift';
 type SegmentInapplicabilityReason = 'status' | 'site' | 'validity';
@@ -34,20 +71,7 @@ export class EmporixCustomerSegmentService implements CustomerSegmentService {
     const params = { legalEntityId: session?.legalEntityId, siteCode };
 
     try {
-      const primary = await this.customerSegmentApi.getMySegments(params);
-      const fallbackReason = this.getMySegmentsFallbackReason(primary);
-
-      let source: SegmentResponse[];
-      if (fallbackReason === undefined) {
-        source = primary as SegmentResponse[];
-      } else {
-        this.logger.warn(
-          { customerId: session?.customerId, reason: fallbackReason },
-          'me/segments unavailable; falling back to GET /segments',
-        );
-        source = await this.customerSegmentApi.getSegments({ ...params, pageSize: SEGMENTS_FALLBACK_PAGE_SIZE });
-      }
-
+      const source = await this.resolveMySegmentsSource(params, session?.customerId);
       const now = Date.now();
       const mapped = source
         .map((segment) => this.customerSegmentMapper.mapSegment(segment))
@@ -103,44 +127,34 @@ export class EmporixCustomerSegmentService implements CustomerSegmentService {
         pageSize: SEGMENT_ITEMS_PAGE_SIZE,
       };
 
-      const collected: ItemAssignment[] = [];
-      let pageNumber = 1;
-      let totalCount = Number.POSITIVE_INFINITY;
-
-      // Pages while `X-Total-Count` says more items remain (a short page alone does not stop it).
-      while (collected.length < totalCount) {
-        if (pageNumber > SEGMENT_ITEMS_MAX_PAGES) {
+      return await collectPagedItems(
+        async (pageNumber) => {
+          const page = await this.customerSegmentApi.getSegmentItems({ ...baseParams, pageNumber });
+          return {
+            items: page.items.map((item) => this.customerSegmentMapper.mapToService(item)),
+            totalCount: page.totalCount,
+          };
+        },
+        SEGMENT_ITEMS_MAX_PAGES,
+        (reason, collected, totalCount) => {
+          if (reason === 'cap') {
+            this.logger.warn(
+              {
+                siteCode: baseParams.siteCode,
+                collected,
+                totalCount,
+                maxPages: SEGMENT_ITEMS_MAX_PAGES,
+              },
+              'Segment items pagination stopped at the hard page cap; result is truncated',
+            );
+            return;
+          }
           this.logger.warn(
-            {
-              siteCode: baseParams.siteCode,
-              collected: collected.length,
-              totalCount,
-              maxPages: SEGMENT_ITEMS_MAX_PAGES,
-            },
-            'Segment items pagination stopped at the hard page cap; result is truncated',
+            { siteCode: baseParams.siteCode, collected, totalCount },
+            'Segment items pagination ended before X-Total-Count was reached; result is truncated',
           );
-          return collected;
-        }
-
-        const page = await this.customerSegmentApi.getSegmentItems({ ...baseParams, pageNumber });
-        totalCount = page.totalCount;
-        collected.push(...page.items.map((item) => this.customerSegmentMapper.mapToService(item)));
-
-        // Non-advancing guard: an empty page can never reach `totalCount`, so stop instead of spinning.
-        if (page.items.length === 0) {
-          break;
-        }
-        pageNumber += 1;
-      }
-
-      if (collected.length < totalCount) {
-        this.logger.warn(
-          { siteCode: baseParams.siteCode, collected: collected.length, totalCount },
-          'Segment items pagination ended before X-Total-Count was reached; result is truncated',
-        );
-      }
-
-      return collected;
+        },
+      );
     } catch (error) {
       this.logger.error(
         {
@@ -174,6 +188,61 @@ export class EmporixCustomerSegmentService implements CustomerSegmentService {
         `Failed to retrieve customer segment category trees: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
     }
+  }
+
+  /**
+   * Primary `me/segments` when usable; otherwise every page of `GET /segments`. A fallback payload
+   * with no string ids is treated as shape drift and thrown so `ProductsModeService` fails closed
+   * (`assigned` / `segmentIds: []`) instead of granting the unsegmented catalog.
+   */
+  private async resolveMySegmentsSource(
+    params: { legalEntityId?: string; siteCode?: string },
+    customerId: string | undefined,
+  ): Promise<SegmentResponse[]> {
+    const primary = await this.customerSegmentApi.getMySegments(params);
+    const fallbackReason = this.getMySegmentsFallbackReason(primary);
+    if (fallbackReason === undefined) {
+      return primary as SegmentResponse[];
+    }
+
+    this.logger.warn({ customerId, reason: fallbackReason }, 'me/segments unavailable; falling back to GET /segments');
+    const source = await this.fetchFallbackSegments(params, customerId);
+    if (this.getMySegmentsFallbackReason(source) === 'shape-drift') {
+      this.logger.error(
+        { customerId, reason: 'shape-drift' },
+        'GET /segments fallback returned unusable payload; failing closed',
+      );
+      throw new Error('GET /segments fallback returned unusable payload');
+    }
+    return source;
+  }
+
+  private async fetchFallbackSegments(
+    params: { legalEntityId?: string; siteCode?: string },
+    customerId: string | undefined,
+  ): Promise<SegmentResponse[]> {
+    return collectPagedItems(
+      (pageNumber) =>
+        this.customerSegmentApi.getSegments({
+          ...params,
+          pageSize: SEGMENTS_FALLBACK_PAGE_SIZE,
+          pageNumber,
+        }),
+      SEGMENTS_FALLBACK_MAX_PAGES,
+      (reason, collected, totalCount) => {
+        if (reason === 'cap') {
+          this.logger.warn(
+            { customerId, collected, totalCount, maxPages: SEGMENTS_FALLBACK_MAX_PAGES },
+            'GET /segments fallback pagination stopped at the hard page cap; result is truncated',
+          );
+          return;
+        }
+        this.logger.warn(
+          { customerId, collected, totalCount },
+          'GET /segments fallback pagination ended before X-Total-Count was reached; result is truncated',
+        );
+      },
+    );
   }
 
   /**

@@ -183,9 +183,14 @@ class EmporixSearchService implements SearchService {
       return null;
     }
 
+    const productScopePromise = this.segmentFilterService.getProductScope(siteCode, segmentIds);
     const [categoryScope, productScope] = await Promise.all([
-      this.segmentFilterService.getCategoryScope(siteCode, segmentIds),
-      this.segmentFilterService.getProductScope(siteCode, segmentIds),
+      this.segmentFilterService.getCategoryScope(
+        siteCode,
+        segmentIds,
+        productScopePromise.then((scope) => scope.productIds),
+      ),
+      productScopePromise,
     ]);
     if (productScope.productIds.length > SEGMENT_PRODUCT_IDS_WARN_THRESHOLD) {
       this.logger.warn(

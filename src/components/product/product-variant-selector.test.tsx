@@ -148,7 +148,7 @@ describe('ProductVariantSelector', () => {
     expect(screen.getByTestId('product-variant-attribute-groups')).toHaveAttribute('data-group-count', '1');
     expect(screen.getByTestId('product-variant-carousel')).toHaveAttribute('data-current-product-id', 'parent-1');
     expect(screen.getByTestId('product-variant-carousel')).toHaveAttribute('data-variant-count', '2');
-    expect(fetchProductVariantsMock).toHaveBeenCalledWith('parent-1');
+    expect(fetchProductVariantsMock).toHaveBeenCalledWith('parent-1', 'anonymous::');
   });
 
   it('loads variants and renders attribute groups plus carousel', async () => {
@@ -198,7 +198,7 @@ describe('ProductVariantSelector', () => {
     expect(screen.getByTestId('product-variant-attribute-groups')).toBeInTheDocument();
     expect(screen.getByTestId('product-variant-carousel')).toBeInTheDocument();
     expect(fetchProductVariantsMock).toHaveBeenCalledTimes(1);
-    expect(fetchProductVariantsMock).toHaveBeenCalledWith('parent-1');
+    expect(fetchProductVariantsMock).toHaveBeenCalledWith('parent-1', 'anonymous::');
     expect(fetchProductPricesMock).toHaveBeenCalledTimes(1);
   });
 
@@ -257,6 +257,6 @@ describe('ProductVariantSelector', () => {
     await waitFor(() => {
       expect(container).toBeEmptyDOMElement();
     });
-    expect(fetchProductVariantsMock).toHaveBeenCalledWith('parent-1');
+    expect(fetchProductVariantsMock).toHaveBeenCalledWith('parent-1', 'anonymous::');
   });
 });

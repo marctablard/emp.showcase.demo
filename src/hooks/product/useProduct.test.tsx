@@ -109,7 +109,7 @@ describe('useProduct hook', () => {
     expect(result.current.error).toBe(null);
 
     // Verify that the API was called with the correct ID and options
-    expect(fetchProductById).toHaveBeenCalledWith('test-product-123', undefined, 'main|USD');
+    expect(fetchProductById).toHaveBeenCalledWith('test-product-123', undefined, 'anonymous:main:ANONYMOUS:USD');
   });
 
   /**
@@ -145,7 +145,7 @@ describe('useProduct hook', () => {
       expect(result.current.error).toBe(mockError);
 
       // Verify that the API was called with the correct ID and options
-      expect(fetchProductById).toHaveBeenCalledWith('test-product-123', undefined, 'main|USD');
+      expect(fetchProductById).toHaveBeenCalledWith('test-product-123', undefined, 'anonymous:main:ANONYMOUS:USD');
     } finally {
       // Restore the original console.error
       console.error = originalConsoleError;
@@ -238,7 +238,7 @@ describe('useProduct hook', () => {
       expect(hookResult.current.loading).toBe(false);
     });
 
-    expect(fetchProductById).toHaveBeenCalledWith('test-product-123', undefined, 'main|USD');
+    expect(fetchProductById).toHaveBeenCalledWith('test-product-123', undefined, 'anonymous:main:ANONYMOUS:USD');
     expect(hookResult.current.product).toEqual(fetchedProduct);
   });
 
@@ -461,7 +461,11 @@ describe('useProduct hook', () => {
         await result.current.refetch();
       });
 
-      expect(fetchProductById).toHaveBeenCalledWith(ssrProductWithoutPrice.id, publicProductOptions, 'main|USD');
+      expect(fetchProductById).toHaveBeenCalledWith(
+        ssrProductWithoutPrice.id,
+        publicProductOptions,
+        'anonymous:main:ANONYMOUS:USD',
+      );
       expect(result.current.product?.name).toBe(refetchedProduct.name);
       expect(result.current.loading).toBe(false);
     });

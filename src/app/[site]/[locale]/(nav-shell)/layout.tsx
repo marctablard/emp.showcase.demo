@@ -36,7 +36,12 @@ export default async function NavShellLayout({ children, params }: Props) {
 
   const ctx = await getProductsModeContext(site);
   const isSegmented = isSegmentedMode(ctx);
-  const productsMode = { mode: ctx.mode, isSegmented, canToggleAllProducts: ctx.canToggleAllProducts };
+  const productsMode = {
+    mode: ctx.mode,
+    isSegmented,
+    canToggleAllProducts: ctx.canToggleAllProducts,
+    customerId: ctx.customerId,
+  };
 
   const navigationRoots = await getNavigationCategoryTreesForMode(site, locale, ctx);
   const allProductCategorySubmenu = categoriesToSubMenuItems(navigationRoots, locale);

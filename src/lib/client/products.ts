@@ -86,8 +86,9 @@ export async function fetchProductById(
  * Fetch variants for a product by parent ID.
  * Uses module-level in-flight map to deduplicate concurrent requests.
  */
-export async function fetchProductVariants(parentId: string): Promise<Product[]> {
-  const existing = _variantInflight.get(parentId);
+export async function fetchProductVariants(parentId: string, clientDedupeScope = ''): Promise<Product[]> {
+  const cacheKey = `${parentId}:${clientDedupeScope}`;
+  const existing = _variantInflight.get(cacheKey);
   if (existing) return existing;
 
   const promise = (async () => {
@@ -104,10 +105,10 @@ export async function fetchProductVariants(parentId: string): Promise<Product[]>
     return data.variants;
   })();
 
-  _variantInflight.set(parentId, promise);
+  _variantInflight.set(cacheKey, promise);
   void promise.finally(() => {
-    if (_variantInflight.get(parentId) === promise) {
-      _variantInflight.delete(parentId);
+    if (_variantInflight.get(cacheKey) === promise) {
+      _variantInflight.delete(cacheKey);
     }
   });
 

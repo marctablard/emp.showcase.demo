@@ -9,7 +9,7 @@ import { ProductsModeSessionSync } from './products-mode-session-sync';
 type SessionStatus = 'authenticated' | 'unauthenticated' | 'loading';
 
 const mockRefresh = jest.fn();
-const mockUseSession = jest.fn<{ status: SessionStatus }, []>();
+const mockUseSession = jest.fn<{ status: SessionStatus; data?: { user?: { id?: string } } | null }, []>();
 const mockUsePathname = jest.fn<string, []>();
 const mockLoggerDebug = jest.fn();
 
@@ -31,10 +31,11 @@ jest.mock('@/hooks/common/useLogger', () => ({
   }),
 }));
 
-const modeValue = (mode: ProductsModeContextValue['mode']): ProductsModeContextValue => ({
+const modeValue = (mode: ProductsModeContextValue['mode'], customerId?: string): ProductsModeContextValue => ({
   mode,
   isSegmented: mode === 'assigned',
   canToggleAllProducts: false,
+  ...(customerId !== undefined ? { customerId } : {}),
 });
 
 const renderSync = (mode: ProductsModeContextValue['mode']) =>
@@ -57,7 +58,13 @@ describe('ProductsModeSessionSync', () => {
 
     expect(mockRefresh).toHaveBeenCalledTimes(1);
     expect(mockLoggerDebug).toHaveBeenCalledWith(
-      { status: 'authenticated', mode: 'anonymous', pathname: '/showcase/en/browse' },
+      {
+        status: 'authenticated',
+        mode: 'anonymous',
+        pathname: '/showcase/en/browse',
+        authCustomerId: undefined,
+        seededCustomerId: undefined,
+      },
       'Products mode out of sync with the auth session; refreshing server components',
     );
 
@@ -131,6 +138,34 @@ describe('ProductsModeSessionSync', () => {
       </ProductsModeProvider>,
     );
     expect(mockRefresh).toHaveBeenCalledTimes(2);
+  });
+
+  it('refreshes when the authenticated customer id differs from the server-seeded id', () => {
+    mockUseSession.mockReturnValue({ status: 'authenticated', data: { user: { id: 'cust-new' } } });
+
+    render(
+      <ProductsModeProvider value={modeValue('assigned', 'cust-old')}>
+        <ProductsModeSessionSync />
+      </ProductsModeProvider>,
+    );
+
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
+    expect(mockLoggerDebug).toHaveBeenCalledWith(
+      expect.objectContaining({ authCustomerId: 'cust-new', seededCustomerId: 'cust-old', mode: 'assigned' }),
+      'Products mode out of sync with the auth session; refreshing server components',
+    );
+  });
+
+  it('does not refresh when the authenticated customer matches the seeded id', () => {
+    mockUseSession.mockReturnValue({ status: 'authenticated', data: { user: { id: 'cust-42' } } });
+
+    render(
+      <ProductsModeProvider value={modeValue('assigned', 'cust-42')}>
+        <ProductsModeSessionSync />
+      </ProductsModeProvider>,
+    );
+
+    expect(mockRefresh).not.toHaveBeenCalled();
   });
 
   it('stops refreshing once the server answers with a matching mode', () => {

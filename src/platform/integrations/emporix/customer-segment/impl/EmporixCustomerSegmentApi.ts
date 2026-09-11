@@ -10,6 +10,7 @@ import type {
   CustomerSegmentQueryParams,
   ItemAssignmentPageResponse,
   ItemAssignmentResponse,
+  SegmentPageResponse,
   SegmentResponse,
 } from '../../model';
 import type { EmporixCustomerSegmentApi as IEmporixCustomerSegmentApi } from '../EmporixCustomerSegmentApi';
@@ -92,13 +93,14 @@ class EmporixCustomerSegmentApi implements IEmporixCustomerSegmentApi {
     return parsed as SegmentResponse[];
   }
 
-  async getSegments(params?: CustomerSegmentQueryParams): Promise<SegmentResponse[]> {
+  async getSegments(params?: CustomerSegmentQueryParams): Promise<SegmentPageResponse> {
     const url = this.buildUrl('/segments', params);
 
     const response = await this.apiClient.authenticatedFetch(
       url,
       {
         method: 'GET',
+        headers: { [TOTAL_COUNT_HEADER]: 'true' },
       },
       'session',
       undefined,
@@ -108,7 +110,7 @@ class EmporixCustomerSegmentApi implements IEmporixCustomerSegmentApi {
       throw new Error(`Failed to retrieve customer segments: ${response.statusText}`);
     }
 
-    return response.json();
+    return this.readTotalCountedPage<SegmentResponse>(response, SEGMENTS_ROUTE, params?.pageNumber);
   }
 
   async getSegmentItems(params?: CustomerSegmentQueryParams): Promise<ItemAssignmentPageResponse> {
@@ -128,17 +130,7 @@ class EmporixCustomerSegmentApi implements IEmporixCustomerSegmentApi {
       throw new Error(`Failed to retrieve customer segment items: ${response.statusText}`);
     }
 
-    const items = (await response.json()) as ItemAssignmentResponse[];
-    const totalCount = this.parseTotalCount(response.headers.get(TOTAL_COUNT_HEADER));
-    if (totalCount === undefined) {
-      this.logger.warn(
-        { route: SEGMENT_ITEMS_ROUTE, itemCount: items.length, pageNumber: params?.pageNumber },
-        'X-Total-Count header missing on segment items response; pagination stops after this page',
-      );
-      return { items, totalCount: items.length };
-    }
-
-    return { items, totalCount };
+    return this.readTotalCountedPage<ItemAssignmentResponse>(response, SEGMENT_ITEMS_ROUTE, params?.pageNumber);
   }
 
   async getCategoryTrees(params?: CustomerSegmentQueryParams): Promise<CategoryTreeItemResponse[]> {
@@ -165,6 +157,23 @@ class EmporixCustomerSegmentApi implements IEmporixCustomerSegmentApi {
     const queryString = this.buildQueryString(params);
     const querySuffix = queryString ? `?${queryString}` : '';
     return `/customer-segment/${this.config.tenant}${path}${querySuffix}`;
+  }
+
+  private async readTotalCountedPage<T>(
+    response: Response,
+    route: string,
+    pageNumber: number | undefined,
+  ): Promise<{ items: T[]; totalCount: number }> {
+    const items = (await response.json()) as T[];
+    const totalCount = this.parseTotalCount(response.headers.get(TOTAL_COUNT_HEADER));
+    if (totalCount === undefined) {
+      this.logger.warn(
+        { route, itemCount: items.length, pageNumber },
+        'X-Total-Count header missing; pagination stops after this page',
+      );
+      return { items, totalCount: items.length };
+    }
+    return { items, totalCount };
   }
 
   private parseTotalCount(headerValue: string | null): number | undefined {
