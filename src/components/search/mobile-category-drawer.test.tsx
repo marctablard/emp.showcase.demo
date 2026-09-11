@@ -4,10 +4,16 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { ProductsModeProvider } from '@/components/navigation/products-mode-context';
+import { type ProductsModeContextValue, ProductsModeProvider } from '@/components/navigation/products-mode-context';
 import type { PlpCategoryContext } from '@/lib/category/plp-category-context';
+import type { Category } from '@/platform/services/model/category';
+import { BATTERY_INCLUDED_BREADCRUMB_FILTER } from '@/platform/services/model/category/batteryincluded-category';
 import type { BatteryIncludedFacet } from '@/platform/services/model/common';
 import { MobileCategoryDrawer } from './mobile-category-drawer';
+
+const mockRequestCounts = jest.fn();
+
+window.HTMLElement.prototype.scrollIntoView = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
@@ -22,8 +28,8 @@ jest.mock('@/i18n/navigation', () => ({
   useRouter: () => ({
     push: jest.fn(),
   }),
-  Link: ({ children, href, className, onClick }: any) => (
-    <a href={href} className={className} onClick={onClick}>
+  Link: ({ children, href, className, onClick, ...rest }: any) => (
+    <a href={href} className={className} onClick={onClick} {...rest}>
       {children}
     </a>
   ),
@@ -42,8 +48,9 @@ jest.mock('next-intl', () => ({
 
 jest.mock('@/hooks/category/useCategoryProductCounts', () => ({
   useCategoryProductCounts: () => ({
-    counts: {},
-    requestCounts: jest.fn(),
+    // Unscoped (site-wide) count that the public per-category route would return.
+    counts: { 'child-1': 7 },
+    requestCounts: mockRequestCounts,
   }),
 }));
 
@@ -219,6 +226,95 @@ describe('MobileCategoryDrawer', () => {
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
 
     expect(screen.queryByTestId('plp-productsModeSwitch')).not.toBeInTheDocument();
+  });
+
+  describe('category counts in assigned mode (COP-4822)', () => {
+    const child: Category = { id: 'child-1', name: { en: 'Current Category' }, children: [] };
+    const parent: Category = { id: 'parent-1', name: { en: 'Parent Category' }, children: [child] };
+    const categoryContext: PlpCategoryContext = {
+      ancestorTrail: [{ kind: 'virtual-all-products' }, { kind: 'category', category: parent }],
+      currentCategory: child,
+      currentChildren: [],
+      ribbonCategories: [],
+      sidebarCountCategoryIds: ['child-1'],
+    };
+    const liveTreeFacets: BatteryIncludedFacet[] = [
+      {
+        id: BATTERY_INCLUDED_BREADCRUMB_FILTER,
+        label: 'Categories',
+        kind: 'tree',
+        options: [
+          {
+            id: 'child-1',
+            label: 'Current Category',
+            count: 2,
+            active: false,
+            idPath: ['parent-1', 'child-1'],
+            labelPath: ['Parent Category', 'Current Category'],
+          },
+        ],
+      },
+    ];
+    const assignedMode: ProductsModeContextValue = { mode: 'assigned', isSegmented: true, canToggleAllProducts: false };
+
+    const renderDrawer = (options: { productsMode?: ProductsModeContextValue; facets?: BatteryIncludedFacet[] }) => {
+      const drawer = (
+        <MobileCategoryDrawer
+          plpCategoryContext={categoryContext}
+          navigationRoots={[parent]}
+          selectedCategoryId="child-1"
+          locale="en"
+          total={12}
+          facets={options.facets ?? facets}
+          activeFilters={{}}
+          applyFacet={jest.fn()}
+          applyRangeFacet={jest.fn()}
+          resetFacet={jest.fn()}
+        />
+      );
+
+      render(
+        options.productsMode ? (
+          <ProductsModeProvider value={options.productsMode}>{drawer}</ProductsModeProvider>
+        ) : (
+          drawer
+        ),
+      );
+      fireEvent.click(screen.getByTestId('mobile-category-drawer-toggle'));
+    };
+
+    beforeEach(() => {
+      mockRequestCounts.mockClear();
+    });
+
+    it('never requests the unscoped counts and renders the row without a number before the facets arrive', async () => {
+      renderDrawer({ productsMode: assignedMode });
+
+      const currentRow = await screen.findByTestId('plp-category-tree-current');
+
+      expect(mockRequestCounts).not.toHaveBeenCalled();
+      expect(currentRow).toHaveTextContent('Current Category');
+      expect(currentRow).not.toHaveTextContent('7');
+    });
+
+    it('renders only the segment-scoped facet count once the live tree facet is present', async () => {
+      renderDrawer({ productsMode: assignedMode, facets: liveTreeFacets });
+
+      const currentRow = await screen.findByTestId('plp-category-tree-current');
+
+      expect(mockRequestCounts).not.toHaveBeenCalled();
+      expect(currentRow).toHaveTextContent('2');
+      expect(currentRow).not.toHaveTextContent('7');
+    });
+
+    it('keeps requesting and showing the unscoped counts outside assigned mode', async () => {
+      renderDrawer({ productsMode: { mode: 'all', isSegmented: true, canToggleAllProducts: true } });
+
+      const currentRow = await screen.findByTestId('plp-category-tree-current');
+
+      expect(mockRequestCounts).toHaveBeenCalledWith(['child-1']);
+      expect(currentRow).toHaveTextContent('7');
+    });
   });
 
   it('closes the drawer through both close affordances', async () => {

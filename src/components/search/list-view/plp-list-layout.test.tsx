@@ -235,6 +235,42 @@ describe('PlpListLayout', () => {
     expect(lastPlpCategoryTreeProps?.categoryCountsById['child-1']).toBe(7);
   });
 
+  describe('category counts in assigned mode (COP-4822)', () => {
+    const assignedMode: ProductsModeContextValue = { mode: 'assigned', isSegmented: true, canToggleAllProducts: false };
+
+    it('never requests the unscoped per-category counts and renders no count before the facets arrive', () => {
+      renderLayout({ selectedCategoryId: 'child-1', facets: unrelatedTreeFacets, productsMode: assignedMode });
+
+      expect(mockRequestCounts).not.toHaveBeenCalled();
+      expect(lastPlpCategoryTreeProps?.plpCategoryContext.currentCategory?.id).toBe('child-1');
+      // `useCategoryProductCounts` already knows `child-1: 7` (unscoped) — it must not leak into the tree.
+      expect(lastPlpCategoryTreeProps?.categoryCountsById).toEqual({});
+    });
+
+    it('renders only the segment-scoped facet counts once the live tree facet is present', () => {
+      renderLayout({
+        selectedCategoryId: 'electronics',
+        facets: liveTreeFacets,
+        roots: [liveParent],
+        productsMode: assignedMode,
+      });
+
+      expect(mockRequestCounts).not.toHaveBeenCalled();
+      expect(lastPlpCategoryTreeProps?.categoryCountsById).toMatchObject({ electronics: 5, phones: 3, tablets: 2 });
+    });
+
+    it('keeps requesting the unscoped counts in ALL mode', () => {
+      renderLayout({
+        selectedCategoryId: 'child-1',
+        facets: unrelatedTreeFacets,
+        productsMode: { mode: 'all', isSegmented: true, canToggleAllProducts: true },
+      });
+
+      expect(mockRequestCounts).toHaveBeenCalledWith(['child-1']);
+      expect(lastPlpCategoryTreeProps?.categoryCountsById['child-1']).toBe(7);
+    });
+  });
+
   it('falls back to the all products summary at the root level', () => {
     renderLayout();
 

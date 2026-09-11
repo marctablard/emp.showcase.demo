@@ -107,12 +107,17 @@ export function PlpListLayout({
     return out;
   }, [resolvedCategoryContext.currentCategory, resolvedCategoryContext.currentChildren]);
 
+  // COP-4822: in `assigned` mode the segment forest carries no BI static count and the public
+  // `/api/categories/{id}/product-count` route is unscoped (site-wide, CDN-cached). Requesting it
+  // would flash wrong numbers (e.g. Home 9672 → 7) until the segment-scoped facet arrives, so only
+  // the live `categoryBreadcrumbs` facet counts are ever shown there.
+  const onlyLiveCounts = productsMode === 'assigned';
   const idsToRequest = useMemo(
     () =>
-      useLiveCategoryTree
+      useLiveCategoryTree || onlyLiveCounts
         ? []
         : resolvedCategoryContext.sidebarCountCategoryIds.filter((id) => staticCounts[id] === undefined),
-    [resolvedCategoryContext.sidebarCountCategoryIds, staticCounts, useLiveCategoryTree],
+    [onlyLiveCounts, resolvedCategoryContext.sidebarCountCategoryIds, staticCounts, useLiveCategoryTree],
   );
 
   const { counts, requestCounts } = useCategoryProductCounts();
@@ -128,8 +133,12 @@ export function PlpListLayout({
       return { ...staticCounts, ...liveCategoryTreeContext.categoryCountsById };
     }
 
+    if (onlyLiveCounts) {
+      return staticCounts;
+    }
+
     return { ...counts, ...staticCounts };
-  }, [counts, liveCategoryTreeContext, staticCounts, useLiveCategoryTree]);
+  }, [counts, liveCategoryTreeContext, onlyLiveCounts, staticCounts, useLiveCategoryTree]);
 
   const currentCategoryName = resolvedCategoryContext.currentCategory
     ? l10nOrEmpty(resolvedCategoryContext.currentCategory.name, locale)

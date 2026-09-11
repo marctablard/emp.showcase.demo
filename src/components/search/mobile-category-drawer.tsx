@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ListFilter, Trash2, X } from 'lucide-react';
+import { useProductsMode } from '@/components/navigation/products-mode-context';
 import { PlpFacetPanel } from '@/components/search/facets';
 import { PlpCategoryTree } from '@/components/search/list-view/plp-category-tree';
 import { PlpProductsModeSwitch } from '@/components/search/list-view/plp-products-mode-switch';
@@ -48,6 +49,7 @@ export function MobileCategoryDrawer({
 }: MobileCategoryDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const tFilter = useTranslations('product.filters');
+  const { mode: productsMode } = useProductsMode();
   const liveCategoryTreeContext = useMemo(
     () => resolvePlpCategoryTreeFacetContext(facets, navigationRoots, selectedCategoryId, locale),
     [facets, navigationRoots, selectedCategoryId, locale],
@@ -73,12 +75,17 @@ export function MobileCategoryDrawer({
 
     return out;
   }, [resolvedCategoryContext.currentCategory, resolvedCategoryContext.currentChildren]);
+  // COP-4822: in `assigned` mode the segment forest carries no BI static count and the public
+  // `/api/categories/{id}/product-count` route is unscoped (site-wide, CDN-cached). Requesting it
+  // would flash wrong numbers until the segment-scoped facet arrives, so only the live
+  // `categoryBreadcrumbs` facet counts are ever shown there (same gate as `PlpListLayout`).
+  const onlyLiveCounts = productsMode === 'assigned';
   const idsToRequest = useMemo(
     () =>
-      useLiveCategoryTree
+      useLiveCategoryTree || onlyLiveCounts
         ? []
         : resolvedCategoryContext.sidebarCountCategoryIds.filter((id) => staticCounts[id] === undefined),
-    [resolvedCategoryContext.sidebarCountCategoryIds, staticCounts, useLiveCategoryTree],
+    [onlyLiveCounts, resolvedCategoryContext.sidebarCountCategoryIds, staticCounts, useLiveCategoryTree],
   );
   const { counts, requestCounts } = useCategoryProductCounts();
 
@@ -93,8 +100,12 @@ export function MobileCategoryDrawer({
       return { ...staticCounts, ...liveCategoryTreeContext.categoryCountsById };
     }
 
+    if (onlyLiveCounts) {
+      return staticCounts;
+    }
+
     return { ...counts, ...staticCounts };
-  }, [counts, liveCategoryTreeContext, staticCounts, useLiveCategoryTree]);
+  }, [counts, liveCategoryTreeContext, onlyLiveCounts, staticCounts, useLiveCategoryTree]);
 
   return (
     <div className="relative shrink-0">
